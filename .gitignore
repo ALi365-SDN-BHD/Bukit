@@ -32,4 +32,5 @@ vstest-diag*.log
 # OS
 Thumbs.db
 .DS_Store
+.worktrees/
 
