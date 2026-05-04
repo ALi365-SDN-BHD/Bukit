@@ -125,6 +125,40 @@ public sealed class ContentImageRewritePipelineTests
             Assert.IsAssignableFrom<IReadOnlyList<string>>(rewritten.Fields["gallery"].Value));
     }
 
+    [Fact]
+    public async Task RewriteAsync_LocalizesDistinctFieldListUrlsConcurrently()
+    {
+        var item = new ContentItem(
+            Id: "1",
+            Title: "t",
+            Slug: "s",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: null,
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["gallery"] = new ContentField("files", new[]
+                {
+                    "https://img.example/a.jpg",
+                    "https://img.example/b.jpg",
+                    "https://img.example/c.jpg"
+                })
+            });
+
+        var cfg = new MediaConfig
+        {
+            FieldKeys = new[] { "gallery" },
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+
+        var localizer = new ParallelProbeLocalizer();
+        var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+        await pipeline.RewriteAsync(new[] { item }, CancellationToken.None);
+
+        Assert.True(localizer.MaxConcurrency >= 2, $"Expected concurrent localize calls, actual max concurrency was {localizer.MaxConcurrency}.");
+    }
+
     private sealed class StubLocalizer : IImageAssetLocalizer
     {
         public Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
@@ -185,6 +219,32 @@ public sealed class ContentImageRewritePipelineTests
         public int GetCallCount(string sourceUrl)
         {
             return _counts.TryGetValue(sourceUrl, out var count) ? count : 0;
+        }
+    }
+
+    private sealed class ParallelProbeLocalizer : IImageAssetLocalizer
+    {
+        private int _active;
+
+        public int MaxConcurrency { get; private set; }
+
+        public async Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
+        {
+            var active = Interlocked.Increment(ref _active);
+            if (active > MaxConcurrency)
+            {
+                MaxConcurrency = active;
+            }
+
+            try
+            {
+                await Task.Delay(25, cancellationToken);
+                return sourceUrl ?? "/assets/images/noneimg-news.jpg";
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _active);
+            }
         }
     }
 }

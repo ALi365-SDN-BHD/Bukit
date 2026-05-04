@@ -259,11 +259,14 @@ public sealed class ContentImageRewritePipeline
             // List of string URLs (e.g. Notion "files" property with multiple entries)
             if (field.Value is IReadOnlyList<string> urls && urls.Count > 0)
             {
+                var localizedMap = await LocalizeDistinctUrlsAsync(urls, localizeMemo, cancellationToken);
                 var rewritten = new List<string>(urls.Count);
                 var listChanged = false;
                 foreach (var url in urls)
                 {
-                    var localized = await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
+                    var localized = localizedMap.TryGetValue(url ?? string.Empty, out var mapped)
+                        ? mapped
+                        : await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
                     rewritten.Add(localized);
                     if (!string.Equals(localized, url, StringComparison.Ordinal))
                     {
@@ -296,6 +299,39 @@ public sealed class ContentImageRewritePipeline
         var localized = await _localizer.LocalizeAsync(sourceUrl, cancellationToken);
         localizeMemo[key] = localized;
         return localized;
+    }
+
+    private async Task<IReadOnlyDictionary<string, string>> LocalizeDistinctUrlsAsync(
+        IReadOnlyList<string> urls,
+        Dictionary<string, string> localizeMemo,
+        CancellationToken cancellationToken)
+    {
+        var distinctKeys = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new List<(string Key, Task<string> Task)>();
+
+        foreach (var url in urls)
+        {
+            var key = url ?? string.Empty;
+            if (!distinctKeys.Add(key) || localizeMemo.ContainsKey(key))
+            {
+                continue;
+            }
+
+            pending.Add((key, _localizer.LocalizeAsync(url, cancellationToken)));
+        }
+
+        if (pending.Count == 0)
+        {
+            return localizeMemo;
+        }
+
+        await Task.WhenAll(pending.Select(x => x.Task));
+        foreach (var entry in pending)
+        {
+            localizeMemo[entry.Key] = entry.Task.Result;
+        }
+
+        return localizeMemo;
     }
 
     private static HashSet<string> BuildFieldKeySet(IReadOnlyList<string>? keys)
