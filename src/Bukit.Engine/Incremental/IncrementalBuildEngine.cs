@@ -2,13 +2,27 @@ using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 using Bukit.Content;
+using Bukit.Content.Media;
 using Bukit.Routing;
 
 namespace Bukit.Engine.Incremental;
 
 internal static class IncrementalBuildEngine
 {
+    private const string BodyFingerprintKey = "bodyFingerprint";
+
     internal static string ComputeContentHash(ContentItem item, IContentBodyStore bodyStore)
+    {
+        var metadataHash = ComputeMetadataHash(item);
+        if (TryComputeStableContentHash(item, bodyStore, metadataHash, out var stableContentHash))
+        {
+            return stableContentHash;
+        }
+
+        return ComputeContentHash(item, metadataHash, ContentBodyResolver.GetHtml(item, bodyStore));
+    }
+
+    internal static string ComputeMetadataHash(ContentItem item)
     {
         using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         Span<byte> newline = stackalloc byte[1];
@@ -32,12 +46,45 @@ internal static class IncrementalBuildEngine
         hasher.AppendData(newline);
 
         AppendFieldsFingerprint(hasher, item.Fields);
-        hasher.AppendData(newline);
-
-        AppendUtf8(hasher, ContentBodyResolver.GetHtml(item, bodyStore));
 
         var digest = hasher.GetHashAndReset();
         return HashUtil.ToHexLower(digest);
+    }
+
+    internal static string ComputeStableContentHash(ContentItem item, string metadataHash)
+    {
+        if (!TryGetBodyFingerprint(item, out var bodyFingerprint))
+        {
+            throw new InvalidOperationException($"No stable body fingerprint is available for item '{item.Id}'.");
+        }
+
+        return HashUtil.Sha256Hex(string.Join("\n", metadataHash, bodyFingerprint));
+    }
+
+    internal static bool TryComputeStableContentHash(
+        ContentItem item,
+        IContentBodyStore bodyStore,
+        string metadataHash,
+        out string contentHash)
+    {
+        contentHash = string.Empty;
+        if (bodyStore is LocalizedContentBodyStore)
+        {
+            return false;
+        }
+
+        if (!TryGetBodyFingerprint(item, out var bodyFingerprint))
+        {
+            return false;
+        }
+
+        contentHash = HashUtil.Sha256Hex(string.Join("\n", metadataHash, bodyFingerprint));
+        return true;
+    }
+
+    internal static string ComputeContentHash(ContentItem item, string metadataHash, string contentHtml)
+    {
+        return HashUtil.Sha256Hex(string.Join("\n", metadataHash, contentHtml ?? string.Empty));
     }
 
     internal static string ComputeRouteHash(RouteInfo route)
@@ -92,32 +139,39 @@ internal static class IncrementalBuildEngine
 
     private static string ComputeListItemHash(ContentItem item, IContentBodyStore bodyStore, bool includeContent)
     {
-        using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        Span<byte> newline = stackalloc byte[1];
-        newline[0] = (byte)'\n';
-
-        AppendUtf8(hasher, item.Id);
-        hasher.AppendData(newline);
-        AppendUtf8(hasher, item.Title);
-        hasher.AppendData(newline);
-        AppendUtf8(hasher, item.Slug);
-        hasher.AppendData(newline);
-        AppendUtf8(hasher, item.PublishAt.ToString("O"));
-        hasher.AppendData(newline);
-
-        var summary = item.Meta.TryGetValue("summary", out var summaryObj) && summaryObj is not null ? summaryObj.ToString() : string.Empty;
-        AppendUtf8(hasher, summary);
-        hasher.AppendData(newline);
-        AppendFieldsFingerprint(hasher, item.Fields);
+        var metadataHash = ComputeMetadataHash(item);
 
         if (includeContent)
         {
-            hasher.AppendData(newline);
-            AppendUtf8(hasher, ContentBodyResolver.GetHtml(item, bodyStore));
+            if (TryComputeStableContentHash(item, bodyStore, metadataHash, out var stableContentHash))
+            {
+                return stableContentHash;
+            }
+
+            return ComputeContentHash(item, metadataHash, ContentBodyResolver.GetHtml(item, bodyStore));
         }
 
-        var digest = hasher.GetHashAndReset();
-        return HashUtil.ToHexLower(digest);
+        return metadataHash;
+    }
+
+    private static bool TryGetBodyFingerprint(ContentItem item, out string bodyFingerprint)
+    {
+        bodyFingerprint = string.Empty;
+        if (item.Meta.TryGetValue(BodyFingerprintKey, out var bodyFingerprintObj) &&
+            bodyFingerprintObj is not null &&
+            !string.IsNullOrWhiteSpace(bodyFingerprintObj.ToString()))
+        {
+            bodyFingerprint = bodyFingerprintObj.ToString()!.Trim();
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(item.ContentHtml))
+        {
+            bodyFingerprint = HashUtil.Sha256Hex(item.ContentHtml);
+            return true;
+        }
+
+        return false;
     }
 
     internal static void AppendUtf8(IncrementalHash hasher, string? text)

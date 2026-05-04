@@ -82,7 +82,8 @@ public sealed class NotionContentProvider : IContentProvider
                     {
                         ["type"] = type,
                         ["source"] = "notion",
-                        ["notionPageId"] = pageId
+                        ["notionPageId"] = pageId,
+                        ["bodyFingerprint"] = string.IsNullOrWhiteSpace(lastEditedTime) ? pageId : lastEditedTime
                     };
 
                     var fields = ExtractFields(props, policyMode, allowed, out var relationKeys);

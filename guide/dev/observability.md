@@ -76,6 +76,9 @@ variants 字段：
 - `afterBuildPlugins`：after-build 插件阶段耗时
 - `assetsSync` / `mediaCopy`：构建尾部资源同步耗时
 - `contentHash`：页面内容 hash 计算次数与耗时
+- `metadataHash`：页面轻量元数据 hash 计算次数与耗时
+- `stableContentHash`：基于稳定正文指纹计算增量 hash 的次数与耗时
+- `contentHash`：回退到读取正文后计算完整内容 hash 的次数与耗时
 - `bodyLoad`：普通页面正文读取次数与耗时
 - `pageRender`：普通页面模板渲染次数与耗时
 - `listHash`：特殊列表增量 hash 计算次数与耗时
@@ -87,5 +90,5 @@ variants 字段：
 - 增量构建为什么变慢：看 `reasons` 是否出现大量 `template_changed/content_changed`
 - 插件性能回归：比较 `plugins` 中各插件耗时与错误
 - 多语言输出差异：对比不同 `variants[*]` 的 `routed/derived/rendered`
-- 渲染热点拆解：看 `stages` 中 `contentHash/bodyLoad/pageRender/listHash/listBuild`
+- 渲染热点拆解：看 `stages` 中 `metadataHash/stableContentHash/contentHash/bodyLoad/pageRender/listHash/listBuild`
 - 构建尾部耗时：看 `stages` 中 `assetsSync/mediaCopy/afterBuildPlugins`

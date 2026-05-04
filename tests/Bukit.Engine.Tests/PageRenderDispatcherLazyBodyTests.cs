@@ -59,6 +59,79 @@ public sealed class PageRenderDispatcherLazyBodyTests
     }
 
     [Fact]
+    public async Task RenderPages_SkipsWithoutHydratingBody_WhenStableFingerprintMatchesManifest()
+    {
+        var item = new ContentItem(
+            Id: "id-1",
+            Title: "Hello",
+            Slug: "hello",
+            PublishAt: DateTimeOffset.Parse("2026-05-04T00:00:00Z"),
+            ContentHtml: null,
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["bodyFingerprint"] = "body-v1"
+            },
+            Fields: null,
+            BodyKey: "body-1");
+
+        var route = new RouteInfo("/pages/hello/", "pages/hello/index.html", "pages/page.html");
+        var renderer = new CaptureRenderer();
+        var siteModel = new SiteModel
+        {
+            Name = "site",
+            Title = "site",
+            BaseUrl = "/",
+            Language = "zh-CN"
+        };
+
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var outputPath = Path.Combine(outputDir, route.OutputPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+        await File.WriteAllTextAsync(outputPath, "<p>cached</p>");
+
+        var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(item);
+        var contentHash = IncrementalBuildEngine.ComputeStableContentHash(item, metadataHash);
+        var manifest = new BuildManifest
+        {
+            Entries = new Dictionary<string, BuildManifestEntry>(StringComparer.Ordinal)
+            {
+                [BuildPathUtils.NormalizeRelPath(route.OutputPath)] = new()
+                {
+                    OutputPath = BuildPathUtils.NormalizeRelPath(route.OutputPath),
+                    Url = route.Url,
+                    Template = route.Template,
+                    MetadataHash = metadataHash,
+                    ContentHash = contentHash,
+                    RouteHash = IncrementalBuildEngine.ComputeRouteHash(route),
+                    TemplateHash = "template-hash"
+                }
+            }
+        };
+
+        var manifestEntries = new ConcurrentDictionary<string, BuildManifestEntry>(manifest.Entries, StringComparer.Ordinal);
+        var bodyStore = new ThrowingBodyStore();
+
+        var result = await PageRenderDispatcher.RenderPagesAsync(
+            new List<(ContentItem Item, RouteInfo Route)> { (item, route) },
+            bodyStore,
+            renderer,
+            siteModel,
+            outputDir,
+            templateHash: "template-hash",
+            incrementalEnabled: true,
+            manifest: manifest,
+            manifestEntries: manifestEntries,
+            currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            maxDegreeOfParallelism: 1,
+            logger: new ConsoleLogger(LogLevel.Error),
+            cancellationToken: CancellationToken.None);
+
+        Assert.Equal(0, result.RenderedCount);
+        Assert.Equal(1, result.SkippedCount);
+        Assert.Equal(0, bodyStore.Count);
+    }
+
+    [Fact]
     public async Task RenderSpecialListsAsync_DoesNotHydrateBodies_WhenModeIsAuto_AndTemplateDoesNotUseContent()
     {
         var layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"), "layouts");
@@ -256,6 +329,17 @@ public sealed class PageRenderDispatcherLazyBodyTests
         {
             Count++;
             return Task.FromResult(new ContentBody($"<p>{item.Id}</p>"));
+        }
+    }
+
+    private sealed class ThrowingBodyStore : IContentBodyStore
+    {
+        public int Count { get; private set; }
+
+        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        {
+            Count++;
+            throw new InvalidOperationException("Body store should not be used.");
         }
     }
 }

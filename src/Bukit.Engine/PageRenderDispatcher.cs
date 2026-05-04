@@ -72,12 +72,11 @@ internal static class PageRenderDispatcher
             var item = work.Item;
             var route = work.Route;
             var key = work.Key;
-
-            var contentHashStopwatch = Stopwatch.StartNew();
-            var contentHash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
-            contentHashStopwatch.Stop();
-            stageMetrics.Increment("contentHash");
-            stageMetrics.AddDuration("contentHash", contentHashStopwatch.ElapsedMilliseconds);
+            var metadataHashStopwatch = Stopwatch.StartNew();
+            var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(item);
+            metadataHashStopwatch.Stop();
+            stageMetrics.Increment("metadataHash");
+            stageMetrics.AddDuration("metadataHash", metadataHashStopwatch.ElapsedMilliseconds);
             var routeHash = IncrementalBuildEngine.ComputeRouteHash(route);
             var outputPath = Path.Combine(outputDir, route.OutputPath);
             var outputExists = File.Exists(outputPath);
@@ -85,12 +84,38 @@ internal static class PageRenderDispatcher
             BuildManifestEntry? existing = null;
             var hasExisting = incrementalEnabled && manifestEntries is not null && manifestEntries.TryGetValue(key, out existing) && existing is not null;
 
-            var canSkip = incrementalEnabled &&
+            var canEvaluateSkip = incrementalEnabled &&
                 hasExisting &&
                 outputExists &&
                 existing!.TemplateHash == templateHash &&
-                existing.ContentHash == contentHash &&
+                existing.MetadataHash == metadataHash &&
                 existing.RouteHash == routeHash;
+
+            string? contentHash = null;
+            if (canEvaluateSkip)
+            {
+                var stableFingerprintStopwatch = Stopwatch.StartNew();
+                if (IncrementalBuildEngine.TryComputeStableContentHash(item, bodyStore, metadataHash, out var stableContentHash))
+                {
+                    stableFingerprintStopwatch.Stop();
+                    stageMetrics.Increment("stableContentHash");
+                    stageMetrics.AddDuration("stableContentHash", stableFingerprintStopwatch.ElapsedMilliseconds);
+                    contentHash = stableContentHash;
+                }
+                else
+                {
+                    stableFingerprintStopwatch.Stop();
+
+                    var contentHashStopwatch = Stopwatch.StartNew();
+                    contentHash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
+                    contentHashStopwatch.Stop();
+                    stageMetrics.Increment("contentHash");
+                    stageMetrics.AddDuration("contentHash", contentHashStopwatch.ElapsedMilliseconds);
+                }
+            }
+
+            var canSkip = canEvaluateSkip &&
+                existing!.ContentHash == contentHash;
 
             if (canSkip)
             {
@@ -104,6 +129,7 @@ internal static class PageRenderDispatcher
                 var reason = !hasExisting ? "new_page"
                     : !outputExists ? "output_missing"
                     : existing!.TemplateHash != templateHash ? "template_changed"
+                    : existing.MetadataHash != metadataHash ? "content_changed"
                     : existing.ContentHash != contentHash ? "content_changed"
                     : existing.RouteHash != routeHash ? "route_changed"
                     : "render";
@@ -149,7 +175,8 @@ internal static class PageRenderDispatcher
                     OutputPath = key,
                     Url = route.Url,
                     Template = route.Template,
-                    ContentHash = contentHash,
+                    MetadataHash = metadataHash,
+                    ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(item, metadataHash, content),
                     RouteHash = routeHash,
                     TemplateHash = templateHash
                 };

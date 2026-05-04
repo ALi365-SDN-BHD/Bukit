@@ -51,10 +51,10 @@ public sealed class PageRenderDispatcherMetricsTests
             logger: new ConsoleLogger(LogLevel.Error),
             cancellationToken: CancellationToken.None);
 
-        Assert.Equal(1, result.StageMetrics.Counts["contentHash"]);
+        Assert.Equal(1, result.StageMetrics.Counts["metadataHash"]);
         Assert.Equal(1, result.StageMetrics.Counts["bodyLoad"]);
         Assert.Equal(1, result.StageMetrics.Counts["pageRender"]);
-        Assert.True(result.StageMetrics.DurationsMs["contentHash"] >= 0);
+        Assert.True(result.StageMetrics.DurationsMs["metadataHash"] >= 0);
         Assert.True(result.StageMetrics.DurationsMs["bodyLoad"] >= 0);
         Assert.True(result.StageMetrics.DurationsMs["pageRender"] >= 0);
     }
