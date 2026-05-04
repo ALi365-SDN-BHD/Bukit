@@ -2,8 +2,10 @@ using Xunit;
 
 namespace Bukit.Engine.Tests;
 
-public sealed class DirectoryCopyTests
+public sealed class DirectoryCopyTests : IDisposable
 {
+    private readonly List<string> _tempRoots = new();
+
     [Fact]
     public void SyncFiles_NoOps_WhenSourceDirectoryDoesNotExist()
     {
@@ -53,13 +55,19 @@ public sealed class DirectoryCopyTests
         File.SetLastWriteTimeUtc(sourceFile, sharedTimestamp);
         File.WriteAllText(destinationFile, "same-content");
         File.SetLastWriteTimeUtc(destinationFile, sharedTimestamp);
+        File.SetAttributes(destinationFile, File.GetAttributes(destinationFile) | FileAttributes.ReadOnly);
 
-        var beforeSync = File.GetLastWriteTimeUtc(destinationFile);
-        DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: true);
-        var afterSync = File.GetLastWriteTimeUtc(destinationFile);
+        try
+        {
+            DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: true);
+        }
+        finally
+        {
+            File.SetAttributes(destinationFile, FileAttributes.Normal);
+        }
 
         Assert.Equal("same-content", File.ReadAllText(destinationFile));
-        Assert.Equal(beforeSync, afterSync);
+        Assert.Equal(sharedTimestamp, File.GetLastWriteTimeUtc(destinationFile));
     }
 
     [Fact]
@@ -117,10 +125,33 @@ public sealed class DirectoryCopyTests
         Assert.False(Directory.Exists(Path.Combine(destinationDir, "nested")));
     }
 
-    private static string CreateTempRoot()
+    public void Dispose()
+    {
+        foreach (var root in _tempRoots)
+        {
+            if (!Directory.Exists(root))
+            {
+                continue;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            {
+                var attributes = File.GetAttributes(file);
+                if ((attributes & FileAttributes.ReadOnly) != 0)
+                {
+                    File.SetAttributes(file, attributes & ~FileAttributes.ReadOnly);
+                }
+            }
+
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private string CreateTempRoot()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
+        _tempRoots.Add(root);
         return root;
     }
 }
