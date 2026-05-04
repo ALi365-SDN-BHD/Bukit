@@ -50,7 +50,8 @@ public static class IntentApplier
             Name = intent.Site.Name.Trim(),
             Title = intent.Site.Title.Trim(),
             Url = string.IsNullOrWhiteSpace(intent.Site.Url) ? null : intent.Site.Url.Trim(),
-            BaseUrl = string.IsNullOrWhiteSpace(intent.Site.BaseUrl) ? "/" : intent.Site.BaseUrl.Trim()
+            BaseUrl = string.IsNullOrWhiteSpace(intent.Site.BaseUrl) ? "/" : intent.Site.BaseUrl.Trim(),
+            Collections = BuildDefaultCollections()
         };
 
         if (intent.Languages is not null)
@@ -151,6 +152,28 @@ public static class IntentApplier
             }
         }
 
+        if (config.Site.Collections is { Count: > 0 })
+        {
+            var collections = new YamlMappingNode();
+            foreach (var (key, collection) in config.Site.Collections)
+            {
+                var node = new YamlMappingNode
+                {
+                    { "permalink", collection.Permalink },
+                    { "template", collection.Template }
+                };
+
+                if (!string.IsNullOrWhiteSpace(collection.ListRoute))
+                {
+                    node.Add("listRoute", collection.ListRoute);
+                }
+
+                collections.Add(key, node);
+            }
+
+            site.Add("collections", collections);
+        }
+
         root.Add("site", site);
 
         var content = new YamlMappingNode
@@ -235,6 +258,25 @@ public static class IntentApplier
         using var writer = new StringWriter();
         stream.Save(writer, assignAnchors: false);
         File.WriteAllText(fullOutPath, writer.ToString());
+    }
+
+    private static IReadOnlyDictionary<string, CollectionConfig> BuildDefaultCollections()
+    {
+        return new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post"] = new()
+            {
+                Permalink = "/blog/{slug}/",
+                Template = "pages/post.html",
+                ListRoute = "/blog/"
+            },
+            ["page"] = new()
+            {
+                Permalink = "/pages/{slug}/",
+                Template = "pages/page.html",
+                ListRoute = "/pages/"
+            }
+        };
     }
 
     private static string MakeRelPath(string rootDir, string path)
