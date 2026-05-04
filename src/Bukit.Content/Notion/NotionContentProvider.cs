@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Net;
 using System.Buffers;
+using System.Diagnostics;
 using Bukit.Shared;
 
 namespace Bukit.Content.Notion;
@@ -197,42 +198,22 @@ public sealed class NotionContentProvider : IContentProvider
         IReadOnlyDictionary<string, RelationTargetInfo> existingIndex,
         CancellationToken cancellationToken)
     {
-        var needed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        for (var i = 0; i < drafts.Count; i++)
-        {
-            var d = drafts[i];
-            AddRelationIdsIfPresent(d, "tags", needed);
-            AddRelationIdsIfPresent(d, "categories", needed);
-        }
-
-        if (needed.Count == 0)
-        {
-            return existingIndex;
-        }
-
-        var missing = new List<string>();
-        foreach (var id in needed)
-        {
-            if (!existingIndex.ContainsKey(id))
-            {
-                missing.Add(id);
-            }
-        }
+        var planStopwatch = Stopwatch.StartNew();
+        var maxResolve = 200;
+        var candidates = drafts.Select(static d => new NotionRelationResolveCandidate(d.RelationKeys, d.Fields));
+        var missing = NotionRelationResolvePlan.BuildMissingIds(candidates, existingIndex, maxResolve);
+        planStopwatch.Stop();
+        _logger?.Info($"event=notion.relation.plan candidates={drafts.Count} missing={missing.Count} max_resolve={maxResolve} plan_ms={planStopwatch.ElapsedMilliseconds}");
 
         if (missing.Count == 0)
         {
             return existingIndex;
         }
 
-        var maxResolve = 200;
-        if (missing.Count > maxResolve)
-        {
-            missing = missing.Take(maxResolve).ToList();
-        }
-
         var concurrency = _options.RenderConcurrency is > 0 ? _options.RenderConcurrency.Value : 4;
         using var sem = new SemaphoreSlim(concurrency, concurrency);
         var tasks = new Task<RelationTargetInfo?>[missing.Count];
+        var resolveStopwatch = Stopwatch.StartNew();
         for (var i = 0; i < missing.Count; i++)
         {
             var id = missing[i];
@@ -240,8 +221,10 @@ public sealed class NotionContentProvider : IContentProvider
         }
 
         await Task.WhenAll(tasks);
+        resolveStopwatch.Stop();
 
         Dictionary<string, RelationTargetInfo>? merged = null;
+        var resolvedCount = 0;
         for (var i = 0; i < tasks.Length; i++)
         {
             var t = tasks[i].Result;
@@ -252,49 +235,12 @@ public sealed class NotionContentProvider : IContentProvider
 
             merged ??= new Dictionary<string, RelationTargetInfo>(existingIndex, StringComparer.OrdinalIgnoreCase);
             merged[t.PageId] = t;
+            resolvedCount++;
         }
+
+        _logger?.Info($"event=notion.relation.resolve requested={missing.Count} resolved={resolvedCount} concurrency={concurrency} resolve_ms={resolveStopwatch.ElapsedMilliseconds}");
 
         return merged ?? existingIndex;
-
-        void AddRelationIdsIfPresent(PageDraft d, string key, HashSet<string> set)
-        {
-            if (!HasRelationKey(d.RelationKeys, key))
-            {
-                return;
-            }
-
-            if (!d.Fields.TryGetValue(key, out var field))
-            {
-                return;
-            }
-
-            if (field.Value is not IEnumerable<string> ids)
-            {
-                return;
-            }
-
-            foreach (var raw in ids)
-            {
-                var id = (raw ?? string.Empty).Trim();
-                if (id.Length > 0)
-                {
-                    set.Add(id);
-                }
-            }
-        }
-
-        static bool HasRelationKey(IReadOnlyList<string> relationKeys, string key)
-        {
-            for (var i = 0; i < relationKeys.Count; i++)
-            {
-                if (string.Equals(relationKeys[i], key, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
 
         async Task<RelationTargetInfo?> ResolveOneAsync(string pageId)
         {
