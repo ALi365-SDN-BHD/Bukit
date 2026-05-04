@@ -39,6 +39,7 @@ public sealed class NotionContentProvider : IContentProvider
         var (resolvedFilterProperty, resolvedSortProperty, resolvedIncludeSlugProperty) = await ResolveDatabasePropertyNamesAsync(client, _options, cancellationToken);
         string? startCursor = null;
         var pageHtmlCache = CreatePageHtmlCache(_options);
+        var relationTargetCache = NotionRelationTargetCache.Create(_options.CacheMode, _options.CacheDir);
 
         try
         {
@@ -135,7 +136,7 @@ public sealed class NotionContentProvider : IContentProvider
         });
         var draftIndex = NotionDraftIndex<PageDraft>.From(drafts, static d => d.PageId);
         var pageIndex = NotionRelationLinkBuilder.BuildIndex(targets);
-        pageIndex = await ResolveMissingTaxonomyRelationTargetsAsync(client, drafts, pageIndex, cancellationToken);
+        pageIndex = await ResolveMissingTaxonomyRelationTargetsAsync(client, drafts, pageIndex, relationTargetCache, cancellationToken);
         var items = new List<ContentItem>(drafts.Count);
         for (var i = 0; i < drafts.Count; i++)
         {
@@ -196,6 +197,7 @@ public sealed class NotionContentProvider : IContentProvider
         NotionApiClient client,
         IReadOnlyList<PageDraft> drafts,
         IReadOnlyDictionary<string, RelationTargetInfo> existingIndex,
+        NotionRelationTargetCache? relationTargetCache,
         CancellationToken cancellationToken)
     {
         var planStopwatch = Stopwatch.StartNew();
@@ -214,10 +216,22 @@ public sealed class NotionContentProvider : IContentProvider
         using var sem = new SemaphoreSlim(concurrency, concurrency);
         var tasks = new Task<RelationTargetInfo?>[missing.Count];
         var resolveStopwatch = Stopwatch.StartNew();
+        var cacheHits = 0;
         for (var i = 0; i < missing.Count; i++)
         {
-            var id = missing[i];
-            tasks[i] = ResolveOneAsync(id);
+            var pageId = missing[i];
+            if (relationTargetCache is not null)
+            {
+                var cached = await relationTargetCache.TryReadAsync(pageId, cancellationToken);
+                if (cached is not null)
+                {
+                    tasks[i] = Task.FromResult<RelationTargetInfo?>(cached);
+                    cacheHits++;
+                    continue;
+                }
+            }
+
+            tasks[i] = ResolveOneAsync(pageId);
         }
 
         await Task.WhenAll(tasks);
@@ -238,7 +252,7 @@ public sealed class NotionContentProvider : IContentProvider
             resolvedCount++;
         }
 
-        _logger?.Info($"event=notion.relation.resolve requested={missing.Count} resolved={resolvedCount} concurrency={concurrency} resolve_ms={resolveStopwatch.ElapsedMilliseconds}");
+        _logger?.Info($"event=notion.relation.resolve requested={missing.Count} resolved={resolvedCount} cache_hits={cacheHits} concurrency={concurrency} resolve_ms={resolveStopwatch.ElapsedMilliseconds}");
 
         return merged ?? existingIndex;
 
@@ -257,7 +271,13 @@ public sealed class NotionContentProvider : IContentProvider
                 var url = GetString(page, "url");
                 url = string.IsNullOrWhiteSpace(url) ? null : url.Trim();
 
-                return new RelationTargetInfo(pageId, title, slug, type, url);
+                var target = new RelationTargetInfo(pageId, title, slug, type, url);
+                if (relationTargetCache is not null)
+                {
+                    await relationTargetCache.WriteAsync(target, cancellationToken);
+                }
+
+                return target;
             }
             catch (Exception ex)
             {
