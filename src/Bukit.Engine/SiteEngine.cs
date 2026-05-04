@@ -66,6 +66,7 @@ public sealed class SiteEngine
         }
 
         _logger.Info($"event=content.loaded count={items.Count}");
+        var templateHashCache = new DirectoryHashCache();
 
         var languages = I18nOutputMerger.GetLanguages(effectiveConfig.Site);
         if (languages.Count == 0)
@@ -76,7 +77,7 @@ public sealed class SiteEngine
                 effectiveConfig, rootDir, overrides, items, bodyStore, outputDir, baseUrl,
                 layoutsDir, assetsDir, staticDir, mediaCacheDir,
                 ManifestSuffix: null, DefaultLanguage: null);
-            var result = await BuildVariantAsync(variantCtx, cancellationToken);
+            var result = await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken);
 
             _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={baseUrl}");
             MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, outputDir, items.Count, new[] { result });
@@ -108,7 +109,7 @@ public sealed class SiteEngine
                 variantConfig, rootDir, overrides, variantItems, bodyStore, variantOutputDir, baseUrl,
                 layoutsDir, assetsDir, staticDir, mediaCacheDir,
                 ManifestSuffix: lang, DefaultLanguage: defaultLanguage);
-            var result = await BuildVariantAsync(variantCtx, cancellationToken);
+            var result = await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken);
             results.Add(result);
             _logger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
         }
@@ -119,7 +120,9 @@ public sealed class SiteEngine
     }
 
     private async Task<BuildVariantResult> BuildVariantAsync(
-        BuildVariantContext ctx, CancellationToken cancellationToken)
+        BuildVariantContext ctx,
+        DirectoryHashCache templateHashCache,
+        CancellationToken cancellationToken)
     {
         var variantTotalStopwatch = Stopwatch.StartNew();
         var variantStageMetrics = new BuildStageMetricsCollector();
@@ -207,7 +210,7 @@ public sealed class SiteEngine
             : Path.Combine(cacheDir, $"build-manifest.{suffix}.json");
 
         var templateHashStopwatch = Stopwatch.StartNew();
-        var templateHash = incrementalEnabled ? HashUtil.Sha256HexForDirectory(ctx.LayoutsDir) : string.Empty;
+        var templateHash = incrementalEnabled ? templateHashCache.GetOrAdd(ctx.LayoutsDir) : string.Empty;
         templateHashStopwatch.Stop();
         variantStageMetrics.AddDuration("templateHash", templateHashStopwatch.ElapsedMilliseconds);
         var manifest = incrementalEnabled ? BuildManifest.Load(manifestPath) : new BuildManifest();
