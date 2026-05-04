@@ -30,7 +30,7 @@ internal static class MetricsWriter
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();
 
-        writer.WriteNumber("version", 1);
+        writer.WriteNumber("version", 2);
         writer.WriteString("ts", DateTimeOffset.UtcNow.ToString("O"));
 
         writer.WritePropertyName("site");
@@ -115,6 +115,27 @@ internal static class MetricsWriter
                 writer.WriteEndObject();
             }
             writer.WriteEndArray();
+
+            writer.WritePropertyName("stages");
+            writer.WriteStartObject();
+
+            writer.WritePropertyName("durationsMs");
+            writer.WriteStartObject();
+            foreach (var kv in v.StageMetrics.DurationsMs.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                writer.WriteNumber(kv.Key, kv.Value);
+            }
+            writer.WriteEndObject();
+
+            writer.WritePropertyName("counts");
+            writer.WriteStartObject();
+            foreach (var kv in v.StageMetrics.Counts.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                writer.WriteNumber(kv.Key, kv.Value);
+            }
+            writer.WriteEndObject();
+
+            writer.WriteEndObject();
 
             writer.WriteEndObject();
         }

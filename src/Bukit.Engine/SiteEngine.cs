@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using Bukit.Engine.Plugins;
 using Bukit.Engine.Incremental;
 using Bukit.Config;
@@ -120,6 +121,8 @@ public sealed class SiteEngine
     private async Task<BuildVariantResult> BuildVariantAsync(
         BuildVariantContext ctx, CancellationToken cancellationToken)
     {
+        var variantTotalStopwatch = Stopwatch.StartNew();
+        var variantStageMetrics = new BuildStageMetricsCollector();
         var config = ctx.Config;
         var rootDir = ctx.RootDir;
         var overrides = ctx.Overrides;
@@ -135,16 +138,22 @@ public sealed class SiteEngine
             DirectoryCopy.Sync(ctx.StaticDir, outputDir);
         }
 
+        var splitItemsStopwatch = Stopwatch.StartNew();
         var dataItems = items.Where(MetaHelpers.IsDataItem).ToList();
         var contentItems = items.Where(i => !MetaHelpers.IsDataItem(i)).ToList();
         var modules = DataModuleBuilder.BuildModules(dataItems, config.Site.Language, bodyStore);
+        splitItemsStopwatch.Stop();
+        variantStageMetrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
 
         ITemplateRenderer renderer = new ScribanTemplateRendererAdapter(ctx.LayoutsDir);
         var collectionRules = BuildCollectionRules(config.Site);
 
+        var routeGenerationStopwatch = Stopwatch.StartNew();
         var routed = contentItems
             .Select(i => (Item: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
             .ToList();
+        routeGenerationStopwatch.Stop();
+        variantStageMetrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
 
         var pluginContext = new BuildContext
         {
@@ -158,10 +167,16 @@ public sealed class SiteEngine
             Logger = _logger
         };
 
+        var taxonomyStopwatch = Stopwatch.StartNew();
         TaxonomyTermsInjector.InjectFromDataItems(pluginContext, dataItems);
         await TaxonomyTermsInjector.InjectFromNotionDatabaseOptionsAsync(pluginContext, cancellationToken);
+        taxonomyStopwatch.Stop();
+        variantStageMetrics.AddDuration("taxonomySetup", taxonomyStopwatch.ElapsedMilliseconds);
 
+        var derivePagesStopwatch = Stopwatch.StartNew();
         var derived = await PluginRunner.RunDerivePagesAsync(pluginContext, cancellationToken);
+        derivePagesStopwatch.Stop();
+        variantStageMetrics.AddDuration("derivePages", derivePagesStopwatch.ElapsedMilliseconds);
         foreach (var (item, route, lastModified) in derived)
         {
             pluginContext.DerivedRouted.Add((item, route));
@@ -191,7 +206,10 @@ public sealed class SiteEngine
             ? Path.Combine(cacheDir, "build-manifest.json")
             : Path.Combine(cacheDir, $"build-manifest.{suffix}.json");
 
+        var templateHashStopwatch = Stopwatch.StartNew();
         var templateHash = incrementalEnabled ? HashUtil.Sha256HexForDirectory(ctx.LayoutsDir) : string.Empty;
+        templateHashStopwatch.Stop();
+        variantStageMetrics.AddDuration("templateHash", templateHashStopwatch.ElapsedMilliseconds);
         var manifest = incrementalEnabled ? BuildManifest.Load(manifestPath) : new BuildManifest();
         manifest.TemplateHash = templateHash;
         var manifestEntries = incrementalEnabled
@@ -202,18 +220,26 @@ public sealed class SiteEngine
         var currentKeys = new HashSet<string>(StringComparer.Ordinal);
         var maxDegreeOfParallelism = overrides.Jobs ?? Environment.ProcessorCount;
 
+        var renderPagesStopwatch = Stopwatch.StartNew();
         var renderResult = await PageRenderDispatcher.RenderPagesAsync(
             renderQueue, bodyStore, renderer, siteModel, outputDir, templateHash,
             incrementalEnabled, manifest, manifestEntries, currentKeys,
             maxDegreeOfParallelism, _logger, cancellationToken);
+        renderPagesStopwatch.Stop();
+        variantStageMetrics.AddDuration("renderPages", renderPagesStopwatch.ElapsedMilliseconds);
+        variantStageMetrics = MergeStageMetrics(variantStageMetrics, renderResult.StageMetrics);
 
         var renderedCount = renderResult.RenderedCount;
         var skippedCount = renderResult.SkippedCount;
         var renderReasons = new ConcurrentDictionary<string, int>(renderResult.RenderReasons, StringComparer.OrdinalIgnoreCase);
 
+        var renderSpecialListsStopwatch = Stopwatch.StartNew();
         var specialListResult = await PageRenderDispatcher.RenderSpecialListsAsync(
             routed, bodyStore, renderer, siteModel, config.Site.Collections, ctx.LayoutsDir, config.Build.ListPageContentMode, outputDir, templateHash,
             incrementalEnabled, manifest, currentKeys, renderReasons);
+        renderSpecialListsStopwatch.Stop();
+        variantStageMetrics.AddDuration("renderSpecialLists", renderSpecialListsStopwatch.ElapsedMilliseconds);
+        variantStageMetrics = MergeStageMetrics(variantStageMetrics, specialListResult.StageMetrics);
         renderedCount += specialListResult.RenderedCount;
         skippedCount += specialListResult.SkippedCount;
 
@@ -224,11 +250,15 @@ public sealed class SiteEngine
 
         if (Directory.Exists(ctx.AssetsDir))
         {
+            var assetsSyncStopwatch = Stopwatch.StartNew();
             DirectoryCopy.Sync(ctx.AssetsDir, Path.Combine(outputDir, "assets"));
+            assetsSyncStopwatch.Stop();
+            variantStageMetrics.AddDuration("assetsSync", assetsSyncStopwatch.ElapsedMilliseconds);
         }
 
         if (Directory.Exists(ctx.MediaDownloadDir))
         {
+            var mediaCopyStopwatch = Stopwatch.StartNew();
             var mediaOutputDir = Path.Combine(outputDir, "assets", "uploads");
             Directory.CreateDirectory(mediaOutputDir);
             foreach (var file in Directory.EnumerateFiles(ctx.MediaDownloadDir))
@@ -241,6 +271,8 @@ public sealed class SiteEngine
 
                 File.Copy(file, Path.Combine(mediaOutputDir, name), overwrite: true);
             }
+            mediaCopyStopwatch.Stop();
+            variantStageMetrics.AddDuration("mediaCopy", mediaCopyStopwatch.ElapsedMilliseconds);
         }
 
         if (incrementalEnabled)
@@ -252,7 +284,10 @@ public sealed class SiteEngine
             }
         }
 
+        var afterBuildStopwatch = Stopwatch.StartNew();
         await PluginRunner.RunAfterBuildAsync(pluginContext, cancellationToken);
+        afterBuildStopwatch.Stop();
+        variantStageMetrics.AddDuration("afterBuildPlugins", afterBuildStopwatch.ElapsedMilliseconds);
 
         if (incrementalEnabled)
         {
@@ -269,6 +304,9 @@ public sealed class SiteEngine
             _logger.Info($"Build completed: {Path.GetFullPath(outputDir)} (lang={config.Site.Language})");
         }
 
+        variantTotalStopwatch.Stop();
+        variantStageMetrics.AddDuration("variantTotal", variantTotalStopwatch.ElapsedMilliseconds);
+
         return new BuildVariantResult(
             config.Site.Language,
             outputDir,
@@ -281,7 +319,23 @@ public sealed class SiteEngine
             pluginContext.PluginExecutions.ToList(),
             renderedCount,
             skippedCount,
-            new Dictionary<string, int>(renderReasons, StringComparer.OrdinalIgnoreCase));
+            new Dictionary<string, int>(renderReasons, StringComparer.OrdinalIgnoreCase),
+            variantStageMetrics.Snapshot());
+    }
+
+    private static BuildStageMetricsCollector MergeStageMetrics(BuildStageMetricsCollector collector, BuildStageMetrics metrics)
+    {
+        foreach (var kv in metrics.DurationsMs)
+        {
+            collector.AddDuration(kv.Key, kv.Value);
+        }
+
+        foreach (var kv in metrics.Counts)
+        {
+            collector.Increment(kv.Key, kv.Value);
+        }
+
+        return collector;
     }
 
     private static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)
