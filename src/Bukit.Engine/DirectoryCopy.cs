@@ -37,18 +37,7 @@ public static class DirectoryCopy
 
         foreach (var file in Directory.GetFiles(sourceDir))
         {
-            var name = Path.GetFileName(file);
-            var dest = Path.Combine(destinationDir, name);
-
-            var srcInfo = new FileInfo(file);
-            var destInfo = new FileInfo(dest);
-            if (destInfo.Exists && destInfo.Length == srcInfo.Length && destInfo.LastWriteTimeUtc == srcInfo.LastWriteTimeUtc)
-            {
-                continue;
-            }
-
-            File.Copy(file, dest, overwrite: true);
-            File.SetLastWriteTimeUtc(dest, srcInfo.LastWriteTimeUtc);
+            SyncFile(file, destinationDir);
         }
 
         foreach (var dir in Directory.GetDirectories(sourceDir))
@@ -57,5 +46,44 @@ public static class DirectoryCopy
             var dest = Path.Combine(destinationDir, name);
             Sync(dir, dest);
         }
+    }
+
+    public static void SyncFiles(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false)
+    {
+        if (!Directory.Exists(sourceDir))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(destinationDir);
+
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var name = Path.GetFileName(file);
+            if (ignoreDotPrefixedFiles && name.StartsWith('.'))
+            {
+                continue;
+            }
+
+            SyncFile(file, destinationDir);
+        }
+    }
+
+    private static void SyncFile(string sourceFile, string destinationDir)
+    {
+        var name = Path.GetFileName(sourceFile);
+        var destinationFile = Path.Combine(destinationDir, name);
+
+        var sourceInfo = new FileInfo(sourceFile);
+        var destinationInfo = new FileInfo(destinationFile);
+        if (destinationInfo.Exists
+            && destinationInfo.Length == sourceInfo.Length
+            && destinationInfo.LastWriteTimeUtc == sourceInfo.LastWriteTimeUtc)
+        {
+            return;
+        }
+
+        File.Copy(sourceFile, destinationFile, overwrite: true);
+        File.SetLastWriteTimeUtc(destinationFile, sourceInfo.LastWriteTimeUtc);
     }
 }

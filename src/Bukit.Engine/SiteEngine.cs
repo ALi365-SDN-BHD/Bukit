@@ -263,17 +263,7 @@ public sealed class SiteEngine
         {
             var mediaCopyStopwatch = Stopwatch.StartNew();
             var mediaOutputDir = Path.Combine(outputDir, "assets", "uploads");
-            Directory.CreateDirectory(mediaOutputDir);
-            foreach (var file in Directory.EnumerateFiles(ctx.MediaDownloadDir))
-            {
-                var name = Path.GetFileName(file);
-                if (name.StartsWith('.'))
-                {
-                    continue;
-                }
-
-                File.Copy(file, Path.Combine(mediaOutputDir, name), overwrite: true);
-            }
+            DirectoryCopy.SyncFiles(ctx.MediaDownloadDir, mediaOutputDir, ignoreDotPrefixedFiles: true);
             mediaCopyStopwatch.Stop();
             variantStageMetrics.AddDuration("mediaCopy", mediaCopyStopwatch.ElapsedMilliseconds);
         }
