@@ -16,4 +16,5 @@ internal sealed record BuildVariantResult(
     IReadOnlyList<PluginExecutionInfo> PluginExecutions,
     int RenderedCount,
     int SkippedCount,
-    IReadOnlyDictionary<string, int> RenderReasons);
+    IReadOnlyDictionary<string, int> RenderReasons,
+    BuildStageMetrics StageMetrics);

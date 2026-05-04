@@ -4,7 +4,7 @@ namespace Bukit.Engine.Incremental;
 
 public sealed class BuildManifest
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
     public string TemplateHash { get; set; } = string.Empty;
     public Dictionary<string, BuildManifestEntry> Entries { get; set; } = new(StringComparer.Ordinal);
 
@@ -54,6 +54,7 @@ public sealed class BuildManifest
                         OutputPath = GetString(entryEl, "outputPath") ?? key,
                         Url = GetString(entryEl, "url") ?? string.Empty,
                         Template = GetString(entryEl, "template") ?? string.Empty,
+                        MetadataHash = GetString(entryEl, "metadataHash") ?? string.Empty,
                         ContentHash = GetString(entryEl, "contentHash") ?? string.Empty,
                         RouteHash = GetString(entryEl, "routeHash") ?? string.Empty,
                         TemplateHash = GetString(entryEl, "templateHash") ?? string.Empty
@@ -95,6 +96,7 @@ public sealed class BuildManifest
             writer.WriteString("outputPath", kv.Value.OutputPath);
             writer.WriteString("url", kv.Value.Url);
             writer.WriteString("template", kv.Value.Template);
+            writer.WriteString("metadataHash", kv.Value.MetadataHash);
             writer.WriteString("contentHash", kv.Value.ContentHash);
             writer.WriteString("routeHash", kv.Value.RouteHash);
             writer.WriteString("templateHash", kv.Value.TemplateHash);
@@ -122,6 +124,7 @@ public sealed class BuildManifestEntry
     public string OutputPath { get; set; } = string.Empty;
     public string Url { get; set; } = string.Empty;
     public string Template { get; set; } = string.Empty;
+    public string MetadataHash { get; set; } = string.Empty;
     public string ContentHash { get; set; } = string.Empty;
     public string RouteHash { get; set; } = string.Empty;
     public string TemplateHash { get; set; } = string.Empty;

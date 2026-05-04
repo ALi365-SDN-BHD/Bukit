@@ -9,7 +9,7 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBuildPlugin
 {
     private const string IndexCacheKey = "__taxonomy_index_cache";
-    private static int _buildIndexCountForTests;
+    private static readonly AsyncLocal<int> BuildIndexCountForTestsScope = new();
 
     public string Name => "taxonomy";
     public string Version => "2.5.0";
@@ -183,7 +183,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         IReadOnlyList<string> itemFields,
         TaxonomyConfig config)
     {
-        _buildIndexCountForTests++;
+        BuildIndexCountForTestsScope.Value++;
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var (item, route) in routed)
@@ -724,11 +724,11 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         }
     }
 
-    internal static int BuildIndexCountForTests => _buildIndexCountForTests;
+    internal static int BuildIndexCountForTests => BuildIndexCountForTestsScope.Value;
 
     internal static void ResetBuildIndexCountForTests()
     {
-        _buildIndexCountForTests = 0;
+        BuildIndexCountForTestsScope.Value = 0;
     }
 
     private static int ComparePages(TaxonomyPage a, TaxonomyPage b)

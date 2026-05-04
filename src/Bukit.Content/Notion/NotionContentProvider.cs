@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Net;
 using System.Buffers;
+using System.Diagnostics;
 using Bukit.Shared;
 
 namespace Bukit.Content.Notion;
@@ -38,6 +39,7 @@ public sealed class NotionContentProvider : IContentProvider
         var (resolvedFilterProperty, resolvedSortProperty, resolvedIncludeSlugProperty) = await ResolveDatabasePropertyNamesAsync(client, _options, cancellationToken);
         string? startCursor = null;
         var pageHtmlCache = CreatePageHtmlCache(_options);
+        var relationTargetCache = NotionRelationTargetCache.Create(_options.CacheMode, _options.CacheDir);
 
         try
         {
@@ -82,7 +84,8 @@ public sealed class NotionContentProvider : IContentProvider
                     {
                         ["type"] = type,
                         ["source"] = "notion",
-                        ["notionPageId"] = pageId
+                        ["notionPageId"] = pageId,
+                        ["bodyFingerprint"] = string.IsNullOrWhiteSpace(lastEditedTime) ? pageId : lastEditedTime
                     };
 
                     var fields = ExtractFields(props, policyMode, allowed, out var relationKeys);
@@ -131,8 +134,9 @@ public sealed class NotionContentProvider : IContentProvider
             url = string.IsNullOrWhiteSpace(url) ? null : url.Trim();
             return new RelationTargetInfo(d.PageId, d.Title, d.Slug, d.Type, url);
         });
+        var draftIndex = NotionDraftIndex<PageDraft>.From(drafts, static d => d.PageId);
         var pageIndex = NotionRelationLinkBuilder.BuildIndex(targets);
-        pageIndex = await ResolveMissingTaxonomyRelationTargetsAsync(client, drafts, pageIndex, cancellationToken);
+        pageIndex = await ResolveMissingTaxonomyRelationTargetsAsync(client, drafts, pageIndex, relationTargetCache, cancellationToken);
         var items = new List<ContentItem>(drafts.Count);
         for (var i = 0; i < drafts.Count; i++)
         {
@@ -165,8 +169,7 @@ public sealed class NotionContentProvider : IContentProvider
                 return string.Empty;
             }
 
-            var draft = drafts.FirstOrDefault(d => string.Equals(d.PageId, item.BodyKey ?? item.Id, StringComparison.OrdinalIgnoreCase))
-                ?? throw new InvalidOperationException($"Unable to find Notion draft for item '{item.Id}'.");
+            var draft = draftIndex.GetRequired(item.BodyKey ?? item.Id);
 
             using var bodyClient = new NotionApiClient(_options);
             var renderer = new NotionBlocksRenderer(bodyClient);
@@ -194,53 +197,48 @@ public sealed class NotionContentProvider : IContentProvider
         NotionApiClient client,
         IReadOnlyList<PageDraft> drafts,
         IReadOnlyDictionary<string, RelationTargetInfo> existingIndex,
+        NotionRelationTargetCache? relationTargetCache,
         CancellationToken cancellationToken)
     {
-        var needed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        for (var i = 0; i < drafts.Count; i++)
-        {
-            var d = drafts[i];
-            AddRelationIdsIfPresent(d, "tags", needed);
-            AddRelationIdsIfPresent(d, "categories", needed);
-        }
-
-        if (needed.Count == 0)
-        {
-            return existingIndex;
-        }
-
-        var missing = new List<string>();
-        foreach (var id in needed)
-        {
-            if (!existingIndex.ContainsKey(id))
-            {
-                missing.Add(id);
-            }
-        }
+        var planStopwatch = Stopwatch.StartNew();
+        var maxResolve = 200;
+        var candidates = drafts.Select(static d => new NotionRelationResolveCandidate(d.RelationKeys, d.Fields));
+        var missing = NotionRelationResolvePlan.BuildMissingIds(candidates, existingIndex, maxResolve);
+        planStopwatch.Stop();
+        _logger?.Info($"event=notion.relation.plan candidates={drafts.Count} missing={missing.Count} max_resolve={maxResolve} plan_ms={planStopwatch.ElapsedMilliseconds}");
 
         if (missing.Count == 0)
         {
             return existingIndex;
         }
 
-        var maxResolve = 200;
-        if (missing.Count > maxResolve)
-        {
-            missing = missing.Take(maxResolve).ToList();
-        }
-
         var concurrency = _options.RenderConcurrency is > 0 ? _options.RenderConcurrency.Value : 4;
         using var sem = new SemaphoreSlim(concurrency, concurrency);
         var tasks = new Task<RelationTargetInfo?>[missing.Count];
+        var resolveStopwatch = Stopwatch.StartNew();
+        var cacheHits = 0;
         for (var i = 0; i < missing.Count; i++)
         {
-            var id = missing[i];
-            tasks[i] = ResolveOneAsync(id);
+            var pageId = missing[i];
+            if (relationTargetCache is not null)
+            {
+                var cached = await relationTargetCache.TryReadAsync(pageId, cancellationToken);
+                if (cached is not null)
+                {
+                    tasks[i] = Task.FromResult<RelationTargetInfo?>(cached);
+                    cacheHits++;
+                    continue;
+                }
+            }
+
+            tasks[i] = ResolveOneAsync(pageId);
         }
 
         await Task.WhenAll(tasks);
+        resolveStopwatch.Stop();
 
         Dictionary<string, RelationTargetInfo>? merged = null;
+        var resolvedCount = 0;
         for (var i = 0; i < tasks.Length; i++)
         {
             var t = tasks[i].Result;
@@ -251,49 +249,12 @@ public sealed class NotionContentProvider : IContentProvider
 
             merged ??= new Dictionary<string, RelationTargetInfo>(existingIndex, StringComparer.OrdinalIgnoreCase);
             merged[t.PageId] = t;
+            resolvedCount++;
         }
+
+        _logger?.Info($"event=notion.relation.resolve requested={missing.Count} resolved={resolvedCount} cache_hits={cacheHits} concurrency={concurrency} resolve_ms={resolveStopwatch.ElapsedMilliseconds}");
 
         return merged ?? existingIndex;
-
-        void AddRelationIdsIfPresent(PageDraft d, string key, HashSet<string> set)
-        {
-            if (!HasRelationKey(d.RelationKeys, key))
-            {
-                return;
-            }
-
-            if (!d.Fields.TryGetValue(key, out var field))
-            {
-                return;
-            }
-
-            if (field.Value is not IEnumerable<string> ids)
-            {
-                return;
-            }
-
-            foreach (var raw in ids)
-            {
-                var id = (raw ?? string.Empty).Trim();
-                if (id.Length > 0)
-                {
-                    set.Add(id);
-                }
-            }
-        }
-
-        static bool HasRelationKey(IReadOnlyList<string> relationKeys, string key)
-        {
-            for (var i = 0; i < relationKeys.Count; i++)
-            {
-                if (string.Equals(relationKeys[i], key, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
 
         async Task<RelationTargetInfo?> ResolveOneAsync(string pageId)
         {
@@ -310,7 +271,13 @@ public sealed class NotionContentProvider : IContentProvider
                 var url = GetString(page, "url");
                 url = string.IsNullOrWhiteSpace(url) ? null : url.Trim();
 
-                return new RelationTargetInfo(pageId, title, slug, type, url);
+                var target = new RelationTargetInfo(pageId, title, slug, type, url);
+                if (relationTargetCache is not null)
+                {
+                    await relationTargetCache.WriteAsync(target, cancellationToken);
+                }
+
+                return target;
             }
             catch (Exception ex)
             {

@@ -75,8 +75,9 @@ public sealed class ContentImageRewritePipeline
             await sem.WaitAsync(cancellationToken);
             try
             {
-                var html = await RewriteHtmlAsync(item.ContentHtml, cancellationToken);
-                var fields = await RewriteFieldsAsync(item.Fields, cancellationToken);
+                var localizeMemo = new Dictionary<string, string>(StringComparer.Ordinal);
+                var html = await RewriteHtmlAsync(item.ContentHtml, localizeMemo, cancellationToken);
+                var fields = await RewriteFieldsAsync(item.Fields, localizeMemo, cancellationToken);
                 results[idx] = item with
                 {
                     ContentHtml = html,
@@ -91,37 +92,68 @@ public sealed class ContentImageRewritePipeline
     }
 
     public Task<string?> RewriteBodyHtmlAsync(string? html, CancellationToken cancellationToken)
-        => RewriteHtmlAsync(html, cancellationToken);
+        => RewriteHtmlAsync(html, new Dictionary<string, string>(StringComparer.Ordinal), cancellationToken);
 
-    private async Task<string?> RewriteHtmlAsync(string? html, CancellationToken cancellationToken)
+    private async Task<string?> RewriteHtmlAsync(
+        string? html,
+        Dictionary<string, string> localizeMemo,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(html))
         {
             return html;
         }
 
+        await PrimeHtmlUrlsAsync(html, localizeMemo, cancellationToken);
+
         // Pass 1: <img src="...">
-        html = await RewriteByRegexAsync(html, ImgSrcRegex, "url", cancellationToken);
+        html = await RewriteByRegexAsync(html, ImgSrcRegex, "url", localizeMemo, cancellationToken);
 
         // Pass 2: data-src="..." (lazy loading)
-        html = await RewriteByRegexAsync(html, DataSrcRegex, "url", cancellationToken);
+        html = await RewriteByRegexAsync(html, DataSrcRegex, "url", localizeMemo, cancellationToken);
 
         // Pass 3: <video poster="...">
-        html = await RewriteByRegexAsync(html, VideoPosterRegex, "url", cancellationToken);
+        html = await RewriteByRegexAsync(html, VideoPosterRegex, "url", localizeMemo, cancellationToken);
 
         // Pass 4: <video src="...">
-        html = await RewriteByRegexAsync(html, VideoSrcRegex, "url", cancellationToken);
+        html = await RewriteByRegexAsync(html, VideoSrcRegex, "url", localizeMemo, cancellationToken);
 
         // Pass 5: <a href="...image_url..."> (file blocks with image extensions)
-        html = await RewriteByRegexAsync(html, AnchorHrefRegex, "url", cancellationToken);
+        html = await RewriteByRegexAsync(html, AnchorHrefRegex, "url", localizeMemo, cancellationToken);
 
         // Pass 6: srcset="url1 1x, url2 2x"
-        html = await RewriteSrcsetAsync(html, cancellationToken);
+        html = await RewriteSrcsetAsync(html, localizeMemo, cancellationToken);
 
         return html;
     }
 
-    private async Task<string> RewriteByRegexAsync(string html, Regex regex, string urlGroupName, CancellationToken cancellationToken)
+    private async Task PrimeHtmlUrlsAsync(
+        string html,
+        Dictionary<string, string> localizeMemo,
+        CancellationToken cancellationToken)
+    {
+        var urls = new List<string>();
+        CollectGroupUrls(html, ImgSrcRegex, "url", urls);
+        CollectGroupUrls(html, DataSrcRegex, "url", urls);
+        CollectGroupUrls(html, VideoPosterRegex, "url", urls);
+        CollectGroupUrls(html, VideoSrcRegex, "url", urls);
+        CollectGroupUrls(html, AnchorHrefRegex, "url", urls);
+        CollectSrcsetUrls(html, urls);
+
+        if (urls.Count == 0)
+        {
+            return;
+        }
+
+        await LocalizeDistinctUrlsAsync(urls, localizeMemo, cancellationToken);
+    }
+
+    private async Task<string> RewriteByRegexAsync(
+        string html,
+        Regex regex,
+        string urlGroupName,
+        Dictionary<string, string> localizeMemo,
+        CancellationToken cancellationToken)
     {
         var matches = regex.Matches(html);
         if (matches.Count == 0)
@@ -129,6 +161,13 @@ public sealed class ContentImageRewritePipeline
             return html;
         }
 
+        var urls = new List<string>(matches.Count);
+        foreach (Match m in matches)
+        {
+            urls.Add(System.Net.WebUtility.HtmlDecode(m.Groups[urlGroupName].Value));
+        }
+
+        var localizedMap = await LocalizeDistinctUrlsAsync(urls, localizeMemo, cancellationToken);
         var sb = new System.Text.StringBuilder();
         var last = 0;
         foreach (Match m in matches)
@@ -137,7 +176,9 @@ public sealed class ContentImageRewritePipeline
 
             var urlGroup = m.Groups[urlGroupName];
             var url = System.Net.WebUtility.HtmlDecode(urlGroup.Value);
-            var localized = await _localizer.LocalizeAsync(url, cancellationToken);
+            var localized = localizedMap.TryGetValue(url, out var mapped)
+                ? mapped
+                : await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
             var safe = System.Net.WebUtility.HtmlEncode(localized);
 
             sb.Append(html, last, urlGroup.Index - last);
@@ -149,7 +190,10 @@ public sealed class ContentImageRewritePipeline
         return sb.ToString();
     }
 
-    private async Task<string> RewriteSrcsetAsync(string html, CancellationToken cancellationToken)
+    private async Task<string> RewriteSrcsetAsync(
+        string html,
+        Dictionary<string, string> localizeMemo,
+        CancellationToken cancellationToken)
     {
         var matches = SrcsetAttrRegex.Matches(html);
         if (matches.Count == 0)
@@ -165,7 +209,7 @@ public sealed class ContentImageRewritePipeline
 
             var valueGroup = m.Groups["value"];
             var srcsetValue = valueGroup.Value;
-            var rewritten = await RewriteSrcsetValueAsync(srcsetValue, cancellationToken);
+            var rewritten = await RewriteSrcsetValueAsync(srcsetValue, localizeMemo, cancellationToken);
 
             sb.Append(html, last, valueGroup.Index - last);
             sb.Append(rewritten);
@@ -176,7 +220,10 @@ public sealed class ContentImageRewritePipeline
         return sb.ToString();
     }
 
-    private async Task<string> RewriteSrcsetValueAsync(string srcsetValue, CancellationToken cancellationToken)
+    private async Task<string> RewriteSrcsetValueAsync(
+        string srcsetValue,
+        Dictionary<string, string> localizeMemo,
+        CancellationToken cancellationToken)
     {
         var matches = SrcsetEntryRegex.Matches(srcsetValue);
         if (matches.Count == 0)
@@ -184,12 +231,21 @@ public sealed class ContentImageRewritePipeline
             return srcsetValue;
         }
 
+        var urls = new List<string>(matches.Count);
+        foreach (Match m in matches)
+        {
+            urls.Add(System.Net.WebUtility.HtmlDecode(m.Groups["url"].Value));
+        }
+
+        var localizedMap = await LocalizeDistinctUrlsAsync(urls, localizeMemo, cancellationToken);
         var sb = new System.Text.StringBuilder();
         var last = 0;
         foreach (Match m in matches)
         {
             var url = System.Net.WebUtility.HtmlDecode(m.Groups["url"].Value);
-            var localized = await _localizer.LocalizeAsync(url, cancellationToken);
+            var localized = localizedMap.TryGetValue(url, out var mapped)
+                ? mapped
+                : await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
             var safe = System.Net.WebUtility.HtmlEncode(localized);
 
             sb.Append(srcsetValue, last, m.Index - last);
@@ -201,8 +257,32 @@ public sealed class ContentImageRewritePipeline
         return sb.ToString();
     }
 
+    private static void CollectGroupUrls(string html, Regex regex, string groupName, List<string> urls)
+    {
+        var matches = regex.Matches(html);
+        foreach (Match match in matches)
+        {
+            urls.Add(System.Net.WebUtility.HtmlDecode(match.Groups[groupName].Value));
+        }
+    }
+
+    private static void CollectSrcsetUrls(string html, List<string> urls)
+    {
+        var attrs = SrcsetAttrRegex.Matches(html);
+        foreach (Match attr in attrs)
+        {
+            var value = attr.Groups["value"].Value;
+            var entries = SrcsetEntryRegex.Matches(value);
+            foreach (Match entry in entries)
+            {
+                urls.Add(System.Net.WebUtility.HtmlDecode(entry.Groups["url"].Value));
+            }
+        }
+    }
+
     private async Task<IReadOnlyDictionary<string, ContentField>?> RewriteFieldsAsync(
         IReadOnlyDictionary<string, ContentField>? fields,
+        Dictionary<string, string> localizeMemo,
         CancellationToken cancellationToken)
     {
         if (fields is null || fields.Count == 0)
@@ -230,7 +310,7 @@ public sealed class ContentImageRewritePipeline
             // Single string URL
             if (field.Value is string s)
             {
-                var localized = await _localizer.LocalizeAsync(s, cancellationToken);
+                var localized = await LocalizeMemoizedAsync(s, localizeMemo, cancellationToken);
                 if (!string.Equals(localized, s, StringComparison.Ordinal))
                 {
                     copy[key] = field with { Value = localized };
@@ -243,11 +323,14 @@ public sealed class ContentImageRewritePipeline
             // List of string URLs (e.g. Notion "files" property with multiple entries)
             if (field.Value is IReadOnlyList<string> urls && urls.Count > 0)
             {
+                var localizedMap = await LocalizeDistinctUrlsAsync(urls, localizeMemo, cancellationToken);
                 var rewritten = new List<string>(urls.Count);
                 var listChanged = false;
                 foreach (var url in urls)
                 {
-                    var localized = await _localizer.LocalizeAsync(url, cancellationToken);
+                    var localized = localizedMap.TryGetValue(url ?? string.Empty, out var mapped)
+                        ? mapped
+                        : await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
                     rewritten.Add(localized);
                     if (!string.Equals(localized, url, StringComparison.Ordinal))
                     {
@@ -264,6 +347,55 @@ public sealed class ContentImageRewritePipeline
         }
 
         return changed ? copy : fields;
+    }
+
+    private async Task<string> LocalizeMemoizedAsync(
+        string? sourceUrl,
+        Dictionary<string, string> localizeMemo,
+        CancellationToken cancellationToken)
+    {
+        var key = sourceUrl ?? string.Empty;
+        if (localizeMemo.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        var localized = await _localizer.LocalizeAsync(sourceUrl, cancellationToken);
+        localizeMemo[key] = localized;
+        return localized;
+    }
+
+    private async Task<IReadOnlyDictionary<string, string>> LocalizeDistinctUrlsAsync(
+        IReadOnlyList<string> urls,
+        Dictionary<string, string> localizeMemo,
+        CancellationToken cancellationToken)
+    {
+        var distinctKeys = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new List<(string Key, Task<string> Task)>();
+
+        foreach (var url in urls)
+        {
+            var key = url ?? string.Empty;
+            if (!distinctKeys.Add(key) || localizeMemo.ContainsKey(key))
+            {
+                continue;
+            }
+
+            pending.Add((key, _localizer.LocalizeAsync(url, cancellationToken)));
+        }
+
+        if (pending.Count == 0)
+        {
+            return localizeMemo;
+        }
+
+        await Task.WhenAll(pending.Select(x => x.Task));
+        foreach (var entry in pending)
+        {
+            localizeMemo[entry.Key] = entry.Task.Result;
+        }
+
+        return localizeMemo;
     }
 
     private static HashSet<string> BuildFieldKeySet(IReadOnlyList<string>? keys)

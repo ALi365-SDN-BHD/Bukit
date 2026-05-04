@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Incremental;
+using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Shared;
@@ -11,7 +13,16 @@ namespace Bukit.Engine;
 
 internal static class PageRenderDispatcher
 {
-    internal sealed record RenderResult(int RenderedCount, int SkippedCount, IReadOnlyDictionary<string, int> RenderReasons);
+    internal sealed record RenderResult(
+        int RenderedCount,
+        int SkippedCount,
+        IReadOnlyDictionary<string, int> RenderReasons,
+        BuildStageMetrics StageMetrics);
+
+    internal sealed record SpecialListRenderResult(
+        int RenderedCount,
+        int SkippedCount,
+        BuildStageMetrics StageMetrics);
 
     internal static async Task<RenderResult> RenderPagesAsync(
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> renderQueue,
@@ -43,6 +54,7 @@ internal static class PageRenderDispatcher
         var renderedCount = 0;
         var skippedCount = 0;
         var renderReasons = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var stageMetrics = new BuildStageMetricsCollector();
 
         if (maxDegreeOfParallelism <= 0)
         {
@@ -61,8 +73,11 @@ internal static class PageRenderDispatcher
             var item = work.Item;
             var route = work.Route;
             var key = work.Key;
-
-            var contentHash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
+            var metadataHashStopwatch = Stopwatch.StartNew();
+            var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(item);
+            metadataHashStopwatch.Stop();
+            stageMetrics.Increment("metadataHash");
+            stageMetrics.AddDuration("metadataHash", metadataHashStopwatch.ElapsedMilliseconds);
             var routeHash = IncrementalBuildEngine.ComputeRouteHash(route);
             var outputPath = Path.Combine(outputDir, route.OutputPath);
             var outputExists = File.Exists(outputPath);
@@ -70,12 +85,38 @@ internal static class PageRenderDispatcher
             BuildManifestEntry? existing = null;
             var hasExisting = incrementalEnabled && manifestEntries is not null && manifestEntries.TryGetValue(key, out existing) && existing is not null;
 
-            var canSkip = incrementalEnabled &&
+            var canEvaluateSkip = incrementalEnabled &&
                 hasExisting &&
                 outputExists &&
                 existing!.TemplateHash == templateHash &&
-                existing.ContentHash == contentHash &&
+                existing.MetadataHash == metadataHash &&
                 existing.RouteHash == routeHash;
+
+            string? contentHash = null;
+            if (canEvaluateSkip)
+            {
+                var stableFingerprintStopwatch = Stopwatch.StartNew();
+                if (IncrementalBuildEngine.TryComputeStableContentHash(item, bodyStore, metadataHash, out var stableContentHash))
+                {
+                    stableFingerprintStopwatch.Stop();
+                    stageMetrics.Increment("stableContentHash");
+                    stageMetrics.AddDuration("stableContentHash", stableFingerprintStopwatch.ElapsedMilliseconds);
+                    contentHash = stableContentHash;
+                }
+                else
+                {
+                    stableFingerprintStopwatch.Stop();
+
+                    var contentHashStopwatch = Stopwatch.StartNew();
+                    contentHash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
+                    contentHashStopwatch.Stop();
+                    stageMetrics.Increment("contentHash");
+                    stageMetrics.AddDuration("contentHash", contentHashStopwatch.ElapsedMilliseconds);
+                }
+            }
+
+            var canSkip = canEvaluateSkip &&
+                existing!.ContentHash == contentHash;
 
             if (canSkip)
             {
@@ -89,6 +130,7 @@ internal static class PageRenderDispatcher
                 var reason = !hasExisting ? "new_page"
                     : !outputExists ? "output_missing"
                     : existing!.TemplateHash != templateHash ? "template_changed"
+                    : existing.MetadataHash != metadataHash ? "content_changed"
                     : existing.ContentHash != contentHash ? "content_changed"
                     : existing.RouteHash != routeHash ? "route_changed"
                     : "render";
@@ -99,6 +141,12 @@ internal static class PageRenderDispatcher
                 renderReasons.AddOrUpdate("full_render", 1, (_, v) => v + 1);
             }
 
+            var bodyLoadStopwatch = Stopwatch.StartNew();
+            var content = await ContentBodyResolver.GetHtmlAsync(item, bodyStore, ct);
+            bodyLoadStopwatch.Stop();
+            stageMetrics.Increment("bodyLoad");
+            stageMetrics.AddDuration("bodyLoad", bodyLoadStopwatch.ElapsedMilliseconds);
+
             var pageModel = new PageModel
             {
                 Site = siteModel,
@@ -106,14 +154,18 @@ internal static class PageRenderDispatcher
                 {
                     Title = item.Title,
                     Url = route.Url,
-                    Content = await ContentBodyResolver.GetHtmlAsync(item, bodyStore, ct),
+                    Content = content,
                     Summary = item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
                     PublishDate = item.PublishAt,
                     Fields = item.Fields
                 }
             };
 
+            var pageRenderStopwatch = Stopwatch.StartNew();
             var html = renderer.RenderPage(route.Template, pageModel);
+            pageRenderStopwatch.Stop();
+            stageMetrics.Increment("pageRender");
+            stageMetrics.AddDuration("pageRender", pageRenderStopwatch.ElapsedMilliseconds);
             await WriteUtf8LockedAsync(outputDir, route.OutputPath, html, writeLocks, ct);
             Interlocked.Increment(ref renderedCount);
 
@@ -124,17 +176,22 @@ internal static class PageRenderDispatcher
                     OutputPath = key,
                     Url = route.Url,
                     Template = route.Template,
-                    ContentHash = contentHash,
+                    MetadataHash = metadataHash,
+                    ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(item, metadataHash, content),
                     RouteHash = routeHash,
                     TemplateHash = templateHash
                 };
             }
         });
 
-        return new RenderResult(renderedCount, skippedCount, new Dictionary<string, int>(renderReasons, StringComparer.OrdinalIgnoreCase));
+        return new RenderResult(
+            renderedCount,
+            skippedCount,
+            new Dictionary<string, int>(renderReasons, StringComparer.OrdinalIgnoreCase),
+            stageMetrics.Snapshot());
     }
 
-    internal static async Task<(int RenderedCount, int SkippedCount)> RenderSpecialListsAsync(
+    internal static async Task<SpecialListRenderResult> RenderSpecialListsAsync(
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         IContentBodyStore bodyStore,
         ITemplateRenderer renderer,
@@ -149,6 +206,7 @@ internal static class PageRenderDispatcher
         HashSet<string> currentKeys,
         ConcurrentDictionary<string, int> renderReasons)
     {
+        var stageMetrics = new BuildStageMetricsCollector();
         var specialLists = BuildSpecialListDefinitions(routed, collections, layoutsDir, listPageContentMode);
         foreach (var x in specialLists)
         {
@@ -163,21 +221,23 @@ internal static class PageRenderDispatcher
                 var result = await RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, manifest, renderReasons, x.IncludeContent);
                 rendered += result.RenderedCount;
                 skipped += result.SkippedCount;
+                stageMetrics = MergeCollectors(stageMetrics, result.StageMetrics);
             }
 
-            return (rendered, skipped);
+            return new SpecialListRenderResult(rendered, skipped, stageMetrics.Snapshot());
         }
 
         var writeLocks = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
         foreach (var x in specialLists)
         {
-            await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, x.IncludeContent);
+            var metrics = await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, x.IncludeContent);
+            stageMetrics = MergeCollectors(stageMetrics, metrics);
         }
 
-        return (specialLists.Count, 0);
+        return new SpecialListRenderResult(specialLists.Count, 0, stageMetrics.Snapshot());
     }
 
-    private static async Task RenderSpecialListAlwaysAsync(
+    private static async Task<BuildStageMetrics> RenderSpecialListAlwaysAsync(
         RouteInfo listRoute,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> source,
         IContentBodyStore bodyStore,
@@ -187,7 +247,9 @@ internal static class PageRenderDispatcher
         ConcurrentDictionary<string, SemaphoreSlim> writeLocks,
         bool includeContent)
     {
-        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, CancellationToken.None);
+        var stageMetrics = new BuildStageMetricsCollector();
+        var listBuildStopwatch = Stopwatch.StartNew();
+        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, CancellationToken.None, stageMetrics, "listBodyLoad");
 
         var html = renderer.RenderList(listRoute.Template, new ListPageModel
         {
@@ -195,10 +257,14 @@ internal static class PageRenderDispatcher
             Pages = pageInfos
         });
 
+        listBuildStopwatch.Stop();
+        stageMetrics.Increment("listBuild");
+        stageMetrics.AddDuration("listBuild", listBuildStopwatch.ElapsedMilliseconds);
         await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, html, writeLocks, CancellationToken.None);
+        return stageMetrics.Snapshot();
     }
 
-    private static async Task<(int RenderedCount, int SkippedCount)> RenderSpecialListIfNeededAsync(
+    private static async Task<SpecialListRenderResult> RenderSpecialListIfNeededAsync(
         RouteInfo listRoute,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> source,
         IContentBodyStore bodyStore,
@@ -210,9 +276,14 @@ internal static class PageRenderDispatcher
         ConcurrentDictionary<string, int> renderReasons,
         bool includeContent)
     {
+        var stageMetrics = new BuildStageMetricsCollector();
         var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
         var routeHash = IncrementalBuildEngine.ComputeRouteHash(listRoute);
+        var listHashStopwatch = Stopwatch.StartNew();
         var contentHash = IncrementalBuildEngine.ComputeListContentHash(templateHash, listRoute.Template, source, manifest, bodyStore, includeContent);
+        listHashStopwatch.Stop();
+        stageMetrics.Increment("listHash");
+        stageMetrics.AddDuration("listHash", listHashStopwatch.ElapsedMilliseconds);
         var outputPath = Path.Combine(outputDir, listRoute.OutputPath);
         var outputExists = File.Exists(outputPath);
         var hasExisting = manifest.Entries.TryGetValue(key, out var existing) && existing is not null;
@@ -226,10 +297,11 @@ internal static class PageRenderDispatcher
         if (canSkip)
         {
             renderReasons.AddOrUpdate("list_unchanged", 1, (_, v) => v + 1);
-            return (0, 1);
+            return new SpecialListRenderResult(0, 1, stageMetrics.Snapshot());
         }
 
-        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, CancellationToken.None);
+        var listBuildStopwatch = Stopwatch.StartNew();
+        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, CancellationToken.None, stageMetrics, "listBodyLoad");
 
         var html = renderer.RenderList(listRoute.Template, new ListPageModel
         {
@@ -237,6 +309,9 @@ internal static class PageRenderDispatcher
             Pages = pageInfos
         });
 
+        listBuildStopwatch.Stop();
+        stageMetrics.Increment("listBuild");
+        stageMetrics.AddDuration("listBuild", listBuildStopwatch.ElapsedMilliseconds);
         await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, html, new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase), CancellationToken.None);
         renderReasons.AddOrUpdate("list_render", 1, (_, v) => v + 1);
 
@@ -250,24 +325,36 @@ internal static class PageRenderDispatcher
             TemplateHash = templateHash
         };
 
-        return (1, 0);
+        return new SpecialListRenderResult(1, 0, stageMetrics.Snapshot());
     }
 
     private static async Task<List<PageInfo>> BuildPageInfosAsync(
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> source,
         IContentBodyStore bodyStore,
         bool includeContent,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        BuildStageMetricsCollector? stageMetrics = null,
+        string bodyLoadMetricName = "listBodyLoad")
     {
         var pageInfos = new List<PageInfo>(source.Count);
         foreach (var entry in source)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            string content = string.Empty;
+            if (includeContent)
+            {
+                var bodyLoadStopwatch = Stopwatch.StartNew();
+                content = await ContentBodyResolver.GetHtmlAsync(entry.Item, bodyStore, cancellationToken);
+                bodyLoadStopwatch.Stop();
+                stageMetrics?.Increment(bodyLoadMetricName);
+                stageMetrics?.AddDuration(bodyLoadMetricName, bodyLoadStopwatch.ElapsedMilliseconds);
+            }
+
             pageInfos.Add(new PageInfo
             {
                 Title = entry.Item.Title,
                 Url = entry.Route.Url,
-                Content = includeContent ? await ContentBodyResolver.GetHtmlAsync(entry.Item, bodyStore, cancellationToken) : string.Empty,
+                Content = content,
                 Summary = entry.Item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
                 PublishDate = entry.Item.PublishAt,
                 Fields = entry.Item.Fields
@@ -283,11 +370,12 @@ internal static class PageRenderDispatcher
         string layoutsDir,
         string listPageContentMode)
     {
+        var index = CollectionRouteIndex.Create(routed);
         var list = new List<SpecialListDefinition>();
         var homeRoute = new RouteInfo("/", "index.html", "pages/index.html");
         list.Add(new SpecialListDefinition(
             homeRoute,
-            routed.OrderByDescending(x => x.Item.PublishAt).ToList(),
+            index.AllOrdered,
             TemplateCapabilitiesResolver.ShouldIncludeListPageContent(homeRoute.Template, layoutsDir, listPageContentMode)));
 
         if (collections is null || collections.Count == 0)
@@ -307,10 +395,7 @@ internal static class PageRenderDispatcher
             var url = NormalizeListUrl(collection.ListRoute);
             var outputPath = BuildListOutputPath(url);
             var route = new RouteInfo(url, outputPath, "pages/list.html");
-            var items = routed
-                .Where(x => string.Equals(GetCollection(x.Item), key, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(x => x.Item.PublishAt)
-                .ToList();
+            var items = index.GetByCollection(key);
             list.Add(new SpecialListDefinition(
                 route,
                 items,
@@ -322,7 +407,7 @@ internal static class PageRenderDispatcher
         void AddLegacyList(string url)
         {
             var route = new RouteInfo(url, BuildListOutputPath(url), "pages/list.html");
-            var items = routed.Where(x => x.Route.Url.StartsWith(url, StringComparison.OrdinalIgnoreCase)).OrderByDescending(x => x.Item.PublishAt).ToList();
+            var items = index.GetByRoutePrefix(url);
             list.Add(new SpecialListDefinition(
                 route,
                 items,
@@ -359,25 +444,26 @@ internal static class PageRenderDispatcher
             : Path.Combine(normalized.Replace('/', Path.DirectorySeparatorChar), "index.html");
     }
 
-    private static string GetCollection(ContentItem item)
-    {
-        if (item.Meta.TryGetValue("collection", out var collection) && collection is not null && !string.IsNullOrWhiteSpace(collection.ToString()))
-        {
-            return collection.ToString()!;
-        }
-
-        if (item.Meta.TryGetValue("type", out var type) && type is not null && !string.IsNullOrWhiteSpace(type.ToString()))
-        {
-            return type.ToString()!;
-        }
-
-        return "page";
-    }
-
     private sealed record SpecialListDefinition(
         RouteInfo Route,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> Items,
         bool IncludeContent);
+
+    private static BuildStageMetricsCollector MergeCollectors(BuildStageMetricsCollector collector, BuildStageMetrics metrics)
+    {
+        foreach (var kv in metrics.DurationsMs)
+        {
+            collector.AddDuration(kv.Key, kv.Value);
+        }
+
+        foreach (var kv in metrics.Counts)
+        {
+            collector.Increment(kv.Key, kv.Value);
+        }
+
+        return collector;
+    }
+
     private static async Task WriteUtf8LockedAsync(
         string outputRoot,
         string relativePath,

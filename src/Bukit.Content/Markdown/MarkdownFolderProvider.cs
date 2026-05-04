@@ -1,6 +1,8 @@
 using Bukit.Shared;
 using System.Globalization;
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
 
@@ -131,6 +133,8 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 }
             }
 
+            meta["bodyFingerprint"] = ComputeBodyFingerprint(bodyMarkdown);
+
             var publishAt = File.GetLastWriteTimeUtc(file);
             if (meta.TryGetValue("publishAt", out var publishObj) && publishObj is string publishText && TryParseDateTimeOffset(publishText, out var dto))
             {
@@ -152,6 +156,12 @@ public sealed class MarkdownFolderProvider : IContentProvider
         }
 
         return new ContentLoadResult(items, new MarkdownBodyStore());
+    }
+
+    private static string ComputeBodyFingerprint(string markdown)
+    {
+        var bytes = Encoding.UTF8.GetBytes(markdown ?? string.Empty);
+        return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     }
 
     private static Regex BuildGlobRegex(string glob)
