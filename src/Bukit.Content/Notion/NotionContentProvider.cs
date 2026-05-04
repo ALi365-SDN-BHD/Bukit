@@ -132,6 +132,7 @@ public sealed class NotionContentProvider : IContentProvider
             url = string.IsNullOrWhiteSpace(url) ? null : url.Trim();
             return new RelationTargetInfo(d.PageId, d.Title, d.Slug, d.Type, url);
         });
+        var draftIndex = NotionDraftIndex<PageDraft>.From(drafts, static d => d.PageId);
         var pageIndex = NotionRelationLinkBuilder.BuildIndex(targets);
         pageIndex = await ResolveMissingTaxonomyRelationTargetsAsync(client, drafts, pageIndex, cancellationToken);
         var items = new List<ContentItem>(drafts.Count);
@@ -166,8 +167,7 @@ public sealed class NotionContentProvider : IContentProvider
                 return string.Empty;
             }
 
-            var draft = drafts.FirstOrDefault(d => string.Equals(d.PageId, item.BodyKey ?? item.Id, StringComparison.OrdinalIgnoreCase))
-                ?? throw new InvalidOperationException($"Unable to find Notion draft for item '{item.Id}'.");
+            var draft = draftIndex.GetRequired(item.BodyKey ?? item.Id);
 
             using var bodyClient = new NotionApiClient(_options);
             var renderer = new NotionBlocksRenderer(bodyClient);
