@@ -255,6 +255,22 @@ public sealed class ConfigValidatorTests
     }
 
     [Fact]
+    public void Validate_Timezone_IanaAsiaShanghai_Passes()
+    {
+        var config = ConfigWithSite(s => s with { Timezone = "Asia/Shanghai" });
+        var ex = Record.Exception(() => ConfigValidator.Validate(config));
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void TryGetWindowsTimeZoneFallback_AsiaShanghai_ReturnsChinaStandardTime()
+    {
+        var ok = TimeZoneCompatibility.TryGetWindowsTimeZoneFallback("Asia/Shanghai", out var windowsTimeZoneId);
+        Assert.True(ok);
+        Assert.Equal("China Standard Time", windowsTimeZoneId);
+    }
+
+    [Fact]
     public void Validate_SearchModeInvalid_Throws()
     {
         var config = ConfigWithSite(s => s with { SearchMode = "invalid" });

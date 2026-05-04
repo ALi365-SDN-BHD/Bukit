@@ -2,11 +2,37 @@ using Bukit.Config;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+
+#if !AOT
 using Wasmtime;
 using WasmtimeEngine = Wasmtime.Engine;
+#endif
 
 namespace Bukit.Engine.Plugins.Protocol;
 
+#if AOT
+// In AOT builds we intentionally do not reference Wasmtime (see Bukit.Engine.csproj).
+// This stub keeps the type available so the project compiles, while ensuring runtime
+// behavior is explicit and actionable.
+internal sealed class WasmPluginInvoker : IProtocolPluginInvoker
+{
+    public Task<ProtocolPluginInvocationResult> InvokeAsync(
+        ExternalPluginConfig plugin,
+        string requestJson,
+        string? arguments,
+        CancellationToken cancellationToken)
+    {
+        var started = Stopwatch.StartNew();
+        var entry = plugin.Entry ?? string.Empty;
+        return Task.FromResult(new ProtocolPluginInvocationResult(
+            -1,
+            string.Empty,
+            $"[plugin-policy] protocol plugin runtime 'wasm' is not supported in AOT build. Use 'process' runtime. entry={entry}",
+            true,
+            started.ElapsedMilliseconds));
+    }
+}
+#else
 internal sealed class WasmPluginInvoker : IProtocolPluginInvoker
 {
     public async Task<ProtocolPluginInvocationResult> InvokeAsync(
@@ -263,3 +289,4 @@ internal sealed class WasmPluginInvoker : IProtocolPluginInvoker
         return result;
     }
 }
+#endif
