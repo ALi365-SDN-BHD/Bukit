@@ -4,6 +4,7 @@ using System.Threading;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Incremental;
+using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Shared;
@@ -369,11 +370,12 @@ internal static class PageRenderDispatcher
         string layoutsDir,
         string listPageContentMode)
     {
+        var index = CollectionRouteIndex.Create(routed);
         var list = new List<SpecialListDefinition>();
         var homeRoute = new RouteInfo("/", "index.html", "pages/index.html");
         list.Add(new SpecialListDefinition(
             homeRoute,
-            routed.OrderByDescending(x => x.Item.PublishAt).ToList(),
+            index.AllOrdered,
             TemplateCapabilitiesResolver.ShouldIncludeListPageContent(homeRoute.Template, layoutsDir, listPageContentMode)));
 
         if (collections is null || collections.Count == 0)
@@ -393,10 +395,7 @@ internal static class PageRenderDispatcher
             var url = NormalizeListUrl(collection.ListRoute);
             var outputPath = BuildListOutputPath(url);
             var route = new RouteInfo(url, outputPath, "pages/list.html");
-            var items = routed
-                .Where(x => string.Equals(GetCollection(x.Item), key, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(x => x.Item.PublishAt)
-                .ToList();
+            var items = index.GetByCollection(key);
             list.Add(new SpecialListDefinition(
                 route,
                 items,
@@ -408,7 +407,7 @@ internal static class PageRenderDispatcher
         void AddLegacyList(string url)
         {
             var route = new RouteInfo(url, BuildListOutputPath(url), "pages/list.html");
-            var items = routed.Where(x => x.Route.Url.StartsWith(url, StringComparison.OrdinalIgnoreCase)).OrderByDescending(x => x.Item.PublishAt).ToList();
+            var items = index.GetByRoutePrefix(url);
             list.Add(new SpecialListDefinition(
                 route,
                 items,
@@ -443,21 +442,6 @@ internal static class PageRenderDispatcher
         return string.IsNullOrWhiteSpace(normalized)
             ? "index.html"
             : Path.Combine(normalized.Replace('/', Path.DirectorySeparatorChar), "index.html");
-    }
-
-    private static string GetCollection(ContentItem item)
-    {
-        if (item.Meta.TryGetValue("collection", out var collection) && collection is not null && !string.IsNullOrWhiteSpace(collection.ToString()))
-        {
-            return collection.ToString()!;
-        }
-
-        if (item.Meta.TryGetValue("type", out var type) && type is not null && !string.IsNullOrWhiteSpace(type.ToString()))
-        {
-            return type.ToString()!;
-        }
-
-        return "page";
     }
 
     private sealed record SpecialListDefinition(

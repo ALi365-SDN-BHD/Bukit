@@ -16,10 +16,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
         var collectionKey = archiveCollection?.Key ?? "post";
         var listRoute = archiveCollection?.Config.ListRoute ?? "/blog/";
         var archiveBaseUrl = $"{NormalizeRoute(listRoute)}archive/";
-        var posts = context.Routed
-            .Where(x => string.Equals(GetCollection(x.Item), collectionKey, StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(x => x.Item.PublishAt)
-            .ToList();
+        var posts = CollectionRouteIndex.GetOrBuild(context).GetByCollection(collectionKey);
 
         if (posts.Count == 0)
         {
@@ -150,21 +147,6 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
         }
 
         return null;
-    }
-
-    private static string GetCollection(ContentItem item)
-    {
-        if (item.Meta.TryGetValue("collection", out var collection) && collection is not null && !string.IsNullOrWhiteSpace(collection.ToString()))
-        {
-            return collection.ToString()!;
-        }
-
-        if (item.Meta.TryGetValue("type", out var type) && type is not null && !string.IsNullOrWhiteSpace(type.ToString()))
-        {
-            return type.ToString()!;
-        }
-
-        return "page";
     }
 
     private static string NormalizeRoute(string route)

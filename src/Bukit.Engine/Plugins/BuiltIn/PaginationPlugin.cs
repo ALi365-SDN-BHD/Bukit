@@ -16,10 +16,8 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin
         var pageSize = paginationCollection?.Config.Pagination.PageSize ?? 10;
         var collectionKey = paginationCollection?.Key ?? "post";
         var listRoute = paginationCollection?.Config.ListRoute ?? "/blog/";
-        var posts = context.Routed
-            .Where(x => string.Equals(GetCollection(x.Item), collectionKey, StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(x => x.Item.PublishAt)
-            .ToList();
+        var index = CollectionRouteIndex.GetOrBuild(context);
+        var posts = index.GetByCollection(collectionKey);
 
         if (posts.Count <= pageSize)
         {
@@ -112,21 +110,6 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin
         sb.AppendLine("</nav>");
 
         return sb.ToString();
-    }
-
-    private static string GetCollection(ContentItem item)
-    {
-        if (item.Meta.TryGetValue("collection", out var collection) && collection is not null && !string.IsNullOrWhiteSpace(collection.ToString()))
-        {
-            return collection.ToString()!;
-        }
-
-        if (item.Meta.TryGetValue("type", out var type) && type is not null && !string.IsNullOrWhiteSpace(type.ToString()))
-        {
-            return type.ToString()!;
-        }
-
-        return "page";
     }
 
     private static string NormalizeListRoute(string route)
