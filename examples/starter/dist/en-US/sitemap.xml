@@ -2,15 +2,15 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://example.com/en-US/</loc>
-    <lastmod>2026-04-06</lastmod>
+    <lastmod>2026-05-04</lastmod>
   </url>
   <url>
     <loc>https://example.com/en-US/blog/</loc>
-    <lastmod>2026-04-06</lastmod>
+    <lastmod>2026-05-04</lastmod>
   </url>
   <url>
     <loc>https://example.com/en-US/pages/</loc>
-    <lastmod>2026-04-06</lastmod>
+    <lastmod>2026-05-04</lastmod>
   </url>
   <url>
     <loc>https://example.com/en-US/pages/greeting/</loc>
@@ -22,7 +22,7 @@
   </url>
   <url>
     <loc>https://example.com/en-US/tags/</loc>
-    <lastmod>2026-04-06</lastmod>
+    <lastmod>2026-05-04</lastmod>
   </url>
   <url>
     <loc>https://example.com/en-US/tags/demo/</loc>
@@ -34,7 +34,7 @@
   </url>
   <url>
     <loc>https://example.com/en-US/categories/</loc>
-    <lastmod>2026-04-06</lastmod>
+    <lastmod>2026-05-04</lastmod>
   </url>
   <url>
     <loc>https://example.com/en-US/categories/docs/</loc>

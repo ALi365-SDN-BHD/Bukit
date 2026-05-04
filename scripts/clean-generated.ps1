@@ -7,6 +7,7 @@ Set-Location $root
 
 $patterns = @(
     '^examples/starter/\.cache/',
+    '^examples/starter/\.sitegen_test/',
     '^examples/starter/dist',
     '/bin/',
     '/obj/',

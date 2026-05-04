@@ -8,6 +8,15 @@ out/
 **/.cache/
 *.log
 
+# Generated site outputs.
+# Existing tracked examples/starter/dist* and .sitegen_test files are golden
+# acceptance snapshots; keep reviewing their diffs. These rules prevent
+# accidental new generated output files from being added.
+dist/
+dist_*/
+examples/**/dist*/
+examples/**/.sitegen_test/
+
 # IDE
 .vs/
 .idea/

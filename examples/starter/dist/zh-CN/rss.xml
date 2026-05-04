@@ -4,8 +4,8 @@
     <title>AI Sample Blog</title>
     <link>https://example.com/zh-CN/</link>
     <description>AI Sample Blog</description>
-    <lastBuildDate>Mon, 06 Apr 2026 17:08:49 GMT</lastBuildDate>
-    <generator>sitegen</generator>
+    <lastBuildDate>Mon, 04 May 2026 07:43:02 GMT</lastBuildDate>
+    <generator>bukit</generator>
     <atom:link href="https://example.com/zh-CN/rss.xml" rel="self" type="application/rss+xml" />
   </channel>
 </rss>
