@@ -1,0 +1,33 @@
+site:
+  name: starter
+  title: Bukit Starter
+  baseUrl: /
+  language: zh-CN
+  timezone: Asia/Shanghai
+content:
+  provider: sources
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      markdown:
+        dir: content
+        defaultType: page
+    - type: markdown
+      name: modules
+      mode: data
+      markdown:
+        dir: data
+        defaultType: module
+build:
+  output: dist
+  clean: true
+theme:
+  layouts: layouts
+  assets: assets
+  static: static
+  name: alt
+logging:
+  level: info
+...
+

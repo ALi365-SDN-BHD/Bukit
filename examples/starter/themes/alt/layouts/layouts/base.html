@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="{{ site.language }}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>
+    {{ if page.fields.seo_title }}
+      {{ page.fields.seo_title.value }}
+    {{ else }}
+      {{ page.title }}
+    {{ end }}
+    - {{ site.title }}
+  </title>
+  {{ if page.fields.seo_desc }}
+    <meta name="description" content="{{ page.fields.seo_desc.value }}" />
+  {{ end }}
+  <meta property="og:title" content="{{ if page.fields.seo_title }}{{ page.fields.seo_title.value }}{{ else }}{{ page.title }}{{ end }}" />
+  {{ if page.fields.seo_desc }}
+    <meta property="og:description" content="{{ page.fields.seo_desc.value }}" />
+  {{ end }}
+  <meta property="og:url" content="{{ site.base_url }}{{ page.url }}" />
+  {{ if page.fields.og_image }}
+    <meta property="og:image" content="{{ page.fields.og_image.value }}" />
+  {{ end }}
+  <link rel="alternate" type="application/rss+xml" href="{{ site.base_url }}/rss.xml" />
+  <link rel="sitemap" type="application/xml" href="{{ site.base_url }}/sitemap.xml" />
+  <link rel="stylesheet" href="{{ site.base_url }}/assets/style.css" />
+</head>
+<body class="theme-alt">
+  {{ include "partials/header.html" }}
+  <main class="container">
+    {{ content }}
+  </main>
+  {{ include "partials/footer.html" }}
+</body>
+</html>

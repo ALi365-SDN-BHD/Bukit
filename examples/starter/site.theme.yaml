@@ -1,0 +1,25 @@
+site:
+  name: starter-theme
+  title: Bukit Starter (theme alt)
+  baseUrl: /
+  language: zh-CN
+  timezone: Asia/Shanghai
+
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
+
+build:
+  output: dist_theme
+  clean: true
+
+theme:
+  name: alt
+  params:
+    brand: ALT THEME
+
+logging:
+  level: info
+

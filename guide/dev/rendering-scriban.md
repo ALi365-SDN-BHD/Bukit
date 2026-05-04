@@ -1,0 +1,103 @@
+# 渲染与模板（Scriban）
+
+渲染层负责把引擎生成的模型渲染成 HTML。当前模板引擎使用 Scriban。
+
+实现参考：
+- 模型：`src/Bukit.Rendering/Models.cs`
+- 模型绑定：`src/Bukit.Rendering/Scriban/ScribanModelBinder.cs`
+- 渲染器：`src/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs`
+
+## 目录约定（theme.layouts / assets / static）
+
+在 `site.yaml` 中配置：
+
+```yaml
+theme:
+  layouts: layouts
+  assets: assets
+  static: static
+```
+
+行为（由 `SiteEngine` 实现）：
+- `static/`：构建时原样拷贝到输出目录根
+- `assets/`：构建时拷贝到输出目录的 `assets/`
+- `layouts/`：渲染时作为模板根目录
+
+示例站点可参考：`examples/starter/layouts/`
+
+主题开发与 `theme.params` 的使用见：[theme.md](./theme.md)。
+
+## 模板变量结构
+
+渲染时注入的根变量：
+- `site`
+- `page`
+- （列表页额外）`pages`
+
+### site
+
+| 变量 | 含义 | 备注 |
+|---|---|---|
+| `site.name` | 站点内部名 |  |
+| `site.title` | 站点标题 |  |
+| `site.url` | 站点绝对 URL | 可为空 |
+| `site.description` | 站点描述 | 可为空 |
+| `site.base_url` | baseUrl | 当 baseUrl 为 `/` 时会注入空字符串 |
+| `site.language` | 当前语言 | 多语言变体构建时会变化 |
+| `site.params` | `theme.params` | 可为空 |
+| `site.modules` | data 模块分组 | 见 [Modules](./modules-data.md) |
+| `site.data` | 插件注入的全局数据 | 由插件通过 PluginContext.Data 写入；如 pages-index 插件注入 `site.data.pages_by_id` |
+
+### page
+
+| 变量 | 含义 | 备注 |
+|---|---|---|
+| `page.title` | 页面标题 |  |
+| `page.url` | 页面 URL |  |
+| `page.content` | HTML 正文 | Notion 的 renderContent=false 时可能为空 |
+| `page.summary` | 摘要 | 取自 meta.summary |
+| `page.publish_date` | 发布时间 | 绑定为 DateTime（可能为空） |
+| `page.fields` | 自定义字段 | `page.fields.<key>.type/value` |
+
+### pages（列表页）
+
+当渲染列表页（例如首页、/blog/、/pages/）时，模板可使用 `pages` 数组，每一项结构与 `page` 类似（但仅包含列表必要字段）。
+
+需要额外注意：
+
+- `pages[*].title`、`url`、`summary`、`publish_date`、`fields` 始终可用
+- `pages[*].content` 是否装配，受 `build.listPageContentMode` 控制
+
+推荐顺序：
+
+1. 列表卡片优先使用 `summary`
+2. 只有明确需要正文片段时才使用 `content`
+3. 若主题明确依赖列表页正文，优先在 `layouts/bukit.templates.yaml` 中声明模板能力，而不是依赖自动猜测
+
+示例：
+
+```yaml
+templates:
+  pages/list.html:
+    capabilities:
+      needs_page_content: true
+```
+
+## fields 的使用约定
+
+fields 是统一的“模板扩展面”，推荐用法：
+
+```scriban
+<title>
+  {{ if page.fields.seo_title }}
+    {{ page.fields.seo_title.value }}
+  {{ else }}
+    {{ page.title }}
+  {{ end }}
+  - {{ site.title }}
+</title>
+```
+
+注意：
+- Markdown 模式下，部分保留键不会进入 fields（例如 `title/slug/type/...`），但 tags/categories/summary 会以固定方式写入 fields
+- Notion 模式下，fields key 会被归一化为“下划线小写”，并受 fieldPolicy 控制

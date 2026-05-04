@@ -1,0 +1,25 @@
+templates:
+  pages/index.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/list.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/pagination.html:
+    capabilities:
+      supports_pagination: true
+  pages/taxonomy-index.html:
+    capabilities:
+      supports_taxonomy: true
+  pages/taxonomy-term.html:
+    capabilities:
+      supports_taxonomy: true
+  pages/search.html:
+    capabilities:
+      supports_search_snippets: true

@@ -1,0 +1,31 @@
+site:
+  name: starter-i18n
+  title: Bukit Starter (i18n)
+  baseUrl: /
+  language: zh-CN
+  languages:
+    - zh-CN
+    - en-US
+  defaultLanguage: zh-CN
+  timezone: Asia/Shanghai
+
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
+
+build:
+  output: dist
+  clean: true
+
+theme:
+  layouts: layouts
+  assets: assets
+  static: static
+  params:
+    brand: starter
+
+logging:
+  level: info
+

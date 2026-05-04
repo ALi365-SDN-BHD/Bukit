@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectName)').StartsWith('Bukit.'))">
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Bukit.PluginSourceGenerator'">
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+  </PropertyGroup>
+</Project>

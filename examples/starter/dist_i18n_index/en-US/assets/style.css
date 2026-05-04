@@ -1,0 +1,25 @@
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+a {
+  color: #0b5fff;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.content h1, .content h2, .content h3 {
+  margin-top: 1.2em;
+}
+

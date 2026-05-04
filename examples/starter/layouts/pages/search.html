@@ -1,0 +1,33 @@
+{% layout "layouts/base.html" %}
+
+<h1>搜索</h1>
+<input id="search-query" type="search" placeholder="输入关键词" />
+<button id="search-button" type="button">搜索</button>
+<ul id="search-results"></ul>
+
+<script>
+const queryInput = document.getElementById('search-query');
+const searchButton = document.getElementById('search-button');
+const resultsElement = document.getElementById('search-results');
+
+async function runSearch() {
+  const keyword = (queryInput.value || '').trim().toLowerCase();
+  const response = await fetch('{{ site.base_url }}/search.json');
+  const items = await response.json();
+  const filtered = keyword === ''
+    ? items
+    : items.filter(item =>
+        (item.title || '').toLowerCase().includes(keyword) ||
+        (item.summary || '').toLowerCase().includes(keyword) ||
+        (item.snippet || '').toLowerCase().includes(keyword));
+
+  resultsElement.innerHTML = filtered.map(item => `
+    <li>
+      <a href="${item.url}">${item.title}</a>
+      ${item.snippet ? `<p>${item.snippet}</p>` : ''}
+    </li>
+  `).join('');
+}
+
+searchButton.addEventListener('click', runSearch);
+</script>

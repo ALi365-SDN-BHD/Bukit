@@ -1,0 +1,38 @@
+site:
+  name: starter
+  title: Bukit Starter (v2 sources)
+  baseUrl: /
+  language: zh-CN
+  timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
+      listRoute: /pages/
+      output:
+        rss: false
+        sitemap: true
+        archive: false
+
+content:
+  provider: sources
+  sources:
+    - type: markdown
+      dir: content
+      defaultType: page
+    - type: markdown
+      dir: content_extra
+      defaultType: page
+
+build:
+  output: dist
+  clean: false
+
+theme:
+  layouts: layouts
+  assets: assets
+  static: static
+
+logging:
+  level: info
+

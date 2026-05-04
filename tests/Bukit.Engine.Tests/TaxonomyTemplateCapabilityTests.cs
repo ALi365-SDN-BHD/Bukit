@@ -1,0 +1,87 @@
+using Bukit.Config;
+using Bukit.Content;
+using Bukit.Engine.Plugins;
+using Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Routing;
+using Bukit.Shared;
+using Xunit;
+
+namespace Bukit.Engine.Tests;
+
+public sealed class TaxonomyTemplateCapabilityTests : IDisposable
+{
+    private readonly string _rootDir;
+    private readonly string _layoutsDir;
+
+    public TaxonomyTemplateCapabilityTests()
+    {
+        _rootDir = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-capability-" + Guid.NewGuid().ToString("N"));
+        _layoutsDir = Path.Combine(_rootDir, "layouts");
+        Directory.CreateDirectory(Path.Combine(_layoutsDir, "pages"));
+        File.WriteAllText(Path.Combine(_layoutsDir, "pages", "page.html"), "{{ page.content }}");
+        File.WriteAllText(Path.Combine(_layoutsDir, "pages", "taxonomy-index.html"), "{{ page.content }}");
+        File.WriteAllText(Path.Combine(_layoutsDir, "pages", "taxonomy-term.html"), "{{ page.content }}");
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_rootDir))
+        {
+            Directory.Delete(_rootDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_UsesTaxonomyTemplates_WhenCapabilityDeclared()
+    {
+        File.WriteAllText(Path.Combine(_layoutsDir, "bukit.templates.yaml"), """
+                                                                        templates:
+                                                                          pages/taxonomy-index.html:
+                                                                            capabilities:
+                                                                              supports_taxonomy: true
+                                                                          pages/taxonomy-term.html:
+                                                                            capabilities:
+                                                                              supports_taxonomy: true
+                                                                        """);
+
+        var plugin = new TaxonomyPlugin();
+        var derived = plugin.DerivePages(CreateContext());
+
+        Assert.Contains(derived, x => x.Route.Url == "/tags/" && x.Route.Template == "pages/taxonomy-index.html");
+        Assert.Contains(derived, x => x.Route.Url == "/tags/news/" && x.Route.Template == "pages/taxonomy-term.html");
+    }
+
+    private BuildContext CreateContext()
+    {
+        var item = new ContentItem(
+            Id: "post-1",
+            Title: "Post",
+            Slug: "post",
+            PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
+            ContentHtml: "<p>Body</p>",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "post",
+                ["tags"] = new[] { "News" }
+            },
+            Fields: null);
+
+        return new BuildContext
+        {
+            Config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "test", Title = "test" },
+                Content = new ContentConfig { Provider = "markdown" }
+            },
+            RootDir = _rootDir,
+            OutputDir = Path.Combine(_rootDir, "dist"),
+            BaseUrl = "/",
+            LayoutsDir = _layoutsDir,
+            Routed = new List<(ContentItem Item, RouteInfo Route)>
+            {
+                (item, new RouteInfo("/blog/post/", Path.Combine("blog", "post", "index.html"), "pages/post.html"))
+            },
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+    }
+}

@@ -1,0 +1,81 @@
+site:
+  name: starter
+  title: Bukit Starter
+  baseUrl: /
+  language: zh-CN
+  pluginFailMode: strict
+  externalPlugins:
+    sample-wasm:
+      enabled: false
+      runtime: wasm
+      entry: dotnet
+      hooks: [after-build]
+      timeoutMs: 5000
+      wasmProfile: wasi-preview1
+      maxMemoryMb: 64
+      wasmFsMode: output-only
+      wasmAllowNetwork: false
+      capabilities: [emit-outputs]
+      options:
+        processArgs:
+          positionals:
+            - plugins/ProtocolEchoPlugin.dll
+            - success
+  plugins:
+    path-report:
+      enabled: true
+      options:
+        wechatMaterialUpload:
+          enabled: false
+          appIdEnv: WECHAT_APP_ID
+          appSecretEnv: WECHAT_APP_SECRET
+          file: assets/imgs/default.png
+          type: image
+  timezone: Asia/Shanghai
+  autoSummary: true
+  autoSummaryMaxLength: 200
+  collections:
+    post:
+      permalink: /blog/{slug}/
+      template: pages/post.html
+      listRoute: /blog/
+      pagination:
+        enabled: true
+        pageSize: 10
+      output:
+        rss: true
+        sitemap: true
+        archive: true
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
+      listRoute: /pages/
+      output:
+        rss: false
+        sitemap: true
+        archive: false
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
+build:
+  output: dist
+  clean: true
+  listPageContentMode: auto
+theme:
+  layouts: layouts
+  assets: assets
+  static: static
+  name: alt
+taxonomy:
+  itemFields:
+    - cover
+    - image
+    - date
+  templates:
+    categories:
+      termTemplate: pages/category.html
+logging:
+  level: info
+...

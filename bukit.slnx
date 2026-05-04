@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Bukit.Cli/Bukit.Cli.csproj" />
+    <Project Path="src/Bukit.Config/Bukit.Config.csproj" />
+    <Project Path="src/Bukit.Content/Bukit.Content.csproj" />
+    <Project Path="src/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj" />
+    <Project Path="src/Bukit.Engine/Bukit.Engine.csproj" />
+    <Project Path="src/Bukit.Rendering/Bukit.Rendering.csproj" />
+    <Project Path="src/Bukit.Routing/Bukit.Routing.csproj" />
+    <Project Path="src/Bukit.Shared/Bukit.Shared.csproj" />
+    <Project Path="tools/scriban/src/Scriban/Scriban.csproj" />
+    <Project Path="src/plugins/SampleAfterBuildPlugin/SampleAfterBuildPlugin.csproj" />
+    <Project Path="src/plugins/PathReportPlugin/PathReportPlugin.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ThrowingPlugin/ThrowingPlugin.csproj" />
+    <Project Path="tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj" />
+    <Project Path="tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj" />
+    <Project Path="tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj" />
+    <Project Path="tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj" />
+  </Folder>
+</Solution>

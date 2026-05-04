@@ -1,0 +1,11 @@
+{% layout "layouts/base.html" %}
+
+<article>
+  <h1>{{ page.title }}</h1>
+  {{ if page.publish_date }}
+    <small>{{ page.publish_date | date.to_string "%Y-%m-%d" }}</small>
+  {{ end }}
+  <div class="content">
+    {{ page.content }}
+  </div>
+</article>

@@ -1,0 +1,61 @@
+{% layout "layouts/base.html" %}
+
+{{ if site.modules && site.modules.banner }}
+  <div class="banner">
+  {{ for b in site.modules.banner }}
+    {{ if b.fields && b.fields.image }}
+      <a href="{{ if b.fields.link }}{{ b.fields.link.value }}{{ end }}">
+        <img src="{{ b.fields.image.value }}" alt="{{ b.title }}" />
+      </a>
+    {{ end }}
+  {{ end }}
+  </div>
+{{ end }}
+
+<h1>{{ site.title }}</h1>
+
+{{ if site.modules && site.modules.cta }}
+  {{ for c in site.modules.cta }}
+    <section class="cta">
+      {{ if c.fields && c.fields.desc }}<p>{{ c.fields.desc.value }}</p>{{ end }}
+      {{ if c.fields && c.fields.link && c.fields.button_text }}
+        <p><a href="{{ site.base_url }}{{ c.fields.link.value }}">{{ c.fields.button_text.value }}</a></p>
+      {{ end }}
+    </section>
+  {{ end }}
+{{ end }}
+
+{{ if site.modules && site.modules.features }}
+  {{ for f in site.modules.features }}
+    {{ if f.fields && f.fields.items_json }}
+      <section class="features" data-items="{{ f.fields.items_json.value }}"></section>
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{ if site.modules && site.modules.pricing }}
+  {{ for p in site.modules.pricing }}
+    {{ if p.fields && p.fields.items_json }}
+      <section class="pricing" data-items="{{ p.fields.items_json.value }}"></section>
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{ if site.modules && site.modules.faq }}
+  {{ for f in site.modules.faq }}
+    {{ if f.fields && f.fields.items_json }}
+      <section class="faq" data-items="{{ f.fields.items_json.value }}"></section>
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+<ul>
+{{ for p in pages }}
+  <li>
+    <a href="{{ site.base_url }}{{ p.url }}">{{ p.title }}</a>
+    {{ if p.publish_date }}
+      <small>{{ p.publish_date | date.to_string "%Y-%m-%d" }}</small>
+    {{ end }}
+  </li>
+{{ end }}
+</ul>

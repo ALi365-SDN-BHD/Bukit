@@ -1,0 +1,15 @@
+<footer class="footer">
+  {{ if site.modules && site.modules.footer }}
+    {{ for f in site.modules.footer }}
+      {{ if f.fields && f.fields.items_json }}
+        <nav class="footer-nav" data-items="{{ f.fields.items_json.value }}"></nav>
+      {{ end }}
+      {{ if f.fields && f.fields.copyright }}
+        <small>{{ f.fields.copyright.value }}</small>
+      {{ end }}
+    {{ end }}
+  {{ else }}
+    <small>Powered by sitegen</small>
+  {{ end }}
+</footer>
+

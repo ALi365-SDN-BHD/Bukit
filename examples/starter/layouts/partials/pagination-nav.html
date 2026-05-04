@@ -1,0 +1,25 @@
+{{ page_num = 1 }}
+{{ page_total = 1 }}
+{{ prev_url = "" }}
+{{ next_url = "" }}
+{{ if pagination }}
+  {{ page_num = pagination.page }}
+  {{ page_total = pagination.total_pages }}
+  {{ if pagination.has_prev }}
+    {{ if page_num == 2 }}
+      {{ prev_url = base_url }}
+    {{ else }}
+      {{ prev_url = base_url + "page/" + (page_num - 1) + "/" }}
+    {{ end }}
+  {{ end }}
+  {{ if pagination.has_next }}
+    {{ next_url = base_url + "page/" + (page_num + 1) + "/" }}
+  {{ end }}
+{{ end }}
+{{ if page_total > 1 }}
+<nav>
+  {{ if prev_url != "" }}<a href="{{ prev_url }}">上一页</a>{{ end }}
+  <span>第 {{ page_num }} / {{ page_total }} 页</span>
+  {{ if next_url != "" }}<a href="{{ next_url }}">下一页</a>{{ end }}
+</nav>
+{{ end }}

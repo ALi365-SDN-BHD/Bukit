@@ -1,0 +1,20 @@
+<header class="header">
+  <nav class="nav">
+    <a class="brand" href="{{ site.base_url }}/">
+      {{ if site.params && site.params.brand }}
+        {{ site.params.brand }}
+      {{ else }}
+        {{ site.title }}
+      {{ end }}
+    </a>
+    {{ if site.modules && site.modules.navigation }}
+      {{ for item in site.modules.navigation }}
+        <a href="{{ if item.fields && item.fields.link }}{{ item.fields.link.value }}{{ end }}">{{ item.title }}</a>
+      {{ end }}
+    {{ else }}
+      <a href="{{ site.base_url }}/blog/">博客</a>
+      <a href="{{ site.base_url }}/pages/">页面</a>
+    {{ end }}
+  </nav>
+</header>
+

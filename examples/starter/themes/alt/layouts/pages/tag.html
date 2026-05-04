@@ -1,0 +1,128 @@
+{{ layout "layouts/base.html" }}
+{{ items = null }}
+{{ if page && page.fields && page.fields.items }}{{ items = page.fields.items.value }}{{ end }}
+{{ if items == null || items.size == 0 }}
+  {{ if page && page.items }}{{ items = page.items }}{{ end }}
+{{ end }}
+{{ if items == null || items.size == 0 }}
+  {{ if pages }}{{ items = pages }}{{ end }}
+{{ end }}
+{{ if items == null || items.size == 0 }}
+  {{ if page && page.pages }}{{ items = page.pages }}{{ end }}
+{{ end }}
+{{ page_num = 1 }}
+{{ page_total = 1 }}
+{{ prev_url = "" }}
+{{ next_url = "" }}
+{{ if page && page.fields && page.fields.pagination }}
+  {{ page_num = page.fields.pagination.value.page }}
+  {{ page_total = page.fields.pagination.value.total_pages }}
+{{ end }}
+{{ taxonomy_kind = "" }}
+{{ taxonomy_slug = "" }}
+{{ if page && page.fields && page.fields.taxonomy }}
+  {{ taxonomy_kind = page.fields.taxonomy.value.kind }}
+  {{ taxonomy_slug = page.fields.taxonomy.value.slug }}
+{{ end }}
+{{ term_base = "" }}
+{{ if taxonomy_kind != "" && taxonomy_slug != "" }}
+  {{ term_base = site.base_url + "/" + taxonomy_kind + "/" + taxonomy_slug + "/" }}
+{{ end }}
+{{ if page_num > 1 && term_base != "" }}
+  {{ if page_num == 2 }}
+    {{ prev_url = term_base }}
+  {{ else }}
+    {{ prev_url = term_base + "page/" + (page_num - 1) + "/" }}
+  {{ end }}
+{{ end }}
+{{ if page_num < page_total && term_base != "" }}
+  {{ next_url = term_base + "page/" + (page_num + 1) + "/" }}
+{{ end }}
+<div class="page-area">
+  <div class="breadcumb-overlay"></div>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="breadcrumb text-center">
+          <div class="section-headline white-headline text-center">
+            <h3>{{ page.title }}</h3>
+          </div>
+          <ul>
+            <li class="home-bread">首页</li>
+            <li>{{ page.title }}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="blog-page-area area-padding">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-8 col-sm-8 col-xs-12">
+        <div class="row">
+          <div class="blog-grid">
+            {{ if items && items.size > 0 }}
+              {{ for p in items }}
+              {{ post_url = "" }}
+              {{ if p.slug }}{{ post_url = site.base_url + "/" + p.slug + "/" }}{{ end }}
+              {{ if post_url == "" && p.url }}{{ post_url = p.url }}{{ end }}
+              <div class="col-md-6 col-sm-6 col-xs-12">
+                <div class="single-blog">
+                  <div class="blog-image">
+                    <a class="image-scale" href="{{ post_url }}">
+                      <img src="{{ if p.image }}{{ p.image }}{{ else }}{{ site.base_url }}/assets/images/noneimg-news.jpg{{ end }}">
+                    </a>
+                  </div>
+                  <div class="blog-content">
+                    <div class="blog-title">
+                      <div class="blog-meta">
+                        <span class="date-type">{{ p.date }}</span>
+                      </div>
+                      <a href="{{ post_url }}"><h4>{{ p.title | string.truncate 36 }}</h4></a>
+                    </div>
+                    <div class="blog-text">
+                      <p>{{ if p.summary }}{{ p.summary | string.truncate 120 }}{{ end }}</p>
+                      <a class="blog-btn" href="{{ post_url }}">更多</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {{ end }}
+            {{ else }}
+              <p>木有找到你要的结果哎！</p>
+            {{ end }}
+          </div>
+        </div>
+        {{ if page_total > 1 }}
+        <div class="blog-pagination">
+          <ul class="pagination">
+            {{ if prev_url != "" }}<li><a href="{{ prev_url }}">上一页</a></li>{{ end }}
+            {{ start_page = page_num - 4 }}
+            {{ end_page = page_num + 4 }}
+            {{ if start_page < 1 }}{{ start_page = 1 }}{{ end }}
+            {{ if end_page > page_total }}{{ end_page = page_total }}{{ end }}
+            {{ for i in (start_page..end_page) }}
+              {{ page_url = "" }}
+              {{ if i == 1 }}
+                {{ page_url = term_base }}
+              {{ else }}
+                {{ page_url = term_base + "page/" + i + "/" }}
+              {{ end }}
+              {{ if i == page_num }}
+                <li class="active"><a href="#">{{ i }}</a></li>
+              {{ else }}
+                <li><a href="{{ page_url }}">{{ i }}</a></li>
+              {{ end }}
+            {{ end }}
+            {{ if next_url != "" }}<li><a href="{{ next_url }}">下一页</a></li>{{ end }}
+          </ul>
+        </div>
+        {{ end }}
+      </div>
+      <div class="col-md-4 col-sm-4 col-xs-12">
+        {{ include "partials/sidebar.html" }}
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IncludeSamplePlugins>false</IncludeSamplePlugins>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
+    <ProjectReference Include="..\Bukit.Config\Bukit.Config.csproj" />
+    <ProjectReference Include="..\Bukit.Content\Bukit.Content.csproj" />
+    <ProjectReference Include="..\Bukit.Rendering\Bukit.Rendering.csproj" />
+    <ProjectReference Include="..\Bukit.Routing\Bukit.Routing.csproj" />
+    <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
+    <PackageReference Include="Wasmtime" Condition="'$(Configuration)' != 'AOT'" />
+    <PackageReference Include="YamlDotNet" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IncludeSamplePlugins)' == 'true'">
+    <Compile Include="..\plugins\*\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'AOT'">
+    <Compile Include="..\plugins\*\*.cs"
+             Link="Plugins\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bukit.PluginSourceGenerator\Bukit.PluginSourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

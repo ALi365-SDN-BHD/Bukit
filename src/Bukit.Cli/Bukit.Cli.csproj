@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bukit.Engine\Bukit.Engine.csproj" />
+    <ProjectReference Include="..\Bukit.Config\Bukit.Config.csproj" />
+    <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>bukit</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseAppHost>false</UseAppHost>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <BuildInfoVersionBase Condition="'$(VersionPrefix)' != ''">$(VersionPrefix)</BuildInfoVersionBase>
+    <BuildInfoVersionBase Condition="'$(BuildInfoVersionBase)' == '' and '$(Version)' != ''">$(Version)</BuildInfoVersionBase>
+    <BuildInfoVersionBase Condition="'$(BuildInfoVersionBase)' == ''">1.0.0</BuildInfoVersionBase>
+
+    <BuildInfoVersion Condition="'$(SourceRevisionId)' != ''">$(BuildInfoVersionBase)+$(SourceRevisionId)</BuildInfoVersion>
+    <BuildInfoVersion Condition="'$(BuildInfoVersion)' == ''">$(BuildInfoVersionBase)</BuildInfoVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(IntermediateOutputPath)CliBuildInfo.g.cs" />
+  </ItemGroup>
+
+  <Target Name="GenerateCliBuildInfo" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_CliBuildInfoLines Include="namespace Bukit.Cli" />
+      <_CliBuildInfoLines Include="{" />
+      <_CliBuildInfoLines Include="internal static class CliBuildInfo" />
+      <_CliBuildInfoLines Include="{" />
+      <_CliBuildInfoLines Include="    public const string Version = &quot;$(BuildInfoVersion)&quot;%3B" />
+      <_CliBuildInfoLines Include="}" />
+      <_CliBuildInfoLines Include="}" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(IntermediateOutputPath)CliBuildInfo.g.cs"
+                      Lines="@(_CliBuildInfoLines)"
+                      Overwrite="true"
+                      Encoding="UTF-8" />
+  </Target>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'AOT'">
+    <PublishAot>true</PublishAot>
+    <PublishSingleFile>true</PublishSingleFile>
+    <!-- Keep NativeAOT publish portable across local environments; users can opt in with -p:BukitStripSymbols=true. -->
+    <BukitStripSymbols Condition="'$(BukitStripSymbols)' == ''">false</BukitStripSymbols>
+    <StripSymbols>$(BukitStripSymbols)</StripSymbols>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <DefineConstants>$(DefineConstants);AOT</DefineConstants>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <!-- Scriban vendored source has been made AOT-compatible; no warning whitelist needed. -->
+  </PropertyGroup>
+
+  <Target Name="ValidateStripSymbolsTooling"
+          BeforeTargets="Publish"
+          Condition="'$(Configuration)' == 'AOT' and '$(StripSymbols)' == 'true' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">
+    <Exec Command="command -v llvm-objcopy >/dev/null 2&gt;&amp;1 || command -v objcopy >/dev/null 2&gt;&amp;1"
+          ConsoleToMsBuild="true"
+          IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="BukitObjcopyExitCode" />
+    </Exec>
+    <Error Condition="'$(BukitObjcopyExitCode)' != '0'"
+           Text="NativeAOT symbol stripping requires 'llvm-objcopy' or 'objcopy' in PATH. Install binutils/llvm, or disable stripping with -p:BukitStripSymbols=false." />
+  </Target>
+
+</Project>

@@ -1,0 +1,40 @@
+site:
+  name: starter
+  title: Bukit Starter (i18n SEO)
+  url: https://example.com
+  baseUrl: /
+  languages:
+    - zh-CN
+    - en-US
+  defaultLanguage: zh-CN
+  sitemapMode: merged
+  rssMode: merged
+  searchMode: index
+  timezone: Asia/Shanghai
+content:
+  provider: sources
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      markdown:
+        dir: content
+        defaultType: page
+    - type: markdown
+      name: modules
+      mode: data
+      markdown:
+        dir: data
+        defaultType: module
+build:
+  output: .bukit_test/dist
+  clean: true
+theme:
+  layouts: layouts
+  assets: assets
+  static: static
+  name: seo-best-practice
+logging:
+  level: info
+...
+

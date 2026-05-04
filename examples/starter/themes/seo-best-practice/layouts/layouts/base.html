@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="{{ site.language }}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>
+    {{ if page.fields && page.fields.seo_title }}
+      {{ page.fields.seo_title.value }}
+    {{ else }}
+      {{ page.title }}
+    {{ end }}
+    - {{ site.title }}
+  </title>
+
+  {{ include "partials/seo.html" }}
+
+  <link rel="alternate" type="application/rss+xml" href="{{ site.base_url }}/rss.xml" />
+  <link rel="sitemap" type="application/xml" href="{{ site.base_url }}/sitemap.xml" />
+  <link rel="stylesheet" href="{{ site.base_url }}/assets/style.css" />
+</head>
+<body class="theme-seo">
+  {{ include "partials/header.html" }}
+  <main class="container">
+    {{ content }}
+  </main>
+  {{ include "partials/footer.html" }}
+</body>
+</html>
+

@@ -1,0 +1,23 @@
+site:
+  name: ai-sample-blog
+  title: AI Sample Blog
+  base_url: "/"
+
+languages:
+  default: zh-CN
+  supported: [zh-CN, en-US]
+
+content:
+  provider: markdown
+  markdown:
+    dir: content
+
+theme:
+  name: alt
+  params:
+    brand: "AI Sample"
+
+features:
+  sitemap: true
+  rss: true
+  search: true

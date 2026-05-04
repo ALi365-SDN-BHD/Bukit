@@ -1,0 +1,31 @@
+site:
+  name: starter-i18n-merged
+  title: Bukit Starter (i18n merged)
+  baseUrl: /
+  language: zh-CN
+  languages:
+    - zh-CN
+    - en-US
+  defaultLanguage: zh-CN
+  sitemapMode: merged
+  rssMode: merged
+  timezone: Asia/Shanghai
+
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
+
+build:
+  output: dist_i18n_merged
+  clean: true
+
+theme:
+  layouts: layouts
+  assets: assets
+  static: static
+
+logging:
+  level: info
+

@@ -1,0 +1,179 @@
+using System.Text;
+using Bukit.Cli.Commands;
+using Xunit;
+
+namespace Bukit.Cli.Tests;
+
+[Collection("Console")]
+public sealed class DoctorCommandTests : IDisposable
+{
+    private readonly string _rootDir;
+    private readonly string _configPath;
+
+    public DoctorCommandTests()
+    {
+        _rootDir = Path.Combine(Path.GetTempPath(), "bukit-doctor-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_rootDir);
+        Directory.CreateDirectory(Path.Combine(_rootDir, "content"));
+        Directory.CreateDirectory(Path.Combine(_rootDir, "layouts", "layouts"));
+        Directory.CreateDirectory(Path.Combine(_rootDir, "layouts", "pages"));
+
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "layouts", "base.html"), "{{ content }}");
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "page.html"), "{{ page.title }}");
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "post.html"), "{{ page.title }}");
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "index.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "list.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
+
+        _configPath = Path.Combine(_rootDir, "site.yaml");
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                         collections:
+                                           post:
+                                             permalink: /blog/{slug}/
+                                             template: pages/post.html
+                                             listRoute: /blog/
+                                           page:
+                                             permalink: /pages/{slug}/
+                                             template: pages/page.html
+                                             listRoute: /pages/
+                                       content:
+                                         provider: markdown
+                                         markdown:
+                                           dir: content
+                                       build:
+                                         listPageContentMode: auto
+                                       """);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_rootDir))
+        {
+            Directory.Delete(_rootDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_ReturnsError_WhenTemplateCapabilitiesYamlIsInvalid()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "bukit.templates.yaml"), "templates: [");
+
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("bukit.templates.yaml", writer.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_ReturnsError_WhenTemplateCapabilitiesReferencesMissingTemplate()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "bukit.templates.yaml"), """
+                                                                                       templates:
+                                                                                         pages/missing.html:
+                                                                                           capabilities:
+                                                                                             needs_page_content: true
+                                                                                       """);
+
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("pages/missing.html", writer.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_Warns_WhenListTemplatesRelyOnHeuristicFallback()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "index.html"), "{{ partial_path = \"partials/card.html\" }}{{ for p in pages }}{{ include partial_path }}{{ end }}");
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "list.html"), "{{ partial_path = \"partials/card.html\" }}{{ for p in pages }}{{ include partial_path }}{{ end }}");
+
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("heuristic fallback", writer.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_DoesNotWarn_WhenIncludeTreeDoesNotUseContent()
+    {
+        Directory.CreateDirectory(Path.Combine(_rootDir, "layouts", "partials"));
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "partials", "card.html"), "{{ p.title }}");
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "index.html"), "{{ for p in pages }}{{ include \"partials/card.html\" }}{{ end }}");
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "list.html"), "{{ for p in pages }}{{ include \"partials/card.html\" }}{{ end }}");
+
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+
+            Assert.Equal(0, exitCode);
+            Assert.DoesNotContain("heuristic fallback", writer.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_ReturnsError_WhenCollectionsNotConfigured()
+    {
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                       content:
+                                         provider: markdown
+                                         markdown:
+                                           dir: content
+                                       """);
+
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("Migration required", writer.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+}

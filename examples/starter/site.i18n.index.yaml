@@ -1,0 +1,31 @@
+site:
+  name: starter-i18n-index
+  title: Bukit Starter (i18n index)
+  baseUrl: /
+  language: zh-CN
+  languages:
+    - zh-CN
+    - en-US
+  defaultLanguage: zh-CN
+  sitemapMode: index
+  rssMode: split
+  timezone: Asia/Shanghai
+
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
+
+build:
+  output: dist_i18n_index
+  clean: true
+
+theme:
+  layouts: layouts
+  assets: assets
+  static: static
+
+logging:
+  level: info
+

@@ -1,0 +1,26 @@
+site:
+  name: starter
+  title: Bukit Starter
+  baseUrl: /
+  language: zh-CN
+  pluginFailMode: strict
+  timezone: Asia/Shanghai
+  plugins:
+    taxonomy:
+      enabled: false
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
+build:
+  output: dist_taxonomy_disabled
+  clean: true
+theme:
+  layouts: layouts
+  assets: assets
+  static: static
+  name: alt
+logging:
+  level: info
+...

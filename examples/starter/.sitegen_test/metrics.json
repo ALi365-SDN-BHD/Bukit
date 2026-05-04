@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "ts": "2026-02-02T11:16:24.6020831\u002B00:00",
+  "site": {
+    "name": "starter",
+    "title": "SiteGen Starter (i18n SEO)",
+    "url": "https://example.com",
+    "baseUrl": "/",
+    "language": "zh-CN",
+    "defaultLanguage": "zh-CN",
+    "languages": [
+      "zh-CN",
+      "en-US"
+    ]
+  },
+  "outputDir": "C:\\Users\\AliSer\\Documents\\trae_projects\\ssp\\examples\\starter\\.sitegen_test\\dist",
+  "contentItems": 14,
+  "variants": [
+    {
+      "language": "zh-CN",
+      "baseUrl": "/zh-CN",
+      "outputDir": "C:\\Users\\AliSer\\Documents\\trae_projects\\ssp\\examples\\starter\\.sitegen_test\\dist\\zh-CN",
+      "routed": 3,
+      "derived": 5,
+      "rendered": 8,
+      "skipped": 0,
+      "reasons": {
+        "output_missing": 7,
+        "new_page": 1
+      },
+      "plugins": [
+        {
+          "Name": "taxonomy",
+          "Hook": "derive-pages",
+          "DurationMs": 5,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "pagination",
+          "Hook": "derive-pages",
+          "DurationMs": 5,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "archive",
+          "Hook": "derive-pages",
+          "DurationMs": 1,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "sitemap",
+          "Hook": "after-build",
+          "DurationMs": 0,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "rss",
+          "Hook": "after-build",
+          "DurationMs": 0,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "search-index",
+          "Hook": "after-build",
+          "DurationMs": 4,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "sample-after-build",
+          "Hook": "after-build",
+          "DurationMs": 0,
+          "Success": true,
+          "Error": null
+        }
+      ]
+    },
+    {
+      "language": "en-US",
+      "baseUrl": "/en-US",
+      "outputDir": "C:\\Users\\AliSer\\Documents\\trae_projects\\ssp\\examples\\starter\\.sitegen_test\\dist\\en-US",
+      "routed": 2,
+      "derived": 5,
+      "rendered": 7,
+      "skipped": 0,
+      "reasons": {
+        "new_page": 1,
+        "output_missing": 6
+      },
+      "plugins": [
+        {
+          "Name": "taxonomy",
+          "Hook": "derive-pages",
+          "DurationMs": 0,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "pagination",
+          "Hook": "derive-pages",
+          "DurationMs": 0,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "archive",
+          "Hook": "derive-pages",
+          "DurationMs": 0,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "sitemap",
+          "Hook": "after-build",
+          "DurationMs": 0,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "rss",
+          "Hook": "after-build",
+          "DurationMs": 0,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "search-index",
+          "Hook": "after-build",
+          "DurationMs": 0,
+          "Success": true,
+          "Error": null
+        },
+        {
+          "Name": "sample-after-build",
+          "Hook": "after-build",
+          "DurationMs": 0,
+          "Success": true,
+          "Error": null
+        }
+      ]
+    }
+  ]
+}

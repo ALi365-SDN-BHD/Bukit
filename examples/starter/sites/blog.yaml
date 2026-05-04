@@ -1,0 +1,25 @@
+site:
+  name: starter-blog
+  title: Bukit Starter (blog site)
+  baseUrl: /
+  language: zh-CN
+  timezone: Asia/Shanghai
+
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
+
+build:
+  output: dist_blog
+  clean: true
+
+theme:
+  layouts: layouts
+  assets: assets
+  static: static
+
+logging:
+  level: info
+

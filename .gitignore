@@ -1,0 +1,26 @@
+bin/
+**/bin/
+obj/
+**/obj/
+src/SiteGen.Cli/bin/Release/
+*.dll
+out/
+**/.cache/
+*.log
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo
+*.swp
+
+# Test artifacts
+TestResults/
+*.trx
+vstest-diag*.log
+
+# OS
+Thumbs.db
+.DS_Store
+

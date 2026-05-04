@@ -1,0 +1,14 @@
+{% layout "layouts/base.html" %}
+
+{{ terms = page.fields.terms.value }}
+
+<h1>{{ page.title }}</h1>
+
+<ul>
+{{ for term in terms }}
+  <li>
+    <a href="{{ site.base_url }}/{{ term.kind }}/{{ term.slug }}/">{{ term.title }}</a>
+    <small>{{ term.count }}</small>
+  </li>
+{{ end }}
+</ul>
