@@ -4,6 +4,26 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    post:
+      permalink: /blog/{slug}/
+      template: pages/post.html
+      listRoute: /blog/
+      pagination:
+        enabled: true
+        pageSize: 10
+      output:
+        rss: true
+        sitemap: true
+        archive: true
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
+      listRoute: /pages/
+      output:
+        rss: false
+        sitemap: true
+        archive: false
 content:
   provider: sources
   sources:
