@@ -159,6 +159,64 @@ public sealed class ContentImageRewritePipelineTests
         Assert.True(localizer.MaxConcurrency >= 2, $"Expected concurrent localize calls, actual max concurrency was {localizer.MaxConcurrency}.");
     }
 
+    [Fact]
+    public async Task RewriteAsync_LocalizesDistinctHtmlUrlsConcurrentlyWithinSamePass()
+    {
+        var item = new ContentItem(
+            Id: "1",
+            Title: "t",
+            Slug: "s",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: """
+                         <img src="https://img.example/a.jpg" />
+                         <img src="https://img.example/b.jpg" />
+                         <img src="https://img.example/c.jpg" />
+                         """,
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: null);
+
+        var cfg = new MediaConfig
+        {
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+
+        var localizer = new ParallelProbeLocalizer();
+        var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+        await pipeline.RewriteAsync(new[] { item }, CancellationToken.None);
+
+        Assert.True(localizer.MaxConcurrency >= 2, $"Expected concurrent HTML localize calls, actual max concurrency was {localizer.MaxConcurrency}.");
+    }
+
+    [Fact]
+    public async Task RewriteAsync_LocalizesDistinctHtmlUrlsConcurrentlyAcrossDifferentPasses()
+    {
+        var item = new ContentItem(
+            Id: "1",
+            Title: "t",
+            Slug: "s",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: """
+                         <img src="https://img.example/a.jpg" />
+                         <video poster="https://img.example/b.jpg"></video>
+                         <a href="https://img.example/c.jpg">download</a>
+                         """,
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: null);
+
+        var cfg = new MediaConfig
+        {
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+
+        var localizer = new ParallelProbeLocalizer();
+        var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+        await pipeline.RewriteAsync(new[] { item }, CancellationToken.None);
+
+        Assert.True(localizer.MaxConcurrency >= 2, $"Expected concurrent cross-pass localize calls, actual max concurrency was {localizer.MaxConcurrency}.");
+    }
+
     private sealed class StubLocalizer : IImageAssetLocalizer
     {
         public Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
