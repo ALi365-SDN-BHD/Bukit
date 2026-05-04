@@ -88,6 +88,43 @@ public sealed class ContentImageRewritePipelineTests
         Assert.DoesNotContain("&amp;", received, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task RewriteAsync_DeduplicatesRepeatedUrlsWithinSingleItem()
+    {
+        var repeatedUrl = "https://img.example/repeat.jpg";
+        var item = new ContentItem(
+            Id: "1",
+            Title: "t",
+            Slug: "s",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: $"<img src=\"{repeatedUrl}\" /><img src=\"{repeatedUrl}\" />",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["cover"] = new ContentField("text", repeatedUrl),
+                ["gallery"] = new ContentField("files", new[] { repeatedUrl, repeatedUrl })
+            });
+
+        var cfg = new MediaConfig
+        {
+            FieldKeys = new[] { "cover", "gallery" },
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+
+        var recorder = new CountingLocalizer();
+        var pipeline = new ContentImageRewritePipeline(cfg, recorder);
+
+        var result = await pipeline.RewriteAsync(new[] { item }, CancellationToken.None);
+        var rewritten = Assert.Single(result);
+
+        Assert.Equal(1, recorder.GetCallCount(repeatedUrl));
+        Assert.Contains("/assets/uploads/repeat.jpg", rewritten.ContentHtml, StringComparison.Ordinal);
+        Assert.Equal("/assets/uploads/repeat.jpg", rewritten.Fields!["cover"].Value);
+        Assert.Equal(
+            new[] { "/assets/uploads/repeat.jpg", "/assets/uploads/repeat.jpg" },
+            Assert.IsAssignableFrom<IReadOnlyList<string>>(rewritten.Fields["gallery"].Value));
+    }
+
     private sealed class StubLocalizer : IImageAssetLocalizer
     {
         public Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
@@ -124,6 +161,30 @@ public sealed class ContentImageRewritePipelineTests
             }
 
             return Task.FromResult(sourceUrl ?? "/assets/images/noneimg-news.jpg");
+        }
+    }
+
+    private sealed class CountingLocalizer : IImageAssetLocalizer
+    {
+        private readonly Dictionary<string, int> _counts = new(StringComparer.Ordinal);
+
+        public Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
+        {
+            _ = cancellationToken;
+            var key = sourceUrl ?? string.Empty;
+            _counts[key] = _counts.TryGetValue(key, out var count) ? count + 1 : 1;
+
+            if (key.Contains("/repeat.jpg", StringComparison.Ordinal))
+            {
+                return Task.FromResult("/assets/uploads/repeat.jpg");
+            }
+
+            return Task.FromResult(sourceUrl ?? "/assets/images/noneimg-news.jpg");
+        }
+
+        public int GetCallCount(string sourceUrl)
+        {
+            return _counts.TryGetValue(sourceUrl, out var count) ? count : 0;
         }
     }
 }
