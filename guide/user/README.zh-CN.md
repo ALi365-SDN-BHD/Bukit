@@ -85,7 +85,7 @@
 
 - 站点配置：`site.yaml`（也可以放在 `sites/<name>.yaml` 作为多站点配置）
 - 内容源（Content Provider）：从 Markdown/Notion 读取内容
-- 页面/文章：由 `type: page|post`（或 Notion 的 Type 字段）决定默认路由与模板
+- 页面/文章：推荐通过 `site.collections` 配置路由与模板；`type: page|post`（或 Notion 的 Type 字段）作为兼容层
 - 主题（Theme）：模板 + 资源 + 静态文件目录约定
 - Modules（结构化数据）：通过 `content.sources[].mode: data` 读取，不生成路由，只注入 `site.modules.*` 供模板渲染
 - 内置产物：构建结束后额外生成的 `sitemap.xml` / `rss.xml` / `search.json` 等
