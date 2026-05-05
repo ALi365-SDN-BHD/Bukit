@@ -64,7 +64,7 @@ bukit create my-site
 
 对应关系：
 - `site.yaml` 中默认写入 `theme.name: starter`，并保留 `layouts/assets/static` 为默认值（见 [主题开发](./theme.md)）
-- `hello-world.md` 默认作为 `type: page` 的内容页渲染（路由规则见 [routing](./routing.md)）
+- `hello-world.md` 默认作为 `type: page` 的内容页渲染。新项目建议在 site.yaml 中配置 `site.collections`（生成器默认已包含），使路由由 collection 规则驱动（路由规则见 [routing](./routing.md)）
 - 主题模板满足 `doctor` 的必需模板清单（见 [doctor](./doctor.md)）
 
 ## 生成的关键文件说明

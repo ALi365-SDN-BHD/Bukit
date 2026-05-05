@@ -34,6 +34,16 @@ logging:
   level: info
 ```
 
+> **推荐：显式声明 site.collections。** 以上配置依赖 post/page 兼容路由。更规范的做法是添加：
+> ```yaml
+> site:
+>   collections:
+>     post:
+>       permalink: /blog/{slug}/
+>       template: pages/post.html
+>       listRoute: /blog/
+> ```
+
 ### 模拟数据（content/）
 
 `content/2026-01-first.md`
@@ -94,6 +104,8 @@ build:
 theme:
   name: alt
 ```
+
+> **推荐：为多语言站点显式声明 collections。** 新增 `site.collections.page` 和 `site.collections.post` 可以让路由更可控，尤其是在多语言 + collection 组合时。
 
 ### 模拟数据
 
@@ -219,6 +231,8 @@ build:
 theme:
   name: alt
 ```
+
+> **推荐：声明 site.collections 并配合 Notion Collection 字段。** 建议在 site.yaml 中添加 `site.collections` 节点，同时在 Notion 数据库中创建 `Collection` 字段（select 类型），使引擎优先使用 collection 驱动路由。
 
 ### 运行要点
 
