@@ -204,7 +204,8 @@ internal static class PageRenderDispatcher
         bool incrementalEnabled,
         BuildManifest manifest,
         HashSet<string> currentKeys,
-        ConcurrentDictionary<string, int> renderReasons)
+        ConcurrentDictionary<string, int> renderReasons,
+        CancellationToken cancellationToken)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var specialLists = BuildSpecialListDefinitions(routed, collections, layoutsDir, listPageContentMode);
@@ -218,7 +219,8 @@ internal static class PageRenderDispatcher
             var skipped = 0;
             foreach (var x in specialLists)
             {
-                var result = await RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, manifest, renderReasons, x.IncludeContent);
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = await RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, manifest, renderReasons, x.IncludeContent, cancellationToken);
                 rendered += result.RenderedCount;
                 skipped += result.SkippedCount;
                 stageMetrics = MergeCollectors(stageMetrics, result.StageMetrics);
@@ -230,7 +232,8 @@ internal static class PageRenderDispatcher
         var writeLocks = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
         foreach (var x in specialLists)
         {
-            var metrics = await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, x.IncludeContent);
+            cancellationToken.ThrowIfCancellationRequested();
+            var metrics = await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, x.IncludeContent, cancellationToken);
             stageMetrics = MergeCollectors(stageMetrics, metrics);
         }
 
@@ -245,11 +248,12 @@ internal static class PageRenderDispatcher
         SiteModel siteModel,
         string outputDir,
         ConcurrentDictionary<string, SemaphoreSlim> writeLocks,
-        bool includeContent)
+        bool includeContent,
+        CancellationToken cancellationToken)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var listBuildStopwatch = Stopwatch.StartNew();
-        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, CancellationToken.None, stageMetrics, "listBodyLoad");
+        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, cancellationToken, stageMetrics, "listBodyLoad");
 
         var html = renderer.RenderList(listRoute.Template, new ListPageModel
         {
@@ -260,7 +264,7 @@ internal static class PageRenderDispatcher
         listBuildStopwatch.Stop();
         stageMetrics.Increment("listBuild");
         stageMetrics.AddDuration("listBuild", listBuildStopwatch.ElapsedMilliseconds);
-        await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, html, writeLocks, CancellationToken.None);
+        await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, html, writeLocks, cancellationToken);
         return stageMetrics.Snapshot();
     }
 
@@ -274,7 +278,8 @@ internal static class PageRenderDispatcher
         string templateHash,
         BuildManifest manifest,
         ConcurrentDictionary<string, int> renderReasons,
-        bool includeContent)
+        bool includeContent,
+        CancellationToken cancellationToken)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
@@ -301,7 +306,7 @@ internal static class PageRenderDispatcher
         }
 
         var listBuildStopwatch = Stopwatch.StartNew();
-        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, CancellationToken.None, stageMetrics, "listBodyLoad");
+        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, cancellationToken, stageMetrics, "listBodyLoad");
 
         var html = renderer.RenderList(listRoute.Template, new ListPageModel
         {
@@ -312,7 +317,7 @@ internal static class PageRenderDispatcher
         listBuildStopwatch.Stop();
         stageMetrics.Increment("listBuild");
         stageMetrics.AddDuration("listBuild", listBuildStopwatch.ElapsedMilliseconds);
-        await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, html, new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase), CancellationToken.None);
+        await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, html, new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase), cancellationToken);
         renderReasons.AddOrUpdate("list_render", 1, (_, v) => v + 1);
 
         manifest.Entries[key] = new BuildManifestEntry

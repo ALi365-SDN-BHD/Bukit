@@ -239,7 +239,7 @@ public sealed class SiteEngine
         var renderSpecialListsStopwatch = Stopwatch.StartNew();
         var specialListResult = await PageRenderDispatcher.RenderSpecialListsAsync(
             routed, bodyStore, renderer, siteModel, config.Site.Collections, ctx.LayoutsDir, config.Build.ListPageContentMode, outputDir, templateHash,
-            incrementalEnabled, manifest, currentKeys, renderReasons);
+            incrementalEnabled, manifest, currentKeys, renderReasons, cancellationToken);
         renderSpecialListsStopwatch.Stop();
         variantStageMetrics.AddDuration("renderSpecialLists", renderSpecialListsStopwatch.ElapsedMilliseconds);
         variantStageMetrics = MergeStageMetrics(variantStageMetrics, specialListResult.StageMetrics);
