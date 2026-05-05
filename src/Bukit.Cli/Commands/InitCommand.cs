@@ -98,6 +98,15 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    post:
+      permalink: /blog/{slug}/
+      template: pages/post.html
+      listRoute: /blog/
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
+      listRoute: /pages/
 
 content:
   provider: markdown
