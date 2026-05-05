@@ -18,6 +18,7 @@ This directory is for maintainers and contributors. It explains stable contracts
 - [Entry points by change type](./maintainer-entrypoints.md)
 - [Architecture review draft](./architecture-review.md)
 - [Architecture and module boundaries](./architecture.md)
+- [Maintenance governance checklist](./governance-checklist.md)
 - [CLI argument reference](./cli.md)
 - [`site.yaml` field reference](./config-site-yaml.md)
 - [Init/Create scaffolding](./init-create.md)

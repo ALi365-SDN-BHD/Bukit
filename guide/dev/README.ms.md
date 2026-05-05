@@ -18,6 +18,7 @@ Direktori ini untuk penyelenggara dan penyumbang kod. Ia menerangkan kontrak sta
 - [Pintu masuk kod ikut jenis perubahan](./maintainer-entrypoints.md)
 - [Draf semakan seni bina](./architecture-review.md)
 - [Seni bina dan sempadan modul](./architecture.md)
+- [Senarai semak tadbir urus penyelenggaraan](./governance-checklist.md)
 - [Rujukan argumen CLI](./cli.md)
 - [Rujukan medan `site.yaml`](./config-site-yaml.md)
 - [Inisialisasi scaffolding (init/create)](./init-create.md)

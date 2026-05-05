@@ -18,6 +18,7 @@
 - [按改动类型定位源码入口](./maintainer-entrypoints.md)
 - [项目架构评审意见稿](./architecture-review.md)
 - [架构与模块边界](./architecture.md)
+- [维护治理执行清单（P2）](./governance-checklist.md)
 - [命令行（CLI）参数参考](./cli.md)
 - [配置（site.yaml）字段参考](./config-site-yaml.md)
 - [init/create（脚手架初始化）](./init-create.md)

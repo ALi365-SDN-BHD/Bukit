@@ -115,6 +115,7 @@ dotnet run --project src/Bukit.Cli -c Release -- doctor --config <your-site.yaml
 ### 4.1 什么时候看这一章
 
 - 改 `post/page` 默认 URL 规则
+- 改 `site.collections` 的 permalink/template/list 策略
 - 改 `site.permalinks`
 - 改 `route/url/outputPath/template` override
 - 改输出路径编码、slug 化、安全规则
@@ -128,6 +129,7 @@ dotnet run --project src/Bukit.Cli -c Release -- doctor --config <your-site.yaml
 
 | 需求 | 先看哪里 |
 |---|---|
+| collections 路由与模板规则 | `SiteEngine.BuildCollectionRules` + `RouteGenerator.Generate` |
 | 默认 `/blog/...`、`/pages/...` 规则 | `RouteGenerator.Generate` |
 | permalink 模式 | `BuildFromPermalink` / `ExpandPermalinkPattern` |
 | route override | `TryReadRouteOverride` |
@@ -285,6 +287,7 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter
 
 - 日志中的 `rendered / skipped`
 - `.cache/build-manifest*.json`
+- 正文读取路径是否走 `BodyStore + BodyKey`（避免把正文当作默认常驻元数据处理）
 
 ## 8. 仓库边界说明
 
