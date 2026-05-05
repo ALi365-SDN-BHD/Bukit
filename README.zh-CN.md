@@ -214,7 +214,7 @@ content:
 - 对话式建站指南：[`guide/ai/chatgpt/README.zh-CN.md`](guide/ai/chatgpt/README.zh-CN.md)
 - Intent 契约与映射规则：[`guide/dev/intent-cli.md`](guide/dev/intent-cli.md)
 
-> 说明：当前仓库聚焦 `Bukit` 主线，不包含 `AIBuilding` 桌面端源码与解决方案。
+> 说明：当前仓库聚焦 `Bukit` 主线，不包含 [BukitJalil](https://github.com/ALi365-SDN-BHD/BukitJalil) 桌面端源码与解决方案。
 
 ## Notion 内容源
 
@@ -240,8 +240,8 @@ v2 的字段模板与 schema 说明见：
 
 ## GitHub Actions + GitHub Pages
 
-当前仓库未内置可直接复用的 Pages workflow 文件。
-请参考 [`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md) 自行在 `.github/workflows/` 下创建工作流。
+仓库提供了 Pages workflow 模板样例 [`.github/workflows/pages.yml`](.github/workflows/pages.yml)，可直接复制到自己的仓库使用。
+详细指引见：[`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md)。
 
 要启用部署：
 

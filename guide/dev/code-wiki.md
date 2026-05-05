@@ -111,7 +111,7 @@ flowchart TD
 
 ### 5.2 仓库边界说明
 
-当前仓库仅包含 `Bukit` 主线代码与测试，不包含 `AIBuilding` 相关源码与解决方案。
+当前仓库仅包含 `Bukit` 主线代码与测试，不包含 [BukitJalil](https://github.com/ALi365-SDN-BHD/BukitJalil) 相关源码与解决方案。
 
 ## 6. 关键数据模型
 
@@ -196,7 +196,7 @@ flowchart TD
 
 ## 8. 仓库边界提示
 
-若你在其他资料中看到 `AIBuilding` 相关入口，请以当前仓库实际目录与 `bukit.slnx` 为准。
+若你在其他资料中看到 [BukitJalil](https://github.com/ALi365-SDN-BHD/BukitJalil) 相关入口，请以当前仓库实际目录与 `bukit.slnx` 为准。
 
 ## 9. 依赖关系
 
@@ -282,8 +282,8 @@ dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
 
 ### 12.3 CI/CD
 
-- 当前仓库未内置 `.github/workflows/*` 相关文件。
-- 建议按 [`publish-deploy.md`](./publish-deploy.md) 与 [`../user/13-部署-GitHub-Pages.md`](../user/13-部署-GitHub-Pages.md) 自行创建 workflow。
+- 仓库提供了 Pages workflow 模板样例 [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml)，可直接复制到目标仓库使用。
+- 详细部署指引见 [`publish-deploy.md`](./publish-deploy.md) 与 [`../user/13-部署-GitHub-Pages.md`](../user/13-部署-GitHub-Pages.md)。
 
 ## 13. 推荐阅读顺序
 

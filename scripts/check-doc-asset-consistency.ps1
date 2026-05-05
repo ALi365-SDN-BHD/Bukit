@@ -12,8 +12,8 @@ $errorCount = 0
 $warningCount = 0
 
 $rules = @(
-    "src/AIBuilding",
-    "aibuilding.slnx",
+    "src/BukitJalil",
+    "BukitJalil.slnx",
     "tools/ImageSharp",
     ".github/workflows/smoke.yml",
     ".github/workflows/build.yaml"

@@ -64,8 +64,8 @@ dotnet publish src/Bukit.Cli -c Release -o out/bukit
 
 ## 部署到 GitHub Pages（推荐路径）
 
-当前仓库未内置可直接复用的 GitHub Pages workflow 文件。
-你可以按本节步骤在自己的仓库中创建 `.github/workflows/pages.yml`。
+仓库提供了 Pages workflow 模板样例 [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml)。
+你可以直接复制到自己的仓库使用，或参考本节步骤自行创建。
 
 建议的 workflow 做三件关键事：
 1. 发布 AOT 版 `bukit`

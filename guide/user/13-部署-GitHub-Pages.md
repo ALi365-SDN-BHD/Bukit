@@ -2,7 +2,7 @@
 
 本页面向“普通用户部署”，目标是让你把构建结果稳定发布到 GitHub Pages，并能解释清楚最常见的 404/资源路径问题。
 
-当前仓库未内置可直接复用的 Pages workflow 文件；你需要按本文步骤在自己的仓库创建 `.github/workflows/pages.yml`。
+仓库提供了 Pages workflow 模板样例 [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml)，你可直接复制到自己的仓库使用，或参考本文步骤自行创建。
 
 ## 你将获得什么
 

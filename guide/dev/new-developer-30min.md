@@ -6,7 +6,7 @@
 
 ### 1.1 仓库聚焦 Bukit 主线
 
-当前仓库聚焦 **Bukit** 静态站点引擎，不包含 `AIBuilding` 相关源码与解决方案。
+当前仓库聚焦 **Bukit** 静态站点引擎，不包含 [BukitJalil](https://github.com/ALi365-SDN-BHD/BukitJalil) 相关源码与解决方案。
 
 如果你是第一次进入仓库，**从 Bukit 开始**即可。
 
@@ -204,7 +204,7 @@ pwsh ./scripts/smoke.ps1
 
 ### 8.1 误以为所有文档入口都在仓库内
 
-当前仓库聚焦 `Bukit` 主线。如果你在其他资料中看到 `AIBuilding` 相关入口，请以仓库实际目录与 `bukit.slnx` 为准。
+当前仓库聚焦 `Bukit` 主线。如果你在其他资料中看到 [BukitJalil](https://github.com/ALi365-SDN-BHD/BukitJalil) 相关入口，请以仓库实际目录与 `bukit.slnx` 为准。
 
 ### 8.2 误以为相对路径相对当前终端目录
 
@@ -267,7 +267,7 @@ pwsh ./scripts/smoke.ps1
 
 ### 9.5 仓库边界提示
 
-当前仓库聚焦 `Bukit` 主线，不包含 `AIBuilding` 相关源码与解决方案。
+当前仓库聚焦 `Bukit` 主线，不包含 [BukitJalil](https://github.com/ALi365-SDN-BHD/BukitJalil) 相关源码与解决方案。
 
 ## 10. 一页版 Checklist
 

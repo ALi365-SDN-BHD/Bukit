@@ -73,7 +73,7 @@ pwsh ./scripts/check-doc-asset-consistency.ps1
 bash ./scripts/check-doc-asset-consistency.sh
 
 # 补充排查（关键词粗筛）
-rg -n "src/AIBuilding|aibuilding\\.slnx|tools/ImageSharp|\\.github/workflows/smoke\\.yml|\\.github/workflows/build\\.yaml" README*.md guide
+rg -n "src/BukitJalil|BukitJalil\\.slnx|tools/ImageSharp|\\.github/workflows/smoke\\.yml|\\.github/workflows/build\\.yaml" README*.md guide
 ```
 
 > 说明：出现结果不一定是错误；若是“需自建/示例”语义可保留，若是“仓库已内置”语义需修正。

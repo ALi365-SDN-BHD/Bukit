@@ -20,7 +20,7 @@
 | 示例插件 | 2 个：SampleAfterBuildPlugin、PathReportPlugin |
 | 测试项目 | 4 个：Bukit.Cli.Tests、Bukit.Content.Tests、Bukit.Engine.Tests、Bukit.Rendering.Tests |
 | CI/CD 资产 | `.github/workflows/` **不存在** |
-| AIBuilding | `src/AIBuilding/` **不存在**；`aibuilding.slnx` **不存在** |
+| BukitJalil | `src/BukitJalil/` **不存在**；`BukitJalil.slnx` **不存在** |
 
 ### 1.2 构建与测试状态
 
@@ -94,31 +94,31 @@ CLI (Program.cs → ArgReader → BukitCliSpecs)
 
 ### 🔴 高严重度
 
-#### H1. `new-developer-30min.md` 中 AIBuilding 残留描述误导新开发者
+#### H1. `new-developer-30min.md` 中 BukitJalil 残留描述误导新开发者
 
 - **证据路径**：[guide/dev/new-developer-30min.md](file:///e:/Github/Bukit/guide/dev/new-developer-30min.md) — 第 7-10 行（§1.1）、第 206-213 行（§8.1）
 - **具体内容**：
-  - §1.1: "仓库有两条主线：Bukit 是底层静态站点引擎，AIBuilding 是上层桌面 AI 建站工具"
-  - §8.1: "正确理解是：Bukit 是核心引擎，AIBuilding 是上层产品"
+  - §1.1: "仓库有两条主线：Bukit 是底层静态站点引擎，BukitJalil 是上层桌面 AI 建站工具"
+  - §8.1: "正确理解是：Bukit 是核心引擎，BukitJalil 是上层产品"
   - §5 的时间表中提到"建立两条产品线"
-  - §4.2.4 也引用了 "AIBuilding"
-- **影响**：新开发者接受错误的双产品线心智模型，浪费时间在不存在 `src/AIBuilding/` 中搜索代码
-- **根因**：该文档在 AIBuilding 从仓库移除后，§1.1 和 §8.1 未同步更新（尽管 §9.5 已添加边界说明，但矛盾和误导仍然存在）
+  - §4.2.4 也引用了 "BukitJalil"
+- **影响**：新开发者接受错误的双产品线心智模型，浪费时间在不存在 `src/BukitJalil/` 中搜索代码
+- **根因**：该文档在 BukitJalil 从仓库移除后，§1.1 和 §8.1 未同步更新（尽管 §9.5 已添加边界说明，但矛盾和误导仍然存在）
 - **分类**：文档失真风险
-- **修复方案**：将 §1.1 改为 "当前仓库聚焦 Bukit 主线"，删除 §8.1 中 "AIBuilding 是上层产品" 的表述
+- **修复方案**：将 §1.1 改为 "当前仓库聚焦 Bukit 主线"，删除 §8.1 中 "BukitJalil 是上层产品" 的表述
 
 ---
 
 ### 🟡 中严重度
 
-#### M1. `maintainer-entrypoints.md` 中 "AIBuilding 改动" 入口残留
+#### M1. `maintainer-entrypoints.md` 中 "BukitJalil 改动" 入口残留
 
 - **证据路径**：[guide/dev/maintainer-entrypoints.md](file:///e:/Github/Bukit/guide/dev/maintainer-entrypoints.md) — 第 27 行
-- **具体内容**：§1 改动类型列表中包含 "改 AIBuilding 的 AI、桌面流程或与 Bukit 的桥接"
+- **具体内容**：§1 改动类型列表中包含 "改 BukitJalil 的 AI、桌面流程或与 Bukit 的桥接"
 - **影响**：维护者在定位入口时可能误判改动范围
-- **根因**：尽管 §8 "仓库边界说明" 已正确声明不含 AIBuilding，但 §1 的目录列表未同步清理
+- **根因**：尽管 §8 "仓库边界说明" 已正确声明不含 BukitJalil，但 §1 的目录列表未同步清理
 - **分类**：文档失真风险
-- **修复方案**：从 §1 的改动类型列表中删除 AIBuilding 条目
+- **修复方案**：从 §1 的改动类型列表中删除 BukitJalil 条目
 
 #### M2. 交付治理缺口：`.github/workflows/` 目录缺失
 
@@ -191,8 +191,8 @@ CLI (Program.cs → ArgReader → BukitCliSpecs)
 
 | 优先级 | 行动 | 类型 |
 |---|---|---|
-| P0 | 修正 `new-developer-30min.md` §1.1 和 §8.1 中 AIBuilding 残留 | 文档修复 |
-| P1 | 从 `maintainer-entrypoints.md` §1 删除 AIBuilding 条目 | 文档修复 |
+| P0 | 修正 `new-developer-30min.md` §1.1 和 §8.1 中 BukitJalil 残留 | 文档修复 |
+| P1 | 从 `maintainer-entrypoints.md` §1 删除 BukitJalil 条目 | 文档修复 |
 | P2 | 将 `code-wiki.md` 中 `WeBukit` 改为 `Bukit` | 文档修复 |
 
 ### 中期（下一迭代）
@@ -211,7 +211,7 @@ CLI (Program.cs → ArgReader → BukitCliSpecs)
 **Bukit 不是一个架构混乱的项目。** 相反，它拥有清晰的分层、健康的单向依赖、成熟的插件体系和良好的 AOT 兼容策略。
 
 当前阶段的核心挑战已经从"核心代码是否可靠"转移到：
-1. **文档一致性治理**：少数文档的 AIBuilding 残留描述需要清理
+1. **文档一致性治理**：少数文档的 BukitJalil 残留描述需要清理
 2. **测试深度**：关键编排器和输出生成器缺少直接测试
 3. **交付治理**：CI/CD 资产缺失使本地与线上验证链路不闭环
 

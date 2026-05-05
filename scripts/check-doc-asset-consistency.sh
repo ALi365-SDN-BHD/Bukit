@@ -8,8 +8,8 @@ ERROR_COUNT=0
 WARN_COUNT=0
 
 RULES=(
-  "src/AIBuilding"
-  "aibuilding.slnx"
+  "src/BukitJalil"
+  "BukitJalil.slnx"
   "tools/ImageSharp"
   ".github/workflows/smoke.yml"
   ".github/workflows/build.yaml"

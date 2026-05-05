@@ -290,7 +290,7 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter
 
 ## 8. 仓库边界说明
 
-当前仓库聚焦 `Bukit` 主线，不包含 `AIBuilding` 相关源码与解决方案。
+当前仓库聚焦 `Bukit` 主线，不包含 [BukitJalil](https://github.com/ALi365-SDN-BHD/BukitJalil) 相关源码与解决方案。
 
 ## 9. 快速决策表
 
@@ -304,7 +304,7 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter
 | 页面写出与列表页 | `PageRenderDispatcher.cs` |
 | 搜索、RSS、sitemap、taxonomy | `PluginRunner.cs` + `Plugins/BuiltIn/*` |
 | 缓存与跳过渲染 | `SiteEngine.cs` / `PageRenderDispatcher.cs` / `BuildManifest.cs` |
-| 当前仓库未包含的模块 | `AIBuilding` 相关入口请忽略，以 `Bukit.*` 工程为准 |
+| 当前仓库未包含的模块 | [BukitJalil](https://github.com/ALi365-SDN-BHD/BukitJalil) 相关入口请忽略，以 `Bukit.*` 工程为准 |
 
 ## 10. 推荐搭配阅读
 

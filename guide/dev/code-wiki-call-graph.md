@@ -1,4 +1,4 @@
-# Bukit / AIBuilding 模块调用关系图
+# Bukit / BukitJalil 模块调用关系图
 
 本文档聚焦“模块如何彼此调用”，帮助开发者快速看清从 UI、CLI 到构建引擎的真实边界与关键链路。
 
@@ -7,11 +7,11 @@
 这个仓库不是一个单体系统，而是两条主线协作：
 
 - **Bukit**：负责静态站点构建。
-- **AIBuilding**：负责 AI 对话、主题生成、配置落盘、调用 Bukit CLI。
+- **BukitJalil**：负责 AI 对话、主题生成、配置落盘、调用 Bukit CLI。
 
 最重要的边界是：
 
-> **AIBuilding 并不直接引用 Bukit 引擎程序集。**
+> **BukitJalil 并不直接引用 Bukit 引擎程序集。**
 >
 > 两者之间的集成协议是：**项目目录文件 + `site.yaml` + 外部 `bukit` CLI 进程**。
 
@@ -19,7 +19,7 @@
 
 ```mermaid
 flowchart LR
-    subgraph Desktop["AIBuilding.Desktop"]
+    subgraph Desktop["BukitJalil.Desktop"]
         UI["Blazor UI / AiStudio"]
         Executor["ToolExecutor"]
         ConfigSvc["BukitConfigService"]
@@ -27,7 +27,7 @@ flowchart LR
         Store["ProjectStore / LiteDB"]
     end
 
-    subgraph Core["AIBuilding.Core"]
+    subgraph Core["BukitJalil.Core"]
         Orchestrator["ConversationOrchestrator"]
         Tools["ToolRegistry"]
         Providers["LLM Providers"]
@@ -72,11 +72,11 @@ flowchart LR
     Engine --> Dist
 ```
 
-## 3. AIBuilding 到 Bukit 的真实桥接
+## 3. BukitJalil 到 Bukit 的真实桥接
 
 ### 3.1 关键事实
 
-- AIBuilding 负责维护项目状态和文件。
+- BukitJalil 负责维护项目状态和文件。
 - Bukit 负责读取这些文件并完成构建。
 - 集成点不是类调用，而是“生成文件后启动 CLI”。
 
@@ -113,7 +113,7 @@ sequenceDiagram
 | `BukitConfigService` | 根据项目状态生成 `site.yaml` |
 | `BukitCliService` | 调用外部 `bukit build/preview` |
 
-## 4. AIBuilding 内部调用关系
+## 4. BukitJalil 内部调用关系
 
 ### 4.1 对话与工具调用链
 
@@ -270,7 +270,7 @@ flowchart LR
 | Engine | 上述组件与 IO | 输出目录 | 不应退化为巨型业务类 |
 | Plugins | `BuildContext` | 派生页 / 构建后产物 | 不应绕过稳定契约随意侵入主流程 |
 
-### 7.2 AIBuilding 分层边界
+### 7.2 BukitJalil 分层边界
 
 | 层 | 职责 |
 |---|---|
@@ -283,7 +283,7 @@ flowchart LR
 
 如果你要快速理解系统，建议按以下顺序看：
 
-1. **AIBuilding 视角**
+1. **BukitJalil 视角**
    - `AiStudio` → `ToolExecutor` → `BukitConfigService` → `BukitCliService`
 2. **CLI 视角**
    - `Program.cs` → `BuildCommand.RunAsync`
@@ -296,7 +296,7 @@ flowchart LR
 
 ## 9. 常见误解
 
-- 误以为 AIBuilding 直接调用 Bukit 的 C# API
+- 误以为 BukitJalil 直接调用 Bukit 的 C# API
 - 误以为 `mode=data` 也会进入普通页面渲染
 - 误以为插件可以任意改写主流程内部结构
 - 误以为 preview 是渲染引擎的一部分，实际上它是 CLI 附带的本地静态文件服务
@@ -310,4 +310,4 @@ flowchart LR
 
 ## 11. 一句话总结
 
-这套系统最关键的理解是：**AIBuilding 负责“生成与编排”，Bukit 负责“读取配置并构建站点”，二者通过文件与 CLI 进程解耦连接。**
+这套系统最关键的理解是：**BukitJalil 负责“生成与编排”，Bukit 负责“读取配置并构建站点”，二者通过文件与 CLI 进程解耦连接。**

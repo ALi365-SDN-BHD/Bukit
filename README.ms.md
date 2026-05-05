@@ -72,8 +72,8 @@ dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yam
 
 ## GitHub Actions + GitHub Pages
 
-Repositori ini kini tidak menyertakan fail aliran kerja Pages terbina dalam.
-Gunakan panduan deployment di [`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md) dan cipta aliran kerja sendiri dalam `.github/workflows/`.
+Templat aliran kerja disediakan di [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+Salin ke repositori anda dan ubah suai mengikut keperluan. Lihat [`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md) untuk panduan terperinci.
 
 Langkah biasa:
 

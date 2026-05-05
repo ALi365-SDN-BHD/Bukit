@@ -7,8 +7,8 @@
 ## 范围
 
 - 修正 `README*` 与 `guide/*` 中不存在的：
-  - `src/AIBuilding/*`
-  - `aibuilding.slnx`
+  - `src/BukitJalil/*`
+  - `BukitJalil.slnx`
   - `.github/workflows/pages.yml`
   - `.github/workflows/smoke.yml`
   - `.github/workflows/build.yaml`
@@ -19,7 +19,7 @@
 ## 不做的事
 
 - 不新增 `.github/workflows/*`
-- 不恢复 `AIBuilding` 相关源码或解决方案
+- 不恢复 `BukitJalil` 相关源码或解决方案
 - 不修改业务代码和测试逻辑
 
 ## 方案
@@ -38,14 +38,14 @@
 
 - `README.md`、`README.zh-CN.md`、`README.ms.md`
   - 去掉“仓库已内置 Pages workflow”表述
-  - 中文版去掉不存在的 `AIBuilding` 章节
+  - 中文版去掉不存在的 `BukitJalil` 章节
 - `guide/dev/code-wiki.md`
   - 改为仅描述当前 `Bukit` 仓库
-  - 删除不存在的 `AIBuilding`、`aibuilding.slnx`、`.github/workflows/*`、`tools/ImageSharp`
+  - 删除不存在的 `BukitJalil`、`BukitJalil.slnx`、`.github/workflows/*`、`tools/ImageSharp`
 - `guide/dev/new-developer-30min.md`
-  - 删除 `AIBuilding` 阅读入口
+  - 删除 `BukitJalil` 阅读入口
 - `guide/dev/maintainer-entrypoints.md`
-  - 删除 `AIBuilding` 入口章节
+  - 删除 `BukitJalil` 入口章节
 - `guide/dev/publish-deploy.md`
   - 改为说明“可自行创建 Pages workflow”
 - `guide/user/13-部署-GitHub-Pages.md`

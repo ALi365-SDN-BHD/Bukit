@@ -39,8 +39,8 @@ P0/P1/P2 已完成文档口径对齐与治理清单沉淀，但当前检查主�
 
 默认错误关键词：
 
-- `src/AIBuilding`
-- `aibuilding.slnx`
+- `src/BukitJalil`
+- `BukitJalil.slnx`
 - `tools/ImageSharp`
 - `.github/workflows/smoke.yml`
 - `.github/workflows/build.yaml`

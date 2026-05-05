@@ -72,8 +72,8 @@ dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yam
 
 ## GitHub Actions + GitHub Pages
 
-This repository currently does not include a built-in Pages workflow file.
-Use the deployment guidance in [`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md) and create your own workflow in `.github/workflows/`.
+A workflow template is provided at [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+Copy it to your repository and customize as needed. See [`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md) for detailed guidance.
 
 Typical setup:
 

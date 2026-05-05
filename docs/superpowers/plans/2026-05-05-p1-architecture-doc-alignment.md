@@ -28,7 +28,7 @@
 
 - [ ] **Step 1: 在 architecture.md 中补充与 review 一致的结论口径**
 - [ ] **Step 2: 在 maintainer-entrypoints.md 中确保入口建议不与新结论冲突**
-- [ ] **Step 3: 明确当前仓库边界，避免读者误以为包含 AIBuilding 源码**
+- [ ] **Step 3: 明确当前仓库边界，避免读者误以为包含 BukitJalil 源码**
 
 ### Task 3: 回归验证
 
