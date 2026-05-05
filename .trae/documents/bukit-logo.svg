@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#090c10"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="600" height="600" fill="url(#bg)"/>
+
+  <!-- === STACKED ICON MARK === -->
+  <g transform="translate(210, 168)">
+    <!-- Layer 1 (base) -->
+    <rect x="0" y="120" width="180" height="24" rx="5" fill="#131f2e"/>
+    <rect x="3" y="144" width="174" height="1" fill="#e6b450" opacity="0.55"/>
+
+    <!-- Layer 2 -->
+    <rect x="12" y="96" width="156" height="24" rx="5" fill="#182638"/>
+    <rect x="15" y="120" width="150" height="1" fill="#e6b450" opacity="0.55"/>
+
+    <!-- Layer 3 -->
+    <rect x="24" y="72" width="132" height="24" rx="5" fill="#1c2d42"/>
+    <rect x="27" y="96" width="126" height="1" fill="#e6b450" opacity="0.55"/>
+
+    <!-- Layer 4 -->
+    <rect x="36" y="48" width="108" height="24" rx="5" fill="#20344d"/>
+    <rect x="39" y="72" width="102" height="1" fill="#e6b450" opacity="0.55"/>
+
+    <!-- Layer 5 -->
+    <rect x="48" y="24" width="84" height="24" rx="5" fill="#253b58"/>
+    <rect x="51" y="48" width="78" height="1" fill="#e6b450" opacity="0.55"/>
+
+    <!-- Layer 6 (top) -->
+    <rect x="60" y="0" width="60" height="24" rx="5" fill="#294263"/>
+
+    <!-- Peak dot -->
+    <circle cx="90" cy="-4" r="4" fill="#e6b450" filter="url(#glow)" opacity="0.9"/>
+  </g>
+
+  <!-- === WORDMARK === -->
+  <text x="300" y="380" text-anchor="middle" font-family="'JetBrains Mono', 'Courier New', monospace" font-size="38" font-weight="600" letter-spacing="8" fill="#8b949e">
+    <tspan fill="#e6b450">b</tspan>ukit
+  </text>
+
+  <!-- === TAGLINE === -->
+  <text x="300" y="408" text-anchor="middle" font-family="'JetBrains Mono', 'Courier New', monospace" font-size="10" font-weight="400" letter-spacing="4" fill="#30363d">
+    · STATIC SITE ENGINE ·
+  </text>
+
+  <!-- === DIVIDER === -->
+  <line x1="270" y1="436" x2="330" y2="436" stroke="#1c2128" stroke-width="1"/>
+
+  <!-- === HORIZONTAL LOCKUP (small icon + wordmark) === -->
+  <g transform="translate(224, 468)">
+    <rect x="0" y="33" width="48" height="7" rx="2" fill="#131f2e"/>
+    <rect x="1" y="40" width="46" height="1" fill="#e6b450" opacity="0.5"/>
+
+    <rect x="4" y="26" width="40" height="7" rx="2" fill="#182638"/>
+    <rect x="5" y="33" width="38" height="1" fill="#e6b450" opacity="0.5"/>
+
+    <rect x="8" y="19" width="32" height="7" rx="2" fill="#1c2d42"/>
+    <rect x="9" y="26" width="30" height="1" fill="#e6b450" opacity="0.5"/>
+
+    <rect x="12" y="12" width="24" height="7" rx="2" fill="#20344d"/>
+    <rect x="13" y="19" width="22" height="1" fill="#e6b450" opacity="0.5"/>
+
+    <rect x="16" y="5" width="16" height="7" rx="2" fill="#253b58"/>
+    <rect x="17" y="12" width="14" height="1" fill="#e6b450" opacity="0.5"/>
+
+    <rect x="20" y="-2" width="8" height="7" rx="2" fill="#294263"/>
+
+    <circle cx="24" cy="-4" r="2" fill="#e6b450" filter="url(#glow)" opacity="0.85"/>
+
+    <text x="68" y="27" font-family="'JetBrains Mono', 'Courier New', monospace" font-size="26" font-weight="600" letter-spacing="5" fill="#8b949e">
+      <tspan fill="#e6b450">b</tspan>ukit
+    </text>
+  </g>
+</svg>

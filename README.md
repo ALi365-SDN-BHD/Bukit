@@ -1,5 +1,9 @@
 # bukit (.NET 10 Native AOT Static Site Engine)
 
+<p align="center">
+  <img src="docs/bukit-logo.svg" alt="bukit logo" width="400">
+</p>
+
 Language versions: English (current) | [简体中文](./README.zh-CN.md) | [Bahasa Melayu](./README.ms.md)
 
 A static website engine designed around the "notes as CMS" workflow. Content can come from Notion (or local Markdown), then be built and deployed to GitHub Pages with GitHub Actions.

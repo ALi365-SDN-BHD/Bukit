@@ -1,5 +1,9 @@
 # bukit（.NET 10 Native AOT 静态站点引擎）
 
+<p align="center">
+  <img src="docs/bukit-logo.svg" alt="bukit logo" width="400">
+</p>
+
 语言版本：简体中文（当前）| [English](./README.md) | [Bahasa Melayu](./README.ms.md)
 
 一个面向“笔记即 CMS”的静态网站引擎：内容可来自 Notion（或本地 Markdown），在 GitHub Actions 中自动构建并部署到 GitHub Pages。

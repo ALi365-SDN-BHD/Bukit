@@ -1,5 +1,9 @@
 # bukit (Enjin Tapak Statik .NET 10 Native AOT)
 
+<p align="center">
+  <img src="docs/bukit-logo.svg" alt="bukit logo" width="400">
+</p>
+
 Versi bahasa: [English](./README.md) | [简体中文](./README.zh-CN.md) | Bahasa Melayu (semasa)
 
 Enjin tapak statik berasaskan aliran kerja "nota sebagai CMS". Kandungan boleh datang daripada Notion (atau Markdown tempatan), kemudian dibina dan dideploy ke GitHub Pages melalui GitHub Actions.
