@@ -176,4 +176,44 @@ public sealed class DoctorCommandTests : IDisposable
             Console.SetOut(originalOut);
         }
     }
+
+    [Fact]
+    public async Task InitGeneratedMarkdownSite_ContainsCollections_AndPassesDoctor()
+    {
+        var initRootDir = Path.Combine(Path.GetTempPath(), "bukit-init-doctor-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(initRootDir);
+
+        try
+        {
+            var siteDir = Path.Combine(initRootDir, "site");
+            var initExitCode = await InitCommand.RunAsync(new ArgReader(new[] { "init", siteDir }));
+            Assert.Equal(0, initExitCode);
+
+            var generatedConfigPath = Path.Combine(siteDir, "site.yaml");
+            var yaml = await File.ReadAllTextAsync(generatedConfigPath);
+            Assert.Contains("collections:", yaml, StringComparison.Ordinal);
+
+            using var writer = new StringWriter(new StringBuilder());
+            var originalOut = Console.Out;
+            Console.SetOut(writer);
+            try
+            {
+                var doctorExitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", generatedConfigPath }));
+
+                Assert.Equal(0, doctorExitCode);
+                Assert.Contains("Doctor passed", writer.ToString(), StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                Console.SetOut(originalOut);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(initRootDir))
+            {
+                Directory.Delete(initRootDir, recursive: true);
+            }
+        }
+    }
 }
