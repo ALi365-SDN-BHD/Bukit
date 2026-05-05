@@ -169,7 +169,10 @@ public sealed class DoctorCommandTests : IDisposable
             var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
 
             Assert.Equal(1, exitCode);
-            Assert.Contains("Migration required", writer.ToString(), StringComparison.OrdinalIgnoreCase);
+            var output = writer.ToString();
+            Assert.Contains("Migration required", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("collection", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("兼容层", output, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

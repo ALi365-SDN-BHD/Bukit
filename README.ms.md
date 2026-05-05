@@ -49,6 +49,7 @@ dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yam
 
 ## Medan Penting `site.yaml`
 
+- `site.collections`: model utama yang disyorkan untuk organisasi kandungan dan routing (isytihar `permalink`, `template`, dan `listRoute` pilihan setiap koleksi). Peraturan lalai `post/page` kekal sebagai lapisan keserasian.
 - `site.baseUrl`: sublaluan GitHub Pages (`/my-repo`) atau `/` untuk root.
 - `site.url`: URL kanonik tapak (sitemap/rss); boleh ditindih dengan `--site-url`.
 - `content.provider`: `markdown` atau `notion`.

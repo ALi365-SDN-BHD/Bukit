@@ -23,7 +23,7 @@
 - [配置（site.yaml）字段参考](./config-site-yaml.md)
 - [init/create（脚手架初始化）](./init-create.md)
 - [内容系统（Markdown / Notion / sources）](./content.md)
-- [路由系统（默认规则与覆盖）](./routing.md)
+- [路由系统（collections 主路径与兼容规则）](./routing.md)
 - [渲染与模板（Scriban 模型/变量/目录约定）](./rendering-scriban.md)
 - [主题开发（Themes）与参数使用](./theme.md)
 - [Modules 数据源（mode=data → site.modules）](./modules-data.md)

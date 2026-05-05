@@ -37,6 +37,7 @@ public static class DoctorCommand
         {
             Console.WriteLine("✖ Migration required: site.collections is not configured");
             Console.WriteLine("  - collection 驱动路由已成为主模型，请在 site.collections 中声明每个内容集合的 permalink/template/listRoute");
+            Console.WriteLine("  - post/page 默认规则仍作为兼容层保留，但不再是新项目的推荐主路径");
             Console.WriteLine("  - 示例：site.collections.article.permalink=/articles/{slug}/, template=pages/post.html, listRoute=/articles/");
             return 1;
         }

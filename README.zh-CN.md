@@ -118,6 +118,7 @@ dotnet run --project src/Bukit.Cli -c Release -- webhook --repo owner/repo --por
 
 关键字段：
 
+- `site.collections`：推荐的内容组织与路由主模型（每个集合声明 `permalink`、`template`，可选 `listRoute`）。`post/page` 默认规则仍作为兼容层保留。
 - `site.baseUrl`：GitHub Pages 子路径（例如 `/my-repo`），根站点用 `/`
 - `site.url`：站点绝对域名（用于 sitemap/rss），也可通过 `--site-url` 覆盖
 - `site.pluginFailMode`：插件失败策略（`strict` 默认中断构建；`warn` 仅记录错误继续）

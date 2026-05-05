@@ -49,6 +49,7 @@ dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yam
 
 ## Key `site.yaml` Fields
 
+- `site.collections`: primary recommended model for content organization and routing (declare `permalink`, `template`, and optional `listRoute` per collection). `post/page` defaults remain as a compatibility fallback.
 - `site.baseUrl`: GitHub Pages subpath (`/my-repo`) or `/` for root.
 - `site.url`: canonical site URL (sitemap/rss); can be overridden by `--site-url`.
 - `content.provider`: `markdown` or `notion`.

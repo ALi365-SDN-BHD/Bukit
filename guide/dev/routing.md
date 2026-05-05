@@ -1,4 +1,4 @@
-# 路由系统（默认规则与覆盖）
+# 路由系统（collections 主路径与兼容规则）
 
 路由系统负责把 `ContentItem` 映射为 `RouteInfo(url, outputPath, template)`，供渲染阶段使用。
 

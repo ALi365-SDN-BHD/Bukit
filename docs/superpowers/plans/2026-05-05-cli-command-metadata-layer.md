@@ -8,18 +8,18 @@
 
 **Tech Stack:** C#/.NET、xUnit、现有 `Bukit.Cli` 命令结构、Markdown 文档
 
----
+***
 
 ### Task 1: 建立 CLI 元数据骨架
 
 **Files:**
+
 - Create: `/workspace/src/Bukit.Cli/Cli/Metadata/CliArgumentSpec.cs`
 - Create: `/workspace/src/Bukit.Cli/Cli/Metadata/CliOptionType.cs`
 - Create: `/workspace/src/Bukit.Cli/Cli/Metadata/CliOptionSpec.cs`
 - Create: `/workspace/src/Bukit.Cli/Cli/Metadata/CliCommandSpec.cs`
 - Create: `/workspace/src/Bukit.Cli/Cli/Metadata/CliCommandRegistry.cs`
 - Test: `/workspace/tests/Bukit.Cli.Tests/CliCommandRegistryTests.cs`
-
 - [ ] **Step 1: 先写失败测试，锁定注册表能解析顶层命令和别名**
 
 ```csharp
@@ -158,12 +158,12 @@ git commit -m "feat(cli): add command metadata registry primitives"
 ### Task 2: 增加轻量解析器与绑定结果
 
 **Files:**
+
 - Create: `/workspace/src/Bukit.Cli/Cli/Parsing/CliDiagnostic.cs`
 - Create: `/workspace/src/Bukit.Cli/Cli/Parsing/CliParseResult.cs`
 - Create: `/workspace/src/Bukit.Cli/Cli/Parsing/CliParser.cs`
 - Create: `/workspace/src/Bukit.Cli/Cli/Binding/CliBoundCommand.cs`
 - Test: `/workspace/tests/Bukit.Cli.Tests/CliParserTests.cs`
-
 - [ ] **Step 1: 写失败测试，覆盖缺少参数、非法取值和互斥选项**
 
 ```csharp
@@ -363,10 +363,10 @@ git commit -m "feat(cli): add metadata-driven parser and bound command"
 ### Task 3: 增加统一 help 与错误渲染器
 
 **Files:**
+
 - Create: `/workspace/src/Bukit.Cli/Cli/Rendering/CliHelpRenderer.cs`
 - Create: `/workspace/src/Bukit.Cli/Cli/Rendering/CliErrorRenderer.cs`
 - Test: `/workspace/tests/Bukit.Cli.Tests/CliRenderingTests.cs`
-
 - [ ] **Step 1: 先写失败测试，固定 help 和错误的基本格式**
 
 ```csharp
@@ -497,13 +497,13 @@ git commit -m "feat(cli): add shared help and error renderers"
 ### Task 4: 用元数据入口接管 Program，并接入 build/preview
 
 **Files:**
+
 - Modify: `/workspace/src/Bukit.Cli/Program.cs`
 - Create: `/workspace/src/Bukit.Cli/Cli/BukitCliSpecs.cs`
 - Modify: `/workspace/src/Bukit.Cli/Commands/BuildCommand.cs`
 - Modify: `/workspace/src/Bukit.Cli/Commands/PreviewCommand.cs`
 - Test: `/workspace/tests/Bukit.Cli.Tests/CliProgramFlowTests.cs`
-
-- [ ] **Step 1: 写失败测试，锁定全局 help、未知命令和 `preview --help` 行为**
+- [ ] **Step 1: 写失败测试，锁定全局 help、未知命令和** **`preview --help`** **行为**
 
 ```csharp
 using Bukit.Cli.Cli.Metadata;
@@ -624,7 +624,7 @@ return spec.Name switch
 };
 ```
 
-- [ ] **Step 4: 让 build/preview 新增 `CliBoundCommand` 重载并保留旧行为**
+- [ ] **Step 4: 让 build/preview 新增** **`CliBoundCommand`** **重载并保留旧行为**
 
 ```csharp
 using Bukit.Cli.Cli.Binding;
@@ -701,13 +701,13 @@ git commit -m "feat(cli): route build and preview through metadata layer"
 ### Task 5: 接入 theme/plugin 子命令与统一 usage
 
 **Files:**
+
 - Modify: `/workspace/src/Bukit.Cli/Cli/BukitCliSpecs.cs`
 - Modify: `/workspace/src/Bukit.Cli/Commands/ThemeCommand.cs`
 - Modify: `/workspace/src/Bukit.Cli/Commands/PluginCommand.cs`
 - Test: `/workspace/tests/Bukit.Cli.Tests/ThemeCommandTests.cs`
 - Test: `/workspace/tests/Bukit.Cli.Tests/PluginCommandTests.cs`
-
-- [ ] **Step 1: 先写失败测试，覆盖未知子命令和 `theme use` 缺参**
+- [ ] **Step 1: 先写失败测试，覆盖未知子命令和** **`theme use`** **缺参**
 
 ```csharp
 using Bukit.Cli.Commands;
@@ -732,7 +732,7 @@ Run: `dotnet test /workspace/tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filt
 
 Expected: 现有 `PluginCommandTests` PASS，新 `ThemeCommandTests` 可能 PASS 或 FAIL；记录当前行为后再改造
 
-- [ ] **Step 3: 在 `BukitCliSpecs` 中声明 theme/plugin 子命令树**
+- [ ] **Step 3: 在** **`BukitCliSpecs`** **中声明 theme/plugin 子命令树**
 
 ```csharp
 var plugin = new CliCommandSpec(
@@ -775,7 +775,7 @@ var theme = new CliCommandSpec(
     });
 ```
 
-- [ ] **Step 4: 删除 `ThemeCommand` 和 `PluginCommand` 内部手写 `PrintHelp()`，改为只保留业务分支**
+- [ ] **Step 4: 删除** **`ThemeCommand`** **和** **`PluginCommand`** **内部手写** **`PrintHelp()`，改为只保留业务分支**
 
 ```csharp
 namespace Bukit.Cli.Commands;
@@ -828,12 +828,12 @@ git commit -m "feat(cli): move theme and plugin help to metadata specs"
 ### Task 6: 清理旧 help 路径并对齐 CLI 文档
 
 **Files:**
+
 - Modify: `/workspace/src/Bukit.Cli/Commands/HelpPrinter.cs`
 - Modify: `/workspace/guide/dev/cli.md`
 - Modify: `/workspace/guide/user/12-命令行参考.md`
 - Verify: `/workspace/src/Bukit.Cli/Program.cs`
 - Verify: `/workspace/tests/Bukit.Cli.Tests`
-
 - [ ] **Step 1: 删除全局 help 中已被元数据接管的重复清单，保留兼容壳或直接改为调用渲染器**
 
 ```csharp
@@ -898,3 +898,4 @@ git commit -m "docs(cli): align help output and command reference"
 - 规格覆盖：计划覆盖了元数据模型、解析/绑定、help/error 渲染、四个首批命令迁移、文档对齐和测试回归，未遗漏已批准范围中的核心需求。
 - 占位符检查：未使用 `TBD`、`TODO`、`later` 等占位词；每个任务都给出了明确文件路径、示例代码或命令。
 - 一致性检查：计划统一使用 `CliCommandSpec`、`CliOptionSpec`、`CliArgumentSpec`、`CliParser`、`CliBoundCommand` 这组类型名，后续任务未出现命名漂移。
+
