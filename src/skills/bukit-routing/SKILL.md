@@ -9,6 +9,9 @@ description: Use when customizing URL structures, URLs are not generated as expe
 
 Bukit 通过 **permalink 模式** 和 **集合路由规则** 生成每条内容的 URL 和输出路径。路由优先级：内容元数据覆盖 > 集合配置 > 全局 permalinks > 默认规则（post→`/blog/{slug}/`，page→`/pages/{slug}/`）。
 
+**REQUIRED BACKGROUND:** 路由配置依赖于 site.yaml 中的 `site.collections` 和 `site.permalinks`，必须先理解 bukit-config 中的集合配置模型。
+**REQUIRED SUB-SKILL:** 用 `bukit build` 验证路由输出。CLI 命令参考 bukit-cli-reference。
+
 ## 路由优先级
 
 ```

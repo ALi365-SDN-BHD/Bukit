@@ -9,6 +9,8 @@ description: Use when creating or modifying site.yaml, asking about the meaning 
 
 `site.yaml` 是 Bukit 的唯一配置入口，采用约定优于配置哲学。六个顶级节点：`site`、`content`、`build`、`theme`、`taxonomy`、`logging`。大部分字段有合理默认值，最小可用的 site.yaml 仅需约 20 行。
 
+**REQUIRED SUB-SKILL:** 修改配置后用 `bukit build` 验证。CLI 命令参考 bukit-cli-reference。
+
 ## 配置模型速查
 
 | 节点 | 职责 | 关键字段 |

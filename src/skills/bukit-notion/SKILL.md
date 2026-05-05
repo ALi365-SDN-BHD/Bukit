@@ -7,7 +7,10 @@ description: Use when configuring Notion as a content source for Bukit, troubles
 
 ## Overview
 
-Bukit 通过 Notion API 将数据库页面转换为 `ContentItem`，支持 26 种块类型的 HTML 渲染和 18 种属性类型的字段映射。配置集中在 site.yaml 的 `content.notion` 节点。
+Bukit 通过 Notion API 将数据库页面转换为 `ContentItem`，支持 26 种块类型的 HTML 渲染和 18 种属性类型的字段映射。
+
+**REQUIRED BACKGROUND:** Notion 相关配置集中在 site.yaml 的 `content.notion` 和 `content.media` 节点，必须先理解 bukit-config。
+**REQUIRED SUB-SKILL:** 用 `bukit doctor` 验证 Notion 连通性，用 `bukit build` 构建。CLI 命令参考 bukit-cli-reference。
 
 ## 前置准备
 

@@ -9,6 +9,9 @@ description: Use when plugins do not take effect or behave unexpectedly, build o
 
 Bukit 内置 7 个核心插件 + 支持外部程序集和协议插件。插件生命周期：`derivePages`（派生页面）→ 并行渲染 → `afterBuild`（后处理）。构建排错需要理解插件顺序、增量跳过逻辑和配置冲突。
 
+**REQUIRED BACKGROUND:** 插件配置依赖于 site.yaml 中的 `site.plugins`、`site.externalPlugins`、`site.externalAssemblyAllowlist`，必须先理解 bukit-config 的插件配置节。
+**REQUIRED SUB-SKILL:** 用 `bukit plugin list` 列出已注册插件，用 `bukit build --metrics` 诊断性能。CLI 命令参考 bukit-cli-reference。
+
 ## 内置插件速查
 
 | 插件 | Hook | 功能 |

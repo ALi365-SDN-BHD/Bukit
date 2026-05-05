@@ -9,6 +9,9 @@ description: Use when scaffolding or migrating a Bukit theme, asking about the r
 
 Bukit 主题 = `layouts/` + `assets/` + `static/` + `theme` 配置节，四者协同构成完整视觉层。与 `bukit-templating` 的分工：本技能讲"主题怎么组织、CSS 放哪、资源怎么引用"；`bukit-templating` 讲"Scriban 语法怎么写"。
 
+**REQUIRED BACKGROUND:** 主题配置节位于 site.yaml 的 `theme` 节点，必须先理解 bukit-config 中的 Theme 配置模型。
+**REQUIRED SUB-SKILL:** 用 `bukit doctor` 验证主题完整性。CLI 命令参考 bukit-cli-reference。
+
 ## 目录结构
 
 ### 默认布局（`bukit init` 生成）

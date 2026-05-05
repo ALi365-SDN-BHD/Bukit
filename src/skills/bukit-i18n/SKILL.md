@@ -9,6 +9,9 @@ description: Use when creating a multilingual Bukit site, language switching doe
 
 Bukit 通过**语言检测 → 独立变体构建 → 输出合并**三步实现多语言站点。每种语言独立构建一套完整的静态页面，再在根级别合并 Sitemap、RSS 和搜索索引。
 
+**REQUIRED BACKGROUND:** 多语言配置依赖于 site.yaml 中的 `site.languages`、`site.sitemapMode` 等字段，必须先理解 bukit-config。
+**REQUIRED SUB-SKILL:** 用 `bukit build` 构建多语言站点。CLI 命令参考 bukit-cli-reference。
+
 ## 配置模型
 
 ```yaml

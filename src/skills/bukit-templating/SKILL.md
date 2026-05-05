@@ -7,7 +7,10 @@ description: Use when writing or modifying Scriban templates, encountering templ
 
 ## Overview
 
-Bukit 使用 [Scriban](https://github.com/scriban/scriban) 模板引擎，支持 `{% layout "path" %}` 继承、`{{ include "path" }}` 局部模板、完整的变量和数据访问。模板文件位于 `themes/<name>/layouts/` 目录下。**本技能只讲 Scriban 语法和模板编写，目录结构和静态资源请参考 `bukit-theme`。**
+Bukit 使用 [Scriban](https://github.com/scriban/scriban) 模板引擎，支持 `{% layout "path" %}` 继承、`{{ include "path" }}` 局部模板、完整的变量和数据访问。
+
+**REQUIRED BACKGROUND:** 模板文件位于 `themes/<name>/layouts/` 目录下，目录结构和静态资源组织参见 bukit-theme。
+**REQUIRED SUB-SKILL:** 用 `bukit build` 验证模板渲染。CLI 命令参考 bukit-cli-reference。
 
 ## 数据模型
 
