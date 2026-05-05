@@ -81,7 +81,7 @@ content:
 | `Published` | checkbox | 是否发布（建议只渲染已发布内容） |
 | `Title` | title | 内容标题 |
 | `Slug` | rich_text 或 formula(string) | URL slug（缺省可由 Title 生成，但建议显式稳定） |
-| `Type` | select 或 multi_select | `page`/`post`（缺省常为 post） |
+| `Type` | select 或 multi_select | `page`/`post`（兼容层用途；推荐额外建 `Collection` 字段对应 site.collections key） |
 | `PublishAt` | date | 发布时间（缺省可用当前时间，但建议显式） |
 
 ### 多语言相关字段（可选，但建议）
@@ -119,6 +119,8 @@ content:
 - `Published` 用于构建过滤，避免草稿上站
 - `language + i18n_key` 用于多语言站点内容关联（可选）
 - `SEO Title` 等自定义字段需要 `fieldPolicy` 允许进入模板（见下一节）
+
+> **推荐：使用 site.collections 替代 type 默认路由。** 如果你在 Notion 数据库中新增一个 `Collection` 字段（select 类型，值如 `blog`、`docs`），并在 site.yaml 的 site.collections 中声明对应的集合规则，引擎将优先使用 collection 驱动路由，而不是 type 兼容回退。
 
 ## 过滤与排序（filter / sort）
 

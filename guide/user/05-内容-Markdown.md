@@ -74,7 +74,8 @@ seo_desc: 自定义 SEO 描述（模板可用）
 
 | 字段 | 常见值 | 作用 |
 |---|---|---|
-| `type` | `page` / `post` | 决定默认路由与模板 |
+| `collection` | 字符串 | 对应 site.collections 中的集合 key，决定路由与模板（推荐优先使用） |
+| `type` | `page` / `post` | 兼容层：当未使用 collection 时决定默认路由与模板 |
 | `title` | 文本 | 页面标题（缺省可从正文第一个 `#` 提取） |
 | `slug` | `hello-world` | URL 核心片段（缺省为文件名） |
 | `publishAt` | ISO 时间字符串 | 发布时间（缺省可能使用文件修改时间） |
@@ -85,7 +86,7 @@ seo_desc: 自定义 SEO 描述（模板可用）
 
 你可以自定义更多字段（例如 `cover`, `reading_time`, `seo_*`），它们会进入 `page.fields.*` 供模板读取。
 
-## 示例 1：页面（page）
+## 示例 1：页面（page）— 兼容层默认路由
 
 文件：`content/about.md`
 
@@ -108,7 +109,7 @@ seo_desc: 这是一个用 Bukit 构建的示例站点
 
 - 关于、联系、帮助中心、产品介绍、隐私政策
 
-## 示例 2：文章（post）
+## 示例 2：文章（post）— 兼容层默认路由
 
 文件：`content/2026-01-hello.md`
 

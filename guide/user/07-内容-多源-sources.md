@@ -24,6 +24,8 @@ content:
         defaultType: page
 ```
 
+> **推荐：搭配 site.collections 使用。** 当使用 sources 模式时，建议同时在 site.yaml 顶层声明 `site.collections`，让每个 source 的内容通过 collection key 精确匹配路由规则（而不是依赖 type 兼容层）。
+
 ### 字段说明
 
 | 字段 | 作用 | 建议 |
@@ -71,6 +73,16 @@ content:
 - `data/nav-home.md`
 
 详见：[09-Modules-结构化数据](./09-Modules-结构化数据.md)。
+
+> 如果希望精确控制路由，可在 site.yaml 中添加：
+> ```yaml
+> site:
+>   collections:
+>     page:
+>       permalink: /pages/{slug}/
+>       template: pages/page.html
+>       listRoute: /pages/
+> ```
 
 ## 组合示例 2：全 Notion（多数据库：pages + posts + modules）
 
@@ -122,6 +134,8 @@ content:
 
 - 三个数据库都需要同一个 `NOTION_TOKEN` 能访问（或者拆仓库/拆工作流）
 - modules 数据库里应该有 `type/order/locale/enabled` 等字段（见：[09-Modules-结构化数据](./09-Modules-结构化数据.md)）
+
+> 建议在 site.yaml 中声明 site.collections（例如 `blog`、`docs`），并在每个 Notion 数据库的 Collection 字段中填写对应的 key。这样引擎可以精确匹配路由规则，而不依赖 type 兼容回退。
 
 ## 组合示例 3：混合（页面 Markdown + 博客 Notion + modules Markdown）
 
