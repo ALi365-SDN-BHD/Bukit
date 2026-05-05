@@ -33,12 +33,16 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Extract version from tag
+      - name: Resolve version
         id: version
         shell: bash
         run: |
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="0.0.0-dev+${{ github.sha }}"
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Publish Native AOT
@@ -70,6 +74,7 @@ jobs:
           path: bukit-${{ steps.version.outputs.version }}-${{ matrix.rid }}${{ matrix.ext }}
 
   release:
+    if: github.ref_type == 'tag'
     needs: build
     runs-on: ubuntu-latest
     steps:
