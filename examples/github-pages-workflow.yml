@@ -1,0 +1,69 @@
+name: Deploy Bukit site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [bukit_notion]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish bukit (Native AOT)
+        run: dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
+
+      - name: Compute base URL and site URL
+        id: urls
+        shell: bash
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          OWNER="${GITHUB_REPOSITORY%/*}"
+          if [[ "$REPO_NAME" == *.github.io ]]; then
+            echo "base_url=/" >> $GITHUB_OUTPUT
+            echo "site_url=https://${OWNER}.github.io" >> $GITHUB_OUTPUT
+          else
+            echo "base_url=/${REPO_NAME}" >> $GITHUB_OUTPUT
+            echo "site_url=https://${OWNER}.github.io/${REPO_NAME}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build site
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: |
+          ./out/bukit/bukit build \
+            --config site.yaml \
+            --output _site \
+            --base-url "${{ steps.urls.outputs.base_url }}" \
+            --site-url "${{ steps.urls.outputs.site_url }}" \
+            --ci \
+            --clean
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
