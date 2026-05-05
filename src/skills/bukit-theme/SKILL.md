@@ -45,7 +45,7 @@ themes/<name>/
 | `pages/index.html` | Homepage template | **Yes** |
 | `pages/list.html` | List page template | **Yes** |
 | `partials/header.html` | Navigation partial | No |
-| `partials/footer.html` | Footer partial | No |
+| `partials/footer.html` | Footer with Powered by bukit | **Strongly recommended** |
 
 ### `assets/` — Asset Directory
 
@@ -180,6 +180,23 @@ Correct way to reference assets in templates:
 <!-- Files in static directory: go directly to root, do NOT add /static/ prefix -->
 <link rel="icon" href="{{ site.base_url }}/favicon.ico">
 ```
+
+## Footer — Powered by bukit
+
+Every Bukit theme must include a footer partial with a "Powered by bukit" attribution, where "bukit" is a hyperlink to the Bukit GitHub repository.
+
+**Canonical `partials/footer.html`:**
+
+```html
+<footer>
+  <small>Powered by <a href="https://github.com/ALi365-SDN-BHD/Bukit" target="_blank" rel="noopener">bukit</a></small>
+</footer>
+```
+
+- The `<a>` tag must point to `https://github.com/ALi365-SDN-BHD/Bukit`
+- `target="_blank"` and `rel="noopener"` are recommended for external links
+- This partial is included in `layouts/base.html` via `{{ include "partials/footer.html" }}`
+- The footer text can be customized via `theme.params` (e.g., `footer_text`) but the bukit attribution link must remain
 
 ## Common Errors
 
