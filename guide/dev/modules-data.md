@@ -1,93 +1,66 @@
-# Modules 数据源（mode=data → site.modules）
+# Module Data Source (mode=data → site.modules)
 
-当你需要 banner、导航、页脚、FAQ、价格表等“结构化模块”时，推荐通过 `content.sources[].mode: data` 注入模块数据到模板变量 `site.modules`。
+Modules inject structured data blocks into `site.modules.<type>[]` without generating routes.
 
-实现参考：
-- `src/Bukit.Config/AppConfig.cs`（ContentSourceConfig.mode）
-- `src/Bukit.Engine/SiteEngine.cs`（IsDataItem / BuildModules）
-- `src/Bukit.Rendering/Models.cs`（ModuleInfo）
-- `src/Bukit.Rendering/Scriban/ScribanModelBinder.cs`（site.modules 注入）
+Implementation: `src/Bukit.Engine/DataModuleBuilder.cs`
 
-## 触发条件：sourceMode=data
-
-当 `content.provider: sources` 且某个 source 的 `mode: data` 时，引擎会在加载后将其标记为 data item（Meta 中带 `sourceMode=data`），并在渲染前：
-
-1. 从全部 items 中分离 dataItems
-2. 对 dataItems 做过滤/分组/排序
-3. 注入到 `site.modules.<type>`（数组）
-
-## 注入结构
-
-模板侧使用方式：
-- `site.modules.<type>`：按 type 分组后的模块数组
-
-每个模块项（ModuleInfo）结构：
-- `id/title/slug/content`
-- `fields.<key>.type/value`
-
-## 分组规则：meta.type
-
-dataItems 会按 `meta.type` 分组：
-- `type` 为空时，默认分组为 `module`
-
-建议 Notion 的 Modules 数据库用 `Type` 字段表达模块类型（例如 banner/navigation/footer）。
-
-## 过滤规则：enabled
-
-如果字段 `enabled`（注意是 fields 中的 key）能解析为 false，则该模块不会进入输出。
-
-启用建议：
-- Notion：设置 `Enabled` checkbox，并在 schema 中保证默认勾选
-- Markdown data：在 Front Matter 中写 `enabled: true/false`
-
-## 多语言过滤：locale
-
-dataItems 会按字段 `locale` 做过滤：
-- `locale` 为空：对所有语言变体可见
-- `locale` 等于当前构建语言（忽略大小写）：对该语言可见
-
-## 排序规则：order
-
-同一分组内按字段 `order` 升序排序，缺失视为 0；若相同再按 `title` 排序。
-
-## 配置示例
+## Configuration
 
 ```yaml
 content:
   provider: sources
   sources:
-    - type: notion
-      name: pages
-      mode: content
-      notion:
-        databaseId: "..."
-        filterProperty: Published
-        filterType: checkbox_true
-    - type: notion
+    - type: markdown
       name: modules
       mode: data
-      notion:
-        databaseId: "..."
-        filterProperty: Enabled
-        filterType: checkbox_true
-        sortProperty: Order
-        sortDirection: ascending
-        fieldPolicy:
-          mode: all
+      markdown:
+        dir: data
+        defaultType: module
 ```
 
-## Scriban 使用示例
+Items with `mode: data` do not generate routes; they are grouped by `type` and injected into `site.modules.<type>[]`.
+
+## Recommended Module Fields
+
+| Field | Purpose |
+|---|---|
+| `type` | Module type (grouping key, required) |
+| `title` | Module title |
+| `order` | Sort order (number, smaller = earlier) |
+| `locale` | Language filtering |
+| `enabled` | Toggle |
+
+## Template Usage
 
 ```scriban
-{{ if site.modules && site.modules.banner }}
-  {{ for b in site.modules.banner }}
-    {{ if b.fields && b.fields.image }}
-      <img src="{{ b.fields.image.value }}" />
-    {{ end }}
-  {{ end }}
+{{ for b in site.modules.banner }}
+  <h2>{{ b.title }}</h2>
+  {{ if b.fields.link }}<a href="{{ b.fields.link.value }}">{{ b.title }}</a>{{ end }}
 {{ end }}
 ```
 
-## 相关专题
+## Multiple data Sources
 
-- 企业官网内容建模入口：[content.md](./content.md)
+Multiple `mode: data` sources are merged into `site.modules`. Item IDs are prefixed `<sourceKey>:<sourceId>` to avoid conflicts.
+
+```yaml
+content:
+  provider: sources
+  sources:
+    - type: markdown
+      name: modules_marketing
+      mode: data
+      markdown: { dir: data/marketing, defaultType: module }
+    - type: notion
+      name: modules_ops
+      mode: data
+      notion:
+        databaseId: "db_modules_ops"
+        filterProperty: Enabled
+        filterType: checkbox_true
+        fieldPolicy: { mode: all }
+```
+
+## Taxonomy Supplement
+
+`mode: data` sources with `name: categories` or `name: tags` are used for taxonomy: even unused taxonomy terms generate empty aggregation pages to avoid 404s.

@@ -1,64 +1,102 @@
-# Panduan Pembangun Bukit (Penyelenggaraan dan Pengembangan)
+﻿# bukit (Enjin Tapak Statik .NET 10 Native AOT)
 
-Versi bahasa: [English](./README.md) | [简体中文](./README.zh-CN.md) | Bahasa Melayu (semasa)
+Versi bahasa: [English](./README.ms.md) | [简体中文](./README.zh-CN.ms.md) | Bahasa Melayu (semasa)
 
-Direktori ini untuk penyelenggara dan penyumbang kod. Ia menerangkan kontrak stabil (konfigurasi/parameter/model data) serta butiran implementasi (pipeline/incremental build/pemuatan plugin) supaya iterasi lebih selamat dan pantas.
+Enjin tapak statik berasaskan aliran kerja "nota sebagai CMS". Kandungan boleh datang daripada Notion (atau Markdown tempatan), kemudian dibina dan dideploy ke GitHub Pages melalui GitHub Actions.
 
-## Laluan Onboarding Terpendek
+## Dokumen
 
-1. Jalankan contoh tapak dahulu (rujuk [CLI](./cli.md)).
-2. Fahami medan dan validasi `site.yaml` (rujuk [Config](./config-site-yaml.md)).
-3. Fahami aliran hujung-ke-hujung: Config → Content → Routing → Rendering → Plugins → Output (rujuk [Architecture](./architecture.md)).
+- Panduan pengguna: [`guide/user`](guide/user/README.ms.md)
+- Panduan pembangun: [`guide/dev`](guide/dev/README.ms.md)
+- Nota tadbir urus: [`guide/dev/perf-aot-governance.md`](guide/dev/perf-aot-governance.md)
+- Rujukan penuh dalam bahasa Cina: [`README.zh-CN.md`](README.zh-CN.md)
 
-## Navigasi Dokumen
+## Mula Pantas (guna contoh tapak dalam repositori ini)
 
-- [Code Wiki (gambaran keseluruhan repositori)](./code-wiki.md)
-- [Graf panggilan modul](./code-wiki-call-graph.md)
-- [Onboarding 30 minit untuk pembangun baharu](./new-developer-30min.md)
-- [Pintu masuk kod ikut jenis perubahan](./maintainer-entrypoints.md)
-- [Draf semakan seni bina](./architecture-review.md)
-- [Seni bina dan sempadan modul](./architecture.md)
-- [Senarai semak tadbir urus penyelenggaraan](./governance-checklist.md)
-- [Rujukan argumen CLI](./cli.md)
-- [Rujukan medan `site.yaml`](./config-site-yaml.md)
-- [Inisialisasi scaffolding (init/create)](./init-create.md)
-- [Sistem kandungan (Markdown / Notion / sources)](./content.md)
-- [Sistem routing](./routing.md)
-- [Rendering dan templat (Scriban)](./rendering-scriban.md)
-- [Pembangunan tema](./theme.md)
-- [Sumber data Modules (`mode=data`)](./modules-data.md)
-- [Output tetap enjin](./engine-outputs.md)
-- [Sistem plugin](./plugins.md)
-- [Output dan sempadan plugin terbina dalam](./built-in-plugins.md)
-- [Integrasi CLI Intent](./intent-cli.md)
-- [Mod binaan AOT vs bukan AOT](./aot.md)
-- [Nota prestasi/AOT/tadbir urus](./perf-aot-governance.md)
-- [Publish dan deploy](./publish-deploy.md)
-- [Incremental build](./incremental-build.md)
-- [Cache dan clean](./cache-clean.md)
-- [Pemeriksaan doctor](./doctor.md)
-- [Keterlihatan (log dan metrik)](./observability.md)
-- [I18n dan SEO](./i18n-seo.md)
-- [Webhook trigger dan kekangan keselamatan](./webhook.md)
-- [Ujian dan smoke acceptance](./testing-smoke.md)
+```bash
+dotnet build bukit.slnx -c Release
+dotnet run --project src/Bukit.Cli -c Release -- doctor --config examples/starter/site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter/site.yaml --clean --site-url https://example.com
+dotnet run --project src/Bukit.Cli -c Release -- preview --dir examples/starter/dist --port auto
+```
 
-## Cara Guna Dokumen Lain Dalam Repositori
+## Perintah CLI Teras
 
-Direktori `docs/` menumpukan topik produk/cadangan/penerimaan. Direktori `guide/dev` merujuk ke dokumen tersebut tanpa menggandakan kandungan.
+### Cipta tapak
 
-Pautan lazim:
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- create my-site
+dotnet run --project src/Bukit.Cli -c Release -- create my-site --provider notion
+```
 
-- Panduan bina tapak dengan AI: [chatgpt/README.ms.md](../ai/chatgpt/README.ms.md)
-- Kontrak dan pemetaan Intent: [intent-cli.md](./intent-cli.md)
-- Templat skema Notion: [content.md](./content.md)
-- Pemodelan Modules laman korporat: [modules-data.md](./modules-data.md)
-- Dokumen penerimaan: [testing-smoke.md](./testing-smoke.md)
+### Bina
 
-## Konsep Pantas
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- build --clean
+dotnet run --project src/Bukit.Cli -c Release -- build --clean --metrics metrics.json --log-format json
+dotnet run --project src/Bukit.Cli -c Release -- build --clean --jobs 8
+dotnet run --project src/Bukit.Cli -c Release -- build --site blog --clean
+```
 
-- `ContentItem`: model kandungan seragam daripada Markdown atau Notion.
-- Meta vs Fields: Meta mengawal tingkah laku enjin; Fields digunakan oleh templat (`page.fields.*.value`).
-- `mode=content` vs `mode=data`: content menjana route/halaman; data menyuntik ke `site.modules`.
-- Plugin: dua hook kitar hayat (`derive-pages`, `after-build`).
+### Semak / Bersih / Tema
 
-Sumber penuh bahasa Cina: [README.md](./README.md)
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
+dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
+```
+
+## Medan Penting `site.yaml`
+
+- `site.collections`: model utama yang disyorkan untuk organisasi kandungan dan routing (isytihar `permalink`, `template`, dan `listRoute` pilihan setiap koleksi). Peraturan lalai `post/page` kekal sebagai lapisan keserasian.
+- `site.baseUrl`: sublaluan GitHub Pages (`/my-repo`) atau `/` untuk root.
+- `site.url`: URL kanonik tapak (sitemap/rss); boleh ditindih dengan `--site-url`.
+- `content.provider`: `markdown` atau `notion`.
+- `content.markdown.maxItems`: jumlah maksimum item Markdown.
+- `content.notion.maxItems`: jumlah maksimum halaman Notion.
+- `content.notion.cacheMode/cacheDir`: pilihan cache render Notion.
+- `build.output`: direktori output.
+- `theme.layouts/assets/static`: direktori tema.
+
+## Bina Tapak dengan AI (v2)
+
+- Panduan: [`guide/ai/chatgpt/README.ms.md`](guide/ai/chatgpt/README.ms.md)
+- Kontrak Intent: [`guide/dev/intent-cli.md`](guide/dev/intent-cli.md)
+- Prompt Pack ChatGPT: [`guide/ai/chatgpt`](guide/ai/chatgpt/README.ms.md)
+
+## Sumber Kandungan Notion
+
+- Token mesti dibekalkan melalui pemboleh ubah persekitaran sahaja: `NOTION_TOKEN`.
+- Rujukan skema v1: [`guide/dev/content.md`](guide/dev/content.md)
+
+## GitHub Actions + GitHub Pages
+
+Templat aliran kerja disediakan di [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+Salin ke repositori anda dan ubah suai mengikut keperluan. Lihat [`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md) untuk panduan terperinci.
+
+Langkah biasa:
+
+1. Di GitHub Settings → Pages, pilih "GitHub Actions".
+2. Jika guna Notion, tambah `NOTION_TOKEN` dalam repository secrets.
+3. Push ke `main` selepas aliran kerja anda disediakan untuk bina dan terbitkan tapak.
+
+## Penerbitan AOT
+
+```bash
+dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
+dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit -p:BukitStripSymbols=true
+dotnet publish src/Bukit.Cli -c AOT -r win-x64 -o out/bukit
+```
+
+## Matriks Pengesahan
+
+```bash
+dotnet build bukit.slnx -c Release -warnaserror
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release
+dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj -c Release
+dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release
+dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj -c Release
+dotnet format bukit.slnx --verify-no-changes
+```
+

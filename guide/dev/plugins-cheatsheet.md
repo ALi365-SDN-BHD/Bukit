@@ -1,145 +1,65 @@
-# Bukit 插件速查
+# Bukit Plugin Cheatsheet
 
-## 内置插件一览
+## Built-in Plugins
 
-| 插件 | 类型 | 输出 | 关键依赖 |
-|------|------|------|---------|
-| sitemap | AfterBuild | `sitemap.xml` | 必须配置 `site.url` |
-| rss | AfterBuild | `rss.xml` | 必须配置 `site.url` |
-| search-index | AfterBuild | `search.json` | 无特殊依赖 |
-| taxonomy | DerivePages + AfterBuild | `/tags/`、`/categories/` 页面 + `taxonomy.json` | 内容需含 `meta.tags`/`meta.categories` |
-| pagination | DerivePages | `/blog/page/2/` 等分页 | blog 文章数 > 10 |
-| archive | DerivePages | `/blog/archive/` 年月归档 | 需有 blog 内容 |
-| pages-index | DerivePages | 注入 `site.data.pages_by_id` | 无特殊依赖 |
-| path-report | AfterBuild（外部） | `_debug/paths-report.json` | 调试用 |
+| Plugin | Type | Output | Dependency |
+|---|---|---|---|
+| sitemap | AfterBuild | `sitemap.xml` | `site.url` required |
+| rss | AfterBuild | `rss.xml` | `site.url` required |
+| search-index | AfterBuild | `search.json` | None |
+| taxonomy | DerivePages+AfterBuild | `/tags/`, `/categories/`, `taxonomy.json` | `meta.tags`/`meta.categories` |
+| pagination | DerivePages | `/blog/page/2/` etc. | Blog posts > 10 |
+| archive | DerivePages | Archive pages | Blog content |
+| pages-index | DerivePages | `site.data.pages_by_id` | None |
+| path-report | AfterBuild (external) | `_debug/paths-report.json` | Debug |
 
-## 插件开关配置
-
-在 `site.yaml` 中通过 `site.plugins` 控制：
+## Plugin Configuration
 
 ```yaml
 site:
   plugins:
-    sitemap: true          # 简写：布尔值开关
-    rss: true
-    search-index: false    # 关闭搜索索引
-```
-
-或使用完整格式（带自定义参数）：
-
-```yaml
-site:
-  plugins:
+    sitemap: true          # Shorthand toggle
     path-report:
       enabled: true
-      options: {}
+      options: {}          # Custom parameters
 ```
 
-- `enabled` 默认为 `true`
-- `options` 为插件自定义参数字典
+## Failure Policy: `site.pluginFailMode: strict|warn`
 
-## 插件失败策略
+## sitemap Plugin
+- Output: `sitemap.xml` (requires `site.url`)
+- Includes: `/`, `/blog/`, `/pages/`, all routed + derived pages
+- Excludes: pages with `noindex` meta
+- Multilingual: controlled by `site.sitemapMode`
 
-```yaml
-site:
-  pluginFailMode: strict   # strict=插件失败中断构建，warn=记录错误继续
-```
+## rss Plugin
+- Output: `rss.xml` (requires `site.url`)
+- Input: routed content only
+- Multilingual: controlled by `site.rssMode`
 
-## sitemap 插件
+## search-index Plugin
+- Output: `search.json` (does not require `site.url`)
+- Fields: id/title/url/content/summary/type/tags/categories/language/sourceKey/publishAt
+- `site.searchIncludeDerived: true` includes derived pages
 
-- 输出：`<outputDir>/sitemap.xml`
-- **必须配置 `site.url`**，否则不生成
-- 包含：首页、blog、pages、所有内容页、taxonomy/pagination/archive 派生页
-- 会排除含 `<meta name="robots" content="noindex">` 的页面
-- 多语言：`site.sitemapMode` 控制（`split`/`merged`/`index`）
+## taxonomy Plugin
+- Pages: `/tags/`, `/tags/<slug>/`, `/categories/`, `/categories/<slug>/`
+- Template: `pages/page.html` (configurable)
+- Pagination: `taxonomy.pageSize` (default 10)
 
-## rss 插件
-
-- 输出：`<outputDir>/rss.xml`
-- **必须配置 `site.url`**，否则不生成
-- 只包含 routed 内容（不含派生页）
-- 多语言：`site.rssMode` 控制（`split`/`merged`）
-
-## search-index 插件
-
-- 输出：`<outputDir>/search.json`
-- 不依赖 `site.url`
-- 字段：id/title/url/content/summary/type/tags/categories/language/sourceKey/publishAt
-- `site.searchIncludeDerived: true` 可将派生页纳入索引
-- 多语言：各语言目录生成各自的 `search.json`
-
-## taxonomy 插件（分类/标签）
-
-根据内容的 `meta.tags`/`meta.categories` 自动生成分类页：
-
-- `/tags/` → 标签索引页
-- `/tags/<slug>/` → 标签详情页（含分页）
-- `/categories/` → 分类索引页
-- `/categories/<slug>/` → 分类详情页（含分页）
-
-### taxonomy 配置
-
+### Taxonomy Templates
 ```yaml
 taxonomy:
-  template: pages/page.html        # 默认模板
-  indexTemplate: pages/tax-index.html  # 索引页模板（可选）
-  termTemplate: pages/tax-term.html    # 详情页模板（可选）
-  pageSize: 10                      # 分页大小
-  indexEnabled: true                # 是否生成索引页
+  template: pages/page.html
+  indexTemplate: pages/tax-index.html
+  termTemplate: pages/tax-term.html
+  pageSize: 10
 ```
 
-### taxonomy 模板变量
+Index page variables: `page.fields.terms.value[]` (title/slug/url/count)
+Detail page variables: `page.fields.items.value[]`, `page.fields.taxonomy.value`, `page.fields.pagination.value`
 
-索引页（`/tags/`）：
-- `page.fields.terms.value[]` → `{ title, slug, url, count }`
-
-详情页（`/tags/<slug>/`）：
-- `page.fields.items.value[]` → `{ title, url, publish_date, summary }`
-- `page.fields.taxonomy.value` → `{ kind, term, slug, count }`
-- `page.fields.pagination.value` → `{ page, page_size, total, total_pages, has_prev, has_next }`
-
-### taxonomy 模板示例
-
-```scriban
-{{ layout "layouts/base.html" }}
-<h1>{{ page.title }}</h1>
-<ul>
-{{ for item in page.fields.items.value }}
-  <li>
-    <a href="{{ site.base_url }}{{ item.url }}">{{ item.title }}</a>
-    {{ if item.publish_date }}
-      <time>{{ item.publish_date | date.to_string "%Y-%m-%d" }}</time>
-    {{ end }}
-  </li>
-{{ end }}
-</ul>
-{{ if page.fields.pagination.value.has_prev }}
-  <a href="{{ site.base_url }}/{{ page.fields.taxonomy.value.kind }}/{{ page.fields.taxonomy.value.slug }}/page/{{ page.fields.pagination.value.page - 1 }}/">上一页</a>
-{{ end }}
-{{ if page.fields.pagination.value.has_next }}
-  <a href="{{ site.base_url }}/{{ page.fields.taxonomy.value.kind }}/{{ page.fields.taxonomy.value.slug }}/page/{{ page.fields.pagination.value.page + 1 }}/">下一页</a>
-{{ end }}
-```
-
-### 自定义 taxonomy kinds
-
-```yaml
-taxonomy:
-  kinds:
-    - key: tags
-      kind: tags
-      title: Tags
-    - key: categories
-      kind: categories
-      title: Categories
-    - key: series         # 自定义分类维度
-      kind: series
-      title: Series
-```
-
-## 图片本地化（content.media）
-
-对所有内容源生效，Notion 内容源尤其重要：
+## Image Localization (`content.media`)
 
 ```yaml
 content:
@@ -150,6 +70,3 @@ content:
     defaultImageUrl: /assets/images/default.jpg
     fieldKeys: [cover, image, thumbnail, og_image]
 ```
-
-- `downloadToLocal: true` 时自动下载远程图片到本地
-- Notion 图片 URL 为临时链接，必须本地化才能在部署后正常显示
