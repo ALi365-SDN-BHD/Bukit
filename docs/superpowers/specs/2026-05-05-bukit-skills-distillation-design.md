@@ -2,11 +2,11 @@
 
 ## 目标
 
-将 Bukit 静态站点生成器的专业知识蒸馏为 **8 个** Trae IDE `.skill` 文件，让任何兼容的 AI Agent（Trae/Claude Code、Codex CLI、Copilot CLI、Gemini CLI）都能成为"Bukit 专家"，覆盖配置、主题、模板、内容源、路由、国际化、插件调试、CLI 执行八大领域。
+将 Bukit 静态站点生成器的专业知识蒸馏为 **9 个** Trae IDE `.skill` 文件，让任何兼容的 AI Agent（Trae/Claude Code、Codex CLI、Copilot CLI、Gemini CLI）都能成为"Bukit 专家"，覆盖统一入口、配置、主题、模板、内容源、路由、国际化、插件调试、CLI 执行九大领域。
 
 ## 范围
 
-- 在 `src/skills/` 目录下新增 8 个技能文件（每个对应一个 Bukit 子系统或操作域）
+- 在 `src/skills/` 目录下新增 9 个技能文件（每个对应一个 Bukit 子系统或操作域）
 - 每个技能遵循 `writing-skills` 中定义的 SKILL.md 标准结构
 - 纯知识蒸馏 + CLI 操作指引，不包含可执行代码或 MCP 服务器
 - 全部使用中文编写（与用户语言一致）
@@ -39,7 +39,7 @@
 3. **Skill 文件为纯 Markdown**：Codex 原生加载，Copilot 通过 `skill` 工具发现，Gemini 通过 `activate_skill` 激活
 4. **CLI 操作用独立 skill 封装**：`bukit-cli-reference` 作为所有命令操作的单一知识源
 
-### 为什么这 8 个技能不需 MCP
+### 为什么这 9 个技能不需 MCP
 
 Agent 调用 Bukit CLI 不需要 MCP 中间层，因为：
 - Bukit 是单文件可执行文件（NativeAOT 编译），Agent 可直接执行
@@ -68,11 +68,12 @@ Agent 调用 Bukit CLI 不需要 MCP 中间层，因为：
 3. **触发条件明确** — `description` 用"Use when..."描述用户会遇到的具体症状
 4. **示例驱动** — 每个技能包含至少 2 个真实场景示例
 
-### 8 个技能的职责映射
+### 9 个技能的职责映射
 
 ```
 Bukit 架构层               →  Skill 文件              类型
 ────────────────────────────────────────────────────────────
+(网关层)                    →  using-bukit             Gateway（统一入口，路由到子技能）
 Bukit.Cli (CLI 入口)        →  bukit-cli-reference     Reference（操作指引）
 Bukit.Config + Theme        →  bukit-theme             Pattern（主题模式）
 Bukit.Config (配置模型)     →  bukit-config            Technique（配置技法）
@@ -398,7 +399,7 @@ bukit-plugins-debug  ←── 独立（但引用 bukit-config 的插件配置�
 
 ## 验收标准
 
-- 8 个 SKILL.md 文件全部创建在 `src/skills/bukit-*/` 目录下
+- 9 个 SKILL.md 文件全部创建在 `src/skills/bukit-*/` 目录下
 - 每个文件的结构符合 `writing-skills` 中定义的标准
 - 每个文件的 `description` 通过触发条件语义检查（不只概括内容）
 - 所有示例代码和配置片段与当前 Bukit 源码一致

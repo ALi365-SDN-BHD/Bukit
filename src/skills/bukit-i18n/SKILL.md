@@ -1,6 +1,6 @@
 ---
 name: bukit-i18n
-description: Use when creating a multilingual Bukit site, language switching does not work, multilingual content is not correctly separated, or encountering sitemap/RSS/search index merging issues
+description: Use when using bukit to create a multilingual site, bukit language switching does not work, bukit multilingual content is not correctly separated, or encountering bukit sitemap/RSS/search index merging issues
 ---
 
 # Bukit 多语言站点

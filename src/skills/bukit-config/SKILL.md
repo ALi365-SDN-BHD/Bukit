@@ -1,6 +1,6 @@
 ---
 name: bukit-config
-description: Use when creating or modifying site.yaml, asking about the meaning of a configuration field, encountering config validation errors, or needing to configure a specific Bukit feature (collections, taxonomy, i18n, plugins, media) through YAML
+description: Use when using bukit to create or modify site.yaml, asking about the meaning of a bukit configuration field, encountering bukit config validation errors, or needing to configure a specific Bukit feature (collections, taxonomy, i18n, plugins, media) through YAML
 ---
 
 # Bukit 站点配置

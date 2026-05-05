@@ -1,6 +1,6 @@
 ---
 name: bukit-notion
-description: Use when configuring Notion as a content source for Bukit, troubleshooting Notion content fetch failures or incomplete data, understanding property mapping rules, or dealing with image localization issues
+description: Use when using bukit with Notion as a content source, troubleshooting Notion content fetch failures or incomplete data in bukit, understanding property mapping rules, or dealing with bukit image localization issues
 ---
 
 # Bukit Notion 内容源

@@ -1,6 +1,6 @@
 ---
 name: bukit-routing
-description: Use when customizing URL structures, URLs are not generated as expected, configuring permalink patterns, setting up collection routes, or troubleshooting 404 errors on deployed sites
+description: Use when using bukit to customize URL structures, bukit URLs are not generated as expected, configuring bukit permalink patterns, setting up bukit collection routes, or troubleshooting 404 errors on bukit-deployed sites
 ---
 
 # Bukit URL 路由与永久链接

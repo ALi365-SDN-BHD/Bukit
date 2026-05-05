@@ -1,6 +1,6 @@
 ---
 name: bukit-cli-reference
-description: Use when an agent needs to execute Bukit CLI commands (build, init, preview, clean, doctor, plugin, theme, intent, webhook, version), detect whether Bukit CLI is installed, install or upgrade Bukit, or interpret CLI build output and exit codes
+description: Use when using bukit CLI — agent needs to execute Bukit commands (build, init, preview, clean, doctor, plugin, theme, intent, webhook, version), detect whether the Bukit CLI tool is installed, install or upgrade bukit, or interpret bukit build output and exit codes
 ---
 
 # Bukit CLI 命令操作指引
