@@ -219,4 +219,33 @@ public sealed class DoctorCommandTests : IDisposable
             }
         }
     }
+
+    [Fact]
+    public async Task InitGeneratedNotionSite_ContainsCollections_AndPassesDoctor()
+    {
+        var initRootDir = Path.Combine(Path.GetTempPath(), "bukit-init-notion-doctor-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(initRootDir);
+
+        try
+        {
+            var siteDir = Path.Combine(initRootDir, "site");
+            var initExitCode = await InitCommand.RunAsync(new ArgReader(new[] { "init", siteDir, "--provider", "notion" }));
+            Assert.Equal(0, initExitCode);
+
+            var generatedConfigPath = Path.Combine(siteDir, "site.yaml");
+            var yaml = await File.ReadAllTextAsync(generatedConfigPath);
+            Assert.Contains("collections:", yaml, StringComparison.Ordinal);
+            Assert.Contains("post:", yaml, StringComparison.Ordinal);
+            Assert.Contains("page:", yaml, StringComparison.Ordinal);
+            Assert.Contains("/blog/{slug}/", yaml, StringComparison.Ordinal);
+            Assert.Contains("/pages/{slug}/", yaml, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(initRootDir))
+            {
+                Directory.Delete(initRootDir, recursive: true);
+            }
+        }
+    }
 }
