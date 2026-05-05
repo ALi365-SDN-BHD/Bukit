@@ -69,6 +69,10 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter
 ### 3.2 快速检查命令
 
 ```bash
+pwsh ./scripts/check-doc-asset-consistency.ps1
+bash ./scripts/check-doc-asset-consistency.sh
+
+# 补充排查（关键词粗筛）
 rg -n "src/AIBuilding|aibuilding\\.slnx|tools/ImageSharp|\\.github/workflows/smoke\\.yml|\\.github/workflows/build\\.yaml" README*.md guide
 ```
 
