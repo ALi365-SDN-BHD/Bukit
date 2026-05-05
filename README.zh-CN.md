@@ -213,63 +213,7 @@ content:
 - 对话式建站指南：[`guide/ai/chatgpt/README.zh-CN.md`](guide/ai/chatgpt/README.zh-CN.md)
 - Intent 契约与映射规则：[`guide/dev/intent-cli.md`](guide/dev/intent-cli.md)
 
-## AIBuilding（AI 主题模板生成 App）
-
-### 功能
-
-- 文本描述生成 `index.html / styles.css / script.js`
-- 实时预览与源码查看
-- 本地历史记录
-- 下载 Bukit 主题 zip（`themes/<name>/...`）
-- 支持 Provider：OpenAI 兼容、Anthropic（可插拔）
-
-### 桌面端（Windows/macOS）
-
-项目：`src/AIBuilding/AIBuilding.Desktop`（.NET MAUI Blazor）
-
-```bash
-dotnet workload install maui
-dotnet build aibuilding.slnx
-```
-
-说明：
-
-- Windows/macOS 客户端支持
-- Linux 客户端不提供
-
-### 桌面端打包（Windows/macOS）
-
-Windows（自包含目录）：
-
-```bash
-dotnet publish src/AIBuilding/AIBuilding.Desktop/AIBuilding.Desktop.csproj -c Release -f net10.0-windows10.0.19041.0 -r win-x64 -p:WindowsPackageType=None -p:SelfContained=true
-```
-
-macOS（MacCatalyst 应用）：
-
-```bash
-dotnet publish src/AIBuilding/AIBuilding.Desktop/AIBuilding.Desktop.csproj -c Release -f net10.0-maccatalyst -r maccatalyst-x64
-dotnet publish src/AIBuilding/AIBuilding.Desktop/AIBuilding.Desktop.csproj -c Release -f net10.0-maccatalyst -r maccatalyst-arm64
-```
-
-说明：
-
-- macOS 发布到分发渠道前，通常需要签名与公证（本仓库未内置证书流程）。
-- Windows 默认使用 `WindowsPackageType=None`，避免要求 MSIX 清单。
-
-### 环境变量
-
-OpenAI 兼容：
-
-- `AIBUILDING_OPENAI_API_KEY`
-- `AIBUILDING_OPENAI_BASE_URL`（可选，默认 `https://api.openai.com`）
-- `AIBUILDING_OPENAI_MODEL`（可选）
-
-Anthropic：
-
-- `AIBUILDING_ANTHROPIC_API_KEY`
-- `AIBUILDING_ANTHROPIC_BASE_URL`（可选，默认 `https://api.anthropic.com`）
-- `AIBUILDING_ANTHROPIC_MODEL`（可选）
+> 说明：当前仓库聚焦 `Bukit` 主线，不包含 `AIBuilding` 桌面端源码与解决方案。
 
 ## Notion 内容源
 
@@ -295,14 +239,14 @@ v2 的字段模板与 schema 说明见：
 
 ## GitHub Actions + GitHub Pages
 
-仓库已包含 GitHub Pages 工作流：[`/.github/workflows/pages.yml`](.github/workflows/pages.yml)
+当前仓库未内置可直接复用的 Pages workflow 文件。
+请参考 [`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md) 自行在 `.github/workflows/` 下创建工作流。
 
 要启用部署：
 
 1. 在 GitHub 仓库 Settings → Pages → Build and deployment 选择 “GitHub Actions”
 2. 如使用 Notion：在仓库 Settings → Secrets and variables → Actions 添加 `NOTION_TOKEN`
-3. 推送到 `main` 分支后，`smoke` 工作流先执行质量门禁；通过后 `pages` 工作流会发布 .NET 10 Native AOT 并运行 `bukit build`，再部署到 Pages
-4. 如需手动验证 Native AOT 可用性，可在 Actions 手动触发 `AOT Build Check`
+3. 按你的 workflow 配置推送到 `main` 分支，触发构建与部署
 
 ## AOT 发布（本地）
 

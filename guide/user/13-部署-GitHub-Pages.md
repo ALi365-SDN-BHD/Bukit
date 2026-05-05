@@ -2,7 +2,7 @@
 
 本页面向“普通用户部署”，目标是让你把构建结果稳定发布到 GitHub Pages，并能解释清楚最常见的 404/资源路径问题。
 
-仓库已提供一个可用的 Pages 工作流：`.github/workflows/pages.yml`（你可以直接复用并按你的站点配置修改）。
+当前仓库未内置可直接复用的 Pages workflow 文件；你需要按本文步骤在自己的仓库创建 `.github/workflows/pages.yml`。
 
 ## 你将获得什么
 
@@ -16,9 +16,9 @@
 1. GitHub 仓库 Settings → Pages
 2. Build and deployment 选择 “GitHub Actions”
 
-## 步骤 2：准备工作流（推荐直接复用仓库 pages.yml）
+## 步骤 2：准备工作流（在你的仓库创建 pages.yml）
 
-当前仓库的工作流会做三件事：
+建议 workflow 做三件事：
 
 1. 发布 `bukit`（Native AOT）
 2. 根据仓库名自动计算 `BASE_URL` 与 `SITE_URL`

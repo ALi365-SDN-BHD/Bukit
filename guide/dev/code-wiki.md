@@ -1,15 +1,10 @@
-# Bukit / AIBuilding Code Wiki
+# Bukit Code Wiki
 
 本文档从代码视角梳理仓库结构、核心架构、模块职责、关键类与函数、依赖关系，以及本地运行/测试/发布方式，作为开发者进入仓库时的统一导航页。
 
 ## 1. 项目概览
 
-仓库包含两条紧密关联但职责不同的产品线：
-
-- **Bukit**：基于 .NET 10 的静态站点生成器，支持 Markdown / Notion 内容源、Scriban 模板、多语言、增量构建、插件扩展与 GitHub Pages 部署。
-- **AIBuilding**：基于 .NET MAUI Blazor 的桌面 AI 建站工具，负责需求对话、主题生成、配置写回、调用 Bukit CLI 编译和预览。
-
-从业务关系上看，**Bukit 是底层构建引擎，AIBuilding 是其上层可视化入口**。
+当前仓库聚焦 **Bukit** 主线：基于 .NET 10 的静态站点生成器，支持 Markdown / Notion 内容源、Scriban 模板、多语言、增量构建、插件扩展与 GitHub Pages 部署。
 
 ## 2. 仓库结构
 
@@ -25,17 +20,14 @@ WeBukit
 │  ├─ Bukit.Routing/             # 内容到路由的映射
 │  ├─ Bukit.Shared/              # 日志、异常、通用基础设施
 │  ├─ Bukit.PluginSourceGenerator/ # 插件注册相关源码生成
-│  ├─ plugins/                     # 可选插件实现
-│  └─ AIBuilding/
-│     ├─ AIBuilding.Core/          # Provider、Prompt、RAG、工具定义
-│     └─ AIBuilding.Desktop/       # MAUI Blazor UI、存储、CLI 集成
-├─ tests/                          # Bukit 与 AIBuilding 测试
+│  └─ plugins/                     # 可选插件实现
+├─ tests/                          # Bukit 测试
 ├─ examples/starter/               # 可直接运行的示例站点
 ├─ guide/dev/                      # 开发者文档
 ├─ guide/user/                     # 用户文档
 ├─ scripts/                        # smoke / perf / AOT 检查脚本
 ├─ tools/scriban/                  # 内嵌 Scriban 源码
-└─ tools/ImageSharp/               # 内嵌 ImageSharp 源码
+└─ docs/                           # 方案与规划文档
 ```
 
 ## 3. 解决方案与工程边界
@@ -43,7 +35,6 @@ WeBukit
 ### 3.1 Solution 划分
 
 - `bukit.slnx`：Bukit 主线工程与测试。
-- `aibuilding.slnx`：AIBuilding Core、Desktop 与对应测试。
 
 ### 3.2 工程依赖主方向
 
@@ -56,10 +47,6 @@ Bukit.Cli
       ├─ Bukit.Routing
       ├─ Bukit.Shared
       └─ Bukit.Engine.Abstractions
-
-AIBuilding.Desktop
-  └─ AIBuilding.Core
-      └─ 通过 Provider / Tool / Service 调用外部 LLM 与 Bukit CLI
 ```
 
 核心约束是单向依赖：
@@ -122,12 +109,9 @@ flowchart TD
 | `Bukit.Routing` | 根据内容和 permalink 规则生成 URL / OutputPath / Template | `RouteGenerator.cs` |
 | `Bukit.Shared` | 日志、异常、安全辅助与通用能力 | `Logger.cs`、`Exceptions.cs`、`UrlRedactor.cs` |
 
-### 5.2 AIBuilding 主线
+### 5.2 仓库边界说明
 
-| 模块 | 主要职责 | 关键入口 |
-|---|---|---|
-| `AIBuilding.Core` | LLM Provider 抽象、Prompt 拼装、工具定义、RAG、HTML 安全处理 | `Contracts.cs`、`PromptBuilder.cs`、`Tools/ToolRegistry.cs` |
-| `AIBuilding.Desktop` | MAUI UI、LiteDB 存储、项目管理、调用 CLI 编译预览、部署集成 | `MauiProgram.cs`、`Data/AppDatabase.cs`、`Stores/*`、`Pages/*` |
+当前仓库仅包含 `Bukit` 主线代码与测试，不包含 `AIBuilding` 相关源码与解决方案。
 
 ## 6. 关键数据模型
 
@@ -210,28 +194,16 @@ flowchart TD
 | `RssPlugin` | after-build | 生成 `rss.xml` |
 | `SearchIndexPlugin` | after-build | 生成 `search.json` |
 
-## 8. AIBuilding 关键类与函数索引
+## 8. 仓库边界提示
 
-| 类 / 函数 | 所在文件 | 作用 |
-|---|---|---|
-| `MauiProgram.CreateMauiApp` | `src/AIBuilding/AIBuilding.Desktop/MauiProgram.cs` | 注册依赖注入、数据库、Store、Provider、Service |
-| `ConversationOrchestrator.SendAsync` | `src/AIBuilding/AIBuilding.Core/ConversationOrchestrator.cs` | 对话主编排，注入 RAG 与 Prompt 后调用 LLM |
-| `ThemeGenerationService.GenerateAsync` | `src/AIBuilding/AIBuilding.Core/ThemeGenerationService.cs` | 主题生成统一入口 |
-| `ProviderRegistry` | `src/AIBuilding/AIBuilding.Core/Providers/ProviderRegistry.cs` | 管理多个模型提供器 |
-| `OpenAiProviderBase` | `src/AIBuilding/AIBuilding.Core/Providers/OpenAiProviderBase.cs` | OpenAI 兼容 Provider 抽象基类 |
-| `AnthropicProvider` | `src/AIBuilding/AIBuilding.Core/Providers/AnthropicProvider.cs` | Anthropic Messages API 实现 |
-| `ToolRegistry.GetToolDefinitions` | `src/AIBuilding/AIBuilding.Core/Tools/ToolRegistry.cs` | 向模型暴露工具定义 |
-| `ToolExecutor.ExecuteAsync` | `src/AIBuilding/AIBuilding.Desktop/Services/ToolExecutor.cs` | 执行模型请求的工具调用 |
-| `BukitConfigService.GenerateSiteYaml` | `src/AIBuilding/AIBuilding.Desktop/Services/BukitConfigService.cs` | 根据桌面端项目生成 `site.yaml` |
-| `BukitCliService.BuildAsync` | `src/AIBuilding/AIBuilding.Desktop/Services/BukitCliService.cs` | 调用 Bukit CLI 构建项目 |
-| `KnowledgeService.Search` | `src/AIBuilding/AIBuilding.Desktop/Services/KnowledgeService.cs` | 本地知识库检索接口 |
+若你在其他资料中看到 `AIBuilding` 相关入口，请以当前仓库实际目录与 `bukit.slnx` 为准。
 
 ## 9. 依赖关系
 
 ### 9.1 运行时与语言层
 
 - 目标平台：`.NET 10`
-- 解决方案组织：`bukit.slnx` + `aibuilding.slnx`
+- 解决方案组织：`bukit.slnx`
 - 版本管理：根目录 `Directory.Packages.props` 统一管理 NuGet 版本
 
 ### 9.2 关键 NuGet 依赖
@@ -239,22 +211,17 @@ flowchart TD
 | 依赖 | 用途 |
 |---|---|
 | `YamlDotNet` | 解析 `site.yaml` |
-| `Microsoft.Maui.Controls` / `WebView.Maui` | AIBuilding 桌面 UI |
-| `LiteDB` | AIBuilding 本地持久化 |
 | `Microsoft.Extensions.Http` | Provider / 服务层 HTTP 调用 |
 | `xunit` / `Microsoft.NET.Test.Sdk` / `coverlet.collector` | 测试 |
 
 ### 9.3 仓库内嵌依赖
 
 - `tools/scriban`：模板引擎源码内嵌，保证可控性与 AOT 兼容性。
-- `tools/ImageSharp`：图像处理相关源码内嵌，用于媒体处理与 AOT 场景。
 
 ### 9.4 外部系统依赖
 
 - Notion API：内容提供器之一。
 - GitHub Pages / GitHub Actions：典型部署目标。
-- OpenAI-compatible / Anthropic API：AIBuilding 的 LLM Provider。
-- 本地 `git`、`vercel`、`netlify`、`wrangler` 等 CLI：AIBuilding 部署能力可能依赖。
 
 ## 10. 测试与验证结构
 
@@ -264,7 +231,6 @@ flowchart TD
 - `tests/Bukit.Content.Tests`
 - `tests/Bukit.Rendering.Tests`
 - `tests/Bukit.Cli.Tests`
-- `tests/AIBuilding.Tests`
 - `tests/ThrowingPlugin`
 
 其中：
@@ -272,7 +238,6 @@ flowchart TD
 - Engine 测试覆盖路由、插件、taxonomy、sitemap、PathReport、WechatSync 等行为。
 - Content 测试主要覆盖 Notion API/渲染行为。
 - CLI 测试覆盖配置路径解析等入口逻辑。
-- AIBuilding 测试覆盖 Prompt、Provider、ToolRegistry、ThemePackageBuilder、URL 校验等纯逻辑能力。
 
 ## 11. 本地运行方式
 
@@ -296,14 +261,6 @@ dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
 dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
 ```
 
-### 11.3 AIBuilding 本地运行
-
-```bash
-dotnet workload install maui
-dotnet build aibuilding.slnx
-dotnet test aibuilding.slnx
-```
-
 ## 12. 测试、冒烟与发布
 
 ### 12.1 推荐验证命令
@@ -325,9 +282,8 @@ dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
 
 ### 12.3 CI/CD
 
-- `.github/workflows/smoke.yml`：仓库当前主要的冒烟验证流水线。
-- `.github/workflows/build.yaml`：AOT publish + 产物提交流程。
-- `.github/workflows/pages.yml`：GitHub Pages 发布模板。
+- 当前仓库未内置 `.github/workflows/*` 相关文件。
+- 建议按 [`publish-deploy.md`](./publish-deploy.md) 与 [`../user/13-部署-GitHub-Pages.md`](../user/13-部署-GitHub-Pages.md) 自行创建 workflow。
 
 ## 13. 推荐阅读顺序
 
@@ -341,7 +297,7 @@ dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
 6. `src/Bukit.Content/*`
 7. `src/Bukit.Routing/RouteGenerator.cs`
 8. `src/Bukit.Engine/Plugins/*`
-9. `src/AIBuilding/TECHNICAL.md`
+9. `guide/dev/maintainer-entrypoints.md`
 
 ## 14. 进一步文档入口
 
@@ -361,4 +317,4 @@ dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
 
 ## 15. 一句话总结
 
-这个仓库的核心是一个**配置驱动、内容归一化、路由与渲染解耦、插件可插拔、支持多语言与增量构建的静态站点引擎**；AIBuilding 则在其之上提供**AI 对话式建站、主题生成和桌面交付能力**。
+这个仓库的核心是一个**配置驱动、内容归一化、路由与渲染解耦、插件可插拔、支持多语言与增量构建的静态站点引擎**，主线工程边界由 `bukit.slnx` 与 `src/Bukit.*` 目录定义。

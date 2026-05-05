@@ -71,13 +71,14 @@ dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yam
 
 ## GitHub Actions + GitHub Pages
 
-This repository includes a ready-to-use Pages workflow: [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+This repository currently does not include a built-in Pages workflow file.
+Use the deployment guidance in [`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md) and create your own workflow in `.github/workflows/`.
 
 Typical setup:
 
 1. In GitHub Settings → Pages, choose "GitHub Actions".
 2. If you use Notion, add `NOTION_TOKEN` in repository secrets.
-3. Push to `main`; the smoke workflow runs first, then pages deployment publishes the site.
+3. Push to `main` after your workflow is configured to build and deploy the site.
 
 ## AOT Publishing
 

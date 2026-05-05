@@ -271,14 +271,9 @@ pwsh ./scripts/smoke.ps1
 - `src/Bukit.Engine/Plugins/*`
 - `tests/Bukit.Engine.Tests/*`
 
-### 9.5 如果你要看 AIBuilding
+### 9.5 仓库边界提示
 
-按这个顺序进入：
-
-1. `src/AIBuilding/TECHNICAL.md`
-2. `src/AIBuilding/AIBuilding.Desktop/MauiProgram.cs`
-3. `src/AIBuilding/AIBuilding.Desktop/Services/ToolExecutor.cs`
-4. `src/AIBuilding/AIBuilding.Core/ConversationOrchestrator.cs`
+当前仓库聚焦 `Bukit` 主线，不包含 `AIBuilding` 相关源码与解决方案。
 
 ## 10. 一页版 Checklist
 

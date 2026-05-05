@@ -64,10 +64,10 @@ dotnet publish src/Bukit.Cli -c Release -o out/bukit
 
 ## 部署到 GitHub Pages（推荐路径）
 
-仓库已内置 GitHub Pages 工作流：
-- [pages.yml](../../.github/workflows/pages.yml)
+当前仓库未内置可直接复用的 GitHub Pages workflow 文件。
+你可以按本节步骤在自己的仓库中创建 `.github/workflows/pages.yml`。
 
-工作流做了三件关键事：
+建议的 workflow 做三件关键事：
 1. 发布 AOT 版 `bukit`
 2. 计算 `BASE_URL` 与 `SITE_URL`（区分 user/org pages 与 repo pages）
 3. 运行 `bukit build` 生成 `_site` 并上传为 Pages artifact
@@ -111,8 +111,7 @@ GitHub Pages 常见两种 URL 形态：
 
 如果你使用 `bukit webhook` 把 Notion webhook 转为 GitHub `repository_dispatch`，可参考：
 - [Webhook](./webhook.md)
-- 仓库内 workflow：
-  - [pages.yml](../../.github/workflows/pages.yml)
+- 你自建的 workflow（例如 `.github/workflows/pages.yml`）
 
 ## 常见问题
 

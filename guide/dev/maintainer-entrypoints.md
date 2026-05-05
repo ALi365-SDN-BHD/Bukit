@@ -286,50 +286,9 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter
 - 日志中的 `rendered / skipped`
 - `.cache/build-manifest*.json`
 
-## 8. 改 AIBuilding
+## 8. 仓库边界说明
 
-### 8.1 什么时候看这一章
-
-- 改 AI 对话流程
-- 改工具调用协议
-- 改桌面端项目、主题、预览或部署流程
-- 改 AIBuilding 与 Bukit CLI 的桥接方式
-
-### 8.2 第一入口
-
-- `src/AIBuilding/TECHNICAL.md`
-- `src/AIBuilding/AIBuilding.Desktop/MauiProgram.cs`
-- `src/AIBuilding/AIBuilding.Core/ConversationOrchestrator.cs`
-- `src/AIBuilding/AIBuilding.Core/Tools/ToolRegistry.cs`
-- `src/AIBuilding/AIBuilding.Desktop/Services/ToolExecutor.cs`
-- `src/AIBuilding/AIBuilding.Desktop/Services/BukitConfigService.cs`
-- `src/AIBuilding/AIBuilding.Desktop/Services/BukitCliService.cs`
-
-### 8.3 常见改动落点
-
-| 需求 | 先看哪里 |
-|---|---|
-| 服务注册与依赖注入 | `MauiProgram.cs` |
-| 聊天主编排 | `ConversationOrchestrator.cs` |
-| 模型可调用工具定义 | `ToolRegistry.cs` |
-| 真正执行工具调用 | `ToolExecutor.cs` |
-| 写 `site.yaml` | `BukitConfigService.cs` |
-| 调 `bukit build/preview` | `BukitCliService.cs` |
-| 主题打包为 Bukit 主题 ZIP | `ThemePackageBuilder.cs` |
-
-### 8.4 建议验证
-
-```bash
-dotnet build aibuilding.slnx
-dotnet test aibuilding.slnx
-```
-
-若涉及与 Bukit 的集成，再手工验证：
-
-1. 生成或更新项目配置
-2. 写出 `site.yaml`
-3. 调 `bukit build`
-4. 调 `bukit preview`
+当前仓库聚焦 `Bukit` 主线，不包含 `AIBuilding` 相关源码与解决方案。
 
 ## 9. 快速决策表
 
@@ -343,7 +302,7 @@ dotnet test aibuilding.slnx
 | 页面写出与列表页 | `PageRenderDispatcher.cs` |
 | 搜索、RSS、sitemap、taxonomy | `PluginRunner.cs` + `Plugins/BuiltIn/*` |
 | 缓存与跳过渲染 | `SiteEngine.cs` / `PageRenderDispatcher.cs` / `BuildManifest.cs` |
-| AI / 桌面端 / CLI 桥接 | `ToolExecutor.cs` / `BukitConfigService.cs` / `BukitCliService.cs` |
+| 当前仓库未包含的模块 | `AIBuilding` 相关入口请忽略，以 `Bukit.*` 工程为准 |
 
 ## 10. 推荐搭配阅读
 

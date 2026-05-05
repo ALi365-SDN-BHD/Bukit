@@ -71,13 +71,14 @@ dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yam
 
 ## GitHub Actions + GitHub Pages
 
-Repositori ini menyediakan aliran kerja Pages sedia guna: [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+Repositori ini kini tidak menyertakan fail aliran kerja Pages terbina dalam.
+Gunakan panduan deployment di [`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md) dan cipta aliran kerja sendiri dalam `.github/workflows/`.
 
 Langkah biasa:
 
 1. Di GitHub Settings → Pages, pilih "GitHub Actions".
 2. Jika guna Notion, tambah `NOTION_TOKEN` dalam repository secrets.
-3. Push ke `main`; aliran kerja smoke akan berjalan dahulu, kemudian deployment pages akan menerbitkan tapak.
+3. Push ke `main` selepas aliran kerja anda disediakan untuk bina dan terbitkan tapak.
 
 ## Penerbitan AOT
 

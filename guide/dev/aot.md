@@ -76,7 +76,7 @@ Scriban 模板引擎已从 NuGet 包切换为 vendored 源码（`tools/scriban/`
 所有 AOT 告警已从源头消除，采用零告警策略：
 
 - Scriban（vendored 源码 `tools/scriban/`）：消除了 101 处 `Type.GetMethod` 反射调用、`dynamic` 分发、`JsonSerializer` 等 AOT 不兼容代码，标记为 `IsAotCompatible=true`
-- ImageSharp（vendored 源码 `tools/ImageSharp/`）：消除了 `ExifTagDescriptionAttribute` 中的反射调用和 `Guard.MustBeValueType` 中的运行时类型检查
+- 图像处理能力已按当前仓库依赖做 AOT 兼容治理（详见根目录 `Directory.Packages.props` 与相关实现）
 - 不再需要 `WarningsNotAsErrors` 白名单
 - CI 脚本 `scripts/check-aot-warnings.sh` 作为零告警防护网运行，任何新增 AOT/Trim 告警即失败
 - 如引入新的第三方依赖，需确保其 AOT 兼容或使用条件编译隔离
