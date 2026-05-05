@@ -10,32 +10,32 @@ If you need internals, extension points, or contribution details, read the devel
 
 ### First-time setup (local Markdown)
 
-1. [01-快速开始](./01-快速开始.md)
-2. [04-配置-site-yaml](./04-配置-site-yaml.md)
-3. [05-内容-Markdown](./05-内容-Markdown.md)
-4. [12-命令行参考](./12-命令行参考.md)
-5. [13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)
+1. [01 Quick Start](./01-quick-start.md)
+2. [04 Site YAML Config](./04-site-yaml-config.md)
+3. [05 Content Markdown](./05-markdown-content.md)
+4. [12 CLI Reference](./12-cli-reference.md)
+5. [13 Deploy GitHub Pages](./13-deploy-github-pages.md)
 
 ### Using Notion as CMS
 
-1. [01-快速开始](./01-快速开始.md)
-2. [06-内容-Notion](./06-内容-Notion.md)
-3. [10-内置功能与输出](./10-内置功能与输出.md)
-4. [13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)
-5. [14-故障排查](./14-故障排查.md)
+1. [01 Quick Start](./01-quick-start.md)
+2. [06 Content Notion](./06-notion-content.md)
+3. [10 Built-in Features & Output](./10-built-in-features.md)
+4. [13 Deploy GitHub Pages](./13-deploy-github-pages.md)
+5. [14 Troubleshooting](./14-troubleshooting.md)
 
 ### Company website / landing page (Modules data)
 
-1. [07-内容-多源-sources](./07-内容-多源-sources.md)
-2. [09-Modules-结构化数据](./09-Modules-结构化数据.md)
-3. [08-主题与模板](./08-主题与模板.md)
-4. [15-场景化示例（Recipes）](./15-场景化示例（Recipes）.md)
+1. [07 Multi-Source](./07-multi-source.md)
+2. [09 Modules Structured Data](./09-modules-data.md)
+3. [08 Themes & Templates](./08-themes-templates.md)
+4. [15 Recipes](./15-recipes.md)
 
 ### Conversational site building (ChatGPT / official GPT)
 
 1. Prompt Pack: [ai/chatgpt](../ai/chatgpt/README.md)
 2. Intent contract (AI ↔ Bukit): [guide/dev/intent-cli](../dev/intent-cli.md)
-3. Required commands (`validate/doctor/build`): [12-命令行参考](./12-命令行参考.md)
+3. Required commands (`validate/doctor/build`): [12 CLI Reference](./12-cli-reference.md)
 
 ## Where to Find Runnable Examples
 

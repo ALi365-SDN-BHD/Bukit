@@ -10,51 +10,51 @@
 
 ### 第一次上手（本地 Markdown）
 
-1. [01-快速开始](./01-快速开始.md)
-2. [04-配置-site-yaml](./04-配置-site-yaml.md)
-3. [05-内容-Markdown](./05-内容-Markdown.md)
-4. [12-命令行参考](./12-命令行参考.md)
-5. [13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)
+1. [01-快速开始](./01-quick-start.zh-CN.md)
+2. [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)
+3. [05-内容-Markdown](./05-markdown-content.zh-CN.md)
+4. [12-命令行参考](./12-cli-reference.zh-CN.md)
+5. [13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)
 
 ### 用 Notion 当 CMS
 
-1. [01-快速开始](./01-快速开始.md)
-2. [06-内容-Notion](./06-内容-Notion.md)
-3. [10-内置功能与输出](./10-内置功能与输出.md)
-4. [13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)
-5. [14-故障排查](./14-故障排查.md)
+1. [01-快速开始](./01-quick-start.zh-CN.md)
+2. [06-内容-Notion](./06-notion-content.zh-CN.md)
+3. [10-内置功能与输出](./10-built-in-features.zh-CN.md)
+4. [13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)
+5. [14-故障排查](./14-troubleshooting.zh-CN.md)
 
 ### 企业官网 / Landing Page（Modules 结构化数据）
 
-1. [07-内容-多源-sources](./07-内容-多源-sources.md)
-2. [09-Modules-结构化数据](./09-Modules-结构化数据.md)
-3. [08-主题与模板](./08-主题与模板.md)
-4. [15-场景化示例（Recipes）](./15-场景化示例（Recipes）.md)
+1. [07-内容-多源-sources](./07-multi-source.zh-CN.md)
+2. [09-Modules-结构化数据](./09-modules-data.zh-CN.md)
+3. [08-主题与模板](./08-themes-templates.zh-CN.md)
+4. [15-场景化示例（Recipes）](./15-recipes.zh-CN.md)
 
 ### 对话式建站（ChatGPT / 官方 GPT）
 
 1. Prompt Pack（可复制粘贴模板）：[ai/chatgpt](../ai/chatgpt/README.md)
 2. Intent 契约（AI ↔ Bukit）：[guide/dev/intent-cli](../dev/intent-cli.md)
-3. 必用命令（validate/doctor/build）：[12-命令行参考](./12-命令行参考.md)
+3. 必用命令（validate/doctor/build）：[12-命令行参考](./12-cli-reference.zh-CN.md)
 
 ## 目录导航
 
-- [01-快速开始](./01-快速开始.md)
-- [02-核心概念](./02-核心概念.md)
-- [03-项目目录与约定](./03-项目目录与约定.md)
-- [04-配置-site-yaml](./04-配置-site-yaml.md)
-- [05-内容-Markdown](./05-内容-Markdown.md)
-- [06-内容-Notion](./06-内容-Notion.md)
-- [07-内容-多源-sources](./07-内容-多源-sources.md)
-- [08-主题与模板](./08-主题与模板.md)
-- [09-Modules-结构化数据](./09-Modules-结构化数据.md)
-- [10-内置功能与输出](./10-内置功能与输出.md)
-- [11-多语言与SEO](./11-多语言与SEO.md)
-- [12-命令行参考](./12-命令行参考.md)
-- [13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)
-- [14-故障排查](./14-故障排查.md)
-- [15-场景化示例（Recipes）](./15-场景化示例（Recipes）.md)
-- [16-参数速查表](./16-参数速查表.md)
+- [01-快速开始](./01-quick-start.zh-CN.md)
+- [02-核心概念](./02-core-concepts.zh-CN.md)
+- [03-项目目录与约定](./03-project-structure.zh-CN.md)
+- [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)
+- [05-内容-Markdown](./05-markdown-content.zh-CN.md)
+- [06-内容-Notion](./06-notion-content.zh-CN.md)
+- [07-内容-多源-sources](./07-multi-source.zh-CN.md)
+- [08-主题与模板](./08-themes-templates.zh-CN.md)
+- [09-Modules-结构化数据](./09-modules-data.zh-CN.md)
+- [10-内置功能与输出](./10-built-in-features.zh-CN.md)
+- [11-多语言与SEO](./11-i18n-seo.zh-CN.md)
+- [12-命令行参考](./12-cli-reference.zh-CN.md)
+- [13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)
+- [14-故障排查](./14-troubleshooting.zh-CN.md)
+- [15-场景化示例（Recipes）](./15-recipes.zh-CN.md)
+- [16-参数速查表](./16-parameter-cheatsheet.zh-CN.md)
 
 ## 仓库内“可运行示例”在哪里
 
@@ -72,14 +72,14 @@
 
 | 主题 | 用户文档 | 开发者文档 |
 |---|---|---|
-| CLI 参数与覆盖关系 | [12-命令行参考](./12-命令行参考.md) | [guide/dev/cli](../dev/cli.md) |
-| site.yaml 字段与校验 | [04-配置-site-yaml](./04-配置-site-yaml.md) | [guide/dev/config-site-yaml](../dev/config-site-yaml.md) |
-| 内容模型与字段归一化 | [05-内容-Markdown](./05-内容-Markdown.md)、[06-内容-Notion](./06-内容-Notion.md)、[07-内容-多源-sources](./07-内容-多源-sources.md) | [guide/dev/content](../dev/content.md) |
-| 主题目录约定与模板模型 | [08-主题与模板](./08-主题与模板.md) | [guide/dev/theme](../dev/theme.md)、[guide/dev/rendering-scriban](../dev/rendering-scriban.md) |
-| Modules（mode=data）注入规则 | [09-Modules-结构化数据](./09-Modules-结构化数据.md) | [guide/dev/modules-data](../dev/modules-data.md) |
-| sitemap/rss/search 与派生页 | [10-内置功能与输出](./10-内置功能与输出.md) | [guide/dev/built-in-plugins](../dev/built-in-plugins.md)、[guide/dev/plugins](../dev/plugins.md) |
-| 多语言与 SEO 输出细节 | [11-多语言与SEO](./11-多语言与SEO.md) | [guide/dev/i18n-seo](../dev/i18n-seo.md) |
-| 缓存/增量构建与清理 | [14-故障排查](./14-故障排查.md) | [guide/dev/incremental-build](../dev/incremental-build.md)、[guide/dev/cache-clean](../dev/cache-clean.md) |
+| CLI 参数与覆盖关系 | [12-命令行参考](./12-cli-reference.zh-CN.md) | [guide/dev/cli](../dev/cli.md) |
+| site.yaml 字段与校验 | [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md) | [guide/dev/config-site-yaml](../dev/config-site-yaml.md) |
+| 内容模型与字段归一化 | [05-内容-Markdown](./05-markdown-content.zh-CN.md)、[06-内容-Notion](./06-notion-content.zh-CN.md)、[07-内容-多源-sources](./07-multi-source.zh-CN.md) | [guide/dev/content](../dev/content.md) |
+| 主题目录约定与模板模型 | [08-主题与模板](./08-themes-templates.zh-CN.md) | [guide/dev/theme](../dev/theme.md)、[guide/dev/rendering-scriban](../dev/rendering-scriban.md) |
+| Modules（mode=data）注入规则 | [09-Modules-结构化数据](./09-modules-data.zh-CN.md) | [guide/dev/modules-data](../dev/modules-data.md) |
+| sitemap/rss/search 与派生页 | [10-内置功能与输出](./10-built-in-features.zh-CN.md) | [guide/dev/built-in-plugins](../dev/built-in-plugins.md)、[guide/dev/plugins](../dev/plugins.md) |
+| 多语言与 SEO 输出细节 | [11-多语言与SEO](./11-i18n-seo.zh-CN.md) | [guide/dev/i18n-seo](../dev/i18n-seo.md) |
+| 缓存/增量构建与清理 | [14-故障排查](./14-troubleshooting.zh-CN.md) | [guide/dev/incremental-build](../dev/incremental-build.md)、[guide/dev/cache-clean](../dev/cache-clean.md) |
 
 ## 术语速览（用 1 分钟对齐）
 

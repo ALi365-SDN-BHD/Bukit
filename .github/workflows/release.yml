@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+            ext: .zip
+          - rid: linux-x64
+            os: ubuntu-latest
+            ext: .tar.gz
+          - rid: osx-arm64
+            os: macos-latest
+            ext: .tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Publish Native AOT
+        run: >
+          dotnet publish src/Bukit.Cli/Bukit.Cli.csproj
+          -c AOT
+          -r ${{ matrix.rid }}
+          -o out/bukit-${{ matrix.rid }}
+          -p:VersionPrefix=${{ steps.version.outputs.version }}
+          -p:BukitStripSymbols=true
+
+      - name: Package (Windows)
+        if: matrix.rid == 'win-x64'
+        shell: pwsh
+        run: >
+          Compress-Archive
+          -Path out/bukit-${{ matrix.rid }}/bukit.exe
+          -DestinationPath bukit-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip
+
+      - name: Package (Linux/macOS)
+        if: matrix.rid != 'win-x64'
+        run: >
+          tar -czf bukit-${{ steps.version.outputs.version }}-${{ matrix.rid }}.tar.gz
+          -C out/bukit-${{ matrix.rid }} bukit
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bukit-${{ matrix.rid }}
+          path: bukit-${{ steps.version.outputs.version }}-${{ matrix.rid }}${{ matrix.ext }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bukit-*/bukit-*
+          generate_release_notes: true

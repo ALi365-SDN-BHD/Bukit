@@ -10,32 +10,32 @@ Jika anda perlukan butiran dalaman, titik pengembangan, atau mahu menyumbang kod
 
 ### Kali pertama bermula (Markdown tempatan)
 
-1. [01-快速开始](./01-快速开始.md)
-2. [04-配置-site-yaml](./04-配置-site-yaml.md)
-3. [05-内容-Markdown](./05-内容-Markdown.md)
-4. [12-命令行参考](./12-命令行参考.md)
-5. [13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)
+1. [01 Permulaan Pantas](./01-quick-start.ms.md)
+2. [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)
+3. [05 Kandungan Markdown](./05-markdown-content.ms.md)
+4. [12 Rujukan CLI](./12-cli-reference.ms.md)
+5. [13 Terap GitHub Pages](./13-deploy-github-pages.ms.md)
 
 ### Guna Notion sebagai CMS
 
-1. [01-快速开始](./01-快速开始.md)
-2. [06-内容-Notion](./06-内容-Notion.md)
-3. [10-内置功能与输出](./10-内置功能与输出.md)
-4. [13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)
-5. [14-故障排查](./14-故障排查.md)
+1. [01 Permulaan Pantas](./01-quick-start.ms.md)
+2. [06 Kandungan Notion](./06-notion-content.ms.md)
+3. [10 Ciri Terbina & Output](./10-built-in-features.ms.md)
+4. [13 Terap GitHub Pages](./13-deploy-github-pages.ms.md)
+5. [14 Penyelesaian Masalah](./14-troubleshooting.ms.md)
 
 ### Laman korporat / landing page (data Modules)
 
-1. [07-内容-多源-sources](./07-内容-多源-sources.md)
-2. [09-Modules-结构化数据](./09-Modules-结构化数据.md)
-3. [08-主题与模板](./08-主题与模板.md)
-4. [15-场景化示例（Recipes）](./15-场景化示例（Recipes）.md)
+1. [07 Pelbagai Sumber](./07-multi-source.ms.md)
+2. [09 Modul Data Berstruktur](./09-modules-data.ms.md)
+3. [08 Tema & Templat](./08-themes-templates.ms.md)
+4. [15 Resipi](./15-recipes.ms.md)
 
 ### Bina tapak secara perbualan (ChatGPT / GPT rasmi)
 
 1. Prompt Pack: [ai/chatgpt](../ai/chatgpt/README.ms.md)
 2. Kontrak Intent (AI ↔ Bukit): [guide/dev/intent-cli](../dev/intent-cli.md)
-3. Perintah wajib (`validate/doctor/build`): [12-命令行参考](./12-命令行参考.md)
+3. Perintah wajib (`validate/doctor/build`): [12 Rujukan CLI](./12-cli-reference.ms.md)
 
 ## Contoh Boleh Jalan Dalam Repositori
 

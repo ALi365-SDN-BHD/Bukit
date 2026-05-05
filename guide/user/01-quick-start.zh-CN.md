@@ -27,7 +27,7 @@ dotnet build bukit.slnx -c Release
 dotnet run --project src/Bukit.Cli -c Release -- doctor --config examples/starter/site.yaml
 ```
 
-如果 doctor 报错，优先看：[14-故障排查](./14-故障排查.md)（以及开发者版 doctor 说明：[guide/dev/doctor](../dev/doctor.md)）。
+如果 doctor 报错，优先看：[14-故障排查](./14-troubleshooting.zh-CN.md)（以及开发者版 doctor 说明：[guide/dev/doctor](../dev/doctor.md)）。
 
 ### 2）构建站点（build）
 
@@ -94,7 +94,7 @@ logging:
   level: info
 ```
 
-> **推荐：使用 site.collections 定义路由与模板** 以上配置依赖 post/page 兼容层路由（page → `/pages/`，post → `/blog/`）。新项目建议显式声明 collections（见 [04-配置-site-yaml](./04-配置-site-yaml.md)），示例：
+> **推荐：使用 site.collections 定义路由与模板** 以上配置依赖 post/page 兼容层路由（page → `/pages/`，post → `/blog/`）。新项目建议显式声明 collections（见 [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)），示例：
 >
 > ```yaml
 > site:
@@ -109,7 +109,7 @@ logging:
 >       listRoute: /blog/
 > ```
 
-更完整的字段解释与默认值见：[04-配置-site-yaml](./04-配置-site-yaml.md)。
+更完整的字段解释与默认值见：[04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)。
 
 ### 3）写第一篇内容（content/hello-world.md）
 
@@ -144,9 +144,9 @@ dotnet run --project ../src/Bukit.Cli -c Release -- preview --dir dist --port au
 
 ## 下一步建议（按你要做的站点类型）
 
-- 写内容（Markdown）：[05-内容-Markdown](./05-内容-Markdown.md)
-- 用 Notion： [06-内容-Notion](./06-内容-Notion.md)
-- 多源组合（pages/posts/modules）：[07-内容-多源-sources](./07-内容-多源-sources.md)
-- 企业官网模块（Modules）：[09-Modules-结构化数据](./09-Modules-结构化数据.md)
-- 多语言与 SEO： [11-多语言与SEO](./11-多语言与SEO.md)
-- 部署到 GitHub Pages： [13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)
+- 写内容（Markdown）：[05-内容-Markdown](./05-markdown-content.zh-CN.md)
+- 用 Notion： [06-内容-Notion](./06-notion-content.zh-CN.md)
+- 多源组合（pages/posts/modules）：[07-内容-多源-sources](./07-multi-source.zh-CN.md)
+- 企业官网模块（Modules）：[09-Modules-结构化数据](./09-modules-data.zh-CN.md)
+- 多语言与 SEO： [11-多语言与SEO](./11-i18n-seo.zh-CN.md)
+- 部署到 GitHub Pages： [13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)
