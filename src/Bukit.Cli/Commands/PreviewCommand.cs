@@ -1,16 +1,31 @@
 using System.Net;
 using System.Net.Sockets;
+using Bukit.Cli.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 
 public static class PreviewCommand
 {
-    public static async Task<int> RunAsync(ArgReader reader)
+    public static Task<int> RunAsync(ArgReader reader)
     {
-        var dir = Path.GetFullPath(reader.GetOption("--dir") ?? "dist");
-        var host = (reader.GetOption("--host") ?? "localhost").Trim();
-        var portText = (reader.GetOption("--port") ?? "4173").Trim();
-        var strictPort = reader.HasFlag("--strict-port");
+        return RunAsync(new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--dir"] = reader.GetOption("--dir"),
+                ["--host"] = reader.GetOption("--host"),
+                ["--port"] = reader.GetOption("--port"),
+            }
+            .Where(x => x.Value is not null)
+            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
+            Array.Empty<string>()));
+    }
+
+    public static async Task<int> RunAsync(CliBoundCommand command)
+    {
+        var dir = Path.GetFullPath(command.GetString("--dir") ?? "dist");
+        var host = (command.GetString("--host") ?? "localhost").Trim();
+        var portText = (command.GetString("--port") ?? "4173").Trim();
+        var strictPort = command.GetBool("--strict-port");
 
         var port = ParsePort(portText);
         if (port < 0 || port > 65535)

@@ -1,4 +1,6 @@
 using Bukit.Cli;
+using Bukit.Cli.Cli.Parsing;
+using Bukit.Cli.Cli.Rendering;
 using Bukit.Cli.Commands;
 
 var reader = new ArgReader(args);
@@ -17,6 +19,37 @@ if (command is not "version")
 
 try
 {
+    var registry = BukitCliSpecs.CreateRegistry();
+    var spec = registry.Resolve(command);
+
+    if (spec is not null)
+    {
+        var tail = args.Skip(1).ToArray();
+        if (tail.Any(x => x is "--help" or "-h"))
+        {
+            Console.WriteLine(CliHelpRenderer.Render(spec, $"bukit {spec.Name}"));
+            return 0;
+        }
+
+        if (spec.Subcommands is null or { Count: 0 })
+        {
+            var parsed = CliParser.Parse(spec, tail);
+            if (!parsed.IsSuccess)
+            {
+                Console.Error.WriteLine(CliErrorRenderer.Render(parsed.Diagnostics[0]));
+                Console.Error.WriteLine(CliHelpRenderer.Render(spec, $"bukit {spec.Name}"));
+                return 2;
+            }
+
+            return spec.Name switch
+            {
+                "build" => await BuildCommand.RunAsync(parsed.BoundCommand),
+                "preview" => await PreviewCommand.RunAsync(parsed.BoundCommand),
+                _ => 2
+            };
+        }
+    }
+
     return command switch
     {
         "create" => await InitCommand.RunAsync(reader),

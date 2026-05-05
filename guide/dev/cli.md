@@ -3,8 +3,14 @@
 本文档面向维护者，目标是把 CLI 的命令、参数、覆盖关系与常见用法说清楚。
 
 实现参考：
-- `src/Bukit.Cli/Commands/HelpPrinter.cs`
+- `src/Bukit.Cli/Cli/BukitCliSpecs.cs`
+- `src/Bukit.Cli/Cli/Parsing/CliParser.cs`
 - `src/Bukit.Cli/Commands/*Command.cs`
+
+说明：
+- 顶层命令与首批命令 help 已由元数据层统一生成
+- `--jobs` 已进入统一 help 口径
+- 参数定义现在以 `BukitCliSpecs.CreateRegistry()` 中的 `CliCommandSpec` / `CliOptionSpec` 声明为准
 
 ## 命令总览
 
@@ -36,7 +42,7 @@
 
 ## 通用构建参数（build/doctor 等共用）
 
-来源：`HelpPrinter` 与 `BuildCommand`
+来源：`BukitCliSpecs` 与 `BuildCommand`
 
 | 参数 | 作用 | 覆盖字段/行为 |
 |---|---|---|

@@ -9,10 +9,9 @@ public static class PluginCommand
     public static Task<int> RunAsync(ArgReader reader)
     {
         var sub = reader.GetArg(1);
-        if (string.IsNullOrWhiteSpace(sub) || sub is "help" or "--help" or "-h")
+        if (string.IsNullOrWhiteSpace(sub))
         {
-            PrintHelp();
-            return Task.FromResult(0);
+            return Task.FromResult(2);
         }
 
         return sub switch
@@ -103,16 +102,6 @@ public static class PluginCommand
     private static int Unknown(string sub)
     {
         Console.Error.WriteLine($"Unknown plugin subcommand: {sub}");
-        PrintHelp();
         return 2;
     }
-
-    private static void PrintHelp()
-    {
-        Console.WriteLine("bukit plugin");
-        Console.WriteLine();
-        Console.WriteLine("Usage:");
-        Console.WriteLine("  bukit plugin list [--config <path> | --site <name>]");
-    }
 }
-

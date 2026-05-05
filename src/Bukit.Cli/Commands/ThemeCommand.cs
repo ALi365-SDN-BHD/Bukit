@@ -7,10 +7,9 @@ public static class ThemeCommand
     public static Task<int> RunAsync(ArgReader reader)
     {
         var sub = reader.GetArg(1);
-        if (string.IsNullOrWhiteSpace(sub) || sub is "help" or "--help" or "-h")
+        if (string.IsNullOrWhiteSpace(sub))
         {
-            PrintHelp();
-            return Task.FromResult(0);
+            return Task.FromResult(2);
         }
 
         return sub switch
@@ -64,7 +63,6 @@ public static class ThemeCommand
         if (string.IsNullOrWhiteSpace(name))
         {
             Console.Error.WriteLine("Missing theme name.");
-            PrintHelp();
             return Task.FromResult(2);
         }
 
@@ -123,16 +121,6 @@ public static class ThemeCommand
     private static int Unknown(string sub)
     {
         Console.Error.WriteLine($"Unknown theme subcommand: {sub}");
-        PrintHelp();
         return 2;
-    }
-
-    private static void PrintHelp()
-    {
-        Console.WriteLine("bukit theme");
-        Console.WriteLine();
-        Console.WriteLine("Usage:");
-        Console.WriteLine("  bukit theme list [--config <path> | --site <name>]");
-        Console.WriteLine("  bukit theme use <name> [--config <path> | --site <name>]");
     }
 }
