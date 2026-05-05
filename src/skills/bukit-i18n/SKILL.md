@@ -3,46 +3,54 @@ name: bukit-i18n
 description: Use when using bukit to create a multilingual site, bukit language switching does not work, bukit multilingual content is not correctly separated, or encountering bukit sitemap/RSS/search index merging issues
 ---
 
-# Bukit 多语言站点
+# Bukit Multilingual Sites
 
 ## Overview
 
-Bukit 通过**语言检测 → 独立变体构建 → 输出合并**三步实现多语言站点。每种语言独立构建一套完整的静态页面，再在根级别合并 Sitemap、RSS 和搜索索引。
+Bukit implements multilingual sites through a three-step process: **language detection → independent variant build → output merging**. Each language builds a complete set of static pages independently, then sitemaps, RSS, and search indexes are merged at the root level.
 
-**REQUIRED BACKGROUND:** 多语言配置依赖于 site.yaml 中的 `site.languages`、`site.sitemapMode` 等字段，必须先理解 bukit-config。
-**REQUIRED SUB-SKILL:** 用 `bukit build` 构建多语言站点。CLI 命令参考 bukit-cli-reference。
+**REQUIRED BACKGROUND:** Multilingual config depends on `site.languages`, `site.sitemapMode` and other fields in site.yaml — you must understand bukit-config first.
+**REQUIRED SUB-SKILL:** Build multilingual sites with `bukit build`. CLI commands reference bukit-cli-reference.
 
-## 配置模型
+## Multilingual Triggers / Pencetus Berbilang Bahasa
+
+| Language | Trigger Phrases |
+|----------|----------------|
+| 中文 | "多语言站点"、"语言切换"、"i18n"、"sitemap 合并"、"languages 配置" |
+| English | "multilingual site", "language switch", "i18n", "sitemap merge", "bukit languages" |
+| Bahasa Melayu | "laman berbilang bahasa", "tukar bahasa", "i18n", "gabung sitemap", "bahasa bukit" |
+
+## Configuration Model
 
 ```yaml
 site:
-  language: zh-CN              # 单语言时的默认语言
-  languages: [zh-CN, en]       # 多语言列表
-  defaultLanguage: zh-CN       # 默认语言（未标记语言的内容归属）
+  language: zh-CN              # Default language for single-language mode
+  languages: [zh-CN, en]       # Language list
+  defaultLanguage: zh-CN       # Default language (unmarked content belongs here)
   sitemapMode: merged          # merged | split | index
   rssMode: merged              # merged | split
   searchMode: merged           # merged | split | index
 ```
 
-| 字段 | 说明 |
+| Field | Description |
 |------|------|
-| `languages` | 需要构建的语言列表，至少 1 个，无重复 |
-| `defaultLanguage` | 默认语言，必须在 languages 中。未标 `language` 元数据的内容归入此语言 |
-| `sitemapMode` | `merged`=合并 Sitemap（含 hreflang）; `split`=每种语言独立; `index`=生成索引 Sitemap |
-| `rssMode` | `merged`=合并 RSS; `split`=每种语言独立 |
-| `searchMode` | `merged`=合并搜索索引; `split`=每种语言独立; `index`=生成索引 |
+| `languages` | Languages to build, at least 1, no duplicates |
+| `defaultLanguage` | Default language, must be in languages. Content without `language` metadata belongs here |
+| `sitemapMode` | `merged`=merged sitemap (with hreflang); `split`=one per language; `index`=generate index sitemap |
+| `rssMode` | `merged`=merged RSS; `split`=one per language |
+| `searchMode` | `merged`=merged search index; `split`=one per language; `index`=generate index |
 
-## 内容组织
+## Content Organization
 
-### 在 Markdown 中标记语言
+### Marking Language in Markdown
 
 ```markdown
 ---
-title: 关于我们
+title: About Us
 language: zh-CN
 ---
 
-# 关于我们
+# About Us
 ```
 
 ```markdown
@@ -54,19 +62,19 @@ language: en
 # About Us
 ```
 
-不含 `language` 元数据的内容自动归入 `defaultLanguage`。
+Content without `language` metadata is automatically assigned to `defaultLanguage`.
 
-### 在 Notion 中标记语言
+### Marking Language in Notion
 
-在 Notion 数据库中添加 `language` 属性（类型：select），值为 `zh-CN`、`en` 等。无值的页面归入 `defaultLanguage`。
+Add a `language` property (type: select) to the Notion database, with values like `zh-CN`, `en`. Pages without a value are assigned to `defaultLanguage`.
 
-### i18n 关联键
+### i18n Association Key
 
-使用 `i18n_key` 元数据将不同语言版本的同一内容关联起来。Sitemap 合并时，相同 `i18n_key` 的页面会生成 `hreflang` 交替链接：
+Use `i18n_key` metadata to link different language versions of the same content. During sitemap merging, pages with the same `i18n_key` generate `hreflang` alternate links:
 
 ```markdown
 ---
-title: 关于我们
+title: About Us
 language: zh-CN
 i18n_key: about
 ---
@@ -78,25 +86,25 @@ i18n_key: about
 ---
 ```
 
-## 构建流程
+## Build Process
 
 ```
-1. 加载内容 → 解析 items
-2. 获取语言列表 → languages = [zh-CN, en]
-3. 对每种语言:
-   a. FilterItemsByLanguage: 筛选该语言的内容
-      - 有 language 元数据 → 匹配
-      - 无 language 元数据 → 归入 defaultLanguage
-   b. baseUrl 组合: / 变为 /zh-CN/ 或 /en/
-   c. BuildVariantAsync: 完整构建该语言的静态站点
-      → 输出到 dist/zh-CN/ 和 dist/en/
-4. 根级别合并:
-   - Sitemap: 按 sitemapMode 策略
-   - RSS: 按 rssMode 策略
-   - 搜索索引: 按 searchMode 策略
+1. Load content → parse items
+2. Get language list → languages = [zh-CN, en]
+3. For each language:
+   a. FilterItemsByLanguage: filter content for this language
+      - Has language metadata → match
+      - No language metadata → assign to defaultLanguage
+   b. baseUrl combination: / becomes /zh-CN/ or /en/
+   c. BuildVariantAsync: full build of this language's static site
+      → output to dist/zh-CN/ and dist/en/
+4. Root-level merge:
+   - Sitemap: per sitemapMode strategy
+   - RSS: per rssMode strategy
+   - Search index: per searchMode strategy
 ```
 
-## 输出结构
+## Output Structure
 
 ```
 dist/
@@ -116,33 +124,33 @@ dist/
     assets/
       style.css
     sitemap.xml
-  sitemap.xml       ← merged 模式才生成
-  rss.xml           ← merged 模式才生成
-  search.json       ← merged 模式才生成
+  sitemap.xml       ← generated only in merged mode
+  rss.xml           ← generated only in merged mode
+  search.json       ← generated only in merged mode
 ```
 
-## 合并机制
+## Merge Mechanisms
 
-### Sitemap 合并
+### Sitemap Merge
 
-- `merged`: 在 `dist/sitemap.xml` 生成合并 Sitemap，每对 `i18n_key` 相同的内容自动添加 `<xhtml:link rel="alternate" hreflang="..."/>`
-- `split`: 每种语言独立 `dist/<lang>/sitemap.xml`
-- `index`: 生成 `dist/sitemap.xml` 作为索引，指向各语言的 sitemap
+- `merged`: Generate merged sitemap at `dist/sitemap.xml`, with automatic `<xhtml:link rel="alternate" hreflang="..."/>` for each pair sharing the same `i18n_key`
+- `split`: One per language at `dist/<lang>/sitemap.xml`
+- `index`: Generate `dist/sitemap.xml` as an index pointing to per-language sitemaps
 
-### RSS 合并
+### RSS Merge
 
-- `merged`: 在 `dist/rss.xml` 生成合并 RSS
-- `split`: 每种语言独立 RSS（当前未实现独立输出）
+- `merged`: Generate merged RSS at `dist/rss.xml`
+- `split`: One per language (independent output not currently implemented)
 
-### 搜索索引合并
+### Search Index Merge
 
-- `merged`: 生成统一的 `dist/search.json`
-- `split`: 每种语言独立 `dist/<lang>/search.json`
-- `index`: 生成索引指向各语言索引
+- `merged`: Generate unified `dist/search.json`
+- `split`: One per language at `dist/<lang>/search.json`
+- `index`: Generate index pointing to per-language indexes
 
-## 模板适配
+## Template Adaptation
 
-### 语言切换器
+### Language Switcher
 
 ```html
 <nav>
@@ -154,7 +162,7 @@ dist/
 </nav>
 ```
 
-### 条件渲染
+### Conditional Rendering
 
 ```html
 {{ if site.language == "zh-CN" }}
@@ -164,18 +172,18 @@ dist/
 {{ end }}
 ```
 
-### 根页面语言重定向
+### Root Page Language Redirect
 
-单语言时不需处理。多语言时需创建根 `index.html` 做语言检测重定向（手动添加到 `static/` 或通过自定义模板）。
+Not needed for single-language. For multilingual, create a root `index.html` for language detection redirect (manually add to `static/` or via custom template).
 
-## 常见问题
+## Common Issues
 
-| 问题 | 原因 | 解决方案 |
+| Issue | Cause | Solution |
 |------|------|------|
-| 语言切换不生效 | 内容未标记 language 元数据 | 在内容 frontmatter 中添加 `language` |
-| 某语言内容为空 | 该语言没有匹配的内容 | 确认有标记该 language 的内容存在 |
-| 多语言内容混在同一个页面 | language 元数据值不精确匹配 languages 列表 | 确保元数据值与 site.yaml 中一致（如 `zh-CN` 不是 `zh_CN`） |
-| Sitemap hreflang 不出现 | i18n_key 未设置 | 为跨语言对应内容设置相同的 `i18n_key` |
-| `defaultLanguage must be included in site.languages` | 配置错误 | 将 defaultLanguage 加入 languages |
-| 搜索索引只含一种语言 | searchMode 为 split | 改为 `merged` 或 `index` |
-| 合并 RSS 内容重复 | 语言版本共用相同 i18n_key 但内容不同 | 正常行为，RSS 包含所有语言的文章 |
+| Language switching not working | Content missing language metadata | Add `language` to content frontmatter |
+| Language has no content | No matching content for that language | Verify content with that language tag exists |
+| Multilingual content mixed in same page | language metadata value doesn't exactly match languages list | Ensure metadata matches site.yaml (e.g., `zh-CN` not `zh_CN`) |
+| Sitemap hreflang not appearing | i18n_key not set | Set same `i18n_key` for corresponding cross-language content |
+| `defaultLanguage must be included in site.languages` | Config error | Add defaultLanguage to languages |
+| Search index only contains one language | searchMode is split | Change to `merged` or `index` |
+| Merged RSS content duplicated | Language versions share same i18n_key but have different content | Normal behavior; RSS includes articles from all languages |

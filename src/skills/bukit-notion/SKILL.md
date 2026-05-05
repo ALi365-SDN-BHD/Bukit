@@ -3,130 +3,138 @@ name: bukit-notion
 description: Use when using bukit with Notion as a content source, troubleshooting Notion content fetch failures or incomplete data in bukit, understanding property mapping rules, or dealing with bukit image localization issues
 ---
 
-# Bukit Notion 内容源
+# Bukit Notion Content Source
 
 ## Overview
 
-Bukit 通过 Notion API 将数据库页面转换为 `ContentItem`，支持 26 种块类型的 HTML 渲染和 18 种属性类型的字段映射。
+Bukit converts Notion database pages into `ContentItem` objects via the Notion API, supporting HTML rendering for 26 block types and field mapping for 18 property types.
 
-**REQUIRED BACKGROUND:** Notion 相关配置集中在 site.yaml 的 `content.notion` 和 `content.media` 节点，必须先理解 bukit-config。
-**REQUIRED SUB-SKILL:** 用 `bukit doctor` 验证 Notion 连通性，用 `bukit build` 构建。CLI 命令参考 bukit-cli-reference。
+**REQUIRED BACKGROUND:** Notion-related config is in site.yaml's `content.notion` and `content.media` nodes — you must understand bukit-config first.
+**REQUIRED SUB-SKILL:** Verify Notion connectivity with `bukit doctor`, build with `bukit build`. CLI commands reference bukit-cli-reference.
 
-## 前置准备
+## Multilingual Triggers / Pencetus Berbilang Bahasa
 
-### 1. 创建 Notion Integration
+| Language | Trigger Phrases |
+|----------|----------------|
+| 中文 | "Notion 内容源"、"Notion 数据拉不到"、"Notion API 配置"、"Notion 属性映射" |
+| English | "Notion content source", "Notion data not fetching", "Notion API setup", "Notion property mapping" |
+| Bahasa Melayu | "sumber kandungan Notion", "data Notion tidak ditarik", "persediaan API Notion", "pemetaan sifat Notion" |
 
-1. 访问 [Notion Integrations](https://www.notion.so/my-integrations)
-2. 创建 Internal Integration，获取 API Key（即 `NOTION_TOKEN`）
-3. 设置环境变量：`NOTION_TOKEN=secret_xxxx`
+## Prerequisites
 
-### 2. 获取数据库 ID
+### 1. Create a Notion Integration
 
-从 Notion 数据库页面的 URL 中提取。例如：
-- `https://www.notion.so/workspace/abc123?v=...` → 数据库 ID 为 `abc123`
+1. Visit [Notion Integrations](https://www.notion.so/my-integrations)
+2. Create an Internal Integration and get the API Key (= `NOTION_TOKEN`)
+3. Set the environment variable: `NOTION_TOKEN=secret_xxxx`
 
-### 3. 授权 Integration 访问数据库
+### 2. Get the Database ID
 
-在 Notion 数据库中点击右上角 `...` → Connections → 添加刚创建的 Integration。
+Extract it from the Notion database page URL. For example:
+- `https://www.notion.so/workspace/abc123?v=...` → database ID is `abc123`
 
-### 验证
+### 3. Authorize the Integration to Access the Database
+
+In your Notion database, click `...` in the top-right → Connections → add the Integration you just created.
+
+### Verify
 
 ```bash
 bukit doctor
 ```
-会检查 Notion API 连通性和数据库可达性。
+This checks Notion API connectivity and database reachability.
 
-## Notion 属性映射规则
+## Notion Property Mapping Rules
 
-| Notion 类型 | 映射类型 | 值来源 | 模板访问 |
+| Notion Type | Mapped Type | Value Source | Template Access |
 |------------|---------|--------|---------|
-| `title` | `text` | 纯文本提取 | `page.fields.Name.value` |
-| `rich_text` | `text` | 纯文本提取 | `page.fields.Description.value` |
-| `url` | `text` | URL 字符串 | `page.fields.Link.value` |
-| `email` | `text` | 邮箱字符串 | `page.fields.Email.value` |
-| `phone_number` | `text` | 电话号码 | — |
-| `number` | `number` | 数值 | `page.fields.Price.value` |
+| `title` | `text` | Plain text extraction | `page.fields.Name.value` |
+| `rich_text` | `text` | Plain text extraction | `page.fields.Description.value` |
+| `url` | `text` | URL string | `page.fields.Link.value` |
+| `email` | `text` | Email string | `page.fields.Email.value` |
+| `phone_number` | `text` | Phone number | — |
+| `number` | `number` | Numeric value | `page.fields.Price.value` |
 | `checkbox` | `bool` | true/false | `page.fields.Published.value` |
 | `date` | `date` | DateTimeOffset | `page.fields.Date.value` |
-| `created_time` | `date` 或 `text` | 创建时间 | — |
-| `last_edited_time` | `date` 或 `text` | 最后编辑时间 | — |
-| `created_by` | `text` | 用户名或 ID | — |
-| `last_edited_by` | `text` | 用户名或 ID | — |
-| `select` | `text` | 选中项名称 | `page.fields.Category.value` |
-| `status` | `text` | 状态名称 | `page.fields.Status.value` |
-| `multi_select` | `list` | 选中项名称数组 | `for tag in page.fields.Tags.value` |
-| `people` | `list` | 用户名数组 | — |
-| `files` | `list` | 文件 URL 数组 | — |
-| `relation` | `list` | 关联页面 ID 数组 | — |
-| `formula` | 动态 | 根据公式结果类型 | — |
-| `rollup` | 动态 | 根据汇总结果类型 | — |
+| `created_time` | `date` or `text` | Creation time | — |
+| `last_edited_time` | `date` or `text` | Last edited time | — |
+| `created_by` | `text` | Username or ID | — |
+| `last_edited_by` | `text` | Username or ID | — |
+| `select` | `text` | Selected item name | `page.fields.Category.value` |
+| `status` | `text` | Status name | `page.fields.Status.value` |
+| `multi_select` | `list` | Array of selected item names | `for tag in page.fields.Tags.value` |
+| `people` | `list` | Array of usernames | — |
+| `files` | `list` | Array of file URLs | — |
+| `relation` | `list` | Array of related page IDs | — |
+| `formula` | Dynamic | Depends on formula result type | — |
+| `rollup` | Dynamic | Depends on rollup result type | — |
 
-**字段过滤**：`fieldPolicy.mode: whitelist` 时，`fieldPolicy.allowed` 列表外的属性不会出现在 `page.fields` 中。
+**Field filtering**: When `fieldPolicy.mode: whitelist`, properties outside the `fieldPolicy.allowed` list will not appear in `page.fields`.
 
-## 块渲染支持
+## Block Rendering Support
 
-26 种 Notion 块类型自动渲染为 HTML：
+26 Notion block types are automatically rendered to HTML:
 
-| 块类型 | 渲染为 | CSS 类 |
+| Block Type | Rendered As | CSS Class |
 |--------|--------|--------|
-| 段落 (paragraph) | `<p>` | — |
-| 标题 1/2/3 | `<h1>`/`<h2>`/`<h3>` | — |
-| 引用 (quote) | `<blockquote>` | — |
-| 代码 (code) | `<pre><code>` + 语言标注 | — |
-| 分割线 (divider) | `<hr>` | — |
-| 图片 (image) | `<figure><img><figcaption>` | — |
-| 标注 (callout) | `<div class="callout">` + 图标 | `.callout`, `.callout-icon`, `.callout-content` |
-| 待办事项 (to_do) | `<div class="to-do"><input type="checkbox">` | `.to-do` |
-| 折叠块 (toggle) | `<details><summary>` | — |
-| 书签 (bookmark) | `<a class="bookmark">` | `a.bookmark` |
-| 嵌入 (embed) | `<div class="video-embed"><iframe>` | `.video-embed` |
-| 公式 (equation) | `<div class="math-block">` | `.math-block`, `.math-inline` |
-| 表格 (table) | `<table>` | — |
-| 列布局 (column_list) | `<div class="notion-columns">` | `.notion-columns`, `.notion-column` |
-| 音频 (audio) | `<audio>` | — |
-| 视频 (video) | `<video>` | — |
-| 文件 (file) | 下载链接 | `.notion-file` |
-| PDF | PDF 查看器 | `.notion-pdf` |
-| 链接预览 (link_preview) | 链接卡片 | — |
-| 页面链接 (link_to_page) | 内部链接 | `.notion-child-page` |
-| 同步块 (synced_block) | 内联渲染 | — |
-| 目录 (table_of_contents) | 占位符 | — |
-| 子实体 (child_entity) | 子页面引用 | `.notion-child-database` |
+| Paragraph | `<p>` | — |
+| Heading 1/2/3 | `<h1>`/`<h2>`/`<h3>` | — |
+| Quote | `<blockquote>` | — |
+| Code | `<pre><code>` + language annotation | — |
+| Divider | `<hr>` | — |
+| Image | `<figure><img><figcaption>` | — |
+| Callout | `<div class="callout">` + icon | `.callout`, `.callout-icon`, `.callout-content` |
+| To-do | `<div class="to-do"><input type="checkbox">` | `.to-do` |
+| Toggle | `<details><summary>` | — |
+| Bookmark | `<a class="bookmark">` | `a.bookmark` |
+| Embed | `<div class="video-embed"><iframe>` | `.video-embed` |
+| Equation | `<div class="math-block">` | `.math-block`, `.math-inline` |
+| Table | `<table>` | — |
+| Column layout | `<div class="notion-columns">` | `.notion-columns`, `.notion-column` |
+| Audio | `<audio>` | — |
+| Video | `<video>` | — |
+| File | Download link | `.notion-file` |
+| PDF | PDF viewer | `.notion-pdf` |
+| Link preview | Link card | — |
+| Link to page | Internal link | `.notion-child-page` |
+| Synced block | Inline rendering | — |
+| Table of contents | Placeholder | — |
+| Child entity | Child page reference | `.notion-child-database` |
 
-默认主题 CSS（`bukit init` 生成）已包含所有这些 CSS 类的样式。
+The default theme CSS (generated by `bukit init`) already includes styles for all these CSS classes.
 
-## 关联关系处理
+## Relation Handling
 
-`relation` 类型字段会被解析为关联页面 ID 数组。Bukit 会自动解析关联关系，在 `page.fields.RelatedField.value` 中提供引用信息。
+`relation` type fields are parsed into an array of related page IDs. Bukit automatically resolves relations and provides reference information in `page.fields.RelatedField.value`.
 
-## 图片本地化
+## Image Localization
 
-Bukit 自动将 Notion 中的远程图片下载到本地并重写 HTML 中的 URL：
+Bukit automatically downloads remote images from Notion to local storage and rewrites URLs in HTML:
 
 ```yaml
 content:
   media:
-    downloadToLocal: true        # 启用下载
-    downloadDir: assets/uploads  # 下载目录
-    urlBase: /assets/uploads     # HTML 中替换后的前缀
-    fieldKeys: [cover, image, thumbnail, og_image, icon]  # 要处理的字段
-    maxConcurrency: 4            # 下载并发度
-    maxFileSizeBytes: 52428800   # 最大文件 50MB
-    blockPrivateNetworks: true   # 阻止内网地址
+    downloadToLocal: true        # Enable downloading
+    downloadDir: assets/uploads  # Download directory
+    urlBase: /assets/uploads     # URL prefix after replacement in HTML
+    fieldKeys: [cover, image, thumbnail, og_image, icon]  # Fields to process
+    maxConcurrency: 4            # Download concurrency
+    maxFileSizeBytes: 52428800   # Max file size 50MB
+    blockPrivateNetworks: true   # Block internal network addresses
 ```
 
-## 常见问题
+## Common Issues
 
-| 问题 | 原因 | 解决方案 |
-|------|------|---------|
-| 内容拉取为空 | 数据库未授权给 Integration | 在 Notion 数据库 Connections 中添加 Integration |
-| `NOTION_TOKEN is required` | 环境变量未设置 | `export NOTION_TOKEN=secret_xxx` 或 Windows `$env:NOTION_TOKEN = "secret_xxx"` |
-| 401 Unauthorized | Token 无效或过期 | 重新生成 Integration Token |
-| 404 Not Found | databaseId 错误 | 从 Notion URL 重新提取数据库 ID |
-| 某些属性不显示 | `fieldPolicy.mode: whitelist` 限制 | 将需要的字段名加入 `fieldPolicy.allowed` 列表 |
-| 图片未下载 | `downloadToLocal: false` | 设为 true；检查 `fieldKeys` 是否包含对应字段名 |
-| 图片 404 | 下载失败或路径错误 | 检查 `downloadDir` 和 `urlBase` 配置 |
-| API 速率限制 (429) | 请求过频繁 | 降低 `renderConcurrency` 和 `maxRps` |
-| 构建缓慢 | Notion API 调用过多 | 启用 `cacheMode: readwrite` 缓存 |
-| 关联页面内容缺失 | 关联解析未完成 | 确保关联的数据库也给 Integration 授权 |
-| filterProperty 过滤无效 | 属性名不匹配或类型不对 | 确认 `filterProperty` 是 checkbox 类型，且 `filterType: checkbox_true` |
+| Issue | Cause | Solution |
+|------|------|------|
+| Content fetch returns empty | Database not authorized for Integration | Add Integration in Notion database Connections |
+| `NOTION_TOKEN is required` | Environment variable not set | `export NOTION_TOKEN=secret_xxx` or on Windows `$env:NOTION_TOKEN = "secret_xxx"` |
+| 401 Unauthorized | Token invalid or expired | Regenerate Integration token |
+| 404 Not Found | Wrong databaseId | Re-extract database ID from Notion URL |
+| Some properties not showing | `fieldPolicy.mode: whitelist` restriction | Add desired field names to `fieldPolicy.allowed` |
+| Images not downloaded | `downloadToLocal: false` | Set to true; check that `fieldKeys` includes the field name |
+| Image 404 | Download failed or path misconfigured | Check `downloadDir` and `urlBase` config |
+| API rate limit (429) | Too many requests | Lower `renderConcurrency` and `maxRps` |
+| Build is slow | Too many Notion API calls | Enable `cacheMode: readwrite` for caching |
+| Related page content missing | Relation resolution incomplete | Ensure the related database is also authorized for the Integration |
+| filterProperty filter not working | Property name mismatch or wrong type | Confirm `filterProperty` is a checkbox type and `filterType: checkbox_true` |

@@ -3,108 +3,116 @@ name: bukit-plugins-debug
 description: Use when using bukit and plugins do not take effect or behave unexpectedly, bukit build output does not meet expectations, bukit incremental builds behave incorrectly, when developing custom bukit plugins, or diagnosing bukit build performance issues
 ---
 
-# Bukit 插件系统与构建排错
+# Bukit Plugin System & Build Debugging
 
 ## Overview
 
-Bukit 内置 7 个核心插件 + 支持外部程序集和协议插件。插件生命周期：`derivePages`（派生页面）→ 并行渲染 → `afterBuild`（后处理）。构建排错需要理解插件顺序、增量跳过逻辑和配置冲突。
+Bukit has 7 core built-in plugins plus support for external assembly and protocol plugins. Plugin lifecycle: `derivePages` (derive pages) → parallel rendering → `afterBuild` (post-processing). Build debugging requires understanding plugin ordering, incremental skip logic, and configuration conflicts.
 
-**REQUIRED BACKGROUND:** 插件配置依赖于 site.yaml 中的 `site.plugins`、`site.externalPlugins`、`site.externalAssemblyAllowlist`，必须先理解 bukit-config 的插件配置节。
-**REQUIRED SUB-SKILL:** 用 `bukit plugin list` 列出已注册插件，用 `bukit build --metrics` 诊断性能。CLI 命令参考 bukit-cli-reference。
+**REQUIRED BACKGROUND:** Plugin config depends on `site.plugins`, `site.externalPlugins`, `site.externalAssemblyAllowlist` in site.yaml — you must understand the plugin config section in bukit-config first.
+**REQUIRED SUB-SKILL:** List registered plugins with `bukit plugin list`, diagnose performance with `bukit build --metrics`. CLI commands reference bukit-cli-reference.
 
-## 内置插件速查
+## Multilingual Triggers / Pencetus Berbilang Bahasa
 
-| 插件 | Hook | 功能 |
+| Language | Trigger Phrases |
+|----------|----------------|
+| 中文 | "插件不生效"、"增量构建跳过了"、"构建排错"、"自定义插件"、"构建慢" |
+| English | "plugin not working", "incremental build skipped", "build debugging", "custom plugin", "build slow" |
+| Bahasa Melayu | "plugin tidak berfungsi", "binaan tambahan dilangkau", "nyahpepijat binaan", "plugin tersuai", "binaan perlahan" |
+
+## Built-in Plugin Quick Reference
+
+| Plugin | Hook | Function |
 |------|------|------|
-| **TaxonomyPlugin** | derive-pages | 分类法页面生成（tags/categories/自定义分类法索引页和术语页） |
-| **PaginationPlugin** | derive-pages | 列表页/分类法分页（将大列表拆分为多页） |
-| **PagesIndexPlugin** | derive-pages | 页面索引数据生成 |
-| **ArchivePlugin** | derive-pages | 按年归档页面生成 |
-| **SitemapPlugin** | after-build | sitemap.xml 生成 |
-| **RssPlugin** | after-build | RSS Feed 生成 |
-| **SearchIndexPlugin** | after-build | 搜索索引 JSON 生成 |
+| **TaxonomyPlugin** | derive-pages | Taxonomy page generation (tags/categories/custom taxonomy index and term pages) |
+| **PaginationPlugin** | derive-pages | List/taxonomy pagination (split large lists into multiple pages) |
+| **PagesIndexPlugin** | derive-pages | Page index data generation |
+| **ArchivePlugin** | derive-pages | Yearly archive page generation |
+| **SitemapPlugin** | after-build | sitemap.xml generation |
+| **RssPlugin** | after-build | RSS Feed generation |
+| **SearchIndexPlugin** | after-build | Search index JSON generation |
 
-## 插件注册来源
+## Plugin Registration Sources
 
-| 来源 | 说明 | 配置 |
+| Source | Description | Config |
 |------|------|------|
-| **BuiltIn** | 框架内置 7 个插件，始终加载 | 无，通过 `site.plugins` 开关 |
-| **Generated** | AOT 预生成插件 | 无 |
-| **ExternalAssembly** | `plugins/` 目录下 `.dll` 程序集 | `site.externalAssemblyTrustMode` + `site.externalAssemblyAllowlist` |
-| **ExternalProtocol** | WASM 或独立进程插件 | `site.externalPlugins` 配置 |
+| **BuiltIn** | 7 framework built-in plugins, always loaded | None, toggle via `site.plugins` |
+| **Generated** | AOT pre-generated plugins | None |
+| **ExternalAssembly** | `.dll` assemblies in `plugins/` directory | `site.externalAssemblyTrustMode` + `site.externalAssemblyAllowlist` |
+| **ExternalProtocol** | WASM or standalone process plugins | `site.externalPlugins` config |
 
-### 外部程序集插件
+### External Assembly Plugins
 
-将 `.dll` 放入项目 `plugins/` 目录自动发现。SHA256 哈希校验：
+Place `.dll` files in the project `plugins/` directory for auto-discovery. SHA256 hash verification:
 
 ```yaml
 site:
-  externalAssemblyTrustMode: strict   # strict=必须白名单; warn=警告但允许
+  externalAssemblyTrustMode: strict   # strict=require allowlist; warn=warn but allow
   externalAssemblyAllowlist:
-    MyPlugin.dll: abc123...64位SHA256...
+    MyPlugin.dll: abc123...64-char SHA256...
 ```
 
-### 协议插件（WASM/进程）
+### Protocol Plugins (WASM/Process)
 
 ```yaml
 site:
   externalPlugins:
     my-plugin:
-      runtime: process           # process 或 wasm
-      entry: ./tools/my-plugin  # 可执行文件路径
+      runtime: process           # process or wasm
+      entry: ./tools/my-plugin  # Executable path
       hooks: [derive-pages, after-build]
       enabled: true
       timeoutMs: 5000
 ```
 
-## 插件执行顺序
+## Plugin Execution Order
 
 ```
-1. derivePages 阶段（按注册顺序）:
+1. derivePages phase (in registration order):
    - PagesIndexPlugin
-   - TaxonomyPlugin (生成分类法页面)
-   - PaginationPlugin (分页)
-   - ArchivePlugin (归档)
-   - 用户自定义 derivePages 插件
+   - TaxonomyPlugin (generate taxonomy pages)
+   - PaginationPlugin (pagination)
+   - ArchivePlugin (archives)
+   - Custom derivePages plugins
 
-2. 并行渲染阶段:
-   - 所有原始页面 + 派生页面并发 Scriban 渲染
+2. Parallel rendering phase:
+   - All original + derived pages rendered concurrently via Scriban
 
-3. afterBuild 阶段（按注册顺序）:
+3. afterBuild phase (in registration order):
    - SitemapPlugin
    - RssPlugin
    - SearchIndexPlugin
-   - 用户自定义 afterBuild 插件
+   - Custom afterBuild plugins
 ```
 
-## 路由冲突策略
+## Route Conflict Policy
 
-派生页面可能与已有页面路由冲突：
+Derived pages may conflict with existing page routes:
 
 ```yaml
 site:
-  deriveConflictPolicy: fail   # fail=报错中止; warn=警告跳过; last-wins=覆盖已有
+  deriveConflictPolicy: fail   # fail=error & abort; warn=skip with warning; last-wins=overwrite existing
 ```
 
-## 插件开关
+## Plugin Toggles
 
 ```yaml
 site:
   plugins:
     TaxonomyPlugin:
-      enabled: false    # 禁用内置分类法插件
+      enabled: false    # Disable built-in taxonomy plugin
     SitemapPlugin:
-      enabled: false    # 禁用 Sitemap 生成
+      enabled: false    # Disable sitemap generation
 ```
 
-列表页内容模式：
+List page content mode:
 
 ```yaml
 build:
-  listPageContentMode: auto    # auto=静态分析; always=始终包含content; never=不包含
+  listPageContentMode: auto    # auto=static analysis; always=always include content; never=exclude content
 ```
 
-`auto` 模式下模板静态分析无法确认时，通过 `layouts/bukit.templates.yaml` 声明：
+When `auto` mode cannot confirm via static analysis, declare via `layouts/bukit.templates.yaml`:
 
 ```yaml
 pages/index.html:
@@ -113,55 +121,55 @@ pages/list.html:
   needs_page_content: true
 ```
 
-## 增量构建
+## Incremental Build
 
-增量构建通过 SHA256 哈希判断页面是否需要重新渲染。跳过条件：contentHash、metadataHash、routeHash、templateHash 四者都未变化。
+Incremental builds use SHA256 hashes to determine whether a page needs re-rendering. Skip condition: contentHash, metadataHash, routeHash, and templateHash are all unchanged.
 
-- `--incremental` 启用；`--no-incremental` 禁用
-- 构建清单（`build-manifest-v2.json`）存储在 `.cache/` 目录
-- 首次构建无清单时为全量构建
-- `--clean` 或 `build.clean: true` 不影响增量判断
+- `--incremental` enables it; `--no-incremental` disables it
+- Build manifest (`build-manifest-v2.json`) stored in `.cache/` directory
+- First build with no manifest is always a full build
+- `--clean` or `build.clean: true` does not affect incremental decisions
 
-### 增量构建常见问题
+### Incremental Build Common Issues
 
-| 问题 | 原因 | 修复 |
+| Issue | Cause | Fix |
 |------|------|------|
-| 修改了内容但页面未更新 | 增量清单未过期 | `bukit clean` 然后重新构建 |
-| 页面每次都被重新渲染 | 模板或内容频繁变化 | 正常行为；检查是否有每次变化的内容（如日期公式） |
-| `.cache/` 损坏 | 构建中断 | 删除 `.cache/` 目录重新构建 |
+| Modified content but page not updated | Incremental manifest not expired | `bukit clean` then rebuild |
+| Page re-renders every time | Template or content changes frequently | Normal behavior; check for content that changes every time (e.g., date formulas) |
+| `.cache/` corrupted | Build interrupted | Delete `.cache/` directory and rebuild |
 
-## 构建排错
+## Build Debugging
 
-### 页面未输出
+### Page Not Output
 
-1. 检查内容是否被过滤：`filterProperty` + `filterType` 配置
-2. 检查是否为草稿（`draft: true`）：构建时需 `--draft` 参数
-3. 检查集合路由是否匹配：`collection` 或 `type` 元数据是否与 `site.collections` 键名一致
-4. 检查 `includeSlugs` 白名单限制
-5. 检查 `content.sources[].mode: data` — data 模式不生成页面
+1. Check if content is filtered: `filterProperty` + `filterType` config
+2. Check if it's a draft (`draft: true`): need `--draft` parameter when building
+3. Check collection route matching: do `collection` or `type` metadata match `site.collections` key names
+4. Check `includeSlugs` whitelist restriction
+5. Check `content.sources[].mode: data` — data mode does not generate pages
 
-### 模板未找到
+### Template Not Found
 
-- 检查 site.yaml 中 template 路径是否以 `pages/` 开头
-- 检查 theme 配置和 layouts 目录存在性
-- 运行 `bukit doctor` 查看缺失模板列表
+- Check if template path in site.yaml starts with `pages/`
+- Check theme config and layouts directory existence
+- Run `bukit doctor` to see missing template list
 
-### 并发写入冲突
+### Concurrent Write Conflicts
 
-Bukit 使用 `ConcurrentDictionary<string, SemaphoreSlim>` 防止同一文件并发写入。如遇到写入失败，检查是否有外部进程锁定输出目录。
+Bukit uses `ConcurrentDictionary<string, SemaphoreSlim>` to prevent concurrent writes to the same file. If you encounter write failures, check if an external process is locking the output directory.
 
-### 构建性能
+### Build Performance
 
-| 诊断 | 方法 |
+| Diagnostic | Method |
 |------|------|
-| 整体耗时 | `--metrics <path>` 输出 JSON 指标文件 |
-| 并行度 | `--jobs <n>` 设置并发渲染线程数 |
-| 增量加速 | `--incremental` 跳过未变化页面 |
-| CI 模式 | `--ci` 自动将日志级别设为 warn，减少输出 |
+| Overall duration | `--metrics <path>` outputs JSON metrics file |
+| Parallelism | `--jobs <n>` sets concurrent rendering thread count |
+| Incremental speedup | `--incremental` skips unchanged pages |
+| CI mode | `--ci` auto-sets log level to warn, reducing output |
 
-## 自定义插件开发
+## Custom Plugin Development
 
-### 最小派生页面插件
+### Minimal Derive Pages Plugin
 
 ```csharp
 using Bukit.Content;
@@ -192,7 +200,7 @@ public class HelloPlugin : IDerivePagesPlugin
 }
 ```
 
-### 最小后构建插件
+### Minimal After-Build Plugin
 
 ```csharp
 public class AfterPlugin : IAfterBuildPlugin
@@ -208,9 +216,9 @@ public class AfterPlugin : IAfterBuildPlugin
 }
 ```
 
-### 部署
+### Deployment
 
-将编译后的 `.dll` 放入项目 `plugins/` 目录，配置白名单：
+Place the compiled `.dll` in the project's `plugins/` directory and configure the allowlist:
 
 ```yaml
 site:
@@ -218,16 +226,16 @@ site:
     MyPlugin.dll: <SHA256>
 ```
 
-使用 `bukit plugin list` 验证插件是否被发现。
+Use `bukit plugin list` to verify the plugin is discovered.
 
-## 常见错误速查
+## Common Error Quick Reference
 
-| 错误 | 原因 | 修复 |
+| Error | Cause | Fix |
 |------|------|------|
-| 插件列表为空（`plugin list`） | 配置未加载或插件目录不存在 | 检查 `--config` 参数和工作目录 |
-| 外部插件未加载 | 不在白名单或哈希不匹配 | 确认 `externalAssemblyAllowlist` 配置 |
-| WASM 插件报错 | AOT 下不支持 WASM | 改用 process 协议插件 |
-| `deriveConflictPolicy` 冲突 | 派生页面路由与已有页面重复 | 改策略为 `warn` 或 `last-wins` |
-| 分类法页面未生成 | TaxonomyPlugin 被禁用或 taxonomy 配置不完整 | 检查插件开关和 taxonomy 配置 |
-| 分页不生效 | PaginationPlugin 正常但集合未启用分页 | 在集合配置中 `pagination.enabled: true` |
-| RSS 未生成 | `site.url` 未设置 | RSS 依赖 `site.url` 生成绝对链接 |
+| Plugin list empty (`plugin list`) | Config not loaded or plugin directory doesn't exist | Check `--config` parameter and working directory |
+| External plugin not loaded | Not in allowlist or hash mismatch | Verify `externalAssemblyAllowlist` config |
+| WASM plugin errors | WASM not supported under AOT | Switch to process protocol plugin |
+| `deriveConflictPolicy` conflict | Derived page route duplicates existing route | Change policy to `warn` or `last-wins` |
+| Taxonomy pages not generated | TaxonomyPlugin disabled or taxonomy config incomplete | Check plugin toggle and taxonomy config |
+| Pagination not working | PaginationPlugin OK but collection pagination not enabled | Set `pagination.enabled: true` in collection config |
+| RSS not generated | `site.url` not set | RSS requires `site.url` for absolute link generation |

@@ -3,33 +3,41 @@ name: bukit-config
 description: Use when using bukit to create or modify site.yaml, asking about the meaning of a bukit configuration field, encountering bukit config validation errors, or needing to configure a specific Bukit feature (collections, taxonomy, i18n, plugins, media) through YAML
 ---
 
-# Bukit 站点配置
+# Bukit Site Configuration
 
 ## Overview
 
-`site.yaml` 是 Bukit 的唯一配置入口，采用约定优于配置哲学。六个顶级节点：`site`、`content`、`build`、`theme`、`taxonomy`、`logging`。大部分字段有合理默认值，最小可用的 site.yaml 仅需约 20 行。
+`site.yaml` is Bukit's single configuration entry point, following the convention-over-configuration philosophy. Six top-level nodes: `site`, `content`, `build`, `theme`, `taxonomy`, `logging`. Most fields have sensible defaults — a minimal working site.yaml needs only about 20 lines.
 
-**REQUIRED SUB-SKILL:** 修改配置后用 `bukit build` 验证。CLI 命令参考 bukit-cli-reference。
+**REQUIRED SUB-SKILL:** Verify config changes with `bukit build`. CLI commands reference bukit-cli-reference.
 
-## 配置模型速查
+## Multilingual Triggers / Pencetus Berbilang Bahasa
 
-| 节点 | 职责 | 关键字段 |
+| Language | Trigger Phrases |
+|----------|----------------|
+| 中文 | "配置 site.yaml"、"bukit 配置文件"、"collections 怎么配"、"taxonomy 配置" |
+| English | "configure site.yaml", "bukit config file", "how to set up collections", "taxonomy setup" |
+| Bahasa Melayu | "konfigurasi site.yaml", "fail konfigurasi bukit", "cara sediakan collections", "tetapan taxonomy" |
+
+## Config Model Quick Reference
+
+| Node | Responsibility | Key Fields |
 |------|------|---------|
-| `site` | 站点元信息和全局行为 | name, title, url, baseUrl, language, collections, plugins, externalPlugins |
-| `content` | 内容源定义 | provider (notion/markdown), sources, media |
-| `build` | 构建行为 | output, clean, draft, listPageContentMode |
-| `theme` | 主题定位 | name, layouts, assets, static, params |
-| `taxonomy` | 分类法配置 | template, kinds, pageSize, outputMode |
-| `logging` | 日志级别 | level (debug/info/warn/error) |
+| `site` | Site metadata and global behavior | name, title, url, baseUrl, language, collections, plugins, externalPlugins |
+| `content` | Content source definition | provider (notion/markdown), sources, media |
+| `build` | Build behavior | output, clean, draft, listPageContentMode |
+| `theme` | Theme configuration | name, layouts, assets, static, params |
+| `taxonomy` | Taxonomy configuration | template, kinds, pageSize, outputMode |
+| `logging` | Log level | level (debug/info/warn/error) |
 
-## 场景模板
+## Scenario Templates
 
-### 博客站（Markdown 内容源）
+### Blog (Markdown content source)
 
 ```yaml
 site:
   name: my-blog
-  title: 我的博客
+  title: My Blog
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
@@ -72,12 +80,12 @@ logging:
   level: info
 ```
 
-### 文档站（扁平化 URL）
+### Documentation Site (flat URLs)
 
 ```yaml
 site:
   name: my-docs
-  title: 项目文档
+  title: Project Docs
   baseUrl: /
   collections:
     doc:
@@ -86,7 +94,7 @@ site:
       listRoute: /docs/
 ```
 
-### 多语言站点
+### Multilingual Site
 
 ```yaml
 site:
@@ -101,7 +109,7 @@ site:
   searchMode: merged
 ```
 
-### Notion 驱动站点
+### Notion-Driven Site
 
 ```yaml
 site:
@@ -125,232 +133,232 @@ theme:
   name: starter
 ```
 
-## 字段详解
+## Field Reference
 
-### site 节点
+### site Node
 
-| 字段 | 类型 | 默认值 | 说明 |
+| Field | Type | Default | Description |
 |------|------|--------|------|
-| `name` | string | **必填** | 站点标识名 |
-| `title` | string | **必填** | 站点标题，模板中 `{{ site.title }}` |
-| `url` | string | — | 站点完整 URL，必须以 `http://` 或 `https://` 开头 |
-| `description` | string | — | 站点描述 |
-| `baseUrl` | string | `/` | 站点根路径，必须以 `/` 开头。子目录部署时设为 `/subpath/` |
-| `language` | string | `zh-CN` | 默认内容语言 |
-| `timezone` | string | `Asia/Shanghai` | IANA 时区标识 |
-| `languages` | string[] | — | 多语言列表，如 `[zh-CN, en]` |
-| `defaultLanguage` | string | 首个 language | 多语言模式下的默认语言 |
-| `outputPathEncoding` | string | `none` | 输出路径编码：`none`/`slug`/`urlencode`/`sanitize` |
-| `sitemapMode` | string | `split` | Sitemap 模式：`split`/`merged`/`index` |
-| `rssMode` | string | `split` | RSS 模式：`split`/`merged` |
-| `searchMode` | string | `split` | 搜索索引模式：`split`/`merged`/`index` |
-| `autoSummary` | bool | false | 自动生成摘要 |
-| `autoSummaryMaxLength` | int | 200 | 自动摘要最大长度（1-5000） |
-| `pluginFailMode` | string | `strict` | 插件失败策略：`strict`/`warn` |
-| `deriveConflictPolicy` | string | `fail` | 派生页面路由冲突策略：`fail`/`warn`/`last-wins` |
-| `externalAssemblyTrustMode` | string | `warn` | 外部程序集信任模式：`strict`/`warn` |
-| `searchIncludeDerived` | bool | false | 搜索索引是否包含派生页面 |
-| `externalProtocolIncludeRoutedPages` | bool | false | 外部协议插件是否接收已路由页面 |
-| `collections` | map | — | 集合路由定义 |
-| `plugins` | map | — | 插件开关（`{pluginName: {enabled: false}}`） |
-| `externalPlugins` | map | — | 外部插件配置 |
-| `externalAssemblyAllowlist` | map | — | 外部程序集白名单（`{文件名: SHA256}`） |
-| `permalinks` | map | — | 全局永久链接自定义占位符 |
+| `name` | string | **Required** | Site identifier |
+| `title` | string | **Required** | Site title, used as `{{ site.title }}` in templates |
+| `url` | string | — | Full site URL, must start with `http://` or `https://` |
+| `description` | string | — | Site description |
+| `baseUrl` | string | `/` | Site root path, must start with `/`. For subdirectory deployment use `/subpath/` |
+| `language` | string | `zh-CN` | Default content language |
+| `timezone` | string | `Asia/Shanghai` | IANA timezone identifier |
+| `languages` | string[] | — | Language list for multilingual, e.g., `[zh-CN, en]` |
+| `defaultLanguage` | string | First language | Default language in multilingual mode |
+| `outputPathEncoding` | string | `none` | Output path encoding: `none`/`slug`/`urlencode`/`sanitize` |
+| `sitemapMode` | string | `split` | Sitemap mode: `split`/`merged`/`index` |
+| `rssMode` | string | `split` | RSS mode: `split`/`merged` |
+| `searchMode` | string | `split` | Search index mode: `split`/`merged`/`index` |
+| `autoSummary` | bool | false | Auto-generate summaries |
+| `autoSummaryMaxLength` | int | 200 | Max auto-summary length (1-5000) |
+| `pluginFailMode` | string | `strict` | Plugin failure policy: `strict`/`warn` |
+| `deriveConflictPolicy` | string | `fail` | Derived page route conflict policy: `fail`/`warn`/`last-wins` |
+| `externalAssemblyTrustMode` | string | `warn` | External assembly trust mode: `strict`/`warn` |
+| `searchIncludeDerived` | bool | false | Whether search index includes derived pages |
+| `externalProtocolIncludeRoutedPages` | bool | false | Whether external protocol plugins receive routed pages |
+| `collections` | map | — | Collection route definitions |
+| `plugins` | map | — | Plugin toggles (`{pluginName: {enabled: false}}`) |
+| `externalPlugins` | map | — | External plugin configuration |
+| `externalAssemblyAllowlist` | map | — | External assembly allowlist (`{filename: SHA256}`) |
+| `permalinks` | map | — | Global permalink custom placeholders |
 
-### content 节点
+### content Node
 
-| 字段 | 类型 | 默认值 | 说明 |
+| Field | Type | Default | Description |
 |------|------|--------|------|
-| `provider` | string | **必填** | 内容提供者：`notion` 或 `markdown` |
-| `sources` | array | — | 多源内容配置（与 provider 互斥） |
-| `notion` | map | — | Notion 内容源配置 |
-| `markdown` | map | — | Markdown 内容源配置 |
-| `media` | map | — | 媒体文件处理（下载、URL 重写） |
+| `provider` | string | **Required** | Content provider: `notion` or `markdown` |
+| `sources` | array | — | Multi-source content config (mutually exclusive with provider) |
+| `notion` | map | — | Notion content source config |
+| `markdown` | map | — | Markdown content source config |
+| `media` | map | — | Media file handling (download, URL rewriting) |
 
 #### content.notion
 
-| 字段 | 类型 | 默认值 | 说明 |
+| Field | Type | Default | Description |
 |------|------|--------|------|
-| `databaseId` | string | **必填** | Notion 数据库 ID |
-| `pageSize` | int | 50 | 分页大小（1-100） |
-| `maxItems` | int | — | 最大拉取条目数 |
-| `renderContent` | bool | — | 是否渲染页面块内容 |
-| `renderConcurrency` | int | — | 块渲染并发度 |
-| `maxRps` | int | — | API 请求速率限制 |
-| `maxRetries` | int | — | 请求失败重试次数 |
-| `filterProperty` | string | `Published` | 过滤属性名 |
-| `filterType` | string | `checkbox_true` | 过滤类型：`checkbox_true`/`none` |
-| `sortProperty` | string | — | 排序属性名 |
-| `sortDirection` | string | `ascending` | 排序方向：`ascending`/`descending` |
-| `includeSlugs` | string[] | — | 仅包含指定 slug 的页面 |
-| `includeSlugProperty` | string | `Slug` | slug 属性名 |
-| `cacheMode` | string | `off` | 缓存模式：`off`/`readwrite`/`readonly` |
-| `cacheDir` | string | — | 缓存目录 |
-| `fieldPolicy.mode` | string | `whitelist` | 字段策略：`whitelist`/`all` |
-| `fieldPolicy.allowed` | string[] | — | 白名单允许的字段名列表 |
+| `databaseId` | string | **Required** | Notion database ID |
+| `pageSize` | int | 50 | Pagination size (1-100) |
+| `maxItems` | int | — | Max items to fetch |
+| `renderContent` | bool | — | Whether to render page block content |
+| `renderConcurrency` | int | — | Block rendering concurrency |
+| `maxRps` | int | — | API request rate limit |
+| `maxRetries` | int | — | Request failure retry count |
+| `filterProperty` | string | `Published` | Filter property name |
+| `filterType` | string | `checkbox_true` | Filter type: `checkbox_true`/`none` |
+| `sortProperty` | string | — | Sort property name |
+| `sortDirection` | string | `ascending` | Sort direction: `ascending`/`descending` |
+| `includeSlugs` | string[] | — | Only include pages with specified slugs |
+| `includeSlugProperty` | string | `Slug` | Slug property name |
+| `cacheMode` | string | `off` | Cache mode: `off`/`readwrite`/`readonly` |
+| `cacheDir` | string | — | Cache directory |
+| `fieldPolicy.mode` | string | `whitelist` | Field policy: `whitelist`/`all` |
+| `fieldPolicy.allowed` | string[] | — | Allowed field name list for whitelist mode |
 
 #### content.markdown
 
-| 字段 | 类型 | 默认值 | 说明 |
+| Field | Type | Default | Description |
 |------|------|--------|------|
-| `dir` | string | `content` | Markdown 文件目录（相对路径） |
-| `defaultType` | string | `page` | 默认内容类型（映射到集合） |
-| `maxItems` | int | — | 最大条目数 |
-| `includePaths` | string[] | — | 指定的文件路径列表 |
-| `includeGlobs` | string[] | — | Glob 模式过滤 |
+| `dir` | string | `content` | Markdown file directory (relative path) |
+| `defaultType` | string | `page` | Default content type (maps to collection) |
+| `maxItems` | int | — | Max item count |
+| `includePaths` | string[] | — | Specific file paths to include |
+| `includeGlobs` | string[] | — | Glob pattern filtering |
 
 #### content.media
 
-| 字段 | 类型 | 默认值 | 说明 |
+| Field | Type | Default | Description |
 |------|------|--------|------|
-| `downloadToLocal` | bool | true | 是否将远程图片下载到本地 |
-| `downloadDir` | string | `assets/uploads` | 下载目录 |
-| `urlBase` | string | `/assets/uploads` | HTML 中替换后的 URL 前缀 |
-| `defaultImageUrl` | string | `/assets/images/noneimg-news.jpg` | 默认图片 URL |
-| `fieldKeys` | string[] | `[cover,image,thumbnail,...]` | 要处理的图片字段 key |
-| `maxConcurrency` | int | 4 | 下载并发度 |
-| `maxRetries` | int | 3 | 下载重试次数 |
-| `timeoutMs` | int | 10000 | 下载超时（毫秒） |
-| `maxFileSizeBytes` | int | 52428800 | 最大文件大小（50MB） |
-| `blockPrivateNetworks` | bool | true | 阻止下载内网地址 |
+| `downloadToLocal` | bool | true | Whether to download remote images locally |
+| `downloadDir` | string | `assets/uploads` | Download directory |
+| `urlBase` | string | `/assets/uploads` | URL prefix after replacement in HTML |
+| `defaultImageUrl` | string | `/assets/images/noneimg-news.jpg` | Default image URL |
+| `fieldKeys` | string[] | `[cover,image,thumbnail,...]` | Image field keys to process |
+| `maxConcurrency` | int | 4 | Download concurrency |
+| `maxRetries` | int | 3 | Download retry count |
+| `timeoutMs` | int | 10000 | Download timeout (milliseconds) |
+| `maxFileSizeBytes` | int | 52428800 | Max file size (50MB) |
+| `blockPrivateNetworks` | bool | true | Block downloading from internal network addresses |
 
-#### content.sources（多源模式）
+#### content.sources (Multi-source mode)
 
 ```yaml
 content:
   sources:
     - type: notion
-      mode: content        # content 或 data
+      mode: content        # content or data
       notion:
         databaseId: "xxx"
     - type: markdown
-      mode: data           # data 类型输出到 site.data 供模板使用
-      name: faq            # 可选数据模块名
+      mode: data           # data type goes to site.data for template use
+      name: faq            # Optional data module name
       markdown:
         dir: data/faq
 ```
 
-`sources` 与 `provider` 互斥。`mode` 为 `data` 时内容进入 `site.data.<name>` 或 `site.data`，不生成页面路由。
+`sources` is mutually exclusive with `provider`. When `mode` is `data`, content goes to `site.data.<name>` or `site.data` and does not generate page routes.
 
-### build 节点
+### build Node
 
-| 字段 | 类型 | 默认值 | 说明 |
+| Field | Type | Default | Description |
 |------|------|--------|------|
-| `output` | string | `dist` | 输出目录（相对路径，不能含 `..`） |
-| `clean` | bool | true | 构建前是否清空输出目录 |
-| `draft` | bool | false | 是否渲染草稿（draft: true 的页面） |
-| `listPageContentMode` | string | `auto` | 列表页内容模式：`auto`/`always`/`never` |
+| `output` | string | `dist` | Output directory (relative path, must not contain `..`) |
+| `clean` | bool | true | Whether to clear output directory before build |
+| `draft` | bool | false | Whether to render drafts (pages with draft: true) |
+| `listPageContentMode` | string | `auto` | List page content mode: `auto`/`always`/`never` |
 
-### theme 节点
+### theme Node
 
-| 字段 | 类型 | 默认值 | 说明 |
+| Field | Type | Default | Description |
 |------|------|--------|------|
-| `name` | string | — | 主题名（对应 `themes/<name>/`） |
-| `layouts` | string | `layouts` | 模板子目录名 |
-| `assets` | string | `assets` | 资源子目录名（SCSS 等需处理） |
-| `static` | string | `static` | 静态文件子目录名（直接复制） |
-| `params` | map | — | 主题参数，模板中 `{{ site.theme.params.xxx }}` |
+| `name` | string | — | Theme name (corresponds to `themes/<name>/`) |
+| `layouts` | string | `layouts` | Template subdirectory name |
+| `assets` | string | `assets` | Asset subdirectory name (SCSS, etc. that need processing) |
+| `static` | string | `static` | Static file subdirectory name (copied directly) |
+| `params` | map | — | Theme parameters, accessed as `{{ site.theme.params.xxx }}` in templates |
 
-### taxonomy 节点
+### taxonomy Node
 
-| 字段 | 类型 | 默认值 | 说明 |
+| Field | Type | Default | Description |
 |------|------|--------|------|
-| `template` | string | `pages/page.html` | 分类术语页默认模板 |
-| `indexTemplate` | string | — | 分类索引页模板 |
-| `termTemplate` | string | — | 分类术语页模板（覆盖 template） |
-| `pageSize` | int | 10 | 每页条目数 |
-| `indexEnabled` | bool | true | 是否生成分类索引页 |
-| `outputMode` | string | `both` | 输出模式：`both`/`pages`/`data`/`fields_only` |
-| `pinField` | string | `pinned` | 置顶字段名 |
-| `pinOrderField` | string | — | 置顶排序字段 |
-| `itemFields` | string[] | — | 从页面元数据提取为分类依据的字段 |
-| `kinds` | array | — | 自定义分类法定义 |
+| `template` | string | `pages/page.html` | Default template for taxonomy term pages |
+| `indexTemplate` | string | — | Taxonomy index page template |
+| `termTemplate` | string | — | Taxonomy term page template (overrides template) |
+| `pageSize` | int | 10 | Entries per page |
+| `indexEnabled` | bool | true | Whether to generate taxonomy index pages |
+| `outputMode` | string | `both` | Output mode: `both`/`pages`/`data`/`fields_only` |
+| `pinField` | string | `pinned` | Pin field name |
+| `pinOrderField` | string | — | Pin ordering field |
+| `itemFields` | string[] | — | Fields extracted from page metadata as taxonomy basis |
+| `kinds` | array | — | Custom taxonomy definitions |
 
 #### taxonomy.kinds
 
 ```yaml
 taxonomy:
   kinds:
-    - key: tags            # 字段名（必填）
-      title: 标签          # 显示名
+    - key: tags            # Field name (required)
+      title: Tags          # Display name
       template: pages/tag.html
       indexEnabled: true
     - key: categories
-      title: 分类
-      singularTitlePrefix: "分类: "   # 页面标题前缀
+      title: Categories
+      singularTitlePrefix: "Category: "   # Page title prefix
 ```
 
-### logging 节点
+### logging Node
 
-| 字段 | 类型 | 默认值 | 说明 |
+| Field | Type | Default | Description |
 |------|------|--------|------|
-| `level` | string | `info` | 日志级别：`debug`/`info`/`warn`/`error` |
+| `level` | string | `info` | Log level: `debug`/`info`/`warn`/`error` |
 
-CLI 可用 `--log-format json` 切换 JSON 格式输出。
+Use `--log-format json` via CLI to switch to JSON format output.
 
-## 集合配置 (site.collections)
+## Collection Configuration (site.collections)
 
-集合路由是 Bukit 的核心路由模型。每个条目必须声明：
+Collection routing is Bukit's core routing model. Each entry must declare:
 
-| 字段 | 类型 | 必填 | 说明 |
+| Field | Type | Required | Description |
 |------|------|------|------|
-| `permalink` | string | **是** | URL 模式，**必须包含 `{slug}`**。支持 `{slug}`/`{year}`/`{month}`/`{day}`/`{type}` |
-| `template` | string | **是** | 模板文件路径（如 `pages/post.html`） |
-| `listRoute` | string | — | 列表页路由，必须以 `/` 开头 |
-| `pagination.enabled` | bool | — | 启用分页 |
-| `pagination.pageSize` | int | 10 | 每页条目数（正整数） |
-| `output.rss` | bool | true | 集合是否生成 RSS |
-| `output.sitemap` | bool | true | 集合是否加入 Sitemap |
-| `output.archive` | bool | false | 是否生成按年归档 |
+| `permalink` | string | **Yes** | URL pattern, **must include `{slug}`**. Supports `{slug}`/`{year}`/`{month}`/`{day}`/`{type}` |
+| `template` | string | **Yes** | Template file path (e.g., `pages/post.html`) |
+| `listRoute` | string | — | List page route, must start with `/` |
+| `pagination.enabled` | bool | — | Enable pagination |
+| `pagination.pageSize` | int | 10 | Entries per page (positive integer) |
+| `output.rss` | bool | true | Whether the collection generates RSS |
+| `output.sitemap` | bool | true | Whether the collection is included in sitemap |
+| `output.archive` | bool | false | Whether to generate yearly archives |
 
-## CLI 参数覆盖
+## CLI Parameter Overrides
 
-`bukit build` 支持通过 CLI 参数覆盖部分配置：
+`bukit build` supports overriding some config via CLI parameters:
 
 ```
---output <dir>      覆盖 build.output
---base-url <url>    覆盖 site.baseUrl
---site-url <url>    覆盖 site.url
---draft             覆盖 build.draft = true
---clean             强制 clean
---no-clean          禁用 clean
---incremental       启用增量构建
---no-incremental    禁用增量构建
---jobs <n>          覆盖并行渲染并发度
+--output <dir>      Override build.output
+--base-url <url>    Override site.baseUrl
+--site-url <url>    Override site.url
+--draft             Override build.draft = true
+--clean             Force clean
+--no-clean          Disable clean
+--incremental       Enable incremental build
+--no-incremental    Disable incremental build
+--jobs <n>          Override parallel rendering concurrency
 ```
 
-这些覆盖仅影响当次构建，不修改 site.yaml。
+These overrides only affect the current build and do not modify site.yaml.
 
-## 常见配置错误
+## Common Config Errors
 
-| 错误信息 | 原因 | 修复 |
+| Error Message | Cause | Fix |
 |---------|------|------|
-| `site.name is required` | 未设置站点名 | 添加 `site.name: my-site` |
-| `site.title is required` | 未设置标题 | 添加 `site.title: My Site` |
-| `site.baseUrl must start with '/'` | baseUrl 格式错误 | 改为 `/` 或 `/subpath/` |
-| `site.collections.xxx.permalink must include {slug}` | permalink 缺少 {slug} 占位符 | 添加 `{slug}`，如 `/blog/{slug}/` |
-| `site.collections.xxx.template is required` | 集合未指定模板 | 添加 `template: pages/post.html` |
-| `site.collections.xxx.listRoute must start with '/'` | listRoute 格式错误 | 改为 `/blog/` |
-| `content.provider is required` | 未指定内容源 | 设 `provider: markdown` 或 `provider: notion` |
-| `NOTION_TOKEN is required...` | Notion API 密钥未设置 | 设置环境变量 `NOTION_TOKEN` |
-| `content.notion.databaseId is required` | 未填数据库 ID | 填入 Notion 数据库 ID |
-| `site.timezone '...' is not a valid time zone identifier` | 时区标识无效 | 使用 IANA 时区名，如 `Asia/Shanghai` |
-| `build.output must not contain '..'` | 路径含 `..` 遍历 | 使用相对路径如 `dist` |
-| `taxonomy.pageSize must be a positive integer` | 分页大小非正整数 | 设为正整数 |
-| `site.collections keys must be non-empty` | 集合名为空字符串 | 确保集合名非空 |
-| `site.languages has duplicate language` | 语言列表重复 | 去除重复项 |
-| `site.defaultLanguage must be included in site.languages` | 默认语言不在列表中 | 将默认语言加入 languages |
+| `site.name is required` | Site name not set | Add `site.name: my-site` |
+| `site.title is required` | Title not set | Add `site.title: My Site` |
+| `site.baseUrl must start with '/'` | baseUrl format incorrect | Change to `/` or `/subpath/` |
+| `site.collections.xxx.permalink must include {slug}` | Permalink missing {slug} placeholder | Add `{slug}`, e.g., `/blog/{slug}/` |
+| `site.collections.xxx.template is required` | Collection has no template | Add `template: pages/post.html` |
+| `site.collections.xxx.listRoute must start with '/'` | listRoute format incorrect | Change to `/blog/` |
+| `content.provider is required` | Content source not specified | Set `provider: markdown` or `provider: notion` |
+| `NOTION_TOKEN is required...` | Notion API key not set | Set env var `NOTION_TOKEN` |
+| `content.notion.databaseId is required` | Database ID not filled | Enter Notion database ID |
+| `site.timezone '...' is not a valid time zone identifier` | Invalid timezone | Use IANA timezone name, e.g., `Asia/Shanghai` |
+| `build.output must not contain '..'` | Path contains `..` traversal | Use relative path like `dist` |
+| `taxonomy.pageSize must be a positive integer` | Page size not a positive integer | Set to a positive integer |
+| `site.collections keys must be non-empty` | Collection name is empty string | Ensure collection names are non-empty |
+| `site.languages has duplicate language` | Language list has duplicates | Remove duplicates |
+| `site.defaultLanguage must be included in site.languages` | Default language not in list | Add defaultLanguage to languages |
 
-## 清单：新站点配置检查
+## Checklist: New Site Config Review
 
-使用 `bukit doctor` 可自动检查大部分项目。配置完成后逐项确认：
+Use `bukit doctor` to auto-check most items. After config, verify each:
 
-- [ ] `site.name` 和 `site.title` 已设置
-- [ ] `site.baseUrl` 以 `/` 开头
-- [ ] `site.url`（如设置）以 `http://` 或 `https://` 开头
-- [ ] `site.collections` 中每个集合都有 permalink（含 `{slug}`）、template
-- [ ] `content.provider` 已设置，对应子配置已填写
-- [ ] Notion 模式下 `NOTION_TOKEN` 环境变量已设置
-- [ ] `build.output` 是合法相对路径
-- [ ] `theme` 节点指向存在的主题目录
-- [ ] 多语言时 `languages` 和 `defaultLanguage` 一致
+- [ ] `site.name` and `site.title` are set
+- [ ] `site.baseUrl` starts with `/`
+- [ ] `site.url` (if set) starts with `http://` or `https://`
+- [ ] Each collection in `site.collections` has a permalink (with `{slug}`) and template
+- [ ] `content.provider` is set with corresponding sub-config filled in
+- [ ] In Notion mode, `NOTION_TOKEN` env var is set
+- [ ] `build.output` is a valid relative path
+- [ ] `theme` node points to an existing theme directory
+- [ ] For multilingual, `languages` and `defaultLanguage` are consistent

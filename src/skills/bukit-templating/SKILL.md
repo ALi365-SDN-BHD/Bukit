@@ -3,57 +3,65 @@ name: bukit-templating
 description: Use when using bukit to write or modify Scriban templates, encountering bukit template rendering errors, needing to access page/site/data in bukit templates, using layout inheritance in bukit, or working with bukit list pages, pagination, or multi-language conditional rendering
 ---
 
-# Bukit Scriban 模板开发
+# Bukit Scriban Template Development
 
 ## Overview
 
-Bukit 使用 [Scriban](https://github.com/scriban/scriban) 模板引擎，支持 `{% layout "path" %}` 继承、`{{ include "path" }}` 局部模板、完整的变量和数据访问。
+Bukit uses the [Scriban](https://github.com/scriban/scriban) template engine, supporting `{% layout "path" %}` inheritance, `{{ include "path" }}` partial templates, and full variable and data access.
 
-**REQUIRED BACKGROUND:** 模板文件位于 `themes/<name>/layouts/` 目录下，目录结构和静态资源组织参见 bukit-theme。
-**REQUIRED SUB-SKILL:** 用 `bukit build` 验证模板渲染。CLI 命令参考 bukit-cli-reference。
+**REQUIRED BACKGROUND:** Template files are located under `themes/<name>/layouts/` — directory structure and static asset organization are covered in bukit-theme.
+**REQUIRED SUB-SKILL:** Verify template rendering with `bukit build`. CLI commands reference bukit-cli-reference.
 
-## 数据模型
+## Multilingual Triggers / Pencetus Berbilang Bahasa
 
-模板中可用的三大数据对象：
+| Language | Trigger Phrases |
+|----------|----------------|
+| 中文 | "Scriban 模板"、"layout 继承不生效"、"模板渲染报错"、"{{ page.title }}" |
+| English | "Scriban template", "layout inheritance not working", "template render error", "bukit template syntax" |
+| Bahasa Melayu | "templat Scriban", "pewarisan layout tidak berfungsi", "ralat render templat", "sintaks templat bukit" |
 
-### `site` — 站点全局信息
+## Data Model
 
-| 变量 | 类型 | 说明 |
+Three main data objects available in templates:
+
+### `site` — Site Global Info
+
+| Variable | Type | Description |
 |------|------|------|
-| `site.name` | string | 站点名 |
-| `site.title` | string | 站点标题 |
-| `site.url` | string/null | 站点完整 URL |
-| `site.description` | string/null | 站点描述 |
-| `site.base_url` | string | 根路径。为 `/` 时为空字符串，否则为 `/subpath/` 格式 |
-| `site.language` | string | 当前语言 |
-| `site.params` | object | 主题参数 `theme.params` 的映射 |
-| `site.modules` | object | 数据模块（`mode: data` 的内容） |
-| `site.data` | object | 通过 `sources[].mode: data` 或数据模块构建的内容数据 |
+| `site.name` | string | Site name |
+| `site.title` | string | Site title |
+| `site.url` | string/null | Site full URL |
+| `site.description` | string/null | Site description |
+| `site.base_url` | string | Root path. Empty string when `/`, otherwise `/subpath/` |
+| `site.language` | string | Current language |
+| `site.params` | object | Mapping of `theme.params` |
+| `site.modules` | object | Data modules (content with `mode: data`) |
+| `site.data` | object | Data built from `sources[].mode: data` or data module builder |
 
-### `page` — 当前页面信息
+### `page` — Current Page Info
 
-| 变量 | 类型 | 说明 |
+| Variable | Type | Description |
 |------|------|------|
-| `page.title` | string | 页面标题 |
-| `page.url` | string | 页面 URL（相对路径，base_url 不包含此值） |
-| `page.content` | string | 页面 HTML 内容 |
-| `page.summary` | string/null | 页面摘要 |
-| `page.publish_date` | DateTime/null | 发布日期 |
-| `page.fields` | object | 元数据字段，如 `page.fields.tags`、`page.fields.author` |
+| `page.title` | string | Page title |
+| `page.url` | string | Page URL (relative, base_url not included) |
+| `page.content` | string | Page HTML content |
+| `page.summary` | string/null | Page summary |
+| `page.publish_date` | DateTime/null | Publish date |
+| `page.fields` | object | Metadata fields, e.g., `page.fields.tags`, `page.fields.author` |
 
-每个 field 是 `{type: string, value: ...}` 结构：
+Each field has a `{type: string, value: ...}` structure:
 ```html
-{{ page.fields.tags.value }}         ← 直接值
-{{ for tag in page.fields.tags.value }}  ← 如果是数组
+{{ page.fields.tags.value }}              ← Direct value
+{{ for tag in page.fields.tags.value }}   ← If it's an array
 ```
 
-### `pages` — 页面列表（仅列表页）
+### `pages` — Page List (list pages only)
 
-仅在 index.html 和 list.html 模板中可用，是 `PageInfo` 对象数组。每个元素有 `title`、`url`、`content`、`summary`、`publish_date`、`fields`。
+Only available in index.html and list.html templates. An array of `PageInfo` objects. Each element has `title`, `url`, `content`, `summary`, `publish_date`, `fields`.
 
-## Layout 继承
+## Layout Inheritance
 
-Bukit 支持自定义 `{% layout %}` 指令（第一行非空行）：
+Bukit supports a custom `{% layout %}` directive (must be the first non-blank line):
 
 ```html
 {% layout "layouts/base.html" %}
@@ -64,14 +72,14 @@ Bukit 支持自定义 `{% layout %}` 指令（第一行非空行）：
 </article>
 ```
 
-- `{% layout %}` 必须是**第一行非空行**
-- 布局模板中 `{{ content }}` 会被替换为子模板的 body
-- 支持嵌套继承（子模板继承父布局，父布局再继承祖布局）
-- 路径相对于 `layouts/` 目录
-- 支持单引号和双引号：`{% layout 'layouts/base.html' %}`
-- `{{ layout "..." }}` 语法同效
+- `{% layout %}` must be the **first non-blank line**
+- `{{ content }}` in the layout template is replaced with the child template's body
+- Nested inheritance is supported (child inherits parent layout, parent inherits grandparent layout)
+- Path relative to `layouts/` directory
+- Supports both single and double quotes: `{% layout 'layouts/base.html' %}`
+- `{{ layout "..." }}` syntax has the same effect
 
-### base.html 典型写法
+### Typical base.html
 
 ```html
 <!DOCTYPE html>
@@ -84,16 +92,16 @@ Bukit 支持自定义 `{% layout %}` 指令（第一行非空行）：
 <body>
   {{ include "partials/header.html" }}
   <main>
-    {{ content }}         ← 子模板内容注入此处
+    {{ content }}         ← Child template content injected here
   </main>
   {{ include "partials/footer.html" }}
 </body>
 </html>
 ```
 
-## 常用模式
+## Common Patterns
 
-### 单页模板 (pages/page.html)
+### Single Page Template (pages/page.html)
 
 ```html
 {% layout "layouts/base.html" %}
@@ -106,7 +114,7 @@ Bukit 支持自定义 `{% layout %}` 指令（第一行非空行）：
 </article>
 ```
 
-### 文章模板 (pages/post.html)
+### Post Template (pages/post.html)
 
 ```html
 {% layout "layouts/base.html" %}
@@ -120,7 +128,7 @@ Bukit 支持自定义 `{% layout %}` 指令（第一行非空行）：
 </article>
 ```
 
-### 首页模板 (pages/index.html)
+### Homepage Template (pages/index.html)
 
 ```html
 {% layout "layouts/base.html" %}
@@ -140,9 +148,9 @@ Bukit 支持自定义 `{% layout %}` 指令（第一行非空行）：
 {{ end }}
 ```
 
-`pages` 数组已按发布时间倒序排列。
+The `pages` array is sorted by publish date in descending order.
 
-### 列表页模板 (pages/list.html)
+### List Page Template (pages/list.html)
 
 ```html
 {% layout "layouts/base.html" %}
@@ -156,26 +164,26 @@ Bukit 支持自定义 `{% layout %}` 指令（第一行非空行）：
 </ul>
 ```
 
-### 分页处理
+### Pagination
 
-分类页、列表页启用分页后，`pages` 仅包含当前页的条目。分页信息通过页面元数据传递，在模板中按需取用。
+When pagination is enabled for taxonomy or list pages, `pages` only contains entries for the current page. Pagination info is passed through page metadata and used as needed in templates.
 
-### 访问自定义字段
+### Accessing Custom Fields
 
 ```html
-<!-- 单值字段 -->
+<!-- Single-value field -->
 {{ page.fields.author.value }}
 
-<!-- 多选/数组 -->
+<!-- Multi-select / array -->
 {{ for tag in page.fields.tags.value }}
   <span class="tag">{{ tag }}</span>
 {{ end }}
 
-<!-- 嵌套对象字段 -->
+<!-- Nested object field -->
 {{ page.fields.seo.value.title }}
 ```
 
-### 条件渲染
+### Conditional Rendering
 
 ```html
 {{ if page.fields.cover.value }}
@@ -185,63 +193,63 @@ Bukit 支持自定义 `{% layout %}` 指令（第一行非空行）：
 {{ end }}
 
 {{ if page.publish_date > date.parse "2024-01-01" }}
-  <span class="badge">新</span>
+  <span class="badge">New</span>
 {{ end }}
 ```
 
-### Include 局部模板
+### Include Partial Templates
 
 ```html
 {{ include "partials/header.html" }}
 {{ include "partials/card.html" }}
 ```
 
-### 多语言条件渲染
+### Multi-Language Conditional Rendering
 
 ```html
 {{ if site.language == "en" }}
   <a href="/en/about/">About</a>
 {{ else }}
-  <a href="/zh-CN/about/">关于</a>
+  <a href="/zh-CN/about/">About</a>
 {{ end }}
 ```
 
-## 内置函数
+## Built-in Functions
 
-Bukit 复用 Scriban 的内置函数，包括：
+Bukit reuses Scriban's built-in functions, including:
 
-| 类别 | 函数 |
+| Category | Functions |
 |------|------|
-| 日期 | `date.now`, `date.parse`, `date.to_string` |
-| 字符串 | `string.downcase`, `string.upcase`, `string.slice` |
-| 数组 | `array.size`, `array.limit`, `array.offset` |
-| 数学 | `math.round`, `math.ceil`, `math.floor` |
-| 类型转换 | `to_string`, `to_int` |
+| Date | `date.now`, `date.parse`, `date.to_string` |
+| String | `string.downcase`, `string.upcase`, `string.slice` |
+| Array | `array.size`, `array.limit`, `array.offset` |
+| Math | `math.round`, `math.ceil`, `math.floor` |
+| Type Conversion | `to_string`, `to_int` |
 
-Bukit 的 Scriban 上下文启用了 `EnableRelaxedMemberAccess`、`EnableRelaxedTargetAccess`、`EnableNullIndexer`，访问不存在的属性返回 null 而不抛错。
+Bukit's Scriban context has `EnableRelaxedMemberAccess`, `EnableRelaxedTargetAccess`, and `EnableNullIndexer` enabled — accessing nonexistent properties returns null rather than throwing errors.
 
-## 模板文件布局约定
+## Template File Layout Convention
 
 ```
 layouts/
-  layouts/      ← 布局模板（base.html, 也可自定义更多）
-  pages/        ← 页面模板（page.html, post.html, index.html, list.html）
-  partials/     ← 局部模板（header.html, footer.html, ...）
+  layouts/      ← Layout templates (base.html, can add more custom layouts)
+  pages/        ← Page templates (page.html, post.html, index.html, list.html)
+  partials/     ← Partial templates (header.html, footer.html, ...)
 ```
 
-模板路径在 site.yaml 集合配置中引用时不带 `layouts/` 前缀。例如 `template: pages/post.html` 解析为 `layouts/pages/post.html`。
+Template paths in site.yaml collection configs are referenced without the `layouts/` prefix. For example, `template: pages/post.html` resolves to `layouts/pages/post.html`.
 
-## 常见错误
+## Common Errors
 
-| 错误现象 | 原因 | 修复 |
+| Symptom | Cause | Fix |
 |---------|------|------|
-| `Template not found: xxx` | 模板路径错误 | 检查 site.yaml 中 template 和 site.collections 模板路径 |
-| `Template parse error` | Scriban 语法错误 | 检查 `{{` `}}` 匹配、表达式语法 |
-| `Render failed` | 渲染时变量访问出错 | 使用 `{{ if xxx }}{{ end }}` 先检查变量存在性 |
-| layout 不生效 | `{% layout %}` 不是第一行非空行 | 确保第一行（不含空白行）就是 `{% layout %}` |
-| `page.content` 为空 | 内容未渲染或 body key 不匹配 | 检查内容源配置 |
-| `site.data` 为空 | 数据模块未正确配置 | 确认 `sources[].mode: data`，检查 `bukit doctor` |
-| `pages` 在非列表页模板中不可用 | `pages` 仅传递给 list/index 模板 | 单页模板用 `page` |
-| 变量输出 HTML 转义 | Scriban 默认转义 | 用 `{{ variable | html.raw }}` |
-| 中文字符乱码 | 模板文件编码问题 | 确保模板文件为 UTF-8（无 BOM） |
-| base_url 路径拼接多余斜杠 | `base_url` 以 `/` 结尾时 URL 出现 `//` | `site.base_url` 为 `/` 时值为空字符串，可直接 `{{ site.base_url }}/xxx` |
+| `Template not found: xxx` | Template path incorrect | Check template and site.collections template paths in site.yaml |
+| `Template parse error` | Scriban syntax error | Check `{{` `}}` matching and expression syntax |
+| `Render failed` | Variable access error during rendering | Use `{{ if xxx }}{{ end }}` to check variable existence first |
+| layout not working | `{% layout %}` is not the first non-blank line | Ensure the first line (excluding blank lines) is `{% layout %}` |
+| `page.content` is empty | Content not rendered or body key mismatch | Check content source config |
+| `site.data` is empty | Data module not correctly configured | Confirm `sources[].mode: data`, check `bukit doctor` |
+| `pages` not available in non-list templates | `pages` is only passed to list/index templates | Use `page` for single page templates |
+| Variable output shows HTML escaped | Scriban defaults to escaping | Use `{{ variable | html.raw }}` |
+| Chinese characters garbled | Template file encoding issue | Ensure template file is UTF-8 (without BOM) |
+| base_url path joins with double slashes | `base_url` ends with `/` causing `//` in URLs | `site.base_url` is empty string when `/`, use `{{ site.base_url }}/xxx` directly |

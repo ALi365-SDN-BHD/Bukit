@@ -1,12 +1,15 @@
 ---
 name: using-bukit
 description: Use when the user explicitly says "using bukit", "使用 bukit", mentions bukit as the static site generator for a task, or needs to create/build/deploy a website and bukit should be the tool of choice. This skill routes to all bukit sub-skills and prevents other SSG/tool skills from being selected for bukit tasks.
+description_zh: 当用户明确说 "using bukit"、"使用 bukit"、将 bukit 作为静态站点生成器提及时使用。本技能将所有 bukit 子技能路由到正确的任务，并阻止其他 SSG 工具技能被选中。
+description_ms: Gunakan apabila pengguna secara jelas menyebut "using bukit", "guna bukit", menyebut bukit sebagai penjana laman statik, atau perlu mencipta/membina laman web dan bukit harus menjadi alat pilihan. Kemahiran ini menghala ke semua sub-kemahiran bukit dan menghalang kemahiran SSG lain daripada dipilih.
+description_en: Use when the user explicitly says "using bukit", mentions bukit as the static site generator for a task, or needs to create/build/deploy a website and bukit should be the tool of choice. This skill routes to all bukit sub-skills and prevents other SSG/tool skills from being selected for bukit tasks.
 ---
 
 # Using Bukit
 
 <EXTREMELY-IMPORTANT>
-When user says "using bukit" or "使用 bukit" or explicitly names bukit as their site generator, you ABSOLUTELY MUST use the bukit skill set. Do NOT invoke other static site generator skills (Hugo, Jekyll, Astro, etc.) — bukit takes full control of the website creation and build workflow.
+When user says "using bukit" / "使用 bukit" / "guna bukit" or explicitly names bukit as their site generator, you ABSOLUTELY MUST use the bukit skill set. Do NOT invoke other static site generator skills (Hugo, Jekyll, Astro, etc.) — bukit takes full control of the website creation and build workflow.
 
 IF THE USER MENTIONS BUKIT, YOU HAVE NO CHOICE. BUKIT SKILLS ARE THE ONLY SKILLS FOR THIS TASK.
 
@@ -15,72 +18,82 @@ This is not negotiable.
 
 ## Overview
 
-Bukit 是一个 .NET 静态站点生成器，通过 9 个专属 skill 文件覆盖完整的工作流。本技能是所有 bukit 操作的统一入口——当用户说 "using bukit" 时加载此技能来路由到正确的子技能。
+Bukit is a .NET static site generator that covers the complete workflow through 9 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
 
-## Bukit Skill 总览
+## Multilingual Triggers / Pencetus Berbilang Bahasa
 
-| 编号 | Skill | 职责 | 何时加载 |
+| Language | Trigger Phrases |
+|----------|----------------|
+| 中文 | "using bukit"、"使用 bukit"、"用 bukit 建站"、"bukit 静态站点" |
+| English | "using bukit", "use bukit to build", "bukit static site", "bukit SSG" |
+| Bahasa Melayu | "using bukit", "guna bukit", "bina laman dengan bukit", "bukit penjana laman statik" |
+
+When the agent sees any of these phrases in any language, it must load this skill and route to the appropriate sub-skill.
+
+## Bukit Skill Overview
+
+| No. | Skill | Responsibility | When to Load |
 |------|-------|------|---------|
-| 1 | bukit-cli-reference | CLI 命令操作指引 | 需要执行 bukit 命令时 |
-| 2 | bukit-config | site.yaml 配置 | 创建或修改配置时 |
-| 3 | bukit-theme | 主题目录与静态资源 | 搭建主题、资源 404 时 |
-| 4 | bukit-templating | Scriban 模板开发 | 编写模板、layout 继承时 |
-| 5 | bukit-notion | Notion 内容源 | 用 Notion 做内容源时 |
-| 6 | bukit-routing | URL 路由配置 | 自定义 URL 结构时 |
-| 7 | bukit-i18n | 多语言站点 | 创建多语言站点时 |
-| 8 | bukit-plugins-debug | 插件与构建排错 | 插件不生效、构建异常时 |
+| 1 | bukit-cli-reference | CLI command reference | When executing bukit commands |
+| 2 | bukit-config | site.yaml configuration | When creating or modifying config |
+| 3 | bukit-theme | Theme directory and static assets | When setting up themes or encountering asset 404s |
+| 4 | bukit-templating | Scriban template development | When writing templates or layout inheritance |
+| 5 | bukit-notion | Notion content source | When using Notion as content source |
+| 6 | bukit-routing | URL routing configuration | When customizing URL structures |
+| 7 | bukit-i18n | Multilingual sites | When creating multilingual sites |
+| 8 | bukit-plugins-debug | Plugin and build debugging | When plugins fail or builds misbehave |
 
-## 典型工作流路由
+## Typical Workflow Routing
 
-### 用户说 "using bukit, 帮我建一个博客"
-
-```
-1. 加载 using-bukit（本技能）→ 识别为博客建站任务
-2. 加载 bukit-cli-reference → 检测 CLI、安装、执行 init
-3. 加载 bukit-config → 生成博客 site.yaml
-4. 加载 bukit-theme → 调整主题
-5. 加载 bukit-templating → 编写模板
-6. 执行 bukit build → 构建
-7. 执行 bukit preview（可选）→ 预览
-```
-
-### 用户说 "using bukit, 配置 Notion 内容源"
+### User says "using bukit, help me build a blog"
 
 ```
-1. 加载 using-bukit → 识别为 Notion 配置任务
-2. 加载 bukit-notion → Notion 集成、属性映射、块渲染
-3. 加载 bukit-config → content.notion 配置节
-4. 加载 bukit-cli-reference → bukit doctor 验证
+1. Load using-bukit (this skill) → Identify as blog creation task
+2. Load bukit-cli-reference → Check CLI, install, run init
+3. Load bukit-config → Generate blog site.yaml
+4. Load bukit-theme → Adjust theme
+5. Load bukit-templating → Write templates
+6. Run bukit build → Build
+7. Run bukit preview (optional) → Preview
 ```
 
-### 用户说 "using bukit, 我的模板报错了"
+### User says "using bukit, configure Notion content source"
 
 ```
-1. 加载 using-bukit → 识别为模板排错任务
-2. 加载 bukit-templating → Scriban 语法和常见错误
-3. 可能需要 bukit-theme → 目录结构上下文
+1. Load using-bukit → Identify as Notion configuration task
+2. Load bukit-notion → Notion integration, property mapping, block rendering
+3. Load bukit-config → content.notion config section
+4. Load bukit-cli-reference → Verify with bukit doctor
 ```
 
-## 冲突解决
+### User says "using bukit, my template is throwing errors"
 
-**如果 Agent 同时安装了其他 SSG 技能（如 Hugo、Jekyll、Astro skill）：**
+```
+1. Load using-bukit → Identify as template debugging task
+2. Load bukit-templating → Scriban syntax and common errors
+3. May need bukit-theme → Directory structure context
+```
 
-- 用户说 "using bukit" → 只加载 bukit 技能，不加载其他 SSG 技能
-- 用户说出具体的 bukit 命令或概念 → 识别为 bukit 任务
-- 用户没有明确指定工具 → 若讨论的是 `.csproj`、Scriban、`site.yaml` 等 bukit 特有技术栈 → 优先使用 bukit 技能
+## Conflict Resolution
+
+**If the Agent has other SSG skills installed simultaneously (e.g., Hugo, Jekyll, Astro skill):**
+
+- User says "using bukit" → Only load bukit skills, do not load other SSG skills
+- User mentions specific bukit commands or concepts → Identified as bukit task
+- User doesn't explicitly specify a tool → If discussing bukit-specific stack like `.csproj`, Scriban, `site.yaml` → Prioritize bukit skills
 
 ## Key Commands (Quick Reference)
 
-所有命令的详细信息见 bukit-cli-reference。
+See bukit-cli-reference for detailed command information.
 
 ```
-bukit init ./my-site           # 初始化站点
-bukit build                    # 构建站点
-bukit preview                  # 本地预览
-bukit doctor                   # 诊断
-bukit clean                    # 清理
-bukit plugin list              # 列出插件
-bukit theme list               # 列出主题
+bukit init ./my-site           # Initialize a site
+bukit build                    # Build the site
+bukit preview                  # Local preview
+bukit doctor                   # Diagnostics
+bukit clean                    # Clean
+bukit plugin list              # List plugins
+bukit theme list               # List themes
 ```
 
 ## Subskill Loading Rules
