@@ -9,7 +9,7 @@
 ## 2. 仓库结构
 
 ```text
-WeBukit
+Bukit
 ├─ src/
 │  ├─ Bukit.Cli/                 # CLI 入口与命令分发
 │  ├─ Bukit.Config/              # site.yaml 解析、默认值、校验、覆盖

@@ -16,7 +16,6 @@
 - 改主题、模板变量、页面 HTML
 - 改 sitemap/rss/search/taxonomy 等输出
 - 改增量构建、跳过渲染、缓存行为
-- 改 AIBuilding 的 AI、桌面流程或与 Bukit 的桥接
 
 找到对应章节后，按以下顺序看：
 
