@@ -1,34 +1,34 @@
-# 生成 site.yaml（仅当你明确要“直接生成配置”时使用）
+# Generate site.yaml (use only when you explicitly want "direct config generation")
 
-把本文件从“用户需求”开始整段复制给 ChatGPT，并按占位符填写。规则：信息不足必须先提问；一旦信息齐全，只输出 YAML（不要输出 ```），字段必须严格对齐 `guide/dev/config-site-yaml.md`。
+Copy this entire file starting from "User Requirements" to ChatGPT, filling in the placeholders. Rule: if information is insufficient, ask questions first; once complete, output only YAML (no ```). Fields must strictly align with `guide/dev/config-site-yaml.md`.
 
-## 用户需求（把占位符替换为你的真实信息）
+## User Requirements (replace placeholders with your real info)
 
-我要用 Bukit v2 建一个静态站点。请先提问补齐缺失信息（不要输出 YAML）。当信息齐全后，请只输出 `site.yaml`（纯 YAML，不要解释），并确保可通过 `bukit doctor --config site.yaml`。
+I want to build a static site using Bukit v2. Please ask questions first to fill in missing info (do not output YAML). When info is complete, output only `site.yaml` (pure YAML, no explanations), ensuring it passes `bukit doctor --config site.yaml`.
 
-需求概述：
-- site.name：{starter}
-- site.title：{My Site}
-- site.baseUrl：{"/" 或 "/my-repo"}
-- site.url（可选，用于 sitemap/rss）：{https://example.com 或留空}
-- 内容源：
-  - 单源：{markdown|notion}
-  - 多源：是否使用 `content.sources[]`：{是/否}；是否需要 Modules（mode=data）：{是/否}
-- 多语言：{是/否}（如果是：languages 列表与 defaultLanguage）
-- 主题：theme.name {alt/...}，theme.params {可选}
+Summary:
+- site.name: {starter}
+- site.title: {My Site}
+- site.baseUrl: {"/" or "/my-repo"}
+- site.url (optional, for sitemap/rss): {https://example.com or leave empty}
+- Content source:
+  - Single: {markdown|notion}
+  - Multi: use `content.sources[]`: {yes/no}; need Modules (mode=data): {yes/no}
+- Multilingual: {yes/no} (if yes: languages list and defaultLanguage)
+- Theme: theme.name {alt/...}, theme.params {optional}
 
-输出要求：
-- 只输出 YAML；不要输出 Markdown 围栏（```）或解释文字
-- 不要发明仓库不存在的字段
-- Notion token 不要出现在配置与对话里，必须来自环境变量 `NOTION_TOKEN`
+Output requirements:
+- Output only YAML; no Markdown fences (```) or explanations
+- Do not invent fields not present in the repo
+- Notion token must not appear in config or conversation; must come from env var `NOTION_TOKEN`
 
-## site.yaml 模板（信息齐全后再填充并输出）
+## site.yaml Template (fill in and output after info is complete)
 
-规则：
-- 单语言：保留 `site.language`，删除 `site.languages` 与 `site.defaultLanguage`
-- 多语言：填写 `site.languages` 与 `site.defaultLanguage`，并把 `site.language` 设为默认语言
-- 单源：使用 `content.provider: markdown|notion` 并保留对应 section
-- 多源/Modules：使用 `content.provider: sources` + `content.sources[]`（见文末片段）
+Rules:
+- Single language: keep `site.language`, delete `site.languages` and `site.defaultLanguage`
+- Multilingual: fill in `site.languages` and `site.defaultLanguage`, set `site.language` to default language
+- Single source: use `content.provider: markdown|notion` with corresponding section
+- Multi-source/Modules: use `content.provider: sources` + `content.sources[]` (see snippet at end)
 
 site:
   name: "{site_name}"
@@ -49,7 +49,7 @@ content:
   notion:
     databaseId: "{database_id}"
     pageSize: 50
-    # 排序与过滤（可选，按需取消注释）
+    # sort/filter (optional, uncomment as needed)
     # sortProperty: "Date"
     # sortDirection: "descending" # ascending | descending
     # filterProperty: "Status"
@@ -73,26 +73,26 @@ theme:
 logging:
   level: info
 
-## content.sources[] 片段（多源 / Modules 用，复制后替换上面的 content）
+## content.sources[] snippet (for multi-source / Modules, replace the content section above)
 
 content:
   provider: sources
   sources:
-    # 1. 页面内容源（生成路由）
+    # 1. Page content source (generates routes)
     - type: markdown
       name: content
       mode: content
       markdown:
         dir: content
         defaultType: page
-    # 2. 结构化数据源（Modules，不生成路由）
+    # 2. Structured data source (Modules, no routes)
     - type: markdown
       name: modules
       mode: data
       markdown:
         dir: data
         defaultType: module
-    # 3. Notion 补充源（示例：作为新闻版块）
+    # 3. Notion supplementary source (example: as news section)
     # - type: notion
     #   name: news
     #   mode: content
