@@ -12,7 +12,7 @@ Jika anda perlukan butiran dalaman, titik pengembangan, atau mahu menyumbang kod
 
 1. [01 Permulaan Pantas](./01-quick-start.ms.md)
 2. [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)
-3. [05 Kandungan Markdown](./05-markdown-content.ms.md)
+3. [05 Kandungan Markdown](./05-markdown-content.md)
 4. [12 Rujukan CLI](./12-cli-reference.ms.md)
 5. [13 Terap GitHub Pages](./13-deploy-github-pages.ms.md)
 
@@ -34,8 +34,17 @@ Jika anda perlukan butiran dalaman, titik pengembangan, atau mahu menyumbang kod
 ### Bina tapak secara perbualan (ChatGPT / GPT rasmi)
 
 1. Prompt Pack: [ai/chatgpt](../ai/chatgpt/README.ms.md)
-2. Kontrak Intent (AI ↔ Bukit): [guide/dev/intent-cli](../dev/intent-cli.md)
+2. Kontrak Intent (AI ↔ Bukit): [guide/dev/intent-cli](../dev/intent-cli.ms.md)
 3. Perintah wajib (`validate/doctor/build`): [12 Rujukan CLI](./12-cli-reference.ms.md)
+
+## Jika Anda Menggunakan Bukit Melalui AI / Agent
+
+Jika anda menggunakan Bukit dalam persekitaran yang menyokong skill seperti Trae, Claude Code, Copilot CLI, Codex CLI, atau Gemini CLI, anggap `src/skills/` sebagai pintu masuk navigasi untuk agent dan direktori ini sebagai panduan operasi untuk pengguna.
+
+- Gambaran keseluruhan agent skills: [`src/skills`](../../src/skills/README.ms.md)
+- Pintu masuk utama: [`using-bukit`](../../src/skills/using-bukit/SKILL.md)
+- Rujukan pelaksanaan arahan: [`bukit-cli-reference`](../../src/skills/bukit-cli-reference/SKILL.md)
+- Panduan pengguna ini masih merangkumi laluan operasi penuh untuk persediaan, konfigurasi, tema, susunan kandungan, deployment, dan penyelesaian masalah
 
 ## Contoh Boleh Jalan Dalam Repositori
 
@@ -51,12 +60,12 @@ Kebanyakan contoh dalam panduan ini mempunyai versi boleh jalan dalam `examples/
 
 Untuk sempadan medan dan kekangan implementasi yang lebih autoritatif, rujuk:
 
-- Tingkah laku CLI: [guide/dev/cli](../dev/cli.md)
-- Kontrak `site.yaml`: [guide/dev/config-site-yaml](../dev/config-site-yaml.md)
-- Pemodelan kandungan: [guide/dev/content](../dev/content.md)
-- Dalaman tema/templat: [guide/dev/theme](../dev/theme.md), [guide/dev/rendering-scriban](../dev/rendering-scriban.md)
-- Peraturan suntikan Modules: [guide/dev/modules-data](../dev/modules-data.md)
-- Output terbina dalam dan plugin: [guide/dev/built-in-plugins](../dev/built-in-plugins.md), [guide/dev/plugins](../dev/plugins.md)
+- Tingkah laku CLI: [guide/dev/cli](../dev/cli.ms.md)
+- Kontrak `site.yaml`: [guide/dev/config-site-yaml](../dev/config-site-yaml.ms.md)
+- Pemodelan kandungan: [guide/dev/content](../dev/content.ms.md)
+- Dalaman tema/templat: [guide/dev/theme](../dev/theme.ms.md), [guide/dev/rendering-scriban](../dev/rendering-scriban.ms.md)
+- Peraturan suntikan Modules: [guide/dev/modules-data](../dev/modules-data.ms.md)
+- Output terbina dalam dan plugin: [guide/dev/built-in-plugins](../dev/built-in-plugins.ms.md), [guide/dev/plugins](../dev/plugins.ms.md)
 
 ## Istilah Pantas
 
@@ -67,4 +76,4 @@ Untuk sempadan medan dan kekangan implementasi yang lebih autoritatif, rujuk:
 - Data Modules: dimuatkan melalui `content.sources[].mode: data`; hanya disuntik ke `site.modules.*`.
 - Output terbina dalam: `sitemap.xml`, `rss.xml`, `search.json`, dan lain-lain.
 
-Sumber penuh bahasa Cina: [README.md](./README.md)
+Sumber penuh bahasa Cina: [README.zh-CN.md](./README.zh-CN.md)

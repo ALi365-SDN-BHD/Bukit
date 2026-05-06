@@ -282,8 +282,8 @@ dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
 
 ### 12.3 CI/CD
 
-- 仓库提供了 Pages workflow 模板样例 [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml)，可直接复制到目标仓库使用。
-- 详细部署指引见 [`publish-deploy.md`](./publish-deploy.md) 与 [`../user/13-部署-GitHub-Pages.md`](../user/13-部署-GitHub-Pages.md)。
+- 仓库提供了 Pages workflow 模板样例 [`.github/workflows/release.yml`](../../.github/workflows/release.yml)，可直接复制到目标仓库使用。
+- 详细部署指引见 [`publish-deploy.md`](./publish-deploy.zh-CN.md) 与 [`../user/13-部署-GitHub-Pages.md`](../user/13-deploy-github-pages.zh-CN.md)。
 
 ## 13. 推荐阅读顺序
 
@@ -301,10 +301,10 @@ dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
 
 ## 14. 进一步文档入口
 
-- 模块调用关系图：[`code-wiki-call-graph.md`](./code-wiki-call-graph.md)
+- 模块调用关系图：[`code-wiki-call-graph.md`](./code-wiki-call-graph.zh-CN.md)
 - 新开发者 30 分钟上手路线：[`new-developer-30min.md`](./new-developer-30min.md)
-- 按改动类型定位源码入口：[`maintainer-entrypoints.md`](./maintainer-entrypoints.md)
-- 项目架构评审意见稿：[`architecture-review.md`](./architecture-review.md)
+- 按改动类型定位源码入口：[`maintainer-entrypoints.md`](./maintainer-entrypoints.zh-CN.md)
+- 项目架构评审意见稿：[`architecture-review.md`](./architecture-review.zh-CN.md)
 - 架构总览：[`architecture.md`](./architecture.md)
 - CLI 说明：[`cli.md`](./cli.md)
 - 配置契约：[`config-site-yaml.md`](./config-site-yaml.md)

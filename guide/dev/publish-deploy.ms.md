@@ -1,4 +1,4 @@
-# Terbit dan Sebarkan
+﻿# Terbit dan Sebarkan
 
 Dua lapisan: 1) Terbitkan CLI bukit; 2) Gunakan bukit untuk membina dan menyebarkan tapak statik.
 
@@ -13,7 +13,7 @@ Keutamaan direktori output `bukit build`:
 **Non-AOT**: `dotnet publish src/Bukit.Cli -c Release -o out/bukit`
 
 ## Penyahgunaan GitHub Pages
-Templat aliran kerja: [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml)
+Templat aliran kerja: [`.github/workflows/release.yml`](../../.github/workflows/release.yml)
 
 ### Peraturan baseUrl
 - Tapak pengguna/org (`owner.github.io`): `baseUrl=/`
@@ -26,3 +26,4 @@ Selagi `build.output` diterbitkan sebagai akar statik. Tetapkan `site.baseUrl` u
 1. Halaman 404 selepas penyahgunaan: Semak baseUrl
 2. Pautan sitemap/rss salah: Semak `site.url`/`--site-url`
 3. Plugin berfungsi setempat tetapi tidak selepas terbit: AOT melumpuhkan pemuatan plugin DLL luaran
+

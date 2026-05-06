@@ -12,8 +12,18 @@ A static website engine designed around the "notes as CMS" workflow. Content can
 
 - User guide: [`guide/user`](guide/user/README.md)
 - Developer guide: [`guide/dev`](guide/dev/README.md)
+- Agent skills: [`src/skills`](src/skills/README.md)
 - Governance notes: [`guide/dev/perf-aot-governance.md`](guide/dev/perf-aot-governance.md)
 - Full Chinese reference: [`README.zh-CN.md`](README.zh-CN.md)
+
+## Agent Skills
+
+`src/skills/` is the agent-facing Bukit knowledge layer, not a runtime source directory. It splits site creation, command execution, configuration, theming, templating, Notion integration, routing, i18n, and debugging into focused `SKILL.md` files so an agent can load the right context for Bukit work.
+
+- Unified entry: [`using-bukit`](src/skills/using-bukit/SKILL.md)
+- Command source of truth: [`bukit-cli-reference`](src/skills/bukit-cli-reference/SKILL.md)
+- Full navigation: [`src/skills/README.md`](src/skills/README.md)
+- Coverage: CLI, `site.yaml`, theme, Scriban templates, Notion, routing, i18n, plugins, and debugging
 
 ## Quick Start (using the example site in this repo)
 
@@ -76,8 +86,8 @@ dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yam
 
 ## GitHub Actions + GitHub Pages
 
-A workflow template is provided at [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
-Copy it to your repository and customize as needed. See [`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md) for detailed guidance.
+A workflow template is provided at [`.github/workflows/release.yml`](.github/workflows/release.yml).
+Copy it to your repository and customize as needed. See [`guide/user/13-deploy-github-pages.md`](guide/user/13-deploy-github-pages.md) for detailed guidance.
 
 Typical setup:
 

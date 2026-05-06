@@ -1,10 +1,10 @@
-# Built-in Plugins (BuiltIn) Artifacts and Boundaries
+﻿# Built-in Plugins (BuiltIn) Artifacts and Boundaries
 
 This page describes the "output contracts" of built-in plugins (what files/pages are generated, what config they depend on, how they behave under multilingual settings).
 
 Implementation directory: `src/Bukit.Engine/Plugins/BuiltIn/`
 
-Related docs: [Plugin System](./plugins.md), [i18n & SEO](./i18n-seo.md), [Engine Fixed Outputs](./engine-outputs.md)
+Related docs: [Plugin System](./plugins.md), [i18n & SEO](./i18n-seo.md), [Engine Fixed Outputs](./engine-outputs.zh-CN.md)
 
 ## sitemap (IAfterBuildPlugin)
 
@@ -37,9 +37,10 @@ File: `SearchIndexPlugin.cs`
 File: `TaxonomyPlugin.cs`
 
 Derives pages from `meta.tags` / `meta.categories`:
-- `/tags/` → `tags/index.html`
-- `/tags/<slug>/` → `tags/<slug>/index.html`
-- `/categories/` → `categories/index.html`
-- `/categories/<slug>/` → `categories/<slug>/index.html`
+- `/tags/` 鈫?`tags/index.html`
+- `/tags/<slug>/` 鈫?`tags/<slug>/index.html`
+- `/categories/` 鈫?`categories/index.html`
+- `/categories/<slug>/` 鈫?`categories/<slug>/index.html`
 
 Template: default `pages/page.html`, configurable via `taxonomy.template`/`taxonomy.indexTemplate`/`taxonomy.termTemplate`
+

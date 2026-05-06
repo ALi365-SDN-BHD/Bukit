@@ -34,4 +34,4 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config site.yaml --clea
 - Untuk kandungan Notion: tetapkan `NOTION_TOKEN` sebagai pemboleh ubah persekitaran (jangan tampal ke dalam chat).
 - Untuk sublaluan GitHub Pages: `site.baseUrl` mesti bermula dengan `/`, contohnya `/my-repo`; laluan root menggunakan `/`.
 
-Sumber penuh bahasa Cina: [README.md](./README.md)
+Sumber penuh bahasa Cina: [README.zh-CN.md](./README.zh-CN.md)

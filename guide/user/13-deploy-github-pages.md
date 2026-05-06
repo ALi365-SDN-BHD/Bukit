@@ -1,8 +1,8 @@
-# 13 Deploying to GitHub Pages: Minimal Config, baseUrl & Common 404s
+﻿# 13 Deploying to GitHub Pages: Minimal Config, baseUrl & Common 404s
 
 This page is aimed at "ordinary user deployment." The goal is to help you stably publish build output to GitHub Pages and clearly explain the most common 404/resource path issues.
 
-The repository provides a Pages workflow template sample [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml), which you can copy directly into your own repository, or follow the steps in this article to create your own.
+The repository provides a Pages workflow template sample [`.github/workflows/release.yml`](../../.github/workflows/release.yml), which you can copy directly into your own repository, or follow the steps in this article to create your own.
 
 ## What You Will Get
 
@@ -13,7 +13,7 @@ The repository provides a Pages workflow template sample [`.github/workflows/pag
 
 ## Step 1: Enable GitHub Pages (Repository Settings)
 
-1. GitHub repository Settings → Pages
+1. GitHub repository Settings 鈫?Pages
 2. Under Build and deployment, select "GitHub Actions"
 
 ## Step 2: Prepare the Workflow (Create pages.yml in Your Repository)
@@ -78,7 +78,7 @@ If your build outputs to `_site`, the upload path should also be `_site`:
 
 If you use the Notion provider, you need to inject `NOTION_TOKEN` in the workflow. Recommended approach:
 
-1. GitHub repository Settings → Secrets and variables → Actions
+1. GitHub repository Settings 鈫?Secrets and variables 鈫?Actions
 2. Create a new Secret: `NOTION_TOKEN`
 3. Inject the environment variable in the workflow build step:
 
@@ -137,3 +137,4 @@ Fix:
 
 - Pass `--site-url` in the build command (the workflow already auto-derives it)
 - Or write the correct `site.url` in `site.yaml`
+

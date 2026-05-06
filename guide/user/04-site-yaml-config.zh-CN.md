@@ -71,7 +71,7 @@ logging:
 | `site.rssMode` | rss 输出模式 | `merged` / `split` |
 | `site.searchMode` | search 输出模式 | `merged` / `split` / `index` |
 
-这些模式怎么选见：[11-多语言与SEO](./11-多语言与SEO.md)。
+这些模式怎么选见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md)。
 
 ### site：自动摘要（可选）
 
@@ -157,7 +157,7 @@ content:
 | `content.markdown.includePaths` | 只读取指定路径 | 相对 `content.markdown.dir`；可省略 `.md` |
 | `content.markdown.includeGlobs` | 只读取匹配的 glob | 匹配相对路径，分隔符使用 `/` |
 
-Markdown 内容写法见：[05-内容-Markdown](./05-内容-Markdown.md)。
+Markdown 内容写法见：[05-内容-Markdown](./05-markdown-content.zh-CN.md)。
 
 #### provider=notion
 
@@ -194,7 +194,7 @@ Notion 模式的前提：
 
 - 必须设置环境变量 `NOTION_TOKEN`（严禁写进仓库文件）
 
-详细见：[06-内容-Notion](./06-内容-Notion.md)。
+详细见：[06-内容-Notion](./06-notion-content.zh-CN.md)。
 
 #### provider=sources（多源组合，支持 mode=data）
 
@@ -219,7 +219,7 @@ content:
 关键点：
 
 - `mode: content` 的源会生成路由与页面
-- `mode: data` 的源不会生成路由，会注入 `site.modules`（详见：[09-Modules-结构化数据](./09-Modules-结构化数据.md)）
+- `mode: data` 的源不会生成路由，会注入 `site.modules`（详见：[09-Modules-结构化数据](./09-modules-data.zh-CN.md)）
 - 当 `mode: data` 的 source 配置为 `name: categories`（或 `name: tags`）时，会被用于 taxonomy：即使某个分类/标签当前没有任何文章引用，也会生成对应的空聚合页，避免点击后 404。
 
 ### build：输出目录与构建策略
@@ -277,7 +277,7 @@ theme:
   static: static
 ```
 
-主题与模板变量见：[08-主题与模板](./08-主题与模板.md)。
+主题与模板变量见：[08-主题与模板](./08-themes-templates.zh-CN.md)。
 
 ### logging：日志等级（一般不用频繁改）
 
@@ -286,7 +286,7 @@ logging:
   level: info
 ```
 
-CI 场景下建议配合 `--log-format json`，便于收集与排查（见：[12-命令行参考](./12-命令行参考.md)）。
+CI 场景下建议配合 `--log-format json`，便于收集与排查（见：[12-命令行参考](./12-cli-reference.zh-CN.md)）。
 
 ## 常见配置场景（可直接抄）
 

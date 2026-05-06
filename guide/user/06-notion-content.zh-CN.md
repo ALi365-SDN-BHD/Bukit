@@ -25,7 +25,7 @@ Windows PowerShell（当前会话）示例：
 $env:NOTION_TOKEN="secret_xxx"
 ```
 
-GitHub Actions 里建议用仓库 Secrets（见：[13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)）。
+GitHub Actions 里建议用仓库 Secrets（见：[13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)）。
 
 ### 2）Notion 集成（Integration）需要访问你的数据库
 

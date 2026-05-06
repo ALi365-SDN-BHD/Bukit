@@ -62,7 +62,7 @@ theme:
 - `site`：站点信息与全局数据（`site.title/site.baseUrl/site.modules...`）
 - `page`：当前页面/文章的信息（`page.title/page.slug/page.contentHtml/page.fields...`）
 - `pages`：列表页里的页面集合（常见于首页、博客列表、页面列表）
-- `paginator`（如果你的主题/页面有分页）：分页信息（见：[10-内置功能与输出](./10-内置功能与输出.md)）
+- `paginator`（如果你的主题/页面有分页）：分页信息（见：[10-内置功能与输出](./10-built-in-features.zh-CN.md)）
 
 ### 1）读取站点信息
 
@@ -114,7 +114,7 @@ theme:
 {{ end }}
 ```
 
-Modules 的数据建模与示例见：[09-Modules-结构化数据](./09-Modules-结构化数据.md)。
+Modules 的数据建模与示例见：[09-Modules-结构化数据](./09-modules-data.zh-CN.md)。
 
 ### 5）按 pageId 查页面详情（site.data.pages_by_id）
 
@@ -175,11 +175,11 @@ Notion relation 补全（可选）：
 
 - `layouts/layouts/base.html`
 
-SEO 相关建议见：[11-多语言与SEO](./11-多语言与SEO.md) 与示例主题 `seo-best-practice`。
+SEO 相关建议见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md) 与示例主题 `seo-best-practice`。
 
 ## 常见错误与修复
 
 - 模板文件缺失：构建时报“找不到模板/布局” → 检查 `theme.name` 是否存在、目录结构是否完整
-- CSS/资源 404：多见于 `site.baseUrl` 配错或模板里没拼上 baseUrl（见：[13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)）
+- CSS/资源 404：多见于 `site.baseUrl` 配错或模板里没拼上 baseUrl（见：[13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)）
 - 字段为空：模板读取 `page.fields.xxx` 但内容没提供该字段 → 在内容里补字段或加 `if` 保护
 - 列表页里 `p.content` 为空：不一定是内容没加载，可能是 `build.listPageContentMode` 为 `never`，或当前主题没有声明该列表模板需要正文

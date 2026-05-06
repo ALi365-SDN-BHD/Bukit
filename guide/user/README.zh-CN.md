@@ -33,9 +33,18 @@
 
 ### 对话式建站（ChatGPT / 官方 GPT）
 
-1. Prompt Pack（可复制粘贴模板）：[ai/chatgpt](../ai/chatgpt/README.md)
-2. Intent 契约（AI ↔ Bukit）：[guide/dev/intent-cli](../dev/intent-cli.md)
+1. Prompt Pack（可复制粘贴模板）：[ai/chatgpt](../ai/chatgpt/README.zh-CN.md)
+2. Intent 契约（AI ↔ Bukit）：[guide/dev/intent-cli](../dev/intent-cli.zh-CN.md)
 3. 必用命令（validate/doctor/build）：[12-命令行参考](./12-cli-reference.zh-CN.md)
+
+## 如果你通过 AI / Agent 使用 Bukit
+
+如果你是在 Trae、Claude Code、Copilot CLI、Codex CLI、Gemini CLI 这类支持 skill 的环境里使用 Bukit，建议把 `src/skills/` 当作 Agent 侧导航入口，而把本目录当作用户操作说明。
+
+- Agent skills 总览：[`src/skills`](../../src/skills/README.zh-CN.md)
+- 统一入口：[`using-bukit`](../../src/skills/using-bukit/SKILL.md)
+- 命令执行：[`bukit-cli-reference`](../../src/skills/bukit-cli-reference/SKILL.md)
+- 用户文档仍然负责：安装、配置、主题、内容组织、部署与排障的完整操作路径
 
 ## 目录导航
 
@@ -72,14 +81,14 @@
 
 | 主题 | 用户文档 | 开发者文档 |
 |---|---|---|
-| CLI 参数与覆盖关系 | [12-命令行参考](./12-cli-reference.zh-CN.md) | [guide/dev/cli](../dev/cli.md) |
-| site.yaml 字段与校验 | [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md) | [guide/dev/config-site-yaml](../dev/config-site-yaml.md) |
-| 内容模型与字段归一化 | [05-内容-Markdown](./05-markdown-content.zh-CN.md)、[06-内容-Notion](./06-notion-content.zh-CN.md)、[07-内容-多源-sources](./07-multi-source.zh-CN.md) | [guide/dev/content](../dev/content.md) |
-| 主题目录约定与模板模型 | [08-主题与模板](./08-themes-templates.zh-CN.md) | [guide/dev/theme](../dev/theme.md)、[guide/dev/rendering-scriban](../dev/rendering-scriban.md) |
-| Modules（mode=data）注入规则 | [09-Modules-结构化数据](./09-modules-data.zh-CN.md) | [guide/dev/modules-data](../dev/modules-data.md) |
-| sitemap/rss/search 与派生页 | [10-内置功能与输出](./10-built-in-features.zh-CN.md) | [guide/dev/built-in-plugins](../dev/built-in-plugins.md)、[guide/dev/plugins](../dev/plugins.md) |
-| 多语言与 SEO 输出细节 | [11-多语言与SEO](./11-i18n-seo.zh-CN.md) | [guide/dev/i18n-seo](../dev/i18n-seo.md) |
-| 缓存/增量构建与清理 | [14-故障排查](./14-troubleshooting.zh-CN.md) | [guide/dev/incremental-build](../dev/incremental-build.md)、[guide/dev/cache-clean](../dev/cache-clean.md) |
+| CLI 参数与覆盖关系 | [12-命令行参考](./12-cli-reference.zh-CN.md) | [guide/dev/cli](../dev/cli.zh-CN.md) |
+| site.yaml 字段与校验 | [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md) | [guide/dev/config-site-yaml](../dev/config-site-yaml.zh-CN.md) |
+| 内容模型与字段归一化 | [05-内容-Markdown](./05-markdown-content.zh-CN.md)、[06-内容-Notion](./06-notion-content.zh-CN.md)、[07-内容-多源-sources](./07-multi-source.zh-CN.md) | [guide/dev/content](../dev/content.zh-CN.md) |
+| 主题目录约定与模板模型 | [08-主题与模板](./08-themes-templates.zh-CN.md) | [guide/dev/theme](../dev/theme.zh-CN.md)、[guide/dev/rendering-scriban](../dev/rendering-scriban.zh-CN.md) |
+| Modules（mode=data）注入规则 | [09-Modules-结构化数据](./09-modules-data.zh-CN.md) | [guide/dev/modules-data](../dev/modules-data.zh-CN.md) |
+| sitemap/rss/search 与派生页 | [10-内置功能与输出](./10-built-in-features.zh-CN.md) | [guide/dev/built-in-plugins](../dev/built-in-plugins.zh-CN.md)、[guide/dev/plugins](../dev/plugins.zh-CN.md) |
+| 多语言与 SEO 输出细节 | [11-多语言与SEO](./11-i18n-seo.zh-CN.md) | [guide/dev/i18n-seo](../dev/i18n-seo.zh-CN.md) |
+| 缓存/增量构建与清理 | [14-故障排查](./14-troubleshooting.zh-CN.md) | [guide/dev/incremental-build](../dev/incremental-build.zh-CN.md)、[guide/dev/cache-clean](../dev/cache-clean.zh-CN.md) |
 
 ## 术语速览（用 1 分钟对齐）
 

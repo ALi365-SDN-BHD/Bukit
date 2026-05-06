@@ -1,4 +1,4 @@
-# Publish and Deploy
+﻿# Publish and Deploy
 
 Two layers: 1) Publish the bukit CLI (optional AOT); 2) Use bukit to build and deploy static sites.
 
@@ -25,7 +25,7 @@ dotnet publish src/Bukit.Cli -c Release -o out/bukit
 
 ## GitHub Pages Deployment
 
-Template workflow: [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml)
+Template workflow: [`.github/workflows/release.yml`](../../.github/workflows/release.yml)
 
 Key: auto-compute `BASE_URL` and `SITE_URL`, then `bukit build --base-url "$BASE_URL" --site-url "$SITE_URL"`.
 
@@ -42,3 +42,4 @@ As long as `build.output` is published as the static root. Set `site.baseUrl` fo
 1. Pages 404 after deployment: Check baseUrl
 2. Incorrect sitemap/rss links: Check `site.url`/`--site-url`
 3. Plugin works locally but not after publish: AOT disables external DLL plugin loading
+

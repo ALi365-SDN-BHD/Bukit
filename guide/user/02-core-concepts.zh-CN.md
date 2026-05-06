@@ -33,7 +33,7 @@ site.yaml
 - `theme.*`：主题目录与参数（模板/资源/静态文件）
 - `logging.*`：日志等级
 
-详细字段见：[04-配置-site-yaml](./04-配置-site-yaml.md)。
+详细字段见：[04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)。
 
 ## 内容（ContentItem）= 一条“会被渲染/注入模板”的数据
 
@@ -70,11 +70,11 @@ site.yaml
 </title>
 ```
 
-Notion 模式下字段是否进入 `page.fields` 由 `fieldPolicy` 控制（见：[06-内容-Notion](./06-内容-Notion.md)）。
+Notion 模式下字段是否进入 `page.fields` 由 `fieldPolicy` 控制（见：[06-内容-Notion](./06-notion-content.zh-CN.md)）。
 
 ## 路由：一条内容会变成哪个 URL？
 
-推荐方式：通过 `site.collections` 为每个集合定义 permalink、template 和 listRoute（详见：[04-配置-site-yaml](./04-配置-site-yaml.md)）。
+推荐方式：通过 `site.collections` 为每个集合定义 permalink、template 和 listRoute（详见：[04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)）。
 
 兼容层说明（当未配置 site.collections 或内容项缺少 collection 时生效）：
 
@@ -87,7 +87,7 @@ Notion 模式下字段是否进入 `page.fields` 由 `fieldPolicy` 控制（见�
 - 在内容的 meta 中指定 `collection` 对应集合 key（推荐）
 - 改 `slug`：改变路径的一段
 - 改 `type`：改变兼容层行为的类型归属
-- 用 `route/url/outputPath` 覆盖：更强，但更容易配错（详见：[03-项目目录与约定](./03-项目目录与约定.md) 与 [14-故障排查](./14-故障排查.md)）
+- 用 `route/url/outputPath` 覆盖：更强，但更容易配错（详见：[03-项目目录与约定](./03-project-structure.zh-CN.md) 与 [14-故障排查](./14-troubleshooting.zh-CN.md)）
 
 ## 主题与模板：页面长什么样
 
@@ -97,7 +97,7 @@ Notion 模式下字段是否进入 `page.fields` 由 `fieldPolicy` 控制（见�
 - assets：构建时拷贝到输出目录的资源（例如 CSS）
 - static：原样拷贝的静态文件（例如 robots.txt、图片）
 
-你可以切换主题、覆盖参数、以及在模板里读取 `site.* / page.* / site.modules.*`（见：[08-主题与模板](./08-主题与模板.md)）。
+你可以切换主题、覆盖参数、以及在模板里读取 `site.* / page.* / site.modules.*`（见：[08-主题与模板](./08-themes-templates.zh-CN.md)）。
 
 ## Plugins：构建后生成额外文件（sitemap/rss/search 等）
 
@@ -113,7 +113,7 @@ Notion 模式下字段是否进入 `page.fields` 由 `fieldPolicy` 控制（见�
 - 你能用 `site.sitemapMode/rssMode/searchMode` 控制多语言输出模式
 - 你能用 `site.pluginFailMode` 决定插件失败是否中断构建
 
-详见：[10-内置功能与输出](./10-内置功能与输出.md) 与 [11-多语言与SEO](./11-多语言与SEO.md)。
+详见：[10-内置功能与输出](./10-built-in-features.zh-CN.md) 与 [11-多语言与SEO](./11-i18n-seo.zh-CN.md)。
 
 ## Modules：不生成路由，只给模板“提供数据”
 
@@ -123,4 +123,4 @@ Modules 用于企业官网/落地页非常常见的“结构化内容块”：
 
 它们来自 `content.sources[].mode: data`，不会成为独立页面，而是被分组注入到 `site.modules.<type>[]`，供首页/栏目页模板渲染。
 
-详见：[09-Modules-结构化数据](./09-Modules-结构化数据.md)。
+详见：[09-Modules-结构化数据](./09-modules-data.zh-CN.md)。

@@ -1,6 +1,6 @@
-# 01 Permulaan Pantas: Dari Sifar ke Pratonton (10 Minit)
+﻿# 01 Permulaan Pantas: Dari Sifar ke Pratonton (10 Minit)
 
-Halaman ini membimbing anda melalui saluran lengkap menggunakan pendekatan "salin-tampal": mulakan tapak → tulis kandungan → bina → pratonton setempat → sediakan untuk penerapan.
+Halaman ini membimbing anda melalui saluran lengkap menggunakan pendekatan "salin-tampal": mulakan tapak 鈫?tulis kandungan 鈫?bina 鈫?pratonton setempat 鈫?sediakan untuk penerapan.
 
 ## Apa yang Anda Akan Dapat
 
@@ -27,7 +27,7 @@ dotnet build bukit.slnx -c Release
 dotnet run --project src/Bukit.Cli -c Release -- doctor --config examples/starter/site.yaml
 ```
 
-Jika doctor melaporkan ralat, semak dahulu: [14 Penyelesaian Masalah](./14-troubleshooting.ms.md) (dan versi pembangun panduan doctor: [guide/dev/doctor](../dev/doctor.md)).
+Jika doctor melaporkan ralat, semak dahulu: [14 Penyelesaian Masalah](./14-troubleshooting.ms.md) (dan versi pembangun panduan doctor: [guide/dev/doctor](../dev/doctor.ms.md)).
 
 ### 2) Bina Tapak (build)
 
@@ -43,7 +43,7 @@ Output binaan dihantar ke `build.output` dalam konfigurasi contoh (lalai: `examp
 dotnet run --project src/Bukit.Cli -c Release -- preview --dir examples/starter/dist --port auto
 ```
 
-Konsol akan mencetak URL setempat — buka dalam pelayar anda.
+Konsol akan mencetak URL setempat 鈥?buka dalam pelayar anda.
 
 ## Laluan B: Cipta Tapak Anda Sendiri (Mod Markdown)
 
@@ -94,7 +94,7 @@ logging:
   level: info
 ```
 
-> **Disyorkan: Gunakan site.collections untuk mentakrifkan penghalaan dan templat** Konfigurasi di atas bergantung pada lapisan keserasian post/page untuk penghalaan (page → `/pages/`, post → `/blog/`). Untuk projek baharu, kami mengesyorkan mengisytiharkan collections secara eksplisit (lihat [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)). Contoh:
+> **Disyorkan: Gunakan site.collections untuk mentakrifkan penghalaan dan templat** Konfigurasi di atas bergantung pada lapisan keserasian post/page untuk penghalaan (page 鈫?`/pages/`, post 鈫?`/blog/`). Untuk projek baharu, kami mengesyorkan mengisytiharkan collections secara eksplisit (lihat [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)). Contoh:
 >
 > ```yaml
 > site:
@@ -144,9 +144,10 @@ dotnet run --project ../src/Bukit.Cli -c Release -- preview --dir dist --port au
 
 ## Langkah Seterusnya (mengikut Jenis Tapak)
 
-- Menulis kandungan (Markdown): [05 Kandungan Markdown](./05-markdown-content.ms.md)
+- Menulis kandungan (Markdown): [05 Kandungan Markdown](./05-markdown-content.md)
 - Menggunakan Notion: [06 Kandungan Notion](./06-notion-content.ms.md)
 - Komposisi pelbagai sumber (pages/posts/modules): [07 Pelbagai Sumber](./07-multi-source.ms.md)
 - Modul tapak syarikat (Modules): [09 Modul Data Berstruktur](./09-modules-data.ms.md)
 - Pelbagai bahasa & SEO: [11 Pelbagai Bahasa & SEO](./11-i18n-seo.ms.md)
 - Menerapkan ke GitHub Pages: [13 Terap GitHub Pages](./13-deploy-github-pages.ms.md)
+

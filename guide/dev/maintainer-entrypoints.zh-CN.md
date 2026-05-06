@@ -309,8 +309,8 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter
 ## 10. 推荐搭配阅读
 
 - 仓库总览：[`code-wiki.md`](./code-wiki.md)
-- 模块调用关系图：[`code-wiki-call-graph.md`](./code-wiki-call-graph.md)
-- 新开发者路线：[`new-developer-30min.md`](./new-developer-30min.md)
+- 模块调用关系图：[`code-wiki-call-graph.md`](./code-wiki-call-graph.zh-CN.md)
+- 新开发者路线：[`new-developer-30min.md`](./new-developer-30min.zh-CN.md)
 - 架构边界：[`architecture.md`](./architecture.md)
 - 插件体系：[`plugins.md`](./plugins.md)
 

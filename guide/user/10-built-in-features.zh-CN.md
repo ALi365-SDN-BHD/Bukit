@@ -39,7 +39,7 @@ Bukit 在生成页面 HTML 之外，还会根据内容与配置生成一组“�
 - 没设 `site.url`：sitemap 里可能生成相对或错误的绝对链接
 - baseUrl 配错：sitemap 里的 URL 带错前缀，搜索引擎抓取失败
 
-部署相关详见：[13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)。
+部署相关详见：[13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)。
 
 ## rss.xml：订阅源（博客/更新日志）
 
@@ -79,9 +79,9 @@ search.json 通常是“每个页面的标题/摘要/URL”的列表，供前端
 - 在内容里标注 `pinned: true`（可选 `pinOrder` 数字，数字越小越靠前）
 - 配置项：`taxonomy.pinField` / `taxonomy.pinOrderField`（多数据源可用 `pinFieldBySource` / `pinOrderFieldBySource` 做字段名映射）
 
-Markdown 示例（tags/categories）见：[05-内容-Markdown](./05-内容-Markdown.md)。
+Markdown 示例（tags/categories）见：[05-内容-Markdown](./05-markdown-content.zh-CN.md)。
 
-Notion 示例见：[06-内容-Notion](./06-内容-Notion.md) 的模拟数据表。
+Notion 示例见：[06-内容-Notion](./06-notion-content.zh-CN.md) 的模拟数据表。
 
 ## 派生页：tags/categories/分页/归档是什么
 
@@ -115,4 +115,4 @@ site:
 - `merged`：聚合成一份（通常在根目录输出一份）
 - `index`：根目录输出索引文件，指向各语言文件
 
-如何选择见：[11-多语言与SEO](./11-多语言与SEO.md)。
+如何选择见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md)。

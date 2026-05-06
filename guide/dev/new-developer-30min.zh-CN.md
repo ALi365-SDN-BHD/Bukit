@@ -286,7 +286,7 @@ pwsh ./scripts/smoke.ps1
 ## 11. 配套文档
 
 - 仓库代码总览：[`code-wiki.md`](./code-wiki.md)
-- 模块调用关系图：[`code-wiki-call-graph.md`](./code-wiki-call-graph.md)
+- 模块调用关系图：[`code-wiki-call-graph.md`](./code-wiki-call-graph.zh-CN.md)
 - 架构边界：[`architecture.md`](./architecture.md)
 
 ## 12. 一句话总结

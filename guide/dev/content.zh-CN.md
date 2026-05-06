@@ -25,7 +25,7 @@ ContentItem 是引擎的统一输入模型，包含：
 - `type`：`post` / `page`（兼容层；当未配置 collection 或 collection 未命中时用于默认路由与模板）
 - `draft`：草稿标记（见下方"草稿过滤"一节）
 - `language`：多语言过滤（内容项的语言归属）
-- `route` 或 `url/outputPath/template`：路由覆盖（见 [路由](./routing.md)）
+- `route` 或 `url/outputPath/template`：路由覆盖（见 [路由](./routing.zh-CN.md)）
 - `source` / `sourcePath` / `notionPageId`：来源信息
 - `sourceMode`：当启用 sources 时，用于区分 `content` / `data`
 
@@ -164,7 +164,7 @@ content:
 
 mode 的语义：
 - `content`：参与路由生成与页面渲染
-- `data`：不生成路由；会被引擎分组、排序后注入 `site.modules`（见 [Modules](./modules-data.md)）
+- `data`：不生成路由；会被引擎分组、排序后注入 `site.modules`（见 [Modules](./modules-data.zh-CN.md)）
 
 ### sources 模式下自动注入的 meta 字段
 
@@ -242,6 +242,6 @@ Notion `files` 类型属性支持多文件：
 
 ## 相关专题
 
-- Notion 字段与配置约定：[config-site-yaml.md](./config-site-yaml.md)
-- 企业官网内容建模（Pages/Posts/Modules）：[modules-data.md](./modules-data.md)
+- Notion 字段与配置约定：[config-site-yaml.md](./config-site-yaml.zh-CN.md)
+- 企业官网内容建模（Pages/Posts/Modules）：[modules-data.md](./modules-data.zh-CN.md)
 - AI 建站（与内容模型结合）：[chatgpt/README.zh-CN.md](../ai/chatgpt/README.zh-CN.md)、[intent-cli.md](./intent-cli.md)

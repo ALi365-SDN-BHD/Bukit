@@ -12,8 +12,18 @@ Enjin tapak statik berasaskan aliran kerja "nota sebagai CMS". Kandungan boleh d
 
 - Panduan pengguna: [`guide/user`](guide/user/README.ms.md)
 - Panduan pembangun: [`guide/dev`](guide/dev/README.ms.md)
+- Navigasi agent skills: [`src/skills`](src/skills/README.ms.md)
 - Nota tadbir urus: [`guide/dev/perf-aot-governance.md`](guide/dev/perf-aot-governance.md)
 - Rujukan penuh dalam bahasa Cina: [`README.zh-CN.md`](README.zh-CN.md)
+
+## Agent Skills
+
+`src/skills/` ialah lapisan pengetahuan Bukit untuk AI Agent, bukan direktori kod runtime. Ia memecahkan kerja pembinaan tapak, pelaksanaan arahan, konfigurasi, tema, templating, integrasi Notion, routing, i18n, dan debugging kepada beberapa fail `SKILL.md` supaya agent boleh memuatkan konteks yang betul untuk tugasan Bukit.
+
+- Pintu masuk utama: [`using-bukit`](src/skills/using-bukit/SKILL.md)
+- Sumber arahan tunggal: [`bukit-cli-reference`](src/skills/bukit-cli-reference/SKILL.md)
+- Navigasi penuh: [`src/skills/README.ms.md`](src/skills/README.ms.md)
+- Skop: CLI, `site.yaml`, tema, templat Scriban, Notion, routing, i18n, plugin, dan debugging
 
 ## Mula Pantas (guna contoh tapak dalam repositori ini)
 
@@ -76,8 +86,8 @@ dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yam
 
 ## GitHub Actions + GitHub Pages
 
-Templat aliran kerja disediakan di [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
-Salin ke repositori anda dan ubah suai mengikut keperluan. Lihat [`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md) untuk panduan terperinci.
+Templat aliran kerja disediakan di [`.github/workflows/release.yml`](.github/workflows/release.yml).
+Salin ke repositori anda dan ubah suai mengikut keperluan. Lihat [`guide/user/13-deploy-github-pages.ms.md`](guide/user/13-deploy-github-pages.ms.md) untuk panduan terperinci.
 
 Langkah biasa:
 

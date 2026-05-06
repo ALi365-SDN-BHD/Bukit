@@ -1,12 +1,12 @@
-# 13 Menyahgunakan ke GitHub Pages: Konfigurasi Minimum, baseUrl & 404 Lazim
+﻿# 13 Menyahgunakan ke GitHub Pages: Konfigurasi Minimum, baseUrl & 404 Lazim
 
 Halaman ini bertujuan untuk "penyahgunaan pengguna biasa." Matlamatnya adalah untuk membantu anda menerbitkan output binaan secara stabil ke GitHub Pages dan menerangkan dengan jelas isu 404/laluan sumber yang paling lazim.
 
-Repositori ini menyediakan contoh templat aliran kerja Pages [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml).
+Repositori ini menyediakan contoh templat aliran kerja Pages [`.github/workflows/release.yml`](../../.github/workflows/release.yml).
 
 ## Langkah 1: Dayakan GitHub Pages
 
-1. GitHub repositori Settings → Pages
+1. GitHub repositori Settings 鈫?Pages
 2. Di bawah Build and deployment, pilih "GitHub Actions"
 
 ## Langkah 2: Sediakan Aliran Kerja
@@ -62,3 +62,4 @@ Semak: GitHub Pages didayakan; `path` menunjuk ke output sebenar; `index.html` d
 
 ### 3) URL dalam sitemap/rss salah
 Pembaikan: Hantar `--site-url` atau tetapkan `site.url`.
+

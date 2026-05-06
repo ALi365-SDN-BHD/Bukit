@@ -1,4 +1,4 @@
-# 14 Troubleshooting: Doctor First, Diagnose by Symptom
+﻿# 14 Troubleshooting: Doctor First, Diagnose by Symptom
 
 When you encounter a problem, do not guess first. Follow this order for diagnosis:
 
@@ -6,7 +6,7 @@ When you encounter a problem, do not guess first. Follow this order for diagnosi
 2. `build --clean` (eliminate incremental cache effects)
 3. Compare against `examples/starter/` (find a "working baseline")
 
-Developer-oriented troubleshooting docs: [guide/dev/doctor](../dev/doctor.md), [guide/dev/cache-clean](../dev/cache-clean.md).
+Developer-oriented troubleshooting docs: [guide/dev/doctor](../dev/doctor.zh-CN.md), [guide/dev/cache-clean](../dev/cache-clean.zh-CN.md).
 
 ## Quick Command Reference
 
@@ -128,3 +128,4 @@ Diagnosis checklist:
 - Does the theme template read `site.modules` (compare against example themes)?
 
 See: [09 Modules Structured Data](./09-modules-data.md).
+

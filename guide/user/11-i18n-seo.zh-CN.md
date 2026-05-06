@@ -56,7 +56,7 @@ language: en-US
 
 在数据库里新增字段 `language`（建议 select 或 rich_text），值填 `zh-CN`/`en-US`，它会被提升为 meta 供引擎过滤。
 
-Notion 细节见：[06-内容-Notion](./06-内容-Notion.md)。
+Notion 细节见：[06-内容-Notion](./06-notion-content.zh-CN.md)。
 
 ## URL 结构：多语言站点会输出到哪里
 

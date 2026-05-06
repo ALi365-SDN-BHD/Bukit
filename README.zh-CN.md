@@ -12,7 +12,17 @@
 
 - 普通用户使用文档：[`guide/user`](guide/user/README.zh-CN.md)
 - 开发者/维护者文档：[`guide/dev`](guide/dev/README.zh-CN.md)
+- Agent Skills 导航：[`src/skills`](src/skills/README.zh-CN.md)
 - 本轮治理补充说明：[`guide/dev/perf-aot-governance.md`](guide/dev/perf-aot-governance.md)
+
+## Agent Skills
+
+`src/skills/` 是 Bukit 面向 AI Agent 的知识层，不是运行时代码目录。这里把建站、命令执行、配置、主题、模板、Notion、路由、多语言和插件排障拆成一组可组合的 `SKILL.md` 文件，便于 Agent 在 Bukit 任务中快速选对上下文。
+
+- 统一入口：[`using-bukit`](src/skills/using-bukit/SKILL.md)
+- 命令单一来源：[`bukit-cli-reference`](src/skills/bukit-cli-reference/SKILL.md)
+- 详细导航：[`src/skills/README.zh-CN.md`](src/skills/README.zh-CN.md)
+- 覆盖范围：CLI / `site.yaml` / 主题 / Scriban 模板 / Notion / 路由 / i18n / 插件与调试
 
 ## 快速开始（使用仓库内示例站点）
 
@@ -244,8 +254,8 @@ v2 的字段模板与 schema 说明见：
 
 ## GitHub Actions + GitHub Pages
 
-仓库提供了 Pages workflow 模板样例 [`.github/workflows/pages.yml`](.github/workflows/pages.yml)，可直接复制到自己的仓库使用。
-详细指引见：[`guide/user/13-部署-GitHub-Pages.md`](guide/user/13-部署-GitHub-Pages.md)。
+仓库提供了 Pages workflow 模板样例 [`.github/workflows/release.yml`](.github/workflows/release.yml)，可直接复制到自己的仓库使用。
+详细指引见：[`guide/user/13-deploy-github-pages.zh-CN.md`](guide/user/13-deploy-github-pages.zh-CN.md)。
 
 要启用部署：
 

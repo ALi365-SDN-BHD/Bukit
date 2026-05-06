@@ -26,7 +26,7 @@ If you need internals, extension points, or contribution details, read the devel
 
 ### Company website / landing page (Modules data)
 
-1. [07 Multi-Source](./07-multi-source.md)
+1. [07 Multi-Source (Chinese)](./07-multi-source.zh-CN.md)
 2. [09 Modules Structured Data](./09-modules-data.md)
 3. [08 Themes & Templates](./08-themes-templates.md)
 4. [15 Recipes](./15-recipes.md)
@@ -36,6 +36,15 @@ If you need internals, extension points, or contribution details, read the devel
 1. Prompt Pack: [ai/chatgpt](../ai/chatgpt/README.md)
 2. Intent contract (AI ↔ Bukit): [guide/dev/intent-cli](../dev/intent-cli.md)
 3. Required commands (`validate/doctor/build`): [12 CLI Reference](./12-cli-reference.md)
+
+## If You Use Bukit Through AI / Agents
+
+If you use Bukit in a skill-aware environment such as Trae, Claude Code, Copilot CLI, Codex CLI, or Gemini CLI, treat `src/skills/` as the agent-facing navigation entry and this directory as the user-facing operating guide.
+
+- Agent skills overview: [`src/skills`](../../src/skills/README.md)
+- Unified entry: [`using-bukit`](../../src/skills/using-bukit/SKILL.md)
+- Command execution reference: [`bukit-cli-reference`](../../src/skills/bukit-cli-reference/SKILL.md)
+- This user guide still covers the complete operational path for setup, configuration, theming, content organization, deployment, and troubleshooting
 
 ## Where to Find Runnable Examples
 
@@ -67,4 +76,4 @@ For authoritative field boundaries and implementation constraints, cross-check:
 - Modules data: loaded with `content.sources[].mode: data`; injected to `site.modules.*` only.
 - Built-in outputs: `sitemap.xml`, `rss.xml`, `search.json`, etc.
 
-Full Chinese source: [README.md](./README.md)
+Full Chinese source: [README.zh-CN.md](./README.zh-CN.md)

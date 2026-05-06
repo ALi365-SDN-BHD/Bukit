@@ -8,11 +8,11 @@
 本页把两者的最佳实践、关键参数（baseUrl/siteUrl）与 CI 配置收敛成一份稳定说明。
 
 相关文档：
-- [CLI](./cli.md)
+- [CLI](./cli.zh-CN.md)
 - [配置（site.yaml）字段参考](./config-site-yaml.md)
-- [AOT 与非 AOT 构建模式](./aot.md)
-- [多语言与 SEO](./i18n-seo.md)
-- [Webhook](./webhook.md)
+- [AOT 与非 AOT 构建模式](./aot.zh-CN.md)
+- [多语言与 SEO](./i18n-seo.zh-CN.md)
+- [Webhook](./webhook.zh-CN.md)
 
 ## 产物是什么
 
@@ -32,7 +32,7 @@
 - 非 AOT：依赖 .NET Runtime 的产物（适合开发/可调试）
 - AOT：原生单文件可执行（适合发布部署）
 
-两种模式的行为差异见：[aot.md](./aot.md)。
+两种模式的行为差异见：[aot.md](./aot.zh-CN.md)。
 
 ## 本地发布 bukit CLI（用于部署机/CI）
 
@@ -48,7 +48,7 @@ dotnet publish src/Bukit.Cli -c Release -r linux-x64 -o out/bukit /p:PublishAot=
 
 说明：
 - `-r` 必须指定 RID（例如 linux-x64/win-x64/osx-x64）
-- AOT 模式下 external 插件加载（`plugins/*.dll`）不会启用（见 [aot.md](./aot.md)）
+- AOT 模式下 external 插件加载（`plugins/*.dll`）不会启用（见 [aot.md](./aot.zh-CN.md)）
 
 ### 非 AOT 发布
 
@@ -64,7 +64,7 @@ dotnet publish src/Bukit.Cli -c Release -o out/bukit
 
 ## 部署到 GitHub Pages（推荐路径）
 
-仓库提供了 Pages workflow 模板样例 [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml)。
+仓库提供了 Pages workflow 模板样例 [`.github/workflows/release.yml`](../../.github/workflows/release.yml)。
 你可以直接复制到自己的仓库使用，或参考本节步骤自行创建。
 
 建议的 workflow 做三件关键事：
@@ -94,7 +94,7 @@ GitHub Pages 常见两种 URL 形态：
 
 你在自建 CI 时也应遵循同样的规则。
 
-更多与 sitemap/rss/search 的模式关系见：[i18n-seo.md](./i18n-seo.md)。
+更多与 sitemap/rss/search 的模式关系见：[i18n-seo.md](./i18n-seo.zh-CN.md)。
 
 ## 部署到其他静态托管（Nginx / OSS / Netlify / Vercel）
 
@@ -110,8 +110,8 @@ GitHub Pages 常见两种 URL 形态：
 ## Webhook 触发部署（Notion 更新自动触发）
 
 如果你使用 `bukit webhook` 把 Notion webhook 转为 GitHub `repository_dispatch`，可参考：
-- [Webhook](./webhook.md)
-- 你自建的 workflow（例如 `.github/workflows/pages.yml`）
+- [Webhook](./webhook.zh-CN.md)
+- 你自建的 workflow（例如 `.github/workflows/release.yml`）
 
 ## 常见问题
 
@@ -120,4 +120,4 @@ GitHub Pages 常见两种 URL 形态：
 2. sitemap/rss 链接不对
    - 确认 `site.url` 或 `--site-url` 指向最终公网 URL
 3. 插件本地可用，发布后不可用
-   - 检查是否使用了 AOT 发布；AOT 下不支持 external 插件扫描加载（见 [aot.md](./aot.md)）
+   - 检查是否使用了 AOT 发布；AOT 下不支持 external 插件扫描加载（见 [aot.md](./aot.zh-CN.md)）

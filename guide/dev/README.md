@@ -1,6 +1,6 @@
-# Bukit Developer Guide (Maintenance and Extension)
+﻿# Bukit Developer Guide (Maintenance and Extension)
 
-Language versions: English (current) | [简体中文](./README.zh-CN.md) | [Bahasa Melayu](./README.ms.md)
+Language versions: English (current) | [绠€浣撲腑鏂嘳(./README.zh-CN.md) | [Bahasa Melayu](./README.ms.md)
 
 This directory is for maintainers and contributors. It explains stable contracts (configuration/parameters/data models) and implementation details (pipeline/incremental build/plugin loading) for safe and fast iteration.
 
@@ -8,7 +8,16 @@ This directory is for maintainers and contributors. It explains stable contracts
 
 1. Run the example site first (see [CLI](./cli.md)).
 2. Understand `site.yaml` fields and validations (see [Config](./config-site-yaml.md)).
-3. Learn the end-to-end flow: Config → Content → Routing → Rendering → Plugins → Output (see [Architecture](./architecture.md)).
+3. Learn the end-to-end flow: Config 鈫?Content 鈫?Routing 鈫?Rendering 鈫?Plugins 鈫?Output (see [Architecture](./architecture.md)).
+
+## If You Maintain Bukit Through AI / Agents
+
+If you maintain Bukit in a skill-aware environment such as Trae, Claude Code, Copilot CLI, Codex CLI, or Gemini CLI, use `src/skills/` as the agent-facing Bukit navigation layer and this directory as the maintainer-facing contract and implementation reference.
+
+- Agent skills overview: [`src/skills`](../../src/skills/README.md)
+- Unified entry: [`using-bukit`](../../src/skills/using-bukit/SKILL.md)
+- Command execution reference: [`bukit-cli-reference`](../../src/skills/bukit-cli-reference/SKILL.md)
+- This maintainer guide remains the source for architecture, configuration contracts, rendering internals, plugins, observability, testing, and operational governance
 
 ## Navigation
 
@@ -27,7 +36,7 @@ This directory is for maintainers and contributors. It explains stable contracts
 - [Rendering and templates (Scriban)](./rendering-scriban.md)
 - [Theme development](./theme.md)
 - [Modules data source (`mode=data`)](./modules-data.md)
-- [Engine fixed outputs](./engine-outputs.md)
+- [Engine fixed outputs (Chinese)](./engine-outputs.zh-CN.md)
 - [Plugin system](./plugins.md)
 - [Built-in plugin outputs and boundaries](./built-in-plugins.md)
 - [Intent CLI integration](./intent-cli.md)
@@ -35,8 +44,8 @@ This directory is for maintainers and contributors. It explains stable contracts
 - [Performance/AOT/governance notes](./perf-aot-governance.md)
 - [Publish and deploy](./publish-deploy.md)
 - [Incremental build](./incremental-build.md)
-- [Cache and clean](./cache-clean.md)
-- [Doctor checks](./doctor.md)
+- [Cache and clean (Chinese)](./cache-clean.zh-CN.md)
+- [Doctor checks (Chinese)](./doctor.zh-CN.md)
 - [Observability (logs and metrics)](./observability.md)
 - [I18n and SEO](./i18n-seo.md)
 - [Webhook trigger and security constraints](./webhook.md)
@@ -61,4 +70,5 @@ Common entries:
 - `mode=content` vs `mode=data`: content creates routes/pages; data injects into `site.modules`.
 - Plugins: two lifecycle hooks (`derive-pages`, `after-build`).
 
-Full Chinese source: [README.md](./README.md)
+Full Chinese source: [README.zh-CN.md](./README.zh-CN.md)
+

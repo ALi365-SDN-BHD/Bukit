@@ -1,41 +1,41 @@
-# init/create（脚手架初始化）
+﻿# init/create锛堣剼鎵嬫灦鍒濆鍖栵級
 
-`bukit init <dir>`（也可用同义命令 `create <dir>`）用于创建一个最小可运行站点工程：包含 `site.yaml`、内容目录、以及一个可用主题（layouts/assets/static 与必需模板）。
+`bukit init <dir>`锛堜篃鍙敤鍚屼箟鍛戒护 `create <dir>`锛夌敤浜庡垱寤轰竴涓渶灏忓彲杩愯绔欑偣宸ョ▼锛氬寘鍚?`site.yaml`銆佸唴瀹圭洰褰曘€佷互鍙婁竴涓彲鐢ㄤ富棰橈紙layouts/assets/static 涓庡繀闇€妯℃澘锛夈€?
 
-实现参考：`src/Bukit.Cli/Commands/InitCommand.cs`
+瀹炵幇鍙傝€冿細`src/Bukit.Cli/Commands/InitCommand.cs`
 
-相关文档：
-- [命令行（CLI）参数参考](./cli.md)
-- [配置（site.yaml）字段参考](./config-site-yaml.md)
-- [主题开发](./theme.md)
-- [doctor](./doctor.md)
+鐩稿叧鏂囨。锛?
+- [鍛戒护琛岋紙CLI锛夊弬鏁板弬鑰僝(./cli.md)
+- [閰嶇疆锛坰ite.yaml锛夊瓧娈靛弬鑰僝(./config-site-yaml.zh-CN.md)
+- [涓婚寮€鍙慮(./theme.zh-CN.md)
+- [doctor](./doctor.zh-CN.md)
 
-## 基本用法
+## 鍩烘湰鐢ㄦ硶
 
 ```bash
 bukit init my-site
 ```
 
-同义命令：
+鍚屼箟鍛戒护锛?
 
 ```bash
 bukit create my-site
 ```
 
-## 参数
+## 鍙傛暟
 
-当前脚手架支持两类参数：
+褰撳墠鑴氭墜鏋舵敮鎸佷袱绫诲弬鏁帮細
 
-- `--provider <markdown|notion>`（默认 markdown）
-- `--template <name>`（默认 minimal；当前版本仅写入配置，不影响文件生成）
+- `--provider <markdown|notion>`锛堥粯璁?markdown锛?
+- `--template <name>`锛堥粯璁?minimal锛涘綋鍓嶇増鏈粎鍐欏叆閰嶇疆锛屼笉褰卞搷鏂囦欢鐢熸垚锛?
 
-说明：
-- `--provider notion` 会生成 Notion 模式的 `site.yaml`，但 `databaseId` 需要你自行填写
-- 本命令不会触碰当前目录以外的文件，只会在目标目录下创建/覆盖脚手架文件
+璇存槑锛?
+- `--provider notion` 浼氱敓鎴?Notion 妯″紡鐨?`site.yaml`锛屼絾 `databaseId` 闇€瑕佷綘鑷濉啓
+- 鏈懡浠や笉浼氳Е纰板綋鍓嶇洰褰曚互澶栫殑鏂囦欢锛屽彧浼氬湪鐩爣鐩綍涓嬪垱寤?瑕嗙洊鑴氭墜鏋舵枃浠?
 
-## 生成的目录结构
+## 鐢熸垚鐨勭洰褰曠粨鏋?
 
-执行后，目标目录会生成如下结构（省略部分文件）：
+鎵ц鍚庯紝鐩爣鐩綍浼氱敓鎴愬涓嬬粨鏋勶紙鐪佺暐閮ㄥ垎鏂囦欢锛夛細
 
 ```text
 <dir>/
@@ -62,55 +62,57 @@ bukit create my-site
           footer.html
 ```
 
-对应关系：
-- `site.yaml` 中默认写入 `theme.name: starter`，并保留 `layouts/assets/static` 为默认值（见 [主题开发](./theme.md)）
-- `hello-world.md` 默认作为 `type: page` 的内容页渲染。新项目建议在 site.yaml 中配置 `site.collections`（生成器默认已包含），使路由由 collection 规则驱动（路由规则见 [routing](./routing.md)）
-- 主题模板满足 `doctor` 的必需模板清单（见 [doctor](./doctor.md)）
+瀵瑰簲鍏崇郴锛?
+- `site.yaml` 涓粯璁ゅ啓鍏?`theme.name: starter`锛屽苟淇濈暀 `layouts/assets/static` 涓洪粯璁ゅ€硷紙瑙?[涓婚寮€鍙慮(./theme.zh-CN.md)锛?
+- `hello-world.md` 榛樿浣滀负 `type: page` 鐨勫唴瀹归〉娓叉煋銆傛柊椤圭洰寤鸿鍦?site.yaml 涓厤缃?`site.collections`锛堢敓鎴愬櫒榛樿宸插寘鍚級锛屼娇璺敱鐢?collection 瑙勫垯椹卞姩锛堣矾鐢辫鍒欒 [routing](./routing.zh-CN.md)锛?
+- 涓婚妯℃澘婊¤冻 `doctor` 鐨勫繀闇€妯℃澘娓呭崟锛堣 [doctor](./doctor.zh-CN.md)锛?
 
-## 生成的关键文件说明
+## 鐢熸垚鐨勫叧閿枃浠惰鏄?
 
 ### 1) .gitignore
 
-脚手架默认忽略：
-- `dist/`：构建输出目录
-- `.bukit/`：历史缓存目录（当前清理/缓存主目录是 `.cache/`，见 [缓存与清理](./cache-clean.md)）
+鑴氭墜鏋堕粯璁ゅ拷鐣ワ細
+- `dist/`锛氭瀯寤鸿緭鍑虹洰褰?
+- `.bukit/`锛氬巻鍙茬紦瀛樼洰褰曪紙褰撳墠娓呯悊/缂撳瓨涓荤洰褰曟槸 `.cache/`锛岃 [缂撳瓨涓庢竻鐞哴(./cache-clean.md)锛?
 
-注意：如果你希望默认忽略 `.cache/`，应在新站点的 `.gitignore` 里手动加上（或后续调整脚手架实现）。
+娉ㄦ剰锛氬鏋滀綘甯屾湜榛樿蹇界暐 `.cache/`锛屽簲鍦ㄦ柊绔欑偣鐨?`.gitignore` 閲屾墜鍔ㄥ姞涓婏紙鎴栧悗缁皟鏁磋剼鎵嬫灦瀹炵幇锛夈€?
 
 ### 2) site.yaml
 
-Markdown 模式下的关键字段：
+Markdown 妯″紡涓嬬殑鍏抽敭瀛楁锛?
 - `content.provider: markdown`
 - `content.markdown.dir: content`
 - `theme.name: starter`
 - `build.output: dist`
 
-Notion 模式下的关键字段：
+Notion 妯″紡涓嬬殑鍏抽敭瀛楁锛?
 - `content.provider: notion`
-- `content.notion.databaseId: xxxxx`（占位）
+- `content.notion.databaseId: xxxxx`锛堝崰浣嶏級
 
-字段含义与默认值详见：[config-site-yaml.md](./config-site-yaml.md)。
+瀛楁鍚箟涓庨粯璁ゅ€艰瑙侊細[config-site-yaml.md](./config-site-yaml.zh-CN.md)銆?
 
-### 3) starter 主题
+### 3) starter 涓婚
 
-starter 主题是“最小可运行主题”，包含：
-- `layouts/layouts/base.html`：基础 layout（引用 `site.base_url` 拼接资源）
+starter 涓婚鏄€滄渶灏忓彲杩愯涓婚鈥濓紝鍖呭惈锛?
+- `layouts/layouts/base.html`锛氬熀纭€ layout锛堝紩鐢?`site.base_url` 鎷兼帴璧勬簮锛?
 - `partials/header.html` / `partials/footer.html`
 - `pages/page.html` / `pages/post.html` / `pages/index.html` / `pages/list.html`
 - `assets/style.css`
 
-主题如何使用 `theme.params`、如何扩展 modules 等高级用法见：[theme.md](./theme.md)。
+涓婚濡備綍浣跨敤 `theme.params`銆佸浣曟墿灞?modules 绛夐珮绾х敤娉曡锛歔theme.md](./theme.zh-CN.md)銆?
 
-## 建议的验证流程
+## 寤鸿鐨勯獙璇佹祦绋?
 
-在目标目录内：
+鍦ㄧ洰鏍囩洰褰曞唴锛?
 
-1. `bukit doctor` 确认配置与模板健全
-2. `bukit build --clean` 生成站点
-3. `bukit preview --dir dist` 本地预览
+1. `bukit doctor` 纭閰嶇疆涓庢ā鏉垮仴鍏?
+2. `bukit build --clean` 鐢熸垚绔欑偣
+3. `bukit preview --dir dist` 鏈湴棰勮
 
-## 已知限制与改进点
+## 宸茬煡闄愬埗涓庢敼杩涚偣
 
-- `--template` 目前只影响写入配置的 templateName（暂未驱动不同文件模板生成）
-- `.gitignore` 目前默认忽略 `.bukit/`，但引擎默认缓存目录为 `.cache/`（见 [缓存与清理](./cache-clean.md)）
+- `--template` 鐩墠鍙奖鍝嶅啓鍏ラ厤缃殑 templateName锛堟殏鏈┍鍔ㄤ笉鍚屾枃浠舵ā鏉跨敓鎴愶級
+- `.gitignore` 鐩墠榛樿蹇界暐 `.bukit/`锛屼絾寮曟搸榛樿缂撳瓨鐩綍涓?`.cache/`锛堣 [缂撳瓨涓庢竻鐞哴(./cache-clean.md)锛?
+
+
 

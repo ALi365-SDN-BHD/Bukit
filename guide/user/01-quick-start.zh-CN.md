@@ -27,7 +27,7 @@ dotnet build bukit.slnx -c Release
 dotnet run --project src/Bukit.Cli -c Release -- doctor --config examples/starter/site.yaml
 ```
 
-如果 doctor 报错，优先看：[14-故障排查](./14-troubleshooting.zh-CN.md)（以及开发者版 doctor 说明：[guide/dev/doctor](../dev/doctor.md)）。
+如果 doctor 报错，优先看：[14-故障排查](./14-troubleshooting.zh-CN.md)（以及开发者版 doctor 说明：[guide/dev/doctor](../dev/doctor.zh-CN.md)）。
 
 ### 2）构建站点（build）
 

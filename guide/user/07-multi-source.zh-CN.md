@@ -72,7 +72,7 @@ content:
 - `data/faq-main.md`
 - `data/nav-home.md`
 
-详见：[09-Modules-结构化数据](./09-Modules-结构化数据.md)。
+详见：[09-Modules-结构化数据](./09-modules-data.zh-CN.md)。
 
 > 如果希望精确控制路由，可在 site.yaml 中添加：
 > ```yaml
@@ -133,7 +133,7 @@ content:
 注意：
 
 - 三个数据库都需要同一个 `NOTION_TOKEN` 能访问（或者拆仓库/拆工作流）
-- modules 数据库里应该有 `type/order/locale/enabled` 等字段（见：[09-Modules-结构化数据](./09-Modules-结构化数据.md)）
+- modules 数据库里应该有 `type/order/locale/enabled` 等字段（见：[09-Modules-结构化数据](./09-modules-data.zh-CN.md)）
 
 > 建议在 site.yaml 中声明 site.collections（例如 `blog`、`docs`），并在每个 Notion 数据库的 Collection 字段中填写对应的 key。这样引擎可以精确匹配路由规则，而不依赖 type 兼容回退。
 
@@ -189,4 +189,4 @@ content:
 
 - source 的 `mode` 是 `data`
 - modules 内容项里有 `type`（用于分组到 `site.modules.<type>`）
-- 主题模板确实在读取 `site.modules`（见：[08-主题与模板](./08-主题与模板.md)）
+- 主题模板确实在读取 `site.modules`（见：[08-主题与模板](./08-themes-templates.zh-CN.md)）

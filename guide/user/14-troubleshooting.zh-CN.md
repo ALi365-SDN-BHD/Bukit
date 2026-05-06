@@ -6,7 +6,7 @@
 2. `build --clean`（排除增量缓存影响）
 3. 对照 `examples/starter/`（找“能跑的基准”）
 
-开发者版排障文档见：[guide/dev/doctor](../dev/doctor.md)、[guide/dev/cache-clean](../dev/cache-clean.md)。
+开发者版排障文档见：[guide/dev/doctor](../dev/doctor.zh-CN.md)、[guide/dev/cache-clean](../dev/cache-clean.zh-CN.md)。
 
 ## 快速命令清单
 
@@ -26,7 +26,7 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 修复：
 
 - 本地：设置环境变量 `NOTION_TOKEN`
-- CI：用 GitHub Actions Secrets 注入（见：[13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)）
+- CI：用 GitHub Actions Secrets 注入（见：[13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)）
 
 ### B）路径不存在（content/theme/build output）
 
@@ -35,7 +35,7 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 修复清单：
 
 - 确认目录真实存在
-- 确认你理解“相对路径基准”（相对 `site.yaml` 所在目录），见：[03-项目目录与约定](./03-项目目录与约定.md)
+- 确认你理解“相对路径基准”（相对 `site.yaml` 所在目录），见：[03-项目目录与约定](./03-project-structure.zh-CN.md)
 - 如果你用 `--config path/to/site.yaml`，确保对应目录也在那个配置目录下
 
 ### C）字段类型写错（YAML 结构不符合）
@@ -48,7 +48,7 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 修复：
 
 - 先对照 `examples/starter/site.yaml`、`examples/starter/site.i18n.yaml`
-- 再按 [04-配置-site-yaml](./04-配置-site-yaml.md) 修正
+- 再按 [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md) 修正
 
 ## 现象 2：build 成功，但页面不见了 / URL 不对
 
@@ -70,7 +70,7 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 - 给每条内容补 `language`
 - 检查语言值是否完全一致（`en-US` 不要写成 `en`）
 
-详见：[11-多语言与SEO](./11-多语言与SEO.md)。
+详见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md)。
 
 ## 现象 3：部署后 404（本地 preview 正常）
 
@@ -86,7 +86,7 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 - 项目仓库必须设置 `baseUrl: /<repo>`
 - 构建时建议用 CLI 覆盖：`--base-url /<repo> --site-url https://<owner>.github.io/<repo>`
 
-详见：[13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)。
+详见：[13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)。
 
 ### B）上传目录错了
 
@@ -127,4 +127,4 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 - 模块数据是否包含 `type`（决定分组键）
 - 主题模板是否读取了 `site.modules`（对照示例主题）
 
-详见：[09-Modules-结构化数据](./09-Modules-结构化数据.md)。
+详见：[09-Modules-结构化数据](./09-modules-data.zh-CN.md)。

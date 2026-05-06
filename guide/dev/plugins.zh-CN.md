@@ -52,7 +52,7 @@
 3. external：运行时加载 `plugins/*.dll`（非 AOT 模式才启用）
 4. external-protocol：通过 `stdin/stdout + JSON` 调用的外部协议插件（AOT 兼容）
 
-关于 AOT 与非 AOT 的行为差异（尤其是 external 插件加载在 AOT 下不可用），见 [AOT 与非 AOT 构建模式](./aot.md)。
+关于 AOT 与非 AOT 的行为差异（尤其是 external 插件加载在 AOT 下不可用），见 [AOT 与非 AOT 构建模式](./aot.zh-CN.md)。
 
 ### generated（编译期发现规则）
 
@@ -116,7 +116,7 @@ site:
 
 说明：
 - 具体输出策略与文件名以各插件实现为准：`src/Bukit.Engine/Plugins/BuiltIn/*`
-- 输出契约与多语言边界的汇总见 [内置插件（BuiltIn）产物与边界](./built-in-plugins.md)。
+- 输出契约与多语言边界的汇总见 [内置插件（BuiltIn）产物与边界](./built-in-plugins.zh-CN.md)。
 
 ## 插件开发建议（契约优先）
 

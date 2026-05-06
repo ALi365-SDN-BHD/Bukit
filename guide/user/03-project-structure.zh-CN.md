@@ -131,7 +131,7 @@ themes/
 
 ### type（page / post）— 兼容层
 
-> 推荐优先使用 `site.collections` 定义内容集合与路由规则（见 [04-配置-site-yaml](./04-配置-site-yaml.md)）。
+> 推荐优先使用 `site.collections` 定义内容集合与路由规则（见 [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)）。
 
 当未配置 collections 时，引擎使用 type 字段作为兼容回退：
 
@@ -147,7 +147,7 @@ themes/
 - Markdown：在 Front Matter 写 `language: zh-CN` / `language: en-US`
 - Notion：增加字段 `language`（会提升到 meta）
 
-多语言输出与 SEO 见：[11-多语言与SEO](./11-多语言与SEO.md)。
+多语言输出与 SEO 见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md)。
 
 ## 高级：路由覆盖字段（谨慎使用）
 
@@ -163,4 +163,4 @@ themes/
 - sitemap/rss/search 里链接不正确
 - GitHub Pages 出现 404（baseUrl/路径不一致）
 
-建议优先通过 `slug/type` 解决，确需覆盖时再查：[14-故障排查](./14-故障排查.md)。
+建议优先通过 `slug/type` 解决，确需覆盖时再查：[14-故障排查](./14-troubleshooting.zh-CN.md)。

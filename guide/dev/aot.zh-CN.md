@@ -33,7 +33,7 @@
 - 当前支持 `runtime: process|wasm`，并支持 `after-build|derive-pages`
 - 推荐策略：默认保持 `process`，对第三方或低信任插件优先使用 `wasm`，并按插件粒度灰度启用
 
-协议说明见：[external-plugin-protocol.md](./external-plugin-protocol.md)
+协议说明见：[external-plugin-protocol.md](./external-plugin-protocol.zh-CN.md)
 
 ## AOT 下的自定义插件方式
 

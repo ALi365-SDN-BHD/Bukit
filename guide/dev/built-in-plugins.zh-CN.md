@@ -5,9 +5,9 @@
 内置插件实现目录：`src/Bukit.Engine/Plugins/BuiltIn/`
 
 相关文档：
-- [插件体系](./plugins.md)
-- [多语言与 SEO](./i18n-seo.md)
-- [引擎固定产物](./engine-outputs.md)
+- [插件体系](./plugins.zh-CN.md)
+- [多语言与 SEO](./i18n-seo.zh-CN.md)
+- [引擎固定产物](./engine-outputs.zh-CN.md)
 
 ## sitemap（IAfterBuildPlugin）
 

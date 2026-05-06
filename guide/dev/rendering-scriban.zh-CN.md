@@ -45,7 +45,7 @@ theme:
 | `site.base_url` | baseUrl | 当 baseUrl 为 `/` 时会注入空字符串 |
 | `site.language` | 当前语言 | 多语言变体构建时会变化 |
 | `site.params` | `theme.params` | 可为空 |
-| `site.modules` | data 模块分组 | 见 [Modules](./modules-data.md) |
+| `site.modules` | data 模块分组 | 见 [Modules](./modules-data.zh-CN.md) |
 | `site.data` | 插件注入的全局数据 | 由插件通过 PluginContext.Data 写入；如 pages-index 插件注入 `site.data.pages_by_id` |
 
 ### page

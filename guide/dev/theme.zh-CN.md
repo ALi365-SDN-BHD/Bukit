@@ -118,7 +118,7 @@ templates:
 
 `examples/starter/layouts/pages/` 现在已经提供了这 4 个 starter 级示例模板，可直接作为自定义主题的起点。
 
-完整说明见：[template-capabilities.md](./template-capabilities.md)。
+完整说明见：[template-capabilities.md](./template-capabilities.zh-CN.md)。
 
 ## Layout 与 include 机制
 

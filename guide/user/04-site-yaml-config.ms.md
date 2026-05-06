@@ -1,4 +1,4 @@
-# 04 Konfigurasi (site.yaml): Penerangan Medan, Lalai & Corak Lazim
+﻿# 04 Konfigurasi (site.yaml): Penerangan Medan, Lalai & Corak Lazim
 
 `site.yaml` adalah "panel kawalan" tapak anda. Fikirkannya sebagai mentakrifkan: **dari mana kandungan datang, ke mana ia dioutputkan, tema mana yang digunakan, dan fail tambahan apa yang dijana**.
 
@@ -157,7 +157,7 @@ content:
 | `content.markdown.includePaths` | Hanya baca laluan yang ditentukan | Relatif kepada `content.markdown.dir`; `.md` boleh ditinggalkan |
 | `content.markdown.includeGlobs` | Hanya baca glob yang sepadan | Sepadan dengan laluan relatif, pemisah ialah `/` |
 
-Pengarangan kandungan Markdown: [05 Kandungan Markdown](./05-markdown-content.ms.md).
+Pengarangan kandungan Markdown: [05 Kandungan Markdown](./05-markdown-content.md).
 
 #### provider=notion
 
@@ -326,3 +326,4 @@ Lihat contoh: `examples/starter/site.modules.yaml` dan `examples/starter/data/*.
 - `site.baseUrl` salah konfigurasi: sumber GitHub Pages 404 selepas dibuka (laluan CSS/JS/imej salah)
 - Asas laluan relatif disalahfahami: `dir: content` bukan relatif kepada direktori kerja CLI, tetapi relatif kepada direktori yang mengandungi `site.yaml`
 - Token Notion ditulis ke dalam YAML: tidak dibenarkan dan tidak selamat, mesti menggunakan pembolehubah persekitaran `NOTION_TOKEN`
+

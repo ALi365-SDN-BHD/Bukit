@@ -110,7 +110,7 @@ dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
 - 路径不存在（content/theme/build output）
 - 配置字段写错、类型不匹配
 
-排障清单见：[14-故障排查](./14-故障排查.md)。
+排障清单见：[14-故障排查](./14-troubleshooting.zh-CN.md)。
 
 ## clean：清理输出与缓存
 
@@ -131,7 +131,7 @@ dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
 dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
 ```
 
-主题使用见：[08-主题与模板](./08-主题与模板.md)。
+主题使用见：[08-主题与模板](./08-themes-templates.zh-CN.md)。
 
 ## webhook：Notion 变更触发 GitHub Actions（可选）
 

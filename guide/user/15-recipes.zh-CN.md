@@ -196,7 +196,7 @@ copyright: "© 2026 My Site"
 - `site.modules.features`
 - `site.modules.footer`
 
-示例见：[09-Modules-结构化数据](./09-Modules-结构化数据.md)。
+示例见：[09-Modules-结构化数据](./09-modules-data.zh-CN.md)。
 
 ## Recipe 4：Notion 当 CMS（只渲染 Published）
 
@@ -239,7 +239,7 @@ theme:
 - 本地先设置 `NOTION_TOKEN` 环境变量
 - 再执行 `doctor` 和 `build`
 
-详细见：[06-内容-Notion](./06-内容-Notion.md)。
+详细见：[06-内容-Notion](./06-notion-content.zh-CN.md)。
 
 ## Recipe 5：多站点（同仓库维护 main + blog）
 
@@ -272,4 +272,4 @@ dotnet run --project src/Bukit.Cli -c Release -- build --site blog --clean --sit
 --base-url /<repo> --site-url https://<owner>.github.io/<repo>
 ```
 
-完整说明见：[13-部署-GitHub-Pages](./13-部署-GitHub-Pages.md)。
+完整说明见：[13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)。

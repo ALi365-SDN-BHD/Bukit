@@ -52,7 +52,7 @@ logging: {}
 | `site.pluginFailMode` | string | 否 | `strict` | `strict`（插件失败中断构建）\| `warn`（记录错误继续） |
 | `site.plugins` | object | 否 | null | 插件开关与配置；支持 `site.plugins.<name>: bool` 或 `site.plugins.<name>.enabled/options` |
 | `site.timezone` | string | 否 | `Asia/Shanghai` | 时间相关处理的默认时区；必须为有效的 IANA/Windows 时区标识符 |
-| `site.permalinks` | object | 否 | null | 按内容类型自定义 URL 模式；键为类型名（如 `post`），值为 URL 模式字符串（支持 `{year}/{month}/{day}/{slug}/{type}` 占位符）；详见 [路由系统](./routing.md) |
+| `site.permalinks` | object | 否 | null | 按内容类型自定义 URL 模式；键为类型名（如 `post`），值为 URL 模式字符串（支持 `{year}/{month}/{day}/{slug}/{type}` 占位符）；详见 [路由系统](./routing.zh-CN.md) |
 | `site.collections` | object | 否 | null | collection 驱动路由配置。每个集合至少声明 `permalink` 与 `template`，可选 `listRoute`、`pagination`、`output` |
 
 ### site.collections（collection 驱动路由）
@@ -236,7 +236,7 @@ content:
 - `always`：总是为列表页装配 `pages[*].content`
 - `never`：列表页中的 `pages[*].content` 为空字符串
 
-`bukit.templates.yaml` 已经从“列表页正文声明”扩展为通用模板能力清单；当前引擎实际消费的字段仍是 `needs_page_content`，但同一文件也可声明 `supports_pagination`、`supports_taxonomy`、`supports_search_snippets` 等能力，用于主题自描述和 doctor 校验。详见：[template-capabilities.md](./template-capabilities.md)
+`bukit.templates.yaml` 已经从“列表页正文声明”扩展为通用模板能力清单；当前引擎实际消费的字段仍是 `needs_page_content`，但同一文件也可声明 `supports_pagination`、`supports_taxonomy`、`supports_search_snippets` 等能力，用于主题自描述和 doctor 校验。详见：[template-capabilities.md](./template-capabilities.zh-CN.md)
 
 推荐实践：
 

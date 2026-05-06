@@ -1,4 +1,4 @@
-# 14 Penyelesaian Masalah: Doctor Dahulu, Diagnosis Mengikut Gejala
+﻿# 14 Penyelesaian Masalah: Doctor Dahulu, Diagnosis Mengikut Gejala
 
 Apabila anda menghadapi masalah, jangan meneka dahulu. Ikuti urutan ini untuk diagnosis:
 
@@ -6,7 +6,7 @@ Apabila anda menghadapi masalah, jangan meneka dahulu. Ikuti urutan ini untuk di
 2. `build --clean` (hapuskan kesan cache tokokan)
 3. Bandingkan dengan `examples/starter/` (cari "garis asas yang berfungsi")
 
-Dokumen penyelesaian masalah berorientasikan pembangun: [guide/dev/doctor](../dev/doctor.md), [guide/dev/cache-clean](../dev/cache-clean.md).
+Dokumen penyelesaian masalah berorientasikan pembangun: [guide/dev/doctor](../dev/doctor.ms.md), [guide/dev/cache-clean](../dev/cache-clean.ms.md).
 
 ## Rujukan Perintah Pantas
 
@@ -128,3 +128,4 @@ Senarai semak diagnosis:
 - Adakah templat tema membaca `site.modules` (bandingkan dengan tema contoh)?
 
 Lihat: [09 Modul Data Berstruktur](./09-modules-data.ms.md).
+

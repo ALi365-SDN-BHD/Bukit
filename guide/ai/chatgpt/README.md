@@ -34,4 +34,4 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config site.yaml --clea
 - For Notion content: set `NOTION_TOKEN` as an environment variable (never paste it in chat).
 - For GitHub Pages subpath: `site.baseUrl` must start with `/`, for example `/my-repo`; root path uses `/`.
 
-Full Chinese source: [README.md](./README.md)
+Full Chinese source: [README.zh-CN.md](./README.zh-CN.md)

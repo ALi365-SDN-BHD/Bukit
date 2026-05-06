@@ -3,7 +3,7 @@
 本项目的“缓存”主要服务于增量构建（跳过未变化页面的渲染），而 “clean” 则用于清理输出目录与缓存目录，避免本地/CI 被旧状态污染。
 
 相关文档：
-- [增量构建](./incremental-build.md)
+- [增量构建](./incremental-build.zh-CN.md)
 - [命令行（CLI）参数参考](./cli.md)
 
 ## 缓存目录的权威定义
@@ -14,7 +14,7 @@
 - 单语言：`build-manifest.json`
 - 多语言：`build-manifest.<lang>.json`
 
-`doctor` 也会检查该目录下的 manifest JSON 是否可解析（见 [doctor.md](./doctor.md)）。
+`doctor` 也会检查该目录下的 manifest JSON 是否可解析（见 [doctor.md](./doctor.zh-CN.md)）。
 
 ### 覆盖缓存目录：`--cache-dir <dir>`
 

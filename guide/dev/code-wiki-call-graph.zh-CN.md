@@ -304,7 +304,7 @@ flowchart LR
 ## 10. 配套文档
 
 - 仓库总览：[`code-wiki.md`](./code-wiki.md)
-- 新开发者阅读路线：[`new-developer-30min.md`](./new-developer-30min.md)
+- 新开发者阅读路线：[`new-developer-30min.md`](./new-developer-30min.zh-CN.md)
 - 架构边界：[`architecture.md`](./architecture.md)
 - 插件体系：[`plugins.md`](./plugins.md)
 
