@@ -17,9 +17,9 @@
   {{ end }}
 {{ end }}
 {{ if page_total > 1 }}
-<nav>
-  {{ if prev_url != "" }}<a href="{{ prev_url }}">上一页</a>{{ end }}
-  <span>第 {{ page_num }} / {{ page_total }} 页</span>
-  {{ if next_url != "" }}<a href="{{ next_url }}">下一页</a>{{ end }}
+<nav class="pagination" aria-label="Pagination">
+  <span>{{ if prev_url != "" }}<a href="{{ prev_url }}">Previous</a>{{ end }}</span>
+  <span>Page {{ page_num }} of {{ page_total }}</span>
+  <span>{{ if next_url != "" }}<a href="{{ next_url }}">Next</a>{{ end }}</span>
 </nav>
 {{ end }}

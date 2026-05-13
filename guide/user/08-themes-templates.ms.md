@@ -81,7 +81,7 @@ Anda tidak perlu memahami model dalaman enjin; hanya ingat empat jenis objek:
 ### 3) Baca Parameter Tema (theme.params)
 
 ```scriban
-{{ if site.theme.params.showNewsletter }}
+{{ if site.params.showNewsletter }}
   <section class="newsletter">…</section>
 {{ end }}
 ```

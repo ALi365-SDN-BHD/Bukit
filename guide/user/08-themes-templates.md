@@ -16,8 +16,11 @@ A theme typically contains three types of directories (relative to the directory
 
 In-repo example themes:
 
+- `examples/starter/layouts/` + `examples/starter/assets/` (the default starter structure)
 - `examples/starter/themes/alt/`
 - `examples/starter/themes/seo-best-practice/`
+
+`bukit init <dir>` now creates `themes/starter/` with the same content-site starter design: reusable partials, card lists, pagination/search/taxonomy templates, and a `bukit.templates.yaml` capability manifest.
 
 ## Method A: Switch Themes Using themes/&lt;name&gt; (Recommended)
 
@@ -55,6 +58,31 @@ theme:
 
 You can directly edit template files under `layouts/`.
 
+## Recommended Starter Customization Path
+
+Start with the generated starter theme and make changes in this order:
+
+1. Edit `theme.params` in `site.yaml` for simple branding:
+
+```yaml
+theme:
+  name: starter
+  params:
+    brand: My Site
+    footer_text: My Site
+```
+
+2. Edit `assets/style.css` for visual tokens such as `--primary`, `--accent`, spacing, and typography.
+3. Edit `layouts/partials/header.html` and `layouts/partials/footer.html` for site chrome.
+4. Edit page templates only when layout behavior changes: `layouts/pages/index.html`, `list.html`, `post.html`, and `page.html`.
+
+The starter also includes optional templates for generated features:
+
+- `layouts/pages/pagination.html`
+- `layouts/pages/taxonomy-index.html`
+- `layouts/pages/taxonomy-term.html`
+- `layouts/pages/search.html`
+
 ## What Variables Can Be Used in Templates (Most Common for Users)
 
 You don't need to understand the engine's internal model; just remember four kinds of objects:
@@ -89,10 +117,10 @@ theme:
     showNewsletter: true
 ```
 
-In templates (commonly via `site.theme.params` or theme-mapped variables; refer to the specific theme conventions):
+In templates, Bukit exposes `theme.params` as `site.params`:
 
 ```scriban
-{{ if site.theme.params.showNewsletter }}
+{{ if site.params.showNewsletter }}
   <section class="newsletter">…</section>
 {{ end }}
 ```

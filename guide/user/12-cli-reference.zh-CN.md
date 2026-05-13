@@ -65,6 +65,8 @@ dotnet run --project src/Bukit.Cli -c Release -- create my-site --provider notio
 dotnet run --project src/Bukit.Cli -c Release -- create my-site --template minimal
 ```
 
+脚手架会生成 `themes/starter/`，这是一套内容站 starter 主题，包含可复用 partial、响应式 CSS，以及可选的分页/搜索/taxonomy 模板。
+
 ## build：构建站点（最常用）
 
 在站点目录：

@@ -195,6 +195,21 @@ public sealed class DoctorCommandTests : IDisposable
             var generatedConfigPath = Path.Combine(siteDir, "site.yaml");
             var yaml = await File.ReadAllTextAsync(generatedConfigPath);
             Assert.Contains("collections:", yaml, StringComparison.Ordinal);
+            Assert.Contains("theme:", yaml, StringComparison.Ordinal);
+            Assert.Contains("brand: My Site", yaml, StringComparison.Ordinal);
+
+            var themeRoot = Path.Combine(siteDir, "themes", "starter");
+            Assert.True(File.Exists(Path.Combine(themeRoot, "assets", "style.css")));
+            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "bukit.templates.yaml")));
+            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "list-card.html")));
+            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "pagination-nav.html")));
+            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "search.html")));
+            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "taxonomy-index.html")));
+            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "taxonomy-term.html")));
+
+            var footer = await File.ReadAllTextAsync(Path.Combine(themeRoot, "layouts", "partials", "footer.html"));
+            Assert.Contains("Powered by", footer, StringComparison.Ordinal);
+            Assert.Contains("github.com/ALi365-SDN-BHD/Bukit", footer, StringComparison.Ordinal);
 
             using var writer = new StringWriter(new StringBuilder());
             var originalOut = Console.Out;

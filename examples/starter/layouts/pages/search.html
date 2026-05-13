@@ -1,33 +1,57 @@
 {% layout "layouts/base.html" %}
 
-<h1>搜索</h1>
-<input id="search-query" type="search" placeholder="输入关键词" />
-<button id="search-button" type="button">搜索</button>
-<ul id="search-results"></ul>
+<header class="page-header">
+  <p class="eyebrow">Search</p>
+  <h1>{{ page.title }}</h1>
+  <p>Search across generated titles, summaries, and snippets.</p>
+</header>
+
+<div class="search-form">
+  <input id="search-query" type="search" placeholder="Search content" />
+  <button id="search-button" type="button">Search</button>
+</div>
+<ul id="search-results" class="card-list"></ul>
 
 <script>
 const queryInput = document.getElementById('search-query');
 const searchButton = document.getElementById('search-button');
 const resultsElement = document.getElementById('search-results');
 
+function appendResult(item) {
+  const li = document.createElement('li');
+  li.className = 'card';
+  const title = document.createElement('h2');
+  title.className = 'card-title';
+  const link = document.createElement('a');
+  link.href = item.url || '#';
+  link.textContent = item.title || 'Untitled';
+  title.appendChild(link);
+  li.appendChild(title);
+  const summary = item.snippet || item.summary;
+  if (summary) {
+    const p = document.createElement('p');
+    p.className = 'summary';
+    p.textContent = summary;
+    li.appendChild(p);
+  }
+  resultsElement.appendChild(li);
+}
+
 async function runSearch() {
   const keyword = (queryInput.value || '').trim().toLowerCase();
   const response = await fetch('{{ site.base_url }}/search.json');
   const items = await response.json();
-  const filtered = keyword === ''
-    ? items
-    : items.filter(item =>
-        (item.title || '').toLowerCase().includes(keyword) ||
-        (item.summary || '').toLowerCase().includes(keyword) ||
-        (item.snippet || '').toLowerCase().includes(keyword));
-
-  resultsElement.innerHTML = filtered.map(item => `
-    <li>
-      <a href="${item.url}">${item.title}</a>
-      ${item.snippet ? `<p>${item.snippet}</p>` : ''}
-    </li>
-  `).join('');
+  resultsElement.innerHTML = '';
+  items
+    .filter(item => keyword === '' ||
+      (item.title || '').toLowerCase().includes(keyword) ||
+      (item.summary || '').toLowerCase().includes(keyword) ||
+      (item.snippet || '').toLowerCase().includes(keyword))
+    .forEach(appendResult);
 }
 
 searchButton.addEventListener('click', runSearch);
+queryInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') runSearch();
+});
 </script>

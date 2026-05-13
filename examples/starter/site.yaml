@@ -67,7 +67,9 @@ theme:
   layouts: layouts
   assets: assets
   static: static
-  name: alt
+  params:
+    brand: Bukit Starter
+    footer_text: Starter content site
 taxonomy:
   itemFields:
     - cover
@@ -75,7 +77,7 @@ taxonomy:
     - date
   templates:
     categories:
-      termTemplate: pages/category.html
+      termTemplate: pages/taxonomy-term.html
 logging:
   level: info
 ...

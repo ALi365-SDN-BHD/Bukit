@@ -1,9 +1,11 @@
-<li>
-  <a href="{{ site.base_url }}{{ item.url }}">{{ item.title }}</a>
+<li class="card">
+  <h2 class="card-title">
+    <a href="{{ site.base_url }}{{ item.url }}">{{ item.title }}</a>
+  </h2>
   {{ if item.publish_date }}
-    <small>{{ item.publish_date | date.to_string "%Y-%m-%d" }}</small>
+    <p class="meta"><time datetime="{{ item.publish_date | date.to_string "%Y-%m-%d" }}">{{ item.publish_date | date.to_string "%Y-%m-%d" }}</time></p>
   {{ end }}
   {{ if item.summary }}
-    <p>{{ item.summary }}</p>
+    <p class="summary">{{ item.summary }}</p>
   {{ end }}
 </li>

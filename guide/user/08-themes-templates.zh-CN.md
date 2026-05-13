@@ -16,8 +16,11 @@
 
 仓库内示例主题：
 
+- `examples/starter/layouts/` + `examples/starter/assets/`（默认 starter 结构）
 - `examples/starter/themes/alt/`
 - `examples/starter/themes/seo-best-practice/`
+
+`bukit init <dir>` 现在会生成同一套内容站 starter 设计到 `themes/starter/`：包含可复用 partial、卡片列表、分页/搜索/taxonomy 模板，以及 `bukit.templates.yaml` 能力声明。
 
 ## 方式 A：使用 themes/<name> 切换主题（推荐）
 
@@ -55,6 +58,31 @@ theme:
 
 你可以直接在 `layouts/` 下改模板文件。
 
+## 推荐的 Starter 定制顺序
+
+从生成的 starter 主题开始，按这个顺序改，成本最低：
+
+1. 先改 `site.yaml` 的 `theme.params` 做基础品牌配置：
+
+```yaml
+theme:
+  name: starter
+  params:
+    brand: My Site
+    footer_text: My Site
+```
+
+2. 再改 `assets/style.css` 里的视觉变量，例如 `--primary`、`--accent`、间距、字体。
+3. 然后改 `layouts/partials/header.html` 与 `layouts/partials/footer.html`。
+4. 只有页面结构真的变化时，再改 `layouts/pages/index.html`、`list.html`、`post.html`、`page.html`。
+
+starter 也内置了可选功能模板：
+
+- `layouts/pages/pagination.html`
+- `layouts/pages/taxonomy-index.html`
+- `layouts/pages/taxonomy-term.html`
+- `layouts/pages/search.html`
+
 ## 模板里能用哪些变量（用户最常用）
 
 你不需要理解引擎内部模型，只要记住三类对象：
@@ -89,10 +117,10 @@ theme:
     showNewsletter: true
 ```
 
-模板中（常见是通过 `site.theme.params` 或主题映射变量，具体以主题约定为准）：
+模板中，Bukit 会把 `theme.params` 暴露为 `site.params`：
 
 ```scriban
-{{ if site.theme.params.showNewsletter }}
+{{ if site.params.showNewsletter }}
   <section class="newsletter">…</section>
 {{ end }}
 ```

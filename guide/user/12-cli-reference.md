@@ -65,6 +65,8 @@ Specify template (default `minimal`):
 dotnet run --project src/Bukit.Cli -c Release -- create my-site --template minimal
 ```
 
+The scaffold includes `themes/starter/`, a content-site starter theme with reusable partials, responsive CSS, and optional pagination/search/taxonomy templates.
+
 ## build: Build the Site (Most Common)
 
 In the site directory:

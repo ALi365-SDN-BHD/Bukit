@@ -257,7 +257,7 @@ content:
 | `layouts` | string | `layouts` | Template subdirectory name |
 | `assets` | string | `assets` | Asset subdirectory name (SCSS, etc. that need processing) |
 | `static` | string | `static` | Static file subdirectory name (copied directly) |
-| `params` | map | — | Theme parameters, accessed as `{{ site.theme.params.xxx }}` in templates |
+| `params` | map | — | Theme parameters, accessed as `{{ site.params.xxx }}` in templates |
 
 ### taxonomy Node
 

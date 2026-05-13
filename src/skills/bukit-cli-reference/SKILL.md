@@ -115,15 +115,16 @@ Generated directory structure:
     hello-world.md
   themes/starter/
     layouts/layouts/base.html
-    layouts/pages/{page,post,index,list}.html
-    layouts/partials/{header,footer}.html
+    layouts/pages/{page,post,index,list,pagination,search,taxonomy-index,taxonomy-term}.html
+    layouts/partials/{header,footer,list-card,pagination-nav}.html
+    layouts/bukit.templates.yaml
     assets/style.css
     static/
   .gitignore
   README.md
 ```
 
-`--provider notion` generates a site.yaml pre-configured for Notion content source; `--provider markdown` (default) generates Markdown content source config.
+`--provider notion` generates a site.yaml pre-configured for Notion content source; `--provider markdown` (default) generates Markdown content source config. The generated `themes/starter/` is a content-site starter theme with responsive CSS, reusable partials, and optional pagination/search/taxonomy templates.
 
 ### preview
 

@@ -1,7 +1,11 @@
 {% layout "layouts/base.html" %}
 
-<article>
-  <h1>{{ page.title }}</h1>
+<article class="article">
+  <header class="article-header">
+    <p class="eyebrow">Page</p>
+    <h1>{{ page.title }}</h1>
+    {{ if page.summary }}<p class="article-summary">{{ page.summary }}</p>{{ end }}
+  </header>
   <div class="content">
     {{ page.content }}
   </div>
