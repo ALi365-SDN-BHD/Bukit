@@ -62,6 +62,7 @@ After downloading, place the binary in a PATH directory or the project root.
 | `doctor` | Diagnose config and templates | `--config` `--site` `--site-url` |
 | `plugin list` | List registered plugins | `--config` `--site` |
 | `theme list` | List available themes in themes/ | `--config` `--site` |
+| `theme create` | Create a theme from starter or an existing theme | `<name>` `--from` `--brand` `--primary-color` `--accent-color` `--use` `--force` `--config` `--site` |
 | `theme use` | Switch current theme | `<name>` `--config` `--site` |
 | `intent init` | Interactive intent file creation | `--out` |
 | `intent validate` | Validate intent file | `<intent.yaml>` `--root-dir` `--out` |
@@ -199,10 +200,12 @@ PluginName@1.0.0 [ExternalAssembly] enabled=false (after-build)
 
 ```
 bukit theme list [--config <path>] [--site <name>]
+bukit theme create <name> [--from starter|<existing-theme>] [--brand <text>] [--primary-color <hex>] [--accent-color <hex>] [--use] [--force] [--config <path>] [--site <name>]
 bukit theme use <name> [--config <path>] [--site <name>]
 ```
 
 `theme list` lists all valid theme names in the `themes/` directory.
+`theme create` creates `themes/<name>/`; by default it uses the built-in starter, and `--from` copies an existing local theme.
 `theme use` modifies `theme.name` in site.yaml to the specified theme name.
 
 ### intent

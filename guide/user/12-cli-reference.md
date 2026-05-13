@@ -126,12 +126,15 @@ Recommended to run in these situations:
 - Made significant changes to routing rules/output modes
 - Suspect incremental cache is causing "looks like it didn't update"
 
-## theme: List & Switch Themes
+## theme: Create, List & Switch Themes
 
 ```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme create custom --config site.yaml --brand "My Site" --primary-color "#0b5fff" --use
 dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
 dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
 ```
+
+`theme create` creates `themes/<name>/` from the built-in starter by default. Use `--from <existing-theme>` to copy an existing theme, `--force` to overwrite, and `--use` to write `theme.name` back to the selected config.
 
 Theme usage: [08 Themes & Templates](./08-themes-templates.md).
 

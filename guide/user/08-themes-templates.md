@@ -35,6 +35,18 @@ theme:
 
 ### CLI: List and Switch Themes
 
+Create a starter-based custom theme and switch to it:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme create custom --config site.yaml --brand "My Site" --primary-color "#0b5fff" --accent-color "#0f7b6c" --use
+```
+
+Create from an existing local theme:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme create custom --from alt --config site.yaml
+```
+
 List `themes/<name>` under the project root:
 
 ```bash
@@ -82,6 +94,8 @@ The starter also includes optional templates for generated features:
 - `layouts/pages/taxonomy-index.html`
 - `layouts/pages/taxonomy-term.html`
 - `layouts/pages/search.html`
+
+For a new reusable theme, prefer `theme create <name>` first, then customize the generated files. Use `--force` only when intentionally replacing an existing theme directory.
 
 ## What Variables Can Be Used in Templates (Most Common for Users)
 

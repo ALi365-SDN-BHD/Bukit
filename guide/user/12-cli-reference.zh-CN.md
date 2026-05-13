@@ -126,12 +126,15 @@ dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
 - 大量改动路由规则/输出模式
 - 怀疑增量缓存导致"看起来没更新"
 
-## theme：列出与切换主题
+## theme：创建、列出与切换主题
 
 ```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme create custom --config site.yaml --brand "My Site" --primary-color "#0b5fff" --use
 dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
 dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
 ```
+
+`theme create` 默认从内置 starter 创建 `themes/<name>/`。使用 `--from <已有主题>` 可复制已有主题，`--force` 可覆盖，`--use` 会把 `theme.name` 写回当前配置。
 
 主题使用见：[08-主题与模板](./08-themes-templates.zh-CN.md)。
 

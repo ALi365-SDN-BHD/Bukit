@@ -60,6 +60,21 @@ public static class BukitCliSpecs
             Subcommands: new[]
             {
                 new CliCommandSpec(
+                    Name: "create",
+                    Description: "创建主题",
+                    Arguments: new[] { new CliArgumentSpec("name", "主题名", Required: true) },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名"),
+                        new CliOptionSpec("--from", "源主题名"),
+                        new CliOptionSpec("--brand", "品牌名"),
+                        new CliOptionSpec("--primary-color", "主色"),
+                        new CliOptionSpec("--accent-color", "强调色"),
+                        new CliOptionSpec("--use", "创建后切换到该主题", CliOptionType.Flag),
+                        new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag)
+                    }),
+                new CliCommandSpec(
                     Name: "list",
                     Description: "列出可用主题",
                     Options: new[]

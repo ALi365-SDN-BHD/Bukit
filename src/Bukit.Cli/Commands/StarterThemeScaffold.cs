@@ -5,22 +5,41 @@ namespace Bukit.Cli.Commands;
 internal static class StarterThemeScaffold
 {
     public static void WriteTo(string rootDir)
+        => WriteTo(rootDir, "starter", primaryColor: null, accentColor: null);
+
+    public static void WriteTo(string rootDir, string themeName, string? primaryColor, string? accentColor)
     {
-        WriteFile(rootDir, Path.Combine("themes", "starter", "assets", "style.css"), StyleCss);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "layouts", "base.html"), BaseLayout);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "partials", "header.html"), HeaderPartial);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "partials", "footer.html"), FooterPartial);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "partials", "list-card.html"), ListCardPartial);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "partials", "pagination-nav.html"), PaginationNavPartial);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "pages", "page.html"), PageTemplate);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "pages", "post.html"), PostTemplate);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "pages", "index.html"), IndexTemplate);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "pages", "list.html"), ListTemplate);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "pages", "pagination.html"), PaginationTemplate);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "pages", "taxonomy-index.html"), TaxonomyIndexTemplate);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "pages", "taxonomy-term.html"), TaxonomyTermTemplate);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "pages", "search.html"), SearchTemplate);
-        WriteFile(rootDir, Path.Combine("themes", "starter", "layouts", "bukit.templates.yaml"), TemplateCapabilities);
+        var styleCss = ApplyColorOverrides(StyleCss, primaryColor, accentColor);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "assets", "style.css"), styleCss);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "layouts", "base.html"), BaseLayout);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "header.html"), HeaderPartial);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "footer.html"), FooterPartial);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "list-card.html"), ListCardPartial);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "pagination-nav.html"), PaginationNavPartial);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "page.html"), PageTemplate);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "post.html"), PostTemplate);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "index.html"), IndexTemplate);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "list.html"), ListTemplate);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "pagination.html"), PaginationTemplate);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "taxonomy-index.html"), TaxonomyIndexTemplate);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "taxonomy-term.html"), TaxonomyTermTemplate);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "search.html"), SearchTemplate);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "bukit.templates.yaml"), TemplateCapabilities);
+    }
+
+    public static string ApplyColorOverrides(string styleCss, string? primaryColor, string? accentColor)
+    {
+        if (!string.IsNullOrWhiteSpace(primaryColor))
+        {
+            styleCss = styleCss.Replace("--primary: #0b5fff;", $"--primary: {primaryColor.Trim()};", StringComparison.Ordinal);
+        }
+
+        if (!string.IsNullOrWhiteSpace(accentColor))
+        {
+            styleCss = styleCss.Replace("--accent: #0f7b6c;", $"--accent: {accentColor.Trim()};", StringComparison.Ordinal);
+        }
+
+        return styleCss;
     }
 
     private static void WriteFile(string rootDir, string relativePath, string content)

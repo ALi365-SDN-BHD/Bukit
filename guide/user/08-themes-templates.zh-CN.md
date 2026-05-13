@@ -35,6 +35,18 @@ theme:
 
 ### CLI：列出与切换主题
 
+创建基于 starter 的自定义主题并切换过去：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme create custom --config site.yaml --brand "My Site" --primary-color "#0b5fff" --accent-color "#0f7b6c" --use
+```
+
+从已有本地主题创建：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme create custom --from alt --config site.yaml
+```
+
 列出工程根目录下的 `themes/<name>`：
 
 ```bash
@@ -82,6 +94,8 @@ starter 也内置了可选功能模板：
 - `layouts/pages/taxonomy-index.html`
 - `layouts/pages/taxonomy-term.html`
 - `layouts/pages/search.html`
+
+如果要做一个新的可复用主题，优先运行 `theme create <name>`，再修改生成的文件。只有明确要替换已有主题目录时才使用 `--force`。
 
 ## 模板里能用哪些变量（用户最常用）
 
