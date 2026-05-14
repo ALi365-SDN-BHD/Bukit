@@ -4,6 +4,9 @@ namespace Bukit.Cli.Commands;
 
 public static class SeoCommand
 {
+    private const string ExpectedSchema = "https://bukit.dev/schemas/seo-report.v1.json";
+    private const string ExpectedSchemaVersion = "1.0";
+
     public static Task<int> RunAsync(ArgReader reader)
     {
         var subcommand = reader.GetArg(1);
@@ -35,10 +38,12 @@ public static class SeoCommand
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(fullPath));
+            ValidateReportContract(doc.RootElement);
+
             var summary = doc.RootElement.GetProperty("summary");
-            var errorCount = summary.TryGetProperty("errorCount", out var e) ? e.GetInt32() : 0;
-            var warningCount = summary.TryGetProperty("warningCount", out var w) ? w.GetInt32() : 0;
-            var routeCount = summary.TryGetProperty("routeCount", out var r) ? r.GetInt32() : 0;
+            var errorCount = ReadRequiredInt(summary, "summary", "errorCount");
+            var warningCount = ReadRequiredInt(summary, "summary", "warningCount");
+            var routeCount = ReadRequiredInt(summary, "summary", "routeCount");
 
             Console.WriteLine($"SEO audit: routes={routeCount} errors={errorCount} warnings={warningCount}");
             if (doc.RootElement.TryGetProperty("issues", out var issues))
@@ -65,10 +70,149 @@ public static class SeoCommand
             Console.Error.WriteLine("Invalid SEO report: missing summary.");
             return 2;
         }
+        catch (InvalidDataException ex)
+        {
+            Console.Error.WriteLine($"Invalid SEO report: {ex.Message}");
+            return 2;
+        }
+    }
+
+    private static void ValidateReportContract(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException("root must be a JSON object.");
+        }
+
+        var schema = ReadRequiredString(root, "$", "schema");
+        if (!string.Equals(schema, ExpectedSchema, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException($"unsupported schema '{schema}'. Expected '{ExpectedSchema}'.");
+        }
+
+        var schemaVersion = ReadRequiredString(root, "$", "schemaVersion");
+        if (!string.Equals(schemaVersion, ExpectedSchemaVersion, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException($"unsupported schemaVersion '{schemaVersion}'. Expected '{ExpectedSchemaVersion}'.");
+        }
+
+        var routes = ReadRequiredArray(root, "$", "routes");
+        var issues = ReadRequiredArray(root, "$", "issues");
+        var summary = ReadRequiredObject(root, "$", "summary");
+
+        ReadRequiredInt(summary, "summary", "routeCount");
+        ReadRequiredInt(summary, "summary", "indexableCount");
+        ReadRequiredInt(summary, "summary", "nonIndexableCount");
+        ReadRequiredInt(summary, "summary", "errorCount");
+        ReadRequiredInt(summary, "summary", "warningCount");
+
+        var routeIndex = 0;
+        foreach (var route in routes.EnumerateArray())
+        {
+            var path = $"routes[{routeIndex}]";
+            EnsureObject(route, path);
+            ReadRequiredString(route, path, "url");
+            ReadRequiredString(route, path, "outputPath");
+            ReadRequiredString(route, path, "canonical");
+            ReadRequiredBool(route, path, "indexable");
+            ReadRequiredBool(route, path, "sitemapIncluded");
+            ReadRequiredBool(route, path, "searchIncluded");
+            ReadRequiredBool(route, path, "rssIncluded");
+            ReadRequiredArray(route, path, "alternates");
+            ReadRequiredArray(route, path, "schemaTypes");
+            routeIndex++;
+        }
+
+        var issueIndex = 0;
+        foreach (var issue in issues.EnumerateArray())
+        {
+            var path = $"issues[{issueIndex}]";
+            EnsureObject(issue, path);
+            var severity = ReadRequiredString(issue, path, "severity");
+            if (!string.Equals(severity, "error", StringComparison.Ordinal) &&
+                !string.Equals(severity, "warning", StringComparison.Ordinal))
+            {
+                throw new InvalidDataException($"{path}.severity must be 'error' or 'warning'.");
+            }
+
+            ReadRequiredString(issue, path, "code");
+            ReadRequiredString(issue, path, "message");
+            if (issue.TryGetProperty("route", out var route) &&
+                route.ValueKind != JsonValueKind.Null &&
+                route.ValueKind != JsonValueKind.String)
+            {
+                throw new InvalidDataException($"{path}.route must be a string or null.");
+            }
+
+            issueIndex++;
+        }
     }
 
     private static string? ReadString(JsonElement element, string property)
         => element.TryGetProperty(property, out var value) && value.ValueKind != JsonValueKind.Null
             ? value.GetString()
             : null;
+
+    private static JsonElement ReadRequiredObject(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException($"{path}.{property} must be an object.");
+        }
+
+        return value;
+    }
+
+    private static JsonElement ReadRequiredArray(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException($"{path}.{property} must be an array.");
+        }
+
+        return value;
+    }
+
+    private static string ReadRequiredString(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) ||
+            value.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(value.GetString()))
+        {
+            throw new InvalidDataException($"{path}.{property} must be a non-empty string.");
+        }
+
+        return value.GetString()!;
+    }
+
+    private static int ReadRequiredInt(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) ||
+            value.ValueKind != JsonValueKind.Number ||
+            !value.TryGetInt32(out var result))
+        {
+            throw new InvalidDataException($"{path}.{property} must be an integer.");
+        }
+
+        return result;
+    }
+
+    private static bool ReadRequiredBool(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) ||
+            (value.ValueKind != JsonValueKind.True && value.ValueKind != JsonValueKind.False))
+        {
+            throw new InvalidDataException($"{path}.{property} must be a boolean.");
+        }
+
+        return value.GetBoolean();
+    }
+
+    private static void EnsureObject(JsonElement element, string path)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException($"{path} must be an object.");
+        }
+    }
 }

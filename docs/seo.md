@@ -77,7 +77,7 @@ bukit seo audit --dir dist --strict
 bukit seo audit --report dist/seo-report.json
 ```
 
-Default mode returns non-zero when the report has errors. `--strict` also fails on warnings.
+Default mode returns non-zero when the report has errors. `--strict` also fails on warnings. The audit command validates the report schema URL, schema version, route inventory fields, issue fields, and summary counters before applying those thresholds, so malformed or unsupported reports fail with exit code `2`.
 
 ## JSON-LD
 

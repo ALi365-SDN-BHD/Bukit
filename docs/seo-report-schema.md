@@ -70,3 +70,13 @@ Each issue has:
 - `message`: human-readable explanation.
 
 `bukit seo audit --dir dist` returns non-zero when errors exist. `--strict` also fails on warnings.
+
+Before evaluating issue counts, `bukit seo audit` validates the report contract:
+
+- `schema` must match the current schema URL.
+- `schemaVersion` must match the supported version.
+- `routes`, `issues`, and `summary` must exist with the required field types.
+- each route must expose the core URL inventory fields used by CI diffs.
+- each issue must expose `severity`, `code`, and `message`, with severity limited to `error` or `warning`.
+
+Contract failures return exit code `2`, separate from SEO audit failures (`1`).
