@@ -12,6 +12,8 @@ internal static class StarterThemeScaffold
         var styleCss = ApplyColorOverrides(StyleCss, primaryColor, accentColor);
         WriteFile(rootDir, Path.Combine("themes", themeName, "assets", "style.css"), styleCss);
         WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "layouts", "base.html"), BaseLayout);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "seo.html"), SeoPartial);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "analytics.html"), AnalyticsPartial);
         WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "header.html"), HeaderPartial);
         WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "footer.html"), FooterPartial);
         WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "list-card.html"), ListCardPartial);
@@ -511,12 +513,11 @@ button:hover,
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ if page.fields && page.fields.seo_title }}{{ page.fields.seo_title.value }}{{ else }}{{ page.title }}{{ end }} - {{ site.title }}</title>
-  {{ if page.summary }}
-    <meta name="description" content="{{ page.summary }}" />
-  {{ else if site.description }}
-    <meta name="description" content="{{ site.description }}" />
-  {{ end }}
+  <title>{{ if page.seo }}{{ page.seo.title }}{{ else }}{{ page.title }}{{ end }}</title>
+  {{ include "partials/seo.html" }}
+  {{ include "partials/analytics.html" }}
+  <link rel="alternate" type="application/rss+xml" href="{{ site.base_url }}/rss.xml" />
+  <link rel="sitemap" type="application/xml" href="{{ site.base_url }}/sitemap.xml" />
   <link rel="stylesheet" href="{{ site.base_url }}/assets/style.css" />
 </head>
 <body>
@@ -527,6 +528,60 @@ button:hover,
   {{ include "partials/footer.html" }}
 </body>
 </html>
+""";
+
+    internal const string SeoPartial = """
+{{ if page.seo }}
+  <link rel="canonical" href="{{ page.seo.canonical }}" />
+  {{ if page.seo.description }}
+    <meta name="description" content="{{ page.seo.description }}" />
+  {{ end }}
+  {{ if page.seo.robots }}
+    <meta name="robots" content="{{ page.seo.robots }}" />
+  {{ end }}
+
+  <meta property="og:title" content="{{ page.seo.og.title }}" />
+  {{ if page.seo.og.description }}
+    <meta property="og:description" content="{{ page.seo.og.description }}" />
+  {{ end }}
+  <meta property="og:url" content="{{ page.seo.og.url }}" />
+  <meta property="og:type" content="{{ page.seo.og.type }}" />
+  {{ if page.seo.og.image }}
+    <meta property="og:image" content="{{ page.seo.og.image }}" />
+  {{ end }}
+
+  <meta name="twitter:card" content="{{ page.seo.twitter.card }}" />
+  <meta name="twitter:title" content="{{ page.seo.twitter.title }}" />
+  {{ if page.seo.twitter.description }}
+    <meta name="twitter:description" content="{{ page.seo.twitter.description }}" />
+  {{ end }}
+  {{ if page.seo.twitter.image }}
+    <meta name="twitter:image" content="{{ page.seo.twitter.image }}" />
+  {{ end }}
+  {{ if page.seo.twitter.site }}
+    <meta name="twitter:site" content="{{ page.seo.twitter.site }}" />
+  {{ end }}
+
+  {{ for alternate in page.seo.alternates }}
+    <link rel="alternate" hreflang="{{ alternate.hreflang }}" href="{{ alternate.href }}" />
+  {{ end }}
+
+  {{ for json in page.seo.json_ld }}
+    <script type="application/ld+json">{{ json }}</script>
+  {{ end }}
+{{ end }}
+""";
+
+    internal const string AnalyticsPartial = """
+{{ if site.analytics && site.analytics.enabled && site.analytics.google_analytics_id }}
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analytics.google_analytics_id }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '{{ site.analytics.google_analytics_id }}');
+  </script>
+{{ end }}
 """;
 
     internal const string HeaderPartial = """

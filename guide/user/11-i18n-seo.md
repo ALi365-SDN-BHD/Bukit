@@ -125,6 +125,90 @@ Suitable for:
 - Many languages, large content volume
 - You want to keep per-language artifacts while providing a "master entry point"
 
+## Engine-Level SEO and Theme Output
+
+Bukit computes a unified `page.seo` model in the engine. Themes only need to render it. This keeps canonical, OG, Twitter, JSON-LD, and multilingual hreflang rules centralized instead of reimplementing URL logic in every theme.
+
+Main template fields:
+
+| Template Field | Description |
+|---|---|
+| `page.seo.title` | SEO title |
+| `page.seo.description` | SEO description |
+| `page.seo.canonical` | Canonical URL generated from `site.url + baseUrl + page.url` |
+| `page.seo.robots` | robots meta, emitted only when a page/config provides it |
+| `page.seo.og.*` | Open Graph title, description, URL, image, type |
+| `page.seo.twitter.*` | Twitter Card title, description, image, site account |
+| `page.seo.alternates` | Data for HTML `<link rel="alternate" hreflang=...>` |
+| `page.seo.json_ld` | WebSite, Organization, BreadcrumbList, BlogPosting JSON-LD |
+| `site.analytics.google_analytics_id` | GA4 Measurement ID |
+| `site.analytics.enabled` | Analytics output switch |
+
+### SEO Field Priority
+
+Page fields win first, then regular content fields, then site-level fallbacks:
+
+1. Page fields: `seo_title`, `seo_desc`, `canonical`, `robots`, `og_image`, `author`, `update_time`
+2. Regular content fields: `summary`, `cover`, `image`, `publishAt`
+3. Site fields: `site.title`, `site.description`, `site.seo.defaultImage`
+
+Content with `type: post` or collection `post` also emits `BlogPosting` JSON-LD.
+
+### Configure site.seo
+
+```yaml
+site:
+  url: https://example.com
+  baseUrl: /
+  seo:
+    enabled: true
+    defaultImage: /assets/og-default.png
+    twitterSite: "@your_account"
+    organization:
+      name: Example Inc
+      url: https://example.com/about
+      logo: https://example.com/logo.png
+```
+
+`site.seo.enabled` defaults to `true`. When set to `false`, the engine does not build `page.seo`, and the new SEO partial emits nothing.
+
+### Themes Are Not Force-Injected
+
+The engine does not rewrite HTML and does not automatically inject SEO tags when a theme lacks an SEO partial. The theme must render the model explicitly in `<head>`:
+
+```scriban
+<title>{{ if page.seo }}{{ page.seo.title }}{{ else }}{{ page.title }}{{ end }}</title>
+{{ include "partials/seo.html" }}
+{{ include "partials/analytics.html" }}
+```
+
+If a theme already has custom SEO logic, avoid duplicate tags. Prefer removing hand-built canonical/OG/Twitter/JSON-LD logic and rendering `page.seo` instead.
+
+## Google Analytics (GA4)
+
+Bukit supports GA4 `gtag` configuration only. The field name is `google_analytics_id`:
+
+```yaml
+site:
+  analytics:
+    google_analytics_id: G-XXXXXXXXXX
+```
+
+By default, once the ID is configured and `enabled` is not `false`, the new `partials/analytics.html` emits:
+
+```html
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+```
+
+Disable Analytics:
+
+```yaml
+site:
+  analytics:
+    enabled: false
+    google_analytics_id: G-XXXXXXXXXX
+```
+
 ## SEO Trinity: site.url, baseUrl, Theme SEO Snippets
 
 ### 1) site.url: Determines Absolute Links
@@ -161,7 +245,8 @@ Typical symptoms of baseUrl misconfiguration:
 HTML details for SEO are typically controlled by the theme. Suggestions:
 
 - Compare with `examples/starter/themes/seo-best-practice/` template patterns
-- Confirm the theme outputs `canonical`, `alternate hreflang` in `<head>` (more important for multilingual sites)
+- Confirm the theme includes `partials/seo.html` in `<head>`
+- Confirm multilingual pages output `alternate hreflang`
 
 ## Common Pitfalls & Fixes Checklist
 

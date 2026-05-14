@@ -66,6 +66,8 @@ dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yam
 - `site.collections`: primary recommended model for content organization and routing (declare `permalink`, `template`, and optional `listRoute` per collection). `post/page` defaults remain as a compatibility fallback.
 - `site.baseUrl`: GitHub Pages subpath (`/my-repo`) or `/` for root.
 - `site.url`: canonical site URL (sitemap/rss); can be overridden by `--site-url`.
+- `site.seo`: engine-level SEO model configuration for canonical, OG, Twitter, hreflang, and JSON-LD; themes render it through `page.seo`.
+- `site.analytics.google_analytics_id`: GA4 Measurement ID; the starter Analytics partial emits gtag unless `site.analytics.enabled: false`.
 - `content.provider`: `markdown` or `notion`.
 - `content.markdown.maxItems`: max Markdown items to load.
 - `content.notion.maxItems`: max Notion pages to fetch.

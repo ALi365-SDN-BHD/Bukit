@@ -157,10 +157,44 @@ public sealed class PageRenderDispatcherLazyBodyTests
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
+            renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            cancellationToken: CancellationToken.None);
 
         Assert.Equal(3, result.RenderedCount);
         Assert.Equal(0, bodyStore.Count);
+    }
+
+    [Fact]
+    public async Task RenderSpecialListsAsync_PassesListRouteAsPageUrl()
+    {
+        var layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"), "layouts");
+        Directory.CreateDirectory(Path.Combine(layoutsDir, "pages"));
+        await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "index.html"), "{{ page.url }}");
+        await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "list.html"), "{{ page.url }}");
+
+        var renderer = new CaptureRenderer();
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+
+        await PageRenderDispatcher.RenderSpecialListsAsync(
+            CreateRoutedItems(),
+            new CountingBodyStore(),
+            renderer,
+            CreateSiteModel(),
+            null,
+            layoutsDir,
+            "auto",
+            outputDir,
+            "template-hash",
+            incrementalEnabled: false,
+            manifest: new BuildManifest(),
+            currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            cancellationToken: CancellationToken.None);
+
+        Assert.Contains("/", renderer.ListPageUrls);
+        Assert.Contains("/blog/", renderer.ListPageUrls);
+        Assert.Contains("/pages/", renderer.ListPageUrls);
     }
 
     [Fact]
@@ -189,7 +223,8 @@ public sealed class PageRenderDispatcherLazyBodyTests
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
+            renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            cancellationToken: CancellationToken.None);
 
         Assert.True(bodyStore.Count > 0);
     }
@@ -231,7 +266,8 @@ public sealed class PageRenderDispatcherLazyBodyTests
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
+            renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            cancellationToken: CancellationToken.None);
 
         Assert.Equal(0, bodyStore.Count);
     }
@@ -271,7 +307,8 @@ public sealed class PageRenderDispatcherLazyBodyTests
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
+            renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            cancellationToken: CancellationToken.None);
 
         Assert.True(bodyStore.Count > 0);
     }
@@ -311,6 +348,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
     private sealed class CaptureRenderer : ITemplateRenderer
     {
         public string? LastPageContent { get; private set; }
+        public List<string> ListPageUrls { get; } = new();
 
         public string RenderPage(string templateRelativePath, PageModel model)
         {
@@ -318,7 +356,11 @@ public sealed class PageRenderDispatcherLazyBodyTests
             return model.Page.Content;
         }
 
-        public string RenderList(string templateRelativePath, ListPageModel model) => string.Empty;
+        public string RenderList(string templateRelativePath, ListPageModel model)
+        {
+            ListPageUrls.Add(model.Page?.Url ?? string.Empty);
+            return string.Empty;
+        }
     }
 
     private sealed class CountingBodyStore : IContentBodyStore

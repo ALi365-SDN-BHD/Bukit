@@ -3,16 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>
-    {{ if page.fields && page.fields.seo_title }}
-      {{ page.fields.seo_title.value }}
-    {{ else }}
-      {{ page.title }}
-    {{ end }}
-    - {{ site.title }}
-  </title>
-
+  <title>{{ if page.seo }}{{ page.seo.title }}{{ else }}{{ page.title }}{{ end }}</title>
   {{ include "partials/seo.html" }}
+  {{ include "partials/analytics.html" }}
 
   <link rel="alternate" type="application/rss+xml" href="{{ site.base_url }}/rss.xml" />
   <link rel="sitemap" type="application/xml" href="{{ site.base_url }}/sitemap.xml" />
@@ -26,4 +19,3 @@
   {{ include "partials/footer.html" }}
 </body>
 </html>
-

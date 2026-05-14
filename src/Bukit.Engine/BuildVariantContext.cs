@@ -1,5 +1,6 @@
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Rendering;
 
 namespace Bukit.Engine;
 
@@ -15,5 +16,6 @@ internal sealed record BuildVariantContext(
     string AssetsDir,
     string StaticDir,
     string MediaDownloadDir,
+    IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> SeoAlternates,
     string? ManifestSuffix,
     string? DefaultLanguage);

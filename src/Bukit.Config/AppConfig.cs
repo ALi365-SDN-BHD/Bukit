@@ -16,6 +16,8 @@ public sealed record SiteConfig
     public required string Title { get; init; }
     public string? Url { get; init; }
     public string? Description { get; init; }
+    public SeoConfig Seo { get; init; } = new();
+    public AnalyticsConfig Analytics { get; init; } = new();
     public bool AutoSummary { get; init; }
     public int AutoSummaryMaxLength { get; init; } = 200;
     public string BaseUrl { get; init; } = "/";
@@ -37,6 +39,27 @@ public sealed record SiteConfig
     public string ExternalAssemblyTrustMode { get; init; } = "warn";
     public IReadOnlyDictionary<string, string>? ExternalAssemblyAllowlist { get; init; }
     public IReadOnlyDictionary<string, PluginToggleConfig>? Plugins { get; init; }
+}
+
+public sealed record SeoConfig
+{
+    public bool Enabled { get; init; } = true;
+    public string? DefaultImage { get; init; }
+    public string? TwitterSite { get; init; }
+    public SeoOrganizationConfig? Organization { get; init; }
+}
+
+public sealed record SeoOrganizationConfig
+{
+    public string? Name { get; init; }
+    public string? Url { get; init; }
+    public string? Logo { get; init; }
+}
+
+public sealed record AnalyticsConfig
+{
+    public bool Enabled { get; init; } = true;
+    public string? GoogleAnalyticsId { get; init; }
 }
 
 public sealed record CollectionConfig

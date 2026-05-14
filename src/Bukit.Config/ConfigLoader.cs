@@ -45,6 +45,8 @@ public static class ConfigLoader
             Title = GetRequiredString(siteNode, "title"),
             Url = GetOptionalString(siteNode, "url"),
             Description = GetOptionalString(siteNode, "description"),
+            Seo = ReadSeoConfig(siteNode),
+            Analytics = ReadAnalyticsConfig(siteNode),
             AutoSummary = GetOptionalBool(siteNode, "autoSummary") ?? false,
             AutoSummaryMaxLength = GetOptionalInt(siteNode, "autoSummaryMaxLength") ?? 200,
             BaseUrl = GetOptionalString(siteNode, "baseUrl") ?? "/",
@@ -132,6 +134,46 @@ public static class ConfigLoader
             Theme = theme,
             Taxonomy = taxonomy,
             Logging = logging
+        };
+    }
+
+    private static SeoConfig ReadSeoConfig(YamlMappingNode siteNode)
+    {
+        var seoNode = GetOptionalMapping(siteNode, "seo");
+        if (seoNode is null)
+        {
+            return new SeoConfig();
+        }
+
+        var orgNode = GetOptionalMapping(seoNode, "organization");
+        return new SeoConfig
+        {
+            Enabled = GetOptionalBool(seoNode, "enabled") ?? true,
+            DefaultImage = GetOptionalString(seoNode, "defaultImage"),
+            TwitterSite = GetOptionalString(seoNode, "twitterSite"),
+            Organization = orgNode is null
+                ? null
+                : new SeoOrganizationConfig
+                {
+                    Name = GetOptionalString(orgNode, "name"),
+                    Url = GetOptionalString(orgNode, "url"),
+                    Logo = GetOptionalString(orgNode, "logo")
+                }
+        };
+    }
+
+    private static AnalyticsConfig ReadAnalyticsConfig(YamlMappingNode siteNode)
+    {
+        var analyticsNode = GetOptionalMapping(siteNode, "analytics");
+        if (analyticsNode is null)
+        {
+            return new AnalyticsConfig();
+        }
+
+        return new AnalyticsConfig
+        {
+            Enabled = GetOptionalBool(analyticsNode, "enabled") ?? true,
+            GoogleAnalyticsId = GetOptionalString(analyticsNode, "google_analytics_id")
         };
     }
 

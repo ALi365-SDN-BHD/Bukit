@@ -43,6 +43,8 @@ public sealed class SiteEngineIntegrationTests
                   language: en
                 content:
                   provider: markdown
+                  media:
+                    downloadToLocal: false
                   markdown:
                     dir: content
                 build:
@@ -184,6 +186,122 @@ public sealed class SiteEngineIntegrationTests
         finally
         {
             try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_SeoAndAnalyticsModel_RendersAdvancedHead()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: test-site
+                  title: Test Site
+                  description: Site fallback description
+                  url: https://example.com/
+                  baseUrl: /docs/
+                  language: en
+                  seo:
+                    defaultImage: /assets/default-og.png
+                    twitterSite: "@bukit"
+                    organization:
+                      name: Example Inc
+                      url: https://example.com/about
+                      logo: https://example.com/logo.png
+                  analytics:
+                    google_analytics_id: G-ABC123
+                content:
+                  provider: markdown
+                  media:
+                    downloadToLocal: false
+                  markdown:
+                    dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+
+            File.WriteAllText(Path.Combine(root, "content", "hello.md"), """
+                ---
+                type: post
+                title: Hello World
+                slug: hello-world
+                publishAt: 2024-06-01T00:00:00Z
+                update_time: 2024-06-02T00:00:00Z
+                summary: A hello world post
+                seo_title: Custom SEO Title
+                seo_desc: Custom SEO Description
+                author: Ada
+                robots: noindex,nofollow
+                og_image: https://example.com/og.png
+                categories:
+                  - Docs
+                ---
+                # Hello World
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <title>{{ page.seo.title }}</title>
+                  <link rel="canonical" href="{{ page.seo.canonical }}" />
+                  <meta name="description" content="{{ page.seo.description }}" />
+                  <meta name="robots" content="{{ page.seo.robots }}" />
+                  <meta property="og:image" content="{{ page.seo.og.image }}" />
+                  <meta name="twitter:site" content="{{ page.seo.twitter.site }}" />
+                  {{ for json in page.seo.json_ld }}<script type="application/ld+json">{{ json }}</script>{{ end }}
+                  {{ if site.analytics.enabled && site.analytics.google_analytics_id }}
+                  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analytics.google_analytics_id }}"></script>
+                  <script>gtag('config', '{{ site.analytics.google_analytics_id }}');</script>
+                  {{ end }}
+                </head>
+                <body>{{ content }}</body>
+                </html>
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), """
+                {% layout "layouts/base.html" %}
+                {{ page.content }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), """
+                {% layout "layouts/base.html" %}
+                {{ page.content }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{{ page.seo.canonical }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{{ page.seo.canonical }}");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var engine = new SiteEngine(new TestLogger());
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var html = File.ReadAllText(Path.Combine(root, "dist", "blog", "hello-world", "index.html"));
+
+            Assert.Contains("<title>Custom SEO Title</title>", html, StringComparison.Ordinal);
+            Assert.Contains("https://example.com/docs/blog/hello-world/", html, StringComparison.Ordinal);
+            Assert.Contains("Custom SEO Description", html, StringComparison.Ordinal);
+            Assert.Contains("noindex,nofollow", html, StringComparison.Ordinal);
+            Assert.Contains("https://example.com/og.png", html, StringComparison.Ordinal);
+            Assert.Contains("@bukit", html, StringComparison.Ordinal);
+            Assert.Contains("\"@type\":\"BlogPosting\"", html, StringComparison.Ordinal);
+            Assert.Contains("\"@type\":\"BreadcrumbList\"", html, StringComparison.Ordinal);
+            Assert.Contains("googletagmanager.com/gtag/js?id=G-ABC123", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
         }
     }
 

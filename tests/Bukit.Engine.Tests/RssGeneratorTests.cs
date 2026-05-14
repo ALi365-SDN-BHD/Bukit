@@ -66,6 +66,27 @@ public sealed class RssGeneratorTests
     }
 
     [Fact]
+    public void Generate_UsesSiteDescriptionForChannelDescription()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var outDir = Path.Combine(root, "dist");
+        Directory.CreateDirectory(outDir);
+
+        RssGenerator.Generate(
+            outDir,
+            "https://example.com",
+            "/",
+            "My Site",
+            null,
+            Array.Empty<(ContentItem Item, RouteInfo Route)>(),
+            new InMemoryBodyStore(),
+            siteDescription: "Useful site summary");
+
+        var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
+        Assert.Contains("<description>Useful site summary</description>", rss, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_RespectsMaxItems()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
@@ -140,6 +161,25 @@ public sealed class RssGeneratorTests
     }
 
     [Fact]
+    public void GenerateMerged_UsesSiteDescriptionForChannelDescription()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var outDir = Path.Combine(root, "dist");
+        Directory.CreateDirectory(outDir);
+
+        RssGenerator.GenerateMerged(
+            outDir,
+            "https://example.com",
+            "/",
+            "Site",
+            Array.Empty<RssGenerator.Post>(),
+            siteDescription: "Merged feed summary");
+
+        var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
+        Assert.Contains("<description>Merged feed summary</description>", rss, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_CategoriesInRss()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
@@ -184,5 +224,12 @@ public sealed class RssGeneratorTests
     {
         var url = RssGenerator.BuildAbsoluteUrl("https://example.com", "/", "/blog/hello/");
         Assert.Equal("https://example.com/blog/hello/", url);
+    }
+
+    [Fact]
+    public void BuildAbsoluteUrl_NormalizesTrailingSlashSiteUrl()
+    {
+        var url = RssGenerator.BuildAbsoluteUrl("https://example.com/", "/docs/", "/blog/hello/");
+        Assert.Equal("https://example.com/docs/blog/hello/", url);
     }
 }

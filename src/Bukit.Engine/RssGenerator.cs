@@ -23,7 +23,8 @@ public static class RssGenerator
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         IContentBodyStore bodyStore,
-        int maxItems = 20)
+        int maxItems = 20,
+        string? siteDescription = null)
     {
         var normalizedSiteUrl = NormalizeSiteUrl(siteUrl);
         var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
@@ -44,7 +45,7 @@ public static class RssGenerator
 
         var feedUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/rss.xml");
         var homeUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");
-        FileWriter.WriteUtf8(outputDir, "rss.xml", RenderFeed(siteTitle, homeUrl, feedUrl, posts));
+        FileWriter.WriteUtf8(outputDir, "rss.xml", RenderFeed(siteTitle, siteDescription, homeUrl, feedUrl, posts));
     }
 
     public static void GenerateMerged(
@@ -53,7 +54,8 @@ public static class RssGenerator
         string baseUrl,
         string siteTitle,
         IReadOnlyList<Post> posts,
-        int maxItems = 20)
+        int maxItems = 20,
+        string? siteDescription = null)
     {
         var normalizedSiteUrl = NormalizeSiteUrl(siteUrl);
         var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
@@ -67,18 +69,20 @@ public static class RssGenerator
 
         var feedUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/rss.xml");
         var homeUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");
-        FileWriter.WriteUtf8(outputDir, "rss.xml", RenderFeed(siteTitle, homeUrl, feedUrl, sorted));
+        FileWriter.WriteUtf8(outputDir, "rss.xml", RenderFeed(siteTitle, siteDescription, homeUrl, feedUrl, sorted));
     }
 
-    private static string RenderFeed(string siteTitle, string homeUrl, string feedUrl, IReadOnlyList<Post> posts)
+    private static string RenderFeed(string siteTitle, string? siteDescription, string homeUrl, string feedUrl, IReadOnlyList<Post> posts)
     {
+        var channelDescription = string.IsNullOrWhiteSpace(siteDescription) ? siteTitle : siteDescription.Trim();
+
         var sb = new StringBuilder();
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
         sb.AppendLine("<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:content=\"http://purl.org/rss/1.0/modules/content/\">");
         sb.AppendLine("  <channel>");
         sb.AppendLine($"    <title>{EscapeXml(siteTitle)}</title>");
         sb.AppendLine($"    <link>{EscapeXml(homeUrl)}</link>");
-        sb.AppendLine($"    <description>{EscapeXml(siteTitle)}</description>");
+        sb.AppendLine($"    <description>{EscapeXml(channelDescription)}</description>");
         sb.AppendLine($"    <lastBuildDate>{DateTimeOffset.UtcNow:R}</lastBuildDate>");
         sb.AppendLine("    <generator>bukit</generator>");
         sb.AppendLine($"    <atom:link href=\"{EscapeXml(feedUrl)}\" rel=\"self\" type=\"application/rss+xml\" />");
@@ -221,6 +225,8 @@ public static class RssGenerator
 
     public static string BuildAbsoluteUrl(string siteUrl, string baseUrl, string url)
     {
+        siteUrl = NormalizeSiteUrl(siteUrl);
+        baseUrl = NormalizeBaseUrl(baseUrl);
         var u = url.StartsWith('/') ? url : "/" + url;
         var path = baseUrl == "/" ? u : $"{baseUrl}{u}";
         return siteUrl + path;

@@ -318,7 +318,7 @@ internal static class I18nOutputMerger
             }
         }
 
-        RssGenerator.GenerateMerged(outputDir, siteUrl, rootBaseUrl, config.Site.Title, posts);
+        RssGenerator.GenerateMerged(outputDir, siteUrl, rootBaseUrl, config.Site.Title, posts, siteDescription: config.Site.Description);
     }
 
     private static HashSet<string> ResolveRssCollections(IReadOnlyDictionary<string, CollectionConfig>? collections)

@@ -386,6 +386,63 @@ public sealed class ConfigValidatorTests
     }
 
     [Fact]
+    public void ConfigLoader_SeoAndAnalytics_LoadedFromYaml()
+    {
+        var yaml = """
+            site:
+              name: test
+              title: Test
+              url: https://example.com/
+              baseUrl: /docs/
+              seo:
+                enabled: true
+                defaultImage: /assets/og.png
+                twitterSite: "@bukit"
+                organization:
+                  name: Example Inc
+                  url: https://example.com/about
+                  logo: https://example.com/logo.png
+              analytics:
+                enabled: false
+                google_analytics_id: G-ABC123
+            content:
+              provider: markdown
+            build:
+              output: dist
+            """;
+
+        var tmpFile = Path.Combine(Path.GetTempPath(), $"ssp-test-{Guid.NewGuid():N}.yaml");
+        try
+        {
+            File.WriteAllText(tmpFile, yaml);
+            var config = ConfigLoader.Load(tmpFile);
+
+            Assert.True(config.Site.Seo.Enabled);
+            Assert.Equal("/assets/og.png", config.Site.Seo.DefaultImage);
+            Assert.Equal("@bukit", config.Site.Seo.TwitterSite);
+            Assert.Equal("Example Inc", config.Site.Seo.Organization?.Name);
+            Assert.Equal("https://example.com/about", config.Site.Seo.Organization?.Url);
+            Assert.Equal("https://example.com/logo.png", config.Site.Seo.Organization?.Logo);
+            Assert.False(config.Site.Analytics.Enabled);
+            Assert.Equal("G-ABC123", config.Site.Analytics.GoogleAnalyticsId);
+        }
+        finally
+        {
+            File.Delete(tmpFile);
+        }
+    }
+
+    [Fact]
+    public void Validate_MinimalDefaultConfig_HasSeoAndAnalyticsDefaults()
+    {
+        var config = ValidConfig();
+
+        Assert.True(config.Site.Seo.Enabled);
+        Assert.True(config.Site.Analytics.Enabled);
+        Assert.Null(config.Site.Analytics.GoogleAnalyticsId);
+    }
+
+    [Fact]
     public void Validate_Collections_InvalidPermalink_Throws()
     {
         var config = ValidConfig() with

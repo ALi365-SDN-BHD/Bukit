@@ -125,6 +125,90 @@ site:
 - 语言多、内容多
 - 你希望保留每语言产物，同时给一个“总入口”
 
+## 引擎级 SEO 与主题输出
+
+Bukit 会在引擎层统一计算 `page.seo`，主题只需要负责渲染。这样 canonical、OG、Twitter、JSON-LD 和多语言 hreflang 的规则可以集中在引擎里，避免每个主题重复拼 URL。
+
+引擎提供的主要字段：
+
+| 模板字段 | 说明 |
+|---|---|
+| `page.seo.title` | SEO 标题 |
+| `page.seo.description` | SEO 描述 |
+| `page.seo.canonical` | 规范 URL，由 `site.url + baseUrl + page.url` 统一生成 |
+| `page.seo.robots` | robots meta，只有页面字段或配置提供时才输出 |
+| `page.seo.og.*` | Open Graph 标题、描述、URL、图片、类型 |
+| `page.seo.twitter.*` | Twitter Card 标题、描述、图片、站点账号 |
+| `page.seo.alternates` | HTML `<link rel="alternate" hreflang=...>` 数据 |
+| `page.seo.json_ld` | WebSite、Organization、BreadcrumbList、BlogPosting JSON-LD |
+| `site.analytics.google_analytics_id` | GA4 Measurement ID |
+| `site.analytics.enabled` | Analytics 输出开关 |
+
+### SEO 字段优先级
+
+内容字段优先，其次站点级回退：
+
+1. 页面字段：`seo_title`、`seo_desc`、`canonical`、`robots`、`og_image`、`author`、`update_time`
+2. 内容常规字段：`summary`、`cover`、`image`、`publishAt`
+3. 站点字段：`site.title`、`site.description`、`site.seo.defaultImage`
+
+`type: post` 或 collection 为 `post` 的内容会额外输出 `BlogPosting` JSON-LD。
+
+### 配置 site.seo
+
+```yaml
+site:
+  url: https://example.com
+  baseUrl: /
+  seo:
+    enabled: true
+    defaultImage: /assets/og-default.png
+    twitterSite: "@your_account"
+    organization:
+      name: Example Inc
+      url: https://example.com/about
+      logo: https://example.com/logo.png
+```
+
+`site.seo.enabled` 默认是 `true`。设为 `false` 时，引擎不会生成 `page.seo`，新版 SEO partial 也不会输出 SEO 标签。
+
+### 主题不会被强制注入
+
+引擎不会直接修改 HTML，也不会在主题没有写 SEO partial 时自动注入 `<meta>` 标签。主题必须在 `<head>` 显式渲染：
+
+```scriban
+<title>{{ if page.seo }}{{ page.seo.title }}{{ else }}{{ page.title }}{{ end }}</title>
+{{ include "partials/seo.html" }}
+{{ include "partials/analytics.html" }}
+```
+
+如果主题已有自己的 SEO 逻辑，迁移时不要重复输出。推荐删除旧的手写 canonical/OG/Twitter/JSON-LD，改用 `page.seo`。
+
+## Google Analytics（GA4）
+
+Bukit 只支持 GA4 `gtag` 配置，不支持旧版 Universal Analytics。字段名是 `google_analytics_id`：
+
+```yaml
+site:
+  analytics:
+    google_analytics_id: G-XXXXXXXXXX
+```
+
+默认只要配置了 ID，且没有 `enabled: false`，新版 `partials/analytics.html` 就会输出：
+
+```html
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+```
+
+关闭 Analytics：
+
+```yaml
+site:
+  analytics:
+    enabled: false
+    google_analytics_id: G-XXXXXXXXXX
+```
+
 ## SEO 三件套：site.url、baseUrl、主题 SEO 片段
 
 ### 1）site.url：决定绝对链接
@@ -161,7 +245,8 @@ baseUrl 配错的典型症状：
 SEO 的 HTML 细节通常由主题控制。建议：
 
 - 对照 `examples/starter/themes/seo-best-practice/` 的模板写法
-- 确认主题在 `<head>` 输出 `canonical`、`alternate hreflang`（多语言站点更重要）
+- 确认主题在 `<head>` include `partials/seo.html`
+- 确认多语言页面输出 `alternate hreflang`
 
 ## 常见坑与修复清单
 

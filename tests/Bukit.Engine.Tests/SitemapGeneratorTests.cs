@@ -104,7 +104,14 @@ public sealed class SitemapGeneratorTests
     public void BuildAbsoluteUrl_SiteUrlTrailingSlash_ProducesDoubleSlash()
     {
         var url = SitemapGenerator.BuildAbsoluteUrl("https://example.com/", "/", "/blog/hello/");
-        Assert.Equal("https://example.com//blog/hello/", url);
+        Assert.Equal("https://example.com/blog/hello/", url);
+    }
+
+    [Fact]
+    public void BuildAbsoluteUrl_NormalizesTrailingSlashBaseUrl()
+    {
+        var url = SitemapGenerator.BuildAbsoluteUrl("https://example.com/", "/docs/", "/blog/hello/");
+        Assert.Equal("https://example.com/docs/blog/hello/", url);
     }
 
     [Fact]

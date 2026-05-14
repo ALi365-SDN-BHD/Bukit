@@ -62,6 +62,8 @@ logging:
 | `site.outputPathEncoding` | 输出路径编码策略（处理中文/特殊字符） | `none` / `slug` / `urlencode` / `sanitize` |
 | `site.permalinks` | 按类型自定义 URL 结构 | `post: "/{year}/{month}/{slug}/"` |
 | `site.collections` | collection 驱动路由配置（推荐） | `post: { permalink, template, listRoute }` |
+| `site.seo` | 引擎级 SEO 模型配置 | `enabled/defaultImage/twitterSite/organization` |
+| `site.analytics` | 统计代码配置（GA4） | `google_analytics_id: G-...` |
 
 与输出相关的模式（多语言时很关键）：
 
@@ -72,6 +74,50 @@ logging:
 | `site.searchMode` | search 输出模式 | `merged` / `split` / `index` |
 
 这些模式怎么选见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md)。
+
+### site：SEO 与 Google Analytics（可选）
+
+Bukit 会在构建时为每个页面计算统一的 `page.seo` 模型，主题可以直接渲染 canonical、description、robots、OG、Twitter、hreflang 和 JSON-LD。
+
+```yaml
+site:
+  url: https://example.com
+  baseUrl: /
+  seo:
+    enabled: true
+    defaultImage: /assets/og-default.png
+    twitterSite: "@your_account"
+    organization:
+      name: Example Inc
+      url: https://example.com/about
+      logo: https://example.com/logo.png
+  analytics:
+    google_analytics_id: G-XXXXXXXXXX
+```
+
+字段说明：
+
+| 字段 | 默认值 | 说明 |
+|---|---:|---|
+| `site.seo.enabled` | `true` | 是否生成 `page.seo` 模型；设为 `false` 后新 SEO partial 不会输出 SEO 标签 |
+| `site.seo.defaultImage` | 空 | 页面没有 `og_image/cover/image` 时使用的默认分享图 |
+| `site.seo.twitterSite` | 空 | 输出 `twitter:site`，例如 `@your_account` |
+| `site.seo.organization.name/url/logo` | 空 | 用于 Organization JSON-LD |
+| `site.analytics.enabled` | `true` | 是否允许输出统计代码 |
+| `site.analytics.google_analytics_id` | 空 | GA4 Measurement ID，例如 `G-XXXXXXXXXX` |
+
+Analytics 只支持 GA4 `gtag`。只要配置了 `site.analytics.google_analytics_id`，且没有设置 `enabled: false`，新版 starter partial 就会输出 Google Analytics 代码。
+
+如果要关闭统计代码：
+
+```yaml
+site:
+  analytics:
+    enabled: false
+    google_analytics_id: G-XXXXXXXXXX
+```
+
+注意：引擎只负责计算 `page.seo` 与 `site.analytics`，不会强行改写 HTML。主题需要在 `<head>` 显式 include SEO/Analytics partial，具体见：[08-主题与模板](./08-themes-templates.zh-CN.md)。
 
 ### site：自动摘要（可选）
 

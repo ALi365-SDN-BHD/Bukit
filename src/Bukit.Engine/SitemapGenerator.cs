@@ -106,6 +106,8 @@ public static class SitemapGenerator
 
     public static string BuildAbsoluteUrl(string siteUrl, string baseUrl, string url)
     {
+        siteUrl = NormalizeSiteUrl(siteUrl);
+        baseUrl = NormalizeBaseUrl(baseUrl);
         var u = url.StartsWith('/') ? url : "/" + url;
         var path = baseUrl == "/" ? u : $"{baseUrl}{u}";
         return siteUrl + path;

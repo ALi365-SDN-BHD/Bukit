@@ -18,10 +18,12 @@ public static class ScribanModelBinder
         var root = new ScriptObject();
         root.SetValue("site", ToScriptObject(model.Site), readOnly: true);
 
-        var listPage = new ScriptObject();
-        listPage.SetValue("title", model.Site.Title, readOnly: true);
-        listPage.SetValue("url", "/", readOnly: true);
-        root.SetValue("page", listPage, readOnly: true);
+        root.SetValue("page", ToScriptObject(model.Page ?? new PageInfo
+        {
+            Title = model.Site.Title,
+            Url = "/",
+            Content = string.Empty
+        }), readOnly: true);
 
         var pages = new ScriptArray();
         foreach (var page in model.Pages)
@@ -42,6 +44,7 @@ public static class ScribanModelBinder
         obj.SetValue("description", model.Description, readOnly: true);
         obj.SetValue("base_url", model.BaseUrl == "/" ? string.Empty : model.BaseUrl, readOnly: true);
         obj.SetValue("language", model.Language, readOnly: true);
+        obj.SetValue("analytics", ToScriptObject(model.Analytics), readOnly: true);
         if (model.Params is not null)
         {
             obj.SetValue("params", ToScriptObject(model.Params), readOnly: true);
@@ -97,6 +100,77 @@ public static class ScribanModelBinder
         obj.SetValue("summary", model.Summary, readOnly: true);
         obj.SetValue("publish_date", model.PublishDate?.DateTime, readOnly: true);
         obj.SetValue("fields", ToFieldsScriptObject(model.Fields), readOnly: true);
+        if (model.Seo is not null)
+        {
+            obj.SetValue("seo", ToScriptObject(model.Seo), readOnly: true);
+        }
+
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(AnalyticsModel model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("enabled", model.Enabled, readOnly: true);
+        obj.SetValue("google_analytics_id", model.GoogleAnalyticsId, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(SeoModel model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("title", model.Title, readOnly: true);
+        obj.SetValue("description", model.Description, readOnly: true);
+        obj.SetValue("canonical", model.Canonical, readOnly: true);
+        obj.SetValue("robots", model.Robots, readOnly: true);
+        obj.SetValue("og", ToScriptObject(model.Og), readOnly: true);
+        obj.SetValue("twitter", ToScriptObject(model.Twitter), readOnly: true);
+
+        var alternates = new ScriptArray();
+        foreach (var alternate in model.Alternates)
+        {
+            alternates.Add(ToScriptObject(alternate));
+        }
+
+        obj.SetValue("alternates", alternates, readOnly: true);
+
+        var jsonLd = new ScriptArray();
+        foreach (var json in model.JsonLd)
+        {
+            jsonLd.Add(json);
+        }
+
+        obj.SetValue("json_ld", jsonLd, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(SeoOpenGraphModel model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("title", model.Title, readOnly: true);
+        obj.SetValue("description", model.Description, readOnly: true);
+        obj.SetValue("url", model.Url, readOnly: true);
+        obj.SetValue("image", model.Image, readOnly: true);
+        obj.SetValue("type", model.Type, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(SeoTwitterModel model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("card", model.Card, readOnly: true);
+        obj.SetValue("title", model.Title, readOnly: true);
+        obj.SetValue("description", model.Description, readOnly: true);
+        obj.SetValue("image", model.Image, readOnly: true);
+        obj.SetValue("site", model.Site, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(SeoAlternateModel model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("hreflang", model.Hreflang, readOnly: true);
+        obj.SetValue("href", model.Href, readOnly: true);
         return obj;
     }
 

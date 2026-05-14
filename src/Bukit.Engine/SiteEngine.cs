@@ -76,6 +76,7 @@ public sealed class SiteEngine
             var variantCtx = new BuildVariantContext(
                 effectiveConfig, rootDir, overrides, items, bodyStore, outputDir, baseUrl,
                 layoutsDir, assetsDir, staticDir, mediaCacheDir,
+                SeoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal),
                 ManifestSuffix: null, DefaultLanguage: null);
             var result = await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken);
 
@@ -86,6 +87,7 @@ public sealed class SiteEngine
 
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(effectiveConfig.Site, languages);
         var rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl);
+        var seoAlternates = BuildSeoAlternates(effectiveConfig, items, languages, defaultLanguage, rootBaseUrl);
         var results = new List<BuildVariantResult>(capacity: languages.Count);
         for (var i = 0; i < languages.Count; i++)
         {
@@ -108,6 +110,7 @@ public sealed class SiteEngine
             var variantCtx = new BuildVariantContext(
                 variantConfig, rootDir, overrides, variantItems, bodyStore, variantOutputDir, baseUrl,
                 layoutsDir, assetsDir, staticDir, mediaCacheDir,
+                SeoAlternates: seoAlternates,
                 ManifestSuffix: lang, DefaultLanguage: defaultLanguage);
             var result = await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken);
             results.Add(result);
@@ -194,6 +197,11 @@ public sealed class SiteEngine
             Description = config.Site.Description,
             BaseUrl = baseUrl,
             Language = config.Site.Language,
+            Analytics = new AnalyticsModel
+            {
+                Enabled = config.Site.Analytics.Enabled,
+                GoogleAnalyticsId = config.Site.Analytics.GoogleAnalyticsId
+            },
             Params = config.Theme.Params,
             Modules = modules,
             Data = pluginContext.Data.Count == 0 ? null : pluginContext.Data
@@ -227,7 +235,15 @@ public sealed class SiteEngine
         var renderResult = await PageRenderDispatcher.RenderPagesAsync(
             renderQueue, bodyStore, renderer, siteModel, outputDir, templateHash,
             incrementalEnabled, manifest, manifestEntries, currentKeys,
-            maxDegreeOfParallelism, _logger, cancellationToken);
+            maxDegreeOfParallelism, _logger, cancellationToken,
+            config.Site.Seo.Enabled
+                ? (item, route) => SeoModelBuilder.BuildForContent(
+                    config,
+                    baseUrl,
+                    item,
+                    route,
+                    GetSeoAlternates(ctx.SeoAlternates, SeoModelBuilder.BuildAlternateKey(item, route)))
+                : null);
         renderPagesStopwatch.Stop();
         variantStageMetrics.AddDuration("renderPages", renderPagesStopwatch.ElapsedMilliseconds);
         variantStageMetrics = MergeStageMetrics(variantStageMetrics, renderResult.StageMetrics);
@@ -239,7 +255,22 @@ public sealed class SiteEngine
         var renderSpecialListsStopwatch = Stopwatch.StartNew();
         var specialListResult = await PageRenderDispatcher.RenderSpecialListsAsync(
             routed, bodyStore, renderer, siteModel, config.Site.Collections, ctx.LayoutsDir, config.Build.ListPageContentMode, outputDir, templateHash,
-            incrementalEnabled, manifest, currentKeys, renderReasons, cancellationToken);
+            incrementalEnabled, manifest, currentKeys, renderReasons, cancellationToken,
+            config.Site.Seo.Enabled
+                ? (item, route) => SeoModelBuilder.BuildForContent(
+                    config,
+                    baseUrl,
+                    item,
+                    route,
+                    GetSeoAlternates(ctx.SeoAlternates, SeoModelBuilder.BuildAlternateKey(item, route)))
+                : null,
+            config.Site.Seo.Enabled
+                ? (route, page) => SeoModelBuilder.BuildForList(
+                    config,
+                    baseUrl,
+                    page,
+                    GetSeoAlternates(ctx.SeoAlternates, SeoModelBuilder.BuildListAlternateKey(route)))
+                : null);
         renderSpecialListsStopwatch.Stop();
         variantStageMetrics.AddDuration("renderSpecialLists", renderSpecialListsStopwatch.ElapsedMilliseconds);
         variantStageMetrics = MergeStageMetrics(variantStageMetrics, specialListResult.StageMetrics);
@@ -345,6 +376,137 @@ public sealed class SiteEngine
         }
 
         return rules;
+    }
+
+    private static IReadOnlyList<SeoAlternateModel>? GetSeoAlternates(
+        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> alternates,
+        string key)
+    {
+        return alternates.TryGetValue(key, out var list) && list.Count > 0 ? list : null;
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> BuildSeoAlternates(
+        AppConfig config,
+        IReadOnlyList<ContentItem> items,
+        IReadOnlyList<string> languages,
+        string defaultLanguage,
+        string rootBaseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(config.Site.Url) || languages.Count == 0)
+        {
+            return new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal);
+        }
+
+        var grouped = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        var collectionRules = BuildCollectionRules(config.Site);
+        foreach (var language in languages)
+        {
+            var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, language);
+            var variantItems = I18nOutputMerger
+                .FilterItemsByLanguage(items, language, defaultLanguage)
+                .Where(i => !MetaHelpers.IsDataItem(i));
+
+            foreach (var item in variantItems)
+            {
+                var route = RouteGenerator.Generate(item, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules);
+                AddAlternate(SeoModelBuilder.BuildAlternateKey(item, route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url));
+            }
+
+            foreach (var route in BuildListRoutes(config.Site.Collections))
+            {
+                AddAlternate(SeoModelBuilder.BuildListAlternateKey(route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url));
+            }
+        }
+
+        var result = new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal);
+        foreach (var (key, byLanguage) in grouped)
+        {
+            var list = new List<SeoAlternateModel>(byLanguage.Count + 1);
+            if (byLanguage.TryGetValue(defaultLanguage, out var defaultHref))
+            {
+                list.Add(new SeoAlternateModel("x-default", defaultHref));
+            }
+
+            foreach (var language in languages)
+            {
+                if (byLanguage.TryGetValue(language, out var href))
+                {
+                    list.Add(new SeoAlternateModel(language, href));
+                }
+            }
+
+            result[key] = list;
+        }
+
+        return result;
+
+        void AddAlternate(string key, string language, string href)
+        {
+            if (!grouped.TryGetValue(key, out var byLanguage))
+            {
+                byLanguage = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                grouped[key] = byLanguage;
+            }
+
+            byLanguage[language] = href;
+        }
+    }
+
+    private static IReadOnlyList<RouteInfo> BuildListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)
+    {
+        var routes = new List<RouteInfo>
+        {
+            new("/", "index.html", "pages/index.html")
+        };
+
+        if (collections is null || collections.Count == 0)
+        {
+            routes.Add(new RouteInfo("/blog/", Path.Combine("blog", "index.html"), "pages/list.html"));
+            routes.Add(new RouteInfo("/pages/", Path.Combine("pages", "index.html"), "pages/list.html"));
+            return routes;
+        }
+
+        foreach (var (_, collection) in collections)
+        {
+            if (!collection.Output.Sitemap || string.IsNullOrWhiteSpace(collection.ListRoute))
+            {
+                continue;
+            }
+
+            var url = NormalizeListRoute(collection.ListRoute);
+            routes.Add(new RouteInfo(url, BuildListOutputPath(url), "pages/list.html"));
+        }
+
+        return routes;
+    }
+
+    private static string NormalizeListRoute(string route)
+    {
+        var value = (route ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "/";
+        }
+
+        if (!value.StartsWith('/'))
+        {
+            value = "/" + value;
+        }
+
+        if (!value.EndsWith('/'))
+        {
+            value += "/";
+        }
+
+        return value;
+    }
+
+    private static string BuildListOutputPath(string route)
+    {
+        var normalized = NormalizeListRoute(route).Trim('/');
+        return string.IsNullOrWhiteSpace(normalized)
+            ? "index.html"
+            : Path.Combine(normalized.Replace('/', Path.DirectorySeparatorChar), "index.html");
     }
 
     public async Task BuildAsync(IContentProvider provider, BuildOptions options, CancellationToken cancellationToken = default)

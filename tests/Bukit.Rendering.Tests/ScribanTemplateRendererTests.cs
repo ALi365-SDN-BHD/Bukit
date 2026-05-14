@@ -106,6 +106,43 @@ public sealed class ScribanTemplateRendererTests : IDisposable
     }
 
     [Fact]
+    public void RenderPage_SeoAndAnalytics_Accessible()
+    {
+        WriteTemplate("seo.html", "{{ page.seo.canonical }}|{{ page.seo.og.image }}|{{ page.seo.alternates[0].hreflang }}|{{ site.analytics.google_analytics_id }}|{{ site.analytics.enabled }}");
+
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var model = CreatePageModel("SEO");
+        model = model with
+        {
+            Site = model.Site with
+            {
+                Analytics = new AnalyticsModel
+                {
+                    Enabled = true,
+                    GoogleAnalyticsId = "G-ABC123"
+                }
+            },
+            Page = model.Page with
+            {
+                Seo = new SeoModel
+                {
+                    Title = "SEO",
+                    Description = "Desc",
+                    Canonical = "https://example.com/seo/",
+                    Og = new SeoOpenGraphModel { Title = "SEO", Description = "Desc", Url = "https://example.com/seo/", Image = "https://example.com/og.png" },
+                    Twitter = new SeoTwitterModel { Card = "summary_large_image", Title = "SEO", Description = "Desc", Image = "https://example.com/og.png" },
+                    Alternates = new[] { new SeoAlternateModel("en", "https://example.com/en/seo/") },
+                    JsonLd = new[] { """{"@context":"https://schema.org","@type":"WebSite"}""" }
+                }
+            }
+        };
+
+        var result = renderer.RenderPage("seo.html", model);
+
+        Assert.Equal("https://example.com/seo/|https://example.com/og.png|en|G-ABC123|true", result);
+    }
+
+    [Fact]
     public void RenderPage_SubdirectoryTemplate_ResolvesCorrectly()
     {
         var subDir = Path.Combine(_layoutsDir, "pages");

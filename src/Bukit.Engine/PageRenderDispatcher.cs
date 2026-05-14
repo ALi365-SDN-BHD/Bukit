@@ -37,7 +37,8 @@ internal static class PageRenderDispatcher
         HashSet<string> currentKeys,
         int maxDegreeOfParallelism,
         ILogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null)
     {
         var workItems = new List<(ContentItem Item, RouteInfo Route, string Key)>(renderQueue.Count);
         var warnedOutputPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -157,7 +158,8 @@ internal static class PageRenderDispatcher
                     Content = content,
                     Summary = item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
                     PublishDate = item.PublishAt,
-                    Fields = item.Fields
+                    Fields = item.Fields,
+                    Seo = seoBuilder?.Invoke(item, route)
                 }
             };
 
@@ -205,7 +207,9 @@ internal static class PageRenderDispatcher
         BuildManifest manifest,
         HashSet<string> currentKeys,
         ConcurrentDictionary<string, int> renderReasons,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null,
+        Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var specialLists = BuildSpecialListDefinitions(routed, collections, layoutsDir, listPageContentMode);
@@ -220,7 +224,7 @@ internal static class PageRenderDispatcher
             foreach (var x in specialLists)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var result = await RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, manifest, renderReasons, x.IncludeContent, cancellationToken);
+                var result = await RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, manifest, renderReasons, x.IncludeContent, cancellationToken, seoBuilder, listSeoBuilder);
                 rendered += result.RenderedCount;
                 skipped += result.SkippedCount;
                 stageMetrics = MergeCollectors(stageMetrics, result.StageMetrics);
@@ -233,7 +237,7 @@ internal static class PageRenderDispatcher
         foreach (var x in specialLists)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var metrics = await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, x.IncludeContent, cancellationToken);
+            var metrics = await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, x.IncludeContent, cancellationToken, seoBuilder, listSeoBuilder);
             stageMetrics = MergeCollectors(stageMetrics, metrics);
         }
 
@@ -249,15 +253,20 @@ internal static class PageRenderDispatcher
         string outputDir,
         ConcurrentDictionary<string, SemaphoreSlim> writeLocks,
         bool includeContent,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder,
+        Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var listBuildStopwatch = Stopwatch.StartNew();
-        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, cancellationToken, stageMetrics, "listBodyLoad");
+        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
+        var listPage = CreateListPageInfo(siteModel, listRoute);
+        listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
 
         var html = renderer.RenderList(listRoute.Template, new ListPageModel
         {
             Site = siteModel,
+            Page = listPage,
             Pages = pageInfos
         });
 
@@ -279,7 +288,9 @@ internal static class PageRenderDispatcher
         BuildManifest manifest,
         ConcurrentDictionary<string, int> renderReasons,
         bool includeContent,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder,
+        Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
@@ -306,11 +317,14 @@ internal static class PageRenderDispatcher
         }
 
         var listBuildStopwatch = Stopwatch.StartNew();
-        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, cancellationToken, stageMetrics, "listBodyLoad");
+        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
+        var listPage = CreateListPageInfo(siteModel, listRoute);
+        listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
 
         var html = renderer.RenderList(listRoute.Template, new ListPageModel
         {
             Site = siteModel,
+            Page = listPage,
             Pages = pageInfos
         });
 
@@ -339,7 +353,8 @@ internal static class PageRenderDispatcher
         bool includeContent,
         CancellationToken cancellationToken,
         BuildStageMetricsCollector? stageMetrics = null,
-        string bodyLoadMetricName = "listBodyLoad")
+        string bodyLoadMetricName = "listBodyLoad",
+        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null)
     {
         var pageInfos = new List<PageInfo>(source.Count);
         foreach (var entry in source)
@@ -362,11 +377,38 @@ internal static class PageRenderDispatcher
                 Content = content,
                 Summary = entry.Item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
                 PublishDate = entry.Item.PublishAt,
-                Fields = entry.Item.Fields
+                Fields = entry.Item.Fields,
+                Seo = seoBuilder?.Invoke(entry.Item, entry.Route)
             });
         }
 
         return pageInfos;
+    }
+
+    private static PageInfo CreateListPageInfo(SiteModel siteModel, RouteInfo listRoute)
+    {
+        return new PageInfo
+        {
+            Title = listRoute.Url == "/" ? siteModel.Title : BuildListTitle(listRoute.Url),
+            Url = listRoute.Url,
+            Content = string.Empty,
+            Summary = siteModel.Description
+        };
+    }
+
+    private static string BuildListTitle(string url)
+    {
+        var lastSegment = (url ?? string.Empty)
+            .Trim('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .LastOrDefault();
+
+        if (string.IsNullOrWhiteSpace(lastSegment))
+        {
+            return "Index";
+        }
+
+        return char.ToUpperInvariant(lastSegment[0]) + lastSegment[1..].Replace('-', ' ');
     }
 
     private static List<SpecialListDefinition> BuildSpecialListDefinitions(

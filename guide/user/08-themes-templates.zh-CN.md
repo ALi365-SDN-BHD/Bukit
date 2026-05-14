@@ -217,7 +217,52 @@ Notion relation 补全（可选）：
 
 - `layouts/layouts/base.html`
 
-SEO 相关建议见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md) 与示例主题 `seo-best-practice`。
+新版 starter 推荐把 SEO 与统计代码拆成 partial：
+
+```scriban
+<title>{{ if page.seo }}{{ page.seo.title }}{{ else }}{{ page.title }}{{ end }}</title>
+{{ include "partials/seo.html" }}
+{{ include "partials/analytics.html" }}
+```
+
+对应文件：
+
+- `layouts/partials/seo.html`
+- `layouts/partials/analytics.html`
+
+如果你用 `bukit theme create <name>` 新建主题，Bukit 会自动生成这两个 partial。
+
+#### 引擎是否会自动注入 SEO？
+
+不会。Bukit 的策略是“引擎统一计算，主题显式渲染”：
+
+- 引擎会为页面计算 `page.seo`
+- 引擎会为站点暴露 `site.analytics`
+- 主题没有 include SEO/Analytics partial 时，HTML 不会自动出现这些标签
+- 这样可以避免引擎在未知 HTML 结构里做脆弱的字符串注入，也不会破坏老主题
+
+#### 主题已经有自己的 SEO 逻辑怎么办？
+
+如果旧主题已经手写了 canonical、OG、Twitter 或 JSON-LD，不要同时保留旧逻辑又 include 新 partial，否则可能出现重复标签。
+
+推荐迁移方式：
+
+1. 保留 `<title>`，但优先读取 `page.seo.title`
+2. 删除主题里手写拼接 canonical/OG/Twitter/JSON-LD 的逻辑
+3. 在 `<head>` 中 include `partials/seo.html`
+4. 需要 GA4 时 include `partials/analytics.html`
+
+Analytics partial 的输出条件是：
+
+```scriban
+{{ if site.analytics && site.analytics.enabled && site.analytics.google_analytics_id }}
+  ...
+{{ end }}
+```
+
+所以只要 `site.analytics.google_analytics_id` 存在且没有 `enabled: false`，就会输出 GA4 gtag 代码。
+
+SEO 相关配置与多语言 hreflang 行为见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md) 与示例主题 `seo-best-practice`。
 
 ## 常见错误与修复
 
