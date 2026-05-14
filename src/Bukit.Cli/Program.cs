@@ -59,6 +59,7 @@ try
         "clean" => await CleanCommand.RunAsync(reader),
         "doctor" => await DoctorCommand.RunAsync(reader),
         "plugin" => await PluginCommand.RunAsync(reader),
+        "seo" => await SeoCommand.RunAsync(reader),
         "theme" => await ThemeCommand.RunAsync(reader),
         "intent" => await IntentCommand.RunAsync(reader),
         "webhook" => await WebhookCommand.RunAsync(reader),

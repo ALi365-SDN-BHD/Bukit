@@ -1,10 +1,13 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
+using System.Text.RegularExpressions;
+using Bukit.Config;
 using Bukit.Cli.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 
-public static class PreviewCommand
+public static partial class PreviewCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
@@ -40,6 +43,7 @@ public static class PreviewCommand
             return 2;
         }
 
+        var disableAnalytics = ResolveDisableAnalyticsInPreview(dir);
         var (listener, prefix) = CreateAndStartListener(host, port, strictPort);
         using var startedListener = listener;
 
@@ -50,8 +54,20 @@ public static class PreviewCommand
         while (true)
         {
             var context = await listener.GetContextAsync();
-            _ = Task.Run(() => HandleRequest(dir, context));
+            _ = Task.Run(() => HandleRequest(dir, context, disableAnalytics));
         }
+    }
+
+    public static string ApplyPreviewAnalyticsPolicy(string html, bool disableAnalytics)
+    {
+        if (!disableAnalytics || string.IsNullOrWhiteSpace(html))
+        {
+            return html;
+        }
+
+        html = GtagExternalRegex().Replace(html, string.Empty);
+        html = GtagInlineRegex().Replace(html, string.Empty);
+        return html;
     }
 
     private static int ParsePort(string portText)
@@ -132,7 +148,7 @@ public static class PreviewCommand
         return port;
     }
 
-    private static void HandleRequest(string rootDir, HttpListenerContext context)
+    private static void HandleRequest(string rootDir, HttpListenerContext context, bool disableAnalytics)
     {
         try
         {
@@ -164,10 +180,21 @@ public static class PreviewCommand
                 return;
             }
 
-            using var fs = File.OpenRead(candidate);
             context.Response.ContentType = GetContentType(candidate);
-            context.Response.ContentLength64 = fs.Length;
-            fs.CopyTo(context.Response.OutputStream);
+            if (Path.GetExtension(candidate).Equals(".html", StringComparison.OrdinalIgnoreCase))
+            {
+                var html = File.ReadAllText(candidate);
+                var filtered = ApplyPreviewAnalyticsPolicy(html, disableAnalytics);
+                var bytes = Encoding.UTF8.GetBytes(filtered);
+                context.Response.ContentLength64 = bytes.Length;
+                context.Response.OutputStream.Write(bytes, 0, bytes.Length);
+            }
+            else
+            {
+                using var fs = File.OpenRead(candidate);
+                context.Response.ContentLength64 = fs.Length;
+                fs.CopyTo(context.Response.OutputStream);
+            }
         }
         catch (Exception ex)
         {
@@ -199,4 +226,36 @@ public static class PreviewCommand
             _ => "application/octet-stream"
         };
     }
+
+    private static bool ResolveDisableAnalyticsInPreview(string previewDir)
+    {
+        var current = new DirectoryInfo(Path.GetFullPath(previewDir));
+        while (current is not null)
+        {
+            var configPath = Path.Combine(current.FullName, "site.yaml");
+            if (File.Exists(configPath))
+            {
+                try
+                {
+                    var config = ConfigLoader.Load(configPath);
+                    return config.Site.Analytics.DisableInPreview &&
+                           !string.IsNullOrWhiteSpace(config.Site.Analytics.GoogleAnalyticsId);
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            current = current.Parent;
+        }
+
+        return false;
+    }
+
+    [GeneratedRegex(@"[ \t]*<script\b(?=[^>]*googletagmanager\.com/gtag/js)[^>]*>\s*</script>\s*", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex GtagExternalRegex();
+
+    [GeneratedRegex(@"[ \t]*<script\b[^>]*>.*?gtag\('config'.*?</script>\s*", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+    private static partial Regex GtagInlineRegex();
 }

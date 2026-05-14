@@ -1,6 +1,7 @@
 using System.Text;
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Engine.Plugins;
 using Bukit.Routing;
 
 namespace Bukit.Engine;
@@ -23,6 +24,7 @@ public static class RssGenerator
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         IContentBodyStore bodyStore,
+        IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex = null,
         int maxItems = 20,
         string? siteDescription = null)
     {
@@ -32,6 +34,7 @@ public static class RssGenerator
         var rssCollections = ResolveRssCollections(collections);
         var posts = routed
             .Where(x => rssCollections.Contains(GetCollection(x.Item)))
+            .Where(x => IsIndexable(seoIndex, x.Route))
             .OrderByDescending(x => x.Item.PublishAt)
             .Take(maxItems)
             .Select(x => new Post(
@@ -129,6 +132,17 @@ public static class RssGenerator
     private static string? GetString(IReadOnlyDictionary<string, object> meta, string key)
     {
         return meta.TryGetValue(key, out var v) && v is not null ? v.ToString() : null;
+    }
+
+    private static bool IsIndexable(IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex, RouteInfo route)
+    {
+        if (seoIndex is null)
+        {
+            return true;
+        }
+
+        var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+        return !seoIndex.TryGetValue(key, out var entry) || entry.Indexable;
     }
 
     private static IReadOnlyList<string>? GetStringList(IReadOnlyDictionary<string, object> meta, string key)

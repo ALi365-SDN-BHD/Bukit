@@ -138,6 +138,12 @@ internal static class I18nOutputMerger
 
         bool IsExcluded(BuildVariantResult r, string outputPath)
         {
+            var key = BuildPathUtils.NormalizeRelPath(outputPath);
+            if (r.SeoIndex.TryGetValue(key, out var seo) && !seo.Indexable)
+            {
+                return true;
+            }
+
             return IsExcludedFile(Path.Combine(r.OutputDir, outputPath));
         }
 
@@ -308,6 +314,12 @@ internal static class I18nOutputMerger
         {
             foreach (var (item, route) in r.Routed.Where(x => rssCollections.Contains(GetCollection(x.Item))))
             {
+                var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+                if (r.SeoIndex.TryGetValue(key, out var seo) && !seo.Indexable)
+                {
+                    continue;
+                }
+
                 posts.Add(new RssGenerator.Post(
                     Title: item.Title,
                     AbsoluteUrl: RssGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, route.Url),

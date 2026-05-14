@@ -84,6 +84,24 @@ public static class ConfigValidator
             throw new ConfigException("site.searchMode must be split|merged|index.");
         }
 
+        var seoRenderMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
+        if (seoRenderMode is not ("theme" or "inject" or "off"))
+        {
+            throw new ConfigException("site.seo.renderMode must be theme|inject|off.");
+        }
+
+        var seoDiagnostics = (config.Site.Seo.Diagnostics ?? "warn").Trim().ToLowerInvariant();
+        if (seoDiagnostics is not ("off" or "warn" or "strict"))
+        {
+            throw new ConfigException("site.seo.diagnostics must be off|warn|strict.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(config.Site.Analytics.GoogleAnalyticsId) &&
+            !Regex.IsMatch(config.Site.Analytics.GoogleAnalyticsId.Trim(), "^G-[A-Z0-9]+$", RegexOptions.CultureInvariant))
+        {
+            throw new ConfigException("site.analytics.google_analytics_id must be a GA4 id starting with G-.");
+        }
+
         var pluginFailMode = (config.Site.PluginFailMode ?? "strict").Trim().ToLowerInvariant();
         if (pluginFailMode is not ("strict" or "warn"))
         {

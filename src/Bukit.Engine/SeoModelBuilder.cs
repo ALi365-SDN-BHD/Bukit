@@ -26,7 +26,11 @@ internal static class SeoModelBuilder
         image = BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, image);
 
         var isPost = IsPost(item);
-        var jsonLd = BuildJsonLd(config, title, description, canonical, image, route.Url, item, isPost);
+        var isCollectionPage = !isPost && IsCollectionLikePage(item);
+        TryGetUpdateTime(item, out var updated);
+        var author = FirstTextOrMeta(item, "author");
+        var tags = GetStringList(item.Meta, "tags") ?? Array.Empty<string>();
+        var jsonLd = BuildJsonLd(config, baseUrl, title, description, canonical, image, route.Url, item, item.Fields, isPost, isCollectionPage);
 
         return new SeoModel
         {
@@ -40,7 +44,9 @@ internal static class SeoModelBuilder
                 Description = description,
                 Url = canonical,
                 Image = image,
-                Type = isPost ? "article" : "website"
+                Type = isPost ? "article" : "website",
+                SiteName = config.Site.Title,
+                Locale = config.Site.Language
             },
             Twitter = new SeoTwitterModel
             {
@@ -48,7 +54,15 @@ internal static class SeoModelBuilder
                 Title = title,
                 Description = description,
                 Image = image,
-                Site = config.Site.Seo.TwitterSite
+                Site = config.Site.Seo.TwitterSite,
+                Creator = FirstTextOrMeta(item, "twitter_creator")
+            },
+            Article = new SeoArticleModel
+            {
+                PublishedTime = isPost ? item.PublishAt : null,
+                ModifiedTime = isPost && updated != default ? updated : null,
+                Author = isPost ? author : null,
+                Tags = isPost ? tags : Array.Empty<string>()
             },
             Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
             JsonLd = jsonLd
@@ -77,7 +91,9 @@ internal static class SeoModelBuilder
                 Description = description,
                 Url = canonical,
                 Image = image,
-                Type = "website"
+                Type = "website",
+                SiteName = config.Site.Title,
+                Locale = config.Site.Language
             },
             Twitter = new SeoTwitterModel
             {
@@ -88,7 +104,7 @@ internal static class SeoModelBuilder
                 Site = config.Site.Seo.TwitterSite
             },
             Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
-            JsonLd = BuildJsonLd(config, title, description, canonical, image, page.Url, item: null, isPost: false)
+            JsonLd = BuildJsonLd(config, baseUrl, title, description, canonical, image, page.Url, item: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/")
         };
     }
 
@@ -113,26 +129,53 @@ internal static class SeoModelBuilder
 
     internal static string BuildListAlternateKey(RouteInfo route) => $"route:{route.Url}";
 
+    internal static bool IsIndexable(string? robots)
+    {
+        if (string.IsNullOrWhiteSpace(robots))
+        {
+            return true;
+        }
+
+        var tokens = robots.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        return !tokens.Any(t =>
+            string.Equals(t, "noindex", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(t, "none", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static IReadOnlyList<string> BuildJsonLd(
         AppConfig config,
+        string baseUrl,
         string title,
         string? description,
         string canonical,
         string? image,
         string routeUrl,
         ContentItem? item,
-        bool isPost)
+        IReadOnlyDictionary<string, ContentField>? itemListFields,
+        bool isPost,
+        bool isCollectionPage)
     {
         var result = new List<string>();
-        var siteHome = BuildAbsoluteUrl(config.Site.Url, config.Site.BaseUrl, "/");
-
-        result.Add(ToJson(new Dictionary<string, object?>
+        var siteHome = BuildAbsoluteUrl(config.Site.Url, baseUrl, "/");
+        var website = new Dictionary<string, object?>
         {
             ["@context"] = "https://schema.org",
             ["@type"] = "WebSite",
             ["name"] = config.Site.Title,
             ["url"] = siteHome
-        }));
+        };
+
+        if (config.Site.Seo.Schema.SearchAction)
+        {
+            website["potentialAction"] = new Dictionary<string, object?>
+            {
+                ["@type"] = "SearchAction",
+                ["target"] = BuildAbsoluteUrl(config.Site.Url, baseUrl, "/search/?q={search_term_string}"),
+                ["query-input"] = "required name=search_term_string"
+            };
+        }
+
+        result.Add(ToJson(website));
 
         if (config.Site.Seo.Organization is { } org &&
             (!string.IsNullOrWhiteSpace(org.Name) || !string.IsNullOrWhiteSpace(org.Url) || !string.IsNullOrWhiteSpace(org.Logo)))
@@ -152,6 +195,24 @@ internal static class SeoModelBuilder
             result.Add(ToJson(organization));
         }
 
+        if (config.Site.Seo.Schema.WebPage)
+        {
+            result.Add(ToJson(new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = isCollectionPage && config.Site.Seo.Schema.CollectionPage ? "CollectionPage" : "WebPage",
+                ["name"] = title,
+                ["description"] = description,
+                ["url"] = canonical,
+                ["isPartOf"] = new Dictionary<string, object?>
+                {
+                    ["@type"] = "WebSite",
+                    ["name"] = config.Site.Title,
+                    ["url"] = siteHome
+                }
+            }));
+        }
+
         if (routeUrl.Trim('/') is { Length: > 0 } trimmed)
         {
             var segments = trimmed.Split('/', StringSplitOptions.RemoveEmptyEntries);
@@ -165,7 +226,7 @@ internal static class SeoModelBuilder
                     ["@type"] = "ListItem",
                     ["position"] = i + 1,
                     ["name"] = i == segments.Length - 1 ? title : ToTitle(segments[i]),
-                    ["item"] = BuildAbsoluteUrl(config.Site.Url, config.Site.BaseUrl, current + "/")
+                    ["item"] = BuildAbsoluteUrl(config.Site.Url, baseUrl, current + "/")
                 });
             }
 
@@ -208,7 +269,19 @@ internal static class SeoModelBuilder
                 };
             }
 
+            var tags = GetStringList(item.Meta, "tags");
+            if (tags is { Count: > 0 })
+            {
+                article["keywords"] = tags;
+            }
+
             result.Add(ToJson(article));
+        }
+
+        var itemList = BuildItemList(config, baseUrl, itemListFields);
+        if (isCollectionPage && itemList is not null)
+        {
+            result.Add(ToJson(itemList));
         }
 
         return result;
@@ -235,6 +308,140 @@ internal static class SeoModelBuilder
         var collection = MetaHelpers.GetString(item.Meta, "collection") ?? MetaHelpers.GetString(item.Meta, "type");
         return string.Equals(collection, "post", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsCollectionLikePage(ContentItem item)
+        => item.Fields is not null &&
+           (item.Fields.ContainsKey("items") || item.Fields.ContainsKey("terms"));
+
+    private static IReadOnlyList<string>? GetStringList(IReadOnlyDictionary<string, object> meta, string key)
+    {
+        if (!meta.TryGetValue(key, out var value) || value is null)
+        {
+            return null;
+        }
+
+        if (value is string text)
+        {
+            var parts = text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length == 0 ? null : parts;
+        }
+
+        if (value is IEnumerable<object> values)
+        {
+            var list = values
+                .Select(x => x?.ToString()?.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!)
+                .ToList();
+            return list.Count == 0 ? null : list;
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyDictionary<string, object?>? BuildItemList(
+        AppConfig config,
+        string baseUrl,
+        IReadOnlyDictionary<string, ContentField>? fields)
+    {
+        if (fields is null || fields.Count == 0)
+        {
+            return null;
+        }
+
+        if (!TryGetListField(fields, "items", out var values) &&
+            !TryGetListField(fields, "terms", out values))
+        {
+            return null;
+        }
+
+        var elements = new List<Dictionary<string, object?>>();
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (!TryReadListEntry(values[i], out var name, out var url))
+            {
+                continue;
+            }
+
+            var entry = new Dictionary<string, object?>
+            {
+                ["@type"] = "ListItem",
+                ["position"] = elements.Count + 1,
+                ["name"] = name
+            };
+
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                entry["url"] = BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, url);
+            }
+
+            elements.Add(entry);
+        }
+
+        if (elements.Count == 0)
+        {
+            return null;
+        }
+
+        return new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "ItemList",
+            ["itemListElement"] = elements
+        };
+    }
+
+    private static bool TryGetListField(IReadOnlyDictionary<string, ContentField> fields, string key, out IReadOnlyList<object> values)
+    {
+        values = Array.Empty<object>();
+        if (!fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return false;
+        }
+
+        if (field.Value is IReadOnlyList<object> readOnlyObjects)
+        {
+            values = readOnlyObjects;
+            return values.Count > 0;
+        }
+
+        if (field.Value is IEnumerable<object> objects)
+        {
+            values = objects.ToList();
+            return values.Count > 0;
+        }
+
+        return false;
+    }
+
+    private static bool TryReadListEntry(object value, out string? name, out string? url)
+    {
+        name = null;
+        url = null;
+
+        if (value is IReadOnlyDictionary<string, object> readOnly)
+        {
+            name = ReadMapString(readOnly, "title") ?? ReadMapString(readOnly, "name") ?? ReadMapString(readOnly, "term");
+            url = ReadMapString(readOnly, "url") ?? ReadMapString(readOnly, "href");
+            return !string.IsNullOrWhiteSpace(name);
+        }
+
+        if (value is IDictionary<string, object> dict)
+        {
+            name = ReadMapString(dict, "title") ?? ReadMapString(dict, "name") ?? ReadMapString(dict, "term");
+            url = ReadMapString(dict, "url") ?? ReadMapString(dict, "href");
+            return !string.IsNullOrWhiteSpace(name);
+        }
+
+        name = value.ToString();
+        return !string.IsNullOrWhiteSpace(name);
+    }
+
+    private static string? ReadMapString(IReadOnlyDictionary<string, object> map, string key)
+        => map.TryGetValue(key, out var value) && value is not null ? value.ToString() : null;
+
+    private static string? ReadMapString(IDictionary<string, object> map, string key)
+        => map.TryGetValue(key, out var value) && value is not null ? value.ToString() : null;
 
     private static string? BuildMaybeAbsoluteUrl(string? siteUrl, string baseUrl, string? value)
     {

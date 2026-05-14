@@ -1,4 +1,5 @@
 using Bukit.Content;
+using Bukit.Engine;
 using System.Text;
 using System.Text.Json;
 
@@ -25,6 +26,12 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
 
         foreach (var (item, route) in items)
         {
+            var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+            if (context.SeoIndex.TryGetValue(key, out var seo) && !seo.Indexable)
+            {
+                continue;
+            }
+
             writer.WriteStartObject();
             writer.WriteString("id", item.Id);
             writer.WriteString("title", item.Title);

@@ -118,6 +118,7 @@ public sealed class SiteEngine
         }
 
         I18nOutputMerger.GenerateRootOutputs(effectiveConfig, outputDir, rootBaseUrl, results, _logger, _searchIndexBuilder);
+        SeoAuditReportWriter.WriteMerged(effectiveConfig, outputDir, results, _logger);
         _logger.Info("event=build.done");
         MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, outputDir, items.Count, results);
     }
@@ -228,21 +229,34 @@ public sealed class SiteEngine
             : null;
 
         var renderQueue = routed.Concat(pluginContext.DerivedRouted).ToList();
+        var listRoutes = BuildListRoutes(config.Site.Collections);
+        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, ctx.SeoAlternates);
+        pluginContext.SeoIndex = seoIndex.Entries;
+        SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, _logger);
         var currentKeys = new HashSet<string>(StringComparer.Ordinal);
         var maxDegreeOfParallelism = overrides.Jobs ?? Environment.ProcessorCount;
+        var seoHtmlMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
+        var shouldProvideSeoModel = config.Site.Seo.Enabled && seoHtmlMode != "off";
+        var shouldInjectSeo = shouldProvideSeoModel && seoHtmlMode == "inject";
 
         var renderPagesStopwatch = Stopwatch.StartNew();
         var renderResult = await PageRenderDispatcher.RenderPagesAsync(
             renderQueue, bodyStore, renderer, siteModel, outputDir, templateHash,
             incrementalEnabled, manifest, manifestEntries, currentKeys,
             maxDegreeOfParallelism, _logger, cancellationToken,
-            config.Site.Seo.Enabled
-                ? (item, route) => SeoModelBuilder.BuildForContent(
-                    config,
-                    baseUrl,
-                    item,
-                    route,
-                    GetSeoAlternates(ctx.SeoAlternates, SeoModelBuilder.BuildAlternateKey(item, route)))
+            shouldProvideSeoModel
+                ? (_, route) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model) ? model : null!
+                : null,
+            shouldProvideSeoModel
+                ? (_, route, page, html) =>
+                {
+                    if (shouldInjectSeo)
+                    {
+                        html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, siteModel.Analytics);
+                    }
+
+                    return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, _logger);
+                }
                 : null);
         renderPagesStopwatch.Stop();
         variantStageMetrics.AddDuration("renderPages", renderPagesStopwatch.ElapsedMilliseconds);
@@ -256,7 +270,7 @@ public sealed class SiteEngine
         var specialListResult = await PageRenderDispatcher.RenderSpecialListsAsync(
             routed, bodyStore, renderer, siteModel, config.Site.Collections, ctx.LayoutsDir, config.Build.ListPageContentMode, outputDir, templateHash,
             incrementalEnabled, manifest, currentKeys, renderReasons, cancellationToken,
-            config.Site.Seo.Enabled
+            shouldProvideSeoModel
                 ? (item, route) => SeoModelBuilder.BuildForContent(
                     config,
                     baseUrl,
@@ -264,12 +278,25 @@ public sealed class SiteEngine
                     route,
                     GetSeoAlternates(ctx.SeoAlternates, SeoModelBuilder.BuildAlternateKey(item, route)))
                 : null,
-            config.Site.Seo.Enabled
-                ? (route, page) => SeoModelBuilder.BuildForList(
-                    config,
-                    baseUrl,
-                    page,
-                    GetSeoAlternates(ctx.SeoAlternates, SeoModelBuilder.BuildListAlternateKey(route)))
+            shouldProvideSeoModel
+                ? (route, page) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model)
+                    ? model
+                    : SeoModelBuilder.BuildForList(
+                        config,
+                        baseUrl,
+                        page,
+                        GetSeoAlternates(ctx.SeoAlternates, SeoModelBuilder.BuildListAlternateKey(route)))
+                : null,
+            shouldProvideSeoModel
+                ? (route, page, html) =>
+                {
+                    if (shouldInjectSeo)
+                    {
+                        html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, siteModel.Analytics);
+                    }
+
+                    return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, _logger);
+                }
                 : null);
         renderSpecialListsStopwatch.Stop();
         variantStageMetrics.AddDuration("renderSpecialLists", renderSpecialListsStopwatch.ElapsedMilliseconds);
@@ -310,6 +337,7 @@ public sealed class SiteEngine
 
         var afterBuildStopwatch = Stopwatch.StartNew();
         await PluginRunner.RunAfterBuildAsync(pluginContext, cancellationToken);
+        WriteRobotsTxtIfRequested(config, outputDir, baseUrl);
         afterBuildStopwatch.Stop();
         variantStageMetrics.AddDuration("afterBuildPlugins", afterBuildStopwatch.ElapsedMilliseconds);
 
@@ -331,7 +359,7 @@ public sealed class SiteEngine
         variantTotalStopwatch.Stop();
         variantStageMetrics.AddDuration("variantTotal", variantTotalStopwatch.ElapsedMilliseconds);
 
-        return new BuildVariantResult(
+        var result = new BuildVariantResult(
             config.Site.Language,
             outputDir,
             baseUrl,
@@ -340,11 +368,15 @@ public sealed class SiteEngine
             routed,
             pluginContext.DerivedRouted,
             pluginContext.DerivedRoutes,
+            seoIndex.Entries,
+            seoIndex.Models,
             pluginContext.PluginExecutions.ToList(),
             renderedCount,
             skippedCount,
             new Dictionary<string, int>(renderReasons, StringComparer.OrdinalIgnoreCase),
             variantStageMetrics.Snapshot());
+        SeoAuditReportWriter.Write(config, outputDir, seoIndex.Entries, seoIndex.Models, _logger);
+        return result;
     }
 
     private static BuildStageMetricsCollector MergeStageMetrics(BuildStageMetricsCollector collector, BuildStageMetrics metrics)
@@ -421,6 +453,11 @@ public sealed class SiteEngine
         var result = new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal);
         foreach (var (key, byLanguage) in grouped)
         {
+            if (byLanguage.Count < 2)
+            {
+                continue;
+            }
+
             var list = new List<SeoAlternateModel>(byLanguage.Count + 1);
             if (byLanguage.TryGetValue(defaultLanguage, out var defaultHref))
             {
@@ -468,7 +505,7 @@ public sealed class SiteEngine
 
         foreach (var (_, collection) in collections)
         {
-            if (!collection.Output.Sitemap || string.IsNullOrWhiteSpace(collection.ListRoute))
+            if (string.IsNullOrWhiteSpace(collection.ListRoute))
             {
                 continue;
             }
@@ -507,6 +544,23 @@ public sealed class SiteEngine
         return string.IsNullOrWhiteSpace(normalized)
             ? "index.html"
             : Path.Combine(normalized.Replace('/', Path.DirectorySeparatorChar), "index.html");
+    }
+
+    private static void WriteRobotsTxtIfRequested(AppConfig config, string outputDir, string baseUrl)
+    {
+        if (!config.Site.Seo.RobotsTxt.Enabled || string.IsNullOrWhiteSpace(config.Site.Url))
+        {
+            return;
+        }
+
+        var robotsPath = Path.Combine(outputDir, "robots.txt");
+        if (File.Exists(robotsPath))
+        {
+            return;
+        }
+
+        var sitemapUrl = SitemapGenerator.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/sitemap.xml");
+        FileWriter.WriteUtf8(outputDir, "robots.txt", $"User-agent: *{Environment.NewLine}Allow: /{Environment.NewLine}Sitemap: {sitemapUrl}{Environment.NewLine}");
     }
 
     public async Task BuildAsync(IContentProvider provider, BuildOptions options, CancellationToken cancellationToken = default)

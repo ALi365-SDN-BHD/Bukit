@@ -7,6 +7,38 @@ namespace Bukit.Cli.Tests;
 public sealed class PreviewCommandTests
 {
     [Fact]
+    public void ApplyPreviewAnalyticsPolicy_WhenDisabled_RemovesGa4Scripts()
+    {
+        var html = """
+            <html><head>
+              <script async src="https://www.googletagmanager.com/gtag/js?id=G-ABC123"></script>
+              <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', 'G-ABC123');
+              </script>
+            </head><body>ok</body></html>
+            """;
+
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, disableAnalytics: true);
+
+        Assert.DoesNotContain("googletagmanager.com/gtag/js", filtered, StringComparison.Ordinal);
+        Assert.DoesNotContain("gtag('config'", filtered, StringComparison.Ordinal);
+        Assert.Contains("<body>ok</body>", filtered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ApplyPreviewAnalyticsPolicy_WhenEnabled_LeavesHtmlUnchanged()
+    {
+        var html = "<script>gtag('config', 'G-ABC123');</script>";
+
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, disableAnalytics: false);
+
+        Assert.Equal(html, filtered);
+    }
+
+    [Fact]
     public async Task RunAsync_MissingDir_ReturnsExitCode2()
     {
         var command = BuildCommand("--dir", Path.Combine(Path.GetTempPath(), "bukit-preview-nonexistent"));

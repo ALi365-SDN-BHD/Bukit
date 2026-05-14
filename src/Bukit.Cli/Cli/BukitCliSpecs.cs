@@ -93,6 +93,22 @@ public static class BukitCliSpecs
                     })
             });
 
-        return new CliCommandRegistry(new[] { build, preview, plugin, theme });
+        var seo = new CliCommandSpec(
+            Name: "seo",
+            Description: "SEO 审计命令",
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "audit",
+                    Description: "读取 seo-report.json 并返回 CI 状态",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--dir", "构建输出目录"),
+                        new CliOptionSpec("--report", "seo-report.json 路径"),
+                        new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag)
+                    })
+            });
+
+        return new CliCommandRegistry(new[] { build, preview, plugin, theme, seo });
     }
 }

@@ -3,6 +3,7 @@ using Bukit.Content;
 using Bukit.Engine;
 using Bukit.Routing;
 using Bukit.Shared;
+using System.Text.Json;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -306,6 +307,525 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_SeoInjectMode_InjectsHeadAndExcludesNoindexFromOutputs()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-seo-inject-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: test-site
+                  title: Test "Site" & More
+                  description: Site <fallback> & description
+                  url: https://example.com/
+                  baseUrl: /docs/
+                  language: en-US
+                  seo:
+                    renderMode: inject
+                    diagnostics: strict
+                    defaultImage: /assets/default-og.png
+                    robotsTxt:
+                      enabled: true
+                  analytics:
+                    google_analytics_id: G-ABC123
+                content:
+                  provider: markdown
+                  media:
+                    downloadToLocal: false
+                  markdown:
+                    dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+
+            File.WriteAllText(Path.Combine(root, "content", "visible.md"), """
+                ---
+                type: post
+                title: Visible "Post" & News
+                slug: visible
+                publishAt: 2024-06-01T00:00:00Z
+                summary: Visible <summary> & text
+                ---
+                # Visible
+                """);
+
+            File.WriteAllText(Path.Combine(root, "content", "hidden.md"), """
+                ---
+                type: post
+                title: Hidden Post
+                slug: hidden
+                publishAt: 2024-06-02T00:00:00Z
+                robots: noindex,nofollow
+                ---
+                # Hidden
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta charset="utf-8" />
+                  <title>{{ page.title }}</title>
+                </head>
+                <body>{{ content }}</body>
+                </html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), """
+                {% layout "layouts/base.html" %}
+                {{ page.content }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), """
+                {% layout "layouts/base.html" %}
+                {{ page.content }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), """
+                {% layout "layouts/base.html" %}
+                Index
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), """
+                {% layout "layouts/base.html" %}
+                List
+                """);
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var visibleHtml = File.ReadAllText(Path.Combine(root, "dist", "blog", "visible", "index.html"));
+            Assert.Contains("<link rel=\"canonical\" href=\"https://example.com/docs/blog/visible/\"", visibleHtml, StringComparison.Ordinal);
+            Assert.Contains("<meta name=\"description\" content=\"Visible &lt;summary&gt; &amp; text\"", visibleHtml, StringComparison.Ordinal);
+            Assert.Contains("<meta property=\"og:title\" content=\"Visible &quot;Post&quot; &amp; News\"", visibleHtml, StringComparison.Ordinal);
+            Assert.Contains("googletagmanager.com/gtag/js?id=G-ABC123", visibleHtml, StringComparison.Ordinal);
+            Assert.Equal(1, CountOccurrences(visibleHtml, "rel=\"canonical\""));
+
+            var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
+            Assert.Contains("https://example.com/docs/blog/visible/", sitemap, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/docs/blog/hidden/", sitemap, StringComparison.Ordinal);
+
+            var search = File.ReadAllText(Path.Combine(root, "dist", "search.json"));
+            Assert.Contains("/docs/blog/visible/", search, StringComparison.Ordinal);
+            Assert.DoesNotContain("/docs/blog/hidden/", search, StringComparison.Ordinal);
+
+            var rss = File.ReadAllText(Path.Combine(root, "dist", "rss.xml"));
+            Assert.Contains("https://example.com/docs/blog/visible/", rss, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/docs/blog/hidden/", rss, StringComparison.Ordinal);
+
+            var robots = File.ReadAllText(Path.Combine(root, "dist", "robots.txt"));
+            Assert.Contains("Sitemap: https://example.com/docs/sitemap.xml", robots, StringComparison.Ordinal);
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_StrongSeoSuite_CoversFinalRoutesAndCollectionSchemas()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-strong-seo-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: strong-seo
+                  title: Strong SEO
+                  description: Strong SEO fallback
+                  url: https://example.com
+                  baseUrl: /docs/
+                  language: en-US
+                  collections:
+                    post:
+                      permalink: /articles/{slug}/
+                      template: pages/post.html
+                      listRoute: /articles/
+                    page:
+                      permalink: /{slug}/
+                      template: pages/page.html
+                  seo:
+                    renderMode: inject
+                    diagnostics: strict
+                    schema:
+                      webPage: true
+                      collectionPage: true
+                      searchAction: true
+                  analytics:
+                    google_analytics_id: G-ABC123
+                content:
+                  provider: markdown
+                  media:
+                    downloadToLocal: false
+                  markdown:
+                    dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                taxonomy:
+                  pageSize: 1
+                """);
+
+            File.WriteAllText(Path.Combine(root, "content", "one.md"), """
+                ---
+                collection: post
+                title: One
+                slug: one
+                publishAt: 2024-06-01T00:00:00Z
+                tags: [seo]
+                ---
+                # One
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "two.md"), """
+                ---
+                collection: post
+                title: Two
+                slug: two
+                publishAt: 2024-06-02T00:00:00Z
+                tags: [seo]
+                ---
+                # Two
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "hidden.md"), """
+                ---
+                collection: post
+                title: Hidden
+                slug: hidden
+                publishAt: 2024-06-03T00:00:00Z
+                tags: [seo]
+                robots: noindex
+                ---
+                # Hidden
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta charset="utf-8" />
+                  <title>{{ page.title }}</title>
+                  <link rel="canonical" href="https://duplicate.example/" />
+                  <meta property="og:title" content="duplicate" />
+                  <script type="application/ld+json">{"duplicate":true}</script>
+                </head>
+                <body>{{ content }}</body>
+                </html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-index.html"), "{% layout \"layouts/base.html\" %}\nTaxonomy");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-term.html"), "{% layout \"layouts/base.html\" %}\nTerm");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var indexHtml = File.ReadAllText(Path.Combine(root, "dist", "index.html"));
+            Assert.Contains("<link rel=\"canonical\" href=\"https://example.com/docs/\"", indexHtml, StringComparison.Ordinal);
+            Assert.Contains("\"@type\":\"WebPage\"", indexHtml, StringComparison.Ordinal);
+            Assert.Contains("\"@type\":\"SearchAction\"", indexHtml, StringComparison.Ordinal);
+            Assert.Equal(1, CountOccurrences(indexHtml, "rel=\"canonical\""));
+            Assert.DoesNotContain("duplicate.example", indexHtml, StringComparison.Ordinal);
+
+            var listHtml = File.ReadAllText(Path.Combine(root, "dist", "articles", "index.html"));
+            Assert.Contains("<link rel=\"canonical\" href=\"https://example.com/docs/articles/\"", listHtml, StringComparison.Ordinal);
+            Assert.Contains("\"@type\":\"CollectionPage\"", listHtml, StringComparison.Ordinal);
+            Assert.Contains("\"@type\":\"ItemList\"", listHtml, StringComparison.Ordinal);
+
+            var taxonomyHtml = File.ReadAllText(Path.Combine(root, "dist", "tags", "seo", "page", "2", "index.html"));
+            Assert.Contains("<link rel=\"canonical\" href=\"https://example.com/docs/tags/seo/page/2/\"", taxonomyHtml, StringComparison.Ordinal);
+            Assert.Contains("\"@type\":\"CollectionPage\"", taxonomyHtml, StringComparison.Ordinal);
+            Assert.Contains("\"@type\":\"ItemList\"", taxonomyHtml, StringComparison.Ordinal);
+
+            var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
+            Assert.Contains("https://example.com/docs/", sitemap, StringComparison.Ordinal);
+            Assert.Contains("https://example.com/docs/articles/", sitemap, StringComparison.Ordinal);
+            Assert.Contains("https://example.com/docs/tags/seo/page/2/", sitemap, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/docs/articles/hidden/", sitemap, StringComparison.Ordinal);
+
+            var search = File.ReadAllText(Path.Combine(root, "dist", "search.json"));
+            Assert.Contains("/docs/articles/one/", search, StringComparison.Ordinal);
+            Assert.DoesNotContain("/docs/articles/hidden/", search, StringComparison.Ordinal);
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_SeoDiagnosticsStrict_FailsWhenThemeModeOmitsSeoTags()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-seo-strict-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: strict-seo
+                  title: Strict SEO
+                  url: https://example.com
+                  seo:
+                    renderMode: theme
+                    diagnostics: strict
+                content:
+                  provider: markdown
+                  media:
+                    downloadToLocal: false
+                  markdown:
+                    dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "one.md"), """
+                ---
+                type: post
+                title: One
+                slug: one
+                ---
+                # One
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+
+            var ex = await Assert.ThrowsAsync<ConfigException>(() => engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
+            Assert.Contains("seo.canonical_missing", ex.Message, StringComparison.Ordinal);
+            Assert.NotEmpty(logger.Errors);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_SeoInjectMode_I18nPagesEmitMutualHreflang()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-seo-i18n-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: i18n-seo
+                  title: I18n SEO
+                  url: https://example.com
+                  baseUrl: /
+                  language: en-US
+                  languages: [en-US, ms-MY]
+                  defaultLanguage: en-US
+                  sitemapMode: merged
+                  seo:
+                    renderMode: inject
+                    diagnostics: strict
+                content:
+                  provider: markdown
+                  media:
+                    downloadToLocal: false
+                  markdown:
+                    dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "hello.en.md"), """
+                ---
+                type: page
+                title: Hello
+                slug: hello
+                language: en-US
+                i18nKey: hello
+                ---
+                # Hello
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "hello.ms.md"), """
+                ---
+                type: page
+                title: Helo
+                slug: helo
+                language: ms-MY
+                i18nKey: hello
+                ---
+                # Helo
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "solo.en.md"), """
+                ---
+                type: page
+                title: Solo
+                slug: solo
+                language: en-US
+                ---
+                # Solo
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var enHtml = File.ReadAllText(Path.Combine(root, "dist", "en-US", "pages", "hello", "index.html"));
+            Assert.Contains("hreflang=\"x-default\" href=\"https://example.com/en-US/pages/hello/\"", enHtml, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"en-US\" href=\"https://example.com/en-US/pages/hello/\"", enHtml, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/pages/helo/\"", enHtml, StringComparison.Ordinal);
+
+            var soloHtml = File.ReadAllText(Path.Combine(root, "dist", "en-US", "pages", "solo", "index.html"));
+            Assert.DoesNotContain("hreflang=", soloHtml, StringComparison.Ordinal);
+
+            var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
+            Assert.Contains("hreflang=\"x-default\" href=\"https://example.com/en-US/pages/hello/\"", sitemap, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/pages/helo/\"", sitemap, StringComparison.Ordinal);
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_SeoAuditReport_WritesRouteInventoryAndIssues()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-seo-report-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: seo-report
+                  title: SEO Report
+                  url: https://example.com
+                  baseUrl: /docs/
+                  seo:
+                    renderMode: inject
+                    diagnostics: warn
+                content:
+                  provider: markdown
+                  media:
+                    downloadToLocal: false
+                  markdown:
+                    dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "visible.md"), """
+                ---
+                type: post
+                title: This is a deliberately long SEO title that should be reported because it is over the normal search result length
+                slug: visible
+                summary: Visible post summary
+                publishAt: 2024-01-01T00:00:00Z
+                ---
+                # Visible
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "hidden.md"), """
+                ---
+                type: post
+                title: Hidden
+                slug: hidden
+                robots: noindex
+                publishAt: 2024-01-02T00:00:00Z
+                ---
+                # Hidden
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var engine = new SiteEngine(new TestLogger());
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var reportPath = Path.Combine(root, "dist", "seo-report.json");
+            Assert.True(File.Exists(reportPath));
+            using var doc = JsonDocument.Parse(File.ReadAllText(reportPath));
+            var rootElement = doc.RootElement;
+            Assert.Equal("https://example.com", rootElement.GetProperty("siteUrl").GetString());
+            Assert.True(rootElement.GetProperty("generatedAt").ValueKind == JsonValueKind.String);
+
+            var routes = rootElement.GetProperty("routes").EnumerateArray().ToArray();
+            var visible = routes.Single(x => x.GetProperty("url").GetString() == "/blog/visible/");
+            Assert.True(visible.GetProperty("indexable").GetBoolean());
+            Assert.True(visible.GetProperty("sitemapIncluded").GetBoolean());
+            Assert.True(visible.GetProperty("searchIncluded").GetBoolean());
+            Assert.True(visible.GetProperty("rssIncluded").GetBoolean());
+            Assert.Contains("BlogPosting", visible.GetProperty("schemaTypes").EnumerateArray().Select(x => x.GetString()));
+
+            var hidden = routes.Single(x => x.GetProperty("url").GetString() == "/blog/hidden/");
+            Assert.False(hidden.GetProperty("indexable").GetBoolean());
+            Assert.False(hidden.GetProperty("sitemapIncluded").GetBoolean());
+            Assert.False(hidden.GetProperty("searchIncluded").GetBoolean());
+            Assert.False(hidden.GetProperty("rssIncluded").GetBoolean());
+
+            var issues = rootElement.GetProperty("issues").EnumerateArray().ToArray();
+            Assert.Contains(issues, x => x.GetProperty("code").GetString() == "seo.title_too_long" &&
+                                         x.GetProperty("severity").GetString() == "warning");
+            Assert.True(rootElement.GetProperty("summary").GetProperty("warningCount").GetInt32() >= 1);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_IncrementalBuild_SecondRunSkipsPages()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-integration-incr", Guid.NewGuid().ToString("N"));
@@ -401,5 +921,18 @@ public sealed class SiteEngineIntegrationTests
         catch
         {
         }
+    }
+
+    private static int CountOccurrences(string text, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
     }
 }

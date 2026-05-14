@@ -146,9 +146,13 @@ public static class ConfigLoader
         }
 
         var orgNode = GetOptionalMapping(seoNode, "organization");
+        var robotsTxtNode = GetOptionalMapping(seoNode, "robotsTxt");
+        var schemaNode = GetOptionalMapping(seoNode, "schema");
         return new SeoConfig
         {
             Enabled = GetOptionalBool(seoNode, "enabled") ?? true,
+            RenderMode = GetOptionalString(seoNode, "renderMode") ?? "inject",
+            Diagnostics = GetOptionalString(seoNode, "diagnostics") ?? "warn",
             DefaultImage = GetOptionalString(seoNode, "defaultImage"),
             TwitterSite = GetOptionalString(seoNode, "twitterSite"),
             Organization = orgNode is null
@@ -158,7 +162,17 @@ public static class ConfigLoader
                     Name = GetOptionalString(orgNode, "name"),
                     Url = GetOptionalString(orgNode, "url"),
                     Logo = GetOptionalString(orgNode, "logo")
-                }
+                },
+            RobotsTxt = new SeoRobotsTxtConfig
+            {
+                Enabled = robotsTxtNode is not null && (GetOptionalBool(robotsTxtNode, "enabled") ?? false)
+            },
+            Schema = new SeoSchemaConfig
+            {
+                WebPage = schemaNode is null || (GetOptionalBool(schemaNode, "webPage") ?? true),
+                CollectionPage = schemaNode is null || (GetOptionalBool(schemaNode, "collectionPage") ?? true),
+                SearchAction = schemaNode is null || (GetOptionalBool(schemaNode, "searchAction") ?? true)
+            }
         };
     }
 
@@ -173,7 +187,8 @@ public static class ConfigLoader
         return new AnalyticsConfig
         {
             Enabled = GetOptionalBool(analyticsNode, "enabled") ?? true,
-            GoogleAnalyticsId = GetOptionalString(analyticsNode, "google_analytics_id")
+            GoogleAnalyticsId = GetOptionalString(analyticsNode, "google_analytics_id"),
+            DisableInPreview = GetOptionalBool(analyticsNode, "disableInPreview") ?? true
         };
     }
 

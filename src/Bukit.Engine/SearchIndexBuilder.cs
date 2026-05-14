@@ -25,6 +25,12 @@ internal static class SearchIndexBuilder
             var items = includeDerived ? r.Routed.Concat(r.DerivedRouted) : r.Routed;
             foreach (var (item, route) in items)
             {
+                var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+                if (r.SeoIndex.TryGetValue(key, out var seo) && !seo.Indexable)
+                {
+                    continue;
+                }
+
                 writer.WriteStartObject();
                 writer.WriteString("id", item.Id);
                 writer.WriteString("title", item.Title);

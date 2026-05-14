@@ -26,6 +26,7 @@ public sealed class RssPlugin : IBukitPlugin, IAfterBuildPlugin
             collections: context.Config.Site.Collections,
             routed: context.Routed,
             bodyStore: context.BodyStore,
+            seoIndex: context.SeoIndex,
             siteDescription: context.Config.Site.Description);
     }
 }

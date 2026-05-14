@@ -44,9 +44,13 @@ public sealed record SiteConfig
 public sealed record SeoConfig
 {
     public bool Enabled { get; init; } = true;
+    public string RenderMode { get; init; } = "inject";
+    public string Diagnostics { get; init; } = "warn";
     public string? DefaultImage { get; init; }
     public string? TwitterSite { get; init; }
     public SeoOrganizationConfig? Organization { get; init; }
+    public SeoRobotsTxtConfig RobotsTxt { get; init; } = new();
+    public SeoSchemaConfig Schema { get; init; } = new();
 }
 
 public sealed record SeoOrganizationConfig
@@ -60,6 +64,19 @@ public sealed record AnalyticsConfig
 {
     public bool Enabled { get; init; } = true;
     public string? GoogleAnalyticsId { get; init; }
+    public bool DisableInPreview { get; init; } = true;
+}
+
+public sealed record SeoRobotsTxtConfig
+{
+    public bool Enabled { get; init; }
+}
+
+public sealed record SeoSchemaConfig
+{
+    public bool WebPage { get; init; } = true;
+    public bool CollectionPage { get; init; } = true;
+    public bool SearchAction { get; init; } = true;
 }
 
 public sealed record CollectionConfig

@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Engine;
 using Bukit.Routing;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
@@ -33,19 +34,28 @@ public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
             metaRoutes.AddRange(context.DerivedRoutes);
         }
 
-        var filtered = new List<(RouteInfo Route, DateTimeOffset LastModified)>(metaRoutes.Count);
+        var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>(metaRoutes.Count);
         foreach (var (route, lastModified) in metaRoutes)
         {
+            var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+            if (context.SeoIndex.TryGetValue(key, out var seo) && !seo.Indexable)
+            {
+                continue;
+            }
+
             var absoluteHtmlPath = Path.Combine(context.OutputDir, route.OutputPath);
             if (SitemapPolicy.ShouldExcludeFromSitemapFile(absoluteHtmlPath, context.Logger))
             {
                 continue;
             }
 
-            filtered.Add((route, lastModified));
+            var absoluteUrl = context.SeoIndex.TryGetValue(key, out seo)
+                ? seo.Canonical
+                : SitemapGenerator.BuildAbsoluteUrl(siteUrl, context.BaseUrl, route.Url);
+            filtered.Add((absoluteUrl, lastModified));
         }
 
-        SitemapGenerator.Generate(context.OutputDir, siteUrl, context.BaseUrl, filtered);
+        SitemapGenerator.GenerateAbsolute(context.OutputDir, filtered);
     }
 
     private static IReadOnlyList<RouteInfo> BuildCollectionListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)

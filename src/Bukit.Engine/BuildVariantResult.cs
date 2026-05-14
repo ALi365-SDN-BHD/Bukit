@@ -13,6 +13,8 @@ internal sealed record BuildVariantResult(
     IReadOnlyList<(ContentItem Item, RouteInfo Route)> Routed,
     IReadOnlyList<(ContentItem Item, RouteInfo Route)> DerivedRouted,
     IReadOnlyList<(RouteInfo Route, DateTimeOffset LastModified)> DerivedRoutes,
+    IReadOnlyDictionary<string, SeoIndexEntry> SeoIndex,
+    IReadOnlyDictionary<string, Bukit.Rendering.SeoModel> SeoModels,
     IReadOnlyList<PluginExecutionInfo> PluginExecutions,
     int RenderedCount,
     int SkippedCount,

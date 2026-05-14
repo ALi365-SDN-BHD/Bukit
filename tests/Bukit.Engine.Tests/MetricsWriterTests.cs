@@ -54,6 +54,8 @@ public sealed class MetricsWriterTests
             Routed: Array.Empty<(ContentItem Item, RouteInfo Route)>(),
             DerivedRouted: Array.Empty<(ContentItem Item, RouteInfo Route)>(),
             DerivedRoutes: Array.Empty<(RouteInfo Route, DateTimeOffset LastModified)>(),
+            SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase),
+            SeoModels: new Dictionary<string, Bukit.Rendering.SeoModel>(StringComparer.OrdinalIgnoreCase),
             PluginExecutions: new List<PluginExecutionInfo>(),
             RenderedCount: 1,
             SkippedCount: 0,

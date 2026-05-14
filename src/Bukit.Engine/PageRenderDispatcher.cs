@@ -38,7 +38,8 @@ internal static class PageRenderDispatcher
         int maxDegreeOfParallelism,
         ILogger logger,
         CancellationToken cancellationToken,
-        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null)
+        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null,
+        Func<ContentItem, RouteInfo, PageInfo, string, string>? htmlPostProcessor = null)
     {
         var workItems = new List<(ContentItem Item, RouteInfo Route, string Key)>(renderQueue.Count);
         var warnedOutputPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -148,23 +149,29 @@ internal static class PageRenderDispatcher
             stageMetrics.Increment("bodyLoad");
             stageMetrics.AddDuration("bodyLoad", bodyLoadStopwatch.ElapsedMilliseconds);
 
+            var pageInfo = new PageInfo
+            {
+                Title = item.Title,
+                Url = route.Url,
+                Content = content,
+                Summary = item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
+                PublishDate = item.PublishAt,
+                Fields = item.Fields,
+                Seo = seoBuilder?.Invoke(item, route)
+            };
+
             var pageModel = new PageModel
             {
                 Site = siteModel,
-                Page = new PageInfo
-                {
-                    Title = item.Title,
-                    Url = route.Url,
-                    Content = content,
-                    Summary = item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
-                    PublishDate = item.PublishAt,
-                    Fields = item.Fields,
-                    Seo = seoBuilder?.Invoke(item, route)
-                }
+                Page = pageInfo
             };
 
             var pageRenderStopwatch = Stopwatch.StartNew();
             var html = renderer.RenderPage(route.Template, pageModel);
+            if (htmlPostProcessor is not null)
+            {
+                html = htmlPostProcessor(item, route, pageInfo, html);
+            }
             pageRenderStopwatch.Stop();
             stageMetrics.Increment("pageRender");
             stageMetrics.AddDuration("pageRender", pageRenderStopwatch.ElapsedMilliseconds);
@@ -209,7 +216,8 @@ internal static class PageRenderDispatcher
         ConcurrentDictionary<string, int> renderReasons,
         CancellationToken cancellationToken,
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null,
-        Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null)
+        Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
+        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var specialLists = BuildSpecialListDefinitions(routed, collections, layoutsDir, listPageContentMode);
@@ -224,7 +232,7 @@ internal static class PageRenderDispatcher
             foreach (var x in specialLists)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var result = await RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, manifest, renderReasons, x.IncludeContent, cancellationToken, seoBuilder, listSeoBuilder);
+                var result = await RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, manifest, renderReasons, x.IncludeContent, cancellationToken, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
                 rendered += result.RenderedCount;
                 skipped += result.SkippedCount;
                 stageMetrics = MergeCollectors(stageMetrics, result.StageMetrics);
@@ -237,7 +245,7 @@ internal static class PageRenderDispatcher
         foreach (var x in specialLists)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var metrics = await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, x.IncludeContent, cancellationToken, seoBuilder, listSeoBuilder);
+            var metrics = await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, x.IncludeContent, cancellationToken, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
             stageMetrics = MergeCollectors(stageMetrics, metrics);
         }
 
@@ -255,7 +263,8 @@ internal static class PageRenderDispatcher
         bool includeContent,
         CancellationToken cancellationToken,
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder,
-        Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder)
+        Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder,
+        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var listBuildStopwatch = Stopwatch.StartNew();
@@ -269,6 +278,10 @@ internal static class PageRenderDispatcher
             Page = listPage,
             Pages = pageInfos
         });
+        if (listHtmlPostProcessor is not null)
+        {
+            html = listHtmlPostProcessor(listRoute, listPage, html);
+        }
 
         listBuildStopwatch.Stop();
         stageMetrics.Increment("listBuild");
@@ -290,7 +303,8 @@ internal static class PageRenderDispatcher
         bool includeContent,
         CancellationToken cancellationToken,
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder,
-        Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder)
+        Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder,
+        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
@@ -327,6 +341,10 @@ internal static class PageRenderDispatcher
             Page = listPage,
             Pages = pageInfos
         });
+        if (listHtmlPostProcessor is not null)
+        {
+            html = listHtmlPostProcessor(listRoute, listPage, html);
+        }
 
         listBuildStopwatch.Stop();
         stageMetrics.Increment("listBuild");

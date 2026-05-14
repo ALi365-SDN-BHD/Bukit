@@ -14,6 +14,7 @@ public sealed class BuildContext
     public required string LayoutsDir { get; init; }
     public required IReadOnlyList<(ContentItem Item, RouteInfo Route)> Routed { get; init; }
     public IContentBodyStore BodyStore { get; init; } = NullContentBodyStore.Instance;
+    public IReadOnlyDictionary<string, SeoIndexEntry> SeoIndex { get; set; } = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
     public List<(ContentItem Item, RouteInfo Route)> DerivedRouted { get; } = new();
     public List<(RouteInfo Route, DateTimeOffset LastModified)> DerivedRoutes { get; } = new();
     public List<PluginExecutionInfo> PluginExecutions { get; } = new();

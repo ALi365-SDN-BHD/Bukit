@@ -396,8 +396,16 @@ public sealed class ConfigValidatorTests
               baseUrl: /docs/
               seo:
                 enabled: true
+                renderMode: inject
+                diagnostics: strict
                 defaultImage: /assets/og.png
                 twitterSite: "@bukit"
+                robotsTxt:
+                  enabled: true
+                schema:
+                  webPage: false
+                  collectionPage: false
+                  searchAction: false
                 organization:
                   name: Example Inc
                   url: https://example.com/about
@@ -405,6 +413,7 @@ public sealed class ConfigValidatorTests
               analytics:
                 enabled: false
                 google_analytics_id: G-ABC123
+                disableInPreview: false
             content:
               provider: markdown
             build:
@@ -418,13 +427,20 @@ public sealed class ConfigValidatorTests
             var config = ConfigLoader.Load(tmpFile);
 
             Assert.True(config.Site.Seo.Enabled);
+            Assert.Equal("inject", config.Site.Seo.RenderMode);
+            Assert.Equal("strict", config.Site.Seo.Diagnostics);
             Assert.Equal("/assets/og.png", config.Site.Seo.DefaultImage);
             Assert.Equal("@bukit", config.Site.Seo.TwitterSite);
+            Assert.True(config.Site.Seo.RobotsTxt.Enabled);
+            Assert.False(config.Site.Seo.Schema.WebPage);
+            Assert.False(config.Site.Seo.Schema.CollectionPage);
+            Assert.False(config.Site.Seo.Schema.SearchAction);
             Assert.Equal("Example Inc", config.Site.Seo.Organization?.Name);
             Assert.Equal("https://example.com/about", config.Site.Seo.Organization?.Url);
             Assert.Equal("https://example.com/logo.png", config.Site.Seo.Organization?.Logo);
             Assert.False(config.Site.Analytics.Enabled);
             Assert.Equal("G-ABC123", config.Site.Analytics.GoogleAnalyticsId);
+            Assert.False(config.Site.Analytics.DisableInPreview);
         }
         finally
         {
@@ -438,8 +454,31 @@ public sealed class ConfigValidatorTests
         var config = ValidConfig();
 
         Assert.True(config.Site.Seo.Enabled);
+        Assert.Equal("inject", config.Site.Seo.RenderMode);
+        Assert.Equal("warn", config.Site.Seo.Diagnostics);
+        Assert.False(config.Site.Seo.RobotsTxt.Enabled);
+        Assert.True(config.Site.Seo.Schema.WebPage);
+        Assert.True(config.Site.Seo.Schema.CollectionPage);
+        Assert.True(config.Site.Seo.Schema.SearchAction);
         Assert.True(config.Site.Analytics.Enabled);
+        Assert.True(config.Site.Analytics.DisableInPreview);
         Assert.Null(config.Site.Analytics.GoogleAnalyticsId);
+    }
+
+    [Fact]
+    public void Validate_SeoRenderModeInvalid_Throws()
+    {
+        var config = ConfigWithSite(s => s with { Seo = s.Seo with { RenderMode = "auto" } });
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Equal("site.seo.renderMode must be theme|inject|off.", ex.Message);
+    }
+
+    [Fact]
+    public void Validate_AnalyticsGoogleAnalyticsIdInvalid_Throws()
+    {
+        var config = ConfigWithSite(s => s with { Analytics = s.Analytics with { GoogleAnalyticsId = "UA-123" } });
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Equal("site.analytics.google_analytics_id must be a GA4 id starting with G-.", ex.Message);
     }
 
     [Fact]

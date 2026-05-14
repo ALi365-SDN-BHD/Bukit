@@ -57,6 +57,7 @@ dotnet run --project src/Bukit.Cli -c Release -- build --site blog --clean
 ```bash
 dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
 dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
+dotnet run --project src/Bukit.Cli -c Release -- seo audit --dir dist
 dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
 dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
 ```
@@ -66,8 +67,8 @@ dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yam
 - `site.collections`: primary recommended model for content organization and routing (declare `permalink`, `template`, and optional `listRoute` per collection). `post/page` defaults remain as a compatibility fallback.
 - `site.baseUrl`: GitHub Pages subpath (`/my-repo`) or `/` for root.
 - `site.url`: canonical site URL (sitemap/rss); can be overridden by `--site-url`.
-- `site.seo`: engine-level SEO model configuration for canonical, OG, Twitter, hreflang, and JSON-LD; themes render it through `page.seo`.
-- `site.analytics.google_analytics_id`: GA4 Measurement ID; the starter Analytics partial emits gtag unless `site.analytics.enabled: false`.
+- `site.seo`: engine-level SEO model and index policy for canonical, robots, OG, Twitter, hreflang, JSON-LD, sitemap/search/RSS filtering, optional head injection, `seo-report.json`, `bukit seo audit`, and optional `robots.txt`. See [`docs/seo.md`](docs/seo.md).
+- `site.analytics.google_analytics_id`: GA4 Measurement ID; Bukit emits gtag when the ID exists unless `site.analytics.enabled: false`.
 - `content.provider`: `markdown` or `notion`.
 - `content.markdown.maxItems`: max Markdown items to load.
 - `content.notion.maxItems`: max Notion pages to fetch.

@@ -50,6 +50,7 @@ public sealed record SeoModel
     public string? Robots { get; init; }
     public SeoOpenGraphModel Og { get; init; } = new();
     public SeoTwitterModel Twitter { get; init; } = new();
+    public SeoArticleModel Article { get; init; } = new();
     public IReadOnlyList<SeoAlternateModel> Alternates { get; init; } = Array.Empty<SeoAlternateModel>();
     public IReadOnlyList<string> JsonLd { get; init; } = Array.Empty<string>();
 }
@@ -61,6 +62,8 @@ public sealed record SeoOpenGraphModel
     public string? Url { get; init; }
     public string? Image { get; init; }
     public string Type { get; init; } = "website";
+    public string? SiteName { get; init; }
+    public string? Locale { get; init; }
 }
 
 public sealed record SeoTwitterModel
@@ -70,6 +73,15 @@ public sealed record SeoTwitterModel
     public string? Description { get; init; }
     public string? Image { get; init; }
     public string? Site { get; init; }
+    public string? Creator { get; init; }
+}
+
+public sealed record SeoArticleModel
+{
+    public DateTimeOffset? PublishedTime { get; init; }
+    public DateTimeOffset? ModifiedTime { get; init; }
+    public string? Author { get; init; }
+    public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
 }
 
 public sealed record SeoAlternateModel(string Hreflang, string Href);
