@@ -54,11 +54,12 @@ Diagnostics run at both index and HTML levels. Bukit reports missing `site.url`,
 
 ## SEO Audit Report
 
-Every build writes `seo-report.json` next to the generated site output. In multilingual builds, Bukit also writes a root-level merged report that covers all language variants.
+Every build writes `seo-report.json` next to the generated site output. In multilingual builds, Bukit also writes a root-level merged report that covers all language variants. The report schema and compatibility contract are documented in [SEO Audit Report Schema](seo-report-schema.md).
 
 The report is designed as a CI artifact and stable URL inventory. It includes:
 
 - every final route URL and output path
+- schema metadata: `schema` and `schemaVersion`
 - title, description, canonical, robots, indexable state, lastmod, content type, and source item id
 - sitemap/search/RSS inclusion state
 - hreflang alternates
@@ -66,7 +67,7 @@ The report is designed as a CI artifact and stable URL inventory. It includes:
 - machine-readable `issues` with `severity`, `code`, `route`, and `message`
 - summary counts for routes, indexable routes, warnings, and errors
 
-Current audit rules cover title/description missing, length, and duplication; canonical absolute URL, fragment, HTTPS preference, and index consistency; noindex leakage into sitemap; hreflang fully-qualified URL, locale, self-reference, and return-link checks; JSON-LD parse/type checks; sitemap XML/output-file consistency; robots.txt sitemap/blocking conflicts; and OG/Twitter image URL/file checks. External network validation such as Google Rich Results, live HTTP status checks, and Lighthouse is intentionally outside the static build step.
+Current audit rules cover title/description missing, length, and duplication; canonical absolute URL, fragment, HTTPS preference, and index consistency; noindex leakage into sitemap; hreflang fully-qualified URL, locale, self-reference, and return-link checks; JSON-LD parse/type checks plus type-specific checks for WebSite/SearchAction, BlogPosting/Article, and ItemList fields; sitemap XML/output-file consistency; robots.txt sitemap/blocking conflicts; and OG/Twitter image URL/file checks. External network validation such as Google Rich Results, live HTTP status checks, and Lighthouse is intentionally outside the static build step.
 
 Run the CI audit command after build:
 

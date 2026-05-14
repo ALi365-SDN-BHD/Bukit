@@ -160,9 +160,7 @@ Bukit 达到“主题无关、引擎强保证、完整搜索引擎优化套件�
 
 ## 12. 后续实现优先级
 
-1. 补齐 derived route 的 i18n alternates：taxonomy、term、pagination、列表页都要进入 HTML hreflang 和 audit report。
-2. 强化 structured data required property 检查：按 `WebSite`、`WebPage`、`CollectionPage`、`ItemList`、`BlogPosting` 分类型校验。
-3. 增加 canonical 与 sitemap/output 文件的一致性审计。
-4. 增加 robots.txt 与 noindex/sitemap/search 策略冲突审计。
-5. 增加外部 audit 子命令或选项，做可选联网验证：HTTP status、image status、Rich Results、Lighthouse、broken links。
-6. 将 `seo-report.json` 固定为 CI artifact 契约，保持字段稳定并补 schema 文档。
+1. 继续扩展 structured data required property 检查：已覆盖 `WebSite`/`SearchAction`、`BlogPosting`/`Article`、`ItemList`，后续可继续细化 `WebPage`、`CollectionPage`、`BreadcrumbList`。
+2. 增加 canonical 与 sitemap/output 文件的一致性审计的边界用例，例如分页 canonical、跨语言 canonical、重定向后 canonical。
+3. 增加外部 audit 子命令或选项，做可选联网验证：HTTP status、image status、Rich Results、Lighthouse、broken links。
+4. 将 `seo-report.json` 固定为 CI artifact 契约：已加入 `schema`、`schemaVersion`、稳定排序和 schema 文档，后续可补 JSON Schema 文件和 artifact diff 工具。

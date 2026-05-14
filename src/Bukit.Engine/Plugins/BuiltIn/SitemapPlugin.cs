@@ -22,90 +22,23 @@ public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
             return;
         }
 
-        var metaRoutes = new List<(RouteInfo Route, DateTimeOffset LastModified)>(capacity: context.Routed.Count + 6)
+        var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>(context.SeoIndex.Count);
+        foreach (var seo in context.SeoIndex.Values.OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
-            (new RouteInfo("/", "index.html", "pages/index.html"), DateTimeOffset.UtcNow)
-        };
-        metaRoutes.AddRange(BuildCollectionListRoutes(context.Config.Site.Collections).Select(x => (x, DateTimeOffset.UtcNow)));
-
-        metaRoutes.AddRange(context.Routed.Select(x => (x.Route, SitemapPolicy.ResolveLastModified(x.Item))));
-        if (context.DerivedRoutes.Count > 0)
-        {
-            metaRoutes.AddRange(context.DerivedRoutes);
-        }
-
-        var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>(metaRoutes.Count);
-        foreach (var (route, lastModified) in metaRoutes)
-        {
-            var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
-            if (context.SeoIndex.TryGetValue(key, out var seo) && !seo.Indexable)
+            if (!seo.Indexable)
             {
                 continue;
             }
 
-            var absoluteHtmlPath = Path.Combine(context.OutputDir, route.OutputPath);
+            var absoluteHtmlPath = Path.Combine(context.OutputDir, seo.Route.OutputPath);
             if (SitemapPolicy.ShouldExcludeFromSitemapFile(absoluteHtmlPath, context.Logger))
             {
                 continue;
             }
 
-            var absoluteUrl = context.SeoIndex.TryGetValue(key, out seo)
-                ? seo.Canonical
-                : SitemapGenerator.BuildAbsoluteUrl(siteUrl, context.BaseUrl, route.Url);
-            filtered.Add((absoluteUrl, lastModified));
+            filtered.Add((seo.Canonical, seo.LastModified));
         }
 
         SitemapGenerator.GenerateAbsolute(context.OutputDir, filtered);
-    }
-
-    private static IReadOnlyList<RouteInfo> BuildCollectionListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)
-    {
-        if (collections is null || collections.Count == 0)
-        {
-            return new[]
-            {
-                new RouteInfo("/blog/", Path.Combine("blog", "index.html"), "pages/list.html"),
-                new RouteInfo("/pages/", Path.Combine("pages", "index.html"), "pages/list.html")
-            };
-        }
-
-        var routes = new List<RouteInfo>();
-        foreach (var (_, cfg) in collections)
-        {
-            if (!cfg.Output.Sitemap || string.IsNullOrWhiteSpace(cfg.ListRoute))
-            {
-                continue;
-            }
-
-            var url = NormalizeRoute(cfg.ListRoute);
-            var output = BuildOutputPath(url);
-            routes.Add(new RouteInfo(url, output, "pages/list.html"));
-        }
-
-        return routes;
-    }
-
-    private static string NormalizeRoute(string route)
-    {
-        var value = (route ?? string.Empty).Trim();
-        if (!value.StartsWith('/'))
-        {
-            value = "/" + value;
-        }
-
-        if (!value.EndsWith('/'))
-        {
-            value += "/";
-        }
-
-        return value;
-    }
-
-    private static string BuildOutputPath(string route)
-    {
-        var trimmed = route.Trim('/');
-        return string.IsNullOrWhiteSpace(trimmed)
-            ? "index.html"
-            : Path.Combine(trimmed.Replace('/', Path.DirectorySeparatorChar), "index.html");
     }
 }

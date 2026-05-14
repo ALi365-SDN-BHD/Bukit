@@ -33,6 +33,8 @@ public sealed class SeoAuditReportWriterTests : IDisposable
 
         var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
 
+        Assert.Equal("1.0", report.SchemaVersion);
+        Assert.Equal("https://bukit.dev/schemas/seo-report.v1.json", report.Schema);
         Assert.DoesNotContain(report.Issues, x => x.Code == "seo.title_duplicate");
     }
 
@@ -121,6 +123,41 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
 
         Assert.Contains(report.Issues, x => x.Code == "seo.hreflang_self_missing" && x.Route == "/en/");
+    }
+
+    [Fact]
+    public void Build_ReportsSchemaRequiredAndRecommendedFieldGaps()
+    {
+        WriteOutput("post/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Entry("/post/", "post/index.html", "https://example.com/post/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new()
+            {
+                Title = "Post",
+                Description = "Post description",
+                Canonical = "https://example.com/post/",
+                JsonLd = new[]
+                {
+                    """{"@context":"https://schema.org","@type":"BlogPosting","url":"https://example.com/post/"}""",
+                    """{"@context":"https://schema.org","@type":"ItemList","itemListElement":[{"@type":"ListItem","name":"One"}]}""",
+                    """{"@context":"https://schema.org","@type":"WebSite","name":"Site","url":"https://example.com","potentialAction":{"@type":"SearchAction"}}"""
+                }
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_blogposting_headline_missing" && x.Severity == "error");
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_blogposting_date_published_missing" && x.Severity == "error");
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_blogposting_author_missing" && x.Severity == "warning");
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_blogposting_image_missing" && x.Severity == "warning");
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_itemlist_position_missing" && x.Severity == "error");
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_itemlist_url_missing" && x.Severity == "warning");
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_searchaction_target_missing" && x.Severity == "warning");
     }
 
     public void Dispose()

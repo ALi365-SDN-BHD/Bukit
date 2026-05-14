@@ -343,7 +343,7 @@ public sealed class SiteEngine
 
         var afterBuildStopwatch = Stopwatch.StartNew();
         await PluginRunner.RunAfterBuildAsync(pluginContext, cancellationToken);
-        WriteRobotsTxtIfRequested(config, outputDir, baseUrl);
+        WriteRobotsTxtIfRequested(config, outputDir, baseUrl, seoIndex.Entries);
         afterBuildStopwatch.Stop();
         variantStageMetrics.AddDuration("afterBuildPlugins", afterBuildStopwatch.ElapsedMilliseconds);
 
@@ -823,7 +823,11 @@ public sealed class SiteEngine
             : Path.Combine(normalized.Replace('/', Path.DirectorySeparatorChar), "index.html");
     }
 
-    private static void WriteRobotsTxtIfRequested(AppConfig config, string outputDir, string baseUrl)
+    private static void WriteRobotsTxtIfRequested(
+        AppConfig config,
+        string outputDir,
+        string baseUrl,
+        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex)
     {
         if (!config.Site.Seo.RobotsTxt.Enabled || string.IsNullOrWhiteSpace(config.Site.Url))
         {
@@ -836,8 +840,17 @@ public sealed class SiteEngine
             return;
         }
 
-        var sitemapUrl = SitemapGenerator.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/sitemap.xml");
-        FileWriter.WriteUtf8(outputDir, "robots.txt", $"User-agent: *{Environment.NewLine}Allow: /{Environment.NewLine}Sitemap: {sitemapUrl}{Environment.NewLine}");
+        var lines = new List<string>
+        {
+            "User-agent: *",
+            "Allow: /"
+        };
+        if (seoIndex.Values.Any(x => x.Indexable))
+        {
+            lines.Add($"Sitemap: {SitemapGenerator.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/sitemap.xml")}");
+        }
+
+        FileWriter.WriteUtf8(outputDir, "robots.txt", string.Join(Environment.NewLine, lines) + Environment.NewLine);
     }
 
     public async Task BuildAsync(IContentProvider provider, BuildOptions options, CancellationToken cancellationToken = default)

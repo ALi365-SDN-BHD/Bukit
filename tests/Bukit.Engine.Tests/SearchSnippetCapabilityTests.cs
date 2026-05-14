@@ -67,6 +67,7 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
             },
             Fields: null);
 
+        var route = new RouteInfo("/blog/post/", Path.Combine("blog", "post", "index.html"), "pages/post.html");
         return new BuildContext
         {
             Config = new AppConfig
@@ -80,7 +81,18 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
             LayoutsDir = _layoutsDir,
             Routed = new List<(ContentItem Item, RouteInfo Route)>
             {
-                (item, new RouteInfo("/blog/post/", Path.Combine("blog", "post", "index.html"), "pages/post.html"))
+                (item, route)
+            },
+            SeoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+            {
+                [BuildPathUtils.NormalizeRelPath(route.OutputPath)] = new(
+                    route,
+                    "https://example.com/blog/post/",
+                    Robots: null,
+                    Indexable: true,
+                    item.PublishAt,
+                    item.Id,
+                    "post")
             },
             Logger = new ConsoleLogger(LogLevel.Error)
         };

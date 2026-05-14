@@ -121,8 +121,6 @@ internal static class I18nOutputMerger
 
     private static void GenerateMergedSitemap(AppConfig config, string outputDir, string siteUrl, IReadOnlyList<BuildVariantResult> results, ILogger logger)
     {
-        var defaultLanguage = string.IsNullOrWhiteSpace(config.Site.DefaultLanguage) ? null : config.Site.DefaultLanguage.Trim();
-
         var excludeCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         bool IsExcludedFile(string absoluteHtmlPath)
         {
@@ -136,197 +134,59 @@ internal static class I18nOutputMerger
             return excluded;
         }
 
-        bool IsExcluded(BuildVariantResult r, string outputPath)
-        {
-            var key = BuildPathUtils.NormalizeRelPath(outputPath);
-            if (r.SeoIndex.TryGetValue(key, out var seo) && !seo.Indexable)
-            {
-                return true;
-            }
-
-            return IsExcludedFile(Path.Combine(r.OutputDir, outputPath));
-        }
-
-        var rootIndexPath = "index.html";
-        var collectionListRoutes = BuildCollectionListRoutes(config.Site.Collections);
-
-        var alternatesMap = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
-        void AddAlternate(string groupKey, string language, string absoluteUrl)
-        {
-            if (!alternatesMap.TryGetValue(groupKey, out var langs))
-            {
-                langs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                alternatesMap[groupKey] = langs;
-            }
-
-            if (!langs.ContainsKey(language))
-            {
-                langs[language] = absoluteUrl;
-            }
-        }
-
-        foreach (var r in results)
-        {
-            if (!IsExcluded(r, rootIndexPath))
-            {
-                AddAlternate("/", r.Language, SitemapGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, "/"));
-            }
-
-            foreach (var listRoute in collectionListRoutes)
-            {
-                if (!IsExcluded(r, listRoute.OutputPath))
-                {
-                    AddAlternate(listRoute.Url, r.Language, SitemapGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, listRoute.Url));
-                }
-            }
-
-            foreach (var (item, route) in r.Routed)
-            {
-                if (MetaHelpers.TryGetI18nKey(item.Meta, out var key))
-                {
-                    if (!IsExcluded(r, route.OutputPath))
-                    {
-                        AddAlternate(key, r.Language, SitemapGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, route.Url));
-                    }
-                }
-            }
-
-            foreach (var (route, _) in r.DerivedRoutes)
-            {
-                if (!IsExcluded(r, route.OutputPath))
-                {
-                    AddAlternate(route.Url, r.Language, SitemapGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, route.Url));
-                }
-            }
-        }
-
-        IReadOnlyList<SitemapGenerator.Alternate>? BuildAlternates(string groupKey)
-        {
-            if (!alternatesMap.TryGetValue(groupKey, out var map) || map.Count <= 1)
-            {
-                return null;
-            }
-
-            var list = new List<SitemapGenerator.Alternate>(capacity: map.Count + 1);
-            if (!string.IsNullOrWhiteSpace(defaultLanguage) && map.TryGetValue(defaultLanguage, out var defHref))
-            {
-                list.Add(new SitemapGenerator.Alternate("x-default", defHref));
-            }
-
-            foreach (var kv in map.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
-            {
-                list.Add(new SitemapGenerator.Alternate(kv.Key, kv.Value));
-            }
-
-            return list;
-        }
-
         var entries = new List<SitemapGenerator.UrlEntry>();
         foreach (var r in results)
         {
-            if (!IsExcluded(r, rootIndexPath))
+            foreach (var (key, seo) in r.SeoIndex
+                         .Where(x => x.Value.Indexable)
+                         .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
             {
-                entries.Add(new SitemapGenerator.UrlEntry(
-                    SitemapGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, "/"),
-                    DateTimeOffset.UtcNow,
-                    BuildAlternates("/")));
-            }
-
-            foreach (var listRoute in collectionListRoutes)
-            {
-                if (!IsExcluded(r, listRoute.OutputPath))
-                {
-                    entries.Add(new SitemapGenerator.UrlEntry(
-                        SitemapGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, listRoute.Url),
-                        DateTimeOffset.UtcNow,
-                        BuildAlternates(listRoute.Url)));
-                }
-            }
-
-            foreach (var (item, route) in r.Routed)
-            {
-                if (IsExcluded(r, route.OutputPath))
-                {
-                    continue;
-                }
-
-                var alts = MetaHelpers.TryGetI18nKey(item.Meta, out var key) ? BuildAlternates(key) : null;
-                entries.Add(new SitemapGenerator.UrlEntry(
-                    SitemapGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, route.Url),
-                    SitemapPolicy.ResolveLastModified(item),
-                    alts));
-            }
-
-            foreach (var (route, lastModified) in r.DerivedRoutes)
-            {
-                if (IsExcluded(r, route.OutputPath))
+                if (IsExcludedFile(Path.Combine(r.OutputDir, seo.Route.OutputPath)))
                 {
                     continue;
                 }
 
                 entries.Add(new SitemapGenerator.UrlEntry(
-                    SitemapGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, route.Url),
-                    lastModified,
-                    BuildAlternates(route.Url)));
+                    seo.Canonical,
+                    seo.LastModified,
+                    r.SeoModels.TryGetValue(key, out var model) ? BuildAlternates(model.Alternates) : null));
             }
         }
 
         SitemapGenerator.GenerateAbsoluteWithAlternates(outputDir, entries);
-    }
 
-    private static void GenerateMergedRss(AppConfig config, string outputDir, string siteUrl, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results)
-    {
-        static IReadOnlyList<string>? MergeCategories(IReadOnlyList<string>? tags, IReadOnlyList<string>? categories)
+        static IReadOnlyList<SitemapGenerator.Alternate>? BuildAlternates(IReadOnlyList<Bukit.Rendering.SeoAlternateModel> alternates)
         {
-            if (tags is null && categories is null)
+            if (alternates.Count <= 1)
             {
                 return null;
             }
 
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var list = new List<string>();
-
-            void Add(IReadOnlyList<string>? items)
-            {
-                if (items is null)
-                {
-                    return;
-                }
-
-                foreach (var v in items)
-                {
-                    var t = (v ?? string.Empty).Trim();
-                    if (!string.IsNullOrWhiteSpace(t) && seen.Add(t))
-                    {
-                        list.Add(t);
-                    }
-                }
-            }
-
-            Add(tags);
-            Add(categories);
-            return list.Count == 0 ? null : list;
+            return alternates
+                .OrderBy(x => string.Equals(x.Hreflang, "x-default", StringComparison.OrdinalIgnoreCase) ? string.Empty : x.Hreflang, StringComparer.OrdinalIgnoreCase)
+                .Select(x => new SitemapGenerator.Alternate(x.Hreflang, x.Href))
+                .ToList();
         }
+    }
 
+    private static void GenerateMergedRss(AppConfig config, string outputDir, string siteUrl, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results)
+    {
         var posts = new List<RssGenerator.Post>();
         var rssCollections = ResolveRssCollections(config.Site.Collections);
         foreach (var r in results)
         {
-            foreach (var (item, route) in r.Routed.Where(x => rssCollections.Contains(GetCollection(x.Item))))
+            var itemsByPath = SearchIndexBuilder.BuildItemMap(r.Routed);
+            foreach (var (key, seo) in r.SeoIndex
+                         .Where(x => x.Value.Indexable)
+                         .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
             {
-                var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
-                if (r.SeoIndex.TryGetValue(key, out var seo) && !seo.Indexable)
+                if (!itemsByPath.TryGetValue(key, out var item) ||
+                    !rssCollections.Contains(GetCollection(item)))
                 {
                     continue;
                 }
 
-                posts.Add(new RssGenerator.Post(
-                    Title: item.Title,
-                    AbsoluteUrl: RssGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, route.Url),
-                    PublishAt: item.PublishAt,
-                    Description: MetaHelpers.GetString(item.Meta, "summary"),
-                    Categories: MergeCategories(MetaHelpers.GetStringList(item.Meta, "tags"), MetaHelpers.GetStringList(item.Meta, "categories")),
-                    ContentHtml: ContentBodyResolver.GetHtml(item, r.BodyStore)));
+                posts.Add(RssGenerator.ToPost(item, seo.Canonical, r.BodyStore));
             }
         }
 

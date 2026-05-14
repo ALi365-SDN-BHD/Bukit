@@ -32,18 +32,16 @@ public static class RssGenerator
         var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
 
         var rssCollections = ResolveRssCollections(collections);
-        var posts = routed
-            .Where(x => rssCollections.Contains(GetCollection(x.Item)))
-            .Where(x => IsIndexable(seoIndex, x.Route))
-            .OrderByDescending(x => x.Item.PublishAt)
+        var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore)
+            ?? routed
+                .Where(x => rssCollections.Contains(GetCollection(x.Item)))
+                .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase)
+                .Select(x => ToPost(x.Item, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore))
+                .ToList();
+
+        posts = posts
+            .OrderByDescending(x => x.PublishAt)
             .Take(maxItems)
-            .Select(x => new Post(
-                Title: x.Item.Title,
-                AbsoluteUrl: BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url),
-                PublishAt: x.Item.PublishAt,
-                Description: GetString(x.Item.Meta, "summary"),
-                Categories: MergeCategories(GetStringList(x.Item.Meta, "tags"), GetStringList(x.Item.Meta, "categories")),
-                ContentHtml: ContentBodyResolver.GetHtml(x.Item, bodyStore)))
             .ToList();
 
         var feedUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/rss.xml");
@@ -134,16 +132,43 @@ public static class RssGenerator
         return meta.TryGetValue(key, out var v) && v is not null ? v.ToString() : null;
     }
 
-    private static bool IsIndexable(IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex, RouteInfo route)
+    internal static List<Post>? BuildPostsFromSeoIndex(
+        IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlySet<string> rssCollections,
+        IContentBodyStore bodyStore)
     {
-        if (seoIndex is null)
+        if (seoIndex is null || seoIndex.Count == 0)
         {
-            return true;
+            return null;
         }
 
-        var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
-        return !seoIndex.TryGetValue(key, out var entry) || entry.Indexable;
+        var itemsByPath = SearchIndexBuilder.BuildItemMap(routed);
+        var posts = new List<Post>();
+        foreach (var (key, entry) in seoIndex
+                     .Where(x => x.Value.Indexable)
+                     .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!itemsByPath.TryGetValue(key, out var item) ||
+                !rssCollections.Contains(GetCollection(item)))
+            {
+                continue;
+            }
+
+            posts.Add(ToPost(item, entry.Canonical, bodyStore));
+        }
+
+        return posts;
     }
+
+    internal static Post ToPost(ContentItem item, string absoluteUrl, IContentBodyStore bodyStore)
+        => new(
+            Title: item.Title,
+            AbsoluteUrl: absoluteUrl,
+            PublishAt: item.PublishAt,
+            Description: GetString(item.Meta, "summary"),
+            Categories: MergeCategories(GetStringList(item.Meta, "tags"), GetStringList(item.Meta, "categories")),
+            ContentHtml: ContentBodyResolver.GetHtml(item, bodyStore));
 
     private static IReadOnlyList<string>? GetStringList(IReadOnlyDictionary<string, object> meta, string key)
     {

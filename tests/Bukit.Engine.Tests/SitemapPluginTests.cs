@@ -52,6 +52,17 @@ public sealed class SitemapPluginTests
             {
                 (item, new RouteInfo("/pages/a/", "pages/a/index.html", "pages/page.html"))
             },
+            SeoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["pages/a/index.html"] = new(
+                    new RouteInfo("/pages/a/", "pages/a/index.html", "pages/page.html"),
+                    "https://example.com/pages/a/",
+                    "noindex",
+                    Indexable: false,
+                    item.PublishAt,
+                    item.Id,
+                    "page")
+            },
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -101,6 +112,17 @@ public sealed class SitemapPluginTests
             {
                 (item, new RouteInfo("/pages/b/", "pages/b/index.html", "pages/page.html"))
             },
+            SeoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["pages/b/index.html"] = new(
+                    new RouteInfo("/pages/b/", "pages/b/index.html", "pages/page.html"),
+                    "https://example.com/pages/b/",
+                    Robots: null,
+                    Indexable: true,
+                    new DateTimeOffset(2024, 02, 03, 4, 5, 6, TimeSpan.Zero),
+                    item.Id,
+                    "page")
+            },
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -111,4 +133,3 @@ public sealed class SitemapPluginTests
         Assert.Contains("<lastmod>2024-02-03</lastmod>", sitemap, StringComparison.Ordinal);
     }
 }
-

@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/seo-report.v1.json",
+  "title": "Bukit SEO Audit Report",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "generatedAt", "siteName", "baseUrl", "routes", "issues", "summary"],
+  "properties": {
+    "schema": {
+      "const": "https://bukit.dev/schemas/seo-report.v1.json"
+    },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "siteName": {
+      "type": "string"
+    },
+    "siteUrl": {
+      "type": ["string", "null"]
+    },
+    "baseUrl": {
+      "type": "string"
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/route"
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "alternate": {
+      "type": "object",
+      "required": ["hreflang", "href"],
+      "properties": {
+        "hreflang": {
+          "type": "string"
+        },
+        "href": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "issue": {
+      "type": "object",
+      "required": ["severity", "code", "message"],
+      "properties": {
+        "severity": {
+          "enum": ["error", "warning"]
+        },
+        "code": {
+          "type": "string"
+        },
+        "route": {
+          "type": ["string", "null"]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "route": {
+      "type": "object",
+      "required": [
+        "url",
+        "outputPath",
+        "canonical",
+        "indexable",
+        "lastModified",
+        "sitemapIncluded",
+        "searchIncluded",
+        "rssIncluded",
+        "alternates",
+        "schemaTypes"
+      ],
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "outputPath": {
+          "type": "string"
+        },
+        "title": {
+          "type": ["string", "null"]
+        },
+        "description": {
+          "type": ["string", "null"]
+        },
+        "canonical": {
+          "type": "string"
+        },
+        "robots": {
+          "type": ["string", "null"]
+        },
+        "indexable": {
+          "type": "boolean"
+        },
+        "lastModified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "contentType": {
+          "type": ["string", "null"]
+        },
+        "sourceItemId": {
+          "type": ["string", "null"]
+        },
+        "sitemapIncluded": {
+          "type": "boolean"
+        },
+        "searchIncluded": {
+          "type": "boolean"
+        },
+        "rssIncluded": {
+          "type": "boolean"
+        },
+        "alternates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/alternate"
+          }
+        },
+        "schemaTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": ["routeCount", "indexableCount", "nonIndexableCount", "errorCount", "warningCount"],
+      "properties": {
+        "routeCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "indexableCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "nonIndexableCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "errorCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warningCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

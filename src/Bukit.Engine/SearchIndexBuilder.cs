@@ -22,71 +22,94 @@ internal static class SearchIndexBuilder
 
         foreach (var r in results)
         {
-            var items = includeDerived ? r.Routed.Concat(r.DerivedRouted) : r.Routed;
-            foreach (var (item, route) in items)
+            var itemsByPath = BuildItemMap(includeDerived ? r.Routed.Concat(r.DerivedRouted) : r.Routed);
+            foreach (var (key, seo) in r.SeoIndex
+                         .Where(x => x.Value.Indexable)
+                         .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
             {
-                var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
-                if (r.SeoIndex.TryGetValue(key, out var seo) && !seo.Indexable)
+                if (!itemsByPath.TryGetValue(key, out var item))
                 {
                     continue;
                 }
 
-                writer.WriteStartObject();
-                writer.WriteString("id", item.Id);
-                writer.WriteString("title", item.Title);
-                writer.WriteString("url", NormalizeSearchUrl(r.BaseUrl, route.Url));
-
-                if (item.Meta.TryGetValue("summary", out var summary) && summary is not null)
-                {
-                    writer.WriteString("summary", summary.ToString());
-                }
-
-                var text = StripHtmlToText(ContentBodyResolver.GetHtml(item, r.BodyStore));
-                if (text.Length > 8000)
-                {
-                    text = text[..8000];
-                }
-
-                writer.WriteString("content", text);
-                if (r.SearchSnippetsEnabled)
-                {
-                    writer.WriteString("snippet", BuildSnippet(item, text));
-                }
-                writer.WriteString("type", MetaHelpers.GetString(item.Meta, "type"));
-
-                var tags = MetaHelpers.GetStringList(item.Meta, "tags");
-                if (tags is not null)
-                {
-                    writer.WriteStartArray("tags");
-                    foreach (var t in tags)
-                    {
-                        writer.WriteStringValue(t);
-                    }
-
-                    writer.WriteEndArray();
-                }
-
-                var categories = MetaHelpers.GetStringList(item.Meta, "categories");
-                if (categories is not null)
-                {
-                    writer.WriteStartArray("categories");
-                    foreach (var c in categories)
-                    {
-                        writer.WriteStringValue(c);
-                    }
-
-                    writer.WriteEndArray();
-                }
-
-                writer.WriteString("language", MetaHelpers.GetString(item.Meta, "language"));
-                writer.WriteString("sourceKey", MetaHelpers.GetString(item.Meta, "sourceKey") ?? MetaHelpers.GetString(item.Meta, "source"));
-                writer.WriteString("publishAt", item.PublishAt.ToString("O"));
-                writer.WriteEndObject();
+                WriteSearchItem(writer, item, seo.Route, r.BaseUrl, r.BodyStore, r.SearchSnippetsEnabled);
             }
         }
 
         writer.WriteEndArray();
         writer.Flush();
+    }
+
+    internal static void WriteSearchItem(
+        Utf8JsonWriter writer,
+        ContentItem item,
+        RouteInfo route,
+        string baseUrl,
+        IContentBodyStore bodyStore,
+        bool emitSnippet)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("id", item.Id);
+        writer.WriteString("title", item.Title);
+        writer.WriteString("url", NormalizeSearchUrl(baseUrl, route.Url));
+
+        if (item.Meta.TryGetValue("summary", out var summary) && summary is not null)
+        {
+            writer.WriteString("summary", summary.ToString());
+        }
+
+        var text = StripHtmlToText(ContentBodyResolver.GetHtml(item, bodyStore));
+        if (text.Length > 8000)
+        {
+            text = text[..8000];
+        }
+
+        writer.WriteString("content", text);
+        if (emitSnippet)
+        {
+            writer.WriteString("snippet", BuildSnippet(item, text));
+        }
+        writer.WriteString("type", MetaHelpers.GetString(item.Meta, "type"));
+
+        var tags = MetaHelpers.GetStringList(item.Meta, "tags");
+        if (tags is not null)
+        {
+            writer.WriteStartArray("tags");
+            foreach (var t in tags)
+            {
+                writer.WriteStringValue(t);
+            }
+
+            writer.WriteEndArray();
+        }
+
+        var categories = MetaHelpers.GetStringList(item.Meta, "categories");
+        if (categories is not null)
+        {
+            writer.WriteStartArray("categories");
+            foreach (var c in categories)
+            {
+                writer.WriteStringValue(c);
+            }
+
+            writer.WriteEndArray();
+        }
+
+        writer.WriteString("language", MetaHelpers.GetString(item.Meta, "language"));
+        writer.WriteString("sourceKey", MetaHelpers.GetString(item.Meta, "sourceKey") ?? MetaHelpers.GetString(item.Meta, "source"));
+        writer.WriteString("publishAt", item.PublishAt.ToString("O"));
+        writer.WriteEndObject();
+    }
+
+    internal static Dictionary<string, ContentItem> BuildItemMap(IEnumerable<(ContentItem Item, RouteInfo Route)> routed)
+    {
+        var result = new Dictionary<string, ContentItem>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (item, route) in routed)
+        {
+            result[BuildPathUtils.NormalizeRelPath(route.OutputPath)] = item;
+        }
+
+        return result;
     }
 
     internal static void GenerateSearchIndexIndex(string outputDir, IReadOnlyList<BuildVariantResult> results)
