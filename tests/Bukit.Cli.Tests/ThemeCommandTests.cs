@@ -60,8 +60,8 @@ public sealed class ThemeCommandTests : IDisposable
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "search.html")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "bukit.templates.yaml")));
         var baseLayout = await File.ReadAllTextAsync(Path.Combine(themeRoot, "layouts", "layouts", "base.html"));
-        Assert.Contains("partials/seo.html", baseLayout, StringComparison.Ordinal);
-        Assert.Contains("partials/analytics.html", baseLayout, StringComparison.Ordinal);
+        Assert.DoesNotContain("partials/seo.html", baseLayout, StringComparison.Ordinal);
+        Assert.DoesNotContain("partials/analytics.html", baseLayout, StringComparison.Ordinal);
         var seoPartial = await File.ReadAllTextAsync(Path.Combine(themeRoot, "layouts", "partials", "seo.html"));
         Assert.Contains("<link rel=\"canonical\"", seoPartial, StringComparison.Ordinal);
         Assert.Contains("property=\"og:title\"", seoPartial, StringComparison.Ordinal);

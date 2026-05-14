@@ -1,9 +1,9 @@
 {{ if site.analytics && site.analytics.enabled && site.analytics.google_analytics_id }}
-  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analytics.google_analytics_id }}"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analytics.google_analytics_id | html.escape }}"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-    gtag('config', '{{ site.analytics.google_analytics_id }}');
+    gtag('config', '{{ site.analytics.google_analytics_id | html.escape }}');
   </script>
 {{ end }}

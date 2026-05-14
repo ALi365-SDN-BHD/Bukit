@@ -1,8 +1,11 @@
 site:
   name: starter
   title: Bukit Starter
+  url: https://example.com
   baseUrl: /
   language: zh-CN
+  seo:
+    renderMode: inject
   pluginFailMode: strict
   externalPlugins:
     sample-wasm:
