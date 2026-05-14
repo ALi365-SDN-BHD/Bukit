@@ -31,7 +31,7 @@ Three main data objects available in templates:
 | `site.name` | string | Site name |
 | `site.title` | string | Site title |
 | `site.url` | string/null | Site full URL |
-| `site.description` | string/null | Site description |
+| `site.description` | string/null | Site description; also the SEO fallback for generated home/list/taxonomy/pagination pages |
 | `site.base_url` | string | Root path. Empty string when `/`, otherwise `/subpath/` |
 | `site.language` | string | Current language |
 | `site.params` | object | Mapping of `theme.params` |
@@ -58,6 +58,12 @@ Each field has a `{type: string, value: ...}` structure:
 ### `pages` — Page List (list pages only)
 
 Only available in index.html and list.html templates. An array of `PageInfo` objects. Each element has `title`, `url`, `content`, `summary`, `publish_date`, `fields`.
+
+## SEO and Head Output
+
+Bukit's default SEO mode is `site.seo.renderMode: inject`. In this mode, templates should provide a normal `<head>` and a `<title>`, but should not include SEO or Analytics partials unless the user intentionally wants theme-owned head output. The engine injects canonical, description, robots, OG/Twitter, hreflang, JSON-LD, and GA4.
+
+Use `partials/seo.html` and `partials/analytics.html` only for `renderMode: theme`. When writing explicit SEO partials, escape all HTML attributes with `| html.escape`; JSON-LD entries from `page.seo.json_ld` are already serialized by the engine.
 
 ## Layout Inheritance
 

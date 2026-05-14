@@ -44,6 +44,22 @@ When `disableInPreview` is `true`, `bukit preview` removes Bukit-managed GA4 gta
 
 Use `theme` only when you intentionally want the theme to own head output. Use `off` for unusual deployments that do not want Bukit to build HTML SEO tags, while still preserving index policy for sitemap/search unless SEO is fully disabled.
 
+## Starter Theme Defaults
+
+The starter theme is inject-first. Its base layout only provides a standard HTML `<head>` with charset, viewport, title, RSS/sitemap links, and stylesheet links. It does not include SEO or Analytics partials by default. Bukit injects the managed SEO head and GA4 tags when `site.seo.renderMode: inject`.
+
+Starter still ships `partials/seo.html` and `partials/analytics.html` as reference partials for users who intentionally switch to `renderMode: theme`. Those partials must use `html.escape` for HTML attributes.
+
+## Description Fallbacks
+
+Content pages use this SEO description priority:
+
+1. `seo_desc`
+2. `summary`
+3. `site.description`
+
+Home, collection list, taxonomy, and pagination pages use `page.summary` when available and otherwise fall back to `site.description`. If `site.description` is missing, these generated routes will produce `seo.description_missing` warnings in `seo-report.json`.
+
 ## Engine Guarantees
 
 Bukit builds a `SeoIndex` per final route, including content pages, derived pages, homepage, taxonomy pages, pagination pages, and collection/list pages. It uses that index as the policy source for sitemap, RSS, search index outputs, HTML SEO models, and diagnostics. A page with `robots: noindex` or `robots: none` is excluded from those outputs even if the theme forgets to render a robots meta tag.

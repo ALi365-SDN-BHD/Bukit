@@ -141,8 +141,8 @@ theme:
 |------|------|--------|------|
 | `name` | string | **Required** | Site identifier |
 | `title` | string | **Required** | Site title, used as `{{ site.title }}` in templates |
-| `url` | string | — | Full site URL, must start with `http://` or `https://` |
-| `description` | string | — | Site description |
+| `url` | string | — | Full site URL, must start with `http://` or `https://`; required for absolute canonical, hreflang, schema URLs, sitemap, and RSS |
+| `description` | string | — | Site description; SEO fallback for home, list, taxonomy, pagination, and pages without `summary`/`seo_desc` |
 | `baseUrl` | string | `/` | Site root path, must start with `/`. For subdirectory deployment use `/subpath/` |
 | `language` | string | `zh-CN` | Default content language |
 | `timezone` | string | `Asia/Shanghai` | IANA timezone identifier |
@@ -163,6 +163,8 @@ theme:
 | `plugins` | map | — | Plugin toggles (`{pluginName: {enabled: false}}`) |
 | `externalPlugins` | map | — | External plugin configuration |
 | `externalAssemblyAllowlist` | map | — | External assembly allowlist (`{filename: SHA256}`) |
+
+SEO-oriented configs should include both `site.url` and `site.description`. Without `site.url`, canonical and schema URLs fall back to relative paths and audit emits warnings. Without `site.description`, generated home/list/taxonomy/pagination routes usually emit `seo.description_missing` unless the route has its own summary.
 | `permalinks` | map | — | Global permalink custom placeholders |
 
 ### content Node

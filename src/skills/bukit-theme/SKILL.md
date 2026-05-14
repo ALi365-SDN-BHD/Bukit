@@ -37,6 +37,8 @@ themes/<name>/
 
 `bukit init` generates `themes/starter/` as the recommended content-site starting point. It is no longer just a minimal test scaffold: it includes a responsive CSS foundation, reusable card/list partials, and optional templates for pagination, taxonomy, and search.
 
+Starter is inject-first for SEO. Its base layout should provide a normal `<head>` but should not include `partials/seo.html` or `partials/analytics.html` by default. Bukit injects canonical, description, robots, OG/Twitter, hreflang, JSON-LD, and GA4 when `site.seo.renderMode: inject`. The SEO/Analytics partials may still exist as reference partials for users who intentionally switch to `renderMode: theme`.
+
 ### `layouts/` — Template Directory
 
 | File | Responsibility | Required |
@@ -50,6 +52,8 @@ themes/<name>/
 | `partials/footer.html` | Footer with Powered by bukit | **Strongly recommended** |
 | `partials/list-card.html` | Reusable list item/card partial | Recommended |
 | `partials/pagination-nav.html` | Reusable pagination nav partial | Recommended when pagination is enabled |
+| `partials/seo.html` | Optional explicit SEO partial for `renderMode: theme`; not included by starter base in inject mode | Optional |
+| `partials/analytics.html` | Optional explicit GA4 partial for `renderMode: theme`; not included by starter base in inject mode | Optional |
 
 ### `assets/` — Asset Directory
 
@@ -128,8 +132,9 @@ theme:
 ```
 
 4. Change visual identity through CSS variables in `assets/style.css` before editing templates.
-5. Change shared chrome through `layouts/partials/header.html` and `layouts/partials/footer.html`.
-6. Edit page templates only when structure changes:
+5. Keep SEO engine-owned unless the user explicitly asks for theme-owned head output. For starter-derived themes, prefer `site.seo.renderMode: inject` and do not add SEO/Analytics partial includes to `layouts/base.html`. If switching to `renderMode: theme`, use the generated partials and keep HTML attributes escaped.
+6. Change shared chrome through `layouts/partials/header.html` and `layouts/partials/footer.html`.
+7. Edit page templates only when structure changes:
    - `layouts/pages/index.html` for the homepage
    - `layouts/pages/list.html` for collection lists
    - `layouts/pages/post.html` for articles
