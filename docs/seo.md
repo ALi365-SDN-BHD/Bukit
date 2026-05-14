@@ -2,6 +2,8 @@
 
 Bukit builds SEO in the engine first. Themes can render the model explicitly, or the engine can inject the generated head tags after rendering.
 
+For the Google Search Central rules behind these choices, see [Google Search Central SEO 学习笔记](google-search-central-learning.md).
+
 ## Configuration
 
 ```yaml
@@ -44,7 +46,7 @@ Use `theme` only when you intentionally want the theme to own head output. Use `
 
 ## Engine Guarantees
 
-Bukit builds a `SeoIndex` per final route, including content pages, derived pages, homepage, and collection/list pages. It uses that index as the policy source for sitemap, RSS, search index outputs, HTML SEO models, and diagnostics. A page with `robots: noindex` or `robots: none` is excluded from those outputs even if the theme forgets to render a robots meta tag.
+Bukit builds a `SeoIndex` per final route, including content pages, derived pages, homepage, taxonomy pages, pagination pages, and collection/list pages. It uses that index as the policy source for sitemap, RSS, search index outputs, HTML SEO models, and diagnostics. A page with `robots: noindex` or `robots: none` is excluded from those outputs even if the theme forgets to render a robots meta tag.
 
 Canonical URLs are generated from `site.url + site.baseUrl + route.url` with normalized slashes. i18n alternate relationships become HTML `hreflang` links when related pages exist.
 
@@ -64,7 +66,7 @@ The report is designed as a CI artifact and stable URL inventory. It includes:
 - machine-readable `issues` with `severity`, `code`, `route`, and `message`
 - summary counts for routes, indexable routes, warnings, and errors
 
-Current audit rules cover title/description missing, length, and duplication; canonical/index consistency; noindex leakage into sitemap; hreflang locale and return-link checks; JSON-LD parse/type checks; sitemap/output-file consistency; robots.txt sitemap/blocking conflicts; and OG/Twitter image URL/file checks. External network validation such as Google Rich Results, live HTTP status checks, and Lighthouse is intentionally outside the static build step.
+Current audit rules cover title/description missing, length, and duplication; canonical absolute URL, fragment, HTTPS preference, and index consistency; noindex leakage into sitemap; hreflang fully-qualified URL, locale, self-reference, and return-link checks; JSON-LD parse/type checks; sitemap XML/output-file consistency; robots.txt sitemap/blocking conflicts; and OG/Twitter image URL/file checks. External network validation such as Google Rich Results, live HTTP status checks, and Lighthouse is intentionally outside the static build step.
 
 Run the CI audit command after build:
 

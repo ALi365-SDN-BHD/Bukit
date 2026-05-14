@@ -17,5 +17,6 @@ internal sealed record BuildVariantContext(
     string StaticDir,
     string MediaDownloadDir,
     IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> SeoAlternates,
+    string? RootBaseUrl,
     string? ManifestSuffix,
     string? DefaultLanguage);

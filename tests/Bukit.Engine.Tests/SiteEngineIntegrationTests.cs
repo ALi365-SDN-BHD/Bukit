@@ -675,6 +675,7 @@ public sealed class SiteEngineIntegrationTests
                 slug: hello
                 language: en-US
                 i18nKey: hello
+                tags: [shared]
                 ---
                 # Hello
                 """);
@@ -685,6 +686,7 @@ public sealed class SiteEngineIntegrationTests
                 slug: helo
                 language: ms-MY
                 i18nKey: hello
+                tags: [shared]
                 ---
                 # Helo
                 """);
@@ -718,9 +720,15 @@ public sealed class SiteEngineIntegrationTests
             var soloHtml = File.ReadAllText(Path.Combine(root, "dist", "en-US", "pages", "solo", "index.html"));
             Assert.DoesNotContain("hreflang=", soloHtml, StringComparison.Ordinal);
 
+            var tagHtml = File.ReadAllText(Path.Combine(root, "dist", "en-US", "tags", "shared", "index.html"));
+            Assert.Contains("hreflang=\"x-default\" href=\"https://example.com/en-US/tags/shared/\"", tagHtml, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"en-US\" href=\"https://example.com/en-US/tags/shared/\"", tagHtml, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/tags/shared/\"", tagHtml, StringComparison.Ordinal);
+
             var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
             Assert.Contains("hreflang=\"x-default\" href=\"https://example.com/en-US/pages/hello/\"", sitemap, StringComparison.Ordinal);
             Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/pages/helo/\"", sitemap, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/tags/shared/\"", sitemap, StringComparison.Ordinal);
             Assert.Empty(logger.Errors);
         }
         finally

@@ -77,7 +77,7 @@ public sealed class SiteEngine
                 effectiveConfig, rootDir, overrides, items, bodyStore, outputDir, baseUrl,
                 layoutsDir, assetsDir, staticDir, mediaCacheDir,
                 SeoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal),
-                ManifestSuffix: null, DefaultLanguage: null);
+                RootBaseUrl: null, ManifestSuffix: null, DefaultLanguage: null);
             var result = await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken);
 
             _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={baseUrl}");
@@ -111,7 +111,7 @@ public sealed class SiteEngine
                 variantConfig, rootDir, overrides, variantItems, bodyStore, variantOutputDir, baseUrl,
                 layoutsDir, assetsDir, staticDir, mediaCacheDir,
                 SeoAlternates: seoAlternates,
-                ManifestSuffix: lang, DefaultLanguage: defaultLanguage);
+                RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage);
             var result = await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken);
             results.Add(result);
             _logger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
@@ -230,7 +230,13 @@ public sealed class SiteEngine
 
         var renderQueue = routed.Concat(pluginContext.DerivedRouted).ToList();
         var listRoutes = BuildListRoutes(config.Site.Collections);
-        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, ctx.SeoAlternates);
+        var seoAlternates = AddVariantRouteAlternates(
+            config,
+            ctx.SeoAlternates,
+            listRoutes,
+            ctx.RootBaseUrl,
+            ctx.DefaultLanguage);
+        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates);
         pluginContext.SeoIndex = seoIndex.Entries;
         SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, _logger);
         var currentKeys = new HashSet<string>(StringComparer.Ordinal);
@@ -276,7 +282,7 @@ public sealed class SiteEngine
                     baseUrl,
                     item,
                     route,
-                    GetSeoAlternates(ctx.SeoAlternates, SeoModelBuilder.BuildAlternateKey(item, route)))
+                    GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildAlternateKey(item, route)))
                 : null,
             shouldProvideSeoModel
                 ? (route, page) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model)
@@ -285,7 +291,7 @@ public sealed class SiteEngine
                         config,
                         baseUrl,
                         page,
-                        GetSeoAlternates(ctx.SeoAlternates, SeoModelBuilder.BuildListAlternateKey(route)))
+                        GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(route)))
                 : null,
             shouldProvideSeoModel
                 ? (route, page, html) =>
@@ -436,17 +442,30 @@ public sealed class SiteEngine
             var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, language);
             var variantItems = I18nOutputMerger
                 .FilterItemsByLanguage(items, language, defaultLanguage)
-                .Where(i => !MetaHelpers.IsDataItem(i));
+                .Where(i => !MetaHelpers.IsDataItem(i))
+                .ToList();
+            var variantRouted = variantItems
+                .Select(i => (Item: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
+                .ToList();
 
-            foreach (var item in variantItems)
+            foreach (var (item, route) in variantRouted)
             {
-                var route = RouteGenerator.Generate(item, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules);
                 AddAlternate(SeoModelBuilder.BuildAlternateKey(item, route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url));
             }
 
             foreach (var route in BuildListRoutes(config.Site.Collections))
             {
                 AddAlternate(SeoModelBuilder.BuildListAlternateKey(route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url));
+            }
+
+            foreach (var url in BuildTaxonomyRouteUrls(config, variantRouted))
+            {
+                AddAlternate($"route:{url}", language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, url));
+            }
+
+            foreach (var url in BuildPaginationRouteUrls(config, variantRouted))
+            {
+                AddAlternate($"route:{url}", language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, url));
             }
         }
 
@@ -487,6 +506,264 @@ public sealed class SiteEngine
 
             byLanguage[language] = href;
         }
+    }
+
+    private static IReadOnlyList<string> BuildTaxonomyRouteUrls(
+        AppConfig config,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
+    {
+        if (string.Equals((config.Taxonomy.OutputMode ?? string.Empty).Trim(), "data", StringComparison.OrdinalIgnoreCase) ||
+            routed.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var pageSize = NormalizeSeoPageSize(config.Taxonomy.PageSize);
+        var result = new List<string>();
+        if (config.Taxonomy.Kinds is { Count: > 0 } kinds)
+        {
+            foreach (var kindConfig in kinds)
+            {
+                var key = (kindConfig.Key ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(key))
+                {
+                    continue;
+                }
+
+                var kind = string.IsNullOrWhiteSpace(kindConfig.Kind) ? key : kindConfig.Kind.Trim();
+                AddTaxonomyKindRoutes(result, kind, BuildTaxonomyTermCounts(routed, key), pageSize, kindConfig.IndexEnabled ?? config.Taxonomy.IndexEnabled);
+            }
+
+            return result;
+        }
+
+        AddTaxonomyKindRoutes(result, "tags", BuildTaxonomyTermCounts(routed, "tags"), pageSize, config.Taxonomy.IndexEnabled);
+        AddTaxonomyKindRoutes(result, "categories", BuildTaxonomyTermCounts(routed, "categories"), pageSize, config.Taxonomy.IndexEnabled);
+        return result;
+    }
+
+    private static IReadOnlyList<string> BuildPaginationRouteUrls(
+        AppConfig config,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
+    {
+        if (routed.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var collectionKey = "post";
+        var listRoute = "/blog/";
+        var pageSize = 10;
+        if (config.Site.Collections is { Count: > 0 })
+        {
+            var paginationCollection = config.Site.Collections.FirstOrDefault(x => x.Value.Pagination.Enabled);
+            if (paginationCollection.Value is null)
+            {
+                return Array.Empty<string>();
+            }
+
+            collectionKey = paginationCollection.Key;
+            listRoute = paginationCollection.Value.ListRoute ?? listRoute;
+            pageSize = paginationCollection.Value.Pagination.PageSize;
+        }
+
+        pageSize = NormalizeSeoPageSize(pageSize);
+        var count = routed.Count(x => string.Equals(GetCollection(x.Item), collectionKey, StringComparison.OrdinalIgnoreCase));
+        if (count <= pageSize)
+        {
+            return Array.Empty<string>();
+        }
+
+        var totalPages = (int)Math.Ceiling(count / (double)pageSize);
+        var normalizedListRoute = NormalizeListRoute(listRoute);
+        var result = new List<string>(totalPages - 1);
+        for (var page = 2; page <= totalPages; page++)
+        {
+            result.Add($"{normalizedListRoute}page/{page}/");
+        }
+
+        return result;
+    }
+
+    private static void AddTaxonomyKindRoutes(
+        List<string> result,
+        string kind,
+        IReadOnlyDictionary<string, int> termCounts,
+        int pageSize,
+        bool indexEnabled)
+    {
+        if (string.IsNullOrWhiteSpace(kind) || termCounts.Count == 0)
+        {
+            return;
+        }
+
+        var normalizedKind = kind.Trim().Trim('/');
+        if (string.IsNullOrWhiteSpace(normalizedKind))
+        {
+            return;
+        }
+
+        if (indexEnabled)
+        {
+            result.Add($"/{normalizedKind}/");
+        }
+
+        foreach (var (slug, count) in termCounts)
+        {
+            result.Add($"/{normalizedKind}/{slug}/");
+            var totalPages = (int)Math.Ceiling(count / (double)pageSize);
+            for (var page = 2; page <= totalPages; page++)
+            {
+                result.Add($"/{normalizedKind}/{slug}/page/{page}/");
+            }
+        }
+    }
+
+    private static IReadOnlyDictionary<string, int> BuildTaxonomyTermCounts(
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        string key)
+    {
+        var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (item, _) in routed)
+        {
+            var values = GetSeoStringList(item.Meta, key);
+            if (values is null)
+            {
+                continue;
+            }
+
+            foreach (var value in values)
+            {
+                var slug = SlugifySeoSegment(value);
+                if (string.IsNullOrWhiteSpace(slug))
+                {
+                    continue;
+                }
+
+                result[slug] = result.TryGetValue(slug, out var count) ? count + 1 : 1;
+            }
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<string>? GetSeoStringList(IReadOnlyDictionary<string, object> meta, string key)
+    {
+        if (!meta.TryGetValue(key, out var value) || value is null)
+        {
+            return null;
+        }
+
+        if (value is string text)
+        {
+            var parts = text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length == 0 ? null : parts;
+        }
+
+        if (value is IEnumerable<object> values)
+        {
+            var list = values
+                .Select(x => x?.ToString()?.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!)
+                .ToList();
+            return list.Count == 0 ? null : list;
+        }
+
+        return null;
+    }
+
+    private static string GetCollection(ContentItem item)
+    {
+        if (item.Meta.TryGetValue("collection", out var collection) && collection is not null && !string.IsNullOrWhiteSpace(collection.ToString()))
+        {
+            return collection.ToString()!;
+        }
+
+        if (item.Meta.TryGetValue("type", out var type) && type is not null && !string.IsNullOrWhiteSpace(type.ToString()))
+        {
+            return type.ToString()!;
+        }
+
+        return "page";
+    }
+
+    private static int NormalizeSeoPageSize(int pageSize) => pageSize <= 0 ? 10 : pageSize;
+
+    private static string SlugifySeoSegment(string text)
+    {
+        var trimmed = text.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return string.Empty;
+        }
+
+        var sb = new System.Text.StringBuilder(trimmed.Length);
+        var dash = false;
+        foreach (var ch in trimmed)
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                sb.Append(ch);
+                dash = false;
+                continue;
+            }
+
+            if (ch is ' ' or '-' or '_' or '.')
+            {
+                if (!dash && sb.Length > 0)
+                {
+                    sb.Append('-');
+                    dash = true;
+                }
+            }
+        }
+
+        return sb.ToString().Trim('-');
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> AddVariantRouteAlternates(
+        AppConfig config,
+        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> existing,
+        IEnumerable<RouteInfo> routes,
+        string? rootBaseUrl,
+        string? defaultLanguage)
+    {
+        var languages = I18nOutputMerger.GetLanguages(config.Site);
+        if (string.IsNullOrWhiteSpace(config.Site.Url) ||
+            string.IsNullOrWhiteSpace(rootBaseUrl) ||
+            string.IsNullOrWhiteSpace(defaultLanguage) ||
+            languages.Count < 2)
+        {
+            return existing;
+        }
+
+        Dictionary<string, IReadOnlyList<SeoAlternateModel>>? result = null;
+        foreach (var route in routes)
+        {
+            var key = SeoModelBuilder.BuildListAlternateKey(route);
+            if (existing.ContainsKey(key))
+            {
+                continue;
+            }
+
+            result ??= new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(existing, StringComparer.Ordinal);
+            var alternates = new List<SeoAlternateModel>(languages.Count + 1);
+            alternates.Add(new SeoAlternateModel(
+                "x-default",
+                SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, defaultLanguage), route.Url)));
+
+            foreach (var language in languages)
+            {
+                alternates.Add(new SeoAlternateModel(
+                    language,
+                    SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, language), route.Url)));
+            }
+
+            result[key] = alternates;
+        }
+
+        return result ?? existing;
     }
 
     private static IReadOnlyList<RouteInfo> BuildListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)

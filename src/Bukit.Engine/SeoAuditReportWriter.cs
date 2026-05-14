@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Xml.Linq;
 using Bukit.Config;
 using Bukit.Engine.Plugins;
 using Bukit.Rendering;
@@ -89,6 +90,7 @@ internal static class SeoAuditReportWriter
         var robotsText = ReadOptional(Path.Combine(outputDir, "robots.txt"));
 
         var issues = new List<SeoAuditIssue>();
+        AnalyzeSitemapXml(sitemapText, issues);
         var routes = new List<SeoAuditRoute>();
         var modelByCanonical = new Dictionary<string, (SeoIndexEntry Entry, SeoModel Model)>(StringComparer.OrdinalIgnoreCase);
 
@@ -200,6 +202,22 @@ internal static class SeoAuditReportWriter
         {
             issues.Add(Warning("seo.site_url_missing_for_absolute_canonical", entry.Route.Url, "site.url is missing but canonical is absolute."));
         }
+
+        if (!IsAbsoluteHttpUrl(model.Canonical))
+        {
+            issues.Add(Warning("seo.canonical_not_absolute", entry.Route.Url, $"Canonical URL should be absolute: {model.Canonical}."));
+        }
+
+        if (HasFragment(model.Canonical))
+        {
+            issues.Add(Warning("seo.canonical_has_fragment", entry.Route.Url, $"Canonical URL should not include a fragment: {model.Canonical}."));
+        }
+
+        if (Uri.TryCreate(model.Canonical, UriKind.Absolute, out var absoluteCanonical) &&
+            absoluteCanonical.Scheme == Uri.UriSchemeHttp)
+        {
+            issues.Add(Warning("seo.canonical_http", entry.Route.Url, $"Prefer HTTPS canonical URLs where possible: {model.Canonical}."));
+        }
     }
 
     private static void AnalyzeImage(string codePrefix, string routeUrl, string? image, string outputDir, List<SeoAuditIssue> issues)
@@ -227,7 +245,7 @@ internal static class SeoAuditReportWriter
     {
         foreach (var group in routes.Where(x => !string.IsNullOrWhiteSpace(x.Title))
                      .GroupBy(x => x.Title!, StringComparer.OrdinalIgnoreCase)
-                     .Where(x => x.Count() > 1))
+                     .Where(x => HasNonAlternateDuplicate(x.ToArray())))
         {
             foreach (var route in group)
             {
@@ -237,13 +255,40 @@ internal static class SeoAuditReportWriter
 
         foreach (var group in routes.Where(x => !string.IsNullOrWhiteSpace(x.Description))
                      .GroupBy(x => x.Description!, StringComparer.OrdinalIgnoreCase)
-                     .Where(x => x.Count() > 1))
+                     .Where(x => HasNonAlternateDuplicate(x.ToArray())))
         {
             foreach (var route in group)
             {
                 issues.Add(Warning("seo.description_duplicate", route.Url, $"SEO description is duplicated by {group.Count()} routes."));
             }
         }
+    }
+
+    private static bool HasNonAlternateDuplicate(IReadOnlyList<SeoAuditRoute> routes)
+    {
+        if (routes.Count < 2)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < routes.Count; i++)
+        {
+            for (var j = i + 1; j < routes.Count; j++)
+            {
+                if (!AreHreflangAlternates(routes[i], routes[j]))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool AreHreflangAlternates(SeoAuditRoute left, SeoAuditRoute right)
+    {
+        return left.Alternates.Any(x => string.Equals(x.Href, right.Canonical, StringComparison.OrdinalIgnoreCase)) &&
+               right.Alternates.Any(x => string.Equals(x.Href, left.Canonical, StringComparison.OrdinalIgnoreCase));
     }
 
     private static void AnalyzeCanonicalTargets(IReadOnlyList<SeoAuditRoute> routes, List<SeoAuditIssue> issues)
@@ -263,6 +308,11 @@ internal static class SeoAuditReportWriter
     {
         foreach (var route in routes.Where(x => x.Alternates.Count > 0))
         {
+            if (!route.Alternates.Any(x => string.Equals(x.Href, route.Canonical, StringComparison.OrdinalIgnoreCase)))
+            {
+                issues.Add(Warning("seo.hreflang_self_missing", route.Url, "hreflang alternates must include the current page canonical URL."));
+            }
+
             if (!route.Alternates.Any(x => string.Equals(x.Hreflang, "x-default", StringComparison.OrdinalIgnoreCase)))
             {
                 issues.Add(Warning("seo.hreflang_x_default_missing", route.Url, "hreflang alternates are missing x-default."));
@@ -320,6 +370,28 @@ internal static class SeoAuditReportWriter
         foreach (var route in routes.Where(x => x.Indexable))
         {
             issues.Add(Error("seo.robots_txt_blocks_indexable", route.Url, "robots.txt disallows all crawling while route is indexable."));
+        }
+    }
+
+    private static void AnalyzeSitemapXml(string? sitemapText, List<SeoAuditIssue> issues)
+    {
+        if (string.IsNullOrWhiteSpace(sitemapText))
+        {
+            return;
+        }
+
+        try
+        {
+            var doc = XDocument.Parse(sitemapText, LoadOptions.None);
+            var rootName = doc.Root?.Name.LocalName;
+            if (rootName is not ("urlset" or "sitemapindex"))
+            {
+                issues.Add(Error("seo.sitemap_xml_invalid_root", null, $"sitemap.xml root must be urlset or sitemapindex, got {rootName ?? "<none>"}."));
+            }
+        }
+        catch (Exception ex) when (ex is System.Xml.XmlException or InvalidOperationException)
+        {
+            issues.Add(Error("seo.sitemap_xml_invalid", null, $"sitemap.xml is not valid XML: {ex.Message}"));
         }
     }
 
@@ -387,9 +459,33 @@ internal static class SeoAuditReportWriter
         }
 
         var parts = value.Split('-', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length > 0 &&
-               parts[0].Length is >= 2 and <= 3 &&
-               parts.All(x => x.All(char.IsLetterOrDigit));
+        if (parts.Length is < 1 or > 3 ||
+            parts[0].Length is < 2 or > 3 ||
+            !parts[0].All(char.IsLetter))
+        {
+            return false;
+        }
+
+        if (parts.Length == 1)
+        {
+            return true;
+        }
+
+        var second = parts[1];
+        var secondLooksLikeScript = second.Length == 4 && second.All(char.IsLetter);
+        var secondLooksLikeRegion = second.Length == 2 && second.All(char.IsLetter);
+        if (!secondLooksLikeScript && !secondLooksLikeRegion)
+        {
+            return false;
+        }
+
+        if (parts.Length == 2)
+        {
+            return true;
+        }
+
+        var third = parts[2];
+        return secondLooksLikeScript && third.Length == 2 && third.All(char.IsLetter);
     }
 
     private static bool IsRssContent(SeoIndexEntry entry)
@@ -398,6 +494,16 @@ internal static class SeoAuditReportWriter
     private static bool IsAbsoluteHttpUrl(string value)
         => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    private static bool HasFragment(string value)
+    {
+        if (Uri.TryCreate(value, UriKind.Absolute, out var absolute))
+        {
+            return !string.IsNullOrWhiteSpace(absolute.Fragment);
+        }
+
+        return value.Contains('#', StringComparison.Ordinal);
+    }
 
     private static string? ReadOptional(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
 
