@@ -496,6 +496,64 @@ internal static class SeoModelBuilder
 
     private static string ToJson(IReadOnlyDictionary<string, object?> value)
     {
-        return JsonSerializer.Serialize(value.Where(x => x.Value is not null).ToDictionary(x => x.Key, x => x.Value));
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            WriteJsonValue(writer, value);
+        }
+
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static void WriteJsonValue(Utf8JsonWriter writer, object? value)
+    {
+        switch (value)
+        {
+            case null:
+                writer.WriteNullValue();
+                break;
+            case string text:
+                writer.WriteStringValue(text);
+                break;
+            case bool boolean:
+                writer.WriteBooleanValue(boolean);
+                break;
+            case int integer:
+                writer.WriteNumberValue(integer);
+                break;
+            case long integer:
+                writer.WriteNumberValue(integer);
+                break;
+            case DateTimeOffset timestamp:
+                writer.WriteStringValue(timestamp);
+                break;
+            case IReadOnlyDictionary<string, object?> map:
+                writer.WriteStartObject();
+                foreach (var (key, child) in map)
+                {
+                    if (child is null)
+                    {
+                        continue;
+                    }
+
+                    writer.WritePropertyName(key);
+                    WriteJsonValue(writer, child);
+                }
+
+                writer.WriteEndObject();
+                break;
+            case IEnumerable<object?> values:
+                writer.WriteStartArray();
+                foreach (var item in values)
+                {
+                    WriteJsonValue(writer, item);
+                }
+
+                writer.WriteEndArray();
+                break;
+            default:
+                writer.WriteStringValue(value.ToString());
+                break;
+        }
     }
 }

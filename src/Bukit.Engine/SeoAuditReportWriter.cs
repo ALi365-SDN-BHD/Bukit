@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Xml.Linq;
 using Bukit.Config;
 using Bukit.Engine.Plugins;
@@ -62,7 +63,7 @@ internal static class SeoAuditReportWriter
 
     private static void WriteReport(AppConfig config, string outputDir, SeoAuditReport report, ILogger logger)
     {
-        var json = JsonSerializer.Serialize(report, JsonOptions);
+        var json = JsonSerializer.Serialize(report, SeoAuditReportJsonContext.Default.SeoAuditReport);
         FileWriter.WriteUtf8(outputDir, "seo-report.json", json + Environment.NewLine);
 
         foreach (var issue in report.Issues)
@@ -1019,12 +1020,11 @@ internal static class SeoAuditReportWriter
         return string.IsNullOrWhiteSpace(b) ? r : b + r;
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true
-    };
 }
+
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+[JsonSerializable(typeof(SeoAuditReport))]
+internal sealed partial class SeoAuditReportJsonContext : JsonSerializerContext;
 
 internal sealed record SeoAuditReport(
     string Schema,

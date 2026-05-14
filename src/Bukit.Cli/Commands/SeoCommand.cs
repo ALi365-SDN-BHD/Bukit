@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace Bukit.Cli.Commands;
 
-public static class SeoCommand
+public static partial class SeoCommand
 {
     private const string ExpectedSchema = "https://bukit.dev/schemas/seo-report.v1.json";
     private const string ExpectedSchemaVersion = "1.0";
@@ -441,12 +441,12 @@ public static class SeoCommand
     private static IReadOnlyList<string> ExtractImageUrls(string html)
     {
         var values = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (Match match in Regex.Matches(html, @"<meta\b(?=[^>]*(?:property|name)\s*=\s*[""'](?:og:image|twitter:image)[""'])(?=[^>]*content\s*=\s*[""']([^""']+)[""'])[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        foreach (Match match in SocialImageRegex().Matches(html))
         {
             values.Add(WebUtility.HtmlDecode(match.Groups[1].Value));
         }
 
-        foreach (Match match in Regex.Matches(html, @"<img\b(?=[^>]*src\s*=\s*[""']([^""']+)[""'])[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        foreach (Match match in ImageSourceRegex().Matches(html))
         {
             values.Add(WebUtility.HtmlDecode(match.Groups[1].Value));
         }
@@ -462,7 +462,7 @@ public static class SeoCommand
         }
 
         var values = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (Match match in Regex.Matches(html, @"<a\b(?=[^>]*href\s*=\s*[""']([^""'#]+)[""'])[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        foreach (Match match in AnchorHrefRegex().Matches(html))
         {
             var href = WebUtility.HtmlDecode(match.Groups[1].Value);
             if (href.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) ||
@@ -627,4 +627,13 @@ public static class SeoCommand
     {
         public string SortKey => $"{Severity}\u001f{Route}\u001f{Code}\u001f{Message}";
     }
+
+    [GeneratedRegex(@"<meta\b(?=[^>]*(?:property|name)\s*=\s*[""'](?:og:image|twitter:image)[""'])(?=[^>]*content\s*=\s*[""']([^""']+)[""'])[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SocialImageRegex();
+
+    [GeneratedRegex(@"<img\b(?=[^>]*src\s*=\s*[""']([^""']+)[""'])[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ImageSourceRegex();
+
+    [GeneratedRegex(@"<a\b(?=[^>]*href\s*=\s*[""']([^""'#]+)[""'])[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex AnchorHrefRegex();
 }
