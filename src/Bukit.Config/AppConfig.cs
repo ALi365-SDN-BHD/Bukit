@@ -8,6 +8,7 @@ public sealed record AppConfig
     public ThemeConfig Theme { get; init; } = new();
     public TaxonomyConfig Taxonomy { get; init; } = new();
     public LoggingConfig Logging { get; init; } = new();
+    public DeployConfig? Deploy { get; init; }
 }
 
 public sealed record SiteConfig

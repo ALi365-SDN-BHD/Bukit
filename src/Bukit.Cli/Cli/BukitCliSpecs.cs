@@ -124,6 +124,23 @@ public static class BukitCliSpecs
                     })
             });
 
-        return new CliCommandRegistry(new[] { build, preview, plugin, theme, seo });
+        var deploy = new CliCommandSpec(
+            Name: "deploy",
+            Description: "部署静态站点",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名"),
+                new CliOptionSpec("--output", "输出目录"),
+                new CliOptionSpec("--base-url", "覆盖 site.baseUrl"),
+                new CliOptionSpec("--site-url", "覆盖 site.url"),
+                new CliOptionSpec("--branch", "目标分支"),
+                new CliOptionSpec("--message", "提交信息"),
+                new CliOptionSpec("--ci", "CI 模式", CliOptionType.Flag),
+                new CliOptionSpec("--dry-run", "仅预览，不实际部署", CliOptionType.Flag),
+                new CliOptionSpec("--skip-build", "跳过构建步骤", CliOptionType.Flag)
+            });
+
+        return new CliCommandRegistry(new[] { build, deploy, preview, plugin, theme, seo });
     }
 }

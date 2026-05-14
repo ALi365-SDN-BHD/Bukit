@@ -44,6 +44,7 @@ try
             return spec.Name switch
             {
                 "build" => await BuildCommand.RunAsync(parsed.BoundCommand),
+                "deploy" => await DeployCommand.RunAsync(parsed.BoundCommand),
                 "preview" => await PreviewCommand.RunAsync(parsed.BoundCommand),
                 _ => 2
             };
@@ -55,6 +56,7 @@ try
         "create" => await InitCommand.RunAsync(reader),
         "init" => await InitCommand.RunAsync(reader),
         "build" => await BuildCommand.RunAsync(reader),
+        "deploy" => await DeployCommand.RunAsync(reader),
         "preview" => await PreviewCommand.RunAsync(reader),
         "clean" => await CleanCommand.RunAsync(reader),
         "doctor" => await DoctorCommand.RunAsync(reader),

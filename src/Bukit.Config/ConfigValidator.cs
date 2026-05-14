@@ -253,6 +253,11 @@ public static class ConfigValidator
             throw new ConfigException("logging.level must be debug|info|warn|error.");
         }
 
+        if (config.Deploy is not null)
+        {
+            ValidateDeployConfig(config.Deploy);
+        }
+
         if (string.IsNullOrWhiteSpace(config.Taxonomy.Template))
         {
             throw new ConfigException("taxonomy.template must be a non-empty string when set.");
@@ -841,5 +846,51 @@ public static class ConfigValidator
                 }
             }
         }
+    }
+
+    private static void ValidateDeployConfig(DeployConfig deploy)
+    {
+        if (!string.IsNullOrWhiteSpace(deploy.Provider))
+        {
+            var provider = deploy.Provider.Trim().ToLowerInvariant();
+            if (provider is not ("github-pages"))
+            {
+                throw new ConfigException($"deploy.provider must be github-pages (got: {deploy.Provider}).");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(deploy.Branch) && deploy.Branch.Contains('/'))
+        {
+            throw new ConfigException("deploy.branch must not contain '/'.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(deploy.Message) && deploy.Message.Length > 4096)
+        {
+            throw new ConfigException("deploy.message must be <= 4096 characters.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(deploy.Cname))
+        {
+            var cname = deploy.Cname.Trim();
+            if (!IsValidDomain(cname))
+            {
+                throw new ConfigException($"deploy.cname '{cname}' is not a valid domain name.");
+            }
+        }
+    }
+
+    private static bool IsValidDomain(string domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            return false;
+        }
+
+        if (domain.Length > 253)
+        {
+            return false;
+        }
+
+        return Regex.IsMatch(domain, @"^[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)*$", RegexOptions.CultureInvariant);
     }
 }

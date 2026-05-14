@@ -1,0 +1,153 @@
+using Bukit.Config;
+using Xunit;
+
+namespace Bukit.Engine.Tests;
+
+public sealed class DeployConfigLoaderTests
+{
+    [Fact]
+    public void Load_DeploySectionMissing_ReturnsNull()
+    {
+        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\n";
+        var path = WriteTempYaml(siteYaml);
+        try
+        {
+            var config = ConfigLoader.Load(path);
+            Assert.Null(config.Deploy);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_DeploySectionEmpty_ReturnsNull()
+    {
+        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\ndeploy:\n";
+        var path = WriteTempYaml(siteYaml);
+        try
+        {
+            var config = ConfigLoader.Load(path);
+            Assert.Null(config.Deploy);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_DeployWithOnlyProvider_ReturnsDefaultsForOthers()
+    {
+        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\ndeploy:\n  provider: github-pages\n";
+        var path = WriteTempYaml(siteYaml);
+        try
+        {
+            var config = ConfigLoader.Load(path);
+            Assert.NotNull(config.Deploy);
+            Assert.Equal("github-pages", config.Deploy!.Provider);
+            Assert.Equal("gh-pages", config.Deploy.Branch);
+            Assert.Equal("bukit deploy", config.Deploy.Message);
+            Assert.Null(config.Deploy.Cname);
+            Assert.False(config.Deploy.KeepHistory);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_DeployWithProvider_ReturnsProvider()
+    {
+        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\ndeploy:\n  provider: github-pages\n";
+        var path = WriteTempYaml(siteYaml);
+        try
+        {
+            var config = ConfigLoader.Load(path);
+            Assert.NotNull(config.Deploy);
+            Assert.Equal("github-pages", config.Deploy!.Provider);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_DeployWithFullConfig_ReturnsAllFields()
+    {
+        var siteYaml = @"
+site:
+  name: x
+  title: x
+content:
+  provider: markdown
+deploy:
+  provider: github-pages
+  branch: pages
+  message: custom deploy message
+  cname: example.com
+  keepHistory: true
+";
+        var path = WriteTempYaml(siteYaml);
+        try
+        {
+            var config = ConfigLoader.Load(path);
+            Assert.NotNull(config.Deploy);
+            Assert.Equal("github-pages", config.Deploy!.Provider);
+            Assert.Equal("pages", config.Deploy.Branch);
+            Assert.Equal("custom deploy message", config.Deploy.Message);
+            Assert.Equal("example.com", config.Deploy.Cname);
+            Assert.True(config.Deploy.KeepHistory);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_DeployBranchMissing_UsesDefault()
+    {
+        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\ndeploy:\n  provider: github-pages\n  message: test\n";
+        var path = WriteTempYaml(siteYaml);
+        try
+        {
+            var config = ConfigLoader.Load(path);
+            Assert.NotNull(config.Deploy);
+            Assert.Equal("gh-pages", config.Deploy!.Branch);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_DeployMessageMissing_UsesDefault()
+    {
+        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\ndeploy:\n  provider: github-pages\n  branch: pages\n";
+        var path = WriteTempYaml(siteYaml);
+        try
+        {
+            var config = ConfigLoader.Load(path);
+            Assert.NotNull(config.Deploy);
+            Assert.Equal("bukit deploy", config.Deploy!.Message);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    private static string WriteTempYaml(string content)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "bukit-test-deploy-config", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "site.yaml");
+        File.WriteAllText(path, content.TrimStart('\n'));
+        return path;
+    }
+}

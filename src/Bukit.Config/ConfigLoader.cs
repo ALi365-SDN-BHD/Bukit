@@ -126,6 +126,9 @@ public static class ConfigLoader
             Level = loggingNode is null ? "info" : GetOptionalString(loggingNode, "level") ?? "info"
         };
 
+        var deployNode = GetOptionalMapping(root, "deploy");
+        var deploy = ReadDeployConfig(deployNode);
+
         return new AppConfig
         {
             Site = site,
@@ -133,7 +136,8 @@ public static class ConfigLoader
             Build = build,
             Theme = theme,
             Taxonomy = taxonomy,
-            Logging = logging
+            Logging = logging,
+            Deploy = deploy
         };
     }
 
@@ -416,6 +420,24 @@ public static class ConfigLoader
         }
 
         return child as YamlMappingNode;
+    }
+
+    private static DeployConfig? ReadDeployConfig(YamlMappingNode? deployNode)
+    {
+        if (deployNode is null)
+        {
+            return null;
+        }
+
+        return new DeployConfig
+        {
+            Provider = GetOptionalString(deployNode, "provider"),
+            Branch = GetOptionalString(deployNode, "branch") ?? "gh-pages",
+            Message = GetOptionalString(deployNode, "message") ?? "bukit deploy",
+            Cname = GetOptionalString(deployNode, "cname"),
+            KeepHistory = GetOptionalBool(deployNode, "keepHistory") ?? false,
+            Options = ReadObjectMap(deployNode)
+        };
     }
 
     private static IReadOnlyDictionary<string, object>? ReadThemeParams(YamlMappingNode? themeNode)
