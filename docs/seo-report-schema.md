@@ -78,5 +78,19 @@ Before evaluating issue counts, `bukit seo audit` validates the report contract:
 - `routes`, `issues`, and `summary` must exist with the required field types.
 - each route must expose the core URL inventory fields used by CI diffs.
 - each issue must expose `severity`, `code`, and `message`, with severity limited to `error` or `warning`.
+- unknown top-level, route, alternate, issue, and summary fields are rejected.
 
 Contract failures return exit code `2`, separate from SEO audit failures (`1`).
+
+## Regression Diff
+
+`bukit seo diff` compares two report artifacts and can enforce budgets:
+
+- `--max-new-errors n`
+- `--max-new-warnings n`
+- `--max-new-issues n`
+- `--fail-on-new-code code1,code2`
+- `--fail-on-route-removed`
+- `--fail-on-indexable-drop`
+
+This makes the report suitable for CI artifact storage and regression gating without requiring the generated HTML to be rebuilt during the comparison job.

@@ -105,7 +105,22 @@ public static class BukitCliSpecs
                     {
                         new CliOptionSpec("--dir", "构建输出目录"),
                         new CliOptionSpec("--report", "seo-report.json 路径"),
-                        new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag)
+                        new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag),
+                        new CliOptionSpec("--external", "联网检查 canonical、链接和图片", CliOptionType.Flag)
+                    }),
+                new CliCommandSpec(
+                    Name: "diff",
+                    Description: "比较两个 seo-report.json 并执行回归预算",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--baseline", "基线 seo-report.json 路径"),
+                        new CliOptionSpec("--current", "当前 seo-report.json 路径"),
+                        new CliOptionSpec("--max-new-errors", "允许新增 error 数量", CliOptionType.Integer, ValueName: "n"),
+                        new CliOptionSpec("--max-new-warnings", "允许新增 warning 数量", CliOptionType.Integer, ValueName: "n"),
+                        new CliOptionSpec("--max-new-issues", "允许新增 issue 总数", CliOptionType.Integer, ValueName: "n"),
+                        new CliOptionSpec("--fail-on-new-code", "逗号分隔的新增 issue code 黑名单"),
+                        new CliOptionSpec("--fail-on-route-removed", "route 删除时失败", CliOptionType.Flag),
+                        new CliOptionSpec("--fail-on-indexable-drop", "indexable route 变成 noindex 时失败", CliOptionType.Flag)
                     })
             });
 

@@ -88,15 +88,65 @@ public sealed class SeoCommandTests : IDisposable
         Assert.Equal(2, exitCode);
     }
 
+    [Fact]
+    public async Task RunAsync_AuditReturnsTwoWhenReportHasSchemaExtraProperty()
+    {
+        WriteReport(0, 0, "[]", extraRootProperty: """
+              "unexpected": true,
+            """);
+
+        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "audit", "--dir", _root }));
+
+        Assert.Equal(2, exitCode);
+    }
+
+    [Fact]
+    public async Task RunAsync_DiffReturnsOneWhenNewIssueExceedsBudget()
+    {
+        var baseline = Path.Combine(_root, "baseline.json");
+        var current = Path.Combine(_root, "current.json");
+        WriteReportFile(baseline, 0, 0, "[]");
+        WriteReportFile(current, 1, 0, """
+            [
+              { "severity": "error", "code": "seo.title_missing", "route": "/", "message": "missing title" }
+            ]
+            """);
+
+        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "diff", "--baseline", baseline, "--current", current, "--max-new-errors", "0" }));
+
+        Assert.Equal(1, exitCode);
+    }
+
+    [Fact]
+    public async Task RunAsync_DiffReturnsOneWhenNewIssueCodeIsBlocked()
+    {
+        var baseline = Path.Combine(_root, "baseline.json");
+        var current = Path.Combine(_root, "current.json");
+        WriteReportFile(baseline, 0, 0, "[]");
+        WriteReportFile(current, 0, 1, """
+            [
+              { "severity": "warning", "code": "seo.description_missing", "route": "/", "message": "missing description" }
+            ]
+            """);
+
+        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "diff", "--baseline", baseline, "--current", current, "--fail-on-new-code", "seo.description_missing" }));
+
+        Assert.Equal(1, exitCode);
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(_root, recursive: true); } catch { }
     }
 
-    private void WriteReport(int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0")
+    private void WriteReport(int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0", string extraRootProperty = "")
+        => WriteReportFile(Path.Combine(_root, "seo-report.json"), errorCount, warningCount, issuesJson, schemaVersion, extraRootProperty);
+
+    private static void WriteReportFile(string path, int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0", string extraRootProperty = "")
     {
-        File.WriteAllText(Path.Combine(_root, "seo-report.json"), $$"""
+        File.WriteAllText(path, $$"""
             {
+              {{extraRootProperty}}
               "schema": "https://bukit.dev/schemas/seo-report.v1.json",
               "schemaVersion": "{{schemaVersion}}",
               "generatedAt": "2026-05-14T00:00:00+00:00",
@@ -112,7 +162,7 @@ public sealed class SeoCommandTests : IDisposable
                   "canonical": "https://example.com/",
                   "robots": null,
                   "indexable": true,
-                  "lastModified": null,
+                  "lastModified": "2026-05-14T00:00:00+00:00",
                   "contentType": "page",
                   "sourceItemId": null,
                   "sitemapIncluded": true,

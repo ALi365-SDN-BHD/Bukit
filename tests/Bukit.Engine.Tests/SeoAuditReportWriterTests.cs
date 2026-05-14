@@ -160,6 +160,37 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         Assert.Contains(report.Issues, x => x.Code == "seo.schema_searchaction_target_missing" && x.Severity == "warning");
     }
 
+    [Fact]
+    public void Build_ReportsMissingHeadAndSmallSameSiteImage()
+    {
+        var outputPath = Path.Combine(_outputDir, "image", "index.html");
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+        File.WriteAllText(outputPath, "<!doctype html><html><body>No head</body></html>");
+        var imagePath = Path.Combine(_outputDir, "assets", "og.png");
+        Directory.CreateDirectory(Path.GetDirectoryName(imagePath)!);
+        File.WriteAllBytes(imagePath, Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="));
+
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["image/index.html"] = Entry("/image/", "image/index.html", "https://example.com/image/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["image/index.html"] = new()
+            {
+                Title = "Image",
+                Description = "Image description",
+                Canonical = "https://example.com/image/",
+                Og = new SeoOpenGraphModel { Image = "https://example.com/assets/og.png" }
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x => x.Code == "seo.html_head_missing" && x.Route == "/image/");
+        Assert.Contains(report.Issues, x => x.Code == "seo.og_image_too_small" && x.Route == "/image/");
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(_outputDir, recursive: true); } catch { }

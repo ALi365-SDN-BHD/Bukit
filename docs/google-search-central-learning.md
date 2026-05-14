@@ -162,5 +162,5 @@ Bukit 达到“主题无关、引擎强保证、完整搜索引擎优化套件�
 
 1. 继续扩展 structured data required property 检查：已覆盖 `WebSite`/`SearchAction`、`BlogPosting`/`Article`、`ItemList`，后续可继续细化 `WebPage`、`CollectionPage`、`BreadcrumbList`。
 2. 增加 canonical 与 sitemap/output 文件的一致性审计的边界用例，例如分页 canonical、跨语言 canonical、重定向后 canonical。
-3. 增加外部 audit 子命令或选项，做可选联网验证：HTTP status、image status、Rich Results、Lighthouse、broken links。
-4. 将 `seo-report.json` 固定为 CI artifact 契约：已加入 `schema`、`schemaVersion`、稳定排序和 schema 文档，后续可补 JSON Schema 文件和 artifact diff 工具。
+3. 外部 audit 已有首版 `bukit seo audit --external`：检查 canonical、页面链接和图片 HTTP/MIME；Rich Results、Search Console、Lighthouse 可作为后续更重的联网验证层。
+4. `seo-report.json` 已固定为 CI artifact 契约：包含 `schema`、`schemaVersion`、稳定排序、schema 文档、CLI schema 契约校验和 `bukit seo diff` 回归预算。
