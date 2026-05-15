@@ -349,7 +349,7 @@ public sealed class ScribanModelBinderTests
         Assert.Equal("/test-page/", page["url"]);
         Assert.Equal("<h1>Hello World</h1>", page["content"]);
         Assert.Equal("A test summary", page["summary"]);
-        Assert.Equal("2025-05-15T12:00:00.0000000+00:00", page["publish_date"]);
+        Assert.Equal(new DateTime(2025, 5, 15, 12, 0, 0, DateTimeKind.Utc), page["publish_date"]);
     }
 
     [Fact]
@@ -735,7 +735,7 @@ public sealed class ScribanModelBinderTests
         Assert.Equal("/a/", pageA["url"]);
         Assert.Equal("<p>A</p>", pageA["content"]);
         Assert.Equal("Summary A", pageA["summary"]);
-        Assert.Equal("2025-06-01T08:00:00.0000000+08:00", pageA["publish_date"]);
+        Assert.Equal(new DateTime(2025, 6, 1, 8, 0, 0), pageA["publish_date"]);
         var seoA = Assert.IsType<ScriptObject>(pageA["seo"]);
         Assert.Equal("SEO A", seoA["title"]);
         Assert.Equal("/a/", seoA["canonical"]);

@@ -98,7 +98,7 @@ public static class ScribanModelBinder
         obj.SetValue("url", model.Url, readOnly: true);
         obj.SetValue("content", model.Content, readOnly: true);
         obj.SetValue("summary", model.Summary, readOnly: true);
-        obj.SetValue("publish_date", model.PublishDate?.ToString("O"), readOnly: true);
+        obj.SetValue("publish_date", model.PublishDate?.DateTime, readOnly: true);
         obj.SetValue("fields", ToFieldsScriptObject(model.Fields), readOnly: true);
         if (model.Seo is not null)
         {
