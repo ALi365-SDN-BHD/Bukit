@@ -1,22 +1,87 @@
 # 13 部署到 GitHub Pages：最小配置、baseUrl 与常见 404
 
-本页面向“普通用户部署”，目标是让你把构建结果稳定发布到 GitHub Pages，并能解释清楚最常见的 404/资源路径问题。
+本页面向"普通用户部署"，目标是让你把构建结果稳定发布到 GitHub Pages，并能解释清楚最常见的 404/资源路径问题。
 
-仓库提供了 Pages workflow 模板样例 [`.github/workflows/release.yml`](../../.github/workflows/release.yml)，你可直接复制到自己的仓库使用，或参考本文步骤自行创建。
+Bukit 提供 **两种部署方式**：
+
+- **方式 A：`bukit deploy` 命令**（引擎内置，推荐）—— 一条命令完成构建与推送，无需配置 CI/CD
+- **方式 B：GitHub Actions CI/CD**（自动部署）—— 适合需要自动触发（push/webhook）的场景
+
+仓库提供了 Pages workflow 模板样例 [`.github/workflows/release.yml`](../../.github/workflows/release.yml)，供方式 B 使用。
 
 ## 你将获得什么
 
+- `bukit deploy` 一键部署方法
 - GitHub Pages 的最小启用步骤
 - baseUrl 与 site.url 的正确配置方式（含自动推导逻辑）
 - Notion token 的安全注入方式（Secrets）
 - 常见故障：部署后首页可打开但资源 404、或全站 404
 
-## 步骤 1：启用 GitHub Pages（仓库设置）
+---
+
+## 方式 A：`bukit deploy` 一键部署（推荐）
+
+Bukit 内置了 `deploy` 命令，直接在本地执行即可完成构建 + 部署：
+
+```bash
+# 构建并部署到 GitHub Pages
+bukit deploy
+
+# 仅预览（不实际推送）
+bukit deploy --dry-run
+
+# 跳过构建，直接部署已有 dist/
+bukit deploy --skip-build
+
+# 指定自定义分支和提交信息
+bukit deploy --branch pages --message "v2.0 release"
+
+# CI 模式（减少输出噪音）
+bukit deploy --ci
+```
+
+**前置条件：**
+
+1. `git` 已安装并在 PATH 中
+2. 设置 `GITHUB_TOKEN` 环境变量（GitHub Personal Access Token，需要 `repo` 权限）
+3. 当前目录是 git 仓库，remote origin 指向 GitHub
+4. 仓库已启用 GitHub Pages（Settings → Pages → Source: `gh-pages` / `(root)`）
+
+**部署配置（site.yaml，可选）：**
+
+```yaml
+deploy:
+  provider: github-pages
+  branch: gh-pages
+  message: "bukit deploy"
+  cname: example.com       # 自定义域名（可选）
+```
+
+**`bukit deploy` 做了什么：**
+
+1. 执行 `bukit build`（除非 `--skip-build`）
+2. 创建临时 git 工作树，克隆/初始化目标分支
+3. 将构建产物复制到临时目录
+4. 自动创建 `.nojekyll` 文件
+5. 执行 `git commit` + `git push`
+6. 输出部署后的访问 URL
+
+**自动 URL 推导：**
+- 用户/组织页（`<owner>.github.io`）→ `https://<owner>.github.io`，`baseUrl: /`
+- 项目页（`<owner>/<repo>`）→ `https://<owner>.github.io/<repo>`，`baseUrl: /<repo>`
+
+更多细节参见 [bukit-deploy skill](../../src/skills/bukit-deploy/SKILL.md)。
+
+---
+
+## 方式 B：GitHub Actions CI/CD（自动部署）
+
+### 步骤 B1：启用 GitHub Pages（仓库设置）
 
 1. GitHub 仓库 Settings → Pages
-2. Build and deployment 选择 “GitHub Actions”
+2. Build and deployment 选择 "GitHub Actions"
 
-## 步骤 2：准备工作流（在你的仓库创建 pages.yml）
+### 步骤 B2：准备工作流（在你的仓库创建 pages.yml）
 
 建议 workflow 做三件事：
 
@@ -46,7 +111,7 @@ fi
 ./out/bukit/bukit build --config <你的site.yaml> --output _site --base-url "$BASE_URL" --site-url "$SITE_URL" --ci --clean
 ```
 
-## 步骤 3：把工作流改成“构建你的站点”
+### 步骤 B3：把工作流改成“构建你的站点”
 
 你需要改两处：
 

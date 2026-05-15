@@ -1,6 +1,6 @@
 ---
 name: bukit-cli-reference
-description: Use when using bukit CLI — agent needs to execute Bukit commands (build, init, preview, clean, doctor, plugin, theme, intent, webhook, version), detect whether the Bukit CLI tool is installed, install or upgrade bukit, or interpret bukit build output and exit codes
+description: Use when using bukit CLI — agent needs to execute Bukit commands (build, deploy, init, preview, clean, doctor, plugin, theme, intent, webhook, version), detect whether the Bukit CLI tool is installed, install or upgrade bukit, or interpret bukit build output and exit codes
 ---
 
 # Bukit CLI Command Reference
@@ -67,6 +67,7 @@ After downloading, place the binary in a PATH directory or the project root.
 | `intent init` | Interactive intent file creation | `--out` |
 | `intent validate` | Validate intent file | `<intent.yaml>` `--root-dir` `--out` |
 | `intent apply` | Apply intent to generate site.yaml | `<intent.yaml>` `--out` |
+| `deploy` | Build and deploy to GitHub Pages | `--config` `--site` `--output` `--base-url` `--site-url` `--branch` `--message` `--ci` `--dry-run` `--skip-build` |
 | `webhook` | Start Notion→GitHub webhook service | `--repo` `--host` `--port` `--path` `--event` |
 | `version` | Output version number | No parameters |
 
@@ -257,6 +258,8 @@ User says "help me build a Bukit blog":
 6. Build: bukit build
 
 7. Preview (optional): bukit preview
+
+8. Deploy (optional): bukit deploy → refer user to bukit-deploy skill and guide/user/13-deploy-github-pages.md
 ```
 
 ## Common Errors
@@ -281,6 +284,6 @@ User says "help me build a Bukit blog":
 | `BUKIT_WEBHOOK_TOKEN` | Webhook authentication token | webhook |
 | `BUKIT_GITHUB_REPO` | GitHub repo name (owner/repo) | webhook |
 | `BUKIT_GITHUB_TOKEN` | GitHub PAT | webhook |
-| `GITHUB_TOKEN` | GitHub PAT (fallback) | webhook |
+| `GITHUB_TOKEN` | GitHub PAT (fallback) | webhook, deploy |
 | `BUKIT_AUTO_SUMMARY` | Auto summary toggle (internal) | build |
 | `BUKIT_AUTO_SUMMARY_MAXLEN` | Auto summary max length (internal) | build |

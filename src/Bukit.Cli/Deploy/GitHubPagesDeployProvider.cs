@@ -31,7 +31,7 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
         var token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
         if (string.IsNullOrWhiteSpace(token))
         {
-            return new DeployResult { Success = false, Error = "GITHUB_TOKEN environment variable is required for GitHub Pages deployment." };
+            return new DeployResult { Success = false, Error = "GITHUB_TOKEN environment variable is required for GitHub Pages deployment. Create a token at https://github.com/settings/tokens with 'repo' scope." };
         }
 
         var repoInfo = await GetRepoInfoAsync(gitPath, ct);
@@ -57,24 +57,27 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
         logger.Info($"Target branch: {branch}");
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"bukit-deploy-{Guid.NewGuid():N}");
+        string? askpassScript = null;
+
         try
         {
             Directory.CreateDirectory(tempDir);
 
-            var remoteUrl = $"https://x-access-token:{token}@github.com/{repoInfo.Owner}/{repoInfo.RepoName}.git";
-            var branchExists = await RemoteBranchExistsAsync(gitPath, remoteUrl, branch, ct);
+            askpassScript = CreateAskpassScript(tempDir, token);
+            var remoteUrl = $"https://github.com/{repoInfo.Owner}/{repoInfo.RepoName}.git";
+            var branchExists = await RemoteBranchExistsAsync(gitPath, token, askpassScript, remoteUrl, branch, ct);
 
             if (branchExists)
             {
                 logger.Info($"Cloning existing {branch} branch...");
-                await RunGitAsync(gitPath, tempDir, ct, "clone", "--single-branch", "--branch", branch, "--depth", "1", remoteUrl, ".");
+                await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "clone", "--single-branch", "--branch", branch, "--depth", "1", remoteUrl, ".");
             }
             else
             {
                 logger.Info($"Creating new {branch} branch...");
                 await RunGitAsync(gitPath, tempDir, ct, "init");
                 await RunGitAsync(gitPath, tempDir, ct, "checkout", "-b", branch);
-                await RunGitAsync(gitPath, tempDir, ct, "remote", "add", "origin", remoteUrl);
+                await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "remote", "add", "origin", remoteUrl);
             }
 
             foreach (var entry in Directory.GetFileSystemEntries(tempDir))
@@ -110,20 +113,42 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
                 await File.WriteAllTextAsync(cnamePath, context.Cname, ct);
             }
 
+            await EnsureGitIdentityAsync(gitPath, tempDir, ct);
+
             await RunGitAsync(gitPath, tempDir, ct, "add", "-A");
             await RunGitAsync(gitPath, tempDir, ct, "commit", "-m", message, "--allow-empty");
-            await RunGitAsync(gitPath, tempDir, ct, "push", "origin", branch);
+
+            try
+            {
+                await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "origin", branch);
+            }
+            catch (Exception pushEx)
+            {
+                var pushMsg = pushEx.Message;
+                if (pushMsg.Contains("non-fast-forward") || pushMsg.Contains("fetch first") || pushMsg.Contains("updates were rejected"))
+                {
+                    logger.Warn("Non-fast-forward push detected. The remote branch has diverged. Force-pushing to overwrite...");
+                    await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "--force", "origin", branch);
+                }
+                else
+                {
+                    throw;
+                }
+            }
 
             logger.Info("Deployment successful.");
             return new DeployResult { Success = true, DeployedUrl = deployedUrl };
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.Error($"Deployment failed: {ex.Message}");
-            return new DeployResult { Success = false, Error = ex.Message };
+            var sanitized = SanitizeError(ex.Message, token);
+            var friendly = AugmentErrorHint(sanitized);
+            logger.Error($"Deployment failed: {friendly}");
+            return new DeployResult { Success = false, Error = friendly };
         }
         finally
         {
+            CleanupAskpassScript(askpassScript);
             try
             {
                 if (Directory.Exists(tempDir))
@@ -134,6 +159,117 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
             catch
             {
             }
+        }
+    }
+
+    private static string CreateAskpassScript(string tempDir, string token)
+    {
+        var scriptPath = Path.Combine(tempDir, "git-askpass");
+        File.WriteAllText(scriptPath, $"#!/bin/sh\necho \"{token}\"\n");
+        try
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(scriptPath, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+            }
+        }
+        catch
+        {
+        }
+
+        return scriptPath;
+    }
+
+    private static void CleanupAskpassScript(string? scriptPath)
+    {
+        if (scriptPath is null) return;
+        try { File.Delete(scriptPath); } catch { }
+    }
+
+    private static string SanitizeError(string message, string token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return message;
+        return message.Replace(token, "***");
+    }
+
+    private static string AugmentErrorHint(string message)
+    {
+        if (message.Contains("403", StringComparison.Ordinal) || message.Contains("Forbidden", StringComparison.OrdinalIgnoreCase))
+        {
+            return message + " Ensure your GITHUB_TOKEN has 'repo' scope: https://github.com/settings/tokens";
+        }
+
+        if (message.Contains("Could not resolve host", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("unable to access", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("Could not connect", StringComparison.OrdinalIgnoreCase))
+        {
+            return message + " Check your network connection and ensure GitHub is reachable.";
+        }
+
+        if (message.Contains("Permission denied", StringComparison.Ordinal) ||
+            message.Contains("not authorized", StringComparison.OrdinalIgnoreCase))
+        {
+            return message + " Verify your GITHUB_TOKEN is valid and has 'repo' scope.";
+        }
+
+        return message;
+    }
+
+    private static async Task EnsureGitIdentityAsync(string gitPath, string tempDir, CancellationToken ct)
+    {
+        var hasName = false;
+        var hasEmail = false;
+
+        try
+        {
+            var name = await RunGitAndCaptureAsync(gitPath, tempDir, ct, "config", "--local", "user.name");
+            hasName = !string.IsNullOrWhiteSpace(name);
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            if (!hasName)
+            {
+                var globalName = await RunGitAndCaptureAsync(gitPath, tempDir, ct, "config", "--global", "user.name");
+                hasName = !string.IsNullOrWhiteSpace(globalName);
+            }
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            var email = await RunGitAndCaptureAsync(gitPath, tempDir, ct, "config", "--local", "user.email");
+            hasEmail = !string.IsNullOrWhiteSpace(email);
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            if (!hasEmail)
+            {
+                var globalEmail = await RunGitAndCaptureAsync(gitPath, tempDir, ct, "config", "--global", "user.email");
+                hasEmail = !string.IsNullOrWhiteSpace(globalEmail);
+            }
+        }
+        catch
+        {
+        }
+
+        if (!hasName)
+        {
+            await RunGitAsync(gitPath, tempDir, ct, "config", "--local", "user.name", "bukit");
+        }
+
+        if (!hasEmail)
+        {
+            await RunGitAsync(gitPath, tempDir, ct, "config", "--local", "user.email", "bukit@deploy.local");
         }
     }
 
@@ -204,11 +340,11 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
         }
     }
 
-    private static async Task<bool> RemoteBranchExistsAsync(string gitPath, string remoteUrl, string branch, CancellationToken ct)
+    private static async Task<bool> RemoteBranchExistsAsync(string gitPath, string token, string askpassScript, string remoteUrl, string branch, CancellationToken ct)
     {
         try
         {
-            var output = await RunGitAndCaptureAsync(gitPath, null, ct, "ls-remote", "--heads", remoteUrl, $"refs/heads/{branch}");
+            var output = await RunGitAuthAndCaptureAsync(gitPath, token, askpassScript, null, ct, "ls-remote", "--heads", remoteUrl, $"refs/heads/{branch}");
             return !string.IsNullOrWhiteSpace(output);
         }
         catch
@@ -217,26 +353,11 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
         }
     }
 
-    private static async Task RunGitAsync(string gitPath, string? workingDir, CancellationToken ct, params string[] args)
+    private static async Task RunGitAuthAsync(string gitPath, string token, string askpassScript, string? workingDir, CancellationToken ct, params string[] args)
     {
-        var psi = new ProcessStartInfo
-        {
-            FileName = gitPath,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-
-        if (workingDir is not null)
-        {
-            psi.WorkingDirectory = workingDir;
-        }
-
-        foreach (var arg in args)
-        {
-            psi.ArgumentList.Add(arg);
-        }
+        var psi = CreateGitProcess(gitPath, workingDir, args);
+        psi.Environment["GIT_ASKPASS"] = askpassScript;
+        psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
 
         using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
         await proc.WaitForExitAsync(ct);
@@ -244,30 +365,15 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
         if (proc.ExitCode != 0)
         {
             var error = await proc.StandardError.ReadToEndAsync();
-            throw new InvalidOperationException($"git {string.Join(' ', args)} failed (exit {proc.ExitCode}): {error.Trim()}");
+            throw new GitException($"git {string.Join(' ', args)} failed (exit {proc.ExitCode}): {error.Trim()}");
         }
     }
 
-    private static async Task<string> RunGitAndCaptureAsync(string gitPath, string? workingDir, CancellationToken ct, params string[] args)
+    private static async Task<string> RunGitAuthAndCaptureAsync(string gitPath, string token, string askpassScript, string? workingDir, CancellationToken ct, params string[] args)
     {
-        var psi = new ProcessStartInfo
-        {
-            FileName = gitPath,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-
-        if (workingDir is not null)
-        {
-            psi.WorkingDirectory = workingDir;
-        }
-
-        foreach (var arg in args)
-        {
-            psi.ArgumentList.Add(arg);
-        }
+        var psi = CreateGitProcess(gitPath, workingDir, args);
+        psi.Environment["GIT_ASKPASS"] = askpassScript;
+        psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
 
         using var proc = Process.Start(psi);
         if (proc is null)
@@ -278,6 +384,59 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
         await proc.WaitForExitAsync(ct);
         var output = await proc.StandardOutput.ReadToEndAsync();
         return output.Trim();
+    }
+
+    private static async Task RunGitAsync(string gitPath, string? workingDir, CancellationToken ct, params string[] args)
+    {
+        var psi = CreateGitProcess(gitPath, workingDir, args);
+
+        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
+        await proc.WaitForExitAsync(ct);
+
+        if (proc.ExitCode != 0)
+        {
+            var error = await proc.StandardError.ReadToEndAsync();
+            throw new GitException($"git {string.Join(' ', args)} failed (exit {proc.ExitCode}): {error.Trim()}");
+        }
+    }
+
+    private static async Task<string> RunGitAndCaptureAsync(string gitPath, string? workingDir, CancellationToken ct, params string[] args)
+    {
+        var psi = CreateGitProcess(gitPath, workingDir, args);
+
+        using var proc = Process.Start(psi);
+        if (proc is null)
+        {
+            return string.Empty;
+        }
+
+        await proc.WaitForExitAsync(ct);
+        var output = await proc.StandardOutput.ReadToEndAsync();
+        return output.Trim();
+    }
+
+    private static ProcessStartInfo CreateGitProcess(string gitPath, string? workingDir, string[] args)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = gitPath,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        if (workingDir is not null)
+        {
+            psi.WorkingDirectory = workingDir;
+        }
+
+        foreach (var arg in args)
+        {
+            psi.ArgumentList.Add(arg);
+        }
+
+        return psi;
     }
 
     private static void CopyDirectory(string sourceDir, string destDir)
@@ -299,6 +458,11 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
 
             CopyDirectory(dir, Path.Combine(destDir, dirName));
         }
+    }
+
+    private sealed class GitException : Exception
+    {
+        public GitException(string message) : base(message) { }
     }
 
     private sealed record RepoInfo(string Owner, string RepoName);

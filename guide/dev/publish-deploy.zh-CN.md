@@ -64,13 +64,24 @@ dotnet publish src/Bukit.Cli -c Release -o out/bukit
 
 ## 部署到 GitHub Pages（推荐路径）
 
-仓库提供了 Pages workflow 模板样例 [`.github/workflows/release.yml`](../../.github/workflows/release.yml)。
-你可以直接复制到自己的仓库使用，或参考本节步骤自行创建。
+Bukit 提供两种部署方式：
 
-建议的 workflow 做三件关键事：
-1. 发布 AOT 版 `bukit`
-2. 计算 `BASE_URL` 与 `SITE_URL`（区分 user/org pages 与 repo pages）
-3. 运行 `bukit build` 生成 `_site` 并上传为 Pages artifact
+### 方式 A：`bukit deploy`（引擎内置，推荐）
+
+一条命令完成构建与部署：
+
+```bash
+bukit deploy                           # 构建 + 推送
+bukit deploy --dry-run                 # 预览
+bukit deploy --branch pages            # 自定义分支
+bukit deploy --skip-build --ci         # CI 模式，跳过构建
+```
+
+前置条件：`git` 可用、`GITHUB_TOKEN` 环境变量已设置、remote origin 指向 GitHub。
+
+`bukit deploy` 自动推导 user/org pages 与 project pages 的 `baseUrl` 并正确部署。详见 [13-deploy-github-pages](../../guide/user/13-deploy-github-pages.zh-CN.md)。
+
+### 方式 B：GitHub Actions CI/CD（自动部署）
 
 ### 必需配置
 

@@ -12,6 +12,7 @@
 |---|---|
 | `create <dir>` | 新建一个站点工程（脚手架），也可用 `init` 别名 |
 | `build` | 生成静态站点（输出到 dist/） |
+| `deploy` | 构建并部署到 GitHub Pages（`bukit deploy`） |
 | `preview` | 本地预览输出目录 |
 | `doctor` | 环境/配置自检（排障第一步） |
 | `clean` | 清理输出目录与缓存 |

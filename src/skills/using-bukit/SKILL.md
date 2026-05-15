@@ -42,6 +42,7 @@ When the agent sees any of these phrases in any language, it must load this skil
 | 6 | bukit-routing | URL routing configuration | When customizing URL structures |
 | 7 | bukit-i18n | Multilingual sites | When creating multilingual sites |
 | 8 | bukit-plugins-debug | Plugin and build debugging | When plugins fail or builds misbehave |
+| 9 | bukit-deploy | GitHub Pages deployment | When deploying site to GitHub Pages |
 
 ## Typical Workflow Routing
 
@@ -68,6 +69,7 @@ When creating a custom theme:
 5. Load bukit-templating → Write all template files (base, page, post, index, list, partials)
 6. Run bukit build → Build
 7. Run bukit preview (optional) → Preview
+8. Deploy (optional): bukit deploy → Load bukit-deploy skill, push to GitHub Pages
 ```
 
 ### User says "using bukit, help me build a docs site"
@@ -80,6 +82,7 @@ When creating a custom theme:
 5. Load bukit-templating → Write templates with navigation sidebar, search placeholder
 6. Run bukit build → Build
 7. Run bukit preview (optional) → Preview
+8. Deploy (optional): bukit deploy → Load bukit-deploy skill, push to GitHub Pages
 ```
 
 ### User says "using bukit, configure Notion content source"
@@ -115,6 +118,7 @@ See bukit-cli-reference for detailed command information.
 bukit init ./my-site           # Initialize a site
 bukit build                    # Build the site
 bukit preview                  # Local preview
+bukit deploy                   # Deploy to GitHub Pages
 bukit doctor                   # Diagnostics
 bukit clean                    # Clean
 bukit plugin list              # List plugins
@@ -124,6 +128,6 @@ bukit theme list               # List themes
 ## Subskill Loading Rules
 
 - **bukit-cli-reference** is ALWAYS the first subskill to load — before any other bukit skill, verify CLI availability
-- **bukit-config** is REQUIRED BACKGROUND for: bukit-theme, bukit-notion, bukit-routing, bukit-i18n, bukit-plugins-debug
+- **bukit-config** is REQUIRED BACKGROUND for: bukit-theme, bukit-notion, bukit-routing, bukit-i18n, bukit-plugins-debug, bukit-deploy
 - **bukit-theme** is REQUIRED BACKGROUND for: bukit-templating
 - All subskills reference **bukit-cli-reference** for command execution

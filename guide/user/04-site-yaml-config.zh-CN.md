@@ -39,7 +39,7 @@ logging:
 
 对照可运行示例：`examples/starter/site.yaml`。
 
-## 顶层块：site / content / build / theme / logging
+## 顶层块：site / content / build / theme / deploy / logging
 
 ### site：站点级信息（SEO、多语言、插件策略都在这里）
 
@@ -333,6 +333,33 @@ logging:
 ```
 
 CI 场景下建议配合 `--log-format json`，便于收集与排查（见：[12-命令行参考](./12-cli-reference.zh-CN.md)）。
+
+### deploy：部署配置（可选）
+
+控制 `bukit deploy` 命令的部署行为：
+
+```yaml
+deploy:
+  provider: github-pages
+  branch: gh-pages
+  message: "bukit deploy"
+  cname: example.com
+```
+
+| 字段 | 说明 | 默认值 |
+|------|------|--------|
+| `deploy.provider` | 部署目标平台（目前仅 `github-pages`） | — |
+| `deploy.branch` | 目标 Git 分支 | `gh-pages` |
+| `deploy.message` | Git 提交信息 | `bukit deploy` |
+| `deploy.cname` | 自定义域名（会写入 CNAME 文件） | — |
+
+CLI 覆盖：
+- `--branch <name>` 覆盖 `deploy.branch`
+- `--message <text>` 覆盖 `deploy.message`
+- `--dry-run` 仅预览，不实际推送
+- `--skip-build` 跳过构建，直接部署已有 dist/
+
+详见：[13-部署到 GitHub Pages](./13-deploy-github-pages.zh-CN.md) 和 [bukit-deploy skill](../../src/skills/bukit-deploy/SKILL.md)。
 
 ## 常见配置场景（可直接抄）
 

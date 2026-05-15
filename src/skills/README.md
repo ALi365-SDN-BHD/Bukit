@@ -21,6 +21,7 @@ src/skills/
   bukit-routing/          # URL routing and permalinks
   bukit-i18n/             # Multilingual sites
   bukit-plugins-debug/    # Plugins, incremental build, diagnostics
+  bukit-deploy/           # GitHub Pages deployment
 ```
 
 ## Skill Responsibilities
@@ -36,6 +37,7 @@ src/skills/
 | `bukit-routing` | Permalinks, collection routes, URL encoding, and output path behavior | Customizing URLs, fixing 404s, handling route conflicts, configuring list pages |
 | `bukit-i18n` | Language detection, per-language builds, sitemap/RSS/search merging | Building multilingual sites and debugging language switch or merged output issues |
 | `bukit-plugins-debug` | Plugin lifecycle, incremental build behavior, performance diagnostics, troubleshooting | Plugins do not run, build output looks wrong, or build performance regresses |
+| `bukit-deploy` | GitHub Pages deployment via `bukit deploy` command, site.yaml deploy config, environment variables, CI/CD integration | Deploying site, pushing to gh-pages, configuring CNAME, troubleshooting deploy failures |
 
 ## Loading Rules
 
@@ -84,6 +86,13 @@ using-bukit
 
 1. `using-bukit`
 2. `bukit-plugins-debug`
+3. `bukit-config`
+4. `bukit-cli-reference`
+
+### Deploy site to GitHub Pages
+
+1. `using-bukit`
+2. `bukit-deploy`
 3. `bukit-config`
 4. `bukit-cli-reference`
 
