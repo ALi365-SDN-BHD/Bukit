@@ -84,11 +84,9 @@ public static class DeployCommand
             }
         }
 
-        var outputDir = Path.GetFullPath(effectiveOutput);
-        if (!Path.IsPathRooted(effectiveOutput))
-        {
-            outputDir = Path.GetFullPath(Path.Combine(resolved.RootDir, effectiveOutput));
-        }
+        var outputDir = Path.IsPathRooted(effectiveOutput)
+            ? Path.GetFullPath(effectiveOutput)
+            : Path.GetFullPath(Path.Combine(resolved.RootDir, effectiveOutput));
 
         var baseUrl = string.IsNullOrWhiteSpace(config.Site.BaseUrl) ? "/" : config.Site.BaseUrl;
         if (!baseUrl.StartsWith('/'))
@@ -117,6 +115,7 @@ public static class DeployCommand
             Branch = cliBranch ?? deployConfig.Branch,
             Message = cliMessage ?? deployConfig.Message,
             Cname = deployConfig.Cname,
+            KeepHistory = deployConfig.KeepHistory,
             Logger = logger
         };
 

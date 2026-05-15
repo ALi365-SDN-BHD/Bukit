@@ -70,7 +70,14 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
             if (branchExists)
             {
                 logger.Info($"Cloning existing {branch} branch...");
-                await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "clone", "--single-branch", "--branch", branch, "--depth", "1", remoteUrl, ".");
+                if (context.KeepHistory)
+                {
+                    await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "clone", "--single-branch", "--branch", branch, remoteUrl, ".");
+                }
+                else
+                {
+                    await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "clone", "--single-branch", "--branch", branch, "--depth", "1", remoteUrl, ".");
+                }
             }
             else
             {
@@ -164,20 +171,24 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
 
     private static string CreateAskpassScript(string tempDir, string token)
     {
-        var scriptPath = Path.Combine(tempDir, "git-askpass");
-        File.WriteAllText(scriptPath, $"#!/bin/sh\necho \"{token}\"\n");
+        if (OperatingSystem.IsWindows())
+        {
+            var scriptPath = Path.Combine(tempDir, "git-askpass.bat");
+            File.WriteAllText(scriptPath, $"@echo {token}\r\n");
+            return scriptPath;
+        }
+
+        var unixPath = Path.Combine(tempDir, "git-askpass");
+        File.WriteAllText(unixPath, $"#!/bin/sh\necho \"{token}\"\n");
         try
         {
-            if (!OperatingSystem.IsWindows())
-            {
-                File.SetUnixFileMode(scriptPath, UnixFileMode.UserRead | UnixFileMode.UserExecute);
-            }
+            File.SetUnixFileMode(unixPath, UnixFileMode.UserRead | UnixFileMode.UserExecute);
         }
         catch
         {
         }
 
-        return scriptPath;
+        return unixPath;
     }
 
     private static void CleanupAskpassScript(string? scriptPath)

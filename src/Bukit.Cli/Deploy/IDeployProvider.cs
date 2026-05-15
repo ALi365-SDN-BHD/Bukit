@@ -16,6 +16,7 @@ public sealed record DeployContext
     public required string? Branch { get; init; }
     public required string? Message { get; init; }
     public required string? Cname { get; init; }
+    public bool KeepHistory { get; init; }
     public required ILogger Logger { get; init; }
 }
 
