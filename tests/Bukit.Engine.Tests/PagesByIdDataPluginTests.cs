@@ -160,7 +160,7 @@ public sealed class PagesByIdDataPluginTests
                         ["pages-index"] = new PluginToggleConfig { Enabled = true }
                     }
                 },
-                Content = new ContentConfig { Provider = "notion" },
+                Content = new ContentConfig { Provider = "notion", Media = new MediaConfig { DownloadToLocal = false } },
                 Theme = new ThemeConfig
                 {
                     Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -201,7 +201,7 @@ public sealed class PagesByIdDataPluginTests
             var fields = Assert.IsType<Dictionary<string, object>>(resolved["fields"]);
             var cover = Assert.IsType<Dictionary<string, object>>(fields["cover"]);
             Assert.Equal("text", cover["type"]);
-            Assert.Equal("https://img.example/1.jpg", cover["value"]);
+            Assert.Equal("/assets/images/noneimg-news.jpg", cover["value"]);
         }
         finally
         {

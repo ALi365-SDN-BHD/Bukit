@@ -72,7 +72,7 @@ internal static partial class SitemapPolicy
             var html = File.ReadAllText(absoluteHtmlPath);
             return ShouldExcludeFromSitemap(html);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.Warn($"event=sitemap.meta_read_failed path={absoluteHtmlPath} error={ex.Message}");
             return false;

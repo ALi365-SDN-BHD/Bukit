@@ -72,7 +72,7 @@ public sealed class ExternalAssemblyPluginSource : IPluginSource
             {
                 assembly = Assembly.LoadFrom(path);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is FileLoadException or BadImageFormatException or FileNotFoundException)
             {
                 _logger.Warn($"Failed to load plugin assembly '{path}': {ex.Message}");
                 continue;

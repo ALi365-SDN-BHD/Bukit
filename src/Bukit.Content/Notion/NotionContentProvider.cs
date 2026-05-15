@@ -241,7 +241,7 @@ public sealed class NotionContentProvider : IContentProvider
         var resolvedCount = 0;
         for (var i = 0; i < tasks.Length; i++)
         {
-            var t = tasks[i].Result;
+            var t = await tasks[i];
             if (t is null)
             {
                 continue;

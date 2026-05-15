@@ -1,3 +1,4 @@
+using System.Linq;
 using Bukit.Config;
 using Bukit.Engine.Plugins;
 using Bukit.Rendering;
@@ -94,8 +95,26 @@ public sealed class SeoAuditReportWriterTests : IDisposable
 
         var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
 
-        Assert.Contains(report.Issues, x => x.Code == "seo.canonical_not_absolute" && x.Route == "/a/");
-        Assert.Contains(report.Issues, x => x.Code == "seo.canonical_has_fragment" && x.Route == "/a/");
+        Assert.True(report.Issues.Any(x => x.Code == "seo.canonical_not_absolute" && x.Route == "/a/"), "Expected seo.canonical_not_absolute issue for route /a/");
+        Assert.True(report.Issues.Any(x => x.Code == "seo.inject_canonical_missing" && x.Route == "/a/"), "Expected seo.inject_canonical_missing issue for route /a/");
+    }
+
+    [Fact]
+    public void Build_ReportsCanonicalFragment_WhenAbsolute()
+    {
+        WriteOutput("b/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["b/index.html"] = Entry("/b/", "b/index.html", "https://example.com/b/#section")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["b/index.html"] = Model("B", "https://example.com/b/#section")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.True(report.Issues.Any(x => x.Code == "seo.canonical_has_fragment" && x.Route == "/b/"), "Expected seo.canonical_has_fragment issue for route /b/");
     }
 
     [Fact]

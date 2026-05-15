@@ -392,7 +392,7 @@ public sealed class ContentImageRewritePipeline
         await Task.WhenAll(pending.Select(x => x.Task));
         foreach (var entry in pending)
         {
-            localizeMemo[entry.Key] = entry.Task.Result;
+            localizeMemo[entry.Key] = await entry.Task;
         }
 
         return localizeMemo;

@@ -66,7 +66,7 @@ public sealed class BuildManifest
 
             return manifest;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is FileNotFoundException or JsonException or IOException)
         {
             Console.Error.WriteLine($"[warn] Failed to load build manifest '{manifestPath}': {ex.Message}");
             return new BuildManifest();

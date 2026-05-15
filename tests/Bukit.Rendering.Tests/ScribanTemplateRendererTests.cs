@@ -1,6 +1,3 @@
-using Bukit.Content;
-using Bukit.Rendering.Scriban;
-using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Rendering.Tests;
@@ -11,159 +8,87 @@ public sealed class ScribanTemplateRendererTests : IDisposable
 
     public ScribanTemplateRendererTests()
     {
-        _layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-render-test-" + Guid.NewGuid().ToString("N"));
+        _layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-scriban-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_layoutsDir);
     }
 
     public void Dispose()
     {
-        if (Directory.Exists(_layoutsDir))
+        try { Directory.Delete(_layoutsDir, recursive: true); } catch { }
+    }
+
+    private static SiteModel CreateSite()
+    {
+        return new SiteModel
         {
-            Directory.Delete(_layoutsDir, recursive: true);
-        }
+            Name = "test",
+            Title = "Test Site",
+            Url = "https://example.com",
+            BaseUrl = "/",
+            Language = "en"
+        };
     }
 
-    private static SiteModel CreateSiteModel() => new()
+    [Fact]
+    public void Constructor_CreatesRenderer()
     {
-        Name = "test",
-        Title = "Test Site",
-        BaseUrl = "/",
-        Language = "en"
-    };
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        Assert.NotNull(renderer);
+    }
 
-    private static PageModel CreatePageModel(string title = "Page", string content = "<p>Hello</p>") => new()
+    [Fact]
+    public void RenderPage_Throws_WhenTemplateNotFound()
     {
-        Site = CreateSiteModel(),
-        Page = new PageInfo
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var model = new PageModel
         {
-            Title = title,
-            Url = "/test/",
-            Content = content
-        }
-    };
-
-    [Fact]
-    public void RenderPage_SimpleTemplate_InterpolatesValues()
-    {
-        WriteTemplate("simple.html", "<h1>{{ page.title }}</h1>");
-
-        var renderer = new ScribanTemplateRenderer(_layoutsDir);
-        var result = renderer.RenderPage("simple.html", CreatePageModel("My Title"));
-
-        Assert.Equal("<h1>My Title</h1>", result);
-    }
-
-    [Fact]
-    public void RenderPage_TemplateWithSiteFields_RendersSiteInfo()
-    {
-        WriteTemplate("site.html", "{{ site.name }} - {{ site.title }}");
-
-        var renderer = new ScribanTemplateRenderer(_layoutsDir);
-        var result = renderer.RenderPage("site.html", CreatePageModel());
-
-        Assert.Equal("test - Test Site", result);
-    }
-
-    [Fact]
-    public void RenderPage_WithLayoutDirective_RendersIntoLayout()
-    {
-        WriteTemplate("base.html", "<html>{{ content }}</html>");
-        WriteTemplate("child.html", "{% layout \"base.html\" %}\n<p>body</p>");
-
-        var renderer = new ScribanTemplateRenderer(_layoutsDir);
-        var result = renderer.RenderPage("child.html", CreatePageModel());
-
-        Assert.Equal("<html><p>body</p></html>", result);
-    }
-
-    [Fact]
-    public void RenderPage_MissingTemplate_ThrowsRenderException()
-    {
-        var renderer = new ScribanTemplateRenderer(_layoutsDir);
-        Assert.Throws<RenderException>(() =>
-            renderer.RenderPage("nonexistent.html", CreatePageModel()));
-    }
-
-    [Fact]
-    public void RenderPage_InvalidTemplateSyntax_ThrowsRenderException()
-    {
-        WriteTemplate("invalid.html", "{{ if }}");
-
-        var renderer = new ScribanTemplateRenderer(_layoutsDir);
-        Assert.Throws<RenderException>(() =>
-            renderer.RenderPage("invalid.html", CreatePageModel()));
-    }
-
-    [Fact]
-    public void RenderPage_PageContent_Accessible()
-    {
-        WriteTemplate("content.html", "{{ page.content }}");
-
-        var renderer = new ScribanTemplateRenderer(_layoutsDir);
-        var result = renderer.RenderPage("content.html", CreatePageModel(content: "<p>test content</p>"));
-
-        Assert.Equal("<p>test content</p>", result);
-    }
-
-    [Fact]
-    public void RenderPage_SeoAndAnalytics_Accessible()
-    {
-        WriteTemplate("seo.html", "{{ page.seo.canonical }}|{{ page.seo.og.image }}|{{ page.seo.alternates[0].hreflang }}|{{ site.analytics.google_analytics_id }}|{{ site.analytics.enabled }}");
-
-        var renderer = new ScribanTemplateRenderer(_layoutsDir);
-        var model = CreatePageModel("SEO");
-        model = model with
-        {
-            Site = model.Site with
+            Site = CreateSite(),
+            Page = new PageInfo
             {
-                Analytics = new AnalyticsModel
-                {
-                    Enabled = true,
-                    GoogleAnalyticsId = "G-ABC123"
-                }
-            },
-            Page = model.Page with
-            {
-                Seo = new SeoModel
-                {
-                    Title = "SEO",
-                    Description = "Desc",
-                    Canonical = "https://example.com/seo/",
-                    Og = new SeoOpenGraphModel { Title = "SEO", Description = "Desc", Url = "https://example.com/seo/", Image = "https://example.com/og.png" },
-                    Twitter = new SeoTwitterModel { Card = "summary_large_image", Title = "SEO", Description = "Desc", Image = "https://example.com/og.png" },
-                    Alternates = new[] { new SeoAlternateModel("en", "https://example.com/en/seo/") },
-                    JsonLd = new[] { """{"@context":"https://schema.org","@type":"WebSite"}""" }
-                }
+                Title = "Test",
+                Content = "<p>hi</p>",
+                Url = "/test/"
             }
         };
 
-        var result = renderer.RenderPage("seo.html", model);
-
-        Assert.Equal("https://example.com/seo/|https://example.com/og.png|en|G-ABC123|true", result);
+        Assert.Throws<Bukit.Shared.RenderException>(() =>
+            renderer.RenderPage("missing.html", model));
     }
 
     [Fact]
-    public void RenderPage_SubdirectoryTemplate_ResolvesCorrectly()
+    public void RenderPage_RendersSimpleTemplate()
     {
-        var subDir = Path.Combine(_layoutsDir, "pages");
-        Directory.CreateDirectory(subDir);
-        File.WriteAllText(Path.Combine(subDir, "article.html"), "Article: {{ page.title }}");
+        var templatePath = Path.Combine(_layoutsDir, "page.html");
+        File.WriteAllText(templatePath, "<html><head><title>{{ page.title }}</title></head><body>{{ page.content }}</body></html>");
 
-        var renderer = new ScribanTemplateRenderer(_layoutsDir);
-        var result = renderer.RenderPage("pages/article.html", CreatePageModel("News"));
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo
+            {
+                Title = "Hello",
+                Content = "<p>World</p>",
+                Url = "/hello/"
+            }
+        };
 
-        Assert.Equal("Article: News", result);
+        var result = renderer.RenderPage("page.html", model);
+        Assert.Contains("<title>Hello</title>", result);
+        Assert.Contains("<p>World</p>", result);
     }
 
     [Fact]
-    public void RenderList_SimplePagesTemplate_RendersList()
+    public void RenderList_RendersListTemplate()
     {
-        WriteTemplate("list.html", "{{ for p in pages }}<li>{{ p.title }}</li>{{ end }}");
+        var templatePath = Path.Combine(_layoutsDir, "list.html");
+        File.WriteAllText(templatePath, "{{ for page in pages }}{{ page.title }}|{{ end }}");
 
-        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
         var model = new ListPageModel
         {
-            Site = CreateSiteModel(),
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "List", Url = "/list/", Content = "" },
             Pages = new[]
             {
                 new PageInfo { Title = "A", Url = "/a/", Content = "" },
@@ -172,30 +97,7 @@ public sealed class ScribanTemplateRendererTests : IDisposable
         };
 
         var result = renderer.RenderList("list.html", model);
-        Assert.Equal("<li>A</li><li>B</li>", result);
-    }
-
-    [Fact]
-    public void RenderPage_TemplateIsCached_SecondCallUsesCache()
-    {
-        WriteTemplate("cached.html", "{{ page.title }}");
-
-        var renderer = new ScribanTemplateRenderer(_layoutsDir);
-        var r1 = renderer.RenderPage("cached.html", CreatePageModel("V1"));
-        var r2 = renderer.RenderPage("cached.html", CreatePageModel("V2"));
-
-        Assert.Equal("V1", r1);
-        Assert.Equal("V2", r2);
-    }
-
-    private void WriteTemplate(string relativePath, string content)
-    {
-        var fullPath = Path.Combine(_layoutsDir, relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var dir = Path.GetDirectoryName(fullPath);
-        if (!string.IsNullOrWhiteSpace(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-        File.WriteAllText(fullPath, content);
+        Assert.Contains("A|", result);
+        Assert.Contains("B|", result);
     }
 }

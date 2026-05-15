@@ -11,9 +11,11 @@
     <Project Path="tools/scriban/src/Scriban/Scriban.csproj" />
     <Project Path="src/plugins/SampleAfterBuildPlugin/SampleAfterBuildPlugin.csproj" />
     <Project Path="src/plugins/PathReportPlugin/PathReportPlugin.csproj" />
+    <Project Path="src/Bukit.PluginSourceGenerator/Bukit.PluginSourceGenerator.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ThrowingPlugin/ThrowingPlugin.csproj" />
+    <Project Path="tests/ProtocolEchoPlugin/ProtocolEchoPlugin.csproj" />
     <Project Path="tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj" />
     <Project Path="tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj" />
     <Project Path="tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj" />

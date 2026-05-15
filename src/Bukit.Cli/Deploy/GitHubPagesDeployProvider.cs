@@ -163,8 +163,9 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
                     Directory.Delete(tempDir, recursive: true);
                 }
             }
-            catch
+            catch (Exception cleanupEx)
             {
+                Console.Error.WriteLine($"Deploy: failed to clean up temp dir: {cleanupEx.GetType().Name}");
             }
         }
     }
@@ -181,12 +182,13 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
         var unixPath = Path.Combine(tempDir, "git-askpass");
         File.WriteAllText(unixPath, $"#!/bin/sh\necho \"{token}\"\n");
         try
-        {
-            File.SetUnixFileMode(unixPath, UnixFileMode.UserRead | UnixFileMode.UserExecute);
-        }
-        catch
-        {
-        }
+            {
+                File.SetUnixFileMode(unixPath, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+            }
+            catch (Exception modeEx)
+            {
+                Console.Error.WriteLine($"Deploy: failed to set askpass file mode: {modeEx.GetType().Name}");
+            }
 
         return unixPath;
     }
@@ -194,7 +196,7 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
     private static void CleanupAskpassScript(string? scriptPath)
     {
         if (scriptPath is null) return;
-        try { File.Delete(scriptPath); } catch { }
+        try { File.Delete(scriptPath); } catch (Exception delEx) { Console.Error.WriteLine($"Deploy: failed to clean up askpass script: {delEx.GetType().Name}"); }
     }
 
     private static string SanitizeError(string message, string token)

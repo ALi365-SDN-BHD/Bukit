@@ -199,11 +199,11 @@ public static partial class PreviewCommand
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Preview error: {ex.GetType().Name}: {ex.Message}");
-            try { context.Response.StatusCode = 500; } catch { }
+            try { context.Response.StatusCode = 500; } catch (Exception scEx) { Console.Error.WriteLine($"Preview: failed to set status code: {scEx.GetType().Name}"); }
         }
         finally
         {
-            try { context.Response.Close(); } catch { }
+            try { context.Response.Close(); } catch (Exception clEx) { Console.Error.WriteLine($"Preview: failed to close response: {clEx.GetType().Name}"); }
         }
     }
 

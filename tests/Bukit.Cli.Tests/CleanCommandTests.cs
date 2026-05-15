@@ -1,0 +1,41 @@
+using Bukit.Cli;
+using Xunit;
+
+namespace Bukit.Cli.Tests;
+
+public sealed class CleanCommandTests : IDisposable
+{
+    private readonly string _testDir;
+
+    public CleanCommandTests()
+    {
+        _testDir = Path.Combine(Path.GetTempPath(), "bukit-clean-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_testDir);
+        var dist = Path.Combine(_testDir, "dist");
+        Directory.CreateDirectory(dist);
+        File.WriteAllText(Path.Combine(dist, "test.txt"), "hello");
+    }
+
+    public void Dispose()
+    {
+        try { Directory.Delete(_testDir, recursive: true); } catch { }
+    }
+
+    [Fact]
+    public async Task RunAsync_WithDirOption_CleansDirectory()
+    {
+        var distDir = Path.Combine(_testDir, "dist");
+        var reader = new ArgReader(new[] { "--dir", distDir });
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(reader);
+        Assert.Equal(0, exitCode);
+        Assert.False(Directory.Exists(distDir));
+    }
+
+    [Fact]
+    public async Task RunAsync_NonExistentDir_DoesNotThrow()
+    {
+        var reader = new ArgReader(new[] { "--dir", Path.Combine(_testDir, "nonexistent") });
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(reader);
+        Assert.Equal(0, exitCode);
+    }
+}

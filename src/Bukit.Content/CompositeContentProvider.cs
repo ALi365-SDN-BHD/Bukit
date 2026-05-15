@@ -26,7 +26,7 @@ public sealed class CompositeContentProvider : IContentProvider
         for (var i = 0; i < _providers.Count; i++)
         {
             var (sourceKey, sourceMode, _) = _providers[i];
-            var result = tasks[i].Result;
+            var result = await tasks[i];
             var items = result.Items;
             stores[sourceKey] = result.BodyStore;
 

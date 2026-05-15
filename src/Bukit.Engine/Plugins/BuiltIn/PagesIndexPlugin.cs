@@ -252,7 +252,7 @@ public sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
         var resolvedPages = new NotionFetchedPage?[tasks.Length];
         for (var i = 0; i < tasks.Length; i++)
         {
-            resolvedPages[i] = tasks[i].Result;
+            resolvedPages[i] = await tasks[i];
         }
 
         await LocalizeResolvedPageFieldsAsync(resolvedPages, context);

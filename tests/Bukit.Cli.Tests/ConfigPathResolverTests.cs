@@ -48,7 +48,8 @@ public sealed class ConfigPathResolverTests : IDisposable
             Directory.SetCurrentDirectory(_testDir);
             var reader = new ArgReader(new[] { "--site", "blog" });
             var result = ConfigPathResolver.Resolve(reader);
-            var expected = Path.GetFullPath(Path.Combine(_testDir, "sites", "blog.yaml"));
+            var cwd = Directory.GetCurrentDirectory();
+            var expected = Path.GetFullPath(Path.Combine(cwd, "sites", "blog.yaml"));
             Assert.Equal(expected, result.FullConfigPath);
         }
         finally
