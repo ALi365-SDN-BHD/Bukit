@@ -1,0 +1,775 @@
+using Bukit.Config;
+using Bukit.Shared;
+using Xunit;
+
+namespace Bukit.Config.Tests;
+
+public sealed class ConfigLoaderFullCoverageTests : IDisposable
+{
+    private readonly List<string> _tempFiles = new();
+
+    public void Dispose()
+    {
+        foreach (var file in _tempFiles)
+        {
+            try
+            {
+                if (File.Exists(file))
+                {
+                    File.Delete(file);
+                }
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private string WriteTempYaml(string yaml)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"bukit-config-test-{Guid.NewGuid():N}.yaml");
+        File.WriteAllText(path, yaml);
+        _tempFiles.Add(path);
+        return path;
+    }
+
+    [Fact]
+    public void Load_SiteLanguages_ParsesStringList()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              languages:
+                - en
+                - zh-CN
+                - ja
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Site.Languages);
+        Assert.Equal(3, config.Site.Languages.Count);
+        Assert.Equal("en", config.Site.Languages[0]);
+        Assert.Equal("zh-CN", config.Site.Languages[1]);
+        Assert.Equal("ja", config.Site.Languages[2]);
+    }
+
+    [Fact]
+    public void Load_SiteLanguages_EmptyList_ReturnsNull()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              languages: []
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.Null(config.Site.Languages);
+    }
+
+    [Fact]
+    public void Load_SiteDefaultLanguage_ParsesValue()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              defaultLanguage: en
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("en", config.Site.DefaultLanguage);
+    }
+
+    [Fact]
+    public void Load_SiteAutoSummary_ParsesBoolAndMaxLength()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              autoSummary: true
+              autoSummaryMaxLength: 150
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.True(config.Site.AutoSummary);
+        Assert.Equal(150, config.Site.AutoSummaryMaxLength);
+    }
+
+    [Fact]
+    public void Load_SiteAutoSummary_Defaults()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.False(config.Site.AutoSummary);
+        Assert.Equal(200, config.Site.AutoSummaryMaxLength);
+    }
+
+    [Fact]
+    public void Load_SiteExternalAssemblyTrustModeAndAllowlist()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              externalAssemblyTrustMode: strict
+              externalAssemblyAllowlist:
+                PluginA: v1.0
+                PluginB: v2.3
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("strict", config.Site.ExternalAssemblyTrustMode);
+        Assert.NotNull(config.Site.ExternalAssemblyAllowlist);
+        Assert.Equal(2, config.Site.ExternalAssemblyAllowlist.Count);
+        Assert.Equal("v1.0", config.Site.ExternalAssemblyAllowlist["PluginA"]);
+        Assert.Equal("v2.3", config.Site.ExternalAssemblyAllowlist["PluginB"]);
+    }
+
+    [Fact]
+    public void Load_SiteSearchIncludeDerived_True()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              searchIncludeDerived: true
+              externalProtocolIncludeRoutedPages: true
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.True(config.Site.SearchIncludeDerived);
+        Assert.True(config.Site.ExternalProtocolIncludeRoutedPages);
+    }
+
+    [Fact]
+    public void Load_SiteSitemapRssSearchMode_CustomValues()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              sitemapMode: full
+              rssMode: off
+              searchMode: flat
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("full", config.Site.SitemapMode);
+        Assert.Equal("off", config.Site.RssMode);
+        Assert.Equal("flat", config.Site.SearchMode);
+    }
+
+    [Fact]
+    public void Load_SitePluginFailModeAndDeriveConflictPolicy_CustomValues()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              pluginFailMode: warn
+              deriveConflictPolicy: skip
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("warn", config.Site.PluginFailMode);
+        Assert.Equal("skip", config.Site.DeriveConflictPolicy);
+    }
+
+    [Fact]
+    public void Load_ThemeConfig_CustomValues()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            theme:
+              name: my-custom-theme
+              layouts: _layouts
+              assets: _assets
+              static: public
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("my-custom-theme", config.Theme.Name);
+        Assert.Equal("_layouts", config.Theme.Layouts);
+        Assert.Equal("_assets", config.Theme.Assets);
+        Assert.Equal("public", config.Theme.Static);
+    }
+
+    [Fact]
+    public void Load_ThemeParams_WithNestedObjectTreeAndArray()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            theme:
+              params:
+                primaryColor: "#3498db"
+                fontSize: 16
+                navLinks:
+                  - label: Home
+                    url: /
+                  - label: About
+                    url: /about
+                footer:
+                  copyright: "2024 My Blog"
+                  social:
+                    twitter: "@myblog"
+                    github: myblog
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Theme.Params);
+        Assert.Equal("#3498db", config.Theme.Params["primaryColor"]);
+        Assert.Equal("16", config.Theme.Params["fontSize"]);
+
+        var navLinks = Assert.IsAssignableFrom<List<object>>(config.Theme.Params["navLinks"]);
+        Assert.Equal(2, navLinks.Count);
+
+        var footer = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(config.Theme.Params["footer"]);
+        Assert.Equal("2024 My Blog", footer["copyright"]);
+        var social = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(footer["social"]);
+        Assert.Equal("@myblog", social["twitter"]);
+        Assert.Equal("myblog", social["github"]);
+    }
+
+    [Fact]
+    public void Load_LoggingLevel_CustomValues()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            logging:
+              level: debug
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("debug", config.Logging.Level);
+    }
+
+    [Fact]
+    public void Load_LoggingLevel_Warn()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            logging:
+              level: warn
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("warn", config.Logging.Level);
+    }
+
+    [Fact]
+    public void Load_LoggingLevel_Error()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            logging:
+              level: error
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("error", config.Logging.Level);
+    }
+
+    [Fact]
+    public void Load_Plugins_BooleanToggles()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              plugins:
+                seo: true
+                sitemap: false
+                rss: true
+                openGraph: false
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Site.Plugins);
+        Assert.Equal(4, config.Site.Plugins.Count);
+        Assert.True(config.Site.Plugins["seo"].Enabled);
+        Assert.False(config.Site.Plugins["sitemap"].Enabled);
+        Assert.True(config.Site.Plugins["rss"].Enabled);
+        Assert.False(config.Site.Plugins["openGraph"].Enabled);
+        Assert.Null(config.Site.Plugins["seo"].Options);
+    }
+
+    [Fact]
+    public void Load_Plugins_MappingWithOptionsAndDisabled()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              plugins:
+                search:
+                  enabled: true
+                  options:
+                    indexMode: full
+                    maxTokens: 500
+                comments:
+                  enabled: false
+                  options:
+                    provider: disqus
+                    shortname: mysite
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Site.Plugins);
+        Assert.Equal(2, config.Site.Plugins.Count);
+
+        var search = config.Site.Plugins["search"];
+        Assert.True(search.Enabled);
+        Assert.NotNull(search.Options);
+        Assert.Equal("full", search.Options["indexMode"]);
+        Assert.Equal("500", search.Options["maxTokens"]);
+
+        var comments = config.Site.Plugins["comments"];
+        Assert.False(comments.Enabled);
+        Assert.NotNull(comments.Options);
+        Assert.Equal("disqus", comments.Options["provider"]);
+        Assert.Equal("mysite", comments.Options["shortname"]);
+    }
+
+    [Fact]
+    public void Load_TaxonomyTemplates_TagsAndCategories()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            taxonomy:
+              templates:
+                tags:
+                  template: pages/tag.html
+                  indexTemplate: pages/tag-list.html
+                  termTemplate: pages/tag-term.html
+                categories:
+                  template: pages/category.html
+                  indexTemplate: pages/cat-list.html
+                  termTemplate: pages/cat-term.html
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Taxonomy.Templates.Tags);
+        Assert.Equal("pages/tag.html", config.Taxonomy.Templates.Tags.Template);
+        Assert.Equal("pages/tag-list.html", config.Taxonomy.Templates.Tags.IndexTemplate);
+        Assert.Equal("pages/tag-term.html", config.Taxonomy.Templates.Tags.TermTemplate);
+
+        Assert.NotNull(config.Taxonomy.Templates.Categories);
+        Assert.Equal("pages/category.html", config.Taxonomy.Templates.Categories.Template);
+        Assert.Equal("pages/cat-list.html", config.Taxonomy.Templates.Categories.IndexTemplate);
+        Assert.Equal("pages/cat-term.html", config.Taxonomy.Templates.Categories.TermTemplate);
+    }
+
+    [Fact]
+    public void Load_TaxonomyItemFields_ParsesStringList()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            taxonomy:
+              itemFields:
+                - tags
+                - categories
+                - series
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Taxonomy.ItemFields);
+        Assert.Equal(3, config.Taxonomy.ItemFields.Count);
+        Assert.Contains("tags", config.Taxonomy.ItemFields);
+        Assert.Contains("categories", config.Taxonomy.ItemFields);
+        Assert.Contains("series", config.Taxonomy.ItemFields);
+    }
+
+    [Fact]
+    public void Load_TaxonomyPinFieldAndPinOrderField_CustomValues()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            taxonomy:
+              pinField: featured
+              pinOrderField: priority
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("featured", config.Taxonomy.PinField);
+        Assert.Equal("priority", config.Taxonomy.PinOrderField);
+    }
+
+    [Fact]
+    public void Load_TaxonomyPinFieldBySource_StringMap()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            taxonomy:
+              pinFieldBySource:
+                notion: NotionPinned
+                markdown: frontmatter_pinned
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Taxonomy.PinFieldBySource);
+        Assert.Equal(2, config.Taxonomy.PinFieldBySource.Count);
+        Assert.Equal("NotionPinned", config.Taxonomy.PinFieldBySource["notion"]);
+        Assert.Equal("frontmatter_pinned", config.Taxonomy.PinFieldBySource["markdown"]);
+    }
+
+    [Fact]
+    public void Load_TaxonomyPinOrderFieldBySource_StringMap()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            taxonomy:
+              pinOrderFieldBySource:
+                notion: NotionOrder
+                markdown: weight
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Taxonomy.PinOrderFieldBySource);
+        Assert.Equal(2, config.Taxonomy.PinOrderFieldBySource.Count);
+        Assert.Equal("NotionOrder", config.Taxonomy.PinOrderFieldBySource["notion"]);
+        Assert.Equal("weight", config.Taxonomy.PinOrderFieldBySource["markdown"]);
+    }
+
+    [Fact]
+    public void Load_NotionFieldPolicy_WhitelistModeWithAllowedList()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: notion
+              notion:
+                databaseId: abc123
+                fieldPolicy:
+                  mode: whitelist
+                  allowed:
+                    - title
+                    - slug
+                    - tags
+                    - published
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Content.Notion);
+        Assert.Equal("whitelist", config.Content.Notion.FieldPolicy.Mode);
+        Assert.NotNull(config.Content.Notion.FieldPolicy.Allowed);
+        Assert.Equal(4, config.Content.Notion.FieldPolicy.Allowed.Count);
+        Assert.Contains("title", config.Content.Notion.FieldPolicy.Allowed);
+        Assert.Contains("slug", config.Content.Notion.FieldPolicy.Allowed);
+        Assert.Contains("tags", config.Content.Notion.FieldPolicy.Allowed);
+        Assert.Contains("published", config.Content.Notion.FieldPolicy.Allowed);
+    }
+
+    [Fact]
+    public void Load_NotionFieldPolicy_AllMode()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: notion
+              notion:
+                databaseId: abc123
+                fieldPolicy:
+                  mode: all
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Content.Notion);
+        Assert.Equal("all", config.Content.Notion.FieldPolicy.Mode);
+        Assert.Null(config.Content.Notion.FieldPolicy.Allowed);
+    }
+
+    [Fact]
+    public void Load_ContentSources_MultipleSources()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: notion
+                  name: blog-db
+                  mode: content
+                  notion:
+                    databaseId: db-blog
+                    pageSize: 50
+                - type: markdown
+                  name: docs
+                  mode: content
+                  markdown:
+                    dir: docs
+                    defaultType: page
+                - type: notion
+                  name: archive-db
+                  mode: data
+                  notion:
+                    databaseId: db-archive
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("sources", config.Content.Provider);
+        Assert.NotNull(config.Content.Sources);
+        Assert.Equal(3, config.Content.Sources.Count);
+
+        var s0 = config.Content.Sources[0];
+        Assert.Equal("notion", s0.Type);
+        Assert.Equal("blog-db", s0.Name);
+        Assert.Equal("content", s0.Mode);
+        Assert.NotNull(s0.Notion);
+        Assert.Equal("db-blog", s0.Notion.DatabaseId);
+        Assert.Equal(50, s0.Notion.PageSize);
+
+        var s1 = config.Content.Sources[1];
+        Assert.Equal("markdown", s1.Type);
+        Assert.Equal("docs", s1.Name);
+        Assert.Equal("content", s1.Mode);
+        Assert.NotNull(s1.Markdown);
+        Assert.Equal("docs", s1.Markdown.Dir);
+        Assert.Equal("page", s1.Markdown.DefaultType);
+
+        var s2 = config.Content.Sources[2];
+        Assert.Equal("notion", s2.Type);
+        Assert.Equal("archive-db", s2.Name);
+        Assert.Equal("data", s2.Mode);
+        Assert.NotNull(s2.Notion);
+        Assert.Equal("db-archive", s2.Notion.DatabaseId);
+    }
+
+    [Fact]
+    public void Load_DeployOptions_GenericMapping()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            deploy:
+              provider: custom
+              branch: release
+              options:
+                server: production.example.com
+                port: 22
+                path: /var/www/mysite
+                flags:
+                  - "--delete"
+                  - "--exclude=.git"
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Deploy);
+        Assert.Equal("custom", config.Deploy.Provider);
+        Assert.Equal("release", config.Deploy.Branch);
+        Assert.NotNull(config.Deploy.Options);
+
+        var optionsMap = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(config.Deploy.Options["options"]);
+        Assert.Equal("production.example.com", optionsMap["server"]);
+        Assert.Equal("22", optionsMap["port"]);
+        Assert.Equal("/var/www/mysite", optionsMap["path"]);
+
+        var flags = Assert.IsAssignableFrom<List<object>>(optionsMap["flags"]);
+        Assert.Equal(2, flags.Count);
+        Assert.Contains("--delete", flags);
+        Assert.Contains("--exclude=.git", flags);
+    }
+
+    [Fact]
+    public void Load_NotionNumericFields_RenderConcurrencyMaxRpsMaxRetries()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: notion
+              notion:
+                databaseId: abc123
+                renderConcurrency: 4
+                maxRps: 2
+                maxRetries: 8
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Content.Notion);
+        Assert.Equal(4, config.Content.Notion.RenderConcurrency);
+        Assert.Equal(2, config.Content.Notion.MaxRps);
+        Assert.Equal(8, config.Content.Notion.MaxRetries);
+    }
+
+    [Fact]
+    public void Load_NotionCacheModeAndCacheDir_CustomValues()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: notion
+              notion:
+                databaseId: abc123
+                cacheMode: memory
+                cacheDir: /var/cache/bukit
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Content.Notion);
+        Assert.Equal("memory", config.Content.Notion.CacheMode);
+        Assert.Equal("/var/cache/bukit", config.Content.Notion.CacheDir);
+    }
+
+    [Fact]
+    public void Load_NotionIncludeSlugsAndSlugProperty()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: notion
+              notion:
+                databaseId: abc123
+                includeSlugs:
+                  - about
+                  - contact
+                  - privacy
+                includeSlugProperty: CustomSlug
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Content.Notion);
+        Assert.NotNull(config.Content.Notion.IncludeSlugs);
+        Assert.Equal(3, config.Content.Notion.IncludeSlugs.Count);
+        Assert.Contains("about", config.Content.Notion.IncludeSlugs);
+        Assert.Contains("contact", config.Content.Notion.IncludeSlugs);
+        Assert.Contains("privacy", config.Content.Notion.IncludeSlugs);
+        Assert.Equal("CustomSlug", config.Content.Notion.IncludeSlugProperty);
+    }
+
+    [Fact]
+    public void Load_NotionFilterAndSort_CustomValues()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: notion
+              notion:
+                databaseId: abc123
+                filterProperty: Status
+                filterType: select_equals
+                sortProperty: Updated
+                sortDirection: descending
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.NotNull(config.Content.Notion);
+        Assert.Equal("Status", config.Content.Notion.FilterProperty);
+        Assert.Equal("select_equals", config.Content.Notion.FilterType);
+        Assert.Equal("Updated", config.Content.Notion.SortProperty);
+        Assert.Equal("descending", config.Content.Notion.SortDirection);
+    }
+}
