@@ -90,6 +90,57 @@ public sealed class ConsoleLoggerTests
         Assert.Null(ex);
     }
 
+    [Fact]
+    public void Constructor_InvalidFormatEnum_DoesNotThrow()
+    {
+        var logger = new ConsoleLogger(LogLevel.Info, "xml");
+        var output = CaptureStderr(() => logger.Info("hello"));
+        Assert.Contains("[info] hello", output);
+    }
+
+    [Fact]
+    public void Constructor_EmptyStringFormat_FallsBackToText()
+    {
+        var logger = new ConsoleLogger(LogLevel.Info, "   ");
+        var output = CaptureStderr(() => logger.Info("hello"));
+        Assert.Contains("[info] hello", output);
+    }
+
+    [Fact]
+    public void Warn_WhenLevelIsWarn_DebugAndInfoAreFiltered()
+    {
+        var logger = new ConsoleLogger(LogLevel.Warn);
+        Assert.Empty(CaptureStderr(() => logger.Debug("debug")));
+        Assert.Empty(CaptureStderr(() => logger.Info("info")));
+        Assert.Contains("[warn] warning", CaptureStderr(() => logger.Warn("warning")));
+    }
+
+    [Fact]
+    public void Error_WhenLevelIsError_LowerLevelsAreFiltered()
+    {
+        var logger = new ConsoleLogger(LogLevel.Error);
+        Assert.Empty(CaptureStderr(() => logger.Warn("warn")));
+        Assert.Contains("[error] err", CaptureStderr(() => logger.Error("err")));
+    }
+
+    [Fact]
+    public void JsonFormat_DebugLevel_ProducesValidJson()
+    {
+        var logger = new ConsoleLogger(LogLevel.Debug, "json");
+        var output = CaptureStderr(() => logger.Debug("dbg"));
+        using var doc = System.Text.Json.JsonDocument.Parse(output);
+        Assert.Equal("Debug", doc.RootElement.GetProperty("level").GetString());
+        Assert.Equal("dbg", doc.RootElement.GetProperty("msg").GetString());
+    }
+
+    [Fact]
+    public void TextFormat_UsesExactPrefixFormat()
+    {
+        var logger = new ConsoleLogger(LogLevel.Debug);
+        var output = CaptureStderr(() => logger.Debug("hello"));
+        Assert.Equal("[debug] hello", output);
+    }
+
     private static string CaptureStderr(Action action)
     {
         var original = Console.Error;

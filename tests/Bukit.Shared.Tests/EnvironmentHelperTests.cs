@@ -75,6 +75,36 @@ public sealed class EnvironmentHelperTests
         });
     }
 
+    [Fact]
+    public void GetNotionToken_WhenSet_ReturnsValue()
+    {
+        SetEnv(EnvironmentHelper.NotionTokenKey, "secret_abc123", original =>
+        {
+            var result = EnvironmentHelper.GetNotionToken();
+            Assert.Equal("secret_abc123", result);
+        });
+    }
+
+    [Fact]
+    public void GetNotionToken_WhenNotSet_ReturnsNull()
+    {
+        SetEnv(EnvironmentHelper.NotionTokenKey, null, original =>
+        {
+            var result = EnvironmentHelper.GetNotionToken();
+            Assert.Null(result);
+        });
+    }
+
+    [Fact]
+    public void GetNotionToken_WhenEmpty_ReturnsEmptyString()
+    {
+        SetEnv(EnvironmentHelper.NotionTokenKey, "", original =>
+        {
+            var result = EnvironmentHelper.GetNotionToken();
+            Assert.Equal("", result);
+        });
+    }
+
     private static void SetEnv(string key, string? value, Action<string?> action)
     {
         var original = Environment.GetEnvironmentVariable(key);

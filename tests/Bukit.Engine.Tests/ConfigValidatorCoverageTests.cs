@@ -890,4 +890,68 @@ public sealed class ConfigValidatorCoverageTests
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
         Assert.Contains("taxonomy.kinds", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("auto")]
+    [InlineData("always")]
+    [InlineData("never")]
+    public void Validate_ListPageContentMode_ValidValues_Passes(string? value)
+    {
+        var config = ValidConfig(c => c with
+        {
+            Build = new BuildConfig { Output = "dist", ListPageContentMode = value! }
+        });
+
+        var ex = Record.Exception(() => ConfigValidator.Validate(config));
+        Assert.Null(ex);
+    }
+
+    [Theory]
+    [InlineData("invalid")]
+    [InlineData("all")]
+    [InlineData("none")]
+    public void Validate_ListPageContentMode_InvalidValues_Throws(string value)
+    {
+        var config = ValidConfig(c => c with
+        {
+            Build = new BuildConfig { Output = "dist", ListPageContentMode = value }
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("listPageContentMode", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("debug")]
+    [InlineData("info")]
+    [InlineData("warn")]
+    [InlineData("error")]
+    public void Validate_LoggingLevel_ValidValues_Passes(string? value)
+    {
+        var config = ValidConfig(c => c with
+        {
+            Build = new BuildConfig { Output = "dist" },
+            Logging = new LoggingConfig { Level = value! }
+        });
+
+        var ex = Record.Exception(() => ConfigValidator.Validate(config));
+        Assert.Null(ex);
+    }
+
+    [Theory]
+    [InlineData("fatal")]
+    [InlineData("trace")]
+    public void Validate_LoggingLevel_InvalidValues_Throws(string value)
+    {
+        var config = ValidConfig(c => c with
+        {
+            Build = new BuildConfig { Output = "dist" },
+            Logging = new LoggingConfig { Level = value }
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("logging.level", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
 }

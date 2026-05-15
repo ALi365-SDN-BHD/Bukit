@@ -210,4 +210,21 @@ public sealed class ScribanTemplateRendererLayoutTests : IDisposable
 
         Assert.Equal("", result);
     }
+
+    [Fact]
+    public void LayoutSingleQuoteDelimiter_WrapsContentThroughLayout()
+    {
+        var layoutPath = Path.Combine(_layoutsDir, "_default.html");
+        File.WriteAllText(layoutPath, "<html><body>{{ content }}</body></html>");
+
+        var pagePath = Path.Combine(_layoutsDir, "page.html");
+        File.WriteAllText(pagePath, "{% layout '_default.html' %}\n<p>Single Quote</p>");
+
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var result = renderer.RenderPage("page.html", CreatePageModel(content: "<p>Single Quote</p>"));
+
+        Assert.Contains("<html><body>", result);
+        Assert.Contains("<p>Single Quote</p>", result);
+        Assert.Contains("</body></html>", result);
+    }
 }

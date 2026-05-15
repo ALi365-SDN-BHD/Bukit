@@ -101,6 +101,28 @@ public sealed class FileTemplateLoaderTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_NonexistentFile_ReturnsEmpty()
+    {
+        var loader = new FileTemplateLoader(_rootDir);
+        var result = await loader.LoadAsync(null!, default, Path.Combine(_rootDir, "no-such-async.html"));
+        Assert.Equal(string.Empty, result);
+    }
+
+    [Fact]
+    public async Task LoadAsync_CachesResult_ReturnsSameForUnchangedFile()
+    {
+        var filePath = Path.Combine(_rootDir, "async-cached.html");
+        File.WriteAllText(filePath, "<p>V1</p>");
+
+        var loader = new FileTemplateLoader(_rootDir);
+        var r1 = await loader.LoadAsync(null!, default, filePath);
+        var r2 = await loader.LoadAsync(null!, default, filePath);
+
+        Assert.Equal("<p>V1</p>", r1);
+        Assert.Same(r1, r2);
+    }
+
+    [Fact]
     public void GetPath_ForwardSlashNormalization_Works()
     {
         var loader = new FileTemplateLoader(_rootDir);
