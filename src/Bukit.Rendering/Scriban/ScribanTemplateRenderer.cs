@@ -7,6 +7,7 @@ namespace Bukit.Rendering.Scriban;
 
 public sealed class ScribanTemplateRenderer
 {
+    private const int MaxLayoutDepth = 10;
     private readonly string _layoutsDir;
     private readonly FileTemplateLoader _templateLoader;
     private readonly ConcurrentDictionary<string, CachedTemplate> _cache = new(StringComparer.OrdinalIgnoreCase);
@@ -20,23 +21,28 @@ public sealed class ScribanTemplateRenderer
     public string RenderPage(string templateRelativePath, PageModel model)
     {
         var globals = ScribanModelBinder.ToScriptObject(model);
-        return Render(templateRelativePath, globals);
+        return Render(templateRelativePath, globals, 0);
     }
 
     public string RenderList(string templateRelativePath, ListPageModel model)
     {
         var globals = ScribanModelBinder.ToScriptObject(model);
-        return Render(templateRelativePath, globals);
+        return Render(templateRelativePath, globals, 0);
     }
 
-    private string Render(string templateRelativePath, ScriptObject globals)
+    private string Render(string templateRelativePath, ScriptObject globals, int depth)
     {
+        if (depth >= MaxLayoutDepth)
+        {
+            throw new RenderException($"Layout nesting depth exceeded maximum of {MaxLayoutDepth}. Possible circular layout reference in '{templateRelativePath}'.");
+        }
+
         var cached = GetCachedTemplate(templateRelativePath);
         if (cached.LayoutTemplateRelativePath is not null)
         {
             var body = RenderTemplate(cached.Template, templateRelativePath, globals);
             globals.SetValue("content", body, readOnly: true);
-            return Render(cached.LayoutTemplateRelativePath, globals);
+            return Render(cached.LayoutTemplateRelativePath, globals, depth + 1);
         }
 
         return RenderTemplate(cached.Template, templateRelativePath, globals);

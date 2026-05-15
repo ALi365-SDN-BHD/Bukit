@@ -16,6 +16,10 @@ public sealed class ConfigException : BukitException
     public ConfigException(string message) : base(message)
     {
     }
+
+    public ConfigException(string message, Exception innerException) : base(message, innerException)
+    {
+    }
 }
 
 public sealed class ContentException : BukitException

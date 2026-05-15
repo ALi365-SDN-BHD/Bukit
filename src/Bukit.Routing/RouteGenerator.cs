@@ -83,7 +83,7 @@ public static class RouteGenerator
     {
         var result = pattern;
         result = result.Replace("{slug}", item.Slug, StringComparison.OrdinalIgnoreCase);
-        result = result.Replace("{title}", item.Slug, StringComparison.OrdinalIgnoreCase);
+        result = result.Replace("{title}", Slugify(item.Title), StringComparison.OrdinalIgnoreCase);
         result = result.Replace("{year}", item.PublishAt.Year.ToString("D4"), StringComparison.OrdinalIgnoreCase);
         result = result.Replace("{month}", item.PublishAt.Month.ToString("D2"), StringComparison.OrdinalIgnoreCase);
         result = result.Replace("{day}", item.PublishAt.Day.ToString("D2"), StringComparison.OrdinalIgnoreCase);

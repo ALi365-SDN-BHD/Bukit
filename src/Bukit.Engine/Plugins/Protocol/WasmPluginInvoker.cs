@@ -194,18 +194,26 @@ internal sealed class WasmPluginInvoker : IProtocolPluginInvoker
         }
 
         using var document = JsonDocument.Parse(requestJson);
-        if (!document.RootElement.TryGetProperty("afterBuild", out var afterBuild))
+        if (!document.RootElement.TryGetProperty("hook", out var hookNode))
         {
             return null;
         }
 
-        if (!afterBuild.TryGetProperty("outputDir", out var outputDirNode))
+        var hook = hookNode.GetString();
+
+        if (string.Equals(hook, "after-build", StringComparison.OrdinalIgnoreCase))
         {
+            if (document.RootElement.TryGetProperty("afterBuild", out var afterBuild) &&
+                afterBuild.TryGetProperty("outputDir", out var outputDirNode))
+            {
+                var outputDir = outputDirNode.GetString();
+                return string.IsNullOrWhiteSpace(outputDir) ? null : Path.GetFullPath(outputDir);
+            }
+
             return null;
         }
 
-        var outputDir = outputDirNode.GetString();
-        return string.IsNullOrWhiteSpace(outputDir) ? null : Path.GetFullPath(outputDir);
+        return null;
     }
 
     private static void ApplyMemoryLimit(ExternalPluginConfig plugin, Store store)

@@ -271,25 +271,6 @@ internal static class IncrementalBuildEngine
             return;
         }
 
-        if (value is IEnumerable<string> sseq)
-        {
-            var first = true;
-            Span<byte> comma = stackalloc byte[1];
-            comma[0] = (byte)',';
-            foreach (var v in sseq)
-            {
-                if (!first)
-                {
-                    hasher.AppendData(comma);
-                }
-
-                AppendUtf8(hasher, v);
-                first = false;
-            }
-
-            return;
-        }
-
         AppendUtf8(hasher, value.ToString() ?? string.Empty);
     }
 }

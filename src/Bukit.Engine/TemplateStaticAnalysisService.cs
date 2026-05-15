@@ -19,6 +19,12 @@ internal static partial class TemplateStaticAnalysisService
     [GeneratedRegex(@"\.\s*content\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ContentMemberRegex();
 
+    [GeneratedRegex(@"\{\{\*.*?\*\}\}", RegexOptions.Singleline)]
+    private static partial Regex ScribanCommentRegex();
+
+    private static string StripScribanComments(string text)
+        => ScribanCommentRegex().Replace(text, string.Empty);
+
     private sealed class Analyzer
     {
         private readonly string _layoutsDir;
@@ -52,6 +58,7 @@ internal static partial class TemplateStaticAnalysisService
                 }
 
                 var text = File.ReadAllText(fullPath);
+                text = StripScribanComments(text);
                 if (TryExtractLayoutDirective(text, out var layoutPath, out var bodyText))
                 {
                     var layoutResult = Analyze(layoutPath);

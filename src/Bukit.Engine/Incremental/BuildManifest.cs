@@ -81,31 +81,43 @@ public sealed class BuildManifest
             Directory.CreateDirectory(dir);
         }
 
-        using var stream = File.Create(manifestPath);
-        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
-
-        writer.WriteStartObject();
-        writer.WriteNumber("version", Version);
-        writer.WriteString("templateHash", TemplateHash);
-
-        writer.WriteStartObject("entries");
-        foreach (var kv in Entries.OrderBy(x => x.Key, StringComparer.Ordinal))
+        var tempPath = manifestPath + ".tmp";
+        try
         {
-            writer.WritePropertyName(kv.Key);
-            writer.WriteStartObject();
-            writer.WriteString("outputPath", kv.Value.OutputPath);
-            writer.WriteString("url", kv.Value.Url);
-            writer.WriteString("template", kv.Value.Template);
-            writer.WriteString("metadataHash", kv.Value.MetadataHash);
-            writer.WriteString("contentHash", kv.Value.ContentHash);
-            writer.WriteString("routeHash", kv.Value.RouteHash);
-            writer.WriteString("templateHash", kv.Value.TemplateHash);
-            writer.WriteEndObject();
-        }
+            using (var stream = File.Create(tempPath))
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+            {
+                writer.WriteStartObject();
+                writer.WriteNumber("version", Version);
+                writer.WriteString("templateHash", TemplateHash);
 
-        writer.WriteEndObject();
-        writer.WriteEndObject();
-        writer.Flush();
+                writer.WriteStartObject("entries");
+                foreach (var kv in Entries.OrderBy(x => x.Key, StringComparer.Ordinal))
+                {
+                    writer.WritePropertyName(kv.Key);
+                    writer.WriteStartObject();
+                    writer.WriteString("outputPath", kv.Value.OutputPath);
+                    writer.WriteString("url", kv.Value.Url);
+                    writer.WriteString("template", kv.Value.Template);
+                    writer.WriteString("metadataHash", kv.Value.MetadataHash);
+                    writer.WriteString("contentHash", kv.Value.ContentHash);
+                    writer.WriteString("routeHash", kv.Value.RouteHash);
+                    writer.WriteString("templateHash", kv.Value.TemplateHash);
+                    writer.WriteEndObject();
+                }
+
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+                writer.Flush();
+            }
+
+            File.Move(tempPath, manifestPath, overwrite: true);
+        }
+        catch
+        {
+            try { File.Delete(tempPath); } catch { }
+            throw;
+        }
     }
 
     private static string? GetString(JsonElement obj, string name)

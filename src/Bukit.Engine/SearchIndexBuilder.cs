@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using Bukit.Content;
@@ -172,18 +173,36 @@ internal static class SearchIndexBuilder
 
         var sb = new StringBuilder(html.Length);
         var inside = false;
+        var tagName = new StringBuilder();
+        var inTagName = false;
         for (var i = 0; i < html.Length; i++)
         {
             var c = html[i];
             if (c == '<')
             {
                 inside = true;
+                tagName.Clear();
+                inTagName = true;
                 continue;
             }
 
             if (c == '>')
             {
                 inside = false;
+                inTagName = false;
+                var tag = tagName.ToString();
+                if (tag.StartsWith("script", StringComparison.OrdinalIgnoreCase) ||
+                    tag.StartsWith("style", StringComparison.OrdinalIgnoreCase))
+                {
+                    var closeTag = "</" + tag;
+                    var closeIndex = html.IndexOf(closeTag, i, StringComparison.OrdinalIgnoreCase);
+                    if (closeIndex >= 0)
+                    {
+                        i = closeIndex + closeTag.Length - 1;
+                        continue;
+                    }
+                }
+
                 sb.Append(' ');
                 continue;
             }
@@ -192,8 +211,24 @@ internal static class SearchIndexBuilder
             {
                 sb.Append(c);
             }
+            else if (c == ' ' && inTagName)
+            {
+                inTagName = false;
+            }
+            else if (inTagName && (char.IsLetter(c) || c == '/' || c == '!'))
+            {
+                tagName.Append(c);
+            }
+
+            if (inside && c == '-' && i + 2 < html.Length && html[i + 1] == '-' && html[i + 2] == '>')
+            {
+                inside = false;
+                inTagName = false;
+                sb.Append(' ');
+                i += 2;
+            }
         }
 
-        return sb.ToString().ReplaceLineEndings(" ").Trim();
+        return WebUtility.HtmlDecode(sb.ToString()).ReplaceLineEndings(" ").Trim();
     }
 }
