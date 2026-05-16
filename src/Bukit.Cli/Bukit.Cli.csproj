@@ -53,7 +53,7 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <DefineConstants>$(DefineConstants);AOT</DefineConstants>
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
-    <!-- Scriban vendored source has been made AOT-compatible; no warning whitelist needed. -->
+    <!-- Scriban 7.2.0 NuGet package is AOT-compatible on net8.0+; uses ScriptObject-safe APIs. -->
   </PropertyGroup>
 
   <Target Name="ValidateStripSymbolsTooling"

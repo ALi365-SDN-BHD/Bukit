@@ -7,7 +7,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\tools\scriban\src\Scriban\Scriban.csproj" />
+    <PackageReference Include="Scriban" />
   </ItemGroup>
 
   <PropertyGroup>

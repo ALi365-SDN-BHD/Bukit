@@ -8,7 +8,6 @@
     <Project Path="src/Bukit.Rendering/Bukit.Rendering.csproj" />
     <Project Path="src/Bukit.Routing/Bukit.Routing.csproj" />
     <Project Path="src/Bukit.Shared/Bukit.Shared.csproj" />
-    <Project Path="tools/scriban/src/Scriban/Scriban.csproj" />
     <Project Path="src/plugins/SampleAfterBuildPlugin/SampleAfterBuildPlugin.csproj" />
     <Project Path="src/plugins/PathReportPlugin/PathReportPlugin.csproj" />
     <Project Path="src/Bukit.PluginSourceGenerator/Bukit.PluginSourceGenerator.csproj" />

@@ -43,7 +43,7 @@ public sealed class FileTemplateLoader : ITemplateLoader
         return LoadCached(templatePath);
     }
 
-    public async ValueTask<string> LoadAsync(TemplateContext context, SourceSpan callerSpan, string templatePath)
+    public async ValueTask<string?> LoadAsync(TemplateContext context, SourceSpan callerSpan, string templatePath)
     {
         var fileInfo = new FileInfo(templatePath);
         if (!fileInfo.Exists)

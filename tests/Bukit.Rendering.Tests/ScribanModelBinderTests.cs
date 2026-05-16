@@ -195,7 +195,7 @@ public sealed class ScribanModelBinderTests
         var site = Assert.IsType<ScriptObject>(obj["site"]);
         var analytics = Assert.IsType<ScriptObject>(site["analytics"]);
 
-        Assert.True((bool)analytics["enabled"]);
+        Assert.True((bool)analytics["enabled"]!);
         Assert.Equal("G-XXXXXXXXXX", analytics["google_analytics_id"]);
     }
 
@@ -212,7 +212,7 @@ public sealed class ScribanModelBinderTests
         var site = Assert.IsType<ScriptObject>(obj["site"]);
         var analytics = Assert.IsType<ScriptObject>(site["analytics"]);
 
-        Assert.True((bool)analytics["enabled"]);
+        Assert.True((bool)analytics["enabled"]!);
         Assert.Null(analytics["google_analytics_id"]);
     }
 
@@ -230,7 +230,7 @@ public sealed class ScribanModelBinderTests
         var parms = Assert.IsType<ScriptObject>(site["params"]);
 
         Assert.Equal("#ff0000", parms["theme_color"]);
-        Assert.True((bool)parms["enable_comments"]);
+        Assert.True((bool)parms["enable_comments"]!);
     }
 
     [Fact]
