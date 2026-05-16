@@ -139,7 +139,7 @@ public static class ThemeCommand
         return SetThemeAsync(name, reader, brand: null, primaryColor: null, accentColor: null);
     }
 
-    private static Task<int> SetThemeAsync(
+    internal static Task<int> SetThemeAsync(
         string name,
         ArgReader reader,
         string? brand,

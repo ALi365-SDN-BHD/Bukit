@@ -43,6 +43,7 @@ When the agent sees any of these phrases in any language, it must load this skil
 | 7 | bukit-i18n | Multilingual sites | When creating multilingual sites |
 | 8 | bukit-plugins-debug | Plugin and build debugging | When plugins fail or builds misbehave |
 | 9 | bukit-deploy | GitHub Pages deployment | When deploying site to GitHub Pages |
+| 10 | bukit-clone | Website cloning to Bukit theme | When user wants to clone a website's design |
 
 ## Typical Workflow Routing
 
@@ -94,6 +95,15 @@ When creating a custom theme:
 4. Load bukit-cli-reference → Verify with bukit doctor
 ```
 
+### User says "using bukit, clone this website"
+
+```
+1. Load using-bukit → Identify as clone task
+2. Load bukit-clone → Design token extraction + CLI generation workflow
+3. Load bukit-cli-reference → Verify CLI commands
+4. May need bukit-theme → Theme directory structure reference
+```
+
 ### User says "using bukit, my template is throwing errors"
 
 ```
@@ -123,6 +133,7 @@ bukit doctor                   # Diagnostics
 bukit clean                    # Clean
 bukit plugin list              # List plugins
 bukit theme list               # List themes
+bukit clone --tokens <file> --theme <name>  # Generate theme from design tokens
 ```
 
 ## Subskill Loading Rules

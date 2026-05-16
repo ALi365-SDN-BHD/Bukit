@@ -74,6 +74,9 @@ Cli/
 Commands/
  BuildCommand.cs
  CleanCommand.cs
+ CloneCommand.cs
+ CloneModels.cs
+ CloneThemeGenerator.cs
  DeployCommand.cs
  DoctorCommand.cs
  HelpPrinter.cs
@@ -284,6 +287,7 @@ Program.cs
  WindowsBase.dll
 <NUGET>/
  scriban/7.2.0/lib/net8.0/Scriban.dll
+ wasmtime/34.0.2/lib/net9.0/Wasmtime.Dotnet.dll
  yamldotnet/16.3.0/lib/net8.0/YamlDotNet.dll
 
 [analyzerReferences]
@@ -302,9 +306,6 @@ Program.cs
  Microsoft.CodeAnalysis.CodeStyle.Fixes.dll
  Microsoft.CodeAnalysis.CSharp.CodeStyle.dll
  Microsoft.CodeAnalysis.CSharp.CodeStyle.Fixes.dll
-<NUGET>/microsoft.net.illink.tasks/10.0.0/analyzers/dotnet/cs/
- ILLink.CodeFixProvider.dll
- ILLink.RoslynAnalyzer.dll
 
 [analyzerConfigFiles]
 ../../.editorconfig

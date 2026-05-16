@@ -44,6 +44,7 @@ try
             return spec.Name switch
             {
                 "build" => await BuildCommand.RunAsync(parsed.BoundCommand),
+                "clone" => await CloneCommand.RunAsync(parsed.BoundCommand),
                 "deploy" => await DeployCommand.RunAsync(parsed.BoundCommand),
                 "preview" => await PreviewCommand.RunAsync(parsed.BoundCommand),
                 _ => 2
@@ -62,6 +63,7 @@ try
         "doctor" => await DoctorCommand.RunAsync(reader),
         "plugin" => await PluginCommand.RunAsync(reader),
         "seo" => await SeoCommand.RunAsync(reader),
+        "clone" => await CloneCommand.RunAsync(reader),
         "theme" => await ThemeCommand.RunAsync(reader),
         "intent" => await IntentCommand.RunAsync(reader),
         "webhook" => await WebhookCommand.RunAsync(reader),

@@ -54,6 +54,21 @@ public static class BukitCliSpecs
                     })
             });
 
+        var clone = new CliCommandSpec(
+            Name: "clone",
+            Description: "从设计令牌生成 Bukit 主题",
+            Options: new[]
+            {
+                new CliOptionSpec("--tokens", "设计令牌 JSON 文件", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--theme", "目标主题名", CliOptionType.String, ValueName: "name"),
+                new CliOptionSpec("--layout", "页面布局 JSON 文件", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--brand", "品牌名 (用于导航栏和页脚)"),
+                new CliOptionSpec("--use", "创建后切换到该主题", CliOptionType.Flag),
+                new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名")
+            });
+
         var theme = new CliCommandSpec(
             Name: "theme",
             Description: "主题相关命令",
@@ -141,6 +156,6 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--skip-build", "跳过构建步骤", CliOptionType.Flag)
             });
 
-        return new CliCommandRegistry(new[] { build, deploy, preview, plugin, theme, seo });
+        return new CliCommandRegistry(new[] { build, clone, deploy, preview, plugin, theme, seo });
     }
 }

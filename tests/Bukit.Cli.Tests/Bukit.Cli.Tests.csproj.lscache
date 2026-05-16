@@ -66,6 +66,7 @@ CliParserExtendedTests.cs
 CliParserTests.cs
 CliProgramFlowTests.cs
 CliRenderingTests.cs
+CloneCommandTests.cs
 ConfigPathResolverTests.cs
 ConfigValidatorExtendedTests.cs
 ConsoleCollection.cs
