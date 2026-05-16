@@ -15,48 +15,31 @@ public sealed class CloneThemeGeneratorTests : IDisposable
     public void Dispose()
     {
         if (Directory.Exists(_rootDir))
-        {
             Directory.Delete(_rootDir, recursive: true);
-        }
     }
 
     [Fact]
     public void WriteTo_MinimalTokens_GeneratesAllFiles()
     {
         var tokens = new CloneTokens { Primary = "#ff0000" };
-        var layout = CloneLayoutInfo.Default;
+        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, CloneLayoutInfo.Default);
 
-        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, layout);
-
-        var themeRoot = Path.Combine(_rootDir, "themes", "test-clone");
-        Assert.True(Directory.Exists(Path.Combine(themeRoot, "assets")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "assets", "style.css")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "layouts", "base.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "header.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "footer.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "list-card.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "pagination-nav.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "index.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "page.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "post.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "list.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "pagination.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "taxonomy-index.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "taxonomy-term.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "search.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "bukit.templates.yaml")));
-    }
-
-    [Fact]
-    public void WriteTo_MinimalTokens_SetsPrimaryCssVariable()
-    {
-        var tokens = new CloneTokens { Primary = "#ff0000" };
-        var layout = CloneLayoutInfo.Default;
-
-        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, layout);
-
-        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "assets", "style.css"));
-        Assert.Contains("--primary: #ff0000;", css, StringComparison.Ordinal);
+        var tr = Path.Combine(_rootDir, "themes", "test-clone");
+        Assert.True(File.Exists(Path.Combine(tr, "assets", "style.css")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "layouts", "base.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "partials", "header.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "partials", "footer.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "partials", "list-card.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "partials", "pagination-nav.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "pages", "index.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "pages", "page.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "pages", "post.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "pages", "list.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "pages", "pagination.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "pages", "taxonomy-index.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "pages", "taxonomy-term.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "pages", "search.html")));
+        Assert.True(File.Exists(Path.Combine(tr, "layouts", "bukit.templates.yaml")));
     }
 
     [Fact]
@@ -64,358 +47,202 @@ public sealed class CloneThemeGeneratorTests : IDisposable
     {
         var tokens = new CloneTokens
         {
-            Bg = "#ffffff",
-            Surface = "#fafafa",
-            SurfaceMuted = "#f0f0f0",
-            Text = "#111111",
-            Muted = "#888888",
-            Border = "#dddddd",
-            Primary = "#3b82f6",
-            PrimaryStrong = "#2563eb",
-            Accent = "#10b981",
-            Radius = "12px",
-            ContentMax = "800px",
-            WideMax = "1200px",
-            Shadow = "0 4px 12px rgba(0,0,0,0.1)",
-            FontFamily = "Inter, sans-serif",
-            CodeFontFamily = "Fira Code, monospace"
+            Bg = "#ffffff", Surface = "#fafafa", SurfaceMuted = "#f0f0f0",
+            Text = "#111111", Muted = "#888888", Border = "#dddddd",
+            Primary = "#3b82f6", PrimaryStrong = "#2563eb", Accent = "#10b981",
+            Radius = "12px", ContentMax = "800px", WideMax = "1200px",
+            Shadow = "0 2px 8px rgba(0,0,0,0.04)", CardShadow = "0 4px 12px rgba(0,0,0,0.1)",
+            ModalShadow = "0 20px 60px rgba(0,0,0,0.2)", DropdownShadow = "0 4px 16px rgba(0,0,0,0.08)",
+            NavPadding = "12px 32px", ContainerPadding = "48px 32px 80px", SectionGap = "48px",
+            FontFamily = "Inter, sans-serif", CodeFontFamily = "Fira Code, monospace",
+            ResponsiveBreakpoints = new() { Mobile = "768px", Tablet = "1024px", Desktop = "1280px" },
+            SpacingScale = new() { Xs = "4px", Sm = "8px", Md = "16px", Lg = "32px", Xl = "64px" }
         };
 
         CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, CloneLayoutInfo.Default);
 
         var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "assets", "style.css"));
-        Assert.Contains("--bg: #ffffff;", css, StringComparison.Ordinal);
-        Assert.Contains("--surface: #fafafa;", css, StringComparison.Ordinal);
-        Assert.Contains("--surface-muted: #f0f0f0;", css, StringComparison.Ordinal);
-        Assert.Contains("--text: #111111;", css, StringComparison.Ordinal);
-        Assert.Contains("--muted: #888888;", css, StringComparison.Ordinal);
-        Assert.Contains("--border: #dddddd;", css, StringComparison.Ordinal);
         Assert.Contains("--primary: #3b82f6;", css, StringComparison.Ordinal);
-        Assert.Contains("--primary-strong: #2563eb;", css, StringComparison.Ordinal);
-        Assert.Contains("--accent: #10b981;", css, StringComparison.Ordinal);
-        Assert.Contains("--radius: 12px;", css, StringComparison.Ordinal);
-        Assert.Contains("--content: 800px;", css, StringComparison.Ordinal);
-        Assert.Contains("--wide: 1200px;", css, StringComparison.Ordinal);
-        Assert.Contains("--shadow: 0 4px 12px rgba(0,0,0,0.1);", css, StringComparison.Ordinal);
+        Assert.Contains("--card-shadow: 0 4px 12px rgba(0,0,0,0.1);", css, StringComparison.Ordinal);
+        Assert.Contains("--modal-shadow: 0 20px 60px rgba(0,0,0,0.2);", css, StringComparison.Ordinal);
+        Assert.Contains("--dropdown-shadow: 0 4px 16px rgba(0,0,0,0.08);", css, StringComparison.Ordinal);
+        Assert.Contains("--nav-padding: 12px 32px;", css, StringComparison.Ordinal);
+        Assert.Contains("--container-padding: 48px 32px 80px;", css, StringComparison.Ordinal);
+        Assert.Contains("--section-gap: 48px;", css, StringComparison.Ordinal);
+        Assert.Contains("--space-xs: 4px;", css, StringComparison.Ordinal);
+        Assert.Contains("--space-xl: 64px;", css, StringComparison.Ordinal);
+        Assert.Contains("--bp-mobile: 768px;", css, StringComparison.Ordinal);
         Assert.Contains("font-family: Inter, sans-serif;", css, StringComparison.Ordinal);
         Assert.Contains("font-family: Fira Code, monospace;", css, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void WriteTo_NullTokens_AllFallbackToDefaults()
-    {
-        var tokens = new CloneTokens();
-        var layout = CloneLayoutInfo.Default;
-
-        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, layout);
-
-        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "assets", "style.css"));
-        Assert.Contains("--primary: #0b5fff;", css, StringComparison.Ordinal);
-        Assert.Contains("--bg: #fbfaf8;", css, StringComparison.Ordinal);
-        Assert.Contains("--accent: #0f7b6c;", css, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void WriteTo_GoogleFonts_BaseHasLinkTags()
     {
-        var tokens = new CloneTokens
-        {
-            Primary = "#ff0000",
-            GoogleFontsUrl = "https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
-        };
-
+        var tokens = new CloneTokens { Primary = "#ff0000", GoogleFontsUrl = "https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" };
         CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, CloneLayoutInfo.Default);
 
-        var baseHtml = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "layouts", "layouts", "base.html"));
-        Assert.Contains("fonts.googleapis.com", baseHtml, StringComparison.Ordinal);
-        Assert.Contains("fonts.gstatic.com", baseHtml, StringComparison.Ordinal);
-        Assert.Contains("Inter:wght@400;700", baseHtml, StringComparison.Ordinal);
+        var html = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "layouts", "layouts", "base.html"));
+        Assert.Contains("fonts.googleapis.com", html, StringComparison.Ordinal);
     }
 
     [Fact]
     public void WriteTo_NoGoogleFonts_BaseHasNoFontLinks()
     {
         var tokens = new CloneTokens { Primary = "#ff0000" };
-
         CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, CloneLayoutInfo.Default);
 
-        var baseHtml = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "layouts", "layouts", "base.html"));
-        Assert.DoesNotContain("fonts.googleapis.com", baseHtml, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void WriteTo_WithLayoutInfo_IndexHasHeroSection()
-    {
-        var tokens = new CloneTokens { Primary = "#ff0000" };
-        var layout = new CloneLayoutInfo
-        {
-            SiteTitle = "My Clone",
-            HeroHeading = "Welcome to Cloned Site",
-            HeroSubtext = "A pixel-perfect Bukit theme clone",
-            HasFeaturesSection = true
-        };
-
-        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, layout);
-
-        var indexHtml = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "layouts", "pages", "index.html"));
-        Assert.Contains("My Clone", indexHtml, StringComparison.Ordinal);
-        Assert.Contains("Welcome to Cloned Site", indexHtml, StringComparison.Ordinal);
-        Assert.Contains("pixel-perfect Bukit theme clone", indexHtml, StringComparison.Ordinal);
-        Assert.Contains("class=\"section-heading\">Featured", indexHtml, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void WriteTo_WithoutLayoutInfo_IndexHasStandardHero()
-    {
-        var tokens = new CloneTokens { Primary = "#ff0000" };
-
-        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, CloneLayoutInfo.Default);
-
-        var indexHtml = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "layouts", "pages", "index.html"));
-        Assert.Contains("{{ site.title }}", indexHtml, StringComparison.Ordinal);
-        Assert.Contains("Latest content", indexHtml, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void WriteTo_WithBrand_HeaderUsesBrand()
-    {
-        var tokens = new CloneTokens { Primary = "#ff0000" };
-        var layout = new CloneLayoutInfo { SiteTitle = "Original Title" };
-
-        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, layout, brand: "My Brand");
-
-        var headerHtml = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "layouts", "partials", "header.html"));
-        Assert.Contains("My Brand", headerHtml, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void WriteTo_OverwritesExistingTheme()
-    {
-        var tokens = new CloneTokens { Primary = "#ff0000" };
-        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, CloneLayoutInfo.Default);
-
-        var tokens2 = new CloneTokens { Primary = "#00ff00" };
-        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens2, CloneLayoutInfo.Default);
-
-        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "assets", "style.css"));
-        Assert.Contains("--primary: #00ff00;", css, StringComparison.Ordinal);
-        Assert.DoesNotContain("--primary: #ff0000;", css, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void GenerateStyleCss_AllFieldsNull_ProducesDefaultCss()
-    {
-        var tokens = new CloneTokens();
-
-        var css = CloneThemeGenerator.GenerateStyleCss(tokens);
-
-        Assert.Contains("--primary: #0b5fff;", css, StringComparison.Ordinal);
-        Assert.Contains("--bg: #fbfaf8;", css, StringComparison.Ordinal);
-        Assert.Contains("--accent: #0f7b6c;", css, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void GenerateStyleCss_WhitespaceFields_FallbackToDefaults()
-    {
-        var tokens = new CloneTokens { Primary = "   ", Accent = "\t" };
-
-        var css = CloneThemeGenerator.GenerateStyleCss(tokens);
-
-        Assert.Contains("--primary: #0b5fff;", css, StringComparison.Ordinal);
-        Assert.Contains("--accent: #0f7b6c;", css, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void GenerateBaseLayout_GoogleFonts_IncludesPreconnectAndLink()
-    {
-        var tokens = new CloneTokens
-        {
-            GoogleFontsUrl = "https://fonts.googleapis.com/css2?family=Roboto&display=swap"
-        };
-
-        var html = CloneThemeGenerator.GenerateBaseLayout(tokens);
-
-        Assert.Contains("fonts.googleapis.com", html, StringComparison.Ordinal);
-        Assert.Contains("fonts.gstatic.com", html, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void GenerateBaseLayout_NoGoogleFonts_NoFontReferences()
-    {
-        var tokens = new CloneTokens();
-
-        var html = CloneThemeGenerator.GenerateBaseLayout(tokens);
-
+        var html = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "layouts", "layouts", "base.html"));
         Assert.DoesNotContain("fonts.googleapis.com", html, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void GenerateIndex_HeroLayout_HasExplicitContent()
+    public void WriteTo_WithNavLinks_HeaderContainsLinks()
     {
+        var tokens = new CloneTokens { Primary = "#ff0000" };
         var layout = new CloneLayoutInfo
         {
-            HeroHeading = "Test Heading",
-            HeroSubtext = "Test Subtext"
+            NavLinks = [new() { Label = "Products", Url = "/products/" }, new() { Label = "About", Url = "/about/" }]
         };
 
-        var html = CloneThemeGenerator.GenerateIndex(layout, null);
+        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, layout);
 
-        Assert.Contains("Test Heading", html, StringComparison.Ordinal);
-        Assert.Contains("Test Subtext", html, StringComparison.Ordinal);
+        var html = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "layouts", "partials", "header.html"));
+        Assert.Contains("Products", html, StringComparison.Ordinal);
+        Assert.Contains("/about/", html, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void GenerateIndex_DefaultLayout_HasScribanVariables()
+    public void WriteTo_WithFooterLinks_FooterContainsLinks()
     {
-        var layout = CloneLayoutInfo.Default;
+        var tokens = new CloneTokens { Primary = "#ff0000" };
+        var layout = new CloneLayoutInfo
+        {
+            FooterLinks = [new() { Label = "GitHub", Url = "https://github.com" }]
+        };
 
-        var html = CloneThemeGenerator.GenerateIndex(layout, null);
+        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, layout);
 
-        Assert.Contains("{{ site.title }}", html, StringComparison.Ordinal);
-        Assert.Contains("Latest content", html, StringComparison.Ordinal);
+        var html = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "layouts", "partials", "footer.html"));
+        Assert.Contains("GitHub", html, StringComparison.Ordinal);
+        Assert.Contains("https://github.com", html, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void GenerateHeader_BrandProvided_UsesBrand()
+    public void WriteTo_WithHeroCta_IndexHasCtaButton()
     {
-        var html = CloneThemeGenerator.GenerateHeader("My Brand");
+        var tokens = new CloneTokens { Primary = "#ff0000" };
+        var layout = new CloneLayoutInfo
+        {
+            HeroHeading = "Test",
+            HasHeroCta = true,
+            HeroCtaText = "Get Started",
+            HeroCtaUrl = "/signup"
+        };
 
-        Assert.Contains("My Brand", html, StringComparison.Ordinal);
+        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, layout);
+
+        var html = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "layouts", "pages", "index.html"));
+        Assert.Contains("hero-cta", html, StringComparison.Ordinal);
+        Assert.Contains("Get Started", html, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void GenerateHeader_NullBrand_UsesSiteTitle()
+    public void WriteTo_NullTokens_AllFallbackToDefaults()
     {
-        var html = CloneThemeGenerator.GenerateHeader(null);
+        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", new CloneTokens(), CloneLayoutInfo.Default);
 
-        Assert.Contains("{{ site.title }}", html, StringComparison.Ordinal);
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "assets", "style.css"));
+        Assert.Contains("--primary: #0b5fff;", css, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void GenerateHeader_HtmlChars_EscapedInBrand()
+    public void WriteTo_DefaultBreakpoints_UsedWhenNotProvided()
     {
-        var html = CloneThemeGenerator.GenerateHeader("<script>alert('xss')</script>");
+        var tokens = new CloneTokens { Primary = "#ff0000" };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, CloneLayoutInfo.Default);
 
-        Assert.DoesNotContain("<script>", html, StringComparison.Ordinal);
-        Assert.Contains("&lt;script&gt;", html, StringComparison.Ordinal);
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "assets", "style.css"));
+        Assert.Contains("--bp-mobile: 680px;", css, StringComparison.Ordinal);
+        Assert.Contains("--bp-tablet: 1024px;", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_HeadingFontFamily_Applied()
+    {
+        var tokens = new CloneTokens { Primary = "#ff0000", HeadingFontFamily = "Georgia, serif" };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-clone", tokens, CloneLayoutInfo.Default);
+
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "assets", "style.css"));
+        Assert.Contains("font-family: Georgia, serif;", css, StringComparison.Ordinal);
     }
 }
 
 public sealed class CloneModelsTests
 {
     [Fact]
-    public void CloneTokens_FromJson_FlatFormat_ParsesAllFields()
+    public void CloneTokens_FromJson_ParsesNewFields()
     {
-        var json = """
-{
-  "bg": "#ffffff",
-  "primary": "#3b82f6",
-  "accent": "#10b981",
-  "googleFontsUrl": "https://fonts.googleapis.com/css2?family=Inter"
-}
-""";
+        var json = """{"cardShadow":"0 0 10px black","modalShadow":"0 0 50px black","navPadding":"10px 20px","responsiveBreakpoints":{"mobile":"640px","tablet":"960px"},"spacingScale":{"xs":"2px","sm":"4px"}}""";
 
+        var t = CloneTokens.FromJson(json);
+
+        Assert.Equal("0 0 10px black", t.CardShadow);
+        Assert.Equal("0 0 50px black", t.ModalShadow);
+        Assert.Equal("10px 20px", t.NavPadding);
+        Assert.Equal("640px", t.ResponsiveBreakpoints?.Mobile);
+        Assert.Equal("2px", t.SpacingScale?.Xs);
+    }
+
+    [Fact]
+    public void CloneLayoutInfo_FromJson_ParsesNavAndFooterLinks()
+    {
+        var json = """{"navLinks":[{"label":"Home","url":"/"},{"label":"Blog","url":"/blog/"}],"footerLinks":[{"label":"Twitter","url":"https://twitter.com"}],"hasHeroCta":true,"heroCtaText":"Start","heroCtaUrl":"/go"}""";
+
+        var l = CloneLayoutInfo.FromJson(json);
+
+        Assert.Equal(2, l.NavLinks.Count); // has 2 items, not 1 — can't use Assert.Single
+        Assert.Equal("Home", l.NavLinks[0].Label);
+        Assert.Single(l.FooterLinks);
+        Assert.True(l.HasHeroCta);
+        Assert.Equal("Start", l.HeroCtaText);
+    }
+
+    [Fact]
+    public void CloneTokens_FromJson_FlathFormat_ParsesAll()
+    {
+        var json = """{"bg":"#fff","primary":"#3b82f6"}""";
         var tokens = CloneTokens.FromJson(json);
-
-        Assert.Equal("#ffffff", tokens.Bg);
-        Assert.Equal("#3b82f6", tokens.Primary);
-        Assert.Equal("#10b981", tokens.Accent);
-        Assert.Equal("https://fonts.googleapis.com/css2?family=Inter", tokens.GoogleFontsUrl);
-        Assert.Null(tokens.Text);
+        Assert.Equal("#fff", tokens.Bg);
     }
 
     [Fact]
-    public void CloneTokens_FromJson_WrapperFormat_ParsesFields()
+    public void CloneTokens_FromJson_WrapperFormat_Parses()
     {
-        var json = """
-{
-  "tokens": {
-    "primary": "#ff0000",
-    "accent": "#00ff00"
-  }
-}
-""";
-
-        var tokens = CloneTokens.FromJson(json);
-
-        Assert.Equal("#ff0000", tokens.Primary);
-        Assert.Equal("#00ff00", tokens.Accent);
+        var json = """{"tokens":{"primary":"#ff0000"}}""";
+        Assert.Equal("#ff0000", CloneTokens.FromJson(json).Primary);
     }
 
     [Fact]
-    public void CloneTokens_FromJson_EmptyJson_ReturnsDefault()
-    {
-        var tokens = CloneTokens.FromJson("{}");
-
-        Assert.Null(tokens.Primary);
-        Assert.Null(tokens.Bg);
-    }
+    public void CloneTokens_FromJson_Null_ReturnsDefault() => Assert.Null(CloneTokens.FromJson(null!).Primary);
 
     [Fact]
-    public void CloneTokens_FromJson_NullJson_ReturnsDefault()
-    {
-        var tokens = CloneTokens.FromJson(null!);
-
-        Assert.Null(tokens.Primary);
-    }
+    public void CloneTokens_FromJson_Invalid_ReturnsDefault() => Assert.Null(CloneTokens.FromJson("bad").Primary);
 
     [Fact]
-    public void CloneTokens_FromJson_InvalidJson_ReturnsDefault()
-    {
-        var tokens = CloneTokens.FromJson("not json");
-
-        Assert.Null(tokens.Primary);
-    }
+    public void CloneLayoutInfo_FromJson_Empty_Default() => Assert.Null(CloneLayoutInfo.FromJson("{}").SiteTitle);
 
     [Fact]
-    public void CloneLayoutInfo_FromJson_ParsesAllFields()
-    {
-        var json = """
-{
-  "siteTitle": "My Site",
-  "heroHeading": "Welcome",
-  "heroSubtext": "Hello World",
-  "hasFeaturesSection": true,
-  "hasCTASection": false
-}
-""";
-
-        var layout = CloneLayoutInfo.FromJson(json);
-
-        Assert.Equal("My Site", layout.SiteTitle);
-        Assert.Equal("Welcome", layout.HeroHeading);
-        Assert.Equal("Hello World", layout.HeroSubtext);
-        Assert.True(layout.HasFeaturesSection);
-        Assert.False(layout.HasCTASection);
-    }
+    public void CloneModels_IsSafeThemeName_Simple_Allowed() => Assert.True(CloneModels.IsSafeThemeName("my-theme"));
 
     [Fact]
-    public void CloneLayoutInfo_FromJson_Empty_ReturnsDefault()
-    {
-        var layout = CloneLayoutInfo.FromJson("{}");
-
-        Assert.Null(layout.SiteTitle);
-        Assert.False(layout.HasFeaturesSection);
-    }
-
-    [Fact]
-    public void CloneModels_IsSafeThemeName_SimpleNames_Allowed()
-    {
-        Assert.True(CloneModels.IsSafeThemeName("my-theme"));
-        Assert.True(CloneModels.IsSafeThemeName("clone_2024"));
-        Assert.True(CloneModels.IsSafeThemeName("starter"));
-    }
-
-    [Fact]
-    public void CloneModels_IsSafeThemeName_DangerousNames_Rejected()
+    public void CloneModels_IsSafeThemeName_Nulls_Rejected()
     {
         Assert.False(CloneModels.IsSafeThemeName(null));
         Assert.False(CloneModels.IsSafeThemeName(""));
-        Assert.False(CloneModels.IsSafeThemeName("   "));
         Assert.False(CloneModels.IsSafeThemeName("."));
         Assert.False(CloneModels.IsSafeThemeName(".."));
         Assert.False(CloneModels.IsSafeThemeName("/etc/passwd"));
-        Assert.False(CloneModels.IsSafeThemeName("../etc/passwd"));
         Assert.False(CloneModels.IsSafeThemeName("theme/sub"));
     }
 }

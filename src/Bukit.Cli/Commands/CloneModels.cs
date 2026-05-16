@@ -20,6 +20,17 @@ public sealed record CloneTokens
     public string? WideMax { get; init; }
     public string? Shadow { get; init; }
 
+    public string? CardShadow { get; init; }
+    public string? ModalShadow { get; init; }
+    public string? DropdownShadow { get; init; }
+
+    public string? NavPadding { get; init; }
+    public string? ContainerPadding { get; init; }
+    public string? SectionGap { get; init; }
+    public SpacingScale? SpacingScale { get; init; }
+
+    public ResponsiveBreakpoints? ResponsiveBreakpoints { get; init; }
+
     public string? FontFamily { get; init; }
     public string? HeadingFontFamily { get; init; }
     public string? CodeFontFamily { get; init; }
@@ -56,6 +67,22 @@ public sealed record CloneTokens
     }
 }
 
+public sealed record SpacingScale
+{
+    public string? Xs { get; init; }
+    public string? Sm { get; init; }
+    public string? Md { get; init; }
+    public string? Lg { get; init; }
+    public string? Xl { get; init; }
+}
+
+public sealed record ResponsiveBreakpoints
+{
+    public string? Mobile { get; init; }
+    public string? Tablet { get; init; }
+    public string? Desktop { get; init; }
+}
+
 public sealed record CloneLayoutInfo
 {
     public string? SiteTitle { get; init; }
@@ -63,6 +90,11 @@ public sealed record CloneLayoutInfo
     public string? HeroSubtext { get; init; }
     public bool HasFeaturesSection { get; init; }
     public bool HasCTASection { get; init; }
+    public bool HasHeroCta { get; init; }
+    public string? HeroCtaText { get; init; }
+    public string? HeroCtaUrl { get; init; }
+    public List<NavLinkInfo> NavLinks { get; init; } = [];
+    public List<FooterLinkInfo> FooterLinks { get; init; } = [];
     public List<SectionInfo> ExtraSections { get; init; } = [];
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -82,6 +114,18 @@ public sealed record CloneLayoutInfo
 
         return JsonSerializer.Deserialize<CloneLayoutInfo>(json, JsonOptions) ?? Default;
     }
+}
+
+public sealed record NavLinkInfo
+{
+    public string? Label { get; init; }
+    public string? Url { get; init; }
+}
+
+public sealed record FooterLinkInfo
+{
+    public string? Label { get; init; }
+    public string? Url { get; init; }
 }
 
 public sealed record SectionInfo
