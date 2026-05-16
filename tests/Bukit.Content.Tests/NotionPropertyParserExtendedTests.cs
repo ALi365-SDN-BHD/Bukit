@@ -393,4 +393,195 @@ public sealed class NotionPropertyParserExtendedTests
         Assert.Contains("title", fields.Keys);
         Assert.Contains("tags", fields.Keys);
     }
+
+    [Fact]
+    public void ExtractFields_WithNonObjectOrEmptyKeys_ReturnsOnlyParseableFields()
+    {
+        using var nonObject = JsonDocument.Parse("[]");
+        using var withEmptyKeys = JsonDocument.Parse("""
+        {
+          "!!!": { "type": "rich_text", "rich_text": [{ "plain_text": "hidden" }] },
+          "Unsupported": { "type": "unsupported" },
+          "Visible": { "type": "rich_text", "rich_text": [{ "plain_text": "shown" }] }
+        }
+        """);
+
+        Assert.Empty(NotionPropertyParser.ExtractFields(nonObject.RootElement));
+        var fields = NotionPropertyParser.ExtractFields(withEmptyKeys.RootElement, includeReservedFields: true);
+
+        Assert.Single(fields);
+        Assert.Equal("shown", fields["visible"].Value);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("""{"url":"https://example.test"}""")]
+    [InlineData("""{"type":123}""")]
+    [InlineData("""{"type":"unknown"}""")]
+    public void TryParseNotionPropertyToField_WithInvalidEnvelope_ReturnsFalse(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out var notionType);
+
+        Assert.False(ok);
+        if (json.Contains("\"type\":\"unknown\"", StringComparison.Ordinal))
+        {
+            Assert.Equal("unknown", notionType);
+        }
+    }
+
+    [Fact]
+    public void TryParseRichTextArray_WhenMissingBlankOrMalformed_ReturnsFalse()
+    {
+        foreach (var json in new[]
+        {
+            """{"type":"title"}""",
+            """{"type":"title","title":{}}""",
+            """{"type":"title","title":[123,{"plain_text":"   "},{"text":{"content":"ignored"}}]}"""
+        })
+        {
+            using var doc = JsonDocument.Parse(json);
+            var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+            Assert.False(ok);
+        }
+    }
+
+    [Theory]
+    [InlineData("""{"type":"url","url":"https://example.test"}""", "url", "https://example.test")]
+    [InlineData("""{"type":"email","email":"ali@example.test"}""", "email", "ali@example.test")]
+    [InlineData("""{"type":"phone_number","phone_number":"+601234"}""", "phone_number", "+601234")]
+    [InlineData("""{"type":"unique_id","unique_id":{"number":99}}""", "unique_id", "99")]
+    public void TryParseTextLike_WithSupportedTextValues_ReturnsTextField(string json, string expectedType, string expectedValue)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var notionType);
+
+        Assert.True(ok);
+        Assert.Equal(expectedType, notionType);
+        Assert.Equal("text", field.Type);
+        Assert.Equal(expectedValue, field.Value);
+    }
+
+    [Theory]
+    [InlineData("""{"type":"url","url":123}""")]
+    [InlineData("""{"type":"select","select":null}""")]
+    [InlineData("""{"type":"status","status":{"name":"   "}}""")]
+    [InlineData("""{"type":"unique_id","unique_id":null}""")]
+    [InlineData("""{"type":"unique_id","unique_id":{}}""")]
+    [InlineData("""{"type":"verification","verification":null}""")]
+    [InlineData("""{"type":"verification","verification":{"state":"   "}}""")]
+    public void TryParseTextLike_WithMissingOrBlankValues_ReturnsFalse(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+
+        Assert.False(ok);
+    }
+
+    [Theory]
+    [InlineData("""{"type":"number"}""")]
+    [InlineData("""{"type":"checkbox","checkbox":"true"}""")]
+    [InlineData("""{"type":"date","date":null}""")]
+    [InlineData("""{"type":"date","date":{"start":"   "}}""")]
+    [InlineData("""{"type":"created_time","created_time":"not-a-date"}""")]
+    [InlineData("""{"type":"last_edited_time","last_edited_time":"not-a-date"}""")]
+    public void TryParseScalarValues_WithInvalidPayloads_ReturnsFalse(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+
+        Assert.False(ok);
+    }
+
+    [Theory]
+    [InlineData("""{"type":"created_time","created_time":"2026-05-15T12:00:00Z"}""", "created_time")]
+    [InlineData("""{"type":"last_edited_time","last_edited_time":"2026-05-16T12:00:00Z"}""", "last_edited_time")]
+    public void TryParseDate_WithTimestampProperties_ReturnsDateField(string json, string expectedType)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var notionType);
+
+        Assert.True(ok);
+        Assert.Equal(expectedType, notionType);
+        Assert.Equal("date", field.Type);
+    }
+
+    [Theory]
+    [InlineData("""{"type":"relation","relation":[123,{"id":" rel-1 "},{"id":"   "}]}""", "relation", "rel-1")]
+    [InlineData("""{"type":"people","people":[123,{"name":"   "},{"id":" user-1 "}]}""", "people", "user-1")]
+    public void TryParseList_WithMalformedEntries_KeepsValidEntries(string json, string expectedType, string expectedValue)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var notionType);
+
+        Assert.True(ok);
+        Assert.Equal(expectedType, notionType);
+        var list = Assert.IsAssignableFrom<IEnumerable<object>>(field.Value!);
+        Assert.Equal(new[] { expectedValue }, list.Select(x => x.ToString()).ToArray());
+    }
+
+    [Theory]
+    [InlineData("""{"type":"multi_select","multi_select":{}}""")]
+    [InlineData("""{"type":"multi_select","multi_select":[123,{"name":"   "}]}""")]
+    [InlineData("""{"type":"relation","relation":[{"id":"   "}]}""")]
+    [InlineData("""{"type":"people","people":[123,{}]}""")]
+    public void TryParseList_WithNoUsableEntries_ReturnsFalse(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+
+        Assert.False(ok);
+    }
+
+    [Theory]
+    [InlineData("""{"type":"files"}""")]
+    [InlineData("""{"type":"files","files":{}}""")]
+    [InlineData("""{"type":"files","files":[123,{"type":"external","external":{}},{"type":"file","file":{"url":"   "}}]}""")]
+    public void TryParseFiles_WithNoUsableFile_ReturnsFalse(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+
+        Assert.False(ok);
+    }
+
+    [Theory]
+    [InlineData("""{"type":"formula"}""")]
+    [InlineData("""{"type":"formula","formula":{}}""")]
+    [InlineData("""{"type":"formula","formula":{"type":"string","string":"   "}}""")]
+    [InlineData("""{"type":"formula","formula":{"type":"number","number":null}}""")]
+    [InlineData("""{"type":"formula","formula":{"type":"boolean","boolean":null}}""")]
+    [InlineData("""{"type":"formula","formula":{"type":"date","date":{"start":"not-a-date"}}}""")]
+    public void TryParseFormula_WithInvalidPayloads_ReturnsFalse(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+
+        Assert.False(ok);
+    }
+
+    [Theory]
+    [InlineData("""{"type":"rollup"}""")]
+    [InlineData("""{"type":"rollup","rollup":{}}""")]
+    [InlineData("""{"type":"rollup","rollup":{"type":"number","number":null}}""")]
+    [InlineData("""{"type":"rollup","rollup":{"type":"date","date":{"start":"not-a-date"}}}""")]
+    [InlineData("""{"type":"rollup","rollup":{"type":"array","array":[]}}""")]
+    [InlineData("""{"type":"rollup","rollup":{"type":"unknown"}}""")]
+    public void TryParseRollup_WithInvalidPayloads_ReturnsFalse(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+
+        Assert.False(ok);
+    }
 }

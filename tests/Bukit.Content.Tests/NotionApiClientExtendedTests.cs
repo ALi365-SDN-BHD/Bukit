@@ -11,6 +11,24 @@ namespace Bukit.Content.Tests;
 public sealed class NotionApiClientExtendedTests
 {
     [Fact]
+    public void Constructor_WithDefaultHttpClient_InitializesAndDisposes()
+    {
+        var options = new NotionProviderOptions
+        {
+            DatabaseId = "db",
+            Token = "token",
+            RequestDelayMs = 0
+        };
+
+        using var client = new NotionApiClient(options);
+        var stats = client.GetStats();
+
+        Assert.Equal(0, stats.RequestCount);
+        Assert.Equal(0, stats.ThrottleWaitCount);
+        Assert.Equal(0, stats.ThrottleWaitTotalMs);
+    }
+
+    [Fact]
     public async Task PostAsync_SendsCorrectJsonBody()
     {
         string? capturedBody = null;

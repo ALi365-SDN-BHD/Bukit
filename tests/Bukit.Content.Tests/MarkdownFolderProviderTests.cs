@@ -1,5 +1,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
+using Bukit.Content.Markdown;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Content.Tests;
@@ -80,6 +82,106 @@ public sealed class MarkdownFolderProviderTests
         Assert.True(regex.IsMatch("POSTS/HELLO.MD"));
     }
 #pragma warning restore xUnit2008
+
+    [Fact]
+    public async Task LoadAsync_WhenContentDirMissing_ThrowsContentException()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "bukit-md-missing-" + Guid.NewGuid().ToString("N"));
+        var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(dir));
+
+        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadAsync());
+
+        Assert.Contains("ContentDir not found", ex.Message);
+        Assert.Contains(dir, ex.Message);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithIncludePathsAndGlobs_FiltersMarkdownFiles()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-provider-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "posts"));
+            await File.WriteAllTextAsync(Path.Combine(root, "about.md"), "# About");
+            await File.WriteAllTextAsync(Path.Combine(root, "posts", "first.md"), "# First");
+            await File.WriteAllTextAsync(Path.Combine(root, "posts", "second.md"), "# Second");
+
+            var byPath = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(
+                root,
+                IncludePaths: new[] { "about" }));
+            var pathResult = await byPath.LoadAsync();
+
+            var pathItem = Assert.Single(pathResult.Items);
+            Assert.Equal("about", pathItem.Slug);
+
+            var byGlob = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(
+                root,
+                IncludeGlobs: new[] { "posts/*.md" },
+                MaxItems: 1));
+            var globResult = await byGlob.LoadAsync();
+
+            var globItem = Assert.Single(globResult.Items);
+            Assert.Equal("first", globItem.Slug);
+            Assert.Equal("markdown", globItem.Meta["source"]);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ExtractSummaryFromMarkdown_StripsHtmlDecodesEntitiesAndTruncates()
+    {
+        var summary = MarkdownFolderProvider.ExtractSummaryFromMarkdown("""
+        # Title
+        This is a short &amp; useful paragraph with extra words.
+        """, maxLength: 24);
+
+        Assert.Equal("Title This is a short…", summary);
+    }
+
+    [Fact]
+    public void ExtractSummaryFromMarkdown_WithNonPositiveLength_ReturnsEmpty()
+    {
+        var summary = MarkdownFolderProvider.ExtractSummaryFromMarkdown("# Title\nBody", maxLength: 0);
+
+        Assert.Equal(string.Empty, summary);
+    }
+
+    [Fact]
+    public async Task RenderHtmlFromFileAsync_StripsFrontMatterBeforeRendering()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-render-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            var path = Path.Combine(root, "page.md");
+            await File.WriteAllTextAsync(path, """
+            ---
+            title: Hidden
+            ---
+            # Visible
+            Body text
+            """);
+
+            var html = await MarkdownFolderProvider.RenderHtmlFromFileAsync(path, CancellationToken.None);
+
+            Assert.Contains("<h1>Visible</h1>", html);
+            Assert.Contains("<p>Body text</p>", html);
+            Assert.DoesNotContain("title: Hidden", html);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
 
     [Fact]
     public void TryExtractFrontMatter_ValidYaml_ExtractsCorrectly()

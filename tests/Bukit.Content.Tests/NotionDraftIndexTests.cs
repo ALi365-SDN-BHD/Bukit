@@ -17,5 +17,25 @@ public sealed class NotionDraftIndexTests
         Assert.Same(second, index.GetRequired("PAGE-2"));
     }
 
+    [Fact]
+    public void From_SkipsEmptyOrWhitespacePageId()
+    {
+        var drafts = new[]
+        {
+            new Draft("", "empty"),
+            new Draft("  ", "whitespace"),
+            new Draft("valid-id", "valid"),
+            new Draft(null!, "null")
+        };
+
+        var index = NotionDraftIndex<Draft>.From(drafts, x => x.PageId);
+
+        var result = index.GetRequired("valid-id");
+        Assert.Equal("valid", result.Name);
+
+        Assert.Throws<InvalidOperationException>(() => index.GetRequired(""));
+        Assert.Throws<InvalidOperationException>(() => index.GetRequired("  "));
+    }
+
     private sealed record Draft(string PageId, string Name);
 }

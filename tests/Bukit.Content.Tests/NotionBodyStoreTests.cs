@@ -36,4 +36,30 @@ public sealed class NotionBodyStoreTests
         Assert.Equal("<p>page-1</p>", second.Html);
         Assert.Equal(1, renderCount);
     }
+
+    [Fact]
+    public async Task GetAsync_WithInlineContentHtml_ReturnsInlineBodyWithoutCallingFactory()
+    {
+        var invoked = false;
+        var store = new NotionBodyStore((_, _) =>
+        {
+            invoked = true;
+            return Task.FromResult("<p>should not render</p>");
+        });
+
+        var item = new ContentItem(
+            Id: "page-1",
+            Title: "Page",
+            Slug: "page",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: "<p>inline content</p>",
+            Meta: new Dictionary<string, object>(),
+            Fields: null,
+            BodyKey: "page-1");
+
+        var body = await store.GetAsync(item);
+
+        Assert.Equal("<p>inline content</p>", body.Html);
+        Assert.False(invoked);
+    }
 }

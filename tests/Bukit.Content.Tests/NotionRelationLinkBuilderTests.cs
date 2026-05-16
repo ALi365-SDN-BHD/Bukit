@@ -74,6 +74,61 @@ public sealed class NotionRelationLinkBuilderTests
     }
 
     [Fact]
+    public void BuildIndex_SkipsBlankPageIdsAndKeepsLastDuplicate()
+    {
+        var index = NotionRelationLinkBuilder.BuildIndex(new[]
+        {
+            new RelationTargetInfo("", "Blank", "blank", "page", null),
+            new RelationTargetInfo("id1", "Old", "old", "page", null),
+            new RelationTargetInfo("ID1", "New", "new", "post", "https://example.test/new")
+        });
+
+        var target = Assert.Single(index);
+        Assert.Equal("ID1", target.Value.PageId);
+        Assert.Equal("New", target.Value.Title);
+    }
+
+    [Fact]
+    public void EnrichFields_WithUnusableRelationKeys_ReturnsOriginalFields()
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["not_list"] = new ContentField("text", "id1"),
+            ["empty_ids"] = new ContentField("list", new List<string> { " ", "" })
+        };
+        var index = NotionRelationLinkBuilder.BuildIndex(new[]
+        {
+            new RelationTargetInfo("id1", "Visa", "visa", "page", null)
+        });
+
+        Assert.Same(fields, NotionRelationLinkBuilder.EnrichFields(fields, Array.Empty<string>(), index));
+        Assert.Same(fields, NotionRelationLinkBuilder.EnrichFields(fields, new[] { "", "missing", "not_list", "empty_ids" }, index));
+    }
+
+    [Fact]
+    public void EnrichFields_WhenIndexMissesId_AddsFallbackLinkEntry()
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["payments"] = new ContentField("list", new List<string> { " missing-id " })
+        };
+        var index = NotionRelationLinkBuilder.BuildIndex(new[]
+        {
+            new RelationTargetInfo("other", "Other", "other", "page", null)
+        });
+
+        var enriched = NotionRelationLinkBuilder.EnrichFields(fields, new[] { "payments" }, index);
+
+        var links = Assert.IsType<List<Dictionary<string, object?>>>(enriched["payments_links"].Value);
+        var link = Assert.Single(links);
+        Assert.Equal("missing-id", link["id"]);
+        Assert.Null(link["title"]);
+        Assert.Null(link["url"]);
+        Assert.Null(link["slug"]);
+        Assert.Null(link["type"]);
+    }
+
+    [Fact]
     public void PromoteRelationTaxonomyTerms_UsesTitleThenSlugThenId()
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)

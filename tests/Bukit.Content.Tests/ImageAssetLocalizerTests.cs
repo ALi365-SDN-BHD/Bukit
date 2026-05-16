@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using Bukit.Content.Media;
 using Bukit.Config;
@@ -95,6 +96,40 @@ public sealed class ImageAssetLocalizerTests
         var result = await localizer.LocalizeAsync("/assets/style.png", CancellationToken.None);
 
         Assert.Equal("/assets/style.png", result);
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_WhenDownloadDisabled_ReturnsRemoteUrl()
+    {
+        var cfg = new MediaConfig
+        {
+            DownloadToLocal = false,
+            DownloadDir = Path.GetTempPath(),
+            UrlBase = "/assets/uploads",
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+
+        using var localizer = new ImageAssetLocalizer(cfg);
+        var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+
+        Assert.Equal("https://img.example/a.jpg", result);
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_WhenDownloadConfigMissing_ReturnsDefaultImage()
+    {
+        var cfg = new MediaConfig
+        {
+            DownloadToLocal = true,
+            DownloadDir = "",
+            UrlBase = "",
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+
+        using var localizer = new ImageAssetLocalizer(cfg);
+        var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+
+        Assert.Equal("/assets/images/noneimg-news.jpg", result);
     }
 
     [Fact]
@@ -278,6 +313,38 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
+    public async Task LocalizeAsync_MissingContentType_IsAllowedAndFallsBackToUrlExtension()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+
+            var handler = new NullContentTypeHandler("image-bytes");
+            using var http = new HttpClient(handler);
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+            var result = await localizer.LocalizeAsync("https://img.example/a.webp", CancellationToken.None);
+
+            Assert.EndsWith(".webp", result, StringComparison.Ordinal);
+            Assert.Equal(1, handler.RequestCount);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task LocalizeAsync_OversizedResponse_ReturnsDefaultImage()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
@@ -416,6 +483,9 @@ public sealed class ImageAssetLocalizerTests
         Assert.False(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("8.8.8.8")));
         Assert.False(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("1.1.1.1")));
         Assert.False(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("172.32.0.1")));
+        Assert.True(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("::ffff:192.168.1.10")));
+        Assert.True(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("fe80::1")));
+        Assert.False(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("2001:4860:4860::8888")));
     }
 
     [Fact]
@@ -564,6 +634,186 @@ public sealed class ImageAssetLocalizerTests
         }
     }
 
+    [Fact]
+    public async Task LocalizeAsync_WhenHashNamedFileAlreadyExists_ReusesFileAndWritesIndex()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var normalizedKey = "https://img.example/path/a.jpg";
+            var existingName = BuildHashPrefix(normalizedKey) + ".jpg";
+            File.WriteAllText(Path.Combine(dir, existingName), "existing");
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "should-not-download");
+            using var http = new HttpClient(handler);
+            string result;
+            using (var localizer = new ImageAssetLocalizer(cfg, http))
+            {
+                result = await localizer.LocalizeAsync(normalizedKey, CancellationToken.None);
+            }
+
+            Assert.Equal("/assets/uploads/" + existingName, result);
+            Assert.Equal(0, handler.RequestCount);
+            Assert.Contains(normalizedKey, File.ReadAllText(Path.Combine(dir, ".media-index.json")), StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_EmptyBodyRetriesAndThenSucceeds()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg",
+                MaxRetries = 1,
+                RetryBaseDelayMs = 1
+            };
+
+            var handler = new SequenceHandler(
+                _ => Response(HttpStatusCode.OK, "image/jpeg", ""),
+                _ => Response(HttpStatusCode.OK, "image/jpeg", "image-bytes"));
+            using var http = new HttpClient(handler);
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+
+            Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
+            Assert.Equal(2, handler.RequestCount);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_HandlerThrowsRecordsFailure()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg",
+                MaxRetries = 0
+            };
+
+            using var http = new HttpClient(new ThrowingHandler());
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+
+            Assert.Equal("/assets/images/noneimg-news.jpg", result);
+            var failure = Assert.Single(localizer.Failures);
+            Assert.Equal("https://img.example/a.jpg", failure.SourceUrl);
+            Assert.Contains("HttpRequestException", failure.Reason, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_LegacyIndexRootObject_HitsExistingFile()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "stored.jpg"), "existing");
+            File.WriteAllText(Path.Combine(dir, ".media-index.json"), """{"https://img.example/a.jpg":"stored.jpg","skip":123,"blank":"   "}""");
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "should-not-download");
+            using var http = new HttpClient(handler);
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+
+            Assert.Equal("/assets/uploads/stored.jpg", result);
+            Assert.Equal(0, handler.RequestCount);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_IndexEntryMissingFile_RemovesEntryAndDownloads()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, ".media-index.json"), """{"version":1,"entries":{"https://img.example/a.jpg":"missing.jpg"}}""");
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "downloaded");
+            using var http = new HttpClient(handler);
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+
+            Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
+            Assert.Equal(1, handler.RequestCount);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
     private sealed class UrlRecordingHandler : HttpMessageHandler
     {
         private readonly HttpStatusCode _statusCode;
@@ -590,6 +840,59 @@ public sealed class ImageAssetLocalizerTests
             };
             response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
             return Task.FromResult(response);
+        }
+    }
+
+    private sealed class NullContentTypeHandler : HttpMessageHandler
+    {
+        private readonly string _payload;
+
+        public NullContentTypeHandler(string payload)
+        {
+            _payload = payload;
+        }
+
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            _ = request;
+            _ = cancellationToken;
+            RequestCount++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Encoding.UTF8.GetBytes(_payload))
+            });
+        }
+    }
+
+    private sealed class SequenceHandler : HttpMessageHandler
+    {
+        private readonly Queue<Func<HttpRequestMessage, HttpResponseMessage>> _responses;
+
+        public SequenceHandler(params Func<HttpRequestMessage, HttpResponseMessage>[] responses)
+        {
+            _responses = new Queue<Func<HttpRequestMessage, HttpResponseMessage>>(responses);
+        }
+
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            _ = cancellationToken;
+            RequestCount++;
+            var next = _responses.Count > 0 ? _responses.Dequeue() : _ => Response(HttpStatusCode.InternalServerError, "text/plain", "unexpected");
+            return Task.FromResult(next(request));
+        }
+    }
+
+    private sealed class ThrowingHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            _ = request;
+            _ = cancellationToken;
+            throw new HttpRequestException("network failed");
         }
     }
 
@@ -620,5 +923,21 @@ public sealed class ImageAssetLocalizerTests
             response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
             return Task.FromResult(response);
         }
+    }
+
+    private static HttpResponseMessage Response(HttpStatusCode statusCode, string contentType, string payload)
+    {
+        var response = new HttpResponseMessage(statusCode)
+        {
+            Content = new StringContent(payload, Encoding.UTF8)
+        };
+        response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        return response;
+    }
+
+    private static string BuildHashPrefix(string normalizedKey)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(normalizedKey));
+        return Convert.ToHexString(hash).ToLowerInvariant()[..16];
     }
 }

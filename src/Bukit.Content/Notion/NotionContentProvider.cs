@@ -11,11 +11,18 @@ public sealed class NotionContentProvider : IContentProvider
 {
     private readonly NotionProviderOptions _options;
     private readonly ILogger? _logger;
+    private readonly Func<NotionApiClient> _clientFactory;
 
     public NotionContentProvider(NotionProviderOptions options, ILogger? logger = null)
+        : this(options, logger, () => new NotionApiClient(options))
+    {
+    }
+
+    internal NotionContentProvider(NotionProviderOptions options, ILogger? logger, Func<NotionApiClient> clientFactory)
     {
         _options = options;
         _logger = logger;
+        _clientFactory = clientFactory;
     }
 
     public async Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
@@ -30,13 +37,13 @@ public sealed class NotionContentProvider : IContentProvider
             throw new ContentException("Notion Token is required.");
         }
 
-        using var client = new NotionApiClient(_options);
+        using var client = _clientFactory();
 
         var drafts = new List<PageDraft>();
         var maxItems = _options.MaxItems is > 0 ? _options.MaxItems : null;
         var policyMode = NormalizePolicyMode(_options.FieldPolicyMode);
         var allowed = policyMode == "whitelist" ? BuildAllowedSet(_options.AllowedFields) : null;
-        var (resolvedFilterProperty, resolvedSortProperty, resolvedIncludeSlugProperty) = await ResolveDatabasePropertyNamesAsync(client, _options, cancellationToken);
+        var resolvedProperties = await NotionDatabaseSchemaResolver.ResolveAsync(client, _options, cancellationToken);
         string? startCursor = null;
         var pageHtmlCache = CreatePageHtmlCache(_options);
         var relationTargetCache = NotionRelationTargetCache.Create(_options.CacheMode, _options.CacheDir);
@@ -45,7 +52,12 @@ public sealed class NotionContentProvider : IContentProvider
         {
             while (true)
             {
-                var query = BuildDatabaseQueryJson(_options, startCursor, resolvedFilterProperty, resolvedSortProperty, resolvedIncludeSlugProperty);
+                var query = NotionDatabaseQueryBuilder.Build(
+                    _options,
+                    startCursor,
+                    resolvedProperties.FilterProperty,
+                    resolvedProperties.SortProperty,
+                    resolvedProperties.IncludeSlugProperty);
                 using var doc = await client.PostAsync(NotionApiUrls.DatabaseQuery(_options.DatabaseId), query, cancellationToken);
                 var root = doc.RootElement;
 
@@ -171,7 +183,7 @@ public sealed class NotionContentProvider : IContentProvider
 
             var draft = draftIndex.GetRequired(item.BodyKey ?? item.Id);
 
-            using var bodyClient = new NotionApiClient(_options);
+            using var bodyClient = _clientFactory();
             var renderer = new NotionBlocksRenderer(bodyClient);
             var html = await GetOrRenderPageHtmlAsync(renderer, pageHtmlCache, draft.PageId, draft.LastEditedTime, ct, _logger);
 
@@ -179,7 +191,7 @@ public sealed class NotionContentProvider : IContentProvider
                 IsAutoSummaryEnabled() &&
                 !string.IsNullOrWhiteSpace(html))
             {
-                var extracted = ExtractSummaryFromHtml(html, GetAutoSummaryMaxLength());
+                var extracted = NotionAutoSummary.ExtractFromHtml(html, GetAutoSummaryMaxLength());
                 if (!string.IsNullOrWhiteSpace(extracted))
                 {
                     if (item.Meta is Dictionary<string, object> mutableMeta)
@@ -427,102 +439,6 @@ public sealed class NotionContentProvider : IContentProvider
     private static bool IsAutoSummaryEnabled() => EnvironmentHelper.IsAutoSummaryEnabled();
 
     private static int GetAutoSummaryMaxLength() => EnvironmentHelper.GetAutoSummaryMaxLength();
-
-    private static string ExtractSummaryFromHtml(string html, int maxLength)
-    {
-        if (maxLength <= 0)
-        {
-            return string.Empty;
-        }
-
-        var text = AutoSummaryStripHtmlToText(html);
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return string.Empty;
-        }
-
-        return AutoSummaryTruncateAtWordBoundary(text, maxLength);
-    }
-
-    private static string AutoSummaryStripHtmlToText(string html)
-    {
-        if (string.IsNullOrWhiteSpace(html))
-        {
-            return string.Empty;
-        }
-
-        var sb = new StringBuilder(html.Length);
-        var inTag = false;
-        for (var i = 0; i < html.Length; i++)
-        {
-            var ch = html[i];
-            if (ch == '<')
-            {
-                inTag = true;
-                continue;
-            }
-
-            if (ch == '>')
-            {
-                inTag = false;
-                sb.Append(' ');
-                continue;
-            }
-
-            if (!inTag)
-            {
-                sb.Append(ch);
-            }
-        }
-
-        var decoded = WebUtility.HtmlDecode(sb.ToString());
-        return AutoSummaryCollapseWhitespace(decoded);
-    }
-
-    private static string AutoSummaryCollapseWhitespace(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return string.Empty;
-        }
-
-        var sb = new StringBuilder(text.Length);
-        var lastWasSpace = false;
-        foreach (var ch in text)
-        {
-            if (char.IsWhiteSpace(ch))
-            {
-                if (!lastWasSpace)
-                {
-                    sb.Append(' ');
-                    lastWasSpace = true;
-                }
-                continue;
-            }
-
-            sb.Append(ch);
-            lastWasSpace = false;
-        }
-
-        return sb.ToString().Trim();
-    }
-
-    private static string AutoSummaryTruncateAtWordBoundary(string text, int maxLength)
-    {
-        if (text.Length <= maxLength)
-        {
-            return text;
-        }
-
-        var cut = text.LastIndexOf(' ', maxLength);
-        if (cut < maxLength / 2)
-        {
-            cut = maxLength;
-        }
-
-        var trimmed = text[..cut].TrimEnd();
-        return string.IsNullOrWhiteSpace(trimmed) ? string.Empty : trimmed + "…";
-    }
 
     private static void PromoteTaxonomyFieldToMeta(IReadOnlyDictionary<string, ContentField> fields, Dictionary<string, object> meta, string fieldKey)
     {
@@ -911,7 +827,7 @@ public sealed class NotionContentProvider : IContentProvider
                     if (property.TryGetProperty("multi_select", out var arr) && arr.ValueKind == JsonValueKind.Array)
                     {
                         var list = arr.EnumerateArray()
-                            .Select(x => x.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null)
+                            .Select(x => x.ValueKind == JsonValueKind.Object && x.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null)
                             .Where(x => !string.IsNullOrWhiteSpace(x))
                             .Select(x => x!.Trim())
                             .ToList();
@@ -970,7 +886,7 @@ public sealed class NotionContentProvider : IContentProvider
                     if (property.TryGetProperty("relation", out var rel) && rel.ValueKind == JsonValueKind.Array)
                     {
                         var list = rel.EnumerateArray()
-                            .Select(x => x.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String ? id.GetString() : null)
+                            .Select(x => x.ValueKind == JsonValueKind.Object && x.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String ? id.GetString() : null)
                             .Where(x => !string.IsNullOrWhiteSpace(x))
                             .Select(x => x!.Trim())
                             .ToList();
@@ -1016,6 +932,11 @@ public sealed class NotionContentProvider : IContentProvider
                         var urls = new List<string>();
                         foreach (var f in files.EnumerateArray())
                         {
+                            if (f.ValueKind != JsonValueKind.Object)
+                            {
+                                continue;
+                            }
+
                             if (!f.TryGetProperty("type", out var t) || t.ValueKind != JsonValueKind.String)
                             {
                                 continue;
@@ -1205,86 +1126,6 @@ public sealed class NotionContentProvider : IContentProvider
         }
 
         return sb.ToString();
-    }
-
-    private static string BuildDatabaseQueryJson(
-        NotionProviderOptions options,
-        string? startCursor,
-        string? resolvedFilterProperty,
-        string? resolvedSortProperty,
-        string? resolvedIncludeSlugProperty)
-    {
-        var sb = new StringBuilder();
-        sb.Append('{');
-        sb.Append($"\"page_size\":{options.PageSize},");
-
-        var filters = new List<string>();
-        var filterType = (options.FilterType ?? "checkbox_true").Trim().ToLowerInvariant();
-        if (filterType == "checkbox_true")
-        {
-            var prop = (resolvedFilterProperty ?? options.FilterProperty ?? "Published").Trim();
-            filters.Add($"{{\"property\":\"{EscapeJson(prop)}\",\"checkbox\":{{\"equals\":true}}}}");
-        }
-
-        if (options.IncludeSlugs is { Count: > 0 })
-        {
-            var prop = (resolvedIncludeSlugProperty ?? options.IncludeSlugProperty ?? "Slug").Trim();
-            var ors = options.IncludeSlugs
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => x.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Select(x => $"{{\"property\":\"{EscapeJson(prop)}\",\"rich_text\":{{\"equals\":\"{EscapeJson(x)}\"}}}}")
-                .ToList();
-
-            if (ors.Count > 0)
-            {
-                filters.Add($"{{\"or\":[{string.Join(",", ors)}]}}");
-            }
-        }
-
-        if (filters.Count == 1)
-        {
-            sb.Append($"\"filter\":{filters[0]},");
-        }
-        else if (filters.Count > 1)
-        {
-            sb.Append($"\"filter\":{{\"and\":[{string.Join(",", filters)}]}},");
-        }
-
-        if (!string.IsNullOrWhiteSpace(resolvedSortProperty ?? options.SortProperty))
-        {
-            var prop = (resolvedSortProperty ?? options.SortProperty)!.Trim();
-            var dir = (options.SortDirection ?? "ascending").Trim().ToLowerInvariant();
-            if (dir is not ("ascending" or "descending"))
-            {
-                dir = "ascending";
-            }
-
-            sb.Append("\"sorts\":[{");
-            sb.Append($"\"property\":\"{EscapeJson(prop)}\",");
-            sb.Append($"\"direction\":\"{EscapeJson(dir)}\"");
-            sb.Append("}],");
-        }
-
-        if (!string.IsNullOrWhiteSpace(startCursor))
-        {
-            sb.Append($"\"start_cursor\":\"{EscapeJson(startCursor)}\"");
-        }
-        else
-        {
-            if (sb[^1] == ',')
-            {
-                sb.Length--;
-            }
-        }
-
-        sb.Append('}');
-        return sb.ToString();
-    }
-
-    private static string EscapeJson(string s)
-    {
-        return s.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
     }
 
     private static string? ExtractTitle(JsonElement properties)
@@ -1621,84 +1462,4 @@ public sealed class NotionContentProvider : IContentProvider
         }
     }
 
-    private static async Task<(string? FilterProperty, string? SortProperty, string? IncludeSlugProperty)> ResolveDatabasePropertyNamesAsync(
-        NotionApiClient client,
-        NotionProviderOptions options,
-        CancellationToken cancellationToken)
-    {
-        var filterType = (options.FilterType ?? "checkbox_true").Trim().ToLowerInvariant();
-        var filterProp = filterType == "checkbox_true" ? (options.FilterProperty ?? "Published").Trim() : null;
-        var sortProp = options.SortProperty?.Trim();
-        var includeSlugProp = options.IncludeSlugs is { Count: > 0 } ? (options.IncludeSlugProperty ?? "Slug").Trim() : null;
-
-        if (string.IsNullOrWhiteSpace(filterProp) && string.IsNullOrWhiteSpace(sortProp) && string.IsNullOrWhiteSpace(includeSlugProp))
-        {
-            return (null, null, null);
-        }
-
-        using var doc = await client.GetAsync(NotionApiUrls.Database(options.DatabaseId), cancellationToken);
-        var root = doc.RootElement;
-
-        if (!root.TryGetProperty("properties", out var props) || props.ValueKind != JsonValueKind.Object)
-        {
-            throw new ContentException("Notion database schema missing properties.");
-        }
-
-        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var prop in props.EnumerateObject())
-        {
-            var name = prop.Name ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                continue;
-            }
-
-            if (map.TryGetValue(name, out var existing))
-            {
-                throw new ContentException(
-                    $"Notion database has conflicting property names ignoring case: '{existing}' and '{name}'. " +
-                    "Rename one of them to a unique name (case-insensitive).");
-            }
-
-            map[name] = name;
-        }
-
-        string? resolvedFilter = null;
-        if (!string.IsNullOrWhiteSpace(filterProp))
-        {
-            if (!map.TryGetValue(filterProp, out resolvedFilter))
-            {
-                var available = string.Join(", ", map.Values.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
-                throw new ContentException(
-                    $"Notion database property '{filterProp}' not found (case-insensitive match). " +
-                    $"Available properties: {available}.");
-            }
-        }
-
-        string? resolvedSort = null;
-        if (!string.IsNullOrWhiteSpace(sortProp))
-        {
-            if (!map.TryGetValue(sortProp, out resolvedSort))
-            {
-                var available = string.Join(", ", map.Values.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
-                throw new ContentException(
-                    $"Notion database property '{sortProp}' not found (case-insensitive match). " +
-                    $"Available properties: {available}.");
-            }
-        }
-
-        string? resolvedIncludeSlug = null;
-        if (!string.IsNullOrWhiteSpace(includeSlugProp))
-        {
-            if (!map.TryGetValue(includeSlugProp, out resolvedIncludeSlug))
-            {
-                var available = string.Join(", ", map.Values.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
-                throw new ContentException(
-                    $"Notion database property '{includeSlugProp}' not found (case-insensitive match). " +
-                    $"Available properties: {available}.");
-            }
-        }
-
-        return (resolvedFilter, resolvedSort, resolvedIncludeSlug);
-    }
 }

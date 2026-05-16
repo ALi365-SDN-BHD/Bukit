@@ -217,6 +217,35 @@ public sealed class ContentImageRewritePipelineTests
         Assert.True(localizer.MaxConcurrency >= 2, $"Expected concurrent cross-pass localize calls, actual max concurrency was {localizer.MaxConcurrency}.");
     }
 
+    [Fact]
+    public async Task RewriteBodyHtmlAsync_RewritesSrcsetEntriesAndDecodesHtmlEntities()
+    {
+        var html = """
+                   <img
+                     srcset="https://img.example/small.jpg 480w, https://img.example/large.jpg?x=1&amp;y=2 960w"
+                     src="https://img.example/fallback.jpg" />
+                   """;
+        var cfg = new MediaConfig
+        {
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+        var localizer = new MappingLocalizer(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["https://img.example/small.jpg"] = "/assets/uploads/small.jpg",
+            ["https://img.example/large.jpg?x=1&y=2"] = "/assets/uploads/large.jpg",
+            ["https://img.example/fallback.jpg"] = "/assets/uploads/fallback.jpg"
+        });
+        var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+        var rewritten = await pipeline.RewriteBodyHtmlAsync(html, CancellationToken.None);
+
+        Assert.NotNull(rewritten);
+        Assert.Contains("/assets/uploads/small.jpg 480w", rewritten);
+        Assert.Contains("/assets/uploads/large.jpg 960w", rewritten);
+        Assert.Contains("src=\"/assets/uploads/fallback.jpg\"", rewritten);
+        Assert.Contains("https://img.example/large.jpg?x=1&y=2", localizer.ReceivedUrls);
+    }
+
     private sealed class StubLocalizer : IImageAssetLocalizer
     {
         public Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
@@ -303,6 +332,26 @@ public sealed class ContentImageRewritePipelineTests
             {
                 Interlocked.Decrement(ref _active);
             }
+        }
+    }
+
+    private sealed class MappingLocalizer : IImageAssetLocalizer
+    {
+        private readonly IReadOnlyDictionary<string, string> _map;
+
+        public MappingLocalizer(IReadOnlyDictionary<string, string> map)
+        {
+            _map = map;
+        }
+
+        public List<string> ReceivedUrls { get; } = new();
+
+        public Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
+        {
+            _ = cancellationToken;
+            var key = sourceUrl ?? string.Empty;
+            ReceivedUrls.Add(key);
+            return Task.FromResult(_map.TryGetValue(key, out var mapped) ? mapped : key);
         }
     }
 }
