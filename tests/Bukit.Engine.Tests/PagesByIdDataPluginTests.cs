@@ -201,7 +201,7 @@ public sealed class PagesByIdDataPluginTests
             var fields = Assert.IsType<Dictionary<string, object>>(resolved["fields"]);
             var cover = Assert.IsType<Dictionary<string, object>>(fields["cover"]);
             Assert.Equal("text", cover["type"]);
-            Assert.Equal("/assets/images/noneimg-news.jpg", cover["value"]);
+            Assert.Equal("https://img.example/1.jpg", cover["value"]);
         }
         finally
         {
