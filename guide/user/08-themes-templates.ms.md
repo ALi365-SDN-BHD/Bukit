@@ -44,6 +44,143 @@ Tulis balik ke konfigurasi (tetapkan `theme.name`):
 dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
 ```
 
+## Penciptaan Tema: Wizard (Tanya Jawab Interaktif)
+
+Jika anda tidak mahu menulis perintah secara manual, gunakan wizard interaktif untuk mencipta tema dengan cepat:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme wizard my-blog --config site.yaml
+```
+
+Wizard akan bertanya secara berurutan:
+
+- Nama tema
+- Jenis/preset tema
+- Nama jenama
+- Warna utama dan warna aksen
+- Sama ada mahu terus bertukar ke tema tersebut
+
+Tekan Enter selepas setiap jawapan untuk ke soalan seterusnya, atau Ctrl+C untuk keluar. Selepas semua soalan dijawab, Bukit akan menjana direktori tema dan menulis konfigurasi secara automatik.
+
+Terdapat 5 preset yang boleh dipilih:
+
+| Preset | Senario Penggunaan |
+|--------|-------------------|
+| `blog` | Blog peribadi/teknikal, dengan senarai, artikel, tag, arkib |
+| `docs` | Tapak dokumentasi, dengan navigasi sidebar dan carian |
+| `landing` | Halaman tunggal, dengan Hero, ciri, CTA |
+| `minimal` | Templat minimum, hanya susun atur asas dan templat halaman |
+| `portfolio` | Portfolio, dengan kad projek dan penapisan kategori |
+
+Jika mahu melangkau tanya jawab interaktif, gunakan `--preset`:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme wizard my-blog --preset blog --config site.yaml
+```
+
+Anda juga boleh menggabungkan `--brand`, `--primary-color`, `--accent-color`, `--use` dan parameter lain untuk penciptaan satu langkah.
+
+## Penemuan Tema: info/params
+
+Apabila anda ingin mengetahui maklumat terperinci sesuatu tema, gunakan `theme info`:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme info alt --config site.yaml
+```
+
+Output termasuk:
+
+- Nama tema, nombor versi
+- Penerangan
+- Pengisytiharan keupayaan templat (sama ada menyokong penomboran, carian, taksonomi, dll.)
+- Senarai fail templat yang tersedia
+
+Lihat semua parameter boleh konfigurasi untuk tema semasa:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme params --config site.yaml
+```
+
+Ini akan menyenaraikan semua nama kunci yang tersedia dalam `theme.params` bersama nilai lalai dan penerangan, memudahkan anda untuk mengubah suai dalam `site.yaml`.
+
+## Pengedaran & Perkongsian Tema
+
+Bukit menyokong pembungkusan, perkongsian, dan pemasangan tema dari registry.
+
+Bungkus tema ke dalam fail `.tar.gz` yang boleh diedarkan:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme pack my-theme
+```
+
+Pemasangan tema menyokong tiga sumber:
+
+Pasang dari direktori tempatan:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme install /path/to/theme.tar.gz
+```
+
+Pasang dari URL:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme install https://example.com/themes/my-theme.tar.gz
+```
+
+Cari dan pasang dari registry:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme search blog
+dotnet run --project src/Bukit.Cli -c Release -- theme install my-theme --config site.yaml
+```
+
+## Perintah Peringkat Templat
+
+Selain perintah peringkat tema, Bukit juga menyediakan operasi templat yang lebih terperinci, dengan 7 subperintah:
+
+| Perintah | Fungsi |
+|----------|--------|
+| `template create` | Cipta fail templat baharu dalam `layouts/` tema |
+| `template list` | Senaraikan semua fail templat tema semasa |
+| `template show` | Paparkan kandungan fail templat tertentu |
+| `template validate` | Sahkan sintaks Scriban semua templat |
+| `template snippets` | Senaraikan atau sisipkan pustaka coretan kod terbina dalam |
+| `template hints` | Paparkan pembolehubah dan objek yang tersedia dalam templat |
+| `template sync` | Segerakkan templat tema ke direktori akar tapak |
+
+Contoh penggunaan:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- template create about --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- template list --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- template show pages/index.html --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- template validate --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- template hints --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- template sync --config site.yaml
+```
+
+### Pustaka Coretan Kod Terbina Dalam (Snippets)
+
+`template snippets` menyediakan pustaka coretan terbina dalam yang mengandungi **8 coretan Scriban** dan **9 coretan CSS**, meliputi keperluan templat dan gaya yang lazim.
+
+Lihat senarai coretan yang tersedia:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- template snippets --config site.yaml
+```
+
+Coretan Scriban merangkumi: gelung halaman, navigasi penomboran, tag meta SEO, kod analitik, penukar bahasa, navigasi breadcrumb, artikel berkaitan, kotak carian.
+
+Coretan CSS merangkumi: reset asas, tipografi artikel, grid responsif, komponen kad, bar navigasi, footer, butang, mod gelap, gaya cetakan.
+
+Sisipkan coretan tertentu ke dalam fail templat:
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- template snippets pagination --config site.yaml
+```
+
+Coretan akan ditulis ke kedudukan yang sesuai dalam templat semasa. Jika templat sudah mengandungi kod yang serupa, perintah akan memberi amaran konflik dan meminta pengesahan untuk menimpa.
+
 ## Kaedah B: Selenggara Templat Secara Langsung di Akar Tapak (untuk suntingan pantas tapak tunggal)
 
 ```yaml

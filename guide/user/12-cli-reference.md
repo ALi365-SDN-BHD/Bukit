@@ -17,6 +17,7 @@ Notes:
 | `clean` | Clean output directory and cache |
 | `theme` | Create, list, switch, explore, share, and install themes |
 | `template` | Create, list, show, validate, sync, and browse template files |
+| `clone` | Clone any website's visual design into a Bukit theme |
 | `webhook` | Notion change triggers GitHub Actions (optional) |
 | `intent` | AI Intent related (optional) |
 | `version` | Output version number |

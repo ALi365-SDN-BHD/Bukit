@@ -12,11 +12,12 @@
 |---|---|
 | `create <dir>` | 新建一个站点工程（脚手架），也可用 `init` 别名 |
 | `build` | 生成静态站点（输出到 dist/） |
-| `deploy` | 构建并部署到 GitHub Pages（`bukit deploy`） |
 | `preview` | 本地预览输出目录 |
 | `doctor` | 环境/配置自检（排障第一步） |
 | `clean` | 清理输出目录与缓存 |
-| `theme` | 列出/切换主题 |
+| `theme` | 创建、列出、切换、探索、分享和安装主题 |
+| `template` | 创建、列出、查看、校验、同步和浏览模板文件 |
+| `clone` | 将任意网站的视觉设计克隆为 Bukit 主题 |
 | `webhook` | Notion 变更触发 GitHub Actions（可选） |
 | `intent` | AI Intent 相关（可选） |
 | `version` | 输出版本号 |
@@ -127,17 +128,97 @@ dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
 - 大量改动路由规则/输出模式
 - 怀疑增量缓存导致"看起来没更新"
 
-## theme：创建、列出与切换主题
+## theme：主题创建、发现与分享
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- theme create custom --config site.yaml --brand "My Site" --primary-color "#0b5fff" --use
-dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
+# 列出所有主题（显示版本、描述、标签）
+bukit theme list --config site.yaml
+
+# 从 starter 创建
+bukit theme create custom --config site.yaml --brand "My Site" --primary-color "#0b5fff" --use
+
+# 交互式向导（问答式，可选择预设）
+bukit theme wizard my-blog
+
+# 使用预设快速创建
+bukit theme wizard my-blog --preset blog
+
+# 查看主题详情
+bukit theme info starter --config site.yaml
+
+# 列出主题参数
+bukit theme params --config site.yaml
+
+# 切换当前主题
+bukit theme use alt --config site.yaml
 ```
 
 `theme create` 默认从内置 starter 创建 `themes/<name>/`。使用 `--from <已有主题>` 可复制已有主题，`--force` 可覆盖，`--use` 会把 `theme.name` 写回当前配置。
 
-主题使用见：[08-主题与模板](./08-themes-templates.zh-CN.md)。
+`theme wizard` 运行交互式问答。使用 `--preset`（blog/docs/landing/minimal/portfolio）可基于预设快速创建。
+
+### 主题分发
+
+```bash
+# 打包主题以供分享
+bukit theme pack my-blog          # → my-blog-1.0.0.tar.gz
+
+# 从本地文件安装
+bukit theme install ./my-blog-1.0.0.tar.gz
+
+# 从 URL 安装
+bukit theme install https://github.com/user/theme/releases/download/v1.0/theme.tar.gz
+
+# 搜索社区主题仓库
+bukit theme search               # 列出全部
+bukit theme search blog          # 按名称/标签过滤
+
+# 从仓库安装
+bukit theme install --registry blog-clean
+```
+
+## template：模板级别管理
+
+```bash
+# 列出当前主题中的所有模板
+bukit template list --config site.yaml
+
+# 查看模板内容
+bukit template show pages/index.html --config site.yaml
+
+# 校验所有模板的 Scriban 语法
+bukit template validate --config site.yaml
+
+# 交互式创建模板
+bukit template create pages/gallery.html --config site.yaml
+
+# 浏览代码片段库
+bukit template snippets
+bukit template snippets post-card
+
+# 显示所有可用模板变量
+bukit template hints
+
+# 自动生成 bukit.templates.yaml
+bukit template sync --config site.yaml
+```
+
+主题与模板详细使用见：[08-主题与模板](./08-themes-templates.zh-CN.md)。
+
+## clone：将网站视觉设计克隆为主题
+
+```bash
+# 克隆网站的视觉设计
+bukit clone https://example.com --name my-theme
+
+# 指定输出目录
+bukit clone https://example.com --name my-theme --output ./themes
+
+# 仅克隆特定页面
+bukit clone https://example.com/about --name about-theme --page-only
+```
+
+`clone` 命令分析目标网站的颜色、排版、间距、布局等视觉元素，生成对应的 Bukit 主题文件。
 
 ## webhook：Notion 变更触发 GitHub Actions（可选）
 

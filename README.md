@@ -23,7 +23,7 @@ A static website engine designed around the "notes as CMS" workflow. Content can
 - Unified entry: [`using-bukit`](src/skills/using-bukit/SKILL.md)
 - Command source of truth: [`bukit-cli-reference`](src/skills/bukit-cli-reference/SKILL.md)
 - Full navigation: [`src/skills/README.md`](src/skills/README.md)
-- Coverage: CLI, `site.yaml`, theme, Scriban templates, Notion, routing, i18n, plugins, and debugging
+- Coverage: CLI, `site.yaml`, theme, Scriban templates, Notion, routing, i18n, plugins, debugging, **clone**, **theme registry**
 
 ## Quick Start (using the example site in this repo)
 
@@ -52,7 +52,7 @@ dotnet run --project src/Bukit.Cli -c Release -- build --clean --jobs 8
 dotnet run --project src/Bukit.Cli -c Release -- build --site blog --clean
 ```
 
-### Validate / Clean / Theme
+### Validate / Clean / Theme / Clone
 
 ```bash
 dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
@@ -60,6 +60,35 @@ dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
 dotnet run --project src/Bukit.Cli -c Release -- seo audit --dir dist
 dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
 dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
+# Interactive theme wizard with 5 presets (blog|docs|landing|minimal|portfolio)
+dotnet run --project src/Bukit.Cli -c Release -- theme wizard my-theme --preset blog
+# Clone any website's design into a Bukit theme
+dotnet run --project src/Bukit.Cli -c Release -- clone --tokens tokens.json --theme my-clone
+```
+
+### Theme Distribution & Registry
+
+```bash
+# Pack a theme for sharing
+bukit theme pack my-blog          # → my-blog-1.0.0.tar.gz
+
+# Install from local / URL / registry
+bukit theme install ./my-blog-1.0.0.tar.gz
+bukit theme install --registry blog-clean
+
+# Search community themes
+bukit theme search blog           # filter by name/tags
+```
+
+### Template Commands
+
+```bash
+bukit template list               # List all templates
+bukit template create pages/gallery.html  # Interactive creation
+bukit template validate           # Validate Scriban syntax
+bukit template snippets           # Browse snippet library (8 Scriban + 9 CSS)
+bukit template hints              # Available template variables
+bukit template sync               # Auto-generate bukit.templates.yaml
 ```
 
 ## Key `site.yaml` Fields

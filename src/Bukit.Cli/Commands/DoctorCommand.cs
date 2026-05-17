@@ -112,6 +112,18 @@ public static class DoctorCommand
         Console.WriteLine();
         WarnUnusedParams(config, layoutsDir, allHtmlFiles);
 
+        var themeRoot = Path.Combine(rootDir, "themes", config.Theme.Name ?? "starter");
+        if (Directory.Exists(themeRoot))
+        {
+            var yamlWarnings = ConfigValidator.ValidateThemeYaml(themeRoot);
+            if (yamlWarnings is { Count: > 0 })
+            {
+                Console.WriteLine("⚠ theme.yaml warnings:");
+                foreach (var w in yamlWarnings)
+                    Console.WriteLine($"  - {w}");
+            }
+        }
+
         var listPageContentMode = (config.Build.ListPageContentMode ?? "auto").Trim().ToLowerInvariant();
         if (listPageContentMode == "auto")
         {

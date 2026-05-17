@@ -59,6 +59,143 @@ dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
 dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
 ```
 
+## 主题创建：交互式向导（Wizard）
+
+如果你不想手动拼命令，可以用交互式向导快速创建主题：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme wizard my-blog --config site.yaml
+```
+
+向导会依次询问你：
+
+- 主题名称
+- 主题类型/预设
+- 品牌名称
+- 主色调与强调色
+- 是否立即切换到该主题
+
+每次回答后按回车进入下一题，或按 Ctrl+C 退出。回答完所有问题后，Bukit 自动生成主题目录并写入配置。
+
+共有 5 种预设可选：
+
+| 预设 | 适用场景 |
+|------|---------|
+| `blog` | 个人博客/技术博客，含列表、文章、标签、归档 |
+| `docs` | 文档站点，含侧边栏导航与搜索 |
+| `landing` | 单页落地页，含 Hero、特性、CTA |
+| `minimal` | 最小化模板，只含基础布局与页面模板 |
+| `portfolio` | 作品集，含项目卡片与分类筛选 |
+
+如果想跳过交互式问答，直接用 `--preset` 指定预设：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme wizard my-blog --preset blog --config site.yaml
+```
+
+也可以组合 `--brand`、`--primary-color`、`--accent-color`、`--use` 等参数一步到位。
+
+## 主题发现：info/params
+
+当你想了解某个主题的详细信息时，使用 `theme info`：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme info alt --config site.yaml
+```
+
+输出内容包括：
+
+- 主题名称、版本号
+- 描述信息
+- 模板能力声明（是否支持分页、搜索、taxonomy 等）
+- 可用的模板文件清单
+
+查看当前主题所有可配置参数：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme params --config site.yaml
+```
+
+这会列出当前主题 `theme.params` 中所有可用的键名及其默认值和说明，方便你在 `site.yaml` 中按需覆盖。
+
+## 主题分发与分享
+
+Bukit 支持将主题打包、分享和从注册表安装。
+
+打包主题为可分发的 `.tar.gz` 文件：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme pack my-theme
+```
+
+安装主题支持三种来源：
+
+从本地目录安装：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme install /path/to/theme.tar.gz
+```
+
+从 URL 安装：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme install https://example.com/themes/my-theme.tar.gz
+```
+
+从注册表搜索并安装：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- theme search blog
+dotnet run --project src/Bukit.Cli -c Release -- theme install my-theme --config site.yaml
+```
+
+## 模板级命令
+
+除了主题级命令，Bukit 还提供模板级的细粒度操作，共 7 个子命令：
+
+| 命令 | 作用 |
+|------|------|
+| `template create` | 在主题的 `layouts/` 下创建新模板文件 |
+| `template list` | 列出当前主题所有模板文件 |
+| `template show` | 查看指定模板文件的内容 |
+| `template validate` | 校验所有模板语法是否符合 Scriban 规范 |
+| `template snippets` | 列出或插入内置代码片段库 |
+| `template hints` | 查看当前模板可用的变量与对象提示 |
+| `template sync` | 将主题模板同步到站点根目录 |
+
+示例用法：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- template create about --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- template list --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- template show pages/index.html --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- template validate --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- template hints --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- template sync --config site.yaml
+```
+
+### 内置代码片段库（Snippets）
+
+`template snippets` 提供了一个内置片段库，包含 **8 个 Scriban 片段**和 **9 个 CSS 片段**，覆盖常见的模板与样式需求。
+
+查看可用片段清单：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- template snippets --config site.yaml
+```
+
+Scriban 片段涵盖：页面循环、分页导航、SEO meta 标签、分析代码、多语言切换器、面包屑导航、相关文章、搜索框。
+
+CSS 片段涵盖：基础重置、文章排版、响应式网格、卡片组件、导航栏、页脚、按钮、暗色模式、打印样式。
+
+插入指定片段到模板文件：
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- template snippets pagination --config site.yaml
+```
+
+片段会被写入到当前模板的合适位置。如果模板已有相似代码，命令会提示冲突并要求确认覆盖。
+
 ## 方式 B：站点根目录直接维护模板（适合单站点快速改）
 
 ```yaml

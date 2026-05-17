@@ -113,6 +113,132 @@ public static class BukitCliSpecs
                     {
                         new CliOptionSpec("--config", "配置文件路径"),
                         new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "info",
+                    Description: "查看主题详细信息",
+                    Arguments: new[] { new CliArgumentSpec("name", "主题名") },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "params",
+                    Description: "列出主题可定制参数",
+                    Arguments: new[] { new CliArgumentSpec("name", "主题名") },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "wizard",
+                    Description: "交互式主题创建向导",
+                    Arguments: new[] { new CliArgumentSpec("name", "主题名") },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--preset", "预设风格 (blog|docs|landing|minimal|portfolio)"),
+                        new CliOptionSpec("--use", "创建后切换", CliOptionType.Flag),
+                        new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "pack",
+                    Description: "打包主题为 tar.gz",
+                    Arguments: new[] { new CliArgumentSpec("name", "主题名") },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--output", "输出路径"),
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "install",
+                    Description: "安装主题 (本地/URL/注册表)",
+                    Arguments: new[] { new CliArgumentSpec("source", "路径或 URL") },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--registry", "注册表中的主题名"),
+                        new CliOptionSpec("--registry-url", "注册表 URL"),
+                        new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "search",
+                    Description: "搜索社区主题注册表",
+                    Arguments: new[] { new CliArgumentSpec("query", "搜索关键词") },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--refresh", "强制刷新缓存", CliOptionType.Flag),
+                        new CliOptionSpec("--registry-url", "注册表 URL"),
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    })
+            });
+
+        var template = new CliCommandSpec(
+            Name: "template",
+            Description: "模板级别操作命令",
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "create",
+                    Description: "交互式创建模板文件",
+                    Arguments: new[] { new CliArgumentSpec("path", "模板路径") },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--force", "覆盖已有模板", CliOptionType.Flag),
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "list",
+                    Description: "列出当前主题所有模板",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "show",
+                    Description: "查看模板内容",
+                    Arguments: new[] { new CliArgumentSpec("path", "模板路径") },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "validate",
+                    Description: "校验所有模板语法",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "snippets",
+                    Description: "浏览模板/CSS 片段库",
+                    Arguments: new[] { new CliArgumentSpec("name", "片段名") },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "hints",
+                    Description: "模板变量智能提示"),
+                new CliCommandSpec(
+                    Name: "sync",
+                    Description: "自动生成 bukit.templates.yaml",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--force", "覆盖已有文件", CliOptionType.Flag),
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
                     })
             });
 
@@ -164,6 +290,6 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--skip-build", "跳过构建步骤", CliOptionType.Flag)
             });
 
-        return new CliCommandRegistry(new[] { build, clone, deploy, preview, plugin, theme, seo });
+        return new CliCommandRegistry(new[] { build, clone, deploy, preview, plugin, theme, template, seo });
     }
 }
