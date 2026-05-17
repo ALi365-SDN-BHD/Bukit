@@ -5,18 +5,18 @@ namespace Bukit.Cli.Commands;
 
 public sealed record ThemeManifest
 {
-    public string? Name { get; init; }
-    public string? Version { get; init; }
-    public string? Description { get; init; }
-    public string? Author { get; init; }
-    public string? License { get; init; }
-    public string? Homepage { get; init; }
-    public string? Thumbnail { get; init; }
-    public List<string> Tags { get; init; } = [];
-    public string? RequiresBukit { get; init; }
-    public List<ThemeParam> Params { get; init; } = [];
+    public string? Name { get; set; }
+    public string? Version { get; set; }
+    public string? Description { get; set; }
+    public string? Author { get; set; }
+    public string? License { get; set; }
+    public string? Homepage { get; set; }
+    public string? Thumbnail { get; set; }
+    public List<string> Tags { get; set; } = [];
+    public string? RequiresBukit { get; set; }
+    public List<ThemeParam> Params { get; set; } = [];
 
-    private static readonly IDeserializer Deserializer = new DeserializerBuilder()
+    private static readonly IDeserializer Deserializer = new StaticDeserializerBuilder(new ThemeYamlStaticContext())
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .IgnoreUnmatchedProperties()
         .Build();
@@ -45,45 +45,45 @@ public sealed record ThemeManifest
 
 public sealed record ThemeParam
 {
-    public string Key { get; init; } = "";
-    public string? Label { get; init; }
-    public string? Type { get; init; }
-    public string? Default { get; init; }
+    public string Key { get; set; } = "";
+    public string? Label { get; set; }
+    public string? Type { get; set; }
+    public string? Default { get; set; }
 }
 
 public sealed record RegistryDownload
 {
-    public string Url { get; init; } = "";
-    public string? Sha256 { get; init; }
+    public string Url { get; set; } = "";
+    public string? Sha256 { get; set; }
 }
 
 public sealed record RegistryThemeEntry
 {
-    public string Name { get; init; } = "";
-    public string Version { get; init; } = "";
-    public string? Description { get; init; }
-    public string? Author { get; init; }
-    public string? License { get; init; }
-    public string? Homepage { get; init; }
-    public string? Thumbnail { get; init; }
-    public List<string> Tags { get; init; } = [];
-    public string? RequiresBukit { get; init; }
-    public List<ThemeParam> Params { get; init; } = [];
-    public RegistryDownload? Download { get; init; }
+    public string Name { get; set; } = "";
+    public string Version { get; set; } = "";
+    public string? Description { get; set; }
+    public string? Author { get; set; }
+    public string? License { get; set; }
+    public string? Homepage { get; set; }
+    public string? Thumbnail { get; set; }
+    public List<string> Tags { get; set; } = [];
+    public string? RequiresBukit { get; set; }
+    public List<ThemeParam> Params { get; set; } = [];
+    public RegistryDownload? Download { get; set; }
 }
 
 public sealed record RegistryMeta
 {
-    public string? Updated { get; init; }
-    public string? BukitMinVersion { get; init; }
+    public string? Updated { get; set; }
+    public string? BukitMinVersion { get; set; }
 }
 
 public sealed record RegistryIndex
 {
-    public RegistryMeta? Registry { get; init; }
-    public List<RegistryThemeEntry> Themes { get; init; } = [];
+    public RegistryMeta? Registry { get; set; }
+    public List<RegistryThemeEntry> Themes { get; set; } = [];
 
-    private static readonly IDeserializer IndexDeserializer = new DeserializerBuilder()
+    private static readonly IDeserializer IndexDeserializer = new StaticDeserializerBuilder(new ThemeYamlStaticContext())
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .IgnoreUnmatchedProperties()
         .Build();
@@ -99,4 +99,15 @@ public sealed record RegistryIndex
             return null;
         }
     }
+}
+
+[YamlStaticContext]
+[YamlSerializable(typeof(ThemeManifest))]
+[YamlSerializable(typeof(ThemeParam))]
+[YamlSerializable(typeof(RegistryIndex))]
+[YamlSerializable(typeof(RegistryMeta))]
+[YamlSerializable(typeof(RegistryThemeEntry))]
+[YamlSerializable(typeof(RegistryDownload))]
+public partial class ThemeYamlStaticContext : YamlDotNet.Serialization.StaticContext
+{
 }

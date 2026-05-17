@@ -196,8 +196,7 @@ public static class CloneCommand
             try
             {
                 var iconsJson = await File.ReadAllTextAsync(iconsFullPath);
-                icons = JsonSerializer.Deserialize<List<CloneIcon>>(iconsJson,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+                icons = JsonSerializer.Deserialize(iconsJson, CloneInputJsonContext.Default.ListCloneIcon) ?? [];
             }
             catch (JsonException ex)
             {
@@ -219,8 +218,7 @@ public static class CloneCommand
             try
             {
                 var assetsJson = await File.ReadAllTextAsync(assetsFullPath);
-                assets = JsonSerializer.Deserialize<List<CloneAsset>>(assetsJson,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+                assets = JsonSerializer.Deserialize(assetsJson, CloneInputJsonContext.Default.ListCloneAsset) ?? [];
             }
             catch (JsonException ex)
             {
@@ -706,23 +704,19 @@ console.log(json);
         IReadOnlyList<AffectedSection> affectedSections)
     {
         var path = Path.Combine(rootDir, "docs", "research", "VERIFY_REPORT.json");
-        var payload = new
-        {
+        var payload = new CloneVerifyReportJson(
             buildPassed,
             configPath,
             visualThreshold,
-            passed = buildPassed && comparisons.All(c => c.DiffRatio <= visualThreshold),
-            summary = new
-            {
-                comparisons = comparisons.Count,
-                failedComparisons = comparisons.Count(c => c.DiffRatio > visualThreshold),
-                missingScreenshots = missingScreenshots.Count,
-                affectedSections = affectedSections.Count
-            },
-            comparisons = comparisons.Select(c => new
-            {
+            buildPassed && comparisons.All(c => c.DiffRatio <= visualThreshold),
+            new CloneVerifyReportSummary(
+                comparisons.Count,
+                comparisons.Count(c => c.DiffRatio > visualThreshold),
+                missingScreenshots.Count,
+                affectedSections.Count),
+            comparisons.Select(c => new CloneVerifyScreenshotComparison(
                 c.Name,
-                passed = c.DiffRatio <= visualThreshold,
+                c.DiffRatio <= visualThreshold,
                 c.Status,
                 c.ComparedPixels,
                 c.MismatchedPixels,
@@ -731,19 +725,31 @@ console.log(json);
                 c.TargetHeight,
                 c.LocalWidth,
                 c.LocalHeight,
-                mismatchBounds = c.HasMismatchBounds ? new { minX = c.MismatchMinX, minY = c.MismatchMinY, maxX = c.MismatchMaxX, maxY = c.MismatchMaxY } : null
-            }),
-            missingScreenshots = missingScreenshots.Select(m => new
-            {
+                c.HasMismatchBounds
+                    ? new CloneVerifyMismatchBounds(c.MismatchMinX, c.MismatchMinY, c.MismatchMaxX, c.MismatchMaxY)
+                    : null)).ToList(),
+            missingScreenshots.Select(m => new CloneVerifyMissingScreenshot(
                 m.Viewport,
                 m.TargetPath,
                 m.LocalPath,
                 m.TargetExists,
-                m.LocalExists
-            }),
-            affectedSections
-        };
-        File.WriteAllText(path, JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true }));
+                m.LocalExists)).ToList(),
+            affectedSections.Select(a => new CloneVerifyAffectedSection(
+                a.Screenshot,
+                a.Viewport,
+                a.SectionIndex,
+                a.SectionKey,
+                a.SectionId,
+                a.SectionType,
+                a.SectionOrder,
+                a.SectionLabel,
+                a.DataPath,
+                a.SpecPath,
+                a.SectionY,
+                a.SectionHeight,
+                a.MismatchMinY,
+                a.MismatchMaxY)).ToList());
+        File.WriteAllText(path, CloneJson.SerializeIndented(payload));
     }
 
     private static CloneBox? ResolveSectionBounds(CloneSectionInfo section, string viewport)

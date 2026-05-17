@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
 
@@ -7,12 +6,6 @@ namespace Bukit.Cli.Commands;
 
 internal static partial class CloneContentWriter
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-    };
-
     public static CloneContentWriteResult WriteTo(
         string rootDir,
         string themeName,
@@ -191,29 +184,29 @@ internal static partial class CloneContentWriter
         if (!string.IsNullOrWhiteSpace(section.Subheading))
             sb.AppendLine($"subheading: {YamlScalar(section.Subheading!)}");
         if (section.Buttons.Count > 0)
-            sb.AppendLine($"buttons_json: {YamlScalar(JsonSerializer.Serialize(section.Buttons, JsonOptions))}");
+            sb.AppendLine($"buttons_json: {YamlScalar(CloneJson.Serialize(section.Buttons))}");
         if (section.Items.Count > 0)
-            sb.AppendLine($"items_json: {YamlScalar(JsonSerializer.Serialize(section.Items, JsonOptions))}");
+            sb.AppendLine($"items_json: {YamlScalar(CloneJson.Serialize(section.Items))}");
         if (section.Components.Count > 0)
-            sb.AppendLine($"components_json: {YamlScalar(JsonSerializer.Serialize(section.Components, JsonOptions))}");
+            sb.AppendLine($"components_json: {YamlScalar(CloneJson.Serialize(section.Components))}");
         var imageUrls = RewriteUrls(section.ImageUrls.Concat(section.Assets.Select(a => a.Src)), assetMap)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (imageUrls.Count > 0)
-            sb.AppendLine($"image_urls_json: {YamlScalar(JsonSerializer.Serialize(imageUrls, JsonOptions))}");
+            sb.AppendLine($"image_urls_json: {YamlScalar(CloneJson.Serialize(imageUrls))}");
         if (section.Styles is { Count: > 0 })
-            sb.AppendLine($"styles_json: {YamlScalar(JsonSerializer.Serialize(section.Styles, JsonOptions))}");
+            sb.AppendLine($"styles_json: {YamlScalar(CloneJson.Serialize(section.Styles))}");
         if (section.ComputedStyles is { Count: > 0 })
-            sb.AppendLine($"computed_styles_json: {YamlScalar(JsonSerializer.Serialize(section.ComputedStyles, JsonOptions))}");
+            sb.AppendLine($"computed_styles_json: {YamlScalar(CloneJson.Serialize(section.ComputedStyles))}");
         if (section.Bounds is not null)
-            sb.AppendLine($"bounds_json: {YamlScalar(JsonSerializer.Serialize(section.Bounds, JsonOptions))}");
+            sb.AppendLine($"bounds_json: {YamlScalar(CloneJson.Serialize(section.Bounds))}");
         if (section.Interactions.Count > 0)
-            sb.AppendLine($"interactions_json: {YamlScalar(JsonSerializer.Serialize(section.Interactions, JsonOptions))}");
+            sb.AppendLine($"interactions_json: {YamlScalar(CloneJson.Serialize(section.Interactions))}");
         if (section.HasStates)
-            sb.AppendLine($"states_json: {YamlScalar(JsonSerializer.Serialize(section.States, JsonOptions))}");
+            sb.AppendLine($"states_json: {YamlScalar(CloneJson.Serialize(section.States))}");
         if (section.Responsive is not null)
-            sb.AppendLine($"responsive_json: {YamlScalar(JsonSerializer.Serialize(section.Responsive, JsonOptions))}");
+            sb.AppendLine($"responsive_json: {YamlScalar(CloneJson.Serialize(section.Responsive))}");
         AppendBlockScalar(sb, "content_html", body);
         sb.AppendLine("---");
         sb.AppendLine();
@@ -342,18 +335,16 @@ internal static partial class CloneContentWriter
 
     private static string GenerateAssetManifest(IReadOnlyList<CloneAsset> assets, IReadOnlyDictionary<string, string> assetMap)
     {
-        var manifest = assets.Select(asset => new
-        {
+        var manifest = assets.Select(asset => new CloneAssetManifestEntry(
             asset.Type,
             asset.Src,
             asset.Alt,
             asset.Media,
             asset.Width,
             asset.Height,
-            LocalPath = assetMap.TryGetValue(asset.Src, out var local) ? local : asset.LocalPath,
+            assetMap.TryGetValue(asset.Src, out var local) ? local : asset.LocalPath,
             asset.Integrity,
-            asset.Failure
-        }).ToList();
+            asset.Failure)).ToList();
 
         var sb = new StringBuilder();
         sb.AppendLine("---");
@@ -361,7 +352,7 @@ internal static partial class CloneContentWriter
         sb.AppendLine("type: 'assets'");
         sb.AppendLine("order: 0");
         sb.AppendLine("enabled: true");
-        sb.AppendLine($"assets_json: {YamlScalar(JsonSerializer.Serialize(manifest, JsonOptions))}");
+        sb.AppendLine($"assets_json: {YamlScalar(CloneJson.Serialize(manifest))}");
         sb.AppendLine("---");
         sb.AppendLine();
         sb.AppendLine("Clone asset manifest generated from assets.json.");

@@ -1,17 +1,9 @@
 using System.Text;
-using System.Text.Json;
 
 namespace Bukit.Cli.Commands;
 
 internal static class CloneResearchWriter
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true,
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-    };
-
     public static void WriteTo(
         string rootDir,
         CloneTokens tokens,
@@ -104,7 +96,7 @@ internal static class CloneResearchWriter
         sb.AppendLine("# Behaviors");
         sb.AppendLine();
         if (behaviors is not null)
-            sb.AppendLine("```json\n" + JsonSerializer.Serialize(behaviors, JsonOptions) + "\n```");
+            sb.AppendLine("```json\n" + CloneJson.SerializeIndented(behaviors) + "\n```");
 
         sb.AppendLine();
         sb.AppendLine("## Section Interactions");
@@ -168,7 +160,7 @@ internal static class CloneResearchWriter
         sb.AppendLine();
         sb.AppendLine($"## {label}");
         sb.AppendLine("```json");
-        sb.AppendLine(JsonSerializer.Serialize(value, JsonOptions));
+        sb.AppendLine(CloneJson.SerializeIndented(value));
         sb.AppendLine("```");
     }
 

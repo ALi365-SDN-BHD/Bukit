@@ -29,6 +29,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="YamlDotNet" />
+    <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="Resources\StarterTheme\**" />
   </ItemGroup>
 

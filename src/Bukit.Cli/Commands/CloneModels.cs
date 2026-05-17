@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace Bukit.Cli.Commands;
 
@@ -39,12 +38,6 @@ public sealed record CloneTokens
     public string? HoverLift { get; init; }
     public string? HoverShadow { get; init; }
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     public static CloneTokens FromJson(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -54,8 +47,8 @@ public sealed record CloneTokens
 
         try
         {
-            return JsonSerializer.Deserialize<CloneTokensWrapper>(json, JsonOptions)?.Tokens
-                   ?? JsonSerializer.Deserialize<CloneTokens>(json, JsonOptions)
+            return JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneTokensWrapper)?.Tokens
+                   ?? JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneTokens)
                    ?? new CloneTokens();
         }
         catch (JsonException)
@@ -64,7 +57,7 @@ public sealed record CloneTokens
         }
     }
 
-    private sealed class CloneTokensWrapper
+    internal sealed class CloneTokensWrapper
     {
         public CloneTokens? Tokens { get; set; }
     }
@@ -100,12 +93,6 @@ public sealed record CloneLayoutInfo
     public List<FooterLinkInfo> FooterLinks { get; init; } = [];
     public List<SectionInfo> ExtraSections { get; init; } = [];
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     public static CloneLayoutInfo Default => new();
 
     public static CloneLayoutInfo FromJson(string json)
@@ -115,7 +102,7 @@ public sealed record CloneLayoutInfo
             return Default;
         }
 
-        return JsonSerializer.Deserialize<CloneLayoutInfo>(json, JsonOptions) ?? Default;
+        return CloneModels.Normalize(JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneLayoutInfo) ?? Default);
     }
 }
 
@@ -131,12 +118,6 @@ public sealed record ClonePageInfo
     public ClonePageSeo? Seo { get; init; }
     public List<CloneViewportCapture> Screenshots { get; init; } = [];
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     public static ClonePageInfo Default => new();
 
     public static ClonePageInfo FromJson(string json)
@@ -146,7 +127,7 @@ public sealed record ClonePageInfo
             return Default;
         }
 
-        return JsonSerializer.Deserialize<ClonePageInfo>(json, JsonOptions) ?? Default;
+        return CloneModels.Normalize(JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.ClonePageInfo) ?? Default);
     }
 }
 
@@ -162,12 +143,6 @@ public sealed record CloneSectionsDocument
 {
     public List<CloneSectionInfo> Sections { get; init; } = [];
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     public static IReadOnlyList<CloneSectionInfo> FromJson(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -178,12 +153,34 @@ public sealed record CloneSectionsDocument
         using var doc = JsonDocument.Parse(json);
         if (doc.RootElement.ValueKind == JsonValueKind.Array)
         {
-            return JsonSerializer.Deserialize<List<CloneSectionInfo>>(json, JsonOptions) ?? [];
+            return NormalizeSections(JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.ListCloneSectionInfo));
         }
 
-        var wrapped = JsonSerializer.Deserialize<CloneSectionsDocument>(json, JsonOptions);
-        return wrapped?.Sections ?? [];
+        var wrapped = JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneSectionsDocument);
+        return NormalizeSections(wrapped?.Sections);
     }
+
+    private static IReadOnlyList<CloneSectionInfo> NormalizeSections(IEnumerable<CloneSectionInfo>? sections)
+        => sections?.Select(Normalize).ToList() ?? [];
+
+    private static CloneSectionInfo Normalize(CloneSectionInfo section)
+        => section with
+        {
+            Buttons = section.Buttons ?? [],
+            Items = section.Items ?? [],
+            Components = section.Components?.Select(Normalize).ToList() ?? [],
+            ImageUrls = section.ImageUrls ?? [],
+            Assets = section.Assets ?? [],
+            States = section.States ?? [],
+            Interactions = section.Interactions ?? []
+        };
+
+    private static CloneComponentInfo Normalize(CloneComponentInfo component)
+        => component with
+        {
+            States = component.States ?? [],
+            Interactions = component.Interactions ?? []
+        };
 }
 
 public sealed record CloneSectionInfo
@@ -389,12 +386,6 @@ public sealed record CloneBehaviors
     public int ScrollThreshold { get; init; } = 60;
     public bool UseLenis { get; init; }
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     public static CloneBehaviors Default => new();
 
     public bool HasExtraPartials => HasModal || HasDropdown || HasTabs;
@@ -414,7 +405,7 @@ public sealed record CloneBehaviors
 
         try
         {
-            return JsonSerializer.Deserialize<CloneBehaviors>(json, JsonOptions) ?? Default;
+            return JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneBehaviors) ?? Default;
         }
         catch (JsonException)
         {
@@ -425,6 +416,27 @@ public sealed record CloneBehaviors
 
 internal static class CloneModels
 {
+    public static CloneLayoutInfo Normalize(CloneLayoutInfo layout)
+        => layout with
+        {
+            NavLinks = layout.NavLinks ?? [],
+            FooterLinks = layout.FooterLinks ?? [],
+            ExtraSections = layout.ExtraSections?.Select(Normalize).ToList() ?? []
+        };
+
+    public static ClonePageInfo Normalize(ClonePageInfo page)
+        => page with
+        {
+            Screenshots = page.Screenshots ?? []
+        };
+
+    private static SectionInfo Normalize(SectionInfo section)
+        => section with
+        {
+            ImageUrls = section.ImageUrls ?? [],
+            States = section.States ?? []
+        };
+
     public static bool IsSafeThemeName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))
