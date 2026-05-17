@@ -725,4 +725,73 @@ version: 1.0.0
         var styleCss = File.ReadAllText(Path.Combine(themeRoot, "assets", "style.css"));
         Assert.Contains("--primary", styleCss, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void RegistryIndex_Parse_HandlesValidYaml()
+    {
+        var yaml = """
+registry:
+  updated: "2026-01-01T00:00:00Z"
+themes:
+  - name: test-theme
+    version: 1.0.0
+    description: A test
+    author: Tester
+    tags: [blog]
+    download:
+      url: https://example.com/test.tar.gz
+      sha256: abc123
+""";
+        var index = RegistryIndex.Parse(yaml);
+        Assert.NotNull(index);
+        Assert.Single(index!.Themes);
+        Assert.Equal("test-theme", index.Themes[0].Name);
+        Assert.Equal("1.0.0", index.Themes[0].Version);
+        Assert.Equal("abc123", index.Themes[0].Download?.Sha256);
+    }
+
+    [Fact]
+    public void RegistryIndex_Parse_HandlesEmptyYaml()
+    {
+        var index = RegistryIndex.Parse("");
+        Assert.Null(index);
+    }
+
+    [Fact]
+    public async Task ThemeInstall_RegistryUnknownTheme_ReturnsTwo()
+    {
+        var exitCode = await ThemeInstallCommand.RunAsync(new ArgReader(new[]
+        {
+            "theme", "install", "--registry", "totally-fake-theme-xyz",
+            "--config", _configPath,
+            "--registry-url", "https://invalid.url/registry.yaml"
+        }));
+        Assert.Equal(2, exitCode);
+    }
+
+    [Fact]
+    public async Task ThemeSearch_RoutesFromThemeCommand()
+    {
+        var testCacheFile = ThemeRegistryCommand.CacheFilePath;
+        try { File.Delete(testCacheFile); } catch { }
+
+        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        {
+            "theme", "search", "--config", _configPath
+        }));
+        Assert.True(exitCode is 0 or 1);
+    }
+
+    [Fact]
+    public async Task ThemeRegistryCommand_VerifySha256_EmptyExpected_ReturnsTrue()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(path, "data");
+            var ok = await ThemeRegistryCommand.VerifySha256Async(path, "");
+            Assert.True(ok);
+        }
+        finally { try { File.Delete(path); } catch { } }
+    }
 }

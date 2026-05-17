@@ -22,6 +22,7 @@ public static class ThemeCommand
             "wizard" => ThemeWizardCommand.RunAsync(reader),
             "pack" => ThemePackCommand.RunAsync(reader),
             "install" => ThemeInstallCommand.RunAsync(reader),
+            "search" => ThemeRegistryCommand.SearchAsync(reader),
             _ => Task.FromResult(Unknown(sub))
         };
     }

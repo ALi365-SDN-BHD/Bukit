@@ -1,13 +1,300 @@
+using System.Formats.Tar;
+using System.IO.Compression;
+
 namespace Bukit.Cli.Commands;
 
 public static class ThemeInstallCommand
 {
-    public static Task<int> RunAsync(ArgReader reader)
+    public static async Task<int> RunAsync(ArgReader reader)
     {
+        var resolved = ConfigPathResolver.Resolve(reader);
+        var rootDir = resolved.RootDir;
+        var themesDir = Path.Combine(rootDir, "themes");
+        var force = reader.HasFlag("--force");
+
+        var registryName = reader.GetOption("--registry");
+        if (!string.IsNullOrWhiteSpace(registryName))
+        {
+            return await InstallFromRegistryAsync(registryName, themesDir, force, reader);
+        }
+
         var source = reader.GetArg(2);
         if (string.IsNullOrWhiteSpace(source) || source.StartsWith('-'))
-            return Task.FromResult(2);
+        {
+            Console.Error.WriteLine("Missing source. Usage: bukit theme install <path|url>  or  bukit theme install --registry <name>");
+            return 2;
+        }
 
-        return Task.FromResult(2);
+        Directory.CreateDirectory(themesDir);
+
+        if (source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            source.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return await InstallFromUrlAsync(source, themesDir, force);
+        }
+
+        return await InstallFromArchiveAsync(source, themesDir, force);
+    }
+
+    private static async Task<int> InstallFromRegistryAsync(string name, string themesDir, bool force, ArgReader reader)
+    {
+        Console.WriteLine($"Looking up '{name}' in registry...");
+
+        var entry = await ThemeRegistryCommand.ResolveAsync(name, reader);
+        if (entry is null)
+        {
+            Console.Error.WriteLine($"Theme '{name}' not found in registry.");
+            return 2;
+        }
+
+        if (entry.Download?.Url is null)
+        {
+            Console.Error.WriteLine($"Theme '{name}' has no download URL in registry.");
+            return 2;
+        }
+
+        Console.WriteLine($"Found: {entry.Name} v{entry.Version} by {entry.Author ?? "unknown"}");
+
+        var themeDest = Path.Combine(themesDir, entry.Name);
+        if (Directory.Exists(themeDest))
+        {
+            if (!force)
+            {
+                Console.Error.WriteLine($"Theme already exists: {entry.Name}. Use --force to overwrite.");
+                return 2;
+            }
+
+            Directory.Delete(themeDest, recursive: true);
+        }
+
+        Console.WriteLine($"Downloading: {entry.Download.Url}");
+
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("bukit-cli");
+
+            var tempFile = Path.GetTempFileName() + ".tar.gz";
+            try
+            {
+                var response = await http.GetAsync(entry.Download.Url, HttpCompletionOption.ResponseHeadersRead);
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.Error.WriteLine($"Download failed: HTTP {(int)response.StatusCode}");
+                    return 2;
+                }
+
+                await using var fs = File.Create(tempFile);
+                await response.Content.CopyToAsync(fs);
+                await fs.FlushAsync();
+
+                if (!string.IsNullOrWhiteSpace(entry.Download.Sha256))
+                {
+                    Console.Write("Verifying SHA256... ");
+                    var ok = await ThemeRegistryCommand.VerifySha256Async(tempFile, entry.Download.Sha256);
+                    if (!ok)
+                    {
+                        Console.WriteLine("FAIL");
+                        Console.Error.WriteLine("SHA256 mismatch. The download may be corrupted.");
+                        return 2;
+                    }
+
+                    Console.WriteLine("OK");
+                }
+
+                var result = await ExtractAndInstallAsync(tempFile, themesDir, force, entry.Name);
+                if (result == 0)
+                {
+                    Console.WriteLine($"Activate: bukit theme use {entry.Name}");
+                }
+
+                return result;
+            }
+            finally
+            {
+                try { File.Delete(tempFile); } catch { }
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.Error.WriteLine($"Download failed: {ex.Message}");
+            return 2;
+        }
+    }
+
+    private static async Task<int> InstallFromUrlAsync(string url, string themesDir, bool force)
+    {
+        Console.WriteLine($"Downloading: {url}");
+
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("bukit-cli");
+
+            var tempFile = Path.GetTempFileName() + ".tar.gz";
+            try
+            {
+                var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.Error.WriteLine($"Download failed: HTTP {(int)response.StatusCode}");
+                    return 2;
+                }
+
+                await using var fs = File.Create(tempFile);
+                await response.Content.CopyToAsync(fs);
+                await fs.FlushAsync();
+
+                return await ExtractAndInstallAsync(tempFile, themesDir, force, themeName: null);
+            }
+            finally
+            {
+                try { File.Delete(tempFile); } catch { }
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.Error.WriteLine($"Download failed: {ex.Message}");
+            return 2;
+        }
+    }
+
+    private static async Task<int> InstallFromArchiveAsync(string sourcePath, string themesDir, bool force)
+    {
+        var fullSourcePath = Path.GetFullPath(sourcePath);
+        if (!File.Exists(fullSourcePath))
+        {
+            Console.Error.WriteLine($"File not found: {fullSourcePath}");
+            return 2;
+        }
+
+        return await ExtractAndInstallAsync(fullSourcePath, themesDir, force, themeName: null);
+    }
+
+    private static async Task<int> ExtractAndInstallAsync(string archivePath, string themesDir, bool force, string? themeName)
+    {
+        var tmpDir = Path.Combine(Path.GetTempPath(), "bukit-extract-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tmpDir);
+
+        try
+        {
+            using var fileStream = File.OpenRead(archivePath);
+            using var gzip = new GZipStream(fileStream, CompressionMode.Decompress);
+            using var reader = new TarReader(gzip);
+
+            TarEntry? entry;
+            while ((entry = await reader.GetNextEntryAsync()) is not null)
+            {
+                if (entry.EntryType is TarEntryType.Directory) continue;
+
+                var entryPath = entry.Name.TrimStart('/');
+                if (string.IsNullOrWhiteSpace(entryPath)) continue;
+
+                var destPath = Path.GetFullPath(Path.Combine(tmpDir, entryPath));
+                if (!destPath.StartsWith(tmpDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) continue;
+
+                var destDir = Path.GetDirectoryName(destPath);
+                if (!string.IsNullOrWhiteSpace(destDir)) Directory.CreateDirectory(destDir);
+
+                await entry.ExtractToFileAsync(destPath, overwrite: true);
+            }
+        }
+        catch (InvalidDataException ex)
+        {
+            Console.Error.WriteLine($"Invalid archive: {ex.Message}");
+            return 2;
+        }
+        finally
+        {
+        }
+
+        themeName ??= DetectThemeName(tmpDir);
+        if (string.IsNullOrWhiteSpace(themeName))
+        {
+            var baseName = Path.GetFileNameWithoutExtension(archivePath);
+            if (baseName.EndsWith(".tar", StringComparison.OrdinalIgnoreCase))
+                baseName = baseName[..^4];
+            themeName = baseName.Length > 0 ? baseName : "installed-theme";
+        }
+
+        var themeDest = Path.Combine(themesDir, themeName);
+        var result = InstallExtractedDir(tmpDir, themeDest, force, themeName);
+
+        try { Directory.Delete(tmpDir, recursive: true); } catch { }
+
+        return result;
+    }
+
+    private static string? DetectThemeName(string extractedDir)
+    {
+        var themeYamlPath = Path.Combine(extractedDir, "theme.yaml");
+        if (!File.Exists(themeYamlPath))
+            themeYamlPath = Directory.GetFiles(extractedDir, "theme.yaml", SearchOption.AllDirectories).FirstOrDefault();
+
+        if (themeYamlPath is not null)
+        {
+            var manifest = ThemeManifest.Load(Path.GetDirectoryName(themeYamlPath)!);
+            return manifest?.Name;
+        }
+
+        var dirs = Directory.GetDirectories(extractedDir);
+        if (dirs.Length == 1)
+        {
+            var innerName = Path.GetFileName(dirs[0]);
+            if (Directory.Exists(Path.Combine(dirs[0], "layouts")) &&
+                innerName is not ("src" or "dist" or "build" or "node_modules" or ".git"))
+                return innerName;
+        }
+
+        return null;
+    }
+
+    private static int InstallExtractedDir(string sourceDir, string destDir, bool force, string themeName)
+    {
+        if (Directory.Exists(destDir))
+        {
+            if (!force)
+            {
+                Console.Error.WriteLine($"Theme already exists: {themeName}. Use --force to overwrite.");
+                return 2;
+            }
+
+            Directory.Delete(destDir, recursive: true);
+        }
+
+        if (!Directory.Exists(Path.Combine(sourceDir, "layouts")))
+        {
+            foreach (var inner in Directory.GetDirectories(sourceDir))
+            {
+                if (Directory.Exists(Path.Combine(inner, "layouts")))
+                {
+                    sourceDir = inner;
+                    break;
+                }
+            }
+        }
+
+        CopyDirectory(sourceDir, destDir);
+        Console.WriteLine($"Theme installed: {themeName}");
+        Console.WriteLine($"Location: themes/{themeName}/");
+        return 0;
+    }
+
+    private static void CopyDirectory(string sourceDir, string destinationDir)
+    {
+        Directory.CreateDirectory(destinationDir);
+        foreach (var dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(sourceDir, dir);
+            Directory.CreateDirectory(Path.Combine(destinationDir, relative));
+        }
+
+        foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(sourceDir, file);
+            var destination = Path.Combine(destinationDir, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(file, destination, overwrite: true);
+        }
     }
 }
