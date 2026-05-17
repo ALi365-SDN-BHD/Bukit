@@ -13,6 +13,7 @@ public static class CloneCommand
             ["--layout"] = reader.GetOption("--layout"),
             ["--theme"] = reader.GetOption("--theme"),
             ["--brand"] = reader.GetOption("--brand"),
+            ["--behaviors"] = reader.GetOption("--behaviors"),
         };
         if (reader.HasFlag("--use")) options["--use"] = "true";
         if (reader.HasFlag("--force")) options["--force"] = "true";
@@ -61,6 +62,7 @@ public static class CloneCommand
         var layoutPath = command.GetString("--layout");
         var themeName = command.GetString("--theme") ?? "cloned";
         var brand = command.GetString("--brand");
+        var behaviorsPath = command.GetString("--behaviors");
         var use = command.GetBool("--use");
         var force = command.GetBool("--force");
 
@@ -133,7 +135,33 @@ public static class CloneCommand
             layout = CloneLayoutInfo.Default;
         }
 
-        CloneThemeGenerator.WriteTo(rootDir, themeName, tokens, layout, brand);
+        CloneBehaviors behaviors;
+        if (behaviorsPath is not null)
+        {
+            var behaviorsFullPath = Path.GetFullPath(behaviorsPath);
+            if (!File.Exists(behaviorsFullPath))
+            {
+                Console.Error.WriteLine($"Behaviors file not found: {behaviorsFullPath}");
+                return 2;
+            }
+
+            try
+            {
+                var behaviorsJson = await File.ReadAllTextAsync(behaviorsFullPath);
+                behaviors = CloneBehaviors.FromJson(behaviorsJson);
+            }
+            catch (JsonException ex)
+            {
+                Console.Error.WriteLine($"Failed to parse behaviors file: {ex.Message}");
+                return 2;
+            }
+        }
+        else
+        {
+            behaviors = CloneBehaviors.Default;
+        }
+
+        CloneThemeGenerator.WriteTo(rootDir, themeName, tokens, layout, brand, behaviors);
         Console.WriteLine($"Theme cloned: {themeName}");
 
         if (use && reader is not null)

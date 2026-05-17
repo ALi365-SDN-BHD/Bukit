@@ -176,6 +176,207 @@ public sealed class CloneThemeGeneratorTests : IDisposable
         var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-clone", "assets", "style.css"));
         Assert.Contains("font-family: Georgia, serif;", css, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void WriteTo_StickyHeader_AddsStickyCss()
+    {
+        var behaviors = new CloneBehaviors { StickyHeader = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-sticky", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-sticky", "assets", "style.css"));
+        Assert.Contains("position: sticky", css, StringComparison.Ordinal);
+        Assert.Contains("z-index: 100", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_CardHoverLift_AddsHoverCss()
+    {
+        var behaviors = new CloneBehaviors { CardHoverLift = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-lift", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-lift", "assets", "style.css"));
+        Assert.Contains("translateY(-3px)", css, StringComparison.Ordinal);
+        Assert.Contains(".card:hover", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_AnimateOnScroll_AddsKeyframes()
+    {
+        var behaviors = new CloneBehaviors { AnimateOnScroll = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-anim", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-anim", "assets", "style.css"));
+        Assert.Contains("@keyframes fadeInUp", css, StringComparison.Ordinal);
+        Assert.Contains("animate-in", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_ScrollShrinkNav_AddsNavHiddenCss()
+    {
+        var behaviors = new CloneBehaviors { ScrollShrinkNav = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-shrink", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-shrink", "assets", "style.css"));
+        Assert.Contains(".nav-hidden", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_MobileHamburger_AddsHamburgerCssAndHtml()
+    {
+        var behaviors = new CloneBehaviors { MobileHamburger = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-ham", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-ham", "assets", "style.css"));
+        Assert.Contains(".hamburger", css, StringComparison.Ordinal);
+
+        var headerHtml = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-ham", "layouts", "partials", "header.html"));
+        Assert.Contains("hamburger-bar", headerHtml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_DarkModeToggle_AddsDarkCss()
+    {
+        var behaviors = new CloneBehaviors { DarkModeToggle = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-dark", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-dark", "assets", "style.css"));
+        Assert.Contains("body.dark", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_WithJsBehaviors_GeneratesBehaviorsJs()
+    {
+        var behaviors = new CloneBehaviors { ScrollShrinkNav = true, BackToTop = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-js", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var jsPath = Path.Combine(_rootDir, "themes", "test-js", "assets", "behaviors.js");
+        Assert.True(File.Exists(jsPath));
+        var js = File.ReadAllText(jsPath);
+        Assert.Contains("nav-hidden", js, StringComparison.Ordinal);
+        Assert.Contains("back-to-top", js, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_WithJsBehaviors_BaseHasScriptTag()
+    {
+        var behaviors = new CloneBehaviors { SmoothScroll = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-base-js", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var html = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-base-js", "layouts", "layouts", "base.html"));
+        Assert.Contains("behaviors.js", html, StringComparison.Ordinal);
+        Assert.Contains("defer", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_WithoutBehaviors_NoBehaviorsJs()
+    {
+        CloneThemeGenerator.WriteTo(_rootDir, "test-no-beh", new CloneTokens(), CloneLayoutInfo.Default);
+
+        var jsPath = Path.Combine(_rootDir, "themes", "test-no-beh", "assets", "behaviors.js");
+        Assert.False(File.Exists(jsPath));
+
+        var html = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-no-beh", "layouts", "layouts", "base.html"));
+        Assert.DoesNotContain("behaviors.js", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_DefaultBehaviors_NoSideEffects()
+    {
+        var defaultBehaviors = CloneBehaviors.Default;
+        CloneThemeGenerator.WriteTo(_rootDir, "test-default-beh", new CloneTokens(), CloneLayoutInfo.Default, behaviors: defaultBehaviors);
+
+        var jsPath = Path.Combine(_rootDir, "themes", "test-default-beh", "assets", "behaviors.js");
+        Assert.False(File.Exists(jsPath));
+    }
+
+    [Fact]
+    public void WriteTo_DarkModeJs_ContainsLocalStorage()
+    {
+        var behaviors = new CloneBehaviors { DarkModeToggle = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-dark-js", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var js = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-dark-js", "assets", "behaviors.js"));
+        Assert.Contains("localStorage", js, StringComparison.Ordinal);
+        Assert.Contains("dark", js, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_HasModal_WritesModalPartialAndCss()
+    {
+        var behaviors = new CloneBehaviors { HasModal = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-modal", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var partialPath = Path.Combine(_rootDir, "themes", "test-modal", "layouts", "partials", "modal.html");
+        Assert.True(File.Exists(partialPath));
+        var html = File.ReadAllText(partialPath);
+        Assert.Contains("modal-overlay", html, StringComparison.Ordinal);
+        Assert.Contains("site-modal", html, StringComparison.Ordinal);
+        Assert.Contains("site.modules.modal", html, StringComparison.Ordinal);
+
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-modal", "assets", "style.css"));
+        Assert.Contains(".modal-overlay", css, StringComparison.Ordinal);
+        Assert.Contains(".modal-container", css, StringComparison.Ordinal);
+        Assert.Contains(".modal-close", css, StringComparison.Ordinal);
+
+        var js = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-modal", "assets", "behaviors.js"));
+        Assert.Contains("site-modal", js, StringComparison.Ordinal);
+        Assert.Contains("data-modal-trigger", js, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_HasDropdown_WritesDropdownPartialAndCss()
+    {
+        var behaviors = new CloneBehaviors { HasDropdown = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-dropdown", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var partialPath = Path.Combine(_rootDir, "themes", "test-dropdown", "layouts", "partials", "dropdown.html");
+        Assert.True(File.Exists(partialPath));
+        var html = File.ReadAllText(partialPath);
+        Assert.Contains("dropdown-menu", html, StringComparison.Ordinal);
+        Assert.Contains("dropdown_items", html, StringComparison.Ordinal);
+
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-dropdown", "assets", "style.css"));
+        Assert.Contains(".dropdown-menu", css, StringComparison.Ordinal);
+        Assert.Contains(".dropdown-trigger", css, StringComparison.Ordinal);
+
+        var js = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-dropdown", "assets", "behaviors.js"));
+        Assert.Contains("dropdown-trigger", js, StringComparison.Ordinal);
+        Assert.Contains(".dropdown.open", js, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_HasTabs_WritesTabsPartialAndCss()
+    {
+        var behaviors = new CloneBehaviors { HasTabs = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-tabs", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        var partialPath = Path.Combine(_rootDir, "themes", "test-tabs", "layouts", "partials", "tabs.html");
+        Assert.True(File.Exists(partialPath));
+        var html = File.ReadAllText(partialPath);
+        Assert.Contains("tab-nav", html, StringComparison.Ordinal);
+        Assert.Contains("tab-panel", html, StringComparison.Ordinal);
+        Assert.Contains("site.modules.tabs", html, StringComparison.Ordinal);
+
+        var css = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-tabs", "assets", "style.css"));
+        Assert.Contains(".tab-nav", css, StringComparison.Ordinal);
+        Assert.Contains(".tab-btn[aria-selected", css, StringComparison.Ordinal);
+
+        var js = File.ReadAllText(Path.Combine(_rootDir, "themes", "test-tabs", "assets", "behaviors.js"));
+        Assert.Contains("tab-nav", js, StringComparison.Ordinal);
+        Assert.Contains("aria-controls", js, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteTo_AllThreePartials_AllWritten()
+    {
+        var behaviors = new CloneBehaviors { HasModal = true, HasDropdown = true, HasTabs = true };
+        CloneThemeGenerator.WriteTo(_rootDir, "test-all-parts", new CloneTokens(), CloneLayoutInfo.Default, behaviors: behaviors);
+
+        Assert.True(File.Exists(Path.Combine(_rootDir, "themes", "test-all-parts", "layouts", "partials", "modal.html")));
+        Assert.True(File.Exists(Path.Combine(_rootDir, "themes", "test-all-parts", "layouts", "partials", "dropdown.html")));
+        Assert.True(File.Exists(Path.Combine(_rootDir, "themes", "test-all-parts", "layouts", "partials", "tabs.html")));
+        Assert.True(File.Exists(Path.Combine(_rootDir, "themes", "test-all-parts", "assets", "behaviors.js")));
+    }
 }
 
 public sealed class CloneModelsTests
@@ -244,5 +445,81 @@ public sealed class CloneModelsTests
         Assert.False(CloneModels.IsSafeThemeName(".."));
         Assert.False(CloneModels.IsSafeThemeName("/etc/passwd"));
         Assert.False(CloneModels.IsSafeThemeName("theme/sub"));
+    }
+
+    [Fact]
+    public void CloneBehaviors_FromJson_ParsesAllFlags()
+    {
+        var json = """{"stickyHeader":true,"cardHoverLift":true,"scrollShrinkNav":true,"darkModeToggle":true}""";
+        var b = CloneBehaviors.FromJson(json);
+        Assert.True(b.StickyHeader);
+        Assert.True(b.CardHoverLift);
+        Assert.True(b.ScrollShrinkNav);
+        Assert.True(b.DarkModeToggle);
+        Assert.False(b.MobileHamburger);
+    }
+
+    [Fact]
+    public void CloneBehaviors_FromJson_Empty_AllFalse()
+    {
+        var b = CloneBehaviors.FromJson("{}");
+        Assert.False(b.StickyHeader);
+        Assert.False(b.CardHoverLift);
+        Assert.False(b.HasAnyCssBehavior);
+        Assert.False(b.HasAnyJsBehavior);
+    }
+
+    [Fact]
+    public void CloneBehaviors_FromJson_Null_ReturnsDefault()
+    {
+        var b = CloneBehaviors.FromJson(null!);
+        Assert.False(b.StickyHeader);
+    }
+
+    [Fact]
+    public void CloneBehaviors_HasAnyCssBehavior_DetectsCorrectly()
+    {
+        Assert.True(new CloneBehaviors { StickyHeader = true }.HasAnyCssBehavior);
+        Assert.True(new CloneBehaviors { CardHoverLift = true }.HasAnyCssBehavior);
+        Assert.True(new CloneBehaviors { DarkModeToggle = true }.HasAnyCssBehavior);
+        Assert.False(new CloneBehaviors { BackToTop = true }.HasAnyCssBehavior);
+    }
+
+    [Fact]
+    public void CloneBehaviors_HasAnyJsBehavior_DetectsCorrectly()
+    {
+        Assert.True(new CloneBehaviors { ScrollShrinkNav = true }.HasAnyJsBehavior);
+        Assert.True(new CloneBehaviors { SmoothScroll = true }.HasAnyJsBehavior);
+        Assert.False(new CloneBehaviors { StickyHeader = true }.HasAnyJsBehavior);
+    }
+
+    [Fact]
+    public void CloneBehaviors_HasModal_ParsesAndDetects()
+    {
+        var json = """{"hasModal":true,"hasDropdown":false}""";
+        var b = CloneBehaviors.FromJson(json);
+        Assert.True(b.HasModal);
+        Assert.False(b.HasDropdown);
+        Assert.True(b.HasExtraPartials);
+        Assert.True(b.HasAnyCssBehavior);
+        Assert.True(b.HasAnyJsBehavior);
+    }
+
+    [Fact]
+    public void CloneBehaviors_HasTabs_Parses()
+    {
+        var json = """{"hasTabs":true}""";
+        var b = CloneBehaviors.FromJson(json);
+        Assert.True(b.HasTabs);
+        Assert.False(b.HasModal);
+        Assert.False(b.HasDropdown);
+        Assert.True(b.HasAnyCssBehavior);
+    }
+
+    [Fact]
+    public void CloneBehaviors_HasDropdown_HasExtraPartials()
+    {
+        Assert.True(new CloneBehaviors { HasDropdown = true }.HasExtraPartials);
+        Assert.False(new CloneBehaviors { BackToTop = true }.HasExtraPartials);
     }
 }

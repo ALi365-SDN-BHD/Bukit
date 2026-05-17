@@ -4,13 +4,18 @@ namespace Bukit.Cli.Commands;
 
 internal static class CloneThemeGenerator
 {
-    public static void WriteTo(string rootDir, string themeName, CloneTokens tokens, CloneLayoutInfo layout, string? brand = null)
+    public static void WriteTo(string rootDir, string themeName, CloneTokens tokens, CloneLayoutInfo layout, string? brand = null, CloneBehaviors? behaviors = null)
     {
         var css = GenerateStyleCss(tokens);
+        if (behaviors is not null && behaviors.HasAnyCssBehavior)
+        {
+            css += "\n" + GenerateBehaviorCss(behaviors);
+        }
         WriteFile(rootDir, $"themes/{themeName}/assets/style.css", css);
 
-        WriteFile(rootDir, $"themes/{themeName}/layouts/layouts/base.html", GenerateBaseLayout(tokens));
-        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/header.html", GenerateHeader(tokens, layout, brand));
+        var baseLayout = GenerateBaseLayout(tokens, behaviors);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/layouts/base.html", baseLayout);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/header.html", GenerateHeader(tokens, layout, brand, behaviors));
         WriteFile(rootDir, $"themes/{themeName}/layouts/partials/footer.html", GenerateFooter(layout, brand));
         WriteFile(rootDir, $"themes/{themeName}/layouts/partials/list-card.html", StarterThemeScaffold.ListCardPartial);
         WriteFile(rootDir, $"themes/{themeName}/layouts/partials/pagination-nav.html", StarterThemeScaffold.PaginationNavPartial);
@@ -24,7 +29,76 @@ internal static class CloneThemeGenerator
         WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", StarterThemeScaffold.TaxonomyTermTemplate);
         WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", StarterThemeScaffold.SearchTemplate);
         WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml", StarterThemeScaffold.TemplateCapabilities);
+
+        if (behaviors is not null && behaviors.HasAnyJsBehavior)
+        {
+            WriteFile(rootDir, $"themes/{themeName}/assets/behaviors.js", GenerateBehaviorsJs(behaviors));
+        }
+
+        if (behaviors?.HasModal == true)
+            WriteFile(rootDir, $"themes/{themeName}/layouts/partials/modal.html", ModalPartial);
+        if (behaviors?.HasDropdown == true)
+            WriteFile(rootDir, $"themes/{themeName}/layouts/partials/dropdown.html", DropdownPartial);
+        if (behaviors?.HasTabs == true)
+            WriteFile(rootDir, $"themes/{themeName}/layouts/partials/tabs.html", TabsPartial);
     }
+
+    internal const string ModalPartial = """
+{{ if site.modules && site.modules.modal }}
+<div class="modal-overlay hidden" id="site-modal" role="dialog" aria-modal="true">
+  <div class="modal-container">
+    <div class="modal-header">
+      <span class="modal-title">{{ site.modules.modal.title }}</span>
+      <button class="modal-close" aria-label="Close modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      {{ for item in site.modules.modal.items }}
+        {{ if item.fields && item.fields.desc }}
+          <p>{{ item.fields.desc.value }}</p>
+        {{ else }}
+          <p>{{ item.title }}</p>
+        {{ end }}
+      {{ end }}
+    </div>
+  </div>
+</div>
+{{ end }}
+""";
+
+    internal const string DropdownPartial = """
+<div class="dropdown">
+  <button class="dropdown-trigger" aria-haspopup="true" aria-expanded="false">
+    <span class="dropdown-label">Menu</span>
+    <span class="dropdown-caret">▾</span>
+  </button>
+  <div class="dropdown-menu" role="menu" hidden>
+    {{ for item in dropdown_items }}
+      <a href="{{ item.url }}" class="dropdown-item" role="menuitem">{{ item.label }}</a>
+    {{ end }}
+  </div>
+</div>
+""";
+
+    internal const string TabsPartial = """
+{{ if site.modules && site.modules.tabs }}
+<div class="tabs">
+  <div class="tab-nav" role="tablist">
+    {{ for tab in site.modules.tabs }}
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-panel-{{ for.rindex }}">
+        {{ tab.title }}
+      </button>
+    {{ end }}
+  </div>
+  {{ for tab in site.modules.tabs }}
+    <div class="tab-panel hidden" role="tabpanel" id="tab-panel-{{ for.rindex }}">
+      {{ if tab.fields && tab.fields.desc }}
+        {{ tab.fields.desc.value }}
+      {{ end }}
+    </div>
+  {{ end }}
+</div>
+{{ end }}
+""";
 
     internal static string GenerateStyleCss(CloneTokens t)
     {
@@ -296,7 +370,7 @@ button:hover, .button:hover {
 """;
     }
 
-    internal static string GenerateBaseLayout(CloneTokens t)
+    internal static string GenerateBaseLayout(CloneTokens t, CloneBehaviors? behaviors = null)
     {
         var fontBlock = string.IsNullOrWhiteSpace(t.GoogleFontsUrl)
             ? ""
@@ -304,6 +378,10 @@ button:hover, .button:hover {
 
         var themeAssets = fontBlock +
             "  <link rel=\"stylesheet\" href=\"{{ site.base_url }}/assets/style.css\" />\n";
+
+        var jsBlock = (behaviors is not null && behaviors.HasAnyJsBehavior)
+            ? "  <script src=\"{{ site.base_url }}/assets/behaviors.js\" defer></script>\n"
+            : "";
 
         var template = """
 <!DOCTYPE html>
@@ -321,11 +399,13 @@ __ASSETS__</head>
     {{ content }}
   </main>
   {{ include "partials/footer.html" }}
-</body>
+__BEHAVIORS_JS__</body>
 </html>
 """;
 
-        return template.Replace("__ASSETS__", themeAssets);
+        return template
+            .Replace("__ASSETS__", themeAssets)
+            .Replace("__BEHAVIORS_JS__", jsBlock);
     }
 
     internal static string GenerateIndex(CloneTokens t, CloneLayoutInfo layout, string? brand)
@@ -391,7 +471,7 @@ __ASSETS__</head>
         return sb.ToString();
     }
 
-    internal static string GenerateHeader(CloneTokens t, CloneLayoutInfo layout, string? siteName)
+    internal static string GenerateHeader(CloneTokens t, CloneLayoutInfo layout, string? siteName, CloneBehaviors? behaviors = null)
     {
         var brandText = string.IsNullOrWhiteSpace(siteName) ? "{{ site.title }}" : Esc(siteName);
         var navLinksHtml = layout.NavLinks.Count > 0
@@ -402,12 +482,23 @@ __ASSETS__</head>
         <a href="{{ site.base_url }}/pages/">Pages</a>
 """;
 
+        var hamburgerBlock = (behaviors?.MobileHamburger == true)
+            ? """
+    <button class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+    </button>
+"""
+            : "";
+
         var template = """
 <header class="site-header">
   <nav class="nav" aria-label="Primary navigation">
     <a class="brand" href="{{ site.base_url }}/">
       {{ if site.params && site.params.brand }}{{ site.params.brand }}{{ else }}__BRAND__{{ end }}
     </a>
+__HAMBURGER__
     <div class="nav-links">
       {{ if site.modules && site.modules.navigation }}
         {{ for item in site.modules.navigation }}
@@ -425,7 +516,8 @@ __NAV_LINKS__
 
         return template
             .Replace("__BRAND__", brandText)
-            .Replace("__NAV_LINKS__", navLinksHtml);
+            .Replace("__NAV_LINKS__", navLinksHtml)
+            .Replace("__HAMBURGER__", hamburgerBlock);
     }
 
     internal static string GenerateFooter(CloneLayoutInfo layout, string? brand)
@@ -454,6 +546,229 @@ __LINKS__
         return template
             .Replace("__FOOTER_TEXT__", footerText)
             .Replace("__LINKS__", linksHtml);
+    }
+
+    internal static string GenerateBehaviorCss(CloneBehaviors b)
+    {
+        var sb = new StringBuilder();
+
+        if (b.StickyHeader)
+        {
+            sb.AppendLine("""
+.site-header { position: sticky; top: 0; z-index: 100; }
+
+""");
+        }
+
+        if (b.ScrollShrinkNav)
+        {
+            sb.AppendLine("""
+.site-header { transition: transform 0.3s ease; }
+.nav-hidden { transform: translateY(-100%); }
+
+""");
+        }
+
+        if (b.CardHoverLift)
+        {
+            sb.AppendLine("""
+.card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.card:hover { transform: translateY(-3px); box-shadow: var(--modal-shadow); }
+
+""");
+        }
+
+        if (b.AnimateOnScroll)
+        {
+            sb.AppendLine("""
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in { opacity: 0; transform: translateY(20px); }
+.animate-visible { animation: fadeInUp 0.55s ease forwards; }
+
+""");
+        }
+
+        if (b.MobileHamburger)
+        {
+            sb.AppendLine("""
+.hamburger { display: none; flex-direction: column; gap: 5px; padding: 8px; border: none; background: none; cursor: pointer; }
+.hamburger-bar { display: block; width: 22px; height: 2.5px; border-radius: 2px; background: var(--text); transition: transform 0.25s ease, opacity 0.25s ease; }
+
+@media (max-width: var(--bp-mobile)) {
+  .hamburger { display: flex; }
+  .nav-links { display: none; flex-direction: column; width: 100%; gap: 8px; padding-top: 12px; }
+  .nav-links.open { display: flex; }
+}
+
+""");
+        }
+
+        if (b.DarkModeToggle)
+        {
+            sb.AppendLine("""
+.dark-mode-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: 0.88rem; cursor: pointer; }
+.dark-mode-toggle:hover { background: var(--surface-muted); }
+
+body.dark { --bg: #1a1a2e; --surface: #16213e; --surface-muted: #0f3460; --text: #eaeaea; --muted: #a0a0b0; --border: #2a2a4a; }
+body.dark img { opacity: 0.9; }
+body.dark .site-header { background: rgba(22, 33, 62, 0.92); }
+
+""");
+        }
+
+        if (b.HasModal)
+        {
+            sb.AppendLine("""
+.modal-overlay { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); opacity: 0; visibility: hidden; transition: opacity 0.25s ease, visibility 0.25s ease; }
+.modal-overlay.visible { opacity: 1; visibility: visible; }
+.modal-container { max-width: 560px; width: 90%; max-height: 80vh; overflow-y: auto; padding: 28px 32px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--modal-shadow); }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.modal-title { font-family: var(--heading-font, inherit); font-size: 1.3rem; font-weight: 700; margin: 0; }
+.modal-close { padding: 6px 10px; border: none; background: none; font-size: 1.4rem; cursor: pointer; color: var(--muted); line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal-body p { margin: 0.6em 0; color: var(--muted); }
+
+""");
+        }
+
+        if (b.HasDropdown)
+        {
+            sb.AppendLine("""
+.dropdown { position: relative; display: inline-block; }
+.dropdown-trigger { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.dropdown-trigger:hover { background: var(--surface-muted); }
+.dropdown-caret { font-size: 0.75rem; transition: transform 0.2s ease; }
+.dropdown.open .dropdown-caret { transform: rotate(180deg); }
+.dropdown-menu { position: absolute; top: calc(100% + 6px); left: 0; min-width: 180px; padding: 6px 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--dropdown-shadow); z-index: 150; }
+.dropdown-item { display: block; padding: 8px 14px; color: var(--text); font-size: 0.92rem; }
+.dropdown-item:hover { background: var(--surface-muted); color: var(--primary); }
+
+""");
+        }
+
+        if (b.HasTabs)
+        {
+            sb.AppendLine("""
+.tabs { margin: 20px 0; }
+.tab-nav { display: flex; gap: 2px; border-bottom: 2px solid var(--border); margin-bottom: 18px; overflow-x: auto; }
+.tab-btn { padding: 10px 18px; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; background: none; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; transition: color 0.15s ease, border-color 0.15s ease; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-panel { padding: 4px 0; }
+.tab-panel:not(.hidden) { display: block; }
+
+""");
+        }
+
+        return sb.ToString().TrimEnd('\r', '\n');
+    }
+
+    internal static string GenerateBehaviorsJs(CloneBehaviors b)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("(function(){'use strict';");
+        sb.AppendLine();
+
+        if (b.ScrollShrinkNav)
+        {
+            sb.AppendLine("""
+var h=document.querySelector('.site-header');
+var s=0;
+window.addEventListener('scroll',function(){var n=window.scrollY;if(n>60&&n>s)h.classList.add('nav-hidden');else if(n<10||n<s)h.classList.remove('nav-hidden');s=n},{passive:true});
+
+""");
+        }
+
+        if (b.MobileHamburger)
+        {
+            sb.AppendLine("""
+var btn=document.querySelector('.hamburger');
+var nav=document.querySelector('.nav-links');
+if(btn&&nav){btn.addEventListener('click',function(){var o=nav.classList.toggle('open');btn.setAttribute('aria-expanded',String(o));});}
+
+""");
+        }
+
+        if (b.DarkModeToggle)
+        {
+            sb.AppendLine("""
+var t=document.createElement('button');
+t.className='dark-mode-toggle';
+t.textContent='☀️';
+t.title='Toggle dark mode';
+var hh=document.querySelector('.site-header');
+if(hh)hh.appendChild(t);
+var stored=localStorage.getItem('theme');
+if(stored==='dark')document.body.classList.add('dark');
+t.addEventListener('click',function(){var d=document.body.classList.toggle('dark');localStorage.setItem('theme',d?'dark':'light');t.textContent=d?'🌙':'☀️';});
+
+""");
+        }
+
+        if (b.SmoothScroll)
+        {
+            sb.AppendLine("""
+document.querySelectorAll('a[href^=\"#\"]').forEach(function(a){a.addEventListener('click',function(e){var id=this.getAttribute('href').slice(1);var el=document.getElementById(id);if(el){e.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});}});});
+
+""");
+        }
+
+        if (b.BackToTop)
+        {
+            sb.AppendLine("""
+var btt=document.createElement('button');
+btt.textContent='↑';
+btt.className='back-to-top';
+btt.setAttribute('aria-label','Back to top');
+btt.style.cssText='position:fixed;bottom:24px;right:24px;width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1.2rem;cursor:pointer;opacity:0;transition:opacity 0.3s;z-index:90;';
+document.body.appendChild(btt);
+window.addEventListener('scroll',function(){btt.style.opacity=window.scrollY>400?'1':'0';},{passive:true});
+btt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+
+""");
+        }
+
+        if (b.AnimateOnScroll)
+        {
+            sb.AppendLine("""
+var observer=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting)e.target.classList.add('animate-visible');});},{threshold:0.15});
+document.querySelectorAll('.animate-in').forEach(function(el){observer.observe(el);});
+
+""");
+        }
+
+        if (b.HasModal)
+        {
+            sb.AppendLine("""
+var mo=document.getElementById('site-modal');
+if(mo){var mc=mo.querySelector('.modal-close');if(mc)mc.addEventListener('click',function(){mo.classList.add('hidden');mo.classList.remove('visible');mo.setAttribute('aria-hidden','true');});mo.addEventListener('click',function(e){if(e.target===mo){mo.classList.add('hidden');mo.classList.remove('visible');mo.setAttribute('aria-hidden','true');}});document.addEventListener('keydown',function(e){if(e.key==='Escape'&&mo.classList.contains('visible')){mo.classList.add('hidden');mo.classList.remove('visible');mo.setAttribute('aria-hidden','true');}});var triggers=document.querySelectorAll('[data-modal-trigger]');triggers.forEach(function(btn){btn.addEventListener('click',function(){mo.classList.remove('hidden');mo.classList.add('visible');mo.setAttribute('aria-hidden','false');});});}
+
+""");
+        }
+
+        if (b.HasDropdown)
+        {
+            sb.AppendLine("""
+document.querySelectorAll('.dropdown-trigger').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();var dd=btn.closest('.dropdown');var menu=dd.querySelector('.dropdown-menu');var open=dd.classList.toggle('open');btn.setAttribute('aria-expanded',String(open));if(menu)menu.hidden=!open;});});
+document.addEventListener('click',function(e){document.querySelectorAll('.dropdown.open').forEach(function(dd){if(!dd.contains(e.target)){dd.classList.remove('open');dd.querySelector('.dropdown-trigger').setAttribute('aria-expanded','false');var menu=dd.querySelector('.dropdown-menu');if(menu)menu.hidden=true;}});});
+
+""");
+        }
+
+        if (b.HasTabs)
+        {
+            sb.AppendLine("""
+document.querySelectorAll('.tab-nav').forEach(function(nav){var btns=nav.querySelectorAll('.tab-btn');btns.forEach(function(btn){btn.addEventListener('click',function(){var panelId=btn.getAttribute('aria-controls');btns.forEach(function(b){b.setAttribute('aria-selected','false');});btn.setAttribute('aria-selected','true');var parent=nav.closest('.tabs');if(parent){parent.querySelectorAll('.tab-panel').forEach(function(p){p.classList.add('hidden');});var panel=document.getElementById(panelId);if(panel)panel.classList.remove('hidden');}});});if(btns.length>0){btns[0].click();}});
+
+""");
+        }
+
+        sb.AppendLine("})();");
+        return sb.ToString();
     }
 
     private static string GenerateNavLinks(List<NavLinkInfo> links)

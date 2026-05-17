@@ -228,32 +228,147 @@ Download each asset to `themes/<name>/assets/images/` after theme generation usi
 
 - `tokens.json` — design tokens from Step 1.2
 - `layout.json` — page layout from Step 1.5
+- `behaviors.json` — interactive behaviors from Step 1.7
 - `icons.json` — SVG icons from Step 1.3 (optional enhancement)
 - `assets.json` — static assets to download from Step 1.4 (optional enhancement)
+
+### Step 1.7: Detect Interactive Behaviors
+
+Run this script via browser MCP and save as `behaviors.json`:
+
+```javascript
+(function() {
+  const doc = document, win = window;
+  const body = doc.body;
+  const gs = (el, prop) => { try { return getComputedStyle(el)[prop]; } catch { return null; } };
+
+  const behaviors = {};
+
+  // Sticky header
+  const header = doc.querySelector('header, nav');
+  if (header) {
+    const pos = gs(header, 'position');
+    behaviors.stickyHeader = pos === 'sticky' || pos === 'fixed';
+  }
+
+  // Scroll shrink (header hides on scroll down)
+  behaviors.scrollShrinkNav = false;
+  // Check for CSS transform/animation attached to header classes
+  try {
+    for (const sheet of doc.styleSheets) {
+      try { if (!sheet.cssRules) continue; } catch { continue; }
+      for (const rule of sheet.cssRules) {
+        if (rule.selectorText && rule.selectorText.includes('header') && rule.style.transform && rule.style.transform.includes('translateY')) {
+          behaviors.scrollShrinkNav = true;
+          break;
+        }
+      }
+    }
+  } catch {}
+
+  // Card hover lift
+  const card = doc.querySelector('.card, article, [class*="card"]');
+  if (card) {
+    const hov = gs(card, 'transform') || '';
+    behaviors.cardHoverLift = hov.includes('translateY') || hov.includes('scale');
+    // Also check :hover rules
+    try {
+      for (const sheet of doc.styleSheets) {
+        try { if (!sheet.cssRules) continue; } catch { continue; }
+        for (const rule of sheet.cssRules) {
+          if (rule.selectorText && rule.selectorText.includes(':hover') && (rule.style.transform || rule.style.boxShadow)) {
+            if (!behaviors.cardHoverLift) behaviors.cardHoverLift = true;
+            break;
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // Animate on scroll
+  behaviors.animateOnScroll = !!doc.querySelector('[data-aos], [data-scroll], [class*="animate"], [class*="fade-in"], [class*="reveal"]');
+  if (!behaviors.animateOnScroll) {
+    try {
+      for (const sheet of doc.styleSheets) {
+        try { if (!sheet.cssRules) continue; } catch { continue; }
+        for (const rule of sheet.cssRules) {
+          if (rule.selectorText && (rule.selectorText.includes('animate') || rule.selectorText.includes('fade'))) {
+            if (rule.style.animation || rule.style.animationName) {
+              behaviors.animateOnScroll = true;
+              break;
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // Dark mode
+  behaviors.darkModeToggle = !!doc.querySelector('[class*="dark"], [class*="theme"], [aria-label*="dark"], [aria-label*="theme"]');
+  if (!behaviors.darkModeToggle) {
+    // Check localStorage
+    try { if (localStorage.getItem('theme') || localStorage.getItem('darkMode')) behaviors.darkModeToggle = true; } catch {}
+    // Check prefers-color-scheme usage
+    if (matchMedia('(prefers-color-scheme: dark)').matches) behaviors.darkModeToggle = true;
+  }
+
+  // Mobile hamburger
+  behaviors.mobileHamburger = !!doc.querySelector('[class*="hamburger"], [class*="burger"], [aria-label*="menu"], button[aria-expanded]');
+
+  // Smooth scroll
+  behaviors.smoothScroll = gs(doc.documentElement, 'scrollBehavior') === 'smooth';
+  if (!behaviors.smoothScroll) {
+    const anchors = doc.querySelectorAll('a[href^="#"]');
+    for (const a of anchors) {
+      if (a.getAttribute('data-scroll') || a.onclick) { behaviors.smoothScroll = true; break; }
+    }
+  }
+
+  // Back to top
+  behaviors.backToTop = !!doc.querySelector('[class*="back-to-top"], [class*="scroll-top"], [aria-label*="top"]');
+
+  // Modal
+  behaviors.hasModal = !!doc.querySelector('[role="dialog"], [class*="modal"], [class*="overlay"], [class*="popup"]');
+
+  // Dropdown
+  behaviors.hasDropdown = !!doc.querySelector('[class*="dropdown"], [aria-haspopup], [role="menu"]');
+
+  // Tabs
+  behaviors.hasTabs = !!doc.querySelector('[role="tablist"], [class*="tabs"], [class*="tab-nav"]');
+
+  console.log(JSON.stringify(behaviors, null, 2));
+  return behaviors;
+})();
+```
 
 ---
 
 ## Phase 2: Theme Generation
 
 ```bash
-bukit clone --tokens tokens.json --layout layout.json --theme <theme-name> --brand "<Brand Name>" --use
+bukit clone --tokens tokens.json --layout layout.json --behaviors behaviors.json --theme <theme-name> --brand "<Brand Name>" --use
 ```
 
 Options:
 - `--tokens` (required): Path to tokens JSON file
 - `--theme`: Theme name (default: `cloned`)
 - `--layout`: Path to layout JSON file (optional; defaults used if omitted)
+- `--behaviors`: Path to behaviors JSON file (optional; generated from Step 1.7)
 - `--brand`: Brand name for nav bar and footer
 - `--use`: Automatically switch to the new theme
 - `--force`: Overwrite existing theme directory
 
-The CLI generates 15 files under `themes/<name>/`:
-- `assets/style.css` — Full CSS with custom variables (colors, shadows, spacing, breakpoints)
-- `layouts/layouts/base.html` — HTML skeleton with Google Fonts
-- `layouts/partials/header.html` — Navigation bar (with extracted nav links)
+The CLI generates files under `themes/<name>/`:
+- `assets/style.css` — Full CSS with custom variables (colors, shadows, spacing, breakpoints) + behavior enhancements
+- `assets/behaviors.js` — (conditional) Vanilla JS for scroll shrink, dark mode, hamburger, smooth scroll, back-to-top
+- `layouts/layouts/base.html` — HTML skeleton with Google Fonts + behaviors.js script tag (if JS behaviors enabled)
+- `layouts/partials/header.html` — Navigation bar (with extracted nav links + optional hamburger button)
 - `layouts/partials/footer.html` — Footer with extracted links + bukit attribution
 - `layouts/partials/list-card.html` — Reusable card partial
 - `layouts/partials/pagination-nav.html` — Pagination navigation
+- `layouts/partials/modal.html` — (optional, if `hasModal`) Modal dialog partial, reads `site.modules.modal`
+- `layouts/partials/dropdown.html` — (optional, if `hasDropdown`) Dropdown menu partial, reads `dropdown_items`
+- `layouts/partials/tabs.html` — (optional, if `hasTabs`) Tab panel partial, reads `site.modules.tabs`
 - `layouts/pages/index.html` — Homepage (Hero + Features + Latest content + CTA)
 - `layouts/pages/page.html` — Generic page template
 - `layouts/pages/post.html` — Blog post template
@@ -311,3 +426,58 @@ bukit build
 | `headingFontFamily` | `font-family` on `h1-h6` | Same as `fontFamily` |
 | `codeFontFamily` | `font-family` on `code` | Monospace stack |
 | `googleFontsUrl` | `<link>` in `<head>` | None |
+
+## behaviors.json Reference
+
+| Field | Effect | Default |
+|-------|--------|---------|
+| `stickyHeader` | Header `position: sticky; top: 0; z-index: 100` | `false` |
+| `scrollShrinkNav` | Hide header on scroll down (`.nav-hidden` + JS scroll listener) | `false` |
+| `cardHoverLift` | Card `translateY(-3px)` + shadow lift on hover | `false` |
+| `animateOnScroll` | `@keyframes fadeInUp` + `.animate-in/.animate-visible` + IntersectionObserver | `false` |
+| `mobileHamburger` | Hamburger button in header + mobile nav toggle (CSS + JS) | `false` |
+| `darkModeToggle` | Dark mode CSS variables + toggle button with localStorage | `false` |
+| `smoothScroll` | Smooth scroll for `#anchor` links (vanilla JS) | `false` |
+| `backToTop` | Floating back-to-top button at bottom-right (JS-injected) | `false` |
+| `hasModal` | Writes `partials/modal.html` + modal CSS (`.modal-overlay/.modal-container/.modal-close`) + JS (open/close/Escape) | `false` |
+| `hasDropdown` | Writes `partials/dropdown.html` + dropdown CSS (`.dropdown-menu/.dropdown-trigger`) + JS (toggle/click-outside) | `false` |
+| `hasTabs` | Writes `partials/tabs.html` + tabs CSS (`.tab-nav/.tab-btn/.tab-panel`) + JS (tab switching) | `false` |
+
+Each behavior generates **CSS rules only**, **JS only**, or **both**, depending on the behavior type:
+- **CSS-only**: `stickyHeader`, `cardHoverLift`
+- **CSS+JS**: `scrollShrinkNav`, `animateOnScroll`, `mobileHamburger`, `darkModeToggle`, `hasModal`, `hasDropdown`, `hasTabs`
+- **JS-only**: `smoothScroll`, `backToTop`
+
+### Using Optional Partials
+
+When `hasModal` / `hasDropdown` / `hasTabs` is enabled, corresponding Scriban partials are generated. Include them in your pages:
+
+```scriban
+{# In index.html or any page template #}
+{{ include "partials/modal.html" }}
+{{ include "partials/dropdown.html" }}
+{{ include "partials/tabs.html" }}
+```
+
+Data-driven usage via `site.yaml`:
+
+```yaml
+site:
+  modules:
+    modal:
+      title: "Subscribe"
+      items:
+        - title: "Enter your email"
+          fields:
+            desc:
+              value: "Get weekly updates delivered to your inbox."
+    tabs:
+      - title: "Feature"
+        fields:
+          desc:
+            value: "This is the feature tab content."
+      - title: "Pricing"
+        fields:
+          desc:
+            value: "Starting at $9/month."
+```

@@ -136,6 +136,56 @@ public sealed record SectionInfo
     public List<string> ImageUrls { get; init; } = [];
 }
 
+public sealed record CloneBehaviors
+{
+    public bool StickyHeader { get; init; }
+    public bool CardHoverLift { get; init; }
+    public bool AnimateOnScroll { get; init; }
+    public bool ScrollShrinkNav { get; init; }
+
+    public bool DarkModeToggle { get; init; }
+    public bool MobileHamburger { get; init; }
+    public bool SmoothScroll { get; init; }
+    public bool BackToTop { get; init; }
+
+    public bool HasModal { get; init; }
+    public bool HasDropdown { get; init; }
+    public bool HasTabs { get; init; }
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    public static CloneBehaviors Default => new();
+
+    public bool HasExtraPartials => HasModal || HasDropdown || HasTabs;
+
+    public bool HasAnyCssBehavior =>
+        StickyHeader || ScrollShrinkNav || CardHoverLift || AnimateOnScroll || MobileHamburger || DarkModeToggle || HasModal || HasDropdown || HasTabs;
+
+    public bool HasAnyJsBehavior =>
+        ScrollShrinkNav || DarkModeToggle || MobileHamburger || SmoothScroll || BackToTop || HasModal || HasDropdown || HasTabs;
+
+    public static CloneBehaviors FromJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return Default;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<CloneBehaviors>(json, JsonOptions) ?? Default;
+        }
+        catch (JsonException)
+        {
+            return Default;
+        }
+    }
+}
+
 internal static class CloneModels
 {
     public static bool IsSafeThemeName(string? name)

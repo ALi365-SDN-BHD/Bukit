@@ -62,6 +62,7 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--tokens", "设计令牌 JSON 文件", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--theme", "目标主题名", CliOptionType.String, ValueName: "name"),
                 new CliOptionSpec("--layout", "页面布局 JSON 文件", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--behaviors", "交互行为 JSON 文件", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--brand", "品牌名 (用于导航栏和页脚)"),
                 new CliOptionSpec("--use", "创建后切换到该主题", CliOptionType.Flag),
                 new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
