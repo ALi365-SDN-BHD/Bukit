@@ -65,6 +65,7 @@ try
         "seo" => await SeoCommand.RunAsync(reader),
         "clone" => await CloneCommand.RunAsync(reader),
         "theme" => await ThemeCommand.RunAsync(reader),
+        "template" => await TemplateCommand.RunAsync(reader),
         "intent" => await IntentCommand.RunAsync(reader),
         "webhook" => await WebhookCommand.RunAsync(reader),
         "version" => await VersionCommand.RunAsync(reader),

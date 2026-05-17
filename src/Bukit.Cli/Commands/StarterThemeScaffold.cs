@@ -9,24 +9,39 @@ internal static class StarterThemeScaffold
 
     public static void WriteTo(string rootDir, string themeName, string? primaryColor, string? accentColor)
     {
-        var styleCss = ApplyColorOverrides(StyleCss, primaryColor, accentColor);
+        var styleCss = ThemeTemplateResource.Get("StyleCss");
+        styleCss = ThemeTemplateResource.ApplyColorOverrides(styleCss, primaryColor, accentColor);
+
+        var placeholders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["primary-color"] = primaryColor ?? "#0b5fff",
+            ["accent-color"] = accentColor ?? "#0f7b6c",
+            ["brand"] = themeName
+        };
+
+        styleCss = ThemeTemplateResource.ProcessPlaceholders(styleCss, placeholders);
+
         WriteFile(rootDir, Path.Combine("themes", themeName, "assets", "style.css"), styleCss);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "layouts", "base.html"), BaseLayout);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "seo.html"), SeoPartial);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "analytics.html"), AnalyticsPartial);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "header.html"), HeaderPartial);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "footer.html"), FooterPartial);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "list-card.html"), ListCardPartial);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "pagination-nav.html"), PaginationNavPartial);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "page.html"), PageTemplate);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "post.html"), PostTemplate);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "index.html"), IndexTemplate);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "list.html"), ListTemplate);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "pagination.html"), PaginationTemplate);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "taxonomy-index.html"), TaxonomyIndexTemplate);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "taxonomy-term.html"), TaxonomyTermTemplate);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "search.html"), SearchTemplate);
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "bukit.templates.yaml"), TemplateCapabilities);
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "layouts", "base.html"),
+            ThemeTemplateResource.ProcessPlaceholders(ThemeTemplateResource.Get("BaseLayout"), placeholders));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "seo.html"), ThemeTemplateResource.Get("SeoPartial"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "analytics.html"), ThemeTemplateResource.Get("AnalyticsPartial"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "header.html"),
+            ThemeTemplateResource.ProcessPlaceholders(ThemeTemplateResource.Get("HeaderPartial"), placeholders));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "footer.html"),
+            ThemeTemplateResource.ProcessPlaceholders(ThemeTemplateResource.Get("FooterPartial"), placeholders));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "list-card.html"), ThemeTemplateResource.Get("ListCardPartial"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "pagination-nav.html"), ThemeTemplateResource.Get("PaginationNavPartial"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "page.html"), ThemeTemplateResource.Get("PageTemplate"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "post.html"), ThemeTemplateResource.Get("PostTemplate"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "index.html"), ThemeTemplateResource.Get("IndexTemplate"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "list.html"), ThemeTemplateResource.Get("ListTemplate"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "pagination.html"), ThemeTemplateResource.Get("PaginationTemplate"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "taxonomy-index.html"), ThemeTemplateResource.Get("TaxonomyIndexTemplate"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "taxonomy-term.html"), ThemeTemplateResource.Get("TaxonomyTermTemplate"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "pages", "search.html"), ThemeTemplateResource.Get("SearchTemplate"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "bukit.templates.yaml"), ThemeTemplateResource.Get("TemplateCapabilities"));
+        WriteFile(rootDir, Path.Combine("themes", themeName, "theme.yaml"), ThemeTemplateResource.Get("ThemeYaml"));
     }
 
     public static string ApplyColorOverrides(string styleCss, string? primaryColor, string? accentColor)
@@ -608,6 +623,7 @@ button:hover,
 <header class="site-header">
   <nav class="nav" aria-label="Primary navigation">
     <a class="brand" href="{{ site.base_url }}/">
+      {{-- bukit:brand --}}
       {{ if site.params && site.params.brand }}
         {{ site.params.brand }}
       {{ else }}
@@ -927,5 +943,31 @@ templates:
   pages/search.html:
     capabilities:
       supports_search_snippets: true
+""";
+
+    internal const string ThemeYaml = """
+name: starter
+version: 1.0.0
+description: Default starter theme for bukit
+author: Bukit
+license: MIT
+tags: [starter, minimal, blog]
+params:
+  - key: brand
+    label: Site Brand
+    type: string
+    default: My Site
+  - key: primary_color
+    label: Primary Color
+    type: color
+    default: "#0b5fff"
+  - key: accent_color
+    label: Accent Color
+    type: color
+    default: "#0f7b6c"
+  - key: footer_text
+    label: Footer Text
+    type: string
+    default: My Site
 """;
 }

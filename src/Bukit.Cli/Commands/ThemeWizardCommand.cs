@@ -1,0 +1,210 @@
+namespace Bukit.Cli.Commands;
+
+public static class ThemeWizardCommand
+{
+    public static Task<int> RunAsync(ArgReader reader)
+    {
+        var raw = reader.GetArg(2);
+        if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith('-') || !CloneModels.IsSafeThemeName(raw))
+        {
+            Console.Error.WriteLine("Missing or invalid theme name. Usage: bukit theme wizard <name>");
+            return Task.FromResult(2);
+        }
+
+        var name = raw;
+        var resolved = ConfigPathResolver.Resolve(reader);
+        var rootDir = resolved.RootDir;
+        var themesDir = Path.Combine(rootDir, "themes");
+        var themeRoot = Path.Combine(themesDir, name);
+
+        var force = reader.HasFlag("--force");
+        if (Directory.Exists(themeRoot))
+        {
+            if (!force)
+            {
+                Console.Error.WriteLine($"Theme already exists: {name}. Use --force to overwrite.");
+                return Task.FromResult(2);
+            }
+
+            Directory.Delete(themeRoot, recursive: true);
+        }
+
+        try
+        {
+            Console.WriteLine();
+            Console.WriteLine($"=== Bukit Theme Wizard: {name} ===");
+            Console.WriteLine();
+
+            var finalThemeName = Ask("Theme Name", name);
+            var description = Ask("Description", "");
+            var author = Ask("Author", "");
+            var brand = Ask("Brand display name", finalThemeName);
+
+            Console.WriteLine();
+            Console.WriteLine("--- Design Tokens ---");
+            var primaryColor = AskHex("Primary color", "#0b5fff");
+            var accentColor = AskHex("Accent color", "#0f7b6c");
+            var bgColor = AskHex("Background color", "#fbfaf8");
+            var textColor = AskHex("Text color", "#202124");
+            var mutedColor = AskHex("Muted/secondary text color", "#66615b");
+            var fontFamily = Ask("Font family", "system-ui");
+            var radius = Ask("Border radius", "8px");
+
+            Console.WriteLine();
+            Console.WriteLine("--- Layout ---");
+            var hasHero = AskBool("Include hero section", false);
+            var hasSidebar = AskBool("Include sidebar", false);
+            var hasDarkMode = AskBool("Include dark mode toggle", false);
+            var stickyHeader = AskBool("Sticky header", true);
+            var mobileHamburger = AskBool("Mobile hamburger menu", true);
+
+            Console.WriteLine();
+            Console.WriteLine("--- Features ---");
+            var hasSearch = AskBool("Include search page", true);
+            var hasTaxonomy = AskBool("Include taxonomy pages", true);
+            var hasPagination = AskBool("Include pagination", true);
+
+            Console.WriteLine();
+            Console.WriteLine("--- Template Style ---");
+            Console.WriteLine("  1. Standard (header + content + footer)");
+            Console.WriteLine("  2. Sidebar layout");
+            Console.WriteLine("  3. Minimal (no header)");
+            var styleChoice = AskChoice("Choose", new[] { "1", "2", "3" }, "1");
+
+            var tokens = new CloneTokens
+            {
+                Bg = bgColor,
+                Primary = primaryColor,
+                PrimaryStrong = ColorDarken(primaryColor),
+                Accent = accentColor,
+                Text = textColor,
+                Muted = mutedColor,
+                Radius = radius,
+                FontFamily = fontFamily
+            };
+
+            var layout = new CloneLayoutInfo
+            {
+                HasFeaturesSection = hasHero,
+                HasCTASection = hasHero
+            };
+
+            if (hasHero)
+            {
+                layout = layout with
+                {
+                    HeroHeading = finalThemeName,
+                    HeroSubtext = description
+                };
+            }
+
+            var behaviors = new CloneBehaviors
+            {
+                StickyHeader = stickyHeader,
+                MobileHamburger = mobileHamburger,
+                DarkModeToggle = hasDarkMode
+            };
+
+            Console.WriteLine();
+            Console.WriteLine("Generating theme...");
+
+            CloneThemeGenerator.WriteTo(rootDir, finalThemeName, tokens, layout, brand, behaviors);
+
+            Console.WriteLine($"Theme created: themes/{finalThemeName}/");
+            Console.WriteLine($"Use it:   bukit theme use {finalThemeName}");
+            Console.WriteLine($"Preview:  bukit preview");
+            Console.WriteLine($"Info:     bukit theme info {finalThemeName}");
+
+            if (reader.HasFlag("--use"))
+            {
+                return ThemeCommand.SetThemeAsync(finalThemeName, reader, brand, primaryColor, accentColor);
+            }
+
+            return Task.FromResult(0);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Wizard cancelled.");
+            return Task.FromResult(2);
+        }
+    }
+
+    private static string Ask(string prompt, string defaultValue)
+    {
+        var display = string.IsNullOrEmpty(defaultValue)
+            ? $"{prompt}: "
+            : $"{prompt} [{defaultValue}]: ";
+        Console.Write(display);
+        var input = Console.ReadLine()?.Trim();
+        return string.IsNullOrWhiteSpace(input) ? defaultValue : input;
+    }
+
+    private static string AskHex(string prompt, string defaultValue)
+    {
+        while (true)
+        {
+            var input = Ask(prompt, defaultValue);
+            if (input.StartsWith('#'))
+            {
+                return input;
+            }
+
+            Console.WriteLine("  Please enter a hex color starting with # (e.g., #0b5fff)");
+        }
+    }
+
+    private static bool AskBool(string prompt, bool defaultValue)
+    {
+        var yn = defaultValue ? "[Y/n]" : "[y/N]";
+        Console.Write($"{prompt}? {yn}: ");
+        var input = Console.ReadLine()?.Trim().ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return defaultValue;
+        }
+
+        return input is "y" or "yes";
+    }
+
+    private static string AskChoice(string prompt, string[] options, string defaultValue)
+    {
+        Console.Write($"{prompt} [{defaultValue}]: ");
+        var input = Console.ReadLine()?.Trim();
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return defaultValue;
+        }
+
+        if (options.Contains(input, StringComparer.OrdinalIgnoreCase))
+        {
+            return input;
+        }
+
+        return defaultValue;
+    }
+
+    private static string ColorDarken(string hex)
+    {
+        if (hex.Length < 7 || !hex.StartsWith('#'))
+        {
+            return "#0846b8";
+        }
+
+        try
+        {
+            var r = Convert.ToInt32(hex[1..3], 16);
+            var g = Convert.ToInt32(hex[3..5], 16);
+            var b = Convert.ToInt32(hex[5..7], 16);
+            r = Math.Max(0, (int)(r * 0.8));
+            g = Math.Max(0, (int)(g * 0.8));
+            b = Math.Max(0, (int)(b * 0.8));
+            return $"#{r:x2}{g:x2}{b:x2}";
+        }
+        catch
+        {
+            return "#0846b8";
+        }
+    }
+}

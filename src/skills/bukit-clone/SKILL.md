@@ -12,10 +12,10 @@ user-invocable: true
 
 ## Overview
 
-Clone any website's visual design as a Bukit theme. Three-phase workflow:
+Clone any website's visual design and visible content as a Bukit theme plus Bukit content/data. Three-phase workflow:
 
-1. **Extraction** (you): Browser MCP → extract design tokens + layout + assets → `tokens.json` + `layout.json`
-2. **Generation** (CLI): `bukit clone --tokens tokens.json --layout layout.json --theme <name>`
+1. **Extraction** (you): Browser MCP → extract design tokens + page metadata + sections + assets → `tokens.json` + `page.json` + `sections.json` + `assets.json`
+2. **Generation** (CLI): `bukit clone --tokens tokens.json --page page.json --sections sections.json --assets assets.json --theme <name>`
 3. **Verification**: `bukit doctor && bukit build`
 
 **REQUIRED BACKGROUND:** bukit-theme (directory structure), bukit-templating (Scriban conventions).
@@ -30,8 +30,13 @@ Use a browser MCP tool (Chrome MCP preferred). Without browser automation, this 
 ### Step 1.1: Take Screenshots
 
 1. Open `$ARGUMENTS` with browser MCP
-2. Take full-page screenshots at **desktop (1440px)** and **mobile (390px)** viewports
+2. Take full-page screenshots at **desktop (1440px)**, **tablet (768px)**, and **mobile (390px)** viewports
 3. Save to `docs/design-references/`
+4. Create `docs/research/` with:
+   - `DESIGN_TOKENS.md` — colors, typography, spacing, shadows, breakpoints
+   - `PAGE_TOPOLOGY.md` — ordered section map and content/data mapping
+   - `BEHAVIORS.md` — detected interactions, states, thresholds, unsupported behavior notes
+   - `components/*.spec.md` — one spec per meaningful section/component
 
 ### Step 1.2: Extract Design Tokens
 
@@ -227,10 +232,171 @@ Download each asset to `themes/<name>/assets/images/` after theme generation usi
 ### Step 1.6: Save Files
 
 - `tokens.json` — design tokens from Step 1.2
-- `layout.json` — page layout from Step 1.5
+- `page.json` — page title, source URL, summary/description, body fallback, SEO metadata
+- `sections.json` — ordered visible sections with type, text/HTML, items, buttons, assets, styles, states, responsive hints
+- `layout.json` — legacy/simple page layout from Step 1.5; use only when `page.json`/`sections.json` are not available
 - `behaviors.json` — interactive behaviors from Step 1.7
 - `icons.json` — SVG icons from Step 1.3 (optional enhancement)
 - `assets.json` — static assets to download from Step 1.4 (optional enhancement)
+
+### Step 1.6a: Run Section/Component Extractor
+
+Run this browser MCP script at each required viewport. Merge the results into `sections.json`; keep the desktop ordering as canonical, and store tablet/mobile differences under `responsive.viewports`.
+
+```javascript
+(function() {
+  const gs = (el) => getComputedStyle(el);
+  const css = (el) => {
+    const s = gs(el);
+    return {
+      display: s.display,
+      position: s.position,
+      gridTemplateColumns: s.gridTemplateColumns,
+      flexDirection: s.flexDirection,
+      alignItems: s.alignItems,
+      justifyContent: s.justifyContent,
+      gap: s.gap,
+      padding: s.padding,
+      margin: s.margin,
+      background: s.background,
+      color: s.color,
+      fontFamily: s.fontFamily,
+      fontSize: s.fontSize,
+      fontWeight: s.fontWeight,
+      lineHeight: s.lineHeight,
+      borderRadius: s.borderRadius,
+      boxShadow: s.boxShadow,
+      transform: s.transform,
+      transition: s.transition
+    };
+  };
+  const box = (el) => {
+    const r = el.getBoundingClientRect();
+    return { x: Math.round(r.x), y: Math.round(r.y + scrollY), width: Math.round(r.width), height: Math.round(r.height) };
+  };
+  const clean = (text) => (text || '').replace(/\s+/g, ' ').trim();
+  const typeOf = (el) => {
+    const c = el.className?.toString().toLowerCase() || '';
+    const id = el.id?.toLowerCase() || '';
+    const hay = `${c} ${id}`;
+    if (el.matches('header, nav') || /nav|navbar|header/.test(hay)) return 'navigation';
+    if (el.matches('footer') || /footer/.test(hay)) return 'footer';
+    if (/hero|jumbotron|masthead/.test(hay)) return 'hero';
+    if (/pricing|plans/.test(hay)) return 'pricing';
+    if (/faq|accordion/.test(hay)) return 'faq';
+    if (/feature|benefit/.test(hay)) return 'features';
+    if (/cta|call-to-action/.test(hay)) return 'cta';
+    return 'rich_section';
+  };
+  const candidates = [...document.querySelectorAll('header, nav, main > section, main > div, section, footer')]
+    .filter((el, index, arr) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 80 && r.height > 30 && clean(el.innerText).length > 0 && !arr.some((other) => other !== el && other.contains(el) && other.matches('section'));
+    });
+  return {
+    viewport: { width: innerWidth, height: innerHeight },
+    sections: candidates.map((el, i) => {
+      const heading = clean(el.querySelector('h1,h2,h3')?.innerText);
+      const buttons = [...el.querySelectorAll('a,button')].filter(x => clean(x.innerText)).slice(0, 8).map(x => ({
+        label: clean(x.innerText),
+        url: x.href || x.getAttribute('data-href') || '#',
+        variant: /secondary|outline|ghost/.test(x.className?.toString().toLowerCase() || '') ? 'secondary' : 'primary'
+      }));
+      const components = [...el.querySelectorAll('h1,h2,h3,p,a,button,img,video,[role="tab"],[role="dialog"]')].slice(0, 40).map((node, n) => ({
+        id: `${i + 1}-${n + 1}`,
+        type: node.tagName.toLowerCase(),
+        selector: node.id ? `#${node.id}` : node.className ? `.${node.className.toString().trim().split(/\s+/)[0]}` : node.tagName.toLowerCase(),
+        text: clean(node.innerText || node.alt),
+        html: node.outerHTML.slice(0, 2000),
+        bounds: box(node),
+        computedStyles: css(node)
+      }));
+      return {
+        id: el.id || `section-${i + 1}`,
+        type: typeOf(el),
+        heading,
+        text: clean(el.innerText),
+        contentHtml: el.innerHTML,
+        order: (i + 1) * 10,
+        bounds: box(el),
+        computedStyles: css(el),
+        buttons,
+        components,
+        imageUrls: [...el.querySelectorAll('img')].map(img => img.currentSrc || img.src).filter(Boolean),
+        responsive: { viewports: { [`${innerWidth}`]: { bounds: box(el), styles: css(el) } } }
+      };
+    })
+  };
+})();
+```
+
+### Step 1.6b: Build `page.json`
+
+```json
+{
+  "title": "Target Site",
+  "url": "https://example.com/",
+  "summary": "Visible page summary",
+  "bodyMarkdown": "# Target Site\n\nFallback editable page content.",
+  "screenshots": [
+    { "name": "desktop", "width": 1440, "screenshot": "docs/design-references/target-1440.png" },
+    { "name": "tablet", "width": 768, "screenshot": "docs/design-references/target-768.png" },
+    { "name": "mobile", "width": 390, "screenshot": "docs/design-references/target-390.png" }
+  ],
+  "seo": {
+    "title": "Target Site",
+    "description": "Meta description",
+    "image": "https://example.com/og.png"
+  }
+}
+```
+
+### Step 1.6c: Build `sections.json`
+
+Every visible section must become a Bukit data module. Preserve real text and content first; use `contentHtml` for complex sections that cannot be safely decomposed.
+
+```json
+{
+  "sections": [
+    {
+      "id": "hero",
+      "type": "hero",
+      "heading": "Real headline",
+      "subheading": "Real supporting copy",
+      "contentHtml": "<p>Original visible content.</p>",
+      "buttons": [{ "label": "Get started", "url": "/start", "variant": "primary" }],
+      "imageUrls": ["https://example.com/hero.png"],
+      "styles": { "padding": "72px 0", "background": "#ffffff" },
+      "bounds": { "x": 0, "y": 72, "width": 1440, "height": 680 },
+      "computedStyles": { "display": "grid", "fontSize": "18px" },
+      "components": [
+        {
+          "type": "button",
+          "selector": ".hero-cta",
+          "text": "Get started",
+          "bounds": { "x": 120, "y": 520, "width": 140, "height": 48 },
+          "computedStyles": { "borderRadius": "999px" }
+        }
+      ],
+      "interactions": [{ "type": "click", "trigger": "click", "target": ".hero-cta", "description": "Primary CTA link" }],
+      "responsive": {
+        "columnsDesktop": "1.2fr 0.8fr",
+        "columnsMobile": "1fr",
+        "viewports": {
+          "390": { "bounds": { "x": 0, "y": 64, "width": 390, "height": 720 }, "styles": { "display": "block" } }
+        }
+      }
+    },
+    {
+      "type": "features",
+      "title": "Features",
+      "items": [
+        { "title": "Fast", "description": "Original card text", "image": "https://example.com/a.png" }
+      ]
+    }
+  ]
+}
+```
 
 ### Step 1.7: Detect Interactive Behaviors
 
@@ -253,7 +419,6 @@ Run this script via browser MCP and save as `behaviors.json`:
 
   // Scroll shrink (header hides on scroll down)
   behaviors.scrollShrinkNav = false;
-  // Check for CSS transform/animation attached to header classes
   try {
     for (const sheet of doc.styleSheets) {
       try { if (!sheet.cssRules) continue; } catch { continue; }
@@ -271,7 +436,6 @@ Run this script via browser MCP and save as `behaviors.json`:
   if (card) {
     const hov = gs(card, 'transform') || '';
     behaviors.cardHoverLift = hov.includes('translateY') || hov.includes('scale');
-    // Also check :hover rules
     try {
       for (const sheet of doc.styleSheets) {
         try { if (!sheet.cssRules) continue; } catch { continue; }
@@ -306,9 +470,7 @@ Run this script via browser MCP and save as `behaviors.json`:
   // Dark mode
   behaviors.darkModeToggle = !!doc.querySelector('[class*="dark"], [class*="theme"], [aria-label*="dark"], [aria-label*="theme"]');
   if (!behaviors.darkModeToggle) {
-    // Check localStorage
     try { if (localStorage.getItem('theme') || localStorage.getItem('darkMode')) behaviors.darkModeToggle = true; } catch {}
-    // Check prefers-color-scheme usage
     if (matchMedia('(prefers-color-scheme: dark)').matches) behaviors.darkModeToggle = true;
   }
 
@@ -336,6 +498,11 @@ Run this script via browser MCP and save as `behaviors.json`:
   // Tabs
   behaviors.hasTabs = !!doc.querySelector('[role="tablist"], [class*="tabs"], [class*="tab-nav"]');
 
+  // Lenis / smooth scroll library
+  behaviors.useLenis = typeof window.lenis !== 'undefined' ||
+    !!document.querySelector('.lenis-init') ||
+    document.documentElement.style.scrollBehavior === 'smooth';
+
   console.log(JSON.stringify(behaviors, null, 2));
   return behaviors;
 })();
@@ -346,52 +513,118 @@ Run this script via browser MCP and save as `behaviors.json`:
 ## Phase 2: Theme Generation
 
 ```bash
-bukit clone --tokens tokens.json --layout layout.json --behaviors behaviors.json --theme <theme-name> --brand "<Brand Name>" --use
+bukit clone --tokens tokens.json --page page.json --sections sections.json --behaviors behaviors.json --icons icons.json --assets assets.json --theme <theme-name> --brand "<Brand Name>" --use --verify
 ```
 
 Options:
 - `--tokens` (required): Path to tokens JSON file
 - `--theme`: Theme name (default: `cloned`)
+- `--page`: Page metadata JSON file. Enables high-fidelity content/data clone mode.
+- `--sections`: Ordered section JSON file. Enables generation of `data/*.md` modules and a section-aware homepage.
 - `--layout`: Path to layout JSON file (optional; defaults used if omitted)
 - `--behaviors`: Path to behaviors JSON file (optional; generated from Step 1.7)
+- `--icons`: Path to icons JSON file from Step 1.3 (optional; writes SVGs to `assets/icons/`)
+- `--assets`: Path to assets JSON file from Step 1.4 (optional; auto-downloads assets to theme asset dirs)
 - `--brand`: Brand name for nav bar and footer
 - `--use`: Automatically switch to the new theme
 - `--force`: Overwrite existing theme directory
+- `--verify`: Run clone verification after generation (`doctor`-style checks + `build` + pixel diff + behavior verify script)
+- `--visual-threshold`: Allowed pixel mismatch ratio for screenshot pairs (default `0.03`)
+- `--fail-on-visual-diff`: Return non-zero when any screenshot pair exceeds `--visual-threshold`
+
+In high-fidelity mode (`--page` or `--sections`), the CLI also generates:
+- `content/index.md` — editable page metadata and fallback body
+- `data/clone-*.md` — one Bukit data module per visible section
+- `site.yaml` source updates — switches to `provider: sources`
 
 The CLI generates files under `themes/<name>/`:
-- `assets/style.css` — Full CSS with custom variables (colors, shadows, spacing, breakpoints) + behavior enhancements
-- `assets/behaviors.js` — (conditional) Vanilla JS for scroll shrink, dark mode, hamburger, smooth scroll, back-to-top
-- `layouts/layouts/base.html` — HTML skeleton with Google Fonts + behaviors.js script tag (if JS behaviors enabled)
-- `layouts/partials/header.html` — Navigation bar (with extracted nav links + optional hamburger button)
-- `layouts/partials/footer.html` — Footer with extracted links + bukit attribution
-- `layouts/partials/list-card.html` — Reusable card partial
-- `layouts/partials/pagination-nav.html` — Pagination navigation
-- `layouts/partials/modal.html` — (optional, if `hasModal`) Modal dialog partial, reads `site.modules.modal`
-- `layouts/partials/dropdown.html` — (optional, if `hasDropdown`) Dropdown menu partial, reads `dropdown_items`
-- `layouts/partials/tabs.html` — (optional, if `hasTabs`) Tab panel partial, reads `site.modules.tabs`
-- `layouts/pages/index.html` — Homepage (Hero + Features + Latest content + CTA)
-- `layouts/pages/page.html` — Generic page template
-- `layouts/pages/post.html` — Blog post template
-- `layouts/pages/list.html` — Collection list template
-- `layouts/pages/pagination.html` — Paginated archive
-- `layouts/pages/taxonomy-index.html` / `taxonomy-term.html` — Taxonomy pages
-- `layouts/pages/search.html` — Search page
-- `layouts/bukit.templates.yaml` — Template capability manifest
+- `assets/style.css` — Full CSS with custom variables + behavior enhancements + state section styles
+- `assets/behaviors.js` — (conditional) Vanilla JS for behaviors + Lenis init
+- `assets/icons/*.svg` — (conditional, if `--icons`) Individual SVG icon files from extraction
+- `assets/images/`, etc. — (conditional, if `--assets`) Downloaded static assets by type
+- `layouts/layouts/base.html` — HTML skeleton with Google Fonts + Lenis CDN + behaviors.js
+- `layouts/partials/clone-section.html` plus aliases
+- `layouts/partials/header.html`, `footer.html`, `list-card.html`, `pagination-nav.html`
+- `layouts/partials/modal.html`, `dropdown.html`, `tabs.html` — conditional
+- `layouts/pages/index.html`, `page.html`, `post.html`, `list.html`, etc.
+- `layouts/bukit.templates.yaml`
+
+### Lenis Smooth Scroll
+
+When `useLenis: true` in `behaviors.json`:
+
+1. CDN script injected in `base.html` (`<script src="https://cdn.jsdelivr.net/npm/lenis@1.1/dist/lenis.min.js">`)
+2. `behaviors.js` initializes Lenis with `duration: 1.2` and exponential easing
+3. All scroll interactions become smooth (wheel, keyboard, anchor links)
+
+```json
+{ "useLenis": true }
+```
+
+### Multi-State Sections
+
+```json
+{
+  "extraSections": [
+    {
+      "heading": "Pricing",
+      "states": [
+        { "label": "Monthly", "contentHtml": "<p>$9/mo</p>" },
+        { "label": "Annual", "contentHtml": "<p>$90/yr</p>" }
+      ]
+    }
+  ]
+}
+```
+
+### Summary Output
+
+```
+Theme cloned: my-theme
+  Files: 17
+  Behaviors: 3
+  Icons: 12
+  Assets: 5 (theme asset dirs created)
+  Extra sections: 2
+```
 
 ---
 
-## Phase 3: Verification & Asset Download
+## Phase 3: Verification
 
 ```bash
-# Verify theme
-bukit doctor
-
-# Download assets if extracted
-# Use browser MCP or curl to download images from assets.json to themes/<name>/assets/images/
-
-# Build
-bukit build
+bukit clone --tokens tokens.json --page page.json --sections sections.json --behaviors behaviors.json --theme my-site --force --verify --fail-on-visual-diff --visual-threshold 0.03
 ```
+
+Produces:
+- `docs/research/VERIFY_REPORT.md` — human-readable markdown report
+- `docs/research/VERIFY_REPORT.json` — machine-readable JSON with `comparisons`, `missingScreenshots`, `affectedSections`, `passed`
+- `docs/research/BEHAVIORS_VERIFY.js` — interactive behavior check script
+
+### Behavior Verification
+
+After `--verify`, run `docs/research/BEHAVIORS_VERIFY.js` in the browser console or via automation:
+
+| Check | What it tests |
+|-------|--------------|
+| `HeaderSticky` | `.site-header` has `position: sticky` or `position: fixed` |
+| `HeaderShrink` | `.nav-hidden` class toggles on scroll |
+| `DarkModeToggle` | `.dark-mode-toggle` exists and toggles `body.dark` |
+| `Modal` | `.modal-overlay` opens/closes and responds to Escape |
+| `Hamburger` | `.hamburger` button toggles `.nav-links.open` |
+| `Tabs` | `.tab-nav` or `.state-tabs` switches panels on click |
+| `Lenis` | `window.lenis` is defined |
+| `BackToTop` | `.back-to-top` button exists |
+| `AnimateOnScroll` | `.animate-in` elements found |
+
+Results: console colored PASS/FAIL/WARN + JSON via `window.__bukitBehaviorResults`.
+
+### JSON-Driven Repair Loop
+
+1. `buildPassed: false` → fix build/template/config first
+2. `missingScreenshots` → recapture screenshots
+3. `affectedSections` → fix `sections.json` styles/bounds/assets, then generated partials
+4. Rerun `--verify --fail-on-visual-diff` after each repair
 
 ---
 
@@ -426,6 +659,8 @@ bukit build
 | `headingFontFamily` | `font-family` on `h1-h6` | Same as `fontFamily` |
 | `codeFontFamily` | `font-family` on `code` | Monospace stack |
 | `googleFontsUrl` | `<link>` in `<head>` | None |
+| `hoverLift` | Card hover distance | `3px` |
+| `hoverShadow` | Card hover shadow | `var(--modal-shadow)` |
 
 ## behaviors.json Reference
 
@@ -433,51 +668,117 @@ bukit build
 |-------|--------|---------|
 | `stickyHeader` | Header `position: sticky; top: 0; z-index: 100` | `false` |
 | `scrollShrinkNav` | Hide header on scroll down (`.nav-hidden` + JS scroll listener) | `false` |
-| `cardHoverLift` | Card `translateY(-3px)` + shadow lift on hover | `false` |
-| `animateOnScroll` | `@keyframes fadeInUp` + `.animate-in/.animate-visible` + IntersectionObserver | `false` |
-| `mobileHamburger` | Hamburger button in header + mobile nav toggle (CSS + JS) | `false` |
+| `cardHoverLift` | Card hover lift + shadow (uses `hoverLift`/`hoverShadow` from tokens) | `false` |
+| `animateOnScroll` | `@keyframes` + `.animate-in/.animate-visible` + IntersectionObserver | `false` |
+| `mobileHamburger` | Hamburger button + mobile nav toggle (CSS + JS) | `false` |
 | `darkModeToggle` | Dark mode CSS variables + toggle button with localStorage | `false` |
 | `smoothScroll` | Smooth scroll for `#anchor` links (vanilla JS) | `false` |
-| `backToTop` | Floating back-to-top button at bottom-right (JS-injected) | `false` |
-| `hasModal` | Writes `partials/modal.html` + modal CSS (`.modal-overlay/.modal-container/.modal-close`) + JS (open/close/Escape) | `false` |
-| `hasDropdown` | Writes `partials/dropdown.html` + dropdown CSS (`.dropdown-menu/.dropdown-trigger`) + JS (toggle/click-outside) | `false` |
-| `hasTabs` | Writes `partials/tabs.html` + tabs CSS (`.tab-nav/.tab-btn/.tab-panel`) + JS (tab switching) | `false` |
+| `backToTop` | Floating back-to-top button (JS-injected) | `false` |
+| `hasModal` | `partials/modal.html` + modal CSS + JS (open/close/Escape) | `false` |
+| `hasDropdown` | `partials/dropdown.html` + dropdown CSS + JS | `false` |
+| `hasTabs` | `partials/tabs.html` + tabs CSS + JS (tab switching) | `false` |
+| `animationStyle` | `"fadeInUp"` / `"fadeIn"` / `"slideUp"` / `"scaleIn"` | `"fadeInUp"` |
+| `scrollThreshold` | px value at which scroll-shrink nav hides | `60` |
+| `useLenis` | Injects Lenis CDN + RAF-based smooth scroll | `false` |
 
-Each behavior generates **CSS rules only**, **JS only**, or **both**, depending on the behavior type:
+Each behavior generates **CSS rules only**, **JS only**, or **both**:
 - **CSS-only**: `stickyHeader`, `cardHoverLift`
 - **CSS+JS**: `scrollShrinkNav`, `animateOnScroll`, `mobileHamburger`, `darkModeToggle`, `hasModal`, `hasDropdown`, `hasTabs`
-- **JS-only**: `smoothScroll`, `backToTop`
+- **JS-only**: `smoothScroll`, `backToTop`, `useLenis`
 
-### Using Optional Partials
+### Lenis Smooth Scroll
 
-When `hasModal` / `hasDropdown` / `hasTabs` is enabled, corresponding Scriban partials are generated. Include them in your pages:
+When `useLenis: true` in `behaviors.json`:
+1. CDN script injected in `base.html` (`lenis@1.1`)
+2. `behaviors.js` initializes with `duration: 1.2` + exponential easing
+3. All scroll (wheel/keyboard/anchor) becomes smooth
 
-```scriban
-{# In index.html or any page template #}
-{{ include "partials/modal.html" }}
-{{ include "partials/dropdown.html" }}
-{{ include "partials/tabs.html" }}
+```json
+{ "useLenis": true }
 ```
 
-Data-driven usage via `site.yaml`:
+---
+
+## Phase 5: Visual QA & Behavior Verification
+
+### Behavior Verification Script
+
+After `--verify`, `docs/research/BEHAVIORS_VERIFY.js` is generated. Run it in the browser console or via automation:
+
+| Check | Validation |
+|-------|-----------|
+| `HeaderSticky` | `.site-header` position is `sticky`/`fixed` |
+| `HeaderShrink` | `.nav-hidden` class present |
+| `DarkModeToggle` | `.dark-mode-toggle` toggles `body.dark` |
+| `Modal` | `.modal-overlay` opens/closes/Escape |
+| `Hamburger` | `.hamburger` toggles `.nav-links.open` |
+| `Tabs` | `.tab-nav` / `.state-tabs` switches panels |
+| `Lenis` | `window.lenis` defined |
+| `BackToTop` | `.back-to-top` button exists |
+| `AnimateOnScroll` | `.animate-in` elements found |
+
+Output: console colored PASS/FAIL/WARN + `window.__bukitBehaviorResults` JSON.
+
+---
+
+## CI Integration
+
+### GitHub Actions Workflow
 
 ```yaml
-site:
-  modules:
-    modal:
-      title: "Subscribe"
-      items:
-        - title: "Enter your email"
-          fields:
-            desc:
-              value: "Get weekly updates delivered to your inbox."
-    tabs:
-      - title: "Feature"
-        fields:
-          desc:
-            value: "This is the feature tab content."
-      - title: "Pricing"
-        fields:
-          desc:
-            value: "Starting at $9/month."
+name: Clone QA
+on:
+  push:
+    paths:
+      - 'tokens.json'
+      - 'sections.json'
+      - 'behaviors.json'
+      - 'themes/cloned/**'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install bukit
+        run: dotnet tool install --global Bukit.Cli || dotnet tool update --global Bukit.Cli
+      - name: Clone & Verify
+        run: |
+          bukit clone --tokens tokens.json --sections sections.json \
+            --behaviors behaviors.json --icons icons.json \
+            --theme cloned --force --use
+          bukit clone --tokens tokens.json --theme cloned \
+            --verify --fail-on-visual-diff --visual-threshold 0.03
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-report
+          path: docs/research/VERIFY_REPORT.*
+```
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | All passed |
+| `1` | Verify failed (build/template/diff) |
+| `2` | Usage error |
+
+### Behavior Verify with Playwright
+
+```bash
+bukit build && bukit preview --port 4173 &
+sleep 2
+npx playwright test << 'EOF'
+import { test, expect } from '@playwright/test';
+test('behavior checks', async ({ page }) => {
+  await page.goto('http://localhost:4173');
+  await page.addScriptTag({ path: 'docs/research/BEHAVIORS_VERIFY.js' });
+  const results = await page.evaluate(() => window.__bukitBehaviorResults);
+  expect(results.filter(r => r.status === 'fail')).toHaveLength(0);
+});
+EOF
 ```

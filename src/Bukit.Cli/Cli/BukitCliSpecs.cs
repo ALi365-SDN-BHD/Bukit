@@ -56,16 +56,23 @@ public static class BukitCliSpecs
 
         var clone = new CliCommandSpec(
             Name: "clone",
-            Description: "从设计令牌生成 Bukit 主题",
+            Description: "从目标网站提取数据生成 Bukit 主题与内容",
             Options: new[]
             {
                 new CliOptionSpec("--tokens", "设计令牌 JSON 文件", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--theme", "目标主题名", CliOptionType.String, ValueName: "name"),
                 new CliOptionSpec("--layout", "页面布局 JSON 文件", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--page", "页面元数据 JSON 文件", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--sections", "页面区块 JSON 文件", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--behaviors", "交互行为 JSON 文件", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--icons", "SVG 图标 JSON 文件", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--assets", "静态资源 JSON 文件 (自动下载图片)", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--brand", "品牌名 (用于导航栏和页脚)"),
                 new CliOptionSpec("--use", "创建后切换到该主题", CliOptionType.Flag),
                 new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
+                new CliOptionSpec("--verify", "生成后执行 doctor/build 验证", CliOptionType.Flag),
+                new CliOptionSpec("--visual-threshold", "视觉截图 diff 阈值 (0-1)", CliOptionType.String, ValueName: "ratio"),
+                new CliOptionSpec("--fail-on-visual-diff", "截图 diff 超过阈值时失败", CliOptionType.Flag),
                 new CliOptionSpec("--config", "配置文件路径"),
                 new CliOptionSpec("--site", "多站点名")
             });

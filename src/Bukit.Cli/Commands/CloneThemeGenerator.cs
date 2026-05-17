@@ -4,43 +4,181 @@ namespace Bukit.Cli.Commands;
 
 internal static class CloneThemeGenerator
 {
-    public static void WriteTo(string rootDir, string themeName, CloneTokens tokens, CloneLayoutInfo layout, string? brand = null, CloneBehaviors? behaviors = null)
+    public static CloneGenerationSummary WriteTo(string rootDir, string themeName, CloneTokens tokens, CloneLayoutInfo layout, string? brand = null, CloneBehaviors? behaviors = null, List<CloneIcon>? icons = null, List<CloneAsset>? assets = null)
     {
+        var fileCount = 0;
+        var warnings = new List<string>();
+
         var css = GenerateStyleCss(tokens);
         if (behaviors is not null && behaviors.HasAnyCssBehavior)
         {
-            css += "\n" + GenerateBehaviorCss(behaviors);
+            css += "\n" + GenerateBehaviorCss(behaviors, tokens);
         }
         WriteFile(rootDir, $"themes/{themeName}/assets/style.css", css);
+        fileCount++;
 
         var baseLayout = GenerateBaseLayout(tokens, behaviors);
         WriteFile(rootDir, $"themes/{themeName}/layouts/layouts/base.html", baseLayout);
+        fileCount++;
         WriteFile(rootDir, $"themes/{themeName}/layouts/partials/header.html", GenerateHeader(tokens, layout, brand, behaviors));
+        fileCount++;
         WriteFile(rootDir, $"themes/{themeName}/layouts/partials/footer.html", GenerateFooter(layout, brand));
-        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/list-card.html", StarterThemeScaffold.ListCardPartial);
-        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/pagination-nav.html", StarterThemeScaffold.PaginationNavPartial);
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/list-card.html", ThemeTemplateResource.Get("ListCardPartial"));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/pagination-nav.html", ThemeTemplateResource.Get("PaginationNavPartial"));
+        fileCount++;
 
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/index.html", GenerateIndex(tokens, layout, brand));
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/page.html", StarterThemeScaffold.PageTemplate);
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/post.html", StarterThemeScaffold.PostTemplate);
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/list.html", StarterThemeScaffold.ListTemplate);
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", StarterThemeScaffold.PaginationTemplate);
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", StarterThemeScaffold.TaxonomyIndexTemplate);
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", StarterThemeScaffold.TaxonomyTermTemplate);
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", StarterThemeScaffold.SearchTemplate);
-        WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml", StarterThemeScaffold.TemplateCapabilities);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/index.html", GenerateIndex(tokens, layout, brand, warnings));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/page.html", ThemeTemplateResource.Get("PageTemplate"));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/post.html", ThemeTemplateResource.Get("PostTemplate"));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/list.html", ThemeTemplateResource.Get("ListTemplate"));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", ThemeTemplateResource.Get("PaginationTemplate"));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", ThemeTemplateResource.Get("TaxonomyIndexTemplate"));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", ThemeTemplateResource.Get("TaxonomyTermTemplate"));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", ThemeTemplateResource.Get("SearchTemplate"));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml", ThemeTemplateResource.Get("TemplateCapabilities"));
+        fileCount++;
+
+        var themeYaml = GenerateThemeYaml(themeName, tokens, layout, brand, behaviors);
+        WriteFile(rootDir, $"themes/{themeName}/theme.yaml", themeYaml);
+        fileCount++;
 
         if (behaviors is not null && behaviors.HasAnyJsBehavior)
         {
             WriteFile(rootDir, $"themes/{themeName}/assets/behaviors.js", GenerateBehaviorsJs(behaviors));
+            fileCount++;
         }
 
         if (behaviors?.HasModal == true)
+        {
             WriteFile(rootDir, $"themes/{themeName}/layouts/partials/modal.html", ModalPartial);
+            fileCount++;
+        }
         if (behaviors?.HasDropdown == true)
+        {
             WriteFile(rootDir, $"themes/{themeName}/layouts/partials/dropdown.html", DropdownPartial);
+            fileCount++;
+        }
         if (behaviors?.HasTabs == true)
+        {
             WriteFile(rootDir, $"themes/{themeName}/layouts/partials/tabs.html", TabsPartial);
+            fileCount++;
+        }
+
+        var iconCount = 0;
+        if (icons is { Count: > 0 })
+        {
+            var iconsDir = Path.Combine(rootDir, $"themes/{themeName}/assets/icons");
+            Directory.CreateDirectory(iconsDir);
+            foreach (var icon in icons)
+            {
+                if (string.IsNullOrWhiteSpace(icon.Svg)) continue;
+                var safeName = SanitizeFileName(icon.Name);
+                var filePath = Path.Combine(iconsDir, $"{safeName}.svg");
+                File.WriteAllText(filePath, icon.Svg, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                iconCount++;
+            }
+        }
+
+        var assetCount = 0;
+        if (assets is { Count: > 0 })
+        {
+            var assetsDir = Path.Combine(rootDir, $"themes/{themeName}/assets/images");
+            Directory.CreateDirectory(assetsDir);
+            assetCount = assets.Count;
+        }
+
+        var behaviorCount = CountBehaviors(behaviors);
+        var sectionCount = layout.ExtraSections.Count;
+
+        return new CloneGenerationSummary
+        {
+            FileCount = fileCount,
+            BehaviorCount = behaviorCount,
+            IconCount = iconCount,
+            AssetCount = assetCount,
+            SectionCount = sectionCount,
+            Warnings = warnings
+        };
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "icon";
+        var sb = new StringBuilder();
+        foreach (var c in name)
+        {
+            if (char.IsLetterOrDigit(c) || c is '-' or '_' or '.')
+                sb.Append(c);
+            else
+                sb.Append('_');
+        }
+        return sb.Length > 0 ? sb.ToString() : "icon";
+    }
+
+    private static int CountBehaviors(CloneBehaviors? b)
+    {
+        if (b is null) return 0;
+        var count = 0;
+        if (b.StickyHeader) count++;
+        if (b.CardHoverLift) count++;
+        if (b.AnimateOnScroll) count++;
+        if (b.ScrollShrinkNav) count++;
+        if (b.DarkModeToggle) count++;
+        if (b.MobileHamburger) count++;
+        if (b.SmoothScroll) count++;
+        if (b.BackToTop) count++;
+        if (b.HasModal) count++;
+        if (b.HasDropdown) count++;
+        if (b.HasTabs) count++;
+        if (b.UseLenis) count++;
+        return count;
+    }
+
+    private static string GenerateThemeYaml(string themeName, CloneTokens tokens, CloneLayoutInfo layout, string? brand, CloneBehaviors? behaviors)
+    {
+        var author = brand ?? "Bukit";
+        var tags = new List<string> { "cloned" };
+        if (behaviors?.DarkModeToggle == true) tags.Add("dark-mode");
+        if (behaviors?.StickyHeader == true) tags.Add("sticky-header");
+        if (behaviors?.MobileHamburger == true) tags.Add("responsive");
+
+        var tagsYaml = "[" + string.Join(", ", tags) + "]";
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"name: {themeName}");
+        sb.AppendLine("version: 1.0.0");
+        sb.AppendLine($"description: Custom theme generated by bukit clone");
+        sb.AppendLine($"author: {author}");
+        sb.AppendLine("license: MIT");
+        sb.AppendLine($"tags: {tagsYaml}");
+        sb.AppendLine("params:");
+        sb.AppendLine("  - key: brand");
+        sb.AppendLine("    label: Site Brand");
+        sb.AppendLine("    type: string");
+        sb.AppendLine($"    default: {author}");
+        sb.AppendLine("  - key: primary_color");
+        sb.AppendLine("    label: Primary Color");
+        sb.AppendLine("    type: color");
+        sb.AppendLine($"    default: \"{tokens.Primary ?? "#0b5fff"}\"");
+        sb.AppendLine("  - key: accent_color");
+        sb.AppendLine("    label: Accent Color");
+        sb.AppendLine("    type: color");
+        sb.AppendLine($"    default: \"{tokens.Accent ?? "#0f7b6c"}\"");
+        sb.AppendLine("  - key: footer_text");
+        sb.AppendLine("    label: Footer Text");
+        sb.AppendLine("    type: string");
+        sb.AppendLine($"    default: {author}");
+        return sb.ToString();
     }
 
     internal const string ModalPartial = """
@@ -357,6 +495,14 @@ button:hover, .button:hover {
 .footer-links a { color: var(--muted); }
 .footer-links a:hover { color: var(--primary); }
 
+.state-tabs { display: flex; gap: 2px; border-bottom: 2px solid var(--border); margin-bottom: 18px; overflow-x: auto; }
+.state-tab { padding: 10px 18px; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; background: none; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; transition: color 0.15s ease, border-color 0.15s ease; }
+.state-tab:hover { color: var(--text); }
+.state-tab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); }
+.state-panel { padding: 4px 0; }
+.state-panel.hidden { display: none; }
+.cta-section { text-align: center; padding: 32px 0; }
+
 @media (max-width: {{bpMobile}}) {
   .nav, .footer-inner, .pagination, .search-form { align-items: stretch; flex-direction: column; }
   .nav-links { justify-content: flex-start; }
@@ -383,6 +529,10 @@ button:hover, .button:hover {
             ? "  <script src=\"{{ site.base_url }}/assets/behaviors.js\" defer></script>\n"
             : "";
 
+        var lenisTag = (behaviors?.UseLenis == true)
+            ? "  <script src=\"https://cdn.jsdelivr.net/npm/lenis@1.1/dist/lenis.min.js\"></script>\n"
+            : "";
+
         var template = """
 <!DOCTYPE html>
 <html lang="{{ site.language }}">
@@ -399,16 +549,17 @@ __ASSETS__</head>
     {{ content }}
   </main>
   {{ include "partials/footer.html" }}
-__BEHAVIORS_JS__</body>
+__LENIS____BEHAVIORS_JS__</body>
 </html>
 """;
 
         return template
             .Replace("__ASSETS__", themeAssets)
-            .Replace("__BEHAVIORS_JS__", jsBlock);
+            .Replace("__BEHAVIORS_JS__", jsBlock)
+            .Replace("__LENIS__", lenisTag);
     }
 
-    internal static string GenerateIndex(CloneTokens t, CloneLayoutInfo layout, string? brand)
+    internal static string GenerateIndex(CloneTokens t, CloneLayoutInfo layout, string? brand, List<string>? warnings = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine("{% layout \"layouts/base.html\" %}");
@@ -458,6 +609,31 @@ __BEHAVIORS_JS__</body>
             sb.AppendLine();
         }
 
+        if (layout.HasCTASection)
+        {
+            sb.AppendLine("{{ if site.modules && site.modules.call_to_action }}");
+            sb.AppendLine("<section class=\"cta-section\">");
+            sb.AppendLine("  <h2 class=\"section-heading\">{{ site.modules.call_to_action.title }}</h2>");
+            sb.AppendLine("  {{ if site.modules.call_to_action.fields && site.modules.call_to_action.fields.desc }}");
+            sb.AppendLine("  <p>{{ site.modules.call_to_action.fields.desc.value }}</p>");
+            sb.AppendLine("  {{ end }}");
+            sb.AppendLine("</section>");
+            sb.AppendLine("{{ end }}");
+            sb.AppendLine();
+        }
+
+        foreach (var section in layout.ExtraSections)
+        {
+            if (section.HasStates)
+            {
+                GenerateStateSection(sb, section, warnings);
+            }
+            else
+            {
+                GenerateStaticSection(sb, section);
+            }
+        }
+
         sb.AppendLine("<section>");
         sb.AppendLine("  <h2 class=\"section-heading\">Latest content</h2>");
         sb.AppendLine("  <ul class=\"card-list\">");
@@ -468,7 +644,100 @@ __BEHAVIORS_JS__</body>
         sb.AppendLine("  </ul>");
         sb.AppendLine("</section>");
 
+        if (layout.ExtraSections.Any(s => s.HasStates))
+        {
+            sb.AppendLine();
+            sb.AppendLine("<script>(function(){document.querySelectorAll('.state-section').forEach(function(sec){var tabs=sec.querySelectorAll('.state-tab');tabs.forEach(function(tab){tab.addEventListener('click',function(){var panelId=tab.getAttribute('aria-controls');tabs.forEach(function(t){t.setAttribute('aria-selected','false');});tab.setAttribute('aria-selected','true');sec.querySelectorAll('.state-panel').forEach(function(p){p.classList.add('hidden');});var panel=document.getElementById(panelId);if(panel)panel.classList.remove('hidden');});});});})();</script>");
+        }
+
         return sb.ToString();
+    }
+
+    private static void GenerateStaticSection(StringBuilder sb, SectionInfo section)
+    {
+        var responsive = section.HasResponsive ? section.Responsive! : null;
+        var cls = responsive is not null ? " class=\"sec-r-" + Math.Abs(section.Heading?.GetHashCode() ?? section.GetHashCode()) + "\"" : "";
+        if (responsive is not null)
+            sb.Append(GenerateResponsiveCss(section));
+        sb.AppendLine($"<section{cls}>");
+        if (!string.IsNullOrWhiteSpace(section.Heading))
+            sb.AppendLine($"  <h2 class=\"section-heading\">{Esc(section.Heading)}</h2>");
+        if (!string.IsNullOrWhiteSpace(section.ContentHtml))
+            sb.AppendLine($"  {section.ContentHtml}");
+        foreach (var imgUrl in section.ImageUrls)
+        {
+            sb.AppendLine($"  <img src=\"{Esc(imgUrl)}\" alt=\"\" loading=\"lazy\" />");
+        }
+        sb.AppendLine("</section>");
+        sb.AppendLine();
+    }
+
+    private static string GenerateResponsiveCss(SectionInfo section) {
+        var r = section.Responsive!;
+        var className = "sec-r-" + Math.Abs(section.Heading?.GetHashCode() ?? section.GetHashCode());
+        var sb = new StringBuilder();
+        sb.AppendLine($"<style>");
+        if (r.MaxWidthDesktop is not null)
+            sb.AppendLine($"  .{className} {{ max-width: {r.MaxWidthDesktop}; }}");
+        if (r.ColumnsDesktop is not null)
+            sb.AppendLine($"  .{className} {{ display: grid; grid-template-columns: {r.ColumnsDesktop}; gap: 16px; }}");
+        if (r.MaxWidthTablet is not null || r.ColumnsTablet is not null)
+        {
+            sb.AppendLine("  @media (max-width: var(--bp-tablet)) {");
+            if (r.MaxWidthTablet is not null)
+                sb.AppendLine($"    .{className} {{ max-width: {r.MaxWidthTablet}; }}");
+            if (r.ColumnsTablet is not null)
+                sb.AppendLine($"    .{className} {{ grid-template-columns: {r.ColumnsTablet}; }}");
+            sb.AppendLine("  }");
+        }
+        if (r.MaxWidthMobile is not null || r.ColumnsMobile is not null)
+        {
+            sb.AppendLine("  @media (max-width: var(--bp-mobile)) {");
+            if (r.MaxWidthMobile is not null)
+                sb.AppendLine($"    .{className} {{ max-width: {r.MaxWidthMobile}; }}");
+            if (r.ColumnsMobile is not null)
+                sb.AppendLine($"    .{className} {{ grid-template-columns: {r.ColumnsMobile}; }}");
+            sb.AppendLine("  }");
+        }
+        sb.AppendLine("</style>");
+        return sb.ToString();
+    }
+
+    private static void GenerateStateSection(StringBuilder sb, SectionInfo section, List<string>? warnings)
+    {
+        if (section.States.Count < 2)
+        {
+            warnings?.Add($"Skipped multi-state section \"{section.Heading}\": needs at least 2 states.");
+            GenerateStaticSection(sb, section);
+            return;
+        }
+
+        var id = "state-section-" + Math.Abs(section.Heading?.GetHashCode() ?? section.GetHashCode());
+        sb.AppendLine("<section class=\"state-section\" data-section-id=\"" + id + "\">");
+        if (!string.IsNullOrWhiteSpace(section.Heading))
+            sb.AppendLine($"  <h2 class=\"section-heading\">{Esc(section.Heading)}</h2>");
+
+        sb.AppendLine("  <div class=\"state-tabs\" role=\"tablist\">");
+        for (var i = 0; i < section.States.Count; i++)
+        {
+            var state = section.States[i];
+            var selected = i == 0 ? "true" : "false";
+            sb.AppendLine($"    <button class=\"state-tab\" role=\"tab\" aria-selected=\"{selected}\" aria-controls=\"{id}-{i}\">{Esc(state.Label ?? $"State {i + 1}")}</button>");
+        }
+        sb.AppendLine("  </div>");
+
+        for (var i = 0; i < section.States.Count; i++)
+        {
+            var state = section.States[i];
+            var hidden = i == 0 ? "" : " hidden";
+            sb.AppendLine($"  <div class=\"state-panel{hidden}\" role=\"tabpanel\" id=\"{id}-{i}\">");
+            if (!string.IsNullOrWhiteSpace(state.ContentHtml))
+                sb.AppendLine($"    {state.ContentHtml}");
+            sb.AppendLine("  </div>");
+        }
+
+        sb.AppendLine("</section>");
+        sb.AppendLine();
     }
 
     internal static string GenerateHeader(CloneTokens t, CloneLayoutInfo layout, string? siteName, CloneBehaviors? behaviors = null)
@@ -548,7 +817,7 @@ __LINKS__
             .Replace("__LINKS__", linksHtml);
     }
 
-    internal static string GenerateBehaviorCss(CloneBehaviors b)
+    internal static string GenerateBehaviorCss(CloneBehaviors b, CloneTokens t)
     {
         var sb = new StringBuilder();
 
@@ -571,23 +840,74 @@ __LINKS__
 
         if (b.CardHoverLift)
         {
-            sb.AppendLine("""
+            var lift = C(t.HoverLift, "3px");
+            var shadow = C(t.HoverShadow, "var(--modal-shadow)");
+            sb.AppendLine($$"""
 .card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.card:hover { transform: translateY(-3px); box-shadow: var(--modal-shadow); }
+.card:hover { transform: translateY(-{{lift}}); box-shadow: {{shadow}}; }
 
 """);
         }
 
         if (b.AnimateOnScroll)
         {
-            sb.AppendLine("""
+            var style = b.AnimationStyle ?? "fadeInUp";
+            var animName = style switch
+            {
+                "slideUp" => "slideUp",
+                "scaleIn" => "scaleIn",
+                "fadeIn" => "fadeIn",
+                _ => "fadeInUp"
+            };
+            var translateInit = style switch
+            {
+                "scaleIn" => "scale(0.92)",
+                "fadeIn" => "translateY(0)",
+                _ => "translateY(20px)"
+            };
+
+            switch (style)
+            {
+                case "slideUp":
+                    sb.AppendLine("""
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+""");
+                    break;
+                case "scaleIn":
+                    sb.AppendLine("""
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+""");
+                    break;
+                case "fadeIn":
+                    sb.AppendLine("""
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+""");
+                    break;
+                default:
+                    sb.AppendLine("""
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-in { opacity: 0; transform: translateY(20px); }
-.animate-visible { animation: fadeInUp 0.55s ease forwards; }
+""");
+                    break;
+            }
+            sb.AppendLine($$"""
+.animate-in { opacity: 0; transform: {{translateInit}}; }
+.animate-visible { animation: {{animName}} 0.55s ease forwards; }
 
 """);
         }
@@ -675,12 +995,9 @@ body.dark .site-header { background: rgba(22, 33, 62, 0.92); }
 
         if (b.ScrollShrinkNav)
         {
-            sb.AppendLine("""
-var h=document.querySelector('.site-header');
-var s=0;
-window.addEventListener('scroll',function(){var n=window.scrollY;if(n>60&&n>s)h.classList.add('nav-hidden');else if(n<10||n<s)h.classList.remove('nav-hidden');s=n},{passive:true});
-
-""");
+            var threshold = b.ScrollThreshold > 0 ? b.ScrollThreshold : 60;
+            var reveal = Math.Max(10, threshold / 6);
+            sb.AppendLine($"var h=document.querySelector('.site-header');\nvar s=0;\nwindow.addEventListener('scroll',function(){{var n=window.scrollY;if(n>{threshold}&&n>s)h.classList.add('nav-hidden');else if(n<{reveal}||n<s)h.classList.remove('nav-hidden');s=n}},{{passive:true}});\n");
         }
 
         if (b.MobileHamburger)
@@ -763,6 +1080,16 @@ document.addEventListener('click',function(e){document.querySelectorAll('.dropdo
         {
             sb.AppendLine("""
 document.querySelectorAll('.tab-nav').forEach(function(nav){var btns=nav.querySelectorAll('.tab-btn');btns.forEach(function(btn){btn.addEventListener('click',function(){var panelId=btn.getAttribute('aria-controls');btns.forEach(function(b){b.setAttribute('aria-selected','false');});btn.setAttribute('aria-selected','true');var parent=nav.closest('.tabs');if(parent){parent.querySelectorAll('.tab-panel').forEach(function(p){p.classList.add('hidden');});var panel=document.getElementById(panelId);if(panel)panel.classList.remove('hidden');}});});if(btns.length>0){btns[0].click();}});
+
+""");
+        }
+
+        if (b.UseLenis)
+        {
+            sb.AppendLine("""
+var lenis=new Lenis({duration:1.2,easing:function(t){return Math.min(1,1.001-Math.pow(2,-10*t))},smoothWheel:true});
+function raf(time){lenis.raf(time);requestAnimationFrame(raf);}
+requestAnimationFrame(raf);
 
 """);
         }

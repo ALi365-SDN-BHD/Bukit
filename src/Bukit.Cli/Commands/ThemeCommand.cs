@@ -17,6 +17,11 @@ public static class ThemeCommand
             "create" => CreateAsync(reader),
             "list" => ListAsync(reader),
             "use" => UseAsync(reader),
+            "info" => InfoAsync(reader),
+            "params" => ParamsAsync(reader),
+            "wizard" => ThemeWizardCommand.RunAsync(reader),
+            "pack" => ThemePackCommand.RunAsync(reader),
+            "install" => ThemeInstallCommand.RunAsync(reader),
             _ => Task.FromResult(Unknown(sub))
         };
     }
@@ -98,6 +103,7 @@ public static class ThemeCommand
         var themesDir = Path.Combine(rootDir, "themes");
         if (!Directory.Exists(themesDir))
         {
+            Console.WriteLine("No themes directory found. Create one with: bukit theme create <name>");
             return Task.FromResult(0);
         }
 
@@ -105,6 +111,7 @@ public static class ThemeCommand
             .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var hasAny = false;
         foreach (var dir in themeDirs)
         {
             var name = Path.GetFileName(dir);
@@ -121,10 +128,171 @@ public static class ThemeCommand
                 continue;
             }
 
-            Console.WriteLine(name);
+            hasAny = true;
+            var manifest = ThemeManifest.Load(dir);
+            var version = manifest?.Version ?? "—";
+            var desc = manifest?.Description ?? "";
+            if (!string.IsNullOrEmpty(desc) && desc.Length > 42)
+            {
+                desc = desc[..40] + "..";
+            }
+
+            var tags = "";
+            if (manifest?.Tags is { Count: > 0 })
+            {
+                tags = "[" + string.Join(", ", manifest.Tags) + "]";
+            }
+            else if (manifest?.DeclaredParamCount > 0)
+            {
+                tags = $"[params: {manifest.DeclaredParamCount}]";
+            }
+
+            Console.WriteLine($"  {name,-14} {version,-8} {desc,-42} {tags}");
+        }
+
+        if (!hasAny)
+        {
+            Console.WriteLine("No themes found. Create one with: bukit theme create <name>");
         }
 
         return Task.FromResult(0);
+    }
+
+    private static Task<int> InfoAsync(ArgReader reader)
+    {
+        var name = ResolveThemeName(reader);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            Console.Error.WriteLine("Missing theme name.");
+            return Task.FromResult(2);
+        }
+
+        var resolved = ConfigPathResolver.Resolve(reader);
+        var rootDir = resolved.RootDir;
+        var themeRoot = Path.Combine(rootDir, "themes", name);
+        if (!Directory.Exists(themeRoot))
+        {
+            Console.Error.WriteLine($"Theme not found: {name}");
+            return Task.FromResult(2);
+        }
+
+        var manifest = ThemeManifest.Load(themeRoot);
+        Console.WriteLine($"Name:        {manifest?.Name ?? name}");
+        Console.WriteLine($"Version:     {manifest?.Version ?? "—"}");
+        Console.WriteLine($"Author:      {manifest?.Author ?? "—"}");
+        Console.WriteLine($"License:     {manifest?.License ?? "—"}");
+        Console.WriteLine($"Homepage:    {manifest?.Homepage ?? "—"}");
+        Console.WriteLine($"Requires:    {manifest?.RequiresBukit ?? "—"}");
+        Console.WriteLine($"Description: {manifest?.Description ?? "—"}");
+
+        if (manifest?.Tags is { Count: > 0 })
+        {
+            Console.WriteLine($"Tags:        {string.Join(", ", manifest.Tags)}");
+        }
+
+        if (manifest is { Params.Count: > 0 })
+        {
+            Console.WriteLine();
+            Console.WriteLine("Declared parameters:");
+            foreach (var p in manifest.Params)
+            {
+                var def = p.Default is not null ? $" (default: {p.Default})" : "";
+                Console.WriteLine($"  {p.Key,-20} {p.Type ?? "string",-10} {p.Label}{def}");
+            }
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Template files:");
+        var layoutsDir = Path.Combine(themeRoot, "layouts");
+        if (Directory.Exists(layoutsDir))
+        {
+            var files = Directory.GetFiles(layoutsDir, "*", SearchOption.AllDirectories)
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase);
+            foreach (var file in files)
+            {
+                var relative = Path.GetRelativePath(layoutsDir, file);
+                Console.WriteLine($"  {relative}");
+            }
+        }
+
+        return Task.FromResult(0);
+    }
+
+    private static Task<int> ParamsAsync(ArgReader reader)
+    {
+        var name = ResolveThemeName(reader);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            Console.Error.WriteLine("Missing theme name.");
+            return Task.FromResult(2);
+        }
+
+        var resolved = ConfigPathResolver.Resolve(reader);
+        var rootDir = resolved.RootDir;
+        var themeRoot = Path.Combine(rootDir, "themes", name);
+        if (!Directory.Exists(themeRoot))
+        {
+            Console.Error.WriteLine($"Theme not found: {name}");
+            return Task.FromResult(2);
+        }
+
+        var manifest = ThemeManifest.Load(themeRoot);
+        if (manifest?.Params is not { Count: > 0 })
+        {
+            Console.WriteLine($"No parameters declared in theme '{name}'.");
+            Console.WriteLine("Add a 'params' section to themes/<name>/theme.yaml to declare parameters.");
+            return Task.FromResult(0);
+        }
+
+        Console.WriteLine($"Parameters for theme '{name}':");
+        foreach (var p in manifest.Params)
+        {
+            var def = p.Default is not null ? $" (default: {p.Default})" : "";
+            Console.WriteLine($"  {p.Key,-22} {p.Type ?? "string",-10} {p.Label}{def}");
+        }
+
+        return Task.FromResult(0);
+    }
+
+    private static string? ResolveThemeName(ArgReader reader)
+    {
+        var raw = reader.GetArg(2);
+        if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith('-'))
+        {
+            return ResolveActiveThemeName(reader);
+        }
+
+        return raw;
+    }
+
+    private static string? ResolveActiveThemeName(ArgReader reader)
+    {
+        var resolved = ConfigPathResolver.Resolve(reader);
+        if (!File.Exists(resolved.FullConfigPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var yaml = File.ReadAllText(resolved.FullConfigPath);
+            var stream = new YamlStream();
+            stream.Load(new StringReader(yaml));
+            if (stream.Documents.Count > 0 &&
+                stream.Documents[0].RootNode is YamlMappingNode root &&
+                root.Children.TryGetValue(new YamlScalarNode("theme"), out var themeNode) &&
+                themeNode is YamlMappingNode themeMap &&
+                themeMap.Children.TryGetValue(new YamlScalarNode("name"), out var nameNode) &&
+                nameNode is YamlScalarNode nameScalar)
+            {
+                return nameScalar.Value;
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
     }
 
     private static Task<int> UseAsync(ArgReader reader)

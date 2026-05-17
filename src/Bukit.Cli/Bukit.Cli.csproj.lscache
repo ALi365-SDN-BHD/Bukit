@@ -75,7 +75,9 @@ Commands/
  BuildCommand.cs
  CleanCommand.cs
  CloneCommand.cs
+ CloneContentWriter.cs
  CloneModels.cs
+ CloneResearchWriter.cs
  CloneThemeGenerator.cs
  DeployCommand.cs
  DoctorCommand.cs
@@ -86,7 +88,13 @@ Commands/
  PreviewCommand.cs
  SeoCommand.cs
  StarterThemeScaffold.cs
+ TemplateCommand.cs
+ TemplateSnippets.cs
  ThemeCommand.cs
+ ThemeInstallCommand.cs
+ ThemeModels.cs
+ ThemePackCommand.cs
+ ThemeWizardCommand.cs
  VersionCommand.cs
  WebhookCommand.cs
 ConfigPathResolver.cs
