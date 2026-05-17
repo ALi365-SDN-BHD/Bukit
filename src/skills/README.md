@@ -15,13 +15,14 @@ src/skills/
   using-bukit/            # Unified Bukit entry point
   bukit-cli-reference/    # Single source of truth for CLI operations
   bukit-config/           # site.yaml configuration model
-  bukit-theme/            # Theme directories and static assets
+  bukit-theme/            # Theme directories, static assets, creation wizard, distribution
   bukit-templating/       # Scriban template development
   bukit-notion/           # Notion content source
   bukit-routing/          # URL routing and permalinks
   bukit-i18n/             # Multilingual sites
   bukit-plugins-debug/    # Plugins, incremental build, diagnostics
   bukit-deploy/           # GitHub Pages deployment
+  bukit-clone/            # Website design cloning → Bukit theme
 ```
 
 ## Skill Responsibilities
@@ -29,15 +30,16 @@ src/skills/
 | Skill | Responsibility | Typical use case |
 |---|---|---|
 | `using-bukit` | Gateway skill that identifies Bukit work and routes to sub-skills | The user explicitly says "using bukit" or the task is clearly Bukit-specific |
-| `bukit-cli-reference` | CLI detection, installation guidance, command reference, output and exit-code interpretation | Running `bukit build`, `doctor`, `preview`, `theme`, `webhook`, and related commands |
+| `bukit-cli-reference` | CLI detection, installation guidance, command reference, output and exit-code interpretation | Running any `bukit` command including `theme wizard/pack/install/search`, `template create/list/show/validate/snippets/hints/sync` |
 | `bukit-config` | `site.yaml` structure, scenario templates, and field explanations | Creating or editing config, explaining fields, fixing validation errors |
-| `bukit-theme` | Theme directory structure, static assets, and theme parameters | Creating or migrating themes, fixing CSS or static asset issues, using `theme.params` |
+| `bukit-theme` | Theme directory structure, static assets, wizard-based creation, theme distribution (pack/install), registry search, template snippets | Creating themes via wizard/preset, listing theme info/params, packaging themes for sharing, installing from registry, browsing template snippets |
 | `bukit-templating` | Scriban syntax, layout inheritance, data access, and template patterns | Writing page templates, list pages, pagination, or fixing template rendering errors |
 | `bukit-notion` | Notion integration, property mapping, block rendering, and image localization | Using Notion as CMS or troubleshooting Notion fetch and mapping issues |
 | `bukit-routing` | Permalinks, collection routes, URL encoding, and output path behavior | Customizing URLs, fixing 404s, handling route conflicts, configuring list pages |
 | `bukit-i18n` | Language detection, per-language builds, sitemap/RSS/search merging | Building multilingual sites and debugging language switch or merged output issues |
 | `bukit-plugins-debug` | Plugin lifecycle, incremental build behavior, performance diagnostics, troubleshooting | Plugins do not run, build output looks wrong, or build performance regresses |
 | `bukit-deploy` | GitHub Pages deployment via `bukit deploy` command, site.yaml deploy config, environment variables, CI/CD integration | Deploying site, pushing to gh-pages, configuring CNAME, troubleshooting deploy failures |
+| `bukit-clone` | Browser MCP extraction → `bukit clone` CLI → verification pipeline for cloning any website's visual design into a Bukit theme | Cloning a website's appearance, replicating a design, creating a theme from an existing live site |
 
 ## Loading Rules
 
@@ -95,6 +97,25 @@ using-bukit
 2. `bukit-deploy`
 3. `bukit-config`
 4. `bukit-cli-reference`
+
+### Clone a website design into a Bukit theme
+
+1. `using-bukit`
+2. `bukit-clone`
+3. `bukit-theme`
+4. `bukit-cli-reference`
+
+### Create a custom theme (interactive)
+
+1. `using-bukit`
+2. `bukit-theme` (wizard + presets)
+3. `bukit-cli-reference`
+
+### Install a theme from the community registry
+
+1. `using-bukit`
+2. `bukit-theme` (search + install)
+3. `bukit-cli-reference`
 
 ## Maintenance Notes
 

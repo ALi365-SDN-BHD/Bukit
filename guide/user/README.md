@@ -13,8 +13,9 @@ If you need internals, extension points, or contribution details, read the devel
 1. [01 Quick Start](./01-quick-start.md)
 2. [04 Site YAML Config](./04-site-yaml-config.md)
 3. [05 Content Markdown](./05-markdown-content.md)
-4. [12 CLI Reference](./12-cli-reference.md)
-5. [13 Deploy GitHub Pages](./13-deploy-github-pages.md)
+4. [08 Themes & Templates](./08-themes-templates.md) (includes wizard, pack, install, search, snippets)
+5. [12 CLI Reference](./12-cli-reference.md)
+6. [13 Deploy GitHub Pages](./13-deploy-github-pages.md)
 
 ### Using Notion as CMS
 

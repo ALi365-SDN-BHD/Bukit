@@ -61,9 +61,22 @@ After downloading, place the binary in a PATH directory or the project root.
 | `clean` | Clean output and cache directories | `--config` `--site` `--dir` |
 | `doctor` | Diagnose config and templates | `--config` `--site` `--site-url` |
 | `plugin list` | List registered plugins | `--config` `--site` |
-| `theme list` | List available themes in themes/ | `--config` `--site` |
+| `theme list` | List available themes with metadata (version, description, tags) | `--config` `--site` |
 | `theme create` | Create a theme from starter or an existing theme | `<name>` `--from` `--brand` `--primary-color` `--accent-color` `--use` `--force` `--config` `--site` |
 | `theme use` | Switch current theme | `<name>` `--config` `--site` |
+| `theme info` | Show full theme information (name, version, author, params, template files) | `<name>` `--config` `--site` |
+| `theme params` | List customizable theme parameters (from theme.yaml) | `[name]` `--config` `--site` |
+| `theme wizard` | Interactive Q&A theme creation + 5 presets | `<name>` `--preset`(blog\|docs\|landing\|minimal\|portfolio) `--use` `--force` `--config` `--site` |
+| `theme pack` | Package theme as `<name>-<version>.tar.gz` | `[name]` `--config` `--site` |
+| `theme install` | Install theme from local file, URL, or registry | `<path\|url>` `--registry <name>` `--force` `--config` `--site` |
+| `theme search` | Query community theme registry | `[query]` `--refresh` `--registry-url <url>` `--config` `--site` |
+| `template create` | Interactive template file creation | `<path>` `--force` `--config` `--site` |
+| `template list` | List all templates in active theme | `--config` `--site` |
+| `template show` | Print template content | `<path>` `--config` `--site` |
+| `template validate` | Validate Scriban syntax of all templates | `--config` `--site` |
+| `template snippets` | Browse template/CSS snippet library | `[name]` `--config` `--site` |
+| `template hints` | Show available template variables reference | `--config` `--site` |
+| `template sync` | Auto-generate bukit.templates.yaml from templates | `--force` `--config` `--site` |
 | `intent init` | Interactive intent file creation | `--out` |
 | `intent validate` | Validate intent file | `<intent.yaml>` `--root-dir` `--out` |
 | `intent apply` | Apply intent to generate site.yaml | `<intent.yaml>` `--out` |
@@ -174,14 +187,16 @@ bukit doctor [--config <path>] [--site <name>] [--site-url <url>]
 Checks:
 1. Config loading and validation
 2. Collections configuration readiness (prompts migration if missing)
-3. Template file existence (base.html, page.html, post.html, index.html, list.html)
-4. Template syntax parsing
-5. Template capabilities manifest validation
-6. Assets and Static directory existence
-7. Build manifest JSON format
-8. Plugin discovery count
-9. Notion database reachability (if Notion content source configured)
-10. List page content mode heuristic fallback warnings
+3. Template file existence and parsing (all `.html` files under layouts)
+4. Template capabilities manifest validation
+5. **Template completeness report**: compares `bukit.templates.yaml` declarations vs actual files (missing/stale)
+6. **Template chain analysis**: extracts `{% layout %}` inheritance chains and `{{ include }}` dependency references
+7. **Unused parameter warnings**: `theme.params` declared in site.yaml but not referenced in any template
+8. Assets and Static directory existence
+9. Build manifest JSON format
+10. Plugin discovery count
+11. Notion database reachability (if Notion content source configured)
+12. List page content mode heuristic fallback warnings
 
 ### plugin list
 
@@ -203,11 +218,43 @@ PluginName@1.0.0 [ExternalAssembly] enabled=false (after-build)
 bukit theme list [--config <path>] [--site <name>]
 bukit theme create <name> [--from starter|<existing-theme>] [--brand <text>] [--primary-color <hex>] [--accent-color <hex>] [--use] [--force] [--config <path>] [--site <name>]
 bukit theme use <name> [--config <path>] [--site <name>]
+bukit theme info <name> [--config <path>] [--site <name>]
+bukit theme params [name] [--config <path>] [--site <name>]
+bukit theme wizard <name> [--preset blog|docs|landing|minimal|portfolio] [--use] [--force] [--config <path>] [--site <name>]
+bukit theme pack [name] [--output <path>] [--config <path>] [--site <name>]
+bukit theme install <path|url> [--registry <name>] [--registry-url <url>] [--force] [--config <path>] [--site <name>]
+bukit theme search [query] [--refresh] [--registry-url <url>] [--config <path>] [--site <name>]
 ```
 
-`theme list` lists all valid theme names in the `themes/` directory.
+`theme list` displays themes with metadata from `theme.yaml` (version, description, tags, param count).
 `theme create` creates `themes/<name>/`; by default it uses the built-in starter, and `--from` copies an existing local theme.
 `theme use` modifies `theme.name` in site.yaml to the specified theme name.
+`theme info` shows full theme details including parameter definitions and template file list.
+`theme params` lists customizable parameters declared in `theme.yaml`.
+`theme wizard` runs an interactive Q&A to create a custom theme. `--preset` applies one of 5 pre-defined designs (blog/docs/landing/minimal/portfolio) as defaults; without `--preset`, an interactive preset picker appears.
+`theme pack` packages a theme into `<name>-<version>.tar.gz` for distribution. `<name>` defaults to the active theme.
+`theme install` installs a theme from a local `.tar.gz`, HTTP URL, or `--registry <name>` (community theme registry with SHA256 verification).
+`theme search` queries the community theme index (cached locally for 24h). `--refresh` forces a fresh fetch.
+
+### template
+
+```
+bukit template create <path> [--force] [--config <path>] [--site <name>]
+bukit template list [--config <path>] [--site <name>]
+bukit template show <path> [--config <path>] [--site <name>]
+bukit template validate [--config <path>] [--site <name>]
+bukit template snippets [name]
+bukit template hints
+bukit template sync [--force] [--config <path>] [--site <name>]
+```
+
+`template create` interactively creates a new Scriban template file (single page / list page / partial) in the active theme's layouts directory.
+`template list` lists all `.html` template files grouped by subdirectory with file sizes.
+`template show` prints the content of a specific template.
+`template validate` parses all templates with Scriban and reports syntax errors.
+`template snippets` browses the built-in snippet library (8 Scriban + 9 CSS). `snippets <name>` shows a specific snippet.
+`template hints` outputs a reference table of all available template variables (site/page/pages/scriban functions/layout directives).
+`template sync` scans all template files and auto-generates/updates `layouts/bukit.templates.yaml` capability declarations.
 
 ### intent
 

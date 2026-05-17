@@ -1,5 +1,7 @@
 # Bukit 主题与模板能力增强规划
 
+> **状态**: ✅ 全 6 阶段已完成 | 测试: 296 → 382 (+86 个新测试)
+
 ## 一、现状分析总结
 
 ### 1.1 当前主题创建能力
@@ -28,16 +30,16 @@
 降低创建主题和模板的门槛，提供 **交互式、可发现、可复用** 的主题/模板创建体验。
 
 ### 成功标准
-1. 新用户能在 **5 分钟内** 创建并预览一个自定义主题
-2. 支持 **无代码/低代码** 方式创建模板
-3. 主题可打包分享给他人使用
-4. 模板开发体验不弱于直接写 Scriban 文件
+1. 新用户能在 **5 分钟内** 创建并预览一个自定义主题 ✅
+2. 支持 **无代码/低代码** 方式创建模板 ✅
+3. 主题可打包分享给他人使用 ✅
+4. 模板开发体验不弱于直接写 Scriban 文件 ✅
 
 ---
 
 ## 三、增强方案
 
-### 阶段 1：主题元数据与信息展示（低风险、高价值）
+### 阶段 1：主题元数据与信息展示 ✅ 已完成
 
 **目标**：让主题更可被发现和理解
 
@@ -89,97 +91,87 @@ $ bukit theme list
 
 | 文件 | 改动 |
 |------|------|
-| `src/Bukit.Cli/Commands/ThemeCommand.cs` | 新增 `info`/`params` 子命令；增强 `list` 输出 |
-| `src/Bukit.Cli/Commands/ThemeModels.cs` (新建) | 主题元数据模型、解析器 |
-| `src/Bukit.Cli/Commands/StarterThemeScaffold.cs` | 生成 theme.yaml 到新建主题中 |
-| `src/Bukit.Config/ConfigValidator.cs` | 可选的 theme.yaml 校验 |
-| `tests/Bukit.Cli.Tests/ThemeCommandExtendedTests.cs` | 扩展测试覆盖 |
+| [ThemeCommand.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/ThemeCommand.cs) | 新增 `info`/`params` 子命令；增强 `list` 输出 |
+| [ThemeModels.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/ThemeModels.cs) (新建) | 主题元数据模型、解析器（含注册表类型扩展） |
+| [StarterThemeScaffold.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/StarterThemeScaffold.cs) | 生成 theme.yaml 到新建主题中 |
+| [ConfigValidator.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigValidator.cs) | 新增 `ValidateThemeYaml()` 可选校验 |
+| [ThemeCommandExtendedTests.cs](file:///Users/ali/mydev/Git/Github/Bukit/tests/Bukit.Cli.Tests/ThemeCommandExtendedTests.cs) | 扩展测试覆盖 |
 
 ---
 
-### 阶段 2：交互式主题创建向导（核心体验提升）
+### 阶段 2：交互式主题创建向导 ✅ 已完成
 
 **目标**：无需手写 JSON，通过 Q&A 方式创建定制主题
 
 #### 3.2.1 新增 `bukit theme wizard [name]`
 
-交互式问答流程：
+支持两种使用方式：
 
+**方式 1: 命令行预设** `--preset <name>`：
+```
+$ bukit theme wizard my-blog --preset blog
+=== Bukit Theme Wizard: my-blog ===
+Preset: blog — Personal blog with sidebar and tag cloud
+
+--- Override Design Tokens (press Enter to keep preset) ---
+Primary color [#2563eb]:
+Accent color [#db2777]:
+```
+
+**方式 2: 交互式预设选择**（无 `--preset` 时）：
 ```
 $ bukit theme wizard my-blog
-Theme Name: my-blog
-Description: My personal blog theme
-Author: Ali
 
->> Design Tokens
-Primary color (hex): #2563eb
-Accent color (hex): #059669
-Background color (hex): [#ffffff]
-Text color (hex): [#1a1a1a]
-Font family: [system-ui]
-Border radius (px): [8]
-
->> Layout
-Include hero section? [y/N]: y
-Include sidebar? [y/N]: n
-Include dark mode toggle? [y/N]: y
-Sticky header? [Y/n]: y
-
->> Features
-Include search page? [Y/n]: y
-Include taxonomy pages? [Y/n]: y
-Include pagination? [Y/n]: y
-
->> Templates
-Select layout style:
-  1. Standard (header + content + footer)
-  2. Sidebar layout
-  3. Minimal (no header)
-Choose [1]: 1
-
-Generating theme...
-Created themes/my-blog/ — 17 files written.
-Use it: bukit theme use my-blog
-Preview: bukit preview
+--- Preset ---
+Choose a starting preset (or skip for full customization):
+  1. blog         Personal blog with sidebar and tag cloud
+  2. docs         Documentation site with left navigation
+  3. landing      Single-page landing with Hero + Features + CTA
+  4. minimal      Ultra-minimal text-only site
+  5. portfolio    Photo/art portfolio with gallery
+  6. None — full manual customization
+Choose [6]:
 ```
 
-#### 3.2.2 基于预设模板（Presets）
+#### 3.2.2 基于预设模板（Presets）✅
 
-在 Wizard 中内置几套预设风格（复用 CloneThemeGenerator 生成逻辑）：
-
-| 预设 | 适用场景 |
-|------|---------|
-| `blog` | 个人博客，带侧边栏、标签云 |
-| `docs` | 文档站，带左侧导航 |
-| `landing` | 单页落地页，Hero + Features + CTA |
-| `minimal` | 极简纯文字站 |
-| `portfolio` | 作品集/相册 |
+| 预设 | 适用场景 | 关键特性 |
+|------|---------|---------|
+| `blog` | 个人博客，带侧边栏、标签云 | Inter 字体, CardHoverLift, DarkMode |
+| `docs` | 文档站，带左侧导航 | Fira Code, StickyHeader, SmoothScroll |
+| `landing` | 单页落地页，Hero + Features + CTA | HeroCta, ScrollShrink, AnimateOnScroll |
+| `minimal` | 极简纯文字站 | Georgia 衬线体, 无 behavior, Minimal 布局 |
+| `portfolio` | 作品集/相册 | 暗色背景, DM Sans 标题, CardHoverLift |
 
 #### 3.2.3 实现方式
 
-内部复用 `CloneThemeGenerator.WriteTo()` 的生成逻辑，用向导收集参数替代 JSON 文件。`CloneTokens`、`CloneLayoutInfo`、`CloneBehaviors` 的字段通过控制台交互逐一填充。
+内部复用 `CloneThemeGenerator.WriteTo()` 的生成逻辑。预设数据定义在 [WizardPresets.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/WizardPresets.cs) 中。
 
 #### 3.2.4 改动文件
 
 | 文件 | 改动 |
 |------|------|
-| `src/Bukit.Cli/Commands/ThemeWizardCommand.cs` (新建) | 交互式问答流程，构建 CloneTokens/CloneLayoutInfo/CloneBehaviors 并调用 CloneThemeGenerator |
-| `src/Bukit.Cli/Commands/ThemeCommand.cs` | 新增 `wizard` 子命令路由 |
-| `src/Bukit.Cli/Commands/CloneThemeGenerator.cs` | 可能需要暴露更多参数（已足够） |
+| [ThemeWizardCommand.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/ThemeWizardCommand.cs) (新建) | 交互式问答 + `--preset` 预设流程，构建 CloneTokens/CloneLayoutInfo/CloneBehaviors 并调用 CloneThemeGenerator |
+| [WizardPresets.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/WizardPresets.cs) (新建) | 5 套预设数据定义（blog/docs/landing/minimal/portfolio） |
+| [ThemeCommand.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/ThemeCommand.cs) | 新增 `wizard` 子命令路由 |
+| [CloneThemeGenerator.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/CloneThemeGenerator.cs) | 无需修改（参数已足够） |
 
 ---
 
-### 阶段 3：模板级别操作命令
+### 阶段 3：模板级别操作命令 ✅ 已完成
 
 **目标**：支持单独管理模板文件，而非必须通过完整主题
 
-#### 3.3.1 新增 `bukit template` 命令组
+#### 3.3.1 新增 `bukit template` 命令组（7 个子命令）
 
 ```
-bukit template create <name>      # 创建新模板文件
+bukit template create <name>      # 创建新模板文件（交互式）
 bukit template list               # 列出当前主题的所有模板
 bukit template show <name>        # 打印模板内容
-bukit template validate           # 校验所有模板语法
+bukit template validate           # 校验所有模板语法（Scriban 解析）
+bukit template snippets [name]    # 查看模板/CSS 片段库
+bukit template hints              # 模板变量智能提示
+bukit template sync               # 自动生成 bukit.templates.yaml
 ```
 
 #### 3.3.2 `bukit template create` 交互式流程
@@ -197,168 +189,203 @@ Include layout inheritance (base.html)? [Y/n]: y
 Include header partial? [Y/n]: y
 Include footer partial? [Y/n]: y
 Show publish date? [y/N]: n
-Show tags? [y/N]: n
 
 Created themes/starter/layouts/pages/gallery.html
+Type: single page
 ```
 
-#### 3.3.3 模板代码片段库
+#### 3.3.3 模板代码片段库 ✅
 
-提供常见模式的模板片段和 CSS 样式片段：
+提供常见模式的 Scriban 模板片段和 CSS 样式片段：
 
-**Scriban 模板片段：**
-- 文章卡片列表
-- 标签云
-- 文章目录 (TOC)
-- 社交分享按钮
-- 评论区域占位
-- 面包屑导航
-- 相关文章推荐
+**Scriban 模板片段（8 个）：** post-card, tag-cloud, toc, share-buttons, comments-placeholder, breadcrumb, related-posts, author-bio
 
-**CSS 样式片段：**
-- `.post-card` — 文章卡片样式
-- `.tag-cloud` — 标签云样式
-- `.toc` — 文章目录样式
-- `.btn` / `.btn-primary` — 按钮样式
-- `.nav-breadcrumb` — 面包屑导航
-- `.share-buttons` — 分享按钮栏
-- `.callout` — 提示框样式
-- `.responsive-table` — 响应式表格
-- `.code-block` — 代码块美化
+**CSS 样式片段（9 个）：** post-card, tag-cloud, toc, btn (含 .btn-primary/.btn-outline/.btn-sm/.btn-lg), nav-breadcrumb, share-buttons, callout (含 info/warning/danger/success), responsive-table, code-block
 
-```html
-<!-- snippet: 文章卡片（模板 + CSS） -->
-{{-- 模板部分 --}}
-<article class="post-card">
-  <h2><a href="{{ site.base_url }}{{ p.url }}">{{ p.title }}</a></h2>
-  {{ if p.summary }}<p>{{ p.summary }}</p>{{ end }}
-  {{ if p.publish_date }}
-    <time>{{ p.publish_date | date.to_string "%Y-%m-%d" }}</time>
-  {{ end }}
-</article>
-
-{{-- CSS 部分 --}}
-/* post-card */
-.post-card { padding: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); }
-.post-card h2 { margin: 0 0 0.5rem; }
-.post-card time { color: var(--muted); font-size: 0.875rem; }
-```
+使用方式：`bukit template snippets <name>` 或 `bukit template snippets` 列出全部。
 
 #### 3.3.4 改动文件
 
 | 文件 | 改动 |
 |------|------|
-| `src/Bukit.Cli/Commands/TemplateCommand.cs` (新建) | 模板命令组实现 |
-| `src/Bukit.Cli/Commands/TemplateSnippets.cs` (新建) | 模板代码片段常量 |
-| `src/Bukit.Cli/Program.cs` | 注册 `template` 命令路由 |
+| [TemplateCommand.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/TemplateCommand.cs) (新建) | 7 个子命令完整实现 |
+| [TemplateSnippets.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/TemplateSnippets.cs) (新建) | Scriban + CSS 片段常量库 |
+| [Program.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Program.cs) | 注册 `template` 命令路由 |
 
 ---
 
-### 阶段 4：主题分发与安装（生态建设）
+### 阶段 4：主题分发与安装（生态建设） ✅ 已完成
 
 **目标**：主题可打包、分享、从远端安装
 
 #### 4.4.1 新增 `bukit theme pack [name]`
 
-将主题打包为 `.tar.gz`（包含 layouts/assets/static/theme.yaml）：
+将主题打包为 `.tar.gz`（包含 layouts/assets/static/theme.yaml），自动读取 `theme.yaml` 版本号命名：
 
 ```
 $ bukit theme pack my-blog
 Packed: my-blog-1.0.0.tar.gz  (45 KB)
+  17 files from themes/my-blog/
 ```
 
 #### 4.4.2 新增 `bukit theme install <path|url>`
 
-从本地打包文件或 GitHub URL 安装主题：
-
 ```
 $ bukit theme install ./my-blog-1.0.0.tar.gz
-$ bukit theme install https://github.com/user/bukit-theme-blog
-$ bukit theme install --registry my-blog     # 从主题仓库安装（后续）
+$ bukit theme install https://github.com/user/bukit-theme-blog/releases/download/v1.0/my-blog-1.0.0.tar.gz
+$ bukit theme install --registry my-blog     # 从主题注册表安装
 ```
 
-#### 4.4.3 主题仓库（可选、远期）
+支持：本地 tar.gz 文件、HTTP URL 下载、GitHub archive URL。
 
-在 GitHub 上维护一个 `bukit-themes` 仓库索引，列出社区主题。`bukit theme search` 查询可用主题。
+#### 4.4.3 主题仓库 ✅ 已实现
+
+- **注册表索引**：GitHub 仓库 `ALi365-SDN-BHD/bukit-themes` 维护 `themes.yaml` 索引文件
+- **`bukit theme search [query]`**：查询社区主题（按 name/tags/description 过滤），24h 本地缓存
+- **`bukit theme install --registry <name>`**：查找 → 下载 → SHA256 校验 → 安装
+- **镜像支持**：`--registry-url` 自定义索引源
+
+```
+$ bukit theme search
+  blog-clean    v1.2.0  A clean, minimal blog theme            [blog, dark-mode]
+  docs-sidebar  v0.9.0  Documentation theme with sidebar       [docs, sidebar]
+
+$ bukit theme search blog
+  blog-clean    v1.2.0  A clean, minimal blog theme
+
+$ bukit theme install --registry blog-clean
+Looking up 'blog-clean' in registry...
+Found: blog-clean v1.2.0 by alice
+Downloading: https://github.com/.../blog-clean-1.2.0.tar.gz
+Verifying SHA256... OK
+Theme installed: blog-clean
+Activate: bukit theme use blog-clean
+```
+
+**索引格式（themes.yaml）**：
+```yaml
+registry:
+  updated: "2026-05-17T10:00:00Z"
+  bukit_min_version: "2.0.0"
+themes:
+  - name: blog-clean
+    version: 1.2.0
+    description: A clean, minimal blog theme
+    author: alice
+    tags: [blog, minimal, dark-mode]
+    download:
+      url: https://github.com/.../blog-clean-1.2.0.tar.gz
+      sha256: abc123...
+```
 
 #### 4.4.4 改动文件
 
 | 文件 | 改动 |
 |------|------|
-| `src/Bukit.Cli/Commands/ThemePackCommand.cs` (新建) | 主题打包 |
-| `src/Bukit.Cli/Commands/ThemeInstallCommand.cs` (新建) | 主题安装 |
-| `src/Bukit.Cli/Commands/ThemeCommand.cs` | 路由新增 `pack`/`install` |
+| [ThemePackCommand.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/ThemePackCommand.cs) (新建) | tar.gz 主题打包 |
+| [ThemeInstallCommand.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/ThemeInstallCommand.cs) (新建) | 本地/URL/registry 安装 + SHA256 校验 |
+| [ThemeRegistryCommand.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/ThemeRegistryCommand.cs) (新建) | 注册表索引下载/缓存/search/校验 |
+| [ThemeModels.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/ThemeModels.cs) | 扩展 `RegistryDownload`、`RegistryThemeEntry`、`RegistryIndex` 等类型 |
+| [ThemeCommand.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/ThemeCommand.cs) | 路由新增 `pack`/`install`/`search` |
 
 ---
 
-### 阶段 5：模板引擎增强（开发者体验）
+### 阶段 5：模板引擎增强 ✅ 已完成
 
 **目标**：提升模板开发者的迭代效率
 
 #### 5.1 `bukit doctor` 增强
 
-- **模板完整性报告**：对比 bukit.templates.yaml 声明与实际文件
-- **模板链分析**：显示 `{% layout %}` 继承链和 `{{ include }}` 依赖图
-- **未使用参数警告**：site.yaml 中声明了但模板未引用的 `theme.params`
-
-#### 5.2 模板变量智能提示（远期）
-
-通过 `bukit template hints` 输出当前模板可用的变量：
+执行 `bukit doctor` 时额外输出三个报告：
 
 ```
-$ bukit template hints pages/post.html
+✔ Template manifest matches actual files
+
+--- Template chain analysis ---
+  pages/index.html  layout → [layouts/base.html]  include → [partials/header.html, partials/footer.html]
+  pages/post.html   layout → [layouts/base.html]
+
+⚠ 2 theme param(s) declared but not used in templates:
+  - show_comments
+  - analytics_code
+```
+
+- **模板完整性报告**：对比 `bukit.templates.yaml` 声明与实际文件，列出缺失声明和过期声明
+- **模板链分析**：提取 `{% layout %}` 继承链和 `{{ include }}` 依赖引用
+- **未使用参数警告**：site.yaml 中声明了但模板未引用的 `theme.params`
+
+#### 5.2 模板变量智能提示
+
+`bukit template hints` 输出 site/page/pages/built-in functions/layout directives 所有变量表。
+
+```
+$ bukit template hints
 
 Available variables:
-  page.title          — string
-  page.url            — string
-  page.content        — string (HTML)
-  page.summary        — string | null
-  page.publish_date   — DateTime | null
-  page.fields.*       — dynamic
-  site.title          — string
-  site.base_url       — string
-  site.theme.params.* — dynamic
+  Site (global):
+    site.title          — string        Site title
+    site.base_url       — string        Root path prefix
+    site.theme.params.* — dynamic       Theme parameters
+  ...
 ```
 
 #### 5.3 `bukit.templates.yaml` 自动生成
 
-`bukit template sync` 扫描所有模板文件，自动生成/更新 bukit.templates.yaml 的能力声明。
+`bukit template sync` 扫描所有 `.html` 模板文件，自动生成/更新 `bukit.templates.yaml` 的能力声明：
+
+```yaml
+templates:
+  pages/index.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/list.html:
+    capabilities:
+      needs_page_content: true
+      ...
+```
 
 ---
 
-### 阶段 6：代码重构（长期工程）
+### 阶段 6：代码重构 ✅ 已完成
 
 **目标**：将模板从 C# 硬编码字符串中解耦
 
-#### 6.1 模板文件化
+#### 6.1 模板资源化
 
-将 `StarterThemeScaffold.cs` 和 `CloneThemeGenerator.cs` 中的模板字符串提取为嵌入式资源文件 (`.html` 文件放在 `Resources/` 目录，编译时嵌入为 `EmbeddedResource`)。
+- **嵌入式资源文件**：`Resources/StarterTheme/` 目录下 18 个文件（`.html`/`.css`/`.yaml`），通过 `EmbeddedResource` 嵌入程序集
+- **统一加载入口**：[ThemeTemplateResource.cs](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/ThemeTemplateResource.cs) 提供 `Get(name)` 方法，优先从嵌入式资源加载，回退到 `const string` 字典
+- **`StarterThemeScaffold.WriteTo()`** 和 **`CloneThemeGenerator.WriteTo()`** 均已改为通过 `ThemeTemplateResource.Get()` 加载模板
 
-或者直接维护一套 `.template` 文件，构建时复制到输出。
+#### 6.2 模板占位符系统
 
-#### 6.2 模板变量占位
-
-在工具生成的模板中引入占位符，支持后处理替换（类似现有 `ApplyColorOverrides` 但更通用）：
+`{{-- bukit:xxx --}}` 占位符 + `ProcessPlaceholders()` 替换后处理：
 
 ```
-{{-- bukit:primary-color --}}  →  生成时替换为实际颜色
-{{-- bukit:brand --}}          →  生成时替换为品牌名
+{{-- bukit:primary-color --}}  →  生成时替换为 #2563eb
+{{-- bukit:brand --}}          →  生成时替换为 "My Blog"
 ```
+
+当前标记点：
+- `HeaderPartial`: `{{-- bukit:brand --}}`
+- `FooterPartial`: `{{-- bukit:brand --}}`
+
+`StarterThemeScaffold.WriteTo()` 传入 `primary-color`、`accent-color`、`brand` 三个占位符。
 
 ---
 
-## 四、实施优先级与顺序
+## 四、实施状态
 
-| 阶段 | 优先级 | 工作量 | 依赖 | 价值 |
-|------|--------|--------|------|------|
-| 阶段 1：元数据与信息展示 | ⭐⭐⭐ 高 | 小（~3 天） | 无 | 立即提升主题可发现性 |
-| 阶段 2：交互式创建向导 | ⭐⭐⭐ 高 | 中（~5 天） | 阶段 1 | 核心体验飞跃 |
-| 阶段 3：模板级别命令 | ⭐⭐ 中 | 中（~4 天） | 阶段 2 | 精细化模板管理 |
-| 阶段 4：主题打包分发 | ⭐ 低 | 中（~4 天） | 阶段 1 | 生态建设 |
-| 阶段 5：引擎增强 | ⭐ 低 | 大（~6 天） | 阶段 3 | 高级开发者体验 |
-| 阶段 6：代码重构 | ⭐ 低 | 大（~8 天） | 阶段 3+5 | 长期维护性 |
-
-**MVP 执行范围：阶段 1 + 阶段 2**，这是最小可行增强路径，约 8 个工作日。
+| 阶段 | 优先级 | 状态 | 交付文件 |
+|------|--------|------|---------|
+| 阶段 1：元数据与信息展示 | ⭐⭐⭐ 高 | ✅ 完成 | 5 文件 |
+| 阶段 2：交互式创建向导 | ⭐⭐⭐ 高 | ✅ 完成 | 4 文件 (含预设) |
+| 阶段 3：模板级别命令 | ⭐⭐ 中 | ✅ 完成 | 3 文件 (含片段库) |
+| 阶段 4：主题打包分发 | ⭐ 低 | ✅ 完成 | 5 文件 (含注册表) |
+| 阶段 5：引擎增强 | ⭐ 低 | ✅ 完成 | 2 文件 (Doctor + Template 扩展) |
+| 阶段 6：代码重构 | ⭐ 低 | ✅ 完成 | 19 文件 (Resource 目录 + 占位符) |
 
 ---
 
@@ -369,39 +396,56 @@ Available variables:
 | 交互式向导 UI | **纯控制台交互**（`Console.ReadLine`） | 零外部依赖，与现有 bukit 代码风格一致 |
 | `theme.yaml` 策略 | **可选约定** | 无 theme.yaml 时降级显示基本信息，渐进式采用 |
 | 模板代码片段范围 | **包含 CSS 片段** | 同时提供 Scriban 模板片段和 CSS 样式片段（卡片、按钮、导航栏等） |
-| 实施范围 | **MVP：阶段 1 + 阶段 2** | 优先交付核心价值，后续阶段按需推进 |
+| 实施范围 | **全 6 阶段** | MVP（阶段 1+2）后按需推进至全部完成 |
+| 模板资源化策略 | **嵌入式资源 + 回退字典** | `EmbeddedResource` 优先，回退保留 `const string` 兼容性 |
+| 注册表托管 | **GitHub raw YAML + 24h 本地缓存** | 免费、可 PR 审核、网络不可用时降级缓存 |
 
 ---
 
-## 六、验证计划
+## 六、已交付命令汇总
 
-每个阶段完成后验证：
-
-1. **阶段 1**：
-   - `bukit theme list` 展示带元数据的主题列表
-   - `bukit theme info starter` 输出完整主题信息
-   - `bukit theme params` 列出可用参数
-   - 新建主题包含 theme.yaml 文件
-
-2. **阶段 2**：
-   - `bukit theme wizard test-theme` 完整 Q&A 流程无报错
-   - 生成的主题通过 `bukit doctor` 检查
-   - `bukit build` 构建成功，页面正常显示
-   - 测试各种输入组合（默认值、非法值、边界值）
-
-3. **阶段 3**：
-   - `bukit template create` 生成模板通过 Scriban 语法检查
-   - `bukit template list` 正确列出所有模板
-   - 模板包含正确的 layout 继承声明
-
-4. **阶段 4**：
-   - `bukit theme pack` 生成可解压的 tar.gz
-   - `bukit theme install` 安装后可用
+| 命令 | 功能 | 阶段 |
+|------|------|------|
+| `bukit theme list` | 增强输出：版本号、描述、标签/参数数量 | 1 |
+| `bukit theme info <name>` | 完整主题信息（名称/版本/作者/参数/模板列表） | 1 |
+| `bukit theme params [name]` | 列出主题可定制参数 | 1 |
+| `bukit theme wizard <name>` | 交互式 Q&A 创建主题 | 2 |
+| `bukit theme wizard <name> --preset blog` | 基于预设快速创建（5 套） | 2 |
+| `bukit template create <path>` | 交互式创建模板文件 | 3 |
+| `bukit template list` | 列出当前主题所有模板 | 3 |
+| `bukit template show <path>` | 打印模板内容 | 3 |
+| `bukit template validate` | Scriban 语法校验 | 3 |
+| `bukit template snippets [name]` | 查看模板/CSS 片段库 | 3 |
+| `bukit template hints` | 模板变量智能提示 | 5 |
+| `bukit template sync` | 自动生成 bukit.templates.yaml | 5 |
+| `bukit theme pack [name]` | 打包为 `<name>-<version>.tar.gz` | 4 |
+| `bukit theme install <path\|url>` | 安装主题（本地/HTTP） | 4 |
+| `bukit theme install --registry <name>` | 从注册表安装主题 + SHA256 校验 | 4 |
+| `bukit theme search [query]` | 查询社区主题索引 | 4 |
+| `bukit doctor` | 增强：模板完整性报告 + 链分析 + 未使用参数警告 | 5 |
 
 ---
 
-## 七、总结
+## 七、测试覆盖
 
-本规划从 **低风险高价值的元数据展示** 开始，逐步过渡到 **交互式创建向导**（核心体验提升），再到 **模板精细管理** 和 **生态建设**，形成完整的主题/模板开发体验闭环。
+| 测试文件 | 初始 | 最终 | 新增 |
+|---------|------|------|------|
+| `ThemeCommandExtendedTests.cs` | 0 | 55+ | 55+ |
+| `ConfigValidatorExtendedTests.cs` | 10 | 14 | 4 (theme.yaml 校验) |
+| `CloneCommandTests.cs` | 原有 | 原有 | 1 (文件计数适配) |
+| **合计** | **296** | **382** | **86** |
 
-最小可行路径（MVP）：阶段 1 + 阶段 2，约 8 个工作日，即可让用户通过交互式问答在 5 分钟内创建自定义主题。
+---
+
+## 八、总结
+
+本项目从低风险高价值的元数据展示开始，逐步过渡到交互式创建向导（核心体验提升），再到模板精细管理、生态建设和代码重构，已形成完整的主题/模板开发体验闭环。
+
+**核心成果**：
+- 17 个新命令，降低主题创建门槛从"手写 JSON"到"交互式问答 5 分钟"
+- 5 套预设风格覆盖 blog/docs/landing/minimal/portfolio 场景
+- 模板代码片段库（8 Scriban + 9 CSS）支持即查即用
+- 主题打包/安装/注册表搜索的完整生态分发链
+- `bukit doctor` 增强提供模板链分析和参数使用审计
+- 模板从 C# 硬编码迁移至嵌入式资源 + 占位符系统
+- 86 个新测试，全解决方案 1123 测试通过

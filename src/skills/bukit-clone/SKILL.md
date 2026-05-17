@@ -4,7 +4,7 @@ description: Clone any website's visual design into a Bukit theme. Use when the 
 description_zh: 将任意网站的视觉设计克隆为 Bukit 主题。处理完整流水线：浏览器设计令牌提取、布局分析、资源下载和 CLI 驱动主题生成。
 description_ms: Klon reka bentuk visual mana-mana laman web ke dalam tema Bukit. Kemahiran ini mengendalikan saluran paip penuh: pengekstrakan token reka bentuk pelayar, analisis susun atur, muat turun aset, dan penjanaan tema dipacu CLI.
 description_en: Clone any website's visual design into a Bukit theme. Full pipeline: browser design token extraction, layout analysis, asset download, and CLI-driven theme generation.
-argument-hint: "<url> [--theme <name>]"
+argument-hint: "<url> [--theme <name>] [--verify] [--fail-on-visual-diff]"
 user-invocable: true
 ---
 
@@ -16,10 +16,18 @@ Clone any website's visual design and visible content as a Bukit theme plus Buki
 
 1. **Extraction** (you): Browser MCP → extract design tokens + page metadata + sections + assets → `tokens.json` + `page.json` + `sections.json` + `assets.json`
 2. **Generation** (CLI): `bukit clone --tokens tokens.json --page page.json --sections sections.json --assets assets.json --theme <name>`
-3. **Verification**: `bukit doctor && bukit build`
+3. **Verification**: `bukit doctor && bukit build` (or `--verify` for automated pixel-diff + behavior checks)
 
-**REQUIRED BACKGROUND:** bukit-theme (directory structure), bukit-templating (Scriban conventions).
+**REQUIRED BACKGROUND:** bukit-theme (directory structure), bukit-templating (Scriban conventions), bukit-config (site.yaml source updates).
 **REQUIRED SUB-SKILL:** bukit-cli-reference for CLI execution.
+**REQUIRED TOOL:** Browser MCP (Chrome MCP / Playwright MCP). Without browser automation, this skill cannot work.
+
+**Related commands (simpler alternatives):**
+- `bukit theme wizard <name> --preset blog|docs|landing|minimal|portfolio` — interactive theme creation with 5 presets
+- `bukit theme create <name>` — copy from built-in starter
+- `bukit theme install --registry <name>` — install community theme from registry
+
+Use `bukit clone` when you need an exact visual replica of an existing live site. Use wizard/presets when you want a fresh theme in a known design style.
 
 ---
 
@@ -699,25 +707,29 @@ When `useLenis: true` in `behaviors.json`:
 
 ---
 
-## Phase 5: Visual QA & Behavior Verification
+## Troubleshooting & Common Errors
 
-### Behavior Verification Script
+| Symptom | Cause | Fix |
+|---------|------|------|
+| `Failed to parse tokens file` | `tokens.json` YAML/JSON syntax error or wrong format | Validate JSON with `jq` or a linter; ensure it matches the `CloneTokens` schema |
+| `Theme already exists: cloned` | Previous clone not cleaned up | Add `--force` to overwrite |
+| Pixel diff > threshold on every comparison | Screenshot dimensions mismatch or different fonts/CSS rendering | Increase `--visual-threshold` (e.g., `0.08`); ensure screenshots taken at exactly 1440/768/390 viewports |
+| `Unsupported PNG format` in VERIFY_REPORT | Non-standard PNG (grayscale, indexed, 16-bit) | Re-save screenshots as 24-bit/32-bit RGBA PNG |
+| `behaviors.json` all fields `false` | Target site has no detectable JS behaviors OR browser scripts ran on wrong page | Verify the extraction scripts ran on the correct URL; manually inspect behaviors and hardcode expected values if automation misses them |
+| `No paired screenshots found` in VERIFY_REPORT | Local screenshots not yet captured | After build, capture browser screenshots at each viewport into `docs/research/local-screenshots/local-{viewport}.png` |
+| Build fails with "template not found" | Clone generated incomplete theme directory | Check `tokens.json` has required fields; verify `--tokens` path is correct; re-run with `--force` |
+| `site.collections` migration warning | Clone wrote `provider: sources` but collections not configured | Run `bukit doctor` — it provides the exact migration instructions |
+| `doctor` reports manifest mismatch | `bukit.templates.yaml` missing or stale vs actual template files | Run `bukit template sync` to auto-generate; or re-run clone with `--force` |
+| Behaviors not working in preview | `behaviors.js` not loaded or browser cached old version | Check `base.html` includes `<script src="{{ site.base_url }}/assets/behaviors.js">`; hard-refresh browser (Cmd+Shift+R) |
 
-After `--verify`, `docs/research/BEHAVIORS_VERIFY.js` is generated. Run it in the browser console or via automation:
+### Doctor Enhanced Checks
 
-| Check | Validation |
-|-------|-----------|
-| `HeaderSticky` | `.site-header` position is `sticky`/`fixed` |
-| `HeaderShrink` | `.nav-hidden` class present |
-| `DarkModeToggle` | `.dark-mode-toggle` toggles `body.dark` |
-| `Modal` | `.modal-overlay` opens/closes/Escape |
-| `Hamburger` | `.hamburger` toggles `.nav-links.open` |
-| `Tabs` | `.tab-nav` / `.state-tabs` switches panels |
-| `Lenis` | `window.lenis` defined |
-| `BackToTop` | `.back-to-top` button exists |
-| `AnimateOnScroll` | `.animate-in` elements found |
+After cloning, `bukit doctor` also runs:
+- **Template completeness report** — compares `bukit.templates.yaml` declarations vs actual files
+- **Template chain analysis** — `{% layout %}` inheritance and `{{ include }}` dependency references
+- **Unused parameter warnings** — `theme.params` declared but not used in any template
 
-Output: console colored PASS/FAIL/WARN + `window.__bukitBehaviorResults` JSON.
+These help catch gaps in the generated theme before building.
 
 ---
 

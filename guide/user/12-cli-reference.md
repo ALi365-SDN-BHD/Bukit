@@ -15,7 +15,8 @@ Notes:
 | `preview` | Local preview of output directory |
 | `doctor` | Environment/config self-check (first step in troubleshooting) |
 | `clean` | Clean output directory and cache |
-| `theme` | List/switch themes |
+| `theme` | Create, list, switch, explore, share, and install themes |
+| `template` | Create, list, show, validate, sync, and browse template files |
 | `webhook` | Notion change triggers GitHub Actions (optional) |
 | `intent` | AI Intent related (optional) |
 | `version` | Output version number |
@@ -126,17 +127,82 @@ Recommended to run in these situations:
 - Made significant changes to routing rules/output modes
 - Suspect incremental cache is causing "looks like it didn't update"
 
-## theme: Create, List & Switch Themes
+## theme: Theme Creation, Discovery, Sharing
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- theme create custom --config site.yaml --brand "My Site" --primary-color "#0b5fff" --use
-dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
+# List all themes (shows version, description, tags)
+bukit theme list --config site.yaml
+
+# Create from starter
+bukit theme create custom --config site.yaml --brand "My Site" --primary-color "#0b5fff" --use
+
+# Interactive wizard (Q&A with preset selection)
+bukit theme wizard my-blog
+
+# Quick creation with preset
+bukit theme wizard my-blog --preset blog
+
+# View theme details
+bukit theme info starter --config site.yaml
+
+# List theme parameters
+bukit theme params --config site.yaml
+
+# Switch active theme
+bukit theme use alt --config site.yaml
 ```
 
 `theme create` creates `themes/<name>/` from the built-in starter by default. Use `--from <existing-theme>` to copy an existing theme, `--force` to overwrite, and `--use` to write `theme.name` back to the selected config.
 
-Theme usage: [08 Themes & Templates](./08-themes-templates.md).
+`theme wizard` runs an interactive Q&A. Use `--preset` (blog/docs/landing/minimal/portfolio) for quick default-based creation.
+
+### Theme Distribution
+
+```bash
+# Pack theme for sharing
+bukit theme pack my-blog          # → my-blog-1.0.0.tar.gz
+
+# Install from local file
+bukit theme install ./my-blog-1.0.0.tar.gz
+
+# Install from URL
+bukit theme install https://github.com/user/theme/releases/download/v1.0/theme.tar.gz
+
+# Search community theme registry
+bukit theme search               # list all
+bukit theme search blog          # filter by name/tags
+
+# Install from registry
+bukit theme install --registry blog-clean
+```
+
+## template: Template-level Management
+
+```bash
+# List all templates in active theme
+bukit template list --config site.yaml
+
+# View template content
+bukit template show pages/index.html --config site.yaml
+
+# Validate all templates' Scriban syntax
+bukit template validate --config site.yaml
+
+# Interactive template creation
+bukit template create pages/gallery.html --config site.yaml
+
+# Browse snippet library
+bukit template snippets
+bukit template snippets post-card
+
+# Show all available template variables
+bukit template hints
+
+# Auto-generate bukit.templates.yaml
+bukit template sync --config site.yaml
+```
+
+For detailed theme and template usage, see: [08 Themes & Templates](./08-themes-templates.md).
 
 ## webhook: Notion Changes Trigger GitHub Actions (Optional)
 

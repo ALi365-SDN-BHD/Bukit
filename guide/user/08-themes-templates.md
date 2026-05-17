@@ -22,42 +22,82 @@ In-repo example themes:
 
 `bukit init <dir>` now creates `themes/starter/` with the same content-site starter design: reusable partials, card lists, pagination/search/taxonomy templates, and a `bukit.templates.yaml` capability manifest.
 
-## Method A: Switch Themes Using themes/&lt;name&gt; (Recommended)
+## Theme Creation: Wizard (Interactive Q&A)
 
-### Config Syntax
-
-```yaml
-theme:
-  name: alt
-  params:
-    brand: my-site
-```
-
-### CLI: List and Switch Themes
-
-Create a starter-based custom theme and switch to it:
+The fastest way to create a custom theme is the interactive wizard:
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- theme create custom --config site.yaml --brand "My Site" --primary-color "#0b5fff" --accent-color "#0f7b6c" --use
+bukit theme wizard my-blog
 ```
 
-Create from an existing local theme:
+The wizard guides you through:
+1. Theme name, description, author, brand name
+2. **Preset selection** — choose from 5 starting designs (blog/docs/landing/minimal/portfolio) or full customization
+3. Design tokens — colors, fonts, border radius
+4. Layout — hero section, dark mode, sticky header
+5. Features — search, taxonomy, pagination
+
+**Presets for quick creation:**
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- theme create custom --from alt --config site.yaml
+bukit theme wizard my-blog --preset blog       # Personal blog
+bukit theme wizard my-docs --preset docs       # Documentation
+bukit theme wizard saas --preset landing       # Landing page
+bukit theme wizard text --preset minimal       # Minimal text-only
+bukit theme wizard gallery --preset portfolio  # Photo portfolio
 ```
 
-List `themes/<name>` under the project root:
+## Theme Discovery: info/params
+
+Once you have themes installed, explore them:
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
+bukit theme list                 # List all themes with version, description, tags
+bukit theme info starter         # Full details: params, author, template file list
+bukit theme params               # List customizable params of active theme
 ```
 
-Write back to config (set `theme.name`):
+## Theme Distribution & Sharing
+
+### Pack a theme for sharing
+```bash
+bukit theme pack my-blog          # → my-blog-1.0.0.tar.gz
+```
+
+### Install a theme
+```bash
+# From local archive
+bukit theme install ./my-blog-1.0.0.tar.gz
+
+# From URL
+bukit theme install https://github.com/user/bukit-theme/releases/download/v1.0/theme.tar.gz
+```
+
+### Search the community theme registry
+```bash
+bukit theme search               # list all themes in registry
+bukit theme search blog          # filter by name/tags/description
+bukit theme install --registry blog-clean  # install from registry
+```
+
+## Template-level Commands
+
+Manage individual template files without touching the full theme:
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
+bukit template list               # List all templates in active theme
+bukit template show pages/index.html  # View a template's content
+bukit template validate           # Validate all templates' Scriban syntax
+bukit template create pages/gallery.html  # Interactive template creation
+bukit template snippets           # Browse built-in snippet library
+bukit template snippets post-card # View a specific snippet
+bukit template hints              # Show all available template variables
+bukit template sync               # Auto-generate bukit.templates.yaml
 ```
+
+**Built-in snippet library:**
+- Scriban (8): post-card, tag-cloud, toc, share-buttons, comments-placeholder, breadcrumb, related-posts, author-bio
+- CSS (9): post-card, tag-cloud, toc, btn (variants), nav-breadcrumb, share-buttons, callout, responsive-table, code-block
 
 ## Method B: Maintain Templates Directly in the Site Root (for single-site quick edits)
 
