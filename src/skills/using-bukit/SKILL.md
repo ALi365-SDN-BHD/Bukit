@@ -18,7 +18,7 @@ This is not negotiable.
 
 ## Overview
 
-Bukit is a .NET static site generator that covers the complete workflow through 9 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
+Bukit is a .NET static site generator that covers the complete workflow through 10 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
 
@@ -125,20 +125,27 @@ When creating a custom theme:
 See bukit-cli-reference for detailed command information.
 
 ```
-bukit init ./my-site           # Initialize a site
-bukit build                    # Build the site
-bukit preview                  # Local preview
-bukit deploy                   # Deploy to GitHub Pages
-bukit doctor                   # Diagnostics
-bukit clean                    # Clean
-bukit plugin list              # List plugins
-bukit theme list               # List themes
-bukit clone --tokens <file> --theme <name>  # Generate theme from design tokens
+bukit init ./my-site             # Initialize a site
+bukit build                      # Build the site
+bukit preview                    # Local preview
+bukit deploy                     # Deploy to GitHub Pages
+bukit doctor                     # Diagnostics (template chain, params, theme.yaml)
+bukit clean                      # Clean
+bukit plugin list                # List plugins
+bukit theme list                 # List themes
+bukit theme wizard <name> --preset blog  # Interactive theme with presets
+bukit theme pack <name>          # Package theme for sharing
+bukit theme install --registry <name>    # Install from registry
+bukit theme search [query]       # Search community themes
+bukit template list              # List all templates
+bukit template snippets          # Browse snippet library
+bukit template sync              # Auto-generate bukit.templates.yaml
+bukit clone --tokens <file> --theme <name>  # Clone website → theme
 ```
 
 ## Subskill Loading Rules
 
 - **bukit-cli-reference** is ALWAYS the first subskill to load — before any other bukit skill, verify CLI availability
-- **bukit-config** is REQUIRED BACKGROUND for: bukit-theme, bukit-notion, bukit-routing, bukit-i18n, bukit-plugins-debug, bukit-deploy
-- **bukit-theme** is REQUIRED BACKGROUND for: bukit-templating
+- **bukit-config** is REQUIRED BACKGROUND for: bukit-theme, bukit-notion, bukit-routing, bukit-i18n, bukit-plugins-debug, bukit-deploy, bukit-clone
+- **bukit-theme** is REQUIRED BACKGROUND for: bukit-templating, bukit-clone
 - All subskills reference **bukit-cli-reference** for command execution

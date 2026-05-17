@@ -523,7 +523,7 @@ Expected: FAIL — Notion 生成配置中不包含 `collections:`
 
 - [ ] **Step 4: 修改 InitCommand.cs — Notion 模式 site.yaml 模板**
 
-在 [InitCommand.cs:L64-L91](file:///e:/Github/Bukit/src/Bukit.Cli/Commands/InitCommand.cs#L64-L91)，将 Notion 分支的 site.yaml 模板字符串替换为:
+在 [InitCommand.cs:L64-L91](../../../src/Bukit.Cli/Commands/InitCommand.cs#L64-L91)，将 Notion 分支的 site.yaml 模板字符串替换为:
 
 ```csharp
 return """
