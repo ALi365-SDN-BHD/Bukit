@@ -1,0 +1,12 @@
+<footer class="site-footer">
+  <div class="footer-inner">
+    <span>
+      {{ if site.params && site.params.footer_text }}
+        {{ site.params.footer_text }}
+      {{ else }}
+        {{ site.title }}
+      {{ end }}
+    </span>
+    <small>Powered by <a href="https://github.com/ALi365-SDN-BHD/Bukit" target="_blank" rel="noopener">bukit</a></small>
+  </div>
+</footer>

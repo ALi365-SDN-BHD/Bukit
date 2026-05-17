@@ -1,5 +1,6 @@
 using Bukit.Shared;
 using System.Text.RegularExpressions;
+using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Config;
 
@@ -305,6 +306,57 @@ public static class ConfigValidator
                 ValidateTaxonomyKindConfig($"taxonomy.kinds[{i}]", kinds[i]);
             }
         }
+    }
+
+    /// <summary>
+    /// Optional theme.yaml validation. Returns a list of warnings (never throws).
+    /// Returns null if no theme.yaml is found (not an error).
+    /// </summary>
+    public static List<string>? ValidateThemeYaml(string themeRoot)
+    {
+        var yamlPath = Path.Combine(themeRoot, "theme.yaml");
+        if (!File.Exists(yamlPath))
+            return null;
+
+        var warnings = new List<string>();
+        try
+        {
+            var text = File.ReadAllText(yamlPath);
+            var stream = new YamlStream();
+            stream.Load(new StringReader(text));
+
+            if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
+            {
+                warnings.Add("theme.yaml is empty or not a valid mapping.");
+                return warnings;
+            }
+
+            GetStringValue(root, "name", out var name);
+            if (string.IsNullOrWhiteSpace(name))
+                warnings.Add("theme.yaml: 'name' is missing or empty.");
+
+            GetStringValue(root, "version", out var version);
+            if (!string.IsNullOrWhiteSpace(version) && !System.Version.TryParse(version, out _))
+                warnings.Add($"theme.yaml: 'version' '{version}' is not valid semver.");
+
+            GetStringValue(root, "requires_bukit", out var requires);
+            if (!string.IsNullOrWhiteSpace(requires) &&
+                !requires.StartsWith(">=", StringComparison.Ordinal) &&
+                !requires.StartsWith("^", StringComparison.Ordinal) &&
+                !requires.StartsWith("~", StringComparison.Ordinal))
+                warnings.Add($"theme.yaml: 'requires_bukit' '{requires}' should use semver range like '>=2.0.0'.");
+
+            if (root.Children.TryGetValue(new YamlScalarNode("tags"), out var tagsNode) &&
+                tagsNode is YamlSequenceNode tagsSeq &&
+                tagsSeq.Children.Count == 0)
+                warnings.Add("theme.yaml: 'tags' is an empty list.");
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"theme.yaml parse error: {ex.Message}");
+        }
+
+        return warnings;
     }
 
     private static void ValidateTaxonomyKind(string prefix, TaxonomyKindTemplateConfig kind)
@@ -786,6 +838,15 @@ public static class ConfigValidator
         if (media.RetryBaseDelayMs is < 0)
         {
             throw new ConfigException("content.media.retryBaseDelayMs must be a non-negative integer when set.");
+        }
+    }
+
+    private static void GetStringValue(YamlMappingNode node, string key, out string? value)
+    {
+        value = null;
+        if (node.Children.TryGetValue(new YamlScalarNode(key), out var child) && child is YamlScalarNode scalar)
+        {
+            value = scalar.Value;
         }
     }
 

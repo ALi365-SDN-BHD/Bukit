@@ -794,4 +794,55 @@ themes:
         }
         finally { try { File.Delete(path); } catch { } }
     }
+
+    [Fact]
+    public void WizardPresets_AllFiveDefined()
+    {
+        Assert.Equal(5, WizardPreset.All.Count);
+        Assert.Contains(WizardPreset.All, p => p.Name == "blog");
+        Assert.Contains(WizardPreset.All, p => p.Name == "docs");
+        Assert.Contains(WizardPreset.All, p => p.Name == "landing");
+        Assert.Contains(WizardPreset.All, p => p.Name == "minimal");
+        Assert.Contains(WizardPreset.All, p => p.Name == "portfolio");
+    }
+
+    [Fact]
+    public void WizardPreset_Blog_HasCorrectDefaults()
+    {
+        var blog = WizardPreset.Blog;
+        Assert.Equal("blog", blog.Name);
+        Assert.NotNull(blog.Tokens.Primary);
+        Assert.NotNull(blog.Tokens.Accent);
+        Assert.Equal(3, blog.Layout.NavLinks.Count);
+        Assert.True(blog.Behaviors.DarkModeToggle);
+        Assert.False(blog.Behaviors.StickyHeader);
+    }
+
+    [Fact]
+    public void WizardPreset_Landing_HasHeroAndCta()
+    {
+        var landing = WizardPreset.Landing;
+        Assert.True(landing.Layout.HasHeroCta);
+        Assert.True(landing.Layout.HasFeaturesSection);
+        Assert.True(landing.Layout.HasCTASection);
+        Assert.True(landing.Behaviors.AnimateOnScroll);
+    }
+
+    [Fact]
+    public async Task ThemeWizard_UnknownPreset_ReturnsTwo()
+    {
+        var exitCode = await ThemeWizardCommand.RunAsync(new ArgReader(new[]
+        {
+            "theme", "wizard", "test-preset", "--preset", "unknown-preset-xyz",
+            "--config", _configPath
+        }));
+        Assert.Equal(2, exitCode);
+    }
+
+    [Fact]
+    public void StarterThemeScaffold_FooterHasBrandPlaceholder()
+    {
+        var footer = StarterThemeScaffold.FooterPartial;
+        Assert.Contains("{{-- bukit:brand --}}", footer, StringComparison.Ordinal);
+    }
 }

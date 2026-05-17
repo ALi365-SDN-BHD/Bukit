@@ -653,6 +653,7 @@ button:hover,
 <footer class="site-footer">
   <div class="footer-inner">
     <span>
+      {{-- bukit:brand --}}
       {{ if site.params && site.params.footer_text }}
         {{ site.params.footer_text }}
       {{ else }}

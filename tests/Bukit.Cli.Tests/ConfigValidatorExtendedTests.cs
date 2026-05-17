@@ -143,4 +143,72 @@ public sealed class ConfigValidatorExtendedTests
 
         Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
     }
+
+    [Fact]
+    public void ValidateThemeYaml_NoFile_ReturnsNull()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var result = ConfigValidator.ValidateThemeYaml(tempDir);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ValidateThemeYaml_ValidYaml_ReturnsEmpty()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "theme.yaml"), """
+name: test-theme
+version: 1.0.0
+description: A test
+author: Tester
+license: MIT
+tags: [blog]
+""");
+
+            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            Assert.NotNull(result);
+            Assert.Empty(result!);
+        }
+        finally { try { Directory.Delete(tempDir, true); } catch { } }
+    }
+
+    [Fact]
+    public void ValidateThemeYaml_MissingName_ReturnsWarning()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "theme.yaml"), """
+version: 1.0.0
+""");
+
+            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            Assert.NotNull(result);
+            Assert.Contains(result!, w => w.Contains("name"));
+        }
+        finally { try { Directory.Delete(tempDir, true); } catch { } }
+    }
+
+    [Fact]
+    public void ValidateThemeYaml_InvalidVersion_ReturnsWarning()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "theme.yaml"), """
+name: test
+version: not-a-version
+""");
+
+            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            Assert.NotNull(result);
+            Assert.Contains(result!, w => w.Contains("version"));
+        }
+        finally { try { Directory.Delete(tempDir, true); } catch { } }
+    }
 }

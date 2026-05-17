@@ -28,6 +28,10 @@
     <Compile Include="$(IntermediateOutputPath)CliBuildInfo.g.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\StarterTheme\**" />
+  </ItemGroup>
+
   <Target Name="GenerateCliBuildInfo" BeforeTargets="CoreCompile">
     <ItemGroup>
       <_CliBuildInfoLines Include="namespace Bukit.Cli" />

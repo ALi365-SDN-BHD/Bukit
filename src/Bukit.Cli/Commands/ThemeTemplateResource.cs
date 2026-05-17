@@ -16,18 +16,14 @@ internal static class ThemeTemplateResource
     {
         var assembly = Assembly.GetExecutingAssembly();
         var resourceNames = assembly.GetManifestResourceNames();
+        const string prefix = "Bukit.Cli.Resources.StarterTheme.";
         foreach (var name in resourceNames)
         {
-            if (!name.StartsWith("Bukit.Cli.Resources.StarterTheme.", StringComparison.OrdinalIgnoreCase))
+            if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var key = name["Bukit.Cli.Resources.StarterTheme.".Length..];
-            if (key.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ||
-                key.EndsWith(".css", StringComparison.OrdinalIgnoreCase) ||
-                key.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase))
-            {
-                key = key[..^5];
-            }
+            var keyWithExt = name[prefix.Length..];
+            var key = Path.GetFileNameWithoutExtension(keyWithExt);
 
             using var stream = assembly.GetManifestResourceStream(name);
             if (stream is null) continue;

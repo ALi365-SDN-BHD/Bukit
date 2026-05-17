@@ -1,0 +1,23 @@
+name: starter
+version: 1.0.0
+description: Default starter theme for bukit
+author: Bukit
+license: MIT
+tags: [starter, minimal, blog]
+params:
+  - key: brand
+    label: Site Brand
+    type: string
+    default: My Site
+  - key: primary_color
+    label: Primary Color
+    type: color
+    default: "#0b5fff"
+  - key: accent_color
+    label: Accent Color
+    type: color
+    default: "#0f7b6c"
+  - key: footer_text
+    label: Footer Text
+    type: string
+    default: My Site
