@@ -1,4 +1,4 @@
-﻿# Built-in Plugins (BuiltIn) Artifacts and Boundaries
+# Built-in Plugins (BuiltIn) Artifacts and Boundaries
 
 This page describes the "output contracts" of built-in plugins (what files/pages are generated, what config they depend on, how they behave under multilingual settings).
 
@@ -43,4 +43,14 @@ Derives pages from `meta.tags` / `meta.categories`:
 - `/categories/<slug>/` 鈫?`categories/<slug>/index.html`
 
 Template: default `pages/page.html`, configurable via `taxonomy.template`/`taxonomy.indexTemplate`/`taxonomy.termTemplate`
+
+## Route Validation for Derived Pages
+
+All derive-pages plugins (Pagination, Archive, Taxonomy) share the same route validation pipeline:
+
+1. **Per-plugin conflict check** — `PluginRunner.ApplyDeriveConflictPolicy` checks each derived page against content routes and previously accepted derived routes using normalized URL and outputPath comparison.
+2. **Final inventory validation** — `RouteInventoryValidator.ValidateFinalRoutes` checks the complete route set (content + derived + list routes) before rendering begins.
+3. **Doctor integration** — `bukit doctor` runs content route validation via `RouteInventoryValidator.BuildContentRoutesAsync` + `ValidateContentRoutes`, detecting conflicts without a full build.
+
+All derived pages respect `site.outputPathEncoding` (applied via `RoutePathBuilder.BuildOutputPathFromUrl`).
 

@@ -1,4 +1,4 @@
-﻿# 14 Troubleshooting: Doctor First, Diagnose by Symptom
+# 14 Troubleshooting: Doctor First, Diagnose by Symptom
 
 When you encounter a problem, do not guess first. Follow this order for diagnosis:
 
@@ -49,6 +49,17 @@ Fix:
 
 - First compare against `examples/starter/site.yaml`, `examples/starter/site.i18n.yaml`
 - Then correct according to [04 Site YAML Config](./04-site-yaml-config.md)
+
+### D) Route conflict detected
+
+Symptom: `doctor` or `build` fails with `Route conflict on url` or `Route conflict on outputPath`.
+
+Fix checklist:
+- Two content pages have the same slug → rename slugs or use different collection routes
+- Two content pages have the same `route.outputPath` override → ensure uniqueness
+- A content page URL collides with a derived page (pagination/archive/taxonomy) → change `deriveConflictPolicy` to `warn` or `last-wins`, or adjust the conflicting URL
+
+Run `bukit doctor` first to detect conflicts without a full build.
 
 ## Symptom 2: build Succeeds, but Pages Are Missing / URLs Are Wrong
 

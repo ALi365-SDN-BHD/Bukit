@@ -23,6 +23,8 @@ Pelaksanaan: `src/Bukit.Config/AppConfig.cs`, `src/Bukit.Config/ConfigLoader.cs`
 | `site.sitemapMode` | string | `split` | `split`/`merged`/`index` |
 | `site.rssMode` | string | `split` | `split`/`merged` |
 | `site.searchMode` | string | `split` | `split`/`merged`/`index` |
+| `site.outputPathEncoding` | string | `none` | Pengekodan laluan: `none`/`slug`/`urlencode`/`sanitize`. Digunakan untuk halaman kandungan dan terbitan. |
+| `site.deriveConflictPolicy` | string | `fail` | Konflik laluan terbitan: `fail`/`warn`/`last-wins`. Konflik kandungan sentiasa gagal. |
 | `site.collections` | dict | - | Penghalaan dipacu collection |
 | `site.plugins` | dict | - | Togol dan parameter plugin |
 

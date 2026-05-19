@@ -50,6 +50,17 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 - 先对照 `examples/starter/site.yaml`、`examples/starter/site.i18n.yaml`
 - 再按 [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md) 修正
 
+### D）路由冲突（Route Conflict）
+
+现象：`doctor` 或 `build` 报 `Route conflict on url` 或 `Route conflict on outputPath`。
+
+修复清单：
+- 两篇内容 slug 相同 → 修改 slug 名称，或使用不同 collection 路由
+- 两篇内容的 `route.outputPath` 覆盖值相同 → 确保唯一性
+- 内容页 URL 与派生页（分页/归档/分类）冲突 → 改 `deriveConflictPolicy` 为 `warn` 或 `last-wins`，或调整冲突 URL
+
+先跑 `bukit doctor` 可以在不完整 build 的情况下提前发现冲突。
+
 ## 现象 2：build 成功，但页面不见了 / URL 不对
 
 ### A）slug/type 改动导致路径变化

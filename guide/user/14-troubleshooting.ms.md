@@ -1,4 +1,4 @@
-﻿# 14 Penyelesaian Masalah: Doctor Dahulu, Diagnosis Mengikut Gejala
+# 14 Penyelesaian Masalah: Doctor Dahulu, Diagnosis Mengikut Gejala
 
 Apabila anda menghadapi masalah, jangan meneka dahulu. Ikuti urutan ini untuk diagnosis:
 
@@ -49,6 +49,17 @@ Pembaikan:
 
 - Bandingkan dahulu dengan `examples/starter/site.yaml`, `examples/starter/site.i18n.yaml`
 - Kemudian betulkan mengikut [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)
+
+### D) Konflik laluan dikesan
+
+Gejala: `doctor` atau `build` gagal dengan `Route conflict on url` atau `Route conflict on outputPath`.
+
+Senarai semak pembaikan:
+- Dua halaman kandungan mempunyai slug yang sama → namakan semula slug atau gunakan laluan koleksi berbeza
+- Dua halaman kandungan mempunyai `route.outputPath` yang sama → pastikan keunikan
+- URL halaman kandungan bertembung dengan halaman terbitan (pagination/arkib/taksonomi) → tukar `deriveConflictPolicy` ke `warn` atau `last-wins`, atau laraskan URL yang bertembung
+
+Jalankan `bukit doctor` dahulu untuk mengesan konflik tanpa binaan penuh.
 
 ## Gejala 2: build Berjaya, tetapi Halaman Hilang / URL Salah
 
