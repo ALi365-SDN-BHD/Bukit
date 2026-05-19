@@ -23,6 +23,18 @@ public static class RouteInventoryValidator
                 !(i.Meta.TryGetValue("draft", out var d) && d is true or "true" or "True")).ToList();
         }
 
+        var siteLanguages = config.Site.Languages;
+        if (siteLanguages is null or { Count: 0 })
+        {
+            var siteLanguage = config.Site.Language;
+            items = I18nOutputMerger.FilterItemsByLanguage(items, siteLanguage, siteLanguage);
+        }
+        else
+        {
+            var defaultLang = I18nOutputMerger.GetDefaultLanguage(config.Site, siteLanguages);
+            items = I18nOutputMerger.FilterItemsByLanguage(items, defaultLang, defaultLang);
+        }
+
         var contentItems = items.Where(i => !MetaHelpers.IsDataItem(i)).ToList();
         var collectionRules = BuildCollectionRules(config.Site);
         return contentItems

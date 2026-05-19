@@ -71,6 +71,14 @@ public sealed class SiteEngine
         var languages = I18nOutputMerger.GetLanguages(effectiveConfig.Site);
         if (languages.Count == 0)
         {
+            var siteLanguage = effectiveConfig.Site.Language;
+            var beforeLang = items.Count;
+            items = I18nOutputMerger.FilterItemsByLanguage(items, siteLanguage, siteLanguage);
+            if (items.Count < beforeLang)
+            {
+                _logger.Info($"event=content.language_filtered removed={beforeLang - items.Count} language={siteLanguage}");
+            }
+
             var baseUrl = BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl);
             _logger.Info($"event=build.variant.start language={effectiveConfig.Site.Language} baseUrl={baseUrl}");
             var variantCtx = new BuildVariantContext(
