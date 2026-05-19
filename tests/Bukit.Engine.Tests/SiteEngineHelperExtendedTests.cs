@@ -247,10 +247,10 @@ public sealed class SiteEngineHelperExtendedTests
     {
         var listRoute = "/posts";
 
-        var result = InvokeStatic<string>("BuildListOutputPath", listRoute);
+        var result = RoutePathBuilder.BuildOutputPathFromUrl(listRoute);
 
         Assert.NotNull(result);
-        Assert.Contains("index.html", result!, StringComparison.Ordinal);
+        Assert.Contains("index.html", result, StringComparison.Ordinal);
     }
 
     [Fact]
