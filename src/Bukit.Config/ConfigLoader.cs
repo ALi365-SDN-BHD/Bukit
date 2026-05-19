@@ -316,6 +316,8 @@ public static class ConfigLoader
         var type = GetRequiredString(sourceNode, "type");
         var name = GetOptionalString(sourceNode, "name");
         var mode = GetOptionalString(sourceNode, "mode") ?? "content";
+        var collection = GetOptionalString(sourceNode, "collection");
+        var addToCollections = ReadStringList(sourceNode, "addToCollections");
         if (type.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             return new ContentSourceConfig
@@ -323,6 +325,8 @@ public static class ConfigLoader
                 Type = "notion",
                 Name = name,
                 Mode = mode,
+                Collection = collection,
+                AddToCollections = addToCollections,
                 Notion = ReadNotionConfigFrom(sourceNode)
             };
         }
@@ -334,6 +338,8 @@ public static class ConfigLoader
                 Type = "markdown",
                 Name = name,
                 Mode = mode,
+                Collection = collection,
+                AddToCollections = addToCollections,
                 Markdown = ReadMarkdownConfigFrom(sourceNode)
             };
         }
@@ -342,7 +348,9 @@ public static class ConfigLoader
         {
             Type = type,
             Name = name,
-            Mode = mode
+            Mode = mode,
+            Collection = collection,
+            AddToCollections = addToCollections
         };
     }
 
@@ -362,6 +370,7 @@ public static class ConfigLoader
             FieldPolicy = ReadNotionFieldPolicy(policyNode),
             FilterProperty = GetOptionalString(notionNode, "filterProperty") ?? "Published",
             FilterType = GetOptionalString(notionNode, "filterType") ?? "checkbox_true",
+            FilterValue = GetOptionalString(notionNode, "filterValue"),
             SortProperty = GetOptionalString(notionNode, "sortProperty"),
             SortDirection = GetOptionalString(notionNode, "sortDirection") ?? "ascending",
             IncludeSlugs = ReadStringList(notionNode, "includeSlugs"),
@@ -548,6 +557,7 @@ public static class ConfigLoader
                 Permalink = GetRequiredString(collectionNode, "permalink"),
                 Template = GetRequiredString(collectionNode, "template"),
                 ListRoute = GetOptionalString(collectionNode, "listRoute"),
+                ListTemplate = GetOptionalString(collectionNode, "listTemplate"),
                 Pagination = new CollectionPaginationConfig
                 {
                     Enabled = paginationNode is not null && (GetOptionalBool(paginationNode, "enabled") ?? false),

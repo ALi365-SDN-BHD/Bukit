@@ -41,10 +41,10 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin
             }
 
             var publishAt = slice[0].Item.PublishAt;
-            var listUrl = NormalizeListRoute(listRoute);
+            var listUrl = RoutePathBuilder.NormalizeListRoute(listRoute);
             var html = BuildPageHtml(prefix, listUrl, slice, page, totalPages);
             var url = $"{listUrl}page/{page}/";
-            var outputPath = BuildOutputPath(url);
+            var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, context.Config.Site.OutputPathEncoding);
             var route = new RouteInfo(url, outputPath, routeTemplate);
             var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
@@ -112,33 +112,6 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin
         return sb.ToString();
     }
 
-    private static string NormalizeListRoute(string route)
-    {
-        var trimmed = (route ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(trimmed))
-        {
-            return "/blog/";
-        }
-
-        if (!trimmed.StartsWith('/'))
-        {
-            trimmed = "/" + trimmed;
-        }
-
-        if (!trimmed.EndsWith('/'))
-        {
-            trimmed += "/";
-        }
-
-        return trimmed;
-    }
-
-    private static string BuildOutputPath(string url)
-    {
-        var path = url.Trim('/').Replace('/', Path.DirectorySeparatorChar);
-        return Path.Combine(path, "index.html");
-    }
-
     private static (string Key, CollectionConfig Config)? ResolvePaginationCollection(AppConfig config)
     {
         if (config.Site.Collections is null || config.Site.Collections.Count == 0)
@@ -196,4 +169,3 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin
             .Replace("\"", "&quot;", StringComparison.Ordinal);
     }
 }
-

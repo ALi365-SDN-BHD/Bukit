@@ -233,8 +233,8 @@ internal static class I18nOutputMerger
         {
             return new[]
             {
-                new RouteInfo("/blog/", Path.Combine("blog", "index.html"), "pages/list.html"),
-                new RouteInfo("/pages/", Path.Combine("pages", "index.html"), "pages/list.html")
+                new RouteInfo("/blog/", RoutePathBuilder.BuildOutputPathFromUrl("/blog/"), "pages/list.html"),
+                new RouteInfo("/pages/", RoutePathBuilder.BuildOutputPathFromUrl("/pages/"), "pages/list.html")
             };
         }
 
@@ -246,34 +246,11 @@ internal static class I18nOutputMerger
                 continue;
             }
 
-            var url = NormalizeListRoute(cfg.ListRoute);
-            routes.Add(new RouteInfo(url, BuildListOutputPath(url), "pages/list.html"));
+            var url = RoutePathBuilder.NormalizeListRoute(cfg.ListRoute);
+            var template = string.IsNullOrWhiteSpace(cfg.ListTemplate) ? "pages/list.html" : cfg.ListTemplate.Trim();
+            routes.Add(new RouteInfo(url, RoutePathBuilder.BuildOutputPathFromUrl(url), template));
         }
 
         return routes;
-    }
-
-    private static string NormalizeListRoute(string route)
-    {
-        var value = (route ?? string.Empty).Trim();
-        if (!value.StartsWith('/'))
-        {
-            value = "/" + value;
-        }
-
-        if (!value.EndsWith('/'))
-        {
-            value += "/";
-        }
-
-        return value;
-    }
-
-    private static string BuildListOutputPath(string route)
-    {
-        var trimmed = route.Trim('/');
-        return string.IsNullOrWhiteSpace(trimmed)
-            ? "index.html"
-            : Path.Combine(trimmed.Replace('/', Path.DirectorySeparatorChar), "index.html");
     }
 }

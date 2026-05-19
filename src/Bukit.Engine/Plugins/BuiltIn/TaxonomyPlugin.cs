@@ -54,7 +54,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
                     : kindConfig.SingularTitlePrefix.Trim();
                 var indexEnabled = kindConfig.IndexEnabled ?? context.Config.Taxonomy.IndexEnabled;
 
-                derived.AddRange(CreateKind(baseUrlPrefix, kind, title, singularTitlePrefix, terms, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, indexEnabled));
+                derived.AddRange(CreateKind(baseUrlPrefix, kind, title, singularTitlePrefix, terms, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, indexEnabled, context.Config.Site.OutputPathEncoding));
             }
 
             return derived;
@@ -75,13 +75,13 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         if (tags.Count > 0)
         {
             var templates = ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "tags");
-            derived.AddRange(CreateKind(prefix, kind: "tags", title: "Tags", singularTitlePrefix: "Tag", tags, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled));
+            derived.AddRange(CreateKind(prefix, kind: "tags", title: "Tags", singularTitlePrefix: "Tag", tags, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, context.Config.Site.OutputPathEncoding));
         }
 
         if (categories.Count > 0)
         {
             var templates = ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "categories");
-            derived.AddRange(CreateKind(prefix, kind: "categories", title: "Categories", singularTitlePrefix: "Category", categories, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled));
+            derived.AddRange(CreateKind(prefix, kind: "categories", title: "Categories", singularTitlePrefix: "Category", categories, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, context.Config.Site.OutputPathEncoding));
         }
 
         return derived;
@@ -247,7 +247,8 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         string termTemplate,
         bool emitContentHtml,
         int pageSize,
-        bool indexEnabled)
+        bool indexEnabled,
+        string outputPathEncoding)
     {
         var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
         var items = terms.Values.OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
@@ -255,7 +256,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         var now = DateTimeOffset.UtcNow;
         if (indexEnabled)
         {
-            derived.Add(CreateIndexPage(baseUrlPrefix, kind, title, items, indexTemplate, publishAt: now, emitContentHtml));
+            derived.Add(CreateIndexPage(baseUrlPrefix, kind, title, items, indexTemplate, publishAt: now, emitContentHtml, outputPathEncoding));
         }
 
         foreach (var term in items)
@@ -273,7 +274,8 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
                     pageSize,
                     page: 1,
                     totalPages: 1,
-                    items: Array.Empty<TaxonomyPage>()));
+                    items: Array.Empty<TaxonomyPage>(),
+                    outputPathEncoding));
                 continue;
             }
 
@@ -294,7 +296,8 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
                     pageSize,
                     page,
                     totalPages,
-                    chunk));
+                    chunk,
+                    outputPathEncoding));
             }
         }
 
@@ -308,7 +311,8 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         IReadOnlyList<TaxonomyTerm> terms,
         string template,
         DateTimeOffset publishAt,
-        bool emitContentHtml)
+        bool emitContentHtml,
+        string outputPathEncoding)
     {
         var html = string.Empty;
         if (emitContentHtml)
@@ -325,7 +329,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         }
 
         var url = "/" + kind + "/";
-        var outputPath = Path.Combine(kind, "index.html");
+        var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var route = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -372,7 +376,8 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         int pageSize,
         int page,
         int totalPages,
-        IReadOnlyList<TaxonomyPage> items)
+        IReadOnlyList<TaxonomyPage> items,
+        string outputPathEncoding)
     {
         var html = string.Empty;
         if (emitContentHtml)
@@ -394,9 +399,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         var url = isFirstPage
             ? "/" + kind + "/" + term.Slug + "/"
             : "/" + kind + "/" + term.Slug + "/page/" + page + "/";
-        var outputPath = isFirstPage
-            ? Path.Combine(kind, term.Slug, "index.html")
-            : Path.Combine(kind, term.Slug, "page", page.ToString(), "index.html");
+        var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var route = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {

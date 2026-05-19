@@ -18,7 +18,7 @@ This is not negotiable.
 
 ## Overview
 
-Bukit is a .NET static site generator that covers the complete workflow through 10 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
+Bukit is a .NET static site generator that covers the complete workflow through 12 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
 
@@ -44,6 +44,8 @@ When the agent sees any of these phrases in any language, it must load this skil
 | 8 | bukit-plugins-debug | Plugin and build debugging | When plugins fail or builds misbehave |
 | 9 | bukit-deploy | GitHub Pages deployment | When deploying site to GitHub Pages |
 | 10 | bukit-clone | Website cloning to Bukit theme | When user wants to clone a website's design |
+| 11 | bukit-geo | Generative Engine Optimization (GEO) | When optimizing for AI search engines, configuring llms.txt, or using geo front matter |
+| 12 | bukit-seo | Traditional Search Engine Optimization (SEO) | When configuring site.seo, running seo audit/diff, or troubleshooting seo.* diagnostics |
 
 ## Typical Workflow Routing
 
@@ -104,6 +106,24 @@ When creating a custom theme:
 4. May need bukit-theme → Theme directory structure reference
 ```
 
+### User says "using bukit, help me with GEO / llms.txt"
+
+```
+1. Load using-bukit → Identify as GEO task
+2. Load bukit-geo → GEO config, front matter, audit interpretation
+3. Load bukit-config → site.seo.geo config section
+4. Load bukit-cli-reference → Verify with bukit geo audit
+```
+
+### User says "using bukit, help me with SEO / seo audit"
+
+```
+1. Load using-bukit → Identify as SEO task
+2. Load bukit-seo → SEO config, renderMode, diagnostic codes, audit/diff
+3. Load bukit-config → site.seo config section
+4. Load bukit-cli-reference → Run bukit seo audit or bukit seo diff
+```
+
 ### User says "using bukit, my template is throwing errors"
 
 ```
@@ -141,6 +161,9 @@ bukit template list              # List all templates
 bukit template snippets          # Browse snippet library
 bukit template sync              # Auto-generate bukit.templates.yaml
 bukit clone --tokens <file> --theme <name>  # Clone website → theme
+bukit geo audit [--dir <dir>]                # GEO audit on dist output
+bukit seo audit [--dir <dir>] [--strict] [--external]  # SEO audit
+bukit seo diff --baseline <old> --current <new> [--max-new-errors N]  # SEO regression
 ```
 
 ## Subskill Loading Rules

@@ -18,6 +18,7 @@
 | `theme` | 创建、列出、切换、探索、分享和安装主题 |
 | `template` | 创建、列出、查看、校验、同步和浏览模板文件 |
 | `clone` | 将任意网站的视觉设计克隆为 Bukit 主题 |
+| `seo` | SEO 审计与 diff（验证 seo-report.json） |
 | `webhook` | Notion 变更触发 GitHub Actions（可选） |
 | `intent` | AI Intent 相关（可选） |
 | `version` | 输出版本号 |
@@ -240,6 +241,29 @@ dotnet run --project src/Bukit.Cli -c Release -- webhook --repo owner/repo --por
 - `BUKIT_GITHUB_TOKEN`（或 `GITHUB_TOKEN`）
 
 安全与部署说明见开发者文档：[guide/dev/webhook](../dev/webhook.md)。
+
+## seo：验证 SEO 报告质量
+
+```bash
+# 审计当前 seo-report.json
+bukit seo audit --dir dist --config site.yaml
+
+# 严格模式（warning 也失败）
+bukit seo audit --dir dist --strict
+
+# 同时检查外部链接和图片
+bukit seo audit --dir dist --external
+
+# 对比两份报告（回归检查）
+bukit seo diff --dir dist --config site.yaml
+
+# diff 带预算控制
+bukit seo diff --max-new-errors 3 --max-new-warnings 5
+bukit seo diff --fail-on-route-removed
+bukit seo diff --fail-on-indexable-drop
+```
+
+`seo audit` 校验 `build` 生成的 `seo-report.json` — 检查 schema 结构、统计错误/警告数，可选验证外部链接。`seo diff` 与上一份报告对比，检测回归。
 
 ## version：查看版本
 

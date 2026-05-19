@@ -30,6 +30,14 @@ public sealed class CompositeContentBodyStore : IContentBodyStore
             throw new InvalidOperationException($"No content body store registered for source '{sourceKey}'.");
         }
 
-        return store.GetAsync(item, cancellationToken);
+        var sourceItem = item;
+        if (item.Meta.TryGetValue("sourceId", out var sourceId) &&
+            sourceId is not null &&
+            !string.IsNullOrWhiteSpace(sourceId.ToString()))
+        {
+            sourceItem = item with { Id = sourceId.ToString()! };
+        }
+
+        return store.GetAsync(sourceItem, cancellationToken);
     }
 }

@@ -32,7 +32,7 @@ Final effective priority (high to low):
 | `site.searchMode` | string | `split` | `split`/`merged`/`index` |
 | `site.autoSummary` | bool | false | Auto-extract summary from body |
 | `site.autoSummaryMaxLength` | int | 200 | Max auto summary characters |
-| `site.outputPathEncoding` | string | `none` | Path encoding: `none`/`slug`/`urlencode`/`sanitize` |
+| `site.outputPathEncoding` | string | `none` | Path encoding: `none`/`slug`/`urlencode`/`sanitize`. Applies to both content and derived pages. |
 | `site.permalinks` | dict | - | Type-to-pattern mapping |
 | `site.collections` | dict | - | Collection-driven routing |
 | `site.plugins` | dict | - | Plugin toggles and parameters |
@@ -41,7 +41,7 @@ Final effective priority (high to low):
 | `site.externalAssemblyAllowlist` | dict | - | Filename → SHA256 allowlist |
 | `site.searchIncludeDerived` | bool | false | Include derived pages in search |
 | `site.externalProtocolIncludeRoutedPages` | bool | false | Include full routedPages in after-build |
-| `site.deriveConflictPolicy` | string | `fail` | Derived page conflict: `fail`/`warn`/`last-wins` |
+| `site.deriveConflictPolicy` | string | `fail` | Derived page conflict: `fail`/`warn`/`last-wins`. Content-page conflicts always fail regardless. |
 
 ## content.* Fields
 

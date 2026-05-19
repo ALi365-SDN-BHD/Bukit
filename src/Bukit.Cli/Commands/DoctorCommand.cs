@@ -198,6 +198,23 @@ public static class DoctorCommand
             }
         }
 
+        try
+        {
+            var routed = await Bukit.Engine.RouteInventoryValidator.BuildContentRoutesAsync(
+                config,
+                rootDir,
+                isCi: false,
+                new ConsoleLogger(LogLevel.Error));
+            Bukit.Engine.RouteInventoryValidator.ValidateContentRoutes(routed);
+            Console.WriteLine("✔ Routes valid");
+        }
+        catch (Exception ex) when (ex is ConfigException or ContentException)
+        {
+            Console.WriteLine("✖ Route inventory error");
+            Console.WriteLine(ex.Message);
+            return 1;
+        }
+
         Console.WriteLine("✔ Doctor passed");
         return 0;
     }

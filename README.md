@@ -93,17 +93,20 @@ bukit template sync               # Auto-generate bukit.templates.yaml
 
 ## Key `site.yaml` Fields
 
-- `site.collections`: primary recommended model for content organization and routing (declare `permalink`, `template`, and optional `listRoute` per collection). `post/page` defaults remain as a compatibility fallback.
+- `site.collections`: primary recommended model for content organization and routing (declare `permalink`, `template`, optional `listRoute`, and optional `listTemplate` per collection). `post/page` defaults remain as a compatibility fallback.
 - `site.baseUrl`: GitHub Pages subpath (`/my-repo`) or `/` for root.
+- `site.base_url` in templates is an empty string when `site.baseUrl: /`; use `site.base_path` when a literal `/` root prefix is required.
 - `site.url`: canonical site URL (sitemap/rss); can be overridden by `--site-url`.
 - `site.seo`: engine-level SEO model and index policy for canonical, robots, OG, Twitter, hreflang, JSON-LD, sitemap/search/RSS filtering, optional head injection, `seo-report.json`, `bukit seo audit`, and optional `robots.txt`. See [`docs/seo.md`](docs/seo.md).
 - `site.analytics.google_analytics_id`: GA4 Measurement ID; Bukit emits gtag when the ID exists unless `site.analytics.enabled: false`.
 - `content.provider`: `markdown` or `notion`.
 - `content.markdown.maxItems`: max Markdown items to load.
 - `content.notion.maxItems`: max Notion pages to fetch.
+- `content.notion.filterType/filterValue`: Notion database filters support `checkbox_true`, `checkbox_false`, `select_equals`, `status_equals`, `rich_text_equals`, and `none`.
 - `content.notion.cacheMode/cacheDir`: Notion render cache options.
+- `content.sources[].collection/addToCollections`: map a source into one or more `site.collections` routes; `mode: data` sources are exposed as `site.data.{name}` and still populate `site.modules` by type.
 - `build.output`: output directory.
-- `theme.layouts/assets/static`: theme directories.
+- `theme.layouts/assets/static`: theme directories. `static` is copied unchanged; use content pages or collections when you need Scriban includes/partials.
 
 ## AI Site Building (v2)
 

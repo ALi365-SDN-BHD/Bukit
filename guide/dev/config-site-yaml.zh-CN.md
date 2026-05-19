@@ -41,7 +41,7 @@ logging: {}
 | `site.autoSummary` | bool | 否 | false | 未提供 `meta.summary` 时是否从正文提取摘要并回填。环境变量 `BUKIT_AUTO_SUMMARY=1/true/yes` 可强制开启 |
 | `site.autoSummaryMaxLength` | int | 否 | 200 | 自动摘要最大长度（字符数）；校验值域 1--5000。环境变量 `BUKIT_AUTO_SUMMARY_MAXLEN` 可覆盖 |
 | `site.baseUrl` | string | 是 | `/` | GitHub Pages 子路径（例如 `/my-repo`）；必须以 `/` 开头 |
-| `site.outputPathEncoding` | string | 否 | `none` | `none` \| `slug` \| `urlencode` \| `sanitize`（`sanitize`：空格替换为 `-`，移除 `<>:"|?*` 和控制字符，连续 `-` 压缩，段末 `.`/空格移除） |
+| `site.outputPathEncoding` | string | 否 | `none` | `none` \| `slug` \| `urlencode` \| `sanitize`（`sanitize`：空格替换为 `-`，移除 `<>:"|?*` 和控制字符，连续 `-` 压缩，段末 `.`/空格移除）。对内容页和派生页（分页、归档、分类）均生效。 |
 | `site.language` | string | 否 | `zh-CN` | 单语言模式下的语言标识 |
 | `site.languages` | string[] | 否 | null | 多语言输出（例如 `["zh-CN","en-US"]`）；数组非空时至少包含一项非空字符串；不可重复（忽略大小写） |
 | `site.defaultLanguage` | string | 否 | `site.languages[0]` | 必须包含在 `site.languages` 中 |
@@ -51,6 +51,10 @@ logging: {}
 | `site.searchIncludeDerived` | bool | 否 | false | 是否把插件派生页纳入搜索索引（语义见 SearchIndex 插件） |
 | `site.pluginFailMode` | string | 否 | `strict` | `strict`（插件失败中断构建）\| `warn`（记录错误继续） |
 | `site.plugins` | object | 否 | null | 插件开关与配置；支持 `site.plugins.<name>: bool` 或 `site.plugins.<name>.enabled/options` |
+| `site.deriveConflictPolicy` | string | 否 | `fail` | 派生页路由冲突策略：`fail`（中断）\| `warn`（跳过+告警）\| `last-wins`（派生页覆盖）。内容页之间的冲突始终报错，不受此设置影响。 |
+| `site.externalAssemblyTrustMode` | string | 否 | `warn` | 外部 DLL 信任模式：`warn`（告警但允许）\| `strict`（仅 allowlist 内 DLL 可用） |
+| `site.externalAssemblyAllowlist` | object | 否 | null | 文件名 → SHA256 的映射表（用于 DLL 白名单校验） |
+| `site.externalProtocolIncludeRoutedPages` | bool | 否 | false | 是否将完整 routedPages 传递给 after-build 阶段的协议插件 |
 | `site.timezone` | string | 否 | `Asia/Shanghai` | 时间相关处理的默认时区；必须为有效的 IANA/Windows 时区标识符 |
 | `site.permalinks` | object | 否 | null | 按内容类型自定义 URL 模式；键为类型名（如 `post`），值为 URL 模式字符串（支持 `{year}/{month}/{day}/{slug}/{type}` 占位符）；详见 [路由系统](./routing.zh-CN.md) |
 | `site.collections` | object | 否 | null | collection 驱动路由配置。每个集合至少声明 `permalink` 与 `template`，可选 `listRoute`、`pagination`、`output` |

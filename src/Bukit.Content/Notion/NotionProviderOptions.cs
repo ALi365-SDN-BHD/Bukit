@@ -14,6 +14,7 @@ public sealed record NotionProviderOptions
     public IReadOnlyList<string>? AllowedFields { get; init; }
     public string FilterProperty { get; init; } = "Published";
     public string FilterType { get; init; } = "checkbox_true";
+    public string? FilterValue { get; init; }
     public string? SortProperty { get; init; }
     public string SortDirection { get; init; } = "ascending";
     public bool RenderContent { get; init; } = true;

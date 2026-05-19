@@ -260,12 +260,16 @@ public static partial class SeoCommand
         ReadRequiredString(root, "$", "siteName");
         ReadRequiredString(root, "$", "baseUrl");
         ReadOptionalString(root, "$", "siteUrl");
-        EnsureAllowedProperties(summary, "summary", "routeCount", "indexableCount", "nonIndexableCount", "errorCount", "warningCount");
+        EnsureAllowedProperties(summary, "summary", "routeCount", "indexableCount", "nonIndexableCount", "errorCount", "warningCount", "llmsTxtGenerated", "llmsFullTxtGenerated", "geoEnhancedCount", "geoScore");
         ReadRequiredInt(summary, "summary", "routeCount");
         ReadRequiredInt(summary, "summary", "indexableCount");
         ReadRequiredInt(summary, "summary", "nonIndexableCount");
         ReadRequiredInt(summary, "summary", "errorCount");
         ReadRequiredInt(summary, "summary", "warningCount");
+        ReadOptionalBool(summary, "summary", "llmsTxtGenerated");
+        ReadOptionalBool(summary, "summary", "llmsFullTxtGenerated");
+        ReadOptionalInt(summary, "summary", "geoEnhancedCount");
+        ReadOptionalInt(summary, "summary", "geoScore");
 
         var routeIndex = 0;
         foreach (var route in routes.EnumerateArray())
@@ -541,6 +545,19 @@ public static partial class SeoCommand
         return result;
     }
 
+    private static void ReadOptionalInt(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out _))
+        {
+            throw new InvalidDataException($"{path}.{property} must be an integer.");
+        }
+    }
+
     private static bool ReadRequiredBool(JsonElement element, string path, string property)
     {
         if (!element.TryGetProperty(property, out var value) ||
@@ -550,6 +567,19 @@ public static partial class SeoCommand
         }
 
         return value.GetBoolean();
+    }
+
+    private static void ReadOptionalBool(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (value.ValueKind != JsonValueKind.True && value.ValueKind != JsonValueKind.False)
+        {
+            throw new InvalidDataException($"{path}.{property} must be a boolean.");
+        }
     }
 
     private static void EnsureObject(JsonElement element, string path)

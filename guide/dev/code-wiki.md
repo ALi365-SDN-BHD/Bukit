@@ -40,9 +40,9 @@ Bukit.Cli → Bukit.Engine → Bukit.Config + Content + Rendering + Routing + Sh
 | `Bukit.Cli` | `Program.cs`, `Commands/*`, `ConfigPathResolver.cs` |
 | `Bukit.Config` | `AppConfig.cs`, `ConfigLoader.cs`, `ConfigValidator.cs` |
 | `Bukit.Content` | `MarkdownFolderProvider.cs`, `NotionContentProvider.cs`, `CompositeContentProvider.cs` |
-| `Bukit.Engine` | `SiteEngine.cs`, `PageRenderDispatcher.cs`, `Plugins/*` |
+| `Bukit.Engine` | `SiteEngine.cs`, `PageRenderDispatcher.cs`, `RouteInventoryValidator.cs`, `Plugins/*` |
 | `Bukit.Rendering` | `Models.cs`, `Scriban/*` |
-| `Bukit.Routing` | `RouteGenerator.cs` |
+| `Bukit.Routing` | `RouteGenerator.cs`, `RoutePathBuilder.cs` |
 | `Bukit.Shared` | `Logger.cs`, exceptions, security utilities |
 
 ## Key Classes and Functions
@@ -70,6 +70,8 @@ Bukit.Cli → Bukit.Engine → Bukit.Config + Content + Rendering + Routing + Sh
 
 ### Routing/Rendering/Plugins
 - `RouteGenerator.Generate` — ContentItem → RouteInfo
+- `RoutePathBuilder` — Shared URL/path normalization utilities (used by all plugins)
+- `RouteInventoryValidator.ValidateContentRoutes` / `ValidateFinalRoutes` — Route conflict detection
 - `ScribanModelBinder` — C# models → Scriban
 - `ScribanTemplateRendererAdapter` — Renderer → engine interface
 - `PluginRegistry.GetAllPlugins` — Assemble built-in/generated/external/protocol

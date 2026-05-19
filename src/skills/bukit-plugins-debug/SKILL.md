@@ -87,7 +87,11 @@ site:
 
 ## Route Conflict Policy
 
-Derived pages may conflict with existing page routes:
+Derived pages may conflict with existing page routes. Conflicts are detected in two stages:
+1. **Per-plugin** — `PluginRunner.ApplyDeriveConflictPolicy` checks each derived page against content pages and previously-accepted derived pages
+2. **Final validation** — `RouteInventoryValidator.ValidateFinalRoutes` checks the complete route inventory (content + derived + list routes) before rendering
+
+Content-page-vs-content-page conflicts are always a build error — `deriveConflictPolicy` does not apply to them.
 
 ```yaml
 site:
@@ -235,7 +239,7 @@ Use `bukit plugin list` to verify the plugin is discovered.
 | Plugin list empty (`plugin list`) | Config not loaded or plugin directory doesn't exist | Check `--config` parameter and working directory |
 | External plugin not loaded | Not in allowlist or hash mismatch | Verify `externalAssemblyAllowlist` config |
 | WASM plugin errors | WASM not supported under AOT | Switch to process protocol plugin |
-| `deriveConflictPolicy` conflict | Derived page route duplicates existing route | Change policy to `warn` or `last-wins` |
+| `deriveConflictPolicy` conflict | Derived page route duplicates existing route (stage 1: per-plugin; stage 2: final inventory validation) | Change policy to `warn` or `last-wins`, or adjust source routing |
 | Taxonomy pages not generated | TaxonomyPlugin disabled or taxonomy config incomplete | Check plugin toggle and taxonomy config |
 | Pagination not working | PaginationPlugin OK but collection pagination not enabled | Set `pagination.enabled: true` in collection config |
 | RSS not generated | `site.url` not set | RSS requires `site.url` for absolute link generation |

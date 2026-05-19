@@ -26,7 +26,7 @@ internal static class ContentProviderFactory
             }
 
             var seen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            var providers = new List<(string SourceKey, string SourceMode, IContentProvider Provider)>();
+            var providers = new List<(string SourceKey, string SourceMode, string? Collection, IReadOnlyList<string>? AddToCollections, IContentProvider Provider)>();
 
             for (var i = 0; i < sources.Count; i++)
             {
@@ -53,7 +53,7 @@ internal static class ContentProviderFactory
                 {
                     var md = s.Markdown ?? new MarkdownConfig();
                     var contentDir = BuildPathUtils.MakeAbsolute(rootDir, md.Dir);
-                    providers.Add((key, mode, new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs))));
+                    providers.Add((key, mode, s.Collection, s.AddToCollections, new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs))));
                     continue;
                 }
 
@@ -66,7 +66,7 @@ internal static class ContentProviderFactory
                     }
 
                     var renderContent = notion.RenderContent ?? mode != "data";
-                    providers.Add((key, mode, CreateNotionProvider(rootDir, notion, isCi, renderContent: renderContent, logger: logger)));
+                    providers.Add((key, mode, s.Collection, s.AddToCollections, CreateNotionProvider(rootDir, notion, isCi, renderContent: renderContent, logger: logger)));
                     continue;
                 }
 
@@ -158,6 +158,7 @@ internal static class ContentProviderFactory
             AllowedFields = notion.FieldPolicy.Allowed,
             FilterProperty = notion.FilterProperty,
             FilterType = notion.FilterType,
+            FilterValue = notion.FilterValue,
             SortProperty = notion.SortProperty,
             SortDirection = notion.SortDirection,
             RenderContent = renderContent,

@@ -155,4 +155,48 @@ public sealed class ArchivePluginTests
         Assert.Contains(derived, x => x.Route.Url == "/blog/archive/2025/");
         Assert.Contains(derived, x => x.Route.Url == "/blog/archive/2025/04/");
     }
+
+    [Fact]
+    public void DerivePages_OutputPathEncodingUrlEncode_AppliesToArchiveOutputPath()
+    {
+        var item = CreateItem("p1", "Post 1", "post-1", new DateTimeOffset(2025, 4, 22, 0, 0, 0, TimeSpan.Zero), collection: "post");
+        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        {
+            (item, new RouteInfo("/Blog Posts/post-1/", "Blog Posts/post-1/index.html", "pages/post.html"))
+        };
+        var ctx = new BuildContext
+        {
+            Config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test",
+                    Title = "test",
+                    OutputPathEncoding = "urlencode",
+                    Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/Blog Posts/{slug}/",
+                            Template = "pages/post.html",
+                            ListRoute = "/Blog Posts/",
+                            Output = new CollectionOutputConfig { Archive = true }
+                        }
+                    }
+                },
+                Content = new ContentConfig { Provider = "markdown" }
+            },
+            RootDir = "/test",
+            OutputDir = "/test/out",
+            BaseUrl = "/",
+            LayoutsDir = "/test/layouts",
+            Routed = routed,
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        var derived = new ArchivePlugin().DerivePages(ctx);
+
+        var index = Assert.Single(derived, x => x.Route.Url == "/Blog Posts/archive/");
+        Assert.Equal("Blog%20Posts/archive/index.html", index.Route.OutputPath);
+    }
 }

@@ -917,6 +917,377 @@ public sealed class SiteEngineIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task BuildAsync_ContentSourceCollectionMappings_RenderCustomRoutesAndListTemplates()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "companies"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "companies", "one.md"), """
+                ---
+                title: Company One
+                slug: company-one
+                publishAt: 2024-06-01T00:00:00Z
+                ---
+                # Company One
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "company.html"), "{{ page.title }} {{ page.url }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "Default list");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "company-list.html"), "Companies {{ for p in pages }}{{ p.url }} {{ end }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "china-list.html"), "China {{ for p in pages }}{{ p.url }} {{ end }}");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "T",
+                    Collections = new Dictionary<string, CollectionConfig>
+                    {
+                        ["companies"] = new()
+                        {
+                            Permalink = "/companies/{slug}/",
+                            Template = "pages/company.html",
+                            ListRoute = "/companies/",
+                            ListTemplate = "pages/company-list.html"
+                        },
+                        ["china_companies"] = new()
+                        {
+                            Permalink = "/china-companies/{slug}/",
+                            Template = "pages/company.html",
+                            ListRoute = "/china-companies/",
+                            ListTemplate = "pages/china-list.html"
+                        }
+                    }
+                },
+                Content = new ContentConfig
+                {
+                    Provider = "sources",
+                    Sources = new[]
+                    {
+                        new ContentSourceConfig
+                        {
+                            Type = "markdown",
+                            Name = "companies",
+                            Collection = "companies",
+                            AddToCollections = new[] { "china_companies" },
+                            Markdown = new MarkdownConfig { Dir = "companies" }
+                        }
+                    },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.True(File.Exists(Path.Combine(root, "dist", "companies", "company-one", "index.html")));
+            Assert.True(File.Exists(Path.Combine(root, "dist", "china-companies", "company-one", "index.html")));
+            Assert.Contains("Companies /companies/company-one/", File.ReadAllText(Path.Combine(root, "dist", "companies", "index.html")), StringComparison.Ordinal);
+            Assert.Contains("China /china-companies/company-one/", File.ReadAllText(Path.Combine(root, "dist", "china-companies", "index.html")), StringComparison.Ordinal);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_DataSource_InjectsSiteDataBySourceNameAndKeepsModules()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "data"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "data", "menu.md"), """
+                ---
+                type: navigation
+                title: Main Menu
+                slug: main-menu
+                label: Home
+                order: 1
+                ---
+                ignored body
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), """
+                data={{ site.data.menu[0].fields.label.value }}
+                module={{ site.modules.navigation[0].fields.label.value }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "T" },
+                Content = new ContentConfig
+                {
+                    Provider = "sources",
+                    Sources = new[]
+                    {
+                        new ContentSourceConfig
+                        {
+                            Type = "markdown",
+                            Name = "menu",
+                            Mode = "data",
+                            Markdown = new MarkdownConfig { Dir = "data" }
+                        }
+                    },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var html = File.ReadAllText(Path.Combine(root, "dist", "index.html"));
+            Assert.Contains("data=Home", html, StringComparison.Ordinal);
+            Assert.Contains("module=Home", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_DuplicateContentRouteUrl_FailsBeforeRendering()
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "content", "one.md"), """
+                ---
+                type: post
+                title: One
+                slug: same
+                ---
+                # One
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "two.md"), """
+                ---
+                type: post
+                title: Two
+                slug: same
+                ---
+                # Two
+                """);
+
+            var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Contains("Route conflict on url", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("/blog/same", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_DuplicateContentRouteOutputPath_FailsBeforeRendering()
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "content", "one.md"), """
+                ---
+                type: page
+                title: One
+                slug: one
+                route:
+                  url: /one/
+                  outputPath: shared/index.html
+                  template: pages/page.html
+                ---
+                # One
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "two.md"), """
+                ---
+                type: page
+                title: Two
+                slug: two
+                route:
+                  url: /two/
+                  outputPath: shared/index.html
+                  template: pages/page.html
+                ---
+                # Two
+                """);
+
+            var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Contains("Route conflict on outputPath", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("shared/index.html", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_DerivedPageContentConflict_FailsWithFailPolicy()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+
+            for (var i = 1; i <= 3; i++)
+            {
+                File.WriteAllText(Path.Combine(root, "content", $"post{i}.md"), $$"""
+                    ---
+                    type: post
+                    title: Post {{i}}
+                    slug: post-{{i}}
+                    publishAt: 2024-06-0{{i}}:00:00:00Z
+                    ---
+                    # Post {{i}}
+                    """);
+            }
+
+            File.WriteAllText(Path.Combine(root, "content", "conflict.md"), """
+                ---
+                type: page
+                title: Conflict Page
+                slug: conflict-page
+                url: /blog/page/2/
+                ---
+                # Conflict
+                """);
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "T",
+                    Collections = new Dictionary<string, CollectionConfig>
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/blog/{slug}/",
+                            Template = "pages/post.html",
+                            ListRoute = "/blog/",
+                            Pagination = new CollectionPaginationConfig { Enabled = true, PageSize = 2 }
+                        }
+                    }
+                },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Contains("route conflict", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("pagination", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_PaginationWithListTemplate_RendersBoth()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{{ page.title }} {{ page.url }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "Page: {{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "Blog List");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "pagination.html"),
+                "Page {{ pagination.page }} of {{ pagination.total_pages }}");
+
+            for (var i = 1; i <= 5; i++)
+            {
+                File.WriteAllText(Path.Combine(root, "content", $"post{i}.md"), $$"""
+                    ---
+                    type: post
+                    title: Post {{i}}
+                    slug: post-{{i}}
+                    publishAt: 2024-06-0{{i}}:00:00:00Z
+                    ---
+                    # Post {{i}}
+                    """);
+            }
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "T",
+                    Collections = new Dictionary<string, CollectionConfig>
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/blog/{slug}/",
+                            Template = "pages/post.html",
+                            ListRoute = "/blog/",
+                            ListTemplate = "pages/list.html",
+                            Pagination = new CollectionPaginationConfig { Enabled = true, PageSize = 2 }
+                        }
+                    }
+                },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "index.html")));
+            var listContent = File.ReadAllText(Path.Combine(root, "dist", "blog", "index.html"));
+            Assert.Contains("Blog List", listContent, StringComparison.Ordinal);
+
+            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "page", "2", "index.html")));
+            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "page", "3", "index.html")));
+
+            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "post-1", "index.html")));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
     private static void CleanupDir(string dir)
     {
         try
@@ -930,6 +1301,32 @@ public sealed class SiteEngineIntegrationTests
         {
         }
     }
+
+    private static string CreateRouteConflictSite()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-route-conflict-test", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "content"));
+        Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+        File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{{ page.title }}");
+        File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
+        File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+        File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+        return root;
+    }
+
+    private static AppConfig CreateRouteConflictConfig()
+        => new()
+        {
+            Site = new SiteConfig { Name = "t", Title = "T" },
+            Content = new ContentConfig
+            {
+                Provider = "markdown",
+                Markdown = new MarkdownConfig { Dir = "content" },
+                Media = new MediaConfig { DownloadToLocal = false }
+            },
+            Build = new BuildConfig { Output = "dist", Clean = true },
+            Theme = new ThemeConfig { Layouts = "layouts" }
+        };
 
     private static int CountOccurrences(string text, string value)
     {

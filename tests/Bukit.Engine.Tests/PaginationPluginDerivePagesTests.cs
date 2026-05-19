@@ -14,7 +14,8 @@ public sealed class PaginationPluginDerivePagesTests
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         int pageSize = 10,
         string collectionKey = "post",
-        string listRoute = "/blog/")
+        string listRoute = "/blog/",
+        string outputPathEncoding = "none")
     {
         return new BuildContext
         {
@@ -24,6 +25,7 @@ public sealed class PaginationPluginDerivePagesTests
                 {
                     Name = "test",
                     Title = "test",
+                    OutputPathEncoding = outputPathEncoding,
                     Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                     {
                         [collectionKey] = new CollectionConfig
@@ -164,6 +166,21 @@ public sealed class PaginationPluginDerivePagesTests
 
         Assert.Contains(derived, x => x.Route.Url == "/posts/page/2/");
         Assert.Contains(derived, x => x.Route.Url == "/posts/page/3/");
+    }
+
+    [Fact]
+    public void DerivePages_OutputPathEncodingSlug_AppliesToDerivedOutputPath()
+    {
+        var routed = Enumerable.Range(0, 12)
+            .Select(i => CreateRoutedItem(i))
+            .ToList();
+        var ctx = CreateContext(routed, pageSize: 5, listRoute: "/Blog Posts/", outputPathEncoding: "slug");
+
+        var plugin = new PaginationPlugin();
+        var derived = plugin.DerivePages(ctx);
+
+        var page2 = Assert.Single(derived, x => x.Route.Url == "/Blog Posts/page/2/");
+        Assert.Equal("blog-posts/page/2/index.html", page2.Route.OutputPath);
     }
 
     [Fact]

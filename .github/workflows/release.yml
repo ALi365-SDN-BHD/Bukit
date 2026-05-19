@@ -54,19 +54,25 @@ jobs:
           -p:VersionPrefix=${{ steps.version.outputs.version }}
           -p:BukitStripSymbols=true
 
+      - name: 复制用户文档到输出目录
+        shell: bash
+        run: |
+          mkdir -p out/bukit-${{ matrix.rid }}/guide
+          cp -r guide/user out/bukit-${{ matrix.rid }}/guide/user
+
       - name: Package (Windows)
         if: matrix.rid == 'win-x64'
         shell: pwsh
         run: >
           Compress-Archive
-          -Path out/bukit-${{ matrix.rid }}/bukit.exe
+          -Path out/bukit-${{ matrix.rid }}/*
           -DestinationPath bukit-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip
 
       - name: Package (Linux/macOS)
         if: matrix.rid != 'win-x64'
         run: >
           tar -czf bukit-${{ steps.version.outputs.version }}-${{ matrix.rid }}.tar.gz
-          -C out/bukit-${{ matrix.rid }} bukit
+          -C out/bukit-${{ matrix.rid }} .
 
       - uses: actions/upload-artifact@v4
         with:

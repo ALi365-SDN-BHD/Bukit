@@ -35,3 +35,5 @@ Thumbs.db
 .worktrees/
 
 publish/
+/.codex-tmp
+/examples/starter/.codex-tmp

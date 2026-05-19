@@ -181,6 +181,45 @@ public sealed class DoctorCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_ReturnsError_WhenRoutesConflict()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "content", "one.md"), """
+            ---
+            type: post
+            title: One
+            slug: same
+            ---
+            # One
+            """);
+        File.WriteAllText(Path.Combine(_rootDir, "content", "two.md"), """
+            ---
+            type: post
+            title: Two
+            slug: same
+            ---
+            # Two
+            """);
+
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+
+            Assert.Equal(1, exitCode);
+            var output = writer.ToString();
+            Assert.Contains("Route inventory error", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Route conflict on url", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("/blog/same", output, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
     public async Task InitGeneratedMarkdownSite_ContainsCollections_AndPassesDoctor()
     {
         var initRootDir = Path.Combine(Path.GetTempPath(), "bukit-init-doctor-" + Guid.NewGuid().ToString("N"));
