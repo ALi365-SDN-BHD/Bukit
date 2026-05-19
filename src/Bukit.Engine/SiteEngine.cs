@@ -160,6 +160,7 @@ public sealed class SiteEngine
         var routed = contentItems
             .Select(i => (Item: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
             .ToList();
+        RouteInventoryValidator.ValidateContentRoutes(routed);
         routeGenerationStopwatch.Stop();
         variantStageMetrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
 
@@ -231,7 +232,8 @@ public sealed class SiteEngine
             : null;
 
         var renderQueue = routed.Concat(pluginContext.DerivedRouted).ToList();
-        var listRoutes = BuildListRoutes(config.Site.Collections);
+        var listRoutes = BuildListRoutesCore(config.Site.Collections, config.Site.OutputPathEncoding);
+        RouteInventoryValidator.ValidateFinalRoutes(routed, pluginContext.DerivedRouted, listRoutes);
         var seoAlternates = AddVariantRouteAlternates(
             config,
             ctx.SeoAlternates,
@@ -276,7 +278,7 @@ public sealed class SiteEngine
 
         var renderSpecialListsStopwatch = Stopwatch.StartNew();
         var specialListResult = await PageRenderDispatcher.RenderSpecialListsAsync(
-            routed, bodyStore, renderer, siteModel, config.Site.Collections, ctx.LayoutsDir, config.Build.ListPageContentMode, outputDir, templateHash,
+            routed, bodyStore, renderer, siteModel, config.Site.Collections, ctx.LayoutsDir, config.Build.ListPageContentMode, config.Site.OutputPathEncoding, outputDir, templateHash,
             incrementalEnabled, manifest, currentKeys, renderReasons, cancellationToken,
             shouldProvideSeoModel
                 ? (item, route) => SeoModelBuilder.BuildForContent(
@@ -481,7 +483,7 @@ public sealed class SiteEngine
                 AddAlternate(SeoModelBuilder.BuildAlternateKey(item, route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url));
             }
 
-            foreach (var route in BuildListRoutes(config.Site.Collections))
+            foreach (var route in BuildListRoutesCore(config.Site.Collections, config.Site.OutputPathEncoding))
             {
                 AddAlternate(SeoModelBuilder.BuildListAlternateKey(route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url));
             }
@@ -603,7 +605,7 @@ public sealed class SiteEngine
         }
 
         var totalPages = (int)Math.Ceiling(count / (double)pageSize);
-        var normalizedListRoute = NormalizeListRoute(listRoute);
+        var normalizedListRoute = RoutePathBuilder.NormalizeListRoute(listRoute);
         var result = new List<string>(totalPages - 1);
         for (var page = 2; page <= totalPages; page++)
         {
@@ -795,6 +797,9 @@ public sealed class SiteEngine
     }
 
     private static IReadOnlyList<RouteInfo> BuildListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)
+        => BuildListRoutesCore(collections, "none");
+
+    private static IReadOnlyList<RouteInfo> BuildListRoutesCore(IReadOnlyDictionary<string, CollectionConfig>? collections, string outputPathEncoding)
     {
         var routes = new List<RouteInfo>
         {
@@ -803,8 +808,8 @@ public sealed class SiteEngine
 
         if (collections is null || collections.Count == 0)
         {
-            routes.Add(new RouteInfo("/blog/", Path.Combine("blog", "index.html"), "pages/list.html"));
-            routes.Add(new RouteInfo("/pages/", Path.Combine("pages", "index.html"), "pages/list.html"));
+            routes.Add(new RouteInfo("/blog/", RoutePathBuilder.BuildOutputPathFromUrl("/blog/", outputPathEncoding), "pages/list.html"));
+            routes.Add(new RouteInfo("/pages/", RoutePathBuilder.BuildOutputPathFromUrl("/pages/", outputPathEncoding), "pages/list.html"));
             return routes;
         }
 
@@ -815,41 +820,19 @@ public sealed class SiteEngine
                 continue;
             }
 
-            var url = NormalizeListRoute(collection.ListRoute);
-            routes.Add(new RouteInfo(url, BuildListOutputPath(url), "pages/list.html"));
+            var url = RoutePathBuilder.NormalizeListRoute(collection.ListRoute);
+            var template = string.IsNullOrWhiteSpace(collection.ListTemplate) ? "pages/list.html" : collection.ListTemplate.Trim();
+            routes.Add(new RouteInfo(url, RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding), template));
         }
 
         return routes;
     }
 
     private static string NormalizeListRoute(string route)
-    {
-        var value = (route ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return "/";
-        }
-
-        if (!value.StartsWith('/'))
-        {
-            value = "/" + value;
-        }
-
-        if (!value.EndsWith('/'))
-        {
-            value += "/";
-        }
-
-        return value;
-    }
+        => RoutePathBuilder.NormalizeListRoute(route);
 
     private static string BuildListOutputPath(string route)
-    {
-        var normalized = NormalizeListRoute(route).Trim('/');
-        return string.IsNullOrWhiteSpace(normalized)
-            ? "index.html"
-            : Path.Combine(normalized.Replace('/', Path.DirectorySeparatorChar), "index.html");
-    }
+        => RoutePathBuilder.BuildOutputPathFromUrl(route);
 
     private static void WriteRobotsTxtIfRequested(
         AppConfig config,

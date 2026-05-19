@@ -316,7 +316,7 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
-    public void Generate_RouteOverride_Incomplete_NotApplied_FallsBackToDefault()
+    public void Generate_RouteOverride_IncompleteUrlOnly_DerivesOutputPath()
     {
         var meta = new Dictionary<string, object>
         {
@@ -330,13 +330,13 @@ public sealed class RouteGeneratorTests
         var item = Item("fallback", meta);
         var route = RouteGenerator.Generate(item);
 
-        Assert.Equal("/pages/fallback/", route.Url);
-        Assert.Equal("pages/fallback/index.html", route.OutputPath);
+        Assert.Equal("/only-url/", route.Url);
+        Assert.Equal("only-url/index.html", route.OutputPath);
         Assert.Equal("pages/page.html", route.Template);
     }
 
     [Fact]
-    public void Generate_IndividualOverride_Incomplete_NotApplied_FallsBackToDefault()
+    public void Generate_IndividualOverride_IncompleteUrlOnly_DerivesOutputPath()
     {
         var meta = new Dictionary<string, object>
         {
@@ -347,9 +347,49 @@ public sealed class RouteGeneratorTests
         var item = Item("fallback", meta);
         var route = RouteGenerator.Generate(item);
 
-        Assert.Equal("/pages/fallback/", route.Url);
-        Assert.Equal("pages/fallback/index.html", route.OutputPath);
+        Assert.Equal("/only-url/", route.Url);
+        Assert.Equal("only-url/index.html", route.OutputPath);
         Assert.Equal("pages/page.html", route.Template);
+    }
+
+    [Fact]
+    public void Generate_PartialRouteOverride_UrlOnly_DerivesOutputPathAndKeepsCollectionTemplate()
+    {
+        var item = Item("hello", new Dictionary<string, object>
+        {
+            ["collection"] = "article",
+            ["url"] = "/custom/hello/"
+        });
+        var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["article"] = new("/articles/{slug}/", "pages/article.html")
+        };
+
+        var route = RouteGenerator.Generate(item, collections: collections);
+
+        Assert.Equal("/custom/hello/", route.Url);
+        Assert.Equal("custom/hello/index.html", route.OutputPath);
+        Assert.Equal("pages/article.html", route.Template);
+    }
+
+    [Fact]
+    public void Generate_PartialRouteOverride_UrlAndTemplate_DerivesOutputPathAndUsesTemplate()
+    {
+        var item = Item("hello", new Dictionary<string, object>
+        {
+            ["route"] = new Dictionary<string, object>
+            {
+                ["url"] = "/custom/hello/",
+                ["template"] = "pages/custom.html"
+            },
+            ["type"] = "post"
+        });
+
+        var route = RouteGenerator.Generate(item);
+
+        Assert.Equal("/custom/hello/", route.Url);
+        Assert.Equal("custom/hello/index.html", route.OutputPath);
+        Assert.Equal("pages/custom.html", route.Template);
     }
 
     [Fact]

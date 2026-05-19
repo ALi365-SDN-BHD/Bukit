@@ -1060,6 +1060,84 @@ public sealed class SiteEngineIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task BuildAsync_DuplicateContentRouteUrl_FailsBeforeRendering()
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "content", "one.md"), """
+                ---
+                type: post
+                title: One
+                slug: same
+                ---
+                # One
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "two.md"), """
+                ---
+                type: post
+                title: Two
+                slug: same
+                ---
+                # Two
+                """);
+
+            var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Contains("Route conflict on url", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("/blog/same", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_DuplicateContentRouteOutputPath_FailsBeforeRendering()
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "content", "one.md"), """
+                ---
+                type: page
+                title: One
+                slug: one
+                route:
+                  url: /one/
+                  outputPath: shared/index.html
+                  template: pages/page.html
+                ---
+                # One
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "two.md"), """
+                ---
+                type: page
+                title: Two
+                slug: two
+                route:
+                  url: /two/
+                  outputPath: shared/index.html
+                  template: pages/page.html
+                ---
+                # Two
+                """);
+
+            var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Contains("Route conflict on outputPath", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("shared/index.html", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
     private static void CleanupDir(string dir)
     {
         try
@@ -1073,6 +1151,32 @@ public sealed class SiteEngineIntegrationTests
         {
         }
     }
+
+    private static string CreateRouteConflictSite()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-route-conflict-test", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "content"));
+        Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+        File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{{ page.title }}");
+        File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
+        File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+        File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+        return root;
+    }
+
+    private static AppConfig CreateRouteConflictConfig()
+        => new()
+        {
+            Site = new SiteConfig { Name = "t", Title = "T" },
+            Content = new ContentConfig
+            {
+                Provider = "markdown",
+                Markdown = new MarkdownConfig { Dir = "content" },
+                Media = new MediaConfig { DownloadToLocal = false }
+            },
+            Build = new BuildConfig { Output = "dist", Clean = true },
+            Theme = new ThemeConfig { Layouts = "layouts" }
+        };
 
     private static int CountOccurrences(string text, string value)
     {

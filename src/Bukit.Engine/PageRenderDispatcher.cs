@@ -208,6 +208,7 @@ internal static class PageRenderDispatcher
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         string layoutsDir,
         string listPageContentMode,
+        string outputPathEncoding,
         string outputDir,
         string templateHash,
         bool incrementalEnabled,
@@ -220,7 +221,7 @@ internal static class PageRenderDispatcher
         Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null)
     {
         var stageMetrics = new BuildStageMetricsCollector();
-        var specialLists = BuildSpecialListDefinitions(routed, collections, layoutsDir, listPageContentMode);
+        var specialLists = BuildSpecialListDefinitions(routed, collections, layoutsDir, listPageContentMode, outputPathEncoding);
         foreach (var x in specialLists)
         {
             currentKeys.Add(BuildPathUtils.NormalizeRelPath(x.Route.OutputPath));
@@ -433,7 +434,8 @@ internal static class PageRenderDispatcher
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         string layoutsDir,
-        string listPageContentMode)
+        string listPageContentMode,
+        string outputPathEncoding)
     {
         var index = CollectionRouteIndex.Create(routed);
         var list = new List<SpecialListDefinition>();
@@ -457,8 +459,8 @@ internal static class PageRenderDispatcher
                 continue;
             }
 
-            var url = NormalizeListUrl(collection.ListRoute);
-            var outputPath = BuildListOutputPath(url);
+            var url = RoutePathBuilder.NormalizeListRoute(collection.ListRoute);
+            var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
             var template = string.IsNullOrWhiteSpace(collection.ListTemplate) ? "pages/list.html" : collection.ListTemplate.Trim();
             var route = new RouteInfo(url, outputPath, template);
             var items = index.GetByCollection(key);
@@ -472,7 +474,7 @@ internal static class PageRenderDispatcher
 
         void AddLegacyList(string url)
         {
-            var route = new RouteInfo(url, BuildListOutputPath(url), "pages/list.html");
+            var route = new RouteInfo(url, RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding), "pages/list.html");
             var items = index.GetByRoutePrefix(url);
             list.Add(new SpecialListDefinition(
                 route,
@@ -482,33 +484,10 @@ internal static class PageRenderDispatcher
     }
 
     private static string NormalizeListUrl(string url)
-    {
-        var trimmed = (url ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(trimmed))
-        {
-            return "/";
-        }
-
-        if (!trimmed.StartsWith('/'))
-        {
-            trimmed = "/" + trimmed;
-        }
-
-        if (!trimmed.EndsWith('/'))
-        {
-            trimmed += "/";
-        }
-
-        return trimmed;
-    }
+        => RoutePathBuilder.NormalizeListRoute(url);
 
     private static string BuildListOutputPath(string listUrl)
-    {
-        var normalized = NormalizeListUrl(listUrl).Trim('/');
-        return string.IsNullOrWhiteSpace(normalized)
-            ? "index.html"
-            : Path.Combine(normalized.Replace('/', Path.DirectorySeparatorChar), "index.html");
-    }
+        => RoutePathBuilder.BuildOutputPathFromUrl(listUrl);
 
     private sealed record SpecialListDefinition(
         RouteInfo Route,

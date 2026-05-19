@@ -13,13 +13,14 @@ public sealed class TaxonomyPluginDerivePagesTests
     private static BuildContext CreateContext(
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         TaxonomyConfig? taxonomyConfig = null,
-        string outputMode = "pages")
+        string outputMode = "pages",
+        string outputPathEncoding = "none")
     {
         return new BuildContext
         {
             Config = new AppConfig
             {
-                Site = new SiteConfig { Name = "test", Title = "test" },
+                Site = new SiteConfig { Name = "test", Title = "test", OutputPathEncoding = outputPathEncoding },
                 Content = new ContentConfig { Provider = "markdown" },
                 Taxonomy = taxonomyConfig ?? new TaxonomyConfig
                 {
@@ -118,6 +119,21 @@ public sealed class TaxonomyPluginDerivePagesTests
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/");
         Assert.Contains(derived, x => x.Route.Url == "/tags/alpha/");
+    }
+
+    [Fact]
+    public void DerivePages_OutputPathEncodingSanitize_AppliesToTermOutputPath()
+    {
+        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        {
+            CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "hello world" }),
+        };
+        var ctx = CreateContext(routed, outputPathEncoding: "sanitize");
+
+        var derived = new TaxonomyPlugin().DerivePages(ctx);
+
+        var term = Assert.Single(derived, x => x.Route.Url == "/tags/hello-world/");
+        Assert.Equal("tags/hello-world/index.html", term.Route.OutputPath);
     }
 
     [Fact]
