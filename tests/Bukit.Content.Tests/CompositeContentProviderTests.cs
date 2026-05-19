@@ -104,6 +104,40 @@ public sealed class CompositeContentProviderTests
     }
 
     [Fact]
+    public async Task LoadAsync_SourceCollectionMapping_SetsCollectionAndDuplicatesAdditionalCollections()
+    {
+        var provider = new TestProvider(new ContentLoadResult(
+            new[]
+            {
+                new ContentItem(
+                    Id: "company-1",
+                    Title: "Company 1",
+                    Slug: "company-1",
+                    PublishAt: DateTimeOffset.UtcNow,
+                    ContentHtml: null,
+                    Meta: new Dictionary<string, object>(),
+                    Fields: null)
+            },
+            new NullBodyStore()));
+
+        (string SourceKey, string SourceMode, string? Collection, IReadOnlyList<string>? AddToCollections, IContentProvider Provider)[] providers =
+        {
+            ("companies-db", "content", "companies", (IReadOnlyList<string>)new[] { "china_companies", "malaysia_companies" }, (IContentProvider)provider)
+        };
+        var composite = new CompositeContentProvider(providers);
+
+        var result = await composite.LoadAsync();
+
+        Assert.Equal(3, result.Items.Count);
+        Assert.Equal("companies-db:company-1", result.Items[0].Id);
+        Assert.Equal("companies", result.Items[0].Meta["collection"]);
+        Assert.Equal("companies-db:company-1:china_companies", result.Items[1].Id);
+        Assert.Equal("china_companies", result.Items[1].Meta["collection"]);
+        Assert.Equal("companies-db:company-1:malaysia_companies", result.Items[2].Id);
+        Assert.Equal("malaysia_companies", result.Items[2].Meta["collection"]);
+    }
+
+    [Fact]
     public async Task LoadAsync_MultipleProvidersWithSameSource_MergeItems()
     {
         var p1 = new TestProvider(new ContentLoadResult(

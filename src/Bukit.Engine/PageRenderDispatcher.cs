@@ -459,7 +459,8 @@ internal static class PageRenderDispatcher
 
             var url = NormalizeListUrl(collection.ListRoute);
             var outputPath = BuildListOutputPath(url);
-            var route = new RouteInfo(url, outputPath, "pages/list.html");
+            var template = string.IsNullOrWhiteSpace(collection.ListTemplate) ? "pages/list.html" : collection.ListTemplate.Trim();
+            var route = new RouteInfo(url, outputPath, template);
             var items = index.GetByCollection(key);
             list.Add(new SpecialListDefinition(
                 route,

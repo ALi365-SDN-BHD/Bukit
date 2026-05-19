@@ -64,6 +64,37 @@ public sealed class NotionDatabaseQueryBuilderTests
         Assert.Equal("ascending", root.GetProperty("sorts")[0].GetProperty("direction").GetString());
     }
 
+    [Theory]
+    [InlineData("checkbox_false", "checkbox", false)]
+    [InlineData("select_equals", "select", "Published")]
+    [InlineData("status_equals", "status", "Published")]
+    [InlineData("rich_text_equals", "rich_text", "Published")]
+    public void Build_WithSupportedFilterTypes_ProducesExpectedFilter(string filterType, string notionFilterKey, object expectedValue)
+    {
+        var options = new NotionProviderOptions
+        {
+            DatabaseId = "db",
+            Token = "token",
+            FilterProperty = "Status",
+            FilterType = filterType,
+            FilterValue = "Published"
+        };
+
+        var json = NotionDatabaseQueryBuilder.Build(options, null, null, null, null);
+
+        using var doc = JsonDocument.Parse(json);
+        var filter = doc.RootElement.GetProperty("filter");
+        Assert.Equal("Status", filter.GetProperty("property").GetString());
+        if (expectedValue is bool expectedBool)
+        {
+            Assert.Equal(expectedBool, filter.GetProperty(notionFilterKey).GetProperty("equals").GetBoolean());
+        }
+        else
+        {
+            Assert.Equal((string)expectedValue, filter.GetProperty(notionFilterKey).GetProperty("equals").GetString());
+        }
+    }
+
     [Fact]
     public void Build_WithNoFiltersSortOrCursor_TrimsTrailingComma()
     {

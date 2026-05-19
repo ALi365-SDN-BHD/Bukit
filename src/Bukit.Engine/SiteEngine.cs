@@ -149,6 +149,7 @@ public sealed class SiteEngine
         var dataItems = items.Where(MetaHelpers.IsDataItem).ToList();
         var contentItems = items.Where(i => !MetaHelpers.IsDataItem(i)).ToList();
         var modules = DataModuleBuilder.BuildModules(dataItems, config.Site.Language, bodyStore);
+        var sourceData = DataModuleBuilder.BuildDataBySource(dataItems, bodyStore);
         splitItemsStopwatch.Stop();
         variantStageMetrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
 
@@ -190,6 +191,7 @@ public sealed class SiteEngine
             pluginContext.DerivedRoutes.Add((route, lastModified));
         }
 
+        var data = MergeSiteData(sourceData, pluginContext.Data);
         var siteModel = new SiteModel
         {
             Name = config.Site.Name,
@@ -205,7 +207,7 @@ public sealed class SiteEngine
             },
             Params = config.Theme.Params,
             Modules = modules,
-            Data = pluginContext.Data.Count == 0 ? null : pluginContext.Data
+            Data = data
         };
 
         var incrementalEnabled = overrides.Incremental ?? true;
@@ -398,6 +400,32 @@ public sealed class SiteEngine
         }
 
         return collector;
+    }
+
+    private static IReadOnlyDictionary<string, object>? MergeSiteData(
+        IReadOnlyDictionary<string, object>? sourceData,
+        IReadOnlyDictionary<string, object> pluginData)
+    {
+        if ((sourceData is null || sourceData.Count == 0) && pluginData.Count == 0)
+        {
+            return null;
+        }
+
+        var merged = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        if (sourceData is not null)
+        {
+            foreach (var kv in sourceData)
+            {
+                merged[kv.Key] = kv.Value;
+            }
+        }
+
+        foreach (var kv in pluginData)
+        {
+            merged[kv.Key] = kv.Value;
+        }
+
+        return merged;
     }
 
     private static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)

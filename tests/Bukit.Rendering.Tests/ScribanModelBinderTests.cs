@@ -180,6 +180,7 @@ public sealed class ScribanModelBinderTests
         var site = Assert.IsType<ScriptObject>(obj["site"]);
 
         Assert.Equal("", site["base_url"]);
+        Assert.Equal("/", site["base_path"]);
     }
 
     [Fact]

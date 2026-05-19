@@ -167,6 +167,20 @@
         "warningCount": {
           "type": "integer",
           "minimum": 0
+        },
+        "llmsTxtGenerated": {
+          "type": "boolean"
+        },
+        "llmsFullTxtGenerated": {
+          "type": "boolean"
+        },
+        "geoEnhancedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "geoScore": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "additionalProperties": false

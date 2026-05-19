@@ -43,6 +43,7 @@ public static class ScribanModelBinder
         obj.SetValue("url", model.Url, readOnly: true);
         obj.SetValue("description", model.Description, readOnly: true);
         obj.SetValue("base_url", model.BaseUrl == "/" ? string.Empty : model.BaseUrl, readOnly: true);
+        obj.SetValue("base_path", model.BaseUrl, readOnly: true);
         obj.SetValue("language", model.Language, readOnly: true);
         obj.SetValue("analytics", ToScriptObject(model.Analytics), readOnly: true);
         if (model.Params is not null)
@@ -246,6 +247,11 @@ public static class ScribanModelBinder
         if (value is string or bool or int or long or float or double or decimal or DateTime or DateTimeOffset)
         {
             return value;
+        }
+
+        if (value is ModuleInfo module)
+        {
+            return ToScriptObject(module);
         }
 
         if (value is IReadOnlyDictionary<string, object> roDict)

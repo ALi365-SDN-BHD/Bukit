@@ -231,6 +231,7 @@ public sealed class ConfigLoaderTests : IDisposable
                   permalink: /blog/{year}/{month}/{slug}/
                   template: pages/post.html
                   listRoute: /blog/
+                  listTemplate: pages/blog-list.html
                   pagination:
                     enabled: true
                     pageSize: 15
@@ -255,6 +256,7 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("/blog/{year}/{month}/{slug}/", posts.Permalink);
         Assert.Equal("pages/post.html", posts.Template);
         Assert.Equal("/blog/", posts.ListRoute);
+        Assert.Equal("pages/blog-list.html", posts.ListTemplate);
         Assert.True(posts.Pagination.Enabled);
         Assert.Equal(15, posts.Pagination.PageSize);
         Assert.True(posts.Output.Rss);
@@ -266,6 +268,35 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("pages/page.html", pages.Template);
         Assert.False(pages.Pagination.Enabled);
         Assert.Equal(10, pages.Pagination.PageSize);
+    }
+
+    [Fact]
+    public void Load_ContentSources_ParsesCollectionMappings()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: notion
+                  name: companies-db
+                  mode: content
+                  collection: companies
+                  addToCollections:
+                    - china_companies
+                    - malaysia_companies
+                  notion:
+                    databaseId: db-companies
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+
+        var source = Assert.Single(config.Content.Sources!);
+        Assert.Equal("companies", source.Collection);
+        Assert.NotNull(source.AddToCollections);
+        Assert.Equal(new[] { "china_companies", "malaysia_companies" }, source.AddToCollections);
     }
 
     [Fact]

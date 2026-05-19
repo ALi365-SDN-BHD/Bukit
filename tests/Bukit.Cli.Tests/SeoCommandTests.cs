@@ -56,6 +56,21 @@ public sealed class SeoCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_AuditAcceptsGeoSummaryFields()
+    {
+        WriteReport(0, 0, "[]", summaryExtraProperties: """
+                "llmsTxtGenerated": true,
+                "llmsFullTxtGenerated": false,
+                "geoEnhancedCount": 2,
+                "geoScore": 75,
+            """);
+
+        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "audit", "--dir", _root }));
+
+        Assert.Equal(0, exitCode);
+    }
+
+    [Fact]
     public async Task RunAsync_AuditReturnsTwoWhenSchemaVersionIsUnsupported()
     {
         WriteReport(0, 0, "[]", schemaVersion: "2.0");
@@ -139,10 +154,10 @@ public sealed class SeoCommandTests : IDisposable
         try { Directory.Delete(_root, recursive: true); } catch { }
     }
 
-    private void WriteReport(int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0", string extraRootProperty = "")
-        => WriteReportFile(Path.Combine(_root, "seo-report.json"), errorCount, warningCount, issuesJson, schemaVersion, extraRootProperty);
+    private void WriteReport(int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0", string extraRootProperty = "", string summaryExtraProperties = "")
+        => WriteReportFile(Path.Combine(_root, "seo-report.json"), errorCount, warningCount, issuesJson, schemaVersion, extraRootProperty, summaryExtraProperties);
 
-    private static void WriteReportFile(string path, int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0", string extraRootProperty = "")
+    private static void WriteReportFile(string path, int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0", string extraRootProperty = "", string summaryExtraProperties = "")
     {
         File.WriteAllText(path, $$"""
             {
@@ -177,6 +192,7 @@ public sealed class SeoCommandTests : IDisposable
                 "routeCount": 1,
                 "indexableCount": 1,
                 "nonIndexableCount": 0,
+                {{summaryExtraProperties}}
                 "errorCount": {{errorCount}},
                 "warningCount": {{warningCount}}
               }

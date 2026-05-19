@@ -16,7 +16,7 @@ internal static class NotionDatabaseSchemaResolver
         CancellationToken cancellationToken)
     {
         var filterType = (options.FilterType ?? "checkbox_true").Trim().ToLowerInvariant();
-        var filterProp = filterType == "checkbox_true" ? (options.FilterProperty ?? "Published").Trim() : null;
+        var filterProp = filterType == "none" ? null : (options.FilterProperty ?? "Published").Trim();
         var sortProp = options.SortProperty?.Trim();
         var includeSlugProp = options.IncludeSlugs is { Count: > 0 } ? (options.IncludeSlugProperty ?? "Slug").Trim() : null;
 

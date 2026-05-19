@@ -760,6 +760,7 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
                 databaseId: abc123
                 filterProperty: Status
                 filterType: select_equals
+                filterValue: Published
                 sortProperty: Updated
                 sortDirection: descending
             """;
@@ -769,6 +770,7 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         Assert.NotNull(config.Content.Notion);
         Assert.Equal("Status", config.Content.Notion.FilterProperty);
         Assert.Equal("select_equals", config.Content.Notion.FilterType);
+        Assert.Equal("Published", config.Content.Notion.FilterValue);
         Assert.Equal("Updated", config.Content.Notion.SortProperty);
         Assert.Equal("descending", config.Content.Notion.SortDirection);
     }

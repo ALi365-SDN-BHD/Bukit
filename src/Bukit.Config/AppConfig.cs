@@ -105,6 +105,7 @@ public sealed record CollectionConfig
     public required string Permalink { get; init; }
     public required string Template { get; init; }
     public string? ListRoute { get; init; }
+    public string? ListTemplate { get; init; }
     public CollectionPaginationConfig Pagination { get; init; } = new();
     public CollectionOutputConfig Output { get; init; } = new();
 }
@@ -151,6 +152,8 @@ public sealed record ContentSourceConfig
     public required string Type { get; init; }
     public string? Name { get; init; }
     public string Mode { get; init; } = "content";
+    public string? Collection { get; init; }
+    public IReadOnlyList<string>? AddToCollections { get; init; }
     public NotionConfig? Notion { get; init; }
     public MarkdownConfig? Markdown { get; init; }
 }
@@ -167,6 +170,7 @@ public sealed record NotionConfig
     public NotionFieldPolicyConfig FieldPolicy { get; init; } = new();
     public string FilterProperty { get; init; } = "Published";
     public string FilterType { get; init; } = "checkbox_true";
+    public string? FilterValue { get; init; }
     public string? SortProperty { get; init; }
     public string SortDirection { get; init; } = "ascending";
     public IReadOnlyList<string>? IncludeSlugs { get; init; }

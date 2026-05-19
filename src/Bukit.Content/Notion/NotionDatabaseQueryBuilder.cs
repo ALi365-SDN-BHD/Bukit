@@ -17,10 +17,24 @@ internal static class NotionDatabaseQueryBuilder
 
         var filters = new List<string>();
         var filterType = (options.FilterType ?? "checkbox_true").Trim().ToLowerInvariant();
-        if (filterType == "checkbox_true")
+        if (filterType is not "none")
         {
             var prop = (resolvedFilterProperty ?? options.FilterProperty ?? "Published").Trim();
-            filters.Add($"{{\"property\":\"{EscapeJson(prop)}\",\"checkbox\":{{\"equals\":true}}}}");
+            var filterValue = options.FilterValue?.Trim() ?? string.Empty;
+            var filter = filterType switch
+            {
+                "checkbox_true" => $"{{\"property\":\"{EscapeJson(prop)}\",\"checkbox\":{{\"equals\":true}}}}",
+                "checkbox_false" => $"{{\"property\":\"{EscapeJson(prop)}\",\"checkbox\":{{\"equals\":false}}}}",
+                "select_equals" => BuildEqualsFilter(prop, "select", filterValue),
+                "status_equals" => BuildEqualsFilter(prop, "status", filterValue),
+                "rich_text_equals" => BuildEqualsFilter(prop, "rich_text", filterValue),
+                _ => null
+            };
+
+            if (filter is not null)
+            {
+                filters.Add(filter);
+            }
         }
 
         if (options.IncludeSlugs is { Count: > 0 })
@@ -79,5 +93,10 @@ internal static class NotionDatabaseQueryBuilder
     private static string EscapeJson(string s)
     {
         return s.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
+    }
+
+    private static string BuildEqualsFilter(string property, string notionFilterKey, string value)
+    {
+        return $"{{\"property\":\"{EscapeJson(property)}\",\"{notionFilterKey}\":{{\"equals\":\"{EscapeJson(value)}\"}}}}";
     }
 }

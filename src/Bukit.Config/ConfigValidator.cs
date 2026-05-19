@@ -179,6 +179,12 @@ public static class ConfigValidator
                     }
                 }
 
+                if (source.AddToCollections is { Count: > 0 } &&
+                    source.AddToCollections.Any(string.IsNullOrWhiteSpace))
+                {
+                    throw new ConfigException("content.sources[].addToCollections must contain non-empty collection names.");
+                }
+
                 if (source.Type.Equals("notion", StringComparison.OrdinalIgnoreCase))
                 {
                     if (source.Notion is null)
@@ -752,14 +758,20 @@ public static class ConfigValidator
         }
 
         var filterType = (notion.FilterType ?? "checkbox_true").Trim().ToLowerInvariant();
-        if (filterType is not ("checkbox_true" or "none"))
+        if (filterType is not ("checkbox_true" or "checkbox_false" or "select_equals" or "status_equals" or "rich_text_equals" or "none"))
         {
-            throw new ConfigException("content.notion.filterType must be checkbox_true|none.");
+            throw new ConfigException("content.notion.filterType must be checkbox_true|checkbox_false|select_equals|status_equals|rich_text_equals|none.");
         }
 
         if (filterType != "none" && string.IsNullOrWhiteSpace(notion.FilterProperty))
         {
             throw new ConfigException("content.notion.filterProperty is required when filterType is not none.");
+        }
+
+        if (filterType is "select_equals" or "status_equals" or "rich_text_equals" &&
+            string.IsNullOrWhiteSpace(notion.FilterValue))
+        {
+            throw new ConfigException("content.notion.filterValue is required for select_equals|status_equals|rich_text_equals filters.");
         }
 
         if (!string.IsNullOrWhiteSpace(notion.SortProperty))

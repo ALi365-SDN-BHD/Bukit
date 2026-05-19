@@ -58,4 +58,54 @@ internal static class DataModuleBuilder
 
         return result;
     }
+
+    internal static IReadOnlyDictionary<string, object>? BuildDataBySource(IReadOnlyList<ContentItem> dataItems, IContentBodyStore bodyStore)
+    {
+        if (dataItems.Count == 0)
+        {
+            return null;
+        }
+
+        var map = new Dictionary<string, List<ModuleInfo>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in dataItems)
+        {
+            var sourceKey = item.Meta.TryGetValue("sourceKey", out var v) && v is not null ? (v.ToString() ?? string.Empty).Trim() : string.Empty;
+            if (string.IsNullOrWhiteSpace(sourceKey))
+            {
+                continue;
+            }
+
+            var enabled = MetaHelpers.TryGetBoolField(item.Fields, "enabled");
+            if (enabled is false)
+            {
+                continue;
+            }
+
+            if (!map.TryGetValue(sourceKey, out var list))
+            {
+                list = new List<ModuleInfo>();
+                map[sourceKey] = list;
+            }
+
+            list.Add(new ModuleInfo
+            {
+                Id = item.Id,
+                Title = item.Title,
+                Slug = item.Slug,
+                Content = ContentBodyResolver.GetHtml(item, bodyStore),
+                Fields = item.Fields
+            });
+        }
+
+        var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in map)
+        {
+            result[kv.Key] = kv.Value
+                .OrderBy(x => MetaHelpers.TryGetNumberField(x.Fields, "order") ?? 0d)
+                .ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        return result.Count == 0 ? null : result;
+    }
 }
