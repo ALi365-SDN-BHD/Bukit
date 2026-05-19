@@ -46,6 +46,8 @@ When the agent sees any of these phrases in any language, it must load this skil
 | 10 | bukit-clone | Website cloning to Bukit theme | When user wants to clone a website's design |
 | 11 | bukit-geo | Generative Engine Optimization (GEO) | When optimizing for AI search engines, configuring llms.txt, or using geo front matter |
 | 12 | bukit-seo | Traditional Search Engine Optimization (SEO) | When configuring site.seo, running seo audit/diff, or troubleshooting seo.* diagnostics |
+| 13 | bukit-preview | Local preview server | When starting a local preview, debugging port conflicts, or testing before deployment |
+| 14 | bukit-webhook | Webhook server for automated builds | When setting up Notion-to-GitHub webhook triggers, debugging payload verification or rate limiting |
 
 ## Typical Workflow Routing
 
@@ -169,6 +171,7 @@ bukit seo diff --baseline <old> --current <new> [--max-new-errors N]  # SEO regr
 ## Subskill Loading Rules
 
 - **bukit-cli-reference** is ALWAYS the first subskill to load — before any other bukit skill, verify CLI availability
-- **bukit-config** is REQUIRED BACKGROUND for: bukit-theme, bukit-notion, bukit-routing, bukit-i18n, bukit-plugins-debug, bukit-deploy, bukit-clone
+- **bukit-config** is REQUIRED BACKGROUND for: bukit-theme, bukit-notion, bukit-routing, bukit-i18n, bukit-plugins-debug, bukit-deploy, bukit-clone, bukit-seo, bukit-geo
 - **bukit-theme** is REQUIRED BACKGROUND for: bukit-templating, bukit-clone
 - All subskills reference **bukit-cli-reference** for command execution
+- **bukit-preview** and **bukit-webhook** are standalone operational skills — load when the user explicitly needs local preview or webhook setup
