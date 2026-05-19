@@ -82,6 +82,7 @@ After downloading, place the binary in a PATH directory or the project root.
 | `intent apply` | Apply intent to generate site.yaml | `<intent.yaml>` `--out` |
 | `deploy` | Build and deploy to GitHub Pages | `--config` `--site` `--output` `--base-url` `--site-url` `--branch` `--message` `--ci` `--dry-run` `--skip-build` |
 | `webhook` | Start Notion→GitHub webhook service | `--repo` `--host` `--port` `--path` `--event` |
+| `seo` | SEO audit and regression detection | `audit` `--dir` `--strict` `--external`; `diff` `--baseline` `--current` `--max-new-*` `--fail-on-*` |
 | `geo` | GEO audit for AI search engines | `audit` `--dir` |
 | `version` | Output version number | No parameters |
 
@@ -267,6 +268,41 @@ bukit intent init [--out <intent.yaml>]    # Interactive intent creation
 bukit intent validate <intent.yaml>        # Validate intent file
 bukit intent apply <intent.yaml> [--out <path>]  # Apply intent to generate site.yaml
 ```
+
+### seo
+
+Audit and regression-detect traditional SEO health. Reads `seo-report.json` from the output directory.
+
+```
+bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]
+bukit seo diff --baseline <old> --current <new> [--max-new-errors N] [--max-new-warnings N] [--max-new-issues N] [--fail-on-new-code c1,c2] [--fail-on-route-removed] [--fail-on-indexable-drop]
+```
+
+**Subcommand: audit**
+
+| Option | Default | Description |
+|------|--------|------|
+| `--dir` | `dist` | Output directory containing `seo-report.json` |
+| `--report` | `<dir>/seo-report.json` | Explicit report path |
+| `--strict` | off | Treat warnings as errors (exit code 1) |
+| `--external` | off | Live HTTP validation of canonical URLs, links, and images (HEAD first, fallback to GET) |
+
+Exit codes: 0 = pass, 1 = errors found (or warnings with `--strict`), 2 = report missing/invalid.
+
+**Subcommand: diff**
+
+| Option | Description |
+|------|------|
+| `--baseline <path>` | Previously accepted report |
+| `--current <path>` | New report to validate |
+| `--max-new-errors N` | Fail if new errors exceed N |
+| `--max-new-warnings N` | Fail if new warnings exceed N |
+| `--max-new-issues N` | Fail if total new issues exceed N |
+| `--fail-on-new-code c1,c2` | Fail if specific codes appear (comma-separated) |
+| `--fail-on-route-removed` | Fail if any route disappeared |
+| `--fail-on-indexable-drop` | Fail if any route changed from indexable to non-indexable |
+
+Exit codes: 0 = diff passed all budgets, 1 = budget exceeded, 2 = report missing/invalid.
 
 ### geo
 
