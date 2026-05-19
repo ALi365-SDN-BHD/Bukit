@@ -1,3 +1,7 @@
+---
+alwaysApply: false
+description: 
+---
 # Bukit Project Rules
 
 ## Lint & TypeCheck

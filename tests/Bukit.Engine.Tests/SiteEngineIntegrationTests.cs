@@ -1138,6 +1138,156 @@ public sealed class SiteEngineIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task BuildAsync_DerivedPageContentConflict_FailsWithFailPolicy()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+
+            for (var i = 1; i <= 3; i++)
+            {
+                File.WriteAllText(Path.Combine(root, "content", $"post{i}.md"), $$"""
+                    ---
+                    type: post
+                    title: Post {{i}}
+                    slug: post-{{i}}
+                    publishAt: 2024-06-0{{i}}:00:00:00Z
+                    ---
+                    # Post {{i}}
+                    """);
+            }
+
+            File.WriteAllText(Path.Combine(root, "content", "conflict.md"), """
+                ---
+                type: page
+                title: Conflict Page
+                slug: conflict-page
+                url: /blog/page/2/
+                ---
+                # Conflict
+                """);
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "T",
+                    Collections = new Dictionary<string, CollectionConfig>
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/blog/{slug}/",
+                            Template = "pages/post.html",
+                            ListRoute = "/blog/",
+                            Pagination = new CollectionPaginationConfig { Enabled = true, PageSize = 2 }
+                        }
+                    }
+                },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Contains("route conflict", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("pagination", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_PaginationWithListTemplate_RendersBoth()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{{ page.title }} {{ page.url }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "Page: {{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "Blog List");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "pagination.html"),
+                "Page {{ pagination.page }} of {{ pagination.total_pages }}");
+
+            for (var i = 1; i <= 5; i++)
+            {
+                File.WriteAllText(Path.Combine(root, "content", $"post{i}.md"), $$"""
+                    ---
+                    type: post
+                    title: Post {{i}}
+                    slug: post-{{i}}
+                    publishAt: 2024-06-0{{i}}:00:00:00Z
+                    ---
+                    # Post {{i}}
+                    """);
+            }
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "T",
+                    Collections = new Dictionary<string, CollectionConfig>
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/blog/{slug}/",
+                            Template = "pages/post.html",
+                            ListRoute = "/blog/",
+                            ListTemplate = "pages/list.html",
+                            Pagination = new CollectionPaginationConfig { Enabled = true, PageSize = 2 }
+                        }
+                    }
+                },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "index.html")));
+            var listContent = File.ReadAllText(Path.Combine(root, "dist", "blog", "index.html"));
+            Assert.Contains("Blog List", listContent, StringComparison.Ordinal);
+
+            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "page", "2", "index.html")));
+            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "page", "3", "index.html")));
+
+            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "post-1", "index.html")));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
     private static void CleanupDir(string dir)
     {
         try

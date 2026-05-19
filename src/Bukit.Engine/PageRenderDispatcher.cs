@@ -483,12 +483,6 @@ internal static class PageRenderDispatcher
         }
     }
 
-    private static string NormalizeListUrl(string url)
-        => RoutePathBuilder.NormalizeListRoute(url);
-
-    private static string BuildListOutputPath(string listUrl)
-        => RoutePathBuilder.BuildOutputPathFromUrl(listUrl);
-
     private sealed record SpecialListDefinition(
         RouteInfo Route,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> Items,

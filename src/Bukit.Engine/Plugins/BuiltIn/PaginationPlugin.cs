@@ -112,9 +112,6 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin
         return sb.ToString();
     }
 
-    private static string BuildOutputPath(string url)
-        => RoutePathBuilder.BuildOutputPathFromUrl(url);
-
     private static (string Key, CollectionConfig Config)? ResolvePaginationCollection(AppConfig config)
     {
         if (config.Site.Collections is null || config.Site.Collections.Count == 0)

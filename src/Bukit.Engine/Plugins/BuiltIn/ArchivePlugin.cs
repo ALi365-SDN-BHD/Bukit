@@ -152,9 +152,6 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
         return null;
     }
 
-    private static string BuildOutputPath(string url)
-        => RoutePathBuilder.BuildOutputPathFromUrl(url);
-
     private static string EscapeHtml(string value)
     {
         return (value ?? string.Empty)

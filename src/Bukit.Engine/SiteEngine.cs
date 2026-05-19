@@ -828,12 +828,6 @@ public sealed class SiteEngine
         return routes;
     }
 
-    private static string NormalizeListRoute(string route)
-        => RoutePathBuilder.NormalizeListRoute(route);
-
-    private static string BuildListOutputPath(string route)
-        => RoutePathBuilder.BuildOutputPathFromUrl(route);
-
     private static void WriteRobotsTxtIfRequested(
         AppConfig config,
         string outputDir,

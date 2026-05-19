@@ -253,10 +253,4 @@ internal static class I18nOutputMerger
 
         return routes;
     }
-
-    private static string NormalizeListRoute(string route)
-        => RoutePathBuilder.NormalizeListRoute(route);
-
-    private static string BuildListOutputPath(string route)
-        => RoutePathBuilder.BuildOutputPathFromUrl(route);
 }
