@@ -98,7 +98,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeListRoute_SimpleValue_AddsSlashes()
     {
-        var result = InvokePrivateStatic<string>("NormalizeListRoute", "blog");
+        var result = RoutePathBuilder.NormalizeListRoute("blog");
 
         Assert.Equal("/blog/", result);
     }
@@ -106,7 +106,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeListRoute_AlreadyCorrect_ReturnsSame()
     {
-        var result = InvokePrivateStatic<string>("NormalizeListRoute", "/blog/");
+        var result = RoutePathBuilder.NormalizeListRoute("/blog/");
 
         Assert.Equal("/blog/", result);
     }
@@ -114,7 +114,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeListRoute_Empty_ReturnsRoot()
     {
-        var result = InvokePrivateStatic<string>("NormalizeListRoute", "");
+        var result = RoutePathBuilder.NormalizeListRoute("");
 
         Assert.Equal("/", result);
     }
@@ -122,7 +122,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeListRoute_Null_ReturnsRoot()
     {
-        var result = InvokePrivateStatic<string>("NormalizeListRoute", new object[] { null! });
+        var result = RoutePathBuilder.NormalizeListRoute(null!);
 
         Assert.Equal("/", result);
     }
@@ -130,7 +130,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeListRoute_Whitespace_ReturnsRoot()
     {
-        var result = InvokePrivateStatic<string>("NormalizeListRoute", "   ");
+        var result = RoutePathBuilder.NormalizeListRoute("   ");
 
         Assert.Equal("/", result);
     }
@@ -138,7 +138,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeListRoute_NoLeadingSlash_AddsLeadingSlash()
     {
-        var result = InvokePrivateStatic<string>("NormalizeListRoute", "posts");
+        var result = RoutePathBuilder.NormalizeListRoute("posts");
 
         Assert.Equal("/posts/", result);
     }
@@ -146,7 +146,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeListRoute_NoTrailingSlash_AddsTrailingSlash()
     {
-        var result = InvokePrivateStatic<string>("NormalizeListRoute", "/posts");
+        var result = RoutePathBuilder.NormalizeListRoute("/posts");
 
         Assert.Equal("/posts/", result);
     }
