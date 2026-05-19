@@ -2,15 +2,15 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://example.com/</loc>
-    <lastmod>2026-05-15</lastmod>
+    <lastmod>2026-05-19</lastmod>
   </url>
   <url>
     <loc>https://example.com/blog/</loc>
-    <lastmod>2026-05-15</lastmod>
+    <lastmod>2026-05-19</lastmod>
   </url>
   <url>
     <loc>https://example.com/categories/</loc>
-    <lastmod>2026-05-15</lastmod>
+    <lastmod>2026-05-19</lastmod>
   </url>
   <url>
     <loc>https://example.com/categories/docs/</loc>
@@ -18,7 +18,7 @@
   </url>
   <url>
     <loc>https://example.com/pages/</loc>
-    <lastmod>2026-05-15</lastmod>
+    <lastmod>2026-05-19</lastmod>
   </url>
   <url>
     <loc>https://example.com/pages/about/</loc>
@@ -29,27 +29,15 @@
     <lastmod>2026-05-04</lastmod>
   </url>
   <url>
-    <loc>https://example.com/pages/hello-en/</loc>
-    <lastmod>2026-05-04</lastmod>
-  </url>
-  <url>
     <loc>https://example.com/pages/hello-world/</loc>
     <lastmod>2026-05-04</lastmod>
   </url>
   <url>
     <loc>https://example.com/tags/</loc>
-    <lastmod>2026-05-15</lastmod>
+    <lastmod>2026-05-19</lastmod>
   </url>
   <url>
     <loc>https://example.com/tags/bukit/</loc>
-    <lastmod>2026-05-04</lastmod>
-  </url>
-  <url>
-    <loc>https://example.com/tags/demo/</loc>
-    <lastmod>2026-05-04</lastmod>
-  </url>
-  <url>
-    <loc>https://example.com/tags/english/</loc>
     <lastmod>2026-05-04</lastmod>
   </url>
   <url>
