@@ -672,7 +672,8 @@ __LENIS____BEHAVIORS_JS__</body>
         sb.AppendLine();
     }
 
-    private static string GenerateResponsiveCss(SectionInfo section) {
+    private static string GenerateResponsiveCss(SectionInfo section)
+    {
         var r = section.Responsive!;
         var className = "sec-r-" + Math.Abs(section.Heading?.GetHashCode() ?? section.GetHashCode());
         var sb = new StringBuilder();

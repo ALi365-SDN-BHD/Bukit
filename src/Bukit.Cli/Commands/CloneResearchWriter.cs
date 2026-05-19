@@ -108,8 +108,8 @@ internal static class CloneResearchWriter
             foreach (var interaction in section.Interactions)
                 sb.AppendLine($"- {interaction.Trigger ?? interaction.Type ?? "interaction"} -> {interaction.Target}: {interaction.Description}");
             foreach (var component in section.Components)
-            foreach (var interaction in component.Interactions)
-                sb.AppendLine($"- `{component.Selector ?? component.Type ?? component.Id}` {interaction.Trigger ?? interaction.Type} -> {interaction.Target}: {interaction.Description}");
+                foreach (var interaction in component.Interactions)
+                    sb.AppendLine($"- `{component.Selector ?? component.Type ?? component.Id}` {interaction.Trigger ?? interaction.Type} -> {interaction.Target}: {interaction.Description}");
         }
         return sb.ToString();
     }

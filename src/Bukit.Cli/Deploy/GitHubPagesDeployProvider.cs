@@ -182,13 +182,13 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
         var unixPath = Path.Combine(tempDir, "git-askpass");
         File.WriteAllText(unixPath, $"#!/bin/sh\necho \"{token}\"\n");
         try
-            {
-                File.SetUnixFileMode(unixPath, UnixFileMode.UserRead | UnixFileMode.UserExecute);
-            }
-            catch (Exception modeEx)
-            {
-                Console.Error.WriteLine($"Deploy: failed to set askpass file mode: {modeEx.GetType().Name}");
-            }
+        {
+            File.SetUnixFileMode(unixPath, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        }
+        catch (Exception modeEx)
+        {
+            Console.Error.WriteLine($"Deploy: failed to set askpass file mode: {modeEx.GetType().Name}");
+        }
 
         return unixPath;
     }

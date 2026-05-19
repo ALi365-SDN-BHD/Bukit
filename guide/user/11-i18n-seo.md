@@ -248,6 +248,138 @@ HTML details for SEO are typically controlled by the theme. Suggestions:
 - Confirm the theme includes `partials/seo.html` in `<head>`
 - Confirm multilingual pages output `alternate hreflang`
 
+## Generative Engine Optimization (GEO)
+
+GEO optimises your site for AI-powered search engines like ChatGPT Search, Perplexity, Google AI Overviews, and Bing Copilot. It goes beyond traditional SEO to help AI engines accurately crawl, understand, and cite your content.
+
+### Configuration
+
+```yaml
+site:
+  seo:
+    geo:
+      enabled: true            # master switch (default: true)
+      llmsTxt: true            # generate llms.txt (default: true)
+      llmsFullTxt: false       # generate llms-full.txt with full page content (default: false)
+      llmsTxtMaxArticles: 20   # max articles in llms.txt (default: 20)
+      aiBotMode: allow          # allow | block | selective
+      aiBotAllowList:           # bots to allow (used in selective mode)
+        - GPTBot
+      aiBotBlockList:           # bots to block
+        - CCBot
+      llmsTxtOptionalLinks:     # external links in llms.txt Optional section
+        - title: GitHub Repository
+          url: https://github.com/user/repo
+          description: Source code
+```
+
+### llms.txt and llms-full.txt
+
+When enabled, Bukit generates two files in the output directory:
+
+- **`llms.txt`** — A structured Markdown index of your site following the [llmstxt.org](https://llmstxt.org) standard. It contains site title, description, a list of pages/documents, recent articles (sorted by date), and an optional "Optional" section with external links.
+- **`llms-full.txt`** — A full-content version containing the complete text of every indexable page, separated by Markdown headers. Useful for AI engines that need richer context.
+
+### AI Bot robots.txt Rules
+
+Bukit automatically adds AI crawler directives to `robots.txt` for these bots:
+
+GPTBot, ChatGPT-User, Google-Extended, Claude-Web, ClaudeBot, Anthropic-AI,
+PerplexityBot, Cohere-AI, CCBot, Diffbot, FacebookBot, OAI-SearchBot
+
+Three modes are available:
+- **`allow`** (default) — All AI bots are permitted
+- **`block`** — All AI bots are disallowed
+- **`selective`** — `aiBotAllowList` gets `Allow: /`, `aiBotBlockList` gets `Disallow: /`
+
+### Front Matter GEO Fields
+
+Add structured data to your content front matter under the `geo` key:
+
+```yaml
+---
+title: How to Build a Blog with Bukit
+type: post
+geo:
+  schema_type: HowTo         # BlogPosting | Article | NewsArticle | FAQPage | HowTo
+  about: Static site generators
+  date_reviewed: "2026-05-19"
+  faq:
+    - question: What content sources does Bukit support?
+      answer: Notion, Markdown, and local files.
+    - question: How to deploy?
+      answer: GitHub Pages, Vercel, Netlify, and more.
+  steps:
+    - name: Install Bukit
+      text: Run dotnet tool install.
+      image: https://example.com/step1.png
+      url: https://example.com/docs/install
+    - name: Initialize a site
+      text: Run bukit init my-site.
+  citations:
+    - title: Schema.org HowTo
+      url: https://schema.org/HowTo
+  same_as:
+    - https://github.com/user/repo
+    - https://twitter.com/user
+  author:
+    name: Alice
+    url: https://alice.dev
+    same_as:
+      - https://github.com/alice
+      - https://linkedin.com/in/alice
+  speakable:
+    xpath: /html/body/article
+---
+```
+
+Each field generates corresponding JSON-LD structured data:
+
+| Field | Schema Type Generated |
+|-------|----------------------|
+| `faq` | FAQPage with Question/Answer |
+| `steps` | HowTo with HowToStep |
+| `author` | Person with sameAs |
+| `citations` | WebPage with mentions |
+| `schema_type` | Article / NewsArticle / BlogPosting |
+| `about` | about property on article |
+| `date_reviewed` | dateReviewed on article |
+| `same_as` | sameAs on article |
+| `speakable` | SpeakableSpecification |
+
+### GEO Audit
+
+Run `bukit geo audit` to check your site's GEO readiness:
+
+```
+=== GEO Audit ===
+  llms.txt: present
+  llms-full.txt: missing
+  robots.txt: present
+  Geo-enhanced routes: 3
+  Schema types: Article, FAQPage, HowTo, Person, WebPage
+  GEO Score: 75/100
+```
+
+The **GEO Score** (0–100) measures your site's readiness for AI search engines. It awards points for:
+- llms.txt generation (25 pts)
+- llms-full.txt generation (15 pts)
+- GEO-enhanced routes (10 pts)
+- Schema type coverage on articles (up to 15 pts)
+- FAQPage or HowTo usage (15 pts)
+- Person author markup (10 pts)
+- Speakable markup (5 pts)
+- Multi-route GEO coverage (5 pts)
+
+Diagnostic codes (`geo.*`) appear in both build logs and `seo-report.json`:
+- `geo.faq_empty_question` / `geo.faq_empty_answer`
+- `geo.howto_step_empty_name` / `geo.howto_step_empty_text`
+- `geo.citation_url_invalid`
+- `geo.author_no_sameas`
+- `geo.speakable_path_invalid`
+- `geo.schema_type_missing`
+- `geo.llms_txt_missing`
+
 ## Common Pitfalls & Fixes Checklist
 
 ### 1) Multilingual content "cross-contaminating" each other

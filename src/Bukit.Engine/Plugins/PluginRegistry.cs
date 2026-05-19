@@ -27,6 +27,7 @@ public sealed class BuiltInPluginSource : IPluginSource
         yield return new BuiltIn.SearchIndexPlugin();
         yield return new BuiltIn.PaginationPlugin();
         yield return new BuiltIn.ArchivePlugin();
+        yield return new BuiltIn.LlmsTxtPlugin();
     }
 }
 

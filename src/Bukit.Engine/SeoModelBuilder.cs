@@ -30,7 +30,9 @@ internal static class SeoModelBuilder
         TryGetUpdateTime(item, out var updated);
         var author = FirstTextOrMeta(item, "author");
         var tags = GetStringList(item.Meta, "tags") ?? Array.Empty<string>();
-        var jsonLd = BuildJsonLd(config, baseUrl, title, description, canonical, image, route.Url, item, item.Fields, isPost, isCollectionPage);
+        var geo = ParseGeoMeta(item);
+        var schemaType = geo.SchemaType ?? (isPost ? "BlogPosting" : null);
+        var jsonLd = BuildJsonLd(config, baseUrl, title, description, canonical, image, route.Url, item, item.Fields, isPost, isCollectionPage, geo, schemaType);
 
         return new SeoModel
         {
@@ -65,7 +67,14 @@ internal static class SeoModelBuilder
                 Tags = isPost ? tags : Array.Empty<string>()
             },
             Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
-            JsonLd = jsonLd
+            JsonLd = jsonLd,
+            SchemaType = schemaType,
+            FaqItems = geo.FaqItems,
+            HowToSteps = geo.HowToSteps,
+            Citations = geo.Citations,
+            GeoAuthor = geo.GeoAuthor,
+            SpeakableXPath = geo.SpeakableXPath,
+            SameAs = geo.SameAs
         };
     }
 
@@ -104,7 +113,7 @@ internal static class SeoModelBuilder
                 Site = config.Site.Seo.TwitterSite
             },
             Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
-            JsonLd = BuildJsonLd(config, baseUrl, title, description, canonical, image, page.Url, item: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/")
+            JsonLd = BuildJsonLd(config, baseUrl, title, description, canonical, image, page.Url, item: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: ParsedGeoMeta.Empty, schemaType: null)
         };
     }
 
@@ -153,7 +162,9 @@ internal static class SeoModelBuilder
         ContentItem? item,
         IReadOnlyDictionary<string, ContentField>? itemListFields,
         bool isPost,
-        bool isCollectionPage)
+        bool isCollectionPage,
+        ParsedGeoMeta geo,
+        string? schemaType)
     {
         var result = new List<string>();
         var siteHome = BuildAbsoluteUrl(config.Site.Url, baseUrl, "/");
@@ -240,42 +251,34 @@ internal static class SeoModelBuilder
 
         if (isPost && item is not null)
         {
-            var article = new Dictionary<string, object?>
+            var effectiveType = schemaType ?? "BlogPosting";
+            if (string.Equals(effectiveType, "FAQPage", StringComparison.OrdinalIgnoreCase) && geo.FaqItems is { Count: > 0 })
             {
-                ["@context"] = "https://schema.org",
-                ["@type"] = "BlogPosting",
-                ["headline"] = title,
-                ["description"] = description,
-                ["url"] = canonical,
-                ["datePublished"] = item.PublishAt.ToString("O")
-            };
-            if (!string.IsNullOrWhiteSpace(image))
-            {
-                article["image"] = image;
+                BuildFaqPageJsonLd(result, title, description, canonical, image, item, geo.FaqItems);
             }
-
-            if (TryGetUpdateTime(item, out var updated))
+            else if (string.Equals(effectiveType, "HowTo", StringComparison.OrdinalIgnoreCase) && geo.HowToSteps is { Count: > 0 })
             {
-                article["dateModified"] = updated.ToString("O");
+                BuildHowToJsonLd(result, title, description, canonical, image, item, geo.HowToSteps);
             }
-
-            var author = FirstTextOrMeta(item, "author");
-            if (!string.IsNullOrWhiteSpace(author))
+            else
             {
-                article["author"] = new Dictionary<string, object?>
-                {
-                    ["@type"] = "Person",
-                    ["name"] = author
-                };
+                BuildArticleJsonLd(result, effectiveType, title, description, canonical, image, item, geo, config.Site.Language);
             }
+        }
 
-            var tags = GetStringList(item.Meta, "tags");
-            if (tags is { Count: > 0 })
-            {
-                article["keywords"] = tags;
-            }
+        if (geo.GeoAuthor is not null)
+        {
+            BuildPersonJsonLd(result, geo.GeoAuthor);
+        }
 
-            result.Add(ToJson(article));
+        if (geo.Citations is { Count: > 0 })
+        {
+            BuildCitationsJsonLd(result, canonical, geo.Citations);
+        }
+
+        if (!string.IsNullOrWhiteSpace(geo.SpeakableXPath))
+        {
+            BuildSpeakableJsonLd(result, canonical, geo.SpeakableXPath);
         }
 
         var itemList = BuildItemList(config, baseUrl, itemListFields);
@@ -285,6 +288,241 @@ internal static class SeoModelBuilder
         }
 
         return result;
+    }
+
+    private static void BuildArticleJsonLd(
+        List<string> result,
+        string schemaType,
+        string title,
+        string? description,
+        string canonical,
+        string? image,
+        ContentItem item,
+        ParsedGeoMeta geo,
+        string? language)
+    {
+        var article = new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = schemaType,
+            ["headline"] = title,
+            ["description"] = description,
+            ["url"] = canonical,
+            ["datePublished"] = item.PublishAt.ToString("O")
+        };
+        if (!string.IsNullOrWhiteSpace(image))
+        {
+            article["image"] = image;
+        }
+
+        if (TryGetUpdateTime(item, out var updated))
+        {
+            article["dateModified"] = updated.ToString("O");
+        }
+
+        if (geo.DateReviewed.HasValue)
+        {
+            article["dateReviewed"] = geo.DateReviewed.Value.ToString("O");
+        }
+
+        if (!string.IsNullOrWhiteSpace(geo.About))
+        {
+            article["about"] = geo.About;
+        }
+
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            article["inLanguage"] = language;
+        }
+
+        var author = geo.GeoAuthor?.Name ?? FirstTextOrMeta(item, "author");
+        if (!string.IsNullOrWhiteSpace(author))
+        {
+            var person = new Dictionary<string, object?>
+            {
+                ["@type"] = "Person",
+                ["name"] = author
+            };
+            if (geo.GeoAuthor?.Url is { } authorUrl)
+            {
+                person["url"] = authorUrl;
+            }
+
+            if (geo.GeoAuthor?.SameAs is { Count: > 0 })
+            {
+                person["sameAs"] = geo.GeoAuthor.SameAs;
+            }
+
+            article["author"] = person;
+        }
+
+        if (geo.SameAs is { Count: > 0 })
+        {
+            article["sameAs"] = geo.SameAs;
+        }
+
+        var tags = GetStringList(item.Meta, "tags");
+        if (tags is { Count: > 0 })
+        {
+            article["keywords"] = tags;
+        }
+
+        result.Add(ToJson(article));
+    }
+
+    private static void BuildFaqPageJsonLd(
+        List<string> result,
+        string title,
+        string? description,
+        string canonical,
+        string? image,
+        ContentItem item,
+        IReadOnlyList<GeoFaqModel> faqItems)
+    {
+        var mainEntity = new List<Dictionary<string, object?>>();
+        foreach (var faq in faqItems)
+        {
+            mainEntity.Add(new Dictionary<string, object?>
+            {
+                ["@type"] = "Question",
+                ["name"] = faq.Question,
+                ["acceptedAnswer"] = new Dictionary<string, object?>
+                {
+                    ["@type"] = "Answer",
+                    ["text"] = faq.Answer
+                }
+            });
+        }
+
+        var faqPage = new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "FAQPage",
+            ["headline"] = title,
+            ["description"] = description,
+            ["url"] = canonical,
+            ["datePublished"] = item.PublishAt.ToString("O"),
+            ["mainEntity"] = mainEntity
+        };
+
+        if (!string.IsNullOrWhiteSpace(image))
+        {
+            faqPage["image"] = image;
+        }
+
+        result.Add(ToJson(faqPage));
+    }
+
+    private static void BuildHowToJsonLd(
+        List<string> result,
+        string title,
+        string? description,
+        string canonical,
+        string? image,
+        ContentItem item,
+        IReadOnlyList<GeoHowToStepModel> steps)
+    {
+        var stepList = new List<Dictionary<string, object?>>();
+        for (var i = 0; i < steps.Count; i++)
+        {
+            var step = steps[i];
+            var stepEntry = new Dictionary<string, object?>
+            {
+                ["@type"] = "HowToStep",
+                ["position"] = i + 1,
+                ["name"] = step.Name,
+                ["text"] = step.Text
+            };
+
+            if (!string.IsNullOrWhiteSpace(step.Image))
+            {
+                stepEntry["image"] = step.Image;
+            }
+
+            if (!string.IsNullOrWhiteSpace(step.Url))
+            {
+                stepEntry["url"] = step.Url;
+            }
+
+            stepList.Add(stepEntry);
+        }
+
+        var howTo = new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "HowTo",
+            ["name"] = title,
+            ["description"] = description ?? title,
+            ["url"] = canonical,
+            ["datePublished"] = item.PublishAt.ToString("O"),
+            ["step"] = stepList
+        };
+
+        if (!string.IsNullOrWhiteSpace(image))
+        {
+            howTo["image"] = image;
+        }
+
+        result.Add(ToJson(howTo));
+    }
+
+    private static void BuildPersonJsonLd(List<string> result, GeoAuthorModel author)
+    {
+        var person = new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "Person",
+            ["name"] = author.Name
+        };
+
+        if (!string.IsNullOrWhiteSpace(author.Url))
+        {
+            person["url"] = author.Url;
+        }
+
+        if (author.SameAs is { Count: > 0 })
+        {
+            person["sameAs"] = author.SameAs;
+        }
+
+        result.Add(ToJson(person));
+    }
+
+    private static void BuildCitationsJsonLd(List<string> result, string canonical, IReadOnlyList<GeoCitationModel> citations)
+    {
+        var mentionList = new List<Dictionary<string, object?>>();
+        foreach (var citation in citations)
+        {
+            mentionList.Add(new Dictionary<string, object?>
+            {
+                ["@type"] = "WebPage",
+                ["name"] = citation.Title,
+                ["url"] = citation.Url
+            });
+        }
+
+        result.Add(ToJson(new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "WebPage",
+            ["url"] = canonical,
+            ["mentions"] = mentionList
+        }));
+    }
+
+    private static void BuildSpeakableJsonLd(List<string> result, string canonical, string xpath)
+    {
+        result.Add(ToJson(new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "WebPage",
+            ["url"] = canonical,
+            ["speakable"] = new Dictionary<string, object?>
+            {
+                ["@type"] = "SpeakableSpecification",
+                ["xpath"] = xpath
+            }
+        }));
     }
 
     private static string? FirstTextField(IReadOnlyDictionary<string, ContentField>? fields, string key)
@@ -555,5 +793,190 @@ internal static class SeoModelBuilder
                 writer.WriteStringValue(value.ToString());
                 break;
         }
+    }
+
+    private sealed record ParsedGeoMeta(
+        string? SchemaType,
+        IReadOnlyList<GeoFaqModel>? FaqItems,
+        IReadOnlyList<GeoHowToStepModel>? HowToSteps,
+        IReadOnlyList<GeoCitationModel>? Citations,
+        GeoAuthorModel? GeoAuthor,
+        string? SpeakableXPath,
+        IReadOnlyList<string>? SameAs,
+        string? About,
+        DateTimeOffset? DateReviewed)
+    {
+        public static readonly ParsedGeoMeta Empty = new(null, null, null, null, null, null, null, null, null);
+    }
+
+    private static ParsedGeoMeta ParseGeoMeta(ContentItem item)
+    {
+        if (!item.Meta.TryGetValue("geo", out var geoValue) || geoValue is not IReadOnlyDictionary<string, object> geo)
+        {
+            return ParsedGeoMeta.Empty;
+        }
+
+        var schemaType = ReadGeoString(geo, "schema_type");
+        var speakableXPath = ReadGeoString(geo, "speakable_xpath")
+            ?? (geo.TryGetValue("speakable", out var sp) && sp is IReadOnlyDictionary<string, object> spMap
+                ? ReadGeoString(spMap, "xpath")
+                : null);
+
+        var sameAs = ReadGeoStringList(geo, "same_as");
+        var citations = ReadGeoCitations(geo);
+        var faqItems = ReadGeoFaqItems(geo);
+        var howToSteps = ReadGeoHowToSteps(geo);
+        var geoAuthor = ReadGeoAuthor(geo);
+        var about = ReadGeoString(geo, "about");
+        var dateReviewed = ReadGeoDateTime(geo, "date_reviewed");
+
+        return new ParsedGeoMeta(schemaType, faqItems, howToSteps, citations, geoAuthor, speakableXPath, sameAs, about, dateReviewed);
+    }
+
+    private static DateTimeOffset? ReadGeoDateTime(IReadOnlyDictionary<string, object> map, string key)
+    {
+        var value = ReadGeoString(map, key);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return DateTimeOffset.TryParse(value, out var dt) ? dt : null;
+    }
+
+    private static string? ReadGeoString(IReadOnlyDictionary<string, object> map, string key)
+    {
+        if (!map.TryGetValue(key, out var value) || value is null)
+        {
+            return null;
+        }
+
+        var s = value.ToString()?.Trim();
+        return string.IsNullOrWhiteSpace(s) ? null : s;
+    }
+
+    private static IReadOnlyList<string>? ReadGeoStringList(IReadOnlyDictionary<string, object> map, string key)
+    {
+        if (!map.TryGetValue(key, out var value) || value is null)
+        {
+            return null;
+        }
+
+        if (value is IEnumerable<object> seq)
+        {
+            var list = seq
+                .Select(x => x?.ToString()?.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!)
+                .ToList();
+            return list.Count == 0 ? null : list;
+        }
+
+        if (value is string s)
+        {
+            var parts = s.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length == 0 ? null : parts;
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<GeoFaqModel>? ReadGeoFaqItems(IReadOnlyDictionary<string, object> geo)
+    {
+        if (!geo.TryGetValue("faq", out var value) || value is not IEnumerable<object> items)
+        {
+            return null;
+        }
+
+        var result = new List<GeoFaqModel>();
+        foreach (var item in items)
+        {
+            if (item is IReadOnlyDictionary<string, object> entry)
+            {
+                var question = ReadGeoString(entry, "question");
+                var answer = ReadGeoString(entry, "answer");
+                if (!string.IsNullOrWhiteSpace(question) && !string.IsNullOrWhiteSpace(answer))
+                {
+                    result.Add(new GeoFaqModel { Question = question, Answer = answer });
+                }
+            }
+        }
+
+        return result.Count == 0 ? null : result;
+    }
+
+    private static IReadOnlyList<GeoHowToStepModel>? ReadGeoHowToSteps(IReadOnlyDictionary<string, object> geo)
+    {
+        if (!geo.TryGetValue("steps", out var value) || value is not IEnumerable<object> items)
+        {
+            return null;
+        }
+
+        var result = new List<GeoHowToStepModel>();
+        foreach (var item in items)
+        {
+            if (item is IReadOnlyDictionary<string, object> entry)
+            {
+                var name = ReadGeoString(entry, "name");
+                var text = ReadGeoString(entry, "text");
+                if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(text))
+                {
+                    result.Add(new GeoHowToStepModel
+                    {
+                        Name = name,
+                        Text = text,
+                        Image = ReadGeoString(entry, "image"),
+                        Url = ReadGeoString(entry, "url")
+                    });
+                }
+            }
+        }
+
+        return result.Count == 0 ? null : result;
+    }
+
+    private static IReadOnlyList<GeoCitationModel>? ReadGeoCitations(IReadOnlyDictionary<string, object> geo)
+    {
+        if (!geo.TryGetValue("citations", out var value) || value is not IEnumerable<object> items)
+        {
+            return null;
+        }
+
+        var result = new List<GeoCitationModel>();
+        foreach (var item in items)
+        {
+            if (item is IReadOnlyDictionary<string, object> entry)
+            {
+                var title = ReadGeoString(entry, "title");
+                var url = ReadGeoString(entry, "url");
+                if (!string.IsNullOrWhiteSpace(title) && !string.IsNullOrWhiteSpace(url))
+                {
+                    result.Add(new GeoCitationModel { Title = title, Url = url });
+                }
+            }
+        }
+
+        return result.Count == 0 ? null : result;
+    }
+
+    private static GeoAuthorModel? ReadGeoAuthor(IReadOnlyDictionary<string, object> geo)
+    {
+        if (!geo.TryGetValue("author", out var value) || value is not IReadOnlyDictionary<string, object> author)
+        {
+            return null;
+        }
+
+        var name = ReadGeoString(author, "name");
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        return new GeoAuthorModel
+        {
+            Name = name,
+            Url = ReadGeoString(author, "url"),
+            SameAs = ReadGeoStringList(author, "same_as") ?? Array.Empty<string>()
+        };
     }
 }

@@ -421,21 +421,21 @@ public static partial class SeoCommand
 
     private static bool AnalyzeExternalResponse(HttpResponseMessage response, string url, string label, bool requireImage, string severity)
     {
-            if ((int)response.StatusCode >= 400)
-            {
-                Console.WriteLine($"external {severity} seo.external_http_status - {label} {url} status={(int)response.StatusCode}");
-                return true;
-            }
+        if ((int)response.StatusCode >= 400)
+        {
+            Console.WriteLine($"external {severity} seo.external_http_status - {label} {url} status={(int)response.StatusCode}");
+            return true;
+        }
 
-            if (requireImage && response.Content.Headers.ContentType?.MediaType is { } mediaType &&
-                !mediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-            {
-                Console.WriteLine($"external {severity} seo.external_image_mime - {label} {url} contentType={mediaType}");
-                return true;
-            }
+        if (requireImage && response.Content.Headers.ContentType?.MediaType is { } mediaType &&
+            !mediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"external {severity} seo.external_image_mime - {label} {url} contentType={mediaType}");
+            return true;
+        }
 
-            Console.WriteLine($"external ok {label} {url} status={(int)response.StatusCode}");
-            return false;
+        Console.WriteLine($"external ok {label} {url} status={(int)response.StatusCode}");
+        return false;
     }
 
     private static IReadOnlyList<string> ExtractImageUrls(string html)

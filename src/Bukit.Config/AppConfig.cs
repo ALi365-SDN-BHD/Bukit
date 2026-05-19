@@ -52,6 +52,7 @@ public sealed record SeoConfig
     public SeoOrganizationConfig? Organization { get; init; }
     public SeoRobotsTxtConfig RobotsTxt { get; init; } = new();
     public SeoSchemaConfig Schema { get; init; } = new();
+    public SeoGeoConfig Geo { get; init; } = new();
 }
 
 public sealed record SeoOrganizationConfig
@@ -78,6 +79,25 @@ public sealed record SeoSchemaConfig
     public bool WebPage { get; init; } = true;
     public bool CollectionPage { get; init; } = true;
     public bool SearchAction { get; init; } = true;
+}
+
+public sealed record SeoGeoConfig
+{
+    public bool Enabled { get; init; } = true;
+    public bool LlmsTxt { get; init; } = true;
+    public bool LlmsFullTxt { get; init; }
+    public int LlmsTxtMaxArticles { get; init; } = 20;
+    public string AiBotMode { get; init; } = "allow";
+    public IReadOnlyList<string>? AiBotAllowList { get; init; }
+    public IReadOnlyList<string>? AiBotBlockList { get; init; }
+    public IReadOnlyList<LlmsTxtOptionalLink>? LlmsTxtOptionalLinks { get; init; }
+}
+
+public sealed record LlmsTxtOptionalLink
+{
+    public required string Title { get; init; }
+    public required string Url { get; init; }
+    public string? Description { get; init; }
 }
 
 public sealed record CollectionConfig

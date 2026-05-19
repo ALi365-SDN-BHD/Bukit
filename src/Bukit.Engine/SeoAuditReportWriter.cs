@@ -171,12 +171,37 @@ internal static class SeoAuditReportWriter
             .ThenBy(x => x.Message, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var geoEnhancedRoutes = sortedRoutes
+            .Where(x => x.SchemaTypes.Any(t =>
+                t is "FAQPage" or "HowTo" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification"))
+            .ToArray();
+        var llmsTxtGenerated = File.Exists(Path.Combine(outputDir, "llms.txt"));
+        var llmsFullTxtGenerated = File.Exists(Path.Combine(outputDir, "llms-full.txt"));
+
+        if (config.Site.Seo.Geo.Enabled && config.Site.Seo.Geo.LlmsTxt && !llmsTxtGenerated)
+        {
+            issues.Add(new SeoAuditIssue("warning", "geo.llms_txt_missing", null,
+                "llms.txt was not generated. Ensure GEO is enabled and content has indexable routes."));
+        }
+
+        if (config.Site.Seo.Geo.Enabled && config.Site.Seo.Geo.LlmsFullTxt && !llmsFullTxtGenerated)
+        {
+            issues.Add(new SeoAuditIssue("warning", "geo.llms_full_txt_missing", null,
+                "llms-full.txt was not generated. Check that llmsFullTxt is enabled and content is indexable."));
+        }
+
+        var geoScore = ComputeGeoScore(llmsTxtGenerated, llmsFullTxtGenerated, geoEnhancedRoutes, sortedRoutes);
+
         var summary = new SeoAuditSummary(
             RouteCount: sortedRoutes.Count,
             IndexableCount: sortedRoutes.Count(x => x.Indexable),
             NonIndexableCount: sortedRoutes.Count(x => !x.Indexable),
             ErrorCount: sortedIssues.Count(x => string.Equals(x.Severity, "error", StringComparison.OrdinalIgnoreCase)),
-            WarningCount: sortedIssues.Count(x => string.Equals(x.Severity, "warning", StringComparison.OrdinalIgnoreCase)));
+            WarningCount: sortedIssues.Count(x => string.Equals(x.Severity, "warning", StringComparison.OrdinalIgnoreCase)),
+            LlmsTxtGenerated: llmsTxtGenerated,
+            LlmsFullTxtGenerated: llmsFullTxtGenerated,
+            GeoEnhancedCount: geoEnhancedRoutes.Length,
+            GeoScore: geoScore);
 
         return new SeoAuditReport(
             Schema: ReportSchema,
@@ -188,6 +213,58 @@ internal static class SeoAuditReportWriter
             Routes: sortedRoutes,
             Issues: sortedIssues,
             Summary: summary);
+    }
+
+    private static int ComputeGeoScore(bool llmsTxtGenerated, bool llmsFullTxtGenerated, SeoAuditRoute[] geoRoutes, List<SeoAuditRoute> allRoutes)
+    {
+        var score = 0;
+
+        if (llmsTxtGenerated)
+        {
+            score += 25;
+        }
+
+        if (llmsFullTxtGenerated)
+        {
+            score += 15;
+        }
+
+        if (geoRoutes.Length > 0)
+        {
+            score += 10;
+        }
+
+        var articleCount = allRoutes.Count(r => r.SchemaTypes.Any(t =>
+            t is "BlogPosting" or "Article" or "NewsArticle"));
+        var withSchemaType = geoRoutes.Count(r => r.SchemaTypes.Any(t =>
+            t is "BlogPosting" or "Article" or "NewsArticle" or "FAQPage" or "HowTo"));
+        if (articleCount > 0)
+        {
+            var ratio = (double)withSchemaType / articleCount;
+            score += (int)(ratio * 15);
+        }
+
+        if (geoRoutes.Any(r => r.SchemaTypes.Contains("FAQPage") || r.SchemaTypes.Contains("HowTo")))
+        {
+            score += 15;
+        }
+
+        if (geoRoutes.Any(r => r.SchemaTypes.Contains("Person")))
+        {
+            score += 10;
+        }
+
+        if (geoRoutes.Any(r => r.SchemaTypes.Contains("SpeakableSpecification")))
+        {
+            score += 5;
+        }
+
+        if (geoRoutes.Any(r => r.SchemaTypes.Contains("WebPage") && r.SchemaTypes.Any(t => t is "WebPage") && geoRoutes.Length >= 2))
+        {
+            score += 5;
+        }
+
+        return Math.Min(score, 100);
     }
 
     private static void AnalyzeRouteModel(
@@ -1056,4 +1133,13 @@ internal sealed record SeoAuditRoute(
 
 internal sealed record SeoAuditIssue(string Severity, string Code, string? Route, string Message);
 
-internal sealed record SeoAuditSummary(int RouteCount, int IndexableCount, int NonIndexableCount, int ErrorCount, int WarningCount);
+internal sealed record SeoAuditSummary(
+    int RouteCount,
+    int IndexableCount,
+    int NonIndexableCount,
+    int ErrorCount,
+    int WarningCount,
+    bool LlmsTxtGenerated,
+    bool LlmsFullTxtGenerated,
+    int GeoEnhancedCount,
+    int GeoScore);

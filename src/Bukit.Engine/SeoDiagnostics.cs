@@ -54,6 +54,8 @@ internal static partial class SeoDiagnostics
                 Report(config, logger, $"seo.hreflang_x_default_missing route={entry.Route.Url}");
             }
         }
+
+        RunGeoDiagnostics(models, logger, config);
     }
 
     internal static string AnalyzeHtml(AppConfig config, RouteInfo route, SeoModel? seo, string html, ILogger logger)
@@ -100,6 +102,83 @@ internal static partial class SeoDiagnostics
 
     private static bool IsEnabled(AppConfig config)
         => !string.Equals(config.Site.Seo.Diagnostics, "off", StringComparison.OrdinalIgnoreCase);
+
+    private static void RunGeoDiagnostics(
+        IReadOnlyDictionary<string, SeoModel> models,
+        ILogger logger,
+        AppConfig config)
+    {
+        foreach (var (key, model) in models)
+        {
+            if (model.FaqItems is { Count: > 0 })
+            {
+                foreach (var faq in model.FaqItems)
+                {
+                    if (string.IsNullOrWhiteSpace(faq.Question))
+                    {
+                        Report(config, logger, $"geo.faq_empty_question route={key}");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(faq.Answer))
+                    {
+                        Report(config, logger, $"geo.faq_empty_answer route={key}");
+                    }
+                }
+            }
+
+            if (model.HowToSteps is { Count: > 0 })
+            {
+                var indexPath = 0;
+                foreach (var step in model.HowToSteps)
+                {
+                    if (string.IsNullOrWhiteSpace(step.Name))
+                    {
+                        Report(config, logger, $"geo.howto_step_empty_name route={key} step={indexPath}");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(step.Text))
+                    {
+                        Report(config, logger, $"geo.howto_step_empty_text route={key} step={indexPath}");
+                    }
+
+                    indexPath++;
+                }
+            }
+
+            if (model.Citations is { Count: > 0 })
+            {
+                foreach (var citation in model.Citations)
+                {
+                    if (!Uri.TryCreate(citation.Url, UriKind.Absolute, out _))
+                    {
+                        Report(config, logger, $"geo.citation_url_invalid route={key} url={citation.Url}");
+                    }
+                }
+            }
+
+            if (model.GeoAuthor is { } author && (author.SameAs is null || author.SameAs.Count == 0))
+            {
+                Report(config, logger, $"geo.author_no_sameas route={key} author={author.Name}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.SpeakableXPath) &&
+                !model.SpeakableXPath.StartsWith("/", StringComparison.Ordinal))
+            {
+                Report(config, logger, $"geo.speakable_path_invalid route={key} xpath={model.SpeakableXPath}");
+            }
+
+            if (model.Article.PublishedTime is not null &&
+                string.IsNullOrWhiteSpace(model.SchemaType) &&
+                model.FaqItems is null &&
+                model.HowToSteps is null &&
+                model.Citations is null &&
+                model.GeoAuthor is null &&
+                string.IsNullOrWhiteSpace(model.SpeakableXPath))
+            {
+                Report(config, logger, $"geo.schema_type_missing route={key}");
+            }
+        }
+    }
 
     private static void Report(AppConfig config, ILogger logger, string message)
     {

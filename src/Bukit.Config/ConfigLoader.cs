@@ -159,6 +159,7 @@ public static class ConfigLoader
         var orgNode = GetOptionalMapping(seoNode, "organization");
         var robotsTxtNode = GetOptionalMapping(seoNode, "robotsTxt");
         var schemaNode = GetOptionalMapping(seoNode, "schema");
+        var geoNode = GetOptionalMapping(seoNode, "geo");
         return new SeoConfig
         {
             Enabled = GetOptionalBool(seoNode, "enabled") ?? true,
@@ -183,7 +184,20 @@ public static class ConfigLoader
                 WebPage = schemaNode is null || (GetOptionalBool(schemaNode, "webPage") ?? true),
                 CollectionPage = schemaNode is null || (GetOptionalBool(schemaNode, "collectionPage") ?? true),
                 SearchAction = schemaNode is null || (GetOptionalBool(schemaNode, "searchAction") ?? true)
-            }
+            },
+            Geo = geoNode is null
+                ? new SeoGeoConfig()
+                : new SeoGeoConfig
+                {
+                    Enabled = GetOptionalBool(geoNode, "enabled") ?? true,
+                    LlmsTxt = GetOptionalBool(geoNode, "llmsTxt") ?? true,
+                    LlmsFullTxt = GetOptionalBool(geoNode, "llmsFullTxt") ?? false,
+                    LlmsTxtMaxArticles = GetOptionalInt(geoNode, "llmsTxtMaxArticles") ?? 20,
+                    AiBotMode = GetOptionalString(geoNode, "aiBotMode") ?? "allow",
+                    AiBotAllowList = ReadStringList(geoNode, "aiBotAllowList"),
+                    AiBotBlockList = ReadStringList(geoNode, "aiBotBlockList"),
+                    LlmsTxtOptionalLinks = ReadLlmsTxtOptionalLinks(geoNode)
+                }
         };
     }
 
@@ -646,6 +660,31 @@ public static class ConfigLoader
         }
 
         return list.Count == 0 ? null : list;
+    }
+
+    private static IReadOnlyList<LlmsTxtOptionalLink>? ReadLlmsTxtOptionalLinks(YamlMappingNode geoNode)
+    {
+        var seq = GetOptionalSequence(geoNode, "llmsTxtOptionalLinks");
+        if (seq is null)
+        {
+            return null;
+        }
+
+        var links = new List<LlmsTxtOptionalLink>();
+        foreach (var n in seq.Children)
+        {
+            if (n is not YamlMappingNode m)
+            {
+                throw new ConfigException("site.seo.geo.llmsTxtOptionalLinks items must be mappings.");
+            }
+
+            var title = GetRequiredString(m, "title");
+            var url = GetRequiredString(m, "url");
+            var description = GetOptionalString(m, "description");
+            links.Add(new LlmsTxtOptionalLink { Title = title, Url = url, Description = description });
+        }
+
+        return links.Count == 0 ? null : links;
     }
 
     private static string GetRequiredString(YamlMappingNode node, string key)

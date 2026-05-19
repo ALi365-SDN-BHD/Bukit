@@ -97,6 +97,12 @@ public static class ConfigValidator
             throw new ConfigException("site.seo.diagnostics must be off|warn|strict.");
         }
 
+        var geoAiBotMode = (config.Site.Seo.Geo.AiBotMode ?? "allow").Trim().ToLowerInvariant();
+        if (geoAiBotMode is not ("allow" or "block" or "selective"))
+        {
+            throw new ConfigException("site.seo.geo.aiBotMode must be allow|block|selective.");
+        }
+
         if (!string.IsNullOrWhiteSpace(config.Site.Analytics.GoogleAnalyticsId) &&
             !Regex.IsMatch(config.Site.Analytics.GoogleAnalyticsId.Trim(), "^G-[A-Z0-9]+$", RegexOptions.CultureInvariant))
         {

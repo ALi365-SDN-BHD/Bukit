@@ -40,7 +40,7 @@ internal static class DataModuleBuilder
                 Id = item.Id,
                 Title = item.Title,
                 Slug = item.Slug,
-                    Content = ContentBodyResolver.GetHtml(item, bodyStore),
+                Content = ContentBodyResolver.GetHtml(item, bodyStore),
                 Fields = item.Fields
             });
         }

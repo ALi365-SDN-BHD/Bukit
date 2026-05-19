@@ -53,6 +53,40 @@ public sealed record SeoModel
     public SeoArticleModel Article { get; init; } = new();
     public IReadOnlyList<SeoAlternateModel> Alternates { get; init; } = Array.Empty<SeoAlternateModel>();
     public IReadOnlyList<string> JsonLd { get; init; } = Array.Empty<string>();
+    public string? SchemaType { get; init; }
+    public IReadOnlyList<GeoFaqModel>? FaqItems { get; init; }
+    public IReadOnlyList<GeoHowToStepModel>? HowToSteps { get; init; }
+    public IReadOnlyList<GeoCitationModel>? Citations { get; init; }
+    public GeoAuthorModel? GeoAuthor { get; init; }
+    public string? SpeakableXPath { get; init; }
+    public IReadOnlyList<string>? SameAs { get; init; }
+}
+
+public sealed record GeoFaqModel
+{
+    public required string Question { get; init; }
+    public required string Answer { get; init; }
+}
+
+public sealed record GeoHowToStepModel
+{
+    public required string Name { get; init; }
+    public required string Text { get; init; }
+    public string? Image { get; init; }
+    public string? Url { get; init; }
+}
+
+public sealed record GeoCitationModel
+{
+    public required string Title { get; init; }
+    public required string Url { get; init; }
+}
+
+public sealed record GeoAuthorModel
+{
+    public required string Name { get; init; }
+    public string? Url { get; init; }
+    public IReadOnlyList<string> SameAs { get; init; } = Array.Empty<string>();
 }
 
 public sealed record SeoOpenGraphModel

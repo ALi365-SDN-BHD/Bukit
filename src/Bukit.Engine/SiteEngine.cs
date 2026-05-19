@@ -263,7 +263,7 @@ public sealed class SiteEngine
 
                     return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, _logger);
                 }
-                : null);
+        : null);
         renderPagesStopwatch.Stop();
         variantStageMetrics.AddDuration("renderPages", renderPagesStopwatch.ElapsedMilliseconds);
         variantStageMetrics = MergeStageMetrics(variantStageMetrics, renderResult.StageMetrics);
@@ -303,7 +303,7 @@ public sealed class SiteEngine
 
                     return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, _logger);
                 }
-                : null);
+        : null);
         renderSpecialListsStopwatch.Stop();
         variantStageMetrics.AddDuration("renderSpecialLists", renderSpecialListsStopwatch.ElapsedMilliseconds);
         variantStageMetrics = MergeStageMetrics(variantStageMetrics, specialListResult.StageMetrics);
@@ -850,7 +850,86 @@ public sealed class SiteEngine
             lines.Add($"Sitemap: {SitemapGenerator.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/sitemap.xml")}");
         }
 
+        var geo = config.Site.Seo.Geo;
+        if (geo.Enabled)
+        {
+            var aiBotMode = (geo.AiBotMode ?? "allow").Trim().ToLowerInvariant();
+            if (aiBotMode == "selective")
+            {
+                if (geo.AiBotAllowList is { Count: > 0 })
+                {
+                    foreach (var bot in geo.AiBotAllowList)
+                    {
+                        lines.Add(string.Empty);
+                        lines.Add($"User-agent: {bot}");
+                        lines.Add("Allow: /");
+                    }
+                }
+
+                if (geo.AiBotBlockList is { Count: > 0 })
+                {
+                    foreach (var bot in geo.AiBotBlockList)
+                    {
+                        lines.Add(string.Empty);
+                        lines.Add($"User-agent: {bot}");
+                        lines.Add("Disallow: /");
+                    }
+                }
+            }
+            else
+            {
+                var aiBots = GetAiBotList(geo, aiBotMode);
+                foreach (var bot in aiBots)
+                {
+                    lines.Add(string.Empty);
+                    lines.Add($"User-agent: {bot}");
+                    lines.Add(aiBotMode == "block" ? "Disallow: /" : "Allow: /");
+                }
+            }
+        }
+
         FileWriter.WriteUtf8(outputDir, "robots.txt", string.Join(Environment.NewLine, lines) + Environment.NewLine);
+    }
+
+    private static readonly string[] DefaultAiBots =
+    {
+        "GPTBot",
+        "ChatGPT-User",
+        "Google-Extended",
+        "Claude-Web",
+        "ClaudeBot",
+        "Anthropic-AI",
+        "PerplexityBot",
+        "Cohere-AI",
+        "CCBot",
+        "Diffbot",
+        "FacebookBot",
+        "OAI-SearchBot"
+    };
+
+    private static IReadOnlyList<string> GetAiBotList(SeoGeoConfig geo, string aiBotMode)
+    {
+        if (geo.AiBotBlockList is { Count: > 0 })
+        {
+            var combined = new List<string>(DefaultAiBots);
+            foreach (var blocked in geo.AiBotBlockList)
+            {
+                if (!combined.Contains(blocked, StringComparer.OrdinalIgnoreCase))
+                {
+                    combined.Add(blocked);
+                }
+            }
+
+            return combined;
+        }
+
+        if (geo.AiBotAllowList is { Count: > 0 })
+        {
+            var allowSet = new HashSet<string>(geo.AiBotAllowList, StringComparer.OrdinalIgnoreCase);
+            return DefaultAiBots.Where(b => allowSet.Contains(b)).ToList();
+        }
+
+        return DefaultAiBots;
     }
 
     public async Task BuildAsync(IContentProvider provider, BuildOptions options, CancellationToken cancellationToken = default)

@@ -63,6 +63,7 @@ try
         "doctor" => await DoctorCommand.RunAsync(reader),
         "plugin" => await PluginCommand.RunAsync(reader),
         "seo" => await SeoCommand.RunAsync(reader),
+        "geo" => await GeoCommand.RunAsync(reader),
         "clone" => await CloneCommand.RunAsync(reader),
         "theme" => await ThemeCommand.RunAsync(reader),
         "template" => await TemplateCommand.RunAsync(reader),

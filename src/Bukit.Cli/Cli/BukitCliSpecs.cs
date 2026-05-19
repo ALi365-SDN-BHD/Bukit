@@ -290,6 +290,20 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--skip-build", "跳过构建步骤", CliOptionType.Flag)
             });
 
-        return new CliCommandRegistry(new[] { build, clone, deploy, preview, plugin, theme, template, seo });
+        var geo = new CliCommandSpec(
+            Name: "geo",
+            Description: "GEO (生成式引擎优化) 审计",
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "audit",
+                    Description: "检查 GEO 指标，读取 seo-report.json 并审核 AI 引擎优化表现",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--dir", "构建输出目录")
+                    })
+            });
+
+        return new CliCommandRegistry(new[] { build, clone, deploy, preview, plugin, theme, template, seo, geo });
     }
 }

@@ -248,6 +248,138 @@ SEO 的 HTML 细节通常由主题控制。建议：
 - 确认主题在 `<head>` include `partials/seo.html`
 - 确认多语言页面输出 `alternate hreflang`
 
+## 生成式引擎优化（GEO）
+
+GEO 为 ChatGPT Search、Perplexity、Google AI Overviews、Bing Copilot 等 AI 驱动搜索引擎优化网站内容。它在传统 SEO 基础上帮助 AI 引擎准确抓取、理解和引用你的内容。
+
+### 配置
+
+```yaml
+site:
+  seo:
+    geo:
+      enabled: true            # 总开关（默认：true）
+      llmsTxt: true            # 生成 llms.txt（默认：true）
+      llmsFullTxt: false       # 生成包含完整页面内容的 llms-full.txt（默认：false）
+      llmsTxtMaxArticles: 20   # llms.txt 中最多显示的文章数（默认：20）
+      aiBotMode: allow          # allow | block | selective
+      aiBotAllowList:           # 允许的爬虫（selective 模式使用）
+        - GPTBot
+      aiBotBlockList:           # 屏蔽的爬虫
+        - CCBot
+      llmsTxtOptionalLinks:     # llms.txt Optional 节的外部链接
+        - title: GitHub 仓库
+          url: https://github.com/user/repo
+          description: 源代码
+```
+
+### llms.txt 与 llms-full.txt
+
+启用后，Bukit 在输出目录生成两个文件：
+
+- **`llms.txt`** — 遵循 [llmstxt.org](https://llmstxt.org) 标准的 Markdown 格式站点索引，包含站点标题、描述、页面/文档列表、最近文章（按时间排序）以及可选的"Optional"外部链接节。
+- **`llms-full.txt`** — 完整内容版本，包含每个可索引页面的文本，以 Markdown 标题分隔。适合需要更丰富上下文的 AI 引擎。
+
+### AI 爬虫 robots.txt 规则
+
+Bukit 自动为以下 AI 爬虫在 `robots.txt` 中添加指令：
+
+GPTBot, ChatGPT-User, Google-Extended, Claude-Web, ClaudeBot, Anthropic-AI,
+PerplexityBot, Cohere-AI, CCBot, Diffbot, FacebookBot, OAI-SearchBot
+
+三种模式：
+- **`allow`**（默认）— 允许所有 AI 爬虫
+- **`block`** — 禁止所有 AI 爬虫
+- **`selective`** — `aiBotAllowList` 生成 `Allow: /`，`aiBotBlockList` 生成 `Disallow: /`
+
+### Front Matter GEO 字段
+
+在内容 Front Matter 中添加结构化数据，放在 `geo` 键下：
+
+```yaml
+---
+title: 如何用 Bukit 构建博客
+type: post
+geo:
+  schema_type: HowTo         # BlogPosting | Article | NewsArticle | FAQPage | HowTo
+  about: 静态站点生成器
+  date_reviewed: "2026-05-19"
+  faq:
+    - question: Bukit 支持哪些内容源？
+      answer: Notion、Markdown 和本地文件。
+    - question: 如何部署？
+      answer: 支持 GitHub Pages、Vercel、Netlify 等。
+  steps:
+    - name: 安装 Bukit
+      text: 运行 dotnet tool install。
+      image: https://example.com/step1.png
+      url: https://example.com/docs/install
+    - name: 初始化站点
+      text: 运行 bukit init my-site。
+  citations:
+    - title: Schema.org HowTo
+      url: https://schema.org/HowTo
+  same_as:
+    - https://github.com/user/repo
+    - https://twitter.com/user
+  author:
+    name: 张三
+    url: https://zhangsan.dev
+    same_as:
+      - https://github.com/zhangsan
+      - https://linkedin.com/in/zhangsan
+  speakable:
+    xpath: /html/body/article
+---
+```
+
+每个字段生成对应的 JSON-LD 结构化数据：
+
+| 字段 | 生成的 Schema 类型 |
+|------|-----------------|
+| `faq` | FAQPage 含 Question/Answer |
+| `steps` | HowTo 含 HowToStep |
+| `author` | Person 含 sameAs |
+| `citations` | WebPage 含 mentions |
+| `schema_type` | Article / NewsArticle / BlogPosting |
+| `about` | article 的 about 属性 |
+| `date_reviewed` | article 的 dateReviewed |
+| `same_as` | article 的 sameAs |
+| `speakable` | SpeakableSpecification |
+
+### GEO 审计
+
+运行 `bukit geo audit` 检查站点的 GEO 准备度：
+
+```
+=== GEO Audit ===
+  llms.txt: present
+  llms-full.txt: missing
+  robots.txt: present
+  Geo-enhanced routes: 3
+  Schema types: Article, FAQPage, HowTo, Person, WebPage
+  GEO Score: 75/100
+```
+
+**GEO Score**（0–100）衡量站点对 AI 搜索引擎的适配程度，评分规则如下：
+- llms.txt 已生成（25 分）
+- llms-full.txt 已生成（15 分）
+- 有 GEO 增强路由（10 分）
+- 文章 Schema 类型覆盖率（最多 15 分）
+- 使用了 FAQPage 或 HowTo（15 分）
+- 使用了 Person 作者标记（10 分）
+- 使用了 Speakable 标记（5 分）
+- 多路由 GEO 覆盖（5 分）
+
+诊断码（`geo.*`）会出现在构建日志和 `seo-report.json` 中：
+- `geo.faq_empty_question` / `geo.faq_empty_answer`
+- `geo.howto_step_empty_name` / `geo.howto_step_empty_text`
+- `geo.citation_url_invalid`
+- `geo.author_no_sameas`
+- `geo.speakable_path_invalid`
+- `geo.schema_type_missing`
+- `geo.llms_txt_missing`
+
 ## 常见坑与修复清单
 
 ### 1）多语言内容互相“串台”
