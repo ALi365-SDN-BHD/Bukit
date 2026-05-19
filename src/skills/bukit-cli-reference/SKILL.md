@@ -82,6 +82,7 @@ After downloading, place the binary in a PATH directory or the project root.
 | `intent apply` | Apply intent to generate site.yaml | `<intent.yaml>` `--out` |
 | `deploy` | Build and deploy to GitHub Pages | `--config` `--site` `--output` `--base-url` `--site-url` `--branch` `--message` `--ci` `--dry-run` `--skip-build` |
 | `webhook` | Start Notion→GitHub webhook service | `--repo` `--host` `--port` `--path` `--event` |
+| `geo` | GEO audit for AI search engines | `audit` `--dir` |
 | `version` | Output version number | No parameters |
 
 ## Key Command Details
@@ -266,6 +267,23 @@ bukit intent init [--out <intent.yaml>]    # Interactive intent creation
 bukit intent validate <intent.yaml>        # Validate intent file
 bukit intent apply <intent.yaml> [--out <path>]  # Apply intent to generate site.yaml
 ```
+
+### geo
+
+Audit GEO (Generative Engine Optimization) readiness for AI-driven search engines.
+
+```
+bukit geo audit [--dir <dir>]
+```
+
+| Parameter | Default | Description |
+|------|--------|------|
+| `audit` | — | Subcommand (required) |
+| `--dir` | `dist` | Output directory to audit |
+
+Reads `seo-report.json` from the output directory and reports llms.txt/llms-full.txt status, GEO-enhanced routes, schema types, GEO Score, and geo.* diagnostic issues. Requires a full `bukit build` first.
+
+Exit codes: 0 = success, 2 = directory or report not found, 2 = invalid report JSON.
 
 ## Exit Codes
 
