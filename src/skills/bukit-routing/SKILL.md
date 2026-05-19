@@ -23,11 +23,14 @@ Bukit generates URLs and output paths for each content item through **permalink 
 ## Route Priority
 
 ```
-1. Content metadata route.url + route.outputPath + route.template  ← Highest
-2. site.collections match (by collection field or type field)
-3. site.permalinks global rules
-4. Built-in defaults: post → /blog/{slug}/, page → /pages/{slug}/
+1. Content metadata full override (url + outputPath + template)  ← Highest
+2. Content metadata partial override (url only or url + template)
+3. site.collections match (by collection field or type field)
+4. site.permalinks global rules
+5. Built-in defaults: post → /blog/{slug}/, page → /pages/{slug}/
 ```
+
+When only `url` is provided in metadata, Bukit enters **partial override**: `outputPath` is auto-derived from the URL, and `template` falls back to the collection/permalink/default rule. See Route Override below for details.
 
 ## Permalink Patterns
 
@@ -76,7 +79,7 @@ When a collection defines `listRoute`, a list page is generated (using the colle
 
 ## URL Encoding Strategy
 
-`site.outputPathEncoding` controls how output directory names are encoded:
+`site.outputPathEncoding` controls how output directory names are encoded. This applies to both content pages and derived pages (pagination, archive, taxonomy pages).
 
 | Mode | Behavior | Use Case |
 |------|------|---------|
@@ -87,7 +90,11 @@ When a collection defines `listRoute`, a list page is generated (using the colle
 
 ## Route Override
 
-Set the `route` field in content metadata to fully customize routing. Markdown frontmatter:
+Content metadata can override routing at two levels.
+
+### Full Override (backward compatible)
+
+Set all three fields — `url`, `outputPath`, and `template` — to take full control. Markdown frontmatter:
 
 ```yaml
 ---
@@ -100,7 +107,7 @@ route:
 # My Page
 ```
 
-Or separate fields:
+Or separate top-level fields:
 
 ```yaml
 ---
@@ -110,22 +117,106 @@ template: pages/special.html
 ---
 ```
 
-All three fields are required; if any is missing, routing falls back to collection routing.
+All three fields must be present for full override; otherwise partial override applies.
+
+### Partial Override (url-only)
+
+When only `url` is provided (directly or via `route.url`), Bukit auto-derives `outputPath` from the URL and keeps the collection/permalink/default template:
+
+```yaml
+---
+url: /my-slug/
+---
+
+# outputPath auto-derived: my-slug/index.html
+# template:       follows collection rule
+```
+
+```yaml
+---
+route:
+  url: /my-slug/
+  template: pages/special.html  # optional: override template
+---
+
+# outputPath auto-derived: my-slug/index.html
+```
+
+**Rules for partial override:**
+- `url` → must be present; normalized with leading/trailing slashes
+- `outputPath` → auto-derived via `NormalizeUrl(url)` → `BuildOutputPathFromUrl(url, encoding)`; any manually-supplied value is ignored
+- `template` → if omitted, inherits from collection/permalinks/default; if provided, uses it
+- `outputPath`-only override is **not supported** (to avoid URL/disk-path semantic split)
 
 ## Output Path Rules
 
 - URL `/{slug}/` → output path `{slug}/index.html`
 - URL `/{year}/{month}/{slug}/` → `{year}/{month}/{slug}/index.html`
 - Path separators auto-converted to `\` on Windows
+- Encoding applied per `site.outputPathEncoding` before writing to disk
+
+## Route Conflict Detection
+
+Bukit validates route uniqueness at two points during the build, and via `bukit doctor`.
+
+### Content Page Conflicts
+
+Two content pages that generate the same **URL** or **outputPath** cause the build to fail immediately with a `ConfigException`. The error message includes the conflicting item ids, titles, slugs, URLs, and output paths.
+
+```yaml
+# site.yaml — example: two posts with slug=same
+# Error: Route conflict on url: /blog/same/. Conflicting routes: id=post1, ...; id=post2, ...
+```
+
+### Derived Page vs Content Page Conflicts
+
+Derived pages (pagination, archive, taxonomy) may produce URLs or output paths that collide with content pages or with each other. Controlled by `site.deriveConflictPolicy`:
+
+| Policy | Behavior |
+|--------|----------|
+| `fail` (default) | Throw `InvalidOperationException` and abort |
+| `warn` | Skip the conflicting derived page, log a warning, continue |
+| `last-wins` | Accept the derived page, overwrite the earlier route |
+
+Detection runs in two stages:
+1. **Per-plugin** — `PluginRunner.ApplyDeriveConflictPolicy` checks each derived page against existing routes
+2. **Final validation** — `RouteInventoryValidator.ValidateFinalRoutes` checks the complete route inventory before rendering
+
+Content-page-vs-content-page conflicts are **always fail** — `deriveConflictPolicy` only governs derived-page conflicts.
+
+### Doctor Validation
+
+`bukit doctor` runs the same content route validation without a full build, reporting conflicts early:
+
+```
+✖ Route inventory error
+Route conflict on url: /blog/same/. Conflicting routes: ...
+```
+
+## Route Path Utilities
+
+All routing logic shares a common set of utilities in `RoutePathBuilder`:
+
+| Method | Purpose | Example |
+|--------|---------|---------|
+| `NormalizeUrl(url)` | Ensure leading/trailing slashes | `"blog"` → `"/blog/"` |
+| `NormalizeListRoute(url)` | List route normalization (defaults to `/`) | `""` → `"/"` |
+| `BuildOutputPathFromUrl(url, encoding)` | URL → output path with `index.html` | `"/blog/"` → `"blog/index.html"` |
+| `NormalizeOutputPath(path, encoding)` | Apply encoding to segments | `"my page"` → `"my-page"` (slug) |
+
+These utilities are used by the route generator, all built-in plugins (pagination, archive, taxonomy), the list route builder, and the i18n output merger — ensuring consistent output path generation everywhere.
 
 ## Common Errors
 
 | Error | Cause | Fix |
 |------|------|------|
-| Route conflict (doctor error) | Multiple content items generate same URL | Check slug uniqueness or permalink pattern |
+| `Route conflict on url` (build fail) | Multiple content items generate same URL | Ensure unique slugs or disambiguate permalink patterns |
+| `Route conflict on outputPath` (build fail) | Multiple content items write to same output path | Ensure unique `route.outputPath` values |
+| `route conflict` from plugin (build fail) | Derived page URL/outputPath collides with existing route | Change `deriveConflictPolicy` to `warn` or `last-wins`, or adjust routing |
+| Route inventory error (doctor) | Route conflicts detected by `bukit doctor` | Fix conflicting slugs/URLs/permalinks before building |
 | Permalink generates unexpected URL | Placeholder typo | Use `{slug}` not `{Slug}` or `{SLUG}` |
 | `listRoute must start with '/'` | listRoute doesn't start with `/` | Change to `/articles/` |
 | `permalink must include {slug}` | Permalink missing {slug} placeholder | Add `{slug}` to the pattern |
 | Chinese characters in URL truncated on Windows | Output path encoding not set | Set `site.outputPathEncoding: slug` or `sanitize` |
 | Collection matched incorrectly | collection or type field name mismatch | Check content metadata and site.collections key names |
-| Route override fields ignored | Not all three fields provided | Ensure route includes url, outputPath, and template |
+| URL from partial override differs from expected | OutputPathEncoding applied differently than expected | Verify `site.outputPathEncoding`; outputPath is auto-derived from url |

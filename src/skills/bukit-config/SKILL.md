@@ -148,14 +148,14 @@ theme:
 | `timezone` | string | `Asia/Shanghai` | IANA timezone identifier |
 | `languages` | string[] | — | Language list for multilingual, e.g., `[zh-CN, en]` |
 | `defaultLanguage` | string | First language | Default language in multilingual mode |
-| `outputPathEncoding` | string | `none` | Output path encoding: `none`/`slug`/`urlencode`/`sanitize` |
+| `outputPathEncoding` | string | `none` | Output path encoding: `none`/`slug`/`urlencode`/`sanitize`. Applies to both content and derived pages (pagination, archive, taxonomy). |
 | `sitemapMode` | string | `split` | Sitemap mode: `split`/`merged`/`index` |
 | `rssMode` | string | `split` | RSS mode: `split`/`merged` |
 | `searchMode` | string | `split` | Search index mode: `split`/`merged`/`index` |
 | `autoSummary` | bool | false | Auto-generate summaries |
 | `autoSummaryMaxLength` | int | 200 | Max auto-summary length (1-5000) |
 | `pluginFailMode` | string | `strict` | Plugin failure policy: `strict`/`warn` |
-| `deriveConflictPolicy` | string | `fail` | Derived page route conflict policy: `fail`/`warn`/`last-wins` |
+| `deriveConflictPolicy` | string | `fail` | Derived page route conflict policy: `fail`/`warn`/`last-wins`. Content-page conflicts always fail regardless of this setting. |
 | `externalAssemblyTrustMode` | string | `warn` | External assembly trust mode: `strict`/`warn` |
 | `searchIncludeDerived` | bool | false | Whether search index includes derived pages |
 | `externalProtocolIncludeRoutedPages` | bool | false | Whether external protocol plugins receive routed pages |

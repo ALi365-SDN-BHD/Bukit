@@ -197,6 +197,7 @@ Checks:
 10. Plugin discovery count
 11. Notion database reachability (if Notion content source configured)
 12. List page content mode heuristic fallback warnings
+13. Route inventory validation (URL/outputPath conflict detection)
 
 ### plugin list
 
@@ -322,6 +323,8 @@ User says "help me build a Bukit blog":
 | Notion connection failed (404) | Wrong databaseId | Check content.notion.databaseId in site.yaml |
 | `Config error` (doctor) | site.collections not configured | Add collections config per doctor prompt |
 | `Missing templates` (doctor) | Template files missing | Ensure 5 required template files exist under themes/<name>/layouts/ |
+| `Route inventory error` (doctor) | Route URL or outputPath conflicts detected | Fix conflicting slugs, URLs, or permalink patterns |
+| `Route conflict on url` / `Route conflict on outputPath` (build) | Multiple content items generate identical URLs or output paths | Ensure unique slugs/outputPaths or adjust routing |
 
 ## Environment Variables
 
