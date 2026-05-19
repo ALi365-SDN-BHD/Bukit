@@ -93,6 +93,70 @@ site:
 
 Bandingkan dengan `examples/starter/themes/seo-best-practice/`.
 
+## SEO Peringkat Enjin dan Output Tema
+
+Bukit mengira model `page.seo` bersatu dalam enjin. Tema hanya perlu merendernya.
+
+| Medan Templat | Perihalan |
+|---|---|
+| `page.seo.title` | Tajuk SEO |
+| `page.seo.description` | Perihalan SEO |
+| `page.seo.canonical` | URL kanonikal |
+| `page.seo.robots` | Arahan robots |
+| `page.seo.og.*` | Data Open Graph |
+| `page.seo.twitter.*` | Data Twitter Card |
+| `page.seo.alternates` | Data hreflang |
+| `page.seo.json_ld` | Data berstruktur JSON-LD |
+
+### Konfigurasi site.seo
+
+```yaml
+site:
+  url: https://example.com
+  baseUrl: /
+  seo:
+    enabled: true
+    renderMode: inject        # inject | off — kawal suntikan tag <head>
+    diagnostics: warn         # warn | strict | off — semakan kualiti SEO masa binaan
+    defaultImage: /assets/og-default.png
+    twitterSite: "@your_account"
+    robotsTxt:
+      enabled: true           # jana robots.txt (default: true)
+    schema:
+      webPage: true           # JSON-LD WebPage untuk setiap halaman
+      collectionPage: true    # JSON-LD CollectionPage untuk laluan senarai
+      searchAction: true      # SearchAction untuk kotak carian pautan situs
+    organization:
+      name: Example Inc
+      url: https://example.com/about
+      logo: https://example.com/logo.png
+```
+
+`site.seo.enabled` lalai `true`.
+
+#### Mod Render (`renderMode`)
+
+| Nilai | Tingkah Laku |
+|-------|----------|
+| `inject` (lalai) | Enjin menyuntik tag SEO ke dalam `<head>` HTML |
+| `off` | Enjin membina model `page.seo` tetapi **tidak** menyuntik tag |
+
+#### Diagnostik (`diagnostics`)
+
+| Nilai | Tingkah Laku |
+|-------|----------|
+| `warn` (lalai) | Isu SEO dilog sebagai amaran; binaan diteruskan |
+| `strict` | Isu SEO menyebabkan binaan gagal |
+| `off` | Tiada diagnostik SEO |
+
+#### Suis Schema (`schema`)
+
+| Medan | Lalai | Perihalan |
+|-------|---------|-------------|
+| `schema.webPage` | `true` | JSON-LD `WebPage` untuk setiap halaman kandungan |
+| `schema.collectionPage` | `true` | JSON-LD `CollectionPage` untuk halaman senarai |
+| `schema.searchAction` | `true` | JSON-LD `SearchAction` untuk kotak carian |
+
 ## Pengoptimuman Enjin Generatif (GEO)
 
 GEO mengoptimumkan laman anda untuk enjin carian berkuasa AI seperti ChatGPT Search, Perplexity, Google AI Overviews, dan Bing Copilot. Ia melangkaui SEO tradisional untuk membantu enjin AI merangkak, memahami, dan memetik kandungan anda dengan tepat.
@@ -224,6 +288,25 @@ Kod diagnostik (`geo.*`) muncul dalam log binaan dan `seo-report.json`:
 - `geo.speakable_path_invalid`
 - `geo.schema_type_missing`
 - `geo.llms_txt_missing`
+
+### Laporan Audit SEO (`seo-report.json`)
+
+Selepas setiap binaan, Bukit menulis `seo-report.json` ke direktori output. Laporan JSON berstruktur ini mengandungi:
+
+- **Inventori laluan** — setiap laluan dengan tajuk, perihalan, URL kanonikal, status robots, penyertaan sitemap/search/RSS, jenis schema, dan alternatif hreflang
+- **Senarai isu** — setiap isu mempunyai keterukan (`error`/`warning`), kod ralat, laluan terjejas, dan perihalan
+- **Ringkasan** — jumlah laluan, kiraan boleh indeks, kiraan ralat/amaran, skor GEO dan pecahan
+
+Gunakan `bukit seo audit` untuk mengesahkan laporan:
+
+```bash
+bukit seo audit --dir dist --config site.yaml           # semak laporan semasa
+bukit seo audit --dir dist --strict                     # amaran juga gagal
+bukit seo audit --dir dist --external                   # juga semak pautan luaran
+bukit seo diff --dir dist --config site.yaml            # banding dengan laporan sebelumnya
+bukit seo diff --max-new-errors 3                       # hadkan ralat baru
+bukit seo diff --fail-on-indexable-drop                 # gagal jika halaman hilang dari indeks
+```
 
 ## Perangkap Lazim & Senarai Semak Pembaikan
 

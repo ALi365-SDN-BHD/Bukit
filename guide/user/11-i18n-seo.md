@@ -162,8 +162,16 @@ site:
   baseUrl: /
   seo:
     enabled: true
+    renderMode: inject        # inject | off — controls HTML <head> tag injection
+    diagnostics: warn         # warn | strict | off — build-time SEO quality checks
     defaultImage: /assets/og-default.png
     twitterSite: "@your_account"
+    robotsTxt:
+      enabled: true           # generate robots.txt (default: true)
+    schema:
+      webPage: true           # WebPage JSON-LD for every page
+      collectionPage: true    # CollectionPage JSON-LD for list routes
+      searchAction: true      # SearchAction for sitelinks searchbox
     organization:
       name: Example Inc
       url: https://example.com/about
@@ -171,6 +179,33 @@ site:
 ```
 
 `site.seo.enabled` defaults to `true`. When set to `false`, the engine does not build `page.seo`, and the new SEO partial emits nothing.
+
+#### Render Mode (`renderMode`)
+
+| Value | Behavior |
+|-------|----------|
+| `inject` (default) | Engine injects SEO tags (canonical, description, OG, Twitter, JSON-LD) into HTML `<head>`. Theme must include `partials/seo.html` and `partials/analytics.html`. |
+| `off` | Engine builds `page.seo` model but does **not** inject tags. Theme is responsible for all tag rendering. |
+
+#### Diagnostics (`diagnostics`)
+
+| Value | Behavior |
+|-------|----------|
+| `warn` (default) | SEO issues are logged as warnings; build continues |
+| `strict` | SEO issues cause build to fail (for CI enforcement) |
+| `off` | No SEO diagnostics are emitted |
+
+Diagnostics check: missing canonical, duplicate canonicals, double-slash canonicals, external-domain canonicals, missing hreflang `x-default`, missing HTML `<head>`, missing JSON-LD, and GEO validation errors.
+
+#### Schema Switches (`schema`)
+
+Each schema type can be independently toggled:
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `schema.webPage` | `true` | `WebPage` JSON-LD for every content page |
+| `schema.collectionPage` | `true` | `CollectionPage` JSON-LD for list/taxonomy/archive pages |
+| `schema.searchAction` | `true` | `SearchAction` JSON-LD with Sitelinks Searchbox |
 
 ### Themes Are Not Force-Injected
 
@@ -379,6 +414,25 @@ Diagnostic codes (`geo.*`) appear in both build logs and `seo-report.json`:
 - `geo.speakable_path_invalid`
 - `geo.schema_type_missing`
 - `geo.llms_txt_missing`
+
+### SEO Audit Report (`seo-report.json`)
+
+After every build, Bukit writes `seo-report.json` to the output directory. This structured JSON report contains:
+
+- **Route inventory** — every route with its title, description, canonical URL, robots status, sitemap/search/RSS inclusion, schema types, and hreflang alternates
+- **Issue list** — each issue has a severity (`error`/`warning`), error code, affected route, and description
+- **Summary** — total routes, indexable count, error/warning counts, GEO score and breakdown
+
+Use `bukit seo audit` to validate the report against your quality standards:
+
+```bash
+bukit seo audit --dir dist --config site.yaml           # check current report
+bukit seo audit --dir dist --strict                     # warnings also fail
+bukit seo audit --dir dist --external                   # also check external links
+bukit seo diff --dir dist --config site.yaml            # compare against previous report
+bukit seo diff --max-new-errors 3                       # cap allowed new errors
+bukit seo diff --fail-on-indexable-drop                 # fail if pages drop from index
+```
 
 ## Common Pitfalls & Fixes Checklist
 

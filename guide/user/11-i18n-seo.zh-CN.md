@@ -162,8 +162,16 @@ site:
   baseUrl: /
   seo:
     enabled: true
+    renderMode: inject        # inject | off — 控制 HTML <head> 标签注入
+    diagnostics: warn         # warn | strict | off — 构建期 SEO 质量检查
     defaultImage: /assets/og-default.png
     twitterSite: "@your_account"
+    robotsTxt:
+      enabled: true           # 生成 robots.txt（默认 true）
+    schema:
+      webPage: true           # 每页生成 WebPage JSON-LD
+      collectionPage: true    # 列表路由生成 CollectionPage JSON-LD
+      searchAction: true      # Sitelinks 搜索框 SearchAction
     organization:
       name: Example Inc
       url: https://example.com/about
@@ -171,6 +179,33 @@ site:
 ```
 
 `site.seo.enabled` 默认是 `true`。设为 `false` 时，引擎不会生成 `page.seo`，新版 SEO partial 也不会输出 SEO 标签。
+
+#### 渲染模式（renderMode）
+
+| 值 | 行为 |
+|-------|----------|
+| `inject`（默认） | 引擎将 SEO 标签（canonical、description、OG、Twitter、JSON-LD）注入 HTML `<head>`。主题需引用 `partials/seo.html` 和 `partials/analytics.html`。 |
+| `off` | 引擎仍构建 `page.seo` 模型，但**不**注入标签。主题需自行渲染所有标签。 |
+
+#### 诊断模式（diagnostics）
+
+| 值 | 行为 |
+|-------|----------|
+| `warn`（默认） | SEO 问题记录为警告，构建继续 |
+| `strict` | SEO 问题导致构建失败（用于 CI 强制检查） |
+| `off` | 不输出任何 SEO 诊断信息 |
+
+诊断检查包括：缺失 canonical、重复 canonical、双斜杠 canonical、指向外部域名的 canonical、缺失 hreflang `x-default`、缺失 HTML `<head>`、缺失 JSON-LD 以及 GEO 校验错误。
+
+#### Schema 开关（schema）
+
+每种结构化数据类型可独立启用：
+
+| 字段 | 默认值 | 说明 |
+|-------|---------|-------------|
+| `schema.webPage` | `true` | 每个内容页输出 `WebPage` JSON-LD |
+| `schema.collectionPage` | `true` | 列表/分类/归档页输出 `CollectionPage` JSON-LD |
+| `schema.searchAction` | `true` | Sitelinks 搜索框 `SearchAction` JSON-LD |
 
 ### 主题不会被强制注入
 
@@ -379,6 +414,25 @@ geo:
 - `geo.speakable_path_invalid`
 - `geo.schema_type_missing`
 - `geo.llms_txt_missing`
+
+### SEO 审计报告（`seo-report.json`）
+
+每次构建后，Bukit 会在输出目录写入 `seo-report.json`。该结构化 JSON 报告包含：
+
+- **路由清单** — 每条路由的标题、描述、canonical URL、robots 状态、sitemap/search/RSS 收录情况、schema 类型、hreflang 交替链接
+- **问题列表** — 每个问题包含严重级别（`error`/`warning`）、错误码、关联路由、描述
+- **摘要** — 总路由数、可索引数、错误/警告数、GEO 分数及明细
+
+使用 `bukit seo audit` 验证报告质量：
+
+```bash
+bukit seo audit --dir dist --config site.yaml           # 检查当前报告
+bukit seo audit --dir dist --strict                     # warning 也按失败处理
+bukit seo audit --dir dist --external                   # 同时检查外部链接
+bukit seo diff --dir dist --config site.yaml            # 与上一份报告比对
+bukit seo diff --max-new-errors 3                       # 限制新增错误数
+bukit seo diff --fail-on-indexable-drop                 # 可索引页下降则失败
+```
 
 ## 常见坑与修复清单
 

@@ -18,6 +18,7 @@ Nota:
 | `theme` | Cipta, senarai, tukar, jelajah, kongsi, dan pasang tema |
 | `template` | Cipta, senarai, lihat, sahkan, segerak, dan semak imbas fail templat |
 | `clone` | Klon reka bentuk visual mana-mana laman web ke dalam tema Bukit |
+| `seo` | Audit SEO dan diff (sahkan seo-report.json) |
 | `webhook` | Perubahan Notion mencetuskan GitHub Actions (pilihan) |
 | `intent` | Berkaitan AI Intent (pilihan) |
 | `version` | Output nombor versi |
@@ -240,6 +241,29 @@ Ia memerlukan pembolehubah persekitaran:
 - `BUKIT_GITHUB_TOKEN` (atau `GITHUB_TOKEN`)
 
 Butiran keselamatan dan penggunaan: [guide/dev/webhook](../dev/webhook.md).
+
+## seo: Sahkan Kualiti Laporan SEO
+
+```bash
+# Audit seo-report.json semasa
+bukit seo audit --dir dist --config site.yaml
+
+# Mod ketat (amaran juga gagal)
+bukit seo audit --dir dist --strict
+
+# Semak pautan luaran sekali
+bukit seo audit --dir dist --external
+
+# Banding dua laporan (semakan regresi)
+bukit seo diff --dir dist --config site.yaml
+
+# Diff dengan kawalan bajet
+bukit seo diff --max-new-errors 3 --max-new-warnings 5
+bukit seo diff --fail-on-route-removed
+bukit seo diff --fail-on-indexable-drop
+```
+
+`seo audit` mengesahkan `seo-report.json` (dijana oleh `build`) — semak struktur schema, kira ralat/amaran, pilihan sahkan pautan luaran. `seo diff` banding dengan laporan sebelumnya untuk mengesan regresi.
 
 ## version: Semak Versi
 
