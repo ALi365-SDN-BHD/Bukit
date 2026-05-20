@@ -18,7 +18,7 @@ This is not negotiable.
 
 ## Overview
 
-Bukit is a .NET static site generator that covers the complete workflow through 12 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
+Bukit is a .NET static site generator that covers the complete workflow through 14 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
 
@@ -48,6 +48,44 @@ When the agent sees any of these phrases in any language, it must load this skil
 | 12 | bukit-seo | Traditional Search Engine Optimization (SEO) | When configuring site.seo, running seo audit/diff, or troubleshooting seo.* diagnostics |
 | 13 | bukit-preview | Local preview server | When starting a local preview, debugging port conflicts, or testing before deployment |
 | 14 | bukit-webhook | Webhook server for automated builds | When setting up Notion-to-GitHub webhook triggers, debugging payload verification or rate limiting |
+
+## Skill ↔ User Guide Cross-Reference
+
+Bukit's user guide (`guide/user/`) is the human-facing companion to these skills. When the user follows a specific guide chapter, your skill-loaded responses should **align with the examples, config snippets, and step ordering in that chapter** to avoid confusing the user with contradictory guidance.
+
+| Skill | Primary Guide Chapter(s) | What the User Sees |
+|-------|--------------------------|-------------------|
+| bukit-cli-reference | [12 CLI Reference](guide/user/12-cli-reference.md), [16 Parameter Cheatsheet](guide/user/16-parameter-cheatsheet.md) | Command reference with all flags |
+| bukit-config | [04 Site YAML Config](guide/user/04-site-yaml-config.md) | Config walkthrough with copy-ready snippets |
+| bukit-theme | [08 Themes & Templates](guide/user/08-themes-templates.md) | Theme creation, wizard, packaging, installation |
+| bukit-templating | [08 Themes & Templates](guide/user/08-themes-templates.md) | Scriban templates and layout inheritance |
+| bukit-notion | [06 Notion Content](guide/user/06-notion-content.md) | Notion API setup, property mapping, block rendering |
+| bukit-routing | [02 Core Concepts](guide/user/02-core-concepts.md), [03 Project Structure](guide/user/03-project-structure.md) | URL structure and permalink concepts |
+| bukit-i18n | [11 I18n & SEO](guide/user/11-i18n-seo.md) | Multilingual setup, language tagging, sitemap merging |
+| bukit-seo | [11 I18n & SEO](guide/user/11-i18n-seo.md) | SEO config, renderMode, diagnostics, audit/diff commands |
+| bukit-geo | [17 GEO](guide/user/17-geo.md), [11 I18n & SEO](guide/user/11-i18n-seo.md) | llms.txt, AI crawlers, FAQ/HowTo structured data, GEO audit |
+| bukit-plugins-debug | [10 Built-in Features](guide/user/10-built-in-features.md), [14 Troubleshooting](guide/user/14-troubleshooting.md) | Plugin behavior, incremental build, build debugging |
+| bukit-deploy | [13 Deploy GitHub Pages](guide/user/13-deploy-github-pages.md) | Build + push to gh-pages, CNAME, CI/CD |
+| bukit-clone | [18 Clone Website](guide/user/18-clone-website.md) | Browser extraction → CLI generation → verification |
+| bukit-preview | [12 CLI Reference](guide/user/12-cli-reference.md), [14 Troubleshooting](guide/user/14-troubleshooting.md) | Local preview server, port configuration |
+| bukit-webhook | [14 Troubleshooting](guide/user/14-troubleshooting.md) | Webhook server, HMAC verification, rate limiting |
+
+**Usage rule**: When the user mentions following a specific guide chapter (e.g., "我跟着第04章配置"), load the matching skill AND anchor your advice around the examples and config patterns shown in that chapter. Quote chapter snippets when they help the user match what they see on screen.
+
+Cross-reference chapters for common workflows:
+
+| User Goal | Primary Guide | Core Skills |
+|-----------|--------------|-------------|
+| New site from scratch | [01 Quick Start](guide/user/01-quick-start.md) | bukit-cli-reference, bukit-config |
+| Markdown blog | [05 Markdown Content](guide/user/05-markdown-content.md) | bukit-config, bukit-routing |
+| Notion CMS | [06 Notion Content](guide/user/06-notion-content.md) | bukit-notion, bukit-config |
+| Company landing page | [09 Modules Data](guide/user/09-modules-data.md) | bukit-config, bukit-templating |
+| Multilingual site | [11 I18n & SEO](guide/user/11-i18n-seo.md) | bukit-i18n, bukit-config |
+| Deploy to GitHub Pages | [13 Deploy GitHub Pages](guide/user/13-deploy-github-pages.md) | bukit-deploy |
+| Troubleshoot issues | [14 Troubleshooting](guide/user/14-troubleshooting.md) | bukit-plugins-debug |
+| Follow a recipe | [15 Recipes](guide/user/15-recipes.md) | varies by recipe |
+| Optimize for AI search | [17 GEO](guide/user/17-geo.md) | bukit-geo |
+| Clone a website design | [18 Clone Website](guide/user/18-clone-website.md) | bukit-clone |
 
 ## Typical Workflow Routing
 

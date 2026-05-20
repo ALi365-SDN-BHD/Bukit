@@ -38,6 +38,24 @@ If you need internals, extension points, or contribution details, read the devel
 2. Intent contract (AI ↔ Bukit): [guide/dev/intent-cli](../dev/intent-cli.md)
 3. Required commands (`validate/doctor/build`): [12 CLI Reference](./12-cli-reference.md)
 
+### Optimize for AI search engines (GEO)
+
+1. [11 I18n & SEO](./11-i18n-seo.md) (traditional SEO basics)
+2. [17 GEO](./17-geo.md) (llms.txt, AI crawlers, FAQ/HowTo structured data)
+3. [12 CLI Reference](./12-cli-reference.md) (for `bukit geo audit`)
+
+### Clone a website's design
+
+1. [18 Clone Website](./18-clone-website.md) (browser extraction → theme generation)
+2. [08 Themes & Templates](./08-themes-templates.md) (theme customization)
+3. [12 CLI Reference](./12-cli-reference.md) (for `bukit clone`)
+
+### Multilingual site
+
+1. [11 I18n & SEO](./11-i18n-seo.md) (i18n setup, language tagging, sitemap merging)
+2. [04 Site YAML Config](./04-site-yaml-config.md) (`site.languages` config)
+3. [12 CLI Reference](./12-cli-reference.md)
+
 ## If You Use Bukit Through AI / Agents
 
 If you use Bukit in a skill-aware environment such as Trae, Claude Code, Copilot CLI, Codex CLI, or Gemini CLI, treat `src/skills/` as the agent-facing navigation entry and this directory as the user-facing operating guide.
