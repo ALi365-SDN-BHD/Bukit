@@ -37,6 +37,24 @@
 2. Intent 契约（AI ↔ Bukit）：[guide/dev/intent-cli](../dev/intent-cli.zh-CN.md)
 3. 必用命令（validate/doctor/build）：[12-命令行参考](./12-cli-reference.zh-CN.md)
 
+### AI 搜索引擎优化（GEO）
+
+1. [11-I18n与SEO](./11-i18n-seo.zh-CN.md)（传统 SEO 基础）
+2. [17-GEO](./17-geo.zh-CN.md)（llms.txt、AI 爬虫、FAQ/HowTo 结构化数据）
+3. [12-命令行参考](./12-cli-reference.zh-CN.md)（`bukit geo audit`）
+
+### 克隆网站设计
+
+1. [18-网站克隆](./18-clone-website.zh-CN.md)（浏览器提取 → 主题生成）
+2. [08-主题与模板](./08-themes-templates.zh-CN.md)（主题自定义）
+3. [12-命令行参考](./12-cli-reference.zh-CN.md)（`bukit clone`）
+
+### 多语言站点
+
+1. [11-I18n与SEO](./11-i18n-seo.zh-CN.md)（i18n 设置、语言标记、sitemap 合并）
+2. [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)（`site.languages` 配置）
+3. [12-命令行参考](./12-cli-reference.zh-CN.md)
+
 ## 如果你通过 AI / Agent 使用 Bukit
 
 如果你是在 Trae、Claude Code、Copilot CLI、Codex CLI、Gemini CLI 这类支持 skill 的环境里使用 Bukit，建议把 `src/skills/` 当作 Agent 侧导航入口，而把本目录当作用户操作说明。

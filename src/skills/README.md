@@ -23,6 +23,8 @@ src/skills/
   bukit-plugins-debug/    # Plugins, incremental build, diagnostics
   bukit-deploy/           # GitHub Pages deployment
   bukit-clone/            # Website design cloning → Bukit theme
+  bukit-seo/              # Traditional search engine optimization (SEO)
+  bukit-geo/              # Generative engine optimization (GEO)
 ```
 
 ## Skill Responsibilities
@@ -40,6 +42,8 @@ src/skills/
 | `bukit-plugins-debug` | Plugin lifecycle, incremental build behavior, performance diagnostics, troubleshooting | Plugins do not run, build output looks wrong, or build performance regresses |
 | `bukit-deploy` | GitHub Pages deployment via `bukit deploy` command, site.yaml deploy config, environment variables, CI/CD integration | Deploying site, pushing to gh-pages, configuring CNAME, troubleshooting deploy failures |
 | `bukit-clone` | Browser MCP extraction → `bukit clone` CLI → verification pipeline for cloning any website's visual design into a Bukit theme | Cloning a website's appearance, replicating a design, creating a theme from an existing live site |
+| `bukit-seo` | Traditional SEO configuration (site.seo node), inject/theme render modes, front matter SEO fields, 6 Schema.org JSON-LD types, build-time diagnostics (11 codes), post-build audit (~40 codes), CLI seo audit/diff | Configuring SEO, running seo audit/diff, interpreting seo.* diagnostic codes, setting up OG/Twitter/JSON-LD/sitemap |
+| `bukit-geo` | Generative engine optimization for AI search engines: llms.txt/llms-full.txt generation, AI crawler robots.txt rules, FAQ/HowTo structured data, geo audit with GEO Score (7 diagnostic codes) | Optimizing for AI search (ChatGPT Search/Perplexity/Google AI Overviews), generating llms.txt, adding FAQ/HowTo schema, running geo audit |
 
 ## Loading Rules
 
@@ -47,8 +51,9 @@ These skills are designed to be combined with clear boundaries:
 
 1. Start from `using-bukit` when the task is confirmed to be a Bukit task
 2. Use `bukit-cli-reference` for every command-related step instead of duplicating command guidance elsewhere
-3. Treat `bukit-config` as background knowledge for `bukit-theme`, `bukit-notion`, `bukit-routing`, `bukit-i18n`, and `bukit-plugins-debug`
+3. Treat `bukit-config` as background knowledge for `bukit-theme`, `bukit-notion`, `bukit-routing`, `bukit-i18n`, `bukit-plugins-debug`, `bukit-seo`, and `bukit-geo`
 4. Read `bukit-theme` before `bukit-templating` when template work depends on theme structure
+5. Load `bukit-seo` for traditional SEO tasks and `bukit-geo` for AI search optimization tasks — they share `site.seo` config but target different audiences
 
 One common flow looks like this:
 
@@ -98,7 +103,21 @@ using-bukit
 3. `bukit-config`
 4. `bukit-cli-reference`
 
-### Clone a website design into a Bukit theme
+### Configure SEO and run audits
+
+1. `using-bukit`
+2. `bukit-seo`
+3. `bukit-config` (for `site.seo` node)
+4. `bukit-cli-reference` (for `bukit seo audit` / `bukit seo diff`)
+
+### Set up GEO for AI search engines
+
+1. `using-bukit`
+2. `bukit-geo`
+3. `bukit-config` (for `site.seo.geo` node)
+4. `bukit-cli-reference` (for `bukit geo audit`)
+
+### Clone a website's design
 
 1. `using-bukit`
 2. `bukit-clone`

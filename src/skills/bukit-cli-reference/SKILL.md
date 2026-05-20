@@ -81,7 +81,8 @@ After downloading, place the binary in a PATH directory or the project root.
 | `intent validate` | Validate intent file | `<intent.yaml>` `--root-dir` `--out` |
 | `intent apply` | Apply intent to generate site.yaml | `<intent.yaml>` `--out` |
 | `deploy` | Build and deploy to GitHub Pages | `--config` `--site` `--output` `--base-url` `--site-url` `--branch` `--message` `--ci` `--dry-run` `--skip-build` |
-| `webhook` | Start Notion→GitHub webhook service | `--repo` `--host` `--port` `--path` `--event` |
+| `webhook` | Webhook server (Notion trigger → build + push) | `--host` `--port` `--path` `--token` `--repo` `--event` |
+| `geo audit` | GEO audit on dist output | `--dir` `--config` |
 | `seo` | SEO audit and regression detection | `audit` `--dir` `--strict` `--external`; `diff` `--baseline` `--current` `--max-new-*` `--fail-on-*` |
 | `geo` | GEO audit for AI search engines | `audit` `--dir` |
 | `version` | Output version number | No parameters |

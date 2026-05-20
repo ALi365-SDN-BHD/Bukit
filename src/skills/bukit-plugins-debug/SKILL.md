@@ -7,7 +7,7 @@ description: Use when using bukit and plugins do not take effect or behave unexp
 
 ## Overview
 
-Bukit has 7 core built-in plugins plus support for external assembly and protocol plugins. Plugin lifecycle: `derivePages` (derive pages) → parallel rendering → `afterBuild` (post-processing). Build debugging requires understanding plugin ordering, incremental skip logic, and configuration conflicts.
+Bukit has 9 core built-in plugins plus support for external assembly and protocol plugins. Plugin lifecycle: `derivePages` (derive pages) → parallel rendering → `afterBuild` (post-processing). Build debugging requires understanding plugin ordering, incremental skip logic, and configuration conflicts.
 
 **REQUIRED BACKGROUND:** Plugin config depends on `site.plugins`, `site.externalPlugins`, `site.externalAssemblyAllowlist` in site.yaml — you must understand the plugin config section in bukit-config first.
 **REQUIRED SUB-SKILL:** List registered plugins with `bukit plugin list`, diagnose performance with `bukit build --metrics`. CLI commands reference bukit-cli-reference.
@@ -24,6 +24,7 @@ Bukit has 7 core built-in plugins plus support for external assembly and protoco
 
 | Plugin | Hook | Function |
 |------|------|------|
+| **CollectionRouteIndex** | (internal) | In-memory index of routed content grouped by collection, used by Pagination, Archive, LlmsTxt, and Taxonomy plugins |
 | **TaxonomyPlugin** | derive-pages | Taxonomy page generation (tags/categories/custom taxonomy index and term pages) |
 | **PaginationPlugin** | derive-pages | List/taxonomy pagination (split large lists into multiple pages) |
 | **PagesIndexPlugin** | derive-pages | Page index data generation |
@@ -31,12 +32,13 @@ Bukit has 7 core built-in plugins plus support for external assembly and protoco
 | **SitemapPlugin** | after-build | sitemap.xml generation |
 | **RssPlugin** | after-build | RSS Feed generation |
 | **SearchIndexPlugin** | after-build | Search index JSON generation |
+| **LlmsTxtPlugin** | after-build | llms.txt + llms-full.txt generation + AI crawler robots.txt rules |
 
 ## Plugin Registration Sources
 
 | Source | Description | Config |
 |------|------|------|
-| **BuiltIn** | 7 framework built-in plugins, always loaded | None, toggle via `site.plugins` |
+| **BuiltIn** | 9 framework built-in plugins, always loaded | None, toggle via `site.plugins` |
 | **Generated** | AOT pre-generated plugins | None |
 | **ExternalAssembly** | `.dll` assemblies in `plugins/` directory | `site.externalAssemblyTrustMode` + `site.externalAssemblyAllowlist` |
 | **ExternalProtocol** | WASM or standalone process plugins | `site.externalPlugins` config |
@@ -69,6 +71,7 @@ site:
 
 ```
 1. derivePages phase (in registration order):
+   - CollectionRouteIndex (builds route index, called lazily by other plugins)
    - PagesIndexPlugin
    - TaxonomyPlugin (generate taxonomy pages)
    - PaginationPlugin (pagination)
@@ -82,6 +85,7 @@ site:
    - SitemapPlugin
    - RssPlugin
    - SearchIndexPlugin
+   - LlmsTxtPlugin (llms.txt + llms-full.txt + AI crawler rules)
    - Custom afterBuild plugins
 ```
 
