@@ -108,6 +108,7 @@ public sealed record CollectionConfig
     public string? ListTemplate { get; init; }
     public CollectionPaginationConfig Pagination { get; init; } = new();
     public CollectionOutputConfig Output { get; init; } = new();
+    public IReadOnlyList<FilteredListConfig>? FilteredLists { get; init; }
 }
 
 public sealed record CollectionPaginationConfig
@@ -121,6 +122,14 @@ public sealed record CollectionOutputConfig
     public bool Rss { get; init; } = true;
     public bool Sitemap { get; init; } = true;
     public bool Archive { get; init; }
+}
+
+public sealed record FilteredListConfig
+{
+    public required string Field { get; init; }
+    public required string Value { get; init; }
+    public required string ListRoute { get; init; }
+    public string? ListTemplate { get; init; }
 }
 
 public sealed record ExternalPluginConfig

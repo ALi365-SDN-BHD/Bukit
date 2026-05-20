@@ -170,10 +170,8 @@ public sealed class SiteEngine
 
         Directory.CreateDirectory(outputDir);
 
-        if (Directory.Exists(ctx.StaticDir))
-        {
-            DirectoryCopy.Sync(ctx.StaticDir, outputDir);
-        }
+        var hasStaticDir = Directory.Exists(ctx.StaticDir);
+        var staticTemplate = config.Theme.StaticTemplate;
 
         var splitItemsStopwatch = Stopwatch.StartNew();
         var dataItems = items.Where(MetaHelpers.IsDataItem).ToList();
@@ -347,6 +345,21 @@ public sealed class SiteEngine
         if (incrementalEnabled && manifestEntries is not null)
         {
             manifest.Entries = manifestEntries.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+        }
+
+        if (hasStaticDir)
+        {
+            var staticStopwatch = Stopwatch.StartNew();
+            if (!string.IsNullOrWhiteSpace(staticTemplate))
+            {
+                RenderStaticFiles(ctx.StaticDir, outputDir, renderer, siteModel, staticTemplate, baseUrl, currentKeys, cancellationToken);
+            }
+            else
+            {
+                DirectoryCopy.Sync(ctx.StaticDir, outputDir);
+            }
+            staticStopwatch.Stop();
+            variantStageMetrics.AddDuration("staticSync", staticStopwatch.ElapsedMilliseconds);
         }
 
         if (Directory.Exists(ctx.AssetsDir))
@@ -826,6 +839,73 @@ public sealed class SiteEngine
         return result ?? existing;
     }
 
+    private void RenderStaticFiles(string staticDir, string outputDir, ITemplateRenderer renderer, SiteModel siteModel, string templateName, string baseUrl, ConcurrentDictionary<string, byte> currentKeys, CancellationToken cancellationToken)
+    {
+        var htmlFiles = Directory.GetFiles(staticDir, "*.html", SearchOption.AllDirectories);
+        foreach (var file in htmlFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var relativeOutputPath = Path.GetRelativePath(staticDir, file);
+            var url = "/" + Path.GetDirectoryName(relativeOutputPath)?.Replace('\\', '/').TrimStart('.') + "/";
+            url = RoutePathBuilder.NormalizeUrl(url);
+
+            var fileName = Path.GetFileNameWithoutExtension(file);
+            var title = fileName.Equals("index", StringComparison.OrdinalIgnoreCase)
+                ? BuildListTitleFromUrl(url)
+                : char.ToUpperInvariant(fileName[0]) + fileName[1..].Replace('-', ' ');
+
+            var htmlContent = File.ReadAllText(file);
+
+            var pageInfo = new PageInfo
+            {
+                Title = title,
+                Url = url,
+                Content = htmlContent,
+                Summary = siteModel.Description
+            };
+
+            var pageModel = new PageModel
+            {
+                Site = siteModel,
+                Page = pageInfo
+            };
+
+            var rendered = renderer.RenderPage(templateName, pageModel);
+            var key = BuildPathUtils.NormalizeRelPath(relativeOutputPath);
+            currentKeys.TryAdd(key, 0);
+            FileWriter.WriteUtf8(outputDir, relativeOutputPath, rendered);
+        }
+
+        var nonHtmlFiles = Directory.GetFiles(staticDir, "*.*", SearchOption.AllDirectories)
+            .Where(f => !f.EndsWith(".html", StringComparison.OrdinalIgnoreCase));
+        foreach (var file in nonHtmlFiles)
+        {
+            var relativePath = Path.GetRelativePath(staticDir, file);
+            var dest = Path.Combine(outputDir, relativePath);
+            var destDir = Path.GetDirectoryName(dest);
+            if (destDir is not null)
+            {
+                Directory.CreateDirectory(destDir);
+            }
+            File.Copy(file, dest, overwrite: true);
+        }
+    }
+
+    private static string BuildListTitleFromUrl(string url)
+    {
+        var lastSegment = (url ?? string.Empty)
+            .Trim('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .LastOrDefault();
+
+        if (string.IsNullOrWhiteSpace(lastSegment))
+        {
+            return "Home";
+        }
+
+        return char.ToUpperInvariant(lastSegment[0]) + lastSegment[1..].Replace('-', ' ');
+    }
+
     internal static IReadOnlyList<RouteInfo> GetListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)
         => BuildListRoutesCore(collections, "none");
 
@@ -856,6 +936,16 @@ public sealed class SiteEngine
             var url = RoutePathBuilder.NormalizeListRoute(collection.ListRoute);
             var template = string.IsNullOrWhiteSpace(collection.ListTemplate) ? "pages/list.html" : collection.ListTemplate.Trim();
             routes.Add(new RouteInfo(url, RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding), template));
+
+            if (collection.FilteredLists is { Count: > 0 })
+            {
+                foreach (var filter in collection.FilteredLists)
+                {
+                    var filterUrl = RoutePathBuilder.NormalizeListRoute(filter.ListRoute);
+                    var filterTemplate = string.IsNullOrWhiteSpace(filter.ListTemplate) ? template : filter.ListTemplate.Trim();
+                    routes.Add(new RouteInfo(filterUrl, RoutePathBuilder.BuildOutputPathFromUrl(filterUrl, outputPathEncoding), filterTemplate));
+                }
+            }
         }
 
         return routes;

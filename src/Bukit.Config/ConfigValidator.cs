@@ -430,9 +430,48 @@ public static class ConfigValidator
                     throw new ConfigException($"site.collections.{name}.listRoute must start with '/'.");
                 }
             }
+
+            if (collection.FilteredLists is { Count: > 0 } filtered)
+            {
+                ValidateFilteredLists(name, filtered);
+            }
         }
     }
 
+    private static void ValidateFilteredLists(string collectionName, IReadOnlyList<FilteredListConfig> filteredLists)
+    {
+        var usedRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < filteredLists.Count; i++)
+        {
+            var filter = filteredLists[i];
+            var prefix = $"site.collections.{collectionName}.filteredLists[{i}]";
+
+            if (string.IsNullOrWhiteSpace(filter.Field))
+            {
+                throw new ConfigException($"{prefix}.field is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(filter.Value))
+            {
+                throw new ConfigException($"{prefix}.value is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(filter.ListRoute))
+            {
+                throw new ConfigException($"{prefix}.listRoute is required.");
+            }
+
+            if (!filter.ListRoute.StartsWith('/'))
+            {
+                throw new ConfigException($"{prefix}.listRoute must start with '/'.");
+            }
+
+            if (!usedRoutes.Add(filter.ListRoute.Trim().ToLowerInvariant()))
+            {
+                throw new ConfigException($"{prefix}.listRoute '{filter.ListRoute}' duplicates another filtered list route.");
+            }
+        }
+    }
     private static void ValidateSourcesToCollections(
         IReadOnlyList<ContentSourceConfig> sources,
         IReadOnlyDictionary<string, CollectionConfig> collections)

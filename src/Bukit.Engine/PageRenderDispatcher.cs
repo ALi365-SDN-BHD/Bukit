@@ -496,6 +496,25 @@ internal static class PageRenderDispatcher
                 route,
                 items,
                 TemplateCapabilitiesResolver.ShouldIncludeListPageContent(route.Template, layoutsDir, listPageContentMode)));
+
+            if (collection.FilteredLists is { Count: > 0 })
+            {
+                foreach (var filter in collection.FilteredLists)
+                {
+                    var filtered = items
+                        .Where(x => TryMatchFieldValue(x.Item.Fields, filter.Field, filter.Value))
+                        .ToList();
+
+                    var filterUrl = RoutePathBuilder.NormalizeListRoute(filter.ListRoute);
+                    var filterOutputPath = RoutePathBuilder.BuildOutputPathFromUrl(filterUrl, outputPathEncoding);
+                    var filterTemplate = string.IsNullOrWhiteSpace(filter.ListTemplate) ? template : filter.ListTemplate.Trim();
+                    var filterRoute = new RouteInfo(filterUrl, filterOutputPath, filterTemplate);
+                    list.Add(new SpecialListDefinition(
+                        filterRoute,
+                        filtered,
+                        TemplateCapabilitiesResolver.ShouldIncludeListPageContent(filterRoute.Template, layoutsDir, listPageContentMode)));
+                }
+            }
         }
 
         return list;
@@ -509,6 +528,16 @@ internal static class PageRenderDispatcher
                 items,
                 TemplateCapabilitiesResolver.ShouldIncludeListPageContent(route.Template, layoutsDir, listPageContentMode)));
         }
+    }
+
+    private static bool TryMatchFieldValue(IReadOnlyDictionary<string, ContentField>? fields, string field, string expectedValue)
+    {
+        if (fields is null || !fields.TryGetValue(field, out var cf) || cf.Value is null)
+        {
+            return false;
+        }
+
+        return string.Equals(cf.Value.ToString(), expectedValue, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed record SpecialListDefinition(

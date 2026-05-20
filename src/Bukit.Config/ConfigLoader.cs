@@ -569,11 +569,40 @@ public static class ConfigLoader
                     Rss = outputNode is null ? true : GetOptionalBool(outputNode, "rss") ?? true,
                     Sitemap = outputNode is null ? true : GetOptionalBool(outputNode, "sitemap") ?? true,
                     Archive = outputNode is not null && (GetOptionalBool(outputNode, "archive") ?? false)
-                }
+                },
+                FilteredLists = ReadFilteredLists(collectionNode)
             };
         }
 
         return collections.Count == 0 ? null : collections;
+    }
+
+    private static IReadOnlyList<FilteredListConfig>? ReadFilteredLists(YamlMappingNode collectionNode)
+    {
+        var filteredListNode = GetOptionalSequence(collectionNode, "filteredLists");
+        if (filteredListNode is null || filteredListNode.Children.Count == 0)
+        {
+            return null;
+        }
+
+        var filteredLists = new List<FilteredListConfig>();
+        foreach (var child in filteredListNode.Children)
+        {
+            if (child is not YamlMappingNode filterNode)
+            {
+                throw new ConfigException("Each item in filteredLists must be a mapping.");
+            }
+
+            filteredLists.Add(new FilteredListConfig
+            {
+                Field = GetRequiredString(filterNode, "field"),
+                Value = GetRequiredString(filterNode, "value"),
+                ListRoute = GetRequiredString(filterNode, "listRoute"),
+                ListTemplate = GetOptionalString(filterNode, "listTemplate")
+            });
+        }
+
+        return filteredLists.Count == 0 ? null : filteredLists;
     }
 
     private static IReadOnlyDictionary<string, ExternalPluginConfig>? ReadExternalPlugins(YamlMappingNode siteNode)
