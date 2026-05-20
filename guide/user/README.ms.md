@@ -37,6 +37,24 @@ Jika anda perlukan butiran dalaman, titik pengembangan, atau mahu menyumbang kod
 2. Kontrak Intent (AI ↔ Bukit): [guide/dev/intent-cli](../dev/intent-cli.ms.md)
 3. Perintah wajib (`validate/doctor/build`): [12 Rujukan CLI](./12-cli-reference.ms.md)
 
+### Pengoptimuman untuk enjin carian AI (GEO)
+
+1. [11 I18n & SEO](./11-i18n-seo.ms.md) (asas SEO tradisional)
+2. [17 GEO](./17-geo.ms.md) (llms.txt, perangkak AI, data berstruktur FAQ/HowTo)
+3. [12 Rujukan CLI](./12-cli-reference.ms.md) (untuk `bukit geo audit`)
+
+### Klon reka bentuk laman web
+
+1. [18 Klon Laman Web](./18-clone-website.ms.md) (pengekstrakan pelayar → penjanaan tema)
+2. [08 Tema & Templat](./08-themes-templates.ms.md) (penyesuaian tema)
+3. [12 Rujukan CLI](./12-cli-reference.ms.md) (untuk `bukit clone`)
+
+### Laman berbilang bahasa
+
+1. [11 I18n & SEO](./11-i18n-seo.ms.md) (persediaan i18n, penandaan bahasa, gabung sitemap)
+2. [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md) (konfigurasi `site.languages`)
+3. [12 Rujukan CLI](./12-cli-reference.ms.md)
+
 ## Jika Anda Menggunakan Bukit Melalui AI / Agent
 
 Jika anda menggunakan Bukit dalam persekitaran yang menyokong skill seperti Trae, Claude Code, Copilot CLI, Codex CLI, atau Gemini CLI, anggap `src/skills/` sebagai pintu masuk navigasi untuk agent dan direktori ini sebagai panduan operasi untuk pengguna.

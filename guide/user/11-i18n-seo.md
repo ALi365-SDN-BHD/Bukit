@@ -14,6 +14,7 @@ See runnable examples:
 - How to enable multilingual (minimal config)
 - How to tag content with language (Markdown/Notion)
 - How to choose sitemap/rss/search split/merged/index modes
+- How to configure traditional SEO and generative engine optimization (GEO)
 - How to fix the most common SEO/path issues under GitHub Pages
 
 ## Step 1: Enable Multilingual
@@ -284,6 +285,8 @@ HTML details for SEO are typically controlled by the theme. Suggestions:
 - Confirm multilingual pages output `alternate hreflang`
 
 ## Generative Engine Optimization (GEO)
+
+> 💡 **For a step-by-step setup guide, see the dedicated chapter: [17 GEO](./17-geo.md).** This section covers the technical reference for GEO configuration and audit.
 
 GEO optimises your site for AI-powered search engines like ChatGPT Search, Perplexity, Google AI Overviews, and Bing Copilot. It goes beyond traditional SEO to help AI engines accurately crawl, understand, and cite your content.
 
