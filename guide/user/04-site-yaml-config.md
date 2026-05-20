@@ -94,6 +94,7 @@ site:
       permalink: /blog/{slug}/
       template: pages/post.html
       listRoute: /blog/
+      listTemplate: pages/blog-list.html   # Optional: template for list page
     page:
       permalink: /pages/{slug}/
       template: pages/page.html
@@ -279,6 +280,23 @@ theme:
 
 Theme and template variables: [08 Themes & Templates](./08-themes-templates.md).
 
+#### Static Template Rendering (staticTemplate)
+
+By default, files in `static/` (configured via `theme.static`) are copied as-is to the output directory without going through Scriban rendering. To render static HTML files through templates (so they can use `{{ site }}`, `{{ page }}`, and theme partials), set `theme.staticTemplate`:
+
+```yaml
+theme:
+  name: starter
+  staticTemplate: pages/page.html    # Use this template to render static/ HTML files
+```
+
+When `staticTemplate` is set:
+- Every `.html` file in `static/` is read as `page.content` and rendered through the specified template
+- Non-HTML files (CSS, JS, images) are still copied directly
+- This allows `about.html`, `contact.html`, etc. to share the site's header/footer/CTA without duplication
+
+Without `staticTemplate` (default), `static/` files are copied raw — useful for standalone pages that don't need templating.
+
 ### logging: Log Level (usually no need to change frequently)
 
 ```yaml
@@ -331,6 +349,39 @@ content:
 ```
 
 See example: `examples/starter/site.modules.yaml` and `examples/starter/data/*.md`.
+
+### 4) Filtered List Pages (filteredLists)
+
+When you need multiple list pages from the same collection, filtered by a field value (e.g., companies grouped by region), use `filteredLists`:
+
+```yaml
+site:
+  collections:
+    page:
+      permalink: /companies/{slug}/
+      template: pages/company_detail.html
+      listRoute: /companies/
+      listTemplate: pages/company_list.html
+      filteredLists:
+        - field: Type
+          value: "已进驻中国企业"
+          listRoute: /china-companies/
+          listTemplate: pages/company_list.html
+        - field: Type
+          value: "马来西亚本地企业"
+          listRoute: /malaysia-companies/
+          listTemplate: pages/company_list.html
+```
+
+Each filtered list entry requires:
+| Field | Type | Required | Description |
+|------|------|------|------|
+| `field` | string | **Yes** | Front matter field name to filter by |
+| `value` | string | **Yes** | The field value that items must match |
+| `listRoute` | string | **Yes** | The URL path for this filtered list |
+| `listTemplate` | string | — | Template for rendering; defaults to the collection's `listTemplate` |
+
+Items whose front matter `field` value matches `value` are grouped into a separate list page at the specified `listRoute`. If no `listTemplate` is provided, the collection's `listTemplate` is used as fallback.
 
 ## Common Pitfalls (Quick Self-Check)
 

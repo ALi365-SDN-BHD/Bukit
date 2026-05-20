@@ -259,6 +259,7 @@ content:
 | `layouts` | string | `layouts` | Template subdirectory name |
 | `assets` | string | `assets` | Asset subdirectory name (SCSS, etc. that need processing) |
 | `static` | string | `static` | Static file subdirectory name (copied directly) |
+| `staticTemplate` | string | — | When set, renders `static/` `.html` files through Scriban (injecting `page.content`); otherwise copies raw |
 | `params` | map | — | Theme parameters, accessed as `{{ site.params.xxx }}` in templates |
 
 ### taxonomy Node
@@ -307,11 +308,13 @@ Collection routing is Bukit's core routing model. Each entry must declare:
 | `permalink` | string | **Yes** | URL pattern, **must include `{slug}`**. Supports `{slug}`/`{year}`/`{month}`/`{day}`/`{type}` |
 | `template` | string | **Yes** | Template file path (e.g., `pages/post.html`) |
 | `listRoute` | string | — | List page route, must start with `/` |
+| `listTemplate` | string | — | Template for list page rendering (e.g., `pages/blog-list.html`); defaults to `pages/list.html` |
 | `pagination.enabled` | bool | — | Enable pagination |
 | `pagination.pageSize` | int | 10 | Entries per page (positive integer) |
 | `output.rss` | bool | true | Whether the collection generates RSS |
 | `output.sitemap` | bool | true | Whether the collection is included in sitemap |
 | `output.archive` | bool | false | Whether to generate yearly archives |
+| `filteredLists` | array | — | Sub-list pages filtered by field value. Each entry: `{field, value, listRoute, listTemplate?}`. Items whose front matter `field` value matches `value` are grouped into a separate list page. |
 
 ## CLI Parameter Overrides
 

@@ -82,6 +82,8 @@
 - [14-故障排查](./14-troubleshooting.zh-CN.md)
 - [15-场景化示例（Recipes）](./15-recipes.zh-CN.md)
 - [16-参数速查表](./16-parameter-cheatsheet.zh-CN.md)
+- [17-GEO](./17-geo.zh-CN.md)
+- [18-网站克隆](./18-clone-website.zh-CN.md)
 
 ## 仓库内“可运行示例”在哪里
 

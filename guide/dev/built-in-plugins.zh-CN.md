@@ -239,3 +239,40 @@ site:
 | `wechatMaterialUpload.wechat.appSecretEnv` | string | - | 存放 AppSecret 的环境变量名 |
 
 注意：上传的文件路径受安全约束，不能逃逸出输出目录。
+
+## llms-txt（IAfterBuildPlugin）
+
+文件：`LlmsTxtPlugin.cs`
+
+生成面向 AI 友好的站点产物，用于生成式引擎优化（GEO）：
+
+- **llms.txt**：遵循 [llmstxt.org](https://llmstxt.org) 标准的 Markdown 索引文件，包含 Documentation、Articles 和 Optional 节。由 `site.seo.geo.llmsTxt` 控制（默认：true）。文章数量限制为 `site.seo.geo.llmsTxtMaxArticles`（默认：20）。
+- **llms-full.txt**：所有可索引页面的全文导出（去除 HTML）。由 `site.seo.geo.llmsFullTxt` 控制（默认：false）。
+- **AI 爬虫 robots.txt 规则**：为已知 AI 爬虫 user-agent（GPTBot、ChatGPT-User、Google-Extended、Claude-Web、ClaudeBot、Anthropic-AI、PerplexityBot、Cohere-AI、CCBot、Diffbot、FacebookBot、OAI-SearchBot）添加 `Allow`/`Disallow` 指令。由 `site.seo.geo.aiBotMode`（`allow`/`block`/`selective`）控制。
+
+配置示例：
+
+```yaml
+site:
+  seo:
+    geo:
+      enabled: true
+      llmsTxt: true
+      llmsFullTxt: false
+      llmsTxtMaxArticles: 20
+      aiBotMode: allow
+      aiBotAllowList: [GPTBot, PerplexityBot]
+      aiBotBlockList: [CCBot]
+```
+
+相关文档：[GEO 架构](./geo.md)
+
+## 派生页路由校验
+
+所有 derive-pages 插件（Pagination、Archive、Taxonomy）共享同一路由校验管线：
+
+1. **逐插件冲突检查** — `PluginRunner.ApplyDeriveConflictPolicy` 对每个派生页进行规范化 URL 和 outputPath 比较，检查是否与内容路由和已接受的派生路由冲突。
+2. **最终清单校验** — `RouteInventoryValidator.ValidateFinalRoutes` 在渲染开始前检查完整路由集（内容 + 派生 + 列表路由）。
+3. **Doctor 集成** — `bukit doctor` 通过 `RouteInventoryValidator.BuildContentRoutesAsync` + `ValidateContentRoutes` 运行内容路由校验，无需完整构建即可检测冲突。
+
+所有派生页均遵循 `site.outputPathEncoding`（通过 `RoutePathBuilder.BuildOutputPathFromUrl` 应用）。
