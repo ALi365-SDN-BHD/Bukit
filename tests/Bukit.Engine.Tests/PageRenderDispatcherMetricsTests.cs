@@ -46,7 +46,7 @@ public sealed class PageRenderDispatcherMetricsTests
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             manifestEntries: null,
-            currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             maxDegreeOfParallelism: 1,
             logger: new ConsoleLogger(LogLevel.Error),
             cancellationToken: CancellationToken.None);

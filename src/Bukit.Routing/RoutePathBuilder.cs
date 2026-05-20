@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 
 namespace Bukit.Routing;
@@ -160,6 +161,8 @@ public static class RoutePathBuilder
             : $"{leadDot}{slug}.{extension}";
     }
 
+    private static readonly ConcurrentDictionary<string, string> SlugCache = new(StringComparer.Ordinal);
+
     internal static string Slugify(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -167,6 +170,11 @@ public static class RoutePathBuilder
             return string.Empty;
         }
 
+        return SlugCache.GetOrAdd(text, static t => SlugifyCore(t));
+    }
+
+    private static string SlugifyCore(string text)
+    {
         var sb = new StringBuilder();
         var lastDash = false;
         foreach (var ch in text.Trim())

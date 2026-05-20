@@ -76,6 +76,24 @@ public sealed class FileTemplateLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_OutsideRoot_ThrowsForPathTraversal()
+    {
+        var outsidePath = Path.GetFullPath(Path.Combine(_rootDir, "..", "outside.html"));
+        File.WriteAllText(outsidePath, "outside");
+
+        try
+        {
+            var loader = new FileTemplateLoader(_rootDir);
+            Assert.Throws<InvalidOperationException>(() =>
+                loader.Load(null!, default, outsidePath));
+        }
+        finally
+        {
+            File.Delete(outsidePath);
+        }
+    }
+
+    [Fact]
     public void Load_CachesResult_ReturnsSameForUnchangedFile()
     {
         var filePath = Path.Combine(_rootDir, "cached.html");
@@ -98,6 +116,24 @@ public sealed class FileTemplateLoaderTests : IDisposable
         var loader = new FileTemplateLoader(_rootDir);
         var result = await loader.LoadAsync(null!, default, filePath);
         Assert.Equal("<div>async</div>", result);
+    }
+
+    [Fact]
+    public async Task LoadAsync_OutsideRoot_ThrowsForPathTraversal()
+    {
+        var outsidePath = Path.GetFullPath(Path.Combine(_rootDir, "..", "outside-async.html"));
+        await File.WriteAllTextAsync(outsidePath, "outside");
+
+        try
+        {
+            var loader = new FileTemplateLoader(_rootDir);
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await loader.LoadAsync(null!, default, outsidePath));
+        }
+        finally
+        {
+            File.Delete(outsidePath);
+        }
     }
 
     [Fact]

@@ -40,11 +40,12 @@ public sealed class FileTemplateLoader : ITemplateLoader
 
     public string Load(TemplateContext context, SourceSpan callerSpan, string templatePath)
     {
-        return LoadCached(templatePath);
+        return LoadCached(EnsurePathInsideRoot(templatePath));
     }
 
     public async ValueTask<string?> LoadAsync(TemplateContext context, SourceSpan callerSpan, string templatePath)
     {
+        templatePath = EnsurePathInsideRoot(templatePath);
         var fileInfo = new FileInfo(templatePath);
         if (!fileInfo.Exists)
         {
@@ -60,6 +61,19 @@ public sealed class FileTemplateLoader : ITemplateLoader
         var text = await File.ReadAllTextAsync(templatePath);
         _cache[templatePath] = new CachedText(signature, text);
         return text;
+    }
+
+    private string EnsurePathInsideRoot(string templatePath)
+    {
+        var fullPath = Path.GetFullPath(templatePath);
+        var safeRoot = Path.GetFullPath(_rootDir) + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Template path '{templatePath}' resolves outside the layouts directory.");
+        }
+
+        return fullPath;
     }
 
     private string LoadCached(string templatePath)

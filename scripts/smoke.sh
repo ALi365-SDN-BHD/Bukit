@@ -7,6 +7,7 @@ smoke_run="$smoke_root/$(date +%Y%m%d%H%M%S)-$$"
 
 cleanup() {
   rm -rf "examples/starter/$smoke_run"
+  rmdir "examples/starter/$smoke_root" 2>/dev/null || true
   rm -f "$intent_out"
 }
 

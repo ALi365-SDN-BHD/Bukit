@@ -8,6 +8,7 @@ internal static class TemplateCapabilitiesResolver
 {
     private const string ManifestFileName = "bukit.templates.yaml";
     private static readonly ConcurrentDictionary<string, TemplateCapabilitiesManifest?> Cache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, bool> FallbackCache = new(StringComparer.OrdinalIgnoreCase);
     internal const string PaginationTemplatePath = "pages/pagination.html";
     internal const string TaxonomyIndexTemplatePath = "pages/taxonomy-index.html";
     internal const string TaxonomyTermTemplatePath = "pages/taxonomy-term.html";
@@ -129,16 +130,23 @@ internal static class TemplateCapabilitiesResolver
 
     private static bool FallbackHeuristic(string templateRelativePath, string layoutsDir)
     {
-        var fullPath = Path.Combine(layoutsDir, templateRelativePath.Replace('/', Path.DirectorySeparatorChar));
-        if (!File.Exists(fullPath))
+        var key = CacheKey(layoutsDir, templateRelativePath);
+        return FallbackCache.GetOrAdd(key, _ =>
         {
-            return true;
-        }
+            var fullPath = Path.Combine(layoutsDir, templateRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(fullPath))
+            {
+                return true;
+            }
 
-        var template = File.ReadAllText(fullPath);
-        return template.Contains(".content", StringComparison.OrdinalIgnoreCase) ||
-               template.Contains("include", StringComparison.OrdinalIgnoreCase);
+            var template = File.ReadAllText(fullPath);
+            return template.Contains(".content", StringComparison.OrdinalIgnoreCase) ||
+                   template.Contains("include", StringComparison.OrdinalIgnoreCase);
+        });
     }
+
+    private static string CacheKey(string layoutsDir, string templateRelativePath)
+        => $"{layoutsDir}\u0000{templateRelativePath.Replace('\\', '/')}";
 
     private static void ValidateManifestContents(TemplateCapabilitiesManifest? manifest, string layoutsDir)
     {

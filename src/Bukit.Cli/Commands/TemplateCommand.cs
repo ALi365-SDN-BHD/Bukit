@@ -53,7 +53,17 @@ public static class TemplateCommand
             return Task.FromResult(2);
         }
 
-        var templatePath = Path.Combine(layoutsDir, name);
+        string templatePath;
+        try
+        {
+            templatePath = ResolveTemplatePath(layoutsDir, name);
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return Task.FromResult(2);
+        }
+
         if (File.Exists(templatePath))
         {
             var force = reader.HasFlag("--force");
@@ -243,7 +253,18 @@ public static class TemplateCommand
             return 2;
         }
 
-        var templatePath = Path.Combine(rootDir, "themes", activeThemeName, "layouts", name);
+        var layoutsDir = Path.Combine(rootDir, "themes", activeThemeName, "layouts");
+        string templatePath;
+        try
+        {
+            templatePath = ResolveTemplatePath(layoutsDir, name);
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
+        }
+
         if (!File.Exists(templatePath))
         {
             Console.Error.WriteLine($"Template not found: {name}");
@@ -359,6 +380,29 @@ public static class TemplateCommand
         Console.WriteLine("    {{ include \"partials/header.html\" }}");
         Console.WriteLine("    {{ content }}  — child template content placeholder");
         return Task.FromResult(0);
+    }
+
+    private static string ResolveTemplatePath(string layoutsDir, string templateName)
+    {
+        if (string.IsNullOrWhiteSpace(templateName))
+        {
+            throw new ArgumentException("Template path must be non-empty.");
+        }
+
+        if (Path.IsPathRooted(templateName))
+        {
+            throw new ArgumentException("Template path must be relative to the layouts directory.");
+        }
+
+        var normalized = templateName.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+        var resolved = Path.GetFullPath(Path.Combine(layoutsDir, normalized));
+        var safeRoot = Path.GetFullPath(layoutsDir) + Path.DirectorySeparatorChar;
+        if (!resolved.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Template path must stay inside the layouts directory.");
+        }
+
+        return resolved;
     }
 
     private static Task<int> SyncAsync(ArgReader reader)
@@ -488,7 +532,7 @@ public static class TemplateCommand
                 themeMap.Children.TryGetValue(new YamlDotNet.RepresentationModel.YamlScalarNode("name"), out var nameNode) &&
                 nameNode is YamlDotNet.RepresentationModel.YamlScalarNode nameScalar)
             {
-                return nameScalar.Value;
+                return CloneModels.IsSafeThemeName(nameScalar.Value) ? nameScalar.Value : null;
             }
         }
         catch

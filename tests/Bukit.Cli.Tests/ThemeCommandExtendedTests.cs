@@ -509,6 +509,48 @@ tags: [blog, dark-mode, responsive]
     }
 
     [Fact]
+    public async Task TemplateCommand_Show_PathTraversal_ReturnsTwo()
+    {
+        var themeRoot = Path.Combine(_rootDir, "themes", "safe-theme");
+        Directory.CreateDirectory(Path.Combine(themeRoot, "layouts"));
+        await File.WriteAllTextAsync(Path.Combine(themeRoot, "theme.yaml"), "name: safe-theme");
+        await File.WriteAllTextAsync(Path.Combine(_rootDir, "outside.html"), "outside");
+
+        await ThemeCommand.RunAsync(new ArgReader(new[]
+        {
+            "theme", "use", "safe-theme", "--config", _configPath
+        }));
+
+        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[]
+        {
+            "template", "show", "../../outside.html", "--config", _configPath
+        }));
+
+        Assert.Equal(2, exitCode);
+    }
+
+    [Fact]
+    public async Task TemplateCommand_Create_PathTraversal_ReturnsTwoAndDoesNotWriteOutsideLayouts()
+    {
+        var themeRoot = Path.Combine(_rootDir, "themes", "safe-theme");
+        Directory.CreateDirectory(Path.Combine(themeRoot, "layouts"));
+        await File.WriteAllTextAsync(Path.Combine(themeRoot, "theme.yaml"), "name: safe-theme");
+
+        await ThemeCommand.RunAsync(new ArgReader(new[]
+        {
+            "theme", "use", "safe-theme", "--config", _configPath
+        }));
+
+        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[]
+        {
+            "template", "create", "../../outside.html", "--config", _configPath
+        }));
+
+        Assert.Equal(2, exitCode);
+        Assert.False(File.Exists(Path.Combine(_rootDir, "outside.html")));
+    }
+
+    [Fact]
     public async Task TemplateCommand_Validate_ActiveTheme()
     {
         var themeRoot = Path.Combine(_rootDir, "themes", "validate-theme");

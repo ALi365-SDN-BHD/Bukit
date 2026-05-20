@@ -9,9 +9,10 @@ public static class PluginCommand
     public static Task<int> RunAsync(ArgReader reader)
     {
         var sub = reader.GetArg(1);
-        if (string.IsNullOrWhiteSpace(sub))
+        if (string.IsNullOrWhiteSpace(sub) || sub is "help" or "--help" or "-h")
         {
-            return Task.FromResult(2);
+            PrintHelp();
+            return Task.FromResult(string.IsNullOrWhiteSpace(sub) ? 2 : 0);
         }
 
         return sub switch
@@ -102,6 +103,17 @@ public static class PluginCommand
     private static int Unknown(string sub)
     {
         Console.Error.WriteLine($"Unknown plugin subcommand: {sub}");
+        PrintHelp();
         return 2;
+    }
+
+    private static void PrintHelp()
+    {
+        Console.WriteLine("plugin — 插件相关命令");
+        Console.WriteLine();
+        Console.WriteLine("Usage: bukit plugin <subcommand> [options]");
+        Console.WriteLine();
+        Console.WriteLine("Subcommands:");
+        Console.WriteLine("  list        列出已发现和已配置的插件 (支持 --config/--site)");
     }
 }

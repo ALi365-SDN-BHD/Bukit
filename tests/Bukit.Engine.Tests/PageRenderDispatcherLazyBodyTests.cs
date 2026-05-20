@@ -49,7 +49,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             manifestEntries: null,
-            currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             maxDegreeOfParallelism: 1,
             logger: new ConsoleLogger(LogLevel.Error),
             cancellationToken: CancellationToken.None);
@@ -121,7 +121,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             incrementalEnabled: true,
             manifest: manifest,
             manifestEntries: manifestEntries,
-            currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             maxDegreeOfParallelism: 1,
             logger: new ConsoleLogger(LogLevel.Error),
             cancellationToken: CancellationToken.None);
@@ -157,7 +157,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             "template-hash",
             incrementalEnabled: false,
             manifest: new BuildManifest(),
-            currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             cancellationToken: CancellationToken.None);
 
@@ -190,7 +190,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             "template-hash",
             incrementalEnabled: false,
             manifest: new BuildManifest(),
-            currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             cancellationToken: CancellationToken.None);
 
@@ -225,7 +225,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             "template-hash",
             incrementalEnabled: false,
             manifest: new BuildManifest(),
-            currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             cancellationToken: CancellationToken.None);
 
@@ -269,7 +269,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             "template-hash",
             incrementalEnabled: false,
             manifest: new BuildManifest(),
-            currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             cancellationToken: CancellationToken.None);
 
@@ -311,7 +311,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             "template-hash",
             incrementalEnabled: false,
             manifest: new BuildManifest(),
-            currentKeys: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             cancellationToken: CancellationToken.None);
 

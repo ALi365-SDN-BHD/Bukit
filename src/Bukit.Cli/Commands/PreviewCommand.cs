@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using Bukit.Cli;
 using Bukit.Config;
 using Bukit.Cli.Cli.Binding;
 
@@ -15,8 +16,11 @@ public static partial class PreviewCommand
             new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
             {
                 ["--dir"] = reader.GetOption("--dir"),
+                ["--config"] = reader.GetOption("--config"),
+                ["--site"] = reader.GetOption("--site"),
                 ["--host"] = reader.GetOption("--host"),
                 ["--port"] = reader.GetOption("--port"),
+                ["--strict-port"] = reader.HasFlag("--strict-port") ? "true" : null,
             }
             .Where(x => x.Value is not null)
             .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
@@ -25,7 +29,25 @@ public static partial class PreviewCommand
 
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
-        var dir = Path.GetFullPath(command.GetString("--dir") ?? "dist");
+        var dirOpt = command.GetString("--dir");
+        string dir;
+
+        if (!string.IsNullOrWhiteSpace(dirOpt))
+        {
+            dir = Path.GetFullPath(dirOpt);
+        }
+        else if (!string.IsNullOrWhiteSpace(command.GetString("--config")) ||
+                 !string.IsNullOrWhiteSpace(command.GetString("--site")))
+        {
+            var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
+            var config = ConfigLoader.Load(resolved.FullConfigPath);
+            dir = Path.GetFullPath(Path.Combine(resolved.RootDir, config.Build.Output));
+        }
+        else
+        {
+            dir = Path.GetFullPath("dist");
+        }
+
         var host = (command.GetString("--host") ?? "localhost").Trim();
         var portText = (command.GetString("--port") ?? "4173").Trim();
         var strictPort = command.GetBool("--strict-port");

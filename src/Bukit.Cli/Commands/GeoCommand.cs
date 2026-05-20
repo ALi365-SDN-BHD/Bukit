@@ -13,8 +13,13 @@ public static class GeoCommand
             return await AuditAsync(dir);
         }
 
-        Console.Error.WriteLine("Usage: bukit geo audit [--dir dist]");
+        PrintHelp();
         return 2;
+    }
+
+    private static void PrintHelp()
+    {
+        Console.Error.WriteLine("Usage: bukit geo audit [--dir dist]");
     }
 
     private static async Task<int> AuditAsync(string outputDir)
@@ -36,7 +41,7 @@ public static class GeoCommand
         if (!File.Exists(reportPath))
         {
             Console.Error.WriteLine($"SEO report not found: {reportPath}. Run a full build first.");
-            return 2;
+            return 1;
         }
 
         try
@@ -124,7 +129,7 @@ public static class GeoCommand
         catch (JsonException ex)
         {
             Console.Error.WriteLine($"Invalid SEO report JSON: {ex.Message}");
-            return 2;
+            return 1;
         }
 
         return 0;

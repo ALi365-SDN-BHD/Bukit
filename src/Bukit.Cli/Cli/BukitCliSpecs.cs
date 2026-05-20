@@ -36,7 +36,9 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--dir", "预览目录"),
                 new CliOptionSpec("--host", "监听地址"),
                 new CliOptionSpec("--port", "监听端口", CliOptionType.String, ValueName: "port"),
-                new CliOptionSpec("--strict-port", "严格端口模式", CliOptionType.Flag)
+                new CliOptionSpec("--strict-port", "严格端口模式", CliOptionType.Flag),
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名")
             });
 
         var plugin = new CliCommandSpec(
@@ -304,6 +306,76 @@ public static class BukitCliSpecs
                     })
             });
 
-        return new CliCommandRegistry(new[] { build, clone, deploy, preview, plugin, theme, template, seo, geo });
+        var version = new CliCommandSpec(
+            Name: "version",
+            Description: "显示版本信息");
+
+        var intent = new CliCommandSpec(
+            Name: "intent",
+            Description: "意图驱动的站点创建",
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "init",
+                    Description: "交互式生成 intent.yaml",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--out", "输出路径")
+                    }),
+                new CliCommandSpec(
+                    Name: "apply",
+                    Description: "应用 intent.yaml 生成站点"),
+                new CliCommandSpec(
+                    Name: "validate",
+                    Description: "校验 intent.yaml")
+            });
+
+        var webhook = new CliCommandSpec(
+            Name: "webhook",
+            Description: "启动 Notion → GitHub Actions Webhook 服务",
+            Options: new[]
+            {
+                new CliOptionSpec("--host", "监听地址"),
+                new CliOptionSpec("--port", "监听端口", CliOptionType.String, ValueName: "port"),
+                new CliOptionSpec("--path", "回调路径"),
+                new CliOptionSpec("--repo", "GitHub 仓库 (owner/repo)"),
+                new CliOptionSpec("--event", "GitHub dispatch event_type")
+            });
+
+        var clean = new CliCommandSpec(
+            Name: "clean",
+            Description: "清理构建输出和缓存",
+            Options: new[]
+            {
+                new CliOptionSpec("--dir", "清理目录"),
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名")
+            });
+
+        var doctor = new CliCommandSpec(
+            Name: "doctor",
+            Description: "诊断站点配置和模板",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名"),
+                new CliOptionSpec("--site-url", "覆盖 site.url")
+            });
+
+        var init = new CliCommandSpec(
+            Name: "init",
+            Description: "初始化新站点",
+            Aliases: new[] { "create" },
+            Arguments: new[]
+            {
+                new CliArgumentSpec("dir", "目标目录")
+            },
+            Options: new[]
+            {
+                new CliOptionSpec("--provider", "内容源 (markdown|notion)"),
+                new CliOptionSpec("--template", "模板名")
+            });
+
+        return new CliCommandRegistry(new[] { build, clone, deploy, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, doctor, init });
     }
 }

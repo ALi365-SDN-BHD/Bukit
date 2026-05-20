@@ -41,14 +41,18 @@ try
                 return 2;
             }
 
-            return spec.Name switch
+            var resolved = spec.Name switch
             {
                 "build" => await BuildCommand.RunAsync(parsed.BoundCommand),
                 "clone" => await CloneCommand.RunAsync(parsed.BoundCommand),
                 "deploy" => await DeployCommand.RunAsync(parsed.BoundCommand),
                 "preview" => await PreviewCommand.RunAsync(parsed.BoundCommand),
-                _ => 2
+                _ => (int?)null
             };
+            if (resolved.HasValue)
+            {
+                return resolved.Value;
+            }
         }
     }
 

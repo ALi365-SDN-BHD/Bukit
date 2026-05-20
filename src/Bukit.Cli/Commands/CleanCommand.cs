@@ -22,7 +22,14 @@ public static class CleanCommand
         else
         {
             rootDir = Directory.GetCurrentDirectory();
-            outputDir = Path.GetFullPath(dirOption ?? "dist");
+            var dirValue = dirOption ?? "dist";
+            var safeRoot = Path.GetFullPath(rootDir) + Path.DirectorySeparatorChar;
+            outputDir = Path.GetFullPath(Path.Combine(rootDir, dirValue));
+            if (!outputDir.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                Console.Error.WriteLine("--dir must be inside the current directory.");
+                return Task.FromResult(2);
+            }
         }
 
         if (Directory.Exists(outputDir))

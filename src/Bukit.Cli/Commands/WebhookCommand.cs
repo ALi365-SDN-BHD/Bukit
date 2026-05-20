@@ -14,6 +14,20 @@ public static class WebhookCommand
 
     public static async Task<int> RunAsync(ArgReader reader)
     {
+        var sub = reader.GetArg(1);
+        if (sub is "help" or "--help" or "-h")
+        {
+            PrintHelp();
+            return 0;
+        }
+
+        if (!string.IsNullOrWhiteSpace(sub) && sub is not "start")
+        {
+            Console.Error.WriteLine($"Unknown webhook subcommand: {sub}");
+            PrintHelp();
+            return 2;
+        }
+
         var host = (reader.GetOption("--host") ?? "localhost").Trim();
         var portText = (reader.GetOption("--port") ?? "8787").Trim();
         var path = NormalizePath(reader.GetOption("--path") ?? "/webhook/notion");
@@ -185,6 +199,25 @@ public static class WebhookCommand
         }
 
         return trimmed;
+    }
+
+    private static void PrintHelp()
+    {
+        Console.WriteLine("webhook — 启动 Notion 触发 GitHub Actions 的 Webhook 服务");
+        Console.WriteLine();
+        Console.WriteLine("Usage: bukit webhook [start] [options]");
+        Console.WriteLine();
+        Console.WriteLine("Options:");
+        Console.WriteLine("  --host <host>        监听地址 (default: localhost)");
+        Console.WriteLine("  --port <port>        监听端口 (default: 8787)");
+        Console.WriteLine("  --path <path>        回调路径 (default: /webhook/notion)");
+        Console.WriteLine("  --repo <owner/repo>  GitHub 仓库 (或环境变量 BUKIT_GITHUB_REPO)");
+        Console.WriteLine("  --event <type>       GitHub dispatch event_type (default: bukit_notion)");
+        Console.WriteLine();
+        Console.WriteLine("Required environment:");
+        Console.WriteLine("  BUKIT_WEBHOOK_TOKEN                         (webhook 端验证令牌)");
+        Console.WriteLine("  BUKIT_GITHUB_TOKEN or GITHUB_TOKEN           (GitHub API 个人令牌)");
+        Console.WriteLine("  BUKIT_GITHUB_REPO (or --repo <owner/repo>)   (目标仓库)");
     }
 
     private sealed class SlidingWindowRateLimiter

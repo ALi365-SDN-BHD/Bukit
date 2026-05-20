@@ -96,46 +96,68 @@ public sealed class SiteEngine
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(effectiveConfig.Site, languages);
         var rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl);
         var seoAlternates = BuildSeoAlternates(effectiveConfig, items, languages, defaultLanguage, rootBaseUrl);
-        var results = new List<BuildVariantResult>(capacity: languages.Count);
-        for (var i = 0; i < languages.Count; i++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var lang = languages[i];
-            var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, lang);
-            var variantConfig = effectiveConfig with
+        var results = new BuildVariantResult[languages.Count];
+        await Parallel.ForEachAsync(
+            languages.Select((lang, i) => (lang, i)),
+            new ParallelOptions { MaxDegreeOfParallelism = languages.Count, CancellationToken = cancellationToken },
+            async (entry, ct) =>
             {
-                Site = effectiveConfig.Site with
+                var (lang, i) = entry;
+                var variantLogger = new ConsoleLogger(ResolveVariantLogLevel(effectiveConfig, overrides.IsCI));
+                var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, lang);
+                var variantConfig = effectiveConfig with
                 {
-                    Language = lang,
-                    BaseUrl = baseUrl
-                }
-            };
+                    Site = effectiveConfig.Site with
+                    {
+                        Language = lang,
+                        BaseUrl = baseUrl
+                    }
+                };
 
-            var variantItems = I18nOutputMerger.FilterItemsByLanguage(items, lang, defaultLanguage);
-            var variantOutputDir = Path.Combine(outputDir, lang);
-            _logger.Info($"event=build.variant.start language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
-            var variantCtx = new BuildVariantContext(
-                variantConfig, rootDir, overrides, variantItems, bodyStore, variantOutputDir, baseUrl,
-                layoutsDir, assetsDir, staticDir, mediaCacheDir,
-                SeoAlternates: seoAlternates,
-                RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage);
-            var result = await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken);
-            results.Add(result);
-            _logger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
+                var variantItems = I18nOutputMerger.FilterItemsByLanguage(items, lang, defaultLanguage);
+                var variantOutputDir = Path.Combine(outputDir, lang);
+                variantLogger.Info($"event=build.variant.start language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
+                var variantCtx = new BuildVariantContext(
+                    variantConfig, rootDir, overrides, variantItems, bodyStore, variantOutputDir, baseUrl,
+                    layoutsDir, assetsDir, staticDir, mediaCacheDir,
+                    SeoAlternates: seoAlternates,
+                    RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage);
+                results[i] = await BuildVariantAsync(variantCtx, templateHashCache, ct, variantLogger);
+                variantLogger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
+            });
+
+        var variantResults = results.Where(r => r is not null).ToList();
+
+        I18nOutputMerger.GenerateRootOutputs(effectiveConfig, outputDir, rootBaseUrl, variantResults, _logger, _searchIndexBuilder);
+        SeoAuditReportWriter.WriteMerged(effectiveConfig, outputDir, variantResults, _logger);
+        _logger.Info("event=build.done");
+        MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, outputDir, items.Count, variantResults);
+    }
+
+    private static LogLevel ResolveVariantLogLevel(AppConfig config, bool isCi)
+    {
+        if (isCi)
+        {
+            return LogLevel.Warn;
         }
 
-        I18nOutputMerger.GenerateRootOutputs(effectiveConfig, outputDir, rootBaseUrl, results, _logger, _searchIndexBuilder);
-        SeoAuditReportWriter.WriteMerged(effectiveConfig, outputDir, results, _logger);
-        _logger.Info("event=build.done");
-        MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, outputDir, items.Count, results);
+        return (config.Logging.Level ?? "info").Trim().ToLowerInvariant() switch
+        {
+            "debug" => LogLevel.Debug,
+            "info" => LogLevel.Info,
+            "warn" => LogLevel.Warn,
+            "error" => LogLevel.Error,
+            _ => LogLevel.Info
+        };
     }
 
     private async Task<BuildVariantResult> BuildVariantAsync(
         BuildVariantContext ctx,
         DirectoryHashCache templateHashCache,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ILogger? variantLogger = null)
     {
+        var log = variantLogger ?? _logger;
         var variantTotalStopwatch = Stopwatch.StartNew();
         var variantStageMetrics = new BuildStageMetricsCollector();
         var config = ctx.Config;
@@ -181,7 +203,7 @@ public sealed class SiteEngine
             LayoutsDir = ctx.LayoutsDir,
             Routed = routed,
             BodyStore = bodyStore,
-            Logger = _logger
+            Logger = log
         };
 
         var taxonomyStopwatch = Stopwatch.StartNew();
@@ -250,8 +272,8 @@ public sealed class SiteEngine
             ctx.DefaultLanguage);
         var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates);
         pluginContext.SeoIndex = seoIndex.Entries;
-        SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, _logger);
-        var currentKeys = new HashSet<string>(StringComparer.Ordinal);
+        SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, log);
+        var currentKeys = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
         var maxDegreeOfParallelism = overrides.Jobs ?? Environment.ProcessorCount;
         var seoHtmlMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
         var shouldProvideSeoModel = config.Site.Seo.Enabled && seoHtmlMode != "off";
@@ -261,7 +283,7 @@ public sealed class SiteEngine
         var renderResult = await PageRenderDispatcher.RenderPagesAsync(
             renderQueue, bodyStore, renderer, siteModel, outputDir, templateHash,
             incrementalEnabled, manifest, manifestEntries, currentKeys,
-            maxDegreeOfParallelism, _logger, cancellationToken,
+            maxDegreeOfParallelism, log, cancellationToken,
             shouldProvideSeoModel
                 ? (_, route) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model) ? model : null!
                 : null,
@@ -273,7 +295,7 @@ public sealed class SiteEngine
                         html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, siteModel.Analytics);
                     }
 
-                    return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, _logger);
+                    return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, log);
                 }
         : null);
         renderPagesStopwatch.Stop();
@@ -313,7 +335,7 @@ public sealed class SiteEngine
                         html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, siteModel.Analytics);
                     }
 
-                    return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, _logger);
+                    return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, log);
                 }
         : null);
         renderSpecialListsStopwatch.Stop();
@@ -346,7 +368,7 @@ public sealed class SiteEngine
 
         if (incrementalEnabled)
         {
-            var removed = manifest.Entries.Keys.Where(k => !currentKeys.Contains(k)).ToList();
+            var removed = manifest.Entries.Keys.Where(k => !currentKeys.ContainsKey(k)).ToList();
             foreach (var k in removed)
             {
                 manifest.Entries.Remove(k);
@@ -362,16 +384,16 @@ public sealed class SiteEngine
         if (incrementalEnabled)
         {
             manifest.Save(manifestPath);
-            _logger.Info($"Incremental build: rendered={renderedCount}, skipped={skippedCount}, cache={cacheDir}");
+            log.Info($"Incremental build: rendered={renderedCount}, skipped={skippedCount}, cache={cacheDir}");
         }
 
         if (ctx.DefaultLanguage is null)
         {
-            _logger.Info($"Build completed: {Path.GetFullPath(outputDir)}");
+            log.Info($"Build completed: {Path.GetFullPath(outputDir)}");
         }
         else
         {
-            _logger.Info($"Build completed: {Path.GetFullPath(outputDir)} (lang={config.Site.Language})");
+            log.Info($"Build completed: {Path.GetFullPath(outputDir)} (lang={config.Site.Language})");
         }
 
         variantTotalStopwatch.Stop();
@@ -393,7 +415,7 @@ public sealed class SiteEngine
             skippedCount,
             new Dictionary<string, int>(renderReasons, StringComparer.OrdinalIgnoreCase),
             variantStageMetrics.Snapshot());
-        SeoAuditReportWriter.Write(config, outputDir, seoIndex.Entries, seoIndex.Models, _logger);
+        SeoAuditReportWriter.Write(config, outputDir, seoIndex.Entries, seoIndex.Models, log);
         return result;
     }
 

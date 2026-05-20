@@ -1,14 +1,28 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
 namespace Bukit.Engine;
 
 internal static partial class TemplateStaticAnalysisService
 {
+    private static readonly ConcurrentDictionary<string, TemplateStaticAnalysisResult> StaticCache = new(StringComparer.OrdinalIgnoreCase);
+
     internal static TemplateStaticAnalysisResult AnalyzeNeedsPageContent(string layoutsDir, string templateRelativePath)
     {
+        var key = CacheKey(layoutsDir, templateRelativePath);
+        if (StaticCache.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
         var analyzer = new Analyzer(layoutsDir);
-        return analyzer.Analyze(templateRelativePath);
+        var result = analyzer.Analyze(templateRelativePath);
+        StaticCache[key] = result;
+        return result;
     }
+
+    private static string CacheKey(string layoutsDir, string templateRelativePath)
+        => $"{layoutsDir}\u0000{templateRelativePath.Replace('\\', '/')}";
 
     [GeneratedRegex(@"\binclude\s+[""']([^""']+)[""']", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex IncludeRegex();

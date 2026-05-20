@@ -19,10 +19,16 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Build
-        run: dotnet build
+        run: dotnet build bukit.slnx -c Release
 
       - name: Test with coverage
-        run: dotnet test --collect:"XPlat Code Coverage" --results-directory TestResults
+        run: dotnet test bukit.slnx -c Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
+
+      - name: Format
+        run: dotnet format bukit.slnx --verify-no-changes --no-restore
+
+      - name: Doc asset consistency
+        run: bash scripts/check-doc-asset-consistency.sh
 
       - name: Smoke test
-        run: bash scripts/smoke.sh
+        run: bash scripts/smoke.sh Release

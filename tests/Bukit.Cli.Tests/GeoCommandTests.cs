@@ -27,11 +27,11 @@ public sealed class GeoCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task RunAsync_AuditReturnsTwoWhenReportNotFound()
+    public async Task RunAsync_AuditReturnsOneWhenReportNotFound()
     {
         var exitCode = await GeoCommand.RunAsync(new ArgReader(new[] { "geo", "audit", "--dir", _root }));
 
-        Assert.Equal(2, exitCode);
+        Assert.Equal(1, exitCode);
     }
 
     [Fact]

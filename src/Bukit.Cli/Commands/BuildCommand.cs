@@ -29,7 +29,7 @@ public static class BuildCommand
 
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
-        var resolved = ResolveConfigPath(command.GetString("--config"), command.GetString("--site"));
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var config = ConfigLoader.Load(resolved.FullConfigPath);
 
         var siteUrl = command.GetString("--site-url");
@@ -58,40 +58,6 @@ public static class BuildCommand
         var engine = new SiteEngine(logger);
         await engine.BuildAsync(config, resolved.RootDir, overrides);
         return 0;
-    }
-
-    private static ResolvedConfigPath ResolveConfigPath(string? configPath, string? site)
-    {
-        if (!string.IsNullOrWhiteSpace(configPath))
-        {
-            var fullConfigPath = Path.GetFullPath(configPath);
-            var rootDir = Path.GetDirectoryName(fullConfigPath) ?? Directory.GetCurrentDirectory();
-            return new ResolvedConfigPath(fullConfigPath, rootDir);
-        }
-
-        if (!string.IsNullOrWhiteSpace(site))
-        {
-            var rootDir = Directory.GetCurrentDirectory();
-            var fileName = site.Trim();
-            if (!fileName.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
-                !fileName.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-            {
-                fileName += ".yaml";
-            }
-
-            var fullConfigPath = Path.GetFullPath(Path.Combine(rootDir, "sites", fileName));
-            var safeRoot = Path.GetFullPath(Path.Combine(rootDir, "sites")) + Path.DirectorySeparatorChar;
-            if (!fullConfigPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException(
-                    $"--site value '{site}' resolves to a path outside the sites directory.");
-            }
-            return new ResolvedConfigPath(fullConfigPath, rootDir);
-        }
-
-        var defaultFullConfigPath = Path.GetFullPath("site.yaml");
-        var defaultRootDir = Path.GetDirectoryName(defaultFullConfigPath) ?? Directory.GetCurrentDirectory();
-        return new ResolvedConfigPath(defaultFullConfigPath, defaultRootDir);
     }
 
     private static int? TryParsePositiveInt(string? text)

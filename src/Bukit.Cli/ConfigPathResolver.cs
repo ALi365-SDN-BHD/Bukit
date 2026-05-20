@@ -6,7 +6,11 @@ public static class ConfigPathResolver
 {
     public static ResolvedConfigPath Resolve(ArgReader reader)
     {
-        var configPath = reader.GetOption("--config");
+        return Resolve(reader.GetOption("--config"), reader.GetOption("--site"));
+    }
+
+    public static ResolvedConfigPath Resolve(string? configPath, string? site)
+    {
         if (!string.IsNullOrWhiteSpace(configPath))
         {
             var fullConfigPath = Path.GetFullPath(configPath);
@@ -14,7 +18,6 @@ public static class ConfigPathResolver
             return new ResolvedConfigPath(fullConfigPath, rootDir);
         }
 
-        var site = reader.GetOption("--site");
         if (!string.IsNullOrWhiteSpace(site))
         {
             var rootDir = Directory.GetCurrentDirectory();

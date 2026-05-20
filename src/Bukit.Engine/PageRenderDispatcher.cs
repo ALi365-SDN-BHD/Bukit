@@ -34,7 +34,7 @@ internal static class PageRenderDispatcher
         bool incrementalEnabled,
         BuildManifest manifest,
         ConcurrentDictionary<string, BuildManifestEntry>? manifestEntries,
-        HashSet<string> currentKeys,
+        ConcurrentDictionary<string, byte> currentKeys,
         int maxDegreeOfParallelism,
         ILogger logger,
         CancellationToken cancellationToken,
@@ -49,7 +49,7 @@ internal static class PageRenderDispatcher
             cancellationToken.ThrowIfCancellationRequested();
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
             BuildPathUtils.WarnIfWindowsIncompatible(route.OutputPath, warnedOutputPaths, logger);
-            currentKeys.Add(key);
+            currentKeys.TryAdd(key, 0);
             workItems.Add((item, route, key));
         }
 
@@ -213,7 +213,7 @@ internal static class PageRenderDispatcher
         string templateHash,
         bool incrementalEnabled,
         BuildManifest manifest,
-        HashSet<string> currentKeys,
+        ConcurrentDictionary<string, byte> currentKeys,
         ConcurrentDictionary<string, int> renderReasons,
         CancellationToken cancellationToken,
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null,
@@ -221,34 +221,36 @@ internal static class PageRenderDispatcher
         Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null)
     {
         var stageMetrics = new BuildStageMetricsCollector();
+        var stageMetricsLock = new object();
         var specialLists = BuildSpecialListDefinitions(routed, collections, layoutsDir, listPageContentMode, outputPathEncoding);
         foreach (var x in specialLists)
         {
-            currentKeys.Add(BuildPathUtils.NormalizeRelPath(x.Route.OutputPath));
+            currentKeys.TryAdd(BuildPathUtils.NormalizeRelPath(x.Route.OutputPath), 0);
         }
+
+        var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = cancellationToken };
+
         if (incrementalEnabled)
         {
             var rendered = 0;
             var skipped = 0;
-            foreach (var x in specialLists)
+            await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var result = await RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, manifest, renderReasons, x.IncludeContent, cancellationToken, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
-                rendered += result.RenderedCount;
-                skipped += result.SkippedCount;
-                stageMetrics = MergeCollectors(stageMetrics, result.StageMetrics);
-            }
+                var result = await RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, manifest, renderReasons, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
+                Interlocked.Add(ref rendered, result.RenderedCount);
+                Interlocked.Add(ref skipped, result.SkippedCount);
+                lock (stageMetricsLock) { stageMetrics = MergeCollectors(stageMetrics, result.StageMetrics); }
+            });
 
             return new SpecialListRenderResult(rendered, skipped, stageMetrics.Snapshot());
         }
 
         var writeLocks = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
-        foreach (var x in specialLists)
+        await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var metrics = await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, x.IncludeContent, cancellationToken, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
-            stageMetrics = MergeCollectors(stageMetrics, metrics);
-        }
+            var metrics = await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
+            lock (stageMetricsLock) { stageMetrics = MergeCollectors(stageMetrics, metrics); }
+        });
 
         return new SpecialListRenderResult(specialLists.Count, 0, stageMetrics.Snapshot());
     }
@@ -353,15 +355,18 @@ internal static class PageRenderDispatcher
         await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, html, new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase), cancellationToken);
         renderReasons.AddOrUpdate("list_render", 1, (_, v) => v + 1);
 
-        manifest.Entries[key] = new BuildManifestEntry
+        lock (manifest)
         {
-            OutputPath = key,
-            Url = listRoute.Url,
-            Template = listRoute.Template,
-            ContentHash = contentHash,
-            RouteHash = routeHash,
-            TemplateHash = templateHash
-        };
+            manifest.Entries[key] = new BuildManifestEntry
+            {
+                OutputPath = key,
+                Url = listRoute.Url,
+                Template = listRoute.Template,
+                ContentHash = contentHash,
+                RouteHash = routeHash,
+                TemplateHash = templateHash
+            };
+        }
 
         return new SpecialListRenderResult(1, 0, stageMetrics.Snapshot());
     }
@@ -375,33 +380,56 @@ internal static class PageRenderDispatcher
         string bodyLoadMetricName = "listBodyLoad",
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null)
     {
-        var pageInfos = new List<PageInfo>(source.Count);
-        foreach (var entry in source)
+        var pageInfos = new PageInfo[source.Count];
+
+        if (!includeContent)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            string content = string.Empty;
-            if (includeContent)
+            for (var i = 0; i < source.Count; i++)
             {
-                var bodyLoadStopwatch = Stopwatch.StartNew();
-                content = await ContentBodyResolver.GetHtmlAsync(entry.Item, bodyStore, cancellationToken);
-                bodyLoadStopwatch.Stop();
-                stageMetrics?.Increment(bodyLoadMetricName);
-                stageMetrics?.AddDuration(bodyLoadMetricName, bodyLoadStopwatch.ElapsedMilliseconds);
+                pageInfos[i] = new PageInfo
+                {
+                    Title = source[i].Item.Title,
+                    Url = source[i].Route.Url,
+                    Content = string.Empty,
+                    Seo = seoBuilder?.Invoke(source[i].Item, source[i].Route)
+                };
             }
 
-            pageInfos.Add(new PageInfo
-            {
-                Title = entry.Item.Title,
-                Url = entry.Route.Url,
-                Content = content,
-                Summary = entry.Item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
-                PublishDate = entry.Item.PublishAt,
-                Fields = entry.Item.Fields,
-                Seo = seoBuilder?.Invoke(entry.Item, entry.Route)
-            });
+            return new List<PageInfo>(pageInfos);
         }
 
-        return pageInfos;
+        var metricsLock = new object();
+        await Parallel.ForEachAsync(
+            source.Select((entry, i) => (entry, i)),
+            new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = cancellationToken },
+            async (work, ct) =>
+            {
+                var (entry, i) = work;
+                var bodyLoadStopwatch = Stopwatch.StartNew();
+                var content = await ContentBodyResolver.GetHtmlAsync(entry.Item, bodyStore, ct);
+                bodyLoadStopwatch.Stop();
+                if (stageMetrics is not null)
+                {
+                    lock (metricsLock)
+                    {
+                        stageMetrics.Increment(bodyLoadMetricName);
+                        stageMetrics.AddDuration(bodyLoadMetricName, bodyLoadStopwatch.ElapsedMilliseconds);
+                    }
+                }
+
+                pageInfos[i] = new PageInfo
+                {
+                    Title = entry.Item.Title,
+                    Url = entry.Route.Url,
+                    Content = content,
+                    Summary = entry.Item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
+                    PublishDate = entry.Item.PublishAt,
+                    Fields = entry.Item.Fields,
+                    Seo = seoBuilder?.Invoke(entry.Item, entry.Route)
+                };
+            });
+
+        return new List<PageInfo>(pageInfos);
     }
 
     private static PageInfo CreateListPageInfo(SiteModel siteModel, RouteInfo listRoute)
