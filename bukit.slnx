@@ -19,5 +19,8 @@
     <Project Path="tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj" />
     <Project Path="tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj" />
     <Project Path="tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj" />
+    <Project Path="tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj" />
+    <Project Path="tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj" />
+    <Project Path="tests/Bukit.PluginSourceGenerator.Tests/Bukit.PluginSourceGenerator.Tests.csproj" />
   </Folder>
 </Solution>

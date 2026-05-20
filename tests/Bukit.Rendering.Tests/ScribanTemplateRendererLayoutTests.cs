@@ -155,6 +155,28 @@ public sealed class ScribanTemplateRendererLayoutTests : IDisposable
     }
 
     [Fact]
+    public void LayoutDirective_Throws_WhenPathEscapesLayoutsDirectory()
+    {
+        var outsidePath = Path.Combine(Path.GetDirectoryName(_layoutsDir)!, "outside-layout.html");
+        File.WriteAllText(outsidePath, "outside");
+        try
+        {
+            var pagePath = Path.Combine(_layoutsDir, "page.html");
+            File.WriteAllText(pagePath, "{% layout \"../outside-layout.html\" %}\n<h1>{{ page.title }}</h1>");
+
+            var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+            var ex = Assert.Throws<RenderException>(() =>
+                renderer.RenderPage("page.html", CreatePageModel("Blocked")));
+
+            Assert.Contains("invalid", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            try { File.Delete(outsidePath); } catch { }
+        }
+    }
+
+    [Fact]
     public void LayoutWithoutQuotedStringParam_RendersAsNormalTemplate()
     {
         var templatePath = Path.Combine(_layoutsDir, "nolayout.html");

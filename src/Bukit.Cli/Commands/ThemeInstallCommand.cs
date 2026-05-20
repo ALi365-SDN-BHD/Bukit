@@ -55,7 +55,13 @@ public static class ThemeInstallCommand
 
         Console.WriteLine($"Found: {entry.Name} v{entry.Version} by {entry.Author ?? "unknown"}");
 
-        var themeDest = Path.Combine(themesDir, entry.Name);
+        if (!CloneModels.IsSafeThemeName(entry.Name))
+        {
+            Console.Error.WriteLine($"Theme registry entry has unsafe name: {entry.Name}");
+            return 2;
+        }
+
+        var themeDest = ResolveThemeDestination(themesDir, entry.Name);
         if (Directory.Exists(themeDest))
         {
             if (!force)
@@ -217,12 +223,31 @@ public static class ThemeInstallCommand
             themeName = baseName.Length > 0 ? baseName : "installed-theme";
         }
 
-        var themeDest = Path.Combine(themesDir, themeName);
+        if (!CloneModels.IsSafeThemeName(themeName))
+        {
+            Console.Error.WriteLine($"Unsafe theme name: {themeName}");
+            return 2;
+        }
+
+        var themeDest = ResolveThemeDestination(themesDir, themeName);
         var result = InstallExtractedDir(tmpDir, themeDest, force, themeName);
 
         try { Directory.Delete(tmpDir, recursive: true); } catch { }
 
         return result;
+    }
+
+    private static string ResolveThemeDestination(string themesDir, string themeName)
+    {
+        var fullThemesDir = Path.GetFullPath(themesDir);
+        var fullDest = Path.GetFullPath(Path.Combine(fullThemesDir, themeName));
+        var safeRoot = fullThemesDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!fullDest.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Theme destination escapes themes directory: {themeName}");
+        }
+
+        return fullDest;
     }
 
     private static string? DetectThemeName(string extractedDir)

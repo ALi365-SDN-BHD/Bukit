@@ -99,13 +99,18 @@ for file in "${SCAN_FILES[@]}"; do
   done
 done
 
-for path in "${REQUIRED_PATHS[@]}" "${EXTRA_PATHS[@]}"; do
+PATHS_TO_CHECK=("${REQUIRED_PATHS[@]}")
+if [[ ${#EXTRA_PATHS[@]} -gt 0 ]]; then
+  PATHS_TO_CHECK+=("${EXTRA_PATHS[@]}")
+fi
+
+for path in "${PATHS_TO_CHECK[@]}"; do
   if [[ ! -e "$path" ]]; then
     doc_error "missing path: $path"
   fi
 done
 
-if ! find guide/user -maxdepth 1 -type f -name '*GitHub-Pages.md' | grep -q .; then
+if ! find guide/user -maxdepth 1 -type f -iname '*github-pages.md' | grep -q .; then
   doc_error "missing pages deployment guide under guide/user/*GitHub-Pages.md"
 fi
 

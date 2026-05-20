@@ -1,4 +1,7 @@
 using System.Reflection;
+using System.Formats.Tar;
+using System.IO.Compression;
+using System.Text;
 using Bukit.Cli;
 using Bukit.Cli.Commands;
 using Xunit;
@@ -626,6 +629,22 @@ version: 1.0.0
     }
 
     [Fact]
+    public async Task ThemeInstall_UnsafeManifestName_ReturnsTwoAndDoesNotWriteOutsideThemes()
+    {
+        var archive = Path.Combine(_rootDir, "unsafe.tar.gz");
+        await CreateThemeArchiveAsync(archive, "../escaped");
+
+        var exitCode = await ThemeInstallCommand.RunAsync(new ArgReader(new[]
+        {
+            "theme", "install", archive, "--config", _configPath
+        }));
+
+        Assert.Equal(2, exitCode);
+        Assert.False(Directory.Exists(Path.Combine(_rootDir, "escaped")));
+        Assert.False(Directory.Exists(Path.Combine(_rootDir, "themes", "escaped")));
+    }
+
+    [Fact]
     public async Task TemplateCommand_Hints_ReturnsZero()
     {
         var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[] { "template", "hints" }));
@@ -793,6 +812,27 @@ themes:
             Assert.True(ok);
         }
         finally { try { File.Delete(path); } catch { } }
+    }
+
+    private static async Task CreateThemeArchiveAsync(string archivePath, string themeName)
+    {
+        await using var file = File.Create(archivePath);
+        await using var gzip = new GZipStream(file, CompressionLevel.SmallestSize);
+        await using var writer = new TarWriter(gzip, leaveOpen: false);
+
+        await WriteTextEntryAsync(writer, "theme.yaml", $"name: {themeName}\nversion: 1.0.0\n");
+        await WriteTextEntryAsync(writer, "layouts/pages/index.html", "index");
+    }
+
+    private static async Task WriteTextEntryAsync(TarWriter writer, string name, string content)
+    {
+        var bytes = Encoding.UTF8.GetBytes(content);
+        await using var stream = new MemoryStream(bytes);
+        var entry = new PaxTarEntry(TarEntryType.RegularFile, name)
+        {
+            DataStream = stream
+        };
+        await writer.WriteEntryAsync(entry);
     }
 
     [Fact]

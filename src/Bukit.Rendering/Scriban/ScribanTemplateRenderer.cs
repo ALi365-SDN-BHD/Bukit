@@ -72,7 +72,7 @@ public sealed class ScribanTemplateRenderer
 
     private CachedTemplate GetCachedTemplate(string templateRelativePath)
     {
-        var templatePath = Path.Combine(_layoutsDir, templateRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        var templatePath = ResolveTemplatePath(templateRelativePath);
         var fileInfo = new FileInfo(templatePath);
         if (!fileInfo.Exists)
         {
@@ -100,6 +100,18 @@ public sealed class ScribanTemplateRenderer
 
         _cache[templatePath] = parsed;
         return parsed;
+    }
+
+    private string ResolveTemplatePath(string templateRelativePath)
+    {
+        try
+        {
+            return _templateLoader.GetPath(new TemplateContext(), default, templateRelativePath);
+        }
+        catch (Exception ex)
+        {
+            throw new RenderException($"Template path is invalid: {templateRelativePath}", ex);
+        }
     }
 
     private static Template ParseTemplateOrThrow(string text, string templatePath, string templateRelativePath)
