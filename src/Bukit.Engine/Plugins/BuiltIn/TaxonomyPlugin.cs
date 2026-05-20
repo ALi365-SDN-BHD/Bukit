@@ -490,7 +490,16 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         var termTemplate = FirstNonEmpty(kindConfig?.TermTemplate, legacyKindConfig.TermTemplate, config.TermTemplate, conventionalTermTemplate, kindBaseTemplate)
             ?? kindBaseTemplate;
 
+        indexTemplate = EnsureTemplateExists(indexTemplate, layoutsDir, "pages/page.html");
+        termTemplate = EnsureTemplateExists(termTemplate, layoutsDir, "pages/page.html");
+
         return (indexTemplate, termTemplate);
+    }
+
+    private static string EnsureTemplateExists(string template, string layoutsDir, string fallback)
+    {
+        var fullPath = Path.Combine(layoutsDir, template.Replace('/', Path.DirectorySeparatorChar));
+        return File.Exists(fullPath) ? template : fallback;
     }
 
     private static string? FirstNonEmpty(params string?[] candidates)

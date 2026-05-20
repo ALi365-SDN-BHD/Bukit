@@ -215,6 +215,9 @@ public static class DoctorCommand
             return 1;
         }
 
+        var listRoutes = Bukit.Engine.SiteEngine.GetListRoutes(config.Site.Collections);
+        CheckUnreferencedTemplates(layoutsDir, allHtmlFiles, config, listRoutes);
+
         Console.WriteLine("✔ Doctor passed");
         return 0;
     }
@@ -381,6 +384,130 @@ public static class DoctorCommand
             {
                 Console.WriteLine($"  - {key}");
             }
+        }
+    }
+
+    private static void CheckUnreferencedTemplates(
+        string layoutsDir,
+        string[] allHtmlFiles,
+        AppConfig config,
+        IReadOnlyList<Bukit.Routing.RouteInfo> listRoutes)
+    {
+        var usedTemplates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        usedTemplates.Add(Path.Combine("layouts", "base.html"));
+
+        if (config.Site.Collections is not null)
+        {
+            foreach (var (_, collection) in config.Site.Collections)
+            {
+                if (!string.IsNullOrWhiteSpace(collection.Template))
+                {
+                    usedTemplates.Add(collection.Template.Trim());
+                }
+
+                if (!string.IsNullOrWhiteSpace(collection.ListTemplate))
+                {
+                    usedTemplates.Add(collection.ListTemplate.Trim());
+                }
+            }
+        }
+
+        usedTemplates.Add("pages/index.html");
+        usedTemplates.Add("pages/list.html");
+        usedTemplates.Add("pages/post.html");
+        usedTemplates.Add("pages/page.html");
+
+        var taxonomyTemplate = config.Taxonomy.Template ?? "pages/taxonomy-term.html";
+        usedTemplates.Add(taxonomyTemplate);
+        if (config.Taxonomy.IndexTemplate is not null)
+        {
+            usedTemplates.Add(config.Taxonomy.IndexTemplate);
+        }
+
+        if (config.Taxonomy.TermTemplate is not null)
+        {
+            usedTemplates.Add(config.Taxonomy.TermTemplate);
+        }
+
+        if (config.Taxonomy.Templates.Tags.Template is not null)
+        {
+            usedTemplates.Add(config.Taxonomy.Templates.Tags.Template);
+        }
+
+        if (config.Taxonomy.Templates.Categories.Template is not null)
+        {
+            usedTemplates.Add(config.Taxonomy.Templates.Categories.Template);
+        }
+
+        foreach (var listRoute in listRoutes)
+        {
+            if (!string.IsNullOrWhiteSpace(listRoute.Template))
+            {
+                usedTemplates.Add(listRoute.Template);
+            }
+        }
+
+        foreach (var file in allHtmlFiles)
+        {
+            var relative = Path.GetRelativePath(layoutsDir, file).Replace('\\', '/');
+            var text = File.ReadAllText(file);
+            var layoutRefs = ExtractDirectives(text, "layout");
+            var includeRefs = ExtractDirectives(text, "include");
+
+            if (includeRefs.Count > 0 || layoutRefs.Count > 0)
+            {
+                usedTemplates.Add(relative);
+            }
+
+            foreach (var layoutRef in layoutRefs)
+            {
+                if (!string.IsNullOrWhiteSpace(layoutRef))
+                {
+                    usedTemplates.Add(layoutRef.Trim());
+                }
+            }
+
+            foreach (var includeRef in includeRefs)
+            {
+                if (!string.IsNullOrWhiteSpace(includeRef))
+                {
+                    usedTemplates.Add(includeRef.Trim());
+                }
+            }
+        }
+
+        foreach (var used in usedTemplates.ToList())
+        {
+            foreach (var file in allHtmlFiles)
+            {
+                var relative = Path.GetRelativePath(layoutsDir, file).Replace('\\', '/');
+                if (used.Equals(relative, StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+            }
+        }
+
+        var actualFiles = new HashSet<string>(
+            allHtmlFiles.Select(f => Path.GetRelativePath(layoutsDir, f).Replace('\\', '/')),
+            StringComparer.OrdinalIgnoreCase);
+
+        var unreferenced = actualFiles
+            .Where(f => !usedTemplates.Contains(f))
+            .OrderBy(f => f)
+            .ToList();
+
+        if (unreferenced.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"⚠ {unreferenced.Count} template(s) appear unreferenced by any route:");
+            foreach (var t in unreferenced)
+            {
+                Console.WriteLine($"  - {t}");
+            }
+
+            Console.WriteLine("  These may be unused and safe to remove.");
         }
     }
 

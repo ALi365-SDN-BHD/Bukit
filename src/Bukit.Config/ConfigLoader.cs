@@ -108,12 +108,13 @@ public static class ConfigLoader
             Layouts = themeNode is null ? "layouts" : GetOptionalString(themeNode, "layouts") ?? "layouts",
             Assets = themeNode is null ? "assets" : GetOptionalString(themeNode, "assets") ?? "assets",
             Static = themeNode is null ? "static" : GetOptionalString(themeNode, "static") ?? "static",
+            StaticTemplate = themeNode is null ? null : GetOptionalString(themeNode, "staticTemplate"),
             Params = ReadThemeParams(themeNode)
         };
 
         var taxonomy = new TaxonomyConfig
         {
-            Template = taxonomyNode is null ? "pages/page.html" : GetOptionalString(taxonomyNode, "template") ?? "pages/page.html",
+            Template = taxonomyNode is null ? "pages/taxonomy-term.html" : GetOptionalString(taxonomyNode, "template") ?? "pages/taxonomy-term.html",
             IndexTemplate = taxonomyNode is null ? null : GetOptionalString(taxonomyNode, "indexTemplate"),
             TermTemplate = taxonomyNode is null ? null : GetOptionalString(taxonomyNode, "termTemplate"),
             Templates = ReadTaxonomyTemplates(taxonomyNode),

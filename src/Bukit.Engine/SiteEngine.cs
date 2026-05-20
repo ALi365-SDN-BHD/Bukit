@@ -826,6 +826,9 @@ public sealed class SiteEngine
         return result ?? existing;
     }
 
+    internal static IReadOnlyList<RouteInfo> GetListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)
+        => BuildListRoutesCore(collections, "none");
+
     private static IReadOnlyList<RouteInfo> BuildListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)
         => BuildListRoutesCore(collections, "none");
 

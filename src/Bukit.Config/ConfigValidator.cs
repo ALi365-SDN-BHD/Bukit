@@ -145,6 +145,11 @@ public static class ConfigValidator
             ValidateCollections(config.Site.Collections);
         }
 
+        if (config.Site.Collections is { Count: > 0 } && config.Content.Sources is { Count: > 0 })
+        {
+            ValidateSourcesToCollections(config.Content.Sources, config.Site.Collections);
+        }
+
         if (config.Site.ExternalPlugins is not null)
         {
             ValidateExternalPlugins(config.Site.ExternalPlugins);
@@ -425,6 +430,64 @@ public static class ConfigValidator
                     throw new ConfigException($"site.collections.{name}.listRoute must start with '/'.");
                 }
             }
+        }
+    }
+
+    private static void ValidateSourcesToCollections(
+        IReadOnlyList<ContentSourceConfig> sources,
+        IReadOnlyDictionary<string, CollectionConfig> collections)
+    {
+        var collectionKeys = new HashSet<string>(collections.Keys, StringComparer.OrdinalIgnoreCase);
+        var contentSources = new List<ContentSourceConfig>();
+        foreach (var source in sources)
+        {
+            if ((source.Mode ?? "content").Trim().Equals("content", StringComparison.OrdinalIgnoreCase))
+            {
+                contentSources.Add(source);
+            }
+        }
+
+        if (contentSources.Count == 0)
+        {
+            return;
+        }
+
+        var sourcesWithCollection = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sourcesWithoutCollection = new List<int>();
+        for (var i = 0; i < contentSources.Count; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(contentSources[i].Collection))
+            {
+                sourcesWithCollection.Add(contentSources[i].Collection!.Trim());
+            }
+            else
+            {
+                sourcesWithoutCollection.Add(i);
+            }
+        }
+
+        if (sourcesWithoutCollection.Count == 0)
+        {
+            return;
+        }
+
+        var unreferencedCollections = collectionKeys.Except(sourcesWithCollection).ToList();
+
+        if (unreferencedCollections.Count > 0)
+        {
+            if (sourcesWithoutCollection.Count == contentSources.Count)
+            {
+                throw new ConfigException(
+                    "content.sources: no content source has a 'collection' field, but site.collections defines: " +
+                    string.Join(", ", collectionKeys) +
+                    ". Without collection assignment, content items cannot match their collection rules. " +
+                    "Add 'collection: <name>' to each content source (e.g. collection: post).");
+            }
+
+            throw new ConfigException(
+                "content.sources: the following site.collections have no matching content source with a 'collection' field: " +
+                string.Join(", ", unreferencedCollections) +
+                ". Assign them via 'collection: <name>' on each content source.");
         }
     }
 

@@ -6,7 +6,27 @@ public static class RouteGenerator
 {
     public sealed record CollectionRouteRule(string Permalink, string Template);
 
+    public enum RouteSource
+    {
+        FullOverride,
+        PartialOverride,
+        Collection,
+        Permalink,
+        BuiltinFallback
+    }
+
+    public sealed record RouteGenerationResult(RouteInfo Route, RouteSource Source);
+
     public static RouteInfo Generate(
+        ContentItem item,
+        string outputPathEncoding = "none",
+        IReadOnlyDictionary<string, string>? permalinks = null,
+        IReadOnlyDictionary<string, CollectionRouteRule>? collections = null)
+    {
+        return GenerateWithSource(item, outputPathEncoding, permalinks, collections).Route;
+    }
+
+    public static RouteGenerationResult GenerateWithSource(
         ContentItem item,
         string outputPathEncoding = "none",
         IReadOnlyDictionary<string, string>? permalinks = null,
@@ -14,13 +34,16 @@ public static class RouteGenerator
     {
         if (TryReadFullRouteOverride(item, outputPathEncoding, out var overridden))
         {
-            return overridden;
+            return new RouteGenerationResult(overridden, RouteSource.FullOverride);
         }
 
-        var baseRoute = GenerateBaseRoute(item, outputPathEncoding, permalinks, collections);
-        return TryApplyPartialRouteOverride(item, outputPathEncoding, baseRoute, out var partialOverride)
-            ? partialOverride
-            : baseRoute;
+        var (baseRoute, baseSource) = GenerateBaseRouteWithSource(item, outputPathEncoding, permalinks, collections);
+        if (TryApplyPartialRouteOverride(item, outputPathEncoding, baseRoute, out var partialOverride))
+        {
+            return new RouteGenerationResult(partialOverride, RouteSource.PartialOverride);
+        }
+
+        return new RouteGenerationResult(baseRoute, baseSource);
     }
 
     private static RouteInfo BuildFromPattern(ContentItem item, string pattern, string template, string outputPathEncoding)
@@ -47,7 +70,7 @@ public static class RouteGenerator
         return result;
     }
 
-    private static RouteInfo GenerateBaseRoute(
+    private static (RouteInfo Route, RouteSource Source) GenerateBaseRouteWithSource(
         ContentItem item,
         string outputPathEncoding,
         IReadOnlyDictionary<string, string>? permalinks,
@@ -57,7 +80,7 @@ public static class RouteGenerator
 
         if (collections is not null && collections.TryGetValue(collectionKey, out var rule))
         {
-            return BuildFromPattern(item, rule.Permalink, rule.Template, outputPathEncoding);
+            return (BuildFromPattern(item, rule.Permalink, rule.Template, outputPathEncoding), RouteSource.Collection);
         }
 
         var type = GetType(item);
@@ -65,32 +88,25 @@ public static class RouteGenerator
         if (permalinks is not null && permalinks.TryGetValue(type, out var pattern) && !string.IsNullOrWhiteSpace(pattern))
         {
             var template = type.Equals("post", StringComparison.OrdinalIgnoreCase) ? "pages/post.html" : "pages/page.html";
-            return BuildFromPattern(item, pattern, template, outputPathEncoding);
+            return (BuildFromPattern(item, pattern, template, outputPathEncoding), RouteSource.Permalink);
         }
 
-        var route = type switch
+        var (url, outputBase, templateName) = type switch
         {
-            "post" => new RouteInfo(
-                Url: $"/blog/{item.Slug}/",
-                OutputPath: Path.Combine("blog", item.Slug, "index.html"),
-                Template: "pages/post.html"
-            ),
-            "page" => new RouteInfo(
-                Url: $"/pages/{item.Slug}/",
-                OutputPath: Path.Combine("pages", item.Slug, "index.html"),
-                Template: "pages/page.html"
-            ),
-            _ => new RouteInfo(
-                Url: $"/pages/{item.Slug}/",
-                OutputPath: Path.Combine("pages", item.Slug, "index.html"),
-                Template: "pages/page.html"
-            )
+            "post" => ($"/blog/{item.Slug}/", "blog", "pages/post.html"),
+            _ => ($"/pages/{item.Slug}/", "pages", "pages/page.html")
         };
 
-        return route with
+        var route = new RouteInfo(
+            Url: url,
+            OutputPath: Path.Combine(outputBase, item.Slug, "index.html"),
+            Template: templateName
+        );
+
+        return (route with
         {
             OutputPath = RoutePathBuilder.NormalizeOutputPath(route.OutputPath, outputPathEncoding)
-        };
+        }, RouteSource.BuiltinFallback);
     }
 
     private static bool TryReadFullRouteOverride(ContentItem item, string outputPathEncoding, out RouteInfo route)

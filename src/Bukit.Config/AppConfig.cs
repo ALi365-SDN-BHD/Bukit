@@ -223,12 +223,13 @@ public sealed record ThemeConfig
     public string Layouts { get; init; } = "layouts";
     public string Assets { get; init; } = "assets";
     public string Static { get; init; } = "static";
+    public string? StaticTemplate { get; init; }
     public IReadOnlyDictionary<string, object>? Params { get; init; }
 }
 
 public sealed record TaxonomyConfig
 {
-    public string Template { get; init; } = "pages/page.html";
+    public string Template { get; init; } = "pages/taxonomy-term.html";
     public string? IndexTemplate { get; init; }
     public string? TermTemplate { get; init; }
     public TaxonomyTemplatesConfig Templates { get; init; } = new();
