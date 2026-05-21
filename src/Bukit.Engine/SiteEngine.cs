@@ -299,9 +299,10 @@ public sealed class SiteEngine
                 ? (_, route) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model) ? model : null!
                 : null,
             shouldProvideSeoModel
-                ? (_, route, page, html) =>
+                ? (item, route, page, html) =>
                 {
-                    if (shouldInjectSeo)
+                    var skipSeo = SeoInjectionPolicy.ShouldSkip(item.Meta);
+                    if (shouldInjectSeo && !skipSeo)
                     {
                         html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, siteModel.Analytics);
                     }

@@ -88,6 +88,7 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--verify", "生成后执行 doctor/build 验证", CliOptionType.Flag),
                 new CliOptionSpec("--visual-threshold", "视觉截图 diff 阈值 (0-1)", CliOptionType.String, ValueName: "ratio"),
                 new CliOptionSpec("--fail-on-visual-diff", "截图 diff 超过阈值时失败", CliOptionType.Flag),
+                new CliOptionSpec("--fidelity", "保真模式：直接迁移 HTML 目录为模板 (值为 HTML 目录路径)", CliOptionType.String, ValueName: "dir"),
                 new CliOptionSpec("--config", "配置文件路径"),
                 new CliOptionSpec("--site", "多站点名")
             });
