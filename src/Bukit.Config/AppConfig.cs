@@ -240,13 +240,22 @@ public sealed record BuildConfig
 public sealed record ThemeConfig
 {
     public string? Name { get; init; }
+    public string? Extends { get; init; }
     public string Layouts { get; init; } = "layouts";
     public string Assets { get; init; } = "assets";
     public string Static { get; init; } = "static";
     public string? StaticTemplate { get; init; }
     public IReadOnlyDictionary<string, object>? Params { get; init; }
     public IReadOnlyDictionary<string, string>? Shortcodes { get; init; }
+    public IReadOnlyDictionary<string, ComponentDefinition>? Components { get; init; }
     public ScssConfig? Scss { get; init; }
+    public ImageOptimizationConfig? Images { get; init; }
+}
+
+public sealed record ComponentDefinition
+{
+    public required string Template { get; init; }
+    public IReadOnlyDictionary<string, string>? Props { get; init; }
 }
 
 public sealed record ScssConfig
@@ -254,6 +263,14 @@ public sealed record ScssConfig
     public bool Enabled { get; init; }
     public string? EntryPoint { get; init; }
     public string OutputDir { get; init; } = "assets";
+}
+
+public sealed record ImageOptimizationConfig
+{
+    public bool Enabled { get; init; }
+    public IReadOnlyList<string> Formats { get; init; } = new[] { "webp" };
+    public IReadOnlyList<int> Sizes { get; init; } = new[] { 480, 768, 1200 };
+    public int Quality { get; init; } = 80;
 }
 
 public sealed record TaxonomyConfig

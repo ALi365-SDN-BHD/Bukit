@@ -8,11 +8,13 @@ namespace Bukit.Rendering.Scriban;
 public sealed class FileTemplateLoader : ITemplateLoader
 {
     private readonly string _rootDir;
+    private readonly string? _fallbackDir;
     private readonly ConcurrentDictionary<string, CachedText> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public FileTemplateLoader(string rootDir)
+    public FileTemplateLoader(string rootDir, string? fallbackDir = null)
     {
         _rootDir = rootDir;
+        _fallbackDir = fallbackDir;
     }
 
     public string GetPath(TemplateContext context, SourceSpan callerSpan, string templateName)
@@ -25,11 +27,31 @@ public sealed class FileTemplateLoader : ITemplateLoader
         else
         {
             var normalized = templateName.Replace('/', Path.DirectorySeparatorChar);
-            resolved = Path.GetFullPath(Path.Combine(_rootDir, normalized));
+            var primary = Path.GetFullPath(Path.Combine(_rootDir, normalized));
+
+            if (_fallbackDir is not null)
+            {
+                var fallback = Path.GetFullPath(Path.Combine(_fallbackDir, normalized));
+                if (File.Exists(fallback))
+                {
+                    resolved = fallback;
+                    goto safetyCheck;
+                }
+            }
+
+            if (File.Exists(primary))
+            {
+                resolved = primary;
+                goto safetyCheck;
+            }
+
+            resolved = primary;
         }
 
-        var safeRoot = Path.GetFullPath(_rootDir) + Path.DirectorySeparatorChar;
-        if (!resolved.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
+    safetyCheck:
+        var safeRootPrimary = EnsureSafeRoot(_rootDir);
+        if (!resolved.StartsWith(safeRootPrimary, StringComparison.OrdinalIgnoreCase) &&
+            (_fallbackDir is null || !resolved.StartsWith(EnsureSafeRoot(_fallbackDir), StringComparison.OrdinalIgnoreCase)))
         {
             throw new InvalidOperationException(
                 $"Template include '{templateName}' resolves outside the layouts directory.");
@@ -40,12 +62,12 @@ public sealed class FileTemplateLoader : ITemplateLoader
 
     public string Load(TemplateContext context, SourceSpan callerSpan, string templatePath)
     {
-        return LoadCached(EnsurePathInsideRoot(templatePath));
+        return LoadCached(EnsurePathInsideAnyRoot(templatePath));
     }
 
     public async ValueTask<string?> LoadAsync(TemplateContext context, SourceSpan callerSpan, string templatePath)
     {
-        templatePath = EnsurePathInsideRoot(templatePath);
+        templatePath = EnsurePathInsideAnyRoot(templatePath);
         var fileInfo = new FileInfo(templatePath);
         if (!fileInfo.Exists)
         {
@@ -63,17 +85,26 @@ public sealed class FileTemplateLoader : ITemplateLoader
         return text;
     }
 
-    private string EnsurePathInsideRoot(string templatePath)
+    private string EnsurePathInsideAnyRoot(string templatePath)
     {
         var fullPath = Path.GetFullPath(templatePath);
-        var safeRoot = Path.GetFullPath(_rootDir) + Path.DirectorySeparatorChar;
-        if (!fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
+        var safeRoot = EnsureSafeRoot(_rootDir);
+        if (fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException(
-                $"Template path '{templatePath}' resolves outside the layouts directory.");
+            return fullPath;
         }
 
-        return fullPath;
+        if (_fallbackDir is not null)
+        {
+            var safeFallback = EnsureSafeRoot(_fallbackDir);
+            if (fullPath.StartsWith(safeFallback, StringComparison.OrdinalIgnoreCase))
+            {
+                return fullPath;
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Template path '{templatePath}' resolves outside the layouts directory.");
     }
 
     private string LoadCached(string templatePath)
@@ -94,6 +125,9 @@ public sealed class FileTemplateLoader : ITemplateLoader
         _cache[templatePath] = new CachedText(signature, text);
         return text;
     }
+
+    private static string EnsureSafeRoot(string dir)
+        => Path.GetFullPath(dir) + Path.DirectorySeparatorChar;
 
     private readonly record struct FileSignature(DateTime LastWriteTimeUtc, long Length);
 

@@ -65,7 +65,21 @@ internal static class BuildPathUtils
             .Replace("'", "&#39;", StringComparison.Ordinal);
     }
 
-    internal static (string LayoutsDir, string AssetsDir, string StaticDir) ResolveThemeDirectories(string rootDir, ThemeConfig theme)
+    internal static (string LayoutsDir, string AssetsDir, string StaticDir, string? ParentLayoutsDir, string? ParentAssetsDir, string? ParentStaticDir) ResolveThemeDirectories(string rootDir, ThemeConfig theme)
+    {
+        var (childLayouts, childAssets, childStatic) = ResolveThemeDirInternal(rootDir, theme);
+
+        if (!string.IsNullOrWhiteSpace(theme.Extends))
+        {
+            var parentTheme = new ThemeConfig { Name = theme.Extends };
+            var (parentLayouts, parentAssets, parentStatic) = ResolveThemeDirInternal(rootDir, parentTheme);
+            return (childLayouts, childAssets, childStatic, parentLayouts, parentAssets, parentStatic);
+        }
+
+        return (childLayouts, childAssets, childStatic, null, null, null);
+    }
+
+    private static (string LayoutsDir, string AssetsDir, string StaticDir) ResolveThemeDirInternal(string rootDir, ThemeConfig theme)
     {
         if (string.IsNullOrWhiteSpace(theme.Name))
         {

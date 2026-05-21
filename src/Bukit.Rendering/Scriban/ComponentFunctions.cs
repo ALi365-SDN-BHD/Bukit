@@ -1,0 +1,74 @@
+using Bukit.Config;
+using Scriban;
+using Scriban.Runtime;
+
+namespace Bukit.Rendering.Scriban;
+
+internal sealed class ComponentFunctions
+{
+    internal static IReadOnlyDictionary<string, ComponentDefinition>? Components;
+    internal static FileTemplateLoader? TemplateLoader;
+    internal static ScriptObject? ParentGlobals;
+
+    public static string Render(string name, string arg1 = "", string arg2 = "", string arg3 = "")
+    {
+        if (Components is null || !Components.TryGetValue(name, out var compDef))
+        {
+            return $"<!-- component not found: {name} -->";
+        }
+
+        try
+        {
+            var resolveCtx = new TemplateContext { TemplateLoader = TemplateLoader };
+            var resolvedPath = TemplateLoader!.GetPath(resolveCtx, default, compDef.Template);
+
+            var compContext = new TemplateContext
+            {
+                TemplateLoader = TemplateLoader,
+                EnableRelaxedMemberAccess = true,
+                EnableRelaxedTargetAccess = true,
+                EnableNullIndexer = true
+            };
+
+            var componentGlobals = new ScriptObject();
+            if (compDef.Props is { Count: > 0 })
+            {
+                var props = new List<string>();
+                if (!string.IsNullOrEmpty(arg1)) props.Add(arg1);
+                if (!string.IsNullOrEmpty(arg2)) props.Add(arg2);
+                if (!string.IsNullOrEmpty(arg3)) props.Add(arg3);
+
+                var propIndex = 0;
+                foreach (var (propName, _) in compDef.Props)
+                {
+                    var val = propIndex < props.Count ? props[propIndex] : compDef.Props[propName];
+                    componentGlobals.SetValue(propName, val, readOnly: true);
+                    propIndex++;
+                }
+            }
+
+            var templateText = TemplateLoader!.Load(compContext, default, resolvedPath);
+            if (string.IsNullOrEmpty(templateText))
+            {
+                return $"<!-- component template not found: {compDef.Template} -->";
+            }
+
+            var compTemplate = Template.Parse(templateText);
+            if (compTemplate.HasErrors)
+            {
+                return $"<!-- component error: {compTemplate.Messages} -->";
+            }
+
+            compContext.PushGlobal(componentGlobals);
+            if (ParentGlobals is not null)
+            {
+                compContext.PushGlobal(ParentGlobals);
+            }
+            return compTemplate.Render(compContext);
+        }
+        catch (Exception ex)
+        {
+            return $"<!-- component error: {ex.Message} -->";
+        }
+    }
+}

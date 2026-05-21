@@ -1,5 +1,6 @@
 using Scriban;
 using Scriban.Runtime;
+using Bukit.Config;
 using Bukit.Shared;
 using System.Collections.Concurrent;
 
@@ -11,13 +12,15 @@ public sealed class ScribanTemplateRenderer
     private readonly string _layoutsDir;
     private readonly FileTemplateLoader _templateLoader;
     private readonly IReadOnlyDictionary<string, string>? _shortcodes;
+    private readonly IReadOnlyDictionary<string, ComponentDefinition>? _components;
     private readonly ConcurrentDictionary<string, CachedTemplate> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public ScribanTemplateRenderer(string layoutsDir, IReadOnlyDictionary<string, string>? shortcodes = null)
+    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null)
     {
         _layoutsDir = layoutsDir;
-        _templateLoader = new FileTemplateLoader(_layoutsDir);
+        _templateLoader = new FileTemplateLoader(_layoutsDir, parentLayoutsDir);
         _shortcodes = shortcodes;
+        _components = components;
     }
 
     public string RenderPage(string templateRelativePath, PageModel model)
@@ -74,6 +77,16 @@ public sealed class ScribanTemplateRenderer
                 return ShortcodeProcessor.RenderShortcode(name, capturedShortcodes, args.ToArray());
             }), readOnly: true);
             context.PushGlobal(shortcodeObj);
+        }
+
+        if (_components is { Count: > 0 })
+        {
+            ComponentFunctions.Components = _components;
+            ComponentFunctions.TemplateLoader = _templateLoader;
+            ComponentFunctions.ParentGlobals = globals;
+            var componentObj = new ScriptObject();
+            componentObj.SetValue("render", new Func<string, string, string, string, string>(ComponentFunctions.Render), readOnly: true);
+            context.PushGlobal(new ScriptObject { ["comp"] = componentObj });
         }
 
         context.PushGlobal(globals);

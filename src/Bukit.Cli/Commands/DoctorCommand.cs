@@ -42,7 +42,7 @@ public static class DoctorCommand
             return 1;
         }
 
-        var (layoutsDir, assetsDir, staticDir) = Bukit.Engine.BuildPathUtils.ResolveThemeDirectories(rootDir, config.Theme);
+        var (layoutsDir, assetsDir, staticDir, _, _, _) = Bukit.Engine.BuildPathUtils.ResolveThemeDirectories(rootDir, config.Theme);
         if (!Directory.Exists(layoutsDir))
         {
             Console.WriteLine($"✖ Layouts dir not found: {layoutsDir}");

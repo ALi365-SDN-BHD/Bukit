@@ -34,7 +34,7 @@ public sealed class SiteEngine
         ConfigValidator.Validate(effectiveConfig);
 
         var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);
-        var (layoutsDir, assetsDir, staticDir) = BuildPathUtils.ResolveThemeDirectories(rootDir, effectiveConfig.Theme);
+        var (layoutsDir, assetsDir, staticDir, parentLayoutsDir, parentAssetsDir, parentStaticDir) = BuildPathUtils.ResolveThemeDirectories(rootDir, effectiveConfig.Theme);
 
         if (effectiveConfig.Build.Clean && Directory.Exists(outputDir))
         {
@@ -96,7 +96,8 @@ public sealed class SiteEngine
                 effectiveConfig, rootDir, overrides, items, bodyStore, outputDir, baseUrl,
                 layoutsDir, assetsDir, staticDir, mediaCacheDir,
                 SeoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal),
-                RootBaseUrl: null, ManifestSuffix: null, DefaultLanguage: null);
+                RootBaseUrl: null, ManifestSuffix: null, DefaultLanguage: null,
+                ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir);
             var result = await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken);
 
             _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={baseUrl}");
@@ -132,7 +133,8 @@ public sealed class SiteEngine
                     variantConfig, rootDir, overrides, variantItems, bodyStore, variantOutputDir, baseUrl,
                     layoutsDir, assetsDir, staticDir, mediaCacheDir,
                     SeoAlternates: seoAlternates,
-                    RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage);
+                    RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage,
+                    ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir);
                 results[i] = await BuildVariantAsync(variantCtx, templateHashCache, ct, variantLogger);
                 variantLogger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
             });
@@ -192,7 +194,7 @@ public sealed class SiteEngine
         splitItemsStopwatch.Stop();
         variantStageMetrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
 
-        ITemplateRenderer renderer = new ScribanTemplateRendererAdapter(ctx.LayoutsDir, config.Theme.Shortcodes);
+        ITemplateRenderer renderer = new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components);
         var collectionRules = BuildCollectionRules(config.Site);
 
         var routeGenerationStopwatch = Stopwatch.StartNew();
@@ -369,6 +371,10 @@ public sealed class SiteEngine
             {
                 DirectoryCopy.Sync(ctx.StaticDir, outputDir);
             }
+            if (ctx.ParentStaticDir is not null && Directory.Exists(ctx.ParentStaticDir))
+            {
+                DirectoryCopy.Sync(ctx.ParentStaticDir, outputDir);
+            }
             staticStopwatch.Stop();
             variantStageMetrics.AddDuration("staticSync", staticStopwatch.ElapsedMilliseconds);
         }
@@ -377,7 +383,12 @@ public sealed class SiteEngine
         {
             var assetsSyncStopwatch = Stopwatch.StartNew();
             ScssCompiler.CompileIfEnabled(ctx.AssetsDir, config.Theme.Scss, _logger);
+            ImageOptimizer.OptimizeIfEnabled(ctx.AssetsDir, config.Theme.Images, _logger);
             DirectoryCopy.Sync(ctx.AssetsDir, Path.Combine(outputDir, "assets"));
+            if (ctx.ParentAssetsDir is not null && Directory.Exists(ctx.ParentAssetsDir))
+            {
+                DirectoryCopy.Sync(ctx.ParentAssetsDir, Path.Combine(outputDir, "assets"));
+            }
             assetsSyncStopwatch.Stop();
             variantStageMetrics.AddDuration("assetsSync", assetsSyncStopwatch.ElapsedMilliseconds);
         }

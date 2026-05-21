@@ -106,13 +106,16 @@ public static class ConfigLoader
         var theme = new ThemeConfig
         {
             Name = themeNode is null ? null : GetOptionalString(themeNode, "name"),
+            Extends = themeNode is null ? null : GetOptionalString(themeNode, "extends"),
             Layouts = themeNode is null ? "layouts" : GetOptionalString(themeNode, "layouts") ?? "layouts",
             Assets = themeNode is null ? "assets" : GetOptionalString(themeNode, "assets") ?? "assets",
             Static = themeNode is null ? "static" : GetOptionalString(themeNode, "static") ?? "static",
             StaticTemplate = themeNode is null ? null : GetOptionalString(themeNode, "staticTemplate"),
             Params = ReadThemeParams(themeNode),
             Shortcodes = ReadStringMap(themeNode, "shortcodes"),
-            Scss = ReadScssConfig(themeNode)
+            Components = ReadComponents(themeNode),
+            Scss = ReadScssConfig(themeNode),
+            Images = ReadImageOptimizationConfig(themeNode)
         };
 
         var taxonomy = new TaxonomyConfig
@@ -948,5 +951,90 @@ public static class ConfigLoader
         }
 
         return fields.Count == 0 ? null : fields;
+    }
+
+    private static IReadOnlyDictionary<string, ComponentDefinition>? ReadComponents(YamlMappingNode? themeNode)
+    {
+        if (themeNode is null)
+        {
+            return null;
+        }
+
+        var componentsNode = GetOptionalMapping(themeNode, "components");
+        if (componentsNode is null)
+        {
+            return null;
+        }
+
+        var dict = new Dictionary<string, ComponentDefinition>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in componentsNode.Children)
+        {
+            if (kv.Key is not YamlScalarNode k || string.IsNullOrWhiteSpace(k.Value))
+            {
+                continue;
+            }
+
+            if (kv.Value is not YamlMappingNode compNode)
+            {
+                continue;
+            }
+
+            var template = GetOptionalString(compNode, "template");
+            if (string.IsNullOrWhiteSpace(template))
+            {
+                continue;
+            }
+
+            var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var propsNode = GetOptionalMapping(compNode, "props");
+            if (propsNode is not null)
+            {
+                foreach (var pkv in propsNode.Children)
+                {
+                    if (pkv.Key is not YamlScalarNode pk || string.IsNullOrWhiteSpace(pk.Value))
+                    {
+                        continue;
+                    }
+
+                    if (pkv.Value is not YamlScalarNode pv)
+                    {
+                        continue;
+                    }
+
+                    props[pk.Value] = pv.Value ?? string.Empty;
+                }
+            }
+
+            dict[k.Value] = new ComponentDefinition { Template = template, Props = props };
+        }
+
+        return dict.Count == 0 ? null : dict;
+    }
+
+    private static ImageOptimizationConfig? ReadImageOptimizationConfig(YamlMappingNode? themeNode)
+    {
+        if (themeNode is null)
+        {
+            return null;
+        }
+
+        var imagesNode = GetOptionalMapping(themeNode, "images");
+        if (imagesNode is null)
+        {
+            return null;
+        }
+
+        return new ImageOptimizationConfig
+        {
+            Enabled = GetOptionalBool(imagesNode, "enabled") ?? false,
+            Formats = ReadStringList(imagesNode, "formats") ?? new[] { "webp" },
+            Sizes = (GetOptionalSequence(imagesNode, "sizes")?.Children
+                .OfType<YamlScalarNode>()
+                .Select(x => int.TryParse(x.Value, out var v) ? v : (int?)null)
+                .Where(x => x.HasValue)
+                .Select(x => x!.Value)
+                .ToList() as IReadOnlyList<int>) ?? new[] { 480, 768, 1200 },
+            Quality = GetOptionalInt(imagesNode, "quality") ?? 80
+        };
     }
 }

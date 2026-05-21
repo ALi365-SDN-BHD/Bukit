@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Rendering;
 using Bukit.Rendering.Scriban;
 
@@ -7,9 +8,9 @@ internal sealed class ScribanTemplateRendererAdapter : ITemplateRenderer
 {
     private readonly ScribanTemplateRenderer _inner;
 
-    internal ScribanTemplateRendererAdapter(string layoutsDir, IReadOnlyDictionary<string, string>? shortcodes = null)
+    internal ScribanTemplateRendererAdapter(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null)
     {
-        _inner = new ScribanTemplateRenderer(layoutsDir, shortcodes);
+        _inner = new ScribanTemplateRenderer(layoutsDir, parentLayoutsDir, shortcodes, components);
     }
 
     public string RenderPage(string templateRelativePath, PageModel model) => _inner.RenderPage(templateRelativePath, model);

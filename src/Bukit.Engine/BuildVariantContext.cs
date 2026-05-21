@@ -19,4 +19,7 @@ internal sealed record BuildVariantContext(
     IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> SeoAlternates,
     string? RootBaseUrl,
     string? ManifestSuffix,
-    string? DefaultLanguage);
+    string? DefaultLanguage,
+    string? ParentLayoutsDir = null,
+    string? ParentAssetsDir = null,
+    string? ParentStaticDir = null);

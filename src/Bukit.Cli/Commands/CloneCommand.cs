@@ -429,7 +429,7 @@ public static class CloneCommand
             ConfigValidator.Validate(config);
             Console.WriteLine("  Verify doctor: config valid");
 
-            var (layoutsDir, _, _) = BuildPathUtils.ResolveThemeDirectories(rootDir, config.Theme);
+            var (layoutsDir, _, _, _, _, _) = BuildPathUtils.ResolveThemeDirectories(rootDir, config.Theme);
             var requiredTemplates = new[]
             {
                 Path.Combine(layoutsDir, "layouts", "base.html"),
