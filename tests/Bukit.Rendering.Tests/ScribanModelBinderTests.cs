@@ -168,7 +168,7 @@ public sealed class ScribanModelBinderTests
     }
 
     [Fact]
-    public void ToScriptObject_PageModel_BaseUrlSlash_ReturnsEmptyString()
+    public void ToScriptObject_PageModel_BaseUrlSlash_ReturnsSlash()
     {
         var model = new PageModel
         {
@@ -179,7 +179,7 @@ public sealed class ScribanModelBinderTests
         var obj = ScribanModelBinder.ToScriptObject(model);
         var site = Assert.IsType<ScriptObject>(obj["site"]);
 
-        Assert.Equal("", site["base_url"]);
+        Assert.Equal("/", site["base_url"]);
         Assert.Equal("/", site["base_path"]);
     }
 

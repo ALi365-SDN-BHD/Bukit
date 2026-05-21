@@ -42,7 +42,7 @@ public static class ScribanModelBinder
         obj.SetValue("title", model.Title, readOnly: true);
         obj.SetValue("url", model.Url, readOnly: true);
         obj.SetValue("description", model.Description, readOnly: true);
-        obj.SetValue("base_url", model.BaseUrl == "/" ? string.Empty : model.BaseUrl, readOnly: true);
+        obj.SetValue("base_url", model.BaseUrl, readOnly: true);
         obj.SetValue("base_path", model.BaseUrl, readOnly: true);
         obj.SetValue("language", model.Language, readOnly: true);
         obj.SetValue("analytics", ToScriptObject(model.Analytics), readOnly: true);
