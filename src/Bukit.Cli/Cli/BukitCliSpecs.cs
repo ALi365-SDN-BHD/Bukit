@@ -41,6 +41,19 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--site", "多站点名")
             });
 
+        var dev = new CliCommandSpec(
+            Name: "dev",
+            Description: "启动 HMR 开发服务器 (文件变更自动重构建 + 浏览器实时刷新)",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名"),
+                new CliOptionSpec("--host", "监听地址"),
+                new CliOptionSpec("--port", "监听端口", CliOptionType.Integer, ValueName: "port"),
+                new CliOptionSpec("--output", "输出目录", CliOptionType.String, ValueName: "dir"),
+                new CliOptionSpec("--no-watch", "禁用文件监控", CliOptionType.Flag)
+            });
+
         var plugin = new CliCommandSpec(
             Name: "plugin",
             Description: "插件相关命令",
@@ -376,6 +389,6 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--template", "模板名")
             });
 
-        return new CliCommandRegistry(new[] { build, clone, deploy, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, doctor, init });
+        return new CliCommandRegistry(new[] { build, clone, deploy, dev, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, doctor, init });
     }
 }

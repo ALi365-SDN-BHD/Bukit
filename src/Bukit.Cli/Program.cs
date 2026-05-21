@@ -46,6 +46,7 @@ try
                 "build" => await BuildCommand.RunAsync(parsed.BoundCommand),
                 "clone" => await CloneCommand.RunAsync(parsed.BoundCommand),
                 "deploy" => await DeployCommand.RunAsync(parsed.BoundCommand),
+                "dev" => await DevCommand.RunAsync(tail),
                 "preview" => await PreviewCommand.RunAsync(parsed.BoundCommand),
                 _ => (int?)null
             };
@@ -62,6 +63,7 @@ try
         "init" => await InitCommand.RunAsync(reader),
         "build" => await BuildCommand.RunAsync(reader),
         "deploy" => await DeployCommand.RunAsync(reader),
+        "dev" => await DevCommand.RunAsync(args[1..]),
         "preview" => await PreviewCommand.RunAsync(reader),
         "clean" => await CleanCommand.RunAsync(reader),
         "doctor" => await DoctorCommand.RunAsync(reader),
