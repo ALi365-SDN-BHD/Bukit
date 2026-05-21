@@ -2,7 +2,7 @@
 
 All notable changes to Bukit will be documented in this file.
 
-## [1.1.0] - 2026-05-21
+## [1.0.6] - 2026-05-21
 
 ### Added
 - **Shortcodes system**: `theme.shortcodes` in site.yaml — define reusable snippets (`youtube`, `callout`, etc.) that work in both Markdown (`{% name args %}`) and Scriban templates (`{{ shortcode }}`)

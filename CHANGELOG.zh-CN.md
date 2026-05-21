@@ -2,7 +2,7 @@
 
 Bukit 所有重要变更都将记录在此文件中。
 
-## [1.1.0] - 2026-05-21
+## [1.0.6] - 2026-05-21
 
 ### 新增
 - **Shortcodes 系统**：`theme.shortcodes` 配置 — 定义可复用片段（youtube、callout 等），同时支持 Markdown（`{% name args %}`）和 Scriban 模板（`{{ shortcode }}`）

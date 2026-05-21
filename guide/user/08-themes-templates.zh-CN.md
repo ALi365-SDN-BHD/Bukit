@@ -401,7 +401,7 @@ Analytics partial 的输出条件是：
 
 SEO 相关配置与多语言 hreflang 行为见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md) 与示例主题 `seo-best-practice`。
 
-## Shortcodes <Badge type="tip" text="1.1.0" />
+## Shortcodes <Badge type="tip" text="1.0.6" />
 
 Shortcodes 让你在 Markdown 正文和 Scriban 模板中插入可复用的 HTML 片段。
 
@@ -438,7 +438,7 @@ Shortcodes 在渲染阶段处理，自动解码 Markdown 管道中的 HTML 实�
 
 ---
 
-## 主题继承 (Theme Inheritance) <Badge type="tip" text="1.1.0" />
+## 主题继承 (Theme Inheritance) <Badge type="tip" text="1.0.6" />
 
 子主题可以继承父主题的模板、静态文件和资源，只需覆盖需要定制的部分。
 
@@ -456,7 +456,7 @@ theme:
 
 ---
 
-## 组件 (Components) <Badge type="tip" text="1.1.0" />
+## 组件 (Components) <Badge type="tip" text="1.0.6" />
 
 在主题中声明可复用的模板组件，在 Scriban 模板中调用。
 
@@ -499,7 +499,7 @@ theme:
 
 ---
 
-## SCSS 编译 <Badge type="tip" text="1.1.0" />
+## SCSS 编译 <Badge type="tip" text="1.0.6" />
 
 构建时自动将 `.scss` 编译为 `.css`。需安装 `sass` 或 `dart-sass` CLI：
 
@@ -519,7 +519,7 @@ theme:
 
 ---
 
-## 图片优化 <Badge type="tip" text="1.1.0" />
+## 图片优化 <Badge type="tip" text="1.0.6" />
 
 构建时自动将 PNG/JPG 图片转换为 WebP/AVIF 格式。需安装 `cwebp`（libwebp）或 `magick`（ImageMagick）：
 
@@ -545,7 +545,7 @@ theme:
 
 ---
 
-## HMR 开发服务器 <Badge type="tip" text="1.1.0" />
+## HMR 开发服务器 <Badge type="tip" text="1.0.6" />
 
 使用 `bukit dev` 代替 `bukit preview` 获得实时预览体验：
 
@@ -564,7 +564,7 @@ bukit dev --no-watch         # 不监控文件（纯静态服务）
 
 ---
 
-## 内容 Schema 校验 <Badge type="tip" text="1.1.0" />
+## 内容 Schema 校验 <Badge type="tip" text="1.0.6" />
 
 在集合配置中声明字段类型，构建时自动校验 Front Matter：
 
