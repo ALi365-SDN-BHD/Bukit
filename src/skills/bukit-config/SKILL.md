@@ -250,6 +250,7 @@ content:
 | `clean` | bool | true | Whether to clear output directory before build |
 | `draft` | bool | false | Whether to render drafts (pages with draft: true) |
 | `listPageContentMode` | string | `auto` | List page content mode: `auto`/`always`/`never` |
+| `schemaFailMode` | string | `warn` | Schema validation failure behavior: `warn` or `strict` |
 
 ### theme Node
 
@@ -261,6 +262,11 @@ content:
 | `static` | string | `static` | Static file subdirectory name (copied directly) |
 | `staticTemplate` | string | — | When set, renders `static/` `.html` files through Scriban (injecting `page.content`); otherwise copies raw |
 | `params` | map | — | Theme parameters, accessed as `{{ site.params.xxx }}` in templates |
+| `extends` | string | — | Parent theme name (cascade lookup for theme inheritance) |
+| `shortcodes` | map | — | Reusable HTML snippets for Markdown/Scriban |
+| `components` | map | — | Reusable template components with typed props |
+| `scss` | map | — | SCSS compilation config |
+| `images` | map | — | Image optimization config |
 
 ### taxonomy Node
 
@@ -315,6 +321,58 @@ Collection routing is Bukit's core routing model. Each entry must declare:
 | `output.sitemap` | bool | true | Whether the collection is included in sitemap |
 | `output.archive` | bool | false | Whether to generate yearly archives |
 | `filteredLists` | array | — | Sub-list pages filtered by field value. Each entry: `{field, value, listRoute, listTemplate?}`. Items whose front matter `field` value matches `value` are grouped into a separate list page. |
+| `schema` | array | — | Content field validation schema. Each entry: `{name, type, label, required, default}` |
+
+## Config Examples
+
+### Shortcodes
+
+```yaml
+theme:
+  shortcodes:
+    youtube: '<div class="video"><iframe src="https://www.youtube.com/embed/{{ $1 }}"></iframe></div>'
+    callout: '<div class="callout callout-{{ $1 }}">{{ $2 }}</div>'
+```
+
+### Theme Inheritance
+
+```yaml
+theme:
+  name: my-custom-theme
+  extends: official-blog-theme
+```
+
+### Schema Validation
+
+```yaml
+collections:
+  posts:
+    schema:
+      - name: featured
+        type: bool
+        required: true
+      - name: rating
+        type: number
+```
+
+### Image Optimization
+
+```yaml
+theme:
+  images:
+    enabled: true
+    formats: [webp, avif]
+    sizes: [480, 768, 1200]
+    quality: 85
+```
+
+### SCSS Compilation
+
+```yaml
+theme:
+  scss:
+    enabled: true
+```
 
 ## CLI Parameter Overrides
 

@@ -221,6 +221,103 @@ bukit theme wizard my-site --preset blog
 bukit theme wizard my-site
 ```
 
+## 主题继承 (Theme Inheritance)
+
+子主题可继承父主题的模板、静态文件和资源，实现主题的级联覆盖。
+
+### 配置
+
+```yaml
+theme:
+  name: my-child-theme
+  extends: parent-theme-name
+```
+
+### 级联规则
+
+- **模板查找**：子主题优先 → 父主题回退（`{% layout %}`, `{{ include }}` 等指令自动级联）
+- **静态文件**：子主题 `static/` 先复制 → 父主题 `static/` 后复制（子覆盖父）
+- **资源文件**：子主题 `assets/` 先复制 → 父主题 `assets/` 后复制
+
+### 使用场景
+
+- 基于官方主题自定义少量模板
+- 多站点共享公共主题基础
+- 渐进式主题升级
+
+## 组件 (Components)
+
+在 `site.yaml` 中声明可复用模板组件，在 Scriban 中调用。
+
+### 声明组件
+
+```yaml
+theme:
+  components:
+    PostCard:
+      template: "partials/post-card.html"
+      props:
+        title: ""
+        url: ""
+```
+
+### 组件模板
+
+```html
+{{!-- themes/<name>/layouts/partials/post-card.html --}}
+<div class="post-card">
+  <h3>{{ title }}</h3>
+  <a href="{{ url }}">Read more</a>
+</div>
+```
+
+### 在模板中使用
+
+```
+{{ comp.render "PostCard" page.title page.url }}
+```
+
+组件继承父模板的全局变量（`page`, `site` 等），props 按声明顺序绑定。
+
+## 图片优化 (Image Optimization)
+
+构建时自动转换 WebP/AVIF 格式，需要系统安装 `cwebp` 或 `magick`（ImageMagick）CLI。
+
+### 配置
+
+```yaml
+theme:
+  images:
+    enabled: true
+    formats: [webp]
+    sizes: [480, 768, 1200]
+    quality: 85
+```
+
+### 模板中使用 srcset
+
+```html
+<img src="/assets/hero.webp"
+     srcset="{{ ImageOptimizer.BuildSrcset '/assets/hero' sizes 'webp' }}"
+     alt="Hero" />
+```
+
+没有安装转换工具时优雅降级（跳过 + 警告）。
+
+## SCSS 编译
+
+自动编译 `.scss` → `.css`，需要系统安装 `sass` 或 `dart-sass` CLI。
+
+### 配置
+
+```yaml
+theme:
+  scss:
+    enabled: true
+```
+
+在 `assets/` 目录下编写 `.scss` 文件，构建时自动编译为 `.css`（编译成功后删除原 `.scss` 文件）。未安装 CLI 时优雅降级。
+
 ## Theme Distribution & Ecosystem
 
 ### Pack a theme for sharing

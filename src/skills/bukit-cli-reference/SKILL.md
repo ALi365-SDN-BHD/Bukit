@@ -57,7 +57,8 @@ After downloading, place the binary in a PATH directory or the project root.
 | `init` | Initialize site scaffolding | `<target-dir>` `--provider`(markdown/notion) `--template`(minimal) |
 | `create` | Alias for `init` | Same as above |
 | `build` | Build static site | `--config` `--output` `--base-url` `--draft` `--ci` `--incremental` / `--no-incremental` `--jobs` `--metrics` `--log-format` |
-| `preview` | Local preview of dist | `--dir` `--host` `--port` `--strict-port` |
+| `dev` | HMR dev server (watch + live reload) | `--config` `--site` `--host` `--port` `--output` `--no-watch` |
+| `preview` | Static preview of dist/ | `--dir` `--host` `--port` `--strict-port` |
 | `clean` | Clean output and cache directories | `--config` `--site` `--dir` |
 | `doctor` | Diagnose config and templates | `--config` `--site` `--site-url` |
 | `plugin list` | List registered plugins | `--config` `--site` |
@@ -165,6 +166,33 @@ bukit preview [--dir <dir>] [--host <host>] [--port <port>] [--strict-port]
 - `--strict-port` mode: error on port conflict
 
 **MIME type support:** HTML, CSS, JS, JSON, XML, SVG, PNG, JPG, GIF, TXT
+
+### dev
+
+Start HMR development server with file watching, incremental rebuild, and WebSocket live reload.
+
+```
+bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--output <dir>] [--no-watch]
+```
+
+| Parameter | Default | Description |
+|------|--------|------|
+| `--config` | `site.yaml` | Config file path |
+| `--site` | — | Multi-site name |
+| `--host` | `localhost` | Listen address |
+| `--port` | `35729` | Listen port (auto-increment if occupied) |
+| `--output` | `dist` | Output directory override |
+| `--no-watch` | false | Disable file watching (serve only, no live reload) |
+
+**How it works:**
+1. Full initial build (Clean + Incremental)
+2. Start HTTP server + WebSocket endpoint (`/__ws__`)
+3. Watch content/, themes/, layouts/, assets/, static/ for changes
+4. On change → 300ms debounce → incremental rebuild → WebSocket broadcast "reload" to all browsers
+
+**Live reload:** Every HTML response is injected with a `<script>` tag that connects to the WebSocket endpoint for automatic browser refresh on rebuild.
+
+**vs preview:** `bukit dev` is designed for active development with automatic rebuild and live reload. `bukit preview` only serves a pre-built `dist/` directory without file watching.
 
 ### clean
 
@@ -360,7 +388,7 @@ User says "help me build a Bukit blog":
 
 6. Build: bukit build
 
-7. Preview (optional): bukit preview
+7. Dev server: bukit dev → HMR with live reload during development
 
 8. Deploy (optional): bukit deploy → refer user to bukit-deploy skill and guide/user/13-deploy-github-pages.md
 ```

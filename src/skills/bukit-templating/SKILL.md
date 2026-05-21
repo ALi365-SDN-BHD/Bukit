@@ -44,7 +44,7 @@ Three main data objects available in templates:
 |------|------|------|
 | `page.title` | string | Page title |
 | `page.url` | string | Page URL (relative, base_url not included) |
-| `page.content` | string | Page HTML content |
+| `page.content` | string | Rendered HTML body (note: `needs_page_content: true` in `bukit.templates.yaml` controls whether content is loaded for list pages) |
 | `page.summary` | string/null | Page summary |
 | `page.publish_date` | DateTime/null | Publish date |
 | `page.fields` | object | Metadata fields, e.g., `page.fields.tags`, `page.fields.author` |
@@ -219,6 +219,75 @@ When pagination is enabled for taxonomy or list pages, `pages` only contains ent
   <a href="/zh-CN/about/">About</a>
 {{ end }}
 ```
+
+## Shortcodes
+
+Shortcodes allow reusable HTML snippets in both Markdown content and Scriban templates.
+
+### Configuration (site.yaml)
+
+```yaml
+theme:
+  shortcodes:
+    youtube: '<div class="video"><iframe src="https://www.youtube.com/embed/{{ $1 }}"></iframe></div>'
+    callout: '<div class="callout callout-{{ $1 }}">{{ $2 }}</div>'
+```
+
+Parameters are positional, referenced as `{{ $1 }}`, `{{ $2 }}`, etc.
+
+### Usage in Markdown
+
+```
+{% youtube "dQw4w9WgXcQ" %}
+{% callout "warning" "This is important!" %}
+```
+
+Shortcodes are processed during rendering and work even with HTML-encoded content from the Markdown pipeline.
+
+### Usage in Scriban
+
+```
+{{ shortcode "youtube" "dQw4w9WgXcQ" }}
+```
+
+---
+
+## Components
+
+Components are declared in site.yaml with typed props and used in Scriban templates via `{{ comp.render "Name" args }}`.
+
+### Configuration (site.yaml)
+
+```yaml
+theme:
+  components:
+    PostCard:
+      template: "partials/post-card.html"
+      props:
+        title: ""
+        url: ""
+```
+
+### Component Template (partials/post-card.html)
+
+```html
+<div class="post-card">
+  <h3>{{ title }}</h3>
+  <a href="{{ url }}">Read more</a>
+</div>
+```
+
+### Usage in Scriban
+
+```
+{{ for p in pages }}
+{{ comp.render "PostCard" p.title p.url }}
+{{ end }}
+```
+
+Components inherit the parent template's global variables (`page`, `site`, etc.) and receive their own props as local variables bound by name.
+
+---
 
 ## Built-in Functions
 

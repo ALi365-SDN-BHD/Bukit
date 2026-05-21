@@ -401,6 +401,197 @@ Analytics partial 的输出条件是：
 
 SEO 相关配置与多语言 hreflang 行为见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md) 与示例主题 `seo-best-practice`。
 
+## Shortcodes <Badge type="tip" text="1.1.0" />
+
+Shortcodes 让你在 Markdown 正文和 Scriban 模板中插入可复用的 HTML 片段。
+
+### 配置 Shortcodes
+
+在 `site.yaml` 的 `theme.shortcodes` 中声明：
+
+```yaml
+theme:
+  shortcodes:
+    youtube: '<div class="video"><iframe src="https://www.youtube.com/embed/{{ $1 }}" frameborder="0" allowfullscreen></iframe></div>'
+    callout: '<div class="callout callout-{{ $1 }}">{{ $2 }}</div>'
+```
+
+参数用 `{{ $1 }}`、`{{ $2 }}` 表示位置参数。
+
+### 在 Markdown 中使用
+
+```markdown
+## 我的视频
+
+{% youtube "dQw4w9WgXcQ" %}
+
+{% callout "warning" "请注意备份数据！" %}
+```
+
+Shortcodes 在渲染阶段处理，自动解码 Markdown 管道中的 HTML 实体。
+
+### 在 Scriban 模板中使用
+
+```
+{{ shortcode "youtube" "dQw4w9WgXcQ" }}
+```
+
+---
+
+## 主题继承 (Theme Inheritance) <Badge type="tip" text="1.1.0" />
+
+子主题可以继承父主题的模板、静态文件和资源，只需覆盖需要定制的部分。
+
+```yaml
+theme:
+  name: my-custom-theme
+  extends: official-blog-theme
+```
+
+级联规则：
+
+- **模板**：先在子主题 `themes/my-custom-theme/layouts/` 中查找，找不到则回退到父主题 `themes/official-blog-theme/layouts/`
+- **静态文件**：子主题和父主题的 `static/` 目录内容合并
+- **资源文件**：子主题和父主题的 `assets/` 目录内容合并（SCSS 编译和图片优化也会应用到父主题的资源）
+
+---
+
+## 组件 (Components) <Badge type="tip" text="1.1.0" />
+
+在主题中声明可复用的模板组件，在 Scriban 模板中调用。
+
+### 声明组件
+
+```yaml
+theme:
+  components:
+    PostCard:
+      template: "partials/post-card.html"
+      props:
+        title: ""
+        url: ""
+    AuthorBio:
+      template: "partials/author-bio.html"
+      props:
+        name: ""
+        avatar: ""
+```
+
+### 组件模板
+
+```html
+<!-- themes/my-theme/layouts/partials/post-card.html -->
+<article class="post-card">
+  <h3>{{ title }}</h3>
+  <a href="{{ url }}">阅读更多</a>
+</article>
+```
+
+### 在模板中使用
+
+```
+{{ for p in pages }}
+  {{ comp.render "PostCard" p.title p.url }}
+{{ end }}
+```
+
+组件继承父模板的全局变量（`page`、`site` 等），props 按声明顺序作为局部变量绑定。
+
+---
+
+## SCSS 编译 <Badge type="tip" text="1.1.0" />
+
+构建时自动将 `.scss` 编译为 `.css`。需安装 `sass` 或 `dart-sass` CLI：
+
+```bash
+npm install -g sass
+```
+
+配置：
+
+```yaml
+theme:
+  scss:
+    enabled: true
+```
+
+在 `assets/` 目录编写 `.scss` 文件，构建后自动生成 `.css` 文件。
+
+---
+
+## 图片优化 <Badge type="tip" text="1.1.0" />
+
+构建时自动将 PNG/JPG 图片转换为 WebP/AVIF 格式。需安装 `cwebp`（libwebp）或 `magick`（ImageMagick）：
+
+```bash
+# macOS
+brew install webp imagemagick
+# Linux
+sudo apt install webp imagemagick
+```
+
+配置：
+
+```yaml
+theme:
+  images:
+    enabled: true
+    formats: [webp]          # 还支持 avif
+    sizes: [480, 768, 1200]  # 响应式尺寸
+    quality: 85
+```
+
+没有安装转换工具时不会报错，只会输出警告信息。
+
+---
+
+## HMR 开发服务器 <Badge type="tip" text="1.1.0" />
+
+使用 `bukit dev` 代替 `bukit preview` 获得实时预览体验：
+
+```bash
+bukit dev                    # 默认 http://localhost:35729
+bukit dev --port 3000        # 自定义端口
+bukit dev --no-watch         # 不监控文件（纯静态服务）
+```
+
+功能：
+
+- 监控 content/、themes/、layouts/ 等目录的文件变更
+- 自动增量重构建（仅渲染变更页面）
+- WebSocket 实时刷新所有连接的浏览器
+- 300ms 去抖，避免频繁构建
+
+---
+
+## 内容 Schema 校验 <Badge type="tip" text="1.1.0" />
+
+在集合配置中声明字段类型，构建时自动校验 Front Matter：
+
+```yaml
+collections:
+  posts:
+    schema:
+      - name: featured
+        type: bool
+        required: true
+      - name: rating
+        type: number
+        required: true
+```
+
+支持的类型：`string`、`number`、`bool`、`date`、`list`。
+
+失败模式：
+
+```yaml
+build:
+  schemaFailMode: warn     # 默认：警告但继续构建
+  # schemaFailMode: strict  # 严格模式：校验失败中断构建
+```
+
+---
+
 ## 常见错误与修复
 
 - 模板文件缺失：构建时报“找不到模板/布局” → 检查 `theme.name` 是否存在、目录结构是否完整

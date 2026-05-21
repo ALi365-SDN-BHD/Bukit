@@ -118,3 +118,16 @@ Requesting a directory path (e.g., `/blog/`) serves `index.html` from that direc
 - **Before deployment**: Always preview with `bukit preview` to catch broken links and missing assets
 - **Stop server**: Press `Ctrl+C`
 - **Multiple sites**: Run multiple preview instances on different ports for side-by-side comparison
+
+## bukit dev vs bukit preview
+
+| Feature | `bukit dev` | `bukit preview` |
+|---------|------------|-----------------|
+| File watching | ✅ Auto | ❌ Manual rebuild |
+| Live reload | ✅ WebSocket | ❌ |
+| Incremental build | ✅ | N/A |
+| Livereload script | ✅ Injected | ❌ |
+| First build | Full (Clean) | N/A |
+| Port default | 35729 | 4173 |
+
+Prefer `bukit dev` for development. Use `bukit preview` only for quickly checking a pre-built `dist/` directory.

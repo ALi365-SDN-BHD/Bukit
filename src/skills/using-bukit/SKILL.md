@@ -18,7 +18,7 @@ This is not negotiable.
 
 ## Overview
 
-Bukit is a .NET static site generator that covers the complete workflow through 14 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
+Bukit is a .NET static site generator that covers the complete workflow through 15 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
 
@@ -47,7 +47,8 @@ When the agent sees any of these phrases in any language, it must load this skil
 | 11 | bukit-geo | Generative Engine Optimization (GEO) | When optimizing for AI search engines, configuring llms.txt, or using geo front matter |
 | 12 | bukit-seo | Traditional Search Engine Optimization (SEO) | When configuring site.seo, running seo audit/diff, or troubleshooting seo.* diagnostics |
 | 13 | bukit-preview | Local preview server | When starting a local preview, debugging port conflicts, or testing before deployment |
-| 14 | bukit-webhook | Webhook server for automated builds | When setting up Notion-to-GitHub webhook triggers, debugging payload verification or rate limiting |
+| 14 | bukit-dev | HMR development server | When wanting hot-reload during development, file watching with automatic rebuild, or live browser refresh |
+| 15 | bukit-webhook | Webhook server for automated builds | When setting up Notion-to-GitHub webhook triggers, debugging payload verification or rate limiting |
 
 ## Skill ↔ User Guide Cross-Reference
 
@@ -68,6 +69,7 @@ Bukit's user guide (`guide/user/`) is the human-facing companion to these skills
 | bukit-deploy | [13 Deploy GitHub Pages](guide/user/13-deploy-github-pages.md) | Build + push to gh-pages, CNAME, CI/CD |
 | bukit-clone | [18 Clone Website](guide/user/18-clone-website.md) | Browser extraction → CLI generation → verification |
 | bukit-preview | [12 CLI Reference](guide/user/12-cli-reference.md), [14 Troubleshooting](guide/user/14-troubleshooting.md) | Local preview server, port configuration |
+| bukit-dev | [08 Themes & Templates](guide/user/08-themes-templates.md), [12 CLI Reference](guide/user/12-cli-reference.md) | HMR dev server with live reload, file watching, incremental rebuild |
 | bukit-webhook | [14 Troubleshooting](guide/user/14-troubleshooting.md) | Webhook server, HMAC verification, rate limiting |
 
 **Usage rule**: When the user mentions following a specific guide chapter (e.g., "我跟着第04章配置"), load the matching skill AND anchor your advice around the examples and config patterns shown in that chapter. Quote chapter snippets when they help the user match what they see on screen.
@@ -108,11 +110,10 @@ When creating a custom theme:
 1. Load using-bukit (this skill) → Identify as blog creation task
 2. Load bukit-cli-reference → Check CLI, install, run init
 3. Load bukit-config → Generate blog site.yaml (adjust collections, permalink, pagination)
-4. Load bukit-theme → Create a new custom theme directory with unique visual design
-5. Load bukit-templating → Write all template files (base, page, post, index, list, partials)
-6. Run bukit build → Build
-7. Run bukit preview (optional) → Preview
-8. Deploy (optional): bukit deploy → Load bukit-deploy skill, push to GitHub Pages
+4. Load bukit-templating → Write all template files (base, page, post, index, list, partials)
+5. Run bukit build → Build
+6. Run bukit dev → Start HMR dev server for live preview
+7. Deploy (optional): bukit deploy → Load bukit-deploy skill, push to GitHub Pages
 ```
 
 ### User says "using bukit, help me build a docs site"
@@ -124,7 +125,7 @@ When creating a custom theme:
 4. Load bukit-theme → Create a new custom theme directory with documentation-oriented design
 5. Load bukit-templating → Write templates with navigation sidebar, search placeholder
 6. Run bukit build → Build
-7. Run bukit preview (optional) → Preview
+7. Run bukit dev → Start HMR dev server for live preview
 8. Deploy (optional): bukit deploy → Load bukit-deploy skill, push to GitHub Pages
 ```
 
@@ -187,7 +188,8 @@ See bukit-cli-reference for detailed command information.
 ```
 bukit init ./my-site             # Initialize a site
 bukit build                      # Build the site
-bukit preview                    # Local preview
+bukit dev                        # HMR dev server (file watch + live reload)
+bukit preview                    # Static preview of dist/
 bukit deploy                     # Deploy to GitHub Pages
 bukit doctor                     # Diagnostics (template chain, params, theme.yaml)
 bukit clean                      # Clean
@@ -212,4 +214,4 @@ bukit seo diff --baseline <old> --current <new> [--max-new-errors N]  # SEO regr
 - **bukit-config** is REQUIRED BACKGROUND for: bukit-theme, bukit-notion, bukit-routing, bukit-i18n, bukit-plugins-debug, bukit-deploy, bukit-clone, bukit-seo, bukit-geo
 - **bukit-theme** is REQUIRED BACKGROUND for: bukit-templating, bukit-clone
 - All subskills reference **bukit-cli-reference** for command execution
-- **bukit-preview** and **bukit-webhook** are standalone operational skills — load when the user explicitly needs local preview or webhook setup
+- **bukit-dev**, **bukit-preview**, and **bukit-webhook** are standalone operational skills — load when the user explicitly needs HMR dev server, local preview, or webhook setup
