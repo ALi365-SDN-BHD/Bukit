@@ -66,6 +66,17 @@ public sealed class SiteEngine
         }
 
         _logger.Info($"event=content.loaded count={items.Count}");
+
+        var schemaErrors = ValidateContentSchemas(effectiveConfig.Site.Collections, items, _logger);
+        if (schemaErrors.Count > 0)
+        {
+            var schemaFailMode = (effectiveConfig.Build.SchemaFailMode ?? "warn").Trim().ToLowerInvariant();
+            if (schemaFailMode == "strict")
+            {
+                throw new ConfigException($"Schema validation failed with {schemaErrors.Count} error(s).");
+            }
+        }
+
         var templateHashCache = new DirectoryHashCache();
 
         var languages = I18nOutputMerger.GetLanguages(effectiveConfig.Site);
@@ -181,7 +192,7 @@ public sealed class SiteEngine
         splitItemsStopwatch.Stop();
         variantStageMetrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
 
-        ITemplateRenderer renderer = new ScribanTemplateRendererAdapter(ctx.LayoutsDir);
+        ITemplateRenderer renderer = new ScribanTemplateRendererAdapter(ctx.LayoutsDir, config.Theme.Shortcodes);
         var collectionRules = BuildCollectionRules(config.Site);
 
         var routeGenerationStopwatch = Stopwatch.StartNew();
@@ -365,6 +376,7 @@ public sealed class SiteEngine
         if (Directory.Exists(ctx.AssetsDir))
         {
             var assetsSyncStopwatch = Stopwatch.StartNew();
+            ScssCompiler.CompileIfEnabled(ctx.AssetsDir, config.Theme.Scss, _logger);
             DirectoryCopy.Sync(ctx.AssetsDir, Path.Combine(outputDir, "assets"));
             assetsSyncStopwatch.Stop();
             variantStageMetrics.AddDuration("assetsSync", assetsSyncStopwatch.ElapsedMilliseconds);
@@ -494,6 +506,57 @@ public sealed class SiteEngine
         string key)
     {
         return alternates.TryGetValue(key, out var list) && list.Count > 0 ? list : null;
+    }
+
+    private static List<ContentSchemaValidator.SchemaValidationError> ValidateContentSchemas(
+        IReadOnlyDictionary<string, CollectionConfig>? collections,
+        IReadOnlyList<ContentItem> items,
+        ILogger logger)
+    {
+        var allErrors = new List<ContentSchemaValidator.SchemaValidationError>();
+
+        if (collections is null || collections.Count == 0)
+        {
+            return allErrors;
+        }
+
+        foreach (var item in items)
+        {
+            var collectionName = GetEffectiveCollection(item);
+            if (string.IsNullOrWhiteSpace(collectionName) ||
+                !collections.TryGetValue(collectionName, out var collection) ||
+                collection.Schema is null || collection.Schema.Count == 0)
+            {
+                continue;
+            }
+
+            var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id);
+            if (errors.Count > 0)
+            {
+                allErrors.AddRange(errors);
+                foreach (var error in errors)
+                {
+                    logger.Warn($"event=schema.validation code={error.Code} field={error.Field} source={error.SourcePath} message={error.Message}");
+                }
+            }
+        }
+
+        return allErrors;
+    }
+
+    private static string GetEffectiveCollection(ContentItem item)
+    {
+        if (item.Meta.TryGetValue("collection", out var c) && c is not null && !string.IsNullOrWhiteSpace(c.ToString()))
+        {
+            return c.ToString()!;
+        }
+
+        if (item.Meta.TryGetValue("type", out var t) && t is not null && !string.IsNullOrWhiteSpace(t.ToString()))
+        {
+            return t.ToString()!;
+        }
+
+        return "page";
     }
 
     public static IReadOnlyList<RouteInfo> GetListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)

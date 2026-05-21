@@ -10,12 +10,14 @@ public sealed class ScribanTemplateRenderer
     private const int MaxLayoutDepth = 10;
     private readonly string _layoutsDir;
     private readonly FileTemplateLoader _templateLoader;
+    private readonly IReadOnlyDictionary<string, string>? _shortcodes;
     private readonly ConcurrentDictionary<string, CachedTemplate> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public ScribanTemplateRenderer(string layoutsDir)
+    public ScribanTemplateRenderer(string layoutsDir, IReadOnlyDictionary<string, string>? shortcodes = null)
     {
         _layoutsDir = layoutsDir;
         _templateLoader = new FileTemplateLoader(_layoutsDir);
+        _shortcodes = shortcodes;
     }
 
     public string RenderPage(string templateRelativePath, PageModel model)
@@ -58,11 +60,32 @@ public sealed class ScribanTemplateRenderer
             EnableNullIndexer = true
         };
 
+        if (_shortcodes is { Count: > 0 })
+        {
+            var shortcodeObj = new ScriptObject();
+            var capturedShortcodes = _shortcodes;
+            shortcodeObj.SetValue("shortcode", new Func<string, string, string, string, string, string>((name, a1, a2, a3, a4) =>
+            {
+                var args = new List<string>();
+                if (!string.IsNullOrEmpty(a1)) args.Add(a1);
+                if (!string.IsNullOrEmpty(a2)) args.Add(a2);
+                if (!string.IsNullOrEmpty(a3)) args.Add(a3);
+                if (!string.IsNullOrEmpty(a4)) args.Add(a4);
+                return ShortcodeProcessor.RenderShortcode(name, capturedShortcodes, args.ToArray());
+            }), readOnly: true);
+            context.PushGlobal(shortcodeObj);
+        }
+
         context.PushGlobal(globals);
 
         try
         {
-            return template.Render(context);
+            var result = template.Render(context);
+            if (_shortcodes is { Count: > 0 })
+            {
+                result = ShortcodeProcessor.RenderShortcodes(result, _shortcodes);
+            }
+            return result;
         }
         catch (Exception ex)
         {

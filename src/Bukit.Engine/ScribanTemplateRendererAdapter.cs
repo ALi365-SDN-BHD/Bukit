@@ -7,9 +7,9 @@ internal sealed class ScribanTemplateRendererAdapter : ITemplateRenderer
 {
     private readonly ScribanTemplateRenderer _inner;
 
-    internal ScribanTemplateRendererAdapter(string layoutsDir)
+    internal ScribanTemplateRendererAdapter(string layoutsDir, IReadOnlyDictionary<string, string>? shortcodes = null)
     {
-        _inner = new ScribanTemplateRenderer(layoutsDir);
+        _inner = new ScribanTemplateRenderer(layoutsDir, shortcodes);
     }
 
     public string RenderPage(string templateRelativePath, PageModel model) => _inner.RenderPage(templateRelativePath, model);

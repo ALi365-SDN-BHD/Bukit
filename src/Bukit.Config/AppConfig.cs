@@ -109,6 +109,16 @@ public sealed record CollectionConfig
     public CollectionPaginationConfig Pagination { get; init; } = new();
     public CollectionOutputConfig Output { get; init; } = new();
     public IReadOnlyList<FilteredListConfig>? FilteredLists { get; init; }
+    public IReadOnlyList<SchemaFieldDefinition>? Schema { get; init; }
+}
+
+public sealed record SchemaFieldDefinition
+{
+    public required string Name { get; init; }
+    public string Type { get; init; } = "string";
+    public string? Label { get; init; }
+    public bool Required { get; init; }
+    public object? Default { get; init; }
 }
 
 public sealed record CollectionPaginationConfig
@@ -224,6 +234,7 @@ public sealed record BuildConfig
     public bool Clean { get; init; } = true;
     public bool Draft { get; init; }
     public string ListPageContentMode { get; init; } = "auto";
+    public string SchemaFailMode { get; init; } = "warn";
 }
 
 public sealed record ThemeConfig
@@ -234,6 +245,15 @@ public sealed record ThemeConfig
     public string Static { get; init; } = "static";
     public string? StaticTemplate { get; init; }
     public IReadOnlyDictionary<string, object>? Params { get; init; }
+    public IReadOnlyDictionary<string, string>? Shortcodes { get; init; }
+    public ScssConfig? Scss { get; init; }
+}
+
+public sealed record ScssConfig
+{
+    public bool Enabled { get; init; }
+    public string? EntryPoint { get; init; }
+    public string OutputDir { get; init; } = "assets";
 }
 
 public sealed record TaxonomyConfig

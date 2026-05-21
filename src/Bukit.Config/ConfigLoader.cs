@@ -99,7 +99,8 @@ public static class ConfigLoader
             Output = buildNode is null ? "dist" : GetOptionalString(buildNode, "output") ?? "dist",
             Clean = buildNode is null ? true : GetOptionalBool(buildNode, "clean") ?? true,
             Draft = buildNode is null ? false : GetOptionalBool(buildNode, "draft") ?? false,
-            ListPageContentMode = buildNode is null ? "auto" : GetOptionalString(buildNode, "listPageContentMode") ?? "auto"
+            ListPageContentMode = buildNode is null ? "auto" : GetOptionalString(buildNode, "listPageContentMode") ?? "auto",
+            SchemaFailMode = buildNode is null ? "warn" : GetOptionalString(buildNode, "schemaFailMode") ?? "warn"
         };
 
         var theme = new ThemeConfig
@@ -109,7 +110,9 @@ public static class ConfigLoader
             Assets = themeNode is null ? "assets" : GetOptionalString(themeNode, "assets") ?? "assets",
             Static = themeNode is null ? "static" : GetOptionalString(themeNode, "static") ?? "static",
             StaticTemplate = themeNode is null ? null : GetOptionalString(themeNode, "staticTemplate"),
-            Params = ReadThemeParams(themeNode)
+            Params = ReadThemeParams(themeNode),
+            Shortcodes = ReadStringMap(themeNode, "shortcodes"),
+            Scss = ReadScssConfig(themeNode)
         };
 
         var taxonomy = new TaxonomyConfig
@@ -570,7 +573,8 @@ public static class ConfigLoader
                     Sitemap = outputNode is null ? true : GetOptionalBool(outputNode, "sitemap") ?? true,
                     Archive = outputNode is not null && (GetOptionalBool(outputNode, "archive") ?? false)
                 },
-                FilteredLists = ReadFilteredLists(collectionNode)
+                FilteredLists = ReadFilteredLists(collectionNode),
+                Schema = ReadSchema(collectionNode)
             };
         }
 
@@ -888,5 +892,61 @@ public static class ConfigLoader
         }
 
         return null;
+    }
+
+    private static ScssConfig? ReadScssConfig(YamlMappingNode? themeNode)
+    {
+        if (themeNode is null)
+        {
+            return null;
+        }
+
+        var scssNode = GetOptionalMapping(themeNode, "scss");
+        if (scssNode is null)
+        {
+            return null;
+        }
+
+        return new ScssConfig
+        {
+            Enabled = GetOptionalBool(scssNode, "enabled") ?? false,
+            EntryPoint = GetOptionalString(scssNode, "entryPoint"),
+            OutputDir = GetOptionalString(scssNode, "outputDir") ?? "assets"
+        };
+    }
+
+    private static IReadOnlyList<SchemaFieldDefinition>? ReadSchema(YamlMappingNode collectionNode)
+    {
+        var schemaNode = GetOptionalSequence(collectionNode, "schema");
+        if (schemaNode is null || schemaNode.Children.Count == 0)
+        {
+            return null;
+        }
+
+        var fields = new List<SchemaFieldDefinition>();
+        foreach (var child in schemaNode.Children)
+        {
+            if (child is not YamlMappingNode fieldNode)
+            {
+                continue;
+            }
+
+            var name = GetOptionalString(fieldNode, "name");
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            fields.Add(new SchemaFieldDefinition
+            {
+                Name = name,
+                Type = GetOptionalString(fieldNode, "type") ?? "string",
+                Label = GetOptionalString(fieldNode, "label"),
+                Required = GetOptionalBool(fieldNode, "required") ?? false,
+                Default = GetOptionalString(fieldNode, "default")
+            });
+        }
+
+        return fields.Count == 0 ? null : fields;
     }
 }
