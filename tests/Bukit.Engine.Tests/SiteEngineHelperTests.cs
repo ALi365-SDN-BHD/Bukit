@@ -10,23 +10,36 @@ namespace Bukit.Engine.Tests;
 public sealed class SiteEngineHelperTests
 {
     private static readonly Type SiteEngineType = typeof(SiteEngine);
+    private static readonly Type SeoServiceType = typeof(SeoAlternatesService);
 
-    private static object InvokePrivateStatic(string methodName, params object[] args)
+    private static object InvokePrivateStatic(Type type, string methodName, params object[] args)
     {
-        var method = SiteEngineType.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static)
-            ?? throw new InvalidOperationException($"Method '{methodName}' not found on {SiteEngineType.Name}.");
+        var method = type.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)
+            ?? throw new InvalidOperationException($"Method '{methodName}' not found on {type.Name}.");
         return method.Invoke(null, args)!;
     }
 
-    private static T InvokePrivateStatic<T>(string methodName, params object[] args)
+    private static T InvokePrivateStatic<T>(Type type, string methodName, params object[] args)
     {
-        return (T)InvokePrivateStatic(methodName, args);
+        return (T)InvokePrivateStatic(type, methodName, args);
     }
+
+    private static object InvokeSiteEngine(string methodName, params object[] args)
+        => InvokePrivateStatic(SiteEngineType, methodName, args);
+
+    private static T InvokeSiteEngine<T>(string methodName, params object[] args)
+        => InvokePrivateStatic<T>(SiteEngineType, methodName, args);
+
+    private static object InvokeSeoService(string methodName, params object[] args)
+        => InvokePrivateStatic(SeoServiceType, methodName, args);
+
+    private static T InvokeSeoService<T>(string methodName, params object[] args)
+        => InvokePrivateStatic<T>(SeoServiceType, methodName, args);
 
     [Fact]
     public void SlugifySeoSegment_SimpleText_KeepsLetters()
     {
-        var result = InvokePrivateStatic<string>("SlugifySeoSegment", "Hello World");
+        var result = InvokeSeoService<string>("SlugifySegment", "Hello World");
 
         Assert.Equal("hello-world", result);
     }
@@ -34,7 +47,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void SlugifySeoSegment_EmptyString_ReturnsEmpty()
     {
-        var result = InvokePrivateStatic<string>("SlugifySeoSegment", "");
+        var result = InvokeSeoService<string>("SlugifySegment", "");
 
         Assert.Equal(string.Empty, result);
     }
@@ -42,7 +55,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void SlugifySeoSegment_WhitespaceOnly_ReturnsEmpty()
     {
-        var result = InvokePrivateStatic<string>("SlugifySeoSegment", "   ");
+        var result = InvokeSeoService<string>("SlugifySegment", "   ");
 
         Assert.Equal(string.Empty, result);
     }
@@ -50,7 +63,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void SlugifySeoSegment_DotsAndUnderscores_ConvertedToDashes()
     {
-        var result = InvokePrivateStatic<string>("SlugifySeoSegment", "hello_world.name");
+        var result = InvokeSeoService<string>("SlugifySegment", "hello_world.name");
 
         Assert.Equal("hello-world-name", result);
     }
@@ -58,7 +71,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void SlugifySeoSegment_LeadingTrailingDashes_Trimmed()
     {
-        var result = InvokePrivateStatic<string>("SlugifySeoSegment", " --test-- ");
+        var result = InvokeSeoService<string>("SlugifySegment", " --test-- ");
 
         Assert.Equal("test", result);
     }
@@ -66,7 +79,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void SlugifySeoSegment_SpecialCharacters_Removed()
     {
-        var result = InvokePrivateStatic<string>("SlugifySeoSegment", "hello!@#$%^&*()world");
+        var result = InvokeSeoService<string>("SlugifySegment", "hello!@#$%^&*()world");
 
         Assert.Equal("helloworld", result);
     }
@@ -74,7 +87,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeSeoPageSize_Negative_ReturnsTen()
     {
-        var result = InvokePrivateStatic<int>("NormalizeSeoPageSize", -5);
+        var result = InvokeSeoService<int>("NormalizePageSize", -5);
 
         Assert.Equal(10, result);
     }
@@ -82,7 +95,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeSeoPageSize_Zero_ReturnsTen()
     {
-        var result = InvokePrivateStatic<int>("NormalizeSeoPageSize", 0);
+        var result = InvokeSeoService<int>("NormalizePageSize", 0);
 
         Assert.Equal(10, result);
     }
@@ -90,7 +103,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeSeoPageSize_Positive_ReturnsSameValue()
     {
-        var result = InvokePrivateStatic<int>("NormalizeSeoPageSize", 25);
+        var result = InvokeSeoService<int>("NormalizePageSize", 25);
 
         Assert.Equal(25, result);
     }
@@ -159,7 +172,7 @@ public sealed class SiteEngineHelperTests
             ["tags"] = default(object)!
         };
 
-        var result = InvokePrivateStatic<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
+        var result = InvokeSeoService<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
 
         Assert.Null(result);
     }
@@ -169,7 +182,7 @@ public sealed class SiteEngineHelperTests
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
-        var result = InvokePrivateStatic<IReadOnlyList<string>?>("GetSeoStringList", meta, "missing");
+        var result = InvokeSeoService<IReadOnlyList<string>?>("GetSeoStringList", meta, "missing");
 
         Assert.Null(result);
     }
@@ -182,7 +195,7 @@ public sealed class SiteEngineHelperTests
             ["tags"] = "alpha, beta, gamma"
         };
 
-        var result = InvokePrivateStatic<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
+        var result = InvokeSeoService<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
 
         Assert.NotNull(result);
         Assert.Equal(3, result!.Count);
@@ -199,7 +212,7 @@ public sealed class SiteEngineHelperTests
             ["tags"] = "alpha"
         };
 
-        var result = InvokePrivateStatic<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
+        var result = InvokeSeoService<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
 
         Assert.NotNull(result);
         Assert.Single(result!);
@@ -214,7 +227,7 @@ public sealed class SiteEngineHelperTests
             ["tags"] = ""
         };
 
-        var result = InvokePrivateStatic<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
+        var result = InvokeSeoService<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
 
         Assert.Null(result);
     }
@@ -234,7 +247,7 @@ public sealed class SiteEngineHelperTests
             },
             Fields: null);
 
-        var result = InvokePrivateStatic<string>("GetCollection", item);
+        var result = InvokeSeoService<string>("GetCollection", item);
 
         Assert.Equal("blog", result);
     }
@@ -254,7 +267,7 @@ public sealed class SiteEngineHelperTests
             },
             Fields: null);
 
-        var result = InvokePrivateStatic<string>("GetCollection", item);
+        var result = InvokeSeoService<string>("GetCollection", item);
 
         Assert.Equal("article", result);
     }
@@ -271,7 +284,7 @@ public sealed class SiteEngineHelperTests
             Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null);
 
-        var result = InvokePrivateStatic<string>("GetCollection", item);
+        var result = InvokeSeoService<string>("GetCollection", item);
 
         Assert.Equal("page", result);
     }
@@ -292,7 +305,7 @@ public sealed class SiteEngineHelperTests
             },
             Fields: null);
 
-        var result = InvokePrivateStatic<string>("GetCollection", item);
+        var result = InvokeSeoService<string>("GetCollection", item);
 
         Assert.Equal("blog", result);
     }
@@ -302,7 +315,7 @@ public sealed class SiteEngineHelperTests
     {
         var site = new SiteConfig { Name = "t", Title = "t", Collections = null };
 
-        var result = InvokePrivateStatic<IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>?>("BuildCollectionRules", site);
+        var result = InvokeSiteEngine<IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>?>("BuildCollectionRules", site);
 
         Assert.Null(result);
     }
@@ -317,7 +330,7 @@ public sealed class SiteEngineHelperTests
             Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
         };
 
-        var result = InvokePrivateStatic<IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>?>("BuildCollectionRules", site);
+        var result = InvokeSiteEngine<IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>?>("BuildCollectionRules", site);
 
         Assert.Null(result);
     }
@@ -339,7 +352,7 @@ public sealed class SiteEngineHelperTests
             }
         };
 
-        var result = InvokePrivateStatic<IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>?>("BuildCollectionRules", site);
+        var result = InvokeSiteEngine<IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>?>("BuildCollectionRules", site);
 
         Assert.NotNull(result);
         Assert.True(result!.ContainsKey("post"));
@@ -350,7 +363,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void BuildListRoutes_WithNullCollections_IncludesDefaults()
     {
-        var result = InvokePrivateStatic<IReadOnlyList<RouteInfo>>("BuildListRoutes", new object[] { null! });
+        var result = SeoAlternatesService.BuildListRoutes(null!);
 
         Assert.Contains(result, r => r.Url == "/");
         Assert.Contains(result, r => r.Url == "/blog/");
@@ -366,7 +379,7 @@ public sealed class SiteEngineHelperTests
             ["project"] = new CollectionConfig { Permalink = "/work/:slug/", Template = "pages/project.html", ListRoute = "/work/" }
         };
 
-        var result = InvokePrivateStatic<IReadOnlyList<RouteInfo>>("BuildListRoutes", collections);
+        var result = SeoAlternatesService.BuildListRoutes(collections);
 
         Assert.Contains(result, r => r.Url == "/");
         Assert.Contains(result, r => r.Url == "/articles/");
@@ -389,7 +402,7 @@ public sealed class SiteEngineHelperTests
                 ["assets"] = 10
             });
 
-        var result = InvokePrivateStatic<BuildStageMetricsCollector>("MergeStageMetrics", collector, metrics);
+        var result = InvokeSiteEngine<BuildStageMetricsCollector>("MergeStageMetrics", collector, metrics);
 
         Assert.Same(collector, result);
         var snapshot = collector.Snapshot();
@@ -410,8 +423,8 @@ public sealed class SiteEngineHelperTests
             new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase) { ["load"] = 50, ["render"] = 75 },
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["pages"] = 2, ["errors"] = 1 });
 
-        InvokePrivateStatic<BuildStageMetricsCollector>("MergeStageMetrics", collector, metrics1);
-        InvokePrivateStatic<BuildStageMetricsCollector>("MergeStageMetrics", collector, metrics2);
+        InvokeSiteEngine<BuildStageMetricsCollector>("MergeStageMetrics", collector, metrics1);
+        InvokeSiteEngine<BuildStageMetricsCollector>("MergeStageMetrics", collector, metrics2);
 
         var snapshot = collector.Snapshot();
         Assert.Equal(150, snapshot.DurationsMs["load"]);

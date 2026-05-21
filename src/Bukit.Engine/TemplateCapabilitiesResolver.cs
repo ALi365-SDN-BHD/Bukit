@@ -7,7 +7,7 @@ namespace Bukit.Engine;
 internal static class TemplateCapabilitiesResolver
 {
     private const string ManifestFileName = "bukit.templates.yaml";
-    private static readonly ConcurrentDictionary<string, TemplateCapabilitiesManifest?> Cache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, Task<TemplateCapabilitiesManifest?>> Cache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, bool> FallbackCache = new(StringComparer.OrdinalIgnoreCase);
     internal const string PaginationTemplatePath = "pages/pagination.html";
     internal const string TaxonomyIndexTemplatePath = "pages/taxonomy-index.html";
@@ -16,7 +16,8 @@ internal static class TemplateCapabilitiesResolver
 
     internal static void ValidateManifest(string layoutsDir)
     {
-        _ = Cache.GetOrAdd(layoutsDir, LoadManifest);
+        var task = Cache.GetOrAdd(layoutsDir, static dir => LoadManifestAsync(dir));
+        task.GetAwaiter().GetResult();
     }
 
     internal static bool ShouldIncludeListPageContent(string templateRelativePath, string layoutsDir, string mode)
@@ -57,7 +58,8 @@ internal static class TemplateCapabilitiesResolver
 
     internal static TemplateCapabilityFlags? GetCapabilities(string templateRelativePath, string layoutsDir)
     {
-        var manifest = Cache.GetOrAdd(layoutsDir, LoadManifest);
+        var task = Cache.GetOrAdd(layoutsDir, static dir => LoadManifestAsync(dir));
+        var manifest = task.GetAwaiter().GetResult();
         if (manifest?.Templates is null)
         {
             return null;
@@ -81,7 +83,7 @@ internal static class TemplateCapabilitiesResolver
     internal static bool SupportsSearchSnippets(string templateRelativePath, string layoutsDir)
         => GetCapabilities(templateRelativePath, layoutsDir)?.SupportsSearchSnippets == true;
 
-    private static TemplateCapabilitiesManifest? LoadManifest(string layoutsDir)
+    private static async Task<TemplateCapabilitiesManifest?> LoadManifestAsync(string layoutsDir)
     {
         var manifestPath = Path.Combine(layoutsDir, ManifestFileName);
         if (!File.Exists(manifestPath))
@@ -91,7 +93,7 @@ internal static class TemplateCapabilitiesResolver
 
         try
         {
-            var text = File.ReadAllText(manifestPath);
+            var text = await File.ReadAllTextAsync(manifestPath);
             var manifest = ReadManifest(text);
             ValidateManifestContents(manifest, layoutsDir);
             return manifest;
