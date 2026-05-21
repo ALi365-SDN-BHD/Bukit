@@ -178,6 +178,50 @@ Scriban 的 `include` 会从 layoutsDir 下按相对路径读取模板：
 - `examples/starter/site.theme.yaml`
 - `examples/starter/themes/alt/layouts/partials/header.html`
 
+### 主题继承 (`extends`)
+
+子主题通过 `extends` 字段继承父主题的模板、静态文件和资源：
+
+```yaml
+theme:
+  name: my-child-theme
+  extends: parent-theme-name
+```
+
+级联规则：模板查找子主题优先、父主题回退；`static/` 和 `assets/` 子主题先复制然后合并父主题。
+
+### SCSS 编译 (`scss`)
+
+构建时自动编译 `assets/` 中的 `.scss` 为 `.css`，需系统安装 `sass` 或 `dart-sass` CLI。
+
+### 图片优化 (`images`)
+
+构建时 `assets/` 中的 PNG/JPG 自动转为 WebP/AVIF，需 `cwebp` 或 `magick` CLI。未安装则跳过。
+
+### Shortcodes (`shortcodes`)
+
+```yaml
+theme:
+  shortcodes:
+    youtube: '<iframe src="https://www.youtube.com/embed/{{ $1 }}"></iframe>'
+```
+
+Markdown 中用 `{% youtube "id" %}`，Scriban 中用 `{{ shortcode "youtube" "id" }}`。
+
+### 组件 (`components`)
+
+```yaml
+theme:
+  components:
+    PostCard:
+      template: "partials/post-card.html"
+      props:
+        title: ""
+        url: ""
+```
+
+Scriban 中用 `{{ comp.render "PostCard" page.title page.url }}`。
+
 ## 静态资源与 base_url（避免路径问题）
 
 构建时的拷贝规则（由 `SiteEngine` 执行）：
@@ -211,7 +255,7 @@ Scriban 的 `include` 会从 layoutsDir 下按相对路径读取模板：
 1. 从 `examples/starter/themes/alt` 复制一个新主题目录作为起点
 2. 确保四个必备模板存在（index/list/post/page）
 3. 把可配置项放进 `theme.params`，避免在模板里硬编码
-4. 本地用 `bukit build` + `bukit preview` 快速验证
+4. 本地开发时用 `bukit dev`（HMR 开发服务器）获得文件监控和实时刷新；快速验证构建产物时用 `bukit build` + `bukit preview`
 5. 发布前检查：
    - `site.baseUrl` 下的资源链接是否正确
    - 多语言时是否正确使用 `site.language` / `site.base_url`

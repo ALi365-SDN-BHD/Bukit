@@ -276,6 +276,7 @@ content:
 | `build.clean` | 构建前是否清理输出目录 | `true` |
 | `build.draft` | 是否渲染草稿内容 | `false`（默认） |
 | `build.listPageContentMode` | 列表页里的 `pages[*].content` 装配策略 | `auto` |
+| `build.schemaFailMode` | Schema 校验失败时的行为 | `warn` / `strict` |
 
 等价的 CLI 参数：
 
@@ -323,6 +324,21 @@ theme:
   static: static
 ```
 
+theme 支持的完整字段：
+
+| 字段 | 类型 | 示例 | 说明 |
+|---|---|---|---|
+| `name` | 字符串 | `alt` | 主题名（对应 `themes/<name>/`） |
+| `params` | 映射 | `{brand: my-site}` | 传递给主题的自定义参数 |
+| `layouts` | 字符串 | `layouts` | 自定义布局模板目录 |
+| `assets` | 字符串 | `assets` | 自定义资源目录（SCSS/JS/图片） |
+| `static` | 字符串 | `static` | 自定义静态文件目录（原样拷贝） |
+| `shortcodes` | 映射 | `shortcode_name: template_string` | 可复用 HTML 片段（Markdown `{% %}` 或 Scriban `{{ shortcode }}`） |
+| `components` | 映射 | `name: {template, props}` | 带 props 的模板组件（Scriban `{{ comp.render }}`） |
+| `scss` | 对象 | `{enabled, entryPoint, outputDir}` | SCSS → CSS 自动编译（需系统安装 sass） |
+| `images` | 对象 | `{enabled, formats, sizes, quality}` | 图片自动优化转换 WebP/AVIF（需 cwebp/magick） |
+| `extends` | 字符串 | 父主题名 | 主题继承（子主题级联父主题模板、静态文件、资源） |
+
 主题与模板变量见：[08-主题与模板](./08-themes-templates.zh-CN.md)。
 
 ### logging：日志等级（一般不用频繁改）
@@ -360,6 +376,50 @@ CLI 覆盖：
 - `--skip-build` 跳过构建，直接部署已有 dist/
 
 详见：[13-部署到 GitHub Pages](./13-deploy-github-pages.zh-CN.md) 和 [bukit-deploy skill](../../src/skills/bukit-deploy/SKILL.md)。
+
+### collections：内容 Front Matter 字段校验（Schema）
+
+通过 `site.collections` 可以为每种内容类型定义 Front Matter 字段校验规则：
+
+```yaml
+site:
+  collections:
+    post:
+      permalink: /blog/{slug}/
+      template: pages/post.html
+      listRoute: /blog/
+      schema:
+        - name: title
+          type: string
+          label: 文章标题
+          required: true
+        - name: publishAt
+          type: date
+          label: 发布时间
+          required: true
+        - name: tags
+          type: list
+          label: 标签
+          default: []
+        - name: featured
+          type: bool
+          label: 精选文章
+          default: false
+        - name: priority
+          type: number
+          label: 优先级
+          default: 0
+```
+
+schema 字段说明：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `schema` | 数组 | `[{name, type, label, required, default}]` | 内容 Front Matter 字段类型校验（string/number/bool/date/list） |
+
+校验失败时，由 `build.schemaFailMode` 控制行为：
+- `warn`：输出警告但继续构建
+- `strict`：校验失败立即中断构建
 
 ## 常见配置场景（可直接抄）
 

@@ -14,6 +14,18 @@
 - [多语言与 SEO](./i18n-seo.zh-CN.md)
 - [Webhook](./webhook.zh-CN.md)
 
+### 本地开发服务器
+
+开发时推荐使用 `bukit dev` 替代 `bukit preview`：
+
+```bash
+bukit dev                    # 启动 HMR 开发服务器
+bukit dev --port 3000        # 指定端口
+bukit dev --no-watch         # 仅作为静态服务器
+```
+
+`bukit dev` 提供文件监控、增量构建和浏览器实时刷新功能。`bukit preview` 仅用于快速检查已构建的 `dist/` 目录。
+
 ## 产物是什么
 
 ### 1) 站点产物

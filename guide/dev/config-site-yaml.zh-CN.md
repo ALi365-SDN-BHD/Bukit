@@ -57,7 +57,7 @@ logging: {}
 | `site.externalProtocolIncludeRoutedPages` | bool | 否 | false | 是否将完整 routedPages 传递给 after-build 阶段的协议插件 |
 | `site.timezone` | string | 否 | `Asia/Shanghai` | 时间相关处理的默认时区；必须为有效的 IANA/Windows 时区标识符 |
 | `site.permalinks` | object | 否 | null | 按内容类型自定义 URL 模式；键为类型名（如 `post`），值为 URL 模式字符串（支持 `{year}/{month}/{day}/{slug}/{type}` 占位符）；详见 [路由系统](./routing.zh-CN.md) |
-| `site.collections` | object | 否 | null | collection 驱动路由配置。每个集合至少声明 `permalink` 与 `template`，可选 `listRoute`、`pagination`、`output` |
+| `site.collections` | object | 否 | null | collection 驱动路由配置。每个集合至少声明 `permalink` 与 `template`，可选 `listRoute`、`pagination`、`output`、`schema` |
 
 ### site.collections（collection 驱动路由）
 
@@ -77,11 +77,27 @@ site:
         rss: true
         sitemap: true
         archive: true
+      schema:
+        - name: author
+          type: string
+          label: 作者
+          required: true
+          default: ""
     page:
       permalink: /pages/{slug}/
       template: pages/page.html
       listRoute: /pages/
 ```
+
+`schema` 字段定义集合的自定义字段结构，每项包含：
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|---|---:|---:|---|---|
+| `name` | string | 是 | — | 字段名 |
+| `type` | string | 否 | `string` | `string` \| `number` \| `bool` \| `date` \| `list` |
+| `label` | string | 否 | — | 字段显示标签 |
+| `required` | bool | 否 | false | 是否必填 |
+| `default` | any | 否 | — | 默认值 |
 
 ### site.plugins（插件开关与配置）
 
@@ -257,6 +273,11 @@ content:
 | `theme.assets` | string | 否 | `assets` | 资源目录（会拷贝到输出的 `assets/`） |
 | `theme.static` | string | 否 | `static` | 静态目录（会原样拷贝到输出根） |
 | `theme.params` | object | 否 | null | 任意参数字典，注入模板变量 `site.params` |
+| `theme.extends` | string | 否 | — | 父主题名。子主题级联父主题的模板、静态文件、资源 |
+| `theme.shortcodes` | map<string, string> | 否 | — | 可复用 HTML 片段（Markdown `{% name %}` / Scriban `{{ shortcode }}`） |
+| `theme.components` | map<string, object> | 否 | — | 带 props 的可复用模板组件（Scriban `{{ comp.render }}`） |
+| `theme.scss` | object | 否 | — | SCSS 编译配置 `{enabled, entryPoint, outputDir}` |
+| `theme.images` | object | 否 | — | 图片优化配置 `{enabled, formats, sizes, quality}` |
 
 `theme.layouts`, `theme.assets`, `theme.static`, `theme.name` 均受路径通用规则约束（见"路径字段通用校验规则"一节）。
 

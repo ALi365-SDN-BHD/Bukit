@@ -1,4 +1,4 @@
-﻿# 鍛戒护琛岋紙CLI锛夊弬鏁板弬鑰?
+# 鍛戒护琛岋紙CLI锛夊弬鏁板弬鑰?
 鏈枃妗ｉ潰鍚戠淮鎶よ€咃紝鐩爣鏄妸 CLI 鐨勫懡浠ゃ€佸弬鏁般€佽鐩栧叧绯讳笌甯歌鐢ㄦ硶璇存竻妤氥€?
 瀹炵幇鍙傝€冿細
 - `src/Bukit.Cli/Cli/BukitCliSpecs.cs`
@@ -17,6 +17,7 @@
 | `init <dir>` | 鍒濆鍖栫珯鐐瑰伐绋嬮鏋?|
 | `build` | 鐢熸垚闈欐€佺珯鐐?|
 | `preview` | 鏈湴棰勮杈撳嚭鐩綍 |
+| `dev` | HMR 开发服务器（文件监控 + 增量构建 + 浏览器实时刷新） |
 | `clean` | 娓呯悊杈撳嚭涓庣紦瀛?|
 | `doctor` | 鐜涓庨厤缃瘖鏂?|
 | `plugin` | 鎻掍欢鐩稿叧鍛戒护 |
@@ -85,6 +86,14 @@ dotnet run --project src/Bukit.Cli -c Release -- build --output dist --base-url 
 | `--host <host>` | `localhost` | 鐩戝惉鍦板潃 |
 | `--port <port\|auto>` | `4173` | `auto` 鑷姩閫夋嫨鍙敤绔彛 |
 | `--strict-port` | false | 绔彛鍗犵敤鍒欏け璐ワ紙榛樿浼氶€掑閲嶈瘯锛?|
+
+### `dev` — HMR 开发服务器
+
+```
+bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--output <dir>] [--no-watch]
+```
+
+开发用途：监控 content/themes/layouts/assets/static 目录的文件变更，自动增量重构建，通过 WebSocket 实时刷新浏览器。端口默认 35729，`--no-watch` 禁用文件监控（纯静态服务）。
 
 ## doctor / clean / theme / plugin / intent / webhook
 

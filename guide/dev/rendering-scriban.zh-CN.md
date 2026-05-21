@@ -100,4 +100,31 @@ fields 是统一的“模板扩展面”，推荐用法：
 
 注意：
 - Markdown 模式下，部分保留键不会进入 fields（例如 `title/slug/type/...`），但 tags/categories/summary 会以固定方式写入 fields
-- Notion 模式下，fields key 会被归一化为“下划线小写”，并受 fieldPolicy 控制
+- Notion 模式下，fields key 会被归一化为"下划线小写"，并受 fieldPolicy 控制
+
+### Shortcodes（短代码）
+
+Shortcodes 是主题级可复用 HTML 片段，在 `site.yaml` 的 `theme.shortcodes` 中声明，可在 Markdown 和 Scriban 中调用。
+
+配置方式见 [配置（site.yaml）字段参考](./config-site-yaml.zh-CN.md)。Scriban 中使用：
+
+```
+{{ shortcode "youtube" "dQw4w9WgXcQ" }}
+```
+
+Shortcodes 在 `ScribanTemplateRenderer` 的 `RenderTemplate` 方法中注入为内置函数。
+
+### Components（组件）
+
+组件是带 props 的可复用模板片段，声明为 `theme.components`，使用 `{{ comp.render }}` 调用。
+
+配置方式见 [配置（site.yaml）字段参考](./config-site-yaml.zh-CN.md)。实现位于 `ComponentFunctions.cs`（`Bukit.Rendering.Scriban` 命名空间），通过 `comp.render` 方法调用，继承父模板全局变量。
+
+### ScribanLayoutDirectiveParser
+
+`ScribanLayoutDirectiveParser` 是位于 `Bukit.Shared` 的共享工具类，负责解析 `{% layout "path" %}` 指令。该解析器同时用于：
+
+- `ScribanTemplateRenderer`：解析模板首行 layout 指令，提取布局路径以及布局前 body 文本
+- `TemplateStaticAnalysisService.Analyzer`：静态分析模板链
+
+消除原先在两个不同文件中重复定义的 5 个 `TryParseLayoutDirective`/`TryParseLayoutLine` 方法。

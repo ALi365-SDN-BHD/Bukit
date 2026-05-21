@@ -115,6 +115,34 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 - 或换一个端口：`--port 4174`
 - 如果你需要固定端口但被占用，先停掉占用该端口的进程
 
+### dev server 相关
+
+**现象：`bukit dev` 启动后文件变更没有触发更新**
+
+- 确认没有使用 `--no-watch` 参数
+- 确认修改的文件在监控目录内（content/、themes/、layouts/、assets/、static/）
+- `.cache/` 和 `dist/` 目录不会触发监控
+- Touch 文件后再试（某些编辑器不会触发 LastWrite 事件）
+
+**现象：HMR 实时刷新不生效（浏览器没有自动刷新）**
+
+- 打开浏览器控制台查看 WebSocket 连接是否成功
+- 确认访问的是 `bukit dev` 提供的 HTTP 地址（不是 `bukit preview`）
+- 防火墙或代理可能阻断 WebSocket 连接
+
+**现象：SCSS 文件没有被编译**
+
+- 安装 `sass` CLI：`npm install -g sass`
+- 确认 `theme.scss.enabled: true`
+- `.scss` 文件必须放在 `assets/` 目录中
+
+**现象：图片没有被转换为 WebP**
+
+- 安装 `cwebp` 或 `magick`（ImageMagick）
+- macOS：`brew install webp`
+- Linux：`sudo apt install webp`
+- 确认 `theme.images.enabled: true`
+
 ## 现象 5：改了内容/模板，但输出没变
 
 优先用“排除法”：

@@ -116,3 +116,49 @@ site:
 - `index`：根目录输出索引文件，指向各语言文件
 
 如何选择见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md)。
+
+## 图片自动优化（WebP / AVIF）
+
+构建时自动将 `assets/` 目录中的 PNG/JPG 图片转换为 WebP/AVIF 格式。
+
+**依赖**：需安装 `cwebp`（libwebp）或 `magick`（ImageMagick）：
+
+```bash
+# macOS
+brew install webp imagemagick
+# Linux
+sudo apt install webp imagemagick
+```
+
+**配置**：
+
+```yaml
+theme:
+  images:
+    enabled: true
+    formats: [webp]          # 也支持 avif
+    sizes: [480, 768, 1200]  # 用于 srcset 的响应式尺寸
+    quality: 85
+```
+
+没有安装转换工具时，构建过程会跳过图片优化并输出警告，不会报错。
+
+## SCSS 自动编译
+
+构建时自动将 `assets/` 目录中的 `.scss` 文件编译为 `.css`。
+
+**依赖**：需安装 `sass` 或 `dart-sass` CLI：
+
+```bash
+npm install -g sass
+```
+
+**配置**：
+
+```yaml
+theme:
+  scss:
+    enabled: true
+```
+
+编译成功后自动删除原 `.scss` 文件。未安装 CLI 时跳过编译并输出警告。

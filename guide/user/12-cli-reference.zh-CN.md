@@ -13,6 +13,7 @@
 | `create <dir>` | 新建一个站点工程（脚手架），也可用 `init` 别名 |
 | `build` | 生成静态站点（输出到 dist/） |
 | `preview` | 本地预览输出目录 |
+| `dev` | 启动 HMR 开发服务器（文件监控 + 实时刷新） | `--config` `--site` `--host` `--port` `--output` `--no-watch` |
 | `doctor` | 环境/配置自检（排障第一步） |
 | `clean` | 清理输出目录与缓存 |
 | `theme` | 创建、列出、切换、探索、分享和安装主题 |
@@ -102,6 +103,31 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 - `--host <host>`：默认 `localhost`
 - `--port <port|auto>`：`auto` 自动选端口
 - `--strict-port`：严格端口模式（端口占用时报错而非自动切换）
+
+### `dev`
+
+```
+bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--output <dir>] [--no-watch]
+```
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--config` | `site.yaml` | 配置文件路径 |
+| `--site` | — | 多站点名 |
+| `--host` | `localhost` | 监听地址 |
+| `--port` | `35729` | 监听端口（被占用时自动递增） |
+| `--output` | `dist` | 输出目录 |
+| `--no-watch` | false | 禁用文件监控（仅作为静态服务器） |
+
+工作原理：
+1. 执行一次全量初始构建
+2. 启动 HTTP 服务器 + WebSocket 端点
+3. 监控 content/、themes/、layouts/ 等目录的文件变更
+4. 检测到变更时，自动增量重构建，并通过 WebSocket 通知浏览器刷新
+
+每个 HTML 响应中自动注入 livereload 脚本，连接到 WebSocket 端点以接收实时刷新通知。
+
+与 `preview` 的区别：`bukit dev` 适合开发阶段（自动构建 + 实时刷新），`bukit preview` 仅用于预览已构建的 `dist/` 目录。
 
 ## doctor：自检与排障（第一步）
 
