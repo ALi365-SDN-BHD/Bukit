@@ -1,4 +1,5 @@
-#if !AOT
+// DESKTOP-REMOVED: GeneratedPluginSource disabled (AOT-only, no [BukitPlugin] source generation).
+#if false
 using System.Collections.Generic;
 
 namespace Bukit.Engine.Plugins.Generated;

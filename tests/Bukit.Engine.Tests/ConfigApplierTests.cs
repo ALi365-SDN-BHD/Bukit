@@ -19,8 +19,9 @@ public sealed class ConfigApplierTests
             RssMode = "split",
             SearchMode = "split",
             PluginFailMode = "strict",
-            DeriveConflictPolicy = "fail",
-            ExternalAssemblyTrustMode = "warn"
+            DeriveConflictPolicy = "fail"
+            // DESKTOP-REMOVED: ExternalAssemblyTrustMode disabled (AOT-only).
+            // ExternalAssemblyTrustMode = "warn"
         },
         Build = new BuildConfig
         {

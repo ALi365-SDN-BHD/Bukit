@@ -48,7 +48,7 @@ jobs:
       - name: Publish Native AOT
         run: >
           dotnet publish src/Bukit.Cli/Bukit.Cli.csproj
-          -c AOT
+          -c Release
           -r ${{ matrix.rid }}
           -o out/bukit-${{ matrix.rid }}
           -p:VersionPrefix=${{ steps.version.outputs.version }}

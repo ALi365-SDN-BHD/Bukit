@@ -1,3 +1,5 @@
+// DESKTOP-REMOVED: PathReportPlugin is being converted to a process protocol plugin.
+#if false
 using System.Text.Json.Serialization;
 
 namespace Bukit.Plugins.PathReportPlugin;
@@ -9,3 +11,4 @@ namespace Bukit.Plugins.PathReportPlugin;
 public sealed partial class PathReportJsonContext : JsonSerializerContext
 {
 }
+#endif

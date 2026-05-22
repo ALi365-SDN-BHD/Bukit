@@ -72,8 +72,9 @@ public static class ConfigLoader
             Permalinks = ReadStringMap(siteNode, "permalinks"),
             Collections = ReadCollections(siteNode),
             ExternalPlugins = ReadExternalPlugins(siteNode),
-            ExternalAssemblyTrustMode = GetOptionalString(siteNode, "externalAssemblyTrustMode") ?? "warn",
-            ExternalAssemblyAllowlist = ReadStringMap(siteNode, "externalAssemblyAllowlist"),
+            // DESKTOP-REMOVED: ExternalAssembly loading disabled (AOT-only).
+            // ExternalAssemblyTrustMode = GetOptionalString(siteNode, "externalAssemblyTrustMode") ?? "warn",
+            // ExternalAssemblyAllowlist = ReadStringMap(siteNode, "externalAssemblyAllowlist"),
             Plugins = ReadPluginToggles(siteNode)
         };
 
@@ -651,11 +652,12 @@ public static class ConfigLoader
                 Hooks = ReadStringList(pluginNode, "hooks") ?? Array.Empty<string>(),
                 Enabled = GetOptionalBool(pluginNode, "enabled") ?? true,
                 TimeoutMs = GetOptionalInt(pluginNode, "timeoutMs") ?? 5000,
-                WasmProfile = GetOptionalString(pluginNode, "wasmProfile") ?? "wasi-preview1",
-                MaxMemoryMb = GetOptionalInt(pluginNode, "maxMemoryMb") ?? 64,
-                WasmFsMode = GetOptionalString(pluginNode, "wasmFsMode") ?? "output-only",
-                WasmAllowNetwork = GetOptionalBool(pluginNode, "wasmAllowNetwork") ?? false,
-                Capabilities = ReadStringList(pluginNode, "capabilities"),
+                // DESKTOP-REMOVED: wasm runtime fields disabled (AOT-only).
+                // WasmProfile = GetOptionalString(pluginNode, "wasmProfile") ?? "wasi-preview1",
+                // MaxMemoryMb = GetOptionalInt(pluginNode, "maxMemoryMb") ?? 64,
+                // WasmFsMode = GetOptionalString(pluginNode, "wasmFsMode") ?? "output-only",
+                // WasmAllowNetwork = GetOptionalBool(pluginNode, "wasmAllowNetwork") ?? false,
+                // Capabilities = ReadStringList(pluginNode, "capabilities"),
                 Options = options
             };
         }

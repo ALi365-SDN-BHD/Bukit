@@ -14,10 +14,13 @@
     <ProjectReference Include="..\Bukit.Rendering\Bukit.Rendering.csproj" />
     <ProjectReference Include="..\Bukit.Routing\Bukit.Routing.csproj" />
     <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
-    <PackageReference Include="Wasmtime" Condition="'$(Configuration)' != 'AOT'" />
+    <!-- DESKTOP-REMOVED: Wasmtime is no longer supported (AOT only). -->
+    <!-- <PackageReference Include="Wasmtime" Condition="'$(Configuration)' != 'AOT'" /> -->
     <PackageReference Include="YamlDotNet" />
   </ItemGroup>
 
+  <!-- DESKTOP-REMOVED: Sample plugins are no longer compiled inline; use external protocol (process) instead. -->
+  <!--
   <ItemGroup Condition="'$(IncludeSamplePlugins)' == 'true'">
     <Compile Include="..\plugins\*\*.cs" />
   </ItemGroup>
@@ -26,9 +29,11 @@
     <Compile Include="..\plugins\*\*.cs"
              Link="Plugins\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
+  -->
 
-  <ItemGroup>
+  <!-- DESKTOP-REMOVED: PluginSourceGenerator is no longer needed (no [BukitPlugin] source generation). -->
+  <!-- <ItemGroup>
     <ProjectReference Include="..\Bukit.PluginSourceGenerator\Bukit.PluginSourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-  </ItemGroup>
+  </ItemGroup> -->
 
 </Project>

@@ -1,3 +1,5 @@
+// DESKTOP-REMOVED: PathReportPlugin is being converted to a process protocol plugin.
+#if false
 using System.Net;
 using System.Text.Json;
 using Bukit.Config;
@@ -180,3 +182,4 @@ public sealed class PathReportPluginTests
         }
     }
 }
+#endif

@@ -37,8 +37,9 @@ public sealed record SiteConfig
     public IReadOnlyDictionary<string, string>? Permalinks { get; init; }
     public IReadOnlyDictionary<string, CollectionConfig>? Collections { get; init; }
     public IReadOnlyDictionary<string, ExternalPluginConfig>? ExternalPlugins { get; init; }
-    public string ExternalAssemblyTrustMode { get; init; } = "warn";
-    public IReadOnlyDictionary<string, string>? ExternalAssemblyAllowlist { get; init; }
+    // DESKTOP-REMOVED: ExternalAssembly loading disabled (AOT-only).
+    // public string ExternalAssemblyTrustMode { get; init; } = "warn";
+    // public IReadOnlyDictionary<string, string>? ExternalAssemblyAllowlist { get; init; }
     public IReadOnlyDictionary<string, PluginToggleConfig>? Plugins { get; init; }
 }
 
@@ -149,11 +150,12 @@ public sealed record ExternalPluginConfig
     public IReadOnlyList<string> Hooks { get; init; } = Array.Empty<string>();
     public bool Enabled { get; init; } = true;
     public int TimeoutMs { get; init; } = 5000;
-    public string WasmProfile { get; init; } = "wasi-preview1";
-    public int MaxMemoryMb { get; init; } = 64;
-    public string WasmFsMode { get; init; } = "output-only";
-    public bool WasmAllowNetwork { get; init; }
-    public IReadOnlyList<string>? Capabilities { get; init; }
+    // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
+    // public string WasmProfile { get; init; } = "wasi-preview1";
+    // public int MaxMemoryMb { get; init; } = 64;
+    // public string WasmFsMode { get; init; } = "output-only";
+    // public bool WasmAllowNetwork { get; init; }
+    // public IReadOnlyList<string>? Capabilities { get; init; }
     public IReadOnlyDictionary<string, object>? Options { get; init; }
 }
 

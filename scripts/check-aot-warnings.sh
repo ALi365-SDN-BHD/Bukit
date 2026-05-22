@@ -14,7 +14,7 @@ fi
 rm -f "${log_file}"
 
 dotnet publish src/Bukit.Cli/Bukit.Cli.csproj \
-  -c AOT \
+  -c Release \
   -r "${rid}" \
   -o "${out_dir}" \
   -maxcpucount:1 \

@@ -684,6 +684,8 @@ public sealed class ConfigValidatorTests
         Assert.Contains("timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    // DESKTOP-REMOVED: wasm runtime tests disabled (AOT-only).
+#if false
     [Fact]
     public void Validate_ExternalPlugins_RuntimeWasm_IsRecognized()
     {
@@ -905,6 +907,7 @@ public sealed class ConfigValidatorTests
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
         Assert.Contains("capabilities", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
+#endif
 
     [Fact]
     public void Validate_ExternalPlugins_ProcessOptionsArguments_Throws()
@@ -1004,6 +1007,8 @@ public sealed class ConfigValidatorTests
         Assert.Null(ex);
     }
 
+    // DESKTOP-REMOVED: ExternalAssembly validation tests disabled (AOT-only).
+#if false
     [Fact]
     public void Validate_Site_ExternalAssemblyTrustModeStrictWithoutAllowlist_Throws()
     {
@@ -1057,6 +1062,7 @@ public sealed class ConfigValidatorTests
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);
     }
+#endif
 
     [Fact]
     public void Validate_Site_DeriveConflictPolicy_LastWins_Passes()

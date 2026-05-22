@@ -86,6 +86,8 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
                 return new ProcessPluginInvoker();
             }
 
+            // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
+#if false
             if (string.Equals(runtime, "wasm", StringComparison.OrdinalIgnoreCase))
             {
 #if AOT
@@ -94,8 +96,9 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
                 return new WasmPluginInvoker();
 #endif
             }
+#endif
 
-            throw new NotSupportedException($"Protocol plugin runtime '{runtime}' is not supported.");
+            throw new NotSupportedException($"Protocol plugin runtime '{runtime}' is not supported. Use 'process'.");
         }
 
         private static ExternalPluginConfig ResolveEntryPath(ExternalPluginConfig config, string rootDir)

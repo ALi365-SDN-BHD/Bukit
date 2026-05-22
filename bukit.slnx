@@ -10,7 +10,8 @@
     <Project Path="src/Bukit.Shared/Bukit.Shared.csproj" />
     <Project Path="src/plugins/SampleAfterBuildPlugin/SampleAfterBuildPlugin.csproj" />
     <Project Path="src/plugins/PathReportPlugin/PathReportPlugin.csproj" />
-    <Project Path="src/Bukit.PluginSourceGenerator/Bukit.PluginSourceGenerator.csproj" />
+    <!-- DESKTOP-REMOVED: PluginSourceGenerator disabled (AOT-only). -->
+    <!-- <Project Path="src/Bukit.PluginSourceGenerator/Bukit.PluginSourceGenerator.csproj" /> -->
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ThrowingPlugin/ThrowingPlugin.csproj" />
@@ -21,6 +22,7 @@
     <Project Path="tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj" />
     <Project Path="tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj" />
     <Project Path="tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj" />
-    <Project Path="tests/Bukit.PluginSourceGenerator.Tests/Bukit.PluginSourceGenerator.Tests.csproj" />
+    <!-- DESKTOP-REMOVED: PluginSourceGenerator tests disabled (AOT-only). -->
+    <!-- <Project Path="tests/Bukit.PluginSourceGenerator.Tests/Bukit.PluginSourceGenerator.Tests.csproj" /> -->
   </Folder>
 </Solution>

@@ -455,12 +455,13 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal(2, optimizer.Hooks.Count);
         Assert.Contains("after-build", optimizer.Hooks);
         Assert.Contains("derive-pages", optimizer.Hooks);
-        Assert.Equal("wasi-preview1", optimizer.WasmProfile);
-        Assert.Equal(128, optimizer.MaxMemoryMb);
-        Assert.Equal("output-only", optimizer.WasmFsMode);
-        Assert.False(optimizer.WasmAllowNetwork);
-        Assert.NotNull(optimizer.Capabilities);
-        Assert.Contains("emit-outputs", optimizer.Capabilities);
+        // DESKTOP-REMOVED: wasm runtime fields disabled (AOT-only).
+        // Assert.Equal("wasi-preview1", optimizer.WasmProfile);
+        // Assert.Equal(128, optimizer.MaxMemoryMb);
+        // Assert.Equal("output-only", optimizer.WasmFsMode);
+        // Assert.False(optimizer.WasmAllowNetwork);
+        // Assert.NotNull(optimizer.Capabilities);
+        // Assert.Contains("emit-outputs", optimizer.Capabilities);
     }
 
     [Fact]

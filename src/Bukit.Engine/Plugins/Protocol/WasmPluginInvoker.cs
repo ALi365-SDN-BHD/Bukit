@@ -1,3 +1,6 @@
+// DESKTOP-REMOVED: WasmPluginInvoker disabled (AOT-only, wasm runtime not supported).
+// Only ProcessPluginInvoker is active for external protocol plugins.
+#if false
 using Bukit.Config;
 using System.Diagnostics;
 using System.Text;
@@ -297,4 +300,5 @@ internal sealed class WasmPluginInvoker : IProtocolPluginInvoker
         return result;
     }
 }
+#endif
 #endif

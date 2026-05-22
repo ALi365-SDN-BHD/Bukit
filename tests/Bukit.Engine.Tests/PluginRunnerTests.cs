@@ -46,6 +46,8 @@ public sealed class PluginRunnerTests
         });
     }
 
+    // DESKTOP-REMOVED: ExternalAssembly plugin tests disabled (AOT-only).
+#if false
     [Fact]
     public void FailedPlugin_InWarnMode_LogsButDoesNotThrow()
     {
@@ -119,6 +121,7 @@ public sealed class PluginRunnerTests
         var ex = Assert.Throws<InvalidOperationException>(() => PluginRunner.RunAfterBuild(ctx));
         Assert.Contains("hash", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
+#endif
 
     [Fact]
     public void Plugins_OrderedByOrderThenNameThenVersion()
@@ -172,9 +175,7 @@ public sealed class PluginRunnerTests
         string? root = null,
         string? siteUrl = null,
         string pluginFailMode = "strict",
-        IReadOnlyDictionary<string, PluginToggleConfig>? plugins = null,
-        string externalAssemblyTrustMode = "warn",
-        IReadOnlyDictionary<string, string>? externalAssemblyAllowlist = null)
+        IReadOnlyDictionary<string, PluginToggleConfig>? plugins = null)
     {
         root ??= CreateTempRoot();
         var outputDir = Path.Combine(root, "dist");
@@ -186,9 +187,7 @@ public sealed class PluginRunnerTests
             Title = "t",
             Url = siteUrl ?? "",
             PluginFailMode = pluginFailMode,
-            Plugins = plugins,
-            ExternalAssemblyTrustMode = externalAssemblyTrustMode,
-            ExternalAssemblyAllowlist = externalAssemblyAllowlist
+            Plugins = plugins
         };
 
         return new BuildContext
@@ -207,6 +206,8 @@ public sealed class PluginRunnerTests
         };
     }
 
+    // DESKTOP-REMOVED: ExternalAssembly tests disabled (AOT-only).
+#if false
     private static (string root, string? pluginsDir) SetupThrowingPlugin()
     {
 #if AOT
@@ -237,6 +238,7 @@ public sealed class PluginRunnerTests
             ["ThrowingPlugin.dll"] = hash
         };
     }
+#endif
 
     private static string CreateTempRoot()
     {

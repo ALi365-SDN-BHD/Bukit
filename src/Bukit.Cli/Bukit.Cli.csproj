@@ -53,21 +53,18 @@
                       Encoding="UTF-8" />
   </Target>
 
-  <PropertyGroup Condition="'$(Configuration)' == 'AOT'">
+  <PropertyGroup>
     <PublishAot>true</PublishAot>
     <PublishSingleFile>true</PublishSingleFile>
-    <!-- Keep NativeAOT publish portable across local environments; users can opt in with -p:BukitStripSymbols=true. -->
     <BukitStripSymbols Condition="'$(BukitStripSymbols)' == ''">false</BukitStripSymbols>
     <StripSymbols>$(BukitStripSymbols)</StripSymbols>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <DefineConstants>$(DefineConstants);AOT</DefineConstants>
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
-    <!-- Scriban 7.2.0 NuGet package is AOT-compatible on net8.0+; uses ScriptObject-safe APIs. -->
   </PropertyGroup>
 
   <Target Name="ValidateStripSymbolsTooling"
           BeforeTargets="Publish"
-          Condition="'$(Configuration)' == 'AOT' and '$(StripSymbols)' == 'true' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">
+          Condition="'$(StripSymbols)' == 'true' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">
     <Exec Command="command -v llvm-objcopy >/dev/null 2&gt;&amp;1 || command -v objcopy >/dev/null 2&gt;&amp;1"
           ConsoleToMsBuild="true"
           IgnoreExitCode="true">

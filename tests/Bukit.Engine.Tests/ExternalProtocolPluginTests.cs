@@ -142,6 +142,8 @@ public sealed class ExternalProtocolPluginTests
         Assert.True(string.IsNullOrWhiteSpace(result.StdOut));
     }
 
+    // DESKTOP-REMOVED: WasmPluginInvoker tests disabled (AOT-only, wasm runtime not supported).
+#if false
     [Fact]
     public async Task WasmPluginInvoker_InvokesPluginThroughProtocol()
     {
@@ -172,8 +174,9 @@ public sealed class ExternalProtocolPluginTests
             Runtime = "wasm",
             Entry = CreateWasmModuleForMode(temp.Path, "empty"),
             Hooks = new[] { "after-build" },
-            TimeoutMs = 5000,
-            WasmAllowNetwork = true
+            TimeoutMs = 5000
+            // DESKTOP-REMOVED: WasmAllowNetwork disabled (AOT-only).
+            // WasmAllowNetwork = true
         };
 
         var result = await invoker.InvokeAsync(plugin, "{}", null, CancellationToken.None);
@@ -201,6 +204,7 @@ public sealed class ExternalProtocolPluginTests
         Assert.Equal(-1, result.ExitCode);
         Assert.Contains("memory", result.StdErr, StringComparison.OrdinalIgnoreCase);
     }
+#endif
 
     private static string BuildArguments(string mode, IReadOnlyList<string>? extraArgs = null)
     {
@@ -266,8 +270,9 @@ public sealed class ExternalProtocolPluginTests
     [Theory]
     [InlineData("process", "handshake-v2", true)]
     [InlineData("process", "handshake-v1only", false)]
-    [InlineData("wasm", "handshake-v2", true)]
-    [InlineData("wasm", "handshake-v1only", false)]
+    // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
+    // [InlineData("wasm", "handshake-v2", true)]
+    // [InlineData("wasm", "handshake-v1only", false)]
     public void ExternalProtocolPlugin_AfterBuild_ProtocolSchemaCompatibilityMatrix(
         string runtime,
         string mode,
@@ -401,6 +406,8 @@ public sealed class ExternalProtocolPluginTests
         Assert.Contains("plugin failed", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    // DESKTOP-REMOVED: wasm runtime tests disabled (AOT-only).
+#if false
     [Fact]
     public void ExternalProtocolPlugin_AfterBuild_WritesOutputFile_WhenRuntimeIsWasm()
     {
@@ -413,6 +420,7 @@ public sealed class ExternalProtocolPluginTests
         Assert.True(File.Exists(outputPath));
         Assert.Contains("\"ok\":true", File.ReadAllText(outputPath), StringComparison.OrdinalIgnoreCase);
     }
+#endif
 
     [Fact]
     public void ExternalProtocolPlugin_DerivePages_ReturnsDerivedPage_WhenHookConfigured()
@@ -431,6 +439,8 @@ public sealed class ExternalProtocolPluginTests
                 StringComparison.OrdinalIgnoreCase));
     }
 
+    // DESKTOP-REMOVED: wasm runtime tests disabled (AOT-only).
+#if false
     [Fact]
     public void ExternalProtocolPlugin_DerivePages_ReturnsDerivedPage_WhenRuntimeIsWasm()
     {
@@ -443,10 +453,12 @@ public sealed class ExternalProtocolPluginTests
             x.Item.Id == "derived-1" &&
             x.Route.Url == "/derived/derived-1/");
     }
+#endif
 
     [Theory]
     [InlineData("process")]
-    [InlineData("wasm")]
+    // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
+    // [InlineData("wasm")]
     public void ExternalProtocolPlugin_DerivePages_CompatibilityMatrix_ByRuntime(string runtime)
     {
         using var temp = new TempDir();

@@ -1,11 +1,11 @@
-#if !AOT
+// DESKTOP-REMOVED: ExternalAssemblyPluginSource disabled (AOT-only, no dynamic assembly loading).
+#if false
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Runtime.Loader;
 #endif
 using Bukit.Config;
-using Bukit.Engine.Plugins.Generated;
 using Bukit.Engine.Plugins.Protocol;
 using Bukit.Shared;
 
@@ -31,7 +31,8 @@ public sealed class BuiltInPluginSource : IPluginSource
     }
 }
 
-#if !AOT
+// DESKTOP-REMOVED: ExternalAssemblyPluginSource disabled (AOT-only, no dynamic assembly loading).
+#if false
 public sealed class ExternalAssemblyPluginSource : IPluginSource
 {
     private static readonly object ResolvingLock = new();
@@ -276,22 +277,11 @@ public static class PluginRegistry
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var result = new List<(IBukitPlugin Plugin, string Source)>();
 
-#if AOT
         var sources = new (IPluginSource Source, string Name)[]
         {
             (new BuiltInPluginSource(), "built-in"),
-            (new GeneratedPluginSource(), "generated"),
             (new ExternalProtocolPluginSource(context), "external-protocol")
         };
-#else
-        var sources = new (IPluginSource Source, string Name)[]
-        {
-            (new BuiltInPluginSource(), "built-in"),
-            (new GeneratedPluginSource(), "generated"),
-            (new ExternalAssemblyPluginSource(context.RootDir, context.Logger, context.Config.Site), "external"),
-            (new ExternalProtocolPluginSource(context), "external-protocol")
-        };
-#endif
 
         foreach (var (source, name) in sources)
         {

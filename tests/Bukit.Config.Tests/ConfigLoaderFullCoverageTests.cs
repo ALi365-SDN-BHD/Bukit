@@ -127,6 +127,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         Assert.Equal(200, config.Site.AutoSummaryMaxLength);
     }
 
+    // DESKTOP-REMOVED: ExternalAssembly loading disabled (AOT-only).
+#if false
     [Fact]
     public void Load_SiteExternalAssemblyTrustModeAndAllowlist()
     {
@@ -150,6 +152,7 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         Assert.Equal("v1.0", config.Site.ExternalAssemblyAllowlist["PluginA"]);
         Assert.Equal("v2.3", config.Site.ExternalAssemblyAllowlist["PluginB"]);
     }
+#endif
 
     [Fact]
     public void Load_SiteSearchIncludeDerived_True()

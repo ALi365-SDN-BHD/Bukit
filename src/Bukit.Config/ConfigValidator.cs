@@ -121,6 +121,8 @@ public static class ConfigValidator
             throw new ConfigException("site.deriveConflictPolicy must be fail|warn|last-wins.");
         }
 
+        // DESKTOP-REMOVED: ExternalAssembly validation disabled (AOT-only).
+#if false
         var externalAssemblyTrustMode = (config.Site.ExternalAssemblyTrustMode ?? "warn").Trim().ToLowerInvariant();
         if (externalAssemblyTrustMode is not ("strict" or "warn"))
         {
@@ -128,6 +130,7 @@ public static class ConfigValidator
         }
 
         ValidateExternalAssemblyAllowlist(config.Site, externalAssemblyTrustMode);
+#endif
 
         if (config.Site.Plugins is not null)
         {
@@ -545,9 +548,10 @@ public static class ConfigValidator
             }
 
             var runtime = plugin.Runtime.Trim().ToLowerInvariant();
-            if (runtime != "process" && runtime != "wasm")
+            if (runtime != "process")
             {
-                throw new ConfigException($"site.externalPlugins.{name}.runtime must be process or wasm.");
+                // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
+                throw new ConfigException($"site.externalPlugins.{name}.runtime must be process.");
             }
 
             if (string.IsNullOrWhiteSpace(plugin.Entry))
@@ -584,6 +588,8 @@ public static class ConfigValidator
                 ValidateProcessPluginOptions(name, plugin.Options);
             }
 
+            // DESKTOP-REMOVED: wasm runtime validation disabled (AOT-only).
+#if false
             if (runtime == "wasm")
             {
                 if (!string.Equals(plugin.WasmProfile?.Trim(), "wasi-preview1", StringComparison.OrdinalIgnoreCase))
@@ -628,7 +634,8 @@ public static class ConfigValidator
                         }
                     }
                 }
-            }
+        }
+#endif
         }
     }
 
@@ -750,6 +757,8 @@ public static class ConfigValidator
         return null;
     }
 
+    // DESKTOP-REMOVED: ExternalAssemblyAllowlist validation disabled (AOT-only).
+#if false
     private static void ValidateExternalAssemblyAllowlist(SiteConfig site, string trustMode)
     {
         var allowlist = site.ExternalAssemblyAllowlist;
@@ -782,6 +791,7 @@ public static class ConfigValidator
             }
         }
     }
+#endif
 
     private static void ValidateTaxonomyKindConfig(string prefix, TaxonomyKindConfig kind)
     {

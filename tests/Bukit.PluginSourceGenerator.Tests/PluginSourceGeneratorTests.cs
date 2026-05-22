@@ -1,3 +1,5 @@
+// DESKTOP-REMOVED: PluginSourceGenerator tests disabled (AOT-only, no source generation).
+#if false
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -206,3 +208,4 @@ namespace Bukit.Plugins.Beta
         Assert.Contains("yield return new Bukit.Plugins.Beta.BetaPlugin()", generated);
     }
 }
+#endif

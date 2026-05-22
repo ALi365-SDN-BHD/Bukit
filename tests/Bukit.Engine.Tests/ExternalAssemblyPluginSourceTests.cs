@@ -1,4 +1,5 @@
-#if !AOT
+// DESKTOP-REMOVED: ExternalAssemblyPluginSource disabled (AOT-only).
+#if false
 using Bukit.Engine.Plugins;
 using Bukit.Shared;
 using Xunit;
