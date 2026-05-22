@@ -6,7 +6,24 @@
 
 Versi bahasa: [English](./README.md) | [简体中文](./README.zh-CN.md) | Bahasa Melayu (semasa)
 
-Enjin tapak statik berasaskan aliran kerja "nota sebagai CMS". Kandungan boleh datang daripada Notion (atau Markdown tempatan), kemudian dibina dan dideploy ke GitHub Pages melalui GitHub Actions.
+Bukit ialah enjin penjanaan tapak statik .NET Native AOT yang direka untuk "nota sebagai CMS", Ejen AI, dan pengoptimuman GEO. Ia menukar Notion, Markdown, atau kandungan nota berstruktur lain kepada tapak web statik berprestasi tinggi, boleh dideploy, serta difahami oleh enjin carian dan enjin AI.
+
+## Kedudukan Ekosistem Produk
+
+```
+ Bukit
+ = Enjin Tapak Statik
+ = Teras Binaan
+ = Penghamilan kandungan, penjanaan laluan, pemaparan templat, output SEO/GEO
+
+ BukitJalil
+ = Aplikasi Tempatan / Panel Kawalan
+ = Pengurusan projek, pengurusan tema, operasi perbualan AI, kawalan bina & deploy
+
+ Notes-as-CMS
+ = Cara Penghasilan Kandungan
+ = Notion / Markdown / Obsidian / Feishu / Yuque / WeChat Official Account / pangkalan pengetahuan lain
+```
 
 ## Dokumen
 

@@ -6,7 +6,24 @@
 
 Language versions: English (current) | [简体中文](./README.zh-CN.md) | [Bahasa Melayu](./README.ms.md)
 
-A static website engine designed around the "notes as CMS" workflow. Content can come from Notion (or local Markdown), then be built and deployed to GitHub Pages with GitHub Actions.
+Bukit is a .NET Native AOT static site generation engine designed for Notes-as-CMS workflows, AI Agent automation, and GEO-ready websites. It transforms structured notes, Notion databases, Markdown content, and future knowledge sources into fast, deployable, AI-readable static websites.
+
+## Product Ecosystem
+
+```
+ Bukit
+ = Static Site Engine
+ = Build Core
+ = Content ingestion, route generation, template rendering, SEO/GEO output
+
+ BukitJalil
+ = Local App / Control Panel
+ = Project management, theme management, AI-powered conversational workflows, build & deploy control
+
+ Notes-as-CMS
+ = Content Production
+ = Notion / Markdown / Obsidian / Feishu / Yuque / WeChat Official Account / other knowledge bases
+```
 
 ## Documents
 

@@ -6,7 +6,24 @@
 
 语言版本：简体中文（当前）| [English](./README.md) | [Bahasa Melayu](./README.ms.md)
 
-一个面向“笔记即 CMS”的静态网站引擎：内容可来自 Notion（或本地 Markdown），在 GitHub Actions 中自动构建并部署到 GitHub Pages。
+Bukit 是一个面向"笔记即 CMS"、AI Agent 与 GEO 优化的 .NET Native AOT 静态网站生成引擎。它可以将 Notion、Markdown 或其他结构化笔记内容转换为高性能、可部署、可被搜索引擎与 AI 引擎理解的静态网站。
+
+## 产品生态定位
+
+```
+Bukit
+= 静态网站引擎
+= 构建核心
+= 内容读取、路由生成、模板渲染、SEO/GEO 输出
+
+BukitJalil
+= 本地应用 / 控制面板
+= 项目管理、主题管理、AI 对话式操作、构建发布控制
+
+Notes-as-CMS
+= 内容生产方式
+= Notion / Markdown / Obsidian / 飞书 / 语雀 / 微信公众号 / 其他知识库
+```
 
 ## 文档
 
