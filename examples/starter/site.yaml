@@ -10,15 +10,10 @@ site:
   externalPlugins:
     sample-wasm:
       enabled: false
-      runtime: wasm
+      runtime: process
       entry: dotnet
       hooks: [after-build]
       timeoutMs: 5000
-      wasmProfile: wasi-preview1
-      maxMemoryMb: 64
-      wasmFsMode: output-only
-      wasmAllowNetwork: false
-      capabilities: [emit-outputs]
       options:
         processArgs:
           positionals:
