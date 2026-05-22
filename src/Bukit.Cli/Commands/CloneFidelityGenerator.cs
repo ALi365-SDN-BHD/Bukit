@@ -46,7 +46,13 @@ internal static partial class CloneFidelityGenerator
         {
             var pageTemplate = BuildPageTemplate(page);
             var pageName = Path.GetFileNameWithoutExtension(page.FilePath);
-            var templatePath = Path.Combine(themeDir, "layouts", "pages", $"{SanitizeTemplateName(pageName)}.html");
+            var safeName = SanitizeTemplateName(pageName);
+            if (safeName is "index" or "list")
+            {
+                safeName = "page-" + safeName;
+            }
+
+            var templatePath = Path.Combine(themeDir, "layouts", "pages", $"{safeName}.html");
             File.WriteAllText(templatePath, pageTemplate);
             pageCount++;
         }
@@ -91,6 +97,7 @@ internal static partial class CloneFidelityGenerator
 
             HeadContent = ExtractBetween(FullHtml, "<head", "</head>", false) ?? "";
             BodyContent = ExtractBetween(FullHtml, "<body", "</body>", false) ?? "";
+            BodyContent = StripBodyTags(BodyContent);
             Title = ExtractBetween(FullHtml, "<title>", "</title>", true) ?? Slug;
 
             var bodyLines = SplitBodyIntoTopAndBottom(BodyContent, out var bodyOpening, out var bodyClosing, out var uniqueBody);
@@ -119,6 +126,27 @@ internal static partial class CloneFidelityGenerator
             }
 
             return result;
+        }
+
+        private static string StripBodyTags(string bodyContent)
+        {
+            if (string.IsNullOrWhiteSpace(bodyContent))
+                return bodyContent;
+
+            var result = bodyContent.Trim();
+
+            var openEnd = result.IndexOf('>');
+            if (openEnd > 0 && result.StartsWith("<body", StringComparison.OrdinalIgnoreCase))
+            {
+                result = result[(openEnd + 1)..];
+            }
+
+            if (result.EndsWith("</body>", StringComparison.OrdinalIgnoreCase))
+            {
+                result = result[..^7];
+            }
+
+            return result.Trim();
         }
 
         private static List<string> SplitBodyIntoTopAndBottom(
