@@ -328,3 +328,172 @@ Template paths in site.yaml collection configs are referenced without the `layou
 | Variable output shows HTML escaped | Scriban defaults to escaping | Use `{{ variable | html.raw }}` |
 | Chinese characters garbled | Template file encoding issue | Ensure template file is UTF-8 (without BOM) |
 | base_url path joins with double slashes | `base_url` ends with `/` causing `//` in URLs | `site.base_url` is empty string when `/`, use `{{ site.base_url }}/xxx` directly |
+
+---
+
+## Schema-Driven Template Generation
+
+When a user has defined `collection.schema` in site.yaml, use these patterns to generate precise templates.
+
+### Schema Field → Template Pattern Map
+
+| Schema Type | Template Pattern |
+|---|---|
+| `string` | `{{ page.fields.KEY.value }}` |
+| `boolean` | `{{ if page.fields.KEY.value }}...{{ end }}` |
+| `date` | `{{ page.fields.KEY.value | date.to_string "%Y-%m-%d" }}` |
+| `number` | `{{ page.fields.KEY.value }}` |
+| `array` | `{{ for item in page.fields.KEY.value }}...{{ end }}` |
+| `object` | `{{ page.fields.KEY.value.SUBKEY }}` |
+| `image` (url) | `<img src="{{ page.fields.KEY.value }}" alt="{{ page.title }}" class="field-cover">` |
+| `select` | `{{ page.fields.KEY.value }}` |
+| `multi_select` | `{{ for tag in page.fields.KEY.value }}<span class="tag">{{ tag }}</span>{{ end }}` |
+| `email` | `<a href="mailto:{{ page.fields.KEY.value }}">{{ page.fields.KEY.value }}</a>` |
+
+### Auto-Generated Post Template (Schema-Aware)
+
+For schema `[title, date, tags, cover, author, summary]`:
+```html
+{% layout "layouts/base.html" %}
+
+<article class="article">
+  <header class="article-header">
+    {{ if page.fields.cover.value }}
+      <img class="article-cover" src="{{ page.fields.cover.value }}" alt="{{ page.title }}">
+    {{ end }}
+    <h1>{{ page.title }}</h1>
+    <div class="article-meta">
+      {{ if page.fields.author.value }}<span class="meta-author">{{ page.fields.author.value }}</span>{{ end }}
+      {{ if page.publish_date }}<time>{{ page.publish_date | date.to_string "%Y-%m-%d" }}</time>{{ end }}
+    </div>
+    {{ if page.summary }}<p class="article-summary">{{ page.summary }}</p>{{ end }}
+    {{ if page.fields.tags.value }}
+      <div class="article-tags">
+        {{ for tag in page.fields.tags.value }}
+          <a class="tag" href="{{ site.base_url }}/tags/{{ tag | string.downcase }}/">{{ tag }}</a>
+        {{ end }}
+      </div>
+    {{ end }}
+  </header>
+  <div class="content">{{ page.content }}</div>
+</article>
+```
+
+### Auto-Generated List Card Partial
+```html
+<li class="card">
+  {{ if item.fields.cover.value }}
+    <img class="card-image" src="{{ item.fields.cover.value }}" alt="{{ item.title }}" loading="lazy">
+  {{ end }}
+  <div class="card-content">
+    <h2 class="card-title"><a href="{{ site.base_url }}{{ item.url }}">{{ item.title }}</a></h2>
+    <div class="card-meta">
+      {{ if item.publish_date }}<time>{{ item.publish_date | date.to_string "%Y-%m-%d" }}</time>{{ end }}
+      {{ if item.fields.author.value }}<span>· {{ item.fields.author.value }}</span>{{ end }}
+    </div>
+    {{ if item.summary }}<p class="card-summary">{{ item.summary }}</p>{{ end }}
+  </div>
+</li>
+```
+
+## Advanced Component Composition Patterns
+
+### Pattern 1: Slot-Based Partial
+```html
+{{ with title = "Featured" }}
+  {{ body = "" }}<ul>...</ul>{{ end }}
+  {{ include "partials/section.html" }}
+{{ end }}
+```
+
+### Pattern 2: Conditional Layout Switching
+```html
+{{ if page.fields.layout_type.value == "landing" }}
+  {{ include "layouts/base-landing.html" }}{{ content }}
+{{ else }}
+  {{ include "partials/header.html" }}<main>{{ content }}</main>{{ include "partials/footer.html" }}
+{{ end }}
+```
+
+### Pattern 3: Breadcrumb Navigation
+```html
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="{{ site.base_url }}/">Home</a></li>
+    {{ for seg in page.url | string.slice 1 | string.split "/" }}
+      {{ if seg != "" }}<li><a href="{{ site.base_url }}/{{ seg }}/">{{ seg }}</a></li>{{ end }}
+    {{ end }}
+    <li aria-current="page">{{ page.title }}</li>
+  </ol>
+</nav>
+```
+
+### Pattern 4: Reading Time Estimate
+```html
+{{ word_count = page.content | string.split " " | array.size }}
+{{ reading_time = word_count / 200 | math.ceil }}
+{{ if reading_time < 1 }}{{ reading_time = 1 }}{{ end }}
+<span class="reading-time">{{ reading_time }} min read</span>
+```
+
+### Pattern 5: Empty State
+```html
+{{ if pages.size == 0 }}
+  <div class="empty-state"><p>No content yet.</p></div>
+{{ else }}
+  <ul class="card-list">{{ for p in pages }}...{{ end }}</ul>
+{{ end }}
+```
+
+## SEO Best Practice Templates
+
+### JSON-LD Structured Data
+
+**Article:**
+```html
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "{{ page.title | html.escape }}",
+  {{ if page.fields.cover.value }}"image": "{{ page.fields.cover.value | html.escape }}",{{ end }}
+  {{ if page.publish_date }}"datePublished": "{{ page.publish_date | date.to_string "%Y-%m-%d" }}",{{ end }}
+  {{ if page.fields.author.value }}"author": { "@type": "Person", "name": "{{ page.fields.author.value | html.escape }}" },{{ end }}
+  "description": "{{ page.summary | html.escape }}"
+}
+</script>
+```
+
+**BreadcrumbList:**
+```html
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "{{ site.url }}{{ site.base_url }}/" }
+  ]
+}
+</script>
+```
+
+### Sitemap & RSS Links
+Always include in base.html `<head>`:
+```html
+<link rel="alternate" type="application/rss+xml" href="{{ site.base_url }}/rss.xml" />
+<link rel="sitemap" type="application/xml" href="{{ site.base_url }}/sitemap.xml" />
+```
+
+## Performance Optimization
+
+### Image Lazy Loading
+```html
+<img src="{{ item.fields.cover.value }}" alt="{{ item.title }}" loading="lazy" decoding="async">
+```
+
+### Conditional Script Loading
+```html
+{{ if page.fields.has_search.value }}
+  <script src="{{ site.base_url }}/assets/search.js" defer></script>
+{{ end }}
+```

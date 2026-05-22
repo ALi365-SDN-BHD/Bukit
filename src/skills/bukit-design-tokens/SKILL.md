@@ -1,0 +1,147 @@
+---
+name: bukit-design-tokens
+description: Use when creating or customizing a Bukit theme's design system — defining CSS variables, color palettes, typography scales, spacing systems, dark mode, or when wanting to improve the visual consistency of a Bukit site
+---
+
+# Bukit Design Tokens
+
+## Overview
+
+Design tokens are the visual atoms of a Bukit theme — CSS custom properties that define colors, typography, spacing, shadows, and more. A well-designed token system makes your theme consistent, maintainable, and easy to customize.
+
+**REQUIRED BACKGROUND:** Theme structure and CSS file location in bukit-theme. Template syntax in bukit-templating.
+
+## Quick Start: Complete Token System
+
+```css
+:root {
+  /* === Colors === */
+  --color-bg: #fbfaf8;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f1ed;
+  --color-text: #202124;
+  --color-text-muted: #66615b;
+  --color-border: #ded9d0;
+  --color-primary: #0b5fff;
+  --color-primary-hover: #0846b8;
+  --color-accent: #0f7b6c;
+
+  /* === Typography === */
+  --font-family-base: system-ui, -apple-system, sans-serif;
+  --font-family-heading: var(--font-family-base);
+  --font-family-mono: "SFMono-Regular", Consolas, monospace;
+  --font-size-xs: 0.75rem; --font-size-sm: 0.875rem; --font-size-base: 1rem;
+  --font-size-lg: 1.125rem; --font-size-xl: 1.25rem; --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem; --font-size-4xl: 2.5rem;
+  --font-weight-normal: 400; --font-weight-bold: 700;
+  --line-height-tight: 1.2; --line-height-base: 1.65;
+
+  /* === Spacing (4px base) === */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-20: 80px;
+
+  /* === Layout === */
+  --content-max: 760px; --wide-max: 1080px;
+
+  /* === Borders === */
+  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px; --border-width: 1px;
+
+  /* === Shadows === */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+
+  /* === Transitions === */
+  --transition-fast: 150ms ease; --transition-base: 300ms ease;
+
+  /* === Z-Index === */
+  --z-header: 100; --z-dropdown: 200; --z-modal: 300;
+}
+```
+
+## Color Palette Generation
+
+### Method: Single Brand Color → Full Palette
+Given a primary color, generate: Primary Hover (darken 20%), Accent (complementary), Background (light neutral), Text (dark neutral), Muted (desaturated mid-tone), Border (light warm gray).
+
+### 8 Curated Palettes
+- **Ocean Blue**: primary=#0b5fff accent=#0f7b6c bg=#fbfaf8 text=#202124 (professional)
+- **Warm Earth**: primary=#b45309 accent=#0d9488 bg=#faf7f2 text=#2d2a22 (organic)
+- **Midnight Ink**: primary=#1e1b4b accent=#e11d48 bg=#f8f9fb text=#1a1a2e (elegant)
+- **Forest Calm**: primary=#166534 accent=#ca8a04 bg=#f7faf5 text=#1a2e1a (peaceful)
+- **Modern Slate**: primary=#2563eb accent=#7c3aed bg=#fafafa text=#18181b (clean)
+- **Sunset Warm**: primary=#ea580c accent=#9333ea bg=#fefbf6 text=#292524 (energetic)
+- **Nordic Light**: primary=#475569 accent=#0d9488 bg=#f5f7fa text=#1e293b (minimal)
+- **Rose Gold**: primary=#be185d accent=#b45309 bg=#fdf2f8 text=#4a1942 (elegant)
+
+## Typography System
+
+### Font Pairing
+| Style | Heading | Body |
+|---|---|---|
+| Modern Sans | Inter, DM Sans | System UI, Inter |
+| Classic Serif | Georgia, Lora | Georgia, Charter |
+| Tech/Mono | DM Mono, JetBrains Mono | System UI |
+| Minimalist | System UI | System UI |
+
+### Typography Scale (ratio 1.25)
+xs(0.75rem) → sm(0.875rem) → base(1rem) → lg(1.125rem) → xl(1.25rem) → 2xl(1.5rem) → 3xl(2rem) → 4xl(2.5rem)
+
+## Spacing System
+
+4px base grid. Always use `--space-*` tokens — never magic numbers:
+```css
+/* DO: */ .card { padding: var(--space-5); }
+/* DON'T: */ .card { padding: 19px; }
+```
+
+## Dark Mode
+
+### Auto (prefers-color-scheme)
+```css
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1a1a2e; --color-surface: #16213e;
+    --color-text: #e5e5e5; --color-text-muted: #9ca3af;
+    --color-primary: #60a5fa; --color-accent: #34d399;
+  }
+}
+```
+
+### Manual Toggle
+```html
+<button onclick="document.documentElement.classList.toggle('dark')">🌓</button>
+```
+```css
+.dark { --color-bg: #1a1a2e; --color-text: #e5e5e5; /* ...all dark tokens */ }
+```
+
+## Token Patterns by Site Type
+
+- **Blog**: 680-760px content, generous line-height, serif/hybrid fonts, subtle shadows
+- **Docs**: wider layout (1200px with sidebar), dense typography, sans-serif, sticky header
+- **Portfolio**: full-width possible, large images, dark backgrounds, smooth hover transitions
+- **Landing**: extra-wide hero, large display type, bold primary, 80px+ section gaps
+
+## Integration with theme.params
+
+```yaml
+theme:
+  params:
+    primary_color: "#0b5fff"
+    accent_color: "#0f7b6c"
+    font_family: "Inter, system-ui, sans-serif"
+```
+
+In base.html:
+```html
+<style>
+:root {
+  --color-primary: {{ site.params.primary_color }};
+  --color-accent: {{ site.params.accent_color }};
+  --font-family-base: {{ site.params.font_family }};
+}
+</style>
+```

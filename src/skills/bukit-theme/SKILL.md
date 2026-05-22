@@ -467,3 +467,221 @@ Every Bukit theme must include a footer partial with a "Powered by bukit" attrib
 | `theme.params` empty in templates | params not defined in site.yaml or key name typo | Verify `site.params.xxx` matches site.yaml |
 | Templates not found after customizing layouts_dir | Custom value without `layouts` won't auto-point to `themes/<name>/` | Custom values resolve from site root; confirm the path exists |
 | `doctor` reports heuristic fallback | List page template static analysis cannot determine if content is needed | Create `layouts/bukit.templates.yaml` and declare `needs_page_content` |
+
+---
+
+## Design System Guide
+
+A well-designed Bukit theme starts with a consistent design token system via CSS custom properties. Define these in `assets/style.css` as `:root {}` variables.
+
+### Complete CSS Variable Architecture
+
+```css
+:root {
+  /* === Color Palette === */
+  --color-bg: #fbfaf8;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f1ed;
+  --color-text: #202124;
+  --color-text-muted: #66615b;
+  --color-border: #ded9d0;
+  --color-primary: #0b5fff;
+  --color-primary-hover: #0846b8;
+  --color-accent: #0f7b6c;
+
+  /* === Typography Scale === */
+  --font-family-base: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-heading: var(--font-family-base);
+  --font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
+  --font-size-4xl: 2.5rem;
+  --font-size-display: clamp(2rem, 5vw, 4.2rem);
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.65;
+  --line-height-relaxed: 1.8;
+
+  /* === Spacing Scale (4px base) === */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* === Layout === */
+  --content-max: 760px;
+  --wide-max: 1080px;
+
+  /* === Borders & Radius === */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+  --border-width: 1px;
+
+  /* === Shadows === */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 16px 40px rgba(32, 33, 36, 0.08);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,0.12);
+
+  /* === Z-Index === */
+  --z-header: 100;
+  --z-dropdown: 200;
+  --z-modal: 300;
+  --z-tooltip: 400;
+
+  /* === Transitions === */
+  --transition-fast: 150ms ease;
+  --transition-base: 300ms ease;
+}
+```
+
+### Color Palette Presets
+
+**1. Ocean Blue (Default):** `--primary: #0b5fff; --accent: #0f7b6c; --bg: #fbfaf8; --text: #202124;`
+**2. Warm Earth:** `--primary: #b45309; --accent: #0d9488; --bg: #faf7f2; --text: #2d2a22;`
+**3. Midnight Ink:** `--primary: #1e1b4b; --accent: #e11d48; --bg: #f8f9fb; --text: #1a1a2e;`
+**4. Forest Calm:** `--primary: #166534; --accent: #ca8a04; --bg: #f7faf5; --text: #1a2e1a;`
+**5. Modern Slate:** `--primary: #2563eb; --accent: #7c3aed; --bg: #fafafa; --text: #18181b;`
+**6. Sunset Warm:** `--primary: #ea580c; --accent: #9333ea; --bg: #fefbf6; --text: #292524;`
+**7. Nordic Light:** `--primary: #475569; --accent: #0d9488; --bg: #f5f7fa; --text: #1e293b;`
+**8. Rose Gold:** `--primary: #be185d; --accent: #b45309; --bg: #fdf2f8; --text: #4a1942;`
+
+## Layout Pattern Library
+
+### Pattern 1: Standard (Header + Content + Footer)
+Default pattern for blogs, documentation, personal sites. Uses `layouts/base.html` with `<main class="container">{{ content }}</main>`.
+
+### Pattern 2: Hero Homepage
+For landing pages. Add hero section in `pages/index.html`:
+```html
+<section class="hero">
+  <p class="eyebrow">{{ site.params.tagline }}</p>
+  <h1>{{ site.title }}</h1>
+  <p class="hero-subtext">{{ site.description }}</p>
+  {{ if site.params.cta_text }}
+    <a class="button" href="{{ site.params.cta_url }}">{{ site.params.cta_text }}</a>
+  {{ end }}
+</section>
+```
+
+CSS:
+```css
+.hero {
+  padding: var(--space-16) 0 var(--space-10);
+  text-align: center;
+}
+.hero h1 { font-size: var(--font-size-display); margin-bottom: var(--space-4); }
+.hero-subtext {
+  max-width: 720px; margin: 0 auto var(--space-6);
+  color: var(--color-text-muted); font-size: var(--font-size-lg);
+}
+```
+
+### Pattern 3: Sidebar Layout
+For documentation sites:
+```html
+<body>
+  {{ include "partials/header.html" }}
+  <div class="layout-sidebar">
+    {{ include "partials/sidebar.html" }}
+    <main class="layout-main">{{ content }}</main>
+  </div>
+  {{ include "partials/footer.html" }}
+</body>
+```
+```css
+.layout-sidebar {
+  max-width: var(--wide-max); margin: 0 auto;
+  display: grid; grid-template-columns: 260px 1fr; gap: var(--space-8);
+}
+@media (max-width: 768px) { .layout-sidebar { grid-template-columns: 1fr; } }
+```
+
+### Pattern 4: Card Grid
+For portfolio/gallery:
+```html
+<ul class="card-grid">
+{{ for p in pages }}
+  <li class="card-grid-item">
+    {{ if p.fields.cover.value }}
+      <img class="card-cover" src="{{ p.fields.cover.value }}" alt="{{ p.title }}">
+    {{ end }}
+    <div class="card-body">
+      <h3><a href="{{ site.base_url }}{{ p.url }}">{{ p.title }}</a></h3>
+    </div>
+  </li>
+{{ end }}
+</ul>
+```
+
+### Pattern 5: Timeline
+For changelog/blog archive:
+```html
+<ol class="timeline">
+{{ for p in pages }}
+  <li class="timeline-item">
+    <time>{{ p.publish_date | date.to_string "%Y-%m-%d" }}</time>
+    <div><h3><a href="{{ site.base_url }}{{ p.url }}">{{ p.title }}</a></h3></div>
+  </li>
+{{ end }}
+</ol>
+```
+
+## Responsive Design Guide
+
+### Breakpoint System
+```css
+/* Mobile-first */
+@media (min-width: 480px) { /* Small tablet */ }
+@media (min-width: 640px) { /* Tablet */ }
+@media (min-width: 768px) { /* Desktop */ }
+@media (min-width: 1024px) { /* Wide */ }
+```
+
+### Mobile Navigation (Hamburger)
+```html
+<button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">
+  <span></span><span></span><span></span>
+</button>
+```
+```css
+.nav-toggle { display: none; }
+@media (max-width: 768px) {
+  .nav-toggle { display: flex; flex-direction: column; gap: 4px; }
+  .nav-toggle span { width: 24px; height: 2px; background: var(--color-text); }
+  .nav-links { display: none; }
+  .nav-links.open { display: flex; flex-direction: column; }
+}
+```
+
+### Fluid Typography
+Use `clamp()`: `h1 { font-size: clamp(1.5rem, 4vw, 2.5rem); }`
+
+## Theme Aesthetics Checklist
+
+- [ ] CSS variables defined for: colors, fonts, spacing, radius, shadows
+- [ ] Typography scale has clear hierarchy (xs → display)
+- [ ] Consistent spacing using CSS variables (no magic numbers)
+- [ ] At least 2 breakpoints (mobile + desktop)
+- [ ] Links have hover states distinguishable from default
+- [ ] Color contrast meets WCAG AA (4.5:1 for normal text)
+- [ ] `:focus-visible` styles for keyboard navigation
+- [ ] Header visually distinct from content
+- [ ] Footer visually distinct with attribution
+- [ ] Card/list items have consistent padding and hover
+- [ ] Code blocks readable (dark bg, light text)
