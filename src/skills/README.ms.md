@@ -71,6 +71,55 @@ using-bukit
   -> bukit-templating / bukit-content-to-template
 ```
 
+## Panduan Penggunaan
+
+### Susun Atur Fail
+
+```
+src/skills/
+├── CLAUDE.md                    ← Entri penuh Claude Code Agent
+├── AGENTS.md                    ← Entri penuh Codex CLI Agent
+├── GEMINI.md                    ← Entri penuh Gemini CLI Agent
+├── copilot-instructions.md      ← Entri penuh Copilot CLI
+│
+├── plugin.json                  ← Manifes plugin Claude Code / Copilot
+├── skills-index.yaml            ← Katalog kemahiran boleh dibaca mesin (sumber tunggal)
+├── skills-index.json            ← Versi JSON (dijana automatik dari YAML)
+│
+├── using-bukit/SKILL.md         ← Gerbang: laluan ke semua sub-kemahiran
+├── bukit-*/SKILL.md             ← 18 kemahiran domain
+│
+└── scripts/
+    ├── validate-skills.sh       ← CI: sahkan semua fail kemahiran
+    └── generate-index-json.sh   ← CI: penukaran YAML → JSON
+```
+
+### Penggunaan Mengikut Platform
+
+| Platform | Cara Memuatkan | Perintah Contoh |
+|----------|---------------|----------------|
+| **Trae** | Auto-penemuan melalui `.trae/rules/project_rules.md` | `"using bukit, bantu saya bina blog"` |
+| **Claude Code** | `CLAUDE.md` akar auto-dimuat; atau `claude plugins install src/skills` | `"using bukit, deploy ke GitHub Pages"` |
+| **Codex CLI** | Baca fail kemahiran secara natif; mulakan dengan `AGENTS.md` | `"tolong konfigurasi site.yaml untuk blog"` |
+| **Copilot CLI** | `copilot plugin install src/skills` | `"using bukit, cipta tema tersuai"` |
+| **Gemini CLI** | `activate_skill("using-bukit")` melalui `GEMINI.md` | `"sediakan tapak berbilang bahasa"` |
+
+### Mulakan Dengan Pantas
+
+1. Buka repositori ini dalam AI Agent anda
+2. Sebut: **"using bukit, bantu saya bina blog"**
+3. Agent akan membaca kemahiran berkaitan dan membina tapak secara automatik
+4. Sebut: **"bukit dev"** untuk pratonton langsung
+
+### Pengesahan CI
+
+```bash
+bash src/skills/scripts/validate-skills.sh   # Sahkan semua fail kemahiran
+bash src/skills/scripts/generate-index-json.sh  # Jana semula indeks JSON
+```
+
+---
+
 ## Laluan Bacaan Disyorkan
 
 ### Cipta tapak baharu

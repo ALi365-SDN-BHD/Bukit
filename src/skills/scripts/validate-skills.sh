@@ -70,9 +70,11 @@ check_no_hardcoded_tool_names() {
   fi
 }
 
-# Validate plugin.json paths
+# Validate plugin.json paths (paths are relative to plugin.json location = $SKILLS_DIR)
 echo "--- Validating plugin.json ---"
 if check_file_exists "$SKILLS_DIR/plugin.json"; then
+  passed=0
+  failed=0
   for skill_path in $(python3 -c "
 import json, sys
 try:
@@ -84,15 +86,15 @@ except Exception as e:
     print(f'ERROR: {e}', file=sys.stderr)
     sys.exit(1)
 " 2>/dev/null); do
-    if [ ! -f "$SKILLS_DIR/../$skill_path" ]; then
-      full_path="$SKILLS_DIR/../$skill_path"
-      # Try alternate resolution
-      repo_root="$(cd "$SKILLS_DIR/../.." && pwd)"
-      if [ ! -f "$repo_root/$skill_path" ]; then
-        echo "  ⚠️  plugin.json path not found at repo root: $skill_path"
-      fi
+    if [ -f "$SKILLS_DIR/$skill_path" ]; then
+      passed=$((passed + 1))
+    else
+      echo "  ❌ plugin.json path not found: $SKILLS_DIR/$skill_path"
+      failed=$((failed + 1))
+      ERRORS=$((ERRORS + 1))
     fi
   done
+  echo "  ✅ plugin.json: $passed valid, $failed invalid"
 fi
 
 # List all skill directories

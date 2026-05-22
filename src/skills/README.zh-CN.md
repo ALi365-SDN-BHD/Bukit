@@ -71,6 +71,145 @@ using-bukit
   -> bukit-templating / bukit-content-to-template
 ```
 
+## 使用说明
+
+### 文件布局
+
+```
+src/skills/
+├── CLAUDE.md                    ← Claude Code Agent 完整入口
+├── AGENTS.md                    ← Codex CLI Agent 完整入口
+├── GEMINI.md                    ← Gemini CLI Agent 完整入口
+├── copilot-instructions.md      ← Copilot CLI 完整入口
+│
+├── plugin.json                  ← Claude Code / Copilot 插件清单
+├── skills-index.yaml            ← 机器可读技能目录（单一真源）
+├── skills-index.json            ← JSON 版索引（从 YAML 自动生成）
+│
+├── using-bukit/SKILL.md         ← 网关技能：总入口，路由到子技能
+├── bukit-*/SKILL.md             ← 18 个领域技能（CLI、配置、主题、模板……）
+│
+└── scripts/
+    ├── validate-skills.sh       ← CI：验证所有技能文件
+    └── generate-index-json.sh   ← CI：YAML → JSON 转换
+```
+
+仓库根目录也放置了轻量引用文件（`CLAUDE.md`、`AGENTS.md`、`GEMINI.md`、`.github/copilot-instructions.md`），用于满足各平台在根目录查找入口文件的约定，内容指向 `src/skills/` 中的完整版本。
+
+### 各平台使用方式
+
+#### Trae
+
+Trae 通过 `.trae/rules/project_rules.md` 自动发现技能。无需额外配置——当用户提到 Bukit 时，Agent 会通过 `Skill` 工具找到并加载 `using-bukit` 及其子技能。
+
+```bash
+# 无需安装。在 Trae 中打开此仓库，直接说：
+"using bukit，帮我建一个博客"
+```
+
+#### Claude Code
+
+**方式 A — 项目级加载（自动）：**
+根目录的 `CLAUDE.md` 会在会话启动时自动加载，它重定向到 `src/skills/CLAUDE.md`（完整规则）。无需任何操作——在 Claude Code 中打开此仓库即可。
+
+**方式 B — 插件安装（推荐给 Bukit 用户）：**
+```bash
+# 以 Claude Code 插件方式安装
+claude plugins install src/skills
+
+# 或从 GitHub 安装（发布后）
+claude plugins install github.com/ALi365-SDN-BHD/Bukit
+```
+
+安装后，当你提到任何 Bukit 相关概念时，全部 18 个技能都会通过 `Skill` 工具自动可用。
+
+#### Codex CLI
+
+Codex 原生加载技能文件——没有 `Skill` 工具。根目录的 `AGENTS.md` 会被自动检测，它告诉 Codex 读取 `src/skills/AGENTS.md` 的完整内容。
+
+```bash
+# 在 Codex CLI 会话中，直接提到 Bukit：
+"帮我配置一个博客的 Bukit site.yaml"
+
+# 子 Agent 分发（需在 ~/.codex/config.toml 中启用 multi_agent = true）：
+# Agent 会读取相关 SKILL.md 并作为 spawn_agent 的指令传入。
+```
+
+#### Copilot CLI
+
+Copilot 通过 `plugin.json` 发现技能。根目录 `.github/copilot-instructions.md` 重定向到 `src/skills/copilot-instructions.md`。
+
+```bash
+# 安装插件
+copilot plugin install src/skills
+
+# 然后使用 skill 工具加载
+copilot "using bukit，帮我把站点部署到 GitHub Pages"
+```
+
+#### Gemini CLI
+
+Gemini CLI 通过 `activate_skill` 激活技能。根目录的 `GEMINI.md` 重定向到 `src/skills/GEMINI.md`，其中列出了所有可用技能和触发关键词。
+
+```bash
+# 在 Gemini CLI 会话中，直接提到 Bukit：
+"帮我搭建一个中英文双语的 Bukit 站点"
+```
+
+### 可编程访问
+
+`skills-index.yaml` 是机器可读的技能目录，可用于：
+
+- **查询技能元数据**：名称、类型、触发条件、依赖关系、用户指南章节对照
+- **解析依赖链**：每个技能声明了 `requires` 列表；`workflows` 章节定义了常见任务链
+- **生成平台入口**：该目录驱动所有平台入口文件（CLAUDE.md、AGENTS.md 等）
+
+```bash
+# 用 yq 解析
+yq '.skills[] | select(.type == "gateway") | .name' skills-index.yaml
+
+# 用 python 解析
+python3 -c "
+import yaml, json
+with open('skills-index.yaml') as f:
+    data = yaml.safe_load(f)
+print(json.dumps(data['workflows'], indent=2))
+"
+```
+
+### CI 验证
+
+```bash
+# 验证所有技能文件
+bash src/skills/scripts/validate-skills.sh
+
+# YAML 变更后重新生成 JSON 索引
+bash src/skills/scripts/generate-index-json.sh
+```
+
+验证脚本检查项：
+- Front Matter 完整性（`name` + `description`）
+- `description` 以 "Use when…" 开头
+- 有 Multilingual Triggers 章节
+- 有 Common Errors 章节
+- 无硬编码的平台特定工具名
+- `plugin.json` 中所有路径指向存在的文件
+- `skills-index.yaml` 中的条目与现有 SKILL.md 文件一致
+
+### 快速上手（任意平台）
+
+1. 在你的 AI Agent 中打开此仓库
+2. 说：**"using bukit，帮我建一个博客"**
+3. Agent 会自动：
+   - 读取网关技能（`using-bukit`）
+   - 检测 CLI 可用性（`bukit-cli-reference`）
+   - 生成 `site.yaml`（`bukit-config`）
+   - 创建主题和模板（`bukit-theme` + `bukit-templating`）
+   - 构建站点
+4. 说：**"bukit dev"** 启动 HMR 开发服务器进行实时预览
+
+---
+
 ## 推荐阅读路径
 
 ### 场景 1：从零创建站点

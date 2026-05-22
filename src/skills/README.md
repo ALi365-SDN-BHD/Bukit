@@ -71,6 +71,145 @@ using-bukit
   -> bukit-templating
 ```
 
+## Usage Guide
+
+### File Layout
+
+```
+src/skills/
+├── CLAUDE.md                    ← Claude Code agent entry (full)
+├── AGENTS.md                    ← Codex CLI agent entry (full)
+├── GEMINI.md                    ← Gemini CLI agent entry (full)
+├── copilot-instructions.md      ← Copilot CLI entry (full)
+│
+├── plugin.json                  ← Claude Code / Copilot plugin manifest
+├── skills-index.yaml            ← Machine-readable skill catalog (single source of truth)
+├── skills-index.json            ← JSON version (auto-generated from YAML)
+│
+├── using-bukit/SKILL.md         ← Gateway: routes to all sub-skills
+├── bukit-*/SKILL.md             ← 18 domain skills (CLI, config, theme, templates, …)
+│
+└── scripts/
+    ├── validate-skills.sh       ← CI: validates all skill files
+    └── generate-index-json.sh   ← CI: YAML → JSON conversion
+```
+
+The root of the repository also contains lightweight redirect files (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) that satisfy each platform's root-level convention and point to the full files here.
+
+### Per-Platform Usage
+
+#### Trae
+
+Trae auto-discovers skills via `.trae/rules/project_rules.md`. No extra configuration needed — the agent will find and load `using-bukit` and its sub-skills through the `Skill` tool when the user mentions Bukit.
+
+```bash
+# No installation required. Just open the repo in Trae and say:
+"using bukit, help me build a blog"
+```
+
+#### Claude Code
+
+**Option A — Project-level (automatic):**
+The root `CLAUDE.md` file is auto-loaded at session start. It redirects to `src/skills/CLAUDE.md` which contains the full loading rules. No action needed — just open this repository in Claude Code.
+
+**Option B — Plugin installation (recommended for Bukit users):**
+```bash
+# Install the skills as a Claude Code plugin
+claude plugins install src/skills
+
+# Or from GitHub (when published)
+claude plugins install github.com/ALi365-SDN-BHD/Bukit
+```
+
+After installation, all 18 Bukit skills become available via the `Skill` tool whenever you mention Bukit-related concepts.
+
+#### Codex CLI
+
+Codex loads skills natively — there is no `Skill` tool. The root `AGENTS.md` is auto-detected. It tells Codex to read the full file at `src/skills/AGENTS.md`.
+
+```bash
+# In a Codex CLI session, just mention Bukit:
+"help me configure a Bukit site.yaml for a blog"
+
+# For sub-agent dispatch (requires multi_agent = true in ~/.codex/config.toml):
+# The agent will read the relevant SKILL.md and pass it as spawn_agent instructions.
+```
+
+#### Copilot CLI
+
+Copilot discovers skills via `plugin.json`. The root `.github/copilot-instructions.md` redirects to `src/skills/copilot-instructions.md`.
+
+```bash
+# Install the plugin
+copilot plugin install src/skills
+
+# Then use the skill tool to load skills
+copilot "using bukit, deploy my site to GitHub Pages"
+```
+
+#### Gemini CLI
+
+Gemini CLI activates skills via `activate_skill`. The root `GEMINI.md` redirects to `src/skills/GEMINI.md` which lists all available skills and trigger keywords.
+
+```bash
+# In a Gemini CLI session, just mention Bukit:
+"set up a multilingual Bukit site with Chinese and English"
+```
+
+### Programmatic Access
+
+The `skills-index.yaml` file is the machine-readable catalog. Use it to:
+
+- **Query skill metadata**: name, type, triggers, dependencies, guide chapter cross-references
+- **Resolve dependency chains**: each skill declares its `requires` list; the `workflows` section defines common task chains
+- **Generate platform entries**: the catalog drives all platform entry files (CLAUDE.md, AGENTS.md, etc.)
+
+```bash
+# Parse with yq
+yq '.skills[] | select(.type == "gateway") | .name' skills-index.yaml
+
+# Parse with python
+python3 -c "
+import yaml, json
+with open('skills-index.yaml') as f:
+    data = yaml.safe_load(f)
+print(json.dumps(data['workflows'], indent=2))
+"
+```
+
+### CI Verification
+
+```bash
+# Validate all skill files
+bash src/skills/scripts/validate-skills.sh
+
+# Regenerate JSON index after YAML changes
+bash src/skills/scripts/generate-index-json.sh
+```
+
+The validate script checks:
+- Front Matter completeness (`name` + `description`)
+- `description` starts with "Use when…"
+- Multilingual Triggers section present
+- Common Errors section present
+- No hardcoded platform-specific tool names
+- `plugin.json` paths all resolve to existing files
+- `skills-index.yaml` entries match existing SKILL.md files
+
+### Quick Start (Any Platform)
+
+1. Open this repository in your AI agent
+2. Say: **"using bukit, help me build a blog"**
+3. The agent will:
+   - Read the gateway skill (`using-bukit`)
+   - Detect CLI availability (`bukit-cli-reference`)
+   - Generate `site.yaml` (`bukit-config`)
+   - Create the theme and templates (`bukit-theme` + `bukit-templating`)
+   - Build the site
+4. Say: **"bukit dev"** to start the HMR dev server and preview
+
+---
+
 ## Suggested Reading Paths
 
 ### Create a new site
