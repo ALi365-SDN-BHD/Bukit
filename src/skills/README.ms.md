@@ -15,27 +15,39 @@ src/skills/
   using-bukit/            # Pintu masuk Bukit yang bersatu
   bukit-cli-reference/    # Sumber tunggal untuk operasi CLI
   bukit-config/           # Model konfigurasi site.yaml
-  bukit-theme/            # Direktori tema dan aset statik
+  bukit-theme/            # Direktori tema, aset statik, wizard penciptaan, pengedaran
   bukit-templating/       # Pembangunan templat Scriban
+  bukit-design-tokens/    # Pembolehubah CSS, palet warna, skala tipografi, jarak, mod gelap
+  bukit-content-to-template/  # Penjanaan templat dipacu skema
   bukit-notion/           # Sumber kandungan Notion
   bukit-routing/          # Routing URL dan permalink
   bukit-i18n/             # Tapak berbilang bahasa
-  bukit-plugins-debug/    # Plugin, incremental build, diagnostik
+  bukit-plugins-debug/    # Plugin, binaan tokokan, diagnostik
+  bukit-deploy/           # Penerapan GitHub Pages
+  bukit-clone/            # Klon reka bentuk laman web → tema Bukit
+  bukit-seo/              # Pengoptimuman enjin carian tradisional (SEO)
+  bukit-geo/              # Pengoptimuman enjin generatif (GEO)
 ```
 
 ## Tanggungjawab Skill
 
-| Skill | Tanggungjawab | Kegunaan biasa |
+| Skill | Tanggungjawab | Kes penggunaan biasa |
 |---|---|---|
-| `using-bukit` | Skill gerbang yang mengenal pasti kerja Bukit dan menghala ke sub-skill | Pengguna menyebut "using bukit" atau tugasan jelas khusus untuk Bukit |
-| `bukit-cli-reference` | Pengesanan CLI, panduan pemasangan, rujukan arahan, tafsiran output dan exit code | Menjalankan `bukit build`, `doctor`, `preview`, `theme`, `webhook`, dan arahan berkaitan |
-| `bukit-config` | Struktur `site.yaml`, templat senario, dan penerangan medan | Mencipta atau menyunting konfigurasi, menerangkan medan, membaiki ralat validasi |
-| `bukit-theme` | Struktur direktori tema, aset statik, dan parameter tema | Mencipta atau memindahkan tema, membaiki isu CSS atau aset statik, menggunakan `theme.params` |
-| `bukit-templating` | Sintaks Scriban, pewarisan layout, capaian data, dan corak templat | Menulis templat halaman, halaman senarai, pagination, atau membaiki ralat render templat |
-| `bukit-notion` | Integrasi Notion, pemetaan property, render blok, dan penyetempatan imej | Menggunakan Notion sebagai CMS atau menyelesaikan isu fetch dan pemetaan |
-| `bukit-routing` | Permalink, route collection, pengekodan URL, dan tingkah laku output path | Menyesuaikan URL, membaiki 404, menyelesaikan konflik route, mengkonfigurasi halaman senarai |
-| `bukit-i18n` | Pengesanan bahasa, build berasingan mengikut bahasa, gabungan sitemap/RSS/search | Membina tapak berbilang bahasa dan menyahpepijat isu penukaran bahasa atau output gabungan |
-| `bukit-plugins-debug` | Kitar hayat plugin, incremental build, diagnostik prestasi, dan troubleshooting | Plugin tidak berjalan, output build tidak betul, atau prestasi build merosot |
+| `using-bukit` | Skill pintu masuk yang mengenal pasti kerja Bukit dan menghala ke sub-skill | Pengguna secara jelas menyebut "using bukit" atau tugasan jelas khusus Bukit |
+| `bukit-cli-reference` | Pengesanan CLI, panduan pemasangan, rujukan arahan, tafsiran output dan kod keluar | Menjalankan sebarang arahan `bukit` termasuk `theme wizard/pack/install/search`, `template create/list/show/validate/snippets/hints/sync` |
+| `bukit-config` | Struktur `site.yaml`, templat senario, dan penjelasan medan | Mencipta atau mengedit konfigurasi, menjelaskan medan, membetulkan ralat pengesahan |
+| `bukit-theme` | Struktur direktori tema, aset statik, penciptaan berasaskan wizard, pengedaran tema (pack/install), carian registri, coretan templat | Mencipta tema melalui wizard/preset, menyenaraikan info/params tema, membungkus tema untuk perkongsian, memasang dari registri, melayari coretan templat |
+| `bukit-templating` | Sintaks Scriban, pewarisan layout, akses data, dan corak templat | Menulis templat halaman, halaman senarai, penomboran, atau membetulkan ralat render templat |
+| `bukit-design-tokens` | Sistem token reka bentuk untuk tema Bukit: pembolehubah CSS, palet warna, skala tipografi, sistem jarak, dan konfigurasi mod gelap | Mencipta identiti visual yang konsisten, mendefinisikan pembolehubah `:root {}` CSS, menyediakan mod gelap, memilih palet warna |
+| `bukit-content-to-template` | Penjanaan templat dipacu skema: memetakan skema koleksi kandungan kepada corak templat Scriban yang tepat | Menjana templat post/page/list/card dari definisi skema koleksi `site.yaml`, memastikan setiap medan dirender dengan betul |
+| `bukit-notion` | Integrasi Notion, pemetaan properti, render blok, dan penyetempatan imej | Menggunakan Notion sebagai CMS atau menyelesaikan masalah fetch Notion dan isu pemetaan |
+| `bukit-routing` | Permalink, laluan koleksi, pengekodan URL, dan tingkah laku laluan output | Menyesuaikan URL, membetulkan 404, mengendalikan konflik laluan, mengkonfigurasi halaman senarai |
+| `bukit-i18n` | Pengesanan bahasa, binaan per-bahasa, penggabungan sitemap/RSS/search | Membina tapak berbilang bahasa dan menyahpepijat pensuisan bahasa atau isu output gabungan |
+| `bukit-plugins-debug` | Kitaran hayat plugin, tingkah laku binaan tokokan, diagnostik prestasi, penyelesaian masalah | Plugin tidak berjalan, output binaan kelihatan salah, atau prestasi binaan merosot |
+| `bukit-deploy` | Penerapan GitHub Pages melalui arahan `bukit deploy`, konfigurasi deploy site.yaml, pembolehubah persekitaran, integrasi CI/CD | Menerapkan tapak, menolak ke gh-pages, mengkonfigurasi CNAME, menyelesaikan masalah kegagalan penerapan |
+| `bukit-clone` | Pengekstrakan MCP pelayar → `bukit clone` CLI → saluran paip pengesahan untuk mengklon reka bentuk visual mana-mana laman web ke dalam tema Bukit | Mengklon penampilan laman web, meniru reka bentuk, mencipta tema dari tapak langsung sedia ada |
+| `bukit-seo` | Konfigurasi SEO tradisional (nod site.seo), mod render inject/theme, medan SEO front matter, 6 jenis JSON-LD Schema.org, diagnostik masa bina (11 kod), audit pasca bina (~40 kod), CLI seo audit/diff | Mengkonfigurasi SEO, menjalankan seo audit/diff, mentafsir kod diagnostik seo.*, menyediakan OG/Twitter/JSON-LD/sitemap |
+| `bukit-geo` | Pengoptimuman enjin generatif untuk enjin carian AI: penjanaan llms.txt/llms-full.txt, peraturan robots.txt crawler AI, data berstruktur FAQ/HowTo, audit geo dengan Skor GEO (7 kod diagnostik) | Mengoptimumkan untuk carian AI (ChatGPT Search/Perplexity/Google AI Overviews), menjana llms.txt, menambah skema FAQ/HowTo, menjalankan geo audit |
 
 ## Peraturan Muatkan
 
@@ -43,8 +55,11 @@ Skill ini direka untuk digabungkan dengan sempadan yang jelas:
 
 1. Mulakan dari `using-bukit` apabila tugasan sudah pasti tugasan Bukit
 2. Gunakan `bukit-cli-reference` untuk setiap langkah berkaitan arahan dan elakkan penduaan panduan CLI di tempat lain
-3. Anggap `bukit-config` sebagai pengetahuan latar untuk `bukit-theme`, `bukit-notion`, `bukit-routing`, `bukit-i18n`, dan `bukit-plugins-debug`
+3. Anggap `bukit-config` sebagai pengetahuan latar untuk `bukit-theme`, `bukit-design-tokens`, `bukit-content-to-template`, `bukit-notion`, `bukit-routing`, `bukit-i18n`, `bukit-plugins-debug`, `bukit-seo`, dan `bukit-geo`
 4. Baca `bukit-theme` sebelum `bukit-templating` apabila kerja templat bergantung pada struktur tema
+5. Muatkan `bukit-design-tokens` apabila konsistensi visual adalah matlamat — ia menyediakan palet, skala, dan corak mod gelap
+6. Muatkan `bukit-content-to-template` apabila menjana templat dari skema koleksi — ia menghubungkan definisi medan skema kepada kod Scriban
+7. Muatkan `bukit-seo` untuk tugasan SEO tradisional dan `bukit-geo` untuk tugasan pengoptimuman carian AI — mereka berkongsi konfigurasi `site.seo` tetapi menyasarkan audiens berbeza
 
 Satu aliran kerja biasa kelihatan seperti ini:
 
@@ -52,8 +67,8 @@ Satu aliran kerja biasa kelihatan seperti ini:
 using-bukit
   -> bukit-cli-reference
   -> bukit-config
-  -> bukit-theme / bukit-notion / bukit-routing / bukit-i18n / bukit-plugins-debug
-  -> bukit-templating
+  -> bukit-theme / bukit-design-tokens / bukit-notion / bukit-routing / bukit-i18n / bukit-plugins-debug
+  -> bukit-templating / bukit-content-to-template
 ```
 
 ## Laluan Bacaan Disyorkan
@@ -80,25 +95,80 @@ using-bukit
 3. `bukit-config`
 4. `bukit-templating`
 
-### Nyahpepijat isu build atau plugin
+### Nyahpepijat isu binaan atau plugin
 
 1. `using-bukit`
 2. `bukit-plugins-debug`
 3. `bukit-config`
 4. `bukit-cli-reference`
 
+### Terap tapak ke GitHub Pages
+
+1. `using-bukit`
+2. `bukit-deploy`
+3. `bukit-config`
+4. `bukit-cli-reference`
+
+### Konfigurasi SEO dan jalankan audit
+
+1. `using-bukit`
+2. `bukit-seo`
+3. `bukit-config` (untuk nod `site.seo`)
+4. `bukit-cli-reference` (untuk `bukit seo audit` / `bukit seo diff`)
+
+### Sediakan GEO untuk enjin carian AI
+
+1. `using-bukit`
+2. `bukit-geo`
+3. `bukit-config` (untuk nod `site.seo.geo`)
+4. `bukit-cli-reference` (untuk `bukit geo audit`)
+
+### Klon reka bentuk laman web
+
+1. `using-bukit`
+2. `bukit-clone`
+3. `bukit-theme`
+4. `bukit-cli-reference`
+
+### Cipta tema tersuai (interaktif)
+
+1. `using-bukit`
+2. `bukit-theme` (wizard + presets)
+3. `bukit-cli-reference`
+
+### Pasang tema dari registri komuniti
+
+1. `using-bukit`
+2. `bukit-theme` (carian + pasang)
+3. `bukit-cli-reference`
+
+### Bina sistem token reka bentuk yang konsisten
+
+1. `using-bukit`
+2. `bukit-design-tokens`
+3. `bukit-theme`
+4. `bukit-config`
+
+### Jana templat dari skema kandungan
+
+1. `using-bukit`
+2. `bukit-content-to-template`
+3. `bukit-config` (untuk skema koleksi)
+4. `bukit-templating`
+5. `bukit-design-tokens` (untuk gaya visual)
+
 ## Nota Penyelenggaraan
 
 - Simpan setiap skill di `src/skills/<skill-name>/SKILL.md`
-- Gunakan `description` hanya untuk syarat pencetus, bukan ringkasan umum
-- Pusatkan semua arahan CLI dalam `bukit-cli-reference`
-- Pastikan laluan tema, medan konfigurasi, dan parameter CLI selari dengan kod dan dokumen untuk pengguna
-- Apabila Bukit mendapat kemampuan baharu, tentukan sama ada perlu mengembangkan skill sedia ada atau menambah skill baharu dengan sempadan tanggungjawab yang jelas
+- Gunakan `description` hanya untuk syarat pencetus, bukan ringkasan generik
+- Pusatkan arahan CLI dalam `bukit-cli-reference`
+- Pastikan laluan tema, medan konfigurasi, dan parameter CLI sejajar dengan kod sumber dan dokumen pengguna
+- Apabila Bukit mendapat keupayaan baharu, tentukan sama ada untuk meluaskan skill sedia ada atau menambah yang baharu dengan sempadan tanggungjawab yang jelas
 
 ## Dokumen Berkaitan
 
-- Pintu masuk repo: [`README.ms.md`](../../README.ms.md)
-- Rujukan Cina: [`README.zh-CN.md`](../../README.zh-CN.md)
-- Panduan pengguna: [`guide/user`](../../guide/user/README.ms.md)
-- Panduan pembangun: [`guide/dev`](../../guide/dev/README.ms.md)
+- Entri repo: [`README.md`](../../README.md)
+- Rujukan Bahasa Inggeris: [`README.md`](../../README.md)
+- Panduan pengguna: [`guide/user`](../../guide/user/README.md)
+- Panduan pembangun: [`guide/dev`](../../guide/dev/README.md)
 - Dokumen reka bentuk skills: [`docs/superpowers/specs/2026-05-05-bukit-skills-distillation-design.md`](../../docs/superpowers/specs/2026-05-05-bukit-skills-distillation-design.md)

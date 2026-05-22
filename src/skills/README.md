@@ -17,6 +17,8 @@ src/skills/
   bukit-config/           # site.yaml configuration model
   bukit-theme/            # Theme directories, static assets, creation wizard, distribution
   bukit-templating/       # Scriban template development
+  bukit-design-tokens/    # CSS variables, color palettes, typography, spacing, dark mode
+  bukit-content-to-template/  # Schema-aware template generation
   bukit-notion/           # Notion content source
   bukit-routing/          # URL routing and permalinks
   bukit-i18n/             # Multilingual sites
@@ -36,6 +38,8 @@ src/skills/
 | `bukit-config` | `site.yaml` structure, scenario templates, and field explanations | Creating or editing config, explaining fields, fixing validation errors |
 | `bukit-theme` | Theme directory structure, static assets, wizard-based creation, theme distribution (pack/install), registry search, template snippets | Creating themes via wizard/preset, listing theme info/params, packaging themes for sharing, installing from registry, browsing template snippets |
 | `bukit-templating` | Scriban syntax, layout inheritance, data access, and template patterns | Writing page templates, list pages, pagination, or fixing template rendering errors |
+| `bukit-design-tokens` | Design token systems for Bukit themes: CSS variables, color palettes, typography scales, spacing systems, and dark mode configuration | Creating a consistent visual identity, defining `:root {}` CSS variables, setting up dark mode, choosing color palettes |
+| `bukit-content-to-template` | Schema-driven template generation: maps content collection schemas to precise Scriban template patterns | Generating post/page/list/card templates from `site.yaml` collection schema definitions, ensuring every field is correctly rendered |
 | `bukit-notion` | Notion integration, property mapping, block rendering, and image localization | Using Notion as CMS or troubleshooting Notion fetch and mapping issues |
 | `bukit-routing` | Permalinks, collection routes, URL encoding, and output path behavior | Customizing URLs, fixing 404s, handling route conflicts, configuring list pages |
 | `bukit-i18n` | Language detection, per-language builds, sitemap/RSS/search merging | Building multilingual sites and debugging language switch or merged output issues |
@@ -51,9 +55,11 @@ These skills are designed to be combined with clear boundaries:
 
 1. Start from `using-bukit` when the task is confirmed to be a Bukit task
 2. Use `bukit-cli-reference` for every command-related step instead of duplicating command guidance elsewhere
-3. Treat `bukit-config` as background knowledge for `bukit-theme`, `bukit-notion`, `bukit-routing`, `bukit-i18n`, `bukit-plugins-debug`, `bukit-seo`, and `bukit-geo`
+3. Treat `bukit-config` as background knowledge for `bukit-theme`, `bukit-design-tokens`, `bukit-content-to-template`, `bukit-notion`, `bukit-routing`, `bukit-i18n`, `bukit-plugins-debug`, `bukit-seo`, and `bukit-geo`
 4. Read `bukit-theme` before `bukit-templating` when template work depends on theme structure
-5. Load `bukit-seo` for traditional SEO tasks and `bukit-geo` for AI search optimization tasks — they share `site.seo` config but target different audiences
+5. Load `bukit-design-tokens` when visual consistency is a goal — it provides palettes, scales, and dark mode patterns
+6. Load `bukit-content-to-template` when generating templates from collection schemas — it bridges schema field definitions to Scriban code
+7. Load `bukit-seo` for traditional SEO tasks and `bukit-geo` for AI search optimization tasks — they share `site.seo` config but target different audiences
 
 One common flow looks like this:
 
@@ -135,6 +141,21 @@ using-bukit
 1. `using-bukit`
 2. `bukit-theme` (search + install)
 3. `bukit-cli-reference`
+
+### Build a consistent design system
+
+1. `using-bukit`
+2. `bukit-design-tokens`
+3. `bukit-theme`
+4. `bukit-config`
+
+### Generate templates from content schema
+
+1. `using-bukit`
+2. `bukit-content-to-template`
+3. `bukit-config` (for collection schema)
+4. `bukit-templating`
+5. `bukit-design-tokens` (for visual styling)
 
 ## Maintenance Notes
 
