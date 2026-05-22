@@ -329,7 +329,7 @@ public static class DevCommand
 
                 var sw = Stopwatch.StartNew();
                 await engine.BuildAsync(config, rootDir,
-                    new ConfigOverrides { Output = outputDir, Clean = false, Incremental = true, CacheDir = cacheDir },
+                    new ConfigOverrides { Clean = false, Incremental = true, CacheDir = cacheDir },
                     ct);
                 sw.Stop();
                 logger.Info($"dev.rebuild {sw.ElapsedMilliseconds}ms");

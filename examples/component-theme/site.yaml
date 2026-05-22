@@ -1,0 +1,16 @@
+site:
+  name: component-demo
+  title: Bukit Component Theme Demo
+  url: https://example.com
+
+content:
+  provider: markdown
+  markdown:
+    dir: content
+
+theme:
+  name: component-demo
+  componentValidation: warn
+
+build:
+  output: dist

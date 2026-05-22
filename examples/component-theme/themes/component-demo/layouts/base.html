@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ page.title }} — {{ site.title }}</title>
+  <link rel="stylesheet" href="{{ site.base_url }}/assets/css/main.css" />
+  <link rel="stylesheet" href="{{ site.base_url }}/assets/css/theme-tokens.css" />
+</head>
+<body>
+  <main>
+    {{ content }}
+  </main>
+  {{ include "partials/footer.html" }}
+</body>
+</html>

@@ -1,0 +1,52 @@
+name: component-demo
+display_name: Component Demo
+version: 1.0.0
+engine: bukit
+min_engine_version: 0.3.0
+description: Minimal componentized theme demonstrating sections and components.
+
+capabilities:
+  i18n: false
+  seo: true
+  geo: false
+  dark_mode: false
+  search: false
+  taxonomy: false
+
+layouts:
+  default: layouts/base.html
+
+page_templates:
+  home:
+    template: pages/home.html
+    label: Home Page
+    accepts:
+      type: page
+  page:
+    template: pages/page.html
+    label: Default Page
+    accepts:
+      type: page
+
+sections:
+  hero:
+    template: layouts/sections/hero/hero.html
+    schema: sections/hero/schema.json
+    description: Main hero section
+  cardGrid:
+    template: layouts/sections/card-grid/card-grid.html
+    schema: sections/card-grid/schema.json
+    description: Card grid section
+
+components:
+  insightCard:
+    template: layouts/components/cards/insight-card.html
+    props:
+      title: string
+      summary: string
+      url: string
+      date: string
+
+assets:
+  css:
+    - assets/css/main.css

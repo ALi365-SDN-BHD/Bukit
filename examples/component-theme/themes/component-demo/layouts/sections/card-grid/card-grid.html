@@ -1,0 +1,10 @@
+<section class="card-grid">
+  {{ if section.props.title }}
+  <h2 class="grid-title">{{ section.props.title }}</h2>
+  {{ end }}
+  <div class="grid-items">
+    {{ for card in section.items }}
+      {{ render_component "insightCard" card }}
+    {{ end }}
+  </div>
+</section>

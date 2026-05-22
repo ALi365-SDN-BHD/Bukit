@@ -7,6 +7,7 @@ using Bukit.Content;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Shared;
+using Bukit.Theme;
 
 namespace Bukit.Engine;
 
@@ -185,6 +186,39 @@ public sealed class SiteEngine
 
         Directory.CreateDirectory(outputDir);
 
+        var themeName = config.Theme.Name;
+        ThemeManifestV2? themeManifest = null;
+        ThemeComponentRegistry? themeRegistry = null;
+        SectionSchemaValidator? schemaValidator = null;
+        if (!string.IsNullOrWhiteSpace(themeName))
+        {
+            var themeRoot = Path.Combine(rootDir, "themes", themeName);
+            themeManifest = ThemeManifestLoader.Load(themeRoot);
+            if (themeManifest is not null)
+            {
+                ThemeComponentRegistry? parentRegistry = null;
+                if (!string.IsNullOrWhiteSpace(themeManifest.Extends))
+                {
+                    var parentThemeRoot = Path.Combine(rootDir, "themes", themeManifest.Extends);
+                    var parentManifest = ThemeManifestLoader.Load(parentThemeRoot);
+                    if (parentManifest is not null)
+                    {
+                        parentRegistry = new ThemeComponentRegistry(parentThemeRoot, parentManifest, null);
+                    }
+                }
+
+                themeRegistry = new ThemeComponentRegistry(themeRoot, themeManifest, parentRegistry);
+
+                var validationMode = config.Theme.ComponentValidation switch
+                {
+                    "strict" => ValidationMode.Strict,
+                    "warn" => ValidationMode.Warn,
+                    _ => ValidationMode.Off
+                };
+                schemaValidator = new SectionSchemaValidator(validationMode, log);
+            }
+        }
+
         var hasStaticDir = Directory.Exists(ctx.StaticDir);
         var staticTemplate = config.Theme.StaticTemplate;
 
@@ -196,7 +230,9 @@ public sealed class SiteEngine
         splitItemsStopwatch.Stop();
         variantStageMetrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
 
-        ITemplateRenderer renderer = new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir);
+        ITemplateRenderer renderer = themeRegistry is not null
+            ? new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir, themeRegistry, schemaValidator, null, config.Theme.ComponentValidation)
+            : new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir);
         var collectionRules = BuildCollectionRules(config.Site);
 
         var routeGenerationStopwatch = Stopwatch.StartNew();
@@ -394,6 +430,26 @@ public sealed class SiteEngine
             }
             assetsSyncStopwatch.Stop();
             variantStageMetrics.AddDuration("assetsSync", assetsSyncStopwatch.ElapsedMilliseconds);
+        }
+
+        if (themeRegistry is not null)
+        {
+            var tokensStopwatch = Stopwatch.StartNew();
+            var themeRoot = Path.Combine(rootDir, "themes", themeName!);
+            var parentThemeRoot = !string.IsNullOrWhiteSpace(themeManifest?.Extends)
+                ? Path.Combine(rootDir, "themes", themeManifest!.Extends)
+                : null;
+
+            var tokensLoader = new ThemeTokensLoader();
+            var tokens = tokensLoader.LoadWithInheritance(themeRoot, parentThemeRoot);
+            if (tokens is not null)
+            {
+                var tokensOutputPath = Path.Combine(outputDir, "assets", "css", "theme-tokens.css");
+                ThemeTokensProcessor.WriteToFile(tokens, tokensOutputPath);
+                log.Info($"event=tokens.generated output={tokensOutputPath}");
+            }
+            tokensStopwatch.Stop();
+            variantStageMetrics.AddDuration("tokensGen", tokensStopwatch.ElapsedMilliseconds);
         }
 
         if (Directory.Exists(ctx.MediaDownloadDir))

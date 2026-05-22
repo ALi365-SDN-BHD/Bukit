@@ -1,7 +1,9 @@
 using Scriban;
 using Scriban.Runtime;
 using Bukit.Config;
+using Bukit.Content;
 using Bukit.Shared;
+using Bukit.Theme;
 using System.Collections.Concurrent;
 using System.Text;
 
@@ -15,13 +17,26 @@ public sealed class ScribanTemplateRenderer
     private readonly IReadOnlyDictionary<string, string>? _shortcodes;
     private readonly IReadOnlyDictionary<string, ComponentDefinition>? _components;
     private readonly ConcurrentDictionary<string, CachedTemplate> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ThemeComponentRegistry? _themeRegistry;
+    private readonly SectionSchemaValidator? _schemaValidator;
+    private readonly SectionDataResolverAccessor? _dataResolver;
+    private readonly string _componentValidation;
 
     public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null)
+        : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, null, null, null, "off")
+    {
+    }
+
+    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation)
     {
         _layoutsDir = layoutsDir;
         _templateLoader = new FileTemplateLoader(_layoutsDir, parentLayoutsDir, userLayoutsDir);
         _shortcodes = shortcodes;
         _components = components;
+        _themeRegistry = themeRegistry;
+        _schemaValidator = schemaValidator;
+        _dataResolver = dataResolver;
+        _componentValidation = componentValidation;
     }
 
     public string RenderPage(string templateRelativePath, PageModel model)
@@ -88,6 +103,24 @@ public sealed class ScribanTemplateRenderer
             var componentObj = new ScriptObject();
             componentObj.SetValue("render", new Func<string, string, string, string, string>(ComponentFunctions.Render), readOnly: true);
             context.PushGlobal(new ScriptObject { ["comp"] = componentObj });
+        }
+
+        if (_themeRegistry is not null)
+        {
+            var sectionObj = new ScriptObject();
+            sectionObj.SetValue("render_section", new Func<object, string, string>(CreateRenderSectionFunc(globals)), readOnly: true);
+            context.PushGlobal(sectionObj);
+
+            if (_themeRegistry.Components.Count > 0)
+            {
+                ComponentFunctions.ThemeComponents = _themeRegistry.Components;
+                ComponentFunctions.ThemeTemplateLoader = _templateLoader;
+                ComponentFunctions.ThemeParentGlobals = globals;
+                ComponentFunctions.ThemeRegistryRoot = _themeRegistry.ThemeRoot;
+                var compObj = new ScriptObject();
+                compObj.SetValue("render", new Func<string, object, string>(ComponentFunctions.RenderComponent), readOnly: true);
+                context.PushGlobal(new ScriptObject { ["comp"] = compObj });
+            }
         }
 
         var imageObj = new ScriptObject();
@@ -170,6 +203,103 @@ public sealed class ScribanTemplateRenderer
     private readonly record struct FileSignature(DateTime LastWriteTimeUtc, long Length);
 
     private sealed record CachedTemplate(FileSignature Signature, Template Template, string? LayoutTemplateRelativePath);
+
+    private Func<object, string, string> CreateRenderSectionFunc(ScriptObject parentGlobals)
+    {
+        return (sectionObj, extra) =>
+        {
+            try
+            {
+                if (sectionObj is not ScriptObject so) return "<!-- render_section: invalid section object -->";
+
+                var sectionType = so.ContainsKey("type") ? so["type"]?.ToString() : null;
+                if (string.IsNullOrEmpty(sectionType)) return "<!-- render_section: missing type -->";
+
+                var sectionDef = _themeRegistry!.ResolveSection(sectionType);
+                if (sectionDef is null) return $"<!-- section not found: {sectionType} -->";
+
+                var variant = so.ContainsKey("variant") ? so["variant"]?.ToString() : null;
+                var templatePath = _themeRegistry.ResolveSectionTemplate(sectionType, variant);
+                if (templatePath is null || !File.Exists(templatePath)) return $"<!-- section template not found: {sectionType} -->";
+
+                var props = ExtractProps(so);
+
+                var validationMode = _componentValidation switch
+                {
+                    "strict" => ValidationMode.Strict,
+                    "warn" => ValidationMode.Warn,
+                    _ => ValidationMode.Off
+                };
+
+                if (_schemaValidator is not null && validationMode != ValidationMode.Off)
+                {
+                    _schemaValidator.Validate(sectionType, sectionDef, props);
+                }
+
+                var sectionTemplateText = File.ReadAllText(templatePath);
+                var sectionTemplate = Template.Parse(sectionTemplateText, templatePath);
+                if (sectionTemplate.HasErrors) return $"<!-- section template error: {sectionTemplate.Messages} -->";
+
+                var sectionContext = new TemplateContext
+                {
+                    TemplateLoader = _templateLoader,
+                    EnableRelaxedMemberAccess = true,
+                    EnableRelaxedTargetAccess = true,
+                    EnableNullIndexer = true
+                };
+
+                var sectionGlobals = new ScriptObject();
+                sectionGlobals.SetValue("section", so, readOnly: true);
+                if (props is not null)
+                {
+                    var propsObj = new ScriptObject();
+                    foreach (var kv in props)
+                    {
+                        if (kv.Value is not null) propsObj.SetValue(kv.Key, kv.Value, readOnly: true);
+                    }
+                    sectionGlobals.SetValue("props", propsObj, readOnly: true);
+                }
+                if (so.ContainsKey("items"))
+                {
+                    sectionGlobals.SetValue("items", so["items"], readOnly: true);
+                }
+
+                sectionContext.PushGlobal(sectionGlobals);
+                sectionContext.PushGlobal(parentGlobals);
+
+                return sectionTemplate.Render(sectionContext);
+            }
+            catch (Exception ex)
+            {
+                return $"<!-- render_section error: {ex.Message} -->";
+            }
+        };
+    }
+
+    private static Dictionary<string, object?>? ExtractProps(ScriptObject so)
+    {
+        if (so.ContainsKey("props") && so["props"] is ScriptObject propsObj)
+        {
+            var dict = new Dictionary<string, object?>();
+            foreach (var key in propsObj.GetMembers())
+            {
+                dict[key] = propsObj[key] as object;
+            }
+            return dict;
+        }
+        return null;
+    }
+}
+
+public sealed class SectionDataResolverAccessor
+{
+    internal IReadOnlyList<ContentItem>? AllItems { get; set; }
+    internal ThemeComponentRegistry? Registry { get; set; }
+
+    public IReadOnlyList<ContentItem>? ResolveData(PageSectionDefinition sectionDef)
+    {
+        return null;
+    }
 }
 
 internal static class ImageHelper

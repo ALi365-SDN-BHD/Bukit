@@ -1,4 +1,5 @@
 using YamlDotNet.RepresentationModel;
+using Bukit.Theme;
 
 namespace Bukit.Cli.Commands;
 
@@ -23,6 +24,9 @@ public static class ThemeCommand
             "pack" => ThemePackCommand.RunAsync(reader),
             "install" => ThemeInstallCommand.RunAsync(reader),
             "search" => ThemeRegistryCommand.SearchAsync(reader),
+            "doctor" => DoctorAsync(reader),
+            "list-components" => ListComponentsAsync(reader),
+            "export-catalog" => ExportCatalogAsync(reader),
             _ => Task.FromResult(Unknown(sub))
         };
     }
@@ -391,6 +395,119 @@ public static class ThemeCommand
     {
         Console.Error.WriteLine($"Unknown theme subcommand: {sub}");
         return 2;
+    }
+
+    private static Task<int> DoctorAsync(ArgReader reader)
+    {
+        var themeRoot = ResolveFullThemeRoot(reader);
+        if (themeRoot is null) return Task.FromResult(2);
+
+        var manifest = ThemeManifestLoader.Load(themeRoot);
+        if (manifest is null)
+        {
+            Console.Error.WriteLine("theme.yaml not found. Doctor requires a componentized theme.");
+            return Task.FromResult(2);
+        }
+
+        ThemeComponentRegistry? parentRegistry = null;
+        if (!string.IsNullOrWhiteSpace(manifest.Extends))
+        {
+            var parentRoot = Path.Combine(Path.GetDirectoryName(themeRoot)!, manifest.Extends);
+            var parentManifest = ThemeManifestLoader.Load(parentRoot);
+            if (parentManifest is not null)
+            {
+                parentRegistry = new ThemeComponentRegistry(parentRoot, parentManifest, null);
+            }
+        }
+
+        var registry = new ThemeComponentRegistry(themeRoot, manifest, parentRegistry);
+        var result = ThemeDoctorCommand.Diagnose(themeRoot, manifest, registry);
+        ThemeDoctorCommand.PrintReport(result);
+        return Task.FromResult(0);
+    }
+
+    private static Task<int> ListComponentsAsync(ArgReader reader)
+    {
+        var themeRoot = ResolveFullThemeRoot(reader);
+        if (themeRoot is null) return Task.FromResult(2);
+
+        var manifest = ThemeManifestLoader.Load(themeRoot);
+        if (manifest is null)
+        {
+            Console.Error.WriteLine("theme.yaml not found.");
+            return Task.FromResult(2);
+        }
+
+        var registry = new ThemeComponentRegistry(themeRoot, manifest, null);
+
+        Console.WriteLine();
+        Console.WriteLine("Sections:");
+        foreach (var name in registry.GetAllSectionNames().OrderBy(n => n))
+        {
+            var def = registry.ResolveSection(name);
+            var desc = def?.Description ?? "";
+            if (desc.Length > 50) desc = desc[..48] + "..";
+            Console.WriteLine($"  {name,-24} {desc}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Components:");
+        foreach (var name in registry.GetAllComponentNames().OrderBy(n => n))
+        {
+            var def = registry.ResolveComponent(name);
+            var props = def?.Props is not null ? string.Join(", ", def.Props.Keys) : "";
+            Console.WriteLine($"  {name,-24} props: [{props}]");
+        }
+
+        return Task.FromResult(0);
+    }
+
+    private static Task<int> ExportCatalogAsync(ArgReader reader)
+    {
+        var themeRoot = ResolveFullThemeRoot(reader);
+        if (themeRoot is null) return Task.FromResult(2);
+
+        var manifest = ThemeManifestLoader.Load(themeRoot);
+        if (manifest is null)
+        {
+            Console.Error.WriteLine("theme.yaml not found.");
+            return Task.FromResult(2);
+        }
+
+        var registry = new ThemeComponentRegistry(themeRoot, manifest, null);
+
+        var resolved = ConfigPathResolver.Resolve(reader);
+        var cacheDir = Path.Combine(resolved.RootDir, ".cache");
+        var outputPath = Path.Combine(cacheDir, "theme-catalog.json");
+
+        ThemeCatalogWriter.WriteToFile(manifest, registry, outputPath);
+        Console.WriteLine($"Theme catalog exported: {outputPath}");
+        return Task.FromResult(0);
+    }
+
+    private static string? ResolveFullThemeRoot(ArgReader reader)
+    {
+        var name = reader.GetArg(2);
+        if (string.IsNullOrWhiteSpace(name) || name.StartsWith('-'))
+        {
+            name = ResolveActiveThemeName(reader);
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            Console.Error.WriteLine("Missing theme name.");
+            return null;
+        }
+
+        var resolved = ConfigPathResolver.Resolve(reader);
+        var themeRoot = Path.Combine(resolved.RootDir, "themes", name);
+        if (!Directory.Exists(themeRoot))
+        {
+            Console.Error.WriteLine($"Theme not found: {name}");
+            return null;
+        }
+
+        return themeRoot;
     }
 
     private static bool IsSafeThemeName(string? name)

@@ -1,0 +1,9 @@
+{
+  "name": "cardGrid",
+  "label": "Card Grid Section",
+  "description": "Display cards in a responsive grid",
+  "props": {
+    "title": { "type": "string", "required": false },
+    "columns": { "type": "number", "required": false }
+  }
+}

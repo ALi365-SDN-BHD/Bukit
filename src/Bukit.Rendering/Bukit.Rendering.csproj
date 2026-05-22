@@ -4,6 +4,7 @@
     <ProjectReference Include="..\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
     <ProjectReference Include="..\Bukit.Config\Bukit.Config.csproj" />
     <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
+    <ProjectReference Include="..\Bukit.Theme\Bukit.Theme.csproj" />
   </ItemGroup>
 
   <ItemGroup>

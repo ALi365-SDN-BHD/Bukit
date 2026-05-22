@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Theme;
 using Scriban;
 using Scriban.Runtime;
 
@@ -9,6 +10,11 @@ internal sealed class ComponentFunctions
     internal static IReadOnlyDictionary<string, ComponentDefinition>? Components;
     internal static FileTemplateLoader? TemplateLoader;
     internal static ScriptObject? ParentGlobals;
+
+    internal static IReadOnlyDictionary<string, ThemeComponentDefinition>? ThemeComponents;
+    internal static FileTemplateLoader? ThemeTemplateLoader;
+    internal static ScriptObject? ThemeParentGlobals;
+    internal static string? ThemeRegistryRoot;
 
     public static string Render(string name, string arg1 = "", string arg2 = "", string arg3 = "")
     {
@@ -64,6 +70,57 @@ internal sealed class ComponentFunctions
             {
                 compContext.PushGlobal(ParentGlobals);
             }
+            return compTemplate.Render(compContext);
+        }
+        catch (Exception ex)
+        {
+            return $"<!-- component error: {ex.Message} -->";
+        }
+    }
+
+    public static string RenderComponent(string name, object data)
+    {
+        if (ThemeComponents is null || !ThemeComponents.TryGetValue(name, out var compDef))
+        {
+            return $"<!-- component not found: {name} -->";
+        }
+
+        try
+        {
+            var templatePath = !string.IsNullOrEmpty(ThemeRegistryRoot)
+                ? Path.Combine(ThemeRegistryRoot, compDef.Template)
+                : compDef.Template;
+
+            if (!File.Exists(templatePath))
+            {
+                return $"<!-- component template not found: {compDef.Template} -->";
+            }
+
+            var compContext = new TemplateContext
+            {
+                TemplateLoader = ThemeTemplateLoader,
+                EnableRelaxedMemberAccess = true,
+                EnableRelaxedTargetAccess = true,
+                EnableNullIndexer = true
+            };
+
+            var templateText = File.ReadAllText(templatePath);
+            var compTemplate = Template.Parse(templateText);
+            if (compTemplate.HasErrors)
+            {
+                return $"<!-- component error: {compTemplate.Messages} -->";
+            }
+
+            if (data is ScriptObject so)
+            {
+                compContext.PushGlobal(so);
+            }
+
+            if (ThemeParentGlobals is not null)
+            {
+                compContext.PushGlobal(ThemeParentGlobals);
+            }
+
             return compTemplate.Render(compContext);
         }
         catch (Exception ex)

@@ -252,6 +252,7 @@ public sealed record ThemeConfig
     public IReadOnlyDictionary<string, ComponentDefinition>? Components { get; init; }
     public ScssConfig? Scss { get; init; }
     public ImageOptimizationConfig? Images { get; init; }
+    public string ComponentValidation { get; init; } = "off";
 }
 
 public sealed record ComponentDefinition
