@@ -7,12 +7,14 @@ namespace Bukit.Rendering.Scriban;
 
 public sealed class FileTemplateLoader : ITemplateLoader
 {
+    private readonly string? _overrideDir;
     private readonly string _rootDir;
     private readonly string? _fallbackDir;
     private readonly ConcurrentDictionary<string, CachedText> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public FileTemplateLoader(string rootDir, string? fallbackDir = null)
+    public FileTemplateLoader(string rootDir, string? fallbackDir = null, string? overrideDir = null)
     {
+        _overrideDir = overrideDir;
         _rootDir = rootDir;
         _fallbackDir = fallbackDir;
     }
@@ -27,6 +29,17 @@ public sealed class FileTemplateLoader : ITemplateLoader
         else
         {
             var normalized = templateName.Replace('/', Path.DirectorySeparatorChar);
+
+            if (_overrideDir is not null)
+            {
+                var overridePath = Path.GetFullPath(Path.Combine(_overrideDir, normalized));
+                if (File.Exists(overridePath))
+                {
+                    resolved = overridePath;
+                    goto safetyCheck;
+                }
+            }
+
             var primary = Path.GetFullPath(Path.Combine(_rootDir, normalized));
 
             if (_fallbackDir is not null)
@@ -49,6 +62,15 @@ public sealed class FileTemplateLoader : ITemplateLoader
         }
 
     safetyCheck:
+        if (_overrideDir is not null)
+        {
+            var safeOverride = EnsureSafeRoot(_overrideDir);
+            if (resolved.StartsWith(safeOverride, StringComparison.OrdinalIgnoreCase))
+            {
+                return resolved;
+            }
+        }
+
         var safeRootPrimary = EnsureSafeRoot(_rootDir);
         if (!resolved.StartsWith(safeRootPrimary, StringComparison.OrdinalIgnoreCase) &&
             (_fallbackDir is null || !resolved.StartsWith(EnsureSafeRoot(_fallbackDir), StringComparison.OrdinalIgnoreCase)))
@@ -88,6 +110,16 @@ public sealed class FileTemplateLoader : ITemplateLoader
     private string EnsurePathInsideAnyRoot(string templatePath)
     {
         var fullPath = Path.GetFullPath(templatePath);
+
+        if (_overrideDir is not null)
+        {
+            var safeOverride = EnsureSafeRoot(_overrideDir);
+            if (fullPath.StartsWith(safeOverride, StringComparison.OrdinalIgnoreCase))
+            {
+                return fullPath;
+            }
+        }
+
         var safeRoot = EnsureSafeRoot(_rootDir);
         if (fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
         {

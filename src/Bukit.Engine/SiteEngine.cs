@@ -34,7 +34,7 @@ public sealed class SiteEngine
         ConfigValidator.Validate(effectiveConfig);
 
         var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);
-        var (layoutsDir, assetsDir, staticDir, parentLayoutsDir, parentAssetsDir, parentStaticDir) = BuildPathUtils.ResolveThemeDirectories(rootDir, effectiveConfig.Theme);
+        var (layoutsDir, assetsDir, staticDir, parentLayoutsDir, parentAssetsDir, parentStaticDir, userLayoutsDir) = BuildPathUtils.ResolveThemeDirectories(rootDir, effectiveConfig.Theme);
 
         if (effectiveConfig.Build.Clean && Directory.Exists(outputDir))
         {
@@ -97,7 +97,8 @@ public sealed class SiteEngine
                 layoutsDir, assetsDir, staticDir, mediaCacheDir,
                 SeoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal),
                 RootBaseUrl: null, ManifestSuffix: null, DefaultLanguage: null,
-                ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir);
+                ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
+                UserLayoutsDir: userLayoutsDir);
             var result = await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken);
 
             _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={baseUrl}");
@@ -134,7 +135,8 @@ public sealed class SiteEngine
                     layoutsDir, assetsDir, staticDir, mediaCacheDir,
                     SeoAlternates: seoAlternates,
                     RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage,
-                    ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir);
+                    ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
+                    UserLayoutsDir: userLayoutsDir);
                 results[i] = await BuildVariantAsync(variantCtx, templateHashCache, ct, variantLogger);
                 variantLogger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
             });
@@ -194,7 +196,7 @@ public sealed class SiteEngine
         splitItemsStopwatch.Stop();
         variantStageMetrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
 
-        ITemplateRenderer renderer = new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components);
+        ITemplateRenderer renderer = new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir);
         var collectionRules = BuildCollectionRules(config.Site);
 
         var routeGenerationStopwatch = Stopwatch.StartNew();

@@ -16,10 +16,10 @@ public sealed class ScribanTemplateRenderer
     private readonly IReadOnlyDictionary<string, ComponentDefinition>? _components;
     private readonly ConcurrentDictionary<string, CachedTemplate> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null)
+    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null)
     {
         _layoutsDir = layoutsDir;
-        _templateLoader = new FileTemplateLoader(_layoutsDir, parentLayoutsDir);
+        _templateLoader = new FileTemplateLoader(_layoutsDir, parentLayoutsDir, userLayoutsDir);
         _shortcodes = shortcodes;
         _components = components;
     }

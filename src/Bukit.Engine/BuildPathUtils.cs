@@ -65,18 +65,24 @@ internal static class BuildPathUtils
             .Replace("'", "&#39;", StringComparison.Ordinal);
     }
 
-    internal static (string LayoutsDir, string AssetsDir, string StaticDir, string? ParentLayoutsDir, string? ParentAssetsDir, string? ParentStaticDir) ResolveThemeDirectories(string rootDir, ThemeConfig theme)
+    internal static (string LayoutsDir, string AssetsDir, string StaticDir, string? ParentLayoutsDir, string? ParentAssetsDir, string? ParentStaticDir, string? UserLayoutsDir) ResolveThemeDirectories(string rootDir, ThemeConfig theme)
     {
         var (childLayouts, childAssets, childStatic) = ResolveThemeDirInternal(rootDir, theme);
+
+        var userLayoutsDir = Path.Combine(rootDir, "layouts");
+        if (!Directory.Exists(userLayoutsDir))
+        {
+            userLayoutsDir = null;
+        }
 
         if (!string.IsNullOrWhiteSpace(theme.Extends))
         {
             var parentTheme = new ThemeConfig { Name = theme.Extends };
             var (parentLayouts, parentAssets, parentStatic) = ResolveThemeDirInternal(rootDir, parentTheme);
-            return (childLayouts, childAssets, childStatic, parentLayouts, parentAssets, parentStatic);
+            return (childLayouts, childAssets, childStatic, parentLayouts, parentAssets, parentStatic, userLayoutsDir);
         }
 
-        return (childLayouts, childAssets, childStatic, null, null, null);
+        return (childLayouts, childAssets, childStatic, null, null, null, userLayoutsDir);
     }
 
     private static (string LayoutsDir, string AssetsDir, string StaticDir) ResolveThemeDirInternal(string rootDir, ThemeConfig theme)
