@@ -3,6 +3,7 @@ using Scriban.Runtime;
 using Bukit.Config;
 using Bukit.Shared;
 using System.Collections.Concurrent;
+using System.Text;
 
 namespace Bukit.Rendering.Scriban;
 
@@ -89,6 +90,11 @@ public sealed class ScribanTemplateRenderer
             context.PushGlobal(new ScriptObject { ["comp"] = componentObj });
         }
 
+        var imageObj = new ScriptObject();
+        imageObj.SetValue("srcset", new Func<string, string, string>(ImageHelper.BuildSrcset), readOnly: true);
+        imageObj.SetValue("img", new Func<string, string, string, string, string>(ImageHelper.BuildImgTag), readOnly: true);
+        context.PushGlobal(new ScriptObject { ["image"] = imageObj });
+
         context.PushGlobal(globals);
 
         try
@@ -164,4 +170,50 @@ public sealed class ScribanTemplateRenderer
     private readonly record struct FileSignature(DateTime LastWriteTimeUtc, long Length);
 
     private sealed record CachedTemplate(FileSignature Signature, Template Template, string? LayoutTemplateRelativePath);
+}
+
+internal static class ImageHelper
+{
+    internal static string BuildSrcset(string imagePath, string sizes = "480,768,1200")
+    {
+        if (string.IsNullOrWhiteSpace(imagePath))
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+        var sizeList = sizes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var size in sizeList)
+        {
+            if (sb.Length > 0) sb.Append(", ");
+            sb.Append($"{imagePath}?w={size} {size}w");
+        }
+        return sb.ToString();
+    }
+
+    internal static string BuildImgTag(string src, string alt = "", string sizes = "480,768,1200", string className = "")
+    {
+        if (string.IsNullOrWhiteSpace(src))
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+        var classAttr = string.IsNullOrWhiteSpace(className) ? "" : $" class=\"{className}\"";
+        var sizesAttr = $"(max-width: 480px) 480px, (max-width: 768px) 768px, 1200px";
+
+        sb.Append($"<img src=\"{src}\"");
+        sb.Append($" srcset=\"{BuildSrcset(src, sizes)}\"");
+        sb.Append($" sizes=\"{sizesAttr}\"");
+        if (!string.IsNullOrWhiteSpace(alt))
+        {
+            sb.Append($" alt=\"{alt}\"");
+        }
+        if (!string.IsNullOrWhiteSpace(className))
+        {
+            sb.Append($" class=\"{className}\"");
+        }
+        sb.Append(" loading=\"lazy\" decoding=\"async\" />");
+        return sb.ToString();
+    }
 }

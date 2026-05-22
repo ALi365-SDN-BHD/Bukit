@@ -266,6 +266,24 @@ internal static class CloneThemeGenerator
         var bpMobile = t.ResponsiveBreakpoints?.Mobile ?? "680px";
         var bpTablet = t.ResponsiveBreakpoints?.Tablet ?? "1024px";
         var bpDesktop = t.ResponsiveBreakpoints?.Desktop ?? "1440px";
+        var fontSizeXs = C(t.FontSizeXs, "0.75rem");
+        var fontSizeSm = C(t.FontSizeSm, "0.875rem");
+        var fontSizeBase = C(t.FontSizeBase, "1rem");
+        var fontSizeLg = C(t.FontSizeLg, "1.125rem");
+        var fontSizeXl = C(t.FontSizeXl, "1.25rem");
+        var fontSize2xl = C(t.FontSize2xl, "1.5rem");
+        var fontSize3xl = C(t.FontSize3xl, "2rem");
+        var fontSize4xl = C(t.FontSize4xl, "2.5rem");
+        var fontSizeDisplay = C(t.FontSizeDisplay, "clamp(2rem, 5vw, 4.2rem)");
+        var fontWeightNormal = C(t.FontWeightNormal, "400");
+        var fontWeightBold = C(t.FontWeightBold, "700");
+        var lineHeightTight = C(t.LineHeightTight, "1.2");
+        var lineHeightNormal = C(t.LineHeightNormal, "1.65");
+        var lineHeightRelaxed = C(t.LineHeightRelaxed, "1.8");
+        var zHeader = C(t.ZHeader, "100");
+        var zDropdown = C(t.ZDropdown, "200");
+        var zModal = C(t.ZModal, "300");
+        var zTooltip = C(t.ZTooltip, "400");
 
         var spacingVars = new StringBuilder();
         if (spacingScale is not null)
@@ -303,6 +321,24 @@ internal static class CloneThemeGenerator
   --bp-tablet: {{bpTablet}};
   --bp-desktop: {{bpDesktop}};
 {{spacingVars}}
+  --font-size-xs: {{fontSizeXs}};
+  --font-size-sm: {{fontSizeSm}};
+  --font-size-base: {{fontSizeBase}};
+  --font-size-lg: {{fontSizeLg}};
+  --font-size-xl: {{fontSizeXl}};
+  --font-size-2xl: {{fontSize2xl}};
+  --font-size-3xl: {{fontSize3xl}};
+  --font-size-4xl: {{fontSize4xl}};
+  --font-size-display: {{fontSizeDisplay}};
+  --font-weight-normal: {{fontWeightNormal}};
+  --font-weight-bold: {{fontWeightBold}};
+  --line-height-tight: {{lineHeightTight}};
+  --line-height-normal: {{lineHeightNormal}};
+  --line-height-relaxed: {{lineHeightRelaxed}};
+  --z-header: {{zHeader}};
+  --z-dropdown: {{zDropdown}};
+  --z-modal: {{zModal}};
+  --z-tooltip: {{zTooltip}};
 }
 
 * { box-sizing: border-box; }
@@ -314,10 +350,10 @@ body {
   font-family: {{fontFamily}};
   color: var(--text);
   background: linear-gradient(180deg, #fff 0, var(--bg) 360px);
-  line-height: 1.65;
+  line-height: var(--line-height-normal);
 }
 
-h1, h2, h3, h4, h5, h6 { font-family: {{hFontFamily}}; }
+h1, h2, h3, h4, h5, h6 { font-family: {{hFontFamily}}; font-weight: var(--font-weight-bold); }
 
 a { color: var(--primary); text-decoration: none; }
 a:hover { color: var(--primary-strong); text-decoration: underline; }
@@ -327,6 +363,7 @@ img { max-width: 100%; height: auto; }
 .site-header {
   border-bottom: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.86);
+  z-index: var(--z-header);
 }
 
 .nav {

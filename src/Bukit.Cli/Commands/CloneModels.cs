@@ -38,6 +38,28 @@ public sealed record CloneTokens
     public string? HoverLift { get; init; }
     public string? HoverShadow { get; init; }
 
+    public string? FontSizeXs { get; init; }
+    public string? FontSizeSm { get; init; }
+    public string? FontSizeBase { get; init; }
+    public string? FontSizeLg { get; init; }
+    public string? FontSizeXl { get; init; }
+    public string? FontSize2xl { get; init; }
+    public string? FontSize3xl { get; init; }
+    public string? FontSize4xl { get; init; }
+    public string? FontSizeDisplay { get; init; }
+
+    public string? FontWeightNormal { get; init; }
+    public string? FontWeightBold { get; init; }
+
+    public string? LineHeightTight { get; init; }
+    public string? LineHeightNormal { get; init; }
+    public string? LineHeightRelaxed { get; init; }
+
+    public string? ZHeader { get; init; }
+    public string? ZDropdown { get; init; }
+    public string? ZModal { get; init; }
+    public string? ZTooltip { get; init; }
+
     public static CloneTokens FromJson(string json)
     {
         if (string.IsNullOrWhiteSpace(json))

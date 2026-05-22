@@ -232,7 +232,8 @@ internal static class TemplateCapabilitiesResolver
             NeedsPageContent = GetOptionalBool(capabilitiesNode, "needs_page_content", templatePath),
             SupportsPagination = GetOptionalBool(capabilitiesNode, "supports_pagination", templatePath),
             SupportsTaxonomy = GetOptionalBool(capabilitiesNode, "supports_taxonomy", templatePath),
-            SupportsSearchSnippets = GetOptionalBool(capabilitiesNode, "supports_search_snippets", templatePath)
+            SupportsSearchSnippets = GetOptionalBool(capabilitiesNode, "supports_search_snippets", templatePath),
+            Fields = ReadFieldDeclarations(capabilitiesNode, templatePath)
         };
     }
 
@@ -248,6 +249,51 @@ internal static class TemplateCapabilitiesResolver
         }
 
         throw new ConfigException(errorMessage);
+    }
+
+    private static List<TemplateFieldDeclaration>? ReadFieldDeclarations(YamlMappingNode node, string templatePath)
+    {
+        YamlSequenceNode? fieldsSeq = null;
+        foreach (var entry in node.Children)
+        {
+            if (entry.Key is YamlScalarNode keyNode &&
+                string.Equals(keyNode.Value, "fields", StringComparison.OrdinalIgnoreCase) &&
+                entry.Value is YamlSequenceNode seq)
+            {
+                fieldsSeq = seq;
+                break;
+            }
+        }
+
+        if (fieldsSeq is null) return null;
+
+        var fields = new List<TemplateFieldDeclaration>();
+        foreach (var item in fieldsSeq.Children)
+        {
+            if (item is not YamlMappingNode fieldNode) continue;
+
+            var field = new TemplateFieldDeclaration();
+            foreach (var prop in fieldNode.Children)
+            {
+                if (prop.Key is not YamlScalarNode keyNode || prop.Value is not YamlScalarNode valNode) continue;
+                var val = valNode.Value?.Trim();
+                if (string.Equals(keyNode.Value, "key", StringComparison.OrdinalIgnoreCase))
+                    field = field with { Key = val };
+                else if (string.Equals(keyNode.Value, "type", StringComparison.OrdinalIgnoreCase))
+                    field = field with { Type = val };
+                else if (string.Equals(keyNode.Value, "label", StringComparison.OrdinalIgnoreCase))
+                    field = field with { Label = val };
+                else if (string.Equals(keyNode.Value, "suggestion", StringComparison.OrdinalIgnoreCase))
+                    field = field with { Suggestion = val };
+            }
+
+            if (!string.IsNullOrWhiteSpace(field.Key))
+            {
+                fields.Add(field);
+            }
+        }
+
+        return fields.Count > 0 ? fields : null;
     }
 
     private static bool? GetOptionalBool(YamlMappingNode node, string key, string templatePath)
@@ -295,13 +341,15 @@ internal static class TemplateCapabilitiesResolver
         public bool? SupportsPagination { get; init; }
         public bool? SupportsTaxonomy { get; init; }
         public bool? SupportsSearchSnippets { get; init; }
+        public List<TemplateFieldDeclaration>? Fields { get; init; }
 
         internal bool HasAnyValue()
         {
             return NeedsPageContent.HasValue ||
                    SupportsPagination.HasValue ||
                    SupportsTaxonomy.HasValue ||
-                   SupportsSearchSnippets.HasValue;
+                   SupportsSearchSnippets.HasValue ||
+                   Fields is { Count: > 0 };
         }
     }
 
@@ -309,4 +357,12 @@ internal static class TemplateCapabilitiesResolver
         bool IncludeContent,
         bool UsedHeuristic,
         string Source);
+
+    internal sealed record TemplateFieldDeclaration
+    {
+        public string? Key { get; init; }
+        public string? Type { get; init; }
+        public string? Label { get; init; }
+        public string? Suggestion { get; init; }
+    }
 }

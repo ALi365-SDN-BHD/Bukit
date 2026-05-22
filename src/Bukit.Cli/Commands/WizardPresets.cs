@@ -24,6 +24,11 @@ public sealed record WizardPreset
             Radius = "10px",
             ContentMax = "720px",
             FontFamily = "\"Inter\", system-ui, sans-serif",
+            FontSizeBase = "1.05rem",
+            FontSizeDisplay = "clamp(2rem, 5vw, 3.5rem)",
+            LineHeightNormal = "1.75",
+            LineHeightRelaxed = "1.85",
+            ZHeader = "100",
         },
         Layout = new CloneLayoutInfo
         {
@@ -61,6 +66,11 @@ public sealed record WizardPreset
             WideMax = "1200px",
             FontFamily = "system-ui, sans-serif",
             CodeFontFamily = "\"Fira Code\", \"SFMono-Regular\", Consolas, monospace",
+            FontSizeSm = "0.8rem",
+            LineHeightNormal = "1.6",
+            LineHeightTight = "1.15",
+            ZHeader = "100",
+            ZDropdown = "150",
         },
         Layout = new CloneLayoutInfo
         {
@@ -99,6 +109,10 @@ public sealed record WizardPreset
             ContainerPadding = "80px 24px 120px",
             SectionGap = "80px",
             FontFamily = "\"Inter\", system-ui, sans-serif",
+            FontSizeDisplay = "clamp(2.5rem, 6vw, 5rem)",
+            FontSize3xl = "2.5rem",
+            LineHeightTight = "1.1",
+            ZHeader = "100",
         },
         Layout = new CloneLayoutInfo
         {
@@ -146,6 +160,10 @@ public sealed record WizardPreset
             ContainerPadding = "32px 20px 64px",
             SectionGap = "24px",
             FontFamily = "\"Georgia\", \"Times New Roman\", serif",
+            FontSizeBase = "1.05rem",
+            LineHeightNormal = "1.8",
+            LineHeightRelaxed = "1.9",
+            FontWeightNormal = "400",
         },
         Layout = new CloneLayoutInfo
         {
@@ -183,6 +201,11 @@ public sealed record WizardPreset
             HeadingFontFamily = "\"DM Sans\", system-ui, sans-serif",
             Surface = "#1a1a1a",
             SurfaceMuted = "#141414",
+            FontSizeDisplay = "clamp(2.5rem, 6vw, 5rem)",
+            LineHeightNormal = "1.7",
+            LineHeightTight = "1.1",
+            ZHeader = "100",
+            ZModal = "500",
         },
         Layout = new CloneLayoutInfo
         {
