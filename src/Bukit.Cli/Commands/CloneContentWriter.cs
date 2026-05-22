@@ -446,6 +446,8 @@ internal static partial class CloneContentWriter
             {
                 child.Children[new YamlScalarNode("type")] = new YamlScalarNode("markdown");
                 child.Children[new YamlScalarNode("mode")] = new YamlScalarNode(mode);
+                if (mode.Equals("content", StringComparison.OrdinalIgnoreCase) && defaultType.Equals("page", StringComparison.OrdinalIgnoreCase))
+                    child.Children[new YamlScalarNode("collection")] = new YamlScalarNode("page");
                 var markdown = GetOrCreateMapping(child, "markdown");
                 markdown.Children[new YamlScalarNode("dir")] = new YamlScalarNode(dir);
                 markdown.Children[new YamlScalarNode("defaultType")] = new YamlScalarNode(defaultType);
@@ -453,13 +455,16 @@ internal static partial class CloneContentWriter
             }
         }
 
-        sources.Add(new YamlMappingNode
+        var newNode = new YamlMappingNode
         {
             { "type", "markdown" },
             { "name", name },
             { "mode", mode },
-            { "markdown", new YamlMappingNode { { "dir", dir }, { "defaultType", defaultType } } }
-        });
+        };
+        if (mode.Equals("content", StringComparison.OrdinalIgnoreCase) && defaultType.Equals("page", StringComparison.OrdinalIgnoreCase))
+            newNode.Children[new YamlScalarNode("collection")] = new YamlScalarNode("page");
+        newNode.Children[new YamlScalarNode("markdown")] = new YamlMappingNode { { "dir", dir }, { "defaultType", defaultType } };
+        sources.Add(newNode);
     }
 
     internal static IReadOnlyDictionary<string, string> BuildAssetMap(IReadOnlyList<CloneAsset> assets)

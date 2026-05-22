@@ -30,6 +30,7 @@ content:
     - type: markdown
       name: content
       mode: content
+      collection: page
       markdown:
         dir: content
         defaultType: page
