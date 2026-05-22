@@ -25,7 +25,7 @@ jobs:
         run: dotnet test bukit.slnx -c Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
 
       - name: Format
-        run: dotnet format bukit.slnx --verify-no-changes --no-restore
+        run: dotnet format bukit.slnx --verify-no-changes
 
       - name: Doc asset consistency
         run: bash scripts/check-doc-asset-consistency.sh
