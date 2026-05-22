@@ -24,48 +24,46 @@ public sealed class PluginSourceGenerator : ISourceGenerator
         var pluginInterface = compilation.GetTypeByMetadataName("Bukit.Engine.Plugins.IBukitPlugin");
         var pluginAttribute = compilation.GetTypeByMetadataName("Bukit.Engine.Plugins.BukitPluginAttribute");
 
-        if (pluginInterface is null)
-        {
-            return;
-        }
-
         var pluginTypes = new List<INamedTypeSymbol>();
 
-        foreach (var candidate in receiver.Candidates)
+        if (pluginInterface is not null)
         {
-            var model = compilation.GetSemanticModel(candidate.SyntaxTree);
-            if (model.GetDeclaredSymbol(candidate) is not INamedTypeSymbol typeSymbol)
+            foreach (var candidate in receiver.Candidates)
             {
-                continue;
-            }
+                var model = compilation.GetSemanticModel(candidate.SyntaxTree);
+                if (model.GetDeclaredSymbol(candidate) is not INamedTypeSymbol typeSymbol)
+                {
+                    continue;
+                }
 
-            if (typeSymbol.TypeKind != TypeKind.Class)
-            {
-                continue;
-            }
+                if (typeSymbol.TypeKind != TypeKind.Class)
+                {
+                    continue;
+                }
 
-            if (typeSymbol.IsAbstract)
-            {
-                continue;
-            }
+                if (typeSymbol.IsAbstract)
+                {
+                    continue;
+                }
 
-            if (!ImplementsInterface(typeSymbol, pluginInterface))
-            {
-                continue;
-            }
+                if (!ImplementsInterface(typeSymbol, pluginInterface))
+                {
+                    continue;
+                }
 
-            var namespaceName = typeSymbol.ContainingNamespace.ToDisplayString();
-            if (!namespaceName.StartsWith("Bukit.Plugins."))
-            {
-                continue;
-            }
+                var namespaceName = typeSymbol.ContainingNamespace.ToDisplayString();
+                if (!namespaceName.StartsWith("Bukit.Plugins."))
+                {
+                    continue;
+                }
 
-            if (pluginAttribute is not null && !HasAttribute(typeSymbol, pluginAttribute))
-            {
-                continue;
-            }
+                if (pluginAttribute is not null && !HasAttribute(typeSymbol, pluginAttribute))
+                {
+                    continue;
+                }
 
-            pluginTypes.Add(typeSymbol);
+                pluginTypes.Add(typeSymbol);
+            }
         }
 
         var source = GenerateSource(pluginTypes);
