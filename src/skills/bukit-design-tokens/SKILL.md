@@ -145,3 +145,65 @@ In base.html:
 }
 </style>
 ```
+
+---
+
+## External Framework Integration
+
+Design tokens work alongside external CSS/JS frameworks. Bukit's `style.css` loads last, enabling token values to override framework defaults.
+
+### Loading Strategy
+
+```html
+<!-- 1. External framework CSS (Tailwind, DaisyUI, Bootstrap, etc.) -->
+<link rel="stylesheet" href="https://cdn.tailwindcss.com" />
+
+<!-- 2. Bukit CSS with design tokens (loads last, overrides framework) -->
+<link rel="stylesheet" href="{{ site.base_url }}/assets/style.css" />
+```
+
+### Token Compatibility with Tailwind
+
+| Bukit Token | Tailwind Equivalent | Notes |
+|---|---|---|
+| `--color-primary` | `text-primary-*` | Bukit tokens define semantic meaning |
+| `--font-size-*` | `text-sm/lg/xl/...` | Bukit tokens follow modular scale (1.25) |
+| `--space-*` | `p-*/m-*/gap-*` | Bukit uses 4px base grid, Tailwind uses 4px base — compatible |
+| `--radius-*` | `rounded-sm/md/lg` | Similar ranges, Bukit tokens are overridable |
+
+### Example: Tailwind + Bukit Hybrid
+
+```yaml
+theme:
+  params:
+    external_css:
+      - "https://cdn.tailwindcss.com"
+    primary_color: "#7c3aed"
+    font_family: "Inter, system-ui, sans-serif"
+```
+
+In templates, use Tailwind for layout (grid, flex, spacing) and Bukit tokens for theming (colors, fonts, content styles):
+
+```html
+<!-- Tailwind for layout -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+  <!-- Bukit tokens for theming -->
+  <article class="card" style="color: var(--color-primary)">
+    <h2 class="card-title">{{ item.title }}</h2>
+  </article>
+
+</div>
+```
+
+### Accessing Tokens from External Framework JS
+
+When Alpine.js or other JS frameworks need design token values:
+
+```html
+<script>
+  const styles = getComputedStyle(document.documentElement);
+  const primaryColor = styles.getPropertyValue('--color-primary');
+  // Use with Alpine, htmx, etc.
+</script>
+```

@@ -50,7 +50,8 @@ Three main data objects available in templates:
 | `page.fields` | object | Metadata fields, e.g., `page.fields.tags`, `page.fields.author` |
 
 Each field has a `{type: string, value: ...}` structure:
-```html
+```
+
 {{ page.fields.tags.value }}              ← Direct value
 {{ for tag in page.fields.tags.value }}   ← If it's an array
 ```
@@ -497,3 +498,79 @@ Always include in base.html `<head>`:
   <script src="{{ site.base_url }}/assets/search.js" defer></script>
 {{ end }}
 ```
+
+---
+
+## Image Helper Functions
+
+Bukit provides Scriban template functions for responsive images.
+
+### `image.img` — Complete Responsive `<img>` Tag
+
+```
+{{ image.img "/images/photo.jpg" "Alt text" "480,768,1200" "cover" }}
+```
+
+Parameters: `(src, alt, sizes, className)`
+
+Generates:
+```html
+<img src="/images/photo.jpg"
+     srcset="/images/photo.jpg?w=480 480w, /images/photo.jpg?w=768 768w, /images/photo.jpg?w=1200 1200w"
+     sizes="(max-width: 480px) 480px, (max-width: 768px) 768px, 1200px"
+     alt="Alt text" class="cover"
+     loading="lazy" decoding="async" />
+```
+
+### `image.srcset` — Generate `srcset` Attribute Only
+
+```
+{{ image.srcset "/images/photo.jpg" "480,768,1200" }}
+```
+
+Use when you need custom control over the `<img>` tag:
+```html
+<img src="/images/photo.jpg"
+     srcset="{{ image.srcset "/images/photo.jpg" "480,768,1200" }}"
+     sizes="(min-width: 1200px) 1200px, 100vw"
+     alt="Custom" />
+```
+
+## Template Capabilities — Field Declarations
+
+The `bukit.templates.yaml` manifest now supports optional field declarations for each template. This allows AI Skills and tooling to generate precise templates from content schema.
+
+### Extended Manifest Format
+
+```yaml
+templates:
+  pages/post.html:
+    capabilities:
+      needs_page_content: true
+    fields:
+      - key: cover
+        type: string
+        label: Cover Image
+        suggestion: '<img src="{{ page.fields.cover.value }}" alt="{{ page.title }}" class="article-cover" loading="lazy" />'
+      - key: tags
+        type: array
+        label: Tags
+        suggestion: '{{ for tag in page.fields.tags.value }}<a class="tag" href="{{ site.base_url }}/tags/{{ tag | string.downcase }}/">{{ tag }}</a>{{ end }}'
+      - key: author
+        type: string
+        label: Author
+        suggestion: '<span class="meta-author">{{ page.fields.author.value }}</span>'
+```
+
+### Field Declaration Properties
+
+| Property | Required | Description |
+|---|---|---|
+| `key` | Yes | Field name matching schema definition |
+| `type` | No | Field type hint (string, date, array, boolean, etc.) |
+| `label` | No | Human-readable label |
+| `suggestion` | No | Suggested Scriban code snippet for rendering this field |
+
+### How `suggestion` Works in Practice
+
+When a user asks "generate a post template for my blog schema," the AI Skill (bukit-content-to-template) reads the field declarations from `bukit.templates.yaml` and uses the `suggestion` snippets as building blocks to compose the complete template. If no `suggestion` is provided, the AI falls back to type-based defaults from the Schema Field → Template Pattern Map.

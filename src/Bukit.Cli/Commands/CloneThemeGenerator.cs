@@ -559,8 +559,29 @@ button:hover, .button:hover {
             ? ""
             : $"  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n  <link href=\"{t.GoogleFontsUrl}\" rel=\"stylesheet\">\n";
 
+        var externalCssBlock = new StringBuilder();
+        if (t.ExternalCssUrls is { Count: > 0 })
+        {
+            foreach (var url in t.ExternalCssUrls)
+            {
+                if (!string.IsNullOrWhiteSpace(url))
+                    externalCssBlock.AppendLine($"  <link rel=\"stylesheet\" href=\"{url.Trim()}\" />");
+            }
+        }
+
         var themeAssets = fontBlock +
+            externalCssBlock +
             "  <link rel=\"stylesheet\" href=\"{{ site.base_url }}/assets/style.css\" />\n";
+
+        var externalJsBlock = new StringBuilder();
+        if (t.ExternalJsUrls is { Count: > 0 })
+        {
+            foreach (var url in t.ExternalJsUrls)
+            {
+                if (!string.IsNullOrWhiteSpace(url))
+                    externalJsBlock.AppendLine($"  <script src=\"{url.Trim()}\" defer></script>");
+            }
+        }
 
         var jsBlock = (behaviors is not null && behaviors.HasAnyJsBehavior)
             ? "  <script src=\"{{ site.base_url }}/assets/behaviors.js\" defer></script>\n"
@@ -586,12 +607,13 @@ __ASSETS__</head>
     {{ content }}
   </main>
   {{ include "partials/footer.html" }}
-__LENIS____BEHAVIORS_JS__</body>
+__LENIS____EXTERNAL_JS____BEHAVIORS_JS__</body>
 </html>
 """;
 
         return template
             .Replace("__ASSETS__", themeAssets)
+            .Replace("__EXTERNAL_JS__", externalJsBlock.ToString())
             .Replace("__BEHAVIORS_JS__", jsBlock)
             .Replace("__LENIS__", lenisTag);
     }

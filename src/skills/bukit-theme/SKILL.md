@@ -685,3 +685,118 @@ Use `clamp()`: `h1 { font-size: clamp(1.5rem, 4vw, 2.5rem); }`
 - [ ] Footer visually distinct with attribution
 - [ ] Card/list items have consistent padding and hover
 - [ ] Code blocks readable (dark bg, light text)
+
+## External CSS/JS Framework Integration
+
+Bukit themes can optionally include external CSS frameworks (Tailwind, DaisyUI, etc.) and JavaScript libraries (Alpine.js, Swiper, etc.) via CDN.
+
+### Configuration
+
+External libraries are configured through `theme.params` or directly via wizard presets. The CloneTokens model supports `ExternalCssUrls` and `ExternalJsUrls` as `List<string>` for multiple libraries.
+
+```yaml
+theme:
+  params:
+    external_css:
+      - "https://cdn.tailwindcss.com"
+      - "https://cdn.jsdelivr.net/npm/daisyui@4"
+    external_js:
+      - "https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"
+```
+
+### Loading Order
+
+External framework CSS loads BEFORE Bukit's `style.css`, allowing Bukit styles to override framework defaults.
+
+```html
+<head>
+  <link rel="stylesheet" href="https://cdn.tailwindcss.com" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4" />
+  <!-- Bukit styles load last, can override framework defaults -->
+  <link rel="stylesheet" href="{{ site.base_url }}/assets/style.css" />
+</head>
+```
+
+External JavaScript loads BEFORE Bukit's `behaviors.js`:
+
+```html
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
+  <script src="{{ site.base_url }}/assets/behaviors.js" defer></script>
+</body>
+```
+
+### Recommended Framework Combinations
+
+| Site Type | CSS | JS | Notes |
+|---|---|---|---|
+| Landing Page | Tailwind CSS | Alpine.js | Utility classes + lightweight interactivity |
+| Portfolio | Tailwind CSS | Swiper.js | Grid layouts + professional carousel |
+| Blog | — | htmx | Keep pure Bukit CSS, add AJAX navigation |
+| Documentation | — | — | Pure Bukit CSS for clean readability |
+
+### Rule: Never Replace Bukit CSS
+
+External frameworks supplement, never replace, Bukit's hand-crafted CSS. Bukit's `style.css` provides Notion color system, callout, toggle, bookmark, math block, and other content-specific rendering that no generic framework offers.
+
+## Image Helper Functions
+
+Bukit provides two Scriban template functions for generating responsive images:
+
+### `image.img` — Complete Responsive Image Tag
+
+```html
+{{ image.img "/images/photo.jpg" "A mountain landscape" "480,768,1200" "cover-image" }}
+```
+
+Generates:
+```html
+<img src="/images/photo.jpg"
+     srcset="/images/photo.jpg?w=480 480w, /images/photo.jpg?w=768 768w, /images/photo.jpg?w=1200 1200w"
+     sizes="(max-width: 480px) 480px, (max-width: 768px) 768px, 1200px"
+     alt="A mountain landscape"
+     class="cover-image"
+     loading="lazy" decoding="async" />
+```
+
+### `image.srcset` — Generate Only srcset Attribute
+
+```html
+<img src="/images/hero.webp" srcset="{{ image.srcset "/images/hero.webp" "480,768,1200" }}" alt="Hero" />
+```
+
+### When to Use Image Helpers
+
+- Always use `image.img` for content images in post and page templates
+- Use `image.srcset` when you need custom `sizes` attribute or want manual control
+- On builders without image conversion tools, these helpers still generate correct responsive markup
+
+## Extended Design Token Model
+
+CloneTokens now includes 40+ design token fields, enabling precise visual control:
+
+### Typography Tokens (10 new fields)
+```
+FontSizeXs, FontSizeSm, FontSizeBase, FontSizeLg, FontSizeXl,
+FontSize2xl, FontSize3xl, FontSize4xl, FontSizeDisplay
+FontWeightNormal, FontWeightBold
+LineHeightTight, LineHeightNormal, LineHeightRelaxed
+```
+
+### Z-Index Tokens (4 new fields)
+```
+ZHeader, ZDropdown, ZModal, ZTooltip
+```
+
+All tokens are optional with sensible defaults. Setting them in WizardPreset or tokens.json produces corresponding CSS variables in the generated `style.css`.
+
+### WizardPreset Example (Blog)
+```csharp
+Tokens = new CloneTokens
+{
+    FontSizeBase = "1.05rem",
+    FontSizeDisplay = "clamp(2rem, 5vw, 3.5rem)",
+    LineHeightNormal = "1.75",
+    LineHeightRelaxed = "1.85",
+    ZHeader = "100",
+}
+```

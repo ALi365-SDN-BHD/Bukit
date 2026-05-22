@@ -139,6 +139,183 @@ Run this script via browser MCP and save as `tokens.json`:
 })();
 ```
 
+Save the output as `tokens.json`.
+
+### Step 1.2b: Detect External CSS/JS Libraries
+
+Run this script via browser MCP to list all external CSS and JS resources loaded by the source site. Save as `external-libs.json`.
+
+```javascript
+(function() {
+  // Detect all external stylesheets
+  const cssLibs = [...document.querySelectorAll('link[rel="stylesheet"]')]
+    .filter(l => l.href && !l.href.startsWith(window.location.origin))
+    .map(l => ({
+      url: l.href,
+      type: 'css',
+      source: l.integrity ? 'cdn-integrity' : (l.href.includes('cdn.') || l.href.includes('unpkg.') || l.href.includes('jsdelivr.') ? 'cdn' : 'external'),
+      domain: new URL(l.href).hostname,
+      filename: l.href.split('/').pop()
+    }));
+
+  // Detect all external scripts
+  const jsLibs = [...document.querySelectorAll('script[src]')]
+    .filter(s => s.src && !s.src.startsWith(window.location.origin))
+    .map(s => ({
+      url: s.src,
+      type: 'js',
+      defer: s.defer,
+      async: s.async,
+      source: s.integrity ? 'cdn-integrity' : (s.src.includes('cdn.') || s.src.includes('unpkg.') || s.src.includes('jsdelivr.') ? 'cdn' : 'external'),
+      domain: new URL(s.src).hostname,
+      filename: s.src.split('/').pop()
+    }));
+
+  // Detect inline scripts with known library patterns
+  const inlineLibs = [...document.querySelectorAll('script:not([src])')]
+    .filter(s => s.textContent && (
+      s.textContent.includes('Tailwind') ||
+      s.textContent.includes('Alpine') ||
+      s.textContent.includes('htmx') ||
+      s.textContent.includes('Swiper') ||
+      s.textContent.includes('bootstrap') ||
+      s.textContent.includes('jQuery') ||
+      s.textContent.includes('vue') ||
+      s.textContent.includes('react')
+    ))
+    .map(s => ({
+      type: 'inline',
+      hint: s.textContent.substring(0, 200),
+      detectedFramework: detectFromContent(s.textContent)
+    }));
+
+  function detectFromContent(text) {
+    if (text.includes('Alpine')) return 'alpinejs';
+    if (text.includes('htmx')) return 'htmx';
+    if (text.includes('Swiper')) return 'swiper';
+    if (text.includes('bootstrap')) return 'bootstrap';
+    if (text.includes('jQuery') || text.includes('$(')) return 'jquery';
+    if (text.includes('vue') || text.includes('Vue')) return 'vue';
+    if (text.includes('React') || text.includes('react')) return 'react';
+    return null;
+  }
+
+  const result = {
+    css: cssLibs,
+    js: jsLibs,
+    inline: inlineLibs.length > 0 ? inlineLibs : undefined,
+    summary: {
+      totalCss: cssLibs.length,
+      totalJs: jsLibs.length,
+      cdnHosts: [...new Set([...cssLibs, ...jsLibs].map(l => l.domain))],
+      knownFrameworks: [...new Set([
+        ...cssLibs.map(l => detectFramework(l.url)).filter(Boolean),
+        ...jsLibs.map(l => detectFramework(l.url)).filter(Boolean),
+        ...inlineLibs.map(l => l.detectedFramework).filter(Boolean)
+      ])]
+    }
+  };
+
+  function detectFramework(url) {
+    const lower = url.toLowerCase();
+    if (lower.includes('tailwindcss') || lower.includes('tailwind')) return 'tailwind';
+    if (lower.includes('alpine')) return 'alpinejs';
+    if (lower.includes('htmx')) return 'htmx';
+    if (lower.includes('swiper')) return 'swiper';
+    if (lower.includes('bootstrap')) return 'bootstrap';
+    if (lower.includes('jquery')) return 'jquery';
+    if (lower.includes('react')) return 'react';
+    if (lower.includes('vue')) return 'vue';
+    if (lower.includes('daisyui')) return 'daisyui';
+    if (lower.includes('font-awesome') || lower.includes('fontawesome')) return 'font-awesome';
+    if (lower.includes('animate.css')) return 'animate-css';
+    return null;
+  }
+
+  console.log(JSON.stringify(result, null, 2));
+  return result;
+})();
+```
+
+#### 1.2b.1: User Decision — Keep or Replace External Libraries
+
+After detecting external libraries, present findings to the user with recommendations:
+
+```
+Source site loads 5 external CSS/JS resources:
+
+CSS:
+  🟢 tailwindcss@2.2  (cdn.tailwindcss.com)     — recommended to KEEP via CDN
+  🔴 custom.css        (example.com)              — SKIP (site-specific, not cloneable)
+  🟡 font-awesome@5    (cdnjs.cloudflare.com)     — optional, ask user
+
+JS:
+  🟢 alpinejs@3       (jsdelivr.net)            — recommended to KEEP via CDN
+  🔴 app.min.js       (example.com)              — SKIP (site-specific logic)
+```
+
+**Decision rules:**
+
+| Status | Icon | Meaning | Action |
+|---|---|---|---|
+| `cdn` / `cdn-integrity` | 🟢 | Well-known CDN-hosted framework | Keep via CDN URL in `externalCssUrls` |
+| `external` (known framework) | 🟡 | Framework on non-CDN host (e.g., self-hosted bootstrap) | Ask user: replace with CDN or skip |
+| `external` (site custom) | 🔴 | Site's own CSS/JS file (e.g., `app.css`, `main.js`) | Skip — these contain site-specific code, not a framework |
+| `inline` (detected framework) | 🟢 | Inline script using known framework | Recommend CDN equivalent in `externalJsUrls` |
+
+**Ask the user (mandatory before proceeding to Phase 2):**
+
+> The source site uses these external libraries. Which should be preserved in the cloned theme?
+
+Provide a checklist format:
+
+```
+- [ ] Tailwind CSS      → cdn.tailwindcss.com       KEEP (CDN)
+- [ ] Alpine.js         → jsdelivr.net              KEEP (CDN)
+- [ ] Font Awesome      → cdnjs.cloudflare.com       SKIP (not needed for Bukit)
+- [ ] custom.css        → example.com/custom.css     SKIP (site-specific)
+- [ ] app.min.js        → example.com/app.min.js     SKIP (site-specific)
+```
+
+After user confirms, add the kept libraries to `tokens.json`:
+
+```json
+{
+  "externalCssUrls": [
+    "https://cdn.tailwindcss.com",
+    "https://cdn.jsdelivr.net/npm/daisyui@4"
+  ],
+  "externalJsUrls": [
+    "https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js",
+    "https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"
+  ]
+}
+```
+
+Both `externalCssUrls` and `externalJsUrls` are arrays — you can include as many libraries as needed. However, keep it reasonable (recommended max: 2 CSS + 2 JS per theme) to avoid performance impact. Each URL is injected as a separate `<link>` or `<script defer>` tag in the correct loading order.
+
+### tokens.json Extended Fields
+
+The tokens.json format now includes external library configuration:
+
+| Field | Type | Description |
+|---|---|---|
+| `externalCssUrls` | `string[]` | CDN URLs for external CSS frameworks |
+| `externalJsUrls` | `string[]` | CDN URLs for external JavaScript libraries |
+| `fontSizeXs` ~ `fontSizeDisplay` | `string` | (Optional) Typography scale tokens |
+| `fontWeightNormal` / `fontWeightBold` | `string` | (Optional) Font weight tokens |
+| `lineHeightTight` / `lineHeightNormal` / `lineHeightRelaxed` | `string` | (Optional) Line height tokens |
+| `zHeader` / `zDropdown` / `zModal` / `zTooltip` | `string` | (Optional) Z-index layer tokens |
+
+All new token fields are optional. When omitted, CloneThemeGenerator uses sensible defaults identical to the built-in starter theme.
+
+**Important guidelines:**
+- Never clone site-specific CSS/JS files (they contain business logic, tracking, or layout code that won't work in Bukit)
+- Replace self-hosted frameworks with their CDN equivalents (more reliable, cache-friendly)
+- For CSS: Bukit's `style.css` already handles layout/typography/content — only add framework CSS if the user wants utility classes (Tailwind) or component libraries (DaisyUI, Bootstrap)
+- For JS: lightweight libraries (Alpine, htmx, Swiper) are fine. Avoid cloning React/Vue/Angular apps — Bukit outputs static HTML
+- Maximum recommended: 2 CSS + 2 JS external libraries per theme
+
 ### Step 1.3: Extract SVG Icons
 
 ```javascript

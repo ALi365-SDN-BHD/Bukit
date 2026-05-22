@@ -60,6 +60,9 @@ public sealed record CloneTokens
     public string? ZModal { get; init; }
     public string? ZTooltip { get; init; }
 
+    public List<string>? ExternalCssUrls { get; init; }
+    public List<string>? ExternalJsUrls { get; init; }
+
     public static CloneTokens FromJson(string json)
     {
         if (string.IsNullOrWhiteSpace(json))

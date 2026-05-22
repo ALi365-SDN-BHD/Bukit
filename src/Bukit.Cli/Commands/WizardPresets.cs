@@ -113,6 +113,8 @@ public sealed record WizardPreset
             FontSize3xl = "2.5rem",
             LineHeightTight = "1.1",
             ZHeader = "100",
+            ExternalCssUrls = ["https://cdn.tailwindcss.com"],
+            ExternalJsUrls = ["https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"],
         },
         Layout = new CloneLayoutInfo
         {
@@ -206,6 +208,7 @@ public sealed record WizardPreset
             LineHeightTight = "1.1",
             ZHeader = "100",
             ZModal = "500",
+            ExternalCssUrls = ["https://cdn.tailwindcss.com"],
         },
         Layout = new CloneLayoutInfo
         {
