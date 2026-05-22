@@ -91,6 +91,9 @@ public static class DoctorCommand
 
         Console.WriteLine("✔ Templates parse");
 
+        Console.WriteLine();
+        CheckMarkdownResidualsInTemplates(layoutsDir, allHtmlFiles);
+
         try
         {
             Bukit.Engine.TemplateCapabilitiesResolver.ValidateManifest(layoutsDir);
@@ -111,6 +114,9 @@ public static class DoctorCommand
 
         Console.WriteLine();
         WarnUnusedParams(config, layoutsDir, allHtmlFiles);
+
+        Console.WriteLine();
+        CheckTemplateHardcoding(config, layoutsDir, allHtmlFiles);
 
         var themeRoot = Path.Combine(rootDir, "themes", config.Theme.Name ?? "starter");
         if (Directory.Exists(themeRoot))
@@ -191,11 +197,13 @@ public static class DoctorCommand
                 return 1;
             }
 
-            var ok = await CheckNotionAsync(token, config.Content.Notion.DatabaseId);
+            var (ok, dbProperties) = await CheckNotionAsync(token, config.Content.Notion.DatabaseId);
             if (!ok)
             {
                 return 1;
             }
+
+            CheckNotionDatabaseFields(config, dbProperties);
         }
 
         try
@@ -525,7 +533,7 @@ public static class DoctorCommand
         Console.WriteLine($"  - 建议在 layouts/bukit.templates.yaml 中声明 needs_page_content: {resolution.IncludeContent.ToString().ToLowerInvariant()}");
     }
 
-    private static async Task<bool> CheckNotionAsync(string token, string databaseId)
+    private static async Task<(bool Success, JsonElement? Properties)> CheckNotionAsync(string token, string databaseId)
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -540,16 +548,30 @@ public static class DoctorCommand
         catch (Exception ex)
         {
             Console.WriteLine($"✖ Notion request failed: {ex.Message}");
-            return false;
+            return (false, null);
         }
 
         if (response.IsSuccessStatusCode)
         {
             Console.WriteLine("✔ Notion database reachable");
-            return true;
+
+            try
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("properties", out var props))
+                {
+                    return (true, props);
+                }
+            }
+            catch
+            {
+            }
+
+            return (true, null);
         }
 
         Console.WriteLine($"✖ Notion database check failed: {(int)response.StatusCode} {response.ReasonPhrase}");
-        return false;
+        return (false, null);
     }
 }

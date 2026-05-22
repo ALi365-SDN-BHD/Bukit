@@ -99,6 +99,7 @@ public sealed class PluginSourceGenerator : ISourceGenerator
     static string GenerateSource(IReadOnlyList<INamedTypeSymbol> pluginTypes)
     {
         var builder = new StringBuilder();
+        builder.AppendLine("#if AOT");
         builder.AppendLine("using System.Collections.Generic;");
         builder.AppendLine("using Bukit.Engine.Plugins;");
         builder.AppendLine();
@@ -121,6 +122,7 @@ public sealed class PluginSourceGenerator : ISourceGenerator
         builder.AppendLine("        yield break;");
         builder.AppendLine("    }");
         builder.AppendLine("}");
+        builder.AppendLine("#endif");
 
         return builder.ToString();
     }
