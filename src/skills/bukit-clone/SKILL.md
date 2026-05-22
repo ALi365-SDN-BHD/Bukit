@@ -29,6 +29,14 @@ Clone any website's visual design and visible content as a Bukit theme plus Buki
 
 Use `bukit clone` when you need an exact visual replica of an existing live site. Use wizard/presets when you want a fresh theme in a known design style.
 
+## Multilingual Triggers / Pencetus Berbilang Bahasa
+
+| Language | Trigger Phrases |
+|----------|----------------|
+| 中文 | "克隆网站"、"复制网站设计"、"克隆网站设计"、"网站设计克隆"、"bukit clone" |
+| English | "clone website", "copy website design", "replicate design", "clone website appearance", "bukit clone" |
+| Bahasa Melayu | "klon laman web", "salin reka bentuk laman", "tiru reka bentuk", "klon penampilan laman" |
+
 ---
 
 ## Phase 1: Reconnaissance & Token Extraction

@@ -11,6 +11,14 @@ This skill bridges the gap between content schema (defined in site.yaml) and Scr
 
 **REQUIRED BACKGROUND:** Content schema in bukit-config. Template syntax in bukit-templating. Design tokens in bukit-design-tokens.
 
+## Multilingual Triggers / Pencetus Berbilang Bahasa
+
+| Language | Trigger Phrases |
+|----------|----------------|
+| 中文 | "Schema 生成模板"、"集合 schema"、"内容类型模板"、"字段映射模板" |
+| English | "schema driven template", "generate template from schema", "collection schema template", "field-aware template" |
+| Bahasa Melayu | "templat dipacu skema", "jana templat dari skema", "templat skema koleksi" |
+
 ## Workflow: Schema → Template
 
 ### Step 1: Parse Collection Schema

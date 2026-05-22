@@ -1,0 +1,38 @@
+{
+  "name": "bukit-agent-skills",
+  "version": "3.0.0",
+  "description": "Bukit static site generator skills for AI agents — configuration, theming, templating, Notion integration, SEO, GEO, deployment, website cloning, and more. 18 specialized skills covering all Bukit subsystems.",
+  "author": "Bukit",
+  "homepage": "https://github.com/ALi365-SDN-BHD/Bukit",
+  "repository": "https://github.com/ALi365-SDN-BHD/Bukit",
+  "skills": [
+    "src/skills/using-bukit/SKILL.md",
+    "src/skills/bukit-cli-reference/SKILL.md",
+    "src/skills/bukit-config/SKILL.md",
+    "src/skills/bukit-theme/SKILL.md",
+    "src/skills/bukit-templating/SKILL.md",
+    "src/skills/bukit-design-tokens/SKILL.md",
+    "src/skills/bukit-content-to-template/SKILL.md",
+    "src/skills/bukit-notion/SKILL.md",
+    "src/skills/bukit-routing/SKILL.md",
+    "src/skills/bukit-i18n/SKILL.md",
+    "src/skills/bukit-plugins-debug/SKILL.md",
+    "src/skills/bukit-deploy/SKILL.md",
+    "src/skills/bukit-clone/SKILL.md",
+    "src/skills/bukit-seo/SKILL.md",
+    "src/skills/bukit-geo/SKILL.md",
+    "src/skills/bukit-preview/SKILL.md",
+    "src/skills/bukit-dev/SKILL.md",
+    "src/skills/bukit-webhook/SKILL.md"
+  ],
+  "agents": [],
+  "mcpServers": [],
+  "dependencies": {
+    "optional": [
+      {
+        "name": "browser-mcp",
+        "description": "Required only for bukit-clone (website design cloning)"
+      }
+    ]
+  }
+}

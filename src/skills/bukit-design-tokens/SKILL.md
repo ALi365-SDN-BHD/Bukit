@@ -11,6 +11,14 @@ Design tokens are the visual atoms of a Bukit theme — CSS custom properties th
 
 **REQUIRED BACKGROUND:** Theme structure and CSS file location in bukit-theme. Template syntax in bukit-templating.
 
+## Multilingual Triggers / Pencetus Berbilang Bahasa
+
+| Language | Trigger Phrases |
+|----------|----------------|
+| 中文 | "设计令牌"、"CSS 变量"、"设计系统"、"调色板"、"深色模式"、"配色方案" |
+| English | "design tokens", "CSS variables", "design system", "color palette", "dark mode", "typography scale" |
+| Bahasa Melayu | "token reka bentuk", "pembolehubah CSS", "sistem reka bentuk", "palet warna", "mod gelap" |
+
 ## Quick Start: Complete Token System
 
 ```css
