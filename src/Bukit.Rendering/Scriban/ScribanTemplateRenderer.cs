@@ -8,6 +8,7 @@ using Bukit.Shared;
 using Bukit.Theme;
 using System.Collections.Concurrent;
 using System.Text;
+using System.Text.Json;
 
 namespace Bukit.Rendering.Scriban;
 
@@ -123,7 +124,7 @@ public sealed class ScribanTemplateRenderer
                 ComponentFunctions.ThemeComponents = _themeRegistry.Components;
                 ComponentFunctions.ThemeTemplateLoader = _templateLoader;
                 ComponentFunctions.ThemeParentGlobals = globals;
-                ComponentFunctions.ThemeRegistryRoot = _themeRegistry.ThemeRoot;
+                ComponentFunctions.ThemeRegistryRoot = Path.Combine(_themeRegistry.ThemeRoot, "layouts");
                 var compObj = new ScriptObject();
                 compObj.SetValue("render", new Func<string, object, string>(ComponentFunctions.RenderComponent), readOnly: true);
                 context.PushGlobal(new ScriptObject { ["comp"] = compObj });
@@ -371,7 +372,7 @@ internal sealed class SectionRenderHelper
             var propsObj = new ScriptObject();
             foreach (var kv in props)
             {
-                if (kv.Value is not null) propsObj.SetValue(kv.Key, kv.Value, readOnly: true);
+                if (kv.Value is not null) propsObj.SetValue(kv.Key, ConvertToScribanValue(kv.Value), readOnly: true);
             }
             so.SetValue("props", propsObj, readOnly: true);
         }
@@ -396,7 +397,17 @@ internal sealed class SectionRenderHelper
         }
 
         sectionContext.PushGlobal(sectionGlobals);
-        sectionContext.PushGlobal(_parentGlobals);
+
+        if (_themeRegistry.Components.Count > 0)
+        {
+            ComponentFunctions.ThemeComponents = _themeRegistry.Components;
+            ComponentFunctions.ThemeTemplateLoader = _templateLoader;
+            ComponentFunctions.ThemeParentGlobals = parentGlobals;
+            ComponentFunctions.ThemeRegistryRoot = Path.Combine(_themeRegistry.ThemeRoot, "layouts");
+            sectionGlobals.SetValue("render_component", new RenderComponentFunction(), readOnly: true);
+        }
+
+        sectionContext.PushGlobal(parentGlobals);
 
         return sectionTemplate.Render(sectionContext);
     }
@@ -408,6 +419,7 @@ internal sealed class SectionRenderHelper
         obj.SetValue("url", url ?? "", readOnly: true);
         obj.SetValue("slug", item.Slug, readOnly: true);
         obj.SetValue("publish_date", item.PublishAt.DateTime, readOnly: true);
+        obj.SetValue("publish_date_formatted", item.PublishAt.ToString("yyyy-MM-dd"), readOnly: true);
 
         if (item.Meta.TryGetValue("summary", out var s) && s is string summary)
         {
@@ -425,6 +437,23 @@ internal sealed class SectionRenderHelper
         }
 
         return obj;
+    }
+
+    private static object ConvertToScribanValue(object value)
+    {
+        if (value is JsonElement je)
+        {
+            return je.ValueKind switch
+            {
+                JsonValueKind.String => je.GetString() ?? "",
+                JsonValueKind.Number => je.GetInt64(),
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.Null => null!,
+                _ => je.ToString()
+            };
+        }
+        return value;
     }
 
     private static Dictionary<string, object?>? ExtractPropsFromScriptObject(ScriptObject so)
@@ -472,6 +501,65 @@ internal sealed class RenderSectionFunction : IScriptCustomFunction
     public ScriptVarParamKind VarParamKind => ScriptVarParamKind.None;
     public Type ReturnType => typeof(string);
     public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(string), "json");
+}
+
+internal sealed class RenderComponentFunction : IScriptCustomFunction
+{
+    public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        var name = arguments.Count > 0 ? arguments[0]?.ToString() ?? "" : "";
+        var data = arguments.Count > 1 ? arguments[1] : null;
+
+        if (data is ScriptObject so)
+        {
+            return RenderComponentWithObject(name, so);
+        }
+
+        return $"<!-- component: data is {(data?.GetType().FullName ?? "null")} not ScriptObject -->";
+    }
+
+    private static string RenderComponentWithObject(string name, ScriptObject data)
+    {
+        if (ComponentFunctions.ThemeComponents is null || !ComponentFunctions.ThemeComponents.TryGetValue(name, out var def))
+            return $"<!-- component not found: {name} -->";
+
+        var templatePath = !string.IsNullOrEmpty(ComponentFunctions.ThemeRegistryRoot)
+            ? Path.Combine(ComponentFunctions.ThemeRegistryRoot, def.Template)
+            : def.Template;
+
+        if (!File.Exists(templatePath))
+            return $"<!-- component template not found: {def.Template} -->";
+
+        var templateText = File.ReadAllText(templatePath);
+        var compTemplate = Template.Parse(templateText);
+        if (compTemplate.HasErrors) return $"<!-- component error: {compTemplate.Messages} -->";
+
+        var compContext = new TemplateContext
+        {
+            TemplateLoader = ComponentFunctions.ThemeTemplateLoader,
+            EnableRelaxedMemberAccess = true,
+            EnableRelaxedTargetAccess = true,
+            EnableNullIndexer = true
+        };
+
+        if (ComponentFunctions.ThemeParentGlobals is not null)
+            compContext.PushGlobal(ComponentFunctions.ThemeParentGlobals);
+
+        compContext.PushGlobal(data);
+
+        return compTemplate.Render(compContext);
+    }
+
+    public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        return new ValueTask<object?>(Invoke(context, callerContext, arguments, blockStatement));
+    }
+
+    public int RequiredParameterCount => 1;
+    public int ParameterCount => 2;
+    public ScriptVarParamKind VarParamKind => ScriptVarParamKind.None;
+    public Type ReturnType => typeof(string);
+    public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(string), index == 0 ? "name" : "data");
 }
 
 public sealed class SectionDataResolverAccessor

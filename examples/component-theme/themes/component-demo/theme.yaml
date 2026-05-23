@@ -30,17 +30,17 @@ page_templates:
 
 sections:
   hero:
-    template: layouts/sections/hero/hero.html
+    template: sections/hero/hero.html
     schema: sections/hero/schema.json
     description: Main hero section
   cardGrid:
-    template: layouts/sections/card-grid/card-grid.html
+    template: sections/card-grid/card-grid.html
     schema: sections/card-grid/schema.json
     description: Card grid section
 
 components:
   insightCard:
-    template: layouts/components/cards/insight-card.html
+    template: components/cards/insight-card.html
     props:
       title: string
       summary: string

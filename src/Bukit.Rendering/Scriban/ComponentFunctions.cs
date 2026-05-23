@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Theme;
 using Scriban;
 using Scriban.Runtime;
+using System.Text;
 
 namespace Bukit.Rendering.Scriban;
 
@@ -127,5 +128,64 @@ internal sealed class ComponentFunctions
         {
             return $"<!-- component error: {ex.Message} -->";
         }
+    }
+}
+
+internal static class ComponentUtilityFunctions
+{
+    /// <summary>
+    /// Formats a DateTimeOffset to a readable string.
+    /// Usage: {{ date | util.format_date '%Y-%m-%d' }}
+    /// </summary>
+    public static string FormatDate(object? input, string format = "yyyy-MM-dd")
+    {
+        if (input is DateTimeOffset dto) return dto.ToString(format);
+        if (input is DateTime dt) return dt.ToString(format);
+        if (input is string s && DateTimeOffset.TryParse(s, out var parsedDto)) return parsedDto.ToString(format);
+        if (input is string s2 && DateTime.TryParse(s2, out var parsedDt)) return parsedDt.ToString(format);
+        return input?.ToString() ?? "";
+    }
+
+    /// <summary>
+    /// Truncates text to a maximum length, appending ellipsis if truncated.
+    /// Usage: {{ text | util.truncate 100 }}
+    /// </summary>
+    public static string Truncate(object? input, int maxLength = 100)
+    {
+        if (input is null) return "";
+        var text = input.ToString() ?? "";
+        if (text.Length <= maxLength) return text;
+        return text[..maxLength].TrimEnd() + "…";
+    }
+
+    /// <summary>
+    /// Converts camelCase or snake_case to Title Case.
+    /// Usage: {{ 'my_section_name' | util.titleize }}
+    /// </summary>
+    public static string Titleize(object? input)
+    {
+        if (input is null) return "";
+        var text = input.ToString() ?? "";
+        text = text.Replace('_', ' ').Replace('-', ' ');
+        return string.Join(' ', text.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(word => word.Length > 0 ? char.ToUpper(word[0]) + word[1..].ToLower() : ""));
+    }
+
+    /// <summary>
+    /// Converts a string to a URL-friendly slug.
+    /// Usage: {{ 'My Page Title' | util.slugify }}
+    /// </summary>
+    public static string Slugify(object? input)
+    {
+        if (input is null) return "";
+        var text = input.ToString() ?? "";
+        text = text.ToLowerInvariant().Trim();
+        var sb = new StringBuilder();
+        foreach (var c in text)
+        {
+            if (char.IsLetterOrDigit(c) || c == '-') sb.Append(c);
+            else if (char.IsWhiteSpace(c) || c == '_') sb.Append('-');
+        }
+        return sb.ToString();
     }
 }

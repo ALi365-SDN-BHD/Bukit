@@ -14,5 +14,6 @@
     <!-- DESKTOP-REMOVED: Wasmtime is no longer supported (AOT only). -->
     <!-- <PackageVersion Include="Wasmtime" Version="34.0.2" /> -->
     <PackageVersion Include="Scriban" Version="7.2.0" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
   </ItemGroup>
 </Project>

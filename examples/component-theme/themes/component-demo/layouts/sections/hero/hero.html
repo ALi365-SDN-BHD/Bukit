@@ -1,16 +1,14 @@
 <section class="hero">
   <div class="hero-content">
     {{ if section.props.eyebrow }}
-    <p class="hero-eyebrow">{{ section.props.eyebrow }}</p>
+    <span class="hero-eyebrow">{{ section.props.eyebrow }}</span>
     {{ end }}
     <h2 class="hero-title">{{ section.props.title }}</h2>
     {{ if section.props.subtitle }}
     <p class="hero-subtitle">{{ section.props.subtitle }}</p>
     {{ end }}
     {{ if section.props.primary_button_text }}
-    <a href="{{ section.props.primary_button_url }}" class="btn-primary">
-      {{ section.props.primary_button_text }}
-    </a>
+    <a href="{{ section.props.primary_button_url }}" class="hero-cta">{{ section.props.primary_button_text }}</a>
     {{ end }}
   </div>
 </section>

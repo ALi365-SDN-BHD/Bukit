@@ -1,0 +1,96 @@
+using BenchmarkDotNet.Attributes;
+using Bukit.Content;
+using Bukit.Routing;
+using Bukit.Theme;
+
+namespace Bukit.Theme.Benchmarks;
+
+[MemoryDiagnoser]
+[ShortRunJob]
+public class SectionDataResolverBenchmarks
+{
+    private IReadOnlyList<(ContentItem Item, RouteInfo? Route)> _allPages = null!;
+    private PageSectionDefinition _sectionWithSource = null!;
+    private PageSectionDefinition _sectionWithFilter = null!;
+    private PageSectionDefinition _sectionWithSort = null!;
+
+    [Params(100, 1000, 5000)]
+    public int ItemCount { get; set; }
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        var items = new List<(ContentItem, RouteInfo?)>();
+        for (int i = 0; i < ItemCount; i++)
+        {
+            var isFeature = i % 3 == 0;
+            var item = new ContentItem(
+                $"post-{i}",
+                $"Post Title {i}",
+                $"post-title-{i}",
+                DateTimeOffset.UtcNow.AddDays(-i),
+                null,
+                new Dictionary<string, object>
+                {
+                    ["type"] = "posts",
+                    ["collections"] = new List<object> { "posts", "blog" }
+                },
+                new Dictionary<string, ContentField>
+                {
+                    ["featured"] = new("boolean", isFeature)
+                }
+            );
+            items.Add((item, (RouteInfo?)null));
+        }
+
+        _allPages = items;
+
+        _sectionWithSource = new PageSectionDefinition
+        {
+            Type = "cardGrid",
+            Source = "posts",
+            Limit = 10
+        };
+
+        _sectionWithFilter = new PageSectionDefinition
+        {
+            Type = "cardGrid",
+            Source = "posts",
+            Filter = new Dictionary<string, object?> { ["featured"] = true },
+            Limit = 5
+        };
+
+        _sectionWithSort = new PageSectionDefinition
+        {
+            Type = "cardGrid",
+            Source = "posts",
+            Sort = "title",
+            Limit = 20
+        };
+    }
+
+    [Benchmark]
+    public IReadOnlyList<(ContentItem, string?)> Resolve_WithSourceOnly()
+    {
+        return SectionDataResolver.Resolve(_sectionWithSource, _allPages);
+    }
+
+    [Benchmark]
+    public IReadOnlyList<(ContentItem, string?)> Resolve_WithSourceAndFilter()
+    {
+        return SectionDataResolver.Resolve(_sectionWithFilter, _allPages);
+    }
+
+    [Benchmark]
+    public IReadOnlyList<(ContentItem, string?)> Resolve_WithSourceAndSort()
+    {
+        return SectionDataResolver.Resolve(_sectionWithSort, _allPages);
+    }
+
+    [Benchmark]
+    public IReadOnlyList<(ContentItem, string?)> Resolve_AllPages()
+    {
+        var section = new PageSectionDefinition { Type = "cardGrid", Source = "*" };
+        return SectionDataResolver.Resolve(section, _allPages);
+    }
+}

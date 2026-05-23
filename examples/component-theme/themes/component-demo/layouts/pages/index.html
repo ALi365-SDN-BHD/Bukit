@@ -3,4 +3,6 @@
 <h1>Component Theme Demo</h1>
 <p>This page demonstrates Bukit's componentized theme system.</p>
 
-{{ include "sections/hero/hero.html" }}
+{{ sections_json = '[{"type":"hero","props":{"title":"Build beautiful static sites","subtitle":"Component-driven themes with schema validation","primary_button_text":"Explore","primary_button_url":"/"}}, {"type":"cardGrid","source":"posts","limit":3,"sort":"publishAt desc"}]' }}
+
+{{ render_section sections_json }}

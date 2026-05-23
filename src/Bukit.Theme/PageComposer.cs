@@ -4,24 +4,99 @@ namespace Bukit.Theme;
 
 public static class PageComposer
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
     public static List<PageSectionDefinition> ParseSections(string? sectionsJson)
     {
         if (string.IsNullOrWhiteSpace(sectionsJson)) return [];
 
         try
         {
-            return JsonSerializer.Deserialize<List<PageSectionDefinition>>(sectionsJson, JsonOptions) ?? [];
+            using var doc = JsonDocument.Parse(sectionsJson);
+            var root = doc.RootElement;
+
+            if (root.ValueKind == JsonValueKind.Object)
+            {
+                var single = ParseSectionElement(root);
+                return single is not null ? [single] : [];
+            }
+
+            if (root.ValueKind != JsonValueKind.Array) return [];
+
+            var result = new List<PageSectionDefinition>();
+            foreach (var element in root.EnumerateArray())
+            {
+                var section = ParseSectionElement(element);
+                if (section is not null) result.Add(section);
+            }
+            return result;
         }
         catch
         {
             return [];
         }
+    }
+
+    private static PageSectionDefinition? ParseSectionElement(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object) return null;
+
+        if (!element.TryGetProperty("type", out var typeProp) || typeProp.ValueKind != JsonValueKind.String)
+            return null;
+
+        var section = new PageSectionDefinition { Type = typeProp.GetString()! };
+
+        if (element.TryGetProperty("variant", out var v) && v.ValueKind == JsonValueKind.String)
+            section.Variant = v.GetString();
+
+        if (element.TryGetProperty("props", out var propsElement) && propsElement.ValueKind == JsonValueKind.Object)
+            section.Props = ParseProps(propsElement);
+
+        if (element.TryGetProperty("source", out var src) && src.ValueKind == JsonValueKind.String)
+            section.Source = src.GetString();
+
+        if (element.TryGetProperty("filter", out var filterElement) && filterElement.ValueKind == JsonValueKind.Object)
+            section.Filter = ParseFilter(filterElement);
+
+        if (element.TryGetProperty("limit", out var limitProp) && limitProp.TryGetInt32(out var limit))
+            section.Limit = limit;
+
+        if (element.TryGetProperty("sort", out var sortProp) && sortProp.ValueKind == JsonValueKind.String)
+            section.Sort = sortProp.GetString();
+
+        return section;
+    }
+
+    private static Dictionary<string, object?> ParseProps(JsonElement props)
+    {
+        var dict = new Dictionary<string, object?>();
+        foreach (var prop in props.EnumerateObject())
+        {
+            dict[prop.Name] = JsonElementToObject(prop.Value);
+        }
+        return dict;
+    }
+
+    private static Dictionary<string, object?> ParseFilter(JsonElement filter)
+    {
+        var dict = new Dictionary<string, object?>();
+        foreach (var prop in filter.EnumerateObject())
+        {
+            dict[prop.Name] = JsonElementToObject(prop.Value);
+        }
+        return dict;
+    }
+
+    private static object? JsonElementToObject(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number when element.TryGetInt64(out var l) => l,
+            JsonValueKind.Number => element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => element.GetRawText()
+        };
     }
 
     public static List<PageSectionDefinition> Compose(List<PageSectionDefinition> pageSections, IReadOnlyDictionary<string, ThemeSectionDefinition> themeSections)

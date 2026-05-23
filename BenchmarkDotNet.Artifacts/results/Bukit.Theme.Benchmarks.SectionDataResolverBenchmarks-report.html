@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Bukit.Theme.Benchmarks.SectionDataResolverBenchmarks-20260524-012602</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, macOS Sequoia 15.7.7 (24G720) [Darwin 24.6.0]
+Apple M2 Pro, 1 CPU, 10 logical and 10 physical cores
+.NET SDK 10.0.100
+  [Host]   : .NET 10.0.0 (10.0.25.52411), Arm64 RyuJIT AdvSIMD
+  ShortRun : .NET 10.0.0 (10.0.25.52411), Arm64 RyuJIT AdvSIMD
+</code></pre>
+<pre><code>Job=ShortRun  IterationCount=3  LaunchCount=1  
+WarmupCount=3  
+</code></pre>
+
+<table>
+<thead><tr><th>Method               </th><th>ItemCount</th><th>Mean  </th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Gen1</th><th>Gen2</th><th>Allocated</th>
+</tr>
+</thead><tbody><tr><td>Resolve_WithSourceOnly</td><td>100</td><td>8.376 &mu;s</td><td>1.6515 &mu;s</td><td>0.0905 &mu;s</td><td>2.9449</td><td>0.0305</td><td>-</td><td>24.11 KB</td>
+</tr><tr><td>Resolve_WithSourceAndFilter</td><td>100</td><td>10.817 &mu;s</td><td>3.4314 &mu;s</td><td>0.1881 &mu;s</td><td>3.3569</td><td>0.0153</td><td>-</td><td>27.48 KB</td>
+</tr><tr><td>Resolve_WithSourceAndSort</td><td>100</td><td>17.716 &mu;s</td><td>9.4490 &mu;s</td><td>0.5179 &mu;s</td><td>3.5400</td><td>0.0305</td><td>-</td><td>28.93 KB</td>
+</tr><tr><td>Resolve_AllPages</td><td>100</td><td>1.289 &mu;s</td><td>0.0813 &mu;s</td><td>0.0045 &mu;s</td><td>0.5360</td><td>0.0038</td><td>-</td><td>4.38 KB</td>
+</tr><tr><td>Resolve_WithSourceOnly</td><td>1000</td><td>86.220 &mu;s</td><td>22.5237 &mu;s</td><td>1.2346 &mu;s</td><td>27.8320</td><td>1.7090</td><td>-</td><td>227.96 KB</td>
+</tr><tr><td>Resolve_WithSourceAndFilter</td><td>1000</td><td>105.495 &mu;s</td><td>26.7290 &mu;s</td><td>1.4651 &mu;s</td><td>32.5928</td><td>1.2207</td><td>-</td><td>266.55 KB</td>
+</tr><tr><td>Resolve_WithSourceAndSort</td><td>1000</td><td>211.364 &mu;s</td><td>62.4134 &mu;s</td><td>3.4211 &mu;s</td><td>33.2031</td><td>2.1973</td><td>-</td><td>271.45 KB</td>
+</tr><tr><td>Resolve_AllPages</td><td>1000</td><td>10.129 &mu;s</td><td>5.3492 &mu;s</td><td>0.2932 &mu;s</td><td>3.9673</td><td>0.2289</td><td>-</td><td>32.45 KB</td>
+</tr><tr><td>Resolve_WithSourceOnly</td><td>5000</td><td>643.634 &mu;s</td><td>249.8552 &mu;s</td><td>13.6954 &mu;s</td><td>168.9453</td><td>60.5469</td><td>34.1797</td><td>1233.3 KB</td>
+</tr><tr><td>Resolve_WithSourceAndFilter</td><td>5000</td><td>517.398 &mu;s</td><td>180.6153 &mu;s</td><td>9.9001 &mu;s</td><td>160.1563</td><td>17.5781</td><td>-</td><td>1314.59 KB</td>
+</tr><tr><td>Resolve_WithSourceAndSort</td><td>5000</td><td>1,407.176 &mu;s</td><td>487.1151 &mu;s</td><td>26.7004 &mu;s</td><td>195.3125</td><td>62.5000</td><td>35.1563</td><td>1448.67 KB</td>
+</tr><tr><td>Resolve_AllPages</td><td>5000</td><td>110.767 &mu;s</td><td>147.0116 &mu;s</td><td>8.0582 &mu;s</td><td>34.1797</td><td>19.1650</td><td>18.5547</td><td>256.61 KB</td>
+</tr></tbody></table>
+</body>
+</html>
