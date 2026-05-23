@@ -1,7 +1,9 @@
 using Scriban;
 using Scriban.Runtime;
+using Scriban.Syntax;
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Routing;
 using Bukit.Shared;
 using Bukit.Theme;
 using System.Collections.Concurrent;
@@ -21,13 +23,14 @@ public sealed class ScribanTemplateRenderer
     private readonly SectionSchemaValidator? _schemaValidator;
     private readonly SectionDataResolverAccessor? _dataResolver;
     private readonly string _componentValidation;
+    private readonly IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? _allPages;
 
     public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null)
-        : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, null, null, null, "off")
+        : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, null, null, null, "off", null)
     {
     }
 
-    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation)
+    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentItem, RouteInfo?)>? allPages = null)
     {
         _layoutsDir = layoutsDir;
         _templateLoader = new FileTemplateLoader(_layoutsDir, parentLayoutsDir, userLayoutsDir);
@@ -37,6 +40,7 @@ public sealed class ScribanTemplateRenderer
         _schemaValidator = schemaValidator;
         _dataResolver = dataResolver;
         _componentValidation = componentValidation;
+        _allPages = allPages;
     }
 
     public string RenderPage(string templateRelativePath, PageModel model)
@@ -107,8 +111,11 @@ public sealed class ScribanTemplateRenderer
 
         if (_themeRegistry is not null)
         {
+            var sectionHelpers = new SectionRenderHelper(
+                _themeRegistry, _schemaValidator, _componentValidation,
+                _templateLoader, globals, _allPages);
             var sectionObj = new ScriptObject();
-            sectionObj.SetValue("render_section", new Func<object, string, string>(CreateRenderSectionFunc(globals)), readOnly: true);
+            sectionObj.SetValue("render_section", new RenderSectionFunction(sectionHelpers), readOnly: true);
             context.PushGlobal(sectionObj);
 
             if (_themeRegistry.Components.Count > 0)
@@ -203,92 +210,268 @@ public sealed class ScribanTemplateRenderer
     private readonly record struct FileSignature(DateTime LastWriteTimeUtc, long Length);
 
     private sealed record CachedTemplate(FileSignature Signature, Template Template, string? LayoutTemplateRelativePath);
+}
 
-    private Func<object, string, string> CreateRenderSectionFunc(ScriptObject parentGlobals)
+internal sealed class SectionRenderHelper
+{
+    private readonly ThemeComponentRegistry _themeRegistry;
+    private readonly SectionSchemaValidator? _schemaValidator;
+    private readonly string _componentValidation;
+    private readonly FileTemplateLoader _templateLoader;
+    private readonly ScriptObject _parentGlobals;
+    private readonly IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? _allPages;
+
+    internal ScriptObject ParentGlobals => _parentGlobals;
+
+    public SectionRenderHelper(
+        ThemeComponentRegistry themeRegistry,
+        SectionSchemaValidator? schemaValidator,
+        string componentValidation,
+        FileTemplateLoader templateLoader,
+        ScriptObject parentGlobals,
+        IReadOnlyList<(ContentItem, RouteInfo?)>? allPages)
     {
-        return (sectionObj, extra) =>
+        _themeRegistry = themeRegistry;
+        _schemaValidator = schemaValidator;
+        _componentValidation = componentValidation;
+        _templateLoader = templateLoader;
+        _parentGlobals = parentGlobals;
+        _allPages = allPages;
+    }
+
+    public string render_section(string jsonInput)
+    {
+        try
         {
-            try
+            if (string.IsNullOrWhiteSpace(jsonInput)) return "<!-- render_section: empty input -->";
+
+            jsonInput = jsonInput.Trim();
+            if (!jsonInput.StartsWith('[') && !jsonInput.StartsWith('{'))
+                return "<!-- render_section: input is not valid JSON -->";
+
+            var parsed = PageComposer.ParseSections(jsonInput);
+            if (parsed.Count == 0) return "<!-- render_section: no sections parsed -->";
+
+            var composed = PageComposer.Compose(parsed, _themeRegistry.Sections);
+
+            var sb = new StringBuilder();
+            foreach (var sectionDef in composed)
             {
-                if (sectionObj is not ScriptObject so) return "<!-- render_section: invalid section object -->";
+                sb.Append(RenderOneSection(sectionDef));
+            }
 
-                var sectionType = so.ContainsKey("type") ? so["type"]?.ToString() : null;
-                if (string.IsNullOrEmpty(sectionType)) return "<!-- render_section: missing type -->";
+            return sb.ToString();
+        }
+        catch (Exception ex)
+        {
+            return $"<!-- render_section error: {ex.Message} -->";
+        }
+    }
 
-                var sectionDef = _themeRegistry!.ResolveSection(sectionType);
-                if (sectionDef is null) return $"<!-- section not found: {sectionType} -->";
+    public string RenderScriptObjectSection(ScriptObject so, ScriptObject parentGlobals)
+    {
+        try
+        {
+            var sectionType = so.ContainsKey("type") ? so["type"]?.ToString() : null;
+            if (string.IsNullOrEmpty(sectionType)) return "<!-- render_section: missing type -->";
 
-                var variant = so.ContainsKey("variant") ? so["variant"]?.ToString() : null;
-                var templatePath = _themeRegistry.ResolveSectionTemplate(sectionType, variant);
-                if (templatePath is null || !File.Exists(templatePath)) return $"<!-- section template not found: {sectionType} -->";
+            var sectionDef = _themeRegistry.ResolveSection(sectionType);
+            if (sectionDef is null) return $"<!-- section not found: {sectionType} -->";
 
-                var props = ExtractProps(so);
+            var variant = so.ContainsKey("variant") ? so["variant"]?.ToString() : null;
+            var templatePath = _themeRegistry.ResolveSectionTemplate(sectionType, variant);
+            if (templatePath is null || !File.Exists(templatePath)) return $"<!-- section template not found: {sectionType} -->";
 
+            var props = ExtractPropsFromScriptObject(so);
+
+            if (_schemaValidator is not null)
+            {
                 var validationMode = _componentValidation switch
                 {
                     "strict" => ValidationMode.Strict,
                     "warn" => ValidationMode.Warn,
                     _ => ValidationMode.Off
                 };
-
-                if (_schemaValidator is not null && validationMode != ValidationMode.Off)
+                if (validationMode != ValidationMode.Off)
                 {
                     _schemaValidator.Validate(sectionType, sectionDef, props);
                 }
-
-                var sectionTemplateText = File.ReadAllText(templatePath);
-                var sectionTemplate = Template.Parse(sectionTemplateText, templatePath);
-                if (sectionTemplate.HasErrors) return $"<!-- section template error: {sectionTemplate.Messages} -->";
-
-                var sectionContext = new TemplateContext
-                {
-                    TemplateLoader = _templateLoader,
-                    EnableRelaxedMemberAccess = true,
-                    EnableRelaxedTargetAccess = true,
-                    EnableNullIndexer = true
-                };
-
-                var sectionGlobals = new ScriptObject();
-                sectionGlobals.SetValue("section", so, readOnly: true);
-                if (props is not null)
-                {
-                    var propsObj = new ScriptObject();
-                    foreach (var kv in props)
-                    {
-                        if (kv.Value is not null) propsObj.SetValue(kv.Key, kv.Value, readOnly: true);
-                    }
-                    sectionGlobals.SetValue("props", propsObj, readOnly: true);
-                }
-                if (so.ContainsKey("items"))
-                {
-                    sectionGlobals.SetValue("items", so["items"], readOnly: true);
-                }
-
-                sectionContext.PushGlobal(sectionGlobals);
-                sectionContext.PushGlobal(parentGlobals);
-
-                return sectionTemplate.Render(sectionContext);
             }
-            catch (Exception ex)
+
+            var sectionDefForRender = new PageSectionDefinition
             {
-                return $"<!-- render_section error: {ex.Message} -->";
-            }
-        };
-    }
+                Type = sectionType,
+                Variant = variant,
+                Props = props ?? new Dictionary<string, object?>()
+            };
 
-    private static Dictionary<string, object?>? ExtractProps(ScriptObject so)
-    {
-        if (so.ContainsKey("props") && so["props"] is ScriptObject propsObj)
-        {
-            var dict = new Dictionary<string, object?>();
-            foreach (var key in propsObj.GetMembers())
-            {
-                dict[key] = propsObj[key] as object;
-            }
-            return dict;
+            if (so.ContainsKey("limit") && int.TryParse(so["limit"]?.ToString(), out var l))
+                sectionDefForRender.Limit = l;
+            if (so.ContainsKey("sort") && so["sort"] is string s)
+                sectionDefForRender.Sort = s;
+
+            return RenderOneSectionBase(sectionDefForRender, templatePath, sectionDef, parentGlobals);
         }
-        return null;
+        catch (Exception ex)
+        {
+            return $"<!-- render_section error: {ex.Message} -->";
+        }
     }
+
+    private string RenderOneSection(PageSectionDefinition sectionDef)
+    {
+        var sectionType = sectionDef.Type;
+        if (string.IsNullOrEmpty(sectionType)) return "<!-- render_section: missing type -->";
+
+        var themeSection = _themeRegistry.ResolveSection(sectionType);
+        if (themeSection is null) return $"<!-- section not found: {sectionType} -->";
+
+        var templatePath = _themeRegistry.ResolveSectionTemplate(sectionType, sectionDef.Variant);
+        if (templatePath is null || !File.Exists(templatePath)) return $"<!-- section template not found: {sectionType} -->";
+
+        return RenderOneSectionBase(sectionDef, templatePath, themeSection, _parentGlobals);
+    }
+
+    private string RenderOneSectionBase(PageSectionDefinition sectionDef, string templatePath, ThemeSectionDefinition themeSection, ScriptObject parentGlobals)
+    {
+        var sectionType = sectionDef.Type;
+        var props = sectionDef.Props;
+
+        if (_schemaValidator is not null)
+        {
+            var validationMode = _componentValidation switch
+            {
+                "strict" => ValidationMode.Strict,
+                "warn" => ValidationMode.Warn,
+                _ => ValidationMode.Off
+            };
+            if (validationMode != ValidationMode.Off)
+            {
+                _schemaValidator.Validate(sectionType, themeSection, props);
+            }
+        }
+
+        var sectionTemplateText = File.ReadAllText(templatePath);
+        var sectionTemplate = Template.Parse(sectionTemplateText, templatePath);
+        if (sectionTemplate.HasErrors) return $"<!-- section template error: {sectionTemplate.Messages} -->";
+
+        var sectionContext = new TemplateContext
+        {
+            TemplateLoader = _templateLoader,
+            EnableRelaxedMemberAccess = true,
+            EnableRelaxedTargetAccess = true,
+            EnableNullIndexer = true
+        };
+
+        var so = new ScriptObject();
+        so.SetValue("type", sectionDef.Type, readOnly: true);
+        if (sectionDef.Variant is not null) so.SetValue("variant", sectionDef.Variant, readOnly: true);
+        if (props is not null)
+        {
+            var propsObj = new ScriptObject();
+            foreach (var kv in props)
+            {
+                if (kv.Value is not null) propsObj.SetValue(kv.Key, kv.Value, readOnly: true);
+            }
+            so.SetValue("props", propsObj, readOnly: true);
+        }
+        if (sectionDef.Limit is not null) so.SetValue("limit", sectionDef.Limit, readOnly: true);
+        if (sectionDef.Sort is not null) so.SetValue("sort", sectionDef.Sort, readOnly: true);
+
+        var sectionGlobals = new ScriptObject();
+        sectionGlobals.SetValue("section", so, readOnly: true);
+
+        if (!string.IsNullOrWhiteSpace(sectionDef.Source) && _allPages is not null)
+        {
+            var resolved = SectionDataResolver.Resolve(sectionDef, _allPages);
+            if (resolved.Count > 0)
+            {
+                var itemsArray = new ScriptArray();
+                foreach (var (item, url) in resolved)
+                {
+                    itemsArray.Add(ContentItemToScriptObject(item, url));
+                }
+                sectionGlobals.SetValue("items", itemsArray, readOnly: true);
+            }
+        }
+
+        sectionContext.PushGlobal(sectionGlobals);
+        sectionContext.PushGlobal(_parentGlobals);
+
+        return sectionTemplate.Render(sectionContext);
+    }
+
+    private static ScriptObject ContentItemToScriptObject(ContentItem item, string? url)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("title", item.Title, readOnly: true);
+        obj.SetValue("url", url ?? "", readOnly: true);
+        obj.SetValue("slug", item.Slug, readOnly: true);
+        obj.SetValue("publish_date", item.PublishAt.DateTime, readOnly: true);
+
+        if (item.Meta.TryGetValue("summary", out var s) && s is string summary)
+        {
+            obj.SetValue("summary", summary, readOnly: true);
+        }
+
+        if (item.Fields is not null)
+        {
+            var fieldsObj = new ScriptObject();
+            foreach (var kv in item.Fields)
+            {
+                if (kv.Value.Value is not null) fieldsObj.SetValue(kv.Key, kv.Value.Value, readOnly: true);
+            }
+            obj.SetValue("fields", fieldsObj, readOnly: true);
+        }
+
+        return obj;
+    }
+
+    private static Dictionary<string, object?>? ExtractPropsFromScriptObject(ScriptObject so)
+    {
+        if (!so.ContainsKey("props") || so["props"] is not ScriptObject propsObj) return null;
+
+        var dict = new Dictionary<string, object?>();
+        foreach (var key in propsObj.GetMembers())
+        {
+            dict[key] = propsObj[key] as object;
+        }
+        return dict.Count > 0 ? dict : null;
+    }
+}
+
+internal sealed class RenderSectionFunction : IScriptCustomFunction
+{
+    private readonly SectionRenderHelper _helper;
+
+    public RenderSectionFunction(SectionRenderHelper helper)
+    {
+        _helper = helper;
+    }
+
+    public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        var firstArg = arguments.Count > 0 ? arguments[0] : null;
+
+        if (firstArg is ScriptObject so)
+        {
+            return _helper.RenderScriptObjectSection(so, _helper.ParentGlobals);
+        }
+
+        var json = firstArg?.ToString() ?? "";
+        return _helper.render_section(json);
+    }
+
+    public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        return new ValueTask<object?>(Invoke(context, callerContext, arguments, blockStatement));
+    }
+
+    public int RequiredParameterCount => 1;
+    public int ParameterCount => 1;
+    public ScriptVarParamKind VarParamKind => ScriptVarParamKind.None;
+    public Type ReturnType => typeof(string);
+    public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(string), "json");
 }
 
 public sealed class SectionDataResolverAccessor

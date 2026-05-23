@@ -1,6 +1,8 @@
 using Bukit.Config;
+using Bukit.Content;
 using Bukit.Rendering;
 using Bukit.Rendering.Scriban;
+using Bukit.Routing;
 using Bukit.Theme;
 
 namespace Bukit.Engine;
@@ -14,9 +16,9 @@ internal sealed class ScribanTemplateRendererAdapter : ITemplateRenderer
         _inner = new ScribanTemplateRenderer(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir);
     }
 
-    internal ScribanTemplateRendererAdapter(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? registry, SectionSchemaValidator? validator, SectionDataResolverAccessor? dataResolver, string componentValidation)
+    internal ScribanTemplateRendererAdapter(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? registry, SectionSchemaValidator? validator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentItem, RouteInfo?)>? allPages = null)
     {
-        _inner = new ScribanTemplateRenderer(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, registry, validator, dataResolver, componentValidation);
+        _inner = new ScribanTemplateRenderer(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, registry, validator, dataResolver, componentValidation, allPages);
     }
 
     public string RenderPage(string templateRelativePath, PageModel model) => _inner.RenderPage(templateRelativePath, model);

@@ -3,4 +3,14 @@
 <h1>Component Theme Demo</h1>
 <p>This page demonstrates Bukit's componentized theme system.</p>
 
-{{ include "sections/hero/hero.html" }}
+{{-- 从 page.fields.sections JSON 字符串渲染 page sections 数组 --}}
+{{ if page.fields.sections }}
+  {{ render_section page.fields.sections.value }}
+{{ else }}
+  <section class="hero">
+    <div class="hero-content">
+      <h2 class="hero-title">Component Theme Demo</h2>
+      <p class="hero-subtitle">Add a 'sections' field to your content to compose sections dynamically.</p>
+    </div>
+  </section>
+{{ end }}

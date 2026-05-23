@@ -10,7 +10,9 @@
 
 ## 重要说明
 
-`PageComposer` 类已经可用，但当前**不会自动接入构建管线**。Sections 是在渲染时由 `render_section` 函数即时处理的。如需在构建阶段预合并 section 数据，可以在自定义插件中调用 `PageComposer.Compose()`。
+`PageComposer` 类已接入渲染管线。当 `page.fields.sections` 包含 JSON 字符串时，模板中可直接使用 `{{ render_section page.fields.sections.value }}` 渲染整个 sections 数组。`render_section` 会自动调用 `PageComposer.ParseSections()` → `Compose()` 完成 JSON 解析和主题默认值合并。
+
+如需在构建阶段预合并 section 数据（例如做 SEO 分析），可以在自定义插件中调用 `PageComposer.Compose()`。
 
 ## JSON 格式（page.fields.sections）
 
@@ -63,6 +65,30 @@
 5. 合并 data binding：页面级 `source`/`filter`/`limit`/`sort` 优先于主题默认值
 
 ## 数据绑定
+
+当 section 声明中包含 `source` 字段时，`render_section` 会自动调用 `SectionDataResolver.Resolve()` 填充 `section.items`。数据绑定管线已端到端连接，无需手动在模板中实现过滤逻辑。
+
+**数据绑定字段**（section JSON 或 theme.yaml `data` 中均可用）：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `source` | string | 数据源（`"posts"`、`"type:post"`、`"collection:blog"`、`"*"`） |
+| `filter` | dict | 过滤条件（如 `{"featured": true}`） |
+| `limit` | int | 最大条目数 |
+| `sort` | string | 排序（如 `"publishAt desc"`、`"title"`） |
+
+**示例**——section 自动解析 "posts" 并注入 `section.items`：
+
+```json
+{ "type": "cardGrid", "source": "posts", "limit": 6, "sort": "publishAt desc" }
+```
+
+Section 模板：
+```scriban
+{{ for item in items }}
+  {{ render_component "insightCard" item }}
+{{ end }}
+```
 
 Section 的数据绑定支持两级声明：
 

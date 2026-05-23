@@ -17,6 +17,8 @@ public static class ThemeDoctorCommand
         CheckExtends(themeRoot, manifest, issues);
         CheckTokens(themeRoot, manifest, issues);
         CheckUnusedComponents(manifest, issues);
+        CheckSchemaRequiredFields(themeRoot, manifest, issues);
+        CheckHardcodedText(themeRoot, manifest, registry, issues);
 
         var errors = issues.Any(i => i.StartsWith("✗") || i.StartsWith("✘"));
         var warnings = issues.Any(i => i.StartsWith("⚠") || i.StartsWith("◌"));
@@ -229,6 +231,67 @@ public static class ThemeDoctorCommand
         if (manifest.Components is null || manifest.Components.Count == 0) return;
 
         issues.Add("◌ Unused component detection: not yet implemented");
+    }
+
+    private static void CheckSchemaRequiredFields(string themeRoot, ThemeManifestV2 manifest, List<string> issues)
+    {
+        if (manifest.Sections is null || manifest.Sections.Count == 0) return;
+
+        foreach (var (name, sDef) in manifest.Sections)
+        {
+            if (string.IsNullOrEmpty(sDef.Schema)) continue;
+
+            var schemaPath = sDef.Schema;
+            if (!Path.IsPathRooted(schemaPath))
+                schemaPath = Path.Combine(themeRoot, schemaPath);
+
+            var schema = SectionSchema.Load(schemaPath);
+            if (schema?.Props is null) continue;
+
+            var requiredProps = schema.Props.Where(p => p.Value.Required).Select(p => p.Key).ToList();
+            if (requiredProps.Count > 0)
+            {
+                issues.Add($"◌ section '{name}': required props: [{string.Join(", ", requiredProps)}]");
+            }
+        }
+    }
+
+    private static void CheckHardcodedText(string themeRoot, ThemeManifestV2 manifest, ThemeComponentRegistry registry, List<string> issues)
+    {
+        var sectionNames = registry.GetAllSectionNames().ToList();
+        if (sectionNames.Count == 0) return;
+
+        foreach (var name in sectionNames)
+        {
+            var templatePath = registry.ResolveSectionTemplate(name);
+            if (templatePath is null || !File.Exists(templatePath)) continue;
+
+            try
+            {
+                var content = File.ReadAllText(templatePath);
+
+                var cnCount = System.Text.RegularExpressions.Regex.Matches(content, @"[\u4e00-\u9fff]").Count;
+                if (cnCount > 0)
+                {
+                    issues.Add($"◌ section '{name}': template contains {cnCount} Chinese character(s) — consider parameterizing");
+                }
+
+                var phoneNum = System.Text.RegularExpressions.Regex.Match(content, @"\d{3}[-.\s]?\d{4}[-.\s]?\d{4}");
+                if (phoneNum.Success)
+                {
+                    issues.Add($"◌ section '{name}': template may contain hardcoded phone number '{phoneNum.Value}'");
+                }
+
+                var emailMatch = System.Text.RegularExpressions.Regex.Match(content, @"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b");
+                if (emailMatch.Success)
+                {
+                    issues.Add($"◌ section '{name}': template may contain hardcoded email '{emailMatch.Value}'");
+                }
+            }
+            catch
+            {
+            }
+        }
     }
 
     public static void PrintReport(DoctorResult result)

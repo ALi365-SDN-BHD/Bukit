@@ -230,9 +230,6 @@ public sealed class SiteEngine
         splitItemsStopwatch.Stop();
         variantStageMetrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
 
-        ITemplateRenderer renderer = themeRegistry is not null
-            ? new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir, themeRegistry, schemaValidator, null, config.Theme.ComponentValidation)
-            : new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir);
         var collectionRules = BuildCollectionRules(config.Site);
 
         var routeGenerationStopwatch = Stopwatch.StartNew();
@@ -242,6 +239,14 @@ public sealed class SiteEngine
         RouteInventoryValidator.ValidateContentRoutes(routed);
         routeGenerationStopwatch.Stop();
         variantStageMetrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
+
+        IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? allPagesForSections = themeRegistry is not null
+            ? routed.Select(x => ((ContentItem)x.Item, (RouteInfo?)x.Route)).ToList()
+            : null;
+
+        ITemplateRenderer renderer = themeRegistry is not null
+            ? new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir, themeRegistry, schemaValidator, null, config.Theme.ComponentValidation, allPagesForSections)
+            : new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir);
 
         var pluginContext = new BuildContext
         {
