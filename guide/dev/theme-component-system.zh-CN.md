@@ -8,6 +8,10 @@
 - [Section Schema 参考](./section-schema.zh-CN.md)
 - [Theme Doctor CLI](./theme-doctor.zh-CN.md)
 - [Design Tokens 参考](./design-tokens.zh-CN.md)
+- [Section 插件系统](./section-plugin.zh-CN.md) — ISectionPlugin 接口
+- [Git 主题源](./theme-source.zh-CN.md) — 从 Git 拉取主题
+- [组件工具函数](./component-utilities.zh-CN.md) — util.format_date 等
+- [性能基准测试](./performance-benchmarks.zh-CN.md)
 
 示例主题：
 - `examples/component-theme/themes/component-demo/`

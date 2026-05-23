@@ -184,3 +184,26 @@ sections:
   {{ end }}
 {{ end }}
 ```
+
+## 完整渲染管线
+
+从 JSON 到 HTML 的完整数据流：
+
+```
+page.fields.sections (JSON 字符串)
+  → render_section 函数调用
+    → PageComposer.ParseSections()      解析 JSON → List<PageSectionDefinition>
+    → PageComposer.Compose()             合并 theme.yaml 默认值 (props + data)
+    → SectionDataResolver.Resolve()      自动查询 source/filter/limit/sort
+    → SectionSchemaValidator.Validate()  校验 props (warn/strict/off)
+    → Section Plugin BeforeRender hook   (可选) 插件修改 props
+    → Scriban 模板渲染
+    → Section Plugin AfterRender hook    (可选) 插件后处理 HTML
+    → 输出 HTML
+```
+
+### 相关文档
+
+- [Section 插件系统](section-plugin.zh-CN.md) — ISectionPlugin 接口及 BeforeRender/AfterRender hook
+- [Section Schema 参考](section-schema.zh-CN.md) — schema.json 格式及校验模式
+- [组件工具函数](component-utilities.zh-CN.md) — util.format_date / truncate / titleize / slugify

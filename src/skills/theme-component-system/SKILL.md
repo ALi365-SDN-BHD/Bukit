@@ -532,3 +532,141 @@ The V2 componentized theme system coexists with V1 themes:
 - [bukit-design-tokens](file:///Users/ali/mydev/Git/Github/Bukit/src/skills/bukit-design-tokens/SKILL.md) — Design token system, CSS custom properties, color palettes, typography scales
 - [bukit-config](file:///Users/ali/mydev/Git/Github/Bukit/src/skills/bukit-config/SKILL.md) — site.yaml configuration, theme config section
 - [bukit-cli-reference](file:///Users/ali/mydev/Git/Github/Bukit/src/skills/bukit-cli-reference/SKILL.md) — CLI command reference
+
+
+## Section Plugins (ISectionPlugin)
+
+Section plugins allow injecting custom logic into the section rendering pipeline at three hook points.
+
+### Hooks
+
+| Hook | Timing | Purpose |
+|------|--------|---------|
+| `BeforeRender` | Before Scriban template rendering | Modify props, inject additional data |
+| `AfterRender` | After HTML generation | Post-process HTML, inject scripts/badges |
+| `ResolveItems` | After data resolution | Custom item transformation/filtering |
+
+### Declaration
+
+In `theme.yaml`, sections declare a `plugin` field:
+
+```yaml
+sections:
+  hero:
+    template: sections/hero/hero.html
+    plugin: WordCount
+```
+
+### ISectionPlugin Interface
+
+```csharp
+public interface ISectionPlugin
+{
+    SectionHook SupportedHook { get; }
+    Task ExecuteAsync(SectionContext context, CancellationToken ct = default);
+}
+```
+
+`SectionContext` provides:
+- `SectionType` (string) — section type name
+- `Variant` (string?) — variant name if any
+- `Props` (dict) — mutable props (BeforeRender only)
+- `RenderedHtml` (string?) — mutable HTML (AfterRender only)
+- `Data` (dict) — shared state between hooks
+
+### Example: WordCountPlugin (AfterRender)
+
+```csharp
+public sealed class WordCountPlugin : ISectionPlugin
+{
+    public SectionHook SupportedHook => SectionHook.AfterRender;
+    public Task ExecuteAsync(SectionContext context, CancellationToken ct = default)
+    {
+        // Count words in rendered HTML and append a badge
+        var wordCount = CountWords(context.RenderedHtml ?? "");
+        context.RenderedHtml += $"<div class='word-count'>{wordCount:N0} words</div>";
+        return Task.CompletedTask;
+    }
+}
+```
+
+## Git-based Theme Source
+
+Themes can be fetched from Git repositories, enabling distribution without a central registry.
+
+### site.yaml Configuration
+
+```yaml
+theme:
+  source: "https://github.com/user/bukit-theme.git@v1.0.0"
+  name: my-custom    # optional: subdirectory within repo
+```
+
+### URL Format
+
+```
+https://github.com/user/theme.git@v1.0.0   ← Git tag
+https://github.com/user/theme.git@abc1234   ← commit hash
+https://github.com/user/theme.git           ← latest main/master
+```
+
+### Resolution Flow
+
+1. Parse URL and optional `@version` tag
+2. If not cached: `git clone` → `.cache/themes/{repo-name}/`
+3. If version specified: `git checkout {version}` (with `git fetch --tags` fallback)
+4. If no version: `git pull` to update
+5. Return resolved theme root path → `SiteEngine` loads `theme.yaml` from there
+
+### CLI Examples
+
+```bash
+# Build with remote theme
+bukit build --config site.yaml    # site.yaml includes theme.source
+
+# Theme doctor on remote theme
+bukit theme doctor --config site.yaml
+```
+
+## Component Utility Functions (util.*)
+
+Scriban templates expose utility functions via the `util` global object.
+
+| Function | Signature | Example |
+|----------|-----------|---------|
+| `util.format_date` | `(string date, string format) → string` | `{{ date | util.format_date '%Y-%m-%d' }}` |
+| `util.truncate` | `(string text, string maxLen) → string` | `{{ summary | util.truncate 120 }}` |
+| `util.titleize` | `(string text) → string` | `{{ 'my-section' | util.titleize }}` |
+| `util.slugify` | `(string text) → string` | `{{ title | util.slugify }}` |
+
+### Usage Patterns
+
+```scriban
+{{ date | util.format_date '%B %d, %Y' }}
+{{ summary | util.truncate 100 }}
+{{ section_type | util.titleize }}
+{{ page.title | util.slugify }}
+```
+
+Note: `format_date` accepts string inputs only. Pre-format dates in C# layer if using DateTime/DateTimeOffset objects. The `ContentItemToScriptObject` method already adds `publish_date_formatted` (yyyy-MM-dd) for auto-resolved items.
+
+## Performance Benchmarks
+
+BenchmarkDotNet suite at `tests/Bukit.Theme.Benchmarks/` validates SectionDataResolver performance.
+
+### Run
+
+```bash
+dotnet run -c Release -f net10.0 --project tests/Bukit.Theme.Benchmarks
+```
+
+### Key Findings (5,000 items)
+
+| Scenario | Mean Time | Allocated |
+|----------|-----------|-----------|
+| Resolve_WithSourceOnly | 643 μs | 1.2 MB |
+| Resolve_WithSourceAndFilter | 517 μs | 1.3 MB |
+| Resolve_WithSourceAndSort | 1,407 μs | 1.4 MB |
+| Resolve_AllPages (wildcard `*`) | 110 μs | 0.25 MB |
+
+Resolution remains sub-2ms even at 5,000 items — well below template rendering bottlenecks (typically >95% of build time).

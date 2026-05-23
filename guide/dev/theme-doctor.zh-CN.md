@@ -22,12 +22,14 @@ bukit theme doctor --config site.yaml
 1. **theme.yaml 存在性** — 检查文件是否存在，`name` 是否为空，`version` 是否填写
 2. **page_templates** — 检查每个 `pageTemplate` 的模板文件是否存在
 3. **sections** — 检查每个 section 的模板文件和 schema 文件是否存在
-4. **components** — 检查组件名是否重复
-5. **variants** — 检查每个 variant 的模板文件是否存在
-6. **assets** — 检查 `assets.css` 和 `assets.js` 中声明的文件是否存在
-7. **extends** — 检查父主题目录是否存在
-8. **tokens** — 检查 `tokens.yaml` 是否存在并可解析
-9. **未使用组件检测** — 检测未使用的组件（当前标记为"尚未实现"）
+4. **schema 必填字段** — 加载每个 section 的 schema.json，列出 `required: true` 的字段，提醒模板作者必须提供这些 props
+5. **components** — 检查组件名是否重复
+6. **variants** — 检查每个 variant 的模板文件是否存在
+7. **assets** — 检查 `assets.css` 和 `assets.js` 中声明的文件是否存在
+8. **extends** — 检查父主题目录是否存在
+9. **tokens** — 检查 `tokens.yaml` 是否存在并可解析
+10. **硬编码文案检测** — 扫描 section 模板中的中文字符、电话号码、邮箱地址，建议参数化
+11. **未使用组件检测** — 检测未使用的组件（当前标记为"尚未实现"）
 
 ### 输出标记
 
