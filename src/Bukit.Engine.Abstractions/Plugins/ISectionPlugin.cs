@@ -21,3 +21,23 @@ public interface ISectionPlugin
     SectionHook SupportedHook { get; }
     Task ExecuteAsync(SectionContext context, CancellationToken ct = default);
 }
+
+public static class SectionPluginRegistry
+{
+    private static readonly Dictionary<string, ISectionPlugin> _plugins = new(StringComparer.OrdinalIgnoreCase);
+
+    public static void Register(string name, ISectionPlugin plugin)
+    {
+        _plugins[name] = plugin;
+    }
+
+    public static IReadOnlyDictionary<string, ISectionPlugin> GetAll()
+    {
+        return new Dictionary<string, ISectionPlugin>(_plugins, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public static bool TryResolve(string name, out ISectionPlugin? plugin)
+    {
+        return _plugins.TryGetValue(name, out plugin);
+    }
+}

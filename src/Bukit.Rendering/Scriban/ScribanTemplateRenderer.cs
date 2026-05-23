@@ -363,8 +363,15 @@ internal sealed class SectionRenderHelper
                 Variant = sectionDef.Variant,
                 Props = props is not null ? new Dictionary<string, object?>(props) : null
             };
-            try { plugin.ExecuteAsync(ctx).GetAwaiter().GetResult(); }
-            catch { }
+            try
+            {
+                var task = plugin.ExecuteAsync(ctx);
+                if (!task.IsCompleted) task.GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                return $"<!-- section plugin error [{plugin.GetType().Name}]: {ex.Message} -->";
+            }
             if (ctx.Props is not null) props = ctx.Props;
         }
 
@@ -452,8 +459,15 @@ internal sealed class SectionRenderHelper
                 Props = props,
                 RenderedHtml = html
             };
-            try { afterPlugin.ExecuteAsync(afterCtx).GetAwaiter().GetResult(); }
-            catch { }
+            try
+            {
+                var task = afterPlugin.ExecuteAsync(afterCtx);
+                if (!task.IsCompleted) task.GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                html = $"<!-- section plugin error [{afterPlugin.GetType().Name}]: {ex.Message} -->\n{html}";
+            }
             if (afterCtx.RenderedHtml is not null) html = afterCtx.RenderedHtml;
         }
 

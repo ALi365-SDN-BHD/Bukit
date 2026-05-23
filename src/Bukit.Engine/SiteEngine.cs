@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using Bukit.Engine.Plugins;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Incremental;
 using Bukit.Config;
 using Bukit.Content;
@@ -190,6 +191,7 @@ public sealed class SiteEngine
         ThemeManifestV2? themeManifest = null;
         ThemeComponentRegistry? themeRegistry = null;
         SectionSchemaValidator? schemaValidator = null;
+        IReadOnlyDictionary<string, ISectionPlugin>? resolvedSectionPlugins = null;
         if (!string.IsNullOrWhiteSpace(themeName) || !string.IsNullOrWhiteSpace(config.Theme.Source))
         {
             var themeRoot = Path.Combine(rootDir, "themes", themeName ?? "remote");
@@ -224,6 +226,21 @@ public sealed class SiteEngine
                 }
 
                 themeRegistry = new ThemeComponentRegistry(themeRoot, themeManifest, parentRegistry);
+
+                var sectionPlugins = new Dictionary<string, ISectionPlugin>(StringComparer.OrdinalIgnoreCase);
+                if (themeManifest.Sections is not null)
+                {
+                    foreach (var (sectionName, sDef) in themeManifest.Sections)
+                    {
+                        if (!string.IsNullOrWhiteSpace(sDef.Plugin) &&
+                            SectionPluginRegistry.TryResolve(sDef.Plugin, out var plugin))
+                        {
+                            sectionPlugins[sectionName] = plugin!;
+                            _logger.Info($"Section '{sectionName}' loaded plugin: {sDef.Plugin} ({plugin!.SupportedHook})");
+                        }
+                    }
+                }
+                resolvedSectionPlugins = sectionPlugins.Count > 0 ? sectionPlugins : null;
 
                 var validationMode = config.Theme.ComponentValidation switch
                 {
@@ -261,7 +278,7 @@ public sealed class SiteEngine
             : null;
 
         ITemplateRenderer renderer = themeRegistry is not null
-            ? new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir, themeRegistry, schemaValidator, null, config.Theme.ComponentValidation, allPagesForSections)
+            ? new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir, themeRegistry, schemaValidator, null, config.Theme.ComponentValidation, allPagesForSections, resolvedSectionPlugins)
             : new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir);
 
         var pluginContext = new BuildContext
