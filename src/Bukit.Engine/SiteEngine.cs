@@ -215,7 +215,7 @@ public sealed class SiteEngine
                     "warn" => ValidationMode.Warn,
                     _ => ValidationMode.Off
                 };
-                schemaValidator = new SectionSchemaValidator(validationMode, log);
+                schemaValidator = new SectionSchemaValidator(validationMode, themeRoot, log);
             }
         }
 

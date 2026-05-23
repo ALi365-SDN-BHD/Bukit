@@ -13,10 +13,12 @@ public sealed class SectionSchemaValidator
 {
     private readonly ILogger? _logger;
     private readonly ValidationMode _mode;
+    private readonly string _themeRoot;
 
-    public SectionSchemaValidator(ValidationMode mode, ILogger? logger = null)
+    public SectionSchemaValidator(ValidationMode mode, string themeRoot, ILogger? logger = null)
     {
         _mode = mode;
+        _themeRoot = themeRoot;
         _logger = logger;
     }
 
@@ -140,14 +142,14 @@ public sealed class SectionSchemaValidator
         }
     }
 
-    private static SectionSchema? LoadSchema(ThemeSectionDefinition sectionDef)
+    private SectionSchema? LoadSchema(ThemeSectionDefinition sectionDef)
     {
         if (string.IsNullOrEmpty(sectionDef.Schema)) return null;
 
         var schemaPath = sectionDef.Schema;
         if (!Path.IsPathRooted(schemaPath))
         {
-            schemaPath = Path.GetFullPath(schemaPath);
+            schemaPath = Path.Combine(_themeRoot, schemaPath);
         }
 
         return SectionSchema.Load(schemaPath);

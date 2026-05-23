@@ -136,8 +136,8 @@ public static class ThemeDoctorCommand
 
             foreach (var (variantName, vDef) in sDef.Variants)
             {
-                var templatePath = Path.Combine(registry.ThemeRoot, vDef.Template);
-                if (!File.Exists(templatePath))
+                var resolved = registry.ResolveSectionTemplate(sectionName, variantName);
+                if (resolved is null || !File.Exists(resolved))
                 {
                     issues.Add($"✗ section '{sectionName}' variant '{variantName}': template not found '{vDef.Template}'");
                 }

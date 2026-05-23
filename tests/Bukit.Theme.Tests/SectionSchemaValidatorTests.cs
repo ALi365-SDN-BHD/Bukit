@@ -5,10 +5,12 @@ namespace Bukit.Theme.Tests;
 
 public sealed class SectionSchemaValidatorTests
 {
+    private const string DummyThemeRoot = "/tmp/test-theme";
+
     [Fact]
     public void Validate_OffMode_ReturnsNoErrors()
     {
-        var validator = new SectionSchemaValidator(ValidationMode.Off);
+        var validator = new SectionSchemaValidator(ValidationMode.Off, DummyThemeRoot);
         var sectionDef = new ThemeSectionDefinition { Schema = "nonexistent.json" };
         var props = new Dictionary<string, object?> { ["title"] = "Hello" };
 
@@ -19,7 +21,7 @@ public sealed class SectionSchemaValidatorTests
     [Fact]
     public void Validate_RequiredFieldMissing_Warns()
     {
-        var validator = new SectionSchemaValidator(ValidationMode.Warn);
+        var validator = new SectionSchemaValidator(ValidationMode.Warn, DummyThemeRoot);
         var sectionDef = new ThemeSectionDefinition();
 
         var errors = validator.Validate("hero", sectionDef, null);
@@ -29,7 +31,7 @@ public sealed class SectionSchemaValidatorTests
     [Fact]
     public void Validate_StrictMode_ThrowsOnError()
     {
-        var validator = new SectionSchemaValidator(ValidationMode.Strict);
+        var validator = new SectionSchemaValidator(ValidationMode.Strict, DummyThemeRoot);
         var sectionDef = new ThemeSectionDefinition();
 
         var props = new Dictionary<string, object?> { ["unknown_prop"] = "value" };
@@ -39,7 +41,7 @@ public sealed class SectionSchemaValidatorTests
     [Fact]
     public void Validate_UnknownProps_Warns()
     {
-        var validator = new SectionSchemaValidator(ValidationMode.Warn);
+        var validator = new SectionSchemaValidator(ValidationMode.Warn, DummyThemeRoot);
         var sectionDef = new ThemeSectionDefinition();
         var props = new Dictionary<string, object?> { ["unknown"] = "value" };
 

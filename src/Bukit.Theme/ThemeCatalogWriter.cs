@@ -36,7 +36,7 @@ public static class ThemeCatalogWriter
             var def = registry.ResolveSection(name);
             if (def is null) continue;
 
-            var sectionSchema = LoadSectionSchema(def);
+            var sectionSchema = LoadSectionSchema(def, registry.ThemeRoot);
             entries.Add(new ThemeCatalogSectionEntry
             {
                 Name = name,
@@ -74,11 +74,11 @@ public static class ThemeCatalogWriter
         return entries;
     }
 
-    private static SectionSchema? LoadSectionSchema(ThemeSectionDefinition def)
+    private static SectionSchema? LoadSectionSchema(ThemeSectionDefinition def, string themeRoot)
     {
         if (string.IsNullOrEmpty(def.Schema)) return null;
         var schemaPath = def.Schema;
-        if (!Path.IsPathRooted(schemaPath)) schemaPath = Path.GetFullPath(schemaPath);
+        if (!Path.IsPathRooted(schemaPath)) schemaPath = Path.Combine(themeRoot, schemaPath);
         return SectionSchema.Load(schemaPath);
     }
 
