@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace Bukit.Engine.Abstractions.Plugins;
 
 public enum SectionHook
@@ -24,11 +26,19 @@ public interface ISectionPlugin
 
 public static class SectionPluginRegistry
 {
-    private static readonly Dictionary<string, ISectionPlugin> _plugins = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, ISectionPlugin> _plugins = new(StringComparer.OrdinalIgnoreCase);
 
     public static void Register(string name, ISectionPlugin plugin)
     {
-        _plugins[name] = plugin;
+        if (!_plugins.TryAdd(name, plugin))
+        {
+            if (_plugins.TryGetValue(name, out var existing))
+            {
+                throw new InvalidOperationException(
+                    $"Section plugin '{name}' is already registered ({existing.GetType().FullName}). " +
+                    $"Cannot register duplicate from {plugin.GetType().FullName}.");
+            }
+        }
     }
 
     public static IReadOnlyDictionary<string, ISectionPlugin> GetAll()

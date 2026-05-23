@@ -235,7 +235,7 @@ public sealed class SiteEngine
                         if (!string.IsNullOrWhiteSpace(sDef.Plugin) &&
                             SectionPluginRegistry.TryResolve(sDef.Plugin, out var plugin))
                         {
-                            sectionPlugins[sectionName] = plugin!;
+                            sectionPlugins[sDef.Plugin] = plugin!;
                             _logger.Info($"Section '{sectionName}' loaded plugin: {sDef.Plugin} ({plugin!.SupportedHook})");
                         }
                     }
