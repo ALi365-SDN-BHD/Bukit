@@ -136,6 +136,15 @@ public sealed class ScribanTemplateRenderer
         imageObj.SetValue("img", new Func<string, string, string, string, string>(ImageHelper.BuildImgTag), readOnly: true);
         context.PushGlobal(new ScriptObject { ["image"] = imageObj });
 
+        var utilObj = new ScriptObject();
+        utilObj.SetValue("format_date", new Func<string, string, string>((input, format) =>
+            ComponentUtilityFunctions.FormatDate(input, format)), readOnly: true);
+        utilObj.SetValue("truncate", new Func<string, string, string>((input, maxLen) =>
+            int.TryParse(maxLen, out var n) ? ComponentUtilityFunctions.Truncate(input, n) : ComponentUtilityFunctions.Truncate(input)), readOnly: true);
+        utilObj.SetValue("titleize", new Func<string, string>(ComponentUtilityFunctions.Titleize), readOnly: true);
+        utilObj.SetValue("slugify", new Func<string, string>(ComponentUtilityFunctions.Slugify), readOnly: true);
+        context.PushGlobal(new ScriptObject { ["util"] = utilObj });
+
         context.PushGlobal(globals);
 
         try
@@ -446,7 +455,8 @@ internal sealed class SectionRenderHelper
             return je.ValueKind switch
             {
                 JsonValueKind.String => je.GetString() ?? "",
-                JsonValueKind.Number => je.GetInt64(),
+                JsonValueKind.Number when je.TryGetInt64(out var l) => l,
+                JsonValueKind.Number => je.GetDouble(),
                 JsonValueKind.True => true,
                 JsonValueKind.False => false,
                 JsonValueKind.Null => null!,
