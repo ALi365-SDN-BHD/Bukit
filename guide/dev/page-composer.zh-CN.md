@@ -1,0 +1,160 @@
+# PageComposer 使用指南
+
+`PageComposer` 是 `src/Bukit.Theme/PageComposer.cs` 中的一个静态工具类，负责解析页面的 section JSON 并与主题的 section 定义合并（compose）。
+
+## 核心职责
+
+1. **解析**：将 `page.fields.sections` 中的 JSON 字符串反序列化为 `List<PageSectionDefinition>`
+2. **合并**：将页面声明的 section 与 `theme.yaml` 中定义的 `ThemeSectionDefinition` 合并，页面值覆盖主题默认值
+3. **数据绑定合并**：将页面级别的 `source`/`filter`/`limit`/`sort` 与主题的 `data` 绑定合并
+
+## 重要说明
+
+`PageComposer` 类已经可用，但当前**不会自动接入构建管线**。Sections 是在渲染时由 `render_section` 函数即时处理的。如需在构建阶段预合并 section 数据，可以在自定义插件中调用 `PageComposer.Compose()`。
+
+## JSON 格式（page.fields.sections）
+
+页面内容中通过 `fields.sections` 字段声明页面使用了哪些 section：
+
+```json
+[
+  {
+    "type": "hero",
+    "variant": "centered",
+    "props": {
+      "headline": "Welcome to My Site",
+      "subheadline": "Built with Bukit",
+      "ctaText": "Get Started",
+      "ctaUrl": "/about"
+    }
+  },
+  {
+    "type": "cardGrid",
+    "source": "posts",
+    "filter": {
+      "featured": true
+    },
+    "limit": 6,
+    "sort": "-publish_date"
+  }
+]
+```
+
+### PageSectionDefinition 字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `type` | string | section 类型，对应 theme.yaml 中 sections 的 key |
+| `variant` | string? | 变体名称，对应 section 的 variants 中的 key |
+| `props` | dict? | 传递给 section 模板的属性 |
+| `source` | string? | 数据源名称（如 posts/pages） |
+| `filter` | dict? | 数据过滤条件 |
+| `limit` | int? | 数据条数限制 |
+| `sort` | string? | 排序规则（如 `-publish_date` 为降序） |
+
+## 合并规则
+
+`PageComposer.Compose()` 的合并逻辑：
+
+1. 遍历页面声明的每个 section
+2. 在 `theme.yaml` 的 `sections` 中查找同名定义
+3. 如果找不到对应主题定义，原样保留页面 section
+4. 如果找到，合并 props：页面 props 覆盖同名属性
+5. 合并 data binding：页面级 `source`/`filter`/`limit`/`sort` 优先于主题默认值
+
+## 数据绑定
+
+Section 的数据绑定支持两级声明：
+
+**主题级默认（theme.yaml）**：
+
+```yaml
+sections:
+  cardGrid:
+    data:
+      source: posts
+      limit: 6
+      sort: "-publish_date"
+```
+
+**页面级覆盖（page.fields.sections JSON）**：
+
+```json
+{
+  "type": "cardGrid",
+  "source": "featured_posts",
+  "limit": 3
+}
+```
+
+合并结果会优先使用页面级的值，缺少的字段回退到主题默认值。
+
+## 示例：首页 hero + cardGrid
+
+**theme.yaml**：
+
+```yaml
+sections:
+  hero:
+    template: layouts/sections/hero/hero.html
+    schema: sections/hero/schema.json
+  cardGrid:
+    template: layouts/sections/card-grid/card-grid.html
+    schema: sections/card-grid/schema.json
+    data:
+      source: posts
+      limit: 6
+```
+
+**page.fields.sections JSON**：
+
+```json
+[
+  {
+    "type": "hero",
+    "props": {
+      "headline": "Latest Insights",
+      "subheadline": "Thoughts on technology and design"
+    }
+  },
+  {
+    "type": "cardGrid",
+    "limit": 3
+  }
+]
+```
+
+**页面模板中使用 render_section**：
+
+```scriban
+{{ layout "layouts/base.html" }}
+
+{{ for section in page.fields.sections }}
+  {{ render_section section }}
+{{ end }}
+```
+
+`render_section` 是 Scriban 渲染器注入的全局函数，它会：
+1. 根据 `section.type` 查找 section 模板
+2. 将 `section.props` 注入为 `{{ props.xxx }}`
+3. 将 `section.items`（如已绑定数据）注入为 `{{ items }}`
+4. 执行 schema 校验（取决于 `componentValidation` 配置）
+
+### 手动循环渲染 section
+
+也可以手动遍历 section 而不使用 `render_section`：
+
+```scriban
+{{ for section in page.fields.sections }}
+  {{ if section.type == "hero" }}
+    {{ render_section section }}
+  {{ else if section.type == "cardGrid" }}
+    <section class="card-grid">
+      <h2>Latest Posts</h2>
+      {{ for item in section.items }}
+        {{ comp.render "insightCard" item }}
+      {{ end }}
+    </section>
+  {{ end }}
+{{ end }}
+```
