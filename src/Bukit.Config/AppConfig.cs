@@ -242,6 +242,7 @@ public sealed record BuildConfig
 public sealed record ThemeConfig
 {
     public string? Name { get; init; }
+    public string? Source { get; init; }
     public string? Extends { get; init; }
     public string Layouts { get; init; } = "layouts";
     public string Assets { get; init; } = "assets";

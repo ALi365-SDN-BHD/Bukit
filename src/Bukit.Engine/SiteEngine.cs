@@ -190,9 +190,25 @@ public sealed class SiteEngine
         ThemeManifestV2? themeManifest = null;
         ThemeComponentRegistry? themeRegistry = null;
         SectionSchemaValidator? schemaValidator = null;
-        if (!string.IsNullOrWhiteSpace(themeName))
+        if (!string.IsNullOrWhiteSpace(themeName) || !string.IsNullOrWhiteSpace(config.Theme.Source))
         {
-            var themeRoot = Path.Combine(rootDir, "themes", themeName);
+            var themeRoot = Path.Combine(rootDir, "themes", themeName ?? "remote");
+            if (!string.IsNullOrWhiteSpace(config.Theme.Source))
+            {
+                var themesCacheDir = Path.Combine(rootDir, ".cache", "themes");
+                Directory.CreateDirectory(themesCacheDir);
+                var resolved = ThemeSourceManager.Resolve(config.Theme.Source, themesCacheDir,
+                    msg => _logger.Warn(msg));
+                if (resolved is not null)
+                {
+                    themeRoot = resolved.ThemeRoot;
+                    if (!string.IsNullOrWhiteSpace(themeName))
+                    {
+                        themeRoot = Path.Combine(resolved.ThemeRoot, themeName);
+                    }
+                }
+            }
+
             themeManifest = ThemeManifestLoader.Load(themeRoot);
             if (themeManifest is not null)
             {

@@ -3,6 +3,7 @@ using Scriban.Runtime;
 using Scriban.Syntax;
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Routing;
 using Bukit.Shared;
 using Bukit.Theme;
@@ -25,13 +26,14 @@ public sealed class ScribanTemplateRenderer
     private readonly SectionDataResolverAccessor? _dataResolver;
     private readonly string _componentValidation;
     private readonly IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? _allPages;
+    private readonly IReadOnlyDictionary<string, ISectionPlugin>? _sectionPlugins;
 
     public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null)
-        : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, null, null, null, "off", null)
+        : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, null, null, null, "off", null, null)
     {
     }
 
-    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentItem, RouteInfo?)>? allPages = null)
+    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentItem, RouteInfo?)>? allPages = null, IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null)
     {
         _layoutsDir = layoutsDir;
         _templateLoader = new FileTemplateLoader(_layoutsDir, parentLayoutsDir, userLayoutsDir);
@@ -42,6 +44,7 @@ public sealed class ScribanTemplateRenderer
         _dataResolver = dataResolver;
         _componentValidation = componentValidation;
         _allPages = allPages;
+        _sectionPlugins = sectionPlugins;
     }
 
     public string RenderPage(string templateRelativePath, PageModel model)
@@ -114,7 +117,7 @@ public sealed class ScribanTemplateRenderer
         {
             var sectionHelpers = new SectionRenderHelper(
                 _themeRegistry, _schemaValidator, _componentValidation,
-                _templateLoader, globals, _allPages);
+                _templateLoader, globals, _allPages, _sectionPlugins);
             var sectionObj = new ScriptObject();
             sectionObj.SetValue("render_section", new RenderSectionFunction(sectionHelpers), readOnly: true);
             context.PushGlobal(sectionObj);
@@ -230,6 +233,7 @@ internal sealed class SectionRenderHelper
     private readonly FileTemplateLoader _templateLoader;
     private readonly ScriptObject _parentGlobals;
     private readonly IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? _allPages;
+    private readonly IReadOnlyDictionary<string, ISectionPlugin>? _sectionPlugins;
 
     internal ScriptObject ParentGlobals => _parentGlobals;
 
@@ -239,7 +243,8 @@ internal sealed class SectionRenderHelper
         string componentValidation,
         FileTemplateLoader templateLoader,
         ScriptObject parentGlobals,
-        IReadOnlyList<(ContentItem, RouteInfo?)>? allPages)
+        IReadOnlyList<(ContentItem, RouteInfo?)>? allPages,
+        IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null)
     {
         _themeRegistry = themeRegistry;
         _schemaValidator = schemaValidator;
@@ -247,6 +252,7 @@ internal sealed class SectionRenderHelper
         _templateLoader = templateLoader;
         _parentGlobals = parentGlobals;
         _allPages = allPages;
+        _sectionPlugins = sectionPlugins;
     }
 
     public string render_section(string jsonInput)
@@ -347,6 +353,21 @@ internal sealed class SectionRenderHelper
         var sectionType = sectionDef.Type;
         var props = sectionDef.Props;
 
+        if (_sectionPlugins is not null && themeSection.Plugin is not null &&
+            _sectionPlugins.TryGetValue(themeSection.Plugin, out var plugin) &&
+            plugin.SupportedHook == SectionHook.BeforeRender)
+        {
+            var ctx = new SectionContext
+            {
+                SectionType = sectionType,
+                Variant = sectionDef.Variant,
+                Props = props is not null ? new Dictionary<string, object?>(props) : null
+            };
+            try { plugin.ExecuteAsync(ctx).GetAwaiter().GetResult(); }
+            catch { }
+            if (ctx.Props is not null) props = ctx.Props;
+        }
+
         if (_schemaValidator is not null)
         {
             var validationMode = _componentValidation switch
@@ -418,7 +439,25 @@ internal sealed class SectionRenderHelper
 
         sectionContext.PushGlobal(parentGlobals);
 
-        return sectionTemplate.Render(sectionContext);
+        var html = sectionTemplate.Render(sectionContext);
+
+        if (_sectionPlugins is not null && themeSection.Plugin is not null &&
+            _sectionPlugins.TryGetValue(themeSection.Plugin, out var afterPlugin) &&
+            afterPlugin.SupportedHook == SectionHook.AfterRender)
+        {
+            var afterCtx = new SectionContext
+            {
+                SectionType = sectionType,
+                Variant = sectionDef.Variant,
+                Props = props,
+                RenderedHtml = html
+            };
+            try { afterPlugin.ExecuteAsync(afterCtx).GetAwaiter().GetResult(); }
+            catch { }
+            if (afterCtx.RenderedHtml is not null) html = afterCtx.RenderedHtml;
+        }
+
+        return html;
     }
 
     private static ScriptObject ContentItemToScriptObject(ContentItem item, string? url)
