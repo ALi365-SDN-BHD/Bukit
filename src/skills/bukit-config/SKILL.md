@@ -29,6 +29,7 @@ description: Use when using bukit to create or modify site.yaml, asking about th
 | `theme` | Theme configuration | name, layouts, assets, static, params |
 | `taxonomy` | Taxonomy configuration | template, kinds, pageSize, outputMode |
 | `logging` | Log level | level (debug/info/warn/error) |
+| `deploy` | Deployment configuration | provider, branch, output, message |
 
 ## Scenario Templates
 
@@ -186,7 +187,6 @@ theme:
 | `autoSummaryMaxLength` | int | 200 | Max auto-summary length (1-5000) |
 | `pluginFailMode` | string | `strict` | Plugin failure policy: `strict`/`warn` |
 | `deriveConflictPolicy` | string | `fail` | Derived page route conflict policy: `fail`/`warn`/`last-wins`. Content-page conflicts always fail regardless of this setting. |
-| `externalAssemblyTrustMode` | string | `warn` | External assembly trust mode: `strict`/`warn` |
 | `searchIncludeDerived` | bool | false | Whether search index includes derived pages |
 | `externalProtocolIncludeRoutedPages` | bool | false | Whether external protocol plugins receive routed pages |
 | `collections` | map | — | Collection route definitions |
@@ -198,7 +198,6 @@ theme:
 | `menus` | map | — | Multi-menu navigation definitions |
 | `search` | map | — | Search UI: `ui`, `uiTheme`, `placeholderText` |
 | `pagination` | map | — | Global pagination defaults: `pageSize` |
-| `externalAssemblyAllowlist` | map | — | External assembly allowlist (`{filename: SHA256}`) |
 
 SEO-oriented configs should include both `site.url` and `site.description`. Without `site.url`, canonical and schema URLs fall back to relative paths and audit emits warnings. Without `site.description`, generated home/list/taxonomy/pagination routes usually emit `seo.description_missing` unless the route has its own summary.
 | `permalinks` | map | — | Global permalink custom placeholders |

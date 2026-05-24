@@ -1,13 +1,13 @@
 ---
 name: bukit-webhook
-description: Use when using bukit to set up a webhook server for automated builds, configuring Notion-to-GitHub webhook triggers, troubleshooting webhook payload verification or rate limiting, or understanding webhook security constraints (HMAC signature, IP allowlisting)
+description: Use when using bukit to set up a webhook listener that authenticates incoming triggers and dispatches a GitHub repository_dispatch event, configuring Notion-to-GitHub webhook triggers, troubleshooting token verification or rate limiting, or understanding webhook security constraints
 ---
 
 # Bukit Webhook Server
 
 ## Overview
 
-Bukit's `webhook` command starts an HTTP listener that receives webhook payloads (typically from Notion), triggers `bukit build`, and pushes the output to GitHub. Designed for automated content deployment: update Notion → webhook triggers → build → deploy.
+Bukit's `webhook` command starts an HTTP listener that receives webhook payloads (typically from Notion), verifies a shared token, and sends a GitHub `repository_dispatch` event. The actual build/deploy work should happen in the GitHub Actions workflow that handles that dispatch event.
 
 **REQUIRED BACKGROUND:** Notion integration setup — see bukit-notion for Notion API configuration.
 **REQUIRED SUB-SKILL:** CLI commands reference bukit-cli-reference.
@@ -16,16 +16,16 @@ Bukit's `webhook` command starts an HTTP listener that receives webhook payloads
 
 | Language | Trigger Phrases |
 |----------|----------------|
-| 中文 | "Webhook 自动部署"、"Notion 更新触发构建"、"bukit webhook"、"HMAC 签名验证" |
-| English | "webhook auto deploy", "Notion update trigger build", "bukit webhook", "HMAC signature verification" |
-| Bahasa Melayu | "webhook auto deploy", "Notion kemas kini cetus binaan", "bukit webhook", "pengesahan tandatangan HMAC" |
+| 中文 | "Webhook 自动部署"、"Notion 更新触发构建"、"bukit webhook"、"token 验证" |
+| English | "webhook auto deploy", "Notion update trigger build", "bukit webhook", "token verification" |
+| Bahasa Melayu | "webhook auto deploy", "Notion kemas kini cetus binaan", "bukit webhook", "pengesahan token" |
 
 ## Prerequisites
 
 | Requirement | Environment Variable | Description |
 |------|------|------|
-| Webhook token | `BUKIT_WEBHOOK_TOKEN` | Secret token for HMAC payload verification |
-| GitHub token | `BUKIT_GITHUB_TOKEN` or `GITHUB_TOKEN` | GitHub PAT with `repo` scope for pushing |
+| Webhook token | `BUKIT_WEBHOOK_TOKEN` | Shared secret expected in the `X-Sitegen-Token` request header |
+| GitHub token | `BUKIT_GITHUB_TOKEN` or `GITHUB_TOKEN` | GitHub PAT with `repo` scope for repository dispatch |
 | GitHub repo | `BUKIT_GITHUB_REPO` or `--repo` | Repository in `owner/repo` format |
 
 ## Usage
@@ -54,7 +54,7 @@ bukit webhook --host 0.0.0.0 --port 9000 --path /hooks/deploy
 bukit webhook --event my_custom_event
 ```
 
-The `--event` parameter sets the expected `x-bukit-event` header value. Only requests with this header value are processed.
+The `--event` parameter sets the GitHub `repository_dispatch` event type sent to the target repository.
 
 ## Command Options
 
@@ -64,17 +64,17 @@ The `--event` parameter sets the expected `x-bukit-event` header value. Only req
 | `--port <port>` | int | `8787` | Port to listen on |
 | `--path <path>` | string | `/webhook/notion` | URL path for incoming webhooks |
 | `--repo <owner/repo>` | string | from env | GitHub repository (overrides `BUKIT_GITHUB_REPO`) |
-| `--event <type>` | string | `bukit_notion` | Expected event type in `x-bukit-event` header |
+| `--event <type>` | string | `bukit_notion` | GitHub `repository_dispatch` event type |
 
 ## Security
 
-### HMAC Signature Verification
+### Token Verification
 
-The webhook server verifies incoming payloads using HMAC-SHA256. The sender must include:
+The webhook server verifies incoming requests using a shared token. The sender must include:
 
-- `x-bukit-signature-256`: `sha256=<hex-encoded HMAC>`
+- `X-Sitegen-Token`: the exact value of `BUKIT_WEBHOOK_TOKEN`
 
-The server computes `HMAC-SHA256(payload, BUKIT_WEBHOOK_TOKEN)` and compares. Mismatched signatures receive `401 Unauthorized`.
+Mismatched or missing tokens receive `401 Unauthorized`.
 
 ### Rate Limiting
 
@@ -93,24 +93,24 @@ For production deployments, place the webhook behind a reverse proxy (nginx, Cad
    ↓
 2. Notion sends webhook to http://<host>:<port>/<path>
    ↓
-3. Bukit verifies HMAC signature (x-bukit-signature-256)
+3. Bukit verifies the `X-Sitegen-Token` shared token
    ↓
 4. Bukit checks rate limit (10 req/min)
    ↓
-5. Bukit runs: bukit build --ci
+5. Bukit sends GitHub repository_dispatch with `event_type`
    ↓
-6. Bukit runs: git push to gh-pages branch
+6. GitHub Actions handles build/deploy for that event
    ↓
-7. Response: 200 OK (success) or error details
+7. Response: 202 Accepted or error status
 ```
 
-## Build and Deploy Behavior
+## Dispatch Behavior
 
-The webhook performs a full build + deploy cycle on each valid request:
+The webhook does not build locally and does not push site output itself. On each valid request it:
 
-1. **Build**: `bukit build --ci` (CI mode reduces log verbosity)
-2. **Deploy**: Uses `BUKIT_GITHUB_TOKEN` to push the output directory to the `gh-pages` branch
-3. **Commit message**: Generated from the webhook payload, including Notion page info when available
+1. **Authenticates**: Compares `X-Sitegen-Token` with `BUKIT_WEBHOOK_TOKEN`.
+2. **Rate limits**: Allows up to 10 requests per minute.
+3. **Dispatches**: Uses `BUKIT_GITHUB_TOKEN` or `GITHUB_TOKEN` to call GitHub repository dispatch for `--repo`.
 
 The server continues running after each request — it handles multiple triggers without restarting.
 
@@ -118,10 +118,10 @@ The server continues running after each request — it handles multiple triggers
 
 | HTTP Status | Meaning |
 |------|------|
-| `200 OK` | Build + deploy succeeded |
-| `401 Unauthorized` | Invalid or missing HMAC signature |
+| `202 Accepted` | Dispatch accepted |
+| `401 Unauthorized` | Invalid or missing shared token |
 | `429 Too Many Requests` | Rate limit exceeded |
-| `500 Internal Server Error` | Build or deploy failed |
+| `500 Internal Server Error` | GitHub dispatch failed or another server error occurred |
 
 ## Common Issues
 
@@ -129,10 +129,9 @@ The server continues running after each request — it handles multiple triggers
 |------|------|------|
 | `Missing env: BUKIT_WEBHOOK_TOKEN` | Token not set | Export the environment variable |
 | `Missing --repo` or `BUKIT_GITHUB_REPO` | Repo not configured | Set `BUKIT_GITHUB_REPO=user/repo` or use `--repo` |
-| `401 Unauthorized` | HMAC signature mismatch | Verify the webhook sender uses the correct token and HMAC algorithm |
+| `401 Unauthorized` | Shared token mismatch | Verify the sender sends `X-Sitegen-Token` with the configured token |
 | `429 Too Many Requests` | Rate limit hit | Wait for the window to reset, or increase rate limit in code |
-| Build fails silently | Build errors in CI mode | Run `bukit build` locally to see full errors |
-| Deploy fails | Invalid GitHub token or repo access | Check `BUKIT_GITHUB_TOKEN` has `repo` scope |
+| GitHub dispatch fails | Invalid GitHub token or repo access | Check `BUKIT_GITHUB_TOKEN` has `repo` scope and `--repo` is correct |
 
 ## Production Deployment
 

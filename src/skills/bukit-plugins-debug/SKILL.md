@@ -7,9 +7,9 @@ description: Use when using bukit and plugins do not take effect or behave unexp
 
 ## Overview
 
-Bukit has 14 core built-in plugins plus support for external assembly and protocol plugins. Plugin lifecycle: `derivePages` (derive pages) → parallel rendering → `afterBuild` (post-processing). Build debugging requires understanding plugin ordering, incremental skip logic, and configuration conflicts.
+Bukit has 13 core built-in plugins plus support for external process protocol plugins. Plugin lifecycle: `derivePages` (derive pages) → parallel rendering → `afterBuild` (post-processing). Build debugging requires understanding plugin ordering, incremental skip logic, and configuration conflicts.
 
-**REQUIRED BACKGROUND:** Plugin config depends on `site.plugins`, `site.externalPlugins`, `site.externalAssemblyAllowlist` in site.yaml — you must understand the plugin config section in bukit-config first.
+**REQUIRED BACKGROUND:** Plugin config depends on `site.plugins` and `site.externalPlugins` in site.yaml — you must understand the plugin config section in bukit-config first.
 **REQUIRED SUB-SKILL:** List registered plugins with `bukit plugin list`, diagnose performance with `bukit build --metrics`. CLI commands reference bukit-cli-reference.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
@@ -50,29 +50,18 @@ Bukit has 14 core built-in plugins plus support for external assembly and protoc
 
 | Source | Description | Config |
 |------|------|------|
-| **BuiltIn** | 14 framework built-in plugins, always loaded | None, toggle via `site.plugins` |
-| **Generated** | AOT pre-generated plugins | None |
-| **ExternalAssembly** | `.dll` assemblies in `plugins/` directory | `site.externalAssemblyTrustMode` + `site.externalAssemblyAllowlist` |
-| **ExternalProtocol** | WASM or standalone process plugins | `site.externalPlugins` config |
+| **BuiltIn** | 13 framework built-in plugins, always loaded | None, toggle via `site.plugins` |
+| **ExternalProtocol** | Standalone process plugins | `site.externalPlugins` config |
 
-### External Assembly Plugins
+### External Protocol Plugins
 
-Place `.dll` files in the project `plugins/` directory for auto-discovery. SHA256 hash verification:
-
-```yaml
-site:
-  externalAssemblyTrustMode: strict   # strict=require allowlist; warn=warn but allow
-  externalAssemblyAllowlist:
-    MyPlugin.dll: abc123...64-char SHA256...
-```
-
-### Protocol Plugins (WASM/Process)
+Current AOT-focused builds support external protocol plugins through standalone processes. External assembly loading and WASM protocol plugins are disabled.
 
 ```yaml
 site:
   externalPlugins:
     my-plugin:
-      runtime: process           # process or wasm
+      runtime: process
       entry: ./tools/my-plugin  # Executable path
       hooks: [derive-pages, after-build]
       enabled: true
@@ -351,7 +340,7 @@ Bukit uses `ConcurrentDictionary<string, SemaphoreSlim>` to prevent concurrent w
 
 ## Custom Plugin Development
 
-### Minimal Derive Pages Plugin
+### Minimal In-Process Derive Pages Plugin
 
 ```csharp
 using Bukit.Content;
@@ -382,7 +371,9 @@ public class HelloPlugin : IDerivePagesPlugin
 }
 ```
 
-### Minimal After-Build Plugin
+The in-process interfaces are useful when developing Bukit itself or built-in plugins. Current AOT-focused builds do not auto-load external `.dll` assemblies from site projects.
+
+### Minimal In-Process After-Build Plugin
 
 ```csharp
 public class AfterPlugin : IAfterBuildPlugin
@@ -398,25 +389,29 @@ public class AfterPlugin : IAfterBuildPlugin
 }
 ```
 
-### Deployment
+### External Process Deployment
 
-Place the compiled `.dll` in the project's `plugins/` directory and configure the allowlist:
+For site-level custom plugins, expose the plugin as a standalone process protocol plugin and configure it through `site.externalPlugins`:
 
 ```yaml
 site:
-  externalAssemblyAllowlist:
-    MyPlugin.dll: <SHA256>
+  externalPlugins:
+    my-plugin:
+      runtime: process
+      entry: ./tools/my-plugin
+      hooks: [derive-pages, after-build]
+      enabled: true
 ```
 
-Use `bukit plugin list` to verify the plugin is discovered.
+Use `bukit plugin list` to verify the plugin is registered.
 
 ## Common Error Quick Reference
 
 | Error | Cause | Fix |
 |------|------|------|
 | Plugin list empty (`plugin list`) | Config not loaded or plugin directory doesn't exist | Check `--config` parameter and working directory |
-| External plugin not loaded | Not in allowlist or hash mismatch | Verify `externalAssemblyAllowlist` config |
-| WASM plugin errors | WASM not supported under AOT | Switch to process protocol plugin |
+| External plugin not loaded | Process entry missing, disabled, or invalid config | Verify `site.externalPlugins` and run `bukit config check` |
+| WASM plugin errors | WASM not supported under AOT | Switch to a process protocol plugin |
 | `deriveConflictPolicy` conflict | Derived page route duplicates existing route (stage 1: per-plugin; stage 2: final inventory validation) | Change policy to `warn` or `last-wins`, or adjust source routing |
 | Taxonomy pages not generated | TaxonomyPlugin disabled or taxonomy config incomplete | Check plugin toggle and taxonomy config |
 | Pagination not working | PaginationPlugin OK but collection pagination not enabled | Set `pagination.enabled: true` in collection config |

@@ -1,7 +1,7 @@
 {
   "version": "3.0.0",
   "generated": "2026-05-22",
-  "skill_count": 18,
+  "skill_count": 19,
   "skills": [
     {
       "name": "using-bukit",
@@ -90,7 +90,7 @@
       "type": "technique",
       "priority": 3,
       "path": "src/skills/bukit-config/SKILL.md",
-      "description": "site.yaml configuration model — six top-level nodes, scenario templates, field reference, common errors.\n",
+      "description": "site.yaml configuration model — seven top-level nodes, scenario templates, field reference, common errors.\n",
       "triggers": [
         {
           "pattern": "site\\.yaml|配置 site\\.yaml|bukit config|collections.*配置|taxonomy.*配置|konfigurasi bukit",
@@ -321,7 +321,7 @@
       "type": "technique",
       "priority": 11,
       "path": "src/skills/bukit-plugins-debug/SKILL.md",
-      "description": "Plugin system — 9 built-in plugins, lifecycle (derivePages → parallel render → afterBuild), incremental build debugging, performance diagnostics, custom plugin development.\n",
+      "description": "Plugin system — 13 built-in plugins plus process protocol plugins, lifecycle (derivePages → parallel render → afterBuild), incremental build debugging, performance diagnostics, custom plugin development.\n",
       "triggers": [
         {
           "pattern": "plugin.*not working|incremental build|build debug|custom plugin|build slow|插件不生效|增量构建|构建排错|构建慢|plugin tidak berfungsi|binaan tambahan",
@@ -524,10 +524,10 @@
       "type": "operation",
       "priority": 18,
       "path": "src/skills/bukit-webhook/SKILL.md",
-      "description": "Webhook server — Notion update → build → deploy pipeline, HMAC signature verification, rate limiting, IP allowlisting.\n",
+      "description": "Webhook server — authenticated Notion-style trigger → GitHub repository_dispatch, token verification, rate limiting, IP allowlisting.\n",
       "triggers": [
         {
-          "pattern": "webhook.*auto deploy|Notion.*trigger.*build|bukit webhook|HMAC.*verification|Webhook 自动部署|Notion 更新触发构建",
+          "pattern": "webhook.*auto deploy|Notion.*trigger.*build|bukit webhook|token.*verification|Webhook 自动部署|Notion 更新触发构建",
           "languages": [
             "en",
             "zh-CN",
@@ -540,6 +540,35 @@
         "bukit-cli-reference"
       ],
       "guide_chapter": "14 Troubleshooting",
+      "platform_loading": {
+        "trae": "Skill tool",
+        "claude_code": "Skill tool",
+        "codex": "Native read",
+        "copilot": "skill tool",
+        "gemini": "activate_skill"
+      }
+    },
+    {
+      "name": "theme-component-system",
+      "type": "pattern",
+      "priority": 19,
+      "path": "src/skills/theme-component-system/SKILL.md",
+      "description": "Componentized theme system — theme.yaml V2 manifest, sections, components, pageTemplates, data bindings, tokens, theme-catalog.json, section schemas, page composer, and theme inheritance chains.\n",
+      "triggers": [
+        {
+          "pattern": "componentized theme|theme\\.yaml V2|section schema|theme-catalog\\.json|page composer|theme inheritance|tokens\\.yaml|组件化主题|主题继承链|页面组合器",
+          "languages": [
+            "en",
+            "zh-CN",
+            "ms"
+          ]
+        }
+      ],
+      "requires": [
+        "bukit-theme",
+        "bukit-templating"
+      ],
+      "guide_chapter": "08 Themes & Templates",
       "platform_loading": {
         "trae": "Skill tool",
         "claude_code": "Skill tool",
@@ -656,6 +685,15 @@
         "bukit-config",
         "bukit-templating",
         "bukit-design-tokens"
+      ]
+    },
+    "build_componentized_theme": {
+      "description": "Build or inspect a componentized Bukit theme",
+      "chain": [
+        "using-bukit",
+        "theme-component-system",
+        "bukit-theme",
+        "bukit-templating"
       ]
     }
   }

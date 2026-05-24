@@ -45,9 +45,9 @@ Design tokens are the visual atoms of a Bukit theme — CSS custom properties th
   --line-height-tight: 1.2; --line-height-base: 1.65;
 
   /* === Spacing (4px base) === */
-  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
-  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
-  --space-12: 48px; --space-16: 64px; --space-20: 80px;
+  --spacing-1: 4px; --spacing-2: 8px; --spacing-3: 12px; --spacing-4: 16px;
+  --spacing-5: 20px; --spacing-6: 24px; --spacing-8: 32px; --spacing-10: 40px;
+  --spacing-12: 48px; --spacing-16: 64px; --spacing-20: 80px;
 
   /* === Layout === */
   --content-max: 760px; --wide-max: 1080px;
@@ -99,9 +99,9 @@ xs(0.75rem) → sm(0.875rem) → base(1rem) → lg(1.125rem) → xl(1.25rem) →
 
 ## Spacing System
 
-4px base grid. Always use `--space-*` tokens — never magic numbers:
+4px base grid. Always use `--spacing-*` tokens — never magic numbers:
 ```css
-/* DO: */ .card { padding: var(--space-5); }
+/* DO: */ .card { padding: var(--spacing-5); }
 /* DON'T: */ .card { padding: 19px; }
 ```
 
@@ -231,7 +231,7 @@ Design tokens work alongside external CSS/JS frameworks. Bukit's `style.css` loa
 |---|---|---|
 | `--color-primary` | `text-primary-*` | Bukit tokens define semantic meaning |
 | `--font-size-*` | `text-sm/lg/xl/...` | Bukit tokens follow modular scale (1.25) |
-| `--space-*` | `p-*/m-*/gap-*` | Bukit uses 4px base grid, Tailwind uses 4px base — compatible |
+| `--spacing-*` | `p-*/m-*/gap-*` | Bukit uses 4px base grid, Tailwind uses 4px base — compatible |
 | `--radius-*` | `rounded-sm/md/lg` | Similar ranges, Bukit tokens are overridable |
 
 ### Example: Tailwind + Bukit Hybrid

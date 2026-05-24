@@ -25,16 +25,23 @@ This skill bridges the gap between content schema (defined in site.yaml) and Scr
 ```yaml
 collections:
   blog:
-    source: content/blog
     template: pages/post.html
-    list_template: pages/list.html
+    listTemplate: pages/list.html
     schema:
-      title: { type: string, required: true }
-      date: { type: date, required: true }
-      tags: { type: array }
-      cover: { type: string }
-      author: { type: string }
-      featured: { type: boolean }
+      - name: title
+        type: string
+        required: true
+      - name: date
+        type: date
+        required: true
+      - name: tags
+        type: array
+      - name: cover
+        type: string
+      - name: author
+        type: string
+      - name: featured
+        type: boolean
 ```
 
 ### Step 2: Field → Template Mapping

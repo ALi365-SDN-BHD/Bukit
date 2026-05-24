@@ -18,7 +18,7 @@ This is not negotiable.
 
 ## Overview
 
-Bukit is a .NET static site generator that covers the complete workflow through 15 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
+Bukit is a .NET static site generator that covers the complete workflow through 19 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
 
@@ -49,6 +49,9 @@ When the agent sees any of these phrases in any language, it must load this skil
 | 13 | bukit-preview | Local preview server | When starting a local preview, debugging port conflicts, or testing before deployment |
 | 14 | bukit-dev | HMR development server | When wanting hot-reload during development, file watching with automatic rebuild, or live browser refresh |
 | 15 | bukit-webhook | Webhook server for automated builds | When setting up Notion-to-GitHub webhook triggers, debugging payload verification or rate limiting |
+| 16 | bukit-design-tokens | Theme design token systems | When defining CSS variables, palettes, typography, spacing, or dark mode |
+| 17 | bukit-content-to-template | Schema-driven template generation | When mapping collection schema fields to Scriban templates |
+| 18 | theme-component-system | Componentized theme system | When working with theme.yaml V2 sections, components, tokens, catalogs, or inheritance |
 
 ## Skill ↔ User Guide Cross-Reference
 
@@ -70,7 +73,7 @@ Bukit's user guide (`guide/user/`) is the human-facing companion to these skills
 | bukit-clone | [18 Clone Website](guide/user/18-clone-website.md) | Browser extraction → CLI generation → verification |
 | bukit-preview | [12 CLI Reference](guide/user/12-cli-reference.md), [14 Troubleshooting](guide/user/14-troubleshooting.md) | Local preview server, port configuration |
 | bukit-dev | [08 Themes & Templates](guide/user/08-themes-templates.md), [12 CLI Reference](guide/user/12-cli-reference.md) | HMR dev server with live reload, file watching, incremental rebuild |
-| bukit-webhook | [14 Troubleshooting](guide/user/14-troubleshooting.md) | Webhook server, HMAC verification, rate limiting |
+| bukit-webhook | [14 Troubleshooting](guide/user/14-troubleshooting.md) | Webhook server, token verification, rate limiting |
 
 **Usage rule**: When the user mentions following a specific guide chapter (e.g., "我跟着第04章配置"), load the matching skill AND anchor your advice around the examples and config patterns shown in that chapter. Quote chapter snippets when they help the user match what they see on screen.
 

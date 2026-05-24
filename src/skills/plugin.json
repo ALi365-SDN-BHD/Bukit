@@ -1,7 +1,7 @@
 {
   "name": "bukit-agent-skills",
   "version": "3.0.0",
-  "description": "Bukit static site generator skills for AI agents — configuration, theming, templating, Notion integration, SEO, GEO, deployment, website cloning, and more. 18 specialized skills covering all Bukit subsystems.",
+  "description": "Bukit static site generator skills for AI agents — configuration, theming, templating, Notion integration, SEO, GEO, deployment, website cloning, componentized themes, and more. 19 specialized skills covering all Bukit subsystems.",
   "author": "Bukit",
   "homepage": "https://github.com/ALi365-SDN-BHD/Bukit",
   "repository": "https://github.com/ALi365-SDN-BHD/Bukit",
@@ -23,7 +23,8 @@
     "bukit-geo/SKILL.md",
     "bukit-preview/SKILL.md",
     "bukit-dev/SKILL.md",
-    "bukit-webhook/SKILL.md"
+    "bukit-webhook/SKILL.md",
+    "theme-component-system/SKILL.md"
   ],
   "agents": [],
   "mcpServers": [],
