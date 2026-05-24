@@ -49,6 +49,16 @@ Notes:
 - `includePaths`: Only read the specified paths (relative to `content.markdown.dir`; `.md` can be omitted).
 - `includeGlobs`: Only read files matching the given glob patterns (matches relative paths, separator is `/`; `**` means cross-directory).
 
+## Markdown Rendering Features
+
+Bukit uses Markdig for Markdown rendering and supports common GFM features:
+
+- tables, task lists, strikethrough, and autolinks
+- fenced code block language classes such as `language-csharp`; the starter theme includes Prism/Highlight.js-compatible styles
+- automatic heading IDs and table-of-contents data derived from body headings
+
+Templates can read TOC entries from `page.table_of_contents` or `page.tableOfContents`. Each entry has `level`, `text`, `id`, and `url`.
+
 ## Front Matter (YAML) Basic Structure
 
 Each Markdown file may optionally include a YAML Front Matter block:

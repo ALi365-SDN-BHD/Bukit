@@ -264,6 +264,19 @@ Notion 模式的前提：
 
 详细见：[06-内容-Notion](./06-notion-content.zh-CN.md)。
 
+### 环境变量覆盖（CI/CD）
+
+任意标量配置可以通过 `BUKIT_` 前缀环境变量覆盖，使用双下划线 `__` 表示层级，字段名使用大写下划线形式：
+
+```bash
+BUKIT_SITE__TITLE="Production Site"
+BUKIT_SITE__URL="https://example.com"
+BUKIT_CONTENT__MARKDOWN__DIR="posts"
+BUKIT_BUILD__CLEAN=false
+```
+
+这些覆盖会在读取 `site.yaml` 后、配置校验前应用。适合 CI/CD 注入部署 URL、输出开关或内容目录。
+
 #### provider=sources（多源组合，支持 mode=data）
 
 ```yaml
@@ -437,7 +450,14 @@ schema 字段说明：
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `schema` | 数组 | `[{name, type, label, required, default}]` | 内容 Front Matter 字段类型校验（string/number/bool/date/list） |
+| `name` | string | Front Matter 字段名 |
+| `type` | string | `string`/`number`/`bool`/`date`/`list` |
+| `label` | string | 诊断展示名称 |
+| `required` | bool | 是否必填 |
+| `default` | any | 缺失时自动应用的默认值 |
+| `enum` | string[] | 允许值列表 |
+| `format` | string | `url`/`uri`/`email`/`date`/`datetime`/`slug` |
+| `min` / `max` | number | 数值范围；用于字符串时按长度检查 |
 
 校验失败时，由 `build.schemaFailMode` 控制行为：
 - `warn`：输出警告但继续构建

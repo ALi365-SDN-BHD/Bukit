@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
+using Bukit.Content;
 using Bukit.Content.Markdown;
 using Bukit.Shared;
 using Xunit;
@@ -134,6 +135,45 @@ public sealed class MarkdownFolderProviderTests
     }
 
     [Fact]
+    public async Task LoadAsync_AddsTableOfContentsMetadataFromHeadings()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-toc-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            await File.WriteAllTextAsync(Path.Combine(root, "toc.md"), """
+            ---
+            title: TOC
+            ---
+            # Main Title
+
+            ## First Section
+
+            ### Deep Section
+
+            ## First Section
+            """);
+
+            var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
+            var result = await provider.LoadAsync();
+
+            var toc = Assert.IsAssignableFrom<IReadOnlyList<TableOfContentsEntry>>(result.Items[0].Meta["tableOfContents"]);
+            Assert.Equal(4, toc.Count);
+            Assert.Equal(1, toc[0].Level);
+            Assert.Equal("Main Title", toc[0].Text);
+            Assert.Equal("main-title", toc[0].Id);
+            Assert.Equal("first-section-1", toc[3].Id);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void ExtractSummaryFromMarkdown_StripsHtmlDecodesEntitiesAndTruncates()
     {
         var summary = MarkdownFolderProvider.ExtractSummaryFromMarkdown("""
@@ -170,7 +210,7 @@ public sealed class MarkdownFolderProviderTests
 
             var html = await MarkdownFolderProvider.RenderHtmlFromFileAsync(path, CancellationToken.None);
 
-            Assert.Contains("<h1>Visible</h1>", html);
+            Assert.Contains("<h1 id=\"visible\">Visible</h1>", html);
             Assert.Contains("<p>Body text</p>", html);
             Assert.DoesNotContain("title: Hidden", html);
         }

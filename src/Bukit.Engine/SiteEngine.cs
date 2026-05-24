@@ -69,6 +69,7 @@ public sealed class SiteEngine
 
         _logger.Info($"event=content.loaded count={items.Count}");
 
+        items = ContentSchemaValidator.ApplyDefaults(effectiveConfig.Site.Collections, items);
         var schemaErrors = ValidateContentSchemas(effectiveConfig.Site.Collections, items, _logger);
         if (schemaErrors.Count > 0)
         {

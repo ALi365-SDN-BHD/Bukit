@@ -366,6 +366,29 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--site", "多站点名")
             });
 
+        var config = new CliCommandSpec(
+            Name: "config",
+            Description: "配置诊断命令",
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "check",
+                    Description: "验证配置但不构建站点",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名"),
+                        new CliOptionSpec("--site-url", "覆盖 site.url")
+                    }),
+                new CliCommandSpec(
+                    Name: "schema",
+                    Description: "生成 site.yaml JSON Schema",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--output", "输出 schema 文件路径")
+                    })
+            });
+
         var doctor = new CliCommandSpec(
             Name: "doctor",
             Description: "诊断站点配置和模板",
@@ -390,6 +413,6 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--template", "模板名")
             });
 
-        return new CliCommandRegistry(new[] { build, clone, deploy, dev, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, doctor, init });
+        return new CliCommandRegistry(new[] { build, clone, deploy, dev, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, config, doctor, init });
     }
 }

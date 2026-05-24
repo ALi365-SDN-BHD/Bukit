@@ -657,6 +657,25 @@ collections:
         required: true
       - name: rating
         type: number
+        min: 1
+        max: 5
+      - name: status
+        type: string
+        enum: [draft, published]
+        default: draft
+```
+
+Supported schema keys: `name`, `type`, `label`, `required`, `default`, `enum`, `format`, `min`, `max`. Formats include `url`/`uri`, `email`, `date`/`datetime`, and `slug`; defaults are applied before schema validation.
+
+### Environment Overrides
+
+Use `BUKIT_` variables with `__` nesting for CI/CD scalar overrides:
+
+```bash
+BUKIT_SITE__URL=https://example.com
+BUKIT_SITE__TITLE="Production Site"
+BUKIT_BUILD__CLEAN=false
+BUKIT_CONTENT__MARKDOWN__DIR=posts
 ```
 
 ### Image Optimization

@@ -153,6 +153,7 @@ internal static class PageRenderDispatcher
                 Url = route.Url,
                 Content = content,
                 Summary = item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
+                TableOfContents = GetTableOfContents(item),
                 PublishDate = item.PublishAt,
                 Fields = item.Fields,
                 Seo = seoBuilder?.Invoke(item, route)
@@ -389,6 +390,10 @@ internal static class PageRenderDispatcher
                     Title = source[i].Item.Title,
                     Url = source[i].Route.Url,
                     Content = string.Empty,
+                    Summary = source[i].Item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
+                    TableOfContents = GetTableOfContents(source[i].Item),
+                    PublishDate = source[i].Item.PublishAt,
+                    Fields = source[i].Item.Fields,
                     Seo = seoBuilder?.Invoke(source[i].Item, source[i].Route)
                 };
             }
@@ -421,6 +426,7 @@ internal static class PageRenderDispatcher
                     Url = entry.Route.Url,
                     Content = content,
                     Summary = entry.Item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
+                    TableOfContents = GetTableOfContents(entry.Item),
                     PublishDate = entry.Item.PublishAt,
                     Fields = entry.Item.Fields,
                     Seo = seoBuilder?.Invoke(entry.Item, entry.Route)
@@ -429,6 +435,11 @@ internal static class PageRenderDispatcher
 
         return new List<PageInfo>(pageInfos);
     }
+
+    private static IReadOnlyList<TableOfContentsEntry>? GetTableOfContents(ContentItem item)
+        => item.Meta.TryGetValue("tableOfContents", out var toc) && toc is IReadOnlyList<TableOfContentsEntry> entries
+            ? entries
+            : null;
 
     private static PageInfo CreateListPageInfo(SiteModel siteModel, RouteInfo listRoute)
     {

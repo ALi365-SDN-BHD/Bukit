@@ -264,6 +264,19 @@ Prerequisite for Notion mode:
 
 For details, see: [06 Content Notion](./06-notion-content.md).
 
+### Environment Variable Overrides (CI/CD)
+
+Any scalar config value can be overridden with a `BUKIT_` environment variable. Use double underscores `__` for nesting and uppercase underscore field names:
+
+```bash
+BUKIT_SITE__TITLE="Production Site"
+BUKIT_SITE__URL="https://example.com"
+BUKIT_CONTENT__MARKDOWN__DIR="posts"
+BUKIT_BUILD__CLEAN=false
+```
+
+Overrides are applied after loading `site.yaml` and before config validation. This is useful for CI/CD deployment URLs, output switches, or content directories.
+
 #### provider=sources (Multiple Source Composition, Supports mode=data)
 
 ```yaml
@@ -437,7 +450,14 @@ Schema field description:
 
 | Field | Type | Description |
 |---|---|---|
-| `schema` | Array | `[{name, type, label, required, default}]` | Content Front Matter field type validation (`string`/`number`/`bool`/`date`/`list`) |
+| `name` | string | Front Matter field name |
+| `type` | string | `string`/`number`/`bool`/`date`/`list` |
+| `label` | string | Human-readable diagnostic label |
+| `required` | bool | Whether the field is required |
+| `default` | any | Default value applied when the field is missing |
+| `enum` | string[] | Allowed values |
+| `format` | string | `url`/`uri`/`email`/`date`/`datetime`/`slug` |
+| `min` / `max` | number | Numeric range; for strings, checks length |
 
 When validation fails, behavior is controlled by `build.schemaFailMode`:
 - `warn`: output a warning but continue building

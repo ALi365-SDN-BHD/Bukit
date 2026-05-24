@@ -13,6 +13,8 @@ Notes:
 | `create <dir>` | Create a new site project (scaffold); also use `init` alias |
 | `build` | Generate static site (output to dist/) |
 | `preview` | Local preview of output directory |
+| `config check` | Validate site.yaml without building |
+| `config schema` | Generate site.yaml JSON Schema |
 | `doctor` | Environment/config self-check (first step in troubleshooting) |
 | `clean` | Clean output directory and cache |
 | `theme` | Create, list, switch, explore, share, and install themes |
@@ -102,6 +104,28 @@ Common parameters:
 - `--host <host>`: Default `localhost`
 - `--port <port|auto>`: `auto` for auto port selection
 - `--strict-port`: Strict port mode (error instead of auto-switching when port is occupied)
+
+## config check: Validate Configuration Only
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- config check --config site.yaml
+```
+
+Use this before a build when you only need to verify `site.yaml`. It loads the resolved config, applies `--site-url` if provided, runs config validation, and exits without loading content, rendering templates, or contacting Notion.
+
+Common parameters:
+
+- `--config <path>`: Config file path
+- `--site <name>`: Multi-site config under `sites/<name>.yaml`
+- `--site-url <url>`: Override `site.url` for validation
+
+## config schema: Generate Configuration Schema
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- config schema --output site.schema.json
+```
+
+Generates a JSON Schema for editor tooling such as VSCode/YAML LSP. Omit `--output` to print the schema to stdout.
 
 ## doctor: Self-Check & Troubleshooting (First Step)
 

@@ -49,6 +49,16 @@ content:
 - `includePaths`：只读取指定路径（相对 `content.markdown.dir`；可省略 `.md`）。
 - `includeGlobs`：只读取匹配 glob 的文件（匹配相对路径，分隔符使用 `/`；`**` 表示跨目录）。
 
+## Markdown 渲染能力
+
+Bukit 使用 Markdig 渲染 Markdown，支持常用 GFM 能力：
+
+- 表格、任务列表、删除线、自动链接
+- fenced code block 语言 class（例如 `language-csharp`），starter 主题已包含 Prism/Highlight.js 兼容样式
+- 标题自动生成 `id`，并从正文标题生成目录数据
+
+模板里可以通过 `page.table_of_contents` 或 `page.tableOfContents` 读取目录条目。每个条目包含 `level`、`text`、`id`、`url`。
+
 ## Front Matter（YAML）基础写法
 
 每个 Markdown 文件可选带一个 YAML Front Matter 段：

@@ -99,6 +99,8 @@ public static class ScribanModelBinder
         obj.SetValue("url", model.Url, readOnly: true);
         obj.SetValue("content", model.Content, readOnly: true);
         obj.SetValue("summary", model.Summary, readOnly: true);
+        obj.SetValue("table_of_contents", ToTableOfContentsScriptArray(model.TableOfContents), readOnly: true);
+        obj.SetValue("tableOfContents", ToTableOfContentsScriptArray(model.TableOfContents), readOnly: true);
         obj.SetValue("publish_date", model.PublishDate?.DateTime, readOnly: true);
         obj.SetValue("fields", ToFieldsScriptObject(model.Fields), readOnly: true);
         if (model.Seo is not null)
@@ -107,6 +109,27 @@ public static class ScribanModelBinder
         }
 
         return obj;
+    }
+
+    private static ScriptArray ToTableOfContentsScriptArray(IReadOnlyList<TableOfContentsEntry>? entries)
+    {
+        var arr = new ScriptArray();
+        if (entries is null)
+        {
+            return arr;
+        }
+
+        foreach (var entry in entries)
+        {
+            var obj = new ScriptObject();
+            obj.SetValue("level", entry.Level, readOnly: true);
+            obj.SetValue("text", entry.Text, readOnly: true);
+            obj.SetValue("id", entry.Id, readOnly: true);
+            obj.SetValue("url", "#" + entry.Id, readOnly: true);
+            arr.Add(obj);
+        }
+
+        return arr;
     }
 
     private static ScriptObject ToScriptObject(AnalyticsModel model)

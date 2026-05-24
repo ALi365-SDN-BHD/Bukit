@@ -32,7 +32,7 @@ public sealed class MarkdownContentLoadResultTests
         Assert.False(string.IsNullOrWhiteSpace(item.BodyKey));
 
         var body = await result.BodyStore.GetAsync(item);
-        Assert.Contains("<h1>Hi</h1>", body.Html);
+        Assert.Contains("<h1 id=\"hi\">Hi</h1>", body.Html);
         Assert.Contains("Body text", body.Html);
     }
 }

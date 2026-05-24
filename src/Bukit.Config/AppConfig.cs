@@ -124,6 +124,10 @@ public sealed record SchemaFieldDefinition
     public required string Name { get; init; }
     public string Type { get; init; } = "string";
     public string? Label { get; init; }
+    public string? Format { get; init; }
+    public IReadOnlyList<string>? Enum { get; init; }
+    public double? Min { get; init; }
+    public double? Max { get; init; }
     public bool Required { get; init; }
     public object? Default { get; init; }
 }

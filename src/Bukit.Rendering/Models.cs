@@ -31,6 +31,7 @@ public sealed record PageInfo
     public required string Url { get; init; }
     public required string Content { get; init; }
     public string? Summary { get; init; }
+    public IReadOnlyList<TableOfContentsEntry>? TableOfContents { get; init; }
     public DateTimeOffset? PublishDate { get; init; }
     public IReadOnlyDictionary<string, ContentField>? Fields { get; init; }
     public SeoModel? Seo { get; init; }

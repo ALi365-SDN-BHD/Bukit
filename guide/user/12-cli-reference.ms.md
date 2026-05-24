@@ -13,6 +13,8 @@ Nota:
 | `create <dir>` | Cipta projek tapak baharu (perancah); juga gunakan alias `init` |
 | `build` | Jana tapak statik (output ke dist/) |
 | `preview` | Pratonton setempat direktori output |
+| `config check` | Sahkan site.yaml tanpa membina tapak |
+| `config schema` | Jana JSON Schema untuk site.yaml |
 | `doctor` | Semakan kendiri persekitaran/konfigurasi (langkah pertama penyelesaian masalah) |
 | `clean` | Bersihkan direktori output dan cache |
 | `theme` | Cipta, senarai, tukar, jelajah, kongsi, dan pasang tema |
@@ -102,6 +104,28 @@ Parameter lazim:
 - `--host <host>`: Lalai `localhost`
 - `--port <port|auto>`: `auto` untuk pemilihan port automatik
 - `--strict-port`: Mod port ketat (ralat dan bukannya tukar automatik apabila port diduduki)
+
+## config check: Sahkan Konfigurasi Sahaja
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- config check --config site.yaml
+```
+
+Gunakan ini sebelum binaan apabila anda hanya perlu mengesahkan `site.yaml`. Perintah ini memuatkan konfigurasi, menggunakan `--site-url` jika diberi, menjalankan pengesahan konfigurasi, dan keluar tanpa memuatkan kandungan, merender templat, atau menghubungi Notion.
+
+Parameter lazim:
+
+- `--config <path>`: Laluan fail konfigurasi
+- `--site <name>`: Konfigurasi pelbagai tapak di `sites/<name>.yaml`
+- `--site-url <url>`: Tindih `site.url` untuk pengesahan
+
+## config schema: Jana Skema Konfigurasi
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- config schema --output site.schema.json
+```
+
+Menjana JSON Schema untuk alat editor seperti VSCode/YAML LSP. Jika `--output` tidak diberi, skema dicetak ke stdout.
 
 ## doctor: Semakan Kendiri & Penyelesaian Masalah (Langkah Pertama)
 

@@ -192,6 +192,8 @@ bukit build                      # Build the site
 bukit dev                        # HMR dev server (file watch + live reload)
 bukit preview                    # Static preview of dist/
 bukit deploy                     # Deploy to GitHub Pages
+bukit config check               # Validate site.yaml without building
+bukit config schema              # Generate site.yaml JSON Schema
 bukit doctor                     # Diagnostics (template chain, params, theme.yaml)
 bukit clean                      # Clean
 bukit plugin list                # List plugins

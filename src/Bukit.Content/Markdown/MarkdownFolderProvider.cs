@@ -133,6 +133,12 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 }
             }
 
+            var tableOfContents = BasicMarkdownToHtml.ExtractTableOfContents(bodyMarkdown);
+            if (tableOfContents.Count > 0)
+            {
+                meta["tableOfContents"] = tableOfContents;
+            }
+
             meta["bodyFingerprint"] = ComputeBodyFingerprint(bodyMarkdown);
 
             var publishAt = File.GetLastWriteTimeUtc(file);

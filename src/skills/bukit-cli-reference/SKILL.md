@@ -60,6 +60,8 @@ After downloading, place the binary in a PATH directory or the project root.
 | `dev` | HMR dev server (watch + live reload) | `--config` `--site` `--host` `--port` `--output` `--no-watch` |
 | `preview` | Static preview of dist/ | `--dir` `--host` `--port` `--strict-port` |
 | `clean` | Clean output and cache directories | `--config` `--site` `--dir` |
+| `config check` | Validate site.yaml without building | `--config` `--site` `--site-url` |
+| `config schema` | Generate site.yaml JSON Schema | `--output` |
 | `doctor` | Diagnose config and templates | `--config` `--site` `--site-url` |
 | `plugin list` | List registered plugins (14 built-in) | `--config` `--site` |
 | `theme list` | List available themes with metadata (version, description, tags) | `--config` `--site` |
@@ -206,6 +208,32 @@ Deletes:
 - Output directory (default `dist`, read from site.yaml)
 - `.cache/` directory (incremental build manifests, etc.)
 - `.bukit/` directory
+
+### config check
+
+Validate configuration without building the site.
+
+```
+bukit config check [--config <path>] [--site <name>] [--site-url <url>]
+```
+
+Checks:
+1. Resolves config path (`site.yaml`, `--config`, or `sites/<name>.yaml`)
+2. Loads YAML into the typed config model
+3. Applies `--site-url` override when provided
+4. Runs `ConfigValidator.Validate`
+
+Does not load content, render templates, contact Notion, or run plugin hooks.
+
+### config schema
+
+Generate JSON Schema for editor tooling.
+
+```
+bukit config schema [--output <path>]
+```
+
+Without `--output`, writes the schema to stdout.
 
 ### doctor
 
@@ -418,6 +446,7 @@ User says "help me build a Bukit blog":
 | `BUKIT_GITHUB_REPO` | GitHub repo name (owner/repo) | webhook |
 | `BUKIT_GITHUB_TOKEN` | GitHub PAT | webhook |
 | `GITHUB_TOKEN` | GitHub PAT (fallback) | webhook, deploy |
+| `BUKIT_<SECTION>__<FIELD>` | Generic scalar config override, e.g. `BUKIT_SITE__URL` | config check, build, doctor |
 | `BUKIT_AUTO_SUMMARY` | Auto summary toggle (internal) | build |
 | `BUKIT_AUTO_SUMMARY_MAXLEN` | Auto summary max length (internal) | build |
 

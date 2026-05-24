@@ -39,6 +39,8 @@ public static class ConfigLoader
             throw new ConfigException("Config root must be a mapping.");
         }
 
+        ConfigEnvironmentOverrides.Apply(root);
+
         var siteNode = GetMapping(root, "site");
         var contentNode = GetMapping(root, "content");
         var buildNode = GetOptionalMapping(root, "build");
@@ -900,6 +902,22 @@ public static class ConfigLoader
         return null;
     }
 
+    private static double? GetOptionalDouble(YamlMappingNode node, string key)
+    {
+        var value = GetOptionalString(node, key);
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+        {
+            return d;
+        }
+
+        return null;
+    }
+
     private static ScssConfig? ReadScssConfig(YamlMappingNode? themeNode)
     {
         if (themeNode is null)
@@ -948,8 +966,14 @@ public static class ConfigLoader
                 Name = name,
                 Type = GetOptionalString(fieldNode, "type") ?? "string",
                 Label = GetOptionalString(fieldNode, "label"),
+                Format = GetOptionalString(fieldNode, "format"),
+                Enum = ReadStringList(fieldNode, "enum"),
+                Min = GetOptionalDouble(fieldNode, "min"),
+                Max = GetOptionalDouble(fieldNode, "max"),
                 Required = GetOptionalBool(fieldNode, "required") ?? false,
-                Default = GetOptionalString(fieldNode, "default")
+                Default = fieldNode.Children.TryGetValue(new YamlScalarNode("default"), out var defaultNode)
+                    ? ToObject(defaultNode)
+                    : null
             });
         }
 

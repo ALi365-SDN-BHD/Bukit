@@ -66,6 +66,7 @@ try
         "dev" => await DevCommand.RunAsync(args[1..]),
         "preview" => await PreviewCommand.RunAsync(reader),
         "clean" => await CleanCommand.RunAsync(reader),
+        "config" => await ConfigCommand.RunAsync(reader),
         "doctor" => await DoctorCommand.RunAsync(reader),
         "plugin" => await PluginCommand.RunAsync(reader),
         "seo" => await SeoCommand.RunAsync(reader),

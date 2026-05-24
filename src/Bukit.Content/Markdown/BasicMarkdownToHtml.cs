@@ -1,4 +1,5 @@
 using Markdig;
+using Markdig.Extensions.AutoIdentifiers;
 using System.Text.RegularExpressions;
 
 namespace Bukit.Content.Markdown;
@@ -10,6 +11,7 @@ public static class BasicMarkdownToHtml
         .UseTaskLists()
         .UseEmphasisExtras()
         .UseAutoLinks()
+        .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)
         .DisableHtml()
         .Build();
 
@@ -33,6 +35,64 @@ public static class BasicMarkdownToHtml
             .TrimEnd('\r', '\n');
 
         return StandaloneImageParagraphRegex.Replace(html, "${image}");
+    }
+
+    public static IReadOnlyList<TableOfContentsEntry> ExtractTableOfContents(string markdown)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+        {
+            return Array.Empty<TableOfContentsEntry>();
+        }
+
+        var entries = new List<TableOfContentsEntry>();
+        var seenIds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var inFence = false;
+        foreach (var rawLine in markdown.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = rawLine.TrimStart();
+            if (line.StartsWith("```", StringComparison.Ordinal) || line.StartsWith("~~~", StringComparison.Ordinal))
+            {
+                inFence = !inFence;
+                continue;
+            }
+
+            if (inFence || !line.StartsWith('#'))
+            {
+                continue;
+            }
+
+            var level = 0;
+            while (level < line.Length && line[level] == '#')
+            {
+                level++;
+            }
+
+            if (level is < 1 or > 6 || level >= line.Length || !char.IsWhiteSpace(line[level]))
+            {
+                continue;
+            }
+
+            var text = line[level..].Trim().TrimEnd('#').Trim();
+            if (text.Length == 0)
+            {
+                continue;
+            }
+
+            var baseId = SlugifyHeading(text);
+            if (seenIds.TryGetValue(baseId, out var count))
+            {
+                count++;
+                seenIds[baseId] = count;
+                entries.Add(new TableOfContentsEntry(level, text, $"{baseId}-{count}"));
+            }
+            else
+            {
+                seenIds[baseId] = 0;
+                entries.Add(new TableOfContentsEntry(level, text, baseId));
+            }
+        }
+
+        return entries;
     }
 
     private static string NormalizeStandaloneImageBlocks(string markdown)
@@ -63,5 +123,37 @@ public static class BasicMarkdownToHtml
         }
 
         return string.Join("\n", normalized);
+    }
+
+    private static string SlugifyHeading(string text)
+    {
+        var normalized = text.ToLowerInvariant();
+        var chars = new List<char>(normalized.Length);
+        var lastWasDash = false;
+        foreach (var ch in normalized)
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                chars.Add(ch);
+                lastWasDash = false;
+                continue;
+            }
+
+            if (char.IsWhiteSpace(ch) || ch is '-' or '_')
+            {
+                if (!lastWasDash && chars.Count > 0)
+                {
+                    chars.Add('-');
+                    lastWasDash = true;
+                }
+            }
+        }
+
+        while (chars.Count > 0 && chars[^1] == '-')
+        {
+            chars.RemoveAt(chars.Count - 1);
+        }
+
+        return chars.Count == 0 ? "section" : new string(chars.ToArray());
     }
 }

@@ -14,6 +14,8 @@
 | `build` | 生成静态站点（输出到 dist/） |
 | `preview` | 本地预览输出目录 |
 | `dev` | 启动 HMR 开发服务器（文件监控 + 实时刷新） | `--config` `--site` `--host` `--port` `--output` `--no-watch` |
+| `config check` | 只校验 site.yaml，不执行构建 |
+| `config schema` | 生成 site.yaml JSON Schema |
 | `doctor` | 环境/配置自检（排障第一步） |
 | `clean` | 清理输出目录与缓存 |
 | `theme` | 创建、列出、切换、探索、分享和安装主题 |
@@ -128,6 +130,28 @@ bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--o
 每个 HTML 响应中自动注入 livereload 脚本，连接到 WebSocket 端点以接收实时刷新通知。
 
 与 `preview` 的区别：`bukit dev` 适合开发阶段（自动构建 + 实时刷新），`bukit preview` 仅用于预览已构建的 `dist/` 目录。
+
+## config check：只校验配置
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- config check --config site.yaml
+```
+
+当你只想验证 `site.yaml`，但不想加载内容、渲染模板、连接 Notion 或执行构建时使用它。命令会解析配置路径，应用 `--site-url` 覆盖，然后运行配置校验。
+
+常用参数：
+
+- `--config <path>`：配置文件路径
+- `--site <name>`：多站点配置，读取 `sites/<name>.yaml`
+- `--site-url <url>`：覆盖 `site.url` 后再校验
+
+## config schema：生成配置 Schema
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- config schema --output site.schema.json
+```
+
+生成 JSON Schema，供 VSCode/YAML LSP 等工具对 `site.yaml` 做自动补全与基础校验。不传 `--output` 时会直接输出到 stdout。
 
 ## doctor：自检与排障（第一步）
 

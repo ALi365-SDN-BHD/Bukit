@@ -22,9 +22,9 @@ public sealed class BasicMarkdownToHtmlTests
         """);
 
         Assert.Equal("""
-        <h1>Title</h1>
-        <h2>Section</h2>
-        <h3>Detail</h3>
+        <h1 id="title">Title</h1>
+        <h2 id="section">Section</h2>
+        <h3 id="detail">Detail</h3>
         """.Replace("\r\n", "\n"), html);
     }
 
@@ -63,7 +63,7 @@ public sealed class BasicMarkdownToHtmlTests
         """);
 
         Assert.Equal("""
-        <h1>Title</h1>
+        <h1 id="title">Title</h1>
         <p>Body text</p>
         <img src="https://example.com/img.jpg" alt="Image" />
         """.Replace("\r\n", "\n"), html);
