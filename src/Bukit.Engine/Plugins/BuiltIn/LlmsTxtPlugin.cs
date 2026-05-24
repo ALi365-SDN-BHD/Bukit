@@ -249,6 +249,11 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             return s2.Trim();
         }
 
+        if (item.Meta.TryGetValue("seodesc", out var legacySeoDesc) && legacySeoDesc is string s4 && !string.IsNullOrWhiteSpace(s4))
+        {
+            return s4.Trim();
+        }
+
         if (item.Meta.TryGetValue("description", out var desc) && desc is string s3 && !string.IsNullOrWhiteSpace(s3))
         {
             return s3.Trim();
@@ -264,16 +269,29 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
 
     private static string ResolveFullUrl(string url, string baseUrl)
     {
-        var u = url.StartsWith('/') ? url : "/" + url;
+        var trimmedUrl = url.Trim();
+        if (trimmedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            trimmedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmedUrl;
+        }
+
+        var u = trimmedUrl.StartsWith('/') ? trimmedUrl : "/" + trimmedUrl;
         if (string.IsNullOrWhiteSpace(baseUrl) || baseUrl == "/")
         {
             return u;
         }
 
-        var b = baseUrl.StartsWith('/') ? baseUrl : "/" + baseUrl;
-        if (b.Length > 1 && b.EndsWith('/'))
+        var b = baseUrl.Trim().TrimEnd('/');
+        if (b.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            b.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            b = b.TrimEnd('/');
+            return b + u;
+        }
+
+        if (!b.StartsWith('/'))
+        {
+            b = "/" + b;
         }
 
         return b + u;

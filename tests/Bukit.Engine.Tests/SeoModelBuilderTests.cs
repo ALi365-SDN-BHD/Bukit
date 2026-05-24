@@ -126,6 +126,31 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForContent_LegacySeoFieldsFallbackToStandardSeo()
+    {
+        var config = CreateConfig();
+        var item = new ContentItem(
+            Id: "p1",
+            Title: "Original",
+            Slug: "test",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: null,
+            Meta: new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["seotitle"] = "Legacy SEO Title",
+                ["seodesc"] = "Legacy SEO Desc",
+                ["summary"] = "Summary"
+            });
+        var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("Legacy SEO Title", model.Title);
+        Assert.Equal("Legacy SEO Desc", model.Description);
+    }
+
+    [Fact]
     public void BuildForContent_NonPost_UsesWebsiteOgType()
     {
         var config = CreateConfig();

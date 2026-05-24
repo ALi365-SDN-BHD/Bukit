@@ -83,6 +83,21 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
+    public void AfterBuild_WithAbsoluteSiteUrl_WritesAbsoluteLlmsLinks()
+    {
+        var outputDir = Path.Combine(_root, "dist-absolute-url");
+        Directory.CreateDirectory(outputDir);
+        var context = CreateContext(outputDir, geoEnabled: true, llmsTxt: true);
+
+        var plugin = new LlmsTxtPlugin();
+        plugin.AfterBuild(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        Assert.Contains("- [Test Page](https://example.com/page-1/)", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("(/https://", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AfterBuild_WithOptionalLinks_IncludesOptionalSection()
     {
         var outputDir = Path.Combine(_root, "dist-optional");

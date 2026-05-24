@@ -15,8 +15,8 @@ internal static class SeoModelBuilder
         RouteInfo route,
         IReadOnlyList<SeoAlternateModel>? alternates = null)
     {
-        var title = FirstTextOrMeta(item, "seo_title") ?? item.Title;
-        var description = FirstTextOrMeta(item, "seo_desc") ?? MetaHelpers.GetString(item.Meta, "summary") ?? config.Site.Description;
+        var title = FirstTextOrMeta(item, "seo_title") ?? FirstTextOrMeta(item, "seotitle") ?? item.Title;
+        var description = FirstTextOrMeta(item, "seo_desc") ?? FirstTextOrMeta(item, "seodesc") ?? MetaHelpers.GetString(item.Meta, "summary") ?? config.Site.Description;
         var canonical = FirstTextOrMeta(item, "canonical") ?? BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url);
         var robots = FirstTextOrMeta(item, "robots");
         var image = FirstTextOrMeta(item, "og_image")
