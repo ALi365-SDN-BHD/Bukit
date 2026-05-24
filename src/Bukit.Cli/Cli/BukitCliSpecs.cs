@@ -433,7 +433,7 @@ public static class BukitCliSpecs
             Options: new[]
             {
                 new CliOptionSpec("--provider", "内容源 (markdown|notion)"),
-                new CliOptionSpec("--template", "模板名")
+                new CliOptionSpec("--template", "模板名 (minimal|blog|docs|landing|portfolio)")
             });
 
         return new CliCommandRegistry(new[] { build, clone, completion, deploy, dev, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, config, doctor, lint, init });

@@ -3,7 +3,9 @@
 {{ items = page.fields.items.value }}
 {{ taxonomy = page.fields.taxonomy.value }}
 {{ pagination = page.fields.pagination.value }}
-{{ base_url = site.base_url + "/" + taxonomy.kind + "/" + taxonomy.slug + "/" }}
+{{ base_url = site.base_url }}
+{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+{{ term_url = base_url + "/" + taxonomy.kind + "/" + taxonomy.slug + "/" }}
 
 <header class="page-header">
   <p class="eyebrow">{{ taxonomy.kind }}</p>
@@ -14,7 +16,7 @@
   {{ if taxonomy.ancestors }}
     <nav class="breadcrumb">
     {{ for ancestor in taxonomy.ancestors }}
-      / <a href="{{ site.base_url }}/{{ taxonomy.kind }}/{{ ancestor }}/">{{ ancestor }}</a>
+      / <a href="{{ base_url }}/{{ taxonomy.kind }}/{{ ancestor }}/">{{ ancestor }}</a>
     {{ end }}
     </nav>
   {{ end }}

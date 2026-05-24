@@ -571,7 +571,7 @@ button:hover, .button:hover {
 
         var themeAssets = fontBlock +
             externalCssBlock +
-            "  <link rel=\"stylesheet\" href=\"{{ site.base_url }}/assets/style.css\" />\n";
+            "  <link rel=\"stylesheet\" href=\"{{ base_url }}/assets/style.css\" />\n";
 
         var externalJsBlock = new StringBuilder();
         if (t.ExternalJsUrls is { Count: > 0 })
@@ -584,7 +584,7 @@ button:hover, .button:hover {
         }
 
         var jsBlock = (behaviors is not null && behaviors.HasAnyJsBehavior)
-            ? "  <script src=\"{{ site.base_url }}/assets/behaviors.js\" defer></script>\n"
+            ? "  <script src=\"{{ base_url }}/assets/behaviors.js\" defer></script>\n"
             : "";
 
         var lenisTag = (behaviors?.UseLenis == true)
@@ -592,14 +592,16 @@ button:hover, .button:hover {
             : "";
 
         var template = """
+{{ base_url = site.base_url }}
+{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
 <!DOCTYPE html>
 <html lang="{{ site.language }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ if page.seo }}{{ page.seo.title }}{{ else }}{{ page.title }}{{ end }}</title>
-  <link rel="alternate" type="application/rss+xml" href="{{ site.base_url }}/rss.xml" />
-  <link rel="sitemap" type="application/xml" href="{{ site.base_url }}/sitemap.xml" />
+  <link rel="alternate" type="application/rss+xml" href="{{ base_url }}/rss.xml" />
+  <link rel="sitemap" type="application/xml" href="{{ base_url }}/sitemap.xml" />
 __ASSETS__</head>
 <body>
   {{ include "partials/header.html" }}
@@ -806,9 +808,9 @@ __LENIS____EXTERNAL_JS____BEHAVIORS_JS__</body>
         var navLinksHtml = layout.NavLinks.Count > 0
             ? GenerateNavLinks(layout.NavLinks)
             : """
-        <a href="{{ site.base_url }}/">Home</a>
-        <a href="{{ site.base_url }}/blog/">Blog</a>
-        <a href="{{ site.base_url }}/pages/">Pages</a>
+        <a href="{{ base_url }}/">Home</a>
+        <a href="{{ base_url }}/blog/">Blog</a>
+        <a href="{{ base_url }}/pages/">Pages</a>
 """;
 
         var hamburgerBlock = (behaviors?.MobileHamburger == true)
@@ -822,9 +824,11 @@ __LENIS____EXTERNAL_JS____BEHAVIORS_JS__</body>
             : "";
 
         var template = """
+{{ base_url = site.base_url }}
+{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
 <header class="site-header">
   <nav class="nav" aria-label="Primary navigation">
-    <a class="brand" href="{{ site.base_url }}/">
+    <a class="brand" href="{{ base_url }}/">
       {{ if site.params && site.params.brand }}{{ site.params.brand }}{{ else }}__BRAND__{{ end }}
     </a>
 __HAMBURGER__
@@ -1163,9 +1167,9 @@ requestAnimationFrame(raf);
         if (links.Count == 0)
         {
             return """
-        <a href="{{ site.base_url }}/">Home</a>
-        <a href="{{ site.base_url }}/blog/">Blog</a>
-        <a href="{{ site.base_url }}/pages/">Pages</a>
+        <a href="{{ base_url }}/">Home</a>
+        <a href="{{ base_url }}/blog/">Blog</a>
+        <a href="{{ base_url }}/pages/">Pages</a>
 """;
         }
 
@@ -1174,7 +1178,8 @@ requestAnimationFrame(raf);
         {
             var label = Esc(link.Label ?? "Link");
             var url = Esc(link.Url ?? "#");
-            sb.AppendLine($"        <a href=\"{url}\">{label}</a>");
+            var href = url.StartsWith("/", StringComparison.Ordinal) ? "{{ base_url }}" + url : url;
+            sb.AppendLine($"        <a href=\"{href}\">{label}</a>");
         }
         return sb.ToString().TrimEnd('\r', '\n');
     }

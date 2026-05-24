@@ -64,13 +64,18 @@ Notion mode (scaffold generates corresponding config):
 dotnet run --project src/Bukit.Cli -c Release -- create my-site --provider notion
 ```
 
-Specify template (default `minimal`):
+Specify template (default `minimal`; available: `minimal`, `blog`, `docs`, `landing`, `portfolio`):
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- create my-site --template minimal
+dotnet run --project src/Bukit.Cli -c Release -- create my-site --template blog
 ```
 
-The scaffold includes `themes/starter/`, a content-site starter theme with reusable partials, responsive CSS, and optional pagination/search/taxonomy templates.
+The scaffold includes `themes/starter/`, a content-site starter theme with reusable partials, responsive CSS, and optional pagination/search/taxonomy templates. Non-minimal templates reuse the same presets as `bukit theme wizard --preset ...`, so the first generated project already has a site-type-specific visual direction and matching starter content:
+
+- `blog`: first post plus About page, dated blog URLs, pagination, RSS/archive output
+- `docs`: Getting Started and Configuration docs under `/docs/`
+- `landing`: Overview and Contact pages with flat URLs
+- `portfolio`: Sample work item under `/work/` plus About page
 
 ## build: Build the Site (Most Common)
 

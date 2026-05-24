@@ -11,7 +11,21 @@ bukit init my-site
 bukit create my-site
 ```
 
-Parameters: `--provider <markdown|notion>` (default markdown), `--template <name>` (default minimal)
+Parameters:
+- `--provider <markdown|notion>` (default markdown)
+- `--template <minimal|blog|docs|landing|portfolio>` (default minimal)
+
+`minimal` keeps the default starter scaffold. The other templates reuse the
+same preset system as `bukit theme wizard --preset ...`, so a new project can
+start with a blog, docs, landing, or portfolio visual direction without running
+a separate theme command.
+
+Template content skeletons:
+- `minimal`: `content/hello-world.md`, `defaultType: page`
+- `blog`: `content/posts/welcome.md` plus `content/pages/about.md`, `defaultType: post`, dated blog permalinks, pagination, RSS/archive output
+- `docs`: `content/docs/getting-started.md` plus `content/docs/configuration.md`, `defaultType: doc`, `/docs/{slug}/` routes
+- `landing`: `content/pages/overview.md` plus `content/pages/contact.md`, `defaultType: page`, flat page routes
+- `portfolio`: `content/work/sample-project.md` plus `content/pages/about.md`, `defaultType: work`, `/work/{slug}/` routes
 
 ## Generated Structure
 
@@ -40,5 +54,5 @@ bukit preview --dir dist
 
 ## Known Limitations
 
-- `--template` currently only affects config, not file template generation
-- `.gitignore` ignores `.bukit/` but engine default cache dir is `.cache/`
+- `--provider notion` writes Notion-oriented config, but local sample content
+  is still Markdown-only reference material until the user connects a database

@@ -1,6 +1,8 @@
+{{ base_url = site.base_url }}
+{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
 <header class="site-header">
   <nav class="nav" aria-label="Primary navigation">
-    <a class="brand" href="{{ site.base_url }}/">
+    <a class="brand" href="{{ base_url }}/">
       {{-- bukit:brand --}}
       {{ if site.params && site.params.brand }}
         {{ site.params.brand }}
@@ -18,9 +20,9 @@
           <a href="{{ nav_url }}">{{ item.title }}</a>
         {{ end }}
       {{ else }}
-        <a href="{{ site.base_url }}/">Home</a>
-        <a href="{{ site.base_url }}/blog/">Blog</a>
-        <a href="{{ site.base_url }}/pages/">Pages</a>
+        <a href="{{ base_url }}/">Home</a>
+        <a href="{{ base_url }}/blog/">Blog</a>
+        <a href="{{ base_url }}/pages/">Pages</a>
       {{ end }}
     </div>
   </nav>

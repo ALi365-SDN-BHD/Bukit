@@ -1,5 +1,3 @@
-using System.Collections;
-
 namespace Bukit.Theme;
 
 public sealed class ThemeTokens

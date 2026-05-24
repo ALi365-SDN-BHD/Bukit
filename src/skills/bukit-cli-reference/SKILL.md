@@ -54,7 +54,7 @@ After downloading, place the binary in a PATH directory or the project root.
 
 | Command | Purpose | Key Parameters |
 |------|------|---------|
-| `init` | Initialize site scaffolding | `<target-dir>` `--provider`(markdown/notion) `--template`(minimal) |
+| `init` | Initialize site scaffolding | `<target-dir>` `--provider`(markdown/notion) `--template`(minimal\|blog\|docs\|landing\|portfolio) |
 | `create` | Alias for `init` | Same as above |
 | `build` | Build static site | `--config` `--output` `--base-url` `--draft` `--ci` `--incremental` / `--no-incremental` `--jobs` `--metrics` `--log-format` |
 | `dev` | HMR dev server (watch + live reload) | `--config` `--site` `--host` `--port` `--output` `--no-watch` |
@@ -145,7 +145,14 @@ Generated directory structure:
   README.md
 ```
 
-`--provider notion` generates a site.yaml pre-configured for Notion content source; `--provider markdown` (default) generates Markdown content source config. The generated `themes/starter/` is a content-site starter theme with responsive CSS, reusable partials, and optional pagination/search/taxonomy templates.
+`--provider notion` generates a site.yaml pre-configured for Notion content source; `--provider markdown` (default) generates Markdown content source config. The generated `themes/starter/` is a content-site starter theme with responsive CSS, reusable partials, and optional pagination/search/taxonomy templates. `--template minimal` keeps the default starter scaffold; `blog`, `docs`, `landing`, and `portfolio` reuse the theme wizard presets so the initial project has a site-type-specific visual direction and matching starter content.
+
+Template-specific Markdown scaffolds:
+- `minimal`: `content/hello-world.md`, page default type
+- `blog`: `content/posts/welcome.md` and `content/pages/about.md`, post default type, dated blog routes, pagination, RSS/archive output
+- `docs`: `content/docs/getting-started.md` and `content/docs/configuration.md`, doc default type, `/docs/{slug}/` routes
+- `landing`: `content/pages/overview.md` and `content/pages/contact.md`, page default type, flat page routes
+- `portfolio`: `content/work/sample-project.md` and `content/pages/about.md`, work default type, `/work/{slug}/` routes
 
 ### preview
 

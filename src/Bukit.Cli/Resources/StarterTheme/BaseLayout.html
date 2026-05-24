@@ -1,12 +1,14 @@
+{{ base_url = site.base_url }}
+{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
 <!DOCTYPE html>
 <html lang="{{ site.language }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ if page.seo }}{{ page.seo.title }}{{ else }}{{ page.title }}{{ end }}</title>
-  <link rel="alternate" type="application/rss+xml" href="{{ site.base_url }}/rss.xml" />
-  <link rel="sitemap" type="application/xml" href="{{ site.base_url }}/sitemap.xml" />
-  <link rel="stylesheet" href="{{ site.base_url }}/assets/style.css" />
+  <link rel="alternate" type="application/rss+xml" href="{{ base_url }}/rss.xml" />
+  <link rel="sitemap" type="application/xml" href="{{ base_url }}/sitemap.xml" />
+  <link rel="stylesheet" href="{{ base_url }}/assets/style.css" />
 </head>
 <body>
   {{ include "partials/header.html" }}

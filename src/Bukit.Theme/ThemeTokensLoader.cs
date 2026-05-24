@@ -25,7 +25,16 @@ public class ThemeTokensLoader
         try
         {
             var yaml = File.ReadAllText(tokensPath);
-            var tokens = Deserializer.Deserialize<ThemeTokens>(yaml);
+            ThemeTokens? tokens;
+            try
+            {
+                tokens = Deserializer.Deserialize<ThemeTokens>(yaml);
+            }
+            catch
+            {
+                tokens = new ThemeTokens();
+            }
+
             return MergeFlattened(tokens, yaml);
         }
         catch

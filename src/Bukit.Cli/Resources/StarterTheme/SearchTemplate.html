@@ -39,7 +39,9 @@ function appendResult(item) {
 
 async function runSearch() {
   const keyword = (queryInput.value || '').trim().toLowerCase();
-  const response = await fetch('{{ site.base_url }}/search.json');
+  {{ base_url = site.base_url }}
+  {{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+  const response = await fetch('{{ base_url }}/search.json');
   const items = await response.json();
   resultsElement.innerHTML = '';
   items
