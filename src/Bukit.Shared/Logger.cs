@@ -60,6 +60,18 @@ public sealed class ConsoleLogger : ILogger
                 writer.WriteString("ts", DateTimeOffset.UtcNow.ToString("O"));
                 writer.WriteString("level", level.ToString());
                 writer.WriteString("msg", message);
+                var traceId = Environment.GetEnvironmentVariable("BUKIT_TRACE_ID");
+                if (!string.IsNullOrWhiteSpace(traceId))
+                {
+                    writer.WriteString("traceId", traceId);
+                }
+
+                var spanId = Environment.GetEnvironmentVariable("BUKIT_SPAN_ID");
+                if (!string.IsNullOrWhiteSpace(spanId))
+                {
+                    writer.WriteString("spanId", spanId);
+                }
+
                 writer.WriteEndObject();
             }
             Console.Error.WriteLine(System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan));

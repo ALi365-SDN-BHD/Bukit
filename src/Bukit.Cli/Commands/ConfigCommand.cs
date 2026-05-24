@@ -47,6 +47,11 @@ public static class ConfigCommand
                 Console.WriteLine($"  siteUrl={config.Site.Url}");
             }
 
+            foreach (var warning in ConfigDeprecationScanner.ScanFile(resolved.FullConfigPath))
+            {
+                Console.WriteLine($"  warning: {warning.Message}");
+            }
+
             return 0;
         }
         catch (ConfigException ex)

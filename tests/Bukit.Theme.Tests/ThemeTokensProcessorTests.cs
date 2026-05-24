@@ -62,4 +62,19 @@ public sealed class ThemeTokensProcessorTests
         var css = ThemeTokensProcessor.GenerateCss(tokens);
         Assert.Contains("--spacing-section-y: 64px;", css);
     }
+
+    [Fact]
+    public void GenerateCss_DotsInNestedKeys_ConvertedToHyphens()
+    {
+        var tokens = new ThemeTokens
+        {
+            Colors = new Dictionary<string, string>
+            {
+                ["brand.primary"] = "#0b5fff"
+            }
+        };
+
+        var css = ThemeTokensProcessor.GenerateCss(tokens);
+        Assert.Contains("--color-brand-primary: #0b5fff;", css);
+    }
 }

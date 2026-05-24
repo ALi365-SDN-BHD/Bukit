@@ -149,6 +149,15 @@ public static class BukitCliSpecs
                         new CliOptionSpec("--site", "多站点名")
                     }),
                 new CliCommandSpec(
+                    Name: "preview",
+                    Description: "显示主题预览元数据",
+                    Arguments: new[] { new CliArgumentSpec("name", "主题名") },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
                     Name: "wizard",
                     Description: "交互式主题创建向导",
                     Arguments: new[] { new CliArgumentSpec("name", "主题名") },
@@ -366,6 +375,20 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--site", "多站点名")
             });
 
+        var completion = new CliCommandSpec(
+            Name: "completion",
+            Description: "生成 shell 自动补全脚本",
+            Arguments: new[] { new CliArgumentSpec("shell", "bash|zsh|fish") });
+
+        var lint = new CliCommandSpec(
+            Name: "lint",
+            Description: "检查配置和 Markdown 内容",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名")
+            });
+
         var config = new CliCommandSpec(
             Name: "config",
             Description: "配置诊断命令",
@@ -413,6 +436,6 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--template", "模板名")
             });
 
-        return new CliCommandRegistry(new[] { build, clone, deploy, dev, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, config, doctor, init });
+        return new CliCommandRegistry(new[] { build, clone, completion, deploy, dev, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, config, doctor, lint, init });
     }
 }

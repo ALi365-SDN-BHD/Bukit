@@ -43,7 +43,15 @@ public sealed class SiteEngine
             Directory.Delete(outputDir, recursive: true);
         }
 
+        if (!effectiveConfig.Build.Clean && BuildRecoveryTracker.HasIncompleteBuild(outputDir))
+        {
+            _logger.Warn($"event=build.recovery previousIncomplete=true outputDir={outputDir} action=autoClean");
+            Directory.Delete(outputDir, recursive: true);
+        }
+
         Directory.CreateDirectory(outputDir);
+
+        BuildRecoveryTracker.MarkStarted(outputDir);
         _logger.Info($"event=build.start rootDir={rootDir} outputDir={outputDir}");
 
         var mediaCacheDir = string.IsNullOrWhiteSpace(overrides.CacheDir)
@@ -106,6 +114,7 @@ public sealed class SiteEngine
 
             _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={baseUrl}");
             MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, outputDir, items.Count, new[] { result });
+            BuildRecoveryTracker.MarkCompleted(outputDir);
             return;
         }
 
@@ -150,6 +159,7 @@ public sealed class SiteEngine
         SeoAuditReportWriter.WriteMerged(effectiveConfig, outputDir, variantResults, _logger);
         _logger.Info("event=build.done");
         MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, outputDir, items.Count, variantResults);
+        BuildRecoveryTracker.MarkCompleted(outputDir);
     }
 
     private static LogLevel ResolveVariantLogLevel(AppConfig config, bool isCi)

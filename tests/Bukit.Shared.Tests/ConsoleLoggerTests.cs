@@ -59,6 +59,30 @@ public sealed class ConsoleLoggerTests
     }
 
     [Fact]
+    public void JsonFormat_IncludesTraceAndSpanFromEnvironment()
+    {
+        var originalTrace = Environment.GetEnvironmentVariable("BUKIT_TRACE_ID");
+        var originalSpan = Environment.GetEnvironmentVariable("BUKIT_SPAN_ID");
+        try
+        {
+            Environment.SetEnvironmentVariable("BUKIT_TRACE_ID", "trace-123");
+            Environment.SetEnvironmentVariable("BUKIT_SPAN_ID", "span-456");
+
+            var logger = new ConsoleLogger(LogLevel.Info, "json");
+            var output = CaptureStderr(() => logger.Info("traced"));
+
+            using var doc = JsonDocument.Parse(output);
+            Assert.Equal("trace-123", doc.RootElement.GetProperty("traceId").GetString());
+            Assert.Equal("span-456", doc.RootElement.GetProperty("spanId").GetString());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BUKIT_TRACE_ID", originalTrace);
+            Environment.SetEnvironmentVariable("BUKIT_SPAN_ID", originalSpan);
+        }
+    }
+
+    [Fact]
     public void Debug_WhenLevelIsInfo_IsFiltered()
     {
         var logger = new ConsoleLogger(LogLevel.Info);

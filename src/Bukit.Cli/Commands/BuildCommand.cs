@@ -55,6 +55,11 @@ public static class BuildCommand
         Environment.SetEnvironmentVariable("BUKIT_AUTO_SUMMARY_MAXLEN", config.Site.AutoSummaryMaxLength.ToString());
 
         var logger = new ConsoleLogger(ParseLogLevel(config.Logging.Level, overrides.IsCI), command.GetString("--log-format") ?? "text");
+        foreach (var warning in ConfigDeprecationScanner.ScanFile(resolved.FullConfigPath))
+        {
+            logger.Warn($"event=config.deprecated path={warning.Path} replacement={warning.Replacement} message={warning.Message}");
+        }
+
         var engine = new SiteEngine(logger);
         await engine.BuildAsync(config, resolved.RootDir, overrides);
         return 0;

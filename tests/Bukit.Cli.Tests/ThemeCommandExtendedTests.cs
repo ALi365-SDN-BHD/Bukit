@@ -856,6 +856,28 @@ themes:
         finally { try { File.Delete(path); } catch { } }
     }
 
+    [Fact]
+    public async Task ThemePreview_PrintsPreviewMetadata()
+    {
+        var themeRoot = Path.Combine(_rootDir, "themes", "previewable");
+        Directory.CreateDirectory(themeRoot);
+        await File.WriteAllTextAsync(Path.Combine(themeRoot, "theme.yaml"), """
+            name: previewable
+            version: 1.2.3
+            description: Preview theme
+            homepage: https://example.com/theme
+            thumbnail: https://example.com/theme.png
+            tags: [blog, docs]
+            """);
+
+        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        {
+            "theme", "preview", "previewable", "--config", _configPath
+        }));
+
+        Assert.Equal(0, exitCode);
+    }
+
     private static async Task CreateThemeArchiveAsync(string archivePath, string themeName)
     {
         await using var file = File.Create(archivePath);

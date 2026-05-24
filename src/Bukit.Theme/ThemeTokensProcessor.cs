@@ -25,7 +25,7 @@ public static class ThemeTokensProcessor
 
         foreach (var kv in dict)
         {
-            var key = kv.Key.Replace("_", "-");
+            var key = kv.Key.Replace("_", "-").Replace(".", "-");
             sb.AppendLine($"  {prefix}-{key}: {kv.Value};");
         }
     }

@@ -76,5 +76,10 @@ public sealed class MetricsWriterTests
         Assert.Equal(30, stages.GetProperty("durationsMs").GetProperty("renderSpecialLists").GetInt64());
         Assert.Equal(3, stages.GetProperty("counts").GetProperty("contentHash").GetInt32());
         Assert.Equal(2, stages.GetProperty("counts").GetProperty("bodyLoad").GetInt32());
+        var htmlPath = Path.ChangeExtension(metricsPath, ".html");
+        Assert.True(File.Exists(htmlPath));
+        var html = File.ReadAllText(htmlPath);
+        Assert.Contains("Bukit Build Report", html, StringComparison.Ordinal);
+        Assert.Contains("full_render", html, StringComparison.Ordinal);
     }
 }

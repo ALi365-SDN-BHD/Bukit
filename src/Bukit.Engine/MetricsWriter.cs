@@ -143,5 +143,47 @@ internal static class MetricsWriter
 
         writer.WriteEndObject();
         writer.Flush();
+
+        WriteHtmlReport(Path.ChangeExtension(fullPath, ".html"), config, contentItemCount, variants);
     }
+
+    private static void WriteHtmlReport(
+        string htmlPath,
+        AppConfig config,
+        int contentItemCount,
+        IReadOnlyList<BuildVariantResult> variants)
+    {
+        var rows = string.Join(Environment.NewLine, variants.Select(v =>
+            $"<tr><td>{Escape(v.Language)}</td><td>{v.Routed.Count}</td><td>{v.DerivedRouted.Count}</td><td>{v.RenderedCount}</td><td>{v.SkippedCount}</td><td>{Escape(string.Join(", ", v.RenderReasons.Select(r => $"{r.Key}: {r.Value}")))}</td></tr>"));
+
+        var html = $$"""
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <title>Bukit Build Report</title>
+              <style>
+                body{font-family:system-ui,sans-serif;margin:2rem;line-height:1.5;color:#172033}
+                table{border-collapse:collapse;width:100%;margin-top:1rem}
+                th,td{border:1px solid #d8dee9;padding:.5rem;text-align:left}
+                th{background:#f4f6f8}
+              </style>
+            </head>
+            <body>
+              <h1>Bukit Build Report</h1>
+              <p><strong>{{Escape(config.Site.Title)}}</strong> · {{contentItemCount}} content item(s)</p>
+              <table>
+                <thead><tr><th>Language</th><th>Routed</th><th>Derived</th><th>Rendered</th><th>Skipped</th><th>Reasons</th></tr></thead>
+                <tbody>
+            {{rows}}
+                </tbody>
+              </table>
+            </body>
+            </html>
+            """;
+        File.WriteAllText(htmlPath, html);
+    }
+
+    private static string Escape(string? value)
+        => System.Net.WebUtility.HtmlEncode(value ?? string.Empty);
 }

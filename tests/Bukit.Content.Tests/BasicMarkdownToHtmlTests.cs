@@ -134,6 +134,27 @@ public sealed class BasicMarkdownToHtmlTests
     }
 
     [Fact]
+    public void Convert_EmojiShortcut_RendersUnicodeEmoji()
+    {
+        var html = BasicMarkdownToHtml.Convert("Ship it :rocket:");
+
+        Assert.Contains("🚀", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Convert_Footnote_RendersFootnotesSection()
+    {
+        var html = BasicMarkdownToHtml.Convert("""
+        A statement.[^1]
+
+        [^1]: Supporting note.
+        """);
+
+        Assert.Contains("footnote", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Supporting note", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Convert_RawHtml_DoesNotPassThrough()
     {
         var html = BasicMarkdownToHtml.Convert("<script>alert(1)</script>");

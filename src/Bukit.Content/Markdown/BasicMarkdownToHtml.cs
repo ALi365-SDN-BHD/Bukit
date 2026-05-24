@@ -12,6 +12,8 @@ public static class BasicMarkdownToHtml
         .UseEmphasisExtras()
         .UseAutoLinks()
         .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)
+        .UseEmojiAndSmiley()
+        .UseFootnotes()
         .DisableHtml()
         .Build();
 
