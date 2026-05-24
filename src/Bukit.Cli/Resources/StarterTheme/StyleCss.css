@@ -209,6 +209,98 @@ code {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
+pre code {
+  display: block;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  white-space: pre;
+  tab-size: 2;
+}
+
+pre code[class*="language-"] {
+  position: relative;
+}
+
+pre code[class*="language-"]::before {
+  content: "code";
+  float: right;
+  margin-left: 16px;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+pre code.language-csharp::before { content: "csharp"; }
+pre code.language-cs::before { content: "csharp"; }
+pre code.language-javascript::before { content: "javascript"; }
+pre code.language-js::before { content: "javascript"; }
+pre code.language-typescript::before { content: "typescript"; }
+pre code.language-ts::before { content: "typescript"; }
+pre code.language-css::before { content: "css"; }
+pre code.language-html::before { content: "html"; }
+pre code.language-bash::before { content: "bash"; }
+pre code.language-sh::before { content: "shell"; }
+pre code.language-json::before { content: "json"; }
+pre code.language-yaml::before { content: "yaml"; }
+pre code.language-yml::before { content: "yaml"; }
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata,
+.hljs-comment,
+.hljs-quote {
+  color: #94a3b8;
+}
+
+.token.keyword,
+.token.operator,
+.token.tag,
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: #93c5fd;
+}
+
+.token.string,
+.token.attr-value,
+.hljs-string,
+.hljs-doctag {
+  color: #86efac;
+}
+
+.token.number,
+.token.boolean,
+.token.constant,
+.hljs-number,
+.hljs-literal {
+  color: #fbbf24;
+}
+
+.token.function,
+.token.class-name,
+.hljs-title,
+.hljs-section {
+  color: #c4b5fd;
+}
+
+.token.property,
+.token.attr-name,
+.token.variable,
+.hljs-attr,
+.hljs-variable,
+.hljs-template-variable {
+  color: #f9a8d4;
+}
+
+.token.punctuation,
+.hljs-punctuation {
+  color: #cbd5e1;
+}
+
 :not(pre) > code {
   padding: 0.12em 0.35em;
   border-radius: 4px;

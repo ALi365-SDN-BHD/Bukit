@@ -38,6 +38,19 @@ public sealed class StarterThemeScaffoldTests : IDisposable
         var css = File.ReadAllText(Path.Combine(themeRoot, "assets", "style.css"));
         Assert.Contains("--primary: #0b5fff;", css, StringComparison.Ordinal);
         Assert.Contains("--accent: #0f7b6c;", css, StringComparison.Ordinal);
+        Assert.Contains("pre code[class*=\"language-\"]", css, StringComparison.Ordinal);
+        Assert.Contains(".token.keyword", css, StringComparison.Ordinal);
+        Assert.Contains(".hljs-keyword", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StyleCssFallback_IncludesSyntaxHighlightingSelectors()
+    {
+        var css = StarterThemeScaffold.StyleCss;
+
+        Assert.Contains("pre code[class*=\"language-\"]", css, StringComparison.Ordinal);
+        Assert.Contains(".token.comment", css, StringComparison.Ordinal);
+        Assert.Contains(".hljs-string", css, StringComparison.Ordinal);
     }
 
     [Fact]
