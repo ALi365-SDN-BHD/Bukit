@@ -131,7 +131,7 @@ public static class ConfigJsonSchemaGenerator
                 bool b => b,
                 int i => i,
                 double d => d,
-                _ => JsonValue.Create(value)
+                _ => value.ToString()
             };
         }
 

@@ -1,8 +1,8 @@
-using System.Text.Json;
+using System.Globalization;
+using System.Text.Json.Nodes;
 using Bukit.Content;
 using Bukit.Routing;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
+using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
@@ -72,15 +72,16 @@ public sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
 
                 if (ext is ".json")
                 {
-                    data = JsonSerializer.Deserialize<Dictionary<string, object>>(content,
-                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    data = ConvertJsonNode(JsonNode.Parse(content));
                 }
                 else
                 {
-                    data = new DeserializerBuilder()
-                        .WithNamingConvention(UnderscoredNamingConvention.Instance)
-                        .Build()
-                        .Deserialize<object>(content);
+                    var stream = new YamlStream();
+                    stream.Load(new StringReader(content));
+                    if (stream.Documents.Count > 0)
+                    {
+                        data = ConvertYamlNode(stream.Documents[0].RootNode);
+                    }
                 }
             }
             catch
@@ -105,5 +106,69 @@ public sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
         }
 
         return result;
+    }
+
+    private static object? ConvertJsonNode(JsonNode? node)
+        => node switch
+        {
+            null => null,
+            JsonObject obj => obj.ToDictionary(
+                property => property.Key,
+                property => ConvertJsonNode(property.Value) ?? string.Empty,
+                StringComparer.OrdinalIgnoreCase),
+            JsonArray array => array.Select(item => ConvertJsonNode(item) ?? string.Empty).ToList(),
+            JsonValue value => ConvertJsonValue(value),
+            _ => node.ToJsonString()
+        };
+
+    private static object ConvertJsonValue(JsonValue value)
+    {
+        if (value.TryGetValue<string>(out var text)) return text;
+        if (value.TryGetValue<bool>(out var boolean)) return boolean;
+        if (value.TryGetValue<long>(out var integer)) return integer;
+        if (value.TryGetValue<double>(out var number)) return number;
+        return value.ToJsonString();
+    }
+
+    private static object? ConvertYamlNode(YamlNode node)
+        => node switch
+        {
+            YamlMappingNode map => map.Children.ToDictionary(
+                pair => GetYamlKey(pair.Key),
+                pair => ConvertYamlNode(pair.Value) ?? string.Empty,
+                StringComparer.OrdinalIgnoreCase),
+            YamlSequenceNode sequence => sequence.Children.Select(item => ConvertYamlNode(item) ?? string.Empty).ToList(),
+            YamlScalarNode scalar => ConvertYamlScalar(scalar),
+            _ => node.ToString()
+        };
+
+    private static string GetYamlKey(YamlNode key)
+        => key is YamlScalarNode scalar && scalar.Value is not null
+            ? scalar.Value
+            : key.ToString();
+
+    private static object? ConvertYamlScalar(YamlScalarNode scalar)
+    {
+        if (scalar.Value is null)
+        {
+            return null;
+        }
+
+        if (bool.TryParse(scalar.Value, out var boolean))
+        {
+            return boolean;
+        }
+
+        if (long.TryParse(scalar.Value, CultureInfo.InvariantCulture, out var integer))
+        {
+            return integer;
+        }
+
+        if (double.TryParse(scalar.Value, CultureInfo.InvariantCulture, out var number))
+        {
+            return number;
+        }
+
+        return scalar.Value;
     }
 }

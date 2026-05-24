@@ -1,22 +1,9 @@
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Theme;
 
 public class ThemeTokensLoader
 {
-    [YamlStaticContext]
-    [YamlSerializable(typeof(ThemeTokens))]
-    private partial class TokensYamlStaticContext : YamlDotNet.Serialization.StaticContext
-    {
-    }
-
-    private static readonly IDeserializer Deserializer = new DeserializerBuilder()
-        .WithNamingConvention(UnderscoredNamingConvention.Instance)
-        .IgnoreUnmatchedProperties()
-        .Build();
-
     public ThemeTokens? Load(string themeRoot, string? tokensPath = null)
     {
         tokensPath ??= Path.Combine(themeRoot, "tokens.yaml");
@@ -25,17 +12,14 @@ public class ThemeTokensLoader
         try
         {
             var yaml = File.ReadAllText(tokensPath);
-            ThemeTokens? tokens;
-            try
+            var stream = new YamlStream();
+            stream.Load(new StringReader(yaml));
+            if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
             {
-                tokens = Deserializer.Deserialize<ThemeTokens>(yaml);
-            }
-            catch
-            {
-                tokens = new ThemeTokens();
+                return new ThemeTokens();
             }
 
-            return MergeFlattened(tokens, yaml);
+            return LoadFromRoot(root);
         }
         catch
         {
@@ -55,23 +39,15 @@ public class ThemeTokensLoader
         return child.DeepMerge(parent);
     }
 
-    private static ThemeTokens MergeFlattened(ThemeTokens? tokens, string yaml)
-    {
-        tokens ??= new ThemeTokens();
-        var stream = new YamlStream();
-        stream.Load(new StringReader(yaml));
-        if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
+    private static ThemeTokens LoadFromRoot(YamlMappingNode root)
+        => new()
         {
-            return tokens;
-        }
-
-        tokens.Colors = MergeGroup(tokens.Colors, root, "colors");
-        tokens.Font = MergeGroup(tokens.Font, root, "font");
-        tokens.Radius = MergeGroup(tokens.Radius, root, "radius");
-        tokens.Spacing = MergeGroup(tokens.Spacing, root, "spacing");
-        tokens.Layout = MergeGroup(tokens.Layout, root, "layout");
-        return tokens;
-    }
+            Colors = MergeGroup(null, root, "colors"),
+            Font = MergeGroup(null, root, "font"),
+            Radius = MergeGroup(null, root, "radius"),
+            Spacing = MergeGroup(null, root, "spacing"),
+            Layout = MergeGroup(null, root, "layout")
+        };
 
     private static Dictionary<string, string>? MergeGroup(Dictionary<string, string>? existing, YamlMappingNode root, string key)
     {

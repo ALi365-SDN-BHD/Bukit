@@ -62,7 +62,10 @@ public sealed class DataFilesPluginTests
             Assert.Empty(derived);
             Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
-            Assert.Contains("authors", dict.Keys);
+            var authors = Assert.IsType<Dictionary<string, object>>(dict["authors"]);
+            var john = Assert.IsType<Dictionary<string, object>>(authors["john"]);
+            Assert.Equal("John Doe", john["name"]);
+            Assert.Equal("john@example.com", john["email"]);
         }
         finally
         {
@@ -99,7 +102,11 @@ public sealed class DataFilesPluginTests
             new DataFilesPlugin().DerivePages(ctx);
             Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
-            Assert.Contains("nav", dict.Keys);
+            var nav = Assert.IsType<Dictionary<string, object>>(dict["nav"]);
+            var items = Assert.IsType<List<object>>(nav["items"]);
+            var home = Assert.IsType<Dictionary<string, object>>(items[0]);
+            Assert.Equal("Home", home["name"]);
+            Assert.Equal("/", home["url"]);
         }
         finally
         {
