@@ -60,8 +60,8 @@ public static class ThemeManifestLoader
     private static ThemeAssetsConfig ParseAssets(YamlMappingNode? map)
         => new()
         {
-            Css = ParseStringList(GetNode(map, "css")),
-            Js = ParseStringList(GetNode(map, "js"))
+            Css = ParseStringList(ThemeYaml.GetNode(map, "css")),
+            Js = ParseStringList(ThemeYaml.GetNode(map, "js"))
         };
 
     private static Dictionary<string, ThemePageTemplateDefinition>? ParsePageTemplates(YamlMappingNode? map)
@@ -69,7 +69,7 @@ public static class ThemeManifestLoader
         if (map is null) return null;
 
         var result = new Dictionary<string, ThemePageTemplateDefinition>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in EnumerateMap(map))
+        foreach (var (key, value) in ThemeYaml.EnumerateMap(map))
         {
             if (value is not YamlMappingNode templateMap)
             {
@@ -81,7 +81,7 @@ public static class ThemeManifestLoader
                 Template = GetString(templateMap, "template") ?? "",
                 Label = GetString(templateMap, "label"),
                 Accepts = ParseAccepts(GetMap(templateMap, "accepts")),
-                RequiredFields = ParseStringList(GetNode(templateMap, "required_fields"))
+                RequiredFields = ParseStringList(ThemeYaml.GetNode(templateMap, "required_fields"))
             };
         }
 
@@ -102,7 +102,7 @@ public static class ThemeManifestLoader
         if (map is null) return null;
 
         var result = new Dictionary<string, ThemeSectionDefinition>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in EnumerateMap(map))
+        foreach (var (key, value) in ThemeYaml.EnumerateMap(map))
         {
             if (value is not YamlMappingNode sectionMap)
             {
@@ -129,7 +129,7 @@ public static class ThemeManifestLoader
         if (map is null) return null;
 
         var result = new Dictionary<string, ThemeVariantDefinition>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in EnumerateMap(map))
+        foreach (var (key, value) in ThemeYaml.EnumerateMap(map))
         {
             if (value is not YamlMappingNode variantMap)
             {
@@ -164,7 +164,7 @@ public static class ThemeManifestLoader
         if (map is null) return null;
 
         var result = new Dictionary<string, ThemeComponentDefinition>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in EnumerateMap(map))
+        foreach (var (key, value) in ThemeYaml.EnumerateMap(map))
         {
             if (value is not YamlMappingNode componentMap)
             {
@@ -186,7 +186,7 @@ public static class ThemeManifestLoader
         if (map is null) return null;
 
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in EnumerateMap(map))
+        foreach (var (key, value) in ThemeYaml.EnumerateMap(map))
         {
             if (value is YamlScalarNode scalar && scalar.Value is not null)
             {
@@ -202,7 +202,7 @@ public static class ThemeManifestLoader
         if (map is null) return null;
 
         var result = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in EnumerateMap(map))
+        foreach (var (key, value) in ThemeYaml.EnumerateMap(map))
         {
             result[key] = ConvertNode(value);
         }
@@ -241,41 +241,11 @@ public static class ThemeManifestLoader
             _ => null
         };
 
-    private static IEnumerable<(string Key, YamlNode Value)> EnumerateMap(YamlMappingNode map)
-    {
-        foreach (var (key, value) in map.Children)
-        {
-            if (key is YamlScalarNode scalar && !string.IsNullOrWhiteSpace(scalar.Value))
-            {
-                yield return (scalar.Value, value);
-            }
-        }
-    }
-
-    private static YamlNode? GetNode(YamlMappingNode? map, string key)
-    {
-        if (map is null)
-        {
-            return null;
-        }
-
-        foreach (var (nodeKey, value) in map.Children)
-        {
-            if (nodeKey is YamlScalarNode scalar &&
-                string.Equals(scalar.Value, key, StringComparison.OrdinalIgnoreCase))
-            {
-                return value;
-            }
-        }
-
-        return null;
-    }
-
     private static YamlMappingNode? GetMap(YamlMappingNode? map, string key)
-        => GetNode(map, key) as YamlMappingNode;
+        => ThemeYaml.GetNode(map, key) as YamlMappingNode;
 
     private static string? GetString(YamlMappingNode? map, string key)
-        => GetNode(map, key) is YamlScalarNode scalar ? scalar.Value : null;
+        => ThemeYaml.GetNode(map, key) is YamlScalarNode scalar ? scalar.Value : null;
 
     private static bool GetBool(YamlMappingNode? map, string key)
         => bool.TryParse(GetString(map, key), out var value) && value;

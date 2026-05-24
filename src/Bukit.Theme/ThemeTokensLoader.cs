@@ -51,7 +51,7 @@ public class ThemeTokensLoader
 
     private static Dictionary<string, string>? MergeGroup(Dictionary<string, string>? existing, YamlMappingNode root, string key)
     {
-        if (GetNode(root, key) is not YamlMappingNode map)
+        if (ThemeYaml.GetNode(root, key) is not YamlMappingNode map)
         {
             return existing;
         }
@@ -72,20 +72,6 @@ public class ThemeTokensLoader
         }
 
         return merged;
-    }
-
-    private static YamlNode? GetNode(YamlMappingNode map, string key)
-    {
-        foreach (var (nodeKey, value) in map.Children)
-        {
-            if (nodeKey is YamlScalarNode scalar &&
-                string.Equals(scalar.Value, key, StringComparison.OrdinalIgnoreCase))
-            {
-                return value;
-            }
-        }
-
-        return null;
     }
 
     private static void Flatten(YamlMappingNode map, string? prefix, Dictionary<string, string> output)
