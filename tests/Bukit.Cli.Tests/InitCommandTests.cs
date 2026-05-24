@@ -184,11 +184,11 @@ public sealed class InitCommandTests : IDisposable
         var post = await File.ReadAllTextAsync(Path.Combine(target, "content", "posts", "welcome.md"));
         Assert.Contains("defaultType: post", yaml, StringComparison.Ordinal);
         Assert.Contains("url: https://example.com", yaml, StringComparison.Ordinal);
+        Assert.Contains("defaultImage: /assets/og-default.gif", yaml, StringComparison.Ordinal);
         Assert.Contains("permalink: /blog/{year}/{month}/{slug}/", yaml, StringComparison.Ordinal);
         Assert.Contains("pagination:", yaml, StringComparison.Ordinal);
         Assert.Contains("type: post", post, StringComparison.Ordinal);
         Assert.Contains("author: Bukit Team", post, StringComparison.Ordinal);
-        Assert.Contains("image: /assets/og-default.gif", post, StringComparison.Ordinal);
         Assert.Contains("categories: [news]", post, StringComparison.Ordinal);
     }
 
@@ -320,6 +320,7 @@ public sealed class InitCommandTests : IDisposable
         Assert.DoesNotContain("seo.schema_searchaction_target_not_absolute", issueCodes);
         Assert.DoesNotContain("seo.schema_website_url_invalid", issueCodes);
         Assert.DoesNotContain("seo.description_duplicate", issueCodes);
+        Assert.DoesNotContain("seo.description_missing", issueCodes);
         Assert.DoesNotContain("seo.schema_blogposting_author_missing", issueCodes);
         Assert.DoesNotContain("seo.schema_blogposting_image_missing", issueCodes);
     }

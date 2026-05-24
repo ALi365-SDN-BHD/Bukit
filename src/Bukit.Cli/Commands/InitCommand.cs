@@ -138,7 +138,6 @@ title: Welcome to Your Blog
 slug: welcome
 date: 2026-01-01
 author: Bukit Team
-image: /assets/og-default.gif
 summary: A first post you can replace with your own writing.
 tags: [intro, bukit]
 categories: [news]
@@ -289,6 +288,8 @@ site:
   title: {{profile.Title}}
   baseUrl: /
   url: https://example.com
+  seo:
+    defaultImage: /assets/og-default.gif
   language: zh-CN
   timezone: Asia/Shanghai
   collections:
@@ -325,6 +326,8 @@ site:
   title: {{profile.Title}}
   baseUrl: /
   url: https://example.com
+  seo:
+    defaultImage: /assets/og-default.gif
   language: zh-CN
   timezone: Asia/Shanghai
   collections:

@@ -33,10 +33,10 @@ sources are assigned to their collection, while `data/` is loaded with
 
 Generated `site.yaml` includes `site.url: https://example.com` as a safe
 placeholder so the first build can produce absolute canonical, sitemap, RSS,
-and schema URLs. Replace it with the production URL before publishing. The
-blog starter post also includes an author and a local `/assets/og-default.gif`
-preview image backed by the starter asset to avoid first-run BlogPosting schema
-warnings.
+and schema URLs. Replace it with the production URL before publishing.
+Generated config also sets `site.seo.defaultImage: /assets/og-default.gif`,
+backed by a local starter asset, and the blog starter post includes an author
+to avoid first-run BlogPosting schema warnings.
 
 ## Generated Structure
 

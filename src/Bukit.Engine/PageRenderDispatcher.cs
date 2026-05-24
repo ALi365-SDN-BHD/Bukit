@@ -448,8 +448,24 @@ internal static class PageRenderDispatcher
             Title = listRoute.Url == "/" ? siteModel.Title : BuildListTitle(listRoute.Url),
             Url = listRoute.Url,
             Content = string.Empty,
-            Summary = siteModel.Description
+            Summary = BuildListSummary(siteModel, listRoute)
         };
+    }
+
+    private static string BuildListSummary(SiteModel siteModel, RouteInfo listRoute)
+    {
+        if (!string.IsNullOrWhiteSpace(siteModel.Description) && listRoute.Url == "/")
+        {
+            return siteModel.Description!;
+        }
+
+        var siteTitle = string.IsNullOrWhiteSpace(siteModel.Title) ? siteModel.Name : siteModel.Title;
+        if (listRoute.Url == "/")
+        {
+            return $"Browse the latest content from {siteTitle}.";
+        }
+
+        return $"Browse {BuildListTitle(listRoute.Url)} from {siteTitle}.";
     }
 
     private static string BuildListTitle(string url)

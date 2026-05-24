@@ -114,7 +114,8 @@ internal static class TaxonomyPageCreator
         var route = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "page"
+            ["type"] = "page",
+            ["summary"] = $"Browse all {kind}."
         };
 
         var termsValue = new List<object>(terms.Count);
@@ -217,7 +218,8 @@ internal static class TaxonomyPageCreator
         var route = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "page"
+            ["type"] = "page",
+            ["summary"] = BuildTermSummary(kind, term, page, totalPages, items.Count)
         };
 
         var itemsValue = new List<object>(items.Count);
@@ -324,6 +326,20 @@ internal static class TaxonomyPageCreator
             .Replace(">", "&gt;", StringComparison.Ordinal)
             .Replace("\"", "&quot;", StringComparison.Ordinal)
             .Replace("'", "&#39;", StringComparison.Ordinal);
+    }
+
+    private static string BuildTermSummary(string kind, TaxonomyTerm term, int page, int totalPages, int visibleCount)
+    {
+        if (!string.IsNullOrWhiteSpace(term.Description) && page <= 1)
+        {
+            return term.Description!;
+        }
+
+        var relation = string.Equals(kind, "tags", StringComparison.OrdinalIgnoreCase) ? "tagged" : "in";
+        var suffix = totalPages > 1 ? $" Page {page} of {totalPages}." : string.Empty;
+        return visibleCount > 0
+            ? $"Browse {visibleCount} content items {relation} {term.DisplayName}.{suffix}"
+            : $"Browse content {relation} {term.DisplayName}.{suffix}";
     }
 
     internal static string EscapeAttr(string value)

@@ -82,9 +82,35 @@ internal static class SeoIndexBuilder
             Title = route.Url == "/" ? config.Site.Title : BuildListTitle(route.Url),
             Url = route.Url,
             Content = string.Empty,
-            Summary = config.Site.Description,
+            Summary = BuildListSummary(config, route, routed),
             Fields = routed is null ? null : BuildListFields(config, route, routed)
         };
+    }
+
+    private static string BuildListSummary(
+        AppConfig config,
+        RouteInfo route,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)>? routed)
+    {
+        if (!string.IsNullOrWhiteSpace(config.Site.Description) && route.Url == "/")
+        {
+            return config.Site.Description!;
+        }
+
+        var siteTitle = string.IsNullOrWhiteSpace(config.Site.Title) ? config.Site.Name : config.Site.Title;
+        var title = route.Url == "/" ? siteTitle : BuildListTitle(route.Url);
+        int? count = routed is null ? null : ResolveListItems(config, route, routed).Count;
+
+        if (route.Url == "/")
+        {
+            return count is > 0
+                ? $"Browse {count} content items from {siteTitle}."
+                : $"Browse the latest content from {siteTitle}.";
+        }
+
+        return count is > 0
+            ? $"Browse {count} items in {title} from {siteTitle}."
+            : $"Browse {title} from {siteTitle}.";
     }
 
     private static IReadOnlyDictionary<string, ContentField>? BuildListFields(

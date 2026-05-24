@@ -71,7 +71,12 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
 
         var now = DateTimeOffset.UtcNow;
         var route = new RouteInfo(archiveBaseUrl, RoutePathBuilder.BuildOutputPathFromUrl(archiveBaseUrl, outputPathEncoding), "pages/page.html");
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page", ["collection"] = collectionKey };
+        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "page",
+            ["collection"] = collectionKey,
+            ["summary"] = $"Browse archived {collectionKey} entries by year."
+        };
         var item = new ContentItem("blog-archive-index", "Archive", "archive", now, sb.ToString(), meta);
         return (item, route, now);
     }
@@ -102,7 +107,12 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
         var url = $"{archiveBaseUrl}{year}/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var route = new RouteInfo(url, outputPath, "pages/page.html");
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page", ["collection"] = collectionKey };
+        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "page",
+            ["collection"] = collectionKey,
+            ["summary"] = $"Browse {collectionKey} entries published in {year}."
+        };
         var item = new ContentItem($"blog-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), meta);
         return (item, route, publishAt);
     }
@@ -129,7 +139,12 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
         var url = $"{archiveBaseUrl}{year}/{month:D2}/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var routeInfo = new RouteInfo(url, outputPath, "pages/page.html");
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page", ["collection"] = collectionKey };
+        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "page",
+            ["collection"] = collectionKey,
+            ["summary"] = $"Browse {collectionKey} entries published in {year}-{month:D2}."
+        };
         var itemInfo = new ContentItem($"blog-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), meta);
         return (itemInfo, routeInfo, publishAt);
     }

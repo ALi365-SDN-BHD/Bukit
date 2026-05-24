@@ -77,7 +77,7 @@ The scaffold includes `themes/starter/`, a content-site starter theme with reusa
 - `landing`: Overview and Contact pages with flat URLs, plus feature and call-to-action homepage modules
 - `portfolio`: Sample work item under `/work/` plus About page, with a selected-work homepage
 
-Generated `site.yaml` includes `site.url: https://example.com` as a placeholder for absolute SEO URLs. Replace it with your real production URL before publishing; you can also override it per build with `--site-url`.
+Generated `site.yaml` includes `site.url: https://example.com` as a placeholder for absolute SEO URLs and `site.seo.defaultImage: /assets/og-default.gif` for share previews. Replace the URL with your real production URL before publishing; you can also override it per build with `--site-url`.
 
 ## build: Build the Site (Most Common)
 

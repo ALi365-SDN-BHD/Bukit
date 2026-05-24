@@ -148,7 +148,7 @@ Generated directory structure:
 
 `--provider notion` generates a site.yaml pre-configured for Notion content source; `--provider markdown` (default) generates Markdown content source config. The generated `themes/starter/` is a content-site starter theme with responsive CSS, reusable partials, and optional pagination/search/taxonomy templates. `--template minimal` keeps the default starter scaffold; `blog`, `docs`, `landing`, and `portfolio` reuse the theme wizard presets so the initial project has a site-type-specific visual direction and matching starter content.
 
-Generated `site.yaml` includes `site.url: https://example.com` as a placeholder for absolute canonical, sitemap, RSS, and schema URLs. Replace it with the production URL before publishing, or override it with `--site-url`.
+Generated `site.yaml` includes `site.url: https://example.com` as a placeholder for absolute canonical, sitemap, RSS, and schema URLs, plus `site.seo.defaultImage: /assets/og-default.gif` for share previews. Replace the URL with the production URL before publishing, or override it with `--site-url`.
 
 Template-specific Markdown scaffolds:
 - `minimal`: `content/hello-world.md`, page default type
