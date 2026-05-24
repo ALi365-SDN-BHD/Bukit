@@ -185,6 +185,21 @@ When creating a custom theme:
 - User mentions specific bukit commands or concepts → Identified as bukit task
 - User doesn't explicitly specify a tool → If discussing bukit-specific stack like `.csproj`, Scriban, `site.yaml` → Prioritize bukit skills
 
+## Common Routing Issues: Symptom-Cause-Fix
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| A non-Bukit SSG skill is selected after the user says "using bukit" | Gateway routing was skipped or another SSG trigger was considered stronger | Load `using-bukit` first and treat Bukit skills as exclusive for the session unless the user explicitly switches tools |
+| Agent answers generic static-site advice instead of Bukit-specific steps | User mentioned broad terms like blog, docs, or deploy, but Bukit context was not propagated | Re-anchor on Bukit concepts: `site.yaml`, `themes/<name>/`, Scriban templates, and Bukit CLI commands |
+| Sub-skill is not loaded for a config/template/theme issue | The task was handled only by the gateway skill | Route from this entry skill to the focused sub-skill, for example config → `bukit-config`, templates → `bukit-templating`, tokens → `bukit-design-tokens` |
+| CLI command is suggested before command guidance is loaded | `bukit-cli-reference` was skipped in a workflow that executes commands | Load `bukit-cli-reference` before any Bukit command execution or command troubleshooting |
+| User reports `site.yaml` errors but only template advice is given | Config and template symptoms overlap, especially when collection templates or fields are missing | Load `bukit-config` first for validation, then load `bukit-templating` or `bukit-content-to-template` if fields or templates are involved |
+| Theme work ignores the starter-theme policy | A new theme was created even though customizing `themes/starter/` would be safer | Customize `themes/starter/` by default and create a separate theme only for reusable/distributable packages or clearly divergent visual systems |
+| SEO or GEO guidance conflicts with theme head output | Theme-owned SEO partials are suggested while the default mode is SEO inject-first | Keep `site.seo.renderMode: inject` for starter-based workflows unless the user explicitly wants theme-owned head rendering |
+| User follows a guide chapter but receives different ordering | Skill response ignores the guide cross-reference table | Match the primary guide chapter and preserve its sequence, examples, and terminology when explaining fixes |
+| Troubleshooting stops at build failure without narrowing scope | Gateway skill was used as the final diagnostic skill | Route to the smallest relevant diagnostic skill: config validation, plugin/build behavior, preview/dev server, deployment, SEO, or GEO |
+| Multiple Bukit sub-skills seem applicable | The task spans configuration, theme structure, templates, and operations | Load the dependency chain in order: gateway → CLI reference when commands are needed → config background → theme/template/token-specific skill |
+
 ## Key Commands (Quick Reference)
 
 See bukit-cli-reference for detailed command information.

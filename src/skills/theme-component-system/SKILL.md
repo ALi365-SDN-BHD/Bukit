@@ -525,6 +525,23 @@ The V2 componentized theme system coexists with V1 themes:
 - **Theme inheritance** (`extends`) is a V2-only feature.
 - **Section schemas** and **data bindings** are V2-only.
 
+## Common Component System Issues: Symptom-Cause-Fix
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| `bukit theme doctor` reports missing section templates | `sections.<name>.template` is relative to `layouts/`, but the file is placed elsewhere | Move the template under `themes/<name>/layouts/sections/...` or update the manifest path to match the actual file |
+| Section renders but required props are empty | Page composer props, section schema names, and template variable names do not match | Align schema property names, page section JSON keys, and Scriban access paths before changing rendering logic |
+| Variant is ignored and default section appears | Variant key is not declared under `sections.<name>.variants`, or its template path is missing | Add the variant definition with a valid template path and verify it with `bukit theme doctor` |
+| Component cannot be rendered by name | Component key in `theme.yaml` differs from the name passed to `render_component` or `comp.render` | Use the manifest component key exactly and keep naming conventions consistent, including case |
+| Data-bound section has no items | `data.source` does not match content `type`, collection name, or the source pattern expected by `SectionDataResolver` | Use supported patterns such as `type:post`, `collection:blog`, `posts`, `*`, or comma-separated sources |
+| Data-bound section returns too many or wrong items | Filter keys do not match content field names, or boolean/string values differ | Match `filters` keys to `ContentItem.Fields` and normalize boolean values in content or config |
+| Child theme does not override a parent section | Child manifest defines a different section key or only overrides tokens, not the section/template definition | Reuse the exact parent section key and define the child template or variant intended to override the parent |
+| Tokens appear inherited incorrectly | `tokens.yaml` mixes nested and dot-separated keys in a way that hides the intended leaf override | Normalize token shape and remember that inheritance merges by leaf key with child priority |
+| `theme-catalog.json` is stale or missing new props | Catalog was not regenerated after editing schema, manifest, or component props | Export the catalog again after manifest/schema changes and inspect required/optional props before agent consumption |
+| V1 and V2 component definitions conflict conceptually | `site.yaml theme.components` and V2 `theme.yaml components` are separate systems | Decide which system the theme uses and avoid mixing V1 site-level component config with V2 manifest components unless explicitly required |
+| Section plugin changes are not visible | Plugin hook timing does not match the intended mutation point | Use `BeforeRender` for props/data changes, `ResolveItems` for item transformation, and `AfterRender` for HTML post-processing |
+| Remote Git theme resolves an older version | `theme.source` pins a tag/commit or cached theme checkout has not updated | Check the source suffix after `@`, update the requested version, and clear or refresh the cached theme checkout when needed |
+
 ## Related Skills
 
 - [bukit-theme](file:///Users/ali/mydev/Git/Github/Bukit/src/skills/bukit-theme/SKILL.md) — Theme basics: layouts, assets, static, theme.yaml V1, theme.params, wizard presets, SCSS, image optimization

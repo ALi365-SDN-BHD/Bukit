@@ -253,9 +253,23 @@ public static class ThemeManifestLoader
     }
 
     private static YamlNode? GetNode(YamlMappingNode? map, string key)
-        => map is not null && map.Children.TryGetValue(new YamlScalarNode(key), out var node)
-            ? node
-            : null;
+    {
+        if (map is null)
+        {
+            return null;
+        }
+
+        foreach (var (nodeKey, value) in map.Children)
+        {
+            if (nodeKey is YamlScalarNode scalar &&
+                string.Equals(scalar.Value, key, StringComparison.OrdinalIgnoreCase))
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
 
     private static YamlMappingNode? GetMap(YamlMappingNode? map, string key)
         => GetNode(map, key) as YamlMappingNode;

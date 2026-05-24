@@ -734,6 +734,21 @@ These overrides only affect the current build and do not modify site.yaml.
 | `site.languages has duplicate language` | Language list has duplicates | Remove duplicates |
 | `site.defaultLanguage must be included in site.languages` | Default language not in list | Add defaultLanguage to languages |
 
+## Common Configuration Issues: Symptom-Cause-Fix
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| Build succeeds but pages are generated under unexpected URLs | `baseUrl`, collection `permalink`, or CLI `--base-url` override differs from the intended deployment path | Keep `site.baseUrl` as `/` for root deployments, use `/subpath/` for subdirectory deployments, and check CLI overrides before changing `site.yaml` |
+| A collection has content files but no list page appears | `listRoute` is missing, points to the wrong path, or the list template is absent | Add `listRoute`, verify it starts with `/`, and ensure `listTemplate` or `pages/list.html` exists in the active theme |
+| Markdown pages render as the wrong type | `content.markdown.defaultType` does not match a key in `site.collections`, or front matter `type` is missing | Align `defaultType` and front matter `type` with the collection key used in `site.collections` |
+| Notion pages are fetched but fields are missing in templates | `fieldPolicy.mode: whitelist` excludes properties needed by templates | Add required properties to `fieldPolicy.allowed`, or use `fieldPolicy.mode: all` when exploring a new database schema |
+| Taxonomy pages are empty or terms are missing | `taxonomy.kinds[].key` does not match the content field name, or `taxonomy.outputMode` disables page output | Match `key` to the front matter or Notion property name and use `outputMode: both` or `pages` when term pages should be generated |
+| Pagination URLs duplicate or conflict with other routes | `pagination.urlPattern`, `listRoute`, or collection `permalink` overlap | Keep pagination paths under the list route, for example `listRoute: /blog/` with `urlPattern: page/:num/` |
+| SEO audit warns about missing canonical, sitemap, or schema URLs | `site.url` is missing or not absolute | Set `site.url` to the production origin, including `https://`, and keep `site.baseUrl` for path prefix only |
+| Config works locally but fails in CI | Environment overrides with `BUKIT_` changed scalar values unexpectedly | Print the effective config in CI diagnostics and review `BUKIT_*` variables before editing `site.yaml` |
+| Theme templates or assets cannot be found | `theme.name`, `theme.layouts`, `theme.assets`, or `theme.static` does not match the active theme directory | Verify `themes/<theme.name>/` exists and keep layout paths relative to the theme root conventions |
+| Schema validation warnings appear for fields that exist | Schema `type`, `format`, or `enum` does not match actual Markdown front matter or Notion property values | Normalize content values, add `default` where safe, or temporarily use `build.schemaFailMode: warn` while migrating content |
+
 ## Checklist: New Site Config Review
 
 Use `bukit doctor` to auto-check most items. After config, verify each:

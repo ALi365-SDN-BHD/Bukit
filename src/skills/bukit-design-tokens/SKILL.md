@@ -270,3 +270,18 @@ When Alpine.js or other JS frameworks need design token values:
   // Use with Alpine, htmx, etc.
 </script>
 ```
+
+## Common Token Issues: Symptom-Cause-Fix
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| CSS variable appears unset in the browser | Token is defined in `tokens.yaml` but the generated CSS is not included, or the variable prefix differs from the template usage | Verify the theme CSS is loaded after framework CSS and match generated names such as `--color-primary`, `--font-size-base`, and `--spacing-section-y` |
+| Dark mode changes only some colors | Light and dark token sets do not define the same semantic variables | Mirror every semantic color token in the dark-mode block, especially background, surface, text, muted text, border, primary, and accent |
+| Components look inconsistent across pages | Components use raw hex values or spacing literals instead of semantic tokens | Replace hard-coded values with shared tokens and centralize component styling around `--color-*`, `--spacing-*`, `--radius-*`, and `--shadow-*` |
+| Child theme overrides one token but loses sibling tokens | Flat and nested token formats are mixed incorrectly, or inheritance expectations do not match deep-merge behavior | Keep token keys consistent across parent and child themes and remember that child leaf values override parent leaf values while sibling keys are inherited |
+| Tailwind, Bootstrap, or another framework overrides Bukit styling | External framework CSS loads after the Bukit theme CSS | Load external frameworks first and load Bukit's `style.css` last so token-backed theme styles win the cascade |
+| Text contrast is poor in dark mode | Primary/accent tokens were reused from light mode without contrast checks | Choose separate dark-mode brand tokens and verify contrast for text, links, badges, borders, and focus states |
+| Spacing scale feels uneven | Mixed naming such as `--space-*` and `--spacing-*`, or ad hoc pixel values were introduced | Pick one naming family per theme, prefer the documented `--spacing-*` scale, and refactor component CSS to use that scale consistently |
+| Font tokens do not apply to headings | Heading styles reference a raw font stack or a different variable name | Point heading rules to `var(--font-family-heading)` and keep body rules on `var(--font-family-base)` |
+| Manual dark-mode toggle conflicts with auto mode | `.dark` class and `prefers-color-scheme` both set the same variables without precedence planning | Choose either auto mode or manual mode; if both are needed, define cascade order so the explicit `.dark` or theme class wins |
+| Token values work in CSS but not JavaScript interactions | JS reads token names before CSS loads or reads from the wrong element | Read computed styles from `document.documentElement` after the page has loaded and trim returned values before using them |
