@@ -112,18 +112,60 @@ dist/assets/css/theme-tokens.css
 event=tokens.generated output=dist/assets/css/theme-tokens.css
 ```
 
-## Token 继承
+### 嵌套 Token 语法（推荐）
 
-子主题通过 `extends` 继承父主题时，tokens 也会合并。合并规则由 `ThemeTokens.Merge()` 实现：
+Token 也支持嵌套 YAML 写法，方便深层合并：
+
+```yaml
+colors:
+  brand:
+    primary: "#0b5fff"
+    accent: "#0f7b6c"
+  neutral:
+    bg: "#ffffff"
+    text: "#1a1a2e"
+```
+
+加载时自动扁平化为点分隔键值（如 `brand.primary`、`neutral.bg`）。
+
+## Token 继承与深层合并
+
+子主题通过 `extends` 继承父主题时，tokens 也会合并。合并使用 `ThemeTokens.DeepMerge()` 实现递归深层合并：
 
 - **子优先**：子主题 tokens 覆盖父主题同名 key
 - **父补充**：子主题未定义的 key 继承父主题值
+- **深层合并**：嵌套 token 结构（点分隔键如 `brand.primary`）被重建为树并递归合并 — 子主题的 `brand.primary` 仅覆盖该特定叶子节点，保留父主题的 `brand.secondary`
 
-加载流程：
+### 合并行为对比
+
+给定父主题 tokens：
+```yaml
+colors:
+  brand:
+    primary: "#000000"
+    secondary: "#333333"
+```
+
+子主题 tokens：
+```yaml
+colors:
+  brand:
+    primary: "#ff0000"
+```
+
+| 合并模式 | `brand.primary` 结果 | `brand.secondary` 结果 |
+|---|---|---|
+| 浅合并（`Merge`） | `#ff0000` | 保留（`#333333`） |
+| 深合并（`DeepMerge`） | `#ff0000` | 保留（`#333333`） |
+
+对于扁平键值结构，两种模式行为一致。深层合并在中间键可能与叶子值冲突的嵌套结构中提供额外安全保障。
+
+### 加载流程
 
 1. 加载子主题 `tokens.yaml`
 2. 加载父主题 `tokens.yaml`（若 `extends` 已设置）
-3. 调用 `child.Merge(parent)`，子值覆盖父值
+3. 将嵌套 YAML 结构扁平化为点分隔键值
+4. 调用 `child.DeepMerge(parent)`，子值在叶子级别覆盖父值
 
 ## 在 Scriban 模板中使用 tokens
 

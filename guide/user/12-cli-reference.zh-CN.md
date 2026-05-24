@@ -254,6 +254,65 @@ bukit template hints
 bukit template sync --config site.yaml
 ```
 
+### theme preview
+
+显示主题详细信息，包括 sections、components、设计令牌和布局模板。
+
+```
+bukit theme preview [<name>]
+```
+
+| 参数 | 默认值 | 说明 |
+|---|---|---|
+| `<name>` | 当前主题 | 要预览的主题名称 |
+
+**输出包含：**
+- 基本元数据：名称、版本、描述、主页、缩略图、标签
+- Sections：数量、描述、插件关联
+- Components：数量和声明的 props
+- 设计令牌：分组计数（colors/font/radius/spacing/layout）及颜色采样
+- 布局模板：`layouts/` 下所有 `.scriban`/`.html`/`.sbn` 文件
+- 文件统计：assets 和 static 文件数量
+
+示例输出：
+```
+Theme preview: my-blog
+Version:      1.0.0
+Description:  A clean blog theme with dark mode support
+Tags:         blog, minimal, dark-mode
+
+Sections (4):
+  hero                      Hero section with CTA
+  features                  Feature grid section
+  recent-posts              Recent posts list
+  footer-cta                Footer call-to-action [plugin: sample-plugin]
+
+Components (2):
+  PostCard                  props: [title, url, date]
+  TagBadge                  props: [tag]
+
+Design tokens: colors (12), font (8), radius (4), spacing (10)
+  Color samples:
+    primary: #0b5fff
+    accent: #0f7b6c
+    bg: #fbfaf8
+    text: #202124
+    ... and 8 more
+
+Layout templates (8):
+  layouts/base.html
+  pages/index.html
+  pages/list.html
+  pages/page.html
+  pages/post.html
+  partials/footer.html
+  partials/header.html
+  partials/list-card.html
+
+Assets: 3 files  |  Static: 1 files
+Local path:   /project/themes/my-blog
+```
+
 主题与模板详细使用见：[08-主题与模板](./08-themes-templates.zh-CN.md)。
 
 ## clone：将网站视觉设计克隆为主题

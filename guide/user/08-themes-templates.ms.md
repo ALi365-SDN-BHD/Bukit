@@ -19,6 +19,24 @@ Contoh tema dalam repo:
 - `examples/starter/themes/alt/`
 - `examples/starter/themes/seo-best-practice/`
 
+## Pratonton Tema: Memeriksa Struktur Tema
+
+Gunakan `bukit theme preview` untuk mendapatkan gambaran terperinci struktur mana-mana tema:
+
+```bash
+bukit theme preview my-blog
+```
+
+Ini menunjukkan:
+- **Metadata**: nama, versi, penerangan, laman utama, lakaran kenit, tag (dari `theme.yaml`)
+- **Sections**: section halaman berdaftar dengan penerangan dan kaitan plugin
+- **Components**: komponen templat boleh guna semula dengan props yang diisytiharkan
+- **Token reka bentuk**: kiraan kumpulan (colors, fonts, radius, spacing, layout) dengan sampel warna
+- **Templat susun atur**: semua fail `.scriban`/`.html`/`.sbn` di bawah direktori `layouts/`
+- **Statistik fail**: bilangan fail assets dan static
+
+Ini berguna untuk memahami keupayaan tema sebelum memasang atau menyesuaikannya.
+
 ## Kaedah A: Tukar Tema Menggunakan themes/&lt;name&gt; (Disyorkan)
 
 ### Sintaks Konfigurasi

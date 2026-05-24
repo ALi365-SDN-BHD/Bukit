@@ -492,6 +492,28 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForContent_PageTypeWithPostCollectionDoesNotEmitBlogPostingJsonLd()
+    {
+        var config = CreateConfig();
+        var item = new ContentItem(
+            Id: "blog-archive-2026",
+            Title: "Archive: 2026",
+            Slug: "archive-2026",
+            PublishAt: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            ContentHtml: null,
+            Meta: new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["collection"] = "post"
+            });
+        var route = new RouteInfo("/blog/archive/2026/", "blog/archive/2026/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.DoesNotContain(model.JsonLd, json => json.Contains("BlogPosting", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void BuildForContent_CustomCanonicalOverrides()
     {
         var config = CreateConfig();

@@ -22,6 +22,24 @@
 
 `bukit init <dir>` 现在会生成同一套内容站 starter 设计到 `themes/starter/`：包含可复用 partial、卡片列表、分页/搜索/taxonomy 模板，以及 `bukit.templates.yaml` 能力声明。
 
+## 主题预览：查看主题结构
+
+使用 `bukit theme preview` 快速查看主题的完整结构：
+
+```bash
+bukit theme preview my-blog
+```
+
+展示内容：
+- **元数据**：名称、版本、描述、主页、缩略图、标签（来自 `theme.yaml`）
+- **Sections**：注册的页面 section 及其描述和插件关联
+- **Components**：可复用模板组件及其声明的 props
+- **设计令牌**：分组计数（colors/font/radius/spacing/layout）及颜色采样
+- **布局模板**：`layouts/` 目录下所有 `.scriban`/`.html`/`.sbn` 文件
+- **文件统计**：assets 和 static 文件数量
+
+此命令有助于在安装或自定义主题之前了解主题的能力。
+
 ## 方式 A：使用 themes/<name> 切换主题（推荐）
 
 ### 配置写法

@@ -543,7 +543,13 @@ internal static class SeoModelBuilder
 
     private static bool IsPost(ContentItem item)
     {
-        var collection = MetaHelpers.GetString(item.Meta, "collection") ?? MetaHelpers.GetString(item.Meta, "type");
+        var type = MetaHelpers.GetString(item.Meta, "type");
+        if (!string.IsNullOrWhiteSpace(type))
+        {
+            return string.Equals(type, "post", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var collection = MetaHelpers.GetString(item.Meta, "collection");
         return string.Equals(collection, "post", StringComparison.OrdinalIgnoreCase);
     }
 

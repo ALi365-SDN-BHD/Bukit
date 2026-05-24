@@ -72,10 +72,12 @@ dotnet run --project src/Bukit.Cli -c Release -- create my-site --template blog
 
 The scaffold includes `themes/starter/`, a content-site starter theme with reusable partials, responsive CSS, and optional pagination/search/taxonomy templates. Non-minimal templates reuse the same presets as `bukit theme wizard --preset ...`, so the first generated project already has a site-type-specific visual direction and matching starter content:
 
-- `blog`: first post plus About page, dated blog URLs, pagination, RSS/archive output
-- `docs`: Getting Started and Configuration docs under `/docs/`
-- `landing`: Overview and Contact pages with flat URLs
-- `portfolio`: Sample work item under `/work/` plus About page
+- `blog`: first post plus About page, dated blog URLs, pagination, RSS/archive output, and a blog-focused homepage
+- `docs`: Getting Started and Configuration docs under `/docs/`, plus a docs-focused homepage
+- `landing`: Overview and Contact pages with flat URLs, plus feature and call-to-action homepage modules
+- `portfolio`: Sample work item under `/work/` plus About page, with a selected-work homepage
+
+Generated `site.yaml` includes `site.url: https://example.com` as a placeholder for absolute SEO URLs. Replace it with your real production URL before publishing; you can also override it per build with `--site-url`.
 
 ## build: Build the Site (Most Common)
 
@@ -231,6 +233,65 @@ bukit template hints
 
 # Auto-generate bukit.templates.yaml
 bukit template sync --config site.yaml
+```
+
+### theme preview
+
+Display detailed theme information including sections, components, design tokens, and layout templates.
+
+```
+bukit theme preview [<name>]
+```
+
+| Parameter | Default | Description |
+|---|---|---|
+| `<name>` | Active theme | Theme name to preview |
+
+**Output includes:**
+- Basic metadata: name, version, description, homepage, thumbnail, tags
+- Sections: count, descriptions, plugin associations
+- Components: count and declared props
+- Design tokens: group counts (colors/font/radius/spacing/layout) with color samples
+- Layout templates: all `.scriban`/`.html`/`.sbn` files under `layouts/`
+- File stats: asset and static file counts
+
+Example output:
+```
+Theme preview: my-blog
+Version:      1.0.0
+Description:  A clean blog theme with dark mode support
+Tags:         blog, minimal, dark-mode
+
+Sections (4):
+  hero                      Hero section with CTA
+  features                  Feature grid section
+  recent-posts              Recent posts list
+  footer-cta                Footer call-to-action [plugin: sample-plugin]
+
+Components (2):
+  PostCard                  props: [title, url, date]
+  TagBadge                  props: [tag]
+
+Design tokens: colors (12), font (8), radius (4), spacing (10)
+  Color samples:
+    primary: #0b5fff
+    accent: #0f7b6c
+    bg: #fbfaf8
+    text: #202124
+    ... and 8 more
+
+Layout templates (8):
+  layouts/base.html
+  pages/index.html
+  pages/list.html
+  pages/page.html
+  pages/post.html
+  partials/footer.html
+  partials/header.html
+  partials/list-card.html
+
+Assets: 3 files  |  Static: 1 files
+Local path:   /project/themes/my-blog
 ```
 
 For detailed theme and template usage, see: [08 Themes & Templates](./08-themes-templates.md).

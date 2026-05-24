@@ -22,6 +22,24 @@ In-repo example themes:
 
 `bukit init <dir>` now creates `themes/starter/` with the same content-site starter design: reusable partials, card lists, pagination/search/taxonomy templates, and a `bukit.templates.yaml` capability manifest.
 
+## Theme Preview: Inspecting Theme Anatomy
+
+Use `bukit theme preview` to get a detailed overview of any theme's structure:
+
+```bash
+bukit theme preview my-blog
+```
+
+This shows:
+- **Metadata**: name, version, description, homepage, thumbnail, tags (from `theme.yaml`)
+- **Sections**: registered page sections with descriptions and plugin associations
+- **Components**: reusable template components with their declared props
+- **Design tokens**: group counts (colors, fonts, radius, spacing, layout) with color samples
+- **Layout templates**: all `.scriban`/`.html`/`.sbn` files under the `layouts/` directory
+- **File statistics**: asset and static file counts
+
+This is useful for understanding a theme's capabilities before installing or customizing it.
+
 ## Theme Creation: Wizard (Interactive Q&A)
 
 The fastest way to create a custom theme is the interactive wizard:

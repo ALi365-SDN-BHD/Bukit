@@ -22,10 +22,21 @@ a separate theme command.
 
 Template content skeletons:
 - `minimal`: `content/hello-world.md`, `defaultType: page`
-- `blog`: `content/posts/welcome.md` plus `content/pages/about.md`, `defaultType: post`, dated blog permalinks, pagination, RSS/archive output
-- `docs`: `content/docs/getting-started.md` plus `content/docs/configuration.md`, `defaultType: doc`, `/docs/{slug}/` routes
-- `landing`: `content/pages/overview.md` plus `content/pages/contact.md`, `defaultType: page`, flat page routes
-- `portfolio`: `content/work/sample-project.md` plus `content/pages/about.md`, `defaultType: work`, `/work/{slug}/` routes
+- `blog`: `content/posts/welcome.md` plus `content/pages/about.md`, data modules for the homepage, `defaultType: post`, dated blog permalinks, pagination, RSS/archive output
+- `docs`: `content/docs/getting-started.md` plus `content/docs/configuration.md`, data modules for the homepage, `defaultType: doc`, `/docs/{slug}/` routes
+- `landing`: `content/pages/overview.md` plus `content/pages/contact.md`, homepage feature/CTA modules, `defaultType: page`, flat page routes
+- `portfolio`: `content/work/sample-project.md` plus `content/pages/about.md`, data modules for the homepage, `defaultType: work`, `/work/{slug}/` routes
+
+Non-minimal Markdown templates use `content.provider: sources`: content
+sources are assigned to their collection, while `data/` is loaded with
+`mode: data` and injected into `site.modules` for the first screen.
+
+Generated `site.yaml` includes `site.url: https://example.com` as a safe
+placeholder so the first build can produce absolute canonical, sitemap, RSS,
+and schema URLs. Replace it with the production URL before publishing. The
+blog starter post also includes an author and a local `/assets/og-default.gif`
+preview image backed by the starter asset to avoid first-run BlogPosting schema
+warnings.
 
 ## Generated Structure
 
@@ -36,6 +47,7 @@ Template content skeletons:
   content/hello-world.md
   themes/starter/
     assets/style.css
+    assets/og-default.gif
     static/
     layouts/
       layouts/base.html

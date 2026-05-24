@@ -133,6 +133,61 @@ xs(0.75rem) → sm(0.875rem) → base(1rem) → lg(1.125rem) → xl(1.25rem) →
 - **Portfolio**: full-width possible, large images, dark backgrounds, smooth hover transitions
 - **Landing**: extra-wide hero, large display type, bold primary, 80px+ section gaps
 
+## Token Inheritance & Deep Merge
+
+When a child theme extends a parent theme via `extends` in theme config, design tokens are merged using **deep merge** — child tokens override parent at the leaf level while preserving parent's sibling keys.
+
+### Configuration
+
+```yaml
+theme:
+  name: my-child-theme
+  extends: parent-theme-name
+```
+
+### Merge Rules
+
+- **Child priority**: child `tokens.yaml` values override parent with the same key
+- **Parent supplement**: keys not defined in child are inherited from parent
+- **Deep tree merge**: nested token structures (dot-separated keys like `brand.primary`) are reconstructed into a tree and merged recursively
+
+### Example
+
+Parent `tokens.yaml`:
+```yaml
+colors:
+  brand:
+    primary: "#000000"
+    secondary: "#333333"
+```
+
+Child `tokens.yaml`:
+```yaml
+colors:
+  brand:
+    primary: "#ff0000"
+```
+
+Result after `DeepMerge`:
+- `brand.primary` → `#ff0000` (child overrides)
+- `brand.secondary` → `#333333` (inherited from parent)
+
+### Flat Format Compatibility
+
+Both flat and nested YAML formats are supported. The loader automatically flattens nested structures to dot-separated keys before merging:
+
+```yaml
+# These two are equivalent after loading:
+colors:
+  brand.primary: "#ff0000"
+  brand.secondary: "#333333"
+
+colors:
+  brand:
+    primary: "#ff0000"
+    secondary: "#333333"
+```
+
 ## Integration with theme.params
 
 ```yaml

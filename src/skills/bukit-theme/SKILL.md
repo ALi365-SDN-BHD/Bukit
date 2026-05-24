@@ -196,9 +196,46 @@ params:
 `theme.yaml` powers:
 - **`bukit theme list`** — shows version, description, tags, param count
 - **`bukit theme info <name>`** — full details including params and template file list
+- **`bukit theme preview [<name>]`** — detailed preview: sections, components, design tokens (group counts + color samples), layout templates, file statistics
 - **`bukit theme params [name]`** — lists only the customizable parameters
 - **`bukit theme pack`** — uses `version` to name the output archive
 - **`bukit doctor`** — `ConfigValidator.ValidateThemeYaml()` optionally validates the file
+
+### Theme Preview Output
+
+`bukit theme preview` reads both the V1 manifest (`ThemeManifest`) and the full V2 manifest (`ThemeManifestV2`) to provide a comprehensive overview:
+
+```
+Theme preview: my-blog
+Version:      1.0.0
+Description:  A clean blog theme with dark mode support
+Tags:         blog, minimal, dark-mode
+
+Sections (4):                    ← from ThemeManifestV2.Sections
+  hero                      Hero section with CTA
+  features                  Feature grid section
+  recent-posts              Recent posts list
+  footer-cta                Footer call-to-action [plugin: sample-plugin]
+
+Components (2):                   ← from ThemeManifestV2.Components
+  PostCard                  props: [title, url, date]
+  TagBadge                  props: [tag]
+
+Design tokens: colors (12), font (8), radius (4), spacing (10)
+  Color samples:                  ← from tokens.yaml
+    primary: #0b5fff
+    accent: #0f7b6c
+
+Layout templates (8):             ← files under layouts/
+  layouts/base.html
+  ...
+  partials/list-card.html
+
+Assets: 3 files  |  Static: 1 files
+Local path:   /project/themes/my-blog
+```
+
+This command helps users understand a theme's capabilities before installing or customizing it, and is especially useful when evaluating community themes or inherited themes.
 
 ## Theme Wizard Presets
 

@@ -230,6 +230,65 @@ bukit template sync --config site.yaml
 
 Untuk penggunaan tema dan templat yang terperinci, lihat: [08 Tema & Templat](./08-themes-templates.ms.md).
 
+### theme preview
+
+Paparkan maklumat terperinci tema termasuk sections, komponen, token reka bentuk, dan templat susun atur.
+
+```
+bukit theme preview [<name>]
+```
+
+| Parameter | Lalai | Penerangan |
+|---|---|---|
+| `<name>` | Tema aktif | Nama tema untuk pratonton |
+
+**Output termasuk:**
+- Metadata asas: nama, versi, penerangan, laman utama, lakaran kenit, tag
+- Sections: bilangan, penerangan, kaitan plugin
+- Komponen: bilangan dan props yang diisytiharkan
+- Token reka bentuk: kiraan kumpulan (colors/font/radius/spacing/layout) dengan sampel warna
+- Templat susun atur: semua fail `.scriban`/`.html`/`.sbn` di bawah `layouts/`
+- Statistik fail: bilangan fail assets dan static
+
+Contoh output:
+```
+Theme preview: my-blog
+Version:      1.0.0
+Description:  A clean blog theme with dark mode support
+Tags:         blog, minimal, dark-mode
+
+Sections (4):
+  hero                      Hero section with CTA
+  features                  Feature grid section
+  recent-posts              Recent posts list
+  footer-cta                Footer call-to-action [plugin: sample-plugin]
+
+Components (2):
+  PostCard                  props: [title, url, date]
+  TagBadge                  props: [tag]
+
+Design tokens: colors (12), font (8), radius (4), spacing (10)
+  Color samples:
+    primary: #0b5fff
+    accent: #0f7b6c
+    bg: #fbfaf8
+    text: #202124
+    ... and 8 more
+
+Layout templates (8):
+  layouts/base.html
+  pages/index.html
+  pages/list.html
+  pages/page.html
+  pages/post.html
+  partials/footer.html
+  partials/header.html
+  partials/list-card.html
+
+Assets: 3 files  |  Static: 1 files
+Local path:   /project/themes/my-blog
+```
+
 ## clone: Klon Reka Bentuk Visual Laman Web ke dalam Tema
 
 ```bash

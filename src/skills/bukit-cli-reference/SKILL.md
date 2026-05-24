@@ -125,7 +125,7 @@ bukit build [--config <path>] [--output <dir>] [--base-url <url>] [--draft] [--c
 Initialize a new Bukit site in the current directory.
 
 ```
-bukit init <target-dir> [--provider markdown|notion] [--template minimal]
+bukit init <target-dir> [--provider markdown|notion] [--template minimal|blog|docs|landing|portfolio]
 ```
 
 Generated directory structure:
@@ -140,6 +140,7 @@ Generated directory structure:
     layouts/partials/{header,footer,list-card,pagination-nav}.html
     layouts/bukit.templates.yaml
     assets/style.css
+    assets/og-default.gif
     static/
   .gitignore
   README.md
@@ -147,12 +148,14 @@ Generated directory structure:
 
 `--provider notion` generates a site.yaml pre-configured for Notion content source; `--provider markdown` (default) generates Markdown content source config. The generated `themes/starter/` is a content-site starter theme with responsive CSS, reusable partials, and optional pagination/search/taxonomy templates. `--template minimal` keeps the default starter scaffold; `blog`, `docs`, `landing`, and `portfolio` reuse the theme wizard presets so the initial project has a site-type-specific visual direction and matching starter content.
 
+Generated `site.yaml` includes `site.url: https://example.com` as a placeholder for absolute canonical, sitemap, RSS, and schema URLs. Replace it with the production URL before publishing, or override it with `--site-url`.
+
 Template-specific Markdown scaffolds:
 - `minimal`: `content/hello-world.md`, page default type
-- `blog`: `content/posts/welcome.md` and `content/pages/about.md`, post default type, dated blog routes, pagination, RSS/archive output
-- `docs`: `content/docs/getting-started.md` and `content/docs/configuration.md`, doc default type, `/docs/{slug}/` routes
-- `landing`: `content/pages/overview.md` and `content/pages/contact.md`, page default type, flat page routes
-- `portfolio`: `content/work/sample-project.md` and `content/pages/about.md`, work default type, `/work/{slug}/` routes
+- `blog`: `content/posts/welcome.md` and `content/pages/about.md`, homepage data modules, post default type, dated blog routes, pagination, RSS/archive output
+- `docs`: `content/docs/getting-started.md` and `content/docs/configuration.md`, homepage data modules, doc default type, `/docs/{slug}/` routes
+- `landing`: `content/pages/overview.md` and `content/pages/contact.md`, feature and CTA homepage modules, page default type, flat page routes
+- `portfolio`: `content/work/sample-project.md` and `content/pages/about.md`, homepage data modules, work default type, `/work/{slug}/` routes
 
 ### preview
 
@@ -302,6 +305,26 @@ bukit theme search [query] [--refresh] [--registry-url <url>] [--config <path>] 
 `theme pack` packages a theme into `<name>-<version>.tar.gz` for distribution. `<name>` defaults to the active theme.
 `theme install` installs a theme from a local `.tar.gz`, HTTP URL, or `--registry <name>` (community theme registry with SHA256 verification).
 `theme search` queries the community theme index (cached locally for 24h). `--refresh` forces a fresh fetch.
+
+### theme preview
+
+Display detailed theme anatomy including sections, components, design tokens, and layout templates.
+
+```
+bukit theme preview [<name>]
+```
+
+| Parameter | Default | Description |
+|---|---|---|
+| `<name>` | Active theme | Theme name to preview |
+
+**Output includes:**
+- Basic metadata from `theme.yaml` (name, version, description, homepage, thumbnail, tags)
+- Sections: registered page sections with descriptions and plugin associations (from `ThemeManifestV2`)
+- Components: reusable components with declared props
+- Design tokens: group counts (colors/font/radius/spacing/layout) with color sample preview
+- Layout templates: all `.scriban`/`.html`/`.sbn` files under `layouts/`
+- File stats: asset and static file counts
 
 ### template
 

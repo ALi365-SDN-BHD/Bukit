@@ -37,6 +37,7 @@ public static class InitCommand
         WriteFile(root, "README.md", BuildReadme(Path.GetFileName(root), templateName));
         WriteContentSkeleton(root, templateName);
         WriteTheme(root, templateName);
+        WriteDefaultOgImage(root);
 
         WriteFile(root, "site.yaml", BuildSiteYaml(provider, templateName));
 
@@ -57,6 +58,29 @@ public static class InitCommand
         File.WriteAllText(path, content);
     }
 
+    private static void WriteDefaultOgImage(string rootDir)
+    {
+        var path = Path.Combine(rootDir, "themes", "starter", "assets", "og-default.gif");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path,
+        [
+            0x47, 0x49, 0x46, 0x38, 0x39, 0x61, // GIF89a
+            0xB0, 0x04, // 1200
+            0x76, 0x02, // 630
+            0x80, 0x00, 0x00,
+            0x1F, 0x29, 0x37,
+            0xF8, 0xFA, 0xFC,
+            0x2C,
+            0x00, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x01, 0x00,
+            0x00,
+            0x02,
+            0x02, 0x44, 0x01,
+            0x00,
+            0x3B
+        ]);
+    }
+
     private static void WriteTheme(string rootDir, string templateName)
     {
         var preset = WizardPreset.All.FirstOrDefault(p =>
@@ -69,7 +93,18 @@ public static class InitCommand
         }
 
         var brand = Path.GetFileName(rootDir);
-        CloneThemeGenerator.WriteTo(rootDir, "starter", preset.Tokens, preset.Layout, brand, preset.Behaviors);
+        var profile = GetTemplateProfile(templateName);
+        var layout = preset.Layout with
+        {
+            SiteTitle = profile.Title,
+            HeroHeading = profile.HeroHeading,
+            HeroSubtext = profile.Description,
+            HasFeaturesSection = preset.Layout.HasFeaturesSection || profile.HasFeatureModules,
+            HasCTASection = preset.Layout.HasCTASection || profile.HasCallToActionModule,
+            HeroCtaText = profile.HeroCtaText ?? preset.Layout.HeroCtaText,
+            HeroCtaUrl = profile.HeroCtaUrl ?? preset.Layout.HeroCtaUrl,
+        };
+        CloneThemeGenerator.WriteTo(rootDir, "starter", preset.Tokens, layout, brand, preset.Behaviors);
         Directory.CreateDirectory(Path.Combine(rootDir, "themes", "starter", "static"));
     }
 
@@ -95,12 +130,15 @@ bukit preview --dir dist --port auto
         switch (templateName)
         {
             case "blog":
+                WriteModuleData(rootDir, "features", "Start writing", "Draft posts in Markdown and publish them with clean archive, feed, and taxonomy pages.");
                 WriteFile(rootDir, Path.Combine("content", "posts", "welcome.md"), """
 ---
 type: post
 title: Welcome to Your Blog
 slug: welcome
 date: 2026-01-01
+author: Bukit Team
+image: /assets/og-default.gif
 summary: A first post you can replace with your own writing.
 tags: [intro, bukit]
 categories: [news]
@@ -125,6 +163,7 @@ Replace this page with your story, profile, or project background.
                 break;
 
             case "docs":
+                WriteModuleData(rootDir, "features", "Start reading", "Use the generated docs index as the entry point for setup, configuration, and reference material.");
                 WriteFile(rootDir, Path.Combine("content", "docs", "getting-started.md"), """
 ---
 type: doc
@@ -154,6 +193,9 @@ Use this page to describe setup, options, and common workflows.
                 break;
 
             case "landing":
+                WriteModuleData(rootDir, "features", "Clear positioning", "Use focused sections to explain the offer, audience, and next action.");
+                WriteModuleData(rootDir, "features", "Fast static delivery", "Ship a lightweight static site with reusable Bukit content and theme primitives.", order: 20);
+                WriteModuleData(rootDir, "call_to_action", "Start building today", "Replace this call to action with your signup, booking, or contact link.");
                 WriteFile(rootDir, Path.Combine("content", "pages", "overview.md"), """
 ---
 type: page
@@ -181,6 +223,7 @@ Add your email, booking link, or contact form instructions here.
                 break;
 
             case "portfolio":
+                WriteModuleData(rootDir, "features", "Selected work", "Highlight case studies, visual projects, and project notes from one content model.");
                 WriteFile(rootDir, Path.Combine("content", "work", "sample-project.md"), """
 ---
 type: work
@@ -214,9 +257,22 @@ Share your background, services, and contact details here.
         }
     }
 
+    private static void WriteModuleData(string rootDir, string type, string title, string desc, int order = 10)
+        => WriteFile(rootDir, Path.Combine("data", $"{type}-{order}.md"), $$"""
+---
+type: {{type}}
+title: {{title}}
+order: {{order}}
+enabled: true
+desc: {{desc}}
+---
+
+""");
+
     private static string BuildSiteYaml(string provider, string templateName)
     {
         var collections = BuildCollectionsYaml(templateName);
+        var profile = GetTemplateProfile(templateName);
         var defaultType = templateName switch
         {
             "blog" => "post",
@@ -230,8 +286,9 @@ Share your background, services, and contact details here.
             return $$"""
 site:
   name: my-site
-  title: My Site
+  title: {{profile.Title}}
   baseUrl: /
+  url: https://example.com
   language: zh-CN
   timezone: Asia/Shanghai
   collections:
@@ -252,29 +309,29 @@ theme:
   assets: assets
   static: static
   params:
-    brand: My Site
-    footer_text: My Site
+    brand: {{profile.Brand}}
+    footer_text: {{profile.Brand}}
+    latest_heading: {{profile.LatestHeading}}
 
 logging:
   level: info
 """;
         }
 
+        var contentYaml = BuildMarkdownContentYaml(templateName, defaultType);
         return $$"""
 site:
   name: my-site
-  title: My Site
+  title: {{profile.Title}}
   baseUrl: /
+  url: https://example.com
   language: zh-CN
   timezone: Asia/Shanghai
   collections:
 {{collections}}
 
 content:
-  provider: markdown
-  markdown:
-    dir: content
-    defaultType: {{defaultType}}
+{{contentYaml}}
 
 build:
   output: dist
@@ -286,8 +343,9 @@ theme:
   assets: assets
   static: static
   params:
-    brand: My Site
-    footer_text: My Site
+    brand: {{profile.Brand}}
+    footer_text: {{profile.Brand}}
+    latest_heading: {{profile.LatestHeading}}
 
 logging:
   level: info
@@ -351,5 +409,164 @@ logging:
       listRoute: /pages/
 """
         };
+
+    private static string BuildMarkdownContentYaml(string templateName, string defaultType)
+        => templateName switch
+        {
+            "blog" => """
+  provider: sources
+  sources:
+    - type: markdown
+      name: posts
+      mode: content
+      collection: post
+      markdown:
+        dir: content/posts
+        defaultType: post
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content/pages
+        defaultType: page
+    - type: markdown
+      name: modules
+      mode: data
+      markdown:
+        dir: data
+        defaultType: module
+""",
+            "docs" => """
+  provider: sources
+  sources:
+    - type: markdown
+      name: docs
+      mode: content
+      collection: doc
+      markdown:
+        dir: content/docs
+        defaultType: doc
+    - type: markdown
+      name: modules
+      mode: data
+      markdown:
+        dir: data
+        defaultType: module
+""",
+            "landing" => """
+  provider: sources
+  sources:
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content/pages
+        defaultType: page
+    - type: markdown
+      name: modules
+      mode: data
+      markdown:
+        dir: data
+        defaultType: module
+""",
+            "portfolio" => """
+  provider: sources
+  sources:
+    - type: markdown
+      name: work
+      mode: content
+      collection: work
+      markdown:
+        dir: content/work
+        defaultType: work
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content/pages
+        defaultType: page
+    - type: markdown
+      name: modules
+      mode: data
+      markdown:
+        dir: data
+        defaultType: module
+""",
+            _ => $$"""
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: {{defaultType}}
+"""
+        };
+
+    private static TemplateProfile GetTemplateProfile(string templateName)
+        => templateName switch
+        {
+            "blog" => new TemplateProfile(
+                Title: "My Blog",
+                Brand: "My Blog",
+                Description: "Writing, updates, and field notes from your team.",
+                HeroHeading: "Writing, updates, and field notes",
+                LatestHeading: "Latest posts",
+                HeroCtaText: null,
+                HeroCtaUrl: null,
+                HasFeatureModules: true,
+                HasCallToActionModule: false),
+            "docs" => new TemplateProfile(
+                Title: "Project Docs",
+                Brand: "Project Docs",
+                Description: "Practical documentation for your project.",
+                HeroHeading: "Practical documentation for your project",
+                LatestHeading: "Documentation",
+                HeroCtaText: null,
+                HeroCtaUrl: null,
+                HasFeatureModules: true,
+                HasCallToActionModule: false),
+            "landing" => new TemplateProfile(
+                Title: "Product Landing",
+                Brand: "Product Landing",
+                Description: "Launch a focused product site with clear sections and a direct call to action.",
+                HeroHeading: "Launch a focused product site",
+                LatestHeading: "More information",
+                HeroCtaText: "Get started",
+                HeroCtaUrl: "/overview/",
+                HasFeatureModules: true,
+                HasCallToActionModule: true),
+            "portfolio" => new TemplateProfile(
+                Title: "Portfolio",
+                Brand: "Portfolio",
+                Description: "Selected work and project notes.",
+                HeroHeading: "Selected work and project notes",
+                LatestHeading: "Selected work",
+                HeroCtaText: null,
+                HeroCtaUrl: null,
+                HasFeatureModules: true,
+                HasCallToActionModule: false),
+            _ => new TemplateProfile(
+                Title: "My Site",
+                Brand: "My Site",
+                Description: "A clean content-first Bukit site.",
+                HeroHeading: null,
+                LatestHeading: "Latest content",
+                HeroCtaText: null,
+                HeroCtaUrl: null,
+                HasFeatureModules: false,
+                HasCallToActionModule: false)
+        };
+
+    private sealed record TemplateProfile(
+        string Title,
+        string Brand,
+        string Description,
+        string? HeroHeading,
+        string LatestHeading,
+        string? HeroCtaText,
+        string? HeroCtaUrl,
+        bool HasFeatureModules,
+        bool HasCallToActionModule);
 
 }

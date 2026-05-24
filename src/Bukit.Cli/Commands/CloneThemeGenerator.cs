@@ -673,10 +673,11 @@ __LENIS____EXTERNAL_JS____BEHAVIORS_JS__</body>
         if (layout.HasCTASection)
         {
             sb.AppendLine("{{ if site.modules && site.modules.call_to_action }}");
+            sb.AppendLine("{{ cta = site.modules.call_to_action[0] }}");
             sb.AppendLine("<section class=\"cta-section\">");
-            sb.AppendLine("  <h2 class=\"section-heading\">{{ site.modules.call_to_action.title }}</h2>");
-            sb.AppendLine("  {{ if site.modules.call_to_action.fields && site.modules.call_to_action.fields.desc }}");
-            sb.AppendLine("  <p>{{ site.modules.call_to_action.fields.desc.value }}</p>");
+            sb.AppendLine("  <h2 class=\"section-heading\">{{ cta.title }}</h2>");
+            sb.AppendLine("  {{ if cta.fields && cta.fields.desc }}");
+            sb.AppendLine("  <p>{{ cta.fields.desc.value }}</p>");
             sb.AppendLine("  {{ end }}");
             sb.AppendLine("</section>");
             sb.AppendLine("{{ end }}");
@@ -696,7 +697,7 @@ __LENIS____EXTERNAL_JS____BEHAVIORS_JS__</body>
         }
 
         sb.AppendLine("<section>");
-        sb.AppendLine("  <h2 class=\"section-heading\">Latest content</h2>");
+        sb.AppendLine("  <h2 class=\"section-heading\">{{ if site.params && site.params.latest_heading }}{{ site.params.latest_heading }}{{ else }}Latest content{{ end }}</h2>");
         sb.AppendLine("  <ul class=\"card-list\">");
         sb.AppendLine("  {{ for p in pages }}");
         sb.AppendLine("    {{ item = p }}");

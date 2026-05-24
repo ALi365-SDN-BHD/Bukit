@@ -1,4 +1,6 @@
 using Bukit.Cli.Commands;
+using Bukit.Cli.Cli.Binding;
+using System.Text.Json;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -181,9 +183,12 @@ public sealed class InitCommandTests : IDisposable
         var yaml = await File.ReadAllTextAsync(Path.Combine(target, "site.yaml"));
         var post = await File.ReadAllTextAsync(Path.Combine(target, "content", "posts", "welcome.md"));
         Assert.Contains("defaultType: post", yaml, StringComparison.Ordinal);
+        Assert.Contains("url: https://example.com", yaml, StringComparison.Ordinal);
         Assert.Contains("permalink: /blog/{year}/{month}/{slug}/", yaml, StringComparison.Ordinal);
         Assert.Contains("pagination:", yaml, StringComparison.Ordinal);
         Assert.Contains("type: post", post, StringComparison.Ordinal);
+        Assert.Contains("author: Bukit Team", post, StringComparison.Ordinal);
+        Assert.Contains("image: /assets/og-default.gif", post, StringComparison.Ordinal);
         Assert.Contains("categories: [news]", post, StringComparison.Ordinal);
     }
 
@@ -260,6 +265,65 @@ public sealed class InitCommandTests : IDisposable
         Assert.Contains("href=\"{{ base_url }}{{ item.url }}\"", listCard, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("blog", "Writing, updates, and field notes", "Latest posts")]
+    [InlineData("docs", "Practical documentation for your project", "Start reading")]
+    [InlineData("landing", "Launch a focused product site", "Clear positioning")]
+    [InlineData("portfolio", "Selected work and project notes", "Selected work")]
+    public async Task RunAsync_TemplatePreset_BuildsTemplateSpecificHomepage(string template, string heroText, string sectionText)
+    {
+        var target = Path.Combine(_tempDir, "my-" + template);
+        var reader = new ArgReader(new[] { "init", target, "--template", template });
+
+        var initCode = await InitCommand.RunAsync(reader);
+        var buildCode = await BuildCommand.RunAsync(new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--config"] = Path.Combine(target, "site.yaml"),
+                ["--no-incremental"] = "true",
+            },
+            Array.Empty<string>()));
+
+        Assert.Equal(0, initCode);
+        Assert.Equal(0, buildCode);
+        var html = await File.ReadAllTextAsync(Path.Combine(target, "dist", "index.html"));
+        Assert.Contains(heroText, html, StringComparison.Ordinal);
+        Assert.Contains(sectionText, html, StringComparison.Ordinal);
+        Assert.DoesNotContain("href=\"//", html, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("blog")]
+    [InlineData("docs")]
+    [InlineData("landing")]
+    [InlineData("portfolio")]
+    public async Task RunAsync_TemplatePreset_BuildsWithoutNoisyStarterSeoWarnings(string template)
+    {
+        var target = Path.Combine(_tempDir, "seo-" + template);
+        var reader = new ArgReader(new[] { "init", target, "--template", template });
+
+        var initCode = await InitCommand.RunAsync(reader);
+        var buildCode = await BuildCommand.RunAsync(new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--config"] = Path.Combine(target, "site.yaml"),
+                ["--no-incremental"] = "true",
+            },
+            Array.Empty<string>()));
+
+        Assert.Equal(0, initCode);
+        Assert.Equal(0, buildCode);
+        var report = await File.ReadAllTextAsync(Path.Combine(target, "dist", "seo-report.json"));
+        var issueCodes = ReadSeoIssueCodes(report);
+        Assert.DoesNotContain("seo.canonical_not_absolute", issueCodes);
+        Assert.DoesNotContain("seo.site_url_missing", issueCodes);
+        Assert.DoesNotContain("seo.schema_searchaction_target_not_absolute", issueCodes);
+        Assert.DoesNotContain("seo.schema_website_url_invalid", issueCodes);
+        Assert.DoesNotContain("seo.description_duplicate", issueCodes);
+        Assert.DoesNotContain("seo.schema_blogposting_author_missing", issueCodes);
+        Assert.DoesNotContain("seo.schema_blogposting_image_missing", issueCodes);
+    }
+
     [Fact]
     public async Task RunAsync_UnknownTemplate_ReturnsError()
     {
@@ -305,5 +369,16 @@ public sealed class InitCommandTests : IDisposable
 
         Assert.True(File.Exists(Path.Combine(target, "site.yaml")));
         Assert.True(File.Exists(Path.Combine(target, "existing.txt")));
+    }
+
+    private static HashSet<string> ReadSeoIssueCodes(string report)
+    {
+        using var doc = JsonDocument.Parse(report);
+        return doc.RootElement.GetProperty("issues")
+            .EnumerateArray()
+            .Select(issue => issue.GetProperty("code").GetString())
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Select(code => code!)
+            .ToHashSet(StringComparer.Ordinal);
     }
 }
