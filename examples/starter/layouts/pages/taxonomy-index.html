@@ -10,8 +10,11 @@
 <ul class="term-grid">
 {{ for term in terms }}
   <li class="term-card">
-    <a href="{{ site.base_url }}/{{ term.kind }}/{{ term.slug }}/">{{ term.title }}</a>
+    <a href="{{ term.url }}">{{ term.title }}</a>
     <span class="meta">{{ term.count }} items</span>
+    {{ if term.description }}
+      <p class="desc">{{ term.description }}</p>
+    {{ end }}
   </li>
 {{ end }}
 </ul>

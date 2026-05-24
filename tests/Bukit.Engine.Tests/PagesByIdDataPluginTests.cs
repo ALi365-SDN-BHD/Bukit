@@ -44,7 +44,7 @@ public sealed class PagesByIdDataPluginTests
                 {
                     ["taxonomy"] = new PluginToggleConfig { Enabled = false },
                     ["sitemap"] = new PluginToggleConfig { Enabled = false },
-                    ["rss"] = new PluginToggleConfig { Enabled = false },
+                    ["feed"] = new PluginToggleConfig { Enabled = false },
                     ["search-index"] = new PluginToggleConfig { Enabled = false },
                     ["pagination"] = new PluginToggleConfig { Enabled = false },
                     ["archive"] = new PluginToggleConfig { Enabled = false },

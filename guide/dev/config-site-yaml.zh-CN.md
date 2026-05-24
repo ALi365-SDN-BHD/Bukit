@@ -288,7 +288,8 @@ content:
 | `taxonomy.template` | string | 否 | `pages/page.html` | taxonomy 派生页模板默认值（用于 index/term） |
 | `taxonomy.indexTemplate` | string | 否 | null | taxonomy 索引页模板（例如 `/tags/`、`/categories/`）；为空时回退到 `taxonomy.template` |
 | `taxonomy.termTemplate` | string | 否 | null | taxonomy 具体项页模板（例如 `/tags/<slug>/`、`/categories/<slug>/`）；为空时回退到 `taxonomy.template` |
-| `taxonomy.kinds` | list | 否 | null | 通用化 taxonomy 定义列表；配置后将按列表循环生成任意 kind（不再仅限 tags/categories）。每项至少包含 `key`，可选 `kind/title/singularTitlePrefix/template/indexTemplate/termTemplate/indexEnabled` |
+| `taxonomy.kinds` | list | 否 | null | 通用化 taxonomy 定义列表；配置后将按列表循环生成任意 kind（不再仅限 tags/categories）。每项至少包含 `key`，可选 `kind/title/singularTitlePrefix/template/indexTemplate/termTemplate/indexEnabled/hierarchical` |
+| `taxonomy.kinds[].hierarchical` | bool | 否 | false | (v3.0.0+) 是否启用层次化分类。启用后自动计算每个 term 的 `children` 和 `ancestors`，写入模板变量和 JSON 输出 |
 | `taxonomy.templates.tags.template` | string | 否 | null | tags 派生页默认模板（为空时回退到 `taxonomy.template`） |
 | `taxonomy.templates.tags.indexTemplate` | string | 否 | null | tags 索引页模板（为空时回退到 `taxonomy.indexTemplate` 或 `taxonomy.templates.tags.template`） |
 | `taxonomy.templates.tags.termTemplate` | string | 否 | null | tags 具体项页模板（为空时回退到 `taxonomy.termTemplate` 或 `taxonomy.templates.tags.template`） |
@@ -309,7 +310,12 @@ content:
 - 配置了 `taxonomy.kinds`：按 kinds 列表生成任意 taxonomy；`taxonomy.kinds[]` 上的模板字段优先级最高。
   若 `kind` 为 `tags/categories`，`taxonomy.templates.<kind>.*` 仍作为 fallback（未在 kinds 内指定时才会生效）。
 - `taxonomy.kinds[]` 校验：`key` 必填；`kind`, `title`, `singularTitlePrefix`, `template`, `indexTemplate`, `termTemplate` 均为可选，但设置时必须为非空字符串。
-- `taxonomy.templates.tags.*` 和 `taxonomy.templates.categories.*` 校验：`template`, `indexTemplate`, `termTemplate` 均为可选，但设置时必须为非空字符串（`""` 会导致校验失败）。
+- `taxonomy.kinds[].hierarchical`：启用后自动计算层次关系。term 通过 `parent` 元数据（data 源或 `_index.md`）关联父级；无 `parent` 的 term 为根节点。
+- term 元数据支持两种加载源：
+  1. **data 模式数据源**：`taxonomy_ensure_terms` 字典中的条目（如 `content/data/tags.yaml`），支持 `description`、`image`、`weight`、`parent` 字段
+  2. **_index.md 约定**（仿 Hugo）：`content/_taxonomy/<kind>/<slug>/_index.md`，YAML front matter 格式
+- RSS feeds：每个 term 自动生成 `<output>/<kind>/<slug>/feed.xml`
+- 别名重定向：`Aliases` 配置的 term 自动生成 HTML redirect 页面
 
 完整示例：
 

@@ -41,6 +41,12 @@ public sealed record SiteConfig
     // public string ExternalAssemblyTrustMode { get; init; } = "warn";
     // public IReadOnlyDictionary<string, string>? ExternalAssemblyAllowlist { get; init; }
     public IReadOnlyDictionary<string, PluginToggleConfig>? Plugins { get; init; }
+    public FeedConfig Feed { get; init; } = new();
+    public SitemapDetailConfig SitemapDetail { get; init; } = new();
+    public PaginationGlobalConfig Pagination { get; init; } = new();
+    public SearchDetailConfig Search { get; init; } = new();
+    public RelatedConfig Related { get; init; } = new();
+    public IReadOnlyDictionary<string, IReadOnlyList<MenuConfig>>? Menus { get; init; }
 }
 
 public sealed record SeoConfig
@@ -126,6 +132,14 @@ public sealed record CollectionPaginationConfig
 {
     public bool Enabled { get; init; }
     public int PageSize { get; init; } = 10;
+    public string UrlPattern { get; init; } = "page/:num/";
+    public bool FirstPageUsesListRoute { get; init; } = true;
+}
+
+public sealed record PaginationGlobalConfig
+{
+    public bool Enabled { get; init; }
+    public int PageSize { get; init; } = 10;
 }
 
 public sealed record CollectionOutputConfig
@@ -133,6 +147,17 @@ public sealed record CollectionOutputConfig
     public bool Rss { get; init; } = true;
     public bool Sitemap { get; init; } = true;
     public bool Archive { get; init; }
+    public string? FeedPath { get; init; }
+    public string? FeedTitle { get; init; }
+    public string? FeedDescription { get; init; }
+    public ArchiveDetailConfig? ArchiveDetail { get; init; }
+}
+
+public sealed record ArchiveDetailConfig
+{
+    public string Depth { get; init; } = "monthly";
+    public string Template { get; init; } = "pages/page.html";
+    public string? RoutePrefix { get; init; }
 }
 
 public sealed record FilteredListConfig
@@ -310,6 +335,7 @@ public sealed record TaxonomyKindConfig
     public string? IndexTemplate { get; init; }
     public string? TermTemplate { get; init; }
     public bool? IndexEnabled { get; init; }
+    public bool Hierarchical { get; init; }
 }
 
 public sealed record TaxonomyKindTemplateConfig
@@ -328,4 +354,54 @@ public sealed record PluginToggleConfig
 {
     public bool Enabled { get; init; } = true;
     public IReadOnlyDictionary<string, object>? Options { get; init; }
+}
+
+public sealed record FeedConfig
+{
+    public IReadOnlyList<string> Formats { get; init; } = new[] { "rss" };
+    public int Limit { get; init; } = 20;
+    public string Path { get; init; } = "feed";
+}
+
+public sealed record SitemapDetailConfig
+{
+    public double DefaultPriority { get; init; } = 0.5;
+    public string DefaultChangefreq { get; init; } = "weekly";
+    public bool ImageEnabled { get; init; }
+    public bool VideoEnabled { get; init; }
+}
+
+public sealed record SearchDetailConfig
+{
+    public string Ui { get; init; } = "default";
+    public string UiTheme { get; init; } = "light";
+    public string? PlaceholderText { get; init; }
+    public int MaxContentLength { get; init; } = 8000;
+}
+
+public sealed record RelatedConfig
+{
+    public bool Enabled { get; init; }
+    public int Threshold { get; init; } = 80;
+    public int Limit { get; init; } = 5;
+    public IReadOnlyList<RelatedIndexConfig> Indices { get; init; } = new[]
+    {
+        new RelatedIndexConfig { Name = "tags", Weight = 80 },
+        new RelatedIndexConfig { Name = "categories", Weight = 60 }
+    };
+}
+
+public sealed record RelatedIndexConfig
+{
+    public required string Name { get; init; }
+    public int Weight { get; init; } = 100;
+}
+
+public sealed record MenuConfig
+{
+    public required string Identifier { get; init; }
+    public required string Name { get; init; }
+    public required string Url { get; init; }
+    public int Weight { get; init; } = 1;
+    public IReadOnlyList<MenuConfig>? Children { get; init; }
 }

@@ -175,6 +175,123 @@ The `pages` array is sorted by publish date in descending order.
 
 When pagination is enabled for taxonomy or list pages, `pages` only contains entries for the current page. Pagination info is passed through page metadata and used as needed in templates.
 
+### Taxonomy Pages
+
+Taxonomy index pages (e.g., `/tags/`, `/categories/`) and term pages (e.g., `/tags/python/`) receive dedicated variables:
+
+#### Term Page Variables (`page.fields`)
+
+| Variable | Type | Description |
+|------|------|------|
+| `page.fields.items.value` | list | Articles in this term (current page) |
+| `page.fields.taxonomy.value` | object | Term metadata (see below) |
+| `page.fields.pagination.value` | object | Pagination info |
+
+Each item in `items.value`:
+```scriban
+{{ for item in page.fields.items.value }}
+  {{ item.title }}        # Article title
+  {{ item.url }}           # Article URL
+  {{ item.publish_date }}  # Publish date
+  {{ item.summary }}       # Article summary (if available)
+{{ end }}
+```
+
+#### taxonomy.value Fields
+
+| Field | Type | Description |
+|------|------|------|
+| `kind` | string | Kind name (e.g., "tags", "categories") |
+| `term` | string | Term display name |
+| `slug` | string | Term URL slug |
+| `count` | int | Total article count |
+| `description` | string? | Term description (from data source) |
+| `image` | string? | Term cover image (from data source) |
+| `weight` | int? | Sort weight (only present if non-zero) |
+| `parent` | string? | Parent term slug |
+| `children` | string[]? | Child term slugs (hierarchical=true only) |
+| `ancestors` | string[]? | Ancestor chain (hierarchical=true only) |
+| `aliases` | string[]? | Term aliases |
+
+#### pagination.value Fields
+
+| Field | Type | Description |
+|------|------|------|
+| `page` | int | Current page number |
+| `page_size` | int | Items per page |
+| `total` | int | Total item count |
+| `total_pages` | int | Total pages |
+| `has_prev` | bool | Has previous page |
+| `has_next` | bool | Has next page |
+
+#### Index Page Variables (`page.fields`)
+
+| Variable | Type | Description |
+|------|------|------|
+| `page.fields.terms.value` | list | All visible terms sorted by weight |
+
+Each term in `terms.value[]`:
+```scriban
+{{ for term in page.fields.terms.value }}
+  {{ term.title }}        # Display name
+  {{ term.slug }}         # URL slug
+  {{ term.url }}          # Term page URL
+  {{ term.count }}        # Article count
+  {{ term.description }}  # Optional description
+  {{ term.image }}        # Optional cover image
+  {{ term.weight }}       # Optional sort weight
+  {{ term.children }}     # Optional child slugs (hierarchical)
+  {{ term.ancestors }}    # Optional ancestor chain (hierarchical)
+  {{ term.aliases }}      # Optional aliases
+{{ end }}
+```
+
+#### Complete Term Page Template Example
+
+```scriban
+{% layout "layouts/base.html" %}
+
+{{ items = page.fields.items.value }}
+{{ tax = page.fields.taxonomy.value }}
+{{ pager = page.fields.pagination.value }}
+
+<header>
+  <h1>{{ page.title }}</h1>
+  {{ if tax.description }}
+    <p class="description">{{ tax.description }}</p>
+  {{ end }}
+  {{ if tax.ancestors }}
+    <nav class="breadcrumb">
+    {{ for ancestor in tax.ancestors }}
+      / <a href="{{ site.base_url }}/{{ tax.kind }}/{{ ancestor }}/">{{ ancestor }}</a>
+    {{ end }}
+    </nav>
+  {{ end }}
+</header>
+
+{{ for item in items }}
+  <article>
+    <h2><a href="{{ site.base_url }}{{ item.url }}">{{ item.title }}</a></h2>
+    {{ if item.summary }}<p>{{ item.summary }}</p>{{ end }}
+  </article>
+{{ end }}
+
+<nav class="pagination">
+  {{ if pager.has_prev }}
+    <a href="{{ site.base_url }}/{{ tax.kind }}/{{ tax.slug }}/page/{{ pager.page - 1 }}/">Prev</a>
+  {{ end }}
+  <span>Page {{ pager.page }} of {{ pager.total_pages }}</span>
+  {{ if pager.has_next }}
+    <a href="{{ site.base_url }}/{{ tax.kind }}/{{ tax.slug }}/page/{{ pager.page + 1 }}/">Next</a>
+  {{ end }}
+</nav>
+```
+
+#### Feed/Redirect Output
+
+- **RSS feeds**: `/<kind>/<slug>/feed.xml` generated automatically for each term with articles
+- **Alias redirects**: `/<kind>/<alias_slug>/index.html` → `/<kind>/<slug>/` (HTML meta refresh)
+
 ### Accessing Custom Fields
 
 ```html

@@ -5,6 +5,7 @@ using Bukit.Engine;
 using Bukit.Engine.Plugins;
 using Bukit.Rendering;
 using Bukit.Routing;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -408,19 +409,17 @@ public sealed class SiteEngineHelperExtendedTests
     [Fact]
     public void SlugifySeoSegment_WithSimpleText_ReturnsSlugified()
     {
-        var result = InvokeSeoService<string>("SlugifySegment", "Hello World");
+        var result = SlugHelper.Slugify("Hello World");
 
-        Assert.NotNull(result);
         Assert.Equal("hello-world", result);
     }
 
     [Fact]
     public void SlugifySeoSegment_WithSpecialCharacters_ReturnsCleanSlug()
     {
-        var result = InvokeSeoService<string>("SlugifySegment", "C# & .NET!");
+        var result = SlugHelper.Slugify("C# & .NET!");
 
-        Assert.NotNull(result);
-        Assert.DoesNotContain("#", result!, StringComparison.Ordinal);
-        Assert.DoesNotContain("!", result!, StringComparison.Ordinal);
+        Assert.DoesNotContain("#", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("!", result, StringComparison.Ordinal);
     }
 }

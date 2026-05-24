@@ -143,7 +143,7 @@ public sealed class PluginRunnerTests
             ["pages-index"] = new PluginToggleConfig { Enabled = false },
             ["taxonomy"] = new PluginToggleConfig { Enabled = false },
             ["sitemap"] = new PluginToggleConfig { Enabled = false },
-            ["rss"] = new PluginToggleConfig { Enabled = false },
+            ["feed"] = new PluginToggleConfig { Enabled = false },
             ["search-index"] = new PluginToggleConfig { Enabled = false },
             ["pagination"] = new PluginToggleConfig { Enabled = false },
             ["archive"] = new PluginToggleConfig { Enabled = false }
@@ -252,7 +252,7 @@ public sealed class PluginRunnerTests
         return new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
         {
             ["sitemap"] = new PluginToggleConfig { Enabled = false },
-            ["rss"] = new PluginToggleConfig { Enabled = false },
+            ["feed"] = new PluginToggleConfig { Enabled = false },
             ["search-index"] = new PluginToggleConfig { Enabled = false },
             ["taxonomy"] = new PluginToggleConfig { Enabled = false }
         };

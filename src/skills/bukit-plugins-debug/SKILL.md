@@ -7,7 +7,7 @@ description: Use when using bukit and plugins do not take effect or behave unexp
 
 ## Overview
 
-Bukit has 9 core built-in plugins plus support for external assembly and protocol plugins. Plugin lifecycle: `derivePages` (derive pages) → parallel rendering → `afterBuild` (post-processing). Build debugging requires understanding plugin ordering, incremental skip logic, and configuration conflicts.
+Bukit has 14 core built-in plugins plus support for external assembly and protocol plugins. Plugin lifecycle: `derivePages` (derive pages) → parallel rendering → `afterBuild` (post-processing). Build debugging requires understanding plugin ordering, incremental skip logic, and configuration conflicts.
 
 **REQUIRED BACKGROUND:** Plugin config depends on `site.plugins`, `site.externalPlugins`, `site.externalAssemblyAllowlist` in site.yaml — you must understand the plugin config section in bukit-config first.
 **REQUIRED SUB-SKILL:** List registered plugins with `bukit plugin list`, diagnose performance with `bukit build --metrics`. CLI commands reference bukit-cli-reference.
@@ -22,23 +22,35 @@ Bukit has 9 core built-in plugins plus support for external assembly and protoco
 
 ## Built-in Plugin Quick Reference
 
+### derivePages Phase (v2.8+)
+
 | Plugin | Hook | Function |
 |------|------|------|
+| **DataFilesPlugin** | derive-pages | Loads `data/` directory (YAML/JSON/TOML), injects into `context.Data["__data_files"]`. Supports multi-language data subdirectories (`data/{lang}/`) |
 | **CollectionRouteIndex** | (internal) | In-memory index of routed content grouped by collection, used by Pagination, Archive, LlmsTxt, and Taxonomy plugins |
+| **PagesIndexPlugin** | derive-pages | Page index data generation + Notion relation resolution |
 | **TaxonomyPlugin** | derive-pages | Taxonomy page generation (tags/categories/custom taxonomy index and term pages) |
-| **PaginationPlugin** | derive-pages | List/taxonomy pagination (split large lists into multiple pages) |
-| **PagesIndexPlugin** | derive-pages | Page index data generation |
-| **ArchivePlugin** | derive-pages | Yearly archive page generation |
-| **SitemapPlugin** | after-build | sitemap.xml generation |
-| **RssPlugin** | after-build | RSS Feed generation |
-| **SearchIndexPlugin** | after-build | Search index JSON generation |
+| **RelatedContentPlugin** | derive-pages | Related content recommendation based on tags/categories/keywords/date multi-dimensional weighted matching. Config: `site.related` |
+| **AliasPlugin** | derive-pages | URL redirect generation from front matter `aliases`. Produces HTML redirect pages with `<meta http-equiv="refresh">` + `<link rel="canonical">` |
+| **PaginationPlugin** | derive-pages | Multi-collection list/taxonomy pagination with customizable URL patterns (`urlPattern: "page/:num/"`) |
+| **ArchivePlugin** | derive-pages | Year/month/day archive page generation. Config: `collection.output.archiveDetail.depth: yearly/monthly/daily` |
+
+### afterBuild Phase (v2.8+)
+
+| Plugin | Hook | Function |
+|------|------|------|
+| **SitemapPlugin** | after-build | sitemap.xml generation with `<priority>`/`<changefreq>`, Image/Video Sitemap extensions. Config: `site.sitemapDetail` |
+| **FeedPlugin** | after-build | Multi-format feed generation (RSS 2.0, Atom, JSON Feed). Per-collection independent feeds. Config: `site.feed` |
+| **SearchIndexPlugin** | after-build | Search index JSON generation + built-in search UI component (`bukit-search.html`). Supports `searchWeight` and `searchExclude` front matter |
 | **LlmsTxtPlugin** | after-build | llms.txt + llms-full.txt generation + AI crawler robots.txt rules |
+| **MenuPlugin** | after-build | Multi-menu navigation system with nesting support. Outputs `menus.json`. Config: `site.menus` |
+| **ImageProcessingPlugin** | after-build | Image resizing via CLI tools (ImageMagick). Generates multi-size variants + srcset data. Config: `theme.images` |
 
 ## Plugin Registration Sources
 
 | Source | Description | Config |
 |------|------|------|
-| **BuiltIn** | 9 framework built-in plugins, always loaded | None, toggle via `site.plugins` |
+| **BuiltIn** | 14 framework built-in plugins, always loaded | None, toggle via `site.plugins` |
 | **Generated** | AOT pre-generated plugins | None |
 | **ExternalAssembly** | `.dll` assemblies in `plugins/` directory | `site.externalAssemblyTrustMode` + `site.externalAssemblyAllowlist` |
 | **ExternalProtocol** | WASM or standalone process plugins | `site.externalPlugins` config |
@@ -71,9 +83,12 @@ site:
 
 ```
 1. derivePages phase (in registration order):
+   - DataFilesPlugin (loads data/ before rendering)
    - CollectionRouteIndex (builds route index, called lazily by other plugins)
    - PagesIndexPlugin
    - TaxonomyPlugin (generate taxonomy pages)
+   - RelatedContentPlugin (compute related content)
+   - AliasPlugin (generate redirect pages)
    - PaginationPlugin (pagination)
    - ArchivePlugin (archives)
    - Custom derivePages plugins
@@ -83,10 +98,167 @@ site:
 
 3. afterBuild phase (in registration order):
    - SitemapPlugin
-   - RssPlugin
+   - FeedPlugin (RSS + Atom + JSON Feed)
    - SearchIndexPlugin
    - LlmsTxtPlugin (llms.txt + llms-full.txt + AI crawler rules)
+   - MenuPlugin (menus.json generation)
+   - ImageProcessingPlugin (image resizing)
    - Custom afterBuild plugins
+```
+
+## New Plugin Configurations (v2.8+)
+
+### FeedPlugin (replaces RssPlugin)
+
+```yaml
+site:
+  feed:
+    formats: ["rss", "atom", "json"]   # default: ["rss"]
+    limit: 20                           # max items per feed
+    path: "feed"                        # base path prefix for feed files
+
+collection:
+  output:
+    rss: true                           # enable RSS for this collection
+    feedPath: "custom-feed"             # per-collection feed path
+    feedTitle: "My Blog"                # per-collection feed title
+    feedDescription: "..."              # per-collection feed description
+```
+
+### SitemapPlugin Enhancements
+
+```yaml
+site:
+  sitemapDetail:
+    defaultPriority: 0.5
+    defaultChangefreq: "weekly"
+    imageEnabled: false                 # enable Image Sitemap extension
+    videoEnabled: false                 # enable Video Sitemap extension
+
+# front matter:
+sitemap:
+  priority: 0.8
+  changefreq: "daily"
+  images:
+    - url: "..."
+      caption: "..."
+  videos:
+    - url: "..."
+      title: "..."
+```
+
+### SearchIndexPlugin Enhancements
+
+```yaml
+site:
+  search:
+    ui: "default"                       # "default" or false to disable built-in UI
+    uiTheme: "light"                    # "light" | "dark" | "auto"
+    placeholderText: "Search..."
+
+# front matter:
+searchWeight: 5                         # higher = ranked higher (default 1)
+searchExclude: true                     # exclude from search index
+```
+
+### RelatedContentPlugin
+
+```yaml
+site:
+  related:
+    enabled: true
+    threshold: 80                       # minimum score to include
+    limit: 5                            # max related items per page
+    indices:                            # matching dimensions and weights
+      - name: tags
+        weight: 100
+      - name: categories
+        weight: 60
+      - name: keywords
+        weight: 40
+```
+
+Data available in templates via `context.Data["__related_pages"]` (Dictionary<string, List<{title,url,score}>>).
+
+### MenuPlugin
+
+```yaml
+site:
+  menus:
+    main:
+      - identifier: home
+        name: Home
+        url: /
+        weight: 1
+      - identifier: blog
+        name: Blog
+        url: /blog/
+        weight: 2
+        children:
+          - identifier: tech
+            name: Tech
+            url: /blog/tech/
+            weight: 1
+    footer:
+      - identifier: about
+        name: About
+        url: /about/
+        weight: 1
+```
+
+Data available in templates via `context.Data["menus"]` and as `menus.json` in output.
+
+### DataFilesPlugin
+
+Place data files in `data/` directory:
+```
+data/
+  authors.yaml
+  navigation.json
+  zh-CN/
+    strings.yaml
+  en/
+    strings.yaml
+```
+
+Data available in templates via `context.Data["__data_files"]`.
+
+### AliasPlugin
+
+```yaml
+# front matter:
+aliases:
+  - /old-url/
+  - /previous-url/
+```
+
+Generates HTML redirect pages for each alias.
+
+### ArchivePlugin Enhancements
+
+```yaml
+collection:
+  output:
+    archive:
+      enabled: true
+      depth: "daily"                     # yearly | monthly | daily
+      template: "pages/archive.html"     # custom template
+      routePrefix: "archives"            # custom URL prefix
+```
+
+### PaginationPlugin Enhancements
+
+```yaml
+collection:
+  pagination:
+    enabled: true
+    pageSize: 10
+    urlPattern: "page/:num/"             # :num placeholder, e.g. "p/:num/"
+    firstPageUsesListRoute: true
+
+site:
+  pagination:
+    pageSize: 10                         # global default
 ```
 
 ## Route Conflict Policy
@@ -111,6 +283,8 @@ site:
       enabled: false    # Disable built-in taxonomy plugin
     SitemapPlugin:
       enabled: false    # Disable sitemap generation
+    feed:               # Note: FeedPlugin uses "feed" key (replaced "rss" in v2.8)
+      enabled: true
 ```
 
 List page content mode:
@@ -246,4 +420,8 @@ Use `bukit plugin list` to verify the plugin is discovered.
 | `deriveConflictPolicy` conflict | Derived page route duplicates existing route (stage 1: per-plugin; stage 2: final inventory validation) | Change policy to `warn` or `last-wins`, or adjust source routing |
 | Taxonomy pages not generated | TaxonomyPlugin disabled or taxonomy config incomplete | Check plugin toggle and taxonomy config |
 | Pagination not working | PaginationPlugin OK but collection pagination not enabled | Set `pagination.enabled: true` in collection config |
-| RSS not generated | `site.url` not set | RSS requires `site.url` for absolute link generation |
+| Feed (RSS) not generated | `site.url` not set | Feed requires `site.url` for absolute link generation |
+| Alias redirect page not generated | `aliases` front matter missing or malformed | Ensure `aliases` is a YAML list: `aliases: ["/old-url/"]` or string: `aliases: "/old-url/"` |
+| Related content not shown | `site.related.enabled: false` or `threshold` too high | Enable `related.enabled` and lower `threshold` |
+| Menu not appearing | `site.menus` not configured or empty | Configure `site.menus` with at least one menu key |
+| Image processing skipped | No ImageMagick (`magick`/`convert`) installed | Install ImageMagick for image resize support |

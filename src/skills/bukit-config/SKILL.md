@@ -289,12 +289,49 @@ content:
 taxonomy:
   kinds:
     - key: tags            # Field name (required)
-      title: Tags          # Display name
+      kind: tags           # URL path segment (default: key)
+      title: Tags          # Display name (default: key)
+      singularTitlePrefix: "Tag: "  # Term page title prefix
       template: pages/tag.html
+      indexTemplate: pages/tag-index.html
+      termTemplate: pages/tag-term.html
       indexEnabled: true
+      hierarchical: false  # Enable parent-child hierarchy (computes children + ancestors)
     - key: categories
+      kind: categories
       title: Categories
-      singularTitlePrefix: "Category: "   # Page title prefix
+      hierarchical: true   # Categories often benefit from hierarchy
+```
+
+**kinds[].hierarchical** (new in v3.0.0):
+- When `true`, computes `children` and `ancestors` arrays for each term
+- Terms with `parent` metadata create parent-child relationships
+- Template variables: `page.fields.taxonomy.value.children` (slug[]), `page.fields.taxonomy.value.ancestors` (slug[])
+- Index page terms: `page.fields.terms.value[].children`, `page.fields.terms.value[].ancestors`
+- JSON output: `taxonomy.json` includes `children` and `ancestors` per term
+
+#### Term metadata fields (via data source or _index.md)
+
+Each term can carry additional metadata loaded from `taxonomy_ensure_terms` data sources or `content/_taxonomy/<kind>/<slug>/_index.md`:
+
+| Field | Type | Description |
+|------|------|------|
+| `description` | string | Term description text |
+| `image` | string | Term cover image URL |
+| `weight` | int | Sort weight (higher = first, default 0) |
+| `parent` | string | Parent term slug (for hierarchy) |
+
+Example data file (`content/data/tags.yaml`):
+```yaml
+- title: Machine Learning
+  slug: ml
+  description: Everything about ML and AI
+  image: /assets/images/ml-cover.png
+  weight: 10
+  parent: tech
+- title: Python
+  slug: python
+  weight: 5
 ```
 
 ### logging Node

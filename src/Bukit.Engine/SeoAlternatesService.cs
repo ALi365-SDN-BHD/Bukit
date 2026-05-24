@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Content;
 using Bukit.Rendering;
 using Bukit.Routing;
+using Bukit.Shared;
 
 namespace Bukit.Engine;
 
@@ -296,7 +297,7 @@ public static class SeoAlternatesService
 
             foreach (var value in values)
             {
-                var slug = SlugifySegment(value);
+                var slug = SlugHelper.Slugify(value);
                 if (string.IsNullOrWhiteSpace(slug))
                 {
                     continue;
@@ -351,38 +352,6 @@ public static class SeoAlternatesService
     }
 
     private static int NormalizePageSize(int pageSize) => pageSize <= 0 ? 10 : pageSize;
-
-    private static string SlugifySegment(string text)
-    {
-        var trimmed = text.Trim().ToLowerInvariant();
-        if (string.IsNullOrWhiteSpace(trimmed))
-        {
-            return string.Empty;
-        }
-
-        var sb = new System.Text.StringBuilder(trimmed.Length);
-        var dash = false;
-        foreach (var ch in trimmed)
-        {
-            if (char.IsLetterOrDigit(ch))
-            {
-                sb.Append(ch);
-                dash = false;
-                continue;
-            }
-
-            if (ch is ' ' or '-' or '_' or '.')
-            {
-                if (!dash && sb.Length > 0)
-                {
-                    sb.Append('-');
-                    dash = true;
-                }
-            }
-        }
-
-        return sb.ToString().Trim('-');
-    }
 
     private static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)
     {

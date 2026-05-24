@@ -28,8 +28,8 @@ public static class RssGenerator
         int maxItems = 20,
         string? siteDescription = null)
     {
-        var normalizedSiteUrl = NormalizeSiteUrl(siteUrl);
-        var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
+        var normalizedSiteUrl = InternalNormalizeSiteUrl(siteUrl);
+        var normalizedBaseUrl = InternalNormalizeBaseUrl(baseUrl);
 
         var rssCollections = ResolveRssCollections(collections);
         var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore)
@@ -49,6 +49,45 @@ public static class RssGenerator
         FileWriter.WriteUtf8(outputDir, "rss.xml", RenderFeed(siteTitle, siteDescription, homeUrl, feedUrl, posts));
     }
 
+    internal static List<Post> CollectPosts(
+        IReadOnlyDictionary<string, CollectionConfig>? collections,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IContentBodyStore bodyStore,
+        IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex,
+        string siteUrl,
+        string baseUrl,
+        string? collectionKey)
+    {
+        var normalizedSiteUrl = InternalNormalizeSiteUrl(siteUrl);
+        var normalizedBaseUrl = InternalNormalizeBaseUrl(baseUrl);
+
+        var rssCollections = ResolveRssCollections(collections);
+        if (collectionKey is not null)
+        {
+            rssCollections = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { collectionKey };
+        }
+
+        var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore)
+            ?? routed
+                .Where(x => rssCollections.Contains(GetCollection(x.Item)))
+                .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase)
+                .Select(x => ToPost(x.Item, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore))
+                .ToList();
+
+        return posts;
+    }
+
+    internal static List<Post> CollectAllPosts(
+        IReadOnlyDictionary<string, CollectionConfig>? collections,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IContentBodyStore bodyStore,
+        IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex,
+        string siteUrl,
+        string baseUrl)
+    {
+        return CollectPosts(collections, routed, bodyStore, seoIndex, siteUrl, baseUrl, null);
+    }
+
     public static void GenerateMerged(
         string outputDir,
         string siteUrl,
@@ -58,8 +97,8 @@ public static class RssGenerator
         int maxItems = 20,
         string? siteDescription = null)
     {
-        var normalizedSiteUrl = NormalizeSiteUrl(siteUrl);
-        var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
+        var normalizedSiteUrl = InternalNormalizeSiteUrl(siteUrl);
+        var normalizedBaseUrl = InternalNormalizeBaseUrl(baseUrl);
 
         var sorted = posts
             .OrderByDescending(x => x.PublishAt)
@@ -264,14 +303,14 @@ public static class RssGenerator
 
     public static string BuildAbsoluteUrl(string siteUrl, string baseUrl, string url)
     {
-        siteUrl = NormalizeSiteUrl(siteUrl);
-        baseUrl = NormalizeBaseUrl(baseUrl);
+        siteUrl = InternalNormalizeSiteUrl(siteUrl);
+        baseUrl = InternalNormalizeBaseUrl(baseUrl);
         var u = url.StartsWith('/') ? url : "/" + url;
         var path = baseUrl == "/" ? u : $"{baseUrl}{u}";
         return siteUrl + path;
     }
 
-    private static string NormalizeSiteUrl(string siteUrl)
+    internal static string InternalNormalizeSiteUrl(string siteUrl)
     {
         var trimmed = siteUrl.Trim();
         if (trimmed.EndsWith('/'))
@@ -282,7 +321,7 @@ public static class RssGenerator
         return trimmed;
     }
 
-    private static string NormalizeBaseUrl(string baseUrl)
+    internal static string InternalNormalizeBaseUrl(string baseUrl)
     {
         var trimmed = baseUrl.Trim();
         if (string.IsNullOrWhiteSpace(trimmed))

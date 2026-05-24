@@ -275,7 +275,8 @@ public static class ConfigLoader
                 Template = GetOptionalString(m, "template"),
                 IndexTemplate = GetOptionalString(m, "indexTemplate"),
                 TermTemplate = GetOptionalString(m, "termTemplate"),
-                IndexEnabled = GetOptionalBool(m, "indexEnabled")
+                IndexEnabled = GetOptionalBool(m, "indexEnabled"),
+                Hierarchical = GetOptionalBool(m, "hierarchical") ?? false
             });
         }
 

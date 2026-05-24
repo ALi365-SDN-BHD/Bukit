@@ -42,7 +42,7 @@ internal static class TaxonomyTermsInjector
             var slug = (item.Slug ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(slug))
             {
-                slug = SlugifyTerm(title);
+                slug = SlugHelper.Slugify(title);
             }
 
             if (string.IsNullOrWhiteSpace(slug))
@@ -217,7 +217,7 @@ internal static class TaxonomyTermsInjector
                     continue;
                 }
 
-                var slug = SlugifyTerm(title);
+                var slug = SlugHelper.Slugify(title);
                 if (string.IsNullOrWhiteSpace(slug))
                 {
                     continue;
@@ -303,36 +303,5 @@ internal static class TaxonomyTermsInjector
         return sb.ToString().Trim('_');
     }
 
-    internal static string SlugifyTerm(string text)
-    {
-        var trimmed = (text ?? string.Empty).Trim().ToLowerInvariant();
-        if (string.IsNullOrWhiteSpace(trimmed))
-        {
-            return string.Empty;
-        }
 
-        var sb = new StringBuilder(trimmed.Length);
-        var dash = false;
-
-        foreach (var ch in trimmed)
-        {
-            if (char.IsLetterOrDigit(ch))
-            {
-                sb.Append(ch);
-                dash = false;
-                continue;
-            }
-
-            if (ch is ' ' or '-' or '_' or '.')
-            {
-                if (!dash && sb.Length > 0)
-                {
-                    sb.Append('-');
-                    dash = true;
-                }
-            }
-        }
-
-        return sb.ToString().Trim('-');
-    }
 }

@@ -1,0 +1,333 @@
+using System.Text;
+using Bukit.Content;
+using Bukit.Routing;
+
+namespace Bukit.Engine.Plugins.BuiltIn;
+
+internal static class TaxonomyPageCreator
+{
+    internal static IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> CreateKind(
+        string baseUrlPrefix,
+        string kind,
+        string title,
+        string singularTitlePrefix,
+        Dictionary<string, TaxonomyTerm> terms,
+        string indexTemplate,
+        string termTemplate,
+        bool emitContentHtml,
+        int pageSize,
+        bool indexEnabled,
+        bool hierarchical,
+        string outputPathEncoding)
+    {
+        var hierarchy = hierarchical
+            ? TaxonomyHierarchyBuilder.BuildHierarchy(terms)
+            : new Dictionary<string, TaxonomyHierarchyBuilder.HierarchyInfo>(StringComparer.OrdinalIgnoreCase);
+        var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
+        var items = terms.Values
+            .OrderByDescending(x => x.Weight)
+            .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var now = DateTimeOffset.UtcNow;
+        if (indexEnabled)
+        {
+            var visibleTerms = items.Where(t => t.IsVisible).ToList();
+            derived.Add(CreateIndexPage(baseUrlPrefix, kind, title, visibleTerms, hierarchy, indexTemplate, publishAt: now, emitContentHtml, outputPathEncoding));
+        }
+
+        foreach (var term in items)
+        {
+            var hi = hierarchy.TryGetValue(term.Slug, out var h) ? h : null;
+            if (term.Pages.Count == 0)
+            {
+                derived.Add(CreateTermPage(
+                    baseUrlPrefix,
+                    kind,
+                    singularTitlePrefix,
+                    term,
+                    hi,
+                    termTemplate,
+                    publishAt: now,
+                    emitContentHtml,
+                    pageSize,
+                    page: 1,
+                    totalPages: 1,
+                    items: Array.Empty<TaxonomyPage>(),
+                    outputPathEncoding));
+                continue;
+            }
+
+            var totalPages = (int)Math.Ceiling(term.Pages.Count / (double)pageSize);
+            for (var page = 1; page <= totalPages; page++)
+            {
+                var skip = (page - 1) * pageSize;
+                var chunk = term.Pages.Skip(skip).Take(pageSize).ToList();
+                var publishAt = chunk.Count == 0 ? now : chunk.Max(x => x.PublishAt);
+                derived.Add(CreateTermPage(
+                    baseUrlPrefix,
+                    kind,
+                    singularTitlePrefix,
+                    term,
+                    hi,
+                    termTemplate,
+                    publishAt,
+                    emitContentHtml,
+                    pageSize,
+                    page,
+                    totalPages,
+                    chunk,
+                    outputPathEncoding));
+            }
+        }
+
+        return derived;
+    }
+
+    internal static (ContentItem Item, RouteInfo Route, DateTimeOffset LastModified) CreateIndexPage(
+        string baseUrlPrefix,
+        string kind,
+        string title,
+        IReadOnlyList<TaxonomyTerm> terms,
+        IReadOnlyDictionary<string, TaxonomyHierarchyBuilder.HierarchyInfo> hierarchy,
+        string template,
+        DateTimeOffset publishAt,
+        bool emitContentHtml,
+        string outputPathEncoding)
+    {
+        var html = string.Empty;
+        if (emitContentHtml)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("<ul>");
+            foreach (var term in terms)
+            {
+                var href = $"{baseUrlPrefix}/{kind}/{term.Slug}/";
+                sb.AppendLine($"  <li><a href=\"{EscapeAttr(href)}\">{EscapeHtml(term.DisplayName)}</a> <small>({term.Pages.Count})</small></li>");
+            }
+            sb.AppendLine("</ul>");
+            html = sb.ToString();
+        }
+
+        var url = "/" + kind + "/";
+        var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
+        var route = new RouteInfo(url, outputPath, template);
+        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "page"
+        };
+
+        var termsValue = new List<object>(terms.Count);
+        foreach (var term in terms)
+        {
+            var entry = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["title"] = term.DisplayName,
+                ["slug"] = term.Slug,
+                ["url"] = "/" + kind + "/" + term.Slug + "/",
+                ["count"] = term.Pages.Count
+            };
+            if (!string.IsNullOrWhiteSpace(term.Description))
+            {
+                entry["description"] = term.Description;
+            }
+            if (!string.IsNullOrWhiteSpace(term.Image))
+            {
+                entry["image"] = term.Image;
+            }
+            if (term.Weight != 0)
+            {
+                entry["weight"] = term.Weight;
+            }
+            if (!string.IsNullOrWhiteSpace(term.ParentSlug))
+            {
+                entry["parent"] = term.ParentSlug;
+            }
+            if (term.Aliases is { Count: > 0 })
+            {
+                entry["aliases"] = term.Aliases;
+            }
+            if (hierarchy.TryGetValue(term.Slug, out var hi))
+            {
+                if (hi.Children.Count > 0)
+                {
+                    entry["children"] = hi.Children;
+                }
+                if (hi.Ancestors.Count > 0)
+                {
+                    entry["ancestors"] = hi.Ancestors;
+                }
+            }
+            termsValue.Add(entry);
+        }
+
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["terms"] = new ContentField("list", termsValue)
+        };
+
+        var item = new ContentItem(
+            Id: $"{kind}-index",
+            Title: title,
+            Slug: kind,
+            PublishAt: publishAt,
+            ContentHtml: html,
+            Meta: meta,
+            Fields: fields);
+
+        return (item, route, publishAt);
+    }
+
+    internal static (ContentItem Item, RouteInfo Route, DateTimeOffset LastModified) CreateTermPage(
+        string baseUrlPrefix,
+        string kind,
+        string singularTitlePrefix,
+        TaxonomyTerm term,
+        TaxonomyHierarchyBuilder.HierarchyInfo? hierarchyInfo,
+        string template,
+        DateTimeOffset publishAt,
+        bool emitContentHtml,
+        int pageSize,
+        int page,
+        int totalPages,
+        IReadOnlyList<TaxonomyPage> items,
+        string outputPathEncoding)
+    {
+        var html = string.Empty;
+        if (emitContentHtml)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("<ul>");
+
+            foreach (var pageItem in items)
+            {
+                var href = $"{baseUrlPrefix}{pageItem.Url}";
+                sb.AppendLine($"  <li><a href=\"{EscapeAttr(href)}\">{EscapeHtml(pageItem.Title)}</a></li>");
+            }
+
+            sb.AppendLine("</ul>");
+            html = sb.ToString();
+        }
+
+        var isFirstPage = page <= 1;
+        var url = isFirstPage
+            ? "/" + kind + "/" + term.Slug + "/"
+            : "/" + kind + "/" + term.Slug + "/page/" + page + "/";
+        var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
+        var route = new RouteInfo(url, outputPath, template);
+        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "page"
+        };
+
+        var itemsValue = new List<object>(items.Count);
+        foreach (var pageItem in items)
+        {
+            var obj = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["title"] = pageItem.Title,
+                ["url"] = pageItem.Url,
+                ["publish_date"] = pageItem.PublishAt.DateTime
+            };
+            if (!string.IsNullOrWhiteSpace(pageItem.Summary))
+            {
+                obj["summary"] = pageItem.Summary!;
+            }
+
+            if (pageItem.Extra is not null)
+            {
+                foreach (var kv in pageItem.Extra)
+                {
+                    if (!obj.ContainsKey(kv.Key))
+                    {
+                        obj[kv.Key] = kv.Value;
+                    }
+                }
+            }
+
+            itemsValue.Add(obj);
+        }
+
+        var taxonomyValue = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["kind"] = kind,
+            ["term"] = term.DisplayName,
+            ["slug"] = term.Slug,
+            ["count"] = term.Pages.Count
+        };
+        if (!string.IsNullOrWhiteSpace(term.Description))
+        {
+            taxonomyValue["description"] = term.Description;
+        }
+        if (!string.IsNullOrWhiteSpace(term.Image))
+        {
+            taxonomyValue["image"] = term.Image;
+        }
+        if (term.Weight != 0)
+        {
+            taxonomyValue["weight"] = term.Weight;
+        }
+        if (!string.IsNullOrWhiteSpace(term.ParentSlug))
+        {
+            taxonomyValue["parent"] = term.ParentSlug;
+        }
+        if (term.Aliases is { Count: > 0 })
+        {
+            taxonomyValue["aliases"] = term.Aliases;
+        }
+        if (hierarchyInfo is not null)
+        {
+            if (hierarchyInfo.Children.Count > 0)
+            {
+                taxonomyValue["children"] = hierarchyInfo.Children;
+            }
+            if (hierarchyInfo.Ancestors.Count > 0)
+            {
+                taxonomyValue["ancestors"] = hierarchyInfo.Ancestors;
+            }
+        }
+
+        var paginationValue = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["page"] = page,
+            ["page_size"] = pageSize,
+            ["total"] = term.Pages.Count,
+            ["total_pages"] = totalPages,
+            ["has_prev"] = page > 1,
+            ["has_next"] = page < totalPages
+        };
+
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["items"] = new ContentField("list", itemsValue),
+            ["taxonomy"] = new ContentField("object", taxonomyValue),
+            ["pagination"] = new ContentField("object", paginationValue)
+        };
+
+        var item = new ContentItem(
+            Id: page <= 1 ? $"{kind}-{term.Slug}" : $"{kind}-{term.Slug}-page-{page}",
+            Title: page <= 1 ? $"{singularTitlePrefix}: {term.DisplayName}" : $"{singularTitlePrefix}: {term.DisplayName} (Page {page})",
+            Slug: term.Slug,
+            PublishAt: publishAt,
+            ContentHtml: html,
+            Meta: meta,
+            Fields: fields);
+
+        return (item, route, publishAt);
+    }
+
+    internal static string EscapeHtml(string value)
+    {
+        return (value ?? string.Empty)
+            .Replace("&", "&amp;", StringComparison.Ordinal)
+            .Replace("<", "&lt;", StringComparison.Ordinal)
+            .Replace(">", "&gt;", StringComparison.Ordinal)
+            .Replace("\"", "&quot;", StringComparison.Ordinal)
+            .Replace("'", "&#39;", StringComparison.Ordinal);
+    }
+
+    internal static string EscapeAttr(string value)
+    {
+        return EscapeHtml(value);
+    }
+}

@@ -100,19 +100,17 @@ public sealed class TaxonomyTermsInjectorTests
     [Fact]
     public void SlugifyTerm_WithSimpleTerm_ReturnsSlugified()
     {
-        var result = InvokeStatic<string>("SlugifyTerm", "Hello World");
+        var result = SlugHelper.Slugify("Hello World");
 
-        Assert.NotNull(result);
         Assert.Equal("hello-world", result);
     }
 
     [Fact]
     public void SlugifyTerm_WithSpecialCharacters_ReturnsCleanSlug()
     {
-        var result = InvokeStatic<string>("SlugifyTerm", "C# & .NET Programming!");
+        var result = SlugHelper.Slugify("C# & .NET Programming!");
 
-        Assert.NotNull(result);
-        Assert.True(result!.Length > 0);
+        Assert.True(result.Length > 0);
         Assert.DoesNotContain("#", result, StringComparison.Ordinal);
         Assert.DoesNotContain("!", result, StringComparison.Ordinal);
     }
@@ -120,18 +118,16 @@ public sealed class TaxonomyTermsInjectorTests
     [Fact]
     public void SlugifyTerm_WithUnicodeCharacters_ReturnsValidSlug()
     {
-        var result = InvokeStatic<string>("SlugifyTerm", "\u673a\u5668\u5b66\u4e60");
+        var result = SlugHelper.Slugify("\u673a\u5668\u5b66\u4e60");
 
-        Assert.NotNull(result);
         Assert.True(!string.IsNullOrWhiteSpace(result));
     }
 
     [Fact]
     public void SlugifyTerm_WithEmptyString_ReturnsEmpty()
     {
-        var result = InvokeStatic<string>("SlugifyTerm", "");
+        var result = SlugHelper.Slugify("");
 
-        Assert.NotNull(result);
         Assert.Equal("", result);
     }
 

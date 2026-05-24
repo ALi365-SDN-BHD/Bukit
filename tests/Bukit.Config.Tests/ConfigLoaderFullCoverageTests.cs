@@ -342,7 +342,7 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               plugins:
                 seo: true
                 sitemap: false
-                rss: true
+                feed: true
                 openGraph: false
             content:
               provider: markdown
@@ -354,7 +354,7 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         Assert.Equal(4, config.Site.Plugins.Count);
         Assert.True(config.Site.Plugins["seo"].Enabled);
         Assert.False(config.Site.Plugins["sitemap"].Enabled);
-        Assert.True(config.Site.Plugins["rss"].Enabled);
+        Assert.True(config.Site.Plugins["feed"].Enabled);
         Assert.False(config.Site.Plugins["openGraph"].Enabled);
         Assert.Null(config.Site.Plugins["seo"].Options);
     }

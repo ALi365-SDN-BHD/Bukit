@@ -145,7 +145,12 @@ public sealed class PluginRegistryTests
         Assert.Contains("search-index", names);
         Assert.Contains("pagination", names);
         Assert.Contains("archive", names);
-        Assert.Contains("rss", names);
+        Assert.Contains("feed", names);
+        Assert.Contains("related-content", names);
+        Assert.Contains("alias", names);
+        Assert.Contains("data-files", names);
+        Assert.Contains("menu", names);
+        Assert.Contains("image-processing", names);
     }
 
     [Fact]

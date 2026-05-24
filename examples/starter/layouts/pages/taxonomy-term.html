@@ -3,11 +3,20 @@
 {{ items = page.fields.items.value }}
 {{ taxonomy = page.fields.taxonomy.value }}
 {{ pagination = page.fields.pagination.value }}
-{{ base_url = site.base_url + "/" + taxonomy.kind + "/" + taxonomy.slug + "/" }}
 
 <header class="page-header">
   <p class="eyebrow">{{ taxonomy.kind }}</p>
   <h1>{{ page.title }}</h1>
+  {{ if taxonomy.description }}
+    <p class="desc">{{ taxonomy.description }}</p>
+  {{ end }}
+  {{ if taxonomy.ancestors }}
+    <nav class="breadcrumb">
+    {{ for ancestor in taxonomy.ancestors }}
+      / <a href="{{ site.base_url }}/{{ taxonomy.kind }}/{{ ancestor }}/">{{ ancestor }}</a>
+    {{ end }}
+    </nav>
+  {{ end }}
 </header>
 
 <ul class="card-list">

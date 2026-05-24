@@ -3,6 +3,7 @@ using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Routing;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -39,7 +40,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void SlugifySeoSegment_SimpleText_KeepsLetters()
     {
-        var result = InvokeSeoService<string>("SlugifySegment", "Hello World");
+        var result = SlugHelper.Slugify("Hello World");
 
         Assert.Equal("hello-world", result);
     }
@@ -47,7 +48,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void SlugifySeoSegment_EmptyString_ReturnsEmpty()
     {
-        var result = InvokeSeoService<string>("SlugifySegment", "");
+        var result = SlugHelper.Slugify("");
 
         Assert.Equal(string.Empty, result);
     }
@@ -55,7 +56,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void SlugifySeoSegment_WhitespaceOnly_ReturnsEmpty()
     {
-        var result = InvokeSeoService<string>("SlugifySegment", "   ");
+        var result = SlugHelper.Slugify("   ");
 
         Assert.Equal(string.Empty, result);
     }
@@ -63,7 +64,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void SlugifySeoSegment_DotsAndUnderscores_ConvertedToDashes()
     {
-        var result = InvokeSeoService<string>("SlugifySegment", "hello_world.name");
+        var result = SlugHelper.Slugify("hello_world.name");
 
         Assert.Equal("hello-world-name", result);
     }
@@ -71,7 +72,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void SlugifySeoSegment_LeadingTrailingDashes_Trimmed()
     {
-        var result = InvokeSeoService<string>("SlugifySegment", " --test-- ");
+        var result = SlugHelper.Slugify(" --test-- ");
 
         Assert.Equal("test", result);
     }
@@ -79,7 +80,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void SlugifySeoSegment_SpecialCharacters_Removed()
     {
-        var result = InvokeSeoService<string>("SlugifySegment", "hello!@#$%^&*()world");
+        var result = SlugHelper.Slugify("hello!@#$%^&*()world");
 
         Assert.Equal("helloworld", result);
     }
