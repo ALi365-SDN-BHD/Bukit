@@ -110,6 +110,86 @@ Final effective priority (high to low):
 | `theme.static` | string | `static` | Static files directory |
 | `theme.params` | dict | - | Theme parameters (injected to templates) |
 
+## taxonomy.* Fields
+
+| Field | Type | Required | Default | Description |
+|---|---:|---:|---|---|
+| `taxonomy.template` | string | No | `pages/page.html` | Default template for taxonomy derived pages (used for index/term) |
+| `taxonomy.indexTemplate` | string | No | null | Taxonomy index page template (e.g., `/tags/`, `/categories/`); falls back to `taxonomy.template` when empty |
+| `taxonomy.termTemplate` | string | No | null | Taxonomy term page template (e.g., `/tags/<slug>/`); falls back to `taxonomy.template` when empty |
+| `taxonomy.kinds` | list | No | null | Generalized taxonomy definition list; generates arbitrary kinds (not just tags/categories). Each entry requires at least `key`, optional `kind/title/singularTitlePrefix/template/indexTemplate/termTemplate/indexEnabled/hierarchical` |
+| `taxonomy.kinds[].hierarchical` | bool | No | false | (v3.0.0+) Enable hierarchical taxonomy. When enabled, automatically computes `children` and `ancestors` per term, injected into template variables and JSON output |
+| `taxonomy.templates.tags.template` | string | No | null | tags derived page default template (falls back to `taxonomy.template`) |
+| `taxonomy.templates.tags.indexTemplate` | string | No | null | tags index page template (falls back to `taxonomy.indexTemplate` or `taxonomy.templates.tags.template`) |
+| `taxonomy.templates.tags.termTemplate` | string | No | null | tags term page template (falls back to `taxonomy.termTemplate` or `taxonomy.templates.tags.template`) |
+| `taxonomy.templates.categories.template` | string | No | null | categories derived page default template |
+| `taxonomy.templates.categories.indexTemplate` | string | No | null | categories index page template |
+| `taxonomy.templates.categories.termTemplate` | string | No | null | categories term page template |
+| `taxonomy.outputMode` | string | No | `both` | `both` (HTML + JSON) \| `pages` (HTML only) \| `data` (JSON only) \| `fields_only` (fields only, no files) |
+| `taxonomy.itemFields` | string[] | No | null | Extra fields exposed on term page items (e.g., `[cover, image, date]`); each must be non-empty string |
+| `taxonomy.pageSize` | int | No | 10 | Term page pagination size |
+| `taxonomy.indexEnabled` | bool | No | true | Whether to generate taxonomy index pages |
+| `taxonomy.pinField` | string | No | `pinned` | Pin field name; items where this field is true appear first in term pages |
+| `taxonomy.pinOrderField` | string | No | null | Pin ordering field; pinned items sorted ascending by this field before `publishAt` descending |
+| `taxonomy.pinFieldBySource` | object | No | null | Per-source pin field mapping (key = sourceKey, value = field name); falls back to global `pinField` |
+| `taxonomy.pinOrderFieldBySource` | object | No | null | Per-source pin ordering field mapping; falls back to global `pinOrderField` |
+
+### Notes
+
+- Without `taxonomy.kinds`: legacy behavior, generates only tags/categories derived pages.
+- With `taxonomy.kinds`: generates arbitrary taxonomy per the kinds list; `taxonomy.kinds[]` template fields have highest priority.
+  If `kind` is `tags/categories`, `taxonomy.templates.<kind>.*` still serves as fallback (only applies when not specified in kinds).
+- `taxonomy.kinds[]` validation: `key` is required; `kind`, `title`, `singularTitlePrefix`, `template`, `indexTemplate`, `termTemplate` are optional but must be non-empty strings if set.
+- `taxonomy.kinds[].hierarchical`: when enabled, automatically computes hierarchy. Terms associate with parent via `parent` metadata (data source or `_index.md`); terms without `parent` are root nodes.
+- **Term metadata** supports two loading sources:
+  1. **data mode content source**: entries in `taxonomy_ensure_terms` dict (e.g., `content/data/tags.yaml`), supporting `description`, `image`, `weight`, `parent` fields
+  2. **_index.md convention** (Hugo-style): `content/_taxonomy/<kind>/<slug>/_index.md` in YAML front matter format
+- **RSS feeds**: each term automatically generates `<output>/<kind>/<slug>/feed.xml`
+- **Alias redirects**: terms with `Aliases` automatically generate HTML redirect pages
+
+### Template Priority (high to low)
+
+1. `taxonomy.templates.<kind>.indexTemplate` / `taxonomy.templates.<kind>.termTemplate`
+2. `taxonomy.indexTemplate` / `taxonomy.termTemplate`
+3. `taxonomy.templates.<kind>.template`
+4. `taxonomy.template`
+5. Fallback `pages/page.html`
+
+### Complete Example
+
+```yaml
+taxonomy:
+  template: pages/page.html
+  indexTemplate: pages/taxonomy-index.html
+  termTemplate: pages/taxonomy-term.html
+  kinds:
+    - key: tags
+      kind: tags
+      title: Tags
+      singularTitlePrefix: Tag
+      termTemplate: pages/tag.html
+    - key: categories
+      kind: categories
+      title: Categories
+      singularTitlePrefix: Category
+      hierarchical: true
+      termTemplate: pages/category.html
+    - key: series
+      kind: series
+      title: Series
+      singularTitlePrefix: Series
+      template: pages/series.html
+  templates:
+    tags:
+      template: pages/tag.html
+      indexTemplate: pages/tag-index.html
+      termTemplate: pages/tag-term.html
+    categories:
+      template: pages/category.html
+      indexTemplate: pages/category-index.html
+      termTemplate: pages/category-term.html
+```
+
 ## logging.* Fields
 
 | Field | Type | Default | Description |

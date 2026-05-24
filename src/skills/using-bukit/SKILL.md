@@ -57,7 +57,7 @@ Bukit's user guide (`guide/user/`) is the human-facing companion to these skills
 | Skill | Primary Guide Chapter(s) | What the User Sees |
 |-------|--------------------------|-------------------|
 | bukit-cli-reference | [12 CLI Reference](guide/user/12-cli-reference.md), [16 Parameter Cheatsheet](guide/user/16-parameter-cheatsheet.md) | Command reference with all flags |
-| bukit-config | [04 Site YAML Config](guide/user/04-site-yaml-config.md) | Config walkthrough with copy-ready snippets |
+| bukit-config | [04 Site YAML Config](guide/user/04-site-yaml-config.md), [19 New Features in v3.0](guide/user/19-new-features-v3.md) | Config walkthrough with copy-ready snippets, including v3.0 feature fields |
 | bukit-theme | [08 Themes & Templates](guide/user/08-themes-templates.md) | Theme creation, wizard, packaging, installation |
 | bukit-templating | [08 Themes & Templates](guide/user/08-themes-templates.md) | Scriban templates and layout inheritance |
 | bukit-notion | [06 Notion Content](guide/user/06-notion-content.md) | Notion API setup, property mapping, block rendering |
@@ -88,6 +88,7 @@ Cross-reference chapters for common workflows:
 | Follow a recipe | [15 Recipes](guide/user/15-recipes.md) | varies by recipe |
 | Optimize for AI search | [17 GEO](guide/user/17-geo.md) | bukit-geo |
 | Clone a website design | [18 Clone Website](guide/user/18-clone-website.md) | bukit-clone |
+| Explore v3.0 features | [19 New Features in v3.0](guide/user/19-new-features-v3.md) | bukit-config, bukit-plugins-debug |
 
 ## Typical Workflow Routing
 

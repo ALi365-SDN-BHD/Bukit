@@ -92,6 +92,25 @@ This page is for quick lookup. For more complete authoritative field references 
 | `theme.static` | Static directory (when not using theme.name) | `static` |
 | `theme.params` | Theme parameters (readable by templates) | `{ brand: starter }` |
 
+## taxonomy.* (Taxonomy / Tags & Categories)
+
+| Field | Meaning | Example |
+|---|---|---|
+| `taxonomy.template` | Default term template | `pages/taxonomy-term.html` |
+| `taxonomy.indexTemplate` | Index page template | `pages/taxonomy-index.html` |
+| `taxonomy.termTemplate` | Term page template (overrides global) | `pages/taxonomy-term-alt.html` |
+| `taxonomy.outputMode` | Output mode | `both` / `pages` / `data` / `fields_only` |
+| `taxonomy.pageSize` | Per-term pagination size (default 10) | `20` |
+| `taxonomy.indexEnabled` | Generate index pages (default true) | `false` |
+| `taxonomy.pinField` | Pin field name (default `pinned`) | `sticky` |
+| `taxonomy.pinOrderField` | Pin ordering field | `pin_weight` |
+| `taxonomy.itemFields` | Extra meta fields to inject | `[summary, image, author]` |
+| `taxonomy.kinds[].key` | Kind identifier (for identification) | `tags` / `categories` |
+| `taxonomy.kinds[].kind` | Kind name (template/routing) | `tags` |
+| `taxonomy.kinds[].title` | Index page title | `All Tags` |
+| `taxonomy.kinds[].hierarchical` | Enable hierarchical taxonomy (v3.0.0+) | `true` / `false` |
+| `taxonomy.tags` / `taxonomy.categories` | Legacy tags/categories template config | `indexTemplate` / `termTemplate` |
+
 ## logging.* (Logging)
 
 | Field | Meaning | Example |

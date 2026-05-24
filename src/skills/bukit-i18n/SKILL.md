@@ -187,3 +187,23 @@ Not needed for single-language. For multilingual, create a root `index.html` for
 | `defaultLanguage must be included in site.languages` | Config error | Add defaultLanguage to languages |
 | Search index only contains one language | searchMode is split | Change to `merged` or `index` |
 | Merged RSS content duplicated | Language versions share same i18n_key but have different content | Normal behavior; RSS includes articles from all languages |
+
+## Multi-Language Data Files (DataFilesPlugin)
+
+The DataFilesPlugin supports language-specific data through the `data/` directory structure. Place language-specific files in `data/{lang}/` subdirectories:
+
+```
+data/
+  authors.yaml                # Shared across all languages
+  navigation.json             # Shared across all languages
+  zh-CN/
+    strings.yaml              # Chinese strings
+    testimonials.yaml         # Chinese testimonials
+  en/
+    strings.yaml              # English strings
+    testimonials.yaml         # English testimonials
+```
+
+Language-specific data is loaded with the language code as the key (e.g., `context.Data["__data_files"]["zh-CN"]`). Shared files at the root `data/` level are available to all languages.
+
+Each language variant gets merged data: shared root-level files + language-specific overrides. In templates, access via the `__data_files` context data.

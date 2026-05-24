@@ -92,6 +92,25 @@ Halaman ini adalah untuk carian pantas. Untuk rujukan medan berwibawa yang lebih
 | `theme.static` | Direktori statik (apabila tidak menggunakan theme.name) | `static` |
 | `theme.params` | Parameter tema (boleh dibaca oleh templat) | `{ brand: starter }` |
 
+## taxonomy.* (Kategori / Tag)
+
+| Medan | Maksud | Contoh |
+|---|---|---|
+| `taxonomy.template` | Templat term lalai | `pages/taxonomy-term.html` |
+| `taxonomy.indexTemplate` | Templat halaman indeks | `pages/taxonomy-index.html` |
+| `taxonomy.termTemplate` | Templat halaman term (ganti global) | `pages/taxonomy-term-alt.html` |
+| `taxonomy.outputMode` | Mod output | `both` / `pages` / `data` / `fields_only` |
+| `taxonomy.pageSize` | Saiz penomboran setiap term (lalai 10) | `20` |
+| `taxonomy.indexEnabled` | Jana halaman indeks (lalai true) | `false` |
+| `taxonomy.pinField` | Nama medan pin (lalai `pinned`) | `sticky` |
+| `taxonomy.pinOrderField` | Medan susunan pin | `pin_weight` |
+| `taxonomy.itemFields` | Medan meta tambahan untuk disuntik | `[summary, image, author]` |
+| `taxonomy.kinds[].key` | Pengecam kind (untuk identifikasi) | `tags` / `categories` |
+| `taxonomy.kinds[].kind` | Nama kind (templat/penghalaan) | `tags` |
+| `taxonomy.kinds[].title` | Tajuk halaman indeks | `Semua Tag` |
+| `taxonomy.kinds[].hierarchical` | Dayakan taksonomi hierarki (v3.0.0+) | `true` / `false` |
+| `taxonomy.tags` / `taxonomy.categories` | Konfig templat tags/categories lama | `indexTemplate` / `termTemplate` |
+
 ## logging.* (Pengelogan)
 
 | Medan | Maksud | Contoh |

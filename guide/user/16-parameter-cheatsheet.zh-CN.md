@@ -92,6 +92,25 @@
 | `theme.static` | 静态目录（不用 theme.name 时） | `static` |
 | `theme.params` | 主题参数（模板可读取） | `{ brand: starter }` |
 
+## taxonomy.*（分类/标签）
+
+| 字段 | 含义 | 示例 |
+|---|---|---|
+| `taxonomy.template` | 默认 term 模板 | `pages/taxonomy-term.html` |
+| `taxonomy.indexTemplate` | 索引页模板 | `pages/taxonomy-index.html` |
+| `taxonomy.termTemplate` | Term 页模板（覆盖全局） | `pages/taxonomy-term-alt.html` |
+| `taxonomy.outputMode` | 输出模式 | `both` / `pages` / `data` / `fields_only` |
+| `taxonomy.pageSize` | 每 term 分页大小（默认 10） | `20` |
+| `taxonomy.indexEnabled` | 是否生成索引页（默认 true） | `false` |
+| `taxonomy.pinField` | 置顶字段名（默认 `pinned`） | `sticky` |
+| `taxonomy.pinOrderField` | 置顶排序字段 | `pin_weight` |
+| `taxonomy.itemFields` | 额外注入的 meta 字段 | `[summary, image, author]` |
+| `taxonomy.kinds[].key` | Kind 标识（区分用） | `tags` / `categories` |
+| `taxonomy.kinds[].kind` | Kind 名称（模板/路由用） | `tags` |
+| `taxonomy.kinds[].title` | 索引页标题 | `所有标签` |
+| `taxonomy.kinds[].hierarchical` | 启用层次化分类（v3.0.0+） | `true` / `false` |
+| `taxonomy.tags` / `taxonomy.categories` | 旧版 tags/categories 模板级配置 | `indexTemplate` / `termTemplate` |
+
 ## logging.*（日志）
 
 | 字段 | 含义 | 示例 |

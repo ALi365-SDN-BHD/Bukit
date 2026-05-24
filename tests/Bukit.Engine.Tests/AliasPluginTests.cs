@@ -130,7 +130,10 @@ public sealed class AliasPluginTests
                 Site = new SiteConfig { Name = "t", Title = "t" },
                 Content = new ContentConfig { Provider = "markdown" }
             },
-            RootDir = "/t", OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+            RootDir = "/t",
+            OutputDir = "/t/out",
+            BaseUrl = "/",
+            LayoutsDir = "/t/l",
             Routed = routed,
             Logger = new ConsoleLogger(LogLevel.Error)
         };

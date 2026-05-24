@@ -49,6 +49,12 @@ Jika anda perlukan butiran dalaman, titik pengembangan, atau mahu menyumbang kod
 2. [08 Tema & Templat](./08-themes-templates.ms.md) (penyesuaian tema)
 3. [12 Rujukan CLI](./12-cli-reference.ms.md) (untuk `bukit clone`)
 
+### Teroka ciri v3.0
+
+1. [19 Ciri Baharu v3.0](./19-new-features-v3.ms.md) (feed, sitemap terperinci, UI carian, naik taraf taxonomy, kandungan berkaitan, menu, fail data, alias, pemprosesan imej)
+2. [10 Ciri Terbina & Output](./10-built-in-features.ms.md)
+3. [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)
+
 ### Laman berbilang bahasa
 
 1. [11 I18n & SEO](./11-i18n-seo.ms.md) (persediaan i18n, penandaan bahasa, gabung sitemap)

@@ -2,7 +2,7 @@
 
 `site.yaml` 是你的站点“控制面板”。你可以把它理解成：**内容从哪来、输出到哪、用什么主题、额外生成哪些文件**。
 
-本页面向普通用户，按“最常用场景”解释字段；如果你需要权威字段表与校验细节，请看开发者文档：[guide/dev/config-site-yaml](../dev/config-site-yaml.md)。
+本页面向普通用户，按“最常用场景”解释字段；如果你需要权威字段表与校验细节，请看开发者文档：[guide/dev/config-site-yaml](../dev/config-site-yaml.zh-CN.md)。
 
 ## 覆盖优先级（非常重要）
 
@@ -74,6 +74,28 @@ logging:
 | `site.searchMode` | search 输出模式 | `merged` / `split` / `index` |
 
 这些模式怎么选见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md)。
+
+### site：v3.0 新增配置（Feed、Sitemap、搜索、相关内容、菜单、分页）
+
+| 字段 | 作用 | 常见值 |
+|---|---|---|
+| `site.feed.formats` | Feed 格式列表 | `["rss", "atom", "json"]` |
+| `site.feed.limit` | 每个 feed 最大条目 | `20` |
+| `site.feed.path` | Feed 输出路径前缀 | `feed` |
+| `site.sitemapDetail.defaultPriority` | Sitemap 默认 priority | `0.5` |
+| `site.sitemapDetail.defaultChangefreq` | Sitemap 默认 changefreq | `weekly` |
+| `site.sitemapDetail.imageEnabled` | 启用图片 Sitemap | `true` / `false` |
+| `site.sitemapDetail.videoEnabled` | 启用视频 Sitemap | `true` / `false` |
+| `site.search.ui` | 内置搜索 UI | `default` / `false` |
+| `site.search.uiTheme` | 搜索 UI 主题 | `light` / `dark` / `auto` |
+| `site.search.placeholderText` | 搜索框占位文本 | `"搜索..."` |
+| `site.related.enabled` | 启用相关内容推荐 | `true` / `false` |
+| `site.related.threshold` | 相关度阈值 | `80` |
+| `site.related.limit` | 每页最多推荐数 | `5` |
+| `site.menus` | 多菜单定义 | 见 [19-新功能](./19-new-features-v3.zh-CN.md) |
+| `site.pagination.pageSize` | 全局分页大小 | `10` |
+
+📖 详细用法见：[19-v3.0新增功能](./19-new-features-v3.zh-CN.md)。
 
 ### site：SEO 与 Google Analytics（可选）
 

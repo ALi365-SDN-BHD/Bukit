@@ -100,6 +100,45 @@ The theme template explicitly includes SEO tags via Scriban. Use `SeoPartial.htm
 
 **Required config:** Set `plugins.llms-txt.enabled: false` to disable the LlmsTxtPlugin if not needed.
 
+## Sitemap Enhancement (site.sitemapDetail)
+
+Bukit supports enhanced sitemap features beyond the standard `<loc>` + `<lastmod>`:
+
+```yaml
+site:
+  sitemapDetail:
+    defaultPriority: 0.5          # Default <priority> (0.0–1.0)
+    defaultChangefreq: "weekly"   # Default <changefreq>
+    imageEnabled: false           # Enable Image Sitemap extension
+    videoEnabled: false           # Enable Video Sitemap extension
+```
+
+### Per-Page Overrides (Front Matter)
+
+```yaml
+---
+sitemap:
+  priority: 0.8
+  changefreq: "daily"
+  images:
+    - url: "/images/hero.jpg"
+      caption: "Hero image"
+      title: "Main hero"
+  videos:
+    - url: "https://youtube.com/watch?v=xxx"
+      title: "Tutorial"
+      thumbnail: "/images/thumb.jpg"
+---
+```
+
+### Image Sitemap Extension
+
+When `site.sitemapDetail.imageEnabled: true`, each `<url>` can include `<image:image>` entries. Images are resolved from front matter `sitemap.images` per page.
+
+### Video Sitemap Extension
+
+When `site.sitemapDetail.videoEnabled: true`, each `<url>` can include `<video:video>` entries. Videos are resolved from front matter `sitemap.videos` per page.
+
 ## Front Matter SEO Fields
 
 Content files (Markdown / Notion) can override SEO values through Front Matter. Fields are resolved with a **three-tier priority fallback**:

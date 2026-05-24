@@ -44,6 +44,16 @@ After P0 refactoring, `SiteEngine` was split from a God Class into a thin orches
 | `MetaHelpers` | Static access helpers for ContentItem meta/fields |
 | `BuildPathUtils` | Path operations, URL normalization, theme resolution |
 | `TaxonomyTermsInjector` | Inject taxonomy terms from data items |
+| `TaxonomyPlugin` | Taxonomy page generation (index + term pages) |
+| `TaxonomyIndexBuilder` | Build term index from content meta |
+| `TaxonomyPageCreator` | Create kind-level index + term pages with pagination |
+| `TaxonomyDataWriter` | Write taxonomy.json (schema v2) |
+| `TaxonomyTemplateResolver` | Resolve template path from multiple sources |
+| `TaxonomySortHelper` | Sort pages by pin/date/title |
+| `TaxonomyHierarchyBuilder` | Build children/ancestors from ParentSlug |
+| `TaxonomyMetadataLoader` | Load term metadata from _index.md + ensure-terms |
+| `TaxonomyFeedWriter` | Generate per-term RSS 2.0 feeds |
+| `TaxonomyRedirectWriter` | Generate alias redirect pages |
 | `DataModuleBuilder` | Build `site.modules` from data items |
 | `PageRenderDispatcher` | Parallel page + list page rendering with incremental |
 | `IncrementalBuildEngine` | Hash computation for incremental skip decisions |

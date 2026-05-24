@@ -46,6 +46,7 @@ site:
 - Pages: `/tags/`, `/tags/<slug>/`, `/categories/`, `/categories/<slug>/`
 - Template: `pages/page.html` (configurable)
 - Pagination: `taxonomy.pageSize` (default 10)
+- Custom kinds: `taxonomy.kinds[]` for arbitrary taxonomy dimensions
 
 ### Taxonomy Templates
 ```yaml
@@ -54,10 +55,71 @@ taxonomy:
   indexTemplate: pages/tax-index.html
   termTemplate: pages/tax-term.html
   pageSize: 10
+  kinds:
+    - key: tags
+      kind: tags
+      title: Tags
+    - key: categories
+      kind: categories
+      title: Categories
+      hierarchical: true   # Enable parent-child hierarchy
+    - key: series
+      kind: series
+      title: Series         # Custom taxonomy dimension
 ```
 
-Index page variables: `page.fields.terms.value[]` (title/slug/url/count)
-Detail page variables: `page.fields.items.value[]`, `page.fields.taxonomy.value`, `page.fields.pagination.value`
+### Taxonomy Template Variables
+
+**Index page** (`/tags/`):
+- `page.fields.terms.value[]` → `{ title, slug, url, count, description?, image?, weight?, parent?, children?, ancestors?, aliases? }`
+
+**Detail page** (`/tags/<slug>/`):
+- `page.fields.items.value[]` → `{ title, url, publish_date, summary }`
+- `page.fields.taxonomy.value` → `{ kind, term, slug, count, description?, image?, weight?, parent?, children?, ancestors?, aliases? }`
+- `page.fields.pagination.value` → `{ page, page_size, total, total_pages, has_prev, has_next }`
+
+### New Fields (v3.0.0+)
+
+| Field | Type | Source | Description |
+|------|------|------|------|
+| `description` | string? | data source or _index.md | Term description text |
+| `image` | string? | data source or _index.md | Term cover image |
+| `weight` | int? | data source or _index.md | Sort weight (higher = first) |
+| `parent` | string? | data source or _index.md | Parent term slug |
+| `children` | string[]? | auto-computed (hierarchical) | Child term slugs |
+| `ancestors` | string[]? | auto-computed (hierarchical) | Ancestor slug chain |
+| `aliases` | string[]? | data source | Alias list (auto redirect) |
+
+### Auto-Generated Outputs (v3.0.0+)
+
+| Artifact | Path | Description |
+|------|------|------|
+| `taxonomy.json` | `<output>/taxonomy.json` | Structured data (schema v2) |
+| RSS feeds | `<output>/<kind>/<slug>/feed.xml` | Per-term RSS 2.0 |
+| Alias redirects | `<output>/<kind>/<alias>/index.html` | HTML meta refresh redirect |
+
+### Taxonomy Snippet
+
+```scriban
+{{ layout "layouts/base.html" }}
+<h1>{{ page.title }}</h1>
+<ul>
+{{ for item in page.fields.items.value }}
+  <li>
+    <a href="{{ site.base_url }}{{ item.url }}">{{ item.title }}</a>
+    {{ if item.publish_date }}
+      <time>{{ item.publish_date | date.to_string "%Y-%m-%d" }}</time>
+    {{ end }}
+  </li>
+{{ end }}
+</ul>
+{{ if page.fields.pagination.value.has_prev }}
+  <a href="{{ site.base_url }}/{{ page.fields.taxonomy.value.kind }}/{{ page.fields.taxonomy.value.slug }}/page/{{ page.fields.pagination.value.page - 1 }}/">Prev</a>
+{{ end }}
+{{ if page.fields.pagination.value.has_next }}
+  <a href="{{ site.base_url }}/{{ page.fields.taxonomy.value.kind }}/{{ page.fields.taxonomy.value.slug }}/page/{{ page.fields.pagination.value.page + 1 }}/">Next</a>
+{{ end }}
+```
 
 ## Image Localization (`content.media`)
 

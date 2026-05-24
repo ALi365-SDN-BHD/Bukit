@@ -2,6 +2,28 @@
 
 Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
+## [Belum Dikeluarkan]
+
+### Added
+- **Taxonomy v3.0.0**: Pembinaan semula utama sistem taxonomy dengan 7 ciri baharu
+  - Taxonomy hierarki: `taxonomy.kinds[].hierarchical: true` mendayakan hubungan induk-anak term melalui `ParentSlug`, dengan pengiraan automatik `children` dan `ancestors`
+  - Metadata term: Konvensyen `_index.md` (gaya Hugo) di `content/_taxonomy/<kind>/<slug>/_index.md` untuk description, image, weight, parent setiap term
+  - Suapan RSS 2.0: Setiap term menjana `<output>/<kind>/<slug>/feed.xml` secara automatik
+  - Transliterasi slug: Penguraian Unicode NFD (`é→e`, `ß→ss`, `æ→ae`, `œ→oe`, `ø→o`), aksara CJK dikekalkan
+  - Alias redirect: Medan `Aliases` menjana halaman redirect HTML `<meta http-equiv="refresh">`
+  - Kawalan keterlihatan term: Medan `IsVisible` dan `Weight` untuk penapisan dan pengisihan
+  - Skema `taxonomy.json` dinaik taraf ke v2 (termasuk tatasusunan `children` dan `ancestors`)
+- **SlugHelper**: Utiliti penjanaan slug berkongsi dalam `Bukit.Shared`, menggabungkan 3 pelaksanaan pendua dengan sokongan transliterasi Latin
+
+### Changed
+- **TaxonomyPlugin** dibina semula dari 1194 baris ke 245 baris — 7 pembantu dalaman diekstrak: `TaxonomyIndexBuilder`, `TaxonomyPageCreator`, `TaxonomyDataWriter`, `TaxonomyTemplateResolver`, `TaxonomySortHelper`, `TaxonomyHierarchyBuilder`, `TaxonomyMetadataLoader`
+- **Model TaxonomyTerm** diperkaya dengan medan `Description`, `Image`, `Weight`, `IsVisible`, `ParentSlug`, `Aliases`, `Pages`
+- `TaxonomyKindConfig` mendapat medan boolean `Hierarchical` baharu (lalai `false`)
+
+### Ujian
+- 5 fail ujian baharu (38 kes ujian): `SlugHelperTests` (22), `TaxonomyHierarchyBuilderTests` (3), `TaxonomyMetadataLoaderTests` (6), `TaxonomyFeedWriterTests` (3), `TaxonomyRedirectWriterTests` (4)
+- Semua 1311 ujian lulus (Shared 67, Engine 793, Content 451)
+
 ## [1.0.6] - 2026-05-21
 
 ### Added

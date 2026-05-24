@@ -45,7 +45,7 @@ Bukit 有 **10 个模块**，排除插件系统（已在 P0/P1/P2 完成）后�
 | 编号 | 提升项 | 严重程度 | 说明 |
 |------|--------|---------|------|
 | **C-1** | 生成 JSON Schema | 🟡 P1 | 从 `AppConfig` record 反射生成 `schema.json`，VSCode/YAML LSP 自动补全+校验 |
-| **C-2** | 配置诊断命令 | 🟡 P1 | `bukit config check` — 验证但不构建，打印完整配置和问题 |
+| **C-2** | 配置诊断命令 | 🟡 P1 | `bukit config check` — 验证但不构建；复用/抽取 `doctor` 中已有配置校验逻辑，输出完整配置问题 |
 | **C-3** | 环境变量注入 | 🟡 P1 | `BUKIT_*` 前缀环境变量覆盖任意配置字段，方便 CI/CD |
 | **C-4** | 废弃配置项警告 | 🟢 P2 | 迁移提示（如 `rss` → `feed`），`warn` 模式自动检测 |
 
@@ -79,7 +79,7 @@ Bukit 有 **10 个模块**，排除插件系统（已在 P0/P1/P2 完成）后�
 | **CT-3** | 自动 TOC 生成 | 🟡 P1 | 从标题提取生成 `.TableOfContents`，模板可访问 |
 | **CT-4** | Emoji 快捷方式 | 🟢 P2 | `:smile:` → Unicode，可配置 |
 | **CT-5** | 脚注支持 | 🟢 P2 | `[^1]` 脚注语法 |
-| **CT-6** | 内容集合 Schema 校验 | 🟡 P1 | 对标 Astro `defineCollection`，对 front matter 做类型+必填+格式校验 |
+| **CT-6** | 内容 Schema 校验增强 | 🟡 P1 | 已有 `collection.schema` 基础校验（required/type）与 doctor 检查；下一步增强格式、枚举、范围、默认值应用和更清晰诊断 |
 
 ---
 
@@ -151,7 +151,7 @@ Bukit 有 **10 个模块**，排除插件系统（已在 P0/P1/P2 完成）后�
 
 | 编号 | 提升项 | 严重程度 | 说明 |
 |------|--------|---------|------|
-| **T-1** | 主题注册表/市场 | 🟡 P1 | `bukit theme search/list/install` 命令完善，注册表服务端 |
+| **T-1** | 主题注册表生态增强 | 🟡 P1 | `bukit theme search/install --registry` 已有基础实现；下一步完善注册表服务端、索引治理、预览元数据、签名/校验策略 |
 | **T-2** | 主题预览 | 🟢 P2 | 安装前可预览主题（截图 + 描述） |
 | **T-3** | 设计令牌深层合并 | 🟢 P2 | 当前为浅合并，支持深层嵌套 token 合并 |
 
@@ -171,7 +171,7 @@ Bukit 有 **10 个模块**，排除插件系统（已在 P0/P1/P2 完成）后�
 
 | 编号 | 提升项 | 严重程度 | 说明 |
 |------|--------|---------|------|
-| **CLI-1** | `bukit config check` | 🟡 P1 | 配置验证命令（不构建），输出问题列表 |
+| **CLI-1** | `bukit config check` | 🟡 P1 | 配置验证命令（不构建），应复用/抽取 `doctor` 中已有配置校验逻辑，避免重复实现 |
 | **CLI-2** | `bukit lint` | 🟢 P2 | Markdown 风格检查、链接死链检测、模板语法检查 |
 | **CLI-3** | Shell 自动补全 | 🟢 P2 | 生成 bash/zsh/fish 补全脚本 |
 
@@ -219,12 +219,12 @@ Bukit 有 **10 个模块**，排除插件系统（已在 P0/P1/P2 完成）后�
 | 编号 | 模块 | 提升项 | 对标 | 工作量 |
 |------|------|--------|------|-------|
 | **P1-C1** | Config | 生成 JSON Schema（IDE 自动补全+校验） | Astro Zod schema | 2-3 天 |
-| **P1-C2** | Config | `bukit config check` 诊断命令 | Hugo `hugo config` | 1-2 天 |
+| **P1-C2** | Config | `bukit config check` 诊断命令（复用 doctor 配置校验） | Hugo `hugo config` | 1-2 天 |
 | **P1-C3** | Config | 环境变量注入（`BUKIT_*` 前缀） | 12-Factor App | 1-2 天 |
 | **P1-CT3** | Content | 自动 TOC 生成 | Hugo `.TableOfContents` | 1-2 天 |
-| **P1-CT6** | Content | 内容集合 Schema 校验 | Astro `defineCollection` | 3-4 天 |
-| **P1-T1** | Theme | 主题注册表命令完善 | Hugo Themes | 2-3 天 |
-| **P1-CLI1** | CLI | `bukit config check` | Hugo `hugo config` | 1-2 天 |
+| **P1-CT6** | Content | 内容 Schema 校验增强（已有基础校验） | Astro `defineCollection` | 2-3 天 |
+| **P1-T1** | Theme | 主题注册表生态增强（命令已有基础实现） | Hugo Themes | 2-3 天 |
+| **P1-CLI1** | CLI | `bukit config check`（复用 doctor 配置校验） | Hugo `hugo config` | 1-2 天 |
 
 ### 🟢 P2 — 锦上添花
 
@@ -257,11 +257,11 @@ Bukit 有 **10 个模块**，排除插件系统（已在 P0/P1/P2 完成）后�
 | 任务 | 说明 | 工作量 |
 |------|------|-------|
 | JSON Schema 生成 | 从 record 类型反射生成 schema.json | 2-3 天 |
-| `bukit config check` | 配置验证诊断命令 | 1-2 天 |
+| `bukit config check` | 复用/抽取 `doctor` 的配置校验子集，提供不构建的配置验证诊断命令 | 1-2 天 |
 | 环境变量注入 | `BUKIT_*` 环境变量覆盖配置 | 1-2 天 |
 | 自动 TOC 生成 | 从标题提取生成目录 | 1-2 天 |
-| 内容 Schema 校验 | 对标 Astro defineCollection | 3-4 天 |
-| 主题注册表 | `bukit theme search/list/install` | 2-3 天 |
+| 内容 Schema 校验增强 | 在已有 required/type 校验基础上补格式、枚举、范围、默认值应用和诊断输出 | 2-3 天 |
+| 主题注册表生态增强 | 在已有 `theme search/install --registry` 基础上完善服务端、索引治理、预览元数据、签名/校验策略 | 2-3 天 |
 
 ### Phase 3：DX 与锦上添花（P2，v2.11 目标）
 

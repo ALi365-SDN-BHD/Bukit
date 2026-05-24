@@ -2,6 +2,28 @@
 
 All notable changes to Bukit will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Taxonomy v3.0.0**: Major overhaul of the taxonomy system with 7 new features
+  - Hierarchical taxonomy: `taxonomy.kinds[].hierarchical: true` enables parent-child term relationships via `ParentSlug`, with automatic `children` and `ancestors` computation
+  - Term metadata: `_index.md` convention (Hugo-style) at `content/_taxonomy/<kind>/<slug>/_index.md` for per-term description, image, weight, parent
+  - RSS 2.0 feeds: each term automatically generates `<output>/<kind>/<slug>/feed.xml`
+  - Slug transliteration: Unicode NFD decomposition (`é→e`, `ß→ss`, `æ→ae`, `œ→oe`, `ø→o`), CJK characters preserved
+  - Alias redirects: `Aliases` field generates HTML `<meta http-equiv="refresh">` redirect pages
+  - Term visibility control: `IsVisible` and `Weight` fields for term ordering and filtering
+  - `taxonomy.json` schema upgraded to v2 (includes `children` and `ancestors` arrays)
+- **SlugHelper**: Shared slug generation utility in `Bukit.Shared`, consolidating 3 duplicate implementations with Latin transliteration support
+
+### Changed
+- **TaxonomyPlugin** refactored from 1194 lines to 245 lines — extracted 7 internal helpers: `TaxonomyIndexBuilder`, `TaxonomyPageCreator`, `TaxonomyDataWriter`, `TaxonomyTemplateResolver`, `TaxonomySortHelper`, `TaxonomyHierarchyBuilder`, `TaxonomyMetadataLoader`
+- **TaxonomyTerm model** enriched with `Description`, `Image`, `Weight`, `IsVisible`, `ParentSlug`, `Aliases`, `Pages` fields
+- `TaxonomyKindConfig` gains new `Hierarchical` boolean field (default `false`)
+
+### Tests
+- 5 new test files (38 test cases): `SlugHelperTests` (22), `TaxonomyHierarchyBuilderTests` (3), `TaxonomyMetadataLoaderTests` (6), `TaxonomyFeedWriterTests` (3), `TaxonomyRedirectWriterTests` (4)
+- All 1311 tests passing (Shared 67, Engine 793, Content 451)
+
 ## [1.0.6] - 2026-05-21
 
 ### Added

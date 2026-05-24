@@ -21,7 +21,9 @@ public sealed class DataFilesPluginTests
                 Content = new ContentConfig { Provider = "markdown" }
             },
             RootDir = Path.Combine(Path.GetTempPath(), "bukit_nonexistent_" + Guid.NewGuid().ToString("N")),
-            OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+            OutputDir = "/t/out",
+            BaseUrl = "/",
+            LayoutsDir = "/t/l",
             Routed = new List<(ContentItem, RouteInfo)>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
@@ -48,7 +50,10 @@ public sealed class DataFilesPluginTests
                     Site = new SiteConfig { Name = "t", Title = "t" },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                RootDir = root, OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = root,
+                OutputDir = "/t/out",
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
@@ -83,7 +88,10 @@ public sealed class DataFilesPluginTests
                     Site = new SiteConfig { Name = "t", Title = "t" },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                RootDir = root, OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = root,
+                OutputDir = "/t/out",
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
@@ -117,12 +125,16 @@ public sealed class DataFilesPluginTests
                 {
                     Site = new SiteConfig
                     {
-                        Name = "t", Title = "t",
+                        Name = "t",
+                        Title = "t",
                         Languages = new[] { "zh-CN", "en" }
                     },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                RootDir = root, OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = root,
+                OutputDir = "/t/out",
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
@@ -157,7 +169,10 @@ public sealed class DataFilesPluginTests
                     Site = new SiteConfig { Name = "t", Title = "t" },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                RootDir = root, OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = root,
+                OutputDir = "/t/out",
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };

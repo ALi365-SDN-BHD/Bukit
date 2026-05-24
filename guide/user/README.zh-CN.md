@@ -55,6 +55,12 @@
 2. [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)（`site.languages` 配置）
 3. [12-命令行参考](./12-cli-reference.zh-CN.md)
 
+### 探索 v3.0 新功能
+
+1. [19-v3.0新增功能](./19-new-features-v3.zh-CN.md)（多格式 feed、增强 sitemap、搜索 UI、taxonomy 升级、相关内容、菜单、数据文件、别名、图片处理）
+2. [10-内置功能与输出](./10-built-in-features.zh-CN.md)
+3. [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)
+
 ## 如果你通过 AI / Agent 使用 Bukit
 
 如果你是在 Trae、Claude Code、Copilot CLI、Codex CLI、Gemini CLI 这类支持 skill 的环境里使用 Bukit，建议把 `src/skills/` 当作 Agent 侧导航入口，而把本目录当作用户操作说明。
@@ -84,6 +90,7 @@
 - [16-参数速查表](./16-parameter-cheatsheet.zh-CN.md)
 - [17-GEO](./17-geo.zh-CN.md)
 - [18-网站克隆](./18-clone-website.zh-CN.md)
+- [19-v3.0新增功能](./19-new-features-v3.zh-CN.md)
 
 ## 仓库内“可运行示例”在哪里
 

@@ -2,6 +2,28 @@
 
 Bukit 所有重要变更都将记录在此文件中。
 
+## [Unreleased]
+
+### 新增
+- **Taxonomy v3.0.0**：分类系统重大升级，新增 7 项功能
+  - 层次化分类：`taxonomy.kinds[].hierarchical: true` 启用父子 term 关系（`ParentSlug`），自动计算 `children` 和 `ancestors`
+  - Term 元数据：`_index.md` 约定（Hugo 风格），路径 `content/_taxonomy/<kind>/<slug>/_index.md`，支持 per-term description、image、weight、parent
+  - RSS 2.0 feed：每个 term 自动生成 `<output>/<kind>/<slug>/feed.xml`
+  - Slug 音译：Unicode NFD 分解（`é→e`、`ß→ss`、`æ→ae`、`œ→oe`、`ø→o`），CJK 字符保留
+  - 别名重定向：`Aliases` 字段自动生成 HTML `<meta http-equiv="refresh">` 重定向页
+  - Term 可见性控制：`IsVisible` 和 `Weight` 字段，用于排序和过滤
+  - `taxonomy.json` schema 升级至 v2（包含 `children` 和 `ancestors` 数组）
+- **SlugHelper**：共享 slug 生成工具（`Bukit.Shared`），合并 3 份重复实现，支持拉丁字符音译
+
+### 变更
+- **TaxonomyPlugin** 从 1194 行重构至 245 行 — 提取 7 个内部辅助类：`TaxonomyIndexBuilder`、`TaxonomyPageCreator`、`TaxonomyDataWriter`、`TaxonomyTemplateResolver`、`TaxonomySortHelper`、`TaxonomyHierarchyBuilder`、`TaxonomyMetadataLoader`
+- **TaxonomyTerm 模型** 丰富化：新增 `Description`、`Image`、`Weight`、`IsVisible`、`ParentSlug`、`Aliases`、`Pages` 字段
+- `TaxonomyKindConfig` 新增 `Hierarchical` 布尔字段（默认 `false`）
+
+### 测试
+- 新增 5 个测试文件（38 用例）：`SlugHelperTests`（22）、`TaxonomyHierarchyBuilderTests`（3）、`TaxonomyMetadataLoaderTests`（6）、`TaxonomyFeedWriterTests`（3）、`TaxonomyRedirectWriterTests`（4）
+- 全部 1311 测试通过（Shared 67、Engine 793、Content 451）
+
 ## [1.0.6] - 2026-05-21
 
 ### 新增

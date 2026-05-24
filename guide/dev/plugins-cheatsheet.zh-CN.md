@@ -91,12 +91,32 @@ taxonomy:
 ### taxonomy 模板变量
 
 索引页（`/tags/`）：
-- `page.fields.terms.value[]` → `{ title, slug, url, count }`
+- `page.fields.terms.value[]` → `{ title, slug, url, count, description?, image?, weight?, parent?, children?, ancestors?, aliases? }`
 
 详情页（`/tags/<slug>/`）：
 - `page.fields.items.value[]` → `{ title, url, publish_date, summary }`
-- `page.fields.taxonomy.value` → `{ kind, term, slug, count }`
+- `page.fields.taxonomy.value` → `{ kind, term, slug, count, description?, image?, weight?, parent?, children?, ancestors?, aliases? }`
 - `page.fields.pagination.value` → `{ page, page_size, total, total_pages, has_prev, has_next }`
+
+### taxonomy 新增字段说明（v3.0.0+）
+
+| 字段 | 类型 | 来源 | 说明 |
+|------|------|------|------|
+| `description` | string? | data 源或 _index.md | term 描述文本 |
+| `image` | string? | data 源或 _index.md | term 封面图 |
+| `weight` | int? | data 源或 _index.md | 排序权重（越大越靠前） |
+| `parent` | string? | data 源或 _index.md | 父级 term slug |
+| `children` | string[]? | 自动计算（hierarchical） | 子级 term slug 列表 |
+| `ancestors` | string[]? | 自动计算（hierarchical） | 祖先 term slug 链 |
+| `aliases` | string[]? | data 源 | 别名列表（自动生成 redirect） |
+
+### taxonomy 自动输出产物（v3.0.0+）
+
+| 产物 | 路径 | 说明 |
+|------|------|------|
+| `taxonomy.json` | `<output>/taxonomy.json` | 结构化数据（schema v2） |
+| RSS feeds | `<output>/<kind>/<slug>/feed.xml` | 每个 term 独立 RSS 2.0 |
+| 别名 redirect | `<output>/<kind>/<alias>/index.html` | HTML meta refresh redirect |
 
 ### taxonomy 模板示例
 

@@ -39,7 +39,10 @@ public sealed class RelatedContentPluginTests
                 Site = new SiteConfig { Name = "t", Title = "t", Related = new RelatedConfig { Enabled = false } },
                 Content = new ContentConfig { Provider = "markdown" }
             },
-            RootDir = "/t", OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+            RootDir = "/t",
+            OutputDir = "/t/out",
+            BaseUrl = "/",
+            LayoutsDir = "/t/l",
             Routed = new List<(ContentItem, RouteInfo)> { (CreateItem("1", "A", "a", tags: "go"), Route("/a/")) },
             Logger = new ConsoleLogger(LogLevel.Error)
         };
@@ -63,7 +66,8 @@ public sealed class RelatedContentPluginTests
             {
                 Site = new SiteConfig
                 {
-                    Name = "t", Title = "t",
+                    Name = "t",
+                    Title = "t",
                     Related = new RelatedConfig
                     {
                         Enabled = true,
@@ -73,7 +77,10 @@ public sealed class RelatedContentPluginTests
                 },
                 Content = new ContentConfig { Provider = "markdown" }
             },
-            RootDir = "/t", OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+            RootDir = "/t",
+            OutputDir = "/t/out",
+            BaseUrl = "/",
+            LayoutsDir = "/t/l",
             Routed = routed,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
@@ -100,12 +107,16 @@ public sealed class RelatedContentPluginTests
             {
                 Site = new SiteConfig
                 {
-                    Name = "t", Title = "t",
+                    Name = "t",
+                    Title = "t",
                     Related = new RelatedConfig { Enabled = true, Threshold = 50, Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } } }
                 },
                 Content = new ContentConfig { Provider = "markdown" }
             },
-            RootDir = "/t", OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+            RootDir = "/t",
+            OutputDir = "/t/out",
+            BaseUrl = "/",
+            LayoutsDir = "/t/l",
             Routed = routed,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
@@ -126,7 +137,10 @@ public sealed class RelatedContentPluginTests
                 Site = new SiteConfig { Name = "t", Title = "t", Related = new RelatedConfig { Enabled = true } },
                 Content = new ContentConfig { Provider = "markdown" }
             },
-            RootDir = "/t", OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+            RootDir = "/t",
+            OutputDir = "/t/out",
+            BaseUrl = "/",
+            LayoutsDir = "/t/l",
             Routed = new List<(ContentItem, RouteInfo)> { (CreateItem("1", "A", "a"), Route("/a/")) },
             Logger = new ConsoleLogger(LogLevel.Error)
         };
@@ -155,7 +169,10 @@ public sealed class RelatedContentPluginTests
                 Site = new SiteConfig { Name = "t", Title = "t", Related = new RelatedConfig { Enabled = true } },
                 Content = new ContentConfig { Provider = "markdown" }
             },
-            RootDir = "/t", OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+            RootDir = "/t",
+            OutputDir = "/t/out",
+            BaseUrl = "/",
+            LayoutsDir = "/t/l",
             Routed = routed,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
@@ -182,12 +199,16 @@ public sealed class RelatedContentPluginTests
             {
                 Site = new SiteConfig
                 {
-                    Name = "t", Title = "t",
+                    Name = "t",
+                    Title = "t",
                     Related = new RelatedConfig { Enabled = true, Threshold = 60, Indices = new[] { new RelatedIndexConfig { Name = "categories", Weight = 100 } } }
                 },
                 Content = new ContentConfig { Provider = "markdown" }
             },
-            RootDir = "/t", OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+            RootDir = "/t",
+            OutputDir = "/t/out",
+            BaseUrl = "/",
+            LayoutsDir = "/t/l",
             Routed = routed,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
@@ -214,12 +235,16 @@ public sealed class RelatedContentPluginTests
             {
                 Site = new SiteConfig
                 {
-                    Name = "t", Title = "t",
+                    Name = "t",
+                    Title = "t",
                     Related = new RelatedConfig { Enabled = true, Threshold = 999, Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } } }
                 },
                 Content = new ContentConfig { Provider = "markdown" }
             },
-            RootDir = "/t", OutputDir = "/t/out", BaseUrl = "/", LayoutsDir = "/t/l",
+            RootDir = "/t",
+            OutputDir = "/t/out",
+            BaseUrl = "/",
+            LayoutsDir = "/t/l",
             Routed = routed,
             Logger = new ConsoleLogger(LogLevel.Error)
         };

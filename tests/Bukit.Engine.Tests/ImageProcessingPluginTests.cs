@@ -27,7 +27,10 @@ public sealed class ImageProcessingPluginTests
                     Content = new ContentConfig { Provider = "markdown" },
                     Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = false } }
                 },
-                RootDir = "/t", OutputDir = outDir, BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = "/t",
+                OutputDir = outDir,
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
@@ -55,7 +58,10 @@ public sealed class ImageProcessingPluginTests
                     Content = new ContentConfig { Provider = "markdown" },
                     Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = true } }
                 },
-                RootDir = "/t", OutputDir = outDir, BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = "/t",
+                OutputDir = outDir,
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
@@ -87,7 +93,10 @@ public sealed class ImageProcessingPluginTests
                     Content = new ContentConfig { Provider = "markdown" },
                     Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768 } } }
                 },
-                RootDir = "/t", OutputDir = outDir, BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = "/t",
+                OutputDir = outDir,
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
@@ -119,7 +128,10 @@ public sealed class ImageProcessingPluginTests
                     Content = new ContentConfig { Provider = "markdown" },
                     Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = true } }
                 },
-                RootDir = "/t", OutputDir = outDir, BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = "/t",
+                OutputDir = outDir,
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };

@@ -24,7 +24,10 @@ public sealed class MenuPluginTests
                     Site = new SiteConfig { Name = "t", Title = "t" },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                RootDir = "/t", OutputDir = outDir, BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = "/t",
+                OutputDir = outDir,
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
@@ -51,7 +54,8 @@ public sealed class MenuPluginTests
                 {
                     Site = new SiteConfig
                     {
-                        Name = "t", Title = "t",
+                        Name = "t",
+                        Title = "t",
                         Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["main"] = new[]
@@ -62,7 +66,10 @@ public sealed class MenuPluginTests
                     },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                RootDir = "/t", OutputDir = outDir, BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = "/t",
+                OutputDir = outDir,
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
@@ -95,7 +102,8 @@ public sealed class MenuPluginTests
                 {
                     Site = new SiteConfig
                     {
-                        Name = "t", Title = "t",
+                        Name = "t",
+                        Title = "t",
                         Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["main"] = new[]
@@ -113,7 +121,10 @@ public sealed class MenuPluginTests
                     },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                RootDir = "/t", OutputDir = outDir, BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = "/t",
+                OutputDir = outDir,
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
@@ -142,7 +153,8 @@ public sealed class MenuPluginTests
                 {
                     Site = new SiteConfig
                     {
-                        Name = "t", Title = "t",
+                        Name = "t",
+                        Title = "t",
                         Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["main"] = new[] { new MenuConfig { Identifier = "home", Name = "Home", Url = "/", Weight = 1 } },
@@ -151,7 +163,10 @@ public sealed class MenuPluginTests
                     },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                RootDir = "/t", OutputDir = outDir, BaseUrl = "/", LayoutsDir = "/t/l",
+                RootDir = "/t",
+                OutputDir = outDir,
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
                 Routed = new List<(ContentItem, RouteInfo)>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };

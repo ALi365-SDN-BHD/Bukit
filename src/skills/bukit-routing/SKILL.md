@@ -77,6 +77,40 @@ site:
 
 When a collection defines `listRoute`, a list page is generated (using the collection's template + `pages` variable). Must start with `/`.
 
+## URL Aliases & Redirects (AliasPlugin)
+
+The AliasPlugin generates HTML redirect pages for content items with `aliases` defined in front matter. Each alias creates an HTML file with `<meta http-equiv="refresh">` and `<link rel="canonical">` pointing to the original URL.
+
+### Front Matter Configuration
+
+```yaml
+---
+title: My Post
+aliases:
+  - /old-url/
+  - /previous-permalink/
+---
+```
+
+Multiple aliases per content item are supported. The alias URL path is auto-normalized (leading/trailing slashes added if missing).
+
+### Generated Redirect
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="refresh" content="0; url=/new-url/">
+  <link rel="canonical" href="/new-url/">
+</head>
+<body>
+  <p>Redirecting to <a href="/new-url/">/new-url/</a></p>
+</body>
+</html>
+```
+
+Aliases can be specified as a single string or a list. The generated pages are marked with `type: redirect` and excluded from sitemap.
+
 ## URL Encoding Strategy
 
 `site.outputPathEncoding` controls how output directory names are encoded. This applies to both content pages and derived pages (pagination, archive, taxonomy pages).
@@ -205,6 +239,19 @@ All routing logic shares a common set of utilities in `RoutePathBuilder`:
 | `NormalizeOutputPath(path, encoding)` | Apply encoding to segments | `"my page"` → `"my-page"` (slug) |
 
 These utilities are used by the route generator, all built-in plugins (pagination, archive, taxonomy), the list route builder, and the i18n output merger — ensuring consistent output path generation everywhere.
+
+### SlugHelper (Shared)
+
+`Bukit.Shared.SlugHelper.Slugify()` provides consistent slug generation across the codebase:
+
+| Feature | Description |
+|---------|-------------|
+| Basic slug | Alphanumeric preserved, separators compressed to `-` |
+| Accented Latin | Unicode NFD decomposition: `é`→`e`, `ñ`→`n` |
+| Ligatures | `ß`→`ss`, `æ`→`ae`, `œ`→`oe`, `ø`→`o` |
+| CJK | Chinese/Japanese/Korean characters retained as-is |
+
+Used by: taxonomy terms, SEO URLs, file system output paths.
 
 ## Common Errors
 

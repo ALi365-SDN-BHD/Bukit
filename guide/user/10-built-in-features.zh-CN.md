@@ -2,7 +2,7 @@
 
 Bukit 在生成页面 HTML 之外，还会根据内容与配置生成一组“站点级产物”，用于 SEO、订阅、搜索与内容聚合。
 
-本页以“用户能控制什么、会生成什么文件”为主；如果你需要更细的插件契约与边界，见开发者文档：[guide/dev/built-in-plugins](../dev/built-in-plugins.md)。
+本页以“用户能控制什么、会生成什么文件”为主；如果你需要更细的插件契约与边界，见开发者文档：[guide/dev/built-in-plugins](../dev/built-in-plugins.zh-CN.md)。
 
 ## 你将获得什么
 
@@ -33,6 +33,23 @@ Bukit 在生成页面 HTML 之外，还会根据内容与配置生成一组“�
 - `site.url`：站点绝对域名（生成绝对链接的基础）
 - `site.baseUrl`：子路径（GitHub Pages 常见）
 - `site.sitemapMode`：多语言输出模式（见下一节）
+- `site.sitemapDetail.defaultPriority`：默认 `<priority>` 值（0.0-1.0，v3.0+）
+- `site.sitemapDetail.defaultChangefreq`：默认 `<changefreq>` 值（v3.0+）
+- `site.sitemapDetail.imageEnabled`：是否启用图片 Sitemap 扩展（v3.0+）
+- `site.sitemapDetail.videoEnabled`：是否启用视频 Sitemap 扩展（v3.0+）
+
+### Per-Page 覆盖（v3.0+）
+
+```yaml
+---
+sitemap:
+  priority: 0.8
+  changefreq: "daily"
+  images:
+    - url: "/images/hero.jpg"
+      caption: "主图"
+---
+```
 
 ### 常见坑
 
@@ -41,29 +58,81 @@ Bukit 在生成页面 HTML 之外，还会根据内容与配置生成一组“�
 
 部署相关详见：[13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)。
 
-## rss.xml：订阅源（博客/更新日志）
+## rss.xml → 多格式 Feed（v3.0 升级）
 
-RSS 通常依赖：
+原来只生成 `rss.xml`。v3.0 起可同时生成 RSS 2.0 + Atom 1.0 + JSON Feed 1.1。
 
+配置方式（v3.0 新增）：
+
+```yaml
+site:
+  feed:
+    formats: ["rss", "atom", "json"]
+    limit: 20
+    path: feed
+```
+
+生成的文件：
+- `rss.xml`（RSS 2.0，原有格式）
+- `feed/atom.xml`（Atom 1.0，新增）
+- `feed/feed.json`（JSON Feed 1.1，新增）
+
+⚠️ 插件开关 key 从 `rss` 改为 `feed`：
+```yaml
+site:
+  plugins:
+    feed:
+      enabled: false   # 禁用全部 feed 生成
+```
+
+> 每日 collection 独立 feed：见 `collection.output.feedPath`。
+
+订阅源通常依赖：
 - 站点 URL（`site.url`）
 - 内容的标题/发布时间/type（尤其是 post）
 
-如果你发现 rss 内容不全，优先检查：
-
+如果你发现 feed 内容不全，优先检查：
 - 你的内容是否有 `publishAt`
 - 是否被草稿/过滤条件排除了（Notion Published、build.draft 等）
 
 ## search.json：站内搜索数据
 
-search.json 通常是“每个页面的标题/摘要/URL”的列表，供前端 JS 实现搜索。
+search.json 通常是"每个页面的标题/摘要/URL"的列表，供前端 JS 实现搜索。
+
+### 搜索权重与排除（v3.0+）
+
+在 front matter 中控制搜索行为：
+
+```yaml
+---
+searchWeight: 5        # 权重越高排序越靠前（默认 1）
+searchExclude: true    # 不加入搜索索引
+---
+```
+
+### 内置搜索 UI（v3.0+）
+
+```yaml
+site:
+  search:
+    ui: "default"      # 启用内置搜索 UI（false 关闭）
+    uiTheme: "dark"    # light / dark / auto
+    placeholderText: "搜索..."
+```
+
+生成 `bukit-search.html`，可在模板中引入：
+
+```html
+{{ include "bukit-search.html" }}
+```
+
+搜索 UI 包含输入框、关键词匹配、键盘导航和高亮结果，无需额外 JS 库。
 
 你通常需要：
-
 - 主题中实现搜索 UI（读取 search.json 并过滤）
-- 或直接用内置 `search.index.json`（视主题/实现而定）
+- 或直接用内置 `bukit-search.html`
 
 如果 search.json 是空的：
-
 - 站点可能没有内容项（content 读入失败/被过滤）
 - 或主题/配置没有启用对应输出（取决于版本与模式）
 
@@ -79,9 +148,41 @@ search.json 通常是“每个页面的标题/摘要/URL”的列表，供前端
 - 在内容里标注 `pinned: true`（可选 `pinOrder` 数字，数字越小越靠前）
 - 配置项：`taxonomy.pinField` / `taxonomy.pinOrderField`（多数据源可用 `pinFieldBySource` / `pinOrderFieldBySource` 做字段名映射）
 
-Markdown 示例（tags/categories）见：[05-内容-Markdown](./05-markdown-content.zh-CN.md)。
+### term 元数据（v3.0.0+）
 
-Notion 示例见：[06-内容-Notion](./06-notion-content.zh-CN.md) 的模拟数据表。
+可以为每个 tag/category 设置附加信息，两种方式任选：
+
+**方式 1：data 文件**（`content/data/tags.yaml`）：
+```yaml
+- title: Machine Learning
+  slug: ml
+  description: Everything about ML and AI
+  image: /assets/images/ml-cover.png
+  weight: 10          # 排序权重，越大越靠前
+  parent: tech        # 父级分类（层次化）
+```
+
+**方式 2：目录约定**（`content/_taxonomy/tags/ml/_index.md`），仿 Hugo：
+```yaml
+---
+description: Everything about ML and AI
+image: /assets/images/ml-cover.png
+---
+```
+
+### 层次化分类
+
+通过 `taxonomy.kinds[].hierarchical: true` 启用。term 通过 `parent` 字段建立父子关系，自动计算 `children` 和 `ancestors`（面包屑导航）。
+
+### RSS feeds
+
+每个 term 自动生成独立 RSS 2.0 feed：`/tags/python/feed.xml`，可独立订阅。
+
+### 别名重定向
+
+term 可配置别名（`aliases` 字段），自动生成跳转页面，确保旧 URL 不会 404。
+
+Markdown 示例（tags/categories）见：[05-内容-Markdown](./05-markdown-content.zh-CN.md)。
 
 ## 派生页：tags/categories/分页/归档是什么
 
@@ -162,3 +263,79 @@ theme:
 ```
 
 编译成功后自动删除原 `.scss` 文件。未安装 CLI 时跳过编译并输出警告。
+
+## 相关内容推荐（v3.0+）
+
+基于标签/分类/关键词等多维度自动匹配相关内容。
+
+```yaml
+site:
+  related:
+    enabled: true
+    threshold: 80
+    limit: 5
+    indices:
+      - name: tags
+        weight: 100
+      - name: categories
+        weight: 60
+```
+
+## 菜单系统（v3.0+）
+
+多菜单导航，支持嵌套子菜单。
+
+```yaml
+site:
+  menus:
+    main:
+      - identifier: home
+        name: 首页
+        url: /
+        weight: 1
+      - identifier: blog
+        name: 博客
+        url: /blog/
+        weight: 2
+        children:
+          - identifier: tech
+            name: 技术
+            url: /blog/tags/tech/
+            weight: 1
+```
+
+## 数据文件（v3.0+）
+
+在 `data/` 目录放置 YAML/JSON/TOML 文件，构建时自动加载到模板。
+
+```
+data/
+  authors.yaml
+  navigation.json
+```
+
+## URL 别名重定向（v3.0+）
+
+在 front matter 中声明旧 URL，自动生成 HTML 重定向页：
+
+```yaml
+---
+aliases:
+  - /old-url/
+  - /previous-permalink/
+---
+```
+
+## 图片多尺寸处理（v3.0+）
+
+对 `assets/` 下的图片自动生成多尺寸变体（依赖 ImageMagick）。
+
+```yaml
+theme:
+  images:
+    enabled: true
+    sizes: [480, 768, 1200]
+    quality: 80
+```
+
+📖 详细用法与完整配置见：[19-v3.0新增功能](./19-new-features-v3.zh-CN.md)。

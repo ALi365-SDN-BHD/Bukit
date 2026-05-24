@@ -37,6 +37,9 @@ Three main data objects available in templates:
 | `site.params` | object | Mapping of `theme.params` |
 | `site.modules` | object | Data modules (content with `mode: data`) |
 | `site.data` | object | Data built from `sources[].mode: data` or data module builder |
+| `site.menus` | object | Menu definitions from `site.menus` config (e.g., `site.menus.main`, `site.menus.footer`). Each menu is a list of `{identifier, name, url, children}` |
+| `site.related_pages` | object | Related content data from RelatedContentPlugin. Dictionary keyed by content item ID → list of `{title, url, score}` |
+| `site.data_files` | object | Data files loaded from `data/` directory by DataFilesPlugin. Supports nested keys for namespaces and multi-language subdirectories. |
 
 ### `page` — Current Page Info
 
@@ -595,11 +598,80 @@ For schema `[title, date, tags, cover, author, summary]`:
 </script>
 ```
 
-### Sitemap & RSS Links
+### Sitemap & Feed Links
 Always include in base.html `<head>`:
 ```html
 <link rel="alternate" type="application/rss+xml" href="{{ site.base_url }}/rss.xml" />
+<link rel="alternate" type="application/atom+xml" href="{{ site.base_url }}/feed/atom.xml" />
+<link rel="alternate" type="application/json" href="{{ site.base_url }}/feed/feed.json" />
 <link rel="sitemap" type="application/xml" href="{{ site.base_url }}/sitemap.xml" />
+```
+
+Feed format availability depends on `site.feed.formats` config (rss, atom, json).
+
+## Built-in Search UI
+
+When `site.search.ui: "default"` is configured, the SearchIndexPlugin generates a `bukit-search.html` partial. Include it in templates:
+
+```html
+{{ include "bukit-search.html" }}
+```
+
+The search UI is a zero-dependency (~5KB) JavaScript component with:
+- Input debounce search
+- Title + content weighted scoring (with `searchWeight` front matter support)
+- Keyboard navigation (↑ ↓ Enter Escape)
+- Highlighted search results
+- Light/dark theme support via `site.search.uiTheme`
+
+```yaml
+site:
+  search:
+    ui: "default"
+    uiTheme: "dark"
+    placeholderText: "Search..."
+```
+
+## Menu Template Pattern
+
+Access menus configured in `site.menus`:
+
+```html
+<nav>
+  <ul>
+    {{ for item in site.menus.main }}
+      <li>
+        <a href="{{ item.url }}">{{ item.name }}</a>
+        {{ if item.children }}
+          <ul>
+            {{ for child in item.children }}
+              <li><a href="{{ child.url }}">{{ child.name }}</a></li>
+            {{ end }}
+          </ul>
+        {{ end }}
+      </li>
+    {{ end }}
+  </ul>
+</nav>
+```
+
+## Related Content Pattern
+
+Access related content from RelatedContentPlugin:
+
+```html
+{{ page_id = page.title }}
+{{ related = site.related_pages[page_id] }}
+{{ if related }}
+  <section class="related-posts">
+    <h2>Related Articles</h2>
+    <ul>
+      {{ for r in related }}
+        <li><a href="{{ r.url }}">{{ r.title }}</a></li>
+      {{ end }}
+    </ul>
+  </section>
+{{ end }}
 ```
 
 ## Performance Optimization

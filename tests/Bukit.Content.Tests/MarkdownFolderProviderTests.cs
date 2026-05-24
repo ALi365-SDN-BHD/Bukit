@@ -141,7 +141,7 @@ public sealed class MarkdownFolderProviderTests
         This is a short &amp; useful paragraph with extra words.
         """, maxLength: 24);
 
-        Assert.Equal("Title This is a short…", summary);
+        Assert.Equal("Title This is a short &…", summary);
     }
 
     [Fact]

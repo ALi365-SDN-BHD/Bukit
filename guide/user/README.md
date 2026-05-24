@@ -56,6 +56,12 @@ If you need internals, extension points, or contribution details, read the devel
 2. [04 Site YAML Config](./04-site-yaml-config.md) (`site.languages` config)
 3. [12 CLI Reference](./12-cli-reference.md)
 
+### Explore v3.0 features
+
+1. [19 New Features in v3.0](./19-new-features-v3.md) (feeds, sitemap details, search UI, taxonomy upgrades, related content, menus, data files, aliases, image processing)
+2. [10 Built-in Features & Output](./10-built-in-features.md)
+3. [04 Site YAML Config](./04-site-yaml-config.md)
+
 ## If You Use Bukit Through AI / Agents
 
 If you use Bukit in a skill-aware environment such as Trae, Claude Code, Copilot CLI, Codex CLI, or Gemini CLI, treat `src/skills/` as the agent-facing navigation entry and this directory as the user-facing operating guide.

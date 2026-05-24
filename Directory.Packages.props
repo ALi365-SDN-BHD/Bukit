@@ -5,6 +5,7 @@
   <ItemGroup>
     <PackageVersion Include="YamlDotNet" Version="16.3.0" />
     <PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="16.3.0" />
+    <PackageVersion Include="Markdig" Version="0.38.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
