@@ -71,7 +71,7 @@ public static class DevCommand
         var sw = Stopwatch.StartNew();
         await engine.BuildAsync(
             config, rootDir,
-            new ConfigOverrides { Clean = true, Output = outputOverride, Incremental = true, CacheDir = cacheDir },
+            CreateBuildOverrides(clean: true, outputOverride, cacheDir),
             cts.Token);
         sw.Stop();
         Console.WriteLine($"[build] done in {sw.ElapsedMilliseconds}ms, serving {outputDir}\n");
@@ -83,7 +83,7 @@ public static class DevCommand
         var watchedDirs = ResolveWatchDirs(rootDir, config);
         if (!noWatch && watchedDirs.Count > 0)
         {
-            StartFileWatchers(watchedDirs, rootDir, outputDir, config, cacheDir, engine, logger, cts.Token);
+            StartFileWatchers(watchedDirs, rootDir, outputDir, outputOverride, config, cacheDir, engine, logger, cts.Token);
         }
 
         Console.WriteLine($"  dev server: {prefix}");
@@ -145,6 +145,17 @@ public static class DevCommand
         var p = ((IPEndPoint)tcp.LocalEndpoint).Port;
         tcp.Stop();
         return p;
+    }
+
+    internal static ConfigOverrides CreateBuildOverrides(bool clean, string? outputOverride, string cacheDir)
+    {
+        return new ConfigOverrides
+        {
+            Clean = clean,
+            Output = outputOverride,
+            Incremental = true,
+            CacheDir = cacheDir
+        };
     }
 
     private static async Task AcceptLoop(HttpListener listener, string outputDir, AppConfig config, int port, CancellationToken ct)
@@ -277,7 +288,7 @@ public static class DevCommand
     }
 
     private static void StartFileWatchers(
-        List<string> watchDirs, string rootDir, string outputDir,
+        List<string> watchDirs, string rootDir, string outputDir, string? outputOverride,
         AppConfig config, string cacheDir, SiteEngine engine, ILogger logger,
         CancellationToken ct)
     {
@@ -329,7 +340,7 @@ public static class DevCommand
 
                 var sw = Stopwatch.StartNew();
                 await engine.BuildAsync(config, rootDir,
-                    new ConfigOverrides { Clean = false, Incremental = true, CacheDir = cacheDir },
+                    CreateBuildOverrides(clean: false, outputOverride, cacheDir),
                     ct);
                 sw.Stop();
                 logger.Info($"dev.rebuild {sw.ElapsedMilliseconds}ms");
