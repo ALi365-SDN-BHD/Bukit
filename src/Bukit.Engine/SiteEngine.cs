@@ -78,35 +78,10 @@ public sealed class SiteEngine
             ? Path.Combine(rootDir, ".cache", "media")
             : Path.Combine(Path.GetFullPath(overrides.CacheDir!), "media");
 
-        var provider = _contentProviderFactory.Create(effectiveConfig, rootDir, overrides.IsCI, _logger);
-        var loadResult = await provider.LoadAsync(cancellationToken);
-        loadResult = await _contentProviderFactory.LocalizeContentImagesAsync(loadResult, effectiveConfig.Content.Media, rootDir, mediaCacheDir, _logger, cancellationToken);
-        var items = loadResult.Items;
-        var bodyStore = loadResult.BodyStore;
-
-        if (!effectiveConfig.Build.Draft)
-        {
-            var before = items.Count;
-            items = items.Where(i =>
-                !(i.Meta.TryGetValue("draft", out var d) && d is true or "true" or "True")).ToList();
-            if (items.Count < before)
-            {
-                _logger.Info($"event=content.draft_filtered removed={before - items.Count}");
-            }
-        }
-
-        _logger.Info($"event=content.loaded count={items.Count}");
-
-        items = ContentSchemaValidator.ApplyDefaults(effectiveConfig.Site.Collections, items);
-        var schemaErrors = ValidateContentSchemas(effectiveConfig.Site.Collections, items, _logger);
-        if (schemaErrors.Count > 0)
-        {
-            var schemaFailMode = (effectiveConfig.Build.SchemaFailMode ?? "warn").Trim().ToLowerInvariant();
-            if (schemaFailMode == "strict")
-            {
-                throw new ConfigException($"Schema validation failed with {schemaErrors.Count} error(s).");
-            }
-        }
+        var contentPipeline = new ContentPipeline(_contentProviderFactory, _logger);
+        var contentResult = await contentPipeline.ExecuteAsync(effectiveConfig, rootDir, overrides, mediaCacheDir, cancellationToken);
+        var items = contentResult.Items;
+        var bodyStore = contentResult.BodyStore;
 
         var templateHashCache = new DirectoryHashCache();
 
@@ -741,57 +716,6 @@ public sealed class SiteEngine
         string key)
     {
         return alternates.TryGetValue(key, out var list) && list.Count > 0 ? list : null;
-    }
-
-    private static List<ContentSchemaValidator.SchemaValidationError> ValidateContentSchemas(
-        IReadOnlyDictionary<string, CollectionConfig>? collections,
-        IReadOnlyList<ContentItem> items,
-        ILogger logger)
-    {
-        var allErrors = new List<ContentSchemaValidator.SchemaValidationError>();
-
-        if (collections is null || collections.Count == 0)
-        {
-            return allErrors;
-        }
-
-        foreach (var item in items)
-        {
-            var collectionName = GetEffectiveCollection(item);
-            if (string.IsNullOrWhiteSpace(collectionName) ||
-                !collections.TryGetValue(collectionName, out var collection) ||
-                collection.Schema is null || collection.Schema.Count == 0)
-            {
-                continue;
-            }
-
-            var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id);
-            if (errors.Count > 0)
-            {
-                allErrors.AddRange(errors);
-                foreach (var error in errors)
-                {
-                    logger.Warn($"event=schema.validation code={error.Code} field={error.Field} source={error.SourcePath} message={error.Message}");
-                }
-            }
-        }
-
-        return allErrors;
-    }
-
-    private static string GetEffectiveCollection(ContentItem item)
-    {
-        if (item.Meta.TryGetValue("collection", out var c) && c is not null && !string.IsNullOrWhiteSpace(c.ToString()))
-        {
-            return c.ToString()!;
-        }
-
-        if (item.Meta.TryGetValue("type", out var t) && t is not null && !string.IsNullOrWhiteSpace(t.ToString()))
-        {
-            return t.ToString()!;
-        }
-
-        return "page";
     }
 
     public static IReadOnlyList<RouteInfo> GetListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)
