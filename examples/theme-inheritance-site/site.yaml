@@ -1,0 +1,24 @@
+site:
+  name: theme-inheritance-site
+  title: Theme Inheritance Example
+  url: https://example.com
+  baseUrl: /
+  language: en
+  collections:
+    page:
+      permalink: /{slug}/
+      template: pages/page.html
+      output:
+        sitemap: true
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
+build:
+  output: dist
+  clean: true
+theme:
+  name: child
+logging:
+  level: info

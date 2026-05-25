@@ -1,0 +1,10 @@
+{% layout "layouts/base.html" %}
+{{ taxonomy = page.fields.taxonomy.value }}
+<h1>{{ taxonomy.title }}</h1>
+{{ items = page.fields.items.value }}
+{{ for p in items }}
+<article>
+<h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
+<time>{{ p.publish_date }}</time>
+</article>
+{{ end }}

@@ -32,3 +32,25 @@ jobs:
 
       - name: Smoke test
         run: bash scripts/smoke.sh Release
+
+      - name: Build example sites
+        run: |
+          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/blog-site/site.yaml --clean --site-url https://example.com
+          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/corporate-site/site.yaml --clean --site-url https://example.com
+          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/docs-site/site.yaml --clean --site-url https://example.com
+          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/multilingual-site/site.yaml --clean --site-url https://example.com
+          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/plugin-site/site.yaml --clean --site-url https://example.com
+          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/theme-inheritance-site/site.yaml --clean --site-url https://example.com
+          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/component-theme/site.yaml --clean --site-url https://example.com
+
+  aot-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Native AOT publish
+        run: dotnet publish src/Bukit.Cli/Bukit.Cli.csproj -c Release -p:PublishAot=true

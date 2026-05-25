@@ -1,0 +1,27 @@
+site:
+  name: plugin-site
+  title: Plugin Example
+  url: https://example.com
+  baseUrl: /
+  language: en
+  plugins:
+    path-report:
+      enabled: true
+  collections:
+    page:
+      permalink: /{slug}/
+      template: pages/page.html
+      output:
+        sitemap: true
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
+build:
+  output: dist
+  clean: true
+theme:
+  layouts: layouts
+logging:
+  level: info

@@ -1,0 +1,26 @@
+site:
+  name: notion-site
+  title: Notion Content Example
+  url: https://example.com
+  baseUrl: /
+  language: en
+  seo:
+    renderMode: inject
+  collections:
+    page:
+      permalink: /{slug}/
+      template: pages/page.html
+      output:
+        sitemap: true
+content:
+  provider: notion
+  notion:
+    tokenEnv: BUKIT_NOTION_TOKEN
+    databaseIdEnv: BUKIT_NOTION_DATABASE_ID
+build:
+  output: dist
+  clean: true
+theme:
+  layouts: layouts
+logging:
+  level: info

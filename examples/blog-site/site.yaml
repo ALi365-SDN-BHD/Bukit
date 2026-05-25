@@ -1,0 +1,44 @@
+site:
+  name: blog-site
+  title: Blog Example
+  url: https://example.com
+  baseUrl: /
+  language: en
+  seo:
+    renderMode: inject
+  autoSummary: true
+  collections:
+    post:
+      permalink: /blog/{slug}/
+      template: pages/post.html
+      listRoute: /blog/
+      pagination:
+        enabled: true
+        pageSize: 2
+      output:
+        rss: true
+        sitemap: true
+    page:
+      permalink: /{slug}/
+      template: pages/page.html
+      output:
+        sitemap: true
+  timezone: Asia/Shanghai
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: post
+build:
+  output: dist
+  clean: true
+theme:
+  layouts: layouts
+taxonomy:
+  itemFields:
+    - date
+  templates:
+    categories:
+      termTemplate: pages/taxonomy-term.html
+logging:
+  level: info
