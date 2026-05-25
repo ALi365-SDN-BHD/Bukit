@@ -31,12 +31,12 @@ internal sealed class PluginPipeline
 
         if (ctx.IncrementalEnabled)
         {
-            SiteEngine.DeleteStaleManifestOutputs(ctx.OutputDir, ctx.Manifest, ctx.CurrentKeys, ctx.Logger);
+            BuildManifestTracker.DeleteStaleManifestOutputs(ctx.OutputDir, ctx.Manifest, ctx.CurrentKeys, ctx.Logger);
         }
 
         var afterBuildStopwatch = Stopwatch.StartNew();
         await PluginRunner.RunAfterBuildAsync(ctx.PluginContext, cancellationToken);
-        SiteEngine.TrackPluginOutputs(ctx.PluginContext, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger);
+        BuildManifestTracker.TrackPluginOutputs(ctx.PluginContext, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger);
         RobotsTxtWriter.WriteIfRequested(ctx.Config, ctx.OutputDir, ctx.BaseUrl, ctx.PluginContext.SeoIndex ?? new Dictionary<string, SeoIndexEntry>());
         afterBuildStopwatch.Stop();
         metricsCollector.AddDuration("afterBuildPlugins", afterBuildStopwatch.ElapsedMilliseconds);

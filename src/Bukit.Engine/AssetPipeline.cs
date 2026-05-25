@@ -66,7 +66,7 @@ internal sealed class AssetPipeline
                 }
             }
 
-            SiteEngine.TrackStaticOutputs(ctx.ParentStaticDir, hasStaticDir ? ctx.StaticDir : null, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger, !string.IsNullOrWhiteSpace(ctx.StaticTemplate));
+            BuildManifestTracker.TrackStaticOutputs(ctx.ParentStaticDir, hasStaticDir ? ctx.StaticDir : null, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger, !string.IsNullOrWhiteSpace(ctx.StaticTemplate));
             staticStopwatch.Stop();
             metricsCollector.AddDuration("staticSync", staticStopwatch.ElapsedMilliseconds);
         }
@@ -104,7 +104,7 @@ internal sealed class AssetPipeline
                 }
             }
 
-            SiteEngine.TrackAssetOutputs(ctx.ParentAssetsDir, ctx.AssetsDir!, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger);
+            BuildManifestTracker.TrackAssetOutputs(ctx.ParentAssetsDir, ctx.AssetsDir!, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger);
             assetsSyncStopwatch.Stop();
             metricsCollector.AddDuration("assetsSync", assetsSyncStopwatch.ElapsedMilliseconds);
         }
@@ -128,7 +128,7 @@ internal sealed class AssetPipeline
         if (ctx.MediaDownloadDir is not null && Directory.Exists(ctx.MediaDownloadDir))
         {
             var mediaCopyStopwatch = Stopwatch.StartNew();
-            SiteEngine.SyncMediaOutputs(ctx.MediaDownloadDir, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger);
+            BuildManifestTracker.SyncMediaOutputs(ctx.MediaDownloadDir, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger);
             mediaCopyStopwatch.Stop();
             metricsCollector.AddDuration("mediaCopy", mediaCopyStopwatch.ElapsedMilliseconds);
         }
