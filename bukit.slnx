@@ -10,6 +10,7 @@
     <Project Path="src/Bukit.Shared/Bukit.Shared.csproj" />
     <Project Path="src/plugins/SampleAfterBuildPlugin/SampleAfterBuildPlugin.csproj" />
     <Project Path="src/plugins/PathReportPlugin/PathReportPlugin.csproj" />
+    <Project Path="src/plugins/VisualFeedbackPlugin/VisualFeedbackPlugin.csproj" />
     <!-- DESKTOP-REMOVED: PluginSourceGenerator disabled (AOT-only). -->
     <!-- <Project Path="src/Bukit.PluginSourceGenerator/Bukit.PluginSourceGenerator.csproj" /> -->
   </Folder>

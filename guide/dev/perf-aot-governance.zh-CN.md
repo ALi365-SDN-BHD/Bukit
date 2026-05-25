@@ -40,6 +40,19 @@ Scriban（vendored 源码）和 ImageSharp（vendored 源码）均已完成 AOT 
 - 零告警策略：任何 AOT/Trim 告警均导致检查失败
 - 跨平台 RID（如在 macOS 上检查 `linux-x64`）会明确跳过并提示原因
 
+#### Source-Gen JSON 序列化规则
+
+Publish 闭包中的所有 `JsonSerializer.Serialize` / `Deserialize` 调用必须使用
+`JsonSerializerContext` 源生成重载。基于反射的 `JsonSerializerOptions` 重载会在 NativeAOT
+中触发 IL2026/IL3050 告警，禁止使用。
+
+当模型类型包含 `IReadOnlyDictionary<string, object>` 时，经过 source-gen 反序列化后，
+字典内的值类型为 `JsonElement`。必须在反序列化边界调用
+`JsonElementMaterializer.Materialize()` 递归将 `JsonElement` 值转换为 CLR 原语
+（string/bool/long/double/List/Dictionary）。
+
+CI 强制规则：`scripts/check-aot-warnings.sh` 必须输出零条 `ILC : warning IL\d{4}` 行。
+
 ## 3. AOT 发布行为约定
 
 ### 符号剥离（StripSymbols）

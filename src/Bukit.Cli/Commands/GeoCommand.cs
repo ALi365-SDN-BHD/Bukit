@@ -22,6 +22,18 @@ public static class GeoCommand
         Console.Error.WriteLine("Usage: bukit geo audit [--dir dist]");
     }
 
+    private static string? ResolveSeoReportPath(string outputDir)
+    {
+        var preferred = Path.Combine(outputDir, ".bukit", "seo-report.json");
+        if (File.Exists(preferred))
+        {
+            return preferred;
+        }
+
+        var legacy = Path.Combine(outputDir, "seo-report.json");
+        return File.Exists(legacy) ? legacy : null;
+    }
+
     private static async Task<int> AuditAsync(string outputDir)
     {
         var fullDir = Path.GetFullPath(outputDir);
@@ -31,16 +43,17 @@ public static class GeoCommand
             return 2;
         }
 
-        var reportPath = Path.Combine(fullDir, "seo-report.json");
+        var reportPath = ResolveSeoReportPath(fullDir);
         var geoEnhanced = 0;
         var geoTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var llmsTxtExists = File.Exists(Path.Combine(fullDir, "llms.txt"));
         var llmsFullTxtExists = File.Exists(Path.Combine(fullDir, "llms-full.txt"));
         var robotsTxtExists = File.Exists(Path.Combine(fullDir, "robots.txt"));
+        var geoReportExists = File.Exists(Path.Combine(fullDir, ".bukit", "geo-report.json"));
 
-        if (!File.Exists(reportPath))
+        if (reportPath is null)
         {
-            Console.Error.WriteLine($"SEO report not found: {reportPath}. Run a full build first.");
+            Console.Error.WriteLine($"SEO report not found under {fullDir} (looked for .bukit/seo-report.json and seo-report.json). Run a full build first.");
             return 1;
         }
 
@@ -76,6 +89,7 @@ public static class GeoCommand
             Console.WriteLine($"  llms.txt: {(llmsTxtExists ? "present" : "missing")}");
             Console.WriteLine($"  llms-full.txt: {(llmsFullTxtExists ? "present" : "missing")}");
             Console.WriteLine($"  robots.txt: {(robotsTxtExists ? "present" : "missing")}");
+            Console.WriteLine($"  geo-report.json: {(geoReportExists ? "present" : "missing")}");
             Console.WriteLine($"  Geo-enhanced routes: {geoEnhanced}");
             Console.WriteLine($"  Schema types: {string.Join(", ", geoTypes.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))}");
 

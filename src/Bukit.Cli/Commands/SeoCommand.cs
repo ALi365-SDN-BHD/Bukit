@@ -9,6 +9,18 @@ public static partial class SeoCommand
     private const string ExpectedSchema = "https://bukit.dev/schemas/seo-report.v1.json";
     private const string ExpectedSchemaVersion = "1.0";
 
+    private static string? ResolveSeoReportPath(string outputDir)
+    {
+        var preferred = Path.Combine(outputDir, ".bukit", "seo-report.json");
+        if (File.Exists(preferred))
+        {
+            return preferred;
+        }
+
+        var legacy = Path.Combine(outputDir, "seo-report.json");
+        return File.Exists(legacy) ? legacy : null;
+    }
+
     public static async Task<int> RunAsync(ArgReader reader)
     {
         var subcommand = reader.GetArg(1);
@@ -18,7 +30,12 @@ public static partial class SeoCommand
             var dir = reader.GetOption("--dir") ?? "dist";
             if (string.IsNullOrWhiteSpace(reportPath))
             {
-                reportPath = Path.Combine(dir, "seo-report.json");
+                reportPath = ResolveSeoReportPath(dir);
+                if (reportPath is null)
+                {
+                    Console.Error.WriteLine($"SEO report not found under {Path.GetFullPath(dir)} (looked for .bukit/seo-report.json and seo-report.json). Run a full build first.");
+                    return 1;
+                }
             }
 
             return await AuditAsync(reportPath, dir, strict: reader.HasFlag("--strict"), external: reader.HasFlag("--external"));

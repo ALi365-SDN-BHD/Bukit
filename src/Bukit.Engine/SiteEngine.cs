@@ -91,7 +91,7 @@ public sealed class SiteEngine
             _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
             MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, items.Count, new[] { result });
             plan.Stopwatch.Stop();
-            var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, plan.OutputDir, overrides, plan.StartedAt, DateTimeOffset.UtcNow, plan.Stopwatch.ElapsedMilliseconds, new[] { result });
+            var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, plan.OutputDir, overrides, plan.StartedAt, DateTimeOffset.UtcNow, plan.Stopwatch.ElapsedMilliseconds, new[] { result }, contentResult.SchemaErrors);
             BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger);
             WriteOutputMarker(plan.OutputDir);
             BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
@@ -103,7 +103,7 @@ public sealed class SiteEngine
             plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
             plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
             templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
-            cancellationToken);
+            contentResult.SchemaErrors, cancellationToken);
     }
 
     private async Task<BuildVariantResult> BuildSingleLanguageVariantAsync(
@@ -138,6 +138,7 @@ public sealed class SiteEngine
         DirectoryHashCache templateHashCache,
         IReadOnlyList<string> languages,
         DateTimeOffset buildStartedAt, Stopwatch buildStopwatch,
+        IReadOnlyList<ContentSchemaValidator.SchemaValidationError> schemaErrors,
         CancellationToken cancellationToken)
     {
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
@@ -182,7 +183,7 @@ public sealed class SiteEngine
         _logger.Info("event=build.done");
         MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, items.Count, variantResults);
         buildStopwatch.Stop();
-        var buildResult = BuildResultFactory.Create(config, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, variantResults);
+        var buildResult = BuildResultFactory.Create(config, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, variantResults, schemaErrors);
         BuildReporter.WriteIfEnabled(config, rootDir, outputDir, buildResult, variantResults, _logger);
         WriteOutputMarker(outputDir);
         BuildRecoveryTracker.MarkCompleted(outputDir);

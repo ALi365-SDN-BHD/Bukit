@@ -11,6 +11,19 @@ Pemuatan plugin serasi AOT:
 
 Sumber vendored Scriban (`tools/scriban/`) ditampal AOT sepenuhnya (sifar amaran).
 
+### Peraturan JSON Source-Gen
+
+Semua panggilan `JsonSerializer.Serialize` / `Deserialize` dalam closure publish mesti
+menggunakan overload `JsonSerializerContext` source-gen. Overload berasaskan refleksi
+`JsonSerializerOptions` mencetus IL2026/IL3050 dalam NativeAOT dan dilarang.
+
+Apabila jenis model mengandungi `IReadOnlyDictionary<string, object>`, jenis nilai di dalam
+kamus akan menjadi `JsonElement` selepas nyahserialisasi source-gen. Panggil
+`JsonElementMaterializer.Materialize()` di sempadan nyahserialisasi untuk menukar secara
+rekursif nilai `JsonElement` kepada primitif CLR (string/bool/long/double/List/Dictionary).
+
+Penguatkuasaan CI: `scripts/check-aot-warnings.sh` mesti menghasilkan sifar baris `ILC : warning IL\d{4}`.
+
 ## Prestasi Binaan
 - Binaan tokokan: langkau halaman tidak berubah melalui perbandingan hash
 - `--metrics <path>`: output data pemasaan binaan berstruktur

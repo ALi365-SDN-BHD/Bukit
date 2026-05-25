@@ -8,7 +8,7 @@
 CLI (bukit build/doctor/...)
   └─ 解析参数 → 解析配置路径 → 加载 site.yaml
       └─ Config（Load + Validate + ApplyOverrides）
-          └─ SiteEngine.BuildAsync（薄编排器）
+          └─ SiteEngine.BuildAsync（编排器 + Pipeline 链）
               ├─ IContentProviderFactory.Create → LoadAsync（Markdown / Notion / sources 组合）
               ├─ IContentProviderFactory.LocalizeContentImagesAsync
               ├─ I18nOutputMerger.GetLanguages → 按语言循环 BuildVariantAsync
@@ -90,17 +90,34 @@ CLI (bukit build/doctor/...)
 - i18n root 输出（sitemap/rss/search 的 merged/index 模式）
 
 关键入口：
-- `src/Bukit.Engine/SiteEngine.cs`（~320 行薄编排器）
+- `src/Bukit.Engine/SiteEngine.cs`（~592 行编排器 + Pipeline 链）
 - `src/Bukit.Engine/Incremental/*`
 - `src/Bukit.Engine/Plugins/*`
 
-#### Engine 内部结构
+#### Pipeline 构建链
 
-`SiteEngine` 经过 P0 重构后已从 God Class（2278 行）拆分为薄编排器 + 专职组件。各组件职责如下：
+重构后的 `SiteEngine` 通过 8 个独立 Pipeline 类串联构建流程：
+
+| Pipeline | 职责 |
+|---|---|
+| `BuildPipeline` | 配置校验、输出目录准备、clean/recovery |
+| `ContentPipeline` | provider 创建、内容加载、draft 过滤、schema 校验 |
+| `RoutePipeline` | 内容 URL 路由生成、list routes、冲突校验 |
+| `RenderPipeline` | 页面渲染、特殊列表渲染、增量跳过判定 |
+| `AssetPipeline` | static/assets 同步、SCSS 编译、图片优化、tokens、media |
+| `SeoPipeline` | SEO index 构建、diagnostics、Open Graph / JSON-LD |
+| `PluginPipeline` | after-build 插件执行、stale 删除、manifest 保存 |
+| `BuildReportPipeline` | BuildVariantResult 聚合、日志、audit report |
+
+其他新组件：`ThemeBootstrapper`（主题初始化）、`BuildOptionsMapper`（BuildOptions→AppConfig）、`FixedContentProviderFactory`（适配器）。
+
+#### Engine 内部组件职责
+
+`SiteEngine` 经过多轮重构后已从 God Class（856 行）拆分为编排器 + Pipeline 链 + 专职组件。各组件职责如下：
 
 | 组件 | 职责 |
 |---|---|
-| `SiteEngine.cs` | 薄编排器，协调 BuildAsync 主流程与 BuildVariantAsync 变体构建 |
+| `SiteEngine.cs` | 编排器，协调 BuildAsync 主流程与 Pipeline 链 |
 | `BuildVariantContext` | 单次变体构建的输入参数聚合（config/dirs/items/outputDir 等） |
 | `BuildVariantResult` | 单次变体构建的结果聚合（routed/derived/renderCount 等） |
 | `ContentProviderFactory` | 根据配置创建 IContentProvider 实例，处理媒体本地化 |

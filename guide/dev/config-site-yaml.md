@@ -36,6 +36,57 @@ Final effective priority (high to low):
 | `site.permalinks` | dict | - | Type-to-pattern mapping |
 | `site.collections` | dict | - | Collection-driven routing |
 | `site.plugins` | dict | - | Plugin toggles and parameters |
+
+### Collection Schema Fields
+
+Each collection under `site.collections.{name}` supports:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | (required) | Collection identifier |
+| `label` | string | - | Human-readable label |
+| `source` | string | - | Content source: `notion` or `markdown` |
+| `permalink` | string | - | URL pattern, e.g. `/blog/{slug}/` |
+| `template` | string | - | Template file, e.g. `pages/post.html` |
+| `listRoute` | string | - | List page URL, e.g. `/blog/` |
+| `sortBy` | string | - | Sort field name |
+| `sortDirection` | string | `desc` | `asc` or `desc` |
+| `filter` | string | - | Filter expression |
+| `pageSize` | int | 10 | Items per list page |
+| `schema` | array | - | Array of `SchemaFieldDefinition` for content validation |
+| `taxonomy` | bool | false | Enable taxonomy for this collection |
+| `deriveArchive` | bool | false | Generate archive pages |
+
+Each schema field (`schema[].*`) supports:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | (required) | Field name in front matter |
+| `type` | string | `string` | Field type: `string`, `text`, `number`, `bool`, `date`, `list`, `enum` |
+| `label` | string | - | Human-readable label |
+| `required` | bool | false | Whether field is required |
+| `default` | any | - | Default value when missing |
+| `enum` | string[] | - | Allowed values for `enum` type |
+| `format` | string | - | Value format: `url`, `email`, `date`, `datetime`, `slug` |
+| `min` | double | - | Minimum value (number) or length (string) |
+| `max` | double | - | Maximum value (number) or length (string) |
+
+**Validation error codes:**
+
+| Code | Description |
+|---|---|
+| `required` | Required field is missing |
+| `type_mismatch` | Value type does not match schema type |
+| `enum_mismatch` | Value not in allowed enum set |
+| `format_mismatch` | Value does not match format constraint |
+| `range_mismatch` | Value outside min/max range |
+| `unknown_field` | Field present in content but not declared in schema |
+
+Notes:
+- `text` is an alias for `string` — both accept string values and produce the same validation.
+- `unknown_field` warnings skip known system fields (collection, type, draft, title, slug, seo_title, seo_desc, description, summary, etc.).
+- Schema error count is available in `dist/.bukit/build-report.json` under `summary.schemaErrorCount`.
+- Set `build.schemaFailMode: strict` to abort the build on schema validation errors.
 | `site.externalPlugins` | dict | - | External protocol plugin configs |
 | `site.externalAssemblyTrustMode` | string | `warn` | DLL trust governance: `warn`/`strict` |
 | `site.externalAssemblyAllowlist` | dict | - | Filename → SHA256 allowlist |

@@ -4,12 +4,6 @@ namespace Bukit.Engine.Plugins.Protocol;
 
 public abstract class ProcessPluginHost
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
     protected abstract string PluginName { get; }
     protected abstract string PluginVersion { get; }
     protected abstract IReadOnlyList<string> SupportedHooks { get; }
@@ -29,7 +23,7 @@ public abstract class ProcessPluginHost
         ProtocolPluginInvocationRequest request;
         try
         {
-            request = JsonSerializer.Deserialize<ProtocolPluginInvocationRequest>(stdin, JsonOptions)
+            request = JsonSerializer.Deserialize(stdin, ProtocolPluginJsonContext.Default.ProtocolPluginInvocationRequest)
                       ?? throw new JsonException("Deserialized request is null.");
         }
         catch (Exception ex)
@@ -79,7 +73,8 @@ public abstract class ProcessPluginHost
             if (string.Equals(request.Hook, "after-build", StringComparison.OrdinalIgnoreCase))
             {
                 var payload = request.AfterBuild ?? new AfterBuildRequestPayload { OutputDir = "." };
-                var pluginOptions = request.Config?.PluginOptions;
+                var pluginOptions = JsonElementMaterializer.Materialize(request.Config?.PluginOptions);
+                payload = MaterializeRoutedPagesMeta(payload);
                 await AfterBuildAsync(payload, pluginOptions, ct);
             }
 
@@ -92,9 +87,36 @@ public abstract class ProcessPluginHost
         }
     }
 
+    private static AfterBuildRequestPayload MaterializeRoutedPagesMeta(AfterBuildRequestPayload payload)
+    {
+        var pages = payload.RoutedPages;
+        if (pages is null || pages.Count == 0)
+        {
+            return payload;
+        }
+
+        var materialized = false;
+        var list = new AfterBuildRoutedPage[pages.Count];
+        for (var i = 0; i < pages.Count; i++)
+        {
+            var page = pages[i];
+            if (page.Meta is not null)
+            {
+                materialized = true;
+                list[i] = page with { Meta = JsonElementMaterializer.Materialize(page.Meta) };
+            }
+            else
+            {
+                list[i] = page;
+            }
+        }
+
+        return materialized ? payload with { RoutedPages = list } : payload;
+    }
+
     protected void WriteResponse(ProtocolPluginInvocationResponse response)
     {
-        var json = JsonSerializer.Serialize(response, JsonOptions);
+        var json = JsonSerializer.Serialize(response, ProtocolPluginJsonContext.Default.ProtocolPluginInvocationResponse);
         Console.Out.Write(json);
         Console.Out.Flush();
     }

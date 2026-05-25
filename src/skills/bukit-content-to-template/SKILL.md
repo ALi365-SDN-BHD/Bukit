@@ -50,6 +50,7 @@ collections:
 |---|---|---|
 | `string` (required) | `<span>` | `{{ page.fields.KEY.value }}` |
 | `string` (optional) | `<span>` with if-guard | `{{ if page.fields.KEY.value }}...{{ end }}` |
+| `text` | `<span>` | `{{ page.fields.KEY.value }}` — `text` and `string` are interchangeable in schema definitions. ContentField.Type is `"text"` for both. |
 | `date` | `<time>` | `{{ page.fields.KEY.value | date.to_string "%Y-%m-%d" }}` |
 | `boolean` | badge/toggle | `{{ if page.fields.KEY.value }}<span class="badge">X</span>{{ end }}` |
 | `number` | `<span>` | `{{ page.fields.KEY.value }}` |

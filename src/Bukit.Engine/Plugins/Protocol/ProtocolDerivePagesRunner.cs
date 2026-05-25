@@ -73,7 +73,7 @@ internal sealed class ProtocolDerivePagesRunner
         {
             var meta = page.Meta is null
                 ? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                : new Dictionary<string, object>(page.Meta, StringComparer.OrdinalIgnoreCase);
+                : new Dictionary<string, object>(JsonElementMaterializer.Materialize(page.Meta)!, StringComparer.OrdinalIgnoreCase);
             var item = new ContentItem(
                 page.Id,
                 page.Title,

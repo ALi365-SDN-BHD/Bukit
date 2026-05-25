@@ -21,6 +21,7 @@ Nota:
 | `template` | Cipta, senarai, lihat, sahkan, segerak, dan semak imbas fail templat |
 | `clone` | Klon reka bentuk visual mana-mana laman web ke dalam tema Bukit |
 | `seo` | Audit SEO dan diff (sahkan seo-report.json) |
+| `visual` | Jana skrip ujian visual Playwright |
 | `webhook` | Perubahan Notion mencetuskan GitHub Actions (pilihan) |
 | `intent` | Berkaitan AI Intent (pilihan) |
 | `version` | Output nombor versi |
@@ -347,6 +348,31 @@ bukit seo diff --fail-on-indexable-drop
 ```
 
 `seo audit` mengesahkan `seo-report.json` (dijana oleh `build`) — semak struktur schema, kira ralat/amaran, pilihan sahkan pautan luaran. `seo diff` banding dengan laporan sebelumnya untuk mengesan regresi.
+
+## visual: Jana Skrip Ujian Visual
+
+```bash
+bukit visual generate [--config site.yaml] [--dir dist] [--site-url http://localhost:4173] [--out visual-tests.spec.js]
+```
+
+**Pilihan:**
+
+| Pilihan | Tujuan | Default |
+|---|---|---|
+| `--config` | Laluan fail konfigurasi | `site.yaml` |
+| `--dir` | Direktori output yang mengandungi HTML terbina | `dist` |
+| `--site-url` | URL asas untuk navigasi halaman ujian | `http://localhost:4173` |
+| `--out` | Nama fail skrip output | `visual-tests.spec.js` |
+
+Menjana skrip ujian Playwright yang mengambil tangkapan skrin penuh bagi setiap halaman HTML dalam direktori output dan membandingkannya dengan garis dasar visual.
+
+**Aliran penggunaan:**
+1. `bukit build`
+2. `bukit visual generate --dir dist`
+3. `npx playwright test visual-tests.spec.js --update-snapshots` (larian pertama)
+4. `npx playwright test visual-tests.spec.js` (larian seterusnya)
+
+Lihat juga: `VisualFeedbackPlugin` (plugin selepas binaan untuk analisis tangkapan skrin berkuasa AI dengan pemarkahan visual 5 dimensi).
 
 ## version: Semak Versi
 

@@ -128,7 +128,7 @@ dotnet run --project src/Bukit.Cli -c Release -- doctor --config <your-site.yaml
 
 | 需求 | 先看哪里 |
 |---|---|
-| collections 路由与模板规则 | `SiteEngine.BuildCollectionRules` + `RouteGenerator.Generate` |
+| collections 路由与模板规则 | `RouteInventoryValidator.BuildCollectionRules` + `RouteGenerator.Generate` |
 | 默认 `/blog/...`、`/pages/...` 规则 | `RouteGenerator.Generate` |
 | permalink 模式 | `BuildFromPermalink` / `ExpandPermalinkPattern` |
 | route override | `TryReadRouteOverride` |
@@ -174,7 +174,7 @@ dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filt
 | include 加载与路径边界 | `FileTemplateLoader.cs` |
 | 模型如何暴露给模板 | `ScribanModelBinder.cs` |
 | 页面/列表页面渲染 | `PageRenderDispatcher.cs` |
-| assets/static/media 拷贝 | `SiteEngine.cs` |
+| assets/static/media 拷贝 | `AssetPipeline.cs` + `SiteEngine.cs` |
 
 ### 5.4 建议验证
 
@@ -260,12 +260,12 @@ dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release
 
 | 需求 | 先看哪里 |
 |---|---|
-| manifest 路径与启用逻辑 | `SiteEngine.cs` |
+| manifest 路径与启用逻辑 | `SiteEngine.cs` / `BuildPipeline.cs` |
 | 单页跳过判定 | `PageRenderDispatcher.cs` |
 | 列表页跳过判定 | `PageRenderDispatcher.cs` |
 | manifest 读写结构 | `BuildManifest.cs` |
 | 模板目录哈希 | `HashUtil.cs` |
-| 构建结束清理与保存 | `SiteEngine.cs` |
+| 构建结束清理与保存 | `PluginPipeline.cs` / `SiteEngine.cs` |
 
 ### 7.4 建议验证
 

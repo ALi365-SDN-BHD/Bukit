@@ -4,6 +4,9 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- **SiteEngine refactored**: 856 → 592 line orchestrator with 8 independent pipeline classes (`BuildPipeline`, `ContentPipeline`, `RoutePipeline`, `RenderPipeline`, `AssetPipeline`, `SeoPipeline`, `PluginPipeline`, `BuildReportPipeline`), plus `ThemeBootstrapper`, `BuildOptionsMapper`, `FixedContentProviderFactory`. Dual `BuildAsync` paths unified into single pipeline chain. All reflection-based test helpers eliminated (zero `BindingFlags` remaining). Added performance regression tests.
+
 ### Added
 - **Taxonomy v3.0.0**: Major overhaul of the taxonomy system with 7 new features
   - Hierarchical taxonomy: `taxonomy.kinds[].hierarchical: true` enables parent-child term relationships via `ParentSlug`, with automatic `children` and `ancestors` computation

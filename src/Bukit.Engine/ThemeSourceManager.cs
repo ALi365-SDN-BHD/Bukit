@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Bukit.Shared;
 
 namespace Bukit.Engine;
@@ -155,7 +156,7 @@ internal sealed class ThemeLockFile
 
         try
         {
-            return JsonSerializer.Deserialize<ThemeLockFile>(File.ReadAllText(path), ThemeLockJsonOptions) ?? new ThemeLockFile();
+            return JsonSerializer.Deserialize(File.ReadAllText(path), ThemeLockJsonContext.Default.ThemeLockFile) ?? new ThemeLockFile();
         }
         catch (JsonException ex)
         {
@@ -166,11 +167,13 @@ internal sealed class ThemeLockFile
     public void Save(string path)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(this, ThemeLockJsonOptions));
+        File.WriteAllText(path, JsonSerializer.Serialize(this, ThemeLockJsonContext.Default.ThemeLockFile));
     }
-
-    private static readonly JsonSerializerOptions ThemeLockJsonOptions = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 }
+
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+[JsonSerializable(typeof(ThemeLockFile))]
+internal sealed partial class ThemeLockJsonContext : JsonSerializerContext;
 
 internal sealed class ThemeLockEntry
 {

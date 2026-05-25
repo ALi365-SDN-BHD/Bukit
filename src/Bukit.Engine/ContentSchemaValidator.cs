@@ -70,12 +70,15 @@ public static class ContentSchemaValidator
             return errors;
         }
 
+        var schemaFieldNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var field in schema)
         {
             if (string.IsNullOrWhiteSpace(field.Name))
             {
                 continue;
             }
+
+            schemaFieldNames.Add(field.Name);
 
             var hasValue = meta.TryGetValue(field.Name, out var rawValue) && rawValue is not null;
 
@@ -134,14 +137,46 @@ public static class ContentSchemaValidator
             }
         }
 
+        foreach (var key in meta.Keys)
+        {
+            if (!schemaFieldNames.Contains(key) && !IsKnownSystemField(key))
+            {
+                errors.Add(new SchemaValidationError(
+                    key,
+                    "unknown_field",
+                    $"Field '{key}' is not declared in the collection schema.",
+                    sourcePath));
+            }
+        }
+
         return errors;
     }
+
+    private static bool IsKnownSystemField(string fieldName)
+    {
+        return s_knownSystemFields.Contains(fieldName);
+    }
+
+    private static readonly HashSet<string> s_knownSystemFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "collection", "type", "draft",
+        "title", "slug", "id",
+        "template", "layout",
+        "source", "sourcePath", "path", "file",
+        "weight", "order",
+        "tags", "categories",
+        "author",
+        "created", "modified", "published", "updated",
+        "seo_title", "seo_desc", "schema_type", "geo_schema_type",
+        "description", "summary", "excerpt",
+        "image", "icon"
+    };
 
     private static bool ValidateType(string expectedType, object value)
     {
         return expectedType switch
         {
-            "string" => value is string,
+            "string" or "text" => value is string,
             "number" or "int" => value is int or long or double or float,
             "bool" or "boolean" => value is bool,
             "date" or "datetime" => value is DateTime or DateTimeOffset,
@@ -178,6 +213,7 @@ public static class ContentSchemaValidator
             "number" or "int" => new ContentField("number", value),
             "date" or "datetime" => new ContentField("date", value),
             "list" or "array" or "string[]" => new ContentField("list", value),
+            "string" => new ContentField("text", value.ToString() ?? string.Empty),
             _ => new ContentField("text", value.ToString() ?? string.Empty)
         };
     }

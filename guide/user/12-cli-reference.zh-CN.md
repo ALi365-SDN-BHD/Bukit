@@ -22,6 +22,7 @@
 | `template` | 创建、列出、查看、校验、同步和浏览模板文件 |
 | `clone` | 将任意网站的视觉设计克隆为 Bukit 主题 |
 | `seo` | SEO 审计与 diff（验证 seo-report.json） |
+| `visual` | 生成 Playwright 视觉测试脚本 |
 | `webhook` | Notion 变更触发 GitHub Actions（可选） |
 | `intent` | AI Intent 相关（可选） |
 | `version` | 输出版本号 |
@@ -373,6 +374,31 @@ bukit seo diff --fail-on-indexable-drop
 ```
 
 `seo audit` 校验 `build` 生成的 `seo-report.json` — 检查 schema 结构、统计错误/警告数，可选验证外部链接。`seo diff` 与上一份报告对比，检测回归。
+
+## visual: 生成视觉测试脚本
+
+```bash
+bukit visual generate [--config site.yaml] [--dir dist] [--site-url http://localhost:4173] [--out visual-tests.spec.js]
+```
+
+**参数说明:**
+
+| 参数 | 用途 | 默认值 |
+|---|---|---|
+| `--config` | 配置文件路径 | `site.yaml` |
+| `--dir` | 包含已构建 HTML 的输出目录 | `dist` |
+| `--site-url` | 测试页面导航的基础 URL | `http://localhost:4173` |
+| `--out` | 输出脚本文件名 | `visual-tests.spec.js` |
+
+生成 Playwright 测试脚本，对输出目录中的每个 HTML 页面进行全页截图并与视觉基线对比。
+
+**使用流程:**
+1. `bukit build`
+2. `bukit visual generate --dir dist`
+3. `npx playwright test visual-tests.spec.js --update-snapshots`（首次运行）
+4. `npx playwright test visual-tests.spec.js`（后续运行）
+
+另见: `VisualFeedbackPlugin`（构建后插件，通过 AI 进行 5 维度视觉质量评分分析）。
 
 ## version：查看版本
 

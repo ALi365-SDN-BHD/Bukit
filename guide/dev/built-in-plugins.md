@@ -435,3 +435,43 @@ All derive-pages plugins (Pagination, Archive, Taxonomy) share the same route va
 3. **Doctor integration** — `bukit doctor` runs content route validation through `RouteInventoryValidator.BuildContentRoutesAsync` + `ValidateContentRoutes`, detecting conflicts without a full build.
 
 All derived pages follow `site.outputPathEncoding`, applied through `RoutePathBuilder.BuildOutputPathFromUrl`.
+
+## visual-feedback (ProcessPluginHost, external protocol)
+
+Plugin directory: `src/plugins/VisualFeedbackPlugin/`
+
+- Hook: `after-build`
+- Output: `<outputDir>/.bukit/visual-report.json`
+- Dependency: Playwright (`npx playwright`) for screenshot capture; OpenAI-compatible API for AI analysis
+- Configuration: `plugins.visual-feedback.options`
+
+Configuration reference (`site.yaml`):
+```yaml
+plugins:
+  visual-feedback:
+    enabled: true
+    pluginFailMode: warn
+    options:
+      baseUrl: "http://localhost:4173"
+      aiProvider: "openai"         # openai | azure-openai | custom
+      aiModel: "gpt-4o"           # requires vision-capable model
+      aiApiKey: "${OPENAI_API_KEY}"
+      aiEndpoint: null             # custom endpoint when aiProvider != openai
+      captureWidths: [375, 768, 1440]
+      outputReport: ".bukit/visual-report.json"
+      screenshotDir: ".bukit/screenshots"
+```
+
+**Report structure:**
+- `summary`: overall scores (layout / readability / color / a11y / responsive, each 0-100) and aggregate issues
+- `pages[]`: per-page results with per-width screenshot analysis and AI feedback text
+
+**Behavior:**
+- After build completes, captures full-page screenshots at each configured viewport width for every page
+- Sends screenshots to the configured AI vision model for 5-dimension quality assessment
+- Writes structured report to `.bukit/visual-report.json`
+- Without `aiApiKey`: screenshots are still captured, but scores default to 0 with a config-notice message
+
+**Multilingual:** single report with all language-specific pages under their respective URLs.
+
+**Related CLI:** `bukit visual generate` generates standalone Playwright screenshot-comparison tests.

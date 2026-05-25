@@ -7,7 +7,7 @@ Describes Bukit's end-to-end build pipeline, module boundaries, and key data str
 ```text
 CLI (bukit build/doctor/...)
   → Config (Load + Validate + ApplyOverrides)
-    → SiteEngine.BuildAsync (thin orchestrator)
+    → SiteEngine.BuildAsync (orchestrator with Pipeline chain)
       → IContentProviderFactory (Markdown/Notion/sources)
       → BuildVariantAsync per language
         → RouteGenerator.Generate
@@ -33,11 +33,28 @@ CLI (bukit build/doctor/...)
 
 ## Engine Internal Components
 
-After P0 refactoring, `SiteEngine` was split from a God Class into a thin orchestrator + dedicated components:
+After refactoring, `SiteEngine` was split from a God Class into an orchestrator with a Pipeline chain plus dedicated components.
+
+### Pipeline Chain (8 pipelines)
+
+| Pipeline | Responsibility |
+|---|---|
+| `BuildPipeline` | Config validation, output directory preparation, clean/recovery |
+| `ContentPipeline` | Provider creation, content loading, draft filtering, schema validation |
+| `RoutePipeline` | Content URL routing, list routes, conflict detection |
+| `RenderPipeline` | Page rendering, special list rendering, incremental skip decisions |
+| `AssetPipeline` | Static/assets sync, SCSS compilation, image optimization, tokens, media |
+| `SeoPipeline` | SEO index building, diagnostics, Open Graph / JSON-LD |
+| `PluginPipeline` | After-build plugin execution, stale deletion, manifest persistence |
+| `BuildReportPipeline` | BuildVariantResult aggregation, logging, audit report |
+
+Additional components: `ThemeBootstrapper`, `BuildOptionsMapper`, `FixedContentProviderFactory`.
+
+### Internal Components
 
 | Component | Responsibility |
 |---|---|
-| `SiteEngine` | Thin orchestrator (BuildAsync/BuildVariantAsync) |
+| `SiteEngine` | Orchestrator coordinating BuildAsync with Pipeline chain |
 | `BuildVariantContext` | Input parameter aggregation for single variant |
 | `BuildVariantResult` | Result aggregation for single variant |
 | `ContentProviderFactory` | Create content providers, handle media localization |

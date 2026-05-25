@@ -80,7 +80,7 @@ public sealed class BuildPipelineTests
             DurationMs: 0,
             Environment: new BuildEnvironmentInfo("test", "test", false),
             Project: new BuildProjectInfo("/tmp/site", "dist", "markdown", null, null),
-            Summary: new BuildSummary(0, 0, 0, 0, 0, 0, 0),
+            Summary: new BuildSummary(0, 0, 0, 0, 0, 0, 0, 0),
             Incremental: new BuildIncrementalSummary(false, 0, 0),
             Variants: Array.Empty<BuildVariantSummary>(),
             GeneratedFiles: Array.Empty<string>());

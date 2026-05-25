@@ -67,6 +67,7 @@ internal static class BuildReporter
         writer.WriteNumber("pluginCount", result.Summary.PluginCount);
         writer.WriteNumber("warningCount", result.Summary.WarningCount);
         writer.WriteNumber("errorCount", result.Summary.ErrorCount);
+        writer.WriteNumber("schemaErrorCount", result.Summary.SchemaErrorCount);
         writer.WriteEndObject();
         writer.WritePropertyName("incremental");
         writer.WriteStartObject();

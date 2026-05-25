@@ -177,13 +177,14 @@ When `schema_type` is set:
 
 ## GEO Audit
 
-Run `bukit geo audit` (reference bukit-cli-reference) to check GEO readiness. It reads the `seo-report.json` file from a full build.
+Run `bukit geo audit` (reference bukit-cli-reference) to check GEO readiness. It reads the `seo-report.json` file from a full build (checks `dist/.bukit/seo-report.json` first, then falls back to `dist/seo-report.json` for backward compatibility).
 
 ```
 === GEO Audit ===
   llms.txt: present
   llms-full.txt: missing
   robots.txt: present
+  geo-report.json: present
   Geo-enhanced routes: 3
   Schema types: Article, FAQPage, HowTo, Person, WebPage
   GEO Score: 75/100
@@ -218,6 +219,11 @@ GEO diagnostics run during `bukit build` (when `site.seo.diagnostics` is `warn` 
 | `geo.citation_url_invalid` | warning | Citation URL is not a valid absolute URI |
 | `geo.author_no_sameas` | info | Author defined but has no `sameAs` social/profile links |
 | `geo.speakable_path_invalid` | warning | Speakable XPath does not start with `/` |
+
+### GEO Audit Output Files
+
+- `dist/.bukit/seo-report.json` — full SEO audit report consumed by `bukit geo audit` (also checks legacy `dist/seo-report.json` as fallback)
+- `dist/.bukit/geo-report.json` — standalone GEO report (GEO Score, llms.txt status, geo-enhanced route details)
 
 ## Common Issues
 

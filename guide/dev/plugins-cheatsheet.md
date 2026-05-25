@@ -12,6 +12,7 @@
 | archive | DerivePages | Archive pages | Blog content |
 | pages-index | DerivePages | `site.data.pages_by_id` | None |
 | path-report | AfterBuild (external) | `_debug/paths-report.json` | Debug |
+| visual-feedback | AfterBuild (external) | `dist/.bukit/visual-report.json`, `dist/.bukit/screenshots/*.png` | Playwright, OpenAI-compatible API (optional) |
 
 ## Plugin Configuration
 
@@ -120,6 +121,17 @@ taxonomy:
   <a href="{{ site.base_url }}/{{ page.fields.taxonomy.value.kind }}/{{ page.fields.taxonomy.value.slug }}/page/{{ page.fields.pagination.value.page + 1 }}/">Next</a>
 {{ end }}
 ```
+
+## visual-feedback Plugin (external protocol)
+- **Hook**: after-build
+- **Type**: External (ProcessPluginHost)
+- **Source**: `src/plugins/VisualFeedbackPlugin/`
+- **Outputs**:
+  - `dist/.bukit/visual-report.json` — AI-powered 5-dimension visual quality report
+  - `dist/.bukit/screenshots/*.png` — full-page screenshots per page per viewport width
+- **Config**: `plugins.visual-feedback.options` (baseUrl, aiProvider, aiModel, aiApiKey, captureWidths, etc.)
+- **Dependencies**: Playwright (screenshot capture), OpenAI-compatible API (AI analysis, optional)
+- **CLI related**: `bukit visual generate` — generates Playwright screenshot-comparison test scripts
 
 ## Image Localization (`content.media`)
 

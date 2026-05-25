@@ -55,14 +55,14 @@ wasiConfig.WithPreopenedDirectory(outputDir, "/out",
 // 文件系统: 只能写 /out
 3.3 现有机制的局限性
 局限	影响
-I18n 语言变体顺序构建	SiteEngine L92 中 for 循环逐个构建每个语言，无法并行
+I18n 语言变体顺序构建	`BuildCoreAsync` → `BuildMultiLanguageAsync` 通过 `Parallel.ForEachAsync` 构建，默认 MaxDegreeOfParallelism=1
 插件顺序执行	foreach 导致耗时插件阻塞后续插件
 开发期无隔离	bukit preview 时修改模板直接影响预览输出，无法做 A/B 对比
 内置插件无沙箱	built-in/generated 插件直接访问文件系统和 BuildContext，依赖开发者信任
 四、Worktree 隔离在 Bukit 中的应用分析
 4.1 适用场景与方案
 场景 A：I18n 多语言变体并行构建 ⭐⭐⭐⭐⭐
-当前状态：SiteEngine L92-L118 顺序构建每种语言变体。
+当前状态：`SiteEngine.BuildCoreAsync` 中顺序构建每种语言变体。
 
 Worktree 方案：
 
@@ -85,18 +85,8 @@ bukit build --i18n-parallel
 
 C#
 
-// SiteEngine.cs — 用 worktree 替代串行 for 循环
-var tasks = languages.Select(async lang =>
-{
-    var worktreePath = Path.Combine(rootDir, ".worktrees", lang);
-    GitWorktree.Create(rootDir, worktreePath, $"i18n/{lang}");
-    
-    var result = await BuildInWorktreeAsync(worktreePath, lang, config);
-    return (lang, result);
-});
-
-var results = await Task.WhenAll(tasks);
-I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, results.ToDictionary(...));
+// 当前已通过 BuildMultiLanguageAsync 使用 Parallel.ForEachAsync
+// 可进一步用 worktree 实现进程级并行隔离
 场景 B：多主题并行生成 ⭐⭐⭐⭐
 当前状态：只支持单一主题（site.yaml 中 theme.name: "alt"）。
 
@@ -238,10 +228,8 @@ Plain Text
 SiteEngine.BuildAsync()
     │
     ├─ if (--parallel && IsGitRepo && languages.Count > 1)
-    │   └─ BuildI18nParallelAsync()  ← 新增: worktree 并行路径
-    │       ├─ foreach lang → 创建 worktree
-    │       ├─ Task.WhenAll(BuildVariantInWorktreeAsync)
-    │       └─ I18nOutputMerger.GenerateRootOutputs()
+    │   └─ BuildMultiLanguageAsync()  ← 内部通过 Parallel.ForEachAsync 构建
+    │       
     │
     └─ else
         └─ 现有串行路径 (保持不变)

@@ -4,6 +4,9 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+### 变更
+- **SiteEngine 重构**：856 → 592 行编排器，拆分为 8 个独立 Pipeline 类（`BuildPipeline`、`ContentPipeline`、`RoutePipeline`、`RenderPipeline`、`AssetPipeline`、`SeoPipeline`、`PluginPipeline`、`BuildReportPipeline`），外加 `ThemeBootstrapper`、`BuildOptionsMapper`、`FixedContentProviderFactory`。双 `BuildAsync` 路径统一为单一 pipeline 链。消除所有反射测试 helper（零 `BindingFlags` 残留）。新增性能回归测试。
+
 ### 新增
 - **Taxonomy v3.0.0**：分类系统重大升级，新增 7 项功能
   - 层次化分类：`taxonomy.kinds[].hierarchical: true` 启用父子 term 关系（`ParentSlug`），自动计算 `children` 和 `ancestors`

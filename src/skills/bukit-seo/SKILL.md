@@ -209,7 +209,7 @@ Collection/list pages with field items generate `ItemList` JSON-LD with `itemLis
 
 ## SEO Audit
 
-Run `bukit seo audit` after a full build to check SEO health. It reads `dist/seo-report.json`.
+Run `bukit seo audit` after a full build to check SEO health. It reads `dist/.bukit/seo-report.json` (new standard location). The legacy path `dist/seo-report.json` is still supported as a fallback for backward compatibility.
 
 ```
 bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]
@@ -218,7 +218,7 @@ bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]
 | Option | Default | Description |
 |------|--------|------|
 | `--dir` | `dist` | Output directory containing `seo-report.json` |
-| `--report` | `<dir>/seo-report.json` | Explicit report path |
+| `--report` | `<dir>/.bukit/seo-report.json` | Explicit report path. If omitted, checks `dist/.bukit/seo-report.json` first, then falls back to `dist/seo-report.json`. |
 | `--strict` | off | Treat warnings as errors (exit code 1) |
 | `--external` | off | Perform live HTTP HEAD/GET validation of canonical URLs, links, and images |
 
@@ -289,8 +289,8 @@ SEO diff: newIssues=3 newErrors=1 newWarnings=2 resolvedIssues=5 addedRoutes=1 r
 - name: SEO regression check
   run: |
     bukit seo diff \
-      --baseline dist/seo-report.json \
-      --current ./new-build/seo-report.json \
+      --baseline dist/.bukit/seo-report.json \
+      --current ./new-build/.bukit/seo-report.json \
       --max-new-errors 0 \
       --max-new-warnings 5 \
       --fail-on-route-removed \

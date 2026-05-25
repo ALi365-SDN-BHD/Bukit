@@ -4,6 +4,9 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+### Changed
+- **SiteEngine direfaktor**: 856 → 592 baris orkestrator dengan 8 kelas pipeline bebas (`BuildPipeline`, `ContentPipeline`, `RoutePipeline`, `RenderPipeline`, `AssetPipeline`, `SeoPipeline`, `PluginPipeline`, `BuildReportPipeline`), serta `ThemeBootstrapper`, `BuildOptionsMapper`, `FixedContentProviderFactory`. Dua laluan `BuildAsync` disatukan menjadi rantaian pipeline tunggal. Semua helper ujian refleksi dihapuskan (sifar `BindingFlags`). Ujian regresi prestasi ditambah.
+
 ### Added
 - **Taxonomy v3.0.0**: Pembinaan semula utama sistem taxonomy dengan 7 ciri baharu
   - Taxonomy hierarki: `taxonomy.kinds[].hierarchical: true` mendayakan hubungan induk-anak term melalui `ParentSlug`, dengan pengiraan automatik `children` dan `ancestors`

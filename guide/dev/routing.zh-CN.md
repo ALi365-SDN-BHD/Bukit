@@ -144,7 +144,7 @@ site:
 | `BuildOutputPathFromUrl(url, encoding)` | URL → 输出路径（含 `index.html`） |
 | `NormalizeOutputPath(path, encoding)` | 对路径段应用编码策略 |
 
-使用者：`RouteGenerator`、`PaginationPlugin`、`ArchivePlugin`、`TaxonomyPlugin`、`PageRenderDispatcher`、`SiteEngine.BuildListRoutesCore`、`I18nOutputMerger`。
+使用者：`RouteGenerator`、`PaginationPlugin`、`ArchivePlugin`、`TaxonomyPlugin`、`PageRenderDispatcher`、`SeoAlternatesService.BuildListRoutesCore`、`I18nOutputMerger`。
 
 ## 路由冲突检测
 

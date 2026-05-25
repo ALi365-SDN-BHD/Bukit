@@ -66,6 +66,8 @@ internal static class SeoAuditReportWriter
         var json = JsonSerializer.Serialize(report, SeoAuditReportJsonContext.Default.SeoAuditReport);
         FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReporter.ReportDirectoryName, "seo-report.json"), json + Environment.NewLine);
 
+        WriteGeoReport(outputDir, report, logger);
+
         foreach (var issue in report.Issues)
         {
             var message = $"seo.audit severity={issue.Severity} code={issue.Code} route={issue.Route ?? "-"} message={issue.Message}";
@@ -78,6 +80,31 @@ internal static class SeoAuditReportWriter
                 logger.Warn(message);
             }
         }
+    }
+
+    private static void WriteGeoReport(string outputDir, SeoAuditReport report, ILogger logger)
+    {
+        if (report.Summary is null)
+        {
+            return;
+        }
+
+        var geoReport = new GeoReport(
+            Schema: "https://bukit.dev/schemas/geo-report.v1.json",
+            SchemaVersion: "1.0",
+            GeneratedAt: DateTimeOffset.UtcNow,
+            GeoScore: report.Summary.GeoScore,
+            LlmsTxtGenerated: report.Summary.LlmsTxtGenerated,
+            LlmsFullTxtGenerated: report.Summary.LlmsFullTxtGenerated,
+            GeoEnhancedCount: report.Summary.GeoEnhancedCount,
+            GeoEnhancedRoutes: report.Routes
+                .Where(r => r.SchemaTypes.Any(t =>
+                    t is "FAQPage" or "HowTo" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification"))
+                .Select(r => new GeoRouteEntry(r.Url, r.SchemaTypes))
+                .ToList());
+
+        var json = JsonSerializer.Serialize(geoReport, GeoReportJsonContext.Default.GeoReport);
+        FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReporter.ReportDirectoryName, "geo-report.json"), json + Environment.NewLine);
     }
 
     internal static SeoAuditReport Build(
@@ -1102,6 +1129,22 @@ internal static class SeoAuditReportWriter
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
 [JsonSerializable(typeof(SeoAuditReport))]
 internal sealed partial class SeoAuditReportJsonContext : JsonSerializerContext;
+
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+[JsonSerializable(typeof(GeoReport))]
+internal sealed partial class GeoReportJsonContext : JsonSerializerContext;
+
+internal sealed record GeoReport(
+    string Schema,
+    string SchemaVersion,
+    DateTimeOffset GeneratedAt,
+    int GeoScore,
+    bool LlmsTxtGenerated,
+    bool LlmsFullTxtGenerated,
+    int GeoEnhancedCount,
+    IReadOnlyList<GeoRouteEntry> GeoEnhancedRoutes);
+
+internal sealed record GeoRouteEntry(string Url, IReadOnlyList<string> SchemaTypes);
 
 internal sealed record SeoAuditReport(
     string Schema,

@@ -664,7 +664,18 @@ collections:
         default: draft
 ```
 
-Supported schema keys: `name`, `type`, `label`, `required`, `default`, `enum`, `format`, `min`, `max`. Formats include `url`/`uri`, `email`, `date`/`datetime`, and `slug`; defaults are applied before schema validation.
+Supported schema keys: `name`, `type`, `label`, `required`, `default`, `enum`, `format`, `min`, `max`. `type` values: `string|text` — Text value (`text` is an alias for `string`, both validate the same way); `number`; `bool`; `date`; `array`; `select`; `multi_select`; `image`. Formats include `url`/`uri`, `email`, `date`/`datetime`, and `slug`; defaults are applied before schema validation.
+
+### Schema Validation Error Codes
+
+| Code | Description |
+|------|-------------|
+| `required` | A required schema field is missing from the content front matter. |
+| `type_mismatch` | The value type does not match the schema field type declaration. |
+| `unknown_field` | A field exists in content front matter but is not declared in the collection schema. Known system fields (`collection`, `type`, `draft`, `title`, `slug`, `seo_title`, `seo_desc`, `description`, `summary`, `excerpt`, `image`, `icon`, `tags`, `categories`, `author`, `created`, `modified`, `published`, `updated`, `template`, `layout`, `source`, `sourcePath`, `path`, `file`, `weight`, `order`, `schema_type`, `geo_schema_type`) are excluded from this check. |
+| `enum_invalid` | The value is not one of the allowed `enum` values. |
+| `format_invalid` | The value does not match the expected format (e.g., `url`, `email`, `date`). |
+| `min_violation` / `max_violation` | Numeric value is outside the allowed range. |
 
 ### Environment Overrides
 

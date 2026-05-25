@@ -42,7 +42,8 @@ public sealed record BuildSummary(
     int MediaCount,
     int PluginCount,
     int WarningCount,
-    int ErrorCount);
+    int ErrorCount,
+    int SchemaErrorCount);
 
 public sealed record BuildIncrementalSummary(
     bool Enabled,
@@ -60,6 +61,7 @@ internal static class BuildResultFactory
         DateTimeOffset endedAt,
         long durationMs,
         IReadOnlyList<BuildVariantResult> variants,
+        IReadOnlyList<ContentSchemaValidator.SchemaValidationError>? schemaErrors = null,
         IReadOnlyList<string>? generatedFiles = null)
     {
         var pageCount = variants.Sum(v => v.RenderedCount + v.SkippedCount);
@@ -90,7 +92,8 @@ internal static class BuildResultFactory
                 MediaCount: CountFiles(Path.Combine(outputDir, "assets", "uploads")),
                 PluginCount: pluginCount,
                 WarningCount: 0,
-                ErrorCount: 0),
+                ErrorCount: 0,
+                SchemaErrorCount: schemaErrors?.Count ?? 0),
             Incremental: new BuildIncrementalSummary(
                 Enabled: overrides.Incremental ?? true,
                 CacheHitCount: cacheHitCount,

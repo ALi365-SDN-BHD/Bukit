@@ -84,7 +84,7 @@ All routing logic shares `RoutePathBuilder` (`src/Bukit.Routing/RoutePathBuilder
 | `BuildOutputPathFromUrl(url, encoding)` | URL → output path with `index.html` |
 | `NormalizeOutputPath(path, encoding)` | Apply encoding to path segments |
 
-Used by: `RouteGenerator`, `PaginationPlugin`, `ArchivePlugin`, `TaxonomyPlugin`, `PageRenderDispatcher`, `SiteEngine.BuildListRoutesCore`, `I18nOutputMerger`.
+Used by: `RouteGenerator`, `PaginationPlugin`, `ArchivePlugin`, `TaxonomyPlugin`, `PageRenderDispatcher`, `SeoAlternatesService.BuildListRoutesCore`, `I18nOutputMerger`.
 
 ## Route Conflict Detection
 
