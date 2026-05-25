@@ -367,6 +367,86 @@ public sealed class ExternalProtocolPluginTests
     }
 
     [Fact]
+    public void ExternalProtocolPlugin_AfterBuild_DefaultEnvironmentDoesNotExposeHostSecrets()
+    {
+        using var temp = new TempDir();
+        var oldOpenAi = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        var oldGithub = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+        try
+        {
+            Environment.SetEnvironmentVariable("OPENAI_API_KEY", "secret-openai");
+            Environment.SetEnvironmentVariable("GITHUB_TOKEN", "secret-github");
+            var context = CreateContext(temp.Path, "strict", "env");
+
+            PluginRunner.RunAfterBuild(context);
+
+            var output = File.ReadAllText(Path.Combine(context.OutputDir, "plugin-output.json"));
+            Assert.Contains("\"openAi\":\"\"", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("\"github\":\"\"", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("\"pluginName\":\"sample\"", output, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENAI_API_KEY", oldOpenAi);
+            Environment.SetEnvironmentVariable("GITHUB_TOKEN", oldGithub);
+        }
+    }
+
+    [Fact]
+    public async Task ProcessPluginInvoker_FailsWhenStdoutExceedsLimit()
+    {
+        var invoker = new ProcessPluginInvoker();
+        var plugin = new ExternalPluginConfig
+        {
+            Runtime = "process",
+            Entry = DotNetHostPath(),
+            Hooks = new[] { "after-build" },
+            TimeoutMs = 5000,
+            MaxStdoutBytes = 128
+        };
+
+        var result = await invoker.InvokeAsync(plugin, "{}", BuildArguments("large-stdout"), CancellationToken.None);
+
+        Assert.Equal(-1, result.ExitCode);
+        Assert.Contains("stdout", result.StdErr, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.StdOut.Length <= 128);
+    }
+
+    [Fact]
+    public async Task ProcessPluginInvoker_FailsWhenStderrExceedsLimit()
+    {
+        var invoker = new ProcessPluginInvoker();
+        var plugin = new ExternalPluginConfig
+        {
+            Runtime = "process",
+            Entry = DotNetHostPath(),
+            Hooks = new[] { "after-build" },
+            TimeoutMs = 5000,
+            MaxStderrBytes = 128
+        };
+
+        var result = await invoker.InvokeAsync(plugin, "{}", BuildArguments("large-stderr"), CancellationToken.None);
+
+        Assert.Equal(-1, result.ExitCode);
+        Assert.Contains("stderr", result.StdErr, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.StdErr.Length < 1024);
+    }
+
+    [Fact]
+    public void ExternalProtocolPlugin_AfterBuild_TimesOutAndFailsFast()
+    {
+        using var temp = new TempDir();
+        var context = CreateContext(temp.Path, "strict", "sleep", timeoutMs: 50);
+        var started = DateTimeOffset.UtcNow;
+
+        var ex = Assert.ThrowsAny<Exception>(() => PluginRunner.RunAfterBuild(context));
+        var elapsed = DateTimeOffset.UtcNow - started;
+
+        Assert.Contains("timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(elapsed < TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
     public void ExternalProtocolPlugin_AfterBuild_RespectsWarnMode()
     {
         using var temp = new TempDir();
@@ -566,7 +646,8 @@ public sealed class ExternalProtocolPluginTests
         IReadOnlyList<string>? hooks = null,
         string? deriveConflictPolicy = null,
         IReadOnlyList<string>? extraPluginArgs = null,
-        bool includeRoutedPages = false)
+        bool includeRoutedPages = false,
+        int timeoutMs = 5000)
     {
         var outputDir = Path.Combine(rootDir, "dist");
         Directory.CreateDirectory(outputDir);
@@ -590,7 +671,7 @@ public sealed class ExternalProtocolPluginTests
                             Runtime = runtime,
                             Entry = isWasm ? CreateWasmModuleForMode(rootDir, pluginMode) : DotNetHostPath(),
                             Hooks = hooks ?? new[] { "after-build" },
-                            TimeoutMs = 5000,
+                            TimeoutMs = timeoutMs,
                             Options = isWasm
                                 ? null
                                 : new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)

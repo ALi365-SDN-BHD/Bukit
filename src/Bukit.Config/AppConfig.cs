@@ -179,6 +179,9 @@ public sealed record ExternalPluginConfig
     public IReadOnlyList<string> Hooks { get; init; } = Array.Empty<string>();
     public bool Enabled { get; init; } = true;
     public int TimeoutMs { get; init; } = 5000;
+    public int MaxStdoutBytes { get; init; } = 1048576;
+    public int MaxStderrBytes { get; init; } = 1048576;
+    public IReadOnlyList<string>? AllowEnvironment { get; init; }
     // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
     // public string WasmProfile { get; init; } = "wasi-preview1";
     // public int MaxMemoryMb { get; init; } = 64;
@@ -266,6 +269,7 @@ public sealed record BuildConfig
     public bool Draft { get; init; }
     public string ListPageContentMode { get; init; } = "auto";
     public string SchemaFailMode { get; init; } = "warn";
+    public string AssetHashMode { get; init; } = "size-time";
 }
 
 public sealed record ThemeConfig

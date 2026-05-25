@@ -50,14 +50,20 @@ public static class RouteInventoryValidator
     public static void ValidateFinalRoutes(
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> derived,
-        IReadOnlyList<RouteInfo>? specialRoutes = null)
+        IReadOnlyList<RouteInfo>? specialRoutes = null,
+        IReadOnlyList<RouteInfo>? staticHtmlRoutes = null)
     {
-        var entries = new List<RouteInventoryEntry>(routed.Count + derived.Count + (specialRoutes?.Count ?? 0));
+        var entries = new List<RouteInventoryEntry>(routed.Count + derived.Count + (specialRoutes?.Count ?? 0) + (staticHtmlRoutes?.Count ?? 0));
         entries.AddRange(routed.Select(x => RouteInventoryEntry.ForContent(x.Item, x.Route, "content")));
         entries.AddRange(derived.Select(x => RouteInventoryEntry.ForContent(x.Item, x.Route, "derived")));
         if (specialRoutes is not null)
         {
             entries.AddRange(specialRoutes.Select(RouteInventoryEntry.ForRoute));
+        }
+
+        if (staticHtmlRoutes is not null)
+        {
+            entries.AddRange(staticHtmlRoutes.Select(RouteInventoryEntry.ForStaticHtmlRoute));
         }
 
         ValidateEntries(entries);
@@ -81,6 +87,12 @@ public static class RouteInventoryValidator
 
     private static void ValidateEntries(IReadOnlyList<RouteInventoryEntry> entries)
     {
+        foreach (var entry in entries)
+        {
+            RouteSecurityValidator.ValidateInternalUrl(entry.Route.Url, entry.Describe());
+            RouteSecurityValidator.ValidateOutputPath(entry.Route.OutputPath, entry.Describe());
+        }
+
         ThrowIfDuplicate(
             entries,
             e => NormalizeUrlForComparison(e.Route.Url),
@@ -133,6 +145,9 @@ public static class RouteInventoryValidator
 
         internal static RouteInventoryEntry ForRoute(RouteInfo route)
             => new("special", null, null, null, route);
+
+        internal static RouteInventoryEntry ForStaticHtmlRoute(RouteInfo route)
+            => new("static", null, null, null, route);
 
         internal string Describe()
         {

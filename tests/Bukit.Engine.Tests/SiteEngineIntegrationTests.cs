@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine;
 using Bukit.Routing;
+using Bukit.Rendering;
 using Bukit.Shared;
 using System.Text.Json;
 using Xunit;
@@ -21,6 +22,98 @@ public sealed class SiteEngineIntegrationTests
         public void Info(string message) => Infos.Add(message);
         public void Warn(string message) => Warnings.Add(message);
         public void Error(string message) => Errors.Add(message);
+    }
+
+    private sealed class StaticContentProviderFactory : IContentProviderFactory
+    {
+        private readonly ContentLoadResult _result;
+
+        public StaticContentProviderFactory(ContentLoadResult result)
+        {
+            _result = result;
+        }
+
+        public IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger) => new StaticContentProvider(_result);
+
+        public Task<ContentLoadResult> LocalizeContentImagesAsync(ContentLoadResult result, MediaConfig media, string rootDir, string cacheDir, ILogger logger, CancellationToken cancellationToken)
+            => Task.FromResult(result);
+    }
+
+    private sealed class StaticContentProvider : IContentProvider
+    {
+        private readonly ContentLoadResult _result;
+
+        public StaticContentProvider(ContentLoadResult result)
+        {
+            _result = result;
+        }
+
+        public Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(_result);
+    }
+
+    private sealed class DictionaryContentBodyStore : IContentBodyStore
+    {
+        private readonly IReadOnlyDictionary<string, string> _bodies;
+
+        public DictionaryContentBodyStore(IReadOnlyDictionary<string, string> bodies)
+        {
+            _bodies = bodies;
+        }
+
+        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody(_bodies[item.Id]));
+    }
+
+    private sealed class RenderConcurrencyProbe
+    {
+        private int _current;
+        private int _maxObserved;
+
+        public int MaxObserved => _maxObserved;
+
+        public void Enter()
+        {
+            var current = Interlocked.Increment(ref _current);
+            int observed;
+            do
+            {
+                observed = _maxObserved;
+                if (current <= observed)
+                {
+                    break;
+                }
+            }
+            while (Interlocked.CompareExchange(ref _maxObserved, current, observed) != observed);
+        }
+
+        public void Exit() => Interlocked.Decrement(ref _current);
+    }
+
+    private sealed class ProbeTemplateRenderer : ITemplateRenderer
+    {
+        private readonly RenderConcurrencyProbe _probe;
+
+        public ProbeTemplateRenderer(RenderConcurrencyProbe probe)
+        {
+            _probe = probe;
+        }
+
+        public string RenderPage(string templateRelativePath, PageModel model)
+        {
+            _probe.Enter();
+            try
+            {
+                Thread.Sleep(50);
+                return "<html><body>page</body></html>";
+            }
+            finally
+            {
+                _probe.Exit();
+            }
+        }
+
+        public string RenderList(string templateRelativePath, ListPageModel model)
+            => "<html><body>list</body></html>";
     }
 
     [Fact]
@@ -633,6 +726,112 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_CleanRefusesDirectoryWithoutBukitMarker()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-clean-marker-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            Directory.CreateDirectory(Path.Combine(root, "dist"));
+            File.WriteAllText(Path.Combine(root, "dist", "user-file.txt"), "keep");
+            File.WriteAllText(Path.Combine(root, "content", "a.md"), """
+                ---
+                type: page
+                title: A
+                slug: a
+                ---
+                # A
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/" },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Contains("marker", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.True(File.Exists(Path.Combine(root, "dist", "user-file.txt")));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_MultiLanguageBuildRespectsGlobalConcurrencyBudget()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-i18n-concurrency", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+
+            var items = Enumerable.Range(1, 6)
+                .Select(i => new ContentItem(
+                    $"item-{i}",
+                    $"Item {i}",
+                    $"item-{i}",
+                    DateTimeOffset.UtcNow,
+                    $"<p>Item {i}</p>",
+                    new Dictionary<string, object> { ["type"] = "page" }))
+                .ToList();
+            var bodyStore = new DictionaryContentBodyStore(items.ToDictionary(x => x.Id, x => x.ContentHtml ?? string.Empty, StringComparer.Ordinal));
+            var concurrency = new RenderConcurrencyProbe();
+            var engine = new SiteEngine(
+                new TestLogger(),
+                new StaticContentProviderFactory(new ContentLoadResult(items, bodyStore)),
+                new DefaultSearchIndexBuilder(),
+                _ => new ProbeTemplateRenderer(concurrency));
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "T",
+                    Language = "en",
+                    DefaultLanguage = "en",
+                    Languages = new[] { "en", "fr", "de" },
+                    BaseUrl = "/"
+                },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            await engine.BuildAsync(config, root, new ConfigOverrides { Jobs = 2 }, CancellationToken.None);
+
+            Assert.True(concurrency.MaxObserved <= 2, $"Expected max concurrency <= 2, observed {concurrency.MaxObserved}.");
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_SeoInjectMode_I18nPagesEmitMutualHreflang()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-seo-i18n-test", Guid.NewGuid().ToString("N"));
@@ -918,6 +1117,339 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_IncrementalBuildDeletesRemovedPluginOutputs()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-plugin-output-delete", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "content", "a.md"), """
+                ---
+                type: page
+                title: A
+                slug: a
+                ---
+                # A
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+
+            var config = CreatePluginOutputConfig("success");
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            var pluginOutput = Path.Combine(root, "dist", "plugin-output.json");
+            Assert.True(File.Exists(pluginOutput));
+
+            var incrementalConfig = CreatePluginOutputConfig("no-output") with { Build = config.Build with { Clean = false } };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false }, CancellationToken.None);
+
+            Assert.False(File.Exists(pluginOutput));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_IncrementalBuildDeletesRemovedStaticFiles()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-static-delete", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            Directory.CreateDirectory(Path.Combine(root, "static"));
+            File.WriteAllText(Path.Combine(root, "content", "a.md"), """
+                ---
+                type: page
+                title: A
+                slug: a
+                ---
+                # A
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+            File.WriteAllText(Path.Combine(root, "static", "keep.txt"), "keep");
+            File.WriteAllText(Path.Combine(root, "static", "removed.txt"), "remove");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en" },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts", Static = "static" }
+            };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            var removedOutput = Path.Combine(root, "dist", "removed.txt");
+            Assert.True(File.Exists(Path.Combine(root, "dist", "keep.txt")));
+            Assert.True(File.Exists(removedOutput));
+
+            File.Delete(Path.Combine(root, "static", "removed.txt"));
+            var incrementalConfig = config with { Build = config.Build with { Clean = false } };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false }, CancellationToken.None);
+
+            Assert.True(File.Exists(Path.Combine(root, "dist", "keep.txt")));
+            Assert.False(File.Exists(removedOutput));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_IncrementalBuildDeletesRemovedThemeAssets()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-asset-delete", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            Directory.CreateDirectory(Path.Combine(root, "assets"));
+            File.WriteAllText(Path.Combine(root, "content", "a.md"), """
+                ---
+                type: page
+                title: A
+                slug: a
+                ---
+                # A
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+            File.WriteAllText(Path.Combine(root, "assets", "keep.css"), "keep");
+            File.WriteAllText(Path.Combine(root, "assets", "removed.css"), "remove");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en" },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts", Assets = "assets" }
+            };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            var removedOutput = Path.Combine(root, "dist", "assets", "removed.css");
+            Assert.True(File.Exists(Path.Combine(root, "dist", "assets", "keep.css")));
+            Assert.True(File.Exists(removedOutput));
+
+            File.Delete(Path.Combine(root, "assets", "removed.css"));
+            var incrementalConfig = config with { Build = config.Build with { Clean = false } };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false }, CancellationToken.None);
+
+            Assert.True(File.Exists(Path.Combine(root, "dist", "assets", "keep.css")));
+            Assert.False(File.Exists(removedOutput));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_IncrementalBuildRerendersWhenPartialChanges()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-partial-change", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "partials"));
+            File.WriteAllText(Path.Combine(root, "content", "a.md"), """
+                ---
+                type: page
+                title: A
+                slug: a
+                ---
+                # A
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ include 'partials/badge.html' }} {{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+            File.WriteAllText(Path.Combine(root, "layouts", "partials", "badge.html"), "Before");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en" },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            var outputPath = Path.Combine(root, "dist", "pages", "a", "index.html");
+            Assert.Contains("Before", File.ReadAllText(outputPath));
+
+            File.WriteAllText(Path.Combine(root, "layouts", "partials", "badge.html"), "After");
+            var incrementalConfig = config with { Build = config.Build with { Clean = false } };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false }, CancellationToken.None);
+
+            Assert.Contains("After", File.ReadAllText(outputPath));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_IncrementalBuildDeletesRemovedPages()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-incr-delete", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "content", "a.md"), """
+                ---
+                type: post
+                title: A
+                slug: a
+                ---
+                # A
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "b.md"), """
+                ---
+                type: post
+                title: B
+                slug: b
+                ---
+                # B
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "T",
+                    BaseUrl = "/",
+                    Language = "en",
+                    Collections = new Dictionary<string, CollectionConfig>
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/blog/{slug}/",
+                            Template = "pages/post.html"
+                        }
+                    }
+                },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            var removedOutput = Path.Combine(root, "dist", "blog", "b", "index.html");
+            Assert.True(File.Exists(removedOutput));
+
+            File.Delete(Path.Combine(root, "content", "b.md"));
+            var incrementalConfig = config with { Build = config.Build with { Clean = false } };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false }, CancellationToken.None);
+
+            Assert.False(File.Exists(removedOutput));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_IncrementalBuildDeletesRemovedMediaFiles()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-media-delete", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, ".cache", "media", "posts", "2026"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "content", "a.md"), """
+                ---
+                type: page
+                title: A
+                slug: a
+                ---
+                # A
+                """);
+            File.WriteAllText(Path.Combine(root, ".cache", "media", "cover.png"), "cover");
+            File.WriteAllText(Path.Combine(root, ".cache", "media", "posts", "2026", "article-cover.png"), "article");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en" },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            var removedOutput = Path.Combine(root, "dist", "assets", "uploads", "posts", "2026", "article-cover.png");
+            Assert.True(File.Exists(Path.Combine(root, "dist", "assets", "uploads", "cover.png")));
+            Assert.True(File.Exists(removedOutput));
+
+            File.Delete(Path.Combine(root, ".cache", "media", "posts", "2026", "article-cover.png"));
+            var incrementalConfig = config with { Build = config.Build with { Clean = false } };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false }, CancellationToken.None);
+
+            Assert.True(File.Exists(Path.Combine(root, "dist", "assets", "uploads", "cover.png")));
+            Assert.False(File.Exists(removedOutput));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_ContentSourceCollectionMappings_RenderCustomRoutesAndListTemplates()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
@@ -1139,6 +1671,133 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_StaticHtmlRouteConflictsWithContentRoute_FailsBeforeWrite()
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "static"));
+            File.WriteAllText(Path.Combine(root, "content", "about.md"), """
+                ---
+                type: page
+                title: About Content
+                slug: about-content
+                route:
+                  url: /about/
+                  outputPath: content-about/index.html
+                  template: pages/page.html
+                ---
+                # About Content
+                """);
+            File.WriteAllText(Path.Combine(root, "static", "about.html"), "<main>Static About</main>");
+
+            var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Contains("Route conflict on url", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("static", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("/about/", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_StaticHtmlOutputPathConflictsWithContentRoute_FailsWithBothSources()
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "static"));
+            File.WriteAllText(Path.Combine(root, "content", "about.md"), """
+                ---
+                type: page
+                title: About Content
+                slug: about-content
+                route:
+                  url: /content-about/
+                  outputPath: about/index.html
+                  template: pages/page.html
+                ---
+                # About Content
+                """);
+            File.WriteAllText(Path.Combine(root, "static", "about.html"), "<main>Static About</main>");
+
+            var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Contains("Route conflict on outputPath", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("static", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("/about/", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("about/index.html", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_ChildThemeAssetsOverrideParentThemeAssets()
+    {
+        var root = CreateThemeInheritanceSite(createChildAssets: true, createChildStatic: false);
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "themes", "parent", "assets", "main.css"), "parent");
+            File.WriteAllText(Path.Combine(root, "themes", "child", "assets", "main.css"), "child");
+
+            await new SiteEngine(new TestLogger()).BuildAsync(CreateThemeInheritanceConfig(), root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.Equal("child", File.ReadAllText(Path.Combine(root, "dist", "assets", "main.css")));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_ChildThemeStaticOverrideParentThemeStatic()
+    {
+        var root = CreateThemeInheritanceSite(createChildAssets: false, createChildStatic: true);
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "themes", "parent", "static", "robots.txt"), "parent");
+            File.WriteAllText(Path.Combine(root, "themes", "child", "static", "robots.txt"), "child");
+
+            await new SiteEngine(new TestLogger()).BuildAsync(CreateThemeInheritanceConfig(), root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.Equal("child", File.ReadAllText(Path.Combine(root, "dist", "robots.txt")));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_ParentThemeAssetsAreCopiedWhenChildHasNoAssets()
+    {
+        var root = CreateThemeInheritanceSite(createChildAssets: false, createChildStatic: false);
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "themes", "parent", "assets", "main.css"), "parent");
+
+            await new SiteEngine(new TestLogger()).BuildAsync(CreateThemeInheritanceConfig(), root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.Equal("parent", File.ReadAllText(Path.Combine(root, "dist", "assets", "main.css")));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_DerivedPageContentConflict_FailsWithFailPolicy()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
@@ -1302,6 +1961,94 @@ public sealed class SiteEngineIntegrationTests
         }
     }
 
+    private static string CreateThemeInheritanceSite(bool createChildAssets, bool createChildStatic)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-theme-inheritance-test", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "content"));
+        Directory.CreateDirectory(Path.Combine(root, "themes", "parent", "assets"));
+        Directory.CreateDirectory(Path.Combine(root, "themes", "parent", "static"));
+        Directory.CreateDirectory(Path.Combine(root, "themes", "parent", "layouts", "pages"));
+        Directory.CreateDirectory(Path.Combine(root, "themes", "child", "layouts", "pages"));
+        if (createChildAssets)
+        {
+            Directory.CreateDirectory(Path.Combine(root, "themes", "child", "assets"));
+        }
+
+        if (createChildStatic)
+        {
+            Directory.CreateDirectory(Path.Combine(root, "themes", "child", "static"));
+        }
+
+        File.WriteAllText(Path.Combine(root, "content", "hello.md"), """
+            ---
+            type: page
+            title: Hello
+            slug: hello
+            ---
+            # Hello
+            """);
+        File.WriteAllText(Path.Combine(root, "themes", "parent", "layouts", "pages", "page.html"), "{{ page.title }}");
+        File.WriteAllText(Path.Combine(root, "themes", "parent", "layouts", "pages", "index.html"), "Index");
+        File.WriteAllText(Path.Combine(root, "themes", "parent", "layouts", "pages", "list.html"), "List");
+        File.WriteAllText(Path.Combine(root, "themes", "child", "theme.yaml"), """
+            name: child
+            extends: parent
+            """);
+        return root;
+    }
+
+    private static AppConfig CreatePluginOutputConfig(string mode)
+        => new()
+        {
+            Site = new SiteConfig
+            {
+                Name = "t",
+                Title = "T",
+                BaseUrl = "/",
+                Language = "en",
+                PluginFailMode = "strict",
+                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sample"] = new()
+                    {
+                        Runtime = "process",
+                        Entry = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet",
+                        Hooks = new[] { "after-build" },
+                        TimeoutMs = 5000,
+                        Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["processArgs"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                ["positionals"] = new object[] { Path.Combine(AppContext.BaseDirectory, "ProtocolEchoPlugin.dll"), mode }
+                            }
+                        }
+                    }
+                }
+            },
+            Content = new ContentConfig
+            {
+                Provider = "markdown",
+                Markdown = new MarkdownConfig { Dir = "content" },
+                Media = new MediaConfig { DownloadToLocal = false }
+            },
+            Build = new BuildConfig { Output = "dist", Clean = true },
+            Theme = new ThemeConfig { Layouts = "layouts" }
+        };
+
+    private static AppConfig CreateThemeInheritanceConfig()
+        => new()
+        {
+            Site = new SiteConfig { Name = "t", Title = "T" },
+            Content = new ContentConfig
+            {
+                Provider = "markdown",
+                Markdown = new MarkdownConfig { Dir = "content" },
+                Media = new MediaConfig { DownloadToLocal = false }
+            },
+            Build = new BuildConfig { Output = "dist", Clean = true },
+            Theme = new ThemeConfig { Name = "child", Extends = "parent" }
+        };
+
     private static string CreateRouteConflictSite()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-route-conflict-test", Guid.NewGuid().ToString("N"));
@@ -1311,6 +2058,7 @@ public sealed class SiteEngineIntegrationTests
         File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
         File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
         File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+        File.WriteAllText(Path.Combine(root, "layouts", "pages", "static.html"), "{{ page.content }}");
         return root;
     }
 
@@ -1325,7 +2073,7 @@ public sealed class SiteEngineIntegrationTests
                 Media = new MediaConfig { DownloadToLocal = false }
             },
             Build = new BuildConfig { Output = "dist", Clean = true },
-            Theme = new ThemeConfig { Layouts = "layouts" }
+            Theme = new ThemeConfig { Layouts = "layouts", StaticTemplate = "pages/static.html" }
         };
 
     private static int CountOccurrences(string text, string value)

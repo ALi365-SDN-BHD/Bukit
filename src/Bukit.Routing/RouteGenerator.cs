@@ -34,16 +34,16 @@ public static class RouteGenerator
     {
         if (TryReadFullRouteOverride(item, outputPathEncoding, out var overridden))
         {
-            return new RouteGenerationResult(overridden, RouteSource.FullOverride);
+            return new RouteGenerationResult(ValidateRoute(overridden, item), RouteSource.FullOverride);
         }
 
         var (baseRoute, baseSource) = GenerateBaseRouteWithSource(item, outputPathEncoding, permalinks, collections);
         if (TryApplyPartialRouteOverride(item, outputPathEncoding, baseRoute, out var partialOverride))
         {
-            return new RouteGenerationResult(partialOverride, RouteSource.PartialOverride);
+            return new RouteGenerationResult(ValidateRoute(partialOverride, item), RouteSource.PartialOverride);
         }
 
-        return new RouteGenerationResult(baseRoute, baseSource);
+        return new RouteGenerationResult(ValidateRoute(baseRoute, item), baseSource);
     }
 
     private static RouteInfo BuildFromPattern(ContentItem item, string pattern, string template, string outputPathEncoding)
@@ -53,6 +53,13 @@ public static class RouteGenerator
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
 
         return new RouteInfo(url, outputPath, template);
+    }
+
+    private static RouteInfo ValidateRoute(RouteInfo route, ContentItem item)
+    {
+        RouteSecurityValidator.ValidateInternalUrl(route.Url, $"route.url for {item.Slug}");
+        RouteSecurityValidator.ValidateOutputPath(route.OutputPath, $"route.outputPath for {item.Slug}");
+        return route;
     }
 
     public static string ExpandPermalinkPattern(string pattern, ContentItem item)
@@ -113,15 +120,17 @@ public static class RouteGenerator
     {
         if (TryGetRouteFields(item.Meta, out var url, out var outputPath, out var template))
         {
-            url = RoutePathBuilder.NormalizeUrl(url);
-            outputPath = RoutePathBuilder.NormalizeOutputPath(outputPath, outputPathEncoding);
-            template = template.Trim();
-
             if (!string.IsNullOrWhiteSpace(url) &&
                 !string.IsNullOrWhiteSpace(outputPath) &&
                 !string.IsNullOrWhiteSpace(template))
             {
-                route = new RouteInfo(url, outputPath, template);
+                RouteSecurityValidator.ValidateInternalUrl(url, $"route.url for {item.Slug}");
+                var normalizedOutputPath = RoutePathBuilder.NormalizeOutputPath(outputPath, outputPathEncoding);
+                RouteSecurityValidator.ValidateOutputPath(normalizedOutputPath, $"route.outputPath for {item.Slug}");
+                route = new RouteInfo(
+                    RoutePathBuilder.NormalizeUrl(url),
+                    normalizedOutputPath,
+                    template.Trim());
                 return true;
             }
         }
@@ -133,18 +142,20 @@ public static class RouteGenerator
     private static bool TryApplyPartialRouteOverride(ContentItem item, string outputPathEncoding, RouteInfo baseRoute, out RouteInfo route)
     {
         route = default!;
-        if (!TryGetPartialRouteFields(item.Meta, out var url, out _, out var template))
+        if (!TryGetPartialRouteFields(item.Meta, out var url, out var outputPathOverride, out var template))
         {
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            return false;
-        }
-
-        var normalizedUrl = RoutePathBuilder.NormalizeUrl(url);
-        var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(normalizedUrl, outputPathEncoding);
+        var useOutputPathOverride = !string.IsNullOrWhiteSpace(outputPathOverride) && HasNestedRouteMap(item.Meta);
+        var normalizedUrl = string.IsNullOrWhiteSpace(url)
+            ? baseRoute.Url
+            : RoutePathBuilder.NormalizeUrl(url);
+        var outputPath = useOutputPathOverride
+            ? RoutePathBuilder.NormalizeOutputPath(outputPathOverride, outputPathEncoding)
+            : string.IsNullOrWhiteSpace(url)
+                ? baseRoute.OutputPath
+                : RoutePathBuilder.BuildOutputPathFromUrl(normalizedUrl, outputPathEncoding);
         var effectiveTemplate = string.IsNullOrWhiteSpace(template) ? baseRoute.Template : template.Trim();
         route = new RouteInfo(normalizedUrl, outputPath, effectiveTemplate);
         return true;
@@ -204,6 +215,9 @@ public static class RouteGenerator
     {
         return map.TryGetValue(key, out var v) && v is string s ? s : string.Empty;
     }
+
+    private static bool HasNestedRouteMap(IReadOnlyDictionary<string, object> meta)
+        => meta.TryGetValue("route", out var routeObj) && routeObj is IReadOnlyDictionary<string, object>;
 
     private static string GetType(ContentItem item)
     {

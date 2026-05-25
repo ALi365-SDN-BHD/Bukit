@@ -2,8 +2,9 @@ namespace Bukit.Engine.Plugins.Protocol;
 
 internal static class ProtocolOutputWriter
 {
-    internal static void WriteOutputs(string outputDir, IReadOnlyList<AfterBuildOutputFile> outputs)
+    internal static IReadOnlyList<string> WriteOutputs(string outputDir, IReadOnlyList<AfterBuildOutputFile> outputs)
     {
+        var written = new List<string>();
         foreach (var output in outputs)
         {
             if (string.IsNullOrWhiteSpace(output.Path))
@@ -47,6 +48,10 @@ internal static class ProtocolOutputWriter
             {
                 File.WriteAllText(fullPath, output.Text ?? string.Empty);
             }
+
+            written.Add(output.Path.Replace('\\', '/').TrimStart('/'));
         }
+
+        return written;
     }
 }

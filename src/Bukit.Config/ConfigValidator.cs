@@ -268,6 +268,12 @@ public static class ConfigValidator
             throw new ConfigException("build.listPageContentMode must be auto|always|never.");
         }
 
+        var assetHashMode = (config.Build.AssetHashMode ?? "size-time").Trim().ToLowerInvariant();
+        if (assetHashMode is not ("size-time" or "sha256"))
+        {
+            throw new ConfigException("build.assetHashMode must be size-time|sha256.");
+        }
+
         var loggingLevel = (config.Logging.Level ?? "info").Trim().ToLowerInvariant();
         if (loggingLevel is not ("debug" or "info" or "warn" or "error"))
         {
@@ -581,6 +587,16 @@ public static class ConfigValidator
             if (plugin.TimeoutMs <= 0)
             {
                 throw new ConfigException($"site.externalPlugins.{name}.timeoutMs must be a positive integer.");
+            }
+
+            if (plugin.MaxStdoutBytes <= 0)
+            {
+                throw new ConfigException($"site.externalPlugins.{name}.maxStdoutBytes must be a positive integer.");
+            }
+
+            if (plugin.MaxStderrBytes <= 0)
+            {
+                throw new ConfigException($"site.externalPlugins.{name}.maxStderrBytes must be a positive integer.");
             }
 
             if (runtime == "process")

@@ -7,6 +7,10 @@ public sealed class BuildManifest
     public int Version { get; set; } = 2;
     public string TemplateHash { get; set; } = string.Empty;
     public Dictionary<string, BuildManifestEntry> Entries { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, string> Media { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, string> Assets { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, string> Static { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, string> PluginOutputs { get; set; } = new(StringComparer.Ordinal);
 
     public static BuildManifest Load(string manifestPath)
     {
@@ -64,6 +68,11 @@ public sealed class BuildManifest
                 }
             }
 
+            ReadTrackedFileSet(root, "media", manifest.Media);
+            ReadTrackedFileSet(root, "assets", manifest.Assets);
+            ReadTrackedFileSet(root, "static", manifest.Static);
+            ReadTrackedFileSet(root, "pluginOutputs", manifest.PluginOutputs);
+
             return manifest;
         }
         catch (Exception ex) when (ex is FileNotFoundException or JsonException or IOException)
@@ -107,6 +116,11 @@ public sealed class BuildManifest
                 }
 
                 writer.WriteEndObject();
+
+                WriteTrackedFileSet(writer, "media", Media);
+                WriteTrackedFileSet(writer, "assets", Assets);
+                WriteTrackedFileSet(writer, "static", Static);
+                WriteTrackedFileSet(writer, "pluginOutputs", PluginOutputs);
                 writer.WriteEndObject();
                 writer.Flush();
             }
@@ -118,6 +132,32 @@ public sealed class BuildManifest
             try { File.Delete(tempPath); } catch { }
             throw;
         }
+    }
+
+    private static void ReadTrackedFileSet(JsonElement root, string propertyName, Dictionary<string, string> target)
+    {
+        if (!root.TryGetProperty(propertyName, out var prop) || prop.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        foreach (var item in prop.EnumerateObject())
+        {
+            target[item.Name] = item.Value.ValueKind == JsonValueKind.String
+                ? item.Value.GetString() ?? string.Empty
+                : string.Empty;
+        }
+    }
+
+    private static void WriteTrackedFileSet(Utf8JsonWriter writer, string propertyName, Dictionary<string, string> values)
+    {
+        writer.WriteStartObject(propertyName);
+        foreach (var kv in values.OrderBy(x => x.Key, StringComparer.Ordinal))
+        {
+            writer.WriteString(kv.Key, kv.Value);
+        }
+
+        writer.WriteEndObject();
     }
 
     private static string? GetString(JsonElement obj, string name)

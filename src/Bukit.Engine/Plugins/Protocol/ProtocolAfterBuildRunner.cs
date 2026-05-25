@@ -63,7 +63,20 @@ internal sealed class ProtocolAfterBuildRunner
             context.Logger.Info($"plugin {pluginName} {log.Level}: {log.Message}");
         }
 
-        ProtocolOutputWriter.WriteOutputs(context.OutputDir, response.Outputs ?? Array.Empty<AfterBuildOutputFile>());
+        var writtenOutputs = ProtocolOutputWriter.WriteOutputs(context.OutputDir, response.Outputs ?? Array.Empty<AfterBuildOutputFile>());
+        if (writtenOutputs.Count > 0)
+        {
+            if (!context.Data.TryGetValue("__plugin_outputs", out var outputsObj) || outputsObj is not HashSet<string> outputs)
+            {
+                outputs = new HashSet<string>(StringComparer.Ordinal);
+                context.Data["__plugin_outputs"] = outputs;
+            }
+
+            foreach (var output in writtenOutputs)
+            {
+                outputs.Add(output);
+            }
+        }
     }
 
     private Task<ProtocolPluginInvocationResult> InvokeAsync(

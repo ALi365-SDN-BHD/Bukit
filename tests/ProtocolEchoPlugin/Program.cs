@@ -22,9 +22,36 @@ if (mode == "invalid")
     return;
 }
 
+if (mode == "no-output")
+{
+    Console.Out.Write("""{"ok":true,"outputs":[]}""");
+    return;
+}
+
 if (mode == "traversal")
 {
     Console.Out.Write("""{"ok":true,"outputs":[{"path":"../escape.json","contentType":"application/json","text":"{}"}]}""");
+    return;
+}
+
+if (mode == "env")
+{
+    var openAi = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? string.Empty;
+    var github = Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? string.Empty;
+    var pluginName = Environment.GetEnvironmentVariable("BUKIT_PLUGIN_NAME") ?? string.Empty;
+    Console.Out.Write($$"""{"ok":true,"outputs":[{"path":"plugin-output.json","contentType":"application/json","text":"{\"openAi\":\"{{openAi}}\",\"github\":\"{{github}}\",\"pluginName\":\"{{pluginName}}\"}"}]}""");
+    return;
+}
+
+if (mode == "large-stdout")
+{
+    Console.Out.Write(new string('x', 4096));
+    return;
+}
+
+if (mode == "large-stderr")
+{
+    Console.Error.Write(new string('x', 4096));
     return;
 }
 
