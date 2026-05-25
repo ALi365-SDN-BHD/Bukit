@@ -44,62 +44,63 @@ public sealed class SiteEngine
 
     public async Task BuildAsync(IContentProvider provider, BuildOptions options, CancellationToken cancellationToken = default)
     {
-        if (options.Clean && Directory.Exists(options.OutputDir))
+        var fullOutputDir = Path.GetFullPath(options.OutputDir);
+        var rootDir = Path.GetDirectoryName(fullOutputDir) ?? ".";
+        var outputDirName = Path.GetFileName(fullOutputDir);
+
+        var config = BuildOptionsToConfig(options, outputDirName);
+        var overrides = new ConfigOverrides { IsCI = options.IsCI, Incremental = false };
+        var factory = new FixedContentProviderFactory(provider, _contentProviderFactory);
+        var orchestrator = new SiteBuildOrchestrator(_logger, factory, _searchIndexBuilder, _rendererFactory);
+        var pipeline = new BuildPipeline(orchestrator.BuildCoreAsync);
+        await pipeline.ExecuteAsync(new BuildPipelineContext(config, rootDir, overrides), cancellationToken);
+    }
+
+    private static AppConfig BuildOptionsToConfig(BuildOptions options, string outputDirName)
+    {
+        return new AppConfig
         {
-            Directory.Delete(options.OutputDir, recursive: true);
-        }
-
-        Directory.CreateDirectory(options.OutputDir);
-
-        var baseUrl = BuildPathUtils.NormalizeBaseUrl(options.BaseUrl);
-        var loadResult = await provider.LoadAsync(cancellationToken);
-        var items = loadResult.Items;
-        var bodyStore = loadResult.BodyStore;
-
-        _logger.Info($"Loaded content: {items.Count}");
-
-        var routed = items
-            .Select(i => (Item: i, Route: RouteGenerator.Generate(i, options.OutputPathEncoding)))
-            .ToList();
-
-        var warnedOutputPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (item, route) in routed)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            BuildPathUtils.WarnIfWindowsIncompatible(route.OutputPath, warnedOutputPaths, _logger);
-            var html = BuildPathUtils.RenderSimplePage(baseUrl, item.Title, route.Url, await ContentBodyResolver.GetHtmlAsync(item, bodyStore, cancellationToken));
-            FileWriter.WriteUtf8(options.OutputDir, route.OutputPath, html);
-        }
-
-        FileWriter.WriteUtf8(options.OutputDir, "index.html", BuildPathUtils.RenderSimpleIndex(baseUrl, routed));
-        FileWriter.WriteUtf8(options.OutputDir, Path.Combine("blog", "index.html"), BuildPathUtils.RenderSimpleIndex(baseUrl, routed.Where(x => x.Route.Url.StartsWith("/blog/", StringComparison.OrdinalIgnoreCase)).ToList(), "Blog"));
-        FileWriter.WriteUtf8(options.OutputDir, Path.Combine("pages", "index.html"), BuildPathUtils.RenderSimpleIndex(baseUrl, routed.Where(x => x.Route.Url.StartsWith("/pages/", StringComparison.OrdinalIgnoreCase)).ToList(), "Pages"));
-
-        if (!string.IsNullOrWhiteSpace(options.AssetsDir))
-        {
-            DirectoryCopy.Sync(options.AssetsDir, Path.Combine(options.OutputDir, "assets"));
-        }
-
-        if (!string.IsNullOrWhiteSpace(options.SiteUrl) && options.GenerateSitemap)
-        {
-            var metaRoutes = new List<(RouteInfo Route, DateTimeOffset LastModified)>(capacity: routed.Count + 3)
+            Site = new SiteConfig
             {
-                (new RouteInfo("/", "index.html", "pages/index.html"), DateTimeOffset.UtcNow),
-                (new RouteInfo("/blog/", Path.Combine("blog", "index.html"), "pages/index.html"), DateTimeOffset.UtcNow),
-                (new RouteInfo("/pages/", Path.Combine("pages", "index.html"), "pages/index.html"), DateTimeOffset.UtcNow)
-            };
+                Name = options.SiteTitle,
+                Title = options.SiteTitle,
+                Language = "en",
+                BaseUrl = options.BaseUrl,
+                Url = options.SiteUrl,
+                OutputPathEncoding = options.OutputPathEncoding,
+                Seo = new SeoConfig { Enabled = false }
+            },
+            Build = new BuildConfig
+            {
+                Output = outputDirName,
+                Clean = options.Clean
+            },
+            Content = new ContentConfig { Provider = "markdown" }
+        };
+    }
 
-            metaRoutes.AddRange(routed.Select(x => (x.Route, x.Item.PublishAt)));
-            SitemapGenerator.Generate(options.OutputDir, options.SiteUrl, baseUrl, metaRoutes);
-        }
+    private sealed class FixedContentProviderFactory : IContentProviderFactory
+    {
+        private readonly IContentProvider _provider;
+        private readonly IContentProviderFactory _fallback;
 
-        if (!string.IsNullOrWhiteSpace(options.SiteUrl) && options.GenerateRss)
+        internal FixedContentProviderFactory(IContentProvider provider, IContentProviderFactory fallback)
         {
-            RssGenerator.Generate(options.OutputDir, options.SiteUrl, baseUrl, options.SiteTitle, null, routed, bodyStore);
+            _provider = provider;
+            _fallback = fallback;
         }
 
-        _logger.Info($"Build completed: {Path.GetFullPath(options.OutputDir)}");
+        public IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger)
+            => _provider;
+
+        public Task<ContentLoadResult> LocalizeContentImagesAsync(
+            ContentLoadResult result,
+            MediaConfig media,
+            string rootDir,
+            string cacheDir,
+            ILogger logger,
+            CancellationToken cancellationToken)
+            => _fallback.LocalizeContentImagesAsync(result, media, rootDir, cacheDir, logger, cancellationToken);
     }
 
     // Retained for test backward compatibility (reflection-based tests)
