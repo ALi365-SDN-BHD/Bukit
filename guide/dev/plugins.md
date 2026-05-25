@@ -24,6 +24,14 @@ Generates additional files after all pages are rendered.
 3. **external**: Runtime `plugins/*.dll` loading (Non-AOT only)
 4. **external-protocol**: `stdin/stdout + JSON` protocol plugins (AOT-compatible)
 
+## external-protocol Security
+
+External protocol plugins run with **environment isolation**: host environment variables are cleared, and only `BUKIT_PLUGIN_NAME`, `BUKIT_PLUGIN_HOOK`, `BUKIT_PROJECT_ROOT`, and `BUKIT_OUTPUT_DIR` are injected. Use `allowEnvironment` in `site.externalPlugins` to explicitly expose additional host variables.
+
+Output limits (`maxStdoutBytes` / `maxStderrBytes`) cap plugin stdout/stderr; exceeding the limit kills the process. All plugin outputs are tracked in the build manifest with plugin/hook/path/hash metadata, and stale outputs from previous builds are automatically cleaned during incremental builds.
+
+See [External Plugin Protocol](./external-plugin-protocol.md) for the full request/response schema and protocol negotiation details.
+
 ## generated Discovery
 
 Types implementing `IBukitPlugin`, namespace starts with `Bukit.Plugins.`, decorated with `[BukitPlugin]`.

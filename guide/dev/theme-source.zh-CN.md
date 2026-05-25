@@ -30,12 +30,34 @@ https://github.com/user/theme.git@abc1234   # commit hash
 https://github.com/user/theme.git           # 默认 main/master 分支
 ```
 
-未指定版本时，每次构建执行 `git pull` 获取最新。
+未指定版本时，使用默认分支。
 
-## 缓存机制
+## 缓存与可复现性
 
 - 首次使用：`git clone` 到 `.cache/themes/{repo-name}/`
-- 后续构建：若指定版本标签，`git checkout` 切换；否则 `git pull` 更新
+- 后续构建：已缓存的主题**不会**自动更新（不执行 `git pull`）。复用已检出的 commit——这确保了构建的可复现性。
+- 指定 `@ref` 时，Bukit 检出该精确 tag/分支并记录解析后的 commit。
+- 版本 tag 不存在时，构建立即失败（不会静默回退到其他分支）。
+
+## 主题锁文件
+
+成功检出后，Bukit 在本地缓存目录写入 `bukit-theme.lock.json`：
+
+```json
+{
+  "themes": [
+    {
+      "source": "https://github.com/user/theme.git",
+      "ref": "v1.0.0",
+      "commit": "abc123def456..."
+    }
+  ]
+}
+```
+
+后续构建时，Bukit 会校验检出 commit 与锁文件记录的 commit 是否一致。如果不一致，构建失败——这防止了意外的远程主题变更。
+
+更新锁定主题：删除缓存目录或锁文件后重新构建。
 
 ## 与本地主题的优先级
 

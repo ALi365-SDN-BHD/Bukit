@@ -25,7 +25,7 @@ description: Use when using bukit to create or modify site.yaml, asking about th
 |------|------|---------|
 | `site` | Site metadata and global behavior | name, title, url, baseUrl, language, collections, plugins, externalPlugins, feed, sitemapDetail, related, menus, search, pagination |
 | `content` | Content source definition | provider (notion/markdown), sources, media |
-| `build` | Build behavior | output, clean, draft, listPageContentMode |
+| `build` | Build behavior | output, clean, draft, listPageContentMode, assetHashMode |
 | `theme` | Theme configuration | name, layouts, assets, static, params |
 | `taxonomy` | Taxonomy configuration | template, kinds, pageSize, outputMode |
 | `logging` | Log level | level (debug/info/warn/error) |
@@ -191,7 +191,7 @@ theme:
 | `externalProtocolIncludeRoutedPages` | bool | false | Whether external protocol plugins receive routed pages |
 | `collections` | map | — | Collection route definitions |
 | `plugins` | map | — | Plugin toggles (`{pluginName: {enabled: false}}`). Key `feed` replaces old `rss` |
-| `externalPlugins` | map | — | External plugin configuration |
+| `externalPlugins` | map | — | External plugin configuration. Each entry supports `runtime`, `entry`, `hooks`, `timeoutMs`, `maxStdoutBytes`/`maxStderrBytes` (output byte limits), and `allowEnvironment` (list of host env vars to expose). |
 | `feed` | map | — | Feed config: `formats`, `limit`, `path` |
 | `sitemapDetail` | map | — | Sitemap detail: `defaultPriority`, `defaultChangefreq`, `imageEnabled`, `videoEnabled` |
 | `related` | map | — | Related content: `enabled`, `threshold`, `limit`, `indices` |
@@ -282,16 +282,18 @@ content:
 | Field | Type | Default | Description |
 |------|------|--------|------|
 | `output` | string | `dist` | Output directory (relative path, must not contain `..`) |
-| `clean` | bool | true | Whether to clear output directory before build |
+| `clean` | bool | true | Whether to clear output directory before build. When enabled, Bukit first checks that the output directory contains a `.bukit-output-marker` file (written on every successful build). Directories without this marker are never cleaned — this prevents accidental deletion of non-Bukit directories. Bukit also refuses to clean the project root, home directory, filesystem root, or `.git` directories. |
 | `draft` | bool | false | Whether to render drafts (pages with draft: true) |
 | `listPageContentMode` | string | `auto` | List page content mode: `auto`/`always`/`never` |
 | `schemaFailMode` | string | `warn` | Schema validation failure behavior: `warn` or `strict` |
+| `assetHashMode` | string | — | Asset copy comparison mode. `"sha256"` uses SHA256 content hashing to decide whether a file needs re-copying (recommended for CI and network/remote filesystems). Default (empty/omitted) uses file size + last-write-time comparison. |
 
 ### theme Node
 
 | Field | Type | Default | Description |
 |------|------|--------|------|
 | `name` | string | — | Theme name (corresponds to `themes/<name>/`) |
+| `source` | string | — | Remote theme Git URL with optional version, e.g., `https://github.com/user/theme.git@v1.0.0`. The theme is cloned to a local cache on first build and **not** automatically updated on subsequent builds (reproducible builds). A `bukit-theme.lock.json` file records the resolved commit for each `source@ref`. |
 | `layouts` | string | `layouts` | Template subdirectory name |
 | `assets` | string | `assets` | Asset subdirectory name (SCSS, etc. that need processing) |
 | `static` | string | `static` | Static file subdirectory name (copied directly) |

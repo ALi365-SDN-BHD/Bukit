@@ -288,3 +288,20 @@ SEO berkaitan: [11 Pelbagai Bahasa & SEO](./11-i18n-seo.ms.md)
 - CSS/sumber 404: sering disebabkan oleh `site.baseUrl` salah konfigurasi atau templat tidak menambah baseUrl (lihat: [13 Terap GitHub Pages](./13-deploy-github-pages.ms.md))
 - Medan kosong: templat membaca `page.fields.xxx` tetapi kandungan tidak menyediakan medan tersebut → tambah medan dalam kandungan atau tambah pelindung `if`
 - `p.content` kosong dalam halaman senarai: tidak semestinya kerana kandungan tidak dimuatkan; mungkin `build.listPageContentMode` adalah `never`, atau tema semasa tidak mengisytiharkan bahawa templat senarai memerlukan kandungan badan
+
+## Tema Jauh (Sumber Git)
+
+Bukit menyokong pengambilan tema terus dari repositori Git:
+
+```yaml
+theme:
+  source: https://github.com/user/theme.git@v1.0.0
+```
+
+- **Binaan pertama**: repositori diklon ke dalam cache setempat.
+- **Binaan seterusnya**: tema yang telah dicache TIDAK dikemas kini secara automatik — ini memastikan binaan boleh dihasilkan semula.
+- **Penetapan versi**: tentukan tag atau cawangan dengan `@ref`; Bukit melakukan checkout ke rujukan tepat tersebut.
+- **Fail kunci**: `bukit-theme.lock.json` merekodkan commit yang diselesaikan. Jika commit cache berbeza dari fail kunci, binaan gagal (mencegah perubahan jauh yang tidak dijangka).
+- **Mengemas kini**: padam direktori cache atau fail kunci untuk memaksa klon semula.
+
+Ini amat berguna untuk saluran CI/CD dan persekitaran pasukan di mana konsistensi versi tema penting.

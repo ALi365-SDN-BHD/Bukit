@@ -167,3 +167,48 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 - 主题模板是否读取了 `site.modules`（对照示例主题）
 
 详见：[09-Modules-结构化数据](./09-modules-data.zh-CN.md)。
+
+## 症状 7：clean 拒绝删除输出目录
+
+症状：
+
+- `build --clean` 失败，提示"output directory clean refused"
+- 输出目录没有被删除
+
+原因：Bukit 现在要求输出目录中存在 `.bukit-output-marker` 文件才允许清理。这防止了意外删除非 Bukit 目录（如项目根目录、home 目录、`.git` 目录）。
+
+修复：
+
+- 如果目录是 Bukit 创建的：先运行一次完整构建（会写入 marker），再 clean。
+- 如果目录不是 Bukit 输出：手动删除，或选择其他输出目录。
+- 如果 `build.output` 指向了一个已有的非 Bukit 目录：将 `build.output` 改为专有目录。
+
+## 症状 8：插件 stdout/stderr 超限
+
+症状：
+
+- 构建失败，提示"stdout limit exceeded"或"stderr limit exceeded"
+- 某个外部插件进程被杀死
+
+原因：外部插件产生的输出超过了配置的 `maxStdoutBytes` / `maxStderrBytes` 上限。
+
+修复：
+
+- 在 `site.externalPlugins.<name>.maxStdoutBytes` / `maxStderrBytes` 中增大限制。
+- 或删除该配置字段以允许无限制输出。
+- 排查插件为何产生大量输出——可能是插件本身的 bug。
+
+## 症状 9：主题锁文件 commit 不匹配
+
+症状：
+
+- 构建失败，提示"Theme lock mismatch for ... locked commit ..., current commit ..."
+- 之前正常工作的远程主题现在失败
+
+原因：远程主题（`theme.source`）之前构建时被锁定到了某个 Git commit。缓存的主题与 `bukit-theme.lock.json` 记录的 commit 不一致。
+
+修复：
+
+- 删除主题的本地缓存目录和锁文件，重新构建以重新克隆。
+- 或只删除锁文件以强制重新校验。
+- 如果是有意更新了主题，需要重新生成锁文件。

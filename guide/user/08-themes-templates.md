@@ -283,3 +283,20 @@ SEO-related advice: [11 Multilingual & SEO](./11-i18n-seo.md) and the `seo-best-
 - CSS/resource 404: often caused by `site.baseUrl` misconfiguration or templates not prepending baseUrl (see: [13 Deploy GitHub Pages](./13-deploy-github-pages.md))
 - Empty field: template reads `page.fields.xxx` but the content does not provide that field → add the field in the content or add `if` guards
 - `p.content` is empty in list pages: not necessarily because the content isn't loaded; it could be that `build.listPageContentMode` is `never`, or the current theme hasn't declared that the list template needs body content
+
+## Remote Themes (Git Source)
+
+Bukit supports sourcing themes directly from Git repositories:
+
+```yaml
+theme:
+  source: https://github.com/user/theme.git@v1.0.0
+```
+
+- **First build**: the repository is cloned into a local cache.
+- **Subsequent builds**: cached themes are NOT automatically updated — this ensures reproducible builds.
+- **Version pinning**: specify a tag or branch with `@ref`; Bukit checks out that exact ref.
+- **Lock file**: `bukit-theme.lock.json` records the resolved commit. If the cached commit differs from the lock file, the build fails (prevents unexpected remote changes).
+- **Updating**: delete the cache directory or the lock file to force a fresh clone.
+
+This is especially useful for CI/CD pipelines and team environments where theme version consistency matters.

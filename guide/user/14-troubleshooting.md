@@ -140,3 +140,48 @@ Diagnosis checklist:
 
 See: [09 Modules Structured Data](./09-modules-data.md).
 
+## Symptom 7: Clean Refuses to Delete Output Directory
+
+Symptoms:
+
+- `build --clean` fails with "output directory clean refused"
+- The output directory is not deleted
+
+Cause: Bukit now requires a `.bukit-output-marker` file in the output directory before cleaning. This prevents accidental deletion of non-Bukit directories (e.g., project root, home directory, `.git`).
+
+Fix:
+
+- If the directory was created by Bukit: run a full build first (it writes the marker), then clean.
+- If the directory is not a Bukit output: manually delete it or choose a different output directory.
+- If you're pointing `build.output` to an existing non-Bukit directory: change `build.output` to a dedicated directory.
+
+## Symptom 8: Plugin stdout/stderr Limit Exceeded
+
+Symptoms:
+
+- Build fails with "stdout limit exceeded" or "stderr limit exceeded"
+- An external plugin process is killed during build
+
+Cause: The external plugin produced more output than the configured `maxStdoutBytes` or `maxStderrBytes` limit.
+
+Fix:
+
+- Increase the limit in `site.externalPlugins.<name>.maxStdoutBytes` / `maxStderrBytes`.
+- Or remove the limit (delete the config field) to allow unlimited output.
+- Investigate why the plugin is producing excessive output — it may indicate a bug.
+
+## Symptom 9: Theme Lock Commit Mismatch
+
+Symptoms:
+
+- Build fails with "Theme lock mismatch for ... locked commit ..., current commit ..."
+- A remote theme that worked before now fails
+
+Cause: A remote theme (`theme.source`) was previously built and locked to a specific Git commit. The cached theme now has a different commit than the one recorded in `bukit-theme.lock.json`.
+
+Fix:
+
+- Delete the theme's local cache directory and the lock file, then rebuild to re-clone.
+- Or delete just the lock file to force re-verification.
+- If you intentionally updated the theme, the lock file needs to be regenerated.
+

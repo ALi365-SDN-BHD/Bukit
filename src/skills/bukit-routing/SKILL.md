@@ -189,6 +189,29 @@ route:
 - Path separators auto-converted to `\` on Windows
 - Encoding applied per `site.outputPathEncoding` before writing to disk
 
+## Route Security
+
+All generated routes and output paths go through `RouteSecurityValidator` which rejects:
+
+| Pattern | Example | Reason |
+|---------|---------|--------|
+| Parent directory traversal | `../` , `..\` | Path escape |
+| Absolute paths | `/tmp/evil.txt` | Filesystem escape |
+| Cross-drive paths (Windows) | `C:\evil.txt` | Drive escape |
+| Windows reserved names | `CON`, `PRN`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9` | OS reserved |
+
+This validation applies to: content page routes, collection list routes, derived page routes (pagination/archive/taxonomy), static HTML routes, and external plugin output paths. A route or output path that fails validation causes an immediate build error.
+
+## Static HTML Route Conflicts
+
+Static HTML files (`.html` files in the `static/` directory) are automatically assigned routes during build. For example:
+- `static/about.html` → route `/about/`
+- `static/docs/index.html` → route `/docs/`
+
+These static HTML routes are included in the full route inventory and participate in conflict detection alongside content pages and derived pages. If a static HTML file generates a route that conflicts with a content page, the build fails according to `deriveConflictPolicy` rules.
+
+Empty `.html` filenames (e.g., `.html`) are skipped with a warning and do not pollute the route inventory.
+
 ## Route Conflict Detection
 
 Bukit validates route uniqueness at two points during the build, and via `bukit doctor`.

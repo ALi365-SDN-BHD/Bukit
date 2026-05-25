@@ -57,6 +57,7 @@ logging:
 | `site.timezone` | 时区（影响日期展示与一些默认行为） | `Asia/Shanghai` |
 | `site.pluginFailMode` | 插件失败策略 | `strict` / `warn` |
 | `site.plugins` | 插件开关与插件参数 | `sitemap: false` 或 `path-report: { enabled: true, options: {...} }` |
+| `site.externalPlugins` | 外部进程插件配置 | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`。同时支持 `maxStdoutBytes`/`maxStderrBytes`（输出限制）、`allowEnvironment`（环境透传）、`timeoutMs`。 |
 | `site.autoSummary` | 未提供 summary 时是否从正文提取摘要 | `true` / `false` |
 | `site.autoSummaryMaxLength` | 自动摘要最大长度（字符数） | `200` |
 | `site.outputPathEncoding` | 输出路径编码策略（处理中文/特殊字符） | `none` / `slug` / `urlencode` / `sanitize` |
@@ -364,6 +365,7 @@ theme 支持的完整字段：
 | 字段 | 类型 | 示例 | 说明 |
 |---|---|---|---|
 | `name` | 字符串 | `alt` | 主题名（对应 `themes/<name>/`） |
+| `source` | 字符串 | `https://github.com/user/theme.git@v1.0.0` | 远程主题 Git URL（可选版本标签）。本地缓存；后续构建不会自动 pull（可复现）。`bukit-theme.lock.json` 记录已解析的 commit。 |
 | `params` | 映射 | `{brand: my-site}` | 传递给主题的自定义参数 |
 | `layouts` | 字符串 | `layouts` | 自定义布局模板目录 |
 | `assets` | 字符串 | `assets` | 自定义资源目录（SCSS/JS/图片） |

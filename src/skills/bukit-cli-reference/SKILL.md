@@ -107,7 +107,7 @@ bukit build [--config <path>] [--output <dir>] [--base-url <url>] [--draft] [--c
 | `--output` | Override output directory |
 | `--base-url` | Override site baseUrl |
 | `--site-url` | Override site URL (used for sitemap/RSS absolute links) |
-| `--clean` / `--no-clean` | Force enable/disable pre-build clean |
+| `--clean` / `--no-clean` | Force enable/disable pre-build clean. When clean is enabled, Bukit verifies the output directory contains a `.bukit-output-marker` file (written on every successful build) before deleting it. Directories without this marker are not cleaned — this prevents accidental deletion of non-Bukit directories. |
 | `--draft` | Include content marked as draft |
 | `--ci` | CI mode (log level auto-set to warn) |
 | `--incremental` / `--no-incremental` | Enable/disable incremental build |

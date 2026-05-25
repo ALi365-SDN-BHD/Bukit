@@ -57,6 +57,7 @@ Common fields (the ones users edit most often):
 | `site.timezone` | Time zone (affects date display and some default behavior) | `Asia/Shanghai` |
 | `site.pluginFailMode` | Plugin failure policy | `strict` / `warn` |
 | `site.plugins` | Plugin switches and plugin parameters | `sitemap: false` or `path-report: { enabled: true, options: {...} }` |
+| `site.externalPlugins` | External process plugin config | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`. Also supports `maxStdoutBytes`/`maxStderrBytes` (output limits), `allowEnvironment` (env passthrough), `timeoutMs`. |
 | `site.autoSummary` | Whether to extract a summary from the body when `summary` is not provided | `true` / `false` |
 | `site.autoSummaryMaxLength` | Maximum auto-summary length (characters) | `200` |
 | `site.outputPathEncoding` | Output path encoding strategy (for Chinese/special characters) | `none` / `slug` / `urlencode` / `sanitize` |
@@ -364,6 +365,7 @@ Complete fields supported by `theme`:
 | Field | Type | Example | Description |
 |---|---|---|---|
 | `name` | String | `alt` | Theme name (corresponds to `themes/<name>/`) |
+| `source` | String | `https://github.com/user/theme.git@v1.0.0` | Remote theme Git URL with optional version tag. Cached locally; subsequent builds do NOT auto-pull (reproducible). A `bukit-theme.lock.json` records the resolved commit. |
 | `params` | Map | `{brand: my-site}` | Custom parameters passed to the theme |
 | `layouts` | String | `layouts` | Custom layout template directory |
 | `assets` | String | `assets` | Custom asset directory (SCSS/JS/images) |

@@ -168,10 +168,49 @@ site:
 
 - `outputs.path` 必须是相对输出目录的相对路径
 - 不允许绝对路径
-- 不允许 `..` 越界
-- 主程序统一负责真正写文件
 
-这意味着插件不能直接决定写到任意磁盘位置。
+## 7. 环境隔离
+
+插件进程运行在干净的环境中——**不会**继承宿主环境变量。仅注入以下 Bukit 变量：
+
+| 变量 | 说明 |
+|---|---|
+| `BUKIT_PLUGIN_NAME` | 插件名（来自 `site.externalPlugins` 键名） |
+| `BUKIT_PLUGIN_HOOK` | 当前 hook：`derive-pages` 或 `after-build` |
+| `BUKIT_PROJECT_ROOT` | 站点项目根目录的绝对路径 |
+| `BUKIT_OUTPUT_DIR` | 构建输出目录的绝对路径 |
+
+如需暴露额外的宿主环境变量，使用 `allowEnvironment`：
+
+```yaml
+site:
+  externalPlugins:
+    sample:
+      runtime: process
+      entry: plugins/plugin.exe
+      hooks: [after-build]
+      allowEnvironment:
+        - PATH
+        - HOME
+```
+
+## 8. 输出限制
+
+为防止插件输出过量 stdout/stderr，可设置字节上限：
+
+```yaml
+site:
+  externalPlugins:
+    sample:
+      maxStdoutBytes: 1048576   # 1 MB
+      maxStderrBytes: 262144    # 256 KB
+```
+
+超出限制时，Bukit 会 kill 插件进程并使构建失败。默认（未设置）为不限制。
+
+## 9. 插件输出清单
+
+外部插件写入的每个文件都会被记录在构建清单中。增量构建时，前后对比中不再产生的旧输出文件会被**自动删除**（stale output cleanup）。
 
 ## 7. 与 failMode 的关系
 

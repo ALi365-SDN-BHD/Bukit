@@ -1,4 +1,4 @@
-﻿# Bukit Developer Guide (Maintenance and Extension)
+# Bukit Developer Guide (Maintenance and Extension)
 
 Language versions: English (current) | [绠€浣撲腑鏂嘳(./README.zh-CN.md) | [Bahasa Melayu](./README.ms.md)
 
@@ -35,8 +35,9 @@ If you maintain Bukit in a skill-aware environment such as Trae, Claude Code, Co
 - [Routing system](./routing.md)
 - [Rendering and templates (Scriban)](./rendering-scriban.md)
 - [Theme development](./theme.md)
+- [Git theme source](./theme-source.md)
 - [Modules data source (`mode=data`)](./modules-data.md)
-- [Engine fixed outputs (Chinese)](./engine-outputs.zh-CN.md)
+- [Engine fixed outputs](./engine-outputs.md)
 - [Plugin system](./plugins.md)
 - [Built-in plugin outputs and boundaries](./built-in-plugins.md)
 - [Intent CLI integration](./intent-cli.md)
@@ -44,7 +45,7 @@ If you maintain Bukit in a skill-aware environment such as Trae, Claude Code, Co
 - [Performance/AOT/governance notes](./perf-aot-governance.md)
 - [Publish and deploy](./publish-deploy.md)
 - [Incremental build](./incremental-build.md)
-- [Cache and clean (Chinese)](./cache-clean.zh-CN.md)
+- [Cache and clean](./cache-clean.md)
 - [Doctor checks (Chinese)](./doctor.zh-CN.md)
 - [Observability (logs and metrics)](./observability.md)
 - [I18n and SEO](./i18n-seo.md)

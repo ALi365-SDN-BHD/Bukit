@@ -39,6 +39,49 @@ site:
 - `outputs.path` mesti relatif kepada direktori output (tiada laluan mutlak, tiada `..`)
 - Hos bertanggungjawab sepenuhnya untuk penulisan fail sebenar
 
+## Pengasingan Persekitaran
+
+Proses plugin berjalan dalam persekitaran bersih — pemboleh ubah persekitaran hos **tidak** diwarisi. Hanya pemboleh ubah Bukit berikut disuntik:
+
+| Pemboleh Ubah | Penerangan |
+|---|---|
+| `BUKIT_PLUGIN_NAME` | Nama plugin (dari kunci `site.externalPlugins`) |
+| `BUKIT_PLUGIN_HOOK` | Hook semasa: `derive-pages` atau `after-build` |
+| `BUKIT_PROJECT_ROOT` | Laluan mutlak ke direktori akar projek tapak |
+| `BUKIT_OUTPUT_DIR` | Laluan mutlak ke direktori output binaan |
+
+Untuk mendedahkan pemboleh ubah persekitaran hos tambahan, gunakan `allowEnvironment`:
+
+```yaml
+site:
+  externalPlugins:
+    sample:
+      runtime: process
+      entry: plugins/plugin.exe
+      hooks: [after-build]
+      allowEnvironment:
+        - PATH
+        - HOME
+```
+
+## Had Output
+
+Untuk mengehadkan plugin yang menghasilkan stdout/stderr berlebihan, tetapkan had bait:
+
+```yaml
+site:
+  externalPlugins:
+    sample:
+      maxStdoutBytes: 1048576   # 1 MB
+      maxStderrBytes: 262144    # 256 KB
+```
+
+Apabila had melebihi, Bukit membunuh proses plugin dan menggagalkan binaan dengan mesej ralat yang jelas. Lalai (tidak ditetapkan) adalah tanpa had.
+
+## Manifes Output Plugin
+
+Setiap fail yang ditulis oleh plugin luaran dikesan dalam manifes binaan. Semasa binaan tambahan, output dari binaan sebelumnya yang tidak lagi dihasilkan akan **dipadam secara automatik** (pembersihan output lapuk).
+
 ## Sokongan WASM
 - `runtime: wasm`, `wasmProfile: wasi-preview1`
 - `wasmFsMode`: `none|output-only`, `wasmAllowNetwork` hanya membenarkan `false`

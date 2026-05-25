@@ -58,6 +58,49 @@ Or on failure: `{ "ok": false, "error": { "code": "PLUGIN_ERROR", "message": "..
 - `outputs.path` must be relative to output directory (no absolute paths, no `..`)
 - Host is solely responsible for actual file writes
 
+## Environment Isolation
+
+The plugin process runs in a clean environment — host environment variables are **not** inherited. Only these Bukit-injected variables are exposed:
+
+| Variable | Description |
+|---|---|
+| `BUKIT_PLUGIN_NAME` | Plugin name (from `site.externalPlugins` key) |
+| `BUKIT_PLUGIN_HOOK` | Current hook: `derive-pages` or `after-build` |
+| `BUKIT_PROJECT_ROOT` | Absolute path to the site project root |
+| `BUKIT_OUTPUT_DIR` | Absolute path to the build output directory |
+
+To expose additional host environment variables, use `allowEnvironment`:
+
+```yaml
+site:
+  externalPlugins:
+    sample:
+      runtime: process
+      entry: plugins/plugin.exe
+      hooks: [after-build]
+      allowEnvironment:
+        - PATH
+        - HOME
+```
+
+## Output Limits
+
+To cap runaway plugins that produce excessive stdout/stderr, set byte limits:
+
+```yaml
+site:
+  externalPlugins:
+    sample:
+      maxStdoutBytes: 1048576   # 1 MB
+      maxStderrBytes: 262144    # 256 KB
+```
+
+When either limit is exceeded, Bukit kills the plugin process and fails the build with a clear error message. Default (unset) is unlimited.
+
+## Plugin Output Manifest
+
+Every file written by external plugins is tracked in the build manifest. During incremental builds, outputs from the previous build that are no longer produced are **automatically deleted** (stale output cleanup).
+
 ## Protocol Negotiation (v2)
 - After-build first sends `hook=handshake`
 - Successful negotiation returns `negotiatedSchemaVersion=2`

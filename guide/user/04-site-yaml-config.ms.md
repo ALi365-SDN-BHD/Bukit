@@ -57,6 +57,7 @@ Medan lazim (yang paling kerap diubah oleh pengguna):
 | `site.timezone` | Zon waktu (mempengaruhi paparan tarikh dan beberapa tingkah laku lalai) | `Asia/Shanghai` |
 | `site.pluginFailMode` | Strategi kegagalan plugin | `strict` / `warn` |
 | `site.plugins` | Suis plugin dan parameter plugin | `sitemap: false` atau `path-report: { enabled: true, options: {...} }` |
+| `site.externalPlugins` | Konfigurasi plugin proses luaran | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`. Juga menyokong `maxStdoutBytes`/`maxStderrBytes` (had output), `allowEnvironment` (laluan env), `timeoutMs`. |
 | `site.autoSummary` | Sama ada mengekstrak ringkasan daripada kandungan badan apabila `summary` tidak disediakan | `true` / `false` |
 | `site.autoSummaryMaxLength` | Panjang maksimum ringkasan automatik (bilangan aksara) | `200` |
 | `site.outputPathEncoding` | Strategi pengekodan laluan output (mengendalikan aksara Cina/khas) | `none` / `slug` / `urlencode` / `sanitize` |
@@ -295,10 +296,11 @@ Perkara penting:
 | Medan | Fungsi | Contoh Lazim |
 |---|---|---|
 | `build.output` | Direktori output | `dist` |
-| `build.clean` | Sama ada membersihkan direktori output sebelum binaan | `true` |
+| `build.clean` | Sama ada membersihkan direktori output sebelum binaan | `true` (memerlukan fail `.bukit-output-marker`; menolak membersihkan direktori bukan Bukit) |
 | `build.draft` | Sama ada merender kandungan draf | `false` (lalai) |
 | `build.listPageContentMode` | Strategi pemasangan `pages[*].content` dalam halaman senarai | `auto` |
 | `build.schemaFailMode` | Tingkah laku apabila pengesahan Schema gagal | `warn` / `strict` |
+| `build.assetHashMode` | Mod perbandingan salinan aset | `"sha256"` (gunakan hash kandungan SHA256) atau lalai (saiz + masa) |
 
 Parameter CLI setara:
 
@@ -351,6 +353,7 @@ Medan lengkap yang disokong oleh `theme`:
 | Medan | Jenis | Contoh | Penerangan |
 |---|---|---|---|
 | `name` | rentetan | `alt` | Nama tema (sepadan dengan `themes/<name>/`) |
+| `source` | rentetan | `https://github.com/user/theme.git@v1.0.0` | URL Git tema jauh dengan tag versi pilihan. Disimpan dalam cache setempat; binaan seterusnya TIDAK auto-pull (boleh dihasilkan semula). `bukit-theme.lock.json` merekodkan commit yang diselesaikan. |
 | `params` | peta | `{brand: my-site}` | Parameter tersuai yang dihantar kepada tema |
 | `layouts` | rentetan | `layouts` | Direktori templat layout tersuai |
 | `assets` | rentetan | `assets` | Direktori aset tersuai (SCSS/JS/imej) |
