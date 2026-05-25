@@ -102,35 +102,4 @@ public sealed class SiteEngine
             CancellationToken cancellationToken)
             => _fallback.LocalizeContentImagesAsync(result, media, rootDir, cacheDir, logger, cancellationToken);
     }
-
-    // Retained for test backward compatibility (reflection-based tests)
-    // These delegates are intentionally kept on SiteEngine to avoid breaking
-    // SiteEngineHelperTests which use BindingFlags to discover private methods.
-
-    private static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)
-    {
-        return SiteBuildOrchestrator.BuildCollectionRules(site);
-    }
-
-    private static BuildStageMetricsCollector MergeStageMetrics(BuildStageMetricsCollector collector, BuildStageMetrics metrics)
-    {
-        foreach (var kv in metrics.DurationsMs)
-        {
-            collector.AddDuration(kv.Key, kv.Value);
-        }
-
-        foreach (var kv in metrics.Counts)
-        {
-            collector.Increment(kv.Key, kv.Value);
-        }
-
-        return collector;
-    }
-
-    private static IReadOnlyList<SeoAlternateModel>? GetSeoAlternates(
-        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> alternates,
-        string key)
-    {
-        return SeoPipeline.GetSeoAlternates(alternates, key);
-    }
 }

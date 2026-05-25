@@ -376,7 +376,7 @@ internal sealed class SiteBuildOrchestrator
             ListHtmlPostProcessor: seoResult.ListHtmlPostProcessor),
             cancellationToken);
 
-        variantStageMetrics = MergeStageMetrics(variantStageMetrics, renderPipelineResult.StageMetrics);
+        variantStageMetrics.Merge(renderPipelineResult.StageMetrics);
 
         var renderedCount = renderPipelineResult.RenderedCount;
         var skippedCount = renderPipelineResult.SkippedCount;
@@ -412,7 +412,7 @@ internal sealed class SiteBuildOrchestrator
             CurrentKeys: currentKeys),
             cancellationToken);
 
-        variantStageMetrics = MergeStageMetrics(variantStageMetrics, assetPipelineResult.StageMetrics);
+        variantStageMetrics.Merge(assetPipelineResult.StageMetrics);
 
         var pluginPipelineResult = await new PluginPipeline().ExecuteAsync(new PluginPipelineContext(
             PluginContext: pluginContext,
@@ -427,7 +427,7 @@ internal sealed class SiteBuildOrchestrator
             Logger: log,
             Config: config),
             cancellationToken);
-        variantStageMetrics = MergeStageMetrics(variantStageMetrics, pluginPipelineResult.StageMetrics);
+        variantStageMetrics.Merge(pluginPipelineResult.StageMetrics);
 
         variantTotalStopwatch.Stop();
         variantStageMetrics.AddDuration("variantTotal", variantTotalStopwatch.ElapsedMilliseconds);
@@ -452,21 +452,6 @@ internal sealed class SiteBuildOrchestrator
             StageMetrics: variantStageMetrics.Snapshot(),
             Logger: log,
             DefaultLanguage: ctx.DefaultLanguage));
-    }
-
-    private static BuildStageMetricsCollector MergeStageMetrics(BuildStageMetricsCollector collector, BuildStageMetrics metrics)
-    {
-        foreach (var kv in metrics.DurationsMs)
-        {
-            collector.AddDuration(kv.Key, kv.Value);
-        }
-
-        foreach (var kv in metrics.Counts)
-        {
-            collector.Increment(kv.Key, kv.Value);
-        }
-
-        return collector;
     }
 
     private static IReadOnlyDictionary<string, object>? MergeSiteData(

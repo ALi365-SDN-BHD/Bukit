@@ -62,4 +62,19 @@ internal sealed class BuildStageMetricsCollector
             new Dictionary<string, long>(_durationsMs, StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, int>(_counts, StringComparer.OrdinalIgnoreCase));
     }
+
+    internal BuildStageMetricsCollector Merge(BuildStageMetrics metrics)
+    {
+        foreach (var kv in metrics.DurationsMs)
+        {
+            AddDuration(kv.Key, kv.Value);
+        }
+
+        foreach (var kv in metrics.Counts)
+        {
+            Increment(kv.Key, kv.Value);
+        }
+
+        return this;
+    }
 }

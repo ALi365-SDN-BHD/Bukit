@@ -12,6 +12,8 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SiteEngineHelperExtendedTests
 {
+    private static readonly Type SeoServiceType = typeof(SeoAlternatesService);
+
     private static T? InvokeStatic<T>(Type type, string methodName, params object?[] args)
     {
         var method = type.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
@@ -26,17 +28,11 @@ public sealed class SiteEngineHelperExtendedTests
         return method!.Invoke(null, args);
     }
 
-    private static T? InvokeSiteEngine<T>(string methodName, params object?[] args)
-        => InvokeStatic<T>(typeof(SiteEngine), methodName, args);
-
-    private static object? InvokeSiteEngine(string methodName, params object?[] args)
-        => InvokeStatic(typeof(SiteEngine), methodName, args);
-
     private static T? InvokeSeoService<T>(string methodName, params object?[] args)
-        => InvokeStatic<T>(typeof(SeoAlternatesService), methodName, args);
+        => InvokeStatic<T>(SeoServiceType, methodName, args);
 
     private static object? InvokeSeoService(string methodName, params object?[] args)
-        => InvokeStatic(typeof(SeoAlternatesService), methodName, args);
+        => InvokeStatic(SeoServiceType, methodName, args);
 
     private static T? InvokeRobotsTxt<T>(string methodName, params object?[] args)
         => InvokeStatic<T>(typeof(RobotsTxtWriter), methodName, args);
@@ -362,7 +358,7 @@ public sealed class SiteEngineHelperExtendedTests
         };
         var key = "/test";
 
-        var result = InvokeSiteEngine<IReadOnlyList<SeoAlternateModel>?>("GetSeoAlternates", alternates, key);
+        var result = SeoPipeline.GetSeoAlternates(alternates, key);
 
         Assert.NotNull(result);
         Assert.Equal(2, result!.Count);
@@ -377,7 +373,7 @@ public sealed class SiteEngineHelperExtendedTests
         };
         var key = "/nonexistent";
 
-        var result = InvokeSiteEngine<IReadOnlyList<SeoAlternateModel>?>("GetSeoAlternates", alternates, key);
+        var result = SeoPipeline.GetSeoAlternates(alternates, key);
 
         Assert.Null(result);
     }

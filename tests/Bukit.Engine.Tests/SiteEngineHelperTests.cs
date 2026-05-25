@@ -10,7 +10,6 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SiteEngineHelperTests
 {
-    private static readonly Type SiteEngineType = typeof(SiteEngine);
     private static readonly Type SeoServiceType = typeof(SeoAlternatesService);
 
     private static object InvokePrivateStatic(Type type, string methodName, params object[] args)
@@ -24,12 +23,6 @@ public sealed class SiteEngineHelperTests
     {
         return (T)InvokePrivateStatic(type, methodName, args);
     }
-
-    private static object InvokeSiteEngine(string methodName, params object[] args)
-        => InvokePrivateStatic(SiteEngineType, methodName, args);
-
-    private static T InvokeSiteEngine<T>(string methodName, params object[] args)
-        => InvokePrivateStatic<T>(SiteEngineType, methodName, args);
 
     private static object InvokeSeoService(string methodName, params object[] args)
         => InvokePrivateStatic(SeoServiceType, methodName, args);
@@ -316,7 +309,7 @@ public sealed class SiteEngineHelperTests
     {
         var site = new SiteConfig { Name = "t", Title = "t", Collections = null };
 
-        var result = InvokeSiteEngine<IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>?>("BuildCollectionRules", site);
+        var result = SiteBuildOrchestrator.BuildCollectionRules(site);
 
         Assert.Null(result);
     }
@@ -331,7 +324,7 @@ public sealed class SiteEngineHelperTests
             Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
         };
 
-        var result = InvokeSiteEngine<IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>?>("BuildCollectionRules", site);
+        var result = SiteBuildOrchestrator.BuildCollectionRules(site);
 
         Assert.Null(result);
     }
@@ -353,7 +346,7 @@ public sealed class SiteEngineHelperTests
             }
         };
 
-        var result = InvokeSiteEngine<IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>?>("BuildCollectionRules", site);
+        var result = SiteBuildOrchestrator.BuildCollectionRules(site);
 
         Assert.NotNull(result);
         Assert.True(result!.ContainsKey("post"));
@@ -403,7 +396,7 @@ public sealed class SiteEngineHelperTests
                 ["assets"] = 10
             });
 
-        var result = InvokeSiteEngine<BuildStageMetricsCollector>("MergeStageMetrics", collector, metrics);
+        var result = collector.Merge(metrics);
 
         Assert.Same(collector, result);
         var snapshot = collector.Snapshot();
@@ -424,8 +417,8 @@ public sealed class SiteEngineHelperTests
             new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase) { ["load"] = 50, ["render"] = 75 },
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["pages"] = 2, ["errors"] = 1 });
 
-        InvokeSiteEngine<BuildStageMetricsCollector>("MergeStageMetrics", collector, metrics1);
-        InvokeSiteEngine<BuildStageMetricsCollector>("MergeStageMetrics", collector, metrics2);
+        collector.Merge(metrics1);
+        collector.Merge(metrics2);
 
         var snapshot = collector.Snapshot();
         Assert.Equal(150, snapshot.DurationsMs["load"]);
