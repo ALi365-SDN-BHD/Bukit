@@ -401,19 +401,21 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
-    public void Generate_IndividualOverride_IncompleteUrlOnly_DerivesOutputPath()
+    public void Generate_RouteOverride_IncompleteUrlAndOutputPath_DerivesTemplate()
     {
         var meta = new Dictionary<string, object>
         {
-            ["url"] = "/only-url/",
-            ["outputPath"] = "out/index.html"
-            // template missing
+            ["route"] = new Dictionary<string, object>
+            {
+                ["url"] = "/only-url/",
+                ["outputPath"] = "out/index.html"
+            }
         };
         var item = Item("fallback", meta);
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("/only-url/", route.Url);
-        Assert.Equal("only-url/index.html", route.OutputPath);
+        Assert.Equal("out/index.html", route.OutputPath);
         Assert.Equal("pages/page.html", route.Template);
     }
 

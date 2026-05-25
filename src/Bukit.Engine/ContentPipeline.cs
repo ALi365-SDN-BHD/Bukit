@@ -37,7 +37,7 @@ public sealed class ContentPipeline
         {
             var before = items.Count;
             items = items.Where(i =>
-                !(i.Meta.TryGetValue("draft", out var d) && d is true or "true" or "True")).ToList();
+                !(i.Meta.TryGetValue("draft", out var d) && ValueCoercion.IsTruthy(d))).ToList();
             if (items.Count < before)
             {
                 _logger.Info($"event=content.draft_filtered removed={before - items.Count}");

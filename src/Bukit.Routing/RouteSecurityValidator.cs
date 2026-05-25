@@ -31,6 +31,58 @@ public static class RouteSecurityValidator
         {
             Fail("URL must be an internal path", value, source);
         }
+
+        ValidateUrlPathSegments(value, source);
+    }
+
+    private static void ValidateUrlPathSegments(string url, string? source)
+    {
+        var pathPart = url;
+        var queryIndex = pathPart.IndexOf('?');
+        if (queryIndex >= 0)
+        {
+            pathPart = pathPart[..queryIndex];
+        }
+
+        var fragmentIndex = pathPart.IndexOf('#');
+        if (fragmentIndex >= 0)
+        {
+            pathPart = pathPart[..fragmentIndex];
+        }
+
+        foreach (var segment in pathPart.Split('/'))
+        {
+            if (segment.Length == 0)
+            {
+                continue;
+            }
+
+            if (segment is "." or "..")
+            {
+                Fail("Path segment must not traverse directories", url, source);
+            }
+
+            string decoded;
+            try
+            {
+                decoded = Uri.UnescapeDataString(segment);
+            }
+            catch
+            {
+                Fail("Path segment must contain valid percent-encoding", url, source);
+                return;
+            }
+
+            if (decoded is "." or "..")
+            {
+                Fail("Path segment must not traverse directories", url, source);
+            }
+
+            if (decoded.Contains('/') || decoded.Contains('\\'))
+            {
+                Fail("Path segment must not contain encoded slashes", url, source);
+            }
+        }
     }
 
     public static void ValidateOutputPath(string outputPath, string? source = null)

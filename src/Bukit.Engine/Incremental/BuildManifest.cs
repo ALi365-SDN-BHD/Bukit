@@ -61,7 +61,8 @@ public sealed class BuildManifest
                         MetadataHash = GetString(entryEl, "metadataHash") ?? string.Empty,
                         ContentHash = GetString(entryEl, "contentHash") ?? string.Empty,
                         RouteHash = GetString(entryEl, "routeHash") ?? string.Empty,
-                        TemplateHash = GetString(entryEl, "templateHash") ?? string.Empty
+                        TemplateHash = GetString(entryEl, "templateHash") ?? string.Empty,
+                        RenderDependencyHash = GetString(entryEl, "renderDependencyHash") ?? string.Empty
                     };
 
                     manifest.Entries[key] = entry;
@@ -112,6 +113,7 @@ public sealed class BuildManifest
                     writer.WriteString("contentHash", kv.Value.ContentHash);
                     writer.WriteString("routeHash", kv.Value.RouteHash);
                     writer.WriteString("templateHash", kv.Value.TemplateHash);
+                    writer.WriteString("renderDependencyHash", kv.Value.RenderDependencyHash);
                     writer.WriteEndObject();
                 }
 
@@ -239,5 +241,6 @@ public sealed class BuildManifestEntry
     public string ContentHash { get; set; } = string.Empty;
     public string RouteHash { get; set; } = string.Empty;
     public string TemplateHash { get; set; } = string.Empty;
+    public string RenderDependencyHash { get; set; } = string.Empty;
 }
 

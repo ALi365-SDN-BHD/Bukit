@@ -6,12 +6,27 @@ public sealed record DirectoryCopyOptions
 {
     public string HashMode { get; init; } = "size-time";
     public bool Prune { get; init; }
-    public bool IgnoreDotPrefixedFiles { get; init; }
+    public bool IgnoreDotPrefixedFiles { get; init; } = true;
+    public IReadOnlySet<string>? DotfileAllowList { get; init; }
+    public IReadOnlySet<string>? DotfileDenyList { get; init; }
 }
 
 public static class DirectoryCopy
 {
-    public static void Copy(string sourceDir, string destinationDir)
+    private static readonly HashSet<string> DefaultDotfileDenyList = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".env", ".git", ".github", ".svn", ".hg", ".DS_Store", "Thumbs.db",
+        ".npmrc", ".yarnrc"
+    };
+
+    private static readonly string[] DefaultDotfileDenyExtensions = { ".pem", ".key", ".pfx", ".p12" };
+
+    private static readonly HashSet<string> DefaultDotfileAllowList = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".well-known"
+    };
+
+    public static void Copy(string sourceDir, string destinationDir, string? outputRoot = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -23,22 +38,36 @@ public static class DirectoryCopy
         foreach (var file in Directory.GetFiles(sourceDir))
         {
             var name = Path.GetFileName(file);
+            if (ShouldSkipDotfile(name))
+            {
+                continue;
+            }
+
             var dest = Path.Combine(destinationDir, name);
+            if (outputRoot is not null)
+            {
+                FileWriter.GetSafeFullPath(outputRoot, Path.GetRelativePath(outputRoot, dest));
+            }
             File.Copy(file, dest, overwrite: true);
         }
 
         foreach (var dir in Directory.GetDirectories(sourceDir))
         {
             var name = Path.GetFileName(dir);
+            if (ShouldSkipDotfile(name))
+            {
+                continue;
+            }
+
             var dest = Path.Combine(destinationDir, name);
-            Copy(dir, dest);
+            Copy(dir, dest, outputRoot);
         }
     }
 
-    public static void Sync(string sourceDir, string destinationDir, bool prune = false)
-        => Sync(sourceDir, destinationDir, new DirectoryCopyOptions { Prune = prune });
+    public static void Sync(string sourceDir, string destinationDir, bool prune = false, string? outputRoot = null)
+        => Sync(sourceDir, destinationDir, new DirectoryCopyOptions { Prune = prune, IgnoreDotPrefixedFiles = true }, outputRoot);
 
-    public static void Sync(string sourceDir, string destinationDir, DirectoryCopyOptions options)
+    public static void Sync(string sourceDir, string destinationDir, DirectoryCopyOptions options, string? outputRoot = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -50,19 +79,24 @@ public static class DirectoryCopy
         foreach (var file in Directory.GetFiles(sourceDir))
         {
             var name = Path.GetFileName(file);
-            if (options.IgnoreDotPrefixedFiles && name.StartsWith('.'))
+            if (options.IgnoreDotPrefixedFiles && ShouldSkipDotfile(name, options))
             {
                 continue;
             }
 
-            SyncFile(file, destinationDir, options.HashMode);
+            SyncFile(file, destinationDir, options.HashMode, outputRoot);
         }
 
         foreach (var dir in Directory.GetDirectories(sourceDir))
         {
             var name = Path.GetFileName(dir);
+            if (options.IgnoreDotPrefixedFiles && ShouldSkipDotfile(name, options))
+            {
+                continue;
+            }
+
             var dest = Path.Combine(destinationDir, name);
-            Sync(dir, dest, options);
+            Sync(dir, dest, options, outputRoot);
         }
 
         if (options.Prune)
@@ -71,7 +105,7 @@ public static class DirectoryCopy
         }
     }
 
-    public static void SyncFiles(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false)
+    public static void SyncFiles(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false, string? outputRoot = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -83,16 +117,16 @@ public static class DirectoryCopy
         foreach (var file in Directory.GetFiles(sourceDir))
         {
             var name = Path.GetFileName(file);
-            if (ignoreDotPrefixedFiles && name.StartsWith('.'))
+            if (ignoreDotPrefixedFiles && ShouldSkipDotfile(name))
             {
                 continue;
             }
 
-            SyncFile(file, destinationDir, "size-time");
+            SyncFile(file, destinationDir, "size-time", outputRoot);
         }
     }
 
-    public static void SyncFilesRecursive(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false)
+    public static void SyncFilesRecursive(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false, string? outputRoot = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -104,7 +138,7 @@ public static class DirectoryCopy
         foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
         {
             var name = Path.GetFileName(file);
-            if (ignoreDotPrefixedFiles && name.StartsWith('.'))
+            if (ignoreDotPrefixedFiles && ShouldSkipDotfile(name))
             {
                 continue;
             }
@@ -114,8 +148,51 @@ public static class DirectoryCopy
                 ? destinationDir
                 : Path.Combine(destinationDir, relativeDirectory);
             Directory.CreateDirectory(destinationSubdir);
-            SyncFile(file, destinationSubdir, "size-time");
+            SyncFile(file, destinationSubdir, "size-time", outputRoot);
         }
+    }
+
+    private static bool ShouldSkipDotfile(string name, DirectoryCopyOptions? options = null)
+    {
+        if (options?.DotfileAllowList?.Contains(name) == true)
+        {
+            return false;
+        }
+
+        if (options?.DotfileDenyList?.Contains(name) == true)
+        {
+            return true;
+        }
+
+        if (!name.StartsWith('.'))
+        {
+            return false;
+        }
+
+        if (DefaultDotfileAllowList.Contains(name))
+        {
+            return false;
+        }
+
+        if (DefaultDotfileDenyList.Contains(name))
+        {
+            return true;
+        }
+
+        if (name.StartsWith(".env.", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        foreach (var ext in DefaultDotfileDenyExtensions)
+        {
+            if (name.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return true;
     }
 
     private static void PruneDestination(string sourceDir, string destinationDir)
@@ -139,10 +216,15 @@ public static class DirectoryCopy
         }
     }
 
-    private static void SyncFile(string sourceFile, string destinationDir, string hashMode)
+    private static void SyncFile(string sourceFile, string destinationDir, string hashMode, string? outputRoot = null)
     {
         var name = Path.GetFileName(sourceFile);
         var destinationFile = Path.Combine(destinationDir, name);
+
+        if (outputRoot is not null)
+        {
+            FileWriter.GetSafeFullPath(outputRoot, Path.GetRelativePath(outputRoot, destinationFile));
+        }
 
         var sourceInfo = new FileInfo(sourceFile);
         var destinationInfo = new FileInfo(destinationFile);

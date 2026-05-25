@@ -67,7 +67,8 @@ public sealed class AssetPipelineTests
             ScssConfig: null,
             ImageConfig: null,
             Logger: logger,
-            CurrentKeys: new System.Collections.Concurrent.ConcurrentDictionary<string, byte>(StringComparer.Ordinal)),
+            CurrentKeys: new System.Collections.Concurrent.ConcurrentDictionary<string, byte>(StringComparer.Ordinal),
+            PublishDotFiles: false),
             CancellationToken.None);
 
         Assert.True(File.Exists(Path.Combine(outputDir, "robots.txt")), "robots.txt not found");
@@ -116,7 +117,8 @@ public sealed class AssetPipelineTests
             ScssConfig: null,
             ImageConfig: null,
             Logger: logger,
-            CurrentKeys: new System.Collections.Concurrent.ConcurrentDictionary<string, byte>(StringComparer.Ordinal)),
+            CurrentKeys: new System.Collections.Concurrent.ConcurrentDictionary<string, byte>(StringComparer.Ordinal),
+            PublishDotFiles: false),
             CancellationToken.None);
 
         Assert.True(File.Exists(Path.Combine(outputDir, "favicon.ico")));

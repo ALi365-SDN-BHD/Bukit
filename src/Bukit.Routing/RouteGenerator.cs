@@ -1,4 +1,5 @@
 using Bukit.Content;
+using Bukit.Shared;
 
 namespace Bukit.Routing;
 
@@ -35,6 +36,14 @@ public static class RouteGenerator
         if (TryReadFullRouteOverride(item, outputPathEncoding, out var overridden))
         {
             return new RouteGenerationResult(ValidateRoute(overridden, item), RouteSource.FullOverride);
+        }
+
+        if (!HasNestedRouteMap(item.Meta) &&
+            item.Meta.TryGetValue("outputPath", out var topOutputPath) &&
+            topOutputPath is string ops &&
+            !string.IsNullOrWhiteSpace(ops))
+        {
+            throw new ConfigException($"Top-level outputPath is deprecated. Use route.outputPath instead. Found in front matter: outputPath: '{ops}'");
         }
 
         var (baseRoute, baseSource) = GenerateBaseRouteWithSource(item, outputPathEncoding, permalinks, collections);

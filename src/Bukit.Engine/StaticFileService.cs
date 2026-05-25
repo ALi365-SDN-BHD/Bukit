@@ -55,7 +55,7 @@ internal static class StaticFileService
         foreach (var file in nonHtmlFiles)
         {
             var relativePath = Path.GetRelativePath(staticDir, file);
-            var dest = Path.Combine(outputDir, relativePath);
+            var dest = FileWriter.GetSafeFullPath(outputDir, relativePath);
             var destDir = Path.GetDirectoryName(dest);
             if (destDir is not null)
             {

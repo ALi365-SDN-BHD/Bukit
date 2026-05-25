@@ -27,7 +27,8 @@ internal sealed record AssetPipelineContext(
     ScssConfig? ScssConfig,
     ImageOptimizationConfig? ImageConfig,
     ILogger Logger,
-    ConcurrentDictionary<string, byte> CurrentKeys);
+    ConcurrentDictionary<string, byte> CurrentKeys,
+    bool PublishDotFiles);
 
 internal sealed record AssetPipelineResult(
     BuildStageMetrics StageMetrics);
@@ -42,15 +43,18 @@ internal sealed class AssetPipeline
         if (hasStaticDir || (ctx.ParentStaticDir is not null && Directory.Exists(ctx.ParentStaticDir)))
         {
             var staticStopwatch = Stopwatch.StartNew();
+            var staticCopyOptions = BuildCopyOptions(ctx);
+
             if (ctx.ParentStaticDir is not null && Directory.Exists(ctx.ParentStaticDir))
             {
                 if (!string.IsNullOrWhiteSpace(ctx.AssetHashMode))
                 {
-                    DirectoryCopy.Sync(ctx.ParentStaticDir, ctx.OutputDir, new DirectoryCopyOptions { HashMode = ctx.AssetHashMode });
+                    var hashOptions = staticCopyOptions with { HashMode = ctx.AssetHashMode };
+                    DirectoryCopy.Sync(ctx.ParentStaticDir, ctx.OutputDir, hashOptions, outputRoot: ctx.OutputDir);
                 }
                 else
                 {
-                    DirectoryCopy.Sync(ctx.ParentStaticDir, ctx.OutputDir);
+                    DirectoryCopy.Sync(ctx.ParentStaticDir, ctx.OutputDir, staticCopyOptions, outputRoot: ctx.OutputDir);
                 }
             }
 
@@ -62,7 +66,7 @@ internal sealed class AssetPipeline
                 }
                 else
                 {
-                    DirectoryCopy.Sync(ctx.StaticDir!, ctx.OutputDir);
+                    DirectoryCopy.Sync(ctx.StaticDir!, ctx.OutputDir, staticCopyOptions, outputRoot: ctx.OutputDir);
                 }
             }
 
@@ -74,9 +78,11 @@ internal sealed class AssetPipeline
         if (ctx.AssetsDir is not null && Directory.Exists(ctx.AssetsDir) || (ctx.ParentAssetsDir is not null && Directory.Exists(ctx.ParentAssetsDir)))
         {
             var assetsSyncStopwatch = Stopwatch.StartNew();
+            var assetsCopyOptions = BuildCopyOptions(ctx);
+
             if (ctx.ParentAssetsDir is not null && Directory.Exists(ctx.ParentAssetsDir))
             {
-                DirectoryCopy.Sync(ctx.ParentAssetsDir, Path.Combine(ctx.OutputDir, "assets"));
+                DirectoryCopy.Sync(ctx.ParentAssetsDir, Path.Combine(ctx.OutputDir, "assets"), assetsCopyOptions, outputRoot: ctx.OutputDir);
             }
 
             if (ctx.AssetsDir is not null && Directory.Exists(ctx.AssetsDir))
@@ -92,16 +98,9 @@ internal sealed class AssetPipeline
                 }
 
                 var assetHashOptions = !string.IsNullOrWhiteSpace(ctx.AssetHashMode)
-                    ? new DirectoryCopyOptions { HashMode = ctx.AssetHashMode }
-                    : null;
-                if (assetHashOptions is not null)
-                {
-                    DirectoryCopy.Sync(ctx.AssetsDir, Path.Combine(ctx.OutputDir, "assets"), assetHashOptions);
-                }
-                else
-                {
-                    DirectoryCopy.Sync(ctx.AssetsDir, Path.Combine(ctx.OutputDir, "assets"));
-                }
+                    ? assetsCopyOptions with { HashMode = ctx.AssetHashMode }
+                    : assetsCopyOptions;
+                DirectoryCopy.Sync(ctx.AssetsDir, Path.Combine(ctx.OutputDir, "assets"), assetHashOptions, outputRoot: ctx.OutputDir);
             }
 
             BuildManifestTracker.TrackAssetOutputs(ctx.ParentAssetsDir, ctx.AssetsDir!, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger);
@@ -134,5 +133,12 @@ internal sealed class AssetPipeline
         }
 
         return Task.FromResult(new AssetPipelineResult(metricsCollector.Snapshot()));
+    }
+
+    private static DirectoryCopyOptions BuildCopyOptions(AssetPipelineContext ctx)
+    {
+        return ctx.PublishDotFiles
+            ? new DirectoryCopyOptions { IgnoreDotPrefixedFiles = false }
+            : new DirectoryCopyOptions();
     }
 }

@@ -20,7 +20,7 @@ public static class RouteInventoryValidator
         if (!config.Build.Draft)
         {
             items = items.Where(i =>
-                !(i.Meta.TryGetValue("draft", out var d) && d is true or "true" or "True")).ToList();
+                !(i.Meta.TryGetValue("draft", out var d) && ValueCoercion.IsTruthy(d))).ToList();
         }
 
         var siteLanguages = config.Site.Languages;

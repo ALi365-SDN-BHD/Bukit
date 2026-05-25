@@ -10,7 +10,7 @@ internal static class BuildManifestTracker
     internal static void SyncMediaOutputs(string mediaDownloadDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger)
     {
         var mediaOutputDir = Path.Combine(outputDir, "assets", "uploads");
-        DirectoryCopy.SyncFilesRecursive(mediaDownloadDir, mediaOutputDir, ignoreDotPrefixedFiles: true);
+        DirectoryCopy.SyncFilesRecursive(mediaDownloadDir, mediaOutputDir, ignoreDotPrefixedFiles: true, outputRoot: outputDir);
 
         var currentMedia = Directory.EnumerateFiles(mediaDownloadDir, "*", SearchOption.AllDirectories)
             .Where(file => !Path.GetFileName(file).StartsWith('.'))

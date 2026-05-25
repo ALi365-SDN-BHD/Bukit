@@ -103,11 +103,12 @@ public static class ConfigLoader
         var build = new BuildConfig
         {
             Output = buildNode is null ? "dist" : GetOptionalString(buildNode, "output") ?? "dist",
-            Clean = buildNode is null ? true : GetOptionalBool(buildNode, "clean") ?? true,
+            Clean = buildNode is null ? true : GetOptionalBoolStrict(buildNode, "clean") ?? true,
             Draft = buildNode is null ? false : GetOptionalBool(buildNode, "draft") ?? false,
             ListPageContentMode = buildNode is null ? "auto" : GetOptionalString(buildNode, "listPageContentMode") ?? "auto",
             SchemaFailMode = buildNode is null ? "warn" : GetOptionalString(buildNode, "schemaFailMode") ?? "warn",
             AssetHashMode = buildNode is null ? "size-time" : GetOptionalString(buildNode, "assetHashMode") ?? "size-time",
+            PublishDotFiles = buildNode is null ? false : GetOptionalBool(buildNode, "publishDotFiles") ?? false,
             Report = new BuildReportConfig
             {
                 Enabled = buildReportNode is not null && (GetOptionalBool(buildReportNode, "enabled") ?? false)
@@ -138,7 +139,7 @@ public static class ConfigLoader
             Kinds = ReadTaxonomyKinds(taxonomyNode),
             OutputMode = taxonomyNode is null ? "both" : GetOptionalString(taxonomyNode, "outputMode") ?? "both",
             ItemFields = taxonomyNode is null ? null : ReadStringList(taxonomyNode, "itemFields"),
-            PageSize = taxonomyNode is null ? 10 : GetOptionalInt(taxonomyNode, "pageSize") ?? 10,
+            PageSize = taxonomyNode is null ? 10 : GetOptionalIntStrict(taxonomyNode, "pageSize") ?? 10,
             IndexEnabled = taxonomyNode is null ? true : GetOptionalBool(taxonomyNode, "indexEnabled") ?? true,
             PinField = taxonomyNode is null ? "pinned" : GetOptionalString(taxonomyNode, "pinField") ?? "pinned",
             PinOrderField = taxonomyNode is null ? null : GetOptionalString(taxonomyNode, "pinOrderField"),
@@ -380,7 +381,7 @@ public static class ConfigLoader
         return new NotionConfig
         {
             DatabaseId = GetRequiredString(notionNode, "databaseId"),
-            PageSize = GetOptionalInt(notionNode, "pageSize") ?? 50,
+            PageSize = GetOptionalIntStrict(notionNode, "pageSize") ?? 50,
             MaxItems = GetOptionalInt(notionNode, "maxItems"),
             RenderContent = GetOptionalBool(notionNode, "renderContent"),
             RenderConcurrency = GetOptionalInt(notionNode, "renderConcurrency"),
@@ -416,7 +417,7 @@ public static class ConfigLoader
             FieldKeys = ReadStringList(mediaNode, "fieldKeys") ?? new[] { "cover", "image", "thumbnail", "og_image", "icon" },
             MaxConcurrency = GetOptionalInt(mediaNode, "maxConcurrency") ?? 4,
             MaxRetries = GetOptionalInt(mediaNode, "maxRetries") ?? 3,
-            TimeoutMs = GetOptionalInt(mediaNode, "timeoutMs") ?? 10000,
+            TimeoutMs = GetOptionalIntStrict(mediaNode, "timeoutMs") ?? 10000,
             MaxFileSizeBytes = GetOptionalLong(mediaNode, "maxFileSizeBytes") ?? 50 * 1024 * 1024,
             BlockPrivateNetworks = GetOptionalBool(mediaNode, "blockPrivateNetworks") ?? true,
             RetryBaseDelayMs = GetOptionalInt(mediaNode, "retryBaseDelayMs") ?? 500
@@ -580,7 +581,7 @@ public static class ConfigLoader
                 Pagination = new CollectionPaginationConfig
                 {
                     Enabled = paginationNode is not null && (GetOptionalBool(paginationNode, "enabled") ?? false),
-                    PageSize = paginationNode is null ? 10 : GetOptionalInt(paginationNode, "pageSize") ?? 10
+                    PageSize = paginationNode is null ? 10 : GetOptionalIntStrict(paginationNode, "pageSize") ?? 10
                 },
                 Output = new CollectionOutputConfig
                 {
@@ -607,14 +608,7 @@ public static class ConfigLoader
 
         using var reader = File.OpenText(collectionsPath);
         var yaml = new YamlStream();
-        try
-        {
-            yaml.Load(reader);
-        }
-        catch (YamlDotNet.Core.YamlException)
-        {
-            return null;
-        }
+        yaml.Load(reader);
 
         if (yaml.Documents.Count == 0)
         {
@@ -656,7 +650,7 @@ public static class ConfigLoader
                 Pagination = new CollectionPaginationConfig
                 {
                     Enabled = paginationNode is not null && (GetOptionalBool(paginationNode, "enabled") ?? false),
-                    PageSize = paginationNode is null ? 10 : GetOptionalInt(paginationNode, "pageSize") ?? 10
+                    PageSize = paginationNode is null ? 10 : GetOptionalIntStrict(paginationNode, "pageSize") ?? 10
                 },
                 Output = new CollectionOutputConfig
                 {
@@ -738,9 +732,9 @@ public static class ConfigLoader
                 Entry = GetRequiredString(pluginNode, "entry"),
                 Hooks = ReadStringList(pluginNode, "hooks") ?? Array.Empty<string>(),
                 Enabled = GetOptionalBool(pluginNode, "enabled") ?? true,
-                TimeoutMs = GetOptionalInt(pluginNode, "timeoutMs") ?? 5000,
-                MaxStdoutBytes = GetOptionalInt(pluginNode, "maxStdoutBytes") ?? 1048576,
-                MaxStderrBytes = GetOptionalInt(pluginNode, "maxStderrBytes") ?? 1048576,
+                TimeoutMs = GetOptionalIntStrict(pluginNode, "timeoutMs") ?? 5000,
+                MaxStdoutBytes = GetOptionalIntStrict(pluginNode, "maxStdoutBytes") ?? 1048576,
+                MaxStderrBytes = GetOptionalIntStrict(pluginNode, "maxStderrBytes") ?? 1048576,
                 AllowEnvironment = ReadStringList(pluginNode, "allowEnvironment"),
                 // DESKTOP-REMOVED: wasm runtime fields disabled (AOT-only).
                 // WasmProfile = GetOptionalString(pluginNode, "wasmProfile") ?? "wasi-preview1",
@@ -1003,6 +997,51 @@ public static class ConfigLoader
         }
 
         return null;
+    }
+
+    private static bool? GetOptionalBoolStrict(YamlMappingNode node, string key)
+    {
+        var value = GetOptionalString(node, key);
+        if (value is null) return null;
+
+        if (bool.TryParse(value, out var b)) return b;
+        if (value.Equals("yes", StringComparison.OrdinalIgnoreCase)) return true;
+        if (value.Equals("no", StringComparison.OrdinalIgnoreCase)) return false;
+
+        throw new ConfigException($"Invalid config value: {key} expected boolean, got '{value}'");
+    }
+
+    private static int? GetOptionalIntStrict(YamlMappingNode node, string key)
+    {
+        var value = GetOptionalString(node, key);
+        if (value is null) return null;
+
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i))
+            return i;
+
+        throw new ConfigException($"Invalid config value: {key} expected integer, got '{value}'");
+    }
+
+    private static long? GetOptionalLongStrict(YamlMappingNode node, string key)
+    {
+        var value = GetOptionalString(node, key);
+        if (value is null) return null;
+
+        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l))
+            return l;
+
+        throw new ConfigException($"Invalid config value: {key} expected long integer, got '{value}'");
+    }
+
+    private static double? GetOptionalDoubleStrict(YamlMappingNode node, string key)
+    {
+        var value = GetOptionalString(node, key);
+        if (value is null) return null;
+
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+            return d;
+
+        throw new ConfigException($"Invalid config value: {key} expected double, got '{value}'");
     }
 
     private static ScssConfig? ReadScssConfig(YamlMappingNode? themeNode)

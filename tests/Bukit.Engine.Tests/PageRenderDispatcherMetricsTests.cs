@@ -43,6 +43,7 @@ public sealed class PageRenderDispatcherMetricsTests
             },
             outputDir,
             templateHash: "template-hash",
+            renderDependencyHash: string.Empty,
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             manifestEntries: null,

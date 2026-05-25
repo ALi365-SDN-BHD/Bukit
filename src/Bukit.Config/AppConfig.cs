@@ -271,6 +271,7 @@ public sealed record BuildConfig
     public string SchemaFailMode { get; init; } = "warn";
     public BuildReportConfig Report { get; init; } = new();
     public string AssetHashMode { get; init; } = "size-time";
+    public bool PublishDotFiles { get; init; }
 }
 
 public sealed record BuildReportConfig

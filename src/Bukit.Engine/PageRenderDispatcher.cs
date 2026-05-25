@@ -29,6 +29,7 @@ internal static class PageRenderDispatcher
         SiteModel siteModel,
         string outputDir,
         string templateHash,
+        string renderDependencyHash,
         bool incrementalEnabled,
         BuildManifest manifest,
         ConcurrentDictionary<string, BuildManifestEntry>? manifestEntries,
@@ -90,7 +91,8 @@ internal static class PageRenderDispatcher
                 outputExists &&
                 existing!.TemplateHash == templateHash &&
                 existing.MetadataHash == metadataHash &&
-                existing.RouteHash == routeHash;
+                existing.RouteHash == routeHash &&
+                existing.RenderDependencyHash == renderDependencyHash;
 
             string? contentHash = null;
             if (canEvaluateSkip)
@@ -133,6 +135,7 @@ internal static class PageRenderDispatcher
                     : existing.MetadataHash != metadataHash ? "content_changed"
                     : existing.ContentHash != contentHash ? "content_changed"
                     : existing.RouteHash != routeHash ? "route_changed"
+                    : existing.RenderDependencyHash != renderDependencyHash ? "render_dependency_changed"
                     : "render";
                 renderReasons.AddOrUpdate(reason, 1, (_, v) => v + 1);
             }
@@ -187,7 +190,8 @@ internal static class PageRenderDispatcher
                     MetadataHash = metadataHash,
                     ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(item, metadataHash, content),
                     RouteHash = routeHash,
-                    TemplateHash = templateHash
+                    TemplateHash = templateHash,
+                    RenderDependencyHash = renderDependencyHash
                 };
             }
         });
@@ -210,10 +214,12 @@ internal static class PageRenderDispatcher
         string outputPathEncoding,
         string outputDir,
         string templateHash,
+        string renderDependencyHash,
         bool incrementalEnabled,
         BuildManifest manifest,
         ConcurrentDictionary<string, byte> currentKeys,
         ConcurrentDictionary<string, int> renderReasons,
+        int maxDegreeOfParallelism,
         CancellationToken cancellationToken,
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
@@ -227,7 +233,7 @@ internal static class PageRenderDispatcher
             currentKeys.TryAdd(BuildPathUtils.NormalizeRelPath(x.Route.OutputPath), 0);
         }
 
-        var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = cancellationToken };
+        var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism, CancellationToken = cancellationToken };
 
         if (incrementalEnabled)
         {
@@ -235,7 +241,7 @@ internal static class PageRenderDispatcher
             var skipped = 0;
             await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
             {
-                var result = await RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, manifest, renderReasons, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
+                var result = await RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, manifest, renderReasons, maxDegreeOfParallelism, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
                 Interlocked.Add(ref rendered, result.RenderedCount);
                 Interlocked.Add(ref skipped, result.SkippedCount);
                 lock (stageMetricsLock) { stageMetrics = MergeCollectors(stageMetrics, result.StageMetrics); }
@@ -247,7 +253,7 @@ internal static class PageRenderDispatcher
         var writeLocks = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
         await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
         {
-            var metrics = await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
+            var metrics = await RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, maxDegreeOfParallelism, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
             lock (stageMetricsLock) { stageMetrics = MergeCollectors(stageMetrics, metrics); }
         });
 
@@ -262,6 +268,7 @@ internal static class PageRenderDispatcher
         SiteModel siteModel,
         string outputDir,
         ConcurrentDictionary<string, SemaphoreSlim> writeLocks,
+        int maxDegreeOfParallelism,
         bool includeContent,
         CancellationToken cancellationToken,
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder,
@@ -270,7 +277,7 @@ internal static class PageRenderDispatcher
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var listBuildStopwatch = Stopwatch.StartNew();
-        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
+        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
         var listPage = CreateListPageInfo(siteModel, listRoute);
         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
 
@@ -300,8 +307,10 @@ internal static class PageRenderDispatcher
         SiteModel siteModel,
         string outputDir,
         string templateHash,
+        string renderDependencyHash,
         BuildManifest manifest,
         ConcurrentDictionary<string, int> renderReasons,
+        int maxDegreeOfParallelism,
         bool includeContent,
         CancellationToken cancellationToken,
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder,
@@ -324,7 +333,8 @@ internal static class PageRenderDispatcher
             outputExists &&
             existing!.TemplateHash == templateHash &&
             existing.ContentHash == contentHash &&
-            existing.RouteHash == routeHash;
+            existing.RouteHash == routeHash &&
+            existing.RenderDependencyHash == renderDependencyHash;
 
         if (canSkip)
         {
@@ -333,7 +343,7 @@ internal static class PageRenderDispatcher
         }
 
         var listBuildStopwatch = Stopwatch.StartNew();
-        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
+        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
         var listPage = CreateListPageInfo(siteModel, listRoute);
         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
 
@@ -363,7 +373,8 @@ internal static class PageRenderDispatcher
                 Template = listRoute.Template,
                 ContentHash = contentHash,
                 RouteHash = routeHash,
-                TemplateHash = templateHash
+                TemplateHash = templateHash,
+                RenderDependencyHash = renderDependencyHash
             };
         }
 
@@ -374,6 +385,7 @@ internal static class PageRenderDispatcher
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> source,
         IContentBodyStore bodyStore,
         bool includeContent,
+        int maxDegreeOfParallelism,
         CancellationToken cancellationToken,
         BuildStageMetricsCollector? stageMetrics = null,
         string bodyLoadMetricName = "listBodyLoad",
@@ -404,7 +416,7 @@ internal static class PageRenderDispatcher
         var metricsLock = new object();
         await Parallel.ForEachAsync(
             source.Select((entry, i) => (entry, i)),
-            new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = cancellationToken },
+            new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism > 0 ? maxDegreeOfParallelism : Environment.ProcessorCount, CancellationToken = cancellationToken },
             async (work, ct) =>
             {
                 var (entry, i) = work;

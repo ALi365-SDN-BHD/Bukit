@@ -311,8 +311,9 @@ public sealed class SiteEngine
 
         var renderQueue = routed.Concat(pluginContext.DerivedRouted).ToList();
         var listRoutes = routeResult.ListRoutes;
-        var staticHtmlRoutes = hasStaticDir && !string.IsNullOrWhiteSpace(staticTemplate)
-            ? StaticFileService.BuildStaticHtmlRoutes(ctx.StaticDir, staticTemplate, log.Warn)
+        var staticRouteTemplate = !string.IsNullOrWhiteSpace(staticTemplate) ? staticTemplate : "__raw_static__";
+        var staticHtmlRoutes = hasStaticDir
+            ? StaticFileService.BuildStaticHtmlRoutes(ctx.StaticDir, staticRouteTemplate, log.Warn)
             : Array.Empty<RouteInfo>();
         RouteInventoryValidator.ValidateFinalRoutes(routed, pluginContext.DerivedRouted, listRoutes, staticHtmlRoutes);
         var seoAlternates = SeoAlternatesService.AddVariantRouteAlternates(
@@ -333,6 +334,11 @@ public sealed class SiteEngine
             log);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
 
+        var renderDependencyHashStopwatch = Stopwatch.StartNew();
+        var renderDependencyHash = incrementalEnabled ? RenderDependencyHasher.Compute(config, siteModel) : string.Empty;
+        renderDependencyHashStopwatch.Stop();
+        variantStageMetrics.AddDuration("renderDependencyHash", renderDependencyHashStopwatch.ElapsedMilliseconds);
+
         var renderPipelineResult = await new RenderPipeline().ExecuteAsync(new RenderPipelineContext(
             RenderQueue: renderQueue,
             Routed: routed,
@@ -345,6 +351,7 @@ public sealed class SiteEngine
             OutputPathEncoding: config.Site.OutputPathEncoding,
             OutputDir: outputDir,
             TemplateHash: templateHash,
+            RenderDependencyHash: renderDependencyHash,
             IncrementalEnabled: incrementalEnabled,
             Manifest: manifest,
             ManifestEntries: manifestEntries,
@@ -390,7 +397,8 @@ public sealed class SiteEngine
             ScssConfig: config.Theme.Scss,
             ImageConfig: config.Theme.Images,
             Logger: log,
-            CurrentKeys: currentKeys),
+            CurrentKeys: currentKeys,
+            PublishDotFiles: config.Build.PublishDotFiles),
             cancellationToken);
 
         variantStageMetrics.Merge(assetPipelineResult.StageMetrics);

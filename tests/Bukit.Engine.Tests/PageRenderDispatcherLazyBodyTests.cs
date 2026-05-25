@@ -46,6 +46,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             siteModel,
             outputDir,
             templateHash: "template-hash",
+            renderDependencyHash: string.Empty,
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             manifestEntries: null,
@@ -118,6 +119,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             siteModel,
             outputDir,
             templateHash: "template-hash",
+            renderDependencyHash: string.Empty,
             incrementalEnabled: true,
             manifest: manifest,
             manifestEntries: manifestEntries,
@@ -155,10 +157,12 @@ public sealed class PageRenderDispatcherLazyBodyTests
             "none",
             outputDir,
             "template-hash",
+            renderDependencyHash: string.Empty,
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            maxDegreeOfParallelism: 1,
             cancellationToken: CancellationToken.None);
 
         Assert.Equal(3, result.RenderedCount);
@@ -188,10 +192,12 @@ public sealed class PageRenderDispatcherLazyBodyTests
             "none",
             outputDir,
             "template-hash",
+            renderDependencyHash: string.Empty,
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            maxDegreeOfParallelism: 1,
             cancellationToken: CancellationToken.None);
 
         Assert.Contains("/", renderer.ListPageUrls);
@@ -223,10 +229,12 @@ public sealed class PageRenderDispatcherLazyBodyTests
             "none",
             outputDir,
             "template-hash",
+            renderDependencyHash: string.Empty,
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            maxDegreeOfParallelism: 1,
             cancellationToken: CancellationToken.None);
 
         Assert.True(bodyStore.Count > 0);
@@ -267,10 +275,12 @@ public sealed class PageRenderDispatcherLazyBodyTests
             "none",
             outputDir,
             "template-hash",
+            renderDependencyHash: string.Empty,
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            maxDegreeOfParallelism: 1,
             cancellationToken: CancellationToken.None);
 
         Assert.Equal(0, bodyStore.Count);
@@ -309,10 +319,12 @@ public sealed class PageRenderDispatcherLazyBodyTests
             "none",
             outputDir,
             "template-hash",
+            renderDependencyHash: string.Empty,
             incrementalEnabled: false,
             manifest: new BuildManifest(),
             currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
             renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            maxDegreeOfParallelism: 1,
             cancellationToken: CancellationToken.None);
 
         Assert.True(bodyStore.Count > 0);

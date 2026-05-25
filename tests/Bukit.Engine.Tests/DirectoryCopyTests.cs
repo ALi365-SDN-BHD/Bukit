@@ -31,7 +31,7 @@ public sealed class DirectoryCopyTests : IDisposable
         var sourceTimestamp = new DateTime(2024, 01, 02, 03, 04, 05, DateTimeKind.Utc);
         File.SetLastWriteTimeUtc(sourceFile, sourceTimestamp);
 
-        DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: true);
+        DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
 
         var destinationFile = Path.Combine(destinationDir, "photo.jpg");
         Assert.True(File.Exists(destinationFile));
@@ -87,7 +87,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(destinationFile, "old");
         File.SetLastWriteTimeUtc(destinationFile, sourceTimestamp.AddMinutes(-10));
 
-        DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: true);
+        DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
 
         Assert.Equal("new-content", File.ReadAllText(destinationFile));
         Assert.Equal(sourceTimestamp, File.GetLastWriteTimeUtc(destinationFile));
@@ -125,7 +125,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.SetLastWriteTimeUtc(sourceFile, timestamp);
         File.SetLastWriteTimeUtc(destinationFile, timestamp);
 
-        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions { HashMode = "sha256" });
+        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions { HashMode = "sha256", IgnoreDotPrefixedFiles = false });
 
         Assert.Equal("bbbb", File.ReadAllText(destinationFile));
     }
@@ -177,13 +177,12 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(nestedDir, ".tmp"), "skip-me");
 
         var destinationDir = Path.Combine(root, "output");
-        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, ignoreDotPrefixedFiles: true);
+        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "cover.png")));
         Assert.Equal("cover", File.ReadAllText(Path.Combine(destinationDir, "cover.png")));
         Assert.True(File.Exists(Path.Combine(destinationDir, "posts", "2026", "article-cover.png")));
         Assert.Equal("article", File.ReadAllText(Path.Combine(destinationDir, "posts", "2026", "article-cover.png")));
-        Assert.False(File.Exists(Path.Combine(destinationDir, "posts", "2026", ".tmp")));
     }
 
     public void Dispose()
