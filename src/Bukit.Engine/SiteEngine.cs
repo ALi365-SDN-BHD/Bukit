@@ -450,21 +450,32 @@ public sealed class SiteEngine
         var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates);
         pluginContext.SeoIndex = seoIndex.Entries;
         SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, log);
-        var currentKeys = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
         var maxDegreeOfParallelism = overrides.Jobs ?? Environment.ProcessorCount;
         var seoHtmlMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
         var shouldProvideSeoModel = config.Site.Seo.Enabled && seoHtmlMode != "off";
         var shouldInjectSeo = shouldProvideSeoModel && seoHtmlMode == "inject";
 
-        var renderPagesStopwatch = Stopwatch.StartNew();
-        var renderResult = await PageRenderDispatcher.RenderPagesAsync(
-            renderQueue, bodyStore, renderer, siteModel, outputDir, templateHash,
-            incrementalEnabled, manifest, manifestEntries, currentKeys,
-            maxDegreeOfParallelism, log, cancellationToken,
-            shouldProvideSeoModel
+        var renderPipelineResult = await new RenderPipeline().ExecuteAsync(new RenderPipelineContext(
+            RenderQueue: renderQueue,
+            Routed: routed,
+            BodyStore: bodyStore,
+            Renderer: renderer,
+            SiteModel: siteModel,
+            Collections: config.Site.Collections,
+            LayoutsDir: ctx.LayoutsDir,
+            ListPageContentMode: config.Build.ListPageContentMode,
+            OutputPathEncoding: config.Site.OutputPathEncoding,
+            OutputDir: outputDir,
+            TemplateHash: templateHash,
+            IncrementalEnabled: incrementalEnabled,
+            Manifest: manifest,
+            ManifestEntries: manifestEntries,
+            MaxDegreeOfParallelism: maxDegreeOfParallelism,
+            Logger: log,
+            SeoBuilder: shouldProvideSeoModel
                 ? (_, route) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model) ? model : null!
                 : null,
-            shouldProvideSeoModel
+            HtmlPostProcessor: shouldProvideSeoModel
                 ? (item, route, page, html) =>
                 {
                     var skipSeo = SeoInjectionPolicy.ShouldSkip(item.Meta);
@@ -475,20 +486,8 @@ public sealed class SiteEngine
 
                     return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, log);
                 }
-        : null);
-        renderPagesStopwatch.Stop();
-        variantStageMetrics.AddDuration("renderPages", renderPagesStopwatch.ElapsedMilliseconds);
-        variantStageMetrics = MergeStageMetrics(variantStageMetrics, renderResult.StageMetrics);
-
-        var renderedCount = renderResult.RenderedCount;
-        var skippedCount = renderResult.SkippedCount;
-        var renderReasons = new ConcurrentDictionary<string, int>(renderResult.RenderReasons, StringComparer.OrdinalIgnoreCase);
-
-        var renderSpecialListsStopwatch = Stopwatch.StartNew();
-        var specialListResult = await PageRenderDispatcher.RenderSpecialListsAsync(
-            routed, bodyStore, renderer, siteModel, config.Site.Collections, ctx.LayoutsDir, config.Build.ListPageContentMode, config.Site.OutputPathEncoding, outputDir, templateHash,
-            incrementalEnabled, manifest, currentKeys, renderReasons, cancellationToken,
-            shouldProvideSeoModel
+        : null,
+            ListItemSeoBuilder: shouldProvideSeoModel
                 ? (item, route) => SeoModelBuilder.BuildForContent(
                     config,
                     baseUrl,
@@ -496,7 +495,7 @@ public sealed class SiteEngine
                     route,
                     GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildAlternateKey(item, route)))
                 : null,
-            shouldProvideSeoModel
+            ListSeoBuilder: shouldProvideSeoModel
                 ? (route, page) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model)
                     ? model
                     : SeoModelBuilder.BuildForList(
@@ -505,7 +504,7 @@ public sealed class SiteEngine
                         page,
                         GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(route)))
                 : null,
-            shouldProvideSeoModel
+            ListHtmlPostProcessor: shouldProvideSeoModel
                 ? (route, page, html) =>
                 {
                     if (shouldInjectSeo)
@@ -515,17 +514,15 @@ public sealed class SiteEngine
 
                     return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, log);
                 }
-        : null);
-        renderSpecialListsStopwatch.Stop();
-        variantStageMetrics.AddDuration("renderSpecialLists", renderSpecialListsStopwatch.ElapsedMilliseconds);
-        variantStageMetrics = MergeStageMetrics(variantStageMetrics, specialListResult.StageMetrics);
-        renderedCount += specialListResult.RenderedCount;
-        skippedCount += specialListResult.SkippedCount;
+        : null),
+            cancellationToken);
 
-        if (incrementalEnabled && manifestEntries is not null)
-        {
-            manifest.Entries = manifestEntries.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
-        }
+        variantStageMetrics = MergeStageMetrics(variantStageMetrics, renderPipelineResult.StageMetrics);
+
+        var renderedCount = renderPipelineResult.RenderedCount;
+        var skippedCount = renderPipelineResult.SkippedCount;
+        var renderReasons = new ConcurrentDictionary<string, int>(renderPipelineResult.RenderReasons, StringComparer.OrdinalIgnoreCase);
+        var currentKeys = renderPipelineResult.CurrentKeys;
 
         if (hasStaticDir || (ctx.ParentStaticDir is not null && Directory.Exists(ctx.ParentStaticDir)))
         {
