@@ -154,13 +154,26 @@ public sealed class SiteEngineIntegrationTests
                     Provider = "markdown",
                     Markdown = new MarkdownConfig { Dir = "content" },
                 },
-                Build = new BuildConfig { Output = "dist", Clean = true },
+                Build = new BuildConfig
+                {
+                    Output = "dist",
+                    Clean = true,
+                    Report = new BuildReportConfig
+                    {
+                        Enabled = true
+                    }
+                },
             };
 
             var logger = new TestLogger();
             var engine = new SiteEngine(logger);
 
-            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            var result = await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.Equal("dist", result.Project.Output);
+            Assert.Equal("markdown", result.Project.ContentSource);
+            Assert.True(result.Summary.PageCount > 0);
+            Assert.Single(result.Variants);
 
             var distDir = Path.Combine(root, "dist");
             Assert.True(Directory.Exists(distDir), "dist directory should exist");
@@ -180,7 +193,82 @@ public sealed class SiteEngineIntegrationTests
             var indexContent = File.ReadAllText(indexPath);
             Assert.Contains("Home", indexContent, StringComparison.Ordinal);
 
+            var reportDir = Path.Combine(distDir, ".bukit");
+            Assert.True(File.Exists(Path.Combine(reportDir, "build-report.json")));
+            Assert.True(File.Exists(Path.Combine(reportDir, "routes.json")));
+            Assert.True(File.Exists(Path.Combine(reportDir, "security-report.json")));
+            using var routesDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(reportDir, "routes.json")));
+            Assert.Contains(routesDoc.RootElement.GetProperty("routes").EnumerateArray(), route => route.GetProperty("url").GetString() == "/blog/hello-world/");
+
             Assert.Empty(logger.Errors);
+
+            CleanupDir(root);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_ReportDisabled_DoesNotWriteBuildReport()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "content", "hello.md"), """
+                ---
+                type: post
+                title: Hello World
+                slug: hello-world
+                publishAt: 2024-06-01T00:00:00Z
+                ---
+                # Hello World
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html>
+                <html><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), """
+                <h2>{{ page.title }}</h2>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), """
+                <h2>{{ page.title }}</h2>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), """
+                <h2>Home</h2>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), """
+                <h2>List</h2>
+                """);
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test-site",
+                    Title = "Test Site",
+                    BaseUrl = "/",
+                    Language = "en",
+                },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+            };
+
+            var engine = new SiteEngine(new TestLogger());
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.False(File.Exists(Path.Combine(root, "dist", ".bukit", "build-report.json")));
 
             CleanupDir(root);
         }
@@ -801,7 +889,7 @@ public sealed class SiteEngineIntegrationTests
             var engine = new SiteEngine(new TestLogger());
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
-            var reportPath = Path.Combine(root, "dist", "seo-report.json");
+            var reportPath = Path.Combine(root, "dist", ".bukit", "seo-report.json");
             Assert.True(File.Exists(reportPath));
             using var doc = JsonDocument.Parse(File.ReadAllText(reportPath));
             var rootElement = doc.RootElement;

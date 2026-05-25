@@ -30,8 +30,10 @@ public sealed class SiteEngine
         _searchIndexBuilder = searchIndexBuilder;
     }
 
-    public async Task BuildAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken = default)
+    public async Task<BuildResult> BuildAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken = default)
     {
+        var buildStartedAt = DateTimeOffset.UtcNow;
+        var buildStopwatch = Stopwatch.StartNew();
         var effectiveConfig = ConfigApplier.Apply(config, overrides);
         ConfigValidator.Validate(effectiveConfig);
 
@@ -114,8 +116,11 @@ public sealed class SiteEngine
 
             _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={baseUrl}");
             MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, outputDir, items.Count, new[] { result });
+            buildStopwatch.Stop();
+            var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, new[] { result });
+            BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, outputDir, singleLanguageBuildResult, new[] { result }, _logger);
             BuildRecoveryTracker.MarkCompleted(outputDir);
-            return;
+            return singleLanguageBuildResult;
         }
 
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(effectiveConfig.Site, languages);
@@ -159,7 +164,11 @@ public sealed class SiteEngine
         SeoAuditReportWriter.WriteMerged(effectiveConfig, outputDir, variantResults, _logger);
         _logger.Info("event=build.done");
         MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, outputDir, items.Count, variantResults);
+        buildStopwatch.Stop();
+        var buildResult = BuildResultFactory.Create(effectiveConfig, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, variantResults);
+        BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, outputDir, buildResult, variantResults, _logger);
         BuildRecoveryTracker.MarkCompleted(outputDir);
+        return buildResult;
     }
 
     private static LogLevel ResolveVariantLogLevel(AppConfig config, bool isCi)

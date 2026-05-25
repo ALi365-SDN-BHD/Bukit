@@ -313,7 +313,7 @@ public sealed class InitCommandTests : IDisposable
 
         Assert.Equal(0, initCode);
         Assert.Equal(0, buildCode);
-        var report = await File.ReadAllTextAsync(Path.Combine(target, "dist", "seo-report.json"));
+        var report = await File.ReadAllTextAsync(Path.Combine(target, "dist", ".bukit", "seo-report.json"));
         var issueCodes = ReadSeoIssueCodes(report);
         Assert.DoesNotContain("seo.canonical_not_absolute", issueCodes);
         Assert.DoesNotContain("seo.site_url_missing", issueCodes);

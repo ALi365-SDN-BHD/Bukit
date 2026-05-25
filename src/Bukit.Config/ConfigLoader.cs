@@ -97,13 +97,18 @@ public static class ConfigLoader
             Media = ReadMediaConfigFrom(contentNode)
         };
 
+        var buildReportNode = buildNode is null ? null : GetOptionalMapping(buildNode, "report");
         var build = new BuildConfig
         {
             Output = buildNode is null ? "dist" : GetOptionalString(buildNode, "output") ?? "dist",
             Clean = buildNode is null ? true : GetOptionalBool(buildNode, "clean") ?? true,
             Draft = buildNode is null ? false : GetOptionalBool(buildNode, "draft") ?? false,
             ListPageContentMode = buildNode is null ? "auto" : GetOptionalString(buildNode, "listPageContentMode") ?? "auto",
-            SchemaFailMode = buildNode is null ? "warn" : GetOptionalString(buildNode, "schemaFailMode") ?? "warn"
+            SchemaFailMode = buildNode is null ? "warn" : GetOptionalString(buildNode, "schemaFailMode") ?? "warn",
+            Report = new BuildReportConfig
+            {
+                Enabled = buildReportNode is not null && (GetOptionalBool(buildReportNode, "enabled") ?? false)
+            }
         };
 
         var theme = new ThemeConfig

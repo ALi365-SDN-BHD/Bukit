@@ -64,7 +64,7 @@ internal static class SeoAuditReportWriter
     private static void WriteReport(AppConfig config, string outputDir, SeoAuditReport report, ILogger logger)
     {
         var json = JsonSerializer.Serialize(report, SeoAuditReportJsonContext.Default.SeoAuditReport);
-        FileWriter.WriteUtf8(outputDir, "seo-report.json", json + Environment.NewLine);
+        FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReporter.ReportDirectoryName, "seo-report.json"), json + Environment.NewLine);
 
         foreach (var issue in report.Issues)
         {

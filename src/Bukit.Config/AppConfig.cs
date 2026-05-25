@@ -266,6 +266,12 @@ public sealed record BuildConfig
     public bool Draft { get; init; }
     public string ListPageContentMode { get; init; } = "auto";
     public string SchemaFailMode { get; init; } = "warn";
+    public BuildReportConfig Report { get; init; } = new();
+}
+
+public sealed record BuildReportConfig
+{
+    public bool Enabled { get; init; }
 }
 
 public sealed record ThemeConfig

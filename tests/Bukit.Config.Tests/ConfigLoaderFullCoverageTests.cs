@@ -700,6 +700,41 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
     }
 
     [Fact]
+    public void Load_BuildReportEnabled_ParsesTrue()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            build:
+              report:
+                enabled: true
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.True(config.Build.Report.Enabled);
+    }
+
+    [Fact]
+    public void Load_BuildReportEnabled_DefaultsToFalse()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        Assert.False(config.Build.Report.Enabled);
+    }
+
+    [Fact]
     public void Load_NotionCacheModeAndCacheDir_CustomValues()
     {
         var yaml = """

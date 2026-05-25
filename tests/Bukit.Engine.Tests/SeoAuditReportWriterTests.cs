@@ -3,6 +3,7 @@ using Bukit.Config;
 using Bukit.Engine.Plugins;
 using Bukit.Rendering;
 using Bukit.Routing;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -208,6 +209,42 @@ public sealed class SeoAuditReportWriterTests : IDisposable
 
         Assert.Contains(report.Issues, x => x.Code == "seo.html_head_missing" && x.Route == "/image/");
         Assert.Contains(report.Issues, x => x.Code == "seo.og_image_too_small" && x.Route == "/image/");
+    }
+
+    [Fact]
+    public void Write_WritesReportUnderBukitDirectory()
+    {
+        WriteOutput("a/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Model("A", "https://example.com/a/")
+        };
+
+        SeoAuditReportWriter.Write(Config(), _outputDir, index, models, new ConsoleLogger(LogLevel.Error));
+
+        Assert.True(File.Exists(Path.Combine(_outputDir, ".bukit", "seo-report.json")));
+    }
+
+    [Fact]
+    public void Write_DoesNotWriteLegacyRootReport()
+    {
+        WriteOutput("a/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Model("A", "https://example.com/a/")
+        };
+
+        SeoAuditReportWriter.Write(Config(), _outputDir, index, models, new ConsoleLogger(LogLevel.Error));
+
+        Assert.False(File.Exists(Path.Combine(_outputDir, "seo-report.json")));
     }
 
     public void Dispose()
