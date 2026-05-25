@@ -19,6 +19,42 @@ public sealed class SafeOutputFileSystemTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => fs.GetSafeFullPath(relativePath));
     }
 
+    [Theory]
+    [InlineData("../evil.txt")]
+    [InlineData("/tmp/evil.txt")]
+    public async Task DeleteFileAsync_RejectsUnsafeRelativePath(string relativePath)
+    {
+        var fs = new SafeOutputFileSystem(_root);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fs.DeleteFileAsync(relativePath, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task CopyFileAsync_CopiesInsideOutputRoot()
+    {
+        var source = Path.Combine(_root, "source.txt");
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(source, "copied");
+        var fs = new SafeOutputFileSystem(Path.Combine(_root, "dist"));
+
+        await fs.CopyFileAsync(source, "assets/source.txt", CancellationToken.None);
+
+        Assert.Equal("copied", File.ReadAllText(Path.Combine(_root, "dist", "assets", "source.txt")));
+    }
+
+    [Fact]
+    public async Task DeleteFileAsync_DeletesInsideOutputRoot()
+    {
+        var target = Path.Combine(_root, "dist", "old.txt");
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        File.WriteAllText(target, "old");
+        var fs = new SafeOutputFileSystem(Path.Combine(_root, "dist"));
+
+        await fs.DeleteFileAsync("old.txt", CancellationToken.None);
+
+        Assert.False(File.Exists(target));
+    }
+
     [Fact]
     public async Task WriteTextAsync_WritesInsideOutputRoot()
     {

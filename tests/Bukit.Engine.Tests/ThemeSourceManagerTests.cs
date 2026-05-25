@@ -27,6 +27,84 @@ public sealed class ThemeSourceManagerTests : IDisposable
     }
 
     [Fact]
+    public void Resolve_PinnedRemoteTheme_WritesLockCommit()
+    {
+        Directory.CreateDirectory(_root);
+        var runner = new FakeGitRunner(args =>
+        {
+            if (args.StartsWith("clone ", StringComparison.Ordinal))
+            {
+                Directory.CreateDirectory(Path.Combine(_root, ThemeSourceManager.SafeNameForTests("https://example.com/theme.git")));
+                return new GitResult(true, string.Empty, string.Empty, 0, false);
+            }
+
+            if (args == "checkout v1.0.0")
+            {
+                return new GitResult(true, string.Empty, string.Empty, 0, false);
+            }
+
+            if (args == "rev-parse HEAD")
+            {
+                return new GitResult(true, "abc123\n", string.Empty, 0, false);
+            }
+
+            return new GitResult(false, string.Empty, "unexpected", 1, false);
+        });
+
+        ThemeSourceManager.Resolve("https://example.com/theme.git@v1.0.0", _root, gitRunner: runner);
+
+        var lockPath = Path.Combine(_root, "bukit-theme.lock.json");
+        Assert.True(File.Exists(lockPath));
+        var lockJson = File.ReadAllText(lockPath);
+        Assert.Contains("https://example.com/theme.git", lockJson, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("v1.0.0", lockJson, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("abc123", lockJson, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Resolve_WhenLockCommitDiffers_Fails()
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(Path.Combine(_root, "bukit-theme.lock.json"), """
+            {
+              "themes": [
+                {
+                  "source": "https://example.com/theme.git",
+                  "ref": "v1.0.0",
+                  "commit": "locked"
+                }
+              ]
+            }
+            """);
+        var runner = new FakeGitRunner(args =>
+        {
+            if (args.StartsWith("clone ", StringComparison.Ordinal))
+            {
+                Directory.CreateDirectory(Path.Combine(_root, ThemeSourceManager.SafeNameForTests("https://example.com/theme.git")));
+                return new GitResult(true, string.Empty, string.Empty, 0, false);
+            }
+
+            if (args == "checkout v1.0.0")
+            {
+                return new GitResult(true, string.Empty, string.Empty, 0, false);
+            }
+
+            if (args == "rev-parse HEAD")
+            {
+                return new GitResult(true, "different\n", string.Empty, 0, false);
+            }
+
+            return new GitResult(false, string.Empty, "unexpected", 1, false);
+        });
+
+        var ex = Assert.Throws<ConfigException>(() =>
+            ThemeSourceManager.Resolve("https://example.com/theme.git@v1.0.0", _root, gitRunner: runner));
+
+        Assert.Contains("lock", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("v1.0.0", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Resolve_WhenVersionTagDoesNotExist_ThrowsConfigException()
     {
         Directory.CreateDirectory(_root);

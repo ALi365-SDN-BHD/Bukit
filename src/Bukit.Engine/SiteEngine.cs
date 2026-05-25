@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Bukit.Engine.Plugins;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Incremental;
+using Bukit.Engine.Output;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Rendering;
@@ -182,6 +183,49 @@ public sealed class SiteEngine
     }
 
     private const string OutputMarkerFileName = ".bukit-output-marker";
+    private const string TemplateRendererFingerprintVersion = "scriban-renderer-v1";
+
+    private static string ComputeCompositeTemplateHash(BuildVariantContext ctx, DirectoryHashCache templateHashCache)
+    {
+        var parts = new List<string>
+        {
+            TemplateRendererFingerprintVersion,
+            ComputeTemplateDirectoryPart("child", ctx.LayoutsDir, templateHashCache),
+            ComputeTemplateDirectoryPart("parent", ctx.ParentLayoutsDir, templateHashCache),
+            ComputeTemplateDirectoryPart("user", ctx.UserLayoutsDir, templateHashCache),
+            ComputeThemeYamlPart(ctx.LayoutsDir),
+            ComputeThemeYamlPart(ctx.ParentLayoutsDir),
+            ComputeThemeYamlPart(ctx.UserLayoutsDir)
+        };
+
+        return HashUtil.Sha256Hex(string.Join('\n', parts));
+    }
+
+    private static string ComputeTemplateDirectoryPart(string label, string? directory, DirectoryHashCache templateHashCache)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+        {
+            return $"{label}:missing";
+        }
+
+        return $"{label}:{Path.GetFullPath(directory)}:{templateHashCache.GetOrAdd(directory)}";
+    }
+
+    private static string ComputeThemeYamlPart(string? layoutsDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(layoutsDirectory))
+        {
+            return "theme-yaml:missing";
+        }
+
+        var themeYamlPath = Path.Combine(Directory.GetParent(layoutsDirectory)?.FullName ?? string.Empty, "theme.yaml");
+        if (!File.Exists(themeYamlPath))
+        {
+            return $"theme-yaml:{themeYamlPath}:missing";
+        }
+
+        return $"theme-yaml:{themeYamlPath}:{HashUtil.Sha256Hex(File.ReadAllBytes(themeYamlPath))}";
+    }
 
     private static void EnsureOutputDirectoryCanBeCleaned(string rootDir, string outputDir)
     {
@@ -402,7 +446,7 @@ public sealed class SiteEngine
             : Path.Combine(cacheDir, $"build-manifest.{suffix}.json");
 
         var templateHashStopwatch = Stopwatch.StartNew();
-        var templateHash = incrementalEnabled ? templateHashCache.GetOrAdd(ctx.LayoutsDir) : string.Empty;
+        var templateHash = incrementalEnabled ? ComputeCompositeTemplateHash(ctx, templateHashCache) : string.Empty;
         templateHashStopwatch.Stop();
         variantStageMetrics.AddDuration("templateHash", templateHashStopwatch.ElapsedMilliseconds);
         var manifest = incrementalEnabled ? BuildManifest.Load(manifestPath) : new BuildManifest();
@@ -825,20 +869,26 @@ public sealed class SiteEngine
 
     internal static void TrackPluginOutputs(BuildContext pluginContext, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger)
     {
-        var currentOutputs = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (pluginContext.Data.TryGetValue("__plugin_outputs", out var outputsObj) && outputsObj is HashSet<string> outputs)
+        var currentOutputs = new Dictionary<string, PluginOutputManifestEntry>(StringComparer.Ordinal);
+        if (pluginContext.Data.TryGetValue("__plugin_outputs", out var outputsObj) && outputsObj is HashSet<PluginOutputTrackingInfo> outputs)
         {
             foreach (var output in outputs)
             {
-                var fullPath = FileWriter.GetSafeFullPath(outputDir, output);
+                var fullPath = FileWriter.GetSafeFullPath(outputDir, output.Path);
                 if (File.Exists(fullPath))
                 {
-                    currentOutputs[BuildPathUtils.NormalizeRelPath(output)] = ComputeFileFingerprint(fullPath);
+                    currentOutputs[BuildPathUtils.NormalizeRelPath(output.Path)] = new PluginOutputManifestEntry
+                    {
+                        Plugin = output.Plugin,
+                        Hook = output.Hook,
+                        Path = BuildPathUtils.NormalizeRelPath(output.Path),
+                        Hash = ComputeFileFingerprint(fullPath)
+                    };
                 }
             }
         }
 
-        DeleteStaleTrackedFiles(outputDir, manifest.PluginOutputs, currentOutputs, incrementalEnabled, logger, "plugin");
+        DeleteStaleTrackedFiles(outputDir, manifest.PluginOutputs.ToDictionary(x => x.Key, x => x.Value.Hash, StringComparer.Ordinal), currentOutputs.ToDictionary(x => x.Key, x => x.Value.Hash, StringComparer.Ordinal), incrementalEnabled, logger, "plugin");
         manifest.PluginOutputs = currentOutputs;
     }
 
@@ -909,14 +959,15 @@ public sealed class SiteEngine
             return;
         }
 
+        var outputFileSystem = new SafeOutputFileSystem(outputDir);
         foreach (var stale in previous.Keys.Where(key => !current.ContainsKey(key)).ToList())
         {
             try
             {
-                var fullPath = FileWriter.GetSafeFullPath(outputDir, stale);
+                var fullPath = outputFileSystem.GetSafeFullPath(stale);
                 if (File.Exists(fullPath))
                 {
-                    File.Delete(fullPath);
+                    outputFileSystem.DeleteFileAsync(stale, CancellationToken.None).GetAwaiter().GetResult();
                     DeleteEmptyDirectoriesUpToRoot(Path.GetDirectoryName(fullPath), outputDir);
                 }
             }

@@ -112,6 +112,8 @@ internal sealed class ProtocolDerivePagesRunner
             },
             ["derivePages"] = new JsonObject
             {
+                ["projectRoot"] = context.RootDir,
+                ["outputDir"] = context.OutputDir,
                 ["routedPages"] = new JsonArray(context.Routed
                     .Select(x => (JsonNode)new JsonObject
                     {

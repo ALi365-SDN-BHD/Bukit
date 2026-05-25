@@ -83,12 +83,14 @@ internal sealed class ProcessPluginInvoker : IProtocolPluginInvoker
             }
         }
 
-        var (pluginName, hook) = ReadInvocationIdentity(requestJson);
-        startInfo.Environment["BUKIT_PLUGIN_NAME"] = pluginName;
-        startInfo.Environment["BUKIT_PLUGIN_HOOK"] = hook;
+        var identity = ReadInvocationIdentity(requestJson);
+        startInfo.Environment["BUKIT_PLUGIN_NAME"] = identity.PluginName;
+        startInfo.Environment["BUKIT_PLUGIN_HOOK"] = identity.Hook;
+        startInfo.Environment["BUKIT_PROJECT_ROOT"] = identity.ProjectRoot;
+        startInfo.Environment["BUKIT_OUTPUT_DIR"] = identity.OutputDir;
     }
 
-    private static (string PluginName, string Hook) ReadInvocationIdentity(string requestJson)
+    private static (string PluginName, string Hook, string ProjectRoot, string OutputDir) ReadInvocationIdentity(string requestJson)
     {
         try
         {
@@ -106,12 +108,26 @@ internal sealed class ProcessPluginInvoker : IProtocolPluginInvoker
                 pluginName = nameProperty.GetString() ?? string.Empty;
             }
 
-            return (pluginName, hook);
+            var hookPayloadName = string.Equals(hook, "derive-pages", StringComparison.OrdinalIgnoreCase) ? "derivePages" : "afterBuild";
+            var projectRoot = ReadNestedString(root, hookPayloadName, "projectRoot");
+            var outputDir = ReadNestedString(root, hookPayloadName, "outputDir");
+
+            return (pluginName, hook, projectRoot, outputDir);
         }
         catch (JsonException)
         {
-            return (string.Empty, string.Empty);
+            return (string.Empty, string.Empty, string.Empty, string.Empty);
         }
+    }
+
+    private static string ReadNestedString(JsonElement root, string objectName, string propertyName)
+    {
+        return root.TryGetProperty(objectName, out var obj)
+            && obj.ValueKind == JsonValueKind.Object
+            && obj.TryGetProperty(propertyName, out var prop)
+            && prop.ValueKind == JsonValueKind.String
+                ? prop.GetString() ?? string.Empty
+                : string.Empty;
     }
 
     private static async Task<string> ReadLimitedAsync(StreamReader reader, int maxBytes, string streamName, CancellationToken cancellationToken)

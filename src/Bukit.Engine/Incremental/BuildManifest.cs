@@ -10,7 +10,7 @@ public sealed class BuildManifest
     public Dictionary<string, string> Media { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, string> Assets { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, string> Static { get; set; } = new(StringComparer.Ordinal);
-    public Dictionary<string, string> PluginOutputs { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, PluginOutputManifestEntry> PluginOutputs { get; set; } = new(StringComparer.Ordinal);
 
     public static BuildManifest Load(string manifestPath)
     {
@@ -71,7 +71,7 @@ public sealed class BuildManifest
             ReadTrackedFileSet(root, "media", manifest.Media);
             ReadTrackedFileSet(root, "assets", manifest.Assets);
             ReadTrackedFileSet(root, "static", manifest.Static);
-            ReadTrackedFileSet(root, "pluginOutputs", manifest.PluginOutputs);
+            ReadPluginOutputs(root, "pluginOutputs", manifest.PluginOutputs);
 
             return manifest;
         }
@@ -120,7 +120,7 @@ public sealed class BuildManifest
                 WriteTrackedFileSet(writer, "media", Media);
                 WriteTrackedFileSet(writer, "assets", Assets);
                 WriteTrackedFileSet(writer, "static", Static);
-                WriteTrackedFileSet(writer, "pluginOutputs", PluginOutputs);
+                WritePluginOutputs(writer, "pluginOutputs", PluginOutputs);
                 writer.WriteEndObject();
                 writer.Flush();
             }
@@ -149,12 +149,63 @@ public sealed class BuildManifest
         }
     }
 
+    private static void ReadPluginOutputs(JsonElement root, string propertyName, Dictionary<string, PluginOutputManifestEntry> target)
+    {
+        if (!root.TryGetProperty(propertyName, out var prop) || prop.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        foreach (var item in prop.EnumerateObject())
+        {
+            if (item.Value.ValueKind == JsonValueKind.String)
+            {
+                target[item.Name] = new PluginOutputManifestEntry
+                {
+                    Path = item.Name,
+                    Hash = item.Value.GetString() ?? string.Empty
+                };
+                continue;
+            }
+
+            if (item.Value.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            target[item.Name] = new PluginOutputManifestEntry
+            {
+                Plugin = GetString(item.Value, "plugin") ?? string.Empty,
+                Hook = GetString(item.Value, "hook") ?? string.Empty,
+                Path = GetString(item.Value, "path") ?? item.Name,
+                Hash = GetString(item.Value, "hash") ?? string.Empty
+            };
+        }
+    }
+
     private static void WriteTrackedFileSet(Utf8JsonWriter writer, string propertyName, Dictionary<string, string> values)
     {
         writer.WriteStartObject(propertyName);
         foreach (var kv in values.OrderBy(x => x.Key, StringComparer.Ordinal))
         {
             writer.WriteString(kv.Key, kv.Value);
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private static void WritePluginOutputs(Utf8JsonWriter writer, string propertyName, Dictionary<string, PluginOutputManifestEntry> values)
+    {
+        writer.WriteStartObject(propertyName);
+        foreach (var kv in values.OrderBy(x => x.Key, StringComparer.Ordinal))
+        {
+            writer.WritePropertyName(kv.Key);
+            writer.WriteStartObject();
+            writer.WriteString("plugin", kv.Value.Plugin);
+            writer.WriteString("hook", kv.Value.Hook);
+            writer.WriteString("path", kv.Value.Path);
+            writer.WriteString("hash", kv.Value.Hash);
+            writer.WriteEndObject();
         }
 
         writer.WriteEndObject();
@@ -169,6 +220,14 @@ public sealed class BuildManifest
 
         return p.ValueKind == JsonValueKind.String ? p.GetString() : null;
     }
+}
+
+public sealed class PluginOutputManifestEntry
+{
+    public string Plugin { get; set; } = string.Empty;
+    public string Hook { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
+    public string Hash { get; set; } = string.Empty;
 }
 
 public sealed class BuildManifestEntry

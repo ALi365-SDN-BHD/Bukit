@@ -218,6 +218,9 @@ public sealed class ExternalProtocolPluginTests
     private static string DotNetHostPath()
         => Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
 
+    private static string JsonEncodedPath(string path)
+        => JsonSerializer.Serialize(path).Trim('"');
+
     [Fact]
     public void PluginRegistry_IncludesExternalProtocolPlugins_WhenConfigured()
     {
@@ -384,6 +387,9 @@ public sealed class ExternalProtocolPluginTests
             Assert.Contains("\"openAi\":\"\"", output, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("\"github\":\"\"", output, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("\"pluginName\":\"sample\"", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("\"pluginHook\":\"after-build\"", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(JsonEncodedPath(temp.Path), output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(JsonEncodedPath(context.OutputDir), output, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
