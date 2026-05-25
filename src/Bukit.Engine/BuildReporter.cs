@@ -30,6 +30,7 @@ internal static class BuildReporter
         WriteBuildReport(Path.Combine(reportDir, "build-report.json"), result);
         WriteRoutes(Path.Combine(reportDir, "routes.json"), variants);
         WriteAssets(Path.Combine(reportDir, "assets.json"), outputDir);
+        WriteIncrementalManifest(Path.Combine(reportDir, "incremental-manifest.json"), result, variants);
         WriteSecurityReport(Path.Combine(reportDir, "security-report.json"));
         logger.Debug($"event=build.report.write dir={reportDir} root={rootDir}");
     }
@@ -130,6 +131,38 @@ internal static class BuildReporter
         writer.WriteEndObject();
     }
 
+    private static void WriteIncrementalManifest(string path, BuildResult result, IReadOnlyList<BuildVariantResult> variants)
+    {
+        using var stream = File.Create(path);
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+        writer.WriteStartObject();
+        writer.WriteBoolean("enabled", result.Incremental.Enabled);
+        writer.WriteNumber("cacheHitCount", result.Incremental.CacheHitCount);
+        writer.WriteNumber("cacheMissCount", result.Incremental.CacheMissCount);
+        writer.WritePropertyName("renderReasons");
+        writer.WriteStartObject();
+        foreach (var reason in variants.SelectMany(v => v.RenderReasons).GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase).OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            writer.WriteNumber(reason.Key, reason.Sum(x => x.Value));
+        }
+
+        writer.WriteEndObject();
+        writer.WritePropertyName("variants");
+        writer.WriteStartArray();
+        foreach (var variant in variants.OrderBy(v => v.Language, StringComparer.OrdinalIgnoreCase))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("language", variant.Language);
+            writer.WriteString("outputDir", variant.OutputDir);
+            writer.WriteNumber("renderedCount", variant.RenderedCount);
+            writer.WriteNumber("skippedCount", variant.SkippedCount);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+        writer.WriteEndObject();
+    }
+
     private static void WriteSecurityReport(string path)
     {
         using var stream = File.Create(path);
@@ -144,11 +177,20 @@ internal static class BuildReporter
         writer.WriteEndArray();
         writer.WritePropertyName("checks");
         writer.WriteStartObject();
-        writer.WriteString("routeTraversal", "passed");
-        writer.WriteString("unsafeSlug", "passed");
-        writer.WriteString("pluginOutputPath", "passed");
-        writer.WriteString("remoteThemeLock", "passed");
+        WriteSecurityCheck(writer, "routeTraversal", "passed", "error");
+        WriteSecurityCheck(writer, "unsafeSlug", "passed", "error");
+        WriteSecurityCheck(writer, "pluginOutputPath", "passed", "error");
+        WriteSecurityCheck(writer, "remoteThemeLock", "passed", "warning");
         writer.WriteEndObject();
+        writer.WriteEndObject();
+    }
+
+    private static void WriteSecurityCheck(Utf8JsonWriter writer, string name, string status, string severity)
+    {
+        writer.WritePropertyName(name);
+        writer.WriteStartObject();
+        writer.WriteString("status", status);
+        writer.WriteString("severity", severity);
         writer.WriteEndObject();
     }
 
@@ -161,7 +203,14 @@ internal static class BuildReporter
                 route.Route.Template,
                 GetSource(route.Item),
                 GetKind(route.Item),
-                variant.Language)))
+                variant.Language))
+                .Concat(variant.DerivedRoutes.Select(route => new RouteReportEntry(
+                    route.Route.Url,
+                    route.Route.OutputPath,
+                    route.Route.Template,
+                    null,
+                    "derived",
+                    variant.Language))))
             .OrderBy(entry => entry.Url, StringComparer.OrdinalIgnoreCase)
             .ThenBy(entry => entry.Language, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -179,7 +228,7 @@ internal static class BuildReporter
         {
             var relative = NormalizePath(Path.GetRelativePath(outputDir, file));
             var info = new FileInfo(file);
-            yield return new AssetReportEntry(relative, null, ComputeSha256(file), info.Length);
+            yield return new AssetReportEntry(relative, relative, ComputeSha256(file), info.Length);
         }
     }
 
