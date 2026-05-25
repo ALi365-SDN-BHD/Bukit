@@ -309,7 +309,7 @@ public sealed class SiteEngineHelperTests
     {
         var site = new SiteConfig { Name = "t", Title = "t", Collections = null };
 
-        var result = SiteBuildOrchestrator.BuildCollectionRules(site);
+        var result = SiteEngine.BuildCollectionRules(site);
 
         Assert.Null(result);
     }
@@ -324,7 +324,7 @@ public sealed class SiteEngineHelperTests
             Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
         };
 
-        var result = SiteBuildOrchestrator.BuildCollectionRules(site);
+        var result = SiteEngine.BuildCollectionRules(site);
 
         Assert.Null(result);
     }
@@ -346,7 +346,7 @@ public sealed class SiteEngineHelperTests
             }
         };
 
-        var result = SiteBuildOrchestrator.BuildCollectionRules(site);
+        var result = SiteEngine.BuildCollectionRules(site);
 
         Assert.NotNull(result);
         Assert.True(result!.ContainsKey("post"));
