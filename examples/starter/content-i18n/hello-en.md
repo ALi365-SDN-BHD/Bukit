@@ -1,5 +1,6 @@
 ---
 type: page
+slug: hello-en
 language: en-US
 summary: English demo page
 tags:

@@ -14,7 +14,7 @@ site:
 content:
   provider: markdown
   markdown:
-    dir: content
+    dir: content-i18n
     defaultType: page
 
 build:

@@ -2,7 +2,7 @@
 type: page
 slug: greeting
 language: zh-CN
-i18nKey: greeting
+i18n_key: greeting
 summary: 中文页面（用于 hreflang 测试）
 ---
 

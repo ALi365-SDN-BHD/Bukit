@@ -2,7 +2,7 @@
 type: page
 slug: greeting
 language: en-US
-i18nKey: greeting
+i18n_key: greeting
 summary: English page (hreflang test)
 ---
 
