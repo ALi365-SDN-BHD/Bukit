@@ -447,13 +447,17 @@ public sealed class SiteEngine
             listRoutes,
             ctx.RootBaseUrl,
             ctx.DefaultLanguage);
-        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates);
-        pluginContext.SeoIndex = seoIndex.Entries;
-        SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, log);
         var maxDegreeOfParallelism = overrides.Jobs ?? Environment.ProcessorCount;
-        var seoHtmlMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
-        var shouldProvideSeoModel = config.Site.Seo.Enabled && seoHtmlMode != "off";
-        var shouldInjectSeo = shouldProvideSeoModel && seoHtmlMode == "inject";
+
+        var seoResult = new SeoPipeline().Execute(
+            config,
+            baseUrl,
+            renderQueue,
+            listRoutes,
+            seoAlternates,
+            siteModel.Analytics,
+            log);
+        pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
 
         var renderPipelineResult = await new RenderPipeline().ExecuteAsync(new RenderPipelineContext(
             RenderQueue: renderQueue,
@@ -472,49 +476,11 @@ public sealed class SiteEngine
             ManifestEntries: manifestEntries,
             MaxDegreeOfParallelism: maxDegreeOfParallelism,
             Logger: log,
-            SeoBuilder: shouldProvideSeoModel
-                ? (_, route) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model) ? model : null!
-                : null,
-            HtmlPostProcessor: shouldProvideSeoModel
-                ? (item, route, page, html) =>
-                {
-                    var skipSeo = SeoInjectionPolicy.ShouldSkip(item.Meta);
-                    if (shouldInjectSeo && !skipSeo)
-                    {
-                        html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, siteModel.Analytics);
-                    }
-
-                    return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, log);
-                }
-        : null,
-            ListItemSeoBuilder: shouldProvideSeoModel
-                ? (item, route) => SeoModelBuilder.BuildForContent(
-                    config,
-                    baseUrl,
-                    item,
-                    route,
-                    GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildAlternateKey(item, route)))
-                : null,
-            ListSeoBuilder: shouldProvideSeoModel
-                ? (route, page) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model)
-                    ? model
-                    : SeoModelBuilder.BuildForList(
-                        config,
-                        baseUrl,
-                        page,
-                        GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(route)))
-                : null,
-            ListHtmlPostProcessor: shouldProvideSeoModel
-                ? (route, page, html) =>
-                {
-                    if (shouldInjectSeo)
-                    {
-                        html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, siteModel.Analytics);
-                    }
-
-                    return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, log);
-                }
-        : null),
+            SeoBuilder: seoResult.SeoBuilder,
+            HtmlPostProcessor: seoResult.HtmlPostProcessor,
+            ListItemSeoBuilder: seoResult.ListItemSeoBuilder,
+            ListSeoBuilder: seoResult.ListSeoBuilder,
+            ListHtmlPostProcessor: seoResult.ListHtmlPostProcessor),
             cancellationToken);
 
         variantStageMetrics = MergeStageMetrics(variantStageMetrics, renderPipelineResult.StageMetrics);
@@ -555,54 +521,44 @@ public sealed class SiteEngine
 
         variantStageMetrics = MergeStageMetrics(variantStageMetrics, assetPipelineResult.StageMetrics);
 
-        if (incrementalEnabled)
-        {
-            DeleteStaleManifestOutputs(outputDir, manifest, currentKeys, log);
-        }
-
-        var afterBuildStopwatch = Stopwatch.StartNew();
-        await PluginRunner.RunAfterBuildAsync(pluginContext, cancellationToken);
-        TrackPluginOutputs(pluginContext, outputDir, manifest, incrementalEnabled, log);
-        RobotsTxtWriter.WriteIfRequested(config, outputDir, baseUrl, seoIndex.Entries);
-        afterBuildStopwatch.Stop();
-        variantStageMetrics.AddDuration("afterBuildPlugins", afterBuildStopwatch.ElapsedMilliseconds);
-
-        if (incrementalEnabled)
-        {
-            manifest.Save(manifestPath);
-            log.Info($"Incremental build: rendered={renderedCount}, skipped={skippedCount}, cache={cacheDir}");
-        }
-
-        if (ctx.DefaultLanguage is null)
-        {
-            log.Info($"Build completed: {Path.GetFullPath(outputDir)}");
-        }
-        else
-        {
-            log.Info($"Build completed: {Path.GetFullPath(outputDir)} (lang={config.Site.Language})");
-        }
+        var pluginPipelineResult = await new PluginPipeline().ExecuteAsync(new PluginPipelineContext(
+            PluginContext: pluginContext,
+            OutputDir: outputDir,
+            BaseUrl: baseUrl,
+            Manifest: manifest,
+            ManifestPath: manifestPath,
+            IncrementalEnabled: incrementalEnabled,
+            CurrentKeys: currentKeys,
+            RenderedCount: renderedCount,
+            SkippedCount: skippedCount,
+            Logger: log,
+            Config: config),
+            cancellationToken);
+        variantStageMetrics = MergeStageMetrics(variantStageMetrics, pluginPipelineResult.StageMetrics);
 
         variantTotalStopwatch.Stop();
         variantStageMetrics.AddDuration("variantTotal", variantTotalStopwatch.ElapsedMilliseconds);
 
-        var result = new BuildVariantResult(
-            config.Site.Language,
-            outputDir,
-            baseUrl,
-            TemplateCapabilitiesResolver.SupportsSearchSnippets(TemplateCapabilitiesResolver.SearchTemplatePath, ctx.LayoutsDir),
-            bodyStore,
-            routed,
-            pluginContext.DerivedRouted,
-            pluginContext.DerivedRoutes,
-            seoIndex.Entries,
-            seoIndex.Models,
-            pluginContext.PluginExecutions.ToList(),
-            renderedCount,
-            skippedCount,
-            new Dictionary<string, int>(renderReasons, StringComparer.OrdinalIgnoreCase),
-            variantStageMetrics.Snapshot());
-        SeoAuditReportWriter.Write(config, outputDir, seoIndex.Entries, seoIndex.Models, log);
-        return result;
+        var searchSnippetsEnabled = TemplateCapabilitiesResolver.SupportsSearchSnippets(TemplateCapabilitiesResolver.SearchTemplatePath, ctx.LayoutsDir);
+        return new BuildReportPipeline().Execute(new BuildReportPipelineContext(
+            Config: config,
+            Language: config.Site.Language,
+            OutputDir: outputDir,
+            BaseUrl: baseUrl,
+            SearchSnippetsEnabled: searchSnippetsEnabled,
+            BodyStore: bodyStore,
+            Routed: routed,
+            DerivedRouted: pluginContext.DerivedRouted,
+            DerivedRoutes: pluginContext.DerivedRoutes,
+            SeoIndex: seoResult.SeoIndex.Entries,
+            SeoModels: seoResult.SeoIndex.Models,
+            PluginExecutions: pluginContext.PluginExecutions.ToList(),
+            RenderedCount: renderedCount,
+            SkippedCount: skippedCount,
+            RenderReasons: new Dictionary<string, int>(renderReasons, StringComparer.OrdinalIgnoreCase),
+            StageMetrics: variantStageMetrics.Snapshot(),
+            Logger: log,
+            DefaultLanguage: ctx.DefaultLanguage));
     }
 
     private static BuildStageMetricsCollector MergeStageMetrics(BuildStageMetricsCollector collector, BuildStageMetrics metrics)
@@ -649,13 +605,6 @@ public sealed class SiteEngine
     private static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)
     {
         return RouteInventoryValidator.BuildCollectionRules(site);
-    }
-
-    private static IReadOnlyList<SeoAlternateModel>? GetSeoAlternates(
-        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> alternates,
-        string key)
-    {
-        return alternates.TryGetValue(key, out var list) && list.Count > 0 ? list : null;
     }
 
     public static IReadOnlyList<RouteInfo> GetListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)
