@@ -1,7 +1,5 @@
-using System.Reflection;
 using Bukit.Config;
 using Bukit.Content;
-using Bukit.Engine;
 using Bukit.Engine.Plugins;
 using Bukit.Rendering;
 using Bukit.Routing;
@@ -12,34 +10,6 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SiteEngineHelperExtendedTests
 {
-    private static readonly Type SeoServiceType = typeof(SeoAlternatesService);
-
-    private static T? InvokeStatic<T>(Type type, string methodName, params object?[] args)
-    {
-        var method = type.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
-        Assert.NotNull(method);
-        return (T?)method!.Invoke(null, args);
-    }
-
-    private static object? InvokeStatic(Type type, string methodName, params object?[] args)
-    {
-        var method = type.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
-        Assert.NotNull(method);
-        return method!.Invoke(null, args);
-    }
-
-    private static T? InvokeSeoService<T>(string methodName, params object?[] args)
-        => InvokeStatic<T>(SeoServiceType, methodName, args);
-
-    private static object? InvokeSeoService(string methodName, params object?[] args)
-        => InvokeStatic(SeoServiceType, methodName, args);
-
-    private static T? InvokeRobotsTxt<T>(string methodName, params object?[] args)
-        => InvokeStatic<T>(typeof(RobotsTxtWriter), methodName, args);
-
-    private static object? InvokeRobotsTxt(string methodName, params object?[] args)
-        => InvokeStatic(typeof(RobotsTxtWriter), methodName, args);
-
     private static ContentItem CreateItem(string id, string title, string slug)
     {
         return new ContentItem(id, title, slug, DateTimeOffset.UtcNow, null,
@@ -78,8 +48,7 @@ public sealed class SiteEngineHelperExtendedTests
         var defaultLanguage = "en";
         var rootBaseUrl = "/";
 
-        var result = InvokeSeoService<IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>>>(
-            "BuildSeoAlternates", config, items, languages, defaultLanguage, rootBaseUrl);
+        var result = SeoAlternatesService.BuildSeoAlternates(config, items, languages, defaultLanguage, rootBaseUrl);
 
         Assert.NotNull(result);
     }
@@ -96,8 +65,7 @@ public sealed class SiteEngineHelperExtendedTests
         var defaultLanguage = "en";
         var rootBaseUrl = "/";
 
-        var result = InvokeSeoService<IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>>>(
-            "BuildSeoAlternates", config, items, languages, defaultLanguage, rootBaseUrl);
+        var result = SeoAlternatesService.BuildSeoAlternates(config, items, languages, defaultLanguage, rootBaseUrl);
 
         Assert.NotNull(result);
         Assert.Empty(result!);
@@ -122,7 +90,7 @@ public sealed class SiteEngineHelperExtendedTests
         var route = new RouteInfo("/post-one", "post-one/index.html", "post");
         var routed = new List<(ContentItem, RouteInfo)> { (item, route) };
 
-        var result = InvokeSeoService<IReadOnlyList<string>>("BuildTaxonomyRouteUrls", config, routed);
+        var result = SeoAlternatesService.BuildTaxonomyRouteUrls(config, routed);
 
         Assert.NotNull(result);
     }
@@ -133,7 +101,7 @@ public sealed class SiteEngineHelperExtendedTests
         var config = CreateTestConfig();
         var routed = Array.Empty<(ContentItem, RouteInfo)>();
 
-        var result = InvokeSeoService<IReadOnlyList<string>>("BuildTaxonomyRouteUrls", config, routed);
+        var result = SeoAlternatesService.BuildTaxonomyRouteUrls(config, routed);
 
         Assert.NotNull(result);
         Assert.Empty(result!);
@@ -175,7 +143,7 @@ public sealed class SiteEngineHelperExtendedTests
             routed.Add((item, route));
         }
 
-        var result = InvokeSeoService<IReadOnlyList<string>>("BuildPaginationRouteUrls", config, routed);
+        var result = SeoAlternatesService.BuildPaginationRouteUrls(config, routed);
 
         Assert.NotNull(result);
     }
@@ -186,7 +154,7 @@ public sealed class SiteEngineHelperExtendedTests
         var config = CreateTestConfig();
         var routed = Array.Empty<(ContentItem, RouteInfo)>();
 
-        var result = InvokeSeoService<IReadOnlyList<string>>("BuildPaginationRouteUrls", config, routed);
+        var result = SeoAlternatesService.BuildPaginationRouteUrls(config, routed);
 
         Assert.NotNull(result);
         Assert.Empty(result!);
@@ -205,7 +173,7 @@ public sealed class SiteEngineHelperExtendedTests
         var pageSize = 10;
         var indexEnabled = true;
 
-        InvokeSeoService("AddTaxonomyKindRoutes", result, kind, termCounts, pageSize, indexEnabled);
+        SeoAlternatesService.AddTaxonomyKindRoutes(result, kind, termCounts, pageSize, indexEnabled);
 
         Assert.NotEmpty(result);
     }
@@ -219,7 +187,7 @@ public sealed class SiteEngineHelperExtendedTests
         var pageSize = 10;
         var indexEnabled = true;
 
-        InvokeSeoService("AddTaxonomyKindRoutes", result, kind, termCounts, pageSize, indexEnabled);
+        SeoAlternatesService.AddTaxonomyKindRoutes(result, kind, termCounts, pageSize, indexEnabled);
 
         Assert.Empty(result);
     }
@@ -232,7 +200,7 @@ public sealed class SiteEngineHelperExtendedTests
         var routed = new List<(ContentItem, RouteInfo)> { (item, route) };
         var key = "tags";
 
-        var result = InvokeSeoService<IReadOnlyDictionary<string, int>>("BuildTaxonomyTermCounts", routed, key);
+        var result = SeoAlternatesService.BuildTaxonomyTermCounts(routed, key);
 
         Assert.NotNull(result);
         Assert.True(result!.Count >= 0);
@@ -250,8 +218,7 @@ public sealed class SiteEngineHelperExtendedTests
         var rootBaseUrl = "/";
         var defaultLanguage = "en";
 
-        var result = InvokeSeoService<IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>>>(
-            "AddVariantRouteAlternates", config, existing, routes, rootBaseUrl, defaultLanguage);
+        var result = SeoAlternatesService.AddVariantRouteAlternates(config, existing, routes, rootBaseUrl, defaultLanguage);
 
         Assert.NotNull(result);
         Assert.Same(existing, result);
@@ -293,7 +260,7 @@ public sealed class SiteEngineHelperExtendedTests
             };
             var seoEntries = new Dictionary<string, SeoIndexEntry>();
 
-            InvokeRobotsTxt("WriteIfRequested", config, tempDir, "/", seoEntries);
+            RobotsTxtWriter.WriteIfRequested(config, tempDir, "/", seoEntries);
 
             var robotsPath = Path.Combine(tempDir, "robots.txt");
             Assert.True(File.Exists(robotsPath));
@@ -331,7 +298,7 @@ public sealed class SiteEngineHelperExtendedTests
             };
             var seoEntries = new Dictionary<string, SeoIndexEntry>();
 
-            InvokeRobotsTxt("WriteIfRequested", config, tempDir, "/", seoEntries);
+            RobotsTxtWriter.WriteIfRequested(config, tempDir, "/", seoEntries);
 
             var robotsPath = Path.Combine(tempDir, "robots.txt");
             Assert.False(File.Exists(robotsPath));
@@ -381,7 +348,7 @@ public sealed class SiteEngineHelperExtendedTests
     [Fact]
     public void NormalizeSeoPageSize_WithZero_Returns10()
     {
-        var result = InvokeSeoService<int>("NormalizePageSize", 0);
+        var result = SeoAlternatesService.NormalizePageSize(0);
 
         Assert.Equal(10, result);
     }
@@ -389,7 +356,7 @@ public sealed class SiteEngineHelperExtendedTests
     [Fact]
     public void NormalizeSeoPageSize_WithNegative_Returns10()
     {
-        var result = InvokeSeoService<int>("NormalizePageSize", -5);
+        var result = SeoAlternatesService.NormalizePageSize(-5);
 
         Assert.Equal(10, result);
     }
@@ -397,7 +364,7 @@ public sealed class SiteEngineHelperExtendedTests
     [Fact]
     public void NormalizeSeoPageSize_WithPositive_ReturnsSame()
     {
-        var result = InvokeSeoService<int>("NormalizePageSize", 20);
+        var result = SeoAlternatesService.NormalizePageSize(20);
 
         Assert.Equal(20, result);
     }

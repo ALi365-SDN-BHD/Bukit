@@ -259,7 +259,7 @@ internal static class TaxonomyTermsInjector
         return false;
     }
 
-    private static Dictionary<string, List<Dictionary<string, object>>> GetOrCreateEnsureTermsMap(Dictionary<string, object> data)
+    internal static Dictionary<string, List<Dictionary<string, object>>> GetOrCreateEnsureTermsMap(Dictionary<string, object> data)
     {
         if (data.TryGetValue("taxonomy_ensure_terms", out var existing) &&
             existing is Dictionary<string, List<Dictionary<string, object>>> typed)
@@ -272,7 +272,7 @@ internal static class TaxonomyTermsInjector
         return map;
     }
 
-    private static string NormalizeNotionFieldKey(string text)
+    internal static string NormalizeNotionFieldKey(string text)
     {
         var trimmed = (text ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(trimmed))

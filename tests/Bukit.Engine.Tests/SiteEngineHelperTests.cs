@@ -1,4 +1,3 @@
-using System.Reflection;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Plugins.BuiltIn;
@@ -10,26 +9,6 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SiteEngineHelperTests
 {
-    private static readonly Type SeoServiceType = typeof(SeoAlternatesService);
-
-    private static object InvokePrivateStatic(Type type, string methodName, params object[] args)
-    {
-        var method = type.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)
-            ?? throw new InvalidOperationException($"Method '{methodName}' not found on {type.Name}.");
-        return method.Invoke(null, args)!;
-    }
-
-    private static T InvokePrivateStatic<T>(Type type, string methodName, params object[] args)
-    {
-        return (T)InvokePrivateStatic(type, methodName, args);
-    }
-
-    private static object InvokeSeoService(string methodName, params object[] args)
-        => InvokePrivateStatic(SeoServiceType, methodName, args);
-
-    private static T InvokeSeoService<T>(string methodName, params object[] args)
-        => InvokePrivateStatic<T>(SeoServiceType, methodName, args);
-
     [Fact]
     public void SlugifySeoSegment_SimpleText_KeepsLetters()
     {
@@ -81,7 +60,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeSeoPageSize_Negative_ReturnsTen()
     {
-        var result = InvokeSeoService<int>("NormalizePageSize", -5);
+        var result = SeoAlternatesService.NormalizePageSize(-5);
 
         Assert.Equal(10, result);
     }
@@ -89,7 +68,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeSeoPageSize_Zero_ReturnsTen()
     {
-        var result = InvokeSeoService<int>("NormalizePageSize", 0);
+        var result = SeoAlternatesService.NormalizePageSize(0);
 
         Assert.Equal(10, result);
     }
@@ -97,7 +76,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void NormalizeSeoPageSize_Positive_ReturnsSameValue()
     {
-        var result = InvokeSeoService<int>("NormalizePageSize", 25);
+        var result = SeoAlternatesService.NormalizePageSize(25);
 
         Assert.Equal(25, result);
     }
@@ -166,7 +145,7 @@ public sealed class SiteEngineHelperTests
             ["tags"] = default(object)!
         };
 
-        var result = InvokeSeoService<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
+        var result = SeoAlternatesService.GetSeoStringList(meta, "tags");
 
         Assert.Null(result);
     }
@@ -176,7 +155,7 @@ public sealed class SiteEngineHelperTests
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
-        var result = InvokeSeoService<IReadOnlyList<string>?>("GetSeoStringList", meta, "missing");
+        var result = SeoAlternatesService.GetSeoStringList(meta, "missing");
 
         Assert.Null(result);
     }
@@ -189,7 +168,7 @@ public sealed class SiteEngineHelperTests
             ["tags"] = "alpha, beta, gamma"
         };
 
-        var result = InvokeSeoService<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
+        var result = SeoAlternatesService.GetSeoStringList(meta, "tags");
 
         Assert.NotNull(result);
         Assert.Equal(3, result!.Count);
@@ -206,7 +185,7 @@ public sealed class SiteEngineHelperTests
             ["tags"] = "alpha"
         };
 
-        var result = InvokeSeoService<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
+        var result = SeoAlternatesService.GetSeoStringList(meta, "tags");
 
         Assert.NotNull(result);
         Assert.Single(result!);
@@ -221,7 +200,7 @@ public sealed class SiteEngineHelperTests
             ["tags"] = ""
         };
 
-        var result = InvokeSeoService<IReadOnlyList<string>?>("GetSeoStringList", meta, "tags");
+        var result = SeoAlternatesService.GetSeoStringList(meta, "tags");
 
         Assert.Null(result);
     }
@@ -241,7 +220,7 @@ public sealed class SiteEngineHelperTests
             },
             Fields: null);
 
-        var result = InvokeSeoService<string>("GetCollection", item);
+        var result = SeoAlternatesService.GetCollection(item);
 
         Assert.Equal("blog", result);
     }
@@ -261,7 +240,7 @@ public sealed class SiteEngineHelperTests
             },
             Fields: null);
 
-        var result = InvokeSeoService<string>("GetCollection", item);
+        var result = SeoAlternatesService.GetCollection(item);
 
         Assert.Equal("article", result);
     }
@@ -278,7 +257,7 @@ public sealed class SiteEngineHelperTests
             Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null);
 
-        var result = InvokeSeoService<string>("GetCollection", item);
+        var result = SeoAlternatesService.GetCollection(item);
 
         Assert.Equal("page", result);
     }
@@ -299,7 +278,7 @@ public sealed class SiteEngineHelperTests
             },
             Fields: null);
 
-        var result = InvokeSeoService<string>("GetCollection", item);
+        var result = SeoAlternatesService.GetCollection(item);
 
         Assert.Equal("blog", result);
     }

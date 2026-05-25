@@ -171,7 +171,7 @@ public static class SeoAlternatesService
         return routes;
     }
 
-    private static IReadOnlyList<string> BuildTaxonomyRouteUrls(
+    internal static IReadOnlyList<string> BuildTaxonomyRouteUrls(
         AppConfig config,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
     {
@@ -205,7 +205,7 @@ public static class SeoAlternatesService
         return result;
     }
 
-    private static IReadOnlyList<string> BuildPaginationRouteUrls(
+    internal static IReadOnlyList<string> BuildPaginationRouteUrls(
         AppConfig config,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
     {
@@ -248,7 +248,7 @@ public static class SeoAlternatesService
         return result;
     }
 
-    private static void AddTaxonomyKindRoutes(
+    internal static void AddTaxonomyKindRoutes(
         List<string> result,
         string kind,
         IReadOnlyDictionary<string, int> termCounts,
@@ -282,7 +282,7 @@ public static class SeoAlternatesService
         }
     }
 
-    private static IReadOnlyDictionary<string, int> BuildTaxonomyTermCounts(
+    internal static IReadOnlyDictionary<string, int> BuildTaxonomyTermCounts(
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         string key)
     {
@@ -310,7 +310,7 @@ public static class SeoAlternatesService
         return result;
     }
 
-    private static IReadOnlyList<string>? GetSeoStringList(IReadOnlyDictionary<string, object> meta, string key)
+    internal static IReadOnlyList<string>? GetSeoStringList(IReadOnlyDictionary<string, object> meta, string key)
     {
         if (!meta.TryGetValue(key, out var value) || value is null)
         {
@@ -336,7 +336,7 @@ public static class SeoAlternatesService
         return null;
     }
 
-    private static string GetCollection(ContentItem item)
+    internal static string GetCollection(ContentItem item)
     {
         if (item.Meta.TryGetValue("collection", out var collection) && collection is not null && !string.IsNullOrWhiteSpace(collection.ToString()))
         {
@@ -351,7 +351,7 @@ public static class SeoAlternatesService
         return "page";
     }
 
-    private static int NormalizePageSize(int pageSize) => pageSize <= 0 ? 10 : pageSize;
+    internal static int NormalizePageSize(int pageSize) => pageSize <= 0 ? 10 : pageSize;
 
     private static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)
     {

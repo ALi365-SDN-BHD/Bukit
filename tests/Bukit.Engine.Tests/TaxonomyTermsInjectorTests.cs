@@ -1,7 +1,5 @@
-using System.Reflection;
 using Bukit.Config;
 using Bukit.Content;
-using Bukit.Engine;
 using Bukit.Engine.Plugins;
 using Bukit.Routing;
 using Bukit.Shared;
@@ -11,20 +9,6 @@ namespace Bukit.Engine.Tests;
 
 public sealed class TaxonomyTermsInjectorTests
 {
-    private static T? InvokeStatic<T>(string methodName, params object?[] args)
-    {
-        var method = typeof(TaxonomyTermsInjector).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static);
-        Assert.NotNull(method);
-        return (T?)method!.Invoke(null, args);
-    }
-
-    private static object? InvokeStatic(string methodName, params object?[] args)
-    {
-        var method = typeof(TaxonomyTermsInjector).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static);
-        Assert.NotNull(method);
-        return method!.Invoke(null, args);
-    }
-
     private static ContentItem CreateItem(string id, string title, string slug, IReadOnlyDictionary<string, ContentField>? fields = null)
     {
         return new ContentItem(id, title, slug, DateTimeOffset.UtcNow, null,
@@ -134,7 +118,7 @@ public sealed class TaxonomyTermsInjectorTests
     [Fact]
     public void NormalizeNotionFieldKey_WithSimpleName_ReturnsNormalized()
     {
-        var result = InvokeStatic<string>("NormalizeNotionFieldKey", "Tags");
+        var result = TaxonomyTermsInjector.NormalizeNotionFieldKey("Tags");
 
         Assert.NotNull(result);
         Assert.Equal("tags", result);
@@ -143,7 +127,7 @@ public sealed class TaxonomyTermsInjectorTests
     [Fact]
     public void NormalizeNotionFieldKey_WithSpaces_ReturnsTrimmedLowercase()
     {
-        var result = InvokeStatic<string>("NormalizeNotionFieldKey", "  My Field  ");
+        var result = TaxonomyTermsInjector.NormalizeNotionFieldKey("  My Field  ");
 
         Assert.NotNull(result);
         Assert.Equal("my_field", result);
@@ -154,7 +138,7 @@ public sealed class TaxonomyTermsInjectorTests
     {
         var data = new Dictionary<string, object>();
 
-        var result = InvokeStatic("GetOrCreateEnsureTermsMap", data);
+        var result = TaxonomyTermsInjector.GetOrCreateEnsureTermsMap(data);
 
         Assert.NotNull(result);
         Assert.True(data.ContainsKey("taxonomy_ensure_terms"));
@@ -172,7 +156,7 @@ public sealed class TaxonomyTermsInjectorTests
             ["taxonomy_ensure_terms"] = existing
         };
 
-        var result = InvokeStatic("GetOrCreateEnsureTermsMap", data);
+        var result = TaxonomyTermsInjector.GetOrCreateEnsureTermsMap(data);
 
         Assert.Same(existing, result);
     }
