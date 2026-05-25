@@ -608,7 +608,14 @@ public static class ConfigLoader
 
         using var reader = File.OpenText(collectionsPath);
         var yaml = new YamlStream();
-        yaml.Load(reader);
+        try
+        {
+            yaml.Load(reader);
+        }
+        catch (YamlDotNet.Core.YamlException ex)
+        {
+            throw new ConfigException($"Invalid YAML syntax in collections.yaml: {collectionsPath}", ex);
+        }
 
         if (yaml.Documents.Count == 0)
         {

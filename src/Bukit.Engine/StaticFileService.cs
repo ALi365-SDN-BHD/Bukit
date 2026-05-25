@@ -7,7 +7,7 @@ namespace Bukit.Engine;
 
 internal static class StaticFileService
 {
-    internal static void RenderStaticFiles(string staticDir, string outputDir, ITemplateRenderer renderer, SiteModel siteModel, string templateName, string baseUrl, ConcurrentDictionary<string, byte> currentKeys, CancellationToken cancellationToken, Action<string>? warn = null)
+    internal static void RenderStaticFiles(string staticDir, string outputDir, ITemplateRenderer renderer, SiteModel siteModel, string templateName, string baseUrl, ConcurrentDictionary<string, byte> currentKeys, CancellationToken cancellationToken, Action<string>? warn = null, bool publishDotFiles = false)
     {
         var htmlFiles = Directory.GetFiles(staticDir, "*.html", SearchOption.AllDirectories);
         foreach (var file in htmlFiles)
@@ -55,6 +55,13 @@ internal static class StaticFileService
         foreach (var file in nonHtmlFiles)
         {
             var relativePath = Path.GetRelativePath(staticDir, file);
+
+            if (!publishDotFiles && HasDotPrefixedSegment(relativePath))
+            {
+                warn?.Invoke($"Skipping dotfile in static dir: {relativePath}");
+                continue;
+            }
+
             var dest = FileWriter.GetSafeFullPath(outputDir, relativePath);
             var destDir = Path.GetDirectoryName(dest);
             if (destDir is not null)
@@ -63,6 +70,25 @@ internal static class StaticFileService
             }
             File.Copy(file, dest, overwrite: true);
         }
+    }
+
+    private static bool HasDotPrefixedSegment(string relativePath)
+    {
+        var normalized = relativePath.Replace('\\', '/');
+        if (normalized.StartsWith(".well-known/", StringComparison.OrdinalIgnoreCase) || normalized.Equals(".well-known", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        foreach (var segment in normalized.Split('/'))
+        {
+            if (segment.StartsWith('.') && !segment.Equals(".well-known", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     internal static IReadOnlyList<RouteInfo> BuildStaticHtmlRoutes(string staticDir, string templateName, Action<string>? warn = null)

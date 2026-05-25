@@ -62,7 +62,7 @@ internal sealed class AssetPipeline
             {
                 if (!string.IsNullOrWhiteSpace(ctx.StaticTemplate) && ctx.Renderer is not null)
                 {
-                    StaticFileService.RenderStaticFiles(ctx.StaticDir!, ctx.OutputDir, ctx.Renderer, ctx.SiteModel, ctx.StaticTemplate, ctx.BaseUrl, ctx.CurrentKeys, cancellationToken, ctx.Logger.Warn);
+                    StaticFileService.RenderStaticFiles(ctx.StaticDir!, ctx.OutputDir, ctx.Renderer, ctx.SiteModel, ctx.StaticTemplate, ctx.BaseUrl, ctx.CurrentKeys, cancellationToken, ctx.Logger.Warn, ctx.PublishDotFiles);
                 }
                 else
                 {
