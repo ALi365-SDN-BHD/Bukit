@@ -38,8 +38,17 @@ public sealed class SiteEngine
         _rendererFactory = rendererFactory;
     }
 
-    public async Task<BuildResult> BuildAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken = default)
+    public Task<BuildResult> BuildAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken = default)
     {
+        var pipeline = new BuildPipeline(BuildCoreAsync);
+        return pipeline.ExecuteAsync(new BuildPipelineContext(config, rootDir, overrides), cancellationToken);
+    }
+
+    private async Task<BuildResult> BuildCoreAsync(BuildPipelineContext context, CancellationToken cancellationToken)
+    {
+        var config = context.Config;
+        var rootDir = context.RootDir;
+        var overrides = context.Overrides;
         var buildStartedAt = DateTimeOffset.UtcNow;
         var buildStopwatch = Stopwatch.StartNew();
         var effectiveConfig = ConfigApplier.Apply(config, overrides);
