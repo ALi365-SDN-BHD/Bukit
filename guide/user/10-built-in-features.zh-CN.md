@@ -339,3 +339,13 @@ theme:
 ```
 
 📖 详细用法与完整配置见：[19-v3.0新增功能](./19-new-features-v3.zh-CN.md)。
+
+## 外部插件安全性 (v3.x)
+
+如果你使用了外部协议插件（`site.externalPlugins`），以下安全特性适用：
+
+- **环境隔离**：插件进程运行在干净环境中——仅 `BUKIT_PLUGIN_NAME`、`BUKIT_PLUGIN_HOOK`、`BUKIT_PROJECT_ROOT`、`BUKIT_OUTPUT_DIR` 可用。使用 `allowEnvironment` 显式透传宿主变量。
+- **输出限制**：配置 `maxStdoutBytes` / `maxStderrBytes` 限制插件输出，防止资源失控。
+- **Stale 输出清理**：所有插件输出在构建清单中追踪。增量构建时，不再产生的旧文件会被自动删除。
+
+详见：[外部插件协议](../dev/external-plugin-protocol.zh-CN.md)。

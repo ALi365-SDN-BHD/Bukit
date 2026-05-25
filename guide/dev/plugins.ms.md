@@ -18,6 +18,16 @@ Pelaksanaan: `src/Bukit.Engine/Plugins/PluginRunner.cs`, `src/Bukit.Engine/Plugi
 3. **external**: Pemuatan `plugins/*.dll` runtime (Non-AOT sahaja)
 4. **external-protocol**: Plugin protokol `stdin/stdout + JSON` (serasi AOT)
 
+## Keselamatan external-protocol
+
+Plugin protokol luaran berjalan dengan **pengasingan persekitaran**: pemboleh ubah persekitaran hos dikosongkan, dan hanya `BUKIT_PLUGIN_NAME`, `BUKIT_PLUGIN_HOOK`, `BUKIT_PROJECT_ROOT`, dan `BUKIT_OUTPUT_DIR` disuntik. Gunakan `allowEnvironment` dalam `site.externalPlugins` untuk mendedahkan pemboleh ubah hos tambahan secara eksplisit.
+
+Had output (`maxStdoutBytes` / `maxStderrBytes`) mengehadkan stdout/stderr plugin; melebihi had membunuh proses. Semua output plugin dikesan dengan metadata plugin/hook/path/hash dalam manifes binaan, dan output lapuk dari binaan sebelumnya dibersihkan secara automatik semasa binaan tambahan.
+
+Lihat [External Plugin Protocol](./external-plugin-protocol.md) untuk skema permintaan/tindak balas penuh dan butiran perundingan protokol.
+
+## Penemuan generated
+
 ## Tertib Pelaksanaan Plugin
 Plugin yang melaksanakan `IOrderedPlugin` mengikut `Order` dari terkecil ke terbesar (lalai 0).
 

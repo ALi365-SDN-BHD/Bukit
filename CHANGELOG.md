@@ -5,7 +5,21 @@ All notable changes to Bukit will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- **Taxonomy v3.0.0**: Major overhaul of the taxonomy system with 7 new features
+- **Build core hardening**: 15-task TDD repair covering static HTML routing, theme inheritance fix, incremental stale cleanup, route/output path security, plugin hardening, safe output filesystem, remote theme reproducibility, and composite template fingerprinting
+  - **Plugin environment isolation**: Process plugins now run in a clean environment with only `BUKIT_PLUGIN_NAME`, `BUKIT_PLUGIN_HOOK`, `BUKIT_PROJECT_ROOT`, and `BUKIT_OUTPUT_DIR` exposed by default; `allowEnvironment` config allows explicit host variable passthrough
+  - **Plugin output limits**: `maxStdoutBytes` / `maxStderrBytes` fields in `externalPlugins` config cap plugin stdout/stderr; exceeding the limit kills the process
+  - **Plugin output manifest tracking**: `build-manifest.json` now records structured `pluginOutputs` (plugin/hook/path/hash); stale plugin outputs from previous builds are automatically cleaned during incremental builds
+  - **Build asset hash mode**: `build.assetHashMode: "sha256"` enables SHA256 content-based asset copy detection (recommended for CI and network filesystems)
+  - **Route security validation**: `RouteSecurityValidator` rejects path traversal (`../`), absolute paths, cross-drive paths, and Windows reserved names (`CON`, `PRN`, etc.) in all generated routes and output paths
+  - **Static HTML route inventory**: Static `.html` files are now included in route conflict detection alongside content pages and derived pages
+  - **Safe output filesystem**: `IOutputFileSystem` / `SafeOutputFileSystem` API ensures all output write/delete operations stay within the build output root; stale file cleanup uses this guard
+  - **Output clean marker**: `build.clean` now requires a `.bukit-output-marker` file (written on every successful build) before deleting the output directory; refuses to clean project root, home directory, filesystem root, or `.git` directories
+  - **Remote theme reproducibility**: Cached remote themes no longer auto-`git pull` during build; `@ref` checkouts record the resolved commit in `bukit-theme.lock.json`; mismatched lock commits cause build failure
+  - **Composite template fingerprint**: Incremental template hash now combines child/parent/user layouts, `theme.yaml`, and a renderer version marker — parent theme or user layout changes correctly trigger re-rendering
+  - **Multilingual concurrency budget**: Multi-language builds now respect a global concurrency budget to prevent resource exhaustion
+  - **Theme inheritance asset/static order**: Parent theme `assets/` and `static/` are now copied before child/project directories, ensuring correct override order
+  - **Remote theme checkout hardening**: Missing version tags cause immediate build failure instead of silent fallback; Git operations use process tree kill on timeout
+  - **Partial route override**: `route.outputPath`-only overrides now correctly derive the corresponding URL
   - Hierarchical taxonomy: `taxonomy.kinds[].hierarchical: true` enables parent-child term relationships via `ParentSlug`, with automatic `children` and `ancestors` computation
   - Term metadata: `_index.md` convention (Hugo-style) at `content/_taxonomy/<kind>/<slug>/_index.md` for per-term description, image, weight, parent
   - RSS 2.0 feeds: each term automatically generates `<output>/<kind>/<slug>/feed.xml`

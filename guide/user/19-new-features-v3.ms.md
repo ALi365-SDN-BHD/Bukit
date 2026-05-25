@@ -464,3 +464,22 @@ Menambah medan array `children` dan `ancestors`:
 | Tiada kategori hierarki | Dayakan dengan `taxonomy.kinds[].hierarchical: true` |
 | Tiada metadata term | `content/_taxonomy/<kind>/<slug>/_index.md` (gaya Hugo) |
 | Tiada RSS term | Setiap term menjana `<kind>/<slug>/feed.xml` secara automatik |
+
+---
+
+## Pengukuhan Teras Binaan (v3.x)
+
+Keluaran ini juga merangkumi pelbagai penambahbaikan kebolehpercayaan dan keselamatan enjin binaan:
+
+| Ciri | Penerangan | Impak |
+|---|---|---|
+| **Pengasingan persekitaran plugin** | Plugin luaran berjalan dalam persekitaran bersih dengan hanya `BUKIT_PLUGIN_NAME`, `BUKIT_PLUGIN_HOOK`, `BUKIT_PROJECT_ROOT`, `BUKIT_OUTPUT_DIR` didedahkan. Gunakan `allowEnvironment` untuk laluan hos eksplisit. | Pembangun plugin mesti membaca pemboleh ubah ini dan bukannya bergantung pada persekitaran hos |
+| **Had output plugin** | `externalPlugins.<name>.maxStdoutBytes` / `maxStderrBytes` mengehadkan output plugin. Melebihi had membunuh proses. | Mencegah plugin liar daripada menggunakan sumber |
+| **Manifes output plugin + pembersihan lapuk** | Semua output plugin dikesan dengan plugin/hook/path/hash dalam `build-manifest.json`. Output lama dari binaan sebelumnya dipadam secara automatik semasa binaan tambahan. | Direktori output lebih bersih merentas binaan |
+| **Mod hash aset** | `build.assetHashMode: "sha256"` membolehkan pengesanan salinan aset berasaskan kandungan SHA256 (disyorkan untuk CI dan sistem fail rangkaian). | Mencegah penyalinan semula aset yang tidak berubah |
+| **Pengesahan keselamatan laluan** | Semua laluan yang dijana disahkan terhadap pencerobohan laluan (`../`), laluan mutlak, laluan merentas pemacu, dan nama terpelihara Windows. | Mencegah pelarian fail output |
+| **Pengesanan konflik laluan HTML statik** | Fail `.html` dalam direktori `static/` kini termasuk dalam pengesanan konflik laluan bersama halaman kandungan dan halaman terbitan. | Mencegah konflik laluan senyap |
+| **Perlindungan penanda clean** | `build.clean` kini memerlukan fail `.bukit-output-marker` sebelum membersihkan direktori output. Menolak membersihkan direktori bukan Bukit. | Mencegah pemadaman tidak sengaja |
+| **Kebolehhasilan semula tema jauh** | Tema jauh yang dicache tidak lagi auto-`git pull`. Checkout `@ref` dikunci melalui `bukit-theme.lock.json`. Commit tidak sepadan menyebabkan kegagalan binaan. | Binaan konsisten merentas persekitaran |
+| **Cap jari templat komposit** | Hash templat tambahan kini menggabungkan child/parent/user layouts, `theme.yaml`, dan penanda versi perender. Perubahan tema induk atau susun atur pengguna mencetuskan perenderan semula. | Kurang kejutan "templat tidak dikemas kini" |
+| **Belanjawan serentak pelbagai bahasa** | Binaan pelbagai bahasa mematuhi belanjawan serentak global untuk mencegah kehabisan sumber. | Penggunaan sumber lebih boleh diramal |

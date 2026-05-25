@@ -616,3 +616,20 @@ build:
 - CSS/资源 404：多见于 `site.baseUrl` 配错或模板里没拼上 baseUrl（见：[13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)）
 - 字段为空：模板读取 `page.fields.xxx` 但内容没提供该字段 → 在内容里补字段或加 `if` 保护
 - 列表页里 `p.content` 为空：不一定是内容没加载，可能是 `build.listPageContentMode` 为 `never`，或当前主题没有声明该列表模板需要正文
+
+## 远程主题（Git 来源）
+
+Bukit 支持直接从 Git 仓库获取主题：
+
+```yaml
+theme:
+  source: https://github.com/user/theme.git@v1.0.0
+```
+
+- **首次构建**：仓库会克隆到本地缓存。
+- **后续构建**：不会自动更新已缓存的主题——这确保了构建的可复现性。
+- **版本锁定**：通过 `@ref` 指定标签或分支；Bukit 会检出到该精确引用。
+- **锁定文件**：`bukit-theme.lock.json` 记录已解析的 commit。如果缓存的 commit 与锁定文件不一致，构建会失败（防止意外的远程更改）。
+- **更新主题**：删除缓存目录或锁定文件即可强制重新克隆。
+
+这对 CI/CD 流水线和需要主题版本一致性的团队环境尤为有用。

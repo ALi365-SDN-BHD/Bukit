@@ -339,3 +339,13 @@ theme:
 ```
 
 📖 For detailed usage and full configuration, see: [19 New Features in v3.0](./19-new-features-v3.md).
+
+## External Plugin Security (v3.x)
+
+If you use external protocol plugins (`site.externalPlugins`), these security features apply:
+
+- **Environment isolation**: Plugin processes run with a clean environment — only `BUKIT_PLUGIN_NAME`, `BUKIT_PLUGIN_HOOK`, `BUKIT_PROJECT_ROOT`, and `BUKIT_OUTPUT_DIR` are available. Use `allowEnvironment` to explicitly expose host variables.
+- **Output limits**: Configure `maxStdoutBytes` / `maxStderrBytes` to cap plugin output and prevent runaway resource consumption.
+- **Stale output cleanup**: All plugin outputs are tracked in the build manifest. During incremental builds, files from a previous build that are no longer produced are automatically deleted.
+
+For details, see [External Plugin Protocol](../dev/external-plugin-protocol.md).

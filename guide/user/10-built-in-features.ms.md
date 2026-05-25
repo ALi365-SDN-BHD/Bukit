@@ -339,3 +339,13 @@ theme:
 ```
 
 📖 Untuk penggunaan terperinci dan konfigurasi lengkap, lihat: [19 Ciri Baharu v3.0](./19-new-features-v3.ms.md).
+
+## Keselamatan Plugin Luaran (v3.x)
+
+Jika anda menggunakan plugin protokol luaran (`site.externalPlugins`), ciri keselamatan berikut terpakai:
+
+- **Pengasingan persekitaran**: Proses plugin berjalan dengan persekitaran bersih — hanya `BUKIT_PLUGIN_NAME`, `BUKIT_PLUGIN_HOOK`, `BUKIT_PROJECT_ROOT`, dan `BUKIT_OUTPUT_DIR` tersedia. Gunakan `allowEnvironment` untuk mendedahkan pemboleh ubah hos secara eksplisit.
+- **Had output**: Konfigurasi `maxStdoutBytes` / `maxStderrBytes` untuk mengehadkan output plugin dan mencegah penggunaan sumber yang tidak terkawal.
+- **Pembersihan output lapuk**: Semua output plugin dikesan dalam manifes binaan. Semasa binaan tambahan, fail dari binaan sebelumnya yang tidak lagi dihasilkan akan dipadam secara automatik.
+
+Untuk butiran, lihat [Protokol Plugin Luaran](../dev/external-plugin-protocol.ms.md).

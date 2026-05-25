@@ -35,6 +35,7 @@ Jika anda menyelenggara Bukit dalam persekitaran yang menyokong skill seperti Tr
 - [Sistem routing](./routing.ms.md)
 - [Rendering dan templat (Scriban)](./rendering-scriban.ms.md)
 - [Pembangunan tema](./theme.ms.md)
+- [Sumber tema Git](./theme-source.ms.md)
 - [Sumber data Modules (`mode=data`)](./modules-data.ms.md)
 - [Output tetap enjin](./engine-outputs.ms.md)
 - [Sistem plugin](./plugins.ms.md)

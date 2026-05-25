@@ -103,6 +103,12 @@ site:
 
 详见：[external-plugin-protocol.md](./external-plugin-protocol.md)
 
+### 外部协议插件安全
+
+外部协议插件在**环境隔离**下运行：宿主环境变量被清空，仅注入 `BUKIT_PLUGIN_NAME`、`BUKIT_PLUGIN_HOOK`、`BUKIT_PROJECT_ROOT`、`BUKIT_OUTPUT_DIR`。使用 `allowEnvironment` 可显式透传额外宿主变量。
+
+输出限制（`maxStdoutBytes` / `maxStderrBytes`）可限制插件 stdout/stderr 最大字节数；超限则 kill 进程。所有插件输出以 plugin/hook/path/hash 元数据记录在构建清单中，增量构建时自动清理旧输出。
+
 ## 内置插件一览（BuiltIn）
 
 内置插件当前包括（见 `BuiltInPluginSource`）：

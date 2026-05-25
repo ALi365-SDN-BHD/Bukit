@@ -464,3 +464,22 @@ content/_taxonomy/tags/dl/_index.md:
 | 无层次化分类 | `taxonomy.kinds[].hierarchical: true` 启用 |
 | 无 term 元数据 | `content/_taxonomy/<kind>/<slug>/_index.md`（Hugo 风格） |
 | 无 term RSS | 每 term 自动生成 `<kind>/<slug>/feed.xml` |
+
+---
+
+## 构建核心加固 (v3.x)
+
+此版本还包含多项构建引擎可靠性和安全性改进：
+
+| 特性 | 说明 | 影响 |
+|---|---|---|
+| **插件环境隔离** | 外部插件在干净环境中运行，仅暴露 `BUKIT_PLUGIN_NAME`、`BUKIT_PLUGIN_HOOK`、`BUKIT_PROJECT_ROOT`、`BUKIT_OUTPUT_DIR`。使用 `allowEnvironment` 可显式透传宿主变量。 | 插件开发者需读取这些变量，而不是依赖宿主环境 |
+| **插件输出限制** | `externalPlugins.<name>.maxStdoutBytes` / `maxStderrBytes` 限制插件输出量。超出则 kill 进程。 | 防止失控插件消耗资源 |
+| **插件输出清单 + stale 清理** | 所有插件输出以 plugin/hook/path/hash 记录在 `build-manifest.json` 中。增量构建时自动删除不再产生的旧输出。 | 跨构建保持输出目录干净 |
+| **资源哈希模式** | `build.assetHashMode: "sha256"` 启用 SHA256 内容哈希的资源复制检测（推荐 CI 和网络文件系统使用）。 | 避免不必要的资源重复复制 |
+| **路由安全校验** | 所有生成的路由和输出路径都经过路径穿越（`../`）、绝对路径、跨盘符路径和 Windows 保留名校验。 | 防止输出文件越界 |
+| **静态 HTML 路由冲突检测** | `static/` 目录下的 `.html` 文件现在纳入路由冲突检测，与内容页和派生页一起校验。 | 防止静默路由冲突 |
+| **Clean marker 保护** | `build.clean` 现在需要输出目录中存在 `.bukit-output-marker` 文件才允许清理。拒绝清除非 Bukit 目录。 | 防止误删除 |
+| **远程主题可复现性** | 已缓存的远程主题不再自动 `git pull`。`@ref` 检出通过 `bukit-theme.lock.json` 锁定。commit 不匹配时构建失败。 | 跨环境构建一致 |
+| **组合模板指纹** | 增量模板哈希现在组合 child/parent/user layouts、`theme.yaml` 和渲染器版本标记。父主题或 user layout 更改会触发重渲染。 | 减少"模板没更新"的意外 |
+| **多语言并发预算** | 多语言构建遵循全局并发预算，防止资源耗尽。 | 更可预测的资源使用 |

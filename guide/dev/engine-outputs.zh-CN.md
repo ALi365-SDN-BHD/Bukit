@@ -31,6 +31,15 @@
 
 因此主题模板中引用资源时应使用 `site.base_url` 拼接路径（见 [主题开发](./theme.md)）。
 
+## Safe Output FileSystem
+
+所有输出写入/删除操作均由 `SafeOutputFileSystem`（`src/Bukit.Engine/Output/SafeOutputFileSystem.cs`）守卫，该组件实现了 `IOutputFileSystem`：
+
+- 所有相对路径均以构建输出根目录为基准解析
+- 拒绝路径穿越（`../`）、绝对路径和跨盘符路径
+- Stale 文件清理（页面、assets、static、media、插件输出）均使用此守卫
+- 确保所有输出操作不会逃逸到指定输出目录之外
+
 ## 与内置插件的关系
 
 部分内置插件会把这些固定页面也纳入产物（例如 sitemap 会包含 `/`、`/blog/`、`/pages/`）。

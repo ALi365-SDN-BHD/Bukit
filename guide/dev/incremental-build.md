@@ -39,6 +39,8 @@ To skip rendering, all must match:
 
 Homepage/list pages use dedicated `ListContentHash`. Plugin-derived pages use the same logic.
 
+**TemplateHash** is a composite fingerprint combining: child theme `layouts/` directory content, parent theme `layouts/` (if `theme.extends` is in use), user `layouts/` directory (if `theme.layouts` is overridden), each theme's `theme.yaml` manifest, and a renderer version marker. This means changes to parent theme templates or `theme.yaml` correctly trigger re-rendering.
+
 ## renderReasons (in `--metrics` output)
 
 - `new_page`, `output_missing`, `template_changed`, `content_changed`, `route_changed`, `full_render`

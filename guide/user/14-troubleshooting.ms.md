@@ -140,3 +140,48 @@ Senarai semak diagnosis:
 
 Lihat: [09 Modul Data Berstruktur](./09-modules-data.ms.md).
 
+## Simptom 7: Clean Enggan Memadam Direktori Output
+
+Simptom:
+
+- `build --clean` gagal dengan "output directory clean refused"
+- Direktori output tidak dipadamkan
+
+Punca: Bukit kini memerlukan fail `.bukit-output-marker` dalam direktori output sebelum membersihkan. Ini menghalang pemadaman tidak sengaja direktori bukan Bukit (contohnya, akar projek, direktori home, `.git`).
+
+Pembaikan:
+
+- Jika direktori dicipta oleh Bukit: jalankan binaan penuh dahulu (ia menulis marker), kemudian clean.
+- Jika direktori bukan output Bukit: padam secara manual atau pilih direktori output lain.
+- Jika anda menetapkan `build.output` ke direktori bukan Bukit sedia ada: tukar `build.output` ke direktori khusus.
+
+## Simptom 8: Had stdout/stderr Plugin Melebihi
+
+Simptom:
+
+- Binaan gagal dengan "stdout limit exceeded" atau "stderr limit exceeded"
+- Proses plugin luaran dibunuh semasa binaan
+
+Punca: Plugin luaran menghasilkan lebih banyak output daripada had `maxStdoutBytes` atau `maxStderrBytes` yang dikonfigurasi.
+
+Pembaikan:
+
+- Tingkatkan had dalam `site.externalPlugins.<name>.maxStdoutBytes` / `maxStderrBytes`.
+- Atau padam medan konfigurasi untuk membenarkan output tanpa had.
+- Siasat mengapa plugin menghasilkan output berlebihan — ia mungkin menunjukkan pepijat.
+
+## Simptom 9: Ketidakpadanan Commit Kunci Tema
+
+Simptom:
+
+- Binaan gagal dengan "Theme lock mismatch for ... locked commit ..., current commit ..."
+- Tema jauh yang sebelum ini berfungsi kini gagal
+
+Punca: Tema jauh (`theme.source`) sebelum ini dibina dan dikunci ke commit Git tertentu. Tema yang dicache kini mempunyai commit berbeza daripada yang direkodkan dalam `bukit-theme.lock.json`.
+
+Pembaikan:
+
+- Padam direktori cache setempat tema dan fail kunci, kemudian bina semula untuk mengklon semula.
+- Atau padam hanya fail kunci untuk memaksa pengesahan semula.
+- Jika anda sengaja mengemas kini tema, fail kunci perlu dijana semula.
+

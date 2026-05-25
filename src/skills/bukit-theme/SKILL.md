@@ -355,6 +355,39 @@ theme:
 
 在 `assets/` 目录下编写 `.scss` 文件，构建时自动编译为 `.css`（编译成功后删除原 `.scss` 文件）。未安装 CLI 时优雅降级。
 
+## Remote Themes and Reproducible Builds
+
+Bukit supports remote themes sourced from Git repositories via `theme.source` in site.yaml:
+
+```yaml
+theme:
+  source: https://github.com/user/theme.git@v1.0.0
+```
+
+### Caching and Reproducibility
+
+- On first build, the remote repository is cloned into a local cache directory.
+- **Subsequent builds do NOT automatically `git pull`** — this ensures reproducible builds where the theme version is stable until explicitly updated.
+- When `@ref` (e.g., `@v1.0.0`) is specified, Bukit checks out that exact Git tag or branch and records the resolved commit.
+
+### Theme Lock File
+
+After a successful checkout, Bukit writes `bukit-theme.lock.json` to the local cache directory:
+
+```json
+{
+  "themes": [
+    {
+      "source": "https://github.com/user/theme.git",
+      "ref": "v1.0.0",
+      "commit": "abc123def456..."
+    }
+  ]
+}
+```
+
+On subsequent builds, Bukit validates that the checked-out commit matches the recorded lock file commit. If they differ, the build fails with a clear error — this protects against unexpected remote theme changes. To update a locked theme, delete the cache directory or the lock file and rebuild.
+
 ## Theme Distribution & Ecosystem
 
 ### Pack a theme for sharing

@@ -32,6 +32,17 @@
 
 注意：clean 不会删除你的内容源目录（content/、data/）、主题目录（layouts/themes）或任何配置文件。
 
+## clean marker 保护
+
+自 v3.x 起，`build --clean` 和 `build.clean: true` 要求在删除输出目录前，目录内必须存在 `.bukit-output-marker` 文件。该 marker 在每次成功构建时写入，作为安全守卫：
+
+- 没有 marker 的目录**绝不会被清理**——这防止了误删非 Bukit 目录。
+- Bukit 也会拒绝清理项目根目录、home 目录、文件系统根目录和 `.git` 目录。
+
+如果 clean 被拒绝：
+- 如果目录是 Bukit 创建的：先执行一次完整构建（会写入 marker），再 clean。
+- 如果目录不是 Bukit 输出：手动删除，或选择其他输出目录。
+
 ## 什么时候需要 clean
 
 - “模板/路由/内容都改了，但输出看起来没变化”：先确认是否启用了增量，再考虑 clean

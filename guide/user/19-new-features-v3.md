@@ -464,3 +464,22 @@ Adds `children` and `ancestors` array fields:
 | No hierarchical taxonomy | Enable with `taxonomy.kinds[].hierarchical: true` |
 | No term metadata | `content/_taxonomy/<kind>/<slug>/_index.md` (Hugo style) |
 | No term RSS | Automatically generates `<kind>/<slug>/feed.xml` for each term |
+
+---
+
+## Build Core Hardening (v3.x)
+
+This release also includes multiple build engine reliability and security improvements:
+
+| Feature | Description | Impact |
+|---|---|---|
+| **Plugin environment isolation** | External plugins run in a clean environment with only `BUKIT_PLUGIN_NAME`, `BUKIT_PLUGIN_HOOK`, `BUKIT_PROJECT_ROOT`, `BUKIT_OUTPUT_DIR` exposed. Use `allowEnvironment` for explicit host variable passthrough. | Plugin developers must now read these variables instead of relying on host environment |
+| **Plugin output limits** | `externalPlugins.<name>.maxStdoutBytes` / `maxStderrBytes` cap plugin output. Exceeding the limit kills the process. | Prevents runaway plugins from consuming resources |
+| **Plugin output manifest + stale cleanup** | All plugin outputs are tracked with plugin/hook/path/hash in `build-manifest.json`. Removed outputs from previous builds are auto-deleted during incremental builds. | Cleaner output directories across builds |
+| **Asset hash mode** | `build.assetHashMode: "sha256"` enables SHA256 content-based asset copy detection (recommended for CI and network filesystems). | Prevents unnecessary re-copying of unchanged assets |
+| **Route security validation** | All generated routes and output paths are validated against path traversal (`../`), absolute paths, cross-drive paths, and Windows reserved names. | Prevents output file escape |
+| **Static HTML route conflict detection** | `.html` files in `static/` are now included in route conflict detection alongside content and derived pages. | Prevents silent route conflicts |
+| **Clean marker protection** | `build.clean` now requires a `.bukit-output-marker` file before cleaning the output directory. Refuses to clean non-Bukit directories. | Prevents accidental deletion |
+| **Remote theme reproducibility** | Cached remote themes no longer auto-`git pull`. `@ref` checkouts are locked via `bukit-theme.lock.json`. Mismatched commits cause build failure. | Consistent builds across environments |
+| **Composite template fingerprint** | Incremental template hash now combines child/parent/user layouts, `theme.yaml`, and renderer marker. Parent theme or user layout changes trigger re-rendering. | Fewer "template didn't update" surprises |
+| **Multi-language concurrency budget** | Multi-language builds respect a global concurrency budget to prevent resource exhaustion. | More predictable resource usage |

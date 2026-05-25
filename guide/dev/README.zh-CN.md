@@ -35,6 +35,7 @@
 - [路由系统](./routing.zh-CN.md)
 - [渲染与模板（Scriban）](./rendering-scriban.zh-CN.md)
 - [主题开发](./theme.zh-CN.md)
+- [Git 主题源](./theme-source.zh-CN.md)
 - [Modules 数据源（`mode=data`）](./modules-data.zh-CN.md)
 - [引擎固定产物](./engine-outputs.zh-CN.md)
 - [插件系统](./plugins.zh-CN.md)

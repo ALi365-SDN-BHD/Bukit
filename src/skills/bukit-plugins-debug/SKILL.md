@@ -66,7 +66,35 @@ site:
       hooks: [derive-pages, after-build]
       enabled: true
       timeoutMs: 5000
+      maxStdoutBytes: 1048576   # optional: cap stdout at 1 MB
+      maxStderrBytes: 262144    # optional: cap stderr at 256 KB
+      allowEnvironment:         # optional: host env vars to expose
+        - PATH
 ```
+
+#### Plugin Environment Isolation
+
+When Bukit invokes a process plugin, the environment is **isolated** (host environment variables are cleared). Only the following variables are injected by default:
+
+| Variable | Description |
+|----------|-------------|
+| `BUKIT_PLUGIN_NAME` | Plugin name (from `site.externalPlugins` key) |
+| `BUKIT_PLUGIN_HOOK` | Current hook: `derive-pages` or `after-build` |
+| `BUKIT_PROJECT_ROOT` | Absolute path to the site project root |
+| `BUKIT_OUTPUT_DIR` | Absolute path to the build output directory |
+
+To expose additional host environment variables, use `allowEnvironment` as shown above.
+
+#### Output Limits
+
+| Field | Type | Default | Description |
+|------|------|--------|------|
+| `maxStdoutBytes` | int | unlimited | Max bytes to read from plugin stdout; exceeding kills the process |
+| `maxStderrBytes` | int | unlimited | Max bytes to read from plugin stderr; exceeding kills the process |
+
+#### Plugin Output Manifest
+
+Bukit tracks every file produced by external protocol plugins in the build manifest (`build-manifest.json`) under `pluginOutputs`. Each entry records `plugin`, `hook`, `path`, and `hash`. During incremental builds, files from a previous build that are no longer produced are automatically deleted from the output directory (stale output cleanup).
 
 ## Plugin Execution Order
 
@@ -295,6 +323,8 @@ pages/list.html:
 ## Incremental Build
 
 Incremental builds use SHA256 hashes to determine whether a page needs re-rendering. Skip condition: contentHash, metadataHash, routeHash, and templateHash are all unchanged.
+
+The **templateHash** is a composite fingerprint combining child theme layouts, parent theme layouts (if theme inheritance is in use), user layouts (if `theme.layouts` is overridden), each theme's `theme.yaml`, and a renderer version marker. This means parent theme layout changes or custom user layout overrides correctly trigger re-rendering.
 
 - `--incremental` enables it; `--no-incremental` disables it
 - Build manifest (`build-manifest-v2.json`) stored in `.cache/` directory

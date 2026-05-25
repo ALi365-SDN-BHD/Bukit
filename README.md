@@ -123,7 +123,10 @@ bukit template sync               # Auto-generate bukit.templates.yaml
 - `content.notion.cacheMode/cacheDir`: Notion render cache options.
 - `content.sources[].collection/addToCollections`: map a source into one or more `site.collections` routes; `mode: data` sources are exposed as `site.data.{name}` and still populate `site.modules` by type.
 - `build.output`: output directory.
+- `build.clean`: requires a `.bukit-output-marker` file before cleaning; refuses to clean non-Bukit directories (project root, home, `.git`).
+- `build.assetHashMode`: `"sha256"` uses SHA256 content hashing for asset copy detection (recommended for CI/network filesystems).
 - `theme.layouts/assets/static`: theme directories. `static` is copied unchanged; use content pages or collections when you need Scriban includes/partials.
+- `theme.source`: remote theme Git URL with optional `@ref`; cached locally, not auto-pulled, locked via `bukit-theme.lock.json`.
 
 ## AI Site Building (v2)
 
