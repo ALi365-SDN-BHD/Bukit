@@ -1355,6 +1355,59 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_IncrementalRerendersWhenParentLayoutChanges()
+    {
+        var root = CreateThemeInheritanceSite(createChildAssets: false, createChildStatic: false);
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "themes", "parent", "layouts", "pages", "page.html"), "Before {{ page.title }}");
+            var config = CreateThemeInheritanceConfig();
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            var outputPath = Path.Combine(root, "dist", "pages", "hello", "index.html");
+            Assert.Contains("Before", File.ReadAllText(outputPath));
+
+            File.WriteAllText(Path.Combine(root, "themes", "parent", "layouts", "pages", "page.html"), "After {{ page.title }}");
+            var incrementalConfig = config with { Build = config.Build with { Clean = false } };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false }, CancellationToken.None);
+
+            Assert.Contains("After", File.ReadAllText(outputPath));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_IncrementalRerendersWhenUserLayoutOverrideChanges()
+    {
+        var root = CreateThemeInheritanceSite(createChildAssets: false, createChildStatic: false);
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "Before {{ page.title }}");
+            var config = CreateThemeInheritanceConfig();
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            var outputPath = Path.Combine(root, "dist", "pages", "hello", "index.html");
+            Assert.Contains("Before", File.ReadAllText(outputPath));
+
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "After {{ page.title }}");
+            var incrementalConfig = config with { Build = config.Build with { Clean = false } };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false }, CancellationToken.None);
+
+            Assert.Contains("After", File.ReadAllText(outputPath));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_IncrementalBuildRerendersWhenPartialChanges()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-integration-partial-change", Guid.NewGuid().ToString("N"));

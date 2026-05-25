@@ -66,15 +66,15 @@ internal sealed class ProtocolAfterBuildRunner
         var writtenOutputs = ProtocolOutputWriter.WriteOutputs(context.OutputDir, response.Outputs ?? Array.Empty<AfterBuildOutputFile>());
         if (writtenOutputs.Count > 0)
         {
-            if (!context.Data.TryGetValue("__plugin_outputs", out var outputsObj) || outputsObj is not HashSet<string> outputs)
+            if (!context.Data.TryGetValue("__plugin_outputs", out var outputsObj) || outputsObj is not HashSet<PluginOutputTrackingInfo> outputs)
             {
-                outputs = new HashSet<string>(StringComparer.Ordinal);
+                outputs = new HashSet<PluginOutputTrackingInfo>();
                 context.Data["__plugin_outputs"] = outputs;
             }
 
             foreach (var output in writtenOutputs)
             {
-                outputs.Add(output);
+                outputs.Add(new PluginOutputTrackingInfo(pluginName, AfterBuildHook, output));
             }
         }
     }
@@ -216,6 +216,7 @@ internal sealed class ProtocolAfterBuildRunner
             },
             ["afterBuild"] = new JsonObject
             {
+                ["projectRoot"] = context.RootDir,
                 ["outputDir"] = context.OutputDir,
                 ["routedPages"] = routedPages
             }

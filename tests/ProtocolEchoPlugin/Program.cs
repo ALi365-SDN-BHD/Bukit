@@ -39,7 +39,10 @@ if (mode == "env")
     var openAi = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? string.Empty;
     var github = Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? string.Empty;
     var pluginName = Environment.GetEnvironmentVariable("BUKIT_PLUGIN_NAME") ?? string.Empty;
-    Console.Out.Write($$"""{"ok":true,"outputs":[{"path":"plugin-output.json","contentType":"application/json","text":"{\"openAi\":\"{{openAi}}\",\"github\":\"{{github}}\",\"pluginName\":\"{{pluginName}}\"}"}]}""");
+    var pluginHook = Environment.GetEnvironmentVariable("BUKIT_PLUGIN_HOOK") ?? string.Empty;
+    var projectRoot = Environment.GetEnvironmentVariable("BUKIT_PROJECT_ROOT") ?? string.Empty;
+    var outputDir = Environment.GetEnvironmentVariable("BUKIT_OUTPUT_DIR") ?? string.Empty;
+    Console.Out.Write($$"""{"ok":true,"outputs":[{"path":"plugin-output.json","contentType":"application/json","text":"{\"openAi\":\"{{openAi}}\",\"github\":\"{{github}}\",\"pluginName\":\"{{pluginName}}\",\"pluginHook\":\"{{pluginHook}}\",\"projectRoot\":\"{{projectRoot.Replace("\\", "\\\\")}}\",\"outputDir\":\"{{outputDir.Replace("\\", "\\\\")}}\"}"}]}""");
     return;
 }
 

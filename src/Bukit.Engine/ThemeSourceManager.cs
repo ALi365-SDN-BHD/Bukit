@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Bukit.Shared;
 
 namespace Bukit.Engine;
@@ -54,7 +55,11 @@ public static class ThemeSourceManager
         {
             log?.Invoke($"Checking out version: {versionTag}");
             var checkoutResult = gitRunner.RunAsync($"checkout {versionTag}", repoPath, timeout, CancellationToken.None).GetAwaiter().GetResult();
-            if (checkoutResult.Success) return new ResolvedTheme(repoPath, versionTag);
+            if (checkoutResult.Success)
+            {
+                WriteOrValidateLock(cacheDir, url, versionTag, repoPath, gitRunner, timeout);
+                return new ResolvedTheme(repoPath, versionTag);
+            }
 
             log?.Invoke($"Fetching tags and retrying: {versionTag}");
             gitRunner.RunAsync("fetch --tags", repoPath, timeout, CancellationToken.None).GetAwaiter().GetResult();
@@ -65,11 +70,47 @@ public static class ThemeSourceManager
                 log?.Invoke($"Version checkout failed: {error}");
                 throw new ConfigException($"Failed to checkout theme source '{url}' version '{versionTag}': {error}");
             }
+
+            WriteOrValidateLock(cacheDir, url, versionTag, repoPath, gitRunner, timeout);
         }
         return new ResolvedTheme(repoPath, versionTag);
     }
 
     internal static string SafeNameForTests(string url) => SafeName(url);
+
+    private static void WriteOrValidateLock(string cacheDir, string source, string @ref, string repoPath, IGitRunner gitRunner, TimeSpan timeout)
+    {
+        var commitResult = gitRunner.RunAsync("rev-parse HEAD", repoPath, timeout, CancellationToken.None).GetAwaiter().GetResult();
+        if (!commitResult.Success)
+        {
+            throw new ConfigException($"Failed to resolve theme source '{source}' version '{@ref}' commit: {FormatGitError(commitResult)}");
+        }
+
+        var commit = commitResult.StdOut.Trim();
+        if (string.IsNullOrWhiteSpace(commit))
+        {
+            throw new ConfigException($"Failed to resolve theme source '{source}' version '{@ref}' commit: git returned an empty commit.");
+        }
+
+        var lockPath = Path.Combine(cacheDir, "bukit-theme.lock.json");
+        var themeLock = ThemeLockFile.Load(lockPath);
+        var existing = themeLock.Themes.FirstOrDefault(x => string.Equals(x.Source, source, StringComparison.OrdinalIgnoreCase) && string.Equals(x.Ref, @ref, StringComparison.Ordinal));
+        if (existing is not null && !string.Equals(existing.Commit, commit, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ConfigException($"Theme lock mismatch for '{source}@{@ref}': locked commit {existing.Commit}, current commit {commit}.");
+        }
+
+        if (existing is null)
+        {
+            themeLock.Themes.Add(new ThemeLockEntry { Source = source, Ref = @ref, Commit = commit });
+        }
+        else
+        {
+            existing.Commit = commit;
+        }
+
+        themeLock.Save(lockPath);
+    }
 
     private static string FormatGitError(GitResult result)
     {
@@ -99,6 +140,43 @@ public static class ThemeSourceManager
 
         return name;
     }
+}
+
+internal sealed class ThemeLockFile
+{
+    public List<ThemeLockEntry> Themes { get; set; } = new();
+
+    public static ThemeLockFile Load(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return new ThemeLockFile();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<ThemeLockFile>(File.ReadAllText(path), ThemeLockJsonOptions) ?? new ThemeLockFile();
+        }
+        catch (JsonException ex)
+        {
+            throw new ConfigException($"Failed to read theme lock file '{path}': {ex.Message}", ex);
+        }
+    }
+
+    public void Save(string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, JsonSerializer.Serialize(this, ThemeLockJsonOptions));
+    }
+
+    private static readonly JsonSerializerOptions ThemeLockJsonOptions = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+}
+
+internal sealed class ThemeLockEntry
+{
+    public string Source { get; set; } = string.Empty;
+    public string Ref { get; set; } = string.Empty;
+    public string Commit { get; set; } = string.Empty;
 }
 
 public sealed class ProcessGitRunner : IGitRunner
