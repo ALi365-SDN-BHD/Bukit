@@ -109,6 +109,46 @@ public sealed class DirectoryCopyTests : IDisposable
     }
 
     [Fact]
+    public void Sync_Sha256ModeCopiesWhenContentChangedButSizeAndTimeSame()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(destinationDir);
+        var sourceFile = Path.Combine(sourceDir, "main.css");
+        var destinationFile = Path.Combine(destinationDir, "main.css");
+        var timestamp = DateTime.UtcNow.AddMinutes(-10);
+
+        File.WriteAllText(sourceFile, "bbbb");
+        File.WriteAllText(destinationFile, "aaaa");
+        File.SetLastWriteTimeUtc(sourceFile, timestamp);
+        File.SetLastWriteTimeUtc(destinationFile, timestamp);
+
+        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions { HashMode = "sha256" });
+
+        Assert.Equal("bbbb", File.ReadAllText(destinationFile));
+    }
+
+    [Fact]
+    public void Sync_PruneDeletesFilesRemovedFromSource()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(destinationDir);
+        File.WriteAllText(Path.Combine(sourceDir, "main.css"), "current");
+        File.WriteAllText(Path.Combine(destinationDir, "main.css"), "old");
+        File.WriteAllText(Path.Combine(destinationDir, "removed.css"), "stale");
+
+        DirectoryCopy.Sync(sourceDir, destinationDir, prune: true);
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, "main.css")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "removed.css")));
+    }
+
+    [Fact]
     public void SyncFiles_DoesNotCopySubdirectoryFiles()
     {
         var root = CreateTempRoot();
@@ -123,6 +163,27 @@ public sealed class DirectoryCopyTests : IDisposable
 
         Assert.False(File.Exists(Path.Combine(destinationDir, "nested.jpg")));
         Assert.False(Directory.Exists(Path.Combine(destinationDir, "nested")));
+    }
+
+    [Fact]
+    public void SyncFilesRecursive_CopiesNestedFilesAndSkipsDotPrefixedFiles()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var nestedDir = Path.Combine(sourceDir, "posts", "2026");
+        Directory.CreateDirectory(nestedDir);
+        File.WriteAllText(Path.Combine(sourceDir, "cover.png"), "cover");
+        File.WriteAllText(Path.Combine(nestedDir, "article-cover.png"), "article");
+        File.WriteAllText(Path.Combine(nestedDir, ".tmp"), "skip-me");
+
+        var destinationDir = Path.Combine(root, "output");
+        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, ignoreDotPrefixedFiles: true);
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, "cover.png")));
+        Assert.Equal("cover", File.ReadAllText(Path.Combine(destinationDir, "cover.png")));
+        Assert.True(File.Exists(Path.Combine(destinationDir, "posts", "2026", "article-cover.png")));
+        Assert.Equal("article", File.ReadAllText(Path.Combine(destinationDir, "posts", "2026", "article-cover.png")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "posts", "2026", ".tmp")));
     }
 
     public void Dispose()

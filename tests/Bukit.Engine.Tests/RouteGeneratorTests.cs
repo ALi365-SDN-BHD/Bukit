@@ -298,6 +298,71 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
+    public void Generate_PartialRouteOverride_AppliesOutputPathOnly()
+    {
+        var meta = new Dictionary<string, object>
+        {
+            ["route"] = new Dictionary<string, object>
+            {
+                ["outputPath"] = "custom/about/index.html"
+            }
+        };
+        var item = Item("about", meta);
+
+        var route = RouteGenerator.Generate(item);
+
+        Assert.Equal("/pages/about/", route.Url);
+        Assert.Equal("custom/about/index.html", route.OutputPath.Replace('\\', '/'));
+        Assert.Equal("pages/page.html", route.Template);
+    }
+
+    [Fact]
+    public void Generate_FullRouteOverride_DangerousUrl_Throws()
+    {
+        var meta = new Dictionary<string, object>
+        {
+            ["route"] = new Dictionary<string, object>
+            {
+                ["url"] = "https://evil.com",
+                ["outputPath"] = "safe/index.html",
+                ["template"] = "t.html"
+            }
+        };
+        var item = Item("x", meta);
+
+        Assert.Throws<InvalidOperationException>(() => RouteGenerator.Generate(item));
+    }
+
+    [Fact]
+    public void Generate_FullRouteOverride_DangerousOutputPath_Throws()
+    {
+        var meta = new Dictionary<string, object>
+        {
+            ["route"] = new Dictionary<string, object>
+            {
+                ["url"] = "/safe/",
+                ["outputPath"] = "../evil/index.html",
+                ["template"] = "t.html"
+            }
+        };
+        var item = Item("x", meta);
+
+        Assert.Throws<InvalidOperationException>(() => RouteGenerator.Generate(item));
+    }
+
+    [Theory]
+    [InlineData("..")]
+    [InlineData(".")]
+    [InlineData("CON")]
+    [InlineData("AUX")]
+    public void Generate_EncodedOutputPathIsValidatedAgain(string slug)
+    {
+        var item = Item(slug, new Dictionary<string, object> { ["type"] = "post" });
+
+        Assert.Throws<InvalidOperationException>(() => RouteGenerator.Generate(item, "none"));
+    }
+
+    [Fact]
     public void Generate_Template_Trimmed()
     {
         var meta = new Dictionary<string, object>

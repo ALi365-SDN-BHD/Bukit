@@ -55,6 +55,40 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_BuildAssetHashMode_ReadsSha256()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+            build:
+              assetHashMode: sha256
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("sha256", config.Build.AssetHashMode);
+    }
+
+    [Fact]
+    public void Validate_InvalidBuildAssetHashMode_ThrowsConfigException()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "myblog", Title = "My Blog" },
+            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() },
+            Build = new BuildConfig { AssetHashMode = "bad" }
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("build.assetHashMode", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Load_EmptyPath_ThrowsConfigException()
     {
         var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(""));
@@ -413,6 +447,10 @@ public sealed class ConfigLoaderTests : IDisposable
                     - after-build
                   enabled: true
                   timeoutMs: 10000
+                  maxStdoutBytes: 2048
+                  maxStderrBytes: 4096
+                  allowEnvironment:
+                    - PATH
                   options:
                     mode: full
                     pretty: true
@@ -445,6 +483,10 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Contains("after-build", sitemap.Hooks);
         Assert.True(sitemap.Enabled);
         Assert.Equal(10000, sitemap.TimeoutMs);
+        Assert.Equal(2048, sitemap.MaxStdoutBytes);
+        Assert.Equal(4096, sitemap.MaxStderrBytes);
+        Assert.NotNull(sitemap.AllowEnvironment);
+        Assert.Contains("PATH", sitemap.AllowEnvironment);
         Assert.NotNull(sitemap.Options);
         Assert.Equal("full", sitemap.Options["mode"]);
         Assert.Equal("true", sitemap.Options["pretty"]);

@@ -105,6 +105,7 @@ public static class ConfigLoader
             Draft = buildNode is null ? false : GetOptionalBool(buildNode, "draft") ?? false,
             ListPageContentMode = buildNode is null ? "auto" : GetOptionalString(buildNode, "listPageContentMode") ?? "auto",
             SchemaFailMode = buildNode is null ? "warn" : GetOptionalString(buildNode, "schemaFailMode") ?? "warn",
+            AssetHashMode = buildNode is null ? "size-time" : GetOptionalString(buildNode, "assetHashMode") ?? "size-time",
             Report = new BuildReportConfig
             {
                 Enabled = buildReportNode is not null && (GetOptionalBool(buildReportNode, "enabled") ?? false)
@@ -660,6 +661,9 @@ public static class ConfigLoader
                 Hooks = ReadStringList(pluginNode, "hooks") ?? Array.Empty<string>(),
                 Enabled = GetOptionalBool(pluginNode, "enabled") ?? true,
                 TimeoutMs = GetOptionalInt(pluginNode, "timeoutMs") ?? 5000,
+                MaxStdoutBytes = GetOptionalInt(pluginNode, "maxStdoutBytes") ?? 1048576,
+                MaxStderrBytes = GetOptionalInt(pluginNode, "maxStderrBytes") ?? 1048576,
+                AllowEnvironment = ReadStringList(pluginNode, "allowEnvironment"),
                 // DESKTOP-REMOVED: wasm runtime fields disabled (AOT-only).
                 // WasmProfile = GetOptionalString(pluginNode, "wasmProfile") ?? "wasi-preview1",
                 // MaxMemoryMb = GetOptionalInt(pluginNode, "maxMemoryMb") ?? 64,

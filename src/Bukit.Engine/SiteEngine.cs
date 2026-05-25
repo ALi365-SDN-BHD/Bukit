@@ -17,17 +17,24 @@ public sealed class SiteEngine
     private readonly ILogger _logger;
     private readonly IContentProviderFactory _contentProviderFactory;
     private readonly ISearchIndexBuilder _searchIndexBuilder;
+    private readonly Func<string, ITemplateRenderer>? _rendererFactory;
 
     public SiteEngine(ILogger logger)
-        : this(logger, new DefaultContentProviderFactory(), new DefaultSearchIndexBuilder())
+        : this(logger, new DefaultContentProviderFactory(), new DefaultSearchIndexBuilder(), null)
     {
     }
 
     internal SiteEngine(ILogger logger, IContentProviderFactory contentProviderFactory, ISearchIndexBuilder searchIndexBuilder)
+        : this(logger, contentProviderFactory, searchIndexBuilder, null)
+    {
+    }
+
+    internal SiteEngine(ILogger logger, IContentProviderFactory contentProviderFactory, ISearchIndexBuilder searchIndexBuilder, Func<string, ITemplateRenderer>? rendererFactory)
     {
         _logger = logger;
         _contentProviderFactory = contentProviderFactory;
         _searchIndexBuilder = searchIndexBuilder;
+        _rendererFactory = rendererFactory;
     }
 
     public async Task<BuildResult> BuildAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken = default)
@@ -42,6 +49,7 @@ public sealed class SiteEngine
 
         if (effectiveConfig.Build.Clean && Directory.Exists(outputDir))
         {
+            EnsureOutputDirectoryCanBeCleaned(rootDir, outputDir);
             Directory.Delete(outputDir, recursive: true);
         }
 
@@ -119,6 +127,7 @@ public sealed class SiteEngine
             buildStopwatch.Stop();
             var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, new[] { result });
             BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, outputDir, singleLanguageBuildResult, new[] { result }, _logger);
+            WriteOutputMarker(outputDir);
             BuildRecoveryTracker.MarkCompleted(outputDir);
             return singleLanguageBuildResult;
         }
@@ -129,7 +138,7 @@ public sealed class SiteEngine
         var results = new BuildVariantResult[languages.Count];
         await Parallel.ForEachAsync(
             languages.Select((lang, i) => (lang, i)),
-            new ParallelOptions { MaxDegreeOfParallelism = languages.Count, CancellationToken = cancellationToken },
+            new ParallelOptions { MaxDegreeOfParallelism = 1, CancellationToken = cancellationToken },
             async (entry, ct) =>
             {
                 var (lang, i) = entry;
@@ -167,8 +176,40 @@ public sealed class SiteEngine
         buildStopwatch.Stop();
         var buildResult = BuildResultFactory.Create(effectiveConfig, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, variantResults);
         BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, outputDir, buildResult, variantResults, _logger);
+        WriteOutputMarker(outputDir);
         BuildRecoveryTracker.MarkCompleted(outputDir);
         return buildResult;
+    }
+
+    private const string OutputMarkerFileName = ".bukit-output-marker";
+
+    private static void EnsureOutputDirectoryCanBeCleaned(string rootDir, string outputDir)
+    {
+        var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var fullOutput = Path.GetFullPath(outputDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.Equals(fullOutput, fullRoot, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fullOutput, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fullOutput, Path.GetPathRoot(fullOutput)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Path.GetFileName(fullOutput), ".git", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ConfigException($"Refusing to clean unsafe output directory: {outputDir}");
+        }
+
+        if (!Directory.EnumerateFileSystemEntries(fullOutput).Any())
+        {
+            return;
+        }
+
+        if (!File.Exists(Path.Combine(fullOutput, OutputMarkerFileName)))
+        {
+            throw new ConfigException($"Refusing to clean output directory without Bukit marker: {outputDir}");
+        }
+    }
+
+    private static void WriteOutputMarker(string outputDir)
+    {
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(outputDir, OutputMarkerFileName), "bukit-output\n");
     }
 
     private static LogLevel ResolveVariantLogLevel(AppConfig config, bool isCi)
@@ -297,9 +338,11 @@ public sealed class SiteEngine
             ? routed.Select(x => ((ContentItem)x.Item, (RouteInfo?)x.Route)).ToList()
             : null;
 
-        ITemplateRenderer renderer = themeRegistry is not null
-            ? new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir, themeRegistry, schemaValidator, null, config.Theme.ComponentValidation, allPagesForSections, resolvedSectionPlugins)
-            : new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir);
+        ITemplateRenderer renderer = _rendererFactory is not null
+            ? _rendererFactory(ctx.LayoutsDir)
+            : themeRegistry is not null
+                ? new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir, themeRegistry, schemaValidator, null, config.Theme.ComponentValidation, allPagesForSections, resolvedSectionPlugins)
+                : new ScribanTemplateRendererAdapter(ctx.LayoutsDir, ctx.ParentLayoutsDir, config.Theme.Shortcodes, config.Theme.Components, ctx.UserLayoutsDir);
 
         var pluginContext = new BuildContext
         {
@@ -370,7 +413,10 @@ public sealed class SiteEngine
 
         var renderQueue = routed.Concat(pluginContext.DerivedRouted).ToList();
         var listRoutes = SeoAlternatesService.BuildListRoutes(config.Site.Collections);
-        RouteInventoryValidator.ValidateFinalRoutes(routed, pluginContext.DerivedRouted, listRoutes);
+        var staticHtmlRoutes = hasStaticDir && !string.IsNullOrWhiteSpace(staticTemplate)
+            ? StaticFileService.BuildStaticHtmlRoutes(ctx.StaticDir, staticTemplate, log.Warn)
+            : Array.Empty<RouteInfo>();
+        RouteInventoryValidator.ValidateFinalRoutes(routed, pluginContext.DerivedRouted, listRoutes, staticHtmlRoutes);
         var seoAlternates = SeoAlternatesService.AddVariantRouteAlternates(
             config,
             ctx.SeoAlternates,
@@ -457,35 +503,47 @@ public sealed class SiteEngine
             manifest.Entries = manifestEntries.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
         }
 
-        if (hasStaticDir)
+        if (hasStaticDir || (ctx.ParentStaticDir is not null && Directory.Exists(ctx.ParentStaticDir)))
         {
             var staticStopwatch = Stopwatch.StartNew();
-            if (!string.IsNullOrWhiteSpace(staticTemplate))
-            {
-                StaticFileService.RenderStaticFiles(ctx.StaticDir, outputDir, renderer, siteModel, staticTemplate, baseUrl, currentKeys, cancellationToken);
-            }
-            else
-            {
-                DirectoryCopy.Sync(ctx.StaticDir, outputDir);
-            }
             if (ctx.ParentStaticDir is not null && Directory.Exists(ctx.ParentStaticDir))
             {
-                DirectoryCopy.Sync(ctx.ParentStaticDir, outputDir);
+                DirectoryCopy.Sync(ctx.ParentStaticDir, outputDir, new DirectoryCopyOptions { HashMode = config.Build.AssetHashMode });
             }
+
+            if (hasStaticDir)
+            {
+                if (!string.IsNullOrWhiteSpace(staticTemplate))
+                {
+                    StaticFileService.RenderStaticFiles(ctx.StaticDir, outputDir, renderer, siteModel, staticTemplate, baseUrl, currentKeys, cancellationToken, log.Warn);
+                }
+                else
+                {
+                    DirectoryCopy.Sync(ctx.StaticDir, outputDir);
+                }
+            }
+
+            TrackStaticOutputs(ctx.ParentStaticDir, hasStaticDir ? ctx.StaticDir : null, outputDir, manifest, incrementalEnabled, log, !string.IsNullOrWhiteSpace(staticTemplate));
             staticStopwatch.Stop();
             variantStageMetrics.AddDuration("staticSync", staticStopwatch.ElapsedMilliseconds);
         }
 
-        if (Directory.Exists(ctx.AssetsDir))
+        if (Directory.Exists(ctx.AssetsDir) || (ctx.ParentAssetsDir is not null && Directory.Exists(ctx.ParentAssetsDir)))
         {
             var assetsSyncStopwatch = Stopwatch.StartNew();
-            ScssCompiler.CompileIfEnabled(ctx.AssetsDir, config.Theme.Scss, _logger);
-            ImageOptimizer.OptimizeIfEnabled(ctx.AssetsDir, config.Theme.Images, _logger);
-            DirectoryCopy.Sync(ctx.AssetsDir, Path.Combine(outputDir, "assets"));
             if (ctx.ParentAssetsDir is not null && Directory.Exists(ctx.ParentAssetsDir))
             {
                 DirectoryCopy.Sync(ctx.ParentAssetsDir, Path.Combine(outputDir, "assets"));
             }
+
+            if (Directory.Exists(ctx.AssetsDir))
+            {
+                ScssCompiler.CompileIfEnabled(ctx.AssetsDir, config.Theme.Scss, _logger);
+                ImageOptimizer.OptimizeIfEnabled(ctx.AssetsDir, config.Theme.Images, _logger);
+                DirectoryCopy.Sync(ctx.AssetsDir, Path.Combine(outputDir, "assets"), new DirectoryCopyOptions { HashMode = config.Build.AssetHashMode });
+            }
+
+            TrackAssetOutputs(ctx.ParentAssetsDir, ctx.AssetsDir, outputDir, manifest, incrementalEnabled, log);
             assetsSyncStopwatch.Stop();
             variantStageMetrics.AddDuration("assetsSync", assetsSyncStopwatch.ElapsedMilliseconds);
         }
@@ -513,23 +571,19 @@ public sealed class SiteEngine
         if (Directory.Exists(ctx.MediaDownloadDir))
         {
             var mediaCopyStopwatch = Stopwatch.StartNew();
-            var mediaOutputDir = Path.Combine(outputDir, "assets", "uploads");
-            DirectoryCopy.SyncFiles(ctx.MediaDownloadDir, mediaOutputDir, ignoreDotPrefixedFiles: true);
+            SyncMediaOutputs(ctx.MediaDownloadDir, outputDir, manifest, incrementalEnabled, log);
             mediaCopyStopwatch.Stop();
             variantStageMetrics.AddDuration("mediaCopy", mediaCopyStopwatch.ElapsedMilliseconds);
         }
 
         if (incrementalEnabled)
         {
-            var removed = manifest.Entries.Keys.Where(k => !currentKeys.ContainsKey(k)).ToList();
-            foreach (var k in removed)
-            {
-                manifest.Entries.Remove(k);
-            }
+            DeleteStaleManifestOutputs(outputDir, manifest, currentKeys, log);
         }
 
         var afterBuildStopwatch = Stopwatch.StartNew();
         await PluginRunner.RunAfterBuildAsync(pluginContext, cancellationToken);
+        TrackPluginOutputs(pluginContext, outputDir, manifest, incrementalEnabled, log);
         RobotsTxtWriter.WriteIfRequested(config, outputDir, baseUrl, seoIndex.Entries);
         afterBuildStopwatch.Stop();
         variantStageMetrics.AddDuration("afterBuildPlugins", afterBuildStopwatch.ElapsedMilliseconds);
@@ -748,5 +802,182 @@ public sealed class SiteEngine
         }
 
         _logger.Info($"Build completed: {Path.GetFullPath(options.OutputDir)}");
+    }
+
+    internal static void SyncMediaOutputs(string mediaDownloadDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger)
+    {
+        var mediaOutputDir = Path.Combine(outputDir, "assets", "uploads");
+        DirectoryCopy.SyncFilesRecursive(mediaDownloadDir, mediaOutputDir, ignoreDotPrefixedFiles: true);
+
+        var currentMedia = Directory.EnumerateFiles(mediaDownloadDir, "*", SearchOption.AllDirectories)
+            .Where(file => !Path.GetFileName(file).StartsWith('.'))
+            .Select(file =>
+            {
+                var relativePath = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(mediaDownloadDir, file));
+                var outputPath = BuildPathUtils.NormalizeRelPath(Path.Combine("assets", "uploads", relativePath));
+                return new KeyValuePair<string, string>(outputPath, ComputeFileFingerprint(file));
+            })
+            .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+
+        DeleteStaleTrackedFiles(outputDir, manifest.Media, currentMedia, incrementalEnabled, logger, "media");
+        manifest.Media = currentMedia;
+    }
+
+    internal static void TrackPluginOutputs(BuildContext pluginContext, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger)
+    {
+        var currentOutputs = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (pluginContext.Data.TryGetValue("__plugin_outputs", out var outputsObj) && outputsObj is HashSet<string> outputs)
+        {
+            foreach (var output in outputs)
+            {
+                var fullPath = FileWriter.GetSafeFullPath(outputDir, output);
+                if (File.Exists(fullPath))
+                {
+                    currentOutputs[BuildPathUtils.NormalizeRelPath(output)] = ComputeFileFingerprint(fullPath);
+                }
+            }
+        }
+
+        DeleteStaleTrackedFiles(outputDir, manifest.PluginOutputs, currentOutputs, incrementalEnabled, logger, "plugin");
+        manifest.PluginOutputs = currentOutputs;
+    }
+
+    internal static void TrackStaticOutputs(string? parentStaticDir, string? staticDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, bool renderHtmlStaticFiles)
+    {
+        var currentStatic = new Dictionary<string, string>(StringComparer.Ordinal);
+        AddStaticSourceOutputs(parentStaticDir, currentStatic, renderHtmlStaticFiles: false);
+        AddStaticSourceOutputs(staticDir, currentStatic, renderHtmlStaticFiles);
+
+        DeleteStaleTrackedFiles(outputDir, manifest.Static, currentStatic, incrementalEnabled, logger, "static");
+        manifest.Static = currentStatic;
+    }
+
+    private static void AddStaticSourceOutputs(string? sourceDir, Dictionary<string, string> outputs, bool renderHtmlStaticFiles)
+    {
+        if (string.IsNullOrWhiteSpace(sourceDir) || !Directory.Exists(sourceDir))
+        {
+            return;
+        }
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            if (renderHtmlStaticFiles && string.Equals(Path.GetExtension(file), ".html", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var relativePath = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(sourceDir, file));
+            outputs[relativePath] = ComputeFileFingerprint(file);
+        }
+    }
+
+    internal static void TrackAssetOutputs(string? parentAssetsDir, string assetsDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger)
+    {
+        var currentAssets = new Dictionary<string, string>(StringComparer.Ordinal);
+        AddAssetSourceOutputs(parentAssetsDir, currentAssets);
+        AddAssetSourceOutputs(assetsDir, currentAssets);
+
+        DeleteStaleTrackedFiles(outputDir, manifest.Assets, currentAssets, incrementalEnabled, logger, "asset");
+        manifest.Assets = currentAssets;
+    }
+
+    private static void AddAssetSourceOutputs(string? sourceDir, Dictionary<string, string> outputs)
+    {
+        if (string.IsNullOrWhiteSpace(sourceDir) || !Directory.Exists(sourceDir))
+        {
+            return;
+        }
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(sourceDir, file));
+            var outputPath = BuildPathUtils.NormalizeRelPath(Path.Combine("assets", relativePath));
+            outputs[outputPath] = ComputeFileFingerprint(file);
+        }
+    }
+
+    private static void DeleteStaleTrackedFiles(
+        string outputDir,
+        IReadOnlyDictionary<string, string> previous,
+        IReadOnlyDictionary<string, string> current,
+        bool incrementalEnabled,
+        ILogger logger,
+        string kind)
+    {
+        if (!incrementalEnabled)
+        {
+            return;
+        }
+
+        foreach (var stale in previous.Keys.Where(key => !current.ContainsKey(key)).ToList())
+        {
+            try
+            {
+                var fullPath = FileWriter.GetSafeFullPath(outputDir, stale);
+                if (File.Exists(fullPath))
+                {
+                    File.Delete(fullPath);
+                    DeleteEmptyDirectoriesUpToRoot(Path.GetDirectoryName(fullPath), outputDir);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                logger.Warn($"Failed to delete stale {kind} output '{stale}': {ex.Message}");
+            }
+        }
+    }
+
+    private static string ComputeFileFingerprint(string file)
+    {
+        var info = new FileInfo(file);
+        return $"{info.Length}:{info.LastWriteTimeUtc.Ticks}";
+    }
+
+    internal static void DeleteStaleManifestOutputs(string outputDir, BuildManifest manifest, ConcurrentDictionary<string, byte> currentKeys, ILogger logger)
+    {
+        var removed = manifest.Entries
+            .Where(kv => !currentKeys.ContainsKey(kv.Key))
+            .ToList();
+
+        foreach (var kv in removed)
+        {
+            var relativePath = string.IsNullOrWhiteSpace(kv.Value.OutputPath) ? kv.Key : kv.Value.OutputPath;
+            try
+            {
+                var fullPath = FileWriter.GetSafeFullPath(outputDir, relativePath);
+                if (File.Exists(fullPath))
+                {
+                    File.Delete(fullPath);
+                    DeleteEmptyDirectoriesUpToRoot(Path.GetDirectoryName(fullPath), outputDir);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                logger.Warn($"Failed to delete stale output '{relativePath}': {ex.Message}");
+            }
+
+            manifest.Entries.Remove(kv.Key);
+        }
+    }
+
+    private static void DeleteEmptyDirectoriesUpToRoot(string? directory, string outputDir)
+    {
+        var root = Path.GetFullPath(outputDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        while (!string.IsNullOrWhiteSpace(directory))
+        {
+            var fullDirectory = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (string.Equals(fullDirectory, root, StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            if (!Directory.Exists(fullDirectory) || Directory.EnumerateFileSystemEntries(fullDirectory).Any())
+            {
+                break;
+            }
+
+            Directory.Delete(fullDirectory);
+            directory = Path.GetDirectoryName(fullDirectory);
+        }
     }
 }
