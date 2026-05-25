@@ -524,78 +524,36 @@ public sealed class SiteEngine
         var renderReasons = new ConcurrentDictionary<string, int>(renderPipelineResult.RenderReasons, StringComparer.OrdinalIgnoreCase);
         var currentKeys = renderPipelineResult.CurrentKeys;
 
-        if (hasStaticDir || (ctx.ParentStaticDir is not null && Directory.Exists(ctx.ParentStaticDir)))
-        {
-            var staticStopwatch = Stopwatch.StartNew();
-            if (ctx.ParentStaticDir is not null && Directory.Exists(ctx.ParentStaticDir))
-            {
-                DirectoryCopy.Sync(ctx.ParentStaticDir, outputDir, new DirectoryCopyOptions { HashMode = config.Build.AssetHashMode });
-            }
+        var themeRootForTokens = themeRegistry is not null && !string.IsNullOrWhiteSpace(themeName)
+            ? Path.Combine(rootDir, "themes", themeName!)
+            : null;
+        var parentThemeRootForTokens = themeRootForTokens is not null && !string.IsNullOrWhiteSpace(themeManifest?.Extends)
+            ? Path.Combine(rootDir, "themes", themeManifest!.Extends)
+            : null;
 
-            if (hasStaticDir)
-            {
-                if (!string.IsNullOrWhiteSpace(staticTemplate))
-                {
-                    StaticFileService.RenderStaticFiles(ctx.StaticDir, outputDir, renderer, siteModel, staticTemplate, baseUrl, currentKeys, cancellationToken, log.Warn);
-                }
-                else
-                {
-                    DirectoryCopy.Sync(ctx.StaticDir, outputDir);
-                }
-            }
+        var assetPipelineResult = await new AssetPipeline().ExecuteAsync(new AssetPipelineContext(
+            StaticDir: hasStaticDir ? ctx.StaticDir : null,
+            ParentStaticDir: ctx.ParentStaticDir,
+            AssetsDir: ctx.AssetsDir,
+            ParentAssetsDir: ctx.ParentAssetsDir,
+            MediaDownloadDir: ctx.MediaDownloadDir,
+            ThemeRoot: themeRootForTokens,
+            ParentThemeRoot: parentThemeRootForTokens,
+            OutputDir: outputDir,
+            BaseUrl: baseUrl,
+            Renderer: renderer,
+            SiteModel: siteModel,
+            StaticTemplate: staticTemplate,
+            Manifest: manifest,
+            IncrementalEnabled: incrementalEnabled,
+            AssetHashMode: config.Build.AssetHashMode,
+            ScssConfig: config.Theme.Scss,
+            ImageConfig: config.Theme.Images,
+            Logger: log,
+            CurrentKeys: currentKeys),
+            cancellationToken);
 
-            TrackStaticOutputs(ctx.ParentStaticDir, hasStaticDir ? ctx.StaticDir : null, outputDir, manifest, incrementalEnabled, log, !string.IsNullOrWhiteSpace(staticTemplate));
-            staticStopwatch.Stop();
-            variantStageMetrics.AddDuration("staticSync", staticStopwatch.ElapsedMilliseconds);
-        }
-
-        if (Directory.Exists(ctx.AssetsDir) || (ctx.ParentAssetsDir is not null && Directory.Exists(ctx.ParentAssetsDir)))
-        {
-            var assetsSyncStopwatch = Stopwatch.StartNew();
-            if (ctx.ParentAssetsDir is not null && Directory.Exists(ctx.ParentAssetsDir))
-            {
-                DirectoryCopy.Sync(ctx.ParentAssetsDir, Path.Combine(outputDir, "assets"));
-            }
-
-            if (Directory.Exists(ctx.AssetsDir))
-            {
-                ScssCompiler.CompileIfEnabled(ctx.AssetsDir, config.Theme.Scss, _logger);
-                ImageOptimizer.OptimizeIfEnabled(ctx.AssetsDir, config.Theme.Images, _logger);
-                DirectoryCopy.Sync(ctx.AssetsDir, Path.Combine(outputDir, "assets"), new DirectoryCopyOptions { HashMode = config.Build.AssetHashMode });
-            }
-
-            TrackAssetOutputs(ctx.ParentAssetsDir, ctx.AssetsDir, outputDir, manifest, incrementalEnabled, log);
-            assetsSyncStopwatch.Stop();
-            variantStageMetrics.AddDuration("assetsSync", assetsSyncStopwatch.ElapsedMilliseconds);
-        }
-
-        if (themeRegistry is not null)
-        {
-            var tokensStopwatch = Stopwatch.StartNew();
-            var themeRoot = Path.Combine(rootDir, "themes", themeName!);
-            var parentThemeRoot = !string.IsNullOrWhiteSpace(themeManifest?.Extends)
-                ? Path.Combine(rootDir, "themes", themeManifest!.Extends)
-                : null;
-
-            var tokensLoader = new ThemeTokensLoader();
-            var tokens = tokensLoader.LoadWithInheritance(themeRoot, parentThemeRoot);
-            if (tokens is not null)
-            {
-                var tokensOutputPath = Path.Combine(outputDir, "assets", "css", "theme-tokens.css");
-                ThemeTokensProcessor.WriteToFile(tokens, tokensOutputPath);
-                log.Info($"event=tokens.generated output={tokensOutputPath}");
-            }
-            tokensStopwatch.Stop();
-            variantStageMetrics.AddDuration("tokensGen", tokensStopwatch.ElapsedMilliseconds);
-        }
-
-        if (Directory.Exists(ctx.MediaDownloadDir))
-        {
-            var mediaCopyStopwatch = Stopwatch.StartNew();
-            SyncMediaOutputs(ctx.MediaDownloadDir, outputDir, manifest, incrementalEnabled, log);
-            mediaCopyStopwatch.Stop();
-            variantStageMetrics.AddDuration("mediaCopy", mediaCopyStopwatch.ElapsedMilliseconds);
-        }
+        variantStageMetrics = MergeStageMetrics(variantStageMetrics, assetPipelineResult.StageMetrics);
 
         if (incrementalEnabled)
         {
