@@ -1,0 +1,5 @@
+page:
+  permalink: /{slug}/
+  template: pages/page.html
+  output:
+    sitemap: true

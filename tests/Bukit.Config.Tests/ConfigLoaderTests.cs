@@ -619,4 +619,112 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.False(media.BlockPrivateNetworks);
         Assert.Equal(1000, media.RetryBaseDelayMs);
     }
+
+    [Fact]
+    public void Load_CollectionsYamlFallback_WhenSiteYamlHasNoCollections()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-collections-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\n  markdown:\n    dir: content\n";
+            var sitePath = Path.Combine(dir, "site.yaml");
+            File.WriteAllText(sitePath, siteYaml);
+
+            var collectionsYaml = "post:\n  permalink: /blog/hello/\n  template: pages/post.html\n  listRoute: /blog/\n";
+            var collectionsPath = Path.Combine(dir, "collections.yaml");
+            File.WriteAllText(collectionsPath, collectionsYaml);
+
+            Assert.True(File.Exists(collectionsPath), "collections.yaml should exist");
+
+            var config = ConfigLoader.Load(sitePath);
+            Assert.NotNull(config.Site.Collections);
+            Assert.Single(config.Site.Collections!);
+            Assert.True(config.Site.Collections.ContainsKey("post"));
+            Assert.Equal("/blog/hello/", config.Site.Collections["post"].Permalink);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void TryReadCollectionsFile_SimpleFormatWithPost_ReturnsCollections()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-collections-simple-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\n  markdown:\n    dir: content\n";
+            var sitePath = Path.Combine(dir, "site.yaml");
+            File.WriteAllText(sitePath, siteYaml);
+
+            var collectionsYaml = "post:\n  permalink: /blog/hello/\n  template: pages/post.html\n";
+            File.WriteAllText(Path.Combine(dir, "collections.yaml"), collectionsYaml);
+
+            var result = ConfigLoader.TryReadCollectionsFile(sitePath);
+
+            Assert.NotNull(result);
+            Assert.True(result!.ContainsKey("post"));
+            Assert.Equal("/blog/hello/", result["post"].Permalink);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void Load_CollectionsYamlWithWrapper_WhenSiteYamlHasNoCollections()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-collections-wrap-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\n  markdown:\n    dir: content\n";
+            var sitePath = Path.Combine(dir, "site.yaml");
+            File.WriteAllText(sitePath, siteYaml);
+
+            var collectionsYaml = "collections:\n  post:\n    permalink: /blog/hello/\n    template: pages/post.html\n  page:\n    permalink: /pages/hello/\n    template: pages/page.html\n";
+            var collectionsPath = Path.Combine(dir, "collections.yaml");
+            File.WriteAllText(collectionsPath, collectionsYaml);
+
+            var config = ConfigLoader.Load(sitePath);
+            Assert.NotNull(config.Site.Collections);
+            Assert.Equal(2, config.Site.Collections!.Count);
+            Assert.True(config.Site.Collections.ContainsKey("post"));
+            Assert.True(config.Site.Collections.ContainsKey("page"));
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void Load_SiteYamlCollections_TakePriority_OverCollectionsYaml()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-collections-prio-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var siteYaml = "site:\n  name: test\n  title: Test\n  collections:\n    post:\n      permalink: /articles/hello/\n      template: pages/article.html\ncontent:\n  provider: markdown\n  markdown:\n    dir: content\n";
+            var sitePath = Path.Combine(dir, "site.yaml");
+            File.WriteAllText(sitePath, siteYaml);
+
+            var collectionsYaml = "post:\n  permalink: /blog/hello/\n  template: pages/post.html\n";
+            var collectionsPath = Path.Combine(dir, "collections.yaml");
+            File.WriteAllText(collectionsPath, collectionsYaml);
+
+            var config = ConfigLoader.Load(sitePath);
+            Assert.NotNull(config.Site.Collections);
+            Assert.Equal("/articles/hello/", config.Site.Collections!["post"].Permalink);
+            Assert.Equal("pages/article.html", config.Site.Collections["post"].Template);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
 }

@@ -48,6 +48,8 @@ public static class ConfigLoader
         var taxonomyNode = GetOptionalMapping(root, "taxonomy");
         var loggingNode = GetOptionalMapping(root, "logging");
 
+        var collections = ReadCollections(siteNode)
+            ?? TryReadCollectionsFile(path);
         var site = new SiteConfig
         {
             Name = GetRequiredString(siteNode, "name"),
@@ -72,7 +74,7 @@ public static class ConfigLoader
             DeriveConflictPolicy = GetOptionalString(siteNode, "deriveConflictPolicy") ?? "fail",
             Timezone = GetOptionalString(siteNode, "timezone") ?? "Asia/Shanghai",
             Permalinks = ReadStringMap(siteNode, "permalinks"),
-            Collections = ReadCollections(siteNode),
+            Collections = collections,
             ExternalPlugins = ReadExternalPlugins(siteNode),
             // DESKTOP-REMOVED: ExternalAssembly loading disabled (AOT-only).
             // ExternalAssemblyTrustMode = GetOptionalString(siteNode, "externalAssemblyTrustMode") ?? "warn",
@@ -565,6 +567,82 @@ public static class ConfigLoader
             if (kv.Value is not YamlMappingNode collectionNode)
             {
                 throw new ConfigException($"site.collections.{keyNode.Value} must be a mapping.");
+            }
+
+            var paginationNode = GetOptionalMapping(collectionNode, "pagination");
+            var outputNode = GetOptionalMapping(collectionNode, "output");
+            collections[keyNode.Value.Trim()] = new CollectionConfig
+            {
+                Permalink = GetRequiredString(collectionNode, "permalink"),
+                Template = GetRequiredString(collectionNode, "template"),
+                ListRoute = GetOptionalString(collectionNode, "listRoute"),
+                ListTemplate = GetOptionalString(collectionNode, "listTemplate"),
+                Pagination = new CollectionPaginationConfig
+                {
+                    Enabled = paginationNode is not null && (GetOptionalBool(paginationNode, "enabled") ?? false),
+                    PageSize = paginationNode is null ? 10 : GetOptionalInt(paginationNode, "pageSize") ?? 10
+                },
+                Output = new CollectionOutputConfig
+                {
+                    Rss = outputNode is null ? true : GetOptionalBool(outputNode, "rss") ?? true,
+                    Sitemap = outputNode is null ? true : GetOptionalBool(outputNode, "sitemap") ?? true,
+                    Archive = outputNode is not null && (GetOptionalBool(outputNode, "archive") ?? false)
+                },
+                FilteredLists = ReadFilteredLists(collectionNode),
+                Schema = ReadSchema(collectionNode)
+            };
+        }
+
+        return collections.Count == 0 ? null : collections;
+    }
+
+    internal static IReadOnlyDictionary<string, CollectionConfig>? TryReadCollectionsFile(string siteYamlPath)
+    {
+        var dir = Path.GetDirectoryName(Path.GetFullPath(siteYamlPath)) ?? ".";
+        var collectionsPath = Path.Combine(dir, "collections.yaml");
+        if (!File.Exists(collectionsPath))
+        {
+            return null;
+        }
+
+        using var reader = File.OpenText(collectionsPath);
+        var yaml = new YamlStream();
+        try
+        {
+            yaml.Load(reader);
+        }
+        catch (YamlDotNet.Core.YamlException)
+        {
+            return null;
+        }
+
+        if (yaml.Documents.Count == 0)
+        {
+            return null;
+        }
+
+        if (yaml.Documents[0].RootNode is not YamlMappingNode root)
+        {
+            return null;
+        }
+
+        var collectionsNode = GetOptionalMapping(root, "collections") ?? root;
+        if (collectionsNode is null || collectionsNode.Children.Count == 0)
+        {
+            return null;
+        }
+
+        var collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in collectionsNode.Children)
+        {
+            if (kv.Key is not YamlScalarNode keyNode || string.IsNullOrWhiteSpace(keyNode.Value))
+            {
+                continue;
+            }
+
+            if (kv.Value is not YamlMappingNode collectionNode)
+            {
+                throw new ConfigException($"collections.yaml: entry '{keyNode.Value}' must be a mapping.");
             }
 
             var paginationNode = GetOptionalMapping(collectionNode, "pagination");

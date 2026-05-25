@@ -66,25 +66,13 @@ public sealed class SiteEngine
 
     private async Task<BuildResult> BuildCoreAsync(BuildPipelineContext context, CancellationToken cancellationToken)
     {
-        var config = context.Config;
+        var plan = BuildPlanner.Plan(context.Config, context.RootDir, context.Overrides, _logger);
+        var effectiveConfig = plan.EffectiveConfig;
         var rootDir = context.RootDir;
         var overrides = context.Overrides;
-        var buildStartedAt = DateTimeOffset.UtcNow;
-        var buildStopwatch = Stopwatch.StartNew();
-        var effectiveConfig = ConfigApplier.Apply(config, overrides);
-        ConfigValidator.Validate(effectiveConfig);
-
-        var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);
-        var (layoutsDir, assetsDir, staticDir, parentLayoutsDir, parentAssetsDir, parentStaticDir, userLayoutsDir) = BuildPathUtils.ResolveThemeDirectories(rootDir, effectiveConfig.Theme);
-
-        PrepareOutputDirectory(effectiveConfig, rootDir, outputDir);
-
-        var mediaCacheDir = string.IsNullOrWhiteSpace(overrides.CacheDir)
-            ? Path.Combine(rootDir, ".cache", "media")
-            : Path.Combine(Path.GetFullPath(overrides.CacheDir!), "media");
 
         var contentPipeline = new ContentPipeline(_contentProviderFactory, _logger);
-        var contentResult = await contentPipeline.ExecuteAsync(effectiveConfig, rootDir, overrides, mediaCacheDir, cancellationToken);
+        var contentResult = await contentPipeline.ExecuteAsync(effectiveConfig, rootDir, overrides, plan.MediaCacheDir, cancellationToken);
         var items = contentResult.Items;
         var bodyStore = contentResult.BodyStore;
 
@@ -95,26 +83,26 @@ public sealed class SiteEngine
         {
             var siteLanguage = effectiveConfig.Site.Language;
             var result = await BuildSingleLanguageVariantAsync(
-                effectiveConfig, rootDir, overrides, items, bodyStore, outputDir,
-                layoutsDir, assetsDir, staticDir, mediaCacheDir,
-                parentLayoutsDir, parentAssetsDir, parentStaticDir, userLayoutsDir,
+                effectiveConfig, rootDir, overrides, items, bodyStore, plan.OutputDir,
+                plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
+                plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
                 templateHashCache, cancellationToken);
 
             _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
-            MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, outputDir, items.Count, new[] { result });
-            buildStopwatch.Stop();
-            var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, new[] { result });
-            BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, outputDir, singleLanguageBuildResult, new[] { result }, _logger);
-            WriteOutputMarker(outputDir);
-            BuildRecoveryTracker.MarkCompleted(outputDir);
+            MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, items.Count, new[] { result });
+            plan.Stopwatch.Stop();
+            var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, plan.OutputDir, overrides, plan.StartedAt, DateTimeOffset.UtcNow, plan.Stopwatch.ElapsedMilliseconds, new[] { result });
+            BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger);
+            WriteOutputMarker(plan.OutputDir);
+            BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
             return singleLanguageBuildResult;
         }
 
         return await BuildMultiLanguageAsync(
-            effectiveConfig, rootDir, overrides, items, bodyStore, outputDir,
-            layoutsDir, assetsDir, staticDir, mediaCacheDir,
-            parentLayoutsDir, parentAssetsDir, parentStaticDir, userLayoutsDir,
-            templateHashCache, languages, buildStartedAt, buildStopwatch,
+            effectiveConfig, rootDir, overrides, items, bodyStore, plan.OutputDir,
+            plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
+            plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
+            templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
             cancellationToken);
     }
 
@@ -522,49 +510,6 @@ public sealed class SiteEngine
         }
 
         return $"theme-yaml:{themeYamlPath}:{HashUtil.Sha256Hex(File.ReadAllBytes(themeYamlPath))}";
-    }
-
-    private void PrepareOutputDirectory(AppConfig config, string rootDir, string outputDir)
-    {
-        if (config.Build.Clean && Directory.Exists(outputDir))
-        {
-            EnsureOutputDirectoryCanBeCleaned(rootDir, outputDir);
-            Directory.Delete(outputDir, recursive: true);
-        }
-
-        if (!config.Build.Clean && BuildRecoveryTracker.HasIncompleteBuild(outputDir))
-        {
-            _logger.Warn($"event=build.recovery previousIncomplete=true outputDir={outputDir} action=autoClean");
-            Directory.Delete(outputDir, recursive: true);
-        }
-
-        Directory.CreateDirectory(outputDir);
-
-        BuildRecoveryTracker.MarkStarted(outputDir);
-        _logger.Info($"event=build.start rootDir={rootDir} outputDir={outputDir}");
-    }
-
-    private static void EnsureOutputDirectoryCanBeCleaned(string rootDir, string outputDir)
-    {
-        var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var fullOutput = Path.GetFullPath(outputDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        if (string.Equals(fullOutput, fullRoot, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fullOutput, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fullOutput, Path.GetPathRoot(fullOutput)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Path.GetFileName(fullOutput), ".git", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ConfigException($"Refusing to clean unsafe output directory: {outputDir}");
-        }
-
-        if (!Directory.EnumerateFileSystemEntries(fullOutput).Any())
-        {
-            return;
-        }
-
-        if (!File.Exists(Path.Combine(fullOutput, OutputMarkerFileName)))
-        {
-            throw new ConfigException($"Refusing to clean output directory without Bukit marker: {outputDir}");
-        }
     }
 
     private static void WriteOutputMarker(string outputDir)
