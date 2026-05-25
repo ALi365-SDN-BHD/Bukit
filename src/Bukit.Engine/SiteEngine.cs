@@ -352,13 +352,9 @@ public sealed class SiteEngine
         splitItemsStopwatch.Stop();
         variantStageMetrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
 
-        var collectionRules = BuildCollectionRules(config.Site);
-
         var routeGenerationStopwatch = Stopwatch.StartNew();
-        var routed = contentItems
-            .Select(i => (Item: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
-            .ToList();
-        RouteInventoryValidator.ValidateContentRoutes(routed);
+        var routeResult = new RoutePipeline().Execute(config, items);
+        var routed = routeResult.Routed;
         routeGenerationStopwatch.Stop();
         variantStageMetrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
 
@@ -440,7 +436,7 @@ public sealed class SiteEngine
             : null;
 
         var renderQueue = routed.Concat(pluginContext.DerivedRouted).ToList();
-        var listRoutes = SeoAlternatesService.BuildListRoutes(config.Site.Collections);
+        var listRoutes = routeResult.ListRoutes;
         var staticHtmlRoutes = hasStaticDir && !string.IsNullOrWhiteSpace(staticTemplate)
             ? StaticFileService.BuildStaticHtmlRoutes(ctx.StaticDir, staticTemplate, log.Warn)
             : Array.Empty<RouteInfo>();
@@ -697,18 +693,7 @@ public sealed class SiteEngine
 
     private static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)
     {
-        if (site.Collections is null || site.Collections.Count == 0)
-        {
-            return null;
-        }
-
-        var rules = new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, collection) in site.Collections)
-        {
-            rules[key] = new RouteGenerator.CollectionRouteRule(collection.Permalink, collection.Template);
-        }
-
-        return rules;
+        return RouteInventoryValidator.BuildCollectionRules(site);
     }
 
     private static IReadOnlyList<SeoAlternateModel>? GetSeoAlternates(
