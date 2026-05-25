@@ -55,7 +55,7 @@ public sealed class SiteEngine
         var rootDir = Path.GetDirectoryName(fullOutputDir) ?? ".";
         var outputDirName = Path.GetFileName(fullOutputDir);
 
-        var config = BuildOptionsToConfig(options, outputDirName);
+        var config = BuildOptionsMapper.ToAppConfig(options, outputDirName);
         var overrides = new ConfigOverrides { IsCI = options.IsCI, Incremental = false };
         var factory = new FixedContentProviderFactory(provider, _contentProviderFactory);
         var engine = new SiteEngine(_logger, factory, _searchIndexBuilder, _rendererFactory);
@@ -77,22 +77,7 @@ public sealed class SiteEngine
         var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);
         var (layoutsDir, assetsDir, staticDir, parentLayoutsDir, parentAssetsDir, parentStaticDir, userLayoutsDir) = BuildPathUtils.ResolveThemeDirectories(rootDir, effectiveConfig.Theme);
 
-        if (effectiveConfig.Build.Clean && Directory.Exists(outputDir))
-        {
-            EnsureOutputDirectoryCanBeCleaned(rootDir, outputDir);
-            Directory.Delete(outputDir, recursive: true);
-        }
-
-        if (!effectiveConfig.Build.Clean && BuildRecoveryTracker.HasIncompleteBuild(outputDir))
-        {
-            _logger.Warn($"event=build.recovery previousIncomplete=true outputDir={outputDir} action=autoClean");
-            Directory.Delete(outputDir, recursive: true);
-        }
-
-        Directory.CreateDirectory(outputDir);
-
-        BuildRecoveryTracker.MarkStarted(outputDir);
-        _logger.Info($"event=build.start rootDir={rootDir} outputDir={outputDir}");
+        PrepareOutputDirectory(effectiveConfig, rootDir, outputDir);
 
         var mediaCacheDir = string.IsNullOrWhiteSpace(overrides.CacheDir)
             ? Path.Combine(rootDir, ".cache", "media")
@@ -235,70 +220,12 @@ public sealed class SiteEngine
 
         Directory.CreateDirectory(outputDir);
 
-        var themeName = config.Theme.Name;
-        ThemeManifestV2? themeManifest = null;
-        ThemeComponentRegistry? themeRegistry = null;
-        SectionSchemaValidator? schemaValidator = null;
-        IReadOnlyDictionary<string, ISectionPlugin>? resolvedSectionPlugins = null;
-        if (!string.IsNullOrWhiteSpace(themeName) || !string.IsNullOrWhiteSpace(config.Theme.Source))
-        {
-            var themeRoot = Path.Combine(rootDir, "themes", themeName ?? "remote");
-            if (!string.IsNullOrWhiteSpace(config.Theme.Source))
-            {
-                var themesCacheDir = Path.Combine(rootDir, ".cache", "themes");
-                Directory.CreateDirectory(themesCacheDir);
-                var resolved = ThemeSourceManager.Resolve(config.Theme.Source, themesCacheDir,
-                    msg => _logger.Warn(msg));
-                if (resolved is not null)
-                {
-                    themeRoot = resolved.ThemeRoot;
-                    if (!string.IsNullOrWhiteSpace(themeName))
-                    {
-                        themeRoot = Path.Combine(resolved.ThemeRoot, themeName);
-                    }
-                }
-            }
-
-            themeManifest = ThemeManifestLoader.Load(themeRoot);
-            if (themeManifest is not null)
-            {
-                ThemeComponentRegistry? parentRegistry = null;
-                if (!string.IsNullOrWhiteSpace(themeManifest.Extends))
-                {
-                    var parentThemeRoot = Path.Combine(rootDir, "themes", themeManifest.Extends);
-                    var parentManifest = ThemeManifestLoader.Load(parentThemeRoot);
-                    if (parentManifest is not null)
-                    {
-                        parentRegistry = new ThemeComponentRegistry(parentThemeRoot, parentManifest, null);
-                    }
-                }
-
-                themeRegistry = new ThemeComponentRegistry(themeRoot, themeManifest, parentRegistry);
-
-                var sectionPlugins = new Dictionary<string, ISectionPlugin>(StringComparer.OrdinalIgnoreCase);
-                if (themeManifest.Sections is not null)
-                {
-                    foreach (var (sectionName, sDef) in themeManifest.Sections)
-                    {
-                        if (!string.IsNullOrWhiteSpace(sDef.Plugin) &&
-                            SectionPluginRegistry.TryResolve(sDef.Plugin, out var plugin))
-                        {
-                            sectionPlugins[sDef.Plugin] = plugin!;
-                            _logger.Info($"Section '{sectionName}' loaded plugin: {sDef.Plugin} ({plugin!.SupportedHook})");
-                        }
-                    }
-                }
-                resolvedSectionPlugins = sectionPlugins.Count > 0 ? sectionPlugins : null;
-
-                var validationMode = config.Theme.ComponentValidation switch
-                {
-                    "strict" => ValidationMode.Strict,
-                    "warn" => ValidationMode.Warn,
-                    _ => ValidationMode.Off
-                };
-                schemaValidator = new SectionSchemaValidator(validationMode, themeRoot, log);
-            }
-        }
+        var bootstrap = ThemeBootstrapper.Bootstrap(config, rootDir, log);
+        var themeName = bootstrap.ThemeName;
+        var themeManifest = bootstrap.Manifest;
+        var themeRegistry = bootstrap.Registry;
+        var schemaValidator = bootstrap.SchemaValidator;
+        var resolvedSectionPlugins = bootstrap.SectionPlugins;
 
         var hasStaticDir = Directory.Exists(ctx.StaticDir);
         var staticTemplate = config.Theme.StaticTemplate;
@@ -545,7 +472,7 @@ public sealed class SiteEngine
         return merged;
     }
 
-    internal static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)
+    private static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)
     {
         return RouteInventoryValidator.BuildCollectionRules(site);
     }
@@ -597,6 +524,26 @@ public sealed class SiteEngine
         return $"theme-yaml:{themeYamlPath}:{HashUtil.Sha256Hex(File.ReadAllBytes(themeYamlPath))}";
     }
 
+    private void PrepareOutputDirectory(AppConfig config, string rootDir, string outputDir)
+    {
+        if (config.Build.Clean && Directory.Exists(outputDir))
+        {
+            EnsureOutputDirectoryCanBeCleaned(rootDir, outputDir);
+            Directory.Delete(outputDir, recursive: true);
+        }
+
+        if (!config.Build.Clean && BuildRecoveryTracker.HasIncompleteBuild(outputDir))
+        {
+            _logger.Warn($"event=build.recovery previousIncomplete=true outputDir={outputDir} action=autoClean");
+            Directory.Delete(outputDir, recursive: true);
+        }
+
+        Directory.CreateDirectory(outputDir);
+
+        BuildRecoveryTracker.MarkStarted(outputDir);
+        _logger.Info($"event=build.start rootDir={rootDir} outputDir={outputDir}");
+    }
+
     private static void EnsureOutputDirectoryCanBeCleaned(string rootDir, string outputDir)
     {
         var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -641,52 +588,5 @@ public sealed class SiteEngine
             "error" => LogLevel.Error,
             _ => LogLevel.Info
         };
-    }
-
-    private static AppConfig BuildOptionsToConfig(BuildOptions options, string outputDirName)
-    {
-        return new AppConfig
-        {
-            Site = new SiteConfig
-            {
-                Name = options.SiteTitle,
-                Title = options.SiteTitle,
-                Language = "en",
-                BaseUrl = options.BaseUrl,
-                Url = options.SiteUrl,
-                OutputPathEncoding = options.OutputPathEncoding,
-                Seo = new SeoConfig { Enabled = false }
-            },
-            Build = new BuildConfig
-            {
-                Output = outputDirName,
-                Clean = options.Clean
-            },
-            Content = new ContentConfig { Provider = "markdown" }
-        };
-    }
-
-    private sealed class FixedContentProviderFactory : IContentProviderFactory
-    {
-        private readonly IContentProvider _provider;
-        private readonly IContentProviderFactory _fallback;
-
-        internal FixedContentProviderFactory(IContentProvider provider, IContentProviderFactory fallback)
-        {
-            _provider = provider;
-            _fallback = fallback;
-        }
-
-        public IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger)
-            => _provider;
-
-        public Task<ContentLoadResult> LocalizeContentImagesAsync(
-            ContentLoadResult result,
-            MediaConfig media,
-            string rootDir,
-            string cacheDir,
-            ILogger logger,
-            CancellationToken cancellationToken)
-            => _fallback.LocalizeContentImagesAsync(result, media, rootDir, cacheDir, logger, cancellationToken);
     }
 }

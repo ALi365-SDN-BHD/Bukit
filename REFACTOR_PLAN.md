@@ -80,6 +80,18 @@
 | 新建 `BuildPipelinePerformanceTests` | `FullBuild_With10Pages_CompletesUnderThreshold_AndAllStageKeysPresent`（10 页 < 30s） | ✅ done |
 | 新建 `BuildPipelinePerformanceTests` | `FullBuild_With1Page_ProducesAllExpectedOutputFiles`（1 页验证输出完整性） | ✅ done |
 
+### Stage 12：代码质量审查 + Benchmark + 进一步精简
+
+| 动作 | 内容 | 状态 |
+|------|------|------|
+| A | 代码审查 — 0 unused imports，`BuildCollectionRules` → `private`，`GetSeoAlternates` → `internal` 保留 | ✅ done |
+| B | Benchmarks — 15/15 通过，无性能退化 | ✅ done |
+| C1 | 新建 `ThemeBootstrapper` — 64 行 theme 初始化独立类 | ✅ done |
+| C2 | 新建 `BuildOptionsMapper` — 22 行映射逻辑独立类 | ✅ done |
+| C3 | 新建 `FixedContentProviderFactory` — 23 行适配器独立类 | ✅ done |
+| C4 | 新建 `PrepareOutputDirectory` — 16 行 clean/recovery 私有方法 | ✅ done |
+| C total | `SiteEngine` 692 → 592 行（-100/-14%） | ✅ done |
+
 ---
 
 ## 反射状态：全部消除 ✅
@@ -91,8 +103,9 @@
 | 指标 | 重构前 | 重构后 |
 |------|--------|--------|
 | Engine 测试数 | 891 | 893 |
+| Benchmarks | 15 | 15（零退化） |
 | 全量测试数 | 1954 | 1956 |
-| 性能回归测试 | 0 | 1 文件 2 测试 |
+| 性能回归测试 | 0 | 2 |
 | 反射测试 | 3 文件 | 0 |
 
 ---
