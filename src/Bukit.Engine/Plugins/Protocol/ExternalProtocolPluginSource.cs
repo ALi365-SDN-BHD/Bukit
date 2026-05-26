@@ -1,5 +1,6 @@
 using Bukit.Config;
 using Bukit.Engine.Plugins;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.Protocol;
 
@@ -59,6 +60,8 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
                     Array.Empty<(Bukit.Content.ContentItem Item, Bukit.Routing.RouteInfo Route, DateTimeOffset LastModified)>());
             }
 
+            PluginCapabilityEnforcer.Enforce(_config, "derive-pages");
+
             var runner = new ProtocolDerivePagesRunner(CreateInvoker(_config.Runtime));
             return runner.RunAsync(_context, _config, Name, Version, cancellationToken);
         }
@@ -69,6 +72,8 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
             {
                 return Task.CompletedTask;
             }
+
+            PluginCapabilityEnforcer.Enforce(_config, "after-build");
 
             var runner = new ProtocolAfterBuildRunner(CreateInvoker(_config.Runtime));
             return runner.RunAsync(_context, _config, Name, Version, cancellationToken);

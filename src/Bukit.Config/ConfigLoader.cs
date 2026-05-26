@@ -747,6 +747,7 @@ public static class ConfigLoader
                 MaxStdoutBytes = GetOptionalIntStrict(pluginNode, "maxStdoutBytes") ?? 1048576,
                 MaxStderrBytes = GetOptionalIntStrict(pluginNode, "maxStderrBytes") ?? 1048576,
                 AllowEnvironment = ReadStringList(pluginNode, "allowEnvironment"),
+                Capabilities = ReadStringList(pluginNode, "capabilities"),
                 // DESKTOP-REMOVED: wasm runtime fields disabled (AOT-only).
                 // WasmProfile = GetOptionalString(pluginNode, "wasmProfile") ?? "wasi-preview1",
                 // MaxMemoryMb = GetOptionalInt(pluginNode, "maxMemoryMb") ?? 64,

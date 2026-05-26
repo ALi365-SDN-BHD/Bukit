@@ -183,12 +183,12 @@ public sealed record ExternalPluginConfig
     public int MaxStdoutBytes { get; init; } = 1048576;
     public int MaxStderrBytes { get; init; } = 1048576;
     public IReadOnlyList<string>? AllowEnvironment { get; init; }
+    public IReadOnlyList<string>? Capabilities { get; init; }
     // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
     // public string WasmProfile { get; init; } = "wasi-preview1";
     // public int MaxMemoryMb { get; init; } = 64;
     // public string WasmFsMode { get; init; } = "output-only";
     // public bool WasmAllowNetwork { get; init; }
-    // public IReadOnlyList<string>? Capabilities { get; init; }
     public IReadOnlyDictionary<string, object>? Options { get; init; }
 }
 

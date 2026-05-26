@@ -614,6 +614,23 @@ public static class ConfigValidator
                 throw new ConfigException($"site.externalPlugins.{name}.maxStderrBytes must be a positive integer.");
             }
 
+            if (plugin.Capabilities is { Count: > 0 })
+            {
+                for (var i = 0; i < plugin.Capabilities.Count; i++)
+                {
+                    var cap = plugin.Capabilities[i]?.Trim().ToLowerInvariant();
+                    if (string.IsNullOrWhiteSpace(cap))
+                    {
+                        throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be a non-empty string.");
+                    }
+
+                    if (cap is not ("emit-outputs" or "derive-pages"))
+                    {
+                        throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be emit-outputs or derive-pages.");
+                    }
+                }
+            }
+
             if (runtime == "process")
             {
                 ValidateProcessPluginOptions(name, plugin.Options);
