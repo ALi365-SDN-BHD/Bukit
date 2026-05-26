@@ -1,6 +1,5 @@
 using Bukit.Config;
 using Bukit.Engine.Incremental;
-using Bukit.Rendering;
 using Bukit.Shared;
 using Xunit;
 
@@ -35,18 +34,6 @@ public sealed class AssetPipelineTests
         var manifest = new BuildManifest();
         var logger = new RecordingLogger();
         var pipeline = new AssetPipeline();
-        var config = new AppConfig
-        {
-            Build = new BuildConfig { AssetHashMode = "sha256" },
-            Theme = new ThemeConfig
-            {
-                Name = "starter",
-                Scss = new ScssConfig { Enabled = false },
-                Images = new ImageOptimizationConfig { Enabled = false }
-            },
-            Site = new SiteConfig { Name = "test", Title = "Test" },
-            Content = new ContentConfig { Provider = "markdown" }
-        };
 
         var result = await pipeline.ExecuteAsync(new AssetPipelineContext(
             StaticDir: staticDir,
@@ -57,17 +44,12 @@ public sealed class AssetPipelineTests
             ThemeRoot: themeRoot,
             ParentThemeRoot: null,
             OutputDir: outputDir,
-            BaseUrl: "/",
-            Renderer: null,
-            SiteModel: new SiteModel { Name = "test", Title = "Test", BaseUrl = "/", Language = "en" },
-            StaticTemplate: null,
             Manifest: manifest,
             IncrementalEnabled: false,
             AssetHashMode: "sha256",
             ScssConfig: null,
             ImageConfig: null,
             Logger: logger,
-            CurrentKeys: new System.Collections.Concurrent.ConcurrentDictionary<string, byte>(StringComparer.Ordinal),
             PublishDotFiles: false),
             CancellationToken.None);
 
@@ -107,17 +89,12 @@ public sealed class AssetPipelineTests
             ThemeRoot: null,
             ParentThemeRoot: null,
             OutputDir: outputDir,
-            BaseUrl: "/",
-            Renderer: null,
-            SiteModel: new SiteModel { Name = "test", Title = "Test", BaseUrl = "/", Language = "en" },
-            StaticTemplate: null,
             Manifest: manifest,
             IncrementalEnabled: false,
             AssetHashMode: "sha256",
             ScssConfig: null,
             ImageConfig: null,
             Logger: logger,
-            CurrentKeys: new System.Collections.Concurrent.ConcurrentDictionary<string, byte>(StringComparer.Ordinal),
             PublishDotFiles: false),
             CancellationToken.None);
 

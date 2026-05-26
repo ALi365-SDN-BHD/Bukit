@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Incremental;
@@ -27,6 +26,7 @@ internal sealed record RenderPipelineContext(
     ConcurrentDictionary<string, BuildManifestEntry>? ManifestEntries,
     int MaxDegreeOfParallelism,
     ILogger Logger,
+    IReadOnlyList<RenderEntry>? StaticEntries = null,
     Func<ContentItem, RouteInfo, SeoModel>? SeoBuilder = null,
     Func<ContentItem, RouteInfo, PageInfo, string, string>? HtmlPostProcessor = null,
     Func<ContentItem, RouteInfo, SeoModel>? ListItemSeoBuilder = null,
@@ -45,9 +45,26 @@ internal sealed class RenderPipeline
     public async Task<RenderPipelineResult> ExecuteAsync(RenderPipelineContext context, CancellationToken cancellationToken = default)
     {
         var currentKeys = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
-        var pageStopwatch = Stopwatch.StartNew();
-        var pageResult = await PageRenderDispatcher.RenderPagesAsync(
-            context.RenderQueue,
+        var entries = new List<RenderEntry>();
+
+        foreach (var (item, route) in context.RenderQueue)
+        {
+            entries.Add(RenderEntry.ForPage(item, route));
+        }
+
+        var specialLists = SpecialListRouteBuilder.Build(context.Routed, context.Collections, context.LayoutsDir, context.ListPageContentMode, context.OutputPathEncoding);
+        foreach (var x in specialLists)
+        {
+            entries.Add(RenderEntry.ForList(x.Route, x.Items, x.IncludeContent));
+        }
+
+        if (context.StaticEntries is { Count: > 0 })
+        {
+            entries.AddRange(context.StaticEntries);
+        }
+
+        var dispatchResult = await PageRenderDispatcher.DispatchAsync(
+            entries,
             context.BodyStore,
             context.Renderer,
             context.SiteModel,
@@ -62,33 +79,9 @@ internal sealed class RenderPipeline
             context.Logger,
             cancellationToken,
             context.SeoBuilder,
-            context.HtmlPostProcessor);
-        pageStopwatch.Stop();
-
-        var specialRenderReasons = new ConcurrentDictionary<string, int>(pageResult.RenderReasons, StringComparer.OrdinalIgnoreCase);
-        var listStopwatch = Stopwatch.StartNew();
-        var listResult = await PageRenderDispatcher.RenderSpecialListsAsync(
-            context.Routed,
-            context.BodyStore,
-            context.Renderer,
-            context.SiteModel,
-            context.Collections,
-            context.LayoutsDir,
-            context.ListPageContentMode,
-            context.OutputPathEncoding,
-            context.OutputDir,
-            context.TemplateHash,
-            context.RenderDependencyHash,
-            context.IncrementalEnabled,
-            context.Manifest,
-            currentKeys,
-            specialRenderReasons,
-            context.MaxDegreeOfParallelism,
-            cancellationToken,
-            context.ListItemSeoBuilder,
+            context.HtmlPostProcessor,
             context.ListSeoBuilder,
             context.ListHtmlPostProcessor);
-        listStopwatch.Stop();
 
         if (context.IncrementalEnabled && context.ManifestEntries is not null)
         {
@@ -98,16 +91,11 @@ internal sealed class RenderPipeline
             }
         }
 
-        var metricsCollector = new BuildStageMetricsCollector();
-        metricsCollector.AddDuration("renderPages", pageStopwatch.ElapsedMilliseconds);
-        metricsCollector.AddDuration("renderSpecialLists", listStopwatch.ElapsedMilliseconds);
-        var metrics = BuildStageMetrics.Merge(metricsCollector.Snapshot(), pageResult.StageMetrics, listResult.StageMetrics);
-
         return new RenderPipelineResult(
-            pageResult.RenderedCount + listResult.RenderedCount,
-            pageResult.SkippedCount + listResult.SkippedCount,
-            new Dictionary<string, int>(specialRenderReasons, StringComparer.OrdinalIgnoreCase),
+            dispatchResult.RenderedCount,
+            dispatchResult.SkippedCount,
+            dispatchResult.RenderReasons,
             currentKeys,
-            metrics);
+            dispatchResult.StageMetrics);
     }
 }

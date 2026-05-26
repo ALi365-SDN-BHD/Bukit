@@ -226,11 +226,15 @@ internal sealed class VariantBuildPipeline
         var listRoutes = routeResult.ListRoutes;
 
         var hasStaticDir = Directory.Exists(ctx.StaticDir);
-        var (staticHtmlRoutes, staticRouteTemplate) = BuildStaticHtmlData(
-            hasStaticDir ? ctx.StaticDir : null,
-            config.Theme.StaticTemplate,
-            msg => (logger).Warn(msg),
-            config.Build.PublishDotFiles);
+        var staticRouteTemplate = !string.IsNullOrWhiteSpace(config.Theme.StaticTemplate) ? config.Theme.StaticTemplate : "__raw_static__";
+        IReadOnlyList<RenderEntry>? staticEntries = null;
+        IReadOnlyList<RouteInfo> staticHtmlRoutes = Array.Empty<RouteInfo>();
+
+        if (hasStaticDir)
+        {
+            staticEntries = RenderEntry.ForStaticDir(ctx.StaticDir!, staticRouteTemplate, msg => logger.Warn(msg), config.Build.PublishDotFiles);
+            staticHtmlRoutes = staticEntries.Select(e => e.Route).ToList();
+        }
 
         RouteInventoryValidator.ValidateFinalRoutes(routed, pluginContext.DerivedRouted, listRoutes, staticHtmlRoutes);
         var seoAlternates = SeoAlternatesService.AddVariantRouteAlternates(
@@ -260,6 +264,7 @@ internal sealed class VariantBuildPipeline
             Manifest: manifestSetup.Manifest,
             ManifestEntries: manifestSetup.ManifestEntries,
             MaxDegreeOfParallelism: maxDegreeOfParallelism, Logger: logger,
+            StaticEntries: staticEntries,
             SeoBuilder: seoResult.SeoBuilder,
             HtmlPostProcessor: seoResult.HtmlPostProcessor,
             ListItemSeoBuilder: seoResult.ListItemSeoBuilder,
@@ -284,12 +289,11 @@ internal sealed class VariantBuildPipeline
             ParentStaticDir: ctx.ParentStaticDir, AssetsDir: ctx.AssetsDir,
             ParentAssetsDir: ctx.ParentAssetsDir, MediaDownloadDir: ctx.MediaDownloadDir,
             ThemeRoot: themeRootForTokens, ParentThemeRoot: parentThemeRootForTokens,
-            OutputDir: outputDir, BaseUrl: baseUrl, Renderer: renderer,
-            SiteModel: siteModel, StaticTemplate: staticRouteTemplate,
+            OutputDir: outputDir,
             Manifest: manifestSetup.Manifest, IncrementalEnabled: manifestSetup.IncrementalEnabled,
             AssetHashMode: config.Build.AssetHashMode,
             ScssConfig: config.Theme.Scss, ImageConfig: config.Theme.Images,
-            Logger: logger, CurrentKeys: currentKeys,
+            Logger: logger,
             PublishDotFiles: config.Build.PublishDotFiles),
             cancellationToken);
 

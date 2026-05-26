@@ -17,17 +17,12 @@ internal sealed record AssetPipelineContext(
     string? ThemeRoot,
     string? ParentThemeRoot,
     string OutputDir,
-    string BaseUrl,
-    ITemplateRenderer? Renderer,
-    SiteModel SiteModel,
-    string? StaticTemplate,
     BuildManifest Manifest,
     bool IncrementalEnabled,
     string? AssetHashMode,
     ScssConfig? ScssConfig,
     ImageOptimizationConfig? ImageConfig,
     ILogger Logger,
-    ConcurrentDictionary<string, byte> CurrentKeys,
     bool PublishDotFiles);
 
 internal sealed record AssetPipelineResult(
@@ -60,17 +55,10 @@ internal sealed class AssetPipeline
 
             if (hasStaticDir)
             {
-                if (!string.IsNullOrWhiteSpace(ctx.StaticTemplate) && ctx.Renderer is not null)
-                {
-                    StaticFileService.RenderStaticFiles(ctx.StaticDir!, ctx.OutputDir, ctx.Renderer, ctx.SiteModel, ctx.StaticTemplate, ctx.BaseUrl, ctx.CurrentKeys, cancellationToken, ctx.Logger.Warn, ctx.PublishDotFiles);
-                }
-                else
-                {
-                    DirectoryCopy.Sync(ctx.StaticDir!, ctx.OutputDir, staticCopyOptions, outputRoot: ctx.OutputDir);
-                }
+                DirectoryCopy.Sync(ctx.StaticDir!, ctx.OutputDir, staticCopyOptions, outputRoot: ctx.OutputDir);
             }
 
-            BuildManifestTracker.TrackStaticOutputs(ctx.ParentStaticDir, hasStaticDir ? ctx.StaticDir : null, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger, !string.IsNullOrWhiteSpace(ctx.StaticTemplate));
+            BuildManifestTracker.TrackStaticOutputs(ctx.ParentStaticDir, hasStaticDir ? ctx.StaticDir : null, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger, renderHtmlStaticFiles: false);
             staticStopwatch.Stop();
             metricsCollector.AddDuration("staticSync", staticStopwatch.ElapsedMilliseconds);
         }
