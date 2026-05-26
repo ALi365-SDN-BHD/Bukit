@@ -4,14 +4,7 @@
     <DataCollectors>
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
-          <CodeCoverage>
-            <ModulePaths>
-              <Exclude>
-                <ModulePath>.*ThrowingPlugin.dll$</ModulePath>
-                <ModulePath>.*PathReportPlugin.dll$</ModulePath>
-              </Exclude>
-            </ModulePaths>
-          </CodeCoverage>
+          <Exclude>[PathReportPlugin]*,[ThrowingPlugin]*,[Bukit.Shared]System.Text.RegularExpressions.Generated.*,[Bukit.Theme]*</Exclude>
         </Configuration>
       </DataCollector>
     </DataCollectors>

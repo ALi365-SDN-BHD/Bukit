@@ -1,0 +1,54 @@
+# Oversized file baseline — grandfathered technical debt.
+# Files listed here are known to exceed the 600-line cohesion limit
+# and are exempt from the quality-gate hard failure.
+#
+# Rules:
+# 1. Do NOT add new files here without a PR discussion.
+# 2. When a file is split below 600 lines, remove its entry.
+# 3. Each entry should include a brief justification.
+#
+# Format: one path per line (relative to repo root). Lines starting with # are ignored.
+
+# --- Bukit.Cli ---
+# multi-step clone orchestration; split candidate
+src/Bukit.Cli/Commands/CloneCommand.cs
+# content scraping + rewriting; split candidate
+src/Bukit.Cli/Commands/CloneContentWriter.cs
+# theme generation from scraped data; split candidate
+src/Bukit.Cli/Commands/CloneThemeGenerator.cs
+# comprehensive diagnostics; split candidate
+src/Bukit.Cli/Commands/DoctorCommand.cs
+# SEO audit CLI; split candidate
+src/Bukit.Cli/Commands/SeoCommand.cs
+# theme scaffolding; split candidate
+src/Bukit.Cli/Commands/StarterThemeScaffold.cs
+# theme management CLI; split candidate
+src/Bukit.Cli/Commands/ThemeCommand.cs
+
+# --- Bukit.Config ---
+# YAML deserialization + merging; split candidate
+src/Bukit.Config/ConfigLoader.cs
+# validation rules; split candidate
+src/Bukit.Config/ConfigValidator.cs
+
+# --- Bukit.Content ---
+# Markdown content loading; split candidate
+src/Bukit.Content/Markdown/MarkdownFolderProvider.cs
+# image download + localize; split candidate
+src/Bukit.Content/Media/ImageAssetLocalizer.cs
+# Notion API integration; split candidate
+src/Bukit.Content/Notion/NotionContentProvider.cs
+
+# --- Bukit.Engine ---
+# parallel page rendering; split candidate
+src/Bukit.Engine/PageRenderDispatcher.cs
+# pages index generation; split candidate
+src/Bukit.Engine/Plugins/BuiltIn/PagesIndexPlugin.cs
+# SEO audit report generation; split candidate
+src/Bukit.Engine/SeoAuditReportWriter.cs
+# SEO model construction; split candidate
+src/Bukit.Engine/SeoModelBuilder.cs
+
+# --- Bukit.Rendering ---
+# Scriban rendering engine; split candidate
+src/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs
