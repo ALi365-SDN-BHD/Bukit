@@ -18,6 +18,7 @@ dotnet test bukit.slnx \
     -maxcpucount:1 \
     -nodeReuse:false \
     --collect:"XPlat Code Coverage" \
+    --settings coverage.runsettings \
     --results-directory "$coverage_root"
 
 dotnet format bukit.slnx --verify-no-changes --no-restore
