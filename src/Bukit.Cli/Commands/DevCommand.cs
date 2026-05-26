@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
 using Bukit.Cli;
+using Bukit.Cli.Cli.Binding;
 using Bukit.Config;
 using Bukit.Engine;
 using Bukit.Shared;
@@ -22,6 +23,24 @@ public static class DevCommand
 
     private static readonly ConcurrentDictionary<string, WebSocket> _wsClients = new();
     private static volatile int _devPort;
+
+    internal static (string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride) ExtractOptions(CliBoundCommand command)
+    {
+        return (
+            command.GetString("--config"),
+            command.GetString("--site"),
+            command.GetString("--host") ?? "localhost",
+            command.GetInt("--port") ?? 35729,
+            command.GetBool("--no-watch"),
+            command.GetString("--output")
+        );
+    }
+
+    public static async Task<int> RunAsync(CliBoundCommand command)
+    {
+        var (configPath, site, host, port, noWatch, outputOverride) = ExtractOptions(command);
+        return await RunCoreAsync(configPath, site, host, port, noWatch, outputOverride);
+    }
 
     public static async Task<int> RunAsync(string[] args)
     {
@@ -45,6 +64,12 @@ public static class DevCommand
             }
         }
 
+        return await RunCoreAsync(configPath, site, host, port, noWatch, outputOverride);
+    }
+
+    private static async Task<int> RunCoreAsync(
+        string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride)
+    {
         var resolved = ConfigPathResolver.Resolve(configPath, site);
         var config = ConfigLoader.Load(resolved.FullConfigPath);
         var rootDir = resolved.RootDir;

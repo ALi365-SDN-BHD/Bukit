@@ -46,7 +46,7 @@ try
                 "build" => await BuildCommand.RunAsync(parsed.BoundCommand),
                 "clone" => await CloneCommand.RunAsync(parsed.BoundCommand),
                 "deploy" => await DeployCommand.RunAsync(parsed.BoundCommand),
-                "dev" => await DevCommand.RunAsync(tail),
+                "dev" => await DevCommand.RunAsync(parsed.BoundCommand),
                 "preview" => await PreviewCommand.RunAsync(parsed.BoundCommand),
                 _ => (int?)null
             };
