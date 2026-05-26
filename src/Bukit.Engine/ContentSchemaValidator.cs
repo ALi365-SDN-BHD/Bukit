@@ -20,7 +20,7 @@ public static class ContentSchemaValidator
         for (var i = 0; i < items.Count; i++)
         {
             var item = items[i];
-            var collectionName = GetEffectiveCollection(item);
+            var collectionName = MetaHelpers.GetEffectiveCollection(item);
             if (string.IsNullOrWhiteSpace(collectionName) ||
                 !collections.TryGetValue(collectionName, out var collection) ||
                 collection.Schema is null ||
@@ -183,25 +183,6 @@ public static class ContentSchemaValidator
             "list" or "array" or "string[]" => value is IEnumerable<object> or System.Collections.IList,
             _ => true
         };
-    }
-
-    private static string? GetEffectiveCollection(ContentItem item)
-    {
-        if (item.Meta.TryGetValue("collection", out var collection) &&
-            collection is not null &&
-            !string.IsNullOrWhiteSpace(collection.ToString()))
-        {
-            return collection.ToString();
-        }
-
-        if (item.Meta.TryGetValue("type", out var type) &&
-            type is not null &&
-            !string.IsNullOrWhiteSpace(type.ToString()))
-        {
-            return type.ToString();
-        }
-
-        return null;
     }
 
     private static ContentField ToContentField(string? type, object value)

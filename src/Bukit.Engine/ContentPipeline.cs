@@ -18,6 +18,8 @@ public sealed class ContentPipeline
 
     public ContentPipeline(IReadOnlyList<IContentStage> stages, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(stages);
+        ArgumentNullException.ThrowIfNull(logger);
         _stages = stages;
         _logger = logger;
     }

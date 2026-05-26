@@ -9,6 +9,21 @@ internal static class MetaHelpers
         return meta.TryGetValue(key, out var v) && v is not null ? v.ToString() : null;
     }
 
+    internal static string? GetEffectiveCollection(ContentItem item, string? defaultCollection = null)
+    {
+        if (item.Meta.TryGetValue("collection", out var c) && c is not null && !string.IsNullOrWhiteSpace(c.ToString()))
+        {
+            return c.ToString();
+        }
+
+        if (item.Meta.TryGetValue("type", out var t) && t is not null && !string.IsNullOrWhiteSpace(t.ToString()))
+        {
+            return t.ToString();
+        }
+
+        return defaultCollection;
+    }
+
     internal static IReadOnlyList<string>? GetStringList(IReadOnlyDictionary<string, object> meta, string key)
     {
         if (!meta.TryGetValue(key, out var v) || v is null)

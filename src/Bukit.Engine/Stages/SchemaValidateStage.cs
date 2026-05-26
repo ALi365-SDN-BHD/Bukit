@@ -23,7 +23,7 @@ internal sealed class SchemaValidateStage : IContentStage
         {
             foreach (var item in input.Items)
             {
-                var collectionName = GetEffectiveCollection(item);
+                var collectionName = MetaHelpers.GetEffectiveCollection(item, "page");
                 if (string.IsNullOrWhiteSpace(collectionName) ||
                     !collections.TryGetValue(collectionName, out var collection) ||
                     collection.Schema is null || collection.Schema.Count == 0)
@@ -50,7 +50,7 @@ internal sealed class SchemaValidateStage : IContentStage
 
         foreach (var item in input.Items)
         {
-            var collectionName = GetEffectiveCollection(item);
+            var collectionName = MetaHelpers.GetEffectiveCollection(item, "page");
             if (string.IsNullOrWhiteSpace(collectionName) ||
                 !collections.TryGetValue(collectionName, out var collection) ||
                 collection.Schema is null || collection.Schema.Count == 0)
@@ -76,20 +76,5 @@ internal sealed class SchemaValidateStage : IContentStage
         }
 
         return Task.FromResult(new ContentStageOutput(input.Items, input.BodyStore, Name, 0, allErrors));
-    }
-
-    private static string GetEffectiveCollection(Content.ContentItem item)
-    {
-        if (item.Meta.TryGetValue("collection", out var c) && c is not null && !string.IsNullOrWhiteSpace(c.ToString()))
-        {
-            return c.ToString()!;
-        }
-
-        if (item.Meta.TryGetValue("type", out var t) && t is not null && !string.IsNullOrWhiteSpace(t.ToString()))
-        {
-            return t.ToString()!;
-        }
-
-        return "page";
     }
 }
