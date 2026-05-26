@@ -8,6 +8,7 @@ using Bukit.Routing;
 using Bukit.Shared;
 using Bukit.Theme;
 using System.Collections.Concurrent;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 
@@ -105,11 +106,8 @@ public sealed class ScribanTemplateRenderer
 
         if (_components is { Count: > 0 })
         {
-            ComponentFunctions.Components = _components;
-            ComponentFunctions.TemplateLoader = _templateLoader;
-            ComponentFunctions.ParentGlobals = globals;
             var componentObj = new ScriptObject();
-            componentObj.SetValue("render", new Func<string, string, string, string, string>(ComponentFunctions.Render), readOnly: true);
+            componentObj.SetValue("render", new ComponentRenderFunction(_components, _templateLoader, globals, _componentValidation), readOnly: true);
             context.PushGlobal(new ScriptObject { ["comp"] = componentObj });
         }
 
@@ -124,19 +122,20 @@ public sealed class ScribanTemplateRenderer
 
             if (_themeRegistry.Components.Count > 0)
             {
-                ComponentFunctions.ThemeComponents = _themeRegistry.Components;
-                ComponentFunctions.ThemeTemplateLoader = _templateLoader;
-                ComponentFunctions.ThemeParentGlobals = globals;
-                ComponentFunctions.ThemeRegistryRoot = Path.Combine(_themeRegistry.ThemeRoot, "layouts");
                 var compObj = new ScriptObject();
-                compObj.SetValue("render", new Func<string, object, string>(ComponentFunctions.RenderComponent), readOnly: true);
+                compObj.SetValue("render", new ThemeComponentRenderFunction(
+                    _themeRegistry.Components,
+                    _templateLoader,
+                    globals,
+                    Path.Combine(_themeRegistry.ThemeRoot, "layouts"),
+                    _componentValidation), readOnly: true);
                 context.PushGlobal(new ScriptObject { ["comp"] = compObj });
             }
         }
 
         var imageObj = new ScriptObject();
-        imageObj.SetValue("srcset", new Func<string, string, string>(ImageHelper.BuildSrcset), readOnly: true);
-        imageObj.SetValue("img", new Func<string, string, string, string, string>(ImageHelper.BuildImgTag), readOnly: true);
+        imageObj.SetValue("srcset", new ImageSrcsetFunction(), readOnly: true);
+        imageObj.SetValue("img", new ImageImgFunction(), readOnly: true);
         context.PushGlobal(new ScriptObject { ["image"] = imageObj });
 
         var utilObj = new ScriptObject();
@@ -161,8 +160,28 @@ public sealed class ScribanTemplateRenderer
         }
         catch (Exception ex)
         {
+            if (TryFindRenderException(ex, out var renderException))
+            {
+                throw renderException;
+            }
+
             throw new RenderException($"Render failed: {templateRelativePath}", ex);
         }
+    }
+
+    private static bool TryFindRenderException(Exception exception, out RenderException renderException)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is RenderException found)
+            {
+                renderException = found;
+                return true;
+            }
+        }
+
+        renderException = null!;
+        return false;
     }
 
     private CachedTemplate GetCachedTemplate(string templateRelativePath)
@@ -259,14 +278,14 @@ internal sealed class SectionRenderHelper
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(jsonInput)) return "<!-- render_section: empty input -->";
+            if (string.IsNullOrWhiteSpace(jsonInput)) return Diagnostic("theme.render_section.empty", "render_section: empty input");
 
             jsonInput = jsonInput.Trim();
             if (!jsonInput.StartsWith('[') && !jsonInput.StartsWith('{'))
-                return "<!-- render_section: input is not valid JSON -->";
+                return Diagnostic("theme.render_section.invalid_json", "render_section: input is not valid JSON");
 
             var parsed = PageComposer.ParseSections(jsonInput);
-            if (parsed.Count == 0) return "<!-- render_section: no sections parsed -->";
+            if (parsed.Count == 0) return Diagnostic("theme.render_section.empty", "render_section: no sections parsed");
 
             var composed = PageComposer.Compose(parsed, _themeRegistry.Sections);
 
@@ -280,7 +299,12 @@ internal sealed class SectionRenderHelper
         }
         catch (Exception ex)
         {
-            return $"<!-- render_section error: {ex.Message} -->";
+            if (ex is RenderException)
+            {
+                throw;
+            }
+
+            return Diagnostic("theme.render_section.failed", $"render_section error: {ex.Message}");
         }
     }
 
@@ -289,14 +313,14 @@ internal sealed class SectionRenderHelper
         try
         {
             var sectionType = so.ContainsKey("type") ? so["type"]?.ToString() : null;
-            if (string.IsNullOrEmpty(sectionType)) return "<!-- render_section: missing type -->";
+            if (string.IsNullOrEmpty(sectionType)) return Diagnostic("theme.render_section.missing_type", "render_section: missing type");
 
             var sectionDef = _themeRegistry.ResolveSection(sectionType);
-            if (sectionDef is null) return $"<!-- section not found: {sectionType} -->";
+            if (sectionDef is null) return Diagnostic("theme.section.not_found", $"section not found: {sectionType}");
 
             var variant = so.ContainsKey("variant") ? so["variant"]?.ToString() : null;
             var templatePath = _themeRegistry.ResolveSectionTemplate(sectionType, variant);
-            if (templatePath is null || !File.Exists(templatePath)) return $"<!-- section template not found: {sectionType} -->";
+            if (templatePath is null || !File.Exists(templatePath)) return Diagnostic("theme.section.template_not_found", $"section template not found: {sectionType}");
 
             var props = ExtractPropsFromScriptObject(so);
 
@@ -330,20 +354,25 @@ internal sealed class SectionRenderHelper
         }
         catch (Exception ex)
         {
-            return $"<!-- render_section error: {ex.Message} -->";
+            if (ex is RenderException)
+            {
+                throw;
+            }
+
+            return Diagnostic("theme.render_section.failed", $"render_section error: {ex.Message}");
         }
     }
 
     private string RenderOneSection(PageSectionDefinition sectionDef)
     {
         var sectionType = sectionDef.Type;
-        if (string.IsNullOrEmpty(sectionType)) return "<!-- render_section: missing type -->";
+        if (string.IsNullOrEmpty(sectionType)) return Diagnostic("theme.render_section.missing_type", "render_section: missing type");
 
         var themeSection = _themeRegistry.ResolveSection(sectionType);
-        if (themeSection is null) return $"<!-- section not found: {sectionType} -->";
+        if (themeSection is null) return Diagnostic("theme.section.not_found", $"section not found: {sectionType}");
 
         var templatePath = _themeRegistry.ResolveSectionTemplate(sectionType, sectionDef.Variant);
-        if (templatePath is null || !File.Exists(templatePath)) return $"<!-- section template not found: {sectionType} -->";
+        if (templatePath is null || !File.Exists(templatePath)) return Diagnostic("theme.section.template_not_found", $"section template not found: {sectionType}");
 
         return RenderOneSectionBase(sectionDef, templatePath, themeSection, _parentGlobals);
     }
@@ -370,7 +399,7 @@ internal sealed class SectionRenderHelper
             }
             catch (Exception ex)
             {
-                return $"<!-- section plugin error [{plugin.GetType().Name}]: {ex.Message} -->";
+                return Diagnostic("theme.section.plugin_failed", $"section plugin error [{plugin.GetType().Name}]: {ex.Message}");
             }
             if (ctx.Props is not null) props = ctx.Props;
         }
@@ -391,7 +420,7 @@ internal sealed class SectionRenderHelper
 
         var sectionTemplateText = File.ReadAllText(templatePath);
         var sectionTemplate = Template.Parse(sectionTemplateText, templatePath);
-        if (sectionTemplate.HasErrors) return $"<!-- section template error: {sectionTemplate.Messages} -->";
+        if (sectionTemplate.HasErrors) return Diagnostic("theme.section.template_parse_failed", $"section template error: {sectionType}: {sectionTemplate.Messages}");
 
         var sectionContext = new TemplateContext
         {
@@ -437,11 +466,15 @@ internal sealed class SectionRenderHelper
 
         if (_themeRegistry.Components.Count > 0)
         {
-            ComponentFunctions.ThemeComponents = _themeRegistry.Components;
-            ComponentFunctions.ThemeTemplateLoader = _templateLoader;
-            ComponentFunctions.ThemeParentGlobals = parentGlobals;
-            ComponentFunctions.ThemeRegistryRoot = Path.Combine(_themeRegistry.ThemeRoot, "layouts");
-            sectionGlobals.SetValue("render_component", new RenderComponentFunction(), readOnly: true);
+            sectionGlobals.SetValue(
+                "render_component",
+                new RenderComponentFunction(
+                    _themeRegistry.Components,
+                    _templateLoader,
+                    parentGlobals,
+                    Path.Combine(_themeRegistry.ThemeRoot, "layouts"),
+                    _componentValidation),
+                readOnly: true);
         }
 
         sectionContext.PushGlobal(parentGlobals);
@@ -466,12 +499,23 @@ internal sealed class SectionRenderHelper
             }
             catch (Exception ex)
             {
-                html = $"<!-- section plugin error [{afterPlugin.GetType().Name}]: {ex.Message} -->\n{html}";
+                html = Diagnostic("theme.section.plugin_failed", $"section plugin error [{afterPlugin.GetType().Name}]: {ex.Message}") + "\n" + html;
             }
             if (afterCtx.RenderedHtml is not null) html = afterCtx.RenderedHtml;
         }
 
         return html;
+    }
+
+    private string Diagnostic(string code, string message)
+    {
+        var diagnostic = $"code={code} {message}";
+        if (string.Equals(_componentValidation, "strict", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new RenderException(diagnostic);
+        }
+
+        return $"<!-- {diagnostic} -->";
     }
 
     private static ScriptObject ContentItemToScriptObject(ContentItem item, string? url)
@@ -568,6 +612,18 @@ internal sealed class RenderSectionFunction : IScriptCustomFunction
 
 internal sealed class RenderComponentFunction : IScriptCustomFunction
 {
+    private readonly ThemeComponentRenderFunction _renderer;
+
+    public RenderComponentFunction(
+        IReadOnlyDictionary<string, ThemeComponentDefinition> components,
+        FileTemplateLoader templateLoader,
+        ScriptObject parentGlobals,
+        string registryRoot,
+        string componentValidation)
+    {
+        _renderer = new ThemeComponentRenderFunction(components, templateLoader, parentGlobals, registryRoot, componentValidation);
+    }
+
     public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
     {
         var name = arguments.Count > 0 ? arguments[0]?.ToString() ?? "" : "";
@@ -575,42 +631,10 @@ internal sealed class RenderComponentFunction : IScriptCustomFunction
 
         if (data is ScriptObject so)
         {
-            return RenderComponentWithObject(name, so);
+            return _renderer.Render(name, so);
         }
 
         return $"<!-- component: data is {(data?.GetType().FullName ?? "null")} not ScriptObject -->";
-    }
-
-    private static string RenderComponentWithObject(string name, ScriptObject data)
-    {
-        if (ComponentFunctions.ThemeComponents is null || !ComponentFunctions.ThemeComponents.TryGetValue(name, out var def))
-            return $"<!-- component not found: {name} -->";
-
-        var templatePath = !string.IsNullOrEmpty(ComponentFunctions.ThemeRegistryRoot)
-            ? Path.Combine(ComponentFunctions.ThemeRegistryRoot, def.Template)
-            : def.Template;
-
-        if (!File.Exists(templatePath))
-            return $"<!-- component template not found: {def.Template} -->";
-
-        var templateText = File.ReadAllText(templatePath);
-        var compTemplate = Template.Parse(templateText);
-        if (compTemplate.HasErrors) return $"<!-- component error: {compTemplate.Messages} -->";
-
-        var compContext = new TemplateContext
-        {
-            TemplateLoader = ComponentFunctions.ThemeTemplateLoader,
-            EnableRelaxedMemberAccess = true,
-            EnableRelaxedTargetAccess = true,
-            EnableNullIndexer = true
-        };
-
-        if (ComponentFunctions.ThemeParentGlobals is not null)
-            compContext.PushGlobal(ComponentFunctions.ThemeParentGlobals);
-
-        compContext.PushGlobal(data);
-
-        return compTemplate.Render(compContext);
     }
 
     public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
@@ -640,44 +664,121 @@ internal static class ImageHelper
 {
     internal static string BuildSrcset(string imagePath, string sizes = "480,768,1200")
     {
-        if (string.IsNullOrWhiteSpace(imagePath))
+        if (!IsSafeImageSource(imagePath))
         {
             return string.Empty;
         }
 
+        var encodedImagePath = WebUtility.HtmlEncode(imagePath.Trim());
         var sb = new StringBuilder();
         var sizeList = sizes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         foreach (var size in sizeList)
         {
+            if (!int.TryParse(size, out var width) || width <= 0)
+            {
+                continue;
+            }
+
             if (sb.Length > 0) sb.Append(", ");
-            sb.Append($"{imagePath}?w={size} {size}w");
+            sb.Append($"{encodedImagePath}?w={width} {width}w");
         }
         return sb.ToString();
     }
 
     internal static string BuildImgTag(string src, string alt = "", string sizes = "480,768,1200", string className = "")
     {
-        if (string.IsNullOrWhiteSpace(src))
+        if (!IsSafeImageSource(src))
         {
             return string.Empty;
         }
 
         var sb = new StringBuilder();
-        var classAttr = string.IsNullOrWhiteSpace(className) ? "" : $" class=\"{className}\"";
+        var safeSrc = WebUtility.HtmlEncode(src.Trim());
+        var safeAlt = WebUtility.HtmlEncode(alt ?? string.Empty);
+        var safeClass = WebUtility.HtmlEncode(className ?? string.Empty);
         var sizesAttr = $"(max-width: 480px) 480px, (max-width: 768px) 768px, 1200px";
 
-        sb.Append($"<img src=\"{src}\"");
+        sb.Append($"<img src=\"{safeSrc}\"");
         sb.Append($" srcset=\"{BuildSrcset(src, sizes)}\"");
         sb.Append($" sizes=\"{sizesAttr}\"");
         if (!string.IsNullOrWhiteSpace(alt))
         {
-            sb.Append($" alt=\"{alt}\"");
+            sb.Append($" alt=\"{safeAlt}\"");
         }
         if (!string.IsNullOrWhiteSpace(className))
         {
-            sb.Append($" class=\"{className}\"");
+            sb.Append($" class=\"{safeClass}\"");
         }
         sb.Append(" loading=\"lazy\" decoding=\"async\" />");
         return sb.ToString();
     }
+
+    private static bool IsSafeImageSource(string? src)
+    {
+        if (string.IsNullOrWhiteSpace(src))
+        {
+            return false;
+        }
+
+        var value = src.Trim();
+        if (value.StartsWith("//", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (value.StartsWith("/", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+}
+
+internal sealed class ImageSrcsetFunction : IScriptCustomFunction
+{
+    public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        var src = arguments.Count > 0 ? arguments[0]?.ToString() ?? string.Empty : string.Empty;
+        var sizes = arguments.Count > 1 ? arguments[1]?.ToString() ?? "480,768,1200" : "480,768,1200";
+        return ImageHelper.BuildSrcset(src, sizes);
+    }
+
+    public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+        => new(Invoke(context, callerContext, arguments, blockStatement));
+
+    public int RequiredParameterCount => 1;
+    public int ParameterCount => 2;
+    public ScriptVarParamKind VarParamKind => ScriptVarParamKind.None;
+    public Type ReturnType => typeof(string);
+    public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(string), index == 0 ? "src" : "sizes");
+}
+
+internal sealed class ImageImgFunction : IScriptCustomFunction
+{
+    public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        var src = arguments.Count > 0 ? arguments[0]?.ToString() ?? string.Empty : string.Empty;
+        var alt = arguments.Count > 1 ? arguments[1]?.ToString() ?? string.Empty : string.Empty;
+        var sizes = arguments.Count > 2 ? arguments[2]?.ToString() ?? "480,768,1200" : "480,768,1200";
+        var className = arguments.Count > 3 ? arguments[3]?.ToString() ?? string.Empty : string.Empty;
+        return ImageHelper.BuildImgTag(src, alt, sizes, className);
+    }
+
+    public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+        => new(Invoke(context, callerContext, arguments, blockStatement));
+
+    public int RequiredParameterCount => 1;
+    public int ParameterCount => 4;
+    public ScriptVarParamKind VarParamKind => ScriptVarParamKind.None;
+    public Type ReturnType => typeof(string);
+    public ScriptParameterInfo GetParameterInfo(int index)
+        => new(typeof(string), index switch
+        {
+            0 => "src",
+            1 => "alt",
+            2 => "sizes",
+            _ => "className"
+        });
 }

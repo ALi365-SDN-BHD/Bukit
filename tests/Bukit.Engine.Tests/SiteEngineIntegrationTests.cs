@@ -304,6 +304,75 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_ThemeSource_UsesResolvedThemeLayoutsAndAssets()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-theme-source-build-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var themeRoot = Path.Combine(root, ".cache", "themes", "local-theme");
+            Directory.CreateDirectory(Path.Combine(themeRoot, "layouts", "pages"));
+            Directory.CreateDirectory(Path.Combine(themeRoot, "assets"));
+            Directory.CreateDirectory(Path.Combine(themeRoot, "static"));
+
+            File.WriteAllText(Path.Combine(themeRoot, "theme.yaml"), """
+                name: local-theme
+                version: 1.0.0
+                """);
+            File.WriteAllText(Path.Combine(themeRoot, "layouts", "pages", "page.html"), "<main>remote-page:{{ page.title }}</main>");
+            File.WriteAllText(Path.Combine(themeRoot, "layouts", "pages", "index.html"), "<main>remote-index</main>");
+            File.WriteAllText(Path.Combine(themeRoot, "layouts", "pages", "list.html"), "<main>remote-list</main>");
+            File.WriteAllText(Path.Combine(themeRoot, "assets", "remote.css"), "body{color:green}");
+            File.WriteAllText(Path.Combine(themeRoot, "static", "robots.txt"), "User-agent: *");
+
+            var items = new[]
+            {
+                new ContentItem(
+                    "about",
+                    "About Remote Theme",
+                    "about",
+                    DateTimeOffset.Parse("2024-06-01T00:00:00Z"),
+                    null,
+                    new Dictionary<string, object> { ["type"] = "page", ["bodyFingerprint"] = "about-v1" },
+                    BodyKey: "about")
+            };
+            var loadResult = new ContentLoadResult(items, new DictionaryContentBodyStore(new Dictionary<string, string>
+            {
+                ["about"] = "<p>Body</p>"
+            }));
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test-site",
+                    Title = "Test Site",
+                    BaseUrl = "/",
+                    Language = "en"
+                },
+                Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Source = "local-theme" }
+            };
+
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger, new StaticContentProviderFactory(loadResult), new DefaultSearchIndexBuilder());
+
+            await engine.BuildAsync(config, root, new ConfigOverrides { Incremental = false }, CancellationToken.None);
+
+            var page = Path.Combine(root, "dist", "pages", "about", "index.html");
+            Assert.True(File.Exists(page), $"Expected {page}");
+            Assert.Contains("remote-page:About Remote Theme", File.ReadAllText(page));
+            Assert.True(File.Exists(Path.Combine(root, "dist", "assets", "remote.css")));
+            Assert.True(File.Exists(Path.Combine(root, "dist", "robots.txt")));
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_ReportDisabled_DoesNotWriteBuildReport()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));

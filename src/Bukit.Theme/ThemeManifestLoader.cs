@@ -21,9 +21,9 @@ public static class ThemeManifestLoader
 
             return ParseManifest(root);
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            throw new ThemeManifestException($"Failed to load theme.yaml: {manifestPath}", ex);
         }
     }
 
@@ -252,4 +252,12 @@ public static class ThemeManifestLoader
 
     private static int? GetInt(YamlMappingNode? map, string key)
         => int.TryParse(GetString(map, key), out var value) ? value : null;
+}
+
+public sealed class ThemeManifestException : Exception
+{
+    public ThemeManifestException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 }

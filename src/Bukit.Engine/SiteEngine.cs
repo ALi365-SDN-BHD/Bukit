@@ -211,6 +211,8 @@ public sealed class SiteEngine
 
         var bootstrap = ThemeBootstrapper.Bootstrap(config, rootDir, log);
         var themeName = bootstrap.ThemeName;
+        var themeRoot = bootstrap.ThemeRoot;
+        var parentThemeRoot = bootstrap.ParentThemeRoot;
         var themeManifest = bootstrap.Manifest;
         var themeRegistry = bootstrap.Registry;
         var schemaValidator = bootstrap.SchemaValidator;
@@ -371,11 +373,9 @@ public sealed class SiteEngine
         var renderReasons = new ConcurrentDictionary<string, int>(renderPipelineResult.RenderReasons, StringComparer.OrdinalIgnoreCase);
         var currentKeys = renderPipelineResult.CurrentKeys;
 
-        var themeRootForTokens = themeRegistry is not null && !string.IsNullOrWhiteSpace(themeName)
-            ? Path.Combine(rootDir, "themes", themeName!)
-            : null;
+        var themeRootForTokens = themeRegistry is not null ? themeRoot : null;
         var parentThemeRootForTokens = themeRootForTokens is not null && !string.IsNullOrWhiteSpace(themeManifest?.Extends)
-            ? Path.Combine(rootDir, "themes", themeManifest!.Extends)
+            ? parentThemeRoot
             : null;
 
         var assetPipelineResult = await new AssetPipeline().ExecuteAsync(new AssetPipelineContext(

@@ -256,6 +256,12 @@ public static class ConfigValidator
             RejectPathTraversal("theme.name", config.Theme.Name);
         }
 
+        var componentValidation = (config.Theme.ComponentValidation ?? "off").Trim().ToLowerInvariant();
+        if (componentValidation is not ("off" or "warn" or "strict"))
+        {
+            throw new ConfigException("theme.componentValidation must be off|warn|strict.");
+        }
+
         if (string.IsNullOrWhiteSpace(config.Build.Output))
         {
             throw new ConfigException("build.output is required.");

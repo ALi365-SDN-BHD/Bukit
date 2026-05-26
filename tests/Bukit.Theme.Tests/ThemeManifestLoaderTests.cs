@@ -29,6 +29,20 @@ public sealed class ThemeManifestLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_InvalidThemeYaml_Throws()
+    {
+        File.WriteAllText(Path.Combine(_testDir, "theme.yaml"), """
+            name: broken-theme
+            sections:
+              hero:
+                template: [unterminated
+            """);
+
+        var ex = Assert.ThrowsAny<Exception>(() => ThemeManifestLoader.Load(_testDir));
+        Assert.Contains("theme.yaml", ex.Message);
+    }
+
+    [Fact]
     public void Load_ValidThemeYaml_ReturnsManifest()
     {
         File.WriteAllText(Path.Combine(_testDir, "theme.yaml"), """

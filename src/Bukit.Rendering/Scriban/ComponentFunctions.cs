@@ -1,37 +1,48 @@
 using Bukit.Config;
+using Bukit.Shared;
 using Bukit.Theme;
 using Scriban;
 using Scriban.Runtime;
+using Scriban.Syntax;
 using System.Text;
 
 namespace Bukit.Rendering.Scriban;
 
-internal sealed class ComponentFunctions
+internal sealed class ComponentRenderFunction : IScriptCustomFunction
 {
-    internal static IReadOnlyDictionary<string, ComponentDefinition>? Components;
-    internal static FileTemplateLoader? TemplateLoader;
-    internal static ScriptObject? ParentGlobals;
+    private readonly IReadOnlyDictionary<string, ComponentDefinition> _components;
+    private readonly FileTemplateLoader _templateLoader;
+    private readonly ScriptObject _parentGlobals;
+    private readonly string _componentValidation;
 
-    internal static IReadOnlyDictionary<string, ThemeComponentDefinition>? ThemeComponents;
-    internal static FileTemplateLoader? ThemeTemplateLoader;
-    internal static ScriptObject? ThemeParentGlobals;
-    internal static string? ThemeRegistryRoot;
-
-    public static string Render(string name, string arg1 = "", string arg2 = "", string arg3 = "")
+    public ComponentRenderFunction(
+        IReadOnlyDictionary<string, ComponentDefinition> components,
+        FileTemplateLoader templateLoader,
+        ScriptObject parentGlobals,
+        string componentValidation)
     {
-        if (Components is null || !Components.TryGetValue(name, out var compDef))
+        _components = components;
+        _templateLoader = templateLoader;
+        _parentGlobals = parentGlobals;
+        _componentValidation = componentValidation;
+    }
+
+    public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        var name = arguments.Count > 0 ? arguments[0]?.ToString() ?? string.Empty : string.Empty;
+        if (!_components.TryGetValue(name, out var compDef))
         {
-            return $"<!-- component not found: {name} -->";
+            return Diagnostic("theme.component.not_found", $"component not found: {name}");
         }
 
         try
         {
-            var resolveCtx = new TemplateContext { TemplateLoader = TemplateLoader };
-            var resolvedPath = TemplateLoader!.GetPath(resolveCtx, default, compDef.Template);
+            var resolveCtx = new TemplateContext { TemplateLoader = _templateLoader };
+            var resolvedPath = _templateLoader.GetPath(resolveCtx, default, compDef.Template);
 
             var compContext = new TemplateContext
             {
-                TemplateLoader = TemplateLoader,
+                TemplateLoader = _templateLoader,
                 EnableRelaxedMemberAccess = true,
                 EnableRelaxedTargetAccess = true,
                 EnableNullIndexer = true
@@ -41,9 +52,14 @@ internal sealed class ComponentFunctions
             if (compDef.Props is { Count: > 0 })
             {
                 var props = new List<string>();
-                if (!string.IsNullOrEmpty(arg1)) props.Add(arg1);
-                if (!string.IsNullOrEmpty(arg2)) props.Add(arg2);
-                if (!string.IsNullOrEmpty(arg3)) props.Add(arg3);
+                for (var i = 1; i < arguments.Count; i++)
+                {
+                    var value = arguments[i]?.ToString();
+                    if (!string.IsNullOrEmpty(value))
+                    {
+                        props.Add(value);
+                    }
+                }
 
                 var propIndex = 0;
                 foreach (var (propName, _) in compDef.Props)
@@ -54,52 +70,104 @@ internal sealed class ComponentFunctions
                 }
             }
 
-            var templateText = TemplateLoader!.Load(compContext, default, resolvedPath);
+            var templateText = _templateLoader.Load(compContext, default, resolvedPath);
             if (string.IsNullOrEmpty(templateText))
             {
-                return $"<!-- component template not found: {compDef.Template} -->";
+                return Diagnostic("theme.component.template_not_found", $"component template not found: {compDef.Template}");
             }
 
             var compTemplate = Template.Parse(templateText);
             if (compTemplate.HasErrors)
             {
-                return $"<!-- component error: {compTemplate.Messages} -->";
+                return Diagnostic("theme.component.template_parse_failed", $"component error: {compTemplate.Messages}");
             }
 
             compContext.PushGlobal(componentGlobals);
-            if (ParentGlobals is not null)
-            {
-                compContext.PushGlobal(ParentGlobals);
-            }
+            compContext.PushGlobal(_parentGlobals);
             return compTemplate.Render(compContext);
         }
         catch (Exception ex)
         {
-            return $"<!-- component error: {ex.Message} -->";
+            if (ex is RenderException)
+            {
+                throw;
+            }
+
+            return Diagnostic("theme.component.render_failed", $"component error: {ex.Message}");
         }
     }
 
-    public static string RenderComponent(string name, object data)
+    public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
     {
-        if (ThemeComponents is null || !ThemeComponents.TryGetValue(name, out var compDef))
+        return new ValueTask<object?>(Invoke(context, callerContext, arguments, blockStatement));
+    }
+
+    public int RequiredParameterCount => 1;
+    public int ParameterCount => 4;
+    public ScriptVarParamKind VarParamKind => ScriptVarParamKind.Direct;
+    public Type ReturnType => typeof(string);
+    public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(string), index == 0 ? "name" : $"arg{index}");
+
+    private string Diagnostic(string code, string message)
+    {
+        var diagnostic = $"code={code} {message}";
+        if (string.Equals(_componentValidation, "strict", StringComparison.OrdinalIgnoreCase))
         {
-            return $"<!-- component not found: {name} -->";
+            throw new RenderException(diagnostic);
+        }
+
+        return $"<!-- {diagnostic} -->";
+    }
+}
+
+internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
+{
+    private readonly IReadOnlyDictionary<string, ThemeComponentDefinition> _components;
+    private readonly FileTemplateLoader _templateLoader;
+    private readonly ScriptObject _parentGlobals;
+    private readonly string _registryRoot;
+    private readonly string _componentValidation;
+
+    public ThemeComponentRenderFunction(
+        IReadOnlyDictionary<string, ThemeComponentDefinition> components,
+        FileTemplateLoader templateLoader,
+        ScriptObject parentGlobals,
+        string registryRoot,
+        string componentValidation)
+    {
+        _components = components;
+        _templateLoader = templateLoader;
+        _parentGlobals = parentGlobals;
+        _registryRoot = registryRoot;
+        _componentValidation = componentValidation;
+    }
+
+    public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        var name = arguments.Count > 0 ? arguments[0]?.ToString() ?? string.Empty : string.Empty;
+        var data = arguments.Count > 1 ? arguments[1] : null;
+        return Render(name, data);
+    }
+
+    public string Render(string name, object? data)
+    {
+        if (!_components.TryGetValue(name, out var compDef))
+        {
+            return Diagnostic("theme.component.not_found", $"component not found: {name}");
         }
 
         try
         {
-            var templatePath = !string.IsNullOrEmpty(ThemeRegistryRoot)
-                ? Path.Combine(ThemeRegistryRoot, compDef.Template)
-                : compDef.Template;
+            var templatePath = Path.Combine(_registryRoot, compDef.Template);
 
             if (!File.Exists(templatePath))
             {
-                return $"<!-- component template not found: {compDef.Template} -->";
+                return Diagnostic("theme.component.template_not_found", $"component template not found: {compDef.Template}");
             }
 
             var compContext = new TemplateContext
             {
-                TemplateLoader = ThemeTemplateLoader,
+                TemplateLoader = _templateLoader,
                 EnableRelaxedMemberAccess = true,
                 EnableRelaxedTargetAccess = true,
                 EnableNullIndexer = true
@@ -109,7 +177,7 @@ internal sealed class ComponentFunctions
             var compTemplate = Template.Parse(templateText);
             if (compTemplate.HasErrors)
             {
-                return $"<!-- component error: {compTemplate.Messages} -->";
+                return Diagnostic("theme.component.template_parse_failed", $"component error: {compTemplate.Messages}");
             }
 
             if (data is ScriptObject so)
@@ -117,17 +185,41 @@ internal sealed class ComponentFunctions
                 compContext.PushGlobal(so);
             }
 
-            if (ThemeParentGlobals is not null)
-            {
-                compContext.PushGlobal(ThemeParentGlobals);
-            }
+            compContext.PushGlobal(_parentGlobals);
 
             return compTemplate.Render(compContext);
         }
         catch (Exception ex)
         {
-            return $"<!-- component error: {ex.Message} -->";
+            if (ex is RenderException)
+            {
+                throw;
+            }
+
+            return Diagnostic("theme.component.render_failed", $"component error: {ex.Message}");
         }
+    }
+
+    public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        return new ValueTask<object?>(Invoke(context, callerContext, arguments, blockStatement));
+    }
+
+    public int RequiredParameterCount => 1;
+    public int ParameterCount => 2;
+    public ScriptVarParamKind VarParamKind => ScriptVarParamKind.None;
+    public Type ReturnType => typeof(string);
+    public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(object), index == 0 ? "name" : "data");
+
+    private string Diagnostic(string code, string message)
+    {
+        var diagnostic = $"code={code} {message}";
+        if (string.Equals(_componentValidation, "strict", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new RenderException(diagnostic);
+        }
+
+        return $"<!-- {diagnostic} -->";
     }
 }
 

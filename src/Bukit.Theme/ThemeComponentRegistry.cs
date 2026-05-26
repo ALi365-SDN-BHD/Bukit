@@ -52,15 +52,17 @@ public sealed class ThemeComponentRegistry
 
     public string? ResolveSectionTemplate(string sectionName, string? variant = null)
     {
-        var def = ResolveSection(sectionName);
-        if (def is null) return null;
+        if (!_sections.TryGetValue(sectionName, out var def))
+        {
+            return _parentRegistry?.ResolveSectionTemplate(sectionName, variant);
+        }
 
         if (variant is not null && def.Variants is not null && def.Variants.TryGetValue(variant, out var vd))
         {
-            return Path.Combine(_themeRoot, "layouts", vd.Template);
+            return ResolveTemplatePath(_themeRoot, vd.Template);
         }
 
-        return string.IsNullOrEmpty(def.Template) ? null : Path.Combine(_themeRoot, "layouts", def.Template);
+        return ResolveTemplatePath(_themeRoot, def.Template);
     }
 
     public ThemeSectionDefinition? ResolveSection(string sectionName)
@@ -71,9 +73,12 @@ public sealed class ThemeComponentRegistry
 
     public string? ResolveComponentTemplate(string componentName)
     {
-        var def = ResolveComponent(componentName);
-        if (def is null) return null;
-        return string.IsNullOrEmpty(def.Template) ? null : Path.Combine(_themeRoot, "layouts", def.Template);
+        if (!_components.TryGetValue(componentName, out var def))
+        {
+            return _parentRegistry?.ResolveComponentTemplate(componentName);
+        }
+
+        return ResolveTemplatePath(_themeRoot, def.Template);
     }
 
     public ThemeComponentDefinition? ResolveComponent(string componentName)
@@ -127,5 +132,18 @@ public sealed class ThemeComponentRegistry
             foreach (var key in _parentRegistry.GetAllComponentNames()) names.Add(key);
         }
         return names;
+    }
+
+    private static string? ResolveTemplatePath(string themeRoot, string? relativeTemplatePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativeTemplatePath) || Path.IsPathRooted(relativeTemplatePath))
+        {
+            return null;
+        }
+
+        var layoutsRoot = Path.GetFullPath(Path.Combine(themeRoot, "layouts"));
+        var safeRoot = layoutsRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var candidate = Path.GetFullPath(Path.Combine(layoutsRoot, relativeTemplatePath));
+        return candidate.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase) ? candidate : null;
     }
 }

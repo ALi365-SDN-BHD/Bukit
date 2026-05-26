@@ -118,6 +118,7 @@ public static class ConfigLoader
         var theme = new ThemeConfig
         {
             Name = themeNode is null ? null : GetOptionalString(themeNode, "name"),
+            Source = themeNode is null ? null : GetOptionalString(themeNode, "source"),
             Extends = themeNode is null ? null : GetOptionalString(themeNode, "extends"),
             Layouts = themeNode is null ? "layouts" : GetOptionalString(themeNode, "layouts") ?? "layouts",
             Assets = themeNode is null ? "assets" : GetOptionalString(themeNode, "assets") ?? "assets",
@@ -127,7 +128,8 @@ public static class ConfigLoader
             Shortcodes = ReadStringMap(themeNode, "shortcodes"),
             Components = ReadComponents(themeNode),
             Scss = ReadScssConfig(themeNode),
-            Images = ReadImageOptimizationConfig(themeNode)
+            Images = ReadImageOptimizationConfig(themeNode),
+            ComponentValidation = themeNode is null ? "off" : GetOptionalString(themeNode, "componentValidation") ?? "off"
         };
 
         var taxonomy = new TaxonomyConfig

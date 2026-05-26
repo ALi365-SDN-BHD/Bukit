@@ -8,6 +8,8 @@ namespace Bukit.Engine;
 
 internal sealed record ThemeBootstrapResult(
     string? ThemeName,
+    string? ThemeRoot,
+    string? ParentThemeRoot,
     ThemeManifestV2? Manifest,
     ThemeComponentRegistry? Registry,
     SectionSchemaValidator? SchemaValidator,
@@ -25,7 +27,7 @@ internal static class ThemeBootstrapper
 
         if (string.IsNullOrWhiteSpace(themeName) && string.IsNullOrWhiteSpace(config.Theme.Source))
         {
-            return new ThemeBootstrapResult(themeName, null, null, null, null);
+            return new ThemeBootstrapResult(themeName, null, null, null, null, null, null);
         }
 
         var themeRoot = Path.Combine(rootDir, "themes", themeName ?? "remote");
@@ -48,13 +50,14 @@ internal static class ThemeBootstrapper
         themeManifest = ThemeManifestLoader.Load(themeRoot);
         if (themeManifest is null)
         {
-            return new ThemeBootstrapResult(themeName, null, null, null, null);
+            return new ThemeBootstrapResult(themeName, themeRoot, null, null, null, null, null);
         }
 
         ThemeComponentRegistry? parentRegistry = null;
+        string? parentThemeRoot = null;
         if (!string.IsNullOrWhiteSpace(themeManifest.Extends))
         {
-            var parentThemeRoot = Path.Combine(rootDir, "themes", themeManifest.Extends);
+            parentThemeRoot = Path.Combine(rootDir, "themes", themeManifest.Extends);
             var parentManifest = ThemeManifestLoader.Load(parentThemeRoot);
             if (parentManifest is not null)
             {
@@ -88,6 +91,6 @@ internal static class ThemeBootstrapper
         };
         schemaValidator = new SectionSchemaValidator(validationMode, themeRoot, log);
 
-        return new ThemeBootstrapResult(themeName, themeManifest, themeRegistry, schemaValidator, resolvedSectionPlugins);
+        return new ThemeBootstrapResult(themeName, themeRoot, parentThemeRoot, themeManifest, themeRegistry, schemaValidator, resolvedSectionPlugins);
     }
 }

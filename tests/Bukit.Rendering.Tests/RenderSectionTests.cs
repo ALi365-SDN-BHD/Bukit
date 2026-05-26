@@ -1,6 +1,7 @@
 using Xunit;
 using Bukit.Content;
 using Bukit.Routing;
+using Bukit.Shared;
 using Bukit.Theme;
 using Bukit.Rendering.Scriban;
 
@@ -152,6 +153,96 @@ public sealed class RenderSectionTests : IDisposable
         var result = renderer.RenderPage("pages/page.html", model);
 
         Assert.Contains("not valid JSON", result);
+    }
+
+    [Fact]
+    public void RenderSection_InvalidJson_StrictThrows()
+    {
+        File.WriteAllText(Path.Combine(_layoutsDir, "pages", "page.html"),
+            "{{ render_section 'not json' }}");
+
+        var manifest = new ThemeManifestV2 { Name = "test", Version = "1.0.0" };
+        var registry = new ThemeComponentRegistry(_themeDir, manifest, null);
+        var renderer = new ScribanTemplateRenderer(
+            _layoutsDir, null, null, null, null,
+            registry, null, null, "strict");
+
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        };
+
+        var ex = Assert.Throws<RenderException>(() => renderer.RenderPage("pages/page.html", model));
+        Assert.Contains("theme.render_section.invalid_json", ex.Message);
+    }
+
+    [Fact]
+    public void RenderSection_TemplateParseError_StrictThrows()
+    {
+        File.WriteAllText(Path.Combine(_layoutsDir, "sections", "hero", "hero.html"),
+            "{{ if }}");
+        File.WriteAllText(Path.Combine(_layoutsDir, "pages", "page.html"),
+            "{{ render_section '{\"type\":\"hero\"}' }}");
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "test",
+            Version = "1.0.0",
+            Sections = new()
+            {
+                ["hero"] = new() { Template = "sections/hero/hero.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(_themeDir, manifest, null);
+        var renderer = new ScribanTemplateRenderer(
+            _layoutsDir, null, null, null, null,
+            registry, null, null, "strict");
+
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        };
+
+        var ex = Assert.Throws<RenderException>(() => renderer.RenderPage("pages/page.html", model));
+        Assert.Contains("theme.section.template_parse_failed", ex.Message);
+        Assert.Contains("hero", ex.Message);
+    }
+
+    [Fact]
+    public void RenderSection_TemplateTraversal_DoesNotReadOutsideLayouts()
+    {
+        File.WriteAllText(Path.Combine(_themeDir, "secret.html"), "SECRET_OUTSIDE_LAYOUTS");
+        File.WriteAllText(Path.Combine(_layoutsDir, "pages", "page.html"),
+            "{{ render_section '{\"type\":\"hero\"}' }}");
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "test",
+            Version = "1.0.0",
+            Sections = new()
+            {
+                ["hero"] = new() { Template = "../secret.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(_themeDir, manifest, null);
+        var renderer = new ScribanTemplateRenderer(
+            _layoutsDir, null, null, null, null,
+            registry, null, null, "off");
+
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        };
+
+        var result = renderer.RenderPage("pages/page.html", model);
+
+        Assert.DoesNotContain("SECRET_OUTSIDE_LAYOUTS", result);
+        Assert.Contains("section template not found", result);
     }
 
     [Fact]

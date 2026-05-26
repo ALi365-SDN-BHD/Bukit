@@ -33,6 +33,9 @@ public sealed class ConfigValidatorTests
     private static AppConfig ConfigWithBuild(Func<BuildConfig, BuildConfig> build) =>
         ValidConfig(c => c with { Build = build(c.Build) });
 
+    private static AppConfig ConfigWithTheme(Func<ThemeConfig, ThemeConfig> theme) =>
+        ValidConfig(c => c with { Theme = theme(c.Theme) });
+
     [Fact]
     public void Validate_ValidConfig_Passes()
     {
@@ -173,6 +176,25 @@ public sealed class ConfigValidatorTests
     public void Validate_OutputPathEncodingValid_Passes(string encoding)
     {
         var config = ConfigWithSite(s => s with { OutputPathEncoding = encoding });
+        var ex = Record.Exception(() => ConfigValidator.Validate(config));
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void Validate_ThemeComponentValidationInvalid_Throws()
+    {
+        var config = ConfigWithTheme(t => t with { ComponentValidation = "silent" });
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Equal("theme.componentValidation must be off|warn|strict.", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("off")]
+    [InlineData("warn")]
+    [InlineData("strict")]
+    public void Validate_ThemeComponentValidationValid_Passes(string mode)
+    {
+        var config = ConfigWithTheme(t => t with { ComponentValidation = mode });
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);
     }

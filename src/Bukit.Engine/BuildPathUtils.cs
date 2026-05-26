@@ -65,9 +65,9 @@ internal static class BuildPathUtils
             .Replace("'", "&#39;", StringComparison.Ordinal);
     }
 
-    internal static (string LayoutsDir, string AssetsDir, string StaticDir, string? ParentLayoutsDir, string? ParentAssetsDir, string? ParentStaticDir, string? UserLayoutsDir) ResolveThemeDirectories(string rootDir, ThemeConfig theme)
+    internal static (string LayoutsDir, string AssetsDir, string StaticDir, string? ParentLayoutsDir, string? ParentAssetsDir, string? ParentStaticDir, string? UserLayoutsDir) ResolveThemeDirectories(string rootDir, ThemeConfig theme, string? resolvedThemeRoot = null)
     {
-        var (childLayouts, childAssets, childStatic) = ResolveThemeDirInternal(rootDir, theme);
+        var (childLayouts, childAssets, childStatic) = ResolveThemeDirInternal(rootDir, theme, resolvedThemeRoot);
 
         var userLayoutsDir = Path.Combine(rootDir, "layouts");
         if (!Directory.Exists(userLayoutsDir))
@@ -85,9 +85,9 @@ internal static class BuildPathUtils
         return (childLayouts, childAssets, childStatic, null, null, null, userLayoutsDir);
     }
 
-    private static (string LayoutsDir, string AssetsDir, string StaticDir) ResolveThemeDirInternal(string rootDir, ThemeConfig theme)
+    private static (string LayoutsDir, string AssetsDir, string StaticDir) ResolveThemeDirInternal(string rootDir, ThemeConfig theme, string? resolvedThemeRoot = null)
     {
-        if (string.IsNullOrWhiteSpace(theme.Name))
+        if (string.IsNullOrWhiteSpace(theme.Name) && string.IsNullOrWhiteSpace(resolvedThemeRoot))
         {
             return (
                 MakeAbsolute(rootDir, theme.Layouts),
@@ -96,7 +96,9 @@ internal static class BuildPathUtils
             );
         }
 
-        var themeRoot = Path.Combine(rootDir, "themes", theme.Name);
+        var themeRoot = string.IsNullOrWhiteSpace(resolvedThemeRoot)
+            ? Path.Combine(rootDir, "themes", theme.Name!)
+            : resolvedThemeRoot;
 
         var layouts = string.Equals(theme.Layouts, "layouts", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(themeRoot, "layouts")

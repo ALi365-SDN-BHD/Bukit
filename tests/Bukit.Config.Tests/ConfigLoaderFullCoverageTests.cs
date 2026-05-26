@@ -224,17 +224,23 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               provider: markdown
             theme:
               name: my-custom-theme
+              source: "https://example.com/themes.git@v1.2.3"
               layouts: _layouts
               assets: _assets
               static: public
-            """;
+              staticTemplate: pages/static.html
+              componentValidation: strict
+        """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
 
         Assert.Equal("my-custom-theme", config.Theme.Name);
+        Assert.Equal("https://example.com/themes.git@v1.2.3", config.Theme.Source);
         Assert.Equal("_layouts", config.Theme.Layouts);
         Assert.Equal("_assets", config.Theme.Assets);
         Assert.Equal("public", config.Theme.Static);
+        Assert.Equal("pages/static.html", config.Theme.StaticTemplate);
+        Assert.Equal("strict", config.Theme.ComponentValidation);
     }
 
     [Fact]
