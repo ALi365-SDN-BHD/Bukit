@@ -163,7 +163,10 @@ public sealed class SchemaFailModeTests : IDisposable
         {
             Site = new SiteConfig
             {
-                Name = "test", Title = "Test", Language = "en", BaseUrl = "/",
+                Name = "test",
+                Title = "Test",
+                Language = "en",
+                BaseUrl = "/",
                 Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["posts"] = new()
