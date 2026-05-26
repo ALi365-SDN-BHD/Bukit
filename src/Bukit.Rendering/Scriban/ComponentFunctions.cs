@@ -158,7 +158,18 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
 
         try
         {
-            var templatePath = Path.Combine(_registryRoot, compDef.Template);
+            if (string.IsNullOrWhiteSpace(compDef.Template) || Path.IsPathRooted(compDef.Template))
+            {
+                return Diagnostic("theme.component.template_invalid", $"component template path is invalid: {compDef.Template}");
+            }
+
+            var registryRootFull = Path.GetFullPath(_registryRoot);
+            var templatePath = Path.GetFullPath(Path.Combine(registryRootFull, compDef.Template));
+            var safeRoot = registryRootFull.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!templatePath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return Diagnostic("theme.component.template_invalid", $"component template path escapes theme root: {compDef.Template}");
+            }
 
             if (!File.Exists(templatePath))
             {
