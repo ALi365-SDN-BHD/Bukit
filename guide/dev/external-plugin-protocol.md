@@ -25,8 +25,32 @@ site:
       maxMemoryMb: 64
       capabilities:
         - emit-outputs
+        - derive-pages
       options:
         mode: demo
+```
+
+### Capabilities (Sandbox Enforcement)
+
+The `capabilities` field declares which hooks the plugin is authorized to execute. Two capabilities are defined:
+
+| Capability | Required For Hook | Description |
+|---|---|---|
+| `derive-pages` | `derive-pages` | Generate new pages |
+| `emit-outputs` | `after-build` | Write files to output directory |
+
+**Enforcement rules:**
+- **Not declared** (`capabilities: null` or absent): All hooks allowed (backward compatible)
+- **Declared but incomplete**: Build fails with `[BKT-0701]` — the engine checks each hook against declared capabilities at runtime
+- Config validation rejects invalid capability names (`ConfigException`)
+
+```yaml
+# Error example — "after-build" requires "emit-outputs" capability:
+site:
+  externalPlugins:
+    bad:
+      hooks: [after-build]
+      capabilities: [derive-pages]  # Missing: emit-outputs → BKT-0701
 ```
 
 ## Request Structure (stdin JSON)

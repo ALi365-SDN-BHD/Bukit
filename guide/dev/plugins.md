@@ -30,6 +30,29 @@ External protocol plugins run with **environment isolation**: host environment v
 
 Output limits (`maxStdoutBytes` / `maxStderrBytes`) cap plugin stdout/stderr; exceeding the limit kills the process. All plugin outputs are tracked in the build manifest with plugin/hook/path/hash metadata, and stale outputs from previous builds are automatically cleaned during incremental builds.
 
+### Plugin Capability Enforcement
+
+External plugins can declare a `capabilities` list that acts as a sandbox:
+
+```yaml
+site:
+  externalPlugins:
+    my-plugin:
+      capabilities:
+        - derive-pages   # Required for hooks: [derive-pages]
+        - emit-outputs   # Required for hooks: [after-build]
+```
+
+Implementation: `src/Bukit.Engine/Plugins/PluginCapability.cs`, `src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs`.
+
+**Enforcement rules:**
+- `capabilities` not declared → all hooks allowed (backward compatible)
+- `capabilities` declared → each hook execution checked against capability list at runtime
+- Hook missing required capability → `ConfigException` with `BKT-0701`
+- Invalid capability names → `ConfigException` during config validation
+
+Capability check is integrated in `ExternalProtocolPlugin.DerivePagesAsync()` and `ExternalProtocolPlugin.AfterBuildAsync()` before invoking the protocol invoker.
+
 See [External Plugin Protocol](./external-plugin-protocol.md) for the full request/response schema and protocol negotiation details.
 
 ## generated Discovery

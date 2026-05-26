@@ -24,6 +24,29 @@ Plugin protokol luaran berjalan dengan **pengasingan persekitaran**: pemboleh ub
 
 Had output (`maxStdoutBytes` / `maxStderrBytes`) mengehadkan stdout/stderr plugin; melebihi had membunuh proses. Semua output plugin dikesan dengan metadata plugin/hook/path/hash dalam manifes binaan, dan output lapuk dari binaan sebelumnya dibersihkan secara automatik semasa binaan tambahan.
 
+### Penguatkuasaan Keupayaan Plugin
+
+Plugin luaran boleh mengisytiharkan senarai `capabilities` yang bertindak sebagai kotak pasir:
+
+```yaml
+site:
+  externalPlugins:
+    my-plugin:
+      capabilities:
+        - derive-pages   # Diperlukan untuk hooks: [derive-pages]
+        - emit-outputs   # Diperlukan untuk hooks: [after-build]
+```
+
+Pelaksanaan: `src/Bukit.Engine/Plugins/PluginCapability.cs`, `src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs`.
+
+**Peraturan penguatkuasaan:**
+- `capabilities` tidak diisytiharkan → semua hook dibenarkan (serasi ke belakang)
+- `capabilities` diisytiharkan → setiap pelaksanaan hook diperiksa terhadap senarai keupayaan pada masa jalan
+- Hook kekurangan keupayaan diperlukan → `ConfigException` dengan `BKT-0701`
+- Nama keupayaan tidak sah → `ConfigException` semasa pengesahan konfigurasi
+
+Pemeriksaan keupayaan disepadukan dalam `ExternalProtocolPlugin.DerivePagesAsync()` dan `ExternalProtocolPlugin.AfterBuildAsync()` sebelum memanggil penyeru protokol.
+
 Lihat [External Plugin Protocol](./external-plugin-protocol.md) untuk skema permintaan/tindak balas penuh dan butiran perundingan protokol.
 
 ## Penemuan generated

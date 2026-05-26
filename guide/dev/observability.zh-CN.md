@@ -9,6 +9,7 @@
 - 日志：`src/Bukit.Shared/Logger.cs`
 - 传参：`src/Bukit.Cli/Commands/BuildCommand.cs`
 - metrics 输出：`src/Bukit.Engine/SiteEngine.cs`
+- 诊断码：`src/Bukit.Shared/DiagnosticCode.cs`
 
 ## 日志（--log-format 与日志等级）
 
@@ -34,6 +35,39 @@ json 日志格式（每行一条 JSON，输出到 stderr）：
 日志最小等级来自 `site.yaml` 的 `logging.level`，但在 CI 模式下会强制提到 Warn：
 - 非 CI：debug/info/warn/error
 - CI：`--ci` 会使最小等级固定为 Warn（减少噪音，利于失败定位）
+
+日志来源：`Bukit.Engine`、`Bukit.Content`、`Bukit.Cli`。
+
+## 诊断码（BKT-XXXX）
+
+所有 Bukit 异常携带稳定的 `BKT-XXXX` 十六进制诊断码。实现：`src/Bukit.Shared/DiagnosticCode.cs`、`src/Bukit.Shared/DiagnosticCodeFormatter.cs`、`src/Bukit.Shared/DiagnosticExceptionFormatter.cs`。
+
+| 类别 | 范围 | 示例 |
+|---|---|---|
+| 配置 | `BKT-0001` – `BKT-00FF` | `BKT-0001` RequiredFieldMissing |
+| 主题 | `BKT-0101` – `BKT-01FF` | `BKT-0101` ManifestInvalid |
+| 路由 | `BKT-0201` – `BKT-02FF` | `BKT-0201` RouteConflict |
+| 渲染 | `BKT-0301` – `BKT-03FF` | `BKT-0301` TemplateNotFound |
+| Schema | `BKT-0401` – `BKT-04FF` | `BKT-0402` StrictModeBlocked |
+| 内容 | `BKT-0501` – `BKT-05FF` | `BKT-0501` LoadFailed |
+| 构建 | `BKT-0601` – `BKT-06FF` | `BKT-0601` OutputUnsafe |
+| 插件 | `BKT-0701` – `BKT-07FF` | `BKT-0701` ExecutionFailed |
+
+DoctorCommand 通过 `DiagnosticExceptionFormatter.Format()` 以格式化诊断码输出错误。引擎中 13 个关键抛出点携带诊断码；其他抛出保持向后兼容（Code = null）。
+
+## 内容管道阶段日志
+
+每个内容加载阶段在完成时记录名称与耗时：
+
+```
+event=content.stage stage=ContentLoad duration_ms=234
+event=content.stage stage=ImageLocalize duration_ms=156
+event=content.stage stage=DraftFilter duration_ms=1
+event=content.stage stage=SchemaDefaults duration_ms=3
+event=content.stage stage=SchemaValidate duration_ms=12
+```
+
+阶段顺序：`ContentLoad` → `ImageLocalize` → `DraftFilter` → `SchemaDefaults` → `SchemaValidate`。实现：`src/Bukit.Engine/ContentPipeline.cs`、`src/Bukit.Engine/Stages/`。
 
 ## metrics（--metrics <path>）
 
@@ -92,3 +126,35 @@ variants 字段：
 - 多语言输出差异：对比不同 `variants[*]` 的 `routed/derived/rendered`
 - 渲染热点拆解：看 `stages` 中 `metadataHash/stableContentHash/contentHash/bodyLoad/pageRender/listHash/listBuild`
 - 构建尾部耗时：看 `stages` 中 `assetsSync/mediaCopy/afterBuildPlugins`
+
+## Notion 统计
+
+当 `maxRps` 激活时，每个内容源结束时输出一行汇总：
+
+```
+event=notion.stats requests=1234 throttle_wait_count=56 throttle_wait_ms=7890
+```
+
+## 构建报告
+
+当 `build.report.enabled: true`（或使用 `--ci`）时，引擎将结构化构建报告写入 `dist/.bukit/`：
+
+- `build-report.json` — 包含 `schemaErrorCount`（内容 schema 校验错误数）、页面/路由/资产计数、耗时与增量统计。
+- `seo-report.json` — 每条路由约 40 项 SEO 审计检查。
+- `geo-report.json` — GEO Score 与 LLM 爬虫就绪度评估。
+
+这些报告设计用于 CI/CD 集成、监控看板与 AI agent 消费。
+
+## 渲染指标
+
+统一调度器 `PageRenderDispatcher.DispatchAsync()` 收集按类型分类的渲染指标：
+
+| 指标键 | 类型 | 说明 |
+|---|---|---|
+| `pageRender` | Page | 每渲染一个页面递增 |
+| `listBuild` | List | 每渲染一个列表页递增 |
+| `staticRender` | Static | 每渲染一个静态 HTML 递增 |
+| `metadataHash` | Page | hash 计算次数 |
+| `bodyLoad` | Page | 正文加载次数 |
+| `listBodyLoad` | List | 列表条目正文加载次数 |
+| `listHash` | List | 列表内容 hash 计算次数 |

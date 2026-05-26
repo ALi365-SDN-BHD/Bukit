@@ -449,6 +449,50 @@ Template paths in site.yaml collection configs are referenced without the `layou
 | Variable output shows HTML escaped | Scriban defaults to escaping | Use `{{ variable | html.raw }}` |
 | Chinese characters garbled | Template file encoding issue | Ensure template file is UTF-8 (without BOM) |
 | base_url path joins with double slashes | `base_url` ends with `/` causing `//` in URLs | `site.base_url` is empty string when `/`, use `{{ site.base_url }}/xxx` directly |
+| `${variable}` appears empty silently | `EnableRelaxedMemberAccess` causes nonexistent properties to return null | Run `bukit doctor` to detect unknown template variables |
+
+---
+
+## Template Variable Spell Check (`bukit doctor`)
+
+Bukit's Scriban engine has `EnableRelaxedMemberAccess` enabled — accessing a nonexistent property on `page`/`site`/`pages` silently returns `null` instead of throwing an error. This means typos like `{{ page.titel }}` render as empty strings without any build error.
+
+### How `bukit doctor` Detects Typos
+
+The `doctor` command now includes a **template variable spell check** section (`--- Template variable spell check ---`) that:
+
+1. Parses every `.html` template in `layouts/` using Scriban's AST
+2. Extracts all variable references (e.g., `page.title`, `site.seo.og.image`, `page.fields.tags`)
+3. Cross-references against a **known field whitelist** for `page`, `site`, `pages`, and loop variables (`p`, `item`)
+4. Reports unknown variables with file location and message
+
+### Known Fields Whitelist
+
+**`site` root fields:** `name`, `title`, `url`, `description`, `base_url`, `language`, `params`, `modules`, `data`, `menus`, `related_pages`, `data_files`, `seo` → `og`/`twitter`/`article`, `analytics` → `enabled`/`google_analytics_id`
+
+**`page` root fields:** `title`, `url`, `content`, `summary`, `publish_date`, `fields`, `seo` → `title`/`desc`/`canonical`/`og` → `title`/`description`/`image`/`url`/`type`/`site_name`/`locale`, `twitter` → `card`/`title`/`description`/`image`, `article` → `published_time`/`modified_time`/`author`/`tag`, `robots`/`schema_type`/`alternates`/`json_ld`, `table_of_contents`
+
+**`pages`/`p`/`item` loop variables:** `title`, `url`, `content`, `summary`, `publish_date`, `fields`
+
+### Example Output
+
+```
+--- Template variable spell check ---
+⚠ pages/index.html: Unknown variable 'site.settings.theme' — did you mean 'site.params'?
+⚠ pages/post.html: Unknown variable 'page.auther' — did you mean 'page.fields.author.value'?
+⚠ partials/card.html: Unknown variable 'p.exerpt' — did you mean 'p.summary'?
+
+(2 warning(s) in 2 file(s))
+✔ No unknown template variables detected
+```
+
+### Whitelist for Custom Fields
+
+Access to `page.fields.KEY` and `p.fields.KEY` is always allowed since `fields` contains user-defined metadata. Similarly, `site.params.KEY`, `site.data.KEY`, and `site.modules.KEY` accept any sub-key.
+
+### Adding Custom Whitelist Entries
+
+If you add custom Scriban globals or extend the data model via plugins, the linter's whitelist is defined at build time in `ScribanModelKnownFields`. Plugin developers should contribute known fields to this registry.
 
 ---
 

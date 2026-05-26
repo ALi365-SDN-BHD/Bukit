@@ -90,7 +90,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
     }
 
     [Fact]
-    public void BuildStaticHtmlData_WithNullStaticTemplate_DefaultsToRawStatic()
+    public void BuildStaticHtmlData_WithNullStaticTemplate_ReturnsNullTemplateAndNoRoutes()
     {
         var pipeline = new VariantBuildPipeline();
 
@@ -99,7 +99,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
 
         Assert.NotNull(routes);
         Assert.Empty(routes);
-        Assert.Equal("__raw_static__", template);
+        Assert.Null(template);
     }
 
     [Fact]

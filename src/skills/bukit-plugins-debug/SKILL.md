@@ -70,7 +70,49 @@ site:
       maxStderrBytes: 262144    # optional: cap stderr at 256 KB
       allowEnvironment:         # optional: host env vars to expose
         - PATH
+      capabilities:             # optional: declared permissions (enforced at runtime)
+        - derive-pages
+        - emit-outputs
 ```
+
+#### Plugin Capability System
+
+Each external plugin can declare a `capabilities` list to limit what hooks it can execute. This is a **sandbox mechanism** — the engine enforces it at runtime.
+
+| Capability | Required For | Description |
+|---|---|---|
+| `derive-pages` | `hooks: [derive-pages]` | Allows the plugin to generate new pages |
+| `emit-outputs` | `hooks: [after-build]` | Allows the plugin to write files to the output directory |
+
+**Enforcement rules:**
+- When `capabilities` is **not declared** (`null` or absent): all hooks are allowed (backward compatible)
+- When `capabilities` is **declared**: each hook execution is checked against the capability list
+- If a hook requires a capability the plugin doesn't declare, build fails with `ConfigException` + `BKT-0701`
+
+```yaml
+# This will FAIL because "derive-pages" hook is declared but the plugin
+# only has "emit-outputs" capability:
+site:
+  externalPlugins:
+    bad-plugin:
+      runtime: process
+      entry: ./tools/bad-plugin
+      hooks: [derive-pages, after-build]
+      capabilities: [emit-outputs]             # missing: derive-pages
+```
+
+Error output:
+```
+[BKT-0701] Plugin './tools/bad-plugin' is missing required capability 'derive-pages'
+            for hook 'derive-pages'. Declared capabilities: [emit-outputs].
+            How to fix: add 'derive-pages' to the plugin's capabilities list in site.yaml.
+```
+
+#### Config Validation for Capabilities
+
+`bukit config check` (and build-time validation) rejects invalid capability names:
+- Valid: `emit-outputs`, `derive-pages`
+- Invalid: any other string → `ConfigException: site.externalPlugins.<name>.capabilities[i] must be emit-outputs or derive-pages.`
 
 #### Plugin Environment Isolation
 

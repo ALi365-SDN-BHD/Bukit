@@ -11,6 +11,8 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      COVERAGE_THRESHOLD: "80"
     steps:
       - uses: actions/checkout@v4
 
@@ -18,20 +20,16 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Build
-        run: dotnet build bukit.slnx -c Release
+      - name: Quality gate (build + test + coverage >= ${{ env.COVERAGE_THRESHOLD }}% + format + doc check + smoke)
+        run: bash scripts/quality-gate.sh Release
 
-      - name: Test with coverage
-        run: dotnet test bukit.slnx -c Release --no-build --collect:"XPlat Code Coverage" --results-directory TestResults
-
-      - name: Format
-        run: dotnet format bukit.slnx --verify-no-changes
-
-      - name: Doc asset consistency
-        run: bash scripts/check-doc-asset-consistency.sh
-
-      - name: Smoke test
-        run: bash scripts/smoke.sh Release
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: TestResults/coverage-report
+          if-no-files-found: warn
 
       - name: Build example sites
         run: |

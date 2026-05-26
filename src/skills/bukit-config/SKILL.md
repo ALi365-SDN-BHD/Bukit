@@ -191,7 +191,7 @@ theme:
 | `externalProtocolIncludeRoutedPages` | bool | false | Whether external protocol plugins receive routed pages |
 | `collections` | map | — | Collection route definitions |
 | `plugins` | map | — | Plugin toggles (`{pluginName: {enabled: false}}`). Key `feed` replaces old `rss` |
-| `externalPlugins` | map | — | External plugin configuration. Each entry supports `runtime`, `entry`, `hooks`, `timeoutMs`, `maxStdoutBytes`/`maxStderrBytes` (output byte limits), and `allowEnvironment` (list of host env vars to expose). |
+| `externalPlugins` | map | — | External plugin configuration. Each entry supports `runtime`, `entry`, `hooks`, `timeoutMs`, `maxStdoutBytes`/`maxStderrBytes` (output byte limits), `allowEnvironment` (list of host env vars to expose), and `capabilities` (list of required capabilities: `emit-outputs`, `derive-pages`). When `capabilities` is declared, the plugin is **enforced** at runtime — if its hooks don't match declared capabilities, the build fails. |
 | `feed` | map | — | Feed config: `formats`, `limit`, `path` |
 | `sitemapDetail` | map | — | Sitemap detail: `defaultPriority`, `defaultChangefreq`, `imageEnabled`, `videoEnabled` |
 | `related` | map | — | Related content: `enabled`, `threshold`, `limit`, `indices` |
@@ -746,6 +746,58 @@ These overrides only affect the current build and do not modify site.yaml.
 | `site.collections keys must be non-empty` | Collection name is empty string | Ensure collection names are non-empty |
 | `site.languages has duplicate language` | Language list has duplicates | Remove duplicates |
 | `site.defaultLanguage must be included in site.languages` | Default language not in list | Add defaultLanguage to languages |
+| `Plugin 'xxx' is missing required capability 'yyy' for hook 'zzz'` | Plugin declares capabilities but is missing one needed for its hooks | Add the missing capability to the plugin's `capabilities` list or remove `capabilities` to allow all hooks |
+
+---
+
+## Diagnostic Codes (BKT-xxxx)
+
+Starting from v3.x, Bukit exceptions carry stable diagnostic codes in `BKT-XXXX` hex format. These appear in CLI output, logs, and `bukit doctor` output.
+
+| Category | Code Range | Example Codes |
+|---|---|---|
+| **Config** | `BKT-0001` – `BKT-00FF` | `BKT-0001` RequiredFieldMissing, `BKT-0002` InvalidValue, `BKT-0003` YamlSyntaxError, `BKT-0004` PathTraversal |
+| **Theme** | `BKT-0101` – `BKT-01FF` | `BKT-0101` ManifestInvalid, `BKT-0102` ComponentNotFound, `BKT-0104` SourceUnavailable |
+| **Route** | `BKT-0201` – `BKT-02FF` | `BKT-0201` RouteConflict, `BKT-0204` ListRouteInvalid |
+| **Render** | `BKT-0301` – `BKT-03FF` | `BKT-0301` TemplateNotFound, `BKT-0302` TemplateParseError, `BKT-0303` LayoutNestingExceeded, `BKT-0304` ComponentFailed |
+| **Schema** | `BKT-0401` – `BKT-04FF` | `BKT-0401` ValidationFailed, `BKT-0402` StrictModeBlocked |
+| **Content** | `BKT-0501` – `BKT-05FF` | `BKT-0501` LoadFailed, `BKT-0502` ProviderUnavailable |
+| **Build** | `BKT-0601` – `BKT-06FF` | `BKT-0601` OutputUnsafe, `BKT-0602` OutputNoMarker |
+| **Plugin** | `BKT-0701` – `BKT-07FF` | `BKT-0701` ExecutionFailed, `BKT-0702` TimeoutExceeded |
+
+### How to Read Diagnostic Codes
+
+When Bukit encounters an error, it outputs `<code> <message>`:
+```
+✖ Config error
+[BKT-0601] Refusing to clean unsafe output directory: /Users/xxx.
+             How to fix: set build.output to a dedicated subdirectory like 'dist' or 'public'.
+```
+
+`bukit doctor` uses this format consistently. The code is stable across versions — the same error always produces the same `BKT-XXXX` code.
+
+## Content Pipeline Stages
+
+The content loading pipeline is internally organized as a sequence of independent **stages**, each with its own name and timing:
+
+| Order | Stage Name | Responsibility |
+|---|---|---|
+| 1 | `ContentLoad` | Creates the content provider and loads all content items |
+| 2 | `ImageLocalize` | Downloads and localizes remote images in content HTML |
+| 3 | `DraftFilter` | Filters out items with `draft: true` (unless `build.draft: true`) |
+| 4 | `SchemaDefaults` | Applies collection schema default values to missing fields |
+| 5 | `SchemaValidate` | Validates each item against its collection schema (warn or strict) |
+
+Each stage logs its completion with duration:
+```
+event=content.stage stage=ContentLoad duration_ms=234
+event=content.stage stage=ImageLocalize duration_ms=156
+event=content.stage stage=DraftFilter duration_ms=1
+event=content.stage stage=SchemaDefaults duration_ms=3
+event=content.stage stage=SchemaValidate duration_ms=12
+```
+
+These stages can be extended or reordered via `IContentStage` (plugin development).
 
 ## Common Configuration Issues: Symptom-Cause-Fix
 

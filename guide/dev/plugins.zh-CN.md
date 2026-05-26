@@ -109,6 +109,31 @@ site:
 
 输出限制（`maxStdoutBytes` / `maxStderrBytes`）可限制插件 stdout/stderr 最大字节数；超限则 kill 进程。所有插件输出以 plugin/hook/path/hash 元数据记录在构建清单中，增量构建时自动清理旧输出。
 
+### 插件能力强制
+
+外部插件可以声明 `capabilities` 列表作为沙箱：
+
+```yaml
+site:
+  externalPlugins:
+    my-plugin:
+      capabilities:
+        - derive-pages   # hooks: [derive-pages] 必需
+        - emit-outputs   # hooks: [after-build] 必需
+```
+
+实现：`src/Bukit.Engine/Plugins/PluginCapability.cs`、`src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs`。
+
+**执行规则：**
+- `capabilities` 未声明 → 所有 hook 允许（向后兼容）
+- `capabilities` 已声明 → 运行时检查每个 hook 是否匹配能力列表
+- Hook 缺少所需能力 → `ConfigException`，错误码 `BKT-0701`
+- 无效能力名称 → 配置验证时 `ConfigException`
+
+能力检查已集成到 `ExternalProtocolPlugin.DerivePagesAsync()` 和 `ExternalProtocolPlugin.AfterBuildAsync()` 中，在调用协议调用器之前执行。
+
+详见 [External Plugin Protocol](./external-plugin-protocol.md)。
+
 ## 内置插件一览（BuiltIn）
 
 内置插件当前包括（见 `BuiltInPluginSource`）：

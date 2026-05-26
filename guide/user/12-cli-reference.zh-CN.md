@@ -165,6 +165,18 @@ dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
 - Notion token 缺失
 - 路径不存在（content/theme/build output）
 - 配置字段写错、类型不匹配
+- **模板变量拼写错误** — 变量名写错导致静默空值，doctor 会检测
+- **路由冲突** — 以 `[BKT-0201]` 诊断码格式显示
+
+所有配置错误现在显示稳定的诊断码：
+```
+✖ Config error
+[BKT-0601] Refusing to clean unsafe output directory: /Users/xxx.
+
+--- Template variable spell check ---
+⚠ pages/index.html: Unknown variable 'site.settings' — did you mean 'site.params'?
+✔ No unknown template variables detected
+```
 
 排障清单见：[14-故障排查](./14-troubleshooting.zh-CN.md)。
 

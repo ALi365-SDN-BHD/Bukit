@@ -118,7 +118,36 @@ If port 3000 is busy, bukit auto-increments to 3001, 3002, etc.
 
 ### Changes not detected
 
-Ensure you're editing files inside the watched directories. The `dist/` and `.cache/` directories are excluded. Try `bukit dev --output ./public` if your output is in a different location.
+- Check that the changed file is in a watched directory (content/, themes/, layouts/, assets/, static/)
+- Ensure the file is not ignored (dot-prefixed files, .cache/, dist/ are excluded)
+- For theme inheritance, ensure parent theme directories are accessible
+
+### Hot reload not working
+
+- Verify WebSocket connection in browser DevTools (`/__ws__`)
+- Check that no firewall/proxy blocks WebSocket connections
+- Ensure the page served contains the injected live-reload `<script>` tag
+
+### Build slow during dev
+
+Use incremental builds and check the per-stage timing in the output log:
+```
+event=content.stage stage=ContentLoad duration_ms=234
+event=content.stage stage=ImageLocalize duration_ms=156
+event=content.stage stage=DraftFilter duration_ms=1
+event=content.stage stage=SchemaDefaults duration_ms=3
+event=content.stage stage=SchemaValidate duration_ms=12
+```
+
+Each content pipeline stage logs its name and duration. Long stages (especially `ContentLoad` and `ImageLocalize`) indicate where build time is spent.
+
+### Diagnostic codes in logs
+
+Build errors and `bukit doctor` output use stable `BKT-XXXX` diagnostic codes. See the Config Skill for the full code reference.
+
+### Template variable warnings
+
+Run `bukit doctor` after writing new templates to detect typos in Scriban variable names. The doctor's spell check section reports unknown variables like `site.settings` (when you meant `site.params`).
 
 ### Livereload not working
 

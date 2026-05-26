@@ -17,6 +17,22 @@ dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
 dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 ```
 
+## 诊断码
+
+Bukit 遇到错误时会输出稳定的 `BKT-XXXX` 诊断码。常见面向用户的码：
+
+| 码 | 含义 | 快速修复 |
+|---|---|---|
+| `BKT-0201` | 路由冲突 | 两个页面有相同的 URL/路径 — 修改 slug 或调整 permalink |
+| `BKT-0301` | 模板未找到 | 检查 `site.collections` 中的模板路径在 `layouts/` 下存在 |
+| `BKT-0302` | 模板解析错误 | Scriban 语法错误 — 检查 `{{ }}` 匹配 |
+| `BKT-0303` | 布局嵌套超限 | 循环 `{% layout %}` 引用 — 最大深度 10 |
+| `BKT-0402` | Schema 严格模式阻止 | 缺少必填 schema 字段 — 修复内容或设置 `build.schemaFailMode: warn` |
+| `BKT-0601` | 输出目录不安全 | `build.output` 指向受保护目录 — 使用专用的输出目录 |
+| `BKT-0701` | 插件执行失败 | 插件崩溃或权限被拒 — 如声明了 capabilities 请检查是否匹配 hook |
+
+先运行 `bukit doctor` 获取格式化的诊断输出。
+
 ## 现象 1：doctor 直接失败（配置校验）
 
 ### A）Notion token 缺失
@@ -212,3 +228,37 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 - 删除主题的本地缓存目录和锁文件，重新构建以重新克隆。
 - 或只删除锁文件以强制重新校验。
 - 如果是有意更新了主题，需要重新生成锁文件。
+
+## 症状 10：模板变量渲染为空
+
+症状：
+
+- 像 `{{ page.title }}` 这样的 Scriban 变量正常工作，但 `{{ page.auther }}` 却渲染为空，没有任何构建错误。
+
+原因：Bukit 的 Scriban 引擎启用了 `EnableRelaxedMemberAccess` — 变量名拼写错误会静默返回 `null` 而非抛出错误。
+
+修复：
+
+- 运行 `bukit doctor` 执行**模板变量拼写检查**部分。它会扫描所有 `.html` 模板中未知的变量引用。
+- 在 [bukit-templating 技能](../../src/skills/bukit-templating/SKILL.md) 中查看已知字段白名单的正确字段名。
+
+## 症状 11：插件权限被拒（能力强制）
+
+症状：
+
+- 构建失败，错误信息为 `[BKT-0701] Plugin './tools/plugin' is missing required capability 'derive-pages' for hook 'derive-pages'.`
+
+原因：外部插件声明了 `capabilities`，但能力列表未覆盖插件注册的全部 hook。
+
+修复：
+
+- 在 `site.yaml` 中为插件添加缺失的 capability：
+  ```yaml
+  site:
+    externalPlugins:
+      my-plugin:
+        capabilities:
+          - derive-pages   # 新增：匹配 hooks 列表
+          - emit-outputs
+  ```
+- 或者完全移除 `capabilities` 字段以允许所有 hook（向后兼容）。

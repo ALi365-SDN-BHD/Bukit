@@ -483,3 +483,62 @@ Keluaran ini juga merangkumi pelbagai penambahbaikan kebolehpercayaan dan kesela
 | **Kebolehhasilan semula tema jauh** | Tema jauh yang dicache tidak lagi auto-`git pull`. Checkout `@ref` dikunci melalui `bukit-theme.lock.json`. Commit tidak sepadan menyebabkan kegagalan binaan. | Binaan konsisten merentas persekitaran |
 | **Cap jari templat komposit** | Hash templat tambahan kini menggabungkan child/parent/user layouts, `theme.yaml`, dan penanda versi perender. Perubahan tema induk atau susun atur pengguna mencetuskan perenderan semula. | Kurang kejutan "templat tidak dikemas kini" |
 | **Belanjawan serentak pelbagai bahasa** | Binaan pelbagai bahasa mematuhi belanjawan serentak global untuk mencegah kehabisan sumber. | Penggunaan sumber lebih boleh diramal |
+| **Sistem kod diagnostik** 🆕 | Semua ralat binaan kini membawa kod diagnostik stabil `BKT-XXXX` (8 kategori, 27 kod). Lihat [Rujukan Kod Diagnostik](#rujukan-kod-diagnostik) di bawah. | Kod ralat boleh dibaca mesin; stabil merentas versi |
+| **Sistem keupayaan plugin** 🆕 | Setiap plugin luaran boleh mengisytiharkan `capabilities: [emit-outputs, derive-pages]`. Pada masa jalan, pelaksanaan hook akan **dikuatkuasakan**. Plugin yang mengisytiharkan capabilities tetapi kekurangan keupayaan diperlukan akan menyebabkan kegagalan binaan dengan kod ralat `[BKT-0701]`. | Mekanisme kotak pasir — menghalang plugin melaksanakan hook yang tidak dibenarkan |
+| **Pemeriksaan ejaan pemboleh ubah templat** 🆕 | `bukit doctor` kini mengimbas semua templat Scriban untuk rujukan pemboleh ubah yang tidak diketahui (cth. `site.settings` sepatutnya `site.params`). Menggunakan analisis AST + perbandingan senarai putih medan diketahui. | Menangkap kegagalan perenderan senyap akibat salah eja pemboleh ubah |
+| **Peringkat saluran paip kandungan** 🆕 | Saluran paip pemuatan kandungan dipecahkan kepada 5 peringkat bernama (`ContentLoad` → `ImageLocalize` → `DraftFilter` → `SchemaDefaults` → `SchemaValidate`), setiap satu mencatatkan tempoh. Boleh dikembangkan melalui `IContentStage`. | Keterlihatan prestasi setiap peringkat; menyokong suntikan peringkat tersuai oleh pembangun plugin |
+| **Penyatuan pintu masuk perenderan** 🆕 | Perenderan halaman, senarai, dan HTML statik kini berkongsi gelung penghantaran bersatu `PageRenderDispatcher.DispatchAsync()`. Halaman HTML statik melalui `theme.staticTemplate` menikmati binaan tambahan, suntikan SEO, dan pengendalian ralat yang sama seperti halaman kandungan. | Saluran paip perenderan dipermudahkan; halaman statik mendapat pariti dengan halaman kandungan |
+
+---
+
+## Rujukan Kod Diagnostik
+
+Bermula dari v3.x, semua pengecualian Bukit membawa kod diagnostik stabil dalam format `BKT-XXXX`:
+
+| Kategori | Julat Kod | Contoh Kod |
+|---|---|---|
+| **Config** | `BKT-0001` – `BKT-00FF` | `BKT-0001` RequiredFieldMissing, `BKT-0002` InvalidValue, `BKT-0003` YamlSyntaxError, `BKT-0004` PathTraversal |
+| **Theme** | `BKT-0101` – `BKT-01FF` | `BKT-0101` ManifestInvalid, `BKT-0102` ComponentNotFound, `BKT-0104` SourceUnavailable |
+| **Route** | `BKT-0201` – `BKT-02FF` | `BKT-0201` RouteConflict, `BKT-0202` DuplicateOutputPath, `BKT-0204` ListRouteInvalid |
+| **Render** | `BKT-0301` – `BKT-03FF` | `BKT-0301` TemplateNotFound, `BKT-0302` TemplateParseError, `BKT-0303` LayoutNestingExceeded, `BKT-0304` ComponentFailed |
+| **Schema** | `BKT-0401` – `BKT-04FF` | `BKT-0401` ValidationFailed, `BKT-0402` StrictModeBlocked |
+| **Content** | `BKT-0501` – `BKT-05FF` | `BKT-0501` LoadFailed, `BKT-0502` ProviderUnavailable |
+| **Build** | `BKT-0601` – `BKT-06FF` | `BKT-0601` OutputUnsafe, `BKT-0602` OutputNoMarker |
+| **Plugin** | `BKT-0701` – `BKT-07FF` | `BKT-0701` ExecutionFailed, `BKT-0702` TimeoutExceeded |
+
+Kod diagnostik muncul dalam output `bukit doctor`, ralat binaan, dan mesej CLI. Ralat yang sama sentiasa menghasilkan kod `BKT-XXXX` yang sama.
+
+## Pemeriksaan Ejaan Pemboleh Ubah Templat
+
+`bukit doctor` kini merangkumi bahagian **pemeriksaan ejaan pemboleh ubah templat** yang mengesan salah eja dalam nama pemboleh ubah Scriban:
+
+```
+--- Template variable spell check ---
+⚠ pages/index.html: Unknown variable 'site.settings.theme' — did you mean 'site.params'?
+⚠ pages/post.html: Unknown variable 'page.auther' — did you mean 'page.fields.author.value'?
+✔ No unknown template variables detected
+```
+
+Ia berfungsi dengan menghuraikan setiap templat `.html` menggunakan AST Scriban, mengekstrak semua rujukan pemboleh ubah, dan membandingkan silang dengan senarai putih medan yang diketahui untuk pemboleh ubah gelung `page`, `site`, `pages`, `p`, dan `item`.
+
+## Peringkat Saluran Paip Kandungan
+
+Saluran paip pemuatan kandungan kini disusun sebagai 5 peringkat bernama, setiap satu dicatatkan dengan tempohnya sendiri:
+
+```
+event=content.stage stage=ContentLoad duration_ms=234
+event=content.stage stage=ImageLocalize duration_ms=156
+event=content.stage stage=DraftFilter duration_ms=1
+event=content.stage stage=SchemaDefaults duration_ms=3
+event=content.stage stage=SchemaValidate duration_ms=12
+```
+
+| Urutan | Peringkat | Tanggungjawab |
+|---|---|---|
+| 1 | `ContentLoad` | Mencipta penyedia kandungan, memuatkan item |
+| 2 | `ImageLocalize` | Memuat turun dan menyetempatkan imej jauh |
+| 3 | `DraftFilter` | Menapis item draf (kecuali `build.draft: true`) |
+| 4 | `SchemaDefaults` | Mengaplikasikan nilai lalai skema |
+| 5 | `SchemaValidate` | Mengesahkan mengikut skema koleksi |
+
+Pembangun plugin boleh menyuntik peringkat tersuai dengan melaksanakan `IContentStage`.

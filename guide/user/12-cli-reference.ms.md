@@ -139,8 +139,20 @@ Jalankan doctor dahulu apabila anda menghadapi isu ini:
 - Token Notion hilang
 - Laluan tidak wujud (content/theme/output binaan)
 - Ralat medan konfigurasi, ketidakpadanan jenis
+- **Salah eja pemboleh ubah templat** — pemboleh ubah kosong senyap dikesan oleh pemeriksaan ejaan
+- **Konflik laluan** — dikesan dan dipaparkan dengan kod diagnostik `[BKT-0201]`
 
-Senarai semak penyelesaian masalah: [14 Penyelesaian Masalah](./14-troubleshooting.ms.md).
+Semua ralat konfigurasi kini memaparkan kod diagnostik stabil:
+```
+✖ Config error
+[BKT-0601] Refusing to clean unsafe output directory: /Users/xxx.
+
+--- Template variable spell check ---
+⚠ pages/index.html: Unknown variable 'site.settings' — did you mean 'site.params'?
+✔ No unknown template variables detected
+```
+
+Senarai semak penyelesaian masalah: [14 Penyelesaian Masalah](./14-troubleshooting.ms.md)。
 
 ## clean: Bersihkan Output & Cache
 

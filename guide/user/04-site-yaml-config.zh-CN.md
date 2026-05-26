@@ -57,7 +57,7 @@ logging:
 | `site.timezone` | 时区（影响日期展示与一些默认行为） | `Asia/Shanghai` |
 | `site.pluginFailMode` | 插件失败策略 | `strict` / `warn` |
 | `site.plugins` | 插件开关与插件参数 | `sitemap: false` 或 `path-report: { enabled: true, options: {...} }` |
-| `site.externalPlugins` | 外部进程插件配置 | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`。同时支持 `maxStdoutBytes`/`maxStderrBytes`（输出限制）、`allowEnvironment`（环境透传）、`timeoutMs`。 |
+| `site.externalPlugins` | 外部进程插件配置 | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`。同时支持 `maxStdoutBytes`/`maxStderrBytes`（输出限制）、`allowEnvironment`（环境变量透传）、`timeoutMs`、`capabilities`（沙箱：`emit-outputs` / `derive-pages`）、`options`。 |
 | `site.autoSummary` | 未提供 summary 时是否从正文提取摘要 | `true` / `false` |
 | `site.autoSummaryMaxLength` | 自动摘要最大长度（字符数） | `200` |
 | `site.outputPathEncoding` | 输出路径编码策略（处理中文/特殊字符） | `none` / `slug` / `urlencode` / `sanitize` |

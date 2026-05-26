@@ -260,13 +260,27 @@ Checks:
 4. Template capabilities manifest validation
 5. **Template completeness report**: compares `bukit.templates.yaml` declarations vs actual files (missing/stale)
 6. **Template chain analysis**: extracts `{% layout %}` inheritance chains and `{{ include }}` dependency references
-7. **Unused parameter warnings**: `theme.params` declared in site.yaml but not referenced in any template
-8. Assets and Static directory existence
-9. Build manifest JSON format
-10. Plugin discovery count
-11. Notion database reachability (if Notion content source configured)
-12. List page content mode heuristic fallback warnings
-13. Route inventory validation (URL/outputPath conflict detection)
+7. **Template variable spell check**: scans all Scriban templates for unknown variable references using AST analysis, cross-referenced against a known field whitelist for `page`/`site`/`pages`/`p`/`item`
+8. **Unused parameter warnings**: `theme.params` declared in site.yaml but not referenced in any template
+9. **Extra fields report**: front matter fields in content files not declared in collection schemas
+10. Assets and Static directory existence
+11. Build manifest JSON format
+12. Plugin discovery count
+13. Notion database reachability (if Notion content source configured)
+14. List page content mode heuristic fallback warnings
+15. Route inventory validation (URL/outputPath conflict detection)
+
+All config errors are formatted with diagnostic codes in `BKT-XXXX` format:
+```
+✖ Config error
+[BKT-0601] Refusing to clean unsafe output directory: /Users/xxx.
+```
+
+Template variable spell check output:
+```
+--- Template variable spell check ---
+⚠ pages/index.html: Unknown variable 'site.settings' — did you mean 'site.params'?
+✔ No unknown template variables detected
 
 ### plugin list
 

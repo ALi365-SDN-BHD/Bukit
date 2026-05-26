@@ -119,12 +119,21 @@ internal sealed class VariantBuildPipeline
         return new ManifestSetupResult(manifest, templateHash, manifestPath, manifestEntries, incrementalEnabled);
     }
 
-    internal (IReadOnlyList<RouteInfo> StaticHtmlRoutes, string StaticRouteTemplate) BuildStaticHtmlData(
+    internal (IReadOnlyList<RouteInfo> StaticHtmlRoutes, string? StaticRouteTemplate) BuildStaticHtmlData(
         string? staticDir, string? staticTemplate,
         Action<string> warn, bool publishDotFiles)
     {
-        var template = !string.IsNullOrWhiteSpace(staticTemplate) ? staticTemplate : "__raw_static__";
+        var template = !string.IsNullOrWhiteSpace(staticTemplate) ? staticTemplate : null;
         var hasStaticDir = staticDir is not null && Directory.Exists(staticDir);
+        if (template is null)
+        {
+            if (hasStaticDir)
+            {
+                warn("Static HTML files in static dir are skipped because no static template is configured (theme.staticTemplate).");
+            }
+            return (Array.Empty<RouteInfo>(), null);
+        }
+
         var routes = hasStaticDir
             ? StaticFileService.BuildStaticHtmlRoutes(staticDir!, template, warn, publishDotFiles)
             : Array.Empty<RouteInfo>();
@@ -226,14 +235,18 @@ internal sealed class VariantBuildPipeline
         var listRoutes = routeResult.ListRoutes;
 
         var hasStaticDir = Directory.Exists(ctx.StaticDir);
-        var staticRouteTemplate = !string.IsNullOrWhiteSpace(config.Theme.StaticTemplate) ? config.Theme.StaticTemplate : "__raw_static__";
+        var staticRouteTemplate = !string.IsNullOrWhiteSpace(config.Theme.StaticTemplate) ? config.Theme.StaticTemplate : null;
         IReadOnlyList<RenderEntry>? staticEntries = null;
         IReadOnlyList<RouteInfo> staticHtmlRoutes = Array.Empty<RouteInfo>();
 
-        if (hasStaticDir)
+        if (hasStaticDir && staticRouteTemplate is not null)
         {
             staticEntries = RenderEntry.ForStaticDir(ctx.StaticDir!, staticRouteTemplate, msg => logger.Warn(msg), config.Build.PublishDotFiles);
             staticHtmlRoutes = staticEntries.Select(e => e.Route).ToList();
+        }
+        else if (hasStaticDir)
+        {
+            logger.Warn("Static HTML files in static dir are skipped because no static template is configured (theme.staticTemplate).");
         }
 
         RouteInventoryValidator.ValidateFinalRoutes(routed, pluginContext.DerivedRouted, listRoutes, staticHtmlRoutes);

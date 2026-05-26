@@ -146,6 +146,18 @@ Run doctor first when you encounter these issues:
 - Missing Notion token
 - Path does not exist (content/theme/build output)
 - Config field errors, type mismatches
+- **Template variable typos** — silently empty variables caught by spell check
+- **Route conflicts** — detected and displayed with `[BKT-0201]` diagnostic codes
+
+All config errors now display stable diagnostic codes:
+```
+✖ Config error
+[BKT-0601] Refusing to clean unsafe output directory: /Users/xxx.
+
+--- Template variable spell check ---
+⚠ pages/index.html: Unknown variable 'site.settings' — did you mean 'site.params'?
+✔ No unknown template variables detected
+```
 
 Troubleshooting checklist: [14 Troubleshooting](./14-troubleshooting.md).
 

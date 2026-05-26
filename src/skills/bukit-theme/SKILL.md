@@ -65,9 +65,19 @@ Referenced in HTML: `<link href="{{ site.base_url }}/assets/style.css" rel="styl
 
 ### `static/` — Static File Directory
 
-During build, files are **copied as-is** directly to the output root. Suitable for `robots.txt`, `favicon.ico`, and independent files not affected by the theme.
+Static files are copies of files placed directly in the output root. Non-HTML files (images, fonts, robots.txt, CNAME, etc.) are copied as-is. When `theme.staticTemplate` is set, `.html` files are rendered through Scriban with the current site context (page/site/data) before being written to output — the same as regular page rendering. This means static HTML pages benefit from the same template pipeline as content pages.
 
-Difference from `assets/`: `assets/` files go under the `assets/` subdirectory; `static/` files go directly to the output root.
+```yaml
+theme:
+  staticTemplate: pages/static.html  # Renders .html files through Scriban
+```
+
+Without `staticTemplate`, raw `.html` files are copied directly. With `staticTemplate`, each `.html` file in `static/` is treated as a first-class render target — the HTML file content becomes `page.content`, and the filename determines the URL (e.g., `about.html` → `/about/`).
+
+| Theme Config | Description |
+|---|---|
+| `static` | Static file subdirectory name (default `static`) |
+| `staticTemplate` | When set, renders `static/*.html` through Scriban; otherwise raw copy |
 
 ## Theme Configuration (theme section)
 
@@ -537,6 +547,9 @@ Every Bukit theme must include a footer partial with a "Powered by bukit" attrib
 | `theme.params` empty in templates | params not defined in site.yaml or key name typo | Verify `site.params.xxx` matches site.yaml |
 | Templates not found after customizing layouts_dir | Custom value without `layouts` won't auto-point to `themes/<name>/` | Custom values resolve from site root; confirm the path exists |
 | `doctor` reports heuristic fallback | List page template static analysis cannot determine if content is needed | Create `layouts/bukit.templates.yaml` and declare `needs_page_content` |
+| Template variable renders empty | Scriban `EnableRelaxedMemberAccess` silently returns null for typos | Run `bukit doctor` to check template variable spellings |
+| Build error `BKT-0301` (TemplateNotFound) | Required template missing from theme | Check `site.collections` template paths match files under `layouts/` |
+| Build error `BKT-0303` (LayoutNestingExceeded) | Circular `{% layout %}` reference | Check layout inheritance chains, max depth is 10 |
 
 ---
 

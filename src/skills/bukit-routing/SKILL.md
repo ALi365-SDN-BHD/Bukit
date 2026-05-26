@@ -247,8 +247,10 @@ Content-page-vs-content-page conflicts are **always fail** — `deriveConflictPo
 
 ```
 ✖ Route inventory error
-Route conflict on url: /blog/same/. Conflicting routes: ...
+[BKT-0201] Route conflict on url: /blog/same/. Conflicting routes: ...
 ```
+
+Route-related diagnostic codes: `BKT-0201` (RouteConflict), `BKT-0202` (DuplicateOutputPath), `BKT-0203` (InvalidPattern), `BKT-0204` (ListRouteInvalid).
 
 ## Route Path Utilities
 

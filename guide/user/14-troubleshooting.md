@@ -17,6 +17,22 @@ dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
 dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 ```
 
+## Diagnostic Codes
+
+When Bukit encounters an error, it outputs a stable `BKT-XXXX` diagnostic code. Common user-facing codes:
+
+| Code | Meaning | Quick Fix |
+|---|---|---|
+| `BKT-0201` | Route conflict | Two pages have same URL/path — rename slugs or adjust permalinks |
+| `BKT-0301` | Template not found | Check `site.collections` template paths exist under `layouts/` |
+| `BKT-0302` | Template parse error | Scriban syntax error — check `{{ }}` matching |
+| `BKT-0303` | Layout nesting exceeded | Circular `{% layout %}` reference — max depth is 10 |
+| `BKT-0402` | Schema strict mode blocked | A required schema field is missing — fix content or set `build.schemaFailMode: warn` |
+| `BKT-0601` | Output unsafe | `build.output` points to a protected directory — use a dedicated output directory |
+| `BKT-0701` | Plugin execution failed | Plugin crashed or permission denied — check `capabilities` if declared |
+
+Run `bukit doctor` first to get a formatted diagnostic output.
+
 ## Symptom 1: doctor Fails Immediately (Config Validation)
 
 ### A) Notion token missing
@@ -184,4 +200,38 @@ Fix:
 - Delete the theme's local cache directory and the lock file, then rebuild to re-clone.
 - Or delete just the lock file to force re-verification.
 - If you intentionally updated the theme, the lock file needs to be regenerated.
+
+## Symptom 10: Template Variables Render Empty
+
+Symptoms:
+
+- A Scriban variable like `{{ page.title }}` works, but `{{ page.auther }}` renders blank without any build error.
+
+Cause: Bukit's Scriban engine has `EnableRelaxedMemberAccess` enabled — typos in variable names silently return `null` instead of throwing an error.
+
+Fix:
+
+- Run `bukit doctor` to perform the **template variable spell check** section. It scans all `.html` templates for unknown variable references.
+- Check the Known Fields Whitelist in the [bukit-templating skill](../../src/skills/bukit-templating/SKILL.md) for the correct field names.
+
+## Symptom 11: Plugin Permission Denied (Capability Enforcement)
+
+Symptoms:
+
+- Build fails with `[BKT-0701] Plugin './tools/plugin' is missing required capability 'derive-pages' for hook 'derive-pages'.`
+
+Cause: An external plugin declared `capabilities` but the capability list doesn't cover all hooks the plugin is registered for.
+
+Fix:
+
+- Add the missing capability to the plugin's `capabilities` list in `site.yaml`:
+  ```yaml
+  site:
+    externalPlugins:
+      my-plugin:
+        capabilities:
+          - derive-pages   # Added: matches hooks list
+          - emit-outputs
+  ```
+- Or remove the `capabilities` field entirely to allow all hooks (backward compatible).
 

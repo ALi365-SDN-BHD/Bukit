@@ -57,7 +57,7 @@ Common fields (the ones users edit most often):
 | `site.timezone` | Time zone (affects date display and some default behavior) | `Asia/Shanghai` |
 | `site.pluginFailMode` | Plugin failure policy | `strict` / `warn` |
 | `site.plugins` | Plugin switches and plugin parameters | `sitemap: false` or `path-report: { enabled: true, options: {...} }` |
-| `site.externalPlugins` | External process plugin config | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`. Also supports `maxStdoutBytes`/`maxStderrBytes` (output limits), `allowEnvironment` (env passthrough), `timeoutMs`. |
+| `site.externalPlugins` | External process plugin config | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`. Also supports `maxStdoutBytes`/`maxStderrBytes` (output limits), `allowEnvironment` (env passthrough), `timeoutMs`, `capabilities` (sandbox: `emit-outputs` / `derive-pages`), `options`. |
 | `site.autoSummary` | Whether to extract a summary from the body when `summary` is not provided | `true` / `false` |
 | `site.autoSummaryMaxLength` | Maximum auto-summary length (characters) | `200` |
 | `site.outputPathEncoding` | Output path encoding strategy (for Chinese/special characters) | `none` / `slug` / `urlencode` / `sanitize` |

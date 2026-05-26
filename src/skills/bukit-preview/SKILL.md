@@ -111,6 +111,7 @@ Requesting a directory path (e.g., `/blog/`) serves `index.html` from that direc
 | CSS/JS not loading | Incorrect `baseUrl` in site.yaml | Check `site.baseUrl` matches preview context |
 | Analytics still appear | Analytics tracking script is inline | Preview disables GA4 window properties; inline scripts may bypass |
 | 404 on all routes | Wrong `--dir` path | Verify the directory contains built HTML files |
+| Build errors with codes | Config/build error with `BKT-XXXX` format | Look up the code in the Config Skill or `bukit doctor` output |
 
 ## Quick Tips
 
@@ -118,6 +119,7 @@ Requesting a directory path (e.g., `/blog/`) serves `index.html` from that direc
 - **Before deployment**: Always preview with `bukit preview` to catch broken links and missing assets
 - **Stop server**: Press `Ctrl+C`
 - **Multiple sites**: Run multiple preview instances on different ports for side-by-side comparison
+- **Diagnose problems first**: Run `bukit doctor` before preview to catch config errors and template variable typos before they appear as blank pages
 
 ## bukit dev vs bukit preview
 

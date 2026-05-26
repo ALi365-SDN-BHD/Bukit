@@ -426,3 +426,16 @@ SEO diff: newIssues=3 newErrors=1 newWarnings=2 resolvedIssues=5 addedRoutes=1 r
 | Sitemap not generated | `site.url` is empty or no indexable routes | Set `site.url`; ensure at least one route is indexable |
 | robots.txt not generated | `robotsTxt.enabled: false` or `site.url` empty | Set `robotsTxt.enabled: true` and `site.url` |
 | `seo.hreflang_return_missing` | Language A links to B but B doesn't link back | Ensure bidirectional hreflang links across all language versions |
+
+### Diagnostic Codes Cross-Reference
+
+Build-time errors related to rendering carry diagnostic codes that may appear alongside SEO issues:
+
+| Build Code | Meaning | When It Appears |
+|---|---|---|
+| `BKT-0301` | RenderTemplateNotFound | A template referenced by schema/route doesn't exist; check `bukit doctor` |
+| `BKT-0302` | RenderTemplateParseError | Scriban syntax error in a template; renders fail for affected pages |
+| `BKT-0303` | RenderLayoutNestingExceeded | Circular layout reference; check `{% layout %}` chains |
+| `BKT-0401` | SchemaStrictModeBlocked | Schema validation in strict mode blocks the entire build |
+
+When SEO audit generates warnings about missing pages or inconsistent metadata, cross-check with `bukit doctor` for these codes.

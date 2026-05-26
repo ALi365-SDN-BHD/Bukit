@@ -57,7 +57,7 @@ Medan lazim (yang paling kerap diubah oleh pengguna):
 | `site.timezone` | Zon waktu (mempengaruhi paparan tarikh dan beberapa tingkah laku lalai) | `Asia/Shanghai` |
 | `site.pluginFailMode` | Strategi kegagalan plugin | `strict` / `warn` |
 | `site.plugins` | Suis plugin dan parameter plugin | `sitemap: false` atau `path-report: { enabled: true, options: {...} }` |
-| `site.externalPlugins` | Konfigurasi plugin proses luaran | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`. Juga menyokong `maxStdoutBytes`/`maxStderrBytes` (had output), `allowEnvironment` (laluan env), `timeoutMs`. |
+| `site.externalPlugins` | Konfigurasi plugin proses luaran | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`. Juga menyokong `maxStdoutBytes`/`maxStderrBytes` (had output), `allowEnvironment` (laluan pemboleh ubah persekitaran), `timeoutMs`, `capabilities` (kotak pasir: `emit-outputs` / `derive-pages`), `options`. |
 | `site.autoSummary` | Sama ada mengekstrak ringkasan daripada kandungan badan apabila `summary` tidak disediakan | `true` / `false` |
 | `site.autoSummaryMaxLength` | Panjang maksimum ringkasan automatik (bilangan aksara) | `200` |
 | `site.outputPathEncoding` | Strategi pengekodan laluan output (mengendalikan aksara Cina/khas) | `none` / `slug` / `urlencode` / `sanitize` |

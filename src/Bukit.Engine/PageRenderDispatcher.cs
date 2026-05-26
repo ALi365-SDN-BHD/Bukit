@@ -70,128 +70,135 @@ internal static class PageRenderDispatcher
             switch (entry.Kind)
             {
                 case RenderEntryKind.Page:
-                {
-                    var item = entry.Item!;
-                    var route = entry.Route;
-                    var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
-                    var mh = IncrementalBuildEngine.ComputeMetadataHash(item);
-                    var rh = IncrementalBuildEngine.ComputeRouteHash(route);
-                    var outputPath = Path.Combine(outputDir, route.OutputPath);
-                    var outputExists = File.Exists(outputPath);
-
-                    BuildManifestEntry? existing = null;
-                    var hasExisting = needsIncrementalMode && manifestEntries!.TryGetValue(key, out existing) && existing is not null;
-
-                    var canEvaluateSkip = incrementalEnabled && hasExisting && outputExists &&
-                        existing!.TemplateHash == templateHash && existing.MetadataHash == mh &&
-                        existing.RouteHash == rh && existing.RenderDependencyHash == renderDependencyHash;
-
-                    string? contentHash = null;
-                    if (canEvaluateSkip)
                     {
-                        if (IncrementalBuildEngine.TryComputeStableContentHash(item, bodyStore, mh, out var sch))
-                            contentHash = sch;
+                        var item = entry.Item!;
+                        var route = entry.Route;
+                        var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+                        var mh = IncrementalBuildEngine.ComputeMetadataHash(item);
+                        var rh = IncrementalBuildEngine.ComputeRouteHash(route);
+                        var outputPath = Path.Combine(outputDir, route.OutputPath);
+                        var outputExists = File.Exists(outputPath);
+
+                        BuildManifestEntry? existing = null;
+                        var hasExisting = needsIncrementalMode && manifestEntries!.TryGetValue(key, out existing) && existing is not null;
+
+                        var canEvaluateSkip = incrementalEnabled && hasExisting && outputExists &&
+                            existing!.TemplateHash == templateHash && existing.MetadataHash == mh &&
+                            existing.RouteHash == rh && existing.RenderDependencyHash == renderDependencyHash;
+
+                        string? contentHash = null;
+                        if (canEvaluateSkip)
+                        {
+                            if (IncrementalBuildEngine.TryComputeStableContentHash(item, bodyStore, mh, out var sch))
+                                contentHash = sch;
+                            else
+                                contentHash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
+                        }
+
+                        var canSkip = canEvaluateSkip && existing!.ContentHash == contentHash;
+                        if (canSkip)
+                        {
+                            Interlocked.Increment(ref skippedCount);
+                            renderReasons.AddOrUpdate("unchanged", 1, (_, v) => v + 1);
+                            return;
+                        }
+
+                        if (incrementalEnabled)
+                        {
+                            var reason = !hasExisting ? "new_page" : !outputExists ? "output_missing"
+                                : existing!.TemplateHash != templateHash ? "template_changed"
+                                : existing.MetadataHash != mh ? "content_changed"
+                                : existing.ContentHash != contentHash ? "content_changed"
+                                : existing.RouteHash != rh ? "route_changed"
+                                : existing.RenderDependencyHash != renderDependencyHash ? "render_dependency_changed" : "render";
+                            renderReasons.AddOrUpdate(reason, 1, (_, v) => v + 1);
+                        }
                         else
-                            contentHash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
-                    }
+                        {
+                            renderReasons.AddOrUpdate("full_render", 1, (_, v) => v + 1);
+                        }
 
-                    var canSkip = canEvaluateSkip && existing!.ContentHash == contentHash;
-                    if (canSkip)
-                    {
-                        Interlocked.Increment(ref skippedCount);
-                        renderReasons.AddOrUpdate("unchanged", 1, (_, v) => v + 1);
-                        return;
+                        var content = await ContentBodyResolver.GetHtmlAsync(item, bodyStore, ct);
+                        var pageInfo = new PageInfo
+                        {
+                            Title = item.Title,
+                            Url = route.Url,
+                            Content = content,
+                            Summary = item.Meta.TryGetValue("summary", out var s) ? s?.ToString() : null,
+                            TableOfContents = GetTableOfContents(item),
+                            PublishDate = item.PublishAt,
+                            Fields = item.Fields,
+                            Seo = seoBuilder?.Invoke(item, route)
+                        };
+                        var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
+                        var html = renderer.RenderPage(route.Template, pageModel);
+                        if (htmlPostProcessor is not null) html = htmlPostProcessor(item, route, pageInfo, html);
+                        await WriteUtf8LockedAsync(outputDir, route.OutputPath, html, writeLocks, ct);
+                        Interlocked.Increment(ref renderedCount);
+                        lock (stageMetricsLock) { stageMetrics.Increment("pageRender"); stageMetrics.AddDuration("pageRender", 0); }
+                        if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(item, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = renderDependencyHash };
+                        break;
                     }
-
-                    if (incrementalEnabled)
-                    {
-                        var reason = !hasExisting ? "new_page" : !outputExists ? "output_missing"
-                            : existing!.TemplateHash != templateHash ? "template_changed"
-                            : existing.MetadataHash != mh ? "content_changed"
-                            : existing.ContentHash != contentHash ? "content_changed"
-                            : existing.RouteHash != rh ? "route_changed"
-                            : existing.RenderDependencyHash != renderDependencyHash ? "render_dependency_changed" : "render";
-                        renderReasons.AddOrUpdate(reason, 1, (_, v) => v + 1);
-                    }
-                    else
-                    {
-                        renderReasons.AddOrUpdate("full_render", 1, (_, v) => v + 1);
-                    }
-
-                    var content = await ContentBodyResolver.GetHtmlAsync(item, bodyStore, ct);
-                    var pageInfo = new PageInfo
-                    {
-                        Title = item.Title, Url = route.Url, Content = content,
-                        Summary = item.Meta.TryGetValue("summary", out var s) ? s?.ToString() : null,
-                        TableOfContents = GetTableOfContents(item),
-                        PublishDate = item.PublishAt, Fields = item.Fields,
-                        Seo = seoBuilder?.Invoke(item, route)
-                    };
-                    var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
-                    var html = renderer.RenderPage(route.Template, pageModel);
-                    if (htmlPostProcessor is not null) html = htmlPostProcessor(item, route, pageInfo, html);
-                    await WriteUtf8LockedAsync(outputDir, route.OutputPath, html, writeLocks, ct);
-                    Interlocked.Increment(ref renderedCount);
-                    lock (stageMetricsLock) { stageMetrics.Increment("pageRender"); stageMetrics.AddDuration("pageRender", 0); }
-                    if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(item, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = renderDependencyHash };
-                    break;
-                }
 
                 case RenderEntryKind.List:
-                {
-                    var listRoute = entry.Route;
-                    var source = entry.SourceItems!;
-                    var includeContent = entry.IncludeContent;
-                    var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
-                    var rh = IncrementalBuildEngine.ComputeRouteHash(listRoute);
-                    var ch = IncrementalBuildEngine.ComputeListContentHash(templateHash, listRoute.Template, source, manifest, bodyStore, includeContent);
-                    var outputPath = Path.Combine(outputDir, listRoute.OutputPath);
-                    var outputExists = File.Exists(outputPath);
-                    manifest.Entries.TryGetValue(key, out var le);
-                    var hasExisting = incrementalEnabled && le is not null;
-
-                    var canSkip = incrementalEnabled && hasExisting && outputExists &&
-                        le!.TemplateHash == templateHash && le.ContentHash == ch &&
-                        le.RouteHash == rh && le.RenderDependencyHash == renderDependencyHash;
-
-                    if (canSkip)
                     {
-                        Interlocked.Increment(ref skippedCount);
-                        renderReasons.AddOrUpdate("list_unchanged", 1, (_, v) => v + 1);
-                        return;
+                        var listRoute = entry.Route;
+                        var source = entry.SourceItems!;
+                        var includeContent = entry.IncludeContent;
+                        var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
+                        var rh = IncrementalBuildEngine.ComputeRouteHash(listRoute);
+                        var ch = IncrementalBuildEngine.ComputeListContentHash(templateHash, listRoute.Template, source, manifest, bodyStore, includeContent);
+                        var outputPath = Path.Combine(outputDir, listRoute.OutputPath);
+                        var outputExists = File.Exists(outputPath);
+                        manifest.Entries.TryGetValue(key, out var le);
+                        var hasExisting = incrementalEnabled && le is not null;
+
+                        var canSkip = incrementalEnabled && hasExisting && outputExists &&
+                            le!.TemplateHash == templateHash && le.ContentHash == ch &&
+                            le.RouteHash == rh && le.RenderDependencyHash == renderDependencyHash;
+
+                        if (canSkip)
+                        {
+                            Interlocked.Increment(ref skippedCount);
+                            renderReasons.AddOrUpdate("list_unchanged", 1, (_, v) => v + 1);
+                            return;
+                        }
+
+                        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, ct, stageMetrics, "listBodyLoad", seoBuilder);
+                        var listPage = CreateListPageInfo(siteModel, listRoute);
+                        listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
+                        var listModel = new ListPageModel { Site = siteModel, Page = listPage, Pages = pageInfos };
+                        var listHtml = renderer.RenderList(listRoute.Template, listModel);
+                        if (listHtmlPostProcessor is not null) listHtml = listHtmlPostProcessor(listRoute, listPage, listHtml);
+                        await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, listHtml, writeLocks, ct);
+                        Interlocked.Increment(ref renderedCount);
+                        renderReasons.AddOrUpdate("list_render", 1, (_, v) => v + 1);
+                        lock (stageMetricsLock) { stageMetrics.Increment("listBuild"); stageMetrics.AddDuration("listBuild", 0); }
+
+                        if (needsIncrementalMode)
+                        {
+                            manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = listRoute.Url, Template = listRoute.Template, ContentHash = ch, RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = renderDependencyHash };
+                        }
+                        break;
                     }
 
-                    var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, ct, stageMetrics, "listBodyLoad", seoBuilder);
-                    var listPage = CreateListPageInfo(siteModel, listRoute);
-                    listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
-                    var listModel = new ListPageModel { Site = siteModel, Page = listPage, Pages = pageInfos };
-                    var listHtml = renderer.RenderList(listRoute.Template, listModel);
-                    if (listHtmlPostProcessor is not null) listHtml = listHtmlPostProcessor(listRoute, listPage, listHtml);
-                    await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, listHtml, writeLocks, ct);
-                    Interlocked.Increment(ref renderedCount);
-                    renderReasons.AddOrUpdate("list_render", 1, (_, v) => v + 1);
-                    lock (stageMetricsLock) { stageMetrics.Increment("listBuild"); stageMetrics.AddDuration("listBuild", 0); }
-
-                    lock (manifest) { manifest.Entries[key] = new BuildManifestEntry { OutputPath = key, Url = listRoute.Url, Template = listRoute.Template, ContentHash = ch, RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = renderDependencyHash }; }
-                    break;
-                }
-
                 case RenderEntryKind.Static:
-                {
-                    var route = entry.Route;
-                    var pageInfo = new PageInfo
                     {
-                        Title = entry.Title, Url = route.Url,
-                        Content = entry.RawContent ?? string.Empty,
-                        Summary = siteModel.Description
-                    };
-                    var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
-                    var staticHtml = renderer.RenderPage(route.Template, pageModel);
-                    await WriteUtf8LockedAsync(outputDir, route.OutputPath, staticHtml, writeLocks, ct);
-                    Interlocked.Increment(ref renderedCount);
-                    lock (stageMetricsLock) { stageMetrics.Increment("staticRender"); stageMetrics.AddDuration("staticRender", 0); }
-                    break;
-                }
+                        var route = entry.Route;
+                        var pageInfo = new PageInfo
+                        {
+                            Title = entry.Title,
+                            Url = route.Url,
+                            Content = entry.RawContent ?? string.Empty,
+                            Summary = siteModel.Description
+                        };
+                        var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
+                        var staticHtml = renderer.RenderPage(route.Template, pageModel);
+                        await WriteUtf8LockedAsync(outputDir, route.OutputPath, staticHtml, writeLocks, ct);
+                        Interlocked.Increment(ref renderedCount);
+                        lock (stageMetricsLock) { stageMetrics.Increment("staticRender"); stageMetrics.AddDuration("staticRender", 0); }
+                        break;
+                    }
             }
         });
 

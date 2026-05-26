@@ -7,6 +7,24 @@
 - 模型绑定：`src/Bukit.Rendering/Scriban/ScribanModelBinder.cs`
 - 渲染器：`src/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs`
 
+## 统一渲染管道
+
+页面、列表和静态 HTML 渲染现在共享统一的调度循环 `PageRenderDispatcher.DispatchAsync()`（实现：`src/Bukit.Engine/PageRenderDispatcher.cs`）。三种入口类型定义在 `RenderEntry.cs` 中：
+
+| 类型 | 来源 | 渲染方法 |
+|---|---|---|
+| `Page` | 带路由的内容条目 | `renderer.RenderPage(template, pageModel)` |
+| `List` | 特殊列表路由（首页、分类法、分页） | `renderer.RenderList(template, listModel)` |
+| `Static` | `static/` 目录下的 `.html` 文件（启用 `theme.staticTemplate` 时） | `renderer.RenderPage(template, pageModel)` |
+
+三种类型共享相同的增量构建跳过逻辑、SEO 注入和错误处理。
+
+## 模板变量拼写检查
+
+当 `EnableRelaxedMemberAccess` 启用时（默认），Scriban 会对拼写错误的变量（如 `{{ page.titel }}`）静默返回 `null`。Bukit 的 `doctor` 命令现在通过 `ScribanTemplateLinter` 包含模板变量拼写检查，使用 Scriban 的 AST 解析所有 `.html` 模板并与已知模型字段白名单进行交叉比对。
+
+实现：`src/Bukit.Rendering/Scriban/ScribanTemplateLinter.cs`
+
 ## 目录约定（theme.layouts / assets / static）
 
 在 `site.yaml` 中配置：
@@ -19,7 +37,7 @@ theme:
 ```
 
 行为（由 `SiteEngine` 实现）：
-- `static/`：构建时原样拷贝到输出目录根
+- `static/`：静态资源。非 HTML 文件原样复制。当 `theme.staticTemplate` 设置时，`.html` 文件通过统一调度循环使用 Scriban 渲染（与内容页面相同的管道）。实现：`src/Bukit.Engine/RenderEntry.cs` → `ForStaticDir()`。
 - `assets/`：构建时拷贝到输出目录的 `assets/`
 - `layouts/`：渲染时作为模板根目录
 

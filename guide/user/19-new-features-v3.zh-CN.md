@@ -483,3 +483,62 @@ content/_taxonomy/tags/dl/_index.md:
 | **远程主题可复现性** | 已缓存的远程主题不再自动 `git pull`。`@ref` 检出通过 `bukit-theme.lock.json` 锁定。commit 不匹配时构建失败。 | 跨环境构建一致 |
 | **组合模板指纹** | 增量模板哈希现在组合 child/parent/user layouts、`theme.yaml` 和渲染器版本标记。父主题或 user layout 更改会触发重渲染。 | 减少"模板没更新"的意外 |
 | **多语言并发预算** | 多语言构建遵循全局并发预算，防止资源耗尽。 | 更可预测的资源使用 |
+| **诊断码体系** 🆕 | 所有构建错误现在携带稳定的 `BKT-XXXX` 诊断码（8 个分类，27 个码）。详见下方[诊断码参考](#诊断码参考)。 | 机器可读的错误码；跨版本稳定不变 |
+| **插件能力系统** 🆕 | 每个外部插件可声明 `capabilities: [emit-outputs, derive-pages]`。运行时 hook 执行将被**强制校验**。声明了 capabilities 但缺少对应能力的插件会导致构建失败，错误码 `[BKT-0701]`。 | 沙箱机制 — 阻止插件执行未授权的 hook |
+| **模板变量拼写检查** 🆕 | `bukit doctor` 现在扫描所有 Scriban 模板中的未知变量引用（如 `site.settings` 实际应写 `site.params`）。使用 AST 分析 + 已知字段白名单比对。 | 捕获变量拼写错误导致的静默渲染失败 |
+| **内容管道阶段** 🆕 | 内容加载管道拆分为 5 个命名阶段（`ContentLoad` → `ImageLocalize` → `DraftFilter` → `SchemaDefaults` → `SchemaValidate`），每阶段记录耗时。可通过 `IContentStage` 扩展。 | 每个阶段的性能可见；支持插件开发者注入自定义阶段 |
+| **渲染入口统一** 🆕 | 页面、列表和静态 HTML 渲染现在共享统一的调度循环 `PageRenderDispatcher.DispatchAsync()`。通过 `theme.staticTemplate` 渲染的静态 HTML 页面享有与内容页面相同的增量构建、SEO 注入和错误处理。 | 简化渲染管道；静态页面获得与内容页面同等的处理 |
+
+---
+
+## 诊断码参考
+
+从 v3.x 起，所有 Bukit 异常携带稳定的 `BKT-XXXX` 格式诊断码：
+
+| 分类 | 码段 | 示例码 |
+|---|---|---|
+| **Config（配置）** | `BKT-0001` – `BKT-00FF` | `BKT-0001` RequiredFieldMissing, `BKT-0002` InvalidValue, `BKT-0003` YamlSyntaxError, `BKT-0004` PathTraversal |
+| **Theme（主题）** | `BKT-0101` – `BKT-01FF` | `BKT-0101` ManifestInvalid, `BKT-0102` ComponentNotFound, `BKT-0104` SourceUnavailable |
+| **Route（路由）** | `BKT-0201` – `BKT-02FF` | `BKT-0201` RouteConflict, `BKT-0202` DuplicateOutputPath, `BKT-0204` ListRouteInvalid |
+| **Render（渲染）** | `BKT-0301` – `BKT-03FF` | `BKT-0301` TemplateNotFound, `BKT-0302` TemplateParseError, `BKT-0303` LayoutNestingExceeded, `BKT-0304` ComponentFailed |
+| **Schema** | `BKT-0401` – `BKT-04FF` | `BKT-0401` ValidationFailed, `BKT-0402` StrictModeBlocked |
+| **Content（内容）** | `BKT-0501` – `BKT-05FF` | `BKT-0501` LoadFailed, `BKT-0502` ProviderUnavailable |
+| **Build（构建）** | `BKT-0601` – `BKT-06FF` | `BKT-0601` OutputUnsafe, `BKT-0602` OutputNoMarker |
+| **Plugin（插件）** | `BKT-0701` – `BKT-07FF` | `BKT-0701` ExecutionFailed, `BKT-0702` TimeoutExceeded |
+
+诊断码出现在 `bukit doctor` 输出、构建错误和 CLI 消息中。相同错误始终产生相同的 `BKT-XXXX` 码。
+
+## 模板变量拼写检查
+
+`bukit doctor` 现在包含**模板变量拼写检查**部分，可检测 Scriban 变量名中的拼写错误：
+
+```
+--- Template variable spell check ---
+⚠ pages/index.html: Unknown variable 'site.settings.theme' — did you mean 'site.params'?
+⚠ pages/post.html: Unknown variable 'page.auther' — did you mean 'page.fields.author.value'?
+✔ No unknown template variables detected
+```
+
+其原理是使用 Scriban 的 AST 解析每个 `.html` 模板，提取所有变量引用，然后与 `page`、`site`、`pages`、`p`、`item` 等循环变量的已知字段白名单进行交叉比对。
+
+## 内容管道阶段
+
+内容加载管道现在分为 5 个命名阶段，每个阶段记录自己的耗时：
+
+```
+event=content.stage stage=ContentLoad duration_ms=234
+event=content.stage stage=ImageLocalize duration_ms=156
+event=content.stage stage=DraftFilter duration_ms=1
+event=content.stage stage=SchemaDefaults duration_ms=3
+event=content.stage stage=SchemaValidate duration_ms=12
+```
+
+| 顺序 | 阶段 | 职责 |
+|---|---|---|
+| 1 | `ContentLoad` | 创建内容提供者，加载内容条目 |
+| 2 | `ImageLocalize` | 下载并本地化远程图片 |
+| 3 | `DraftFilter` | 过滤草稿条目（除非 `build.draft: true`） |
+| 4 | `SchemaDefaults` | 应用 schema 默认值 |
+| 5 | `SchemaValidate` | 按集合 schema 验证 |
+
+插件开发者可通过实现 `IContentStage` 接口注入自定义阶段。

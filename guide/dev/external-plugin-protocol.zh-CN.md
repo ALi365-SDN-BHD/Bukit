@@ -44,6 +44,7 @@ site:
       maxMemoryMb: 64
       capabilities:
         - emit-outputs
+        - derive-pages
       options:
         mode: demo
         processArgs:
@@ -53,6 +54,29 @@ site:
           named:
             profile: prod
             dry-run: false
+```
+
+### 能力声明（沙箱强制）
+
+`capabilities` 字段声明插件有权执行哪些 hook。定义了两种能力：
+
+| 能力 | 所需 Hook | 描述 |
+|---|---|---|
+| `derive-pages` | `derive-pages` | 生成新页面 |
+| `emit-outputs` | `after-build` | 写入文件到输出目录 |
+
+**强制执行规则：**
+- **未声明**（`capabilities: null` 或不存在）：允许所有 hook（向后兼容）
+- **已声明但不完整**：构建失败，错误码 `[BKT-0701]` — 引擎在运行时检查每个 hook 与声明能力的匹配
+- 配置验证拒绝无效的能力名称（`ConfigException`）
+
+```yaml
+# 错误示例 — "after-build" 需要 "emit-outputs" 能力：
+site:
+  externalPlugins:
+    bad:
+      hooks: [after-build]
+      capabilities: [derive-pages]  # 缺失: emit-outputs → BKT-0701
 ```
 
 `externalProtocolIncludeRoutedPages` 用于控制 `after-build` 请求是否携带全量 `routedPages`：

@@ -17,6 +17,22 @@ dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
 dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
 ```
 
+## Kod Diagnostik
+
+Apabila Bukit menghadapi ralat, ia mengeluarkan kod diagnostik `BKT-XXXX` yang stabil. Kod biasa dihadapi pengguna:
+
+| Kod | Maksud | Pembetulan Pantas |
+|---|---|---|
+| `BKT-0201` | Konflik laluan | Dua halaman mempunyai URL/laluan yang sama — namakan semula slug atau laraskan permalink |
+| `BKT-0301` | Templat tidak ditemui | Semak laluan templat `site.collections` wujud di bawah `layouts/` |
+| `BKT-0302` | Ralat penghuraian templat | Ralat sintaks Scriban — semak padanan `{{ }}` |
+| `BKT-0303` | Sarang susun atur melebihi had | Rujukan `{% layout %}` bulatan — kedalaman maksimum 10 |
+| `BKT-0402` | Mod ketat skema disekat | Medan skema wajib hilang — betulkan kandungan atau tetapkan `build.schemaFailMode: warn` |
+| `BKT-0601` | Direktori output tidak selamat | `build.output` menunjuk ke direktori terlindung — gunakan direktori output khusus |
+| `BKT-0701` | Pelaksanaan plugin gagal | Plugin ranap atau kebenaran ditolak — semak `capabilities` jika diisytiharkan |
+
+Jalankan `bukit doctor` dahulu untuk mendapatkan output diagnostik berformat.
+
 ## Gejala 1: doctor Gagal Serta-merta (Pengesahan Konfigurasi)
 
 ### A) Token Notion hilang
@@ -184,4 +200,38 @@ Pembaikan:
 - Padam direktori cache setempat tema dan fail kunci, kemudian bina semula untuk mengklon semula.
 - Atau padam hanya fail kunci untuk memaksa pengesahan semula.
 - Jika anda sengaja mengemas kini tema, fail kunci perlu dijana semula.
+
+## Gejala 10: Pemboleh Ubah Templat Diberi Kosong
+
+Gejala:
+
+- Pemboleh ubah Scriban seperti `{{ page.title }}` berfungsi, tetapi `{{ page.auther }}` diberi kosong tanpa sebarang ralat binaan.
+
+Punca: Enjin Scriban Bukit mempunyai `EnableRelaxedMemberAccess` didayakan — salah eja dalam nama pemboleh ubah secara senyap mengembalikan `null` dan bukannya membuang ralat.
+
+Pembetulan:
+
+- Jalankan `bukit doctor` untuk melaksanakan bahagian **pemeriksaan ejaan pemboleh ubah templat**. Ia mengimbas semua templat `.html` untuk rujukan pemboleh ubah yang tidak diketahui.
+- Semak Senarai Putih Medan Diketahui dalam [kemahiran bukit-templating](../../src/skills/bukit-templating/SKILL.md) untuk nama medan yang betul.
+
+## Gejala 11: Kebenaran Plugin Ditolak (Penguatkuasaan Keupayaan)
+
+Gejala:
+
+- Binaan gagal dengan `[BKT-0701] Plugin './tools/plugin' is missing required capability 'derive-pages' for hook 'derive-pages'.`
+
+Punca: Plugin luaran mengisytiharkan `capabilities` tetapi senarai keupayaan tidak meliputi semua hook yang didaftarkan untuk plugin.
+
+Pembetulan:
+
+- Tambahkan keupayaan yang hilang ke senarai `capabilities` plugin dalam `site.yaml`:
+  ```yaml
+  site:
+    externalPlugins:
+      my-plugin:
+        capabilities:
+          - derive-pages   # Ditambah: sepadan dengan senarai hooks
+          - emit-outputs
+  ```
+- Atau padamkan sepenuhnya medan `capabilities` untuk membenarkan semua hook (serasi ke belakang).
 
