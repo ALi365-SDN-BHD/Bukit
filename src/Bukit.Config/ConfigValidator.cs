@@ -450,6 +450,15 @@ public static class ConfigValidator
             {
                 ValidateFilteredLists(name, filtered);
             }
+
+            if (!string.IsNullOrWhiteSpace(collection.SchemaFailMode))
+            {
+                var mode = collection.SchemaFailMode!.Trim().ToLowerInvariant();
+                if (mode is not ("off" or "warn" or "strict"))
+                {
+                    throw new ConfigException($"site.collections.{name}.schemaFailMode must be off|warn|strict.");
+                }
+            }
         }
     }
 

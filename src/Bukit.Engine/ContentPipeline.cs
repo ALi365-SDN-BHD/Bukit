@@ -47,15 +47,7 @@ public sealed class ContentPipeline
         _logger.Info($"event=content.loaded count={items.Count}");
 
         items = ContentSchemaValidator.ApplyDefaults(config.Site.Collections, items);
-        var schemaErrors = ValidateContentSchemas(config.Site.Collections, items, _logger);
-        if (schemaErrors.Count > 0)
-        {
-            var schemaFailMode = (config.Build.SchemaFailMode ?? "warn").Trim().ToLowerInvariant();
-            if (schemaFailMode == "strict")
-            {
-                throw new ConfigException($"Schema validation failed with {schemaErrors.Count} error(s).");
-            }
-        }
+        var schemaErrors = ValidateContentSchemas(config.Site.Collections, items, config, _logger);
 
         return new ContentPipelineResult(items, bodyStore, schemaErrors);
     }
@@ -63,6 +55,7 @@ public sealed class ContentPipeline
     private static List<ContentSchemaValidator.SchemaValidationError> ValidateContentSchemas(
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         IReadOnlyList<ContentItem> items,
+        AppConfig config,
         ILogger logger)
     {
         var allErrors = new List<ContentSchemaValidator.SchemaValidationError>();
@@ -70,6 +63,36 @@ public sealed class ContentPipeline
         if (collections is null || collections.Count == 0)
         {
             return allErrors;
+        }
+
+        var globalFailMode = (config.Build.SchemaFailMode ?? "warn").Trim().ToLowerInvariant();
+        if (globalFailMode == "strict")
+        {
+            foreach (var item in items)
+            {
+                var collectionName = GetEffectiveCollection(item);
+                if (string.IsNullOrWhiteSpace(collectionName) ||
+                    !collections.TryGetValue(collectionName, out var collection) ||
+                    collection.Schema is null || collection.Schema.Count == 0)
+                {
+                    continue;
+                }
+
+                var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id);
+                if (errors.Count > 0)
+                {
+                    allErrors.AddRange(errors);
+                    foreach (var error in errors)
+                    {
+                        logger.Warn($"event=schema.validation code={error.Code} field={error.Field} source={error.SourcePath} message={error.Message}");
+                    }
+                }
+            }
+
+            if (allErrors.Count > 0)
+            {
+                throw new ConfigException($"Schema validation failed with {allErrors.Count} error(s).");
+            }
         }
 
         foreach (var item in items)
@@ -85,10 +108,16 @@ public sealed class ContentPipeline
             var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id);
             if (errors.Count > 0)
             {
+                var failMode = ContentSchemaValidator.ResolveSchemaFailMode(collection, globalFailMode);
+                if (failMode == "strict")
+                {
+                    throw new ConfigException($"Schema validation failed for collection '{collectionName}' with {errors.Count} error(s).");
+                }
+
                 allErrors.AddRange(errors);
                 foreach (var error in errors)
                 {
-                    logger.Warn($"event=schema.validation code={error.Code} field={error.Field} source={error.SourcePath} message={error.Message}");
+                    logger.Warn($"event=schema.validation code={error.Code} field={error.Field} source={error.SourcePath} collection={collectionName} message={error.Message}");
                 }
             }
         }

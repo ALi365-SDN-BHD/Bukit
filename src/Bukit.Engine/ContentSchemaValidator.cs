@@ -290,4 +290,14 @@ public static class ContentSchemaValidator
         string Code,
         string Message,
         string? SourcePath);
+
+    public static string ResolveSchemaFailMode(CollectionConfig? collection, string globalSchemaFailMode)
+    {
+        if (!string.IsNullOrWhiteSpace(collection?.SchemaFailMode))
+        {
+            return collection!.SchemaFailMode!.Trim().ToLowerInvariant();
+        }
+
+        return (globalSchemaFailMode ?? "warn").Trim().ToLowerInvariant();
+    }
 }

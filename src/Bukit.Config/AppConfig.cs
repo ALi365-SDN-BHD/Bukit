@@ -113,6 +113,7 @@ public sealed record CollectionConfig
     public required string Template { get; init; }
     public string? ListRoute { get; init; }
     public string? ListTemplate { get; init; }
+    public string? SchemaFailMode { get; init; }
     public CollectionPaginationConfig Pagination { get; init; } = new();
     public CollectionOutputConfig Output { get; init; } = new();
     public IReadOnlyList<FilteredListConfig>? FilteredLists { get; init; }

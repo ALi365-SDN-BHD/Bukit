@@ -74,7 +74,7 @@ internal static class BuildPlanner
             || string.Equals(fullOutput, Path.GetPathRoot(fullOutput)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
             || string.Equals(Path.GetFileName(fullOutput), ".git", StringComparison.OrdinalIgnoreCase))
         {
-            throw new ConfigException($"Refusing to clean unsafe output directory: {outputDir}");
+            throw new ConfigException($"Refusing to clean unsafe output directory: {outputDir}. How to fix: set build.output to a dedicated subdirectory like 'dist' or 'public'.");
         }
 
         if (!Directory.EnumerateFileSystemEntries(fullOutput).Any())
@@ -84,7 +84,7 @@ internal static class BuildPlanner
 
         if (!File.Exists(Path.Combine(fullOutput, OutputMarkerFileName)))
         {
-            throw new ConfigException($"Refusing to clean output directory without Bukit marker: {outputDir}");
+            throw new ConfigException($"Refusing to clean output directory without Bukit marker: {outputDir}. How to fix: add a '.bukit-output-marker' file to mark this as a Bukit output directory, or set build.clean: false.");
         }
     }
 }

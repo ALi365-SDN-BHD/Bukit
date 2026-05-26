@@ -580,6 +580,7 @@ public static class ConfigLoader
                 Template = GetRequiredString(collectionNode, "template"),
                 ListRoute = GetOptionalString(collectionNode, "listRoute"),
                 ListTemplate = GetOptionalString(collectionNode, "listTemplate"),
+                SchemaFailMode = GetOptionalString(collectionNode, "schemaFailMode"),
                 Pagination = new CollectionPaginationConfig
                 {
                     Enabled = paginationNode is not null && (GetOptionalBool(paginationNode, "enabled") ?? false),
@@ -656,6 +657,7 @@ public static class ConfigLoader
                 Template = GetRequiredString(collectionNode, "template"),
                 ListRoute = GetOptionalString(collectionNode, "listRoute"),
                 ListTemplate = GetOptionalString(collectionNode, "listTemplate"),
+                SchemaFailMode = GetOptionalString(collectionNode, "schemaFailMode"),
                 Pagination = new CollectionPaginationConfig
                 {
                     Enabled = paginationNode is not null && (GetOptionalBool(paginationNode, "enabled") ?? false),
