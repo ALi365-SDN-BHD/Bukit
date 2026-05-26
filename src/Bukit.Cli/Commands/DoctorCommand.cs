@@ -40,7 +40,7 @@ public static class DoctorCommand
         catch (ConfigException ex)
         {
             Console.WriteLine("✖ Config error");
-            Console.WriteLine(ex.Message);
+            Console.WriteLine(Bukit.Shared.DiagnosticExceptionFormatter.Format(ex));
             return 1;
         }
 

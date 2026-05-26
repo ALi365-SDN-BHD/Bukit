@@ -91,7 +91,7 @@ public sealed class ContentPipeline
 
             if (allErrors.Count > 0)
             {
-                throw new ConfigException($"Schema validation failed with {allErrors.Count} error(s).");
+                throw new ConfigException($"Schema validation failed with {allErrors.Count} error(s).", DiagnosticCode.SchemaStrictModeBlocked);
             }
         }
 
@@ -111,7 +111,7 @@ public sealed class ContentPipeline
                 var failMode = ContentSchemaValidator.ResolveSchemaFailMode(collection, globalFailMode);
                 if (failMode == "strict")
                 {
-                    throw new ConfigException($"Schema validation failed for collection '{collectionName}' with {errors.Count} error(s).");
+                    throw new ConfigException($"Schema validation failed for collection '{collectionName}' with {errors.Count} error(s).", DiagnosticCode.SchemaStrictModeBlocked);
                 }
 
                 allErrors.AddRange(errors);

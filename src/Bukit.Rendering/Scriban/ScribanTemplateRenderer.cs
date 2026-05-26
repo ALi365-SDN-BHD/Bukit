@@ -65,7 +65,7 @@ public sealed class ScribanTemplateRenderer
     {
         if (depth >= MaxLayoutDepth)
         {
-            throw new RenderException($"Layout nesting depth exceeded maximum of {MaxLayoutDepth}. Possible circular layout reference in '{templateRelativePath}'.");
+            throw new RenderException($"Layout nesting depth exceeded maximum of {MaxLayoutDepth}. Possible circular layout reference in '{templateRelativePath}'.", DiagnosticCode.RenderLayoutNestingExceeded);
         }
 
         var cached = GetCachedTemplate(templateRelativePath);
@@ -193,7 +193,7 @@ public sealed class ScribanTemplateRenderer
         var fileInfo = new FileInfo(templatePath);
         if (!fileInfo.Exists)
         {
-            throw new RenderException($"Template not found: {templateRelativePath}");
+            throw new RenderException($"Template not found: {templateRelativePath}", DiagnosticCode.RenderTemplateNotFound);
         }
 
         var signature = new FileSignature(fileInfo.LastWriteTimeUtc, fileInfo.Length);
@@ -227,7 +227,7 @@ public sealed class ScribanTemplateRenderer
         }
         catch (Exception ex)
         {
-            throw new RenderException($"Template path is invalid: {templateRelativePath}", ex);
+            throw new RenderException($"Template path is invalid: {templateRelativePath}", ex, DiagnosticCode.RenderTemplateNotFound);
         }
     }
 
@@ -236,7 +236,7 @@ public sealed class ScribanTemplateRenderer
         var template = Template.Parse(text, templatePath);
         if (template.HasErrors)
         {
-            throw new RenderException($"Template parse error: {templateRelativePath}\n{template.Messages}");
+            throw new RenderException($"Template parse error: {templateRelativePath}\n{template.Messages}", DiagnosticCode.RenderTemplateParseError);
         }
 
         return template;

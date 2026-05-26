@@ -113,7 +113,7 @@ internal sealed class ComponentRenderFunction : IScriptCustomFunction
         var diagnostic = $"code={code} {message}";
         if (string.Equals(_componentValidation, "strict", StringComparison.OrdinalIgnoreCase))
         {
-            throw new RenderException(diagnostic);
+            throw new RenderException(diagnostic, DiagnosticCode.RenderComponentFailed);
         }
 
         return $"<!-- {diagnostic} -->";
@@ -245,7 +245,7 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
         var diagnostic = $"code={code} {message}";
         if (string.Equals(_componentValidation, "strict", StringComparison.OrdinalIgnoreCase))
         {
-            throw new RenderException(diagnostic);
+            throw new RenderException(diagnostic, DiagnosticCode.RenderComponentFailed);
         }
 
         return $"<!-- {diagnostic} -->";

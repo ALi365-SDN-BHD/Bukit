@@ -119,7 +119,7 @@ public static class RouteInventoryValidator
         var lines = duplicate
             .Select(e => $"{e.Scope}: {e.Describe()}")
             .ToArray();
-        throw new ConfigException($"Route conflict on {kind}: {duplicate.Key}. Conflicting routes: {string.Join("; ", lines)}");
+        throw new ConfigException($"Route conflict on {kind}: {duplicate.Key}. Conflicting routes: {string.Join("; ", lines)}", DiagnosticCode.RouteConflict);
     }
 
     private static string NormalizeUrlForComparison(string url)
