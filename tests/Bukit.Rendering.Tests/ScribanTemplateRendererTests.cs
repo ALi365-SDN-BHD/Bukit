@@ -1,7 +1,7 @@
-using Xunit;
 using Bukit.Config;
 using Bukit.Shared;
 using Bukit.Theme;
+using Xunit;
 
 namespace Bukit.Rendering.Tests;
 
@@ -225,6 +225,279 @@ public sealed class ScribanTemplateRendererTests : IDisposable
 
         Assert.Contains("theme.component.not_found", ex.Message);
         Assert.Contains("missing", ex.Message);
+    }
+
+    [Fact]
+    public void RenderPage_WithSection_RendersCorrectly()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "section-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        var sectionDir = Path.Combine(layoutsDir, "sections", "hero");
+        var pagesDir = Path.Combine(layoutsDir, "pages");
+        Directory.CreateDirectory(sectionDir);
+        Directory.CreateDirectory(pagesDir);
+
+        File.WriteAllText(Path.Combine(sectionDir, "hero.html"),
+            "<div class=\"hero\">{{ section.props.title }}</div>");
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "section-theme",
+            Version = "1.0.0",
+            Sections = new()
+            {
+                ["hero"] = new() { Template = "sections/hero/hero.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(pagesDir, "page.html"),
+            "{{ render_section '[{\"type\":\"hero\",\"props\":{\"title\":\"Hello World\"}}]' }}");
+
+        var result = renderer.RenderPage("pages/page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        });
+
+        Assert.Contains("Hello World", result);
+        Assert.Contains("hero", result);
+    }
+
+    [Fact]
+    public void RenderPage_WithSection_TemplateModifiedBetweenRenders_SeesUpdatedContent()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "inval-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        var sectionDir = Path.Combine(layoutsDir, "sections", "hero");
+        var pagesDir = Path.Combine(layoutsDir, "pages");
+        Directory.CreateDirectory(sectionDir);
+        Directory.CreateDirectory(pagesDir);
+
+        var templatePath = Path.Combine(sectionDir, "hero.html");
+        File.WriteAllText(templatePath, "<h1>{{ section.props.title }}</h1>");
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "inval-theme",
+            Version = "1.0.0",
+            Sections = new()
+            {
+                ["hero"] = new() { Template = "sections/hero/hero.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(pagesDir, "page1.html"),
+            "{{ render_section '[{\"type\":\"hero\",\"props\":{\"title\":\"V1\"}}]' }}");
+        File.WriteAllText(Path.Combine(pagesDir, "page2.html"),
+            "{{ render_section '[{\"type\":\"hero\",\"props\":{\"title\":\"V2\"}}]' }}");
+
+        var first = renderer.RenderPage("pages/page1.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "First", Content = "", Url = "/first/" }
+        });
+
+        Assert.Contains("<h1>V1</h1>", first);
+
+        File.WriteAllText(templatePath, "<h2>{{ section.props.title }}</h2>");
+
+        var second = renderer.RenderPage("pages/page2.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Second", Content = "", Url = "/second/" }
+        });
+
+        Assert.Contains("<h2>V2</h2>", second);
+        Assert.DoesNotContain("<h1>V2</h1>", second);
+    }
+
+    [Fact]
+    public async Task RenderPage_WithSection_MultiplePagesInParallel_NoCrossContamination()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "parallel-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        var sectionDir = Path.Combine(layoutsDir, "sections", "hero");
+        var pagesDir = Path.Combine(layoutsDir, "pages");
+        Directory.CreateDirectory(sectionDir);
+        Directory.CreateDirectory(pagesDir);
+
+        File.WriteAllText(Path.Combine(sectionDir, "hero.html"),
+            "<div class=\"hero\">{{ section.props.title }}</div>");
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "parallel-theme",
+            Version = "1.0.0",
+            Sections = new()
+            {
+                ["hero"] = new() { Template = "sections/hero/hero.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(pagesDir, "page.html"),
+            "{{ render_section '[{\"type\":\"hero\",\"props\":{\"title\":\"Shared\"}}]' }}");
+
+        var site = CreateSite();
+
+        var tasks = Enumerable.Range(0, 50).Select(_ => Task.Run(() =>
+        {
+            var result = renderer.RenderPage("pages/page.html", new PageModel
+            {
+                Site = site,
+                Page = new PageInfo { Title = "P", Content = "", Url = "/p/" }
+            });
+
+            Assert.Contains("Shared", result);
+            Assert.DoesNotContain("error", result, StringComparison.OrdinalIgnoreCase);
+            return result;
+        }));
+
+        await Task.WhenAll(tasks);
+    }
+
+    [Fact]
+    public void RenderPage_WithThemeComponent_RendersCorrectly()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "comp-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        var componentsDir = Path.Combine(layoutsDir, "components");
+        Directory.CreateDirectory(componentsDir);
+
+        File.WriteAllText(Path.Combine(componentsDir, "badge.html"),
+            "<span class=\"badge\">{{ data.text }}</span>");
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "comp-theme",
+            Version = "1.0.0",
+            Components = new()
+            {
+                ["badge"] = new() { Template = "components/badge.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(layoutsDir, "page.html"),
+            "{{ comp.render 'badge' {} }}");
+
+        var result = renderer.RenderPage("page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        });
+
+        Assert.Contains("badge", result);
+    }
+
+    [Fact]
+    public void RenderPage_WithThemeComponent_TemplateModifiedBetweenRenders_SeesUpdatedContent()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "comp-inval-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        var componentsDir = Path.Combine(layoutsDir, "components");
+        Directory.CreateDirectory(componentsDir);
+
+        var templatePath = Path.Combine(componentsDir, "alert.html");
+        File.WriteAllText(templatePath, "<strong>{{ data.msg }}</strong>");
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "comp-inval-theme",
+            Version = "1.0.0",
+            Components = new()
+            {
+                ["alert"] = new() { Template = "components/alert.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(layoutsDir, "page1.html"),
+            "{{ comp.render 'alert' {} }}");
+        File.WriteAllText(Path.Combine(layoutsDir, "page2.html"),
+            "{{ comp.render 'alert' {} }}");
+
+        var first = renderer.RenderPage("page1.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "First", Content = "", Url = "/first/" }
+        });
+
+        Assert.Contains("<strong>", first);
+
+        File.WriteAllText(templatePath, "<em>{{ data.msg }}</em>");
+
+        var second = renderer.RenderPage("page2.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Second", Content = "", Url = "/second/" }
+        });
+
+        Assert.Contains("<em>", second);
+        Assert.DoesNotContain("<strong>", second);
+    }
+
+    [Fact]
+    public async Task RenderPage_WithThemeComponent_MultiplePagesInParallel_NoCrossContamination()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "comp-parallel-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        var componentsDir = Path.Combine(layoutsDir, "components");
+        Directory.CreateDirectory(componentsDir);
+
+        File.WriteAllText(Path.Combine(componentsDir, "card.html"),
+            "<div class=\"card\">{{ data.title }}</div>");
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "comp-parallel-theme",
+            Version = "1.0.0",
+            Components = new()
+            {
+                ["card"] = new() { Template = "components/card.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(layoutsDir, "page.html"),
+            "{{ comp.render 'card' {} }}");
+
+        var site = CreateSite();
+
+        var tasks = Enumerable.Range(0, 50).Select(_ => Task.Run(() =>
+        {
+            var result = renderer.RenderPage("page.html", new PageModel
+            {
+                Site = site,
+                Page = new PageInfo { Title = "P", Content = "", Url = "/p/" }
+            });
+
+            Assert.Contains("card", result);
+            Assert.DoesNotContain("error", result, StringComparison.OrdinalIgnoreCase);
+            return result;
+        }));
+
+        await Task.WhenAll(tasks);
     }
 
     private static int CountOccurrences(string text, string value)

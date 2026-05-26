@@ -127,19 +127,35 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
     private readonly ScriptObject _parentGlobals;
     private readonly string _registryRoot;
     private readonly string _componentValidation;
+    private readonly SectionRenderHelper.GetCachedSectionTemplate _getCachedTemplate;
 
     public ThemeComponentRenderFunction(
         IReadOnlyDictionary<string, ThemeComponentDefinition> components,
         FileTemplateLoader templateLoader,
         ScriptObject parentGlobals,
         string registryRoot,
-        string componentValidation)
+        string componentValidation,
+        SectionRenderHelper.GetCachedSectionTemplate? getCachedTemplate = null)
     {
         _components = components;
         _templateLoader = templateLoader;
         _parentGlobals = parentGlobals;
         _registryRoot = registryRoot;
         _componentValidation = componentValidation;
+        _getCachedTemplate = getCachedTemplate ?? DefaultGetCachedTemplate;
+    }
+
+    private static bool DefaultGetCachedTemplate(string templatePath, out Template template)
+    {
+        if (!File.Exists(templatePath))
+        {
+            template = null!;
+            return false;
+        }
+
+        var templateText = File.ReadAllText(templatePath);
+        template = Template.Parse(templateText, templatePath);
+        return true;
     }
 
     public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
@@ -184,8 +200,10 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
                 EnableNullIndexer = true
             };
 
-            var templateText = File.ReadAllText(templatePath);
-            var compTemplate = Template.Parse(templateText);
+            if (!_getCachedTemplate(templatePath, out var compTemplate))
+            {
+                return Diagnostic("theme.component.template_not_found", $"component template not found: {compDef.Template}");
+            }
             if (compTemplate.HasErrors)
             {
                 return Diagnostic("theme.component.template_parse_failed", $"component error: {compTemplate.Messages}");

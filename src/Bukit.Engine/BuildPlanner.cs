@@ -28,9 +28,7 @@ internal static class BuildPlanner
         ConfigValidator.Validate(effectiveConfig);
 
         var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);
-        var resolvedThemeRoot = ResolveThemeRoot(rootDir, effectiveConfig.Theme, logger);
-        var (layoutsDir, assetsDir, staticDir, parentLayoutsDir, parentAssetsDir, parentStaticDir, userLayoutsDir) =
-            BuildPathUtils.ResolveThemeDirectories(rootDir, effectiveConfig.Theme, resolvedThemeRoot);
+        var resolved = ThemePathResolver.Resolve(rootDir, effectiveConfig.Theme, logger);
 
         PrepareOutputDirectory(effectiveConfig, rootDir, outputDir, logger);
 
@@ -40,29 +38,9 @@ internal static class BuildPlanner
 
         return new BuildPlan(
             effectiveConfig, outputDir,
-            layoutsDir, assetsDir, staticDir,
-            parentLayoutsDir, parentAssetsDir, parentStaticDir, userLayoutsDir,
+            resolved.LayoutsDir, resolved.AssetsDir, resolved.StaticDir,
+            resolved.ParentLayoutsDir, resolved.ParentAssetsDir, resolved.ParentStaticDir, resolved.UserLayoutsDir,
             mediaCacheDir, startedAt, stopwatch);
-    }
-
-    private static string? ResolveThemeRoot(string rootDir, ThemeConfig theme, ILogger logger)
-    {
-        if (string.IsNullOrWhiteSpace(theme.Source))
-        {
-            return null;
-        }
-
-        var themesCacheDir = Path.Combine(rootDir, ".cache", "themes");
-        Directory.CreateDirectory(themesCacheDir);
-        var resolved = ThemeSourceManager.Resolve(theme.Source, themesCacheDir, msg => logger.Warn(msg));
-        if (resolved is null)
-        {
-            return null;
-        }
-
-        return string.IsNullOrWhiteSpace(theme.Name)
-            ? resolved.ThemeRoot
-            : Path.Combine(resolved.ThemeRoot, theme.Name);
     }
 
     private static void PrepareOutputDirectory(AppConfig config, string rootDir, string outputDir, ILogger logger)

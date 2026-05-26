@@ -28,6 +28,7 @@ public sealed class ScribanTemplateRenderer
     private readonly string _componentValidation;
     private readonly IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? _allPages;
     private readonly IReadOnlyDictionary<string, ISectionPlugin>? _sectionPlugins;
+    private readonly ConcurrentDictionary<string, CachedSectionTemplate> _sectionTemplateCache = new(StringComparer.OrdinalIgnoreCase);
 
     public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null)
         : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, null, null, null, "off", null, null)
@@ -115,7 +116,8 @@ public sealed class ScribanTemplateRenderer
         {
             var sectionHelpers = new SectionRenderHelper(
                 _themeRegistry, _schemaValidator, _componentValidation,
-                _templateLoader, globals, _allPages, _sectionPlugins);
+                _templateLoader, globals, _allPages, _sectionPlugins,
+                TryGetCachedSectionTemplate);
             var sectionObj = new ScriptObject();
             sectionObj.SetValue("render_section", new RenderSectionFunction(sectionHelpers), readOnly: true);
             context.PushGlobal(sectionObj);
@@ -128,7 +130,8 @@ public sealed class ScribanTemplateRenderer
                     _templateLoader,
                     globals,
                     Path.Combine(_themeRegistry.ThemeRoot, "layouts"),
-                    _componentValidation), readOnly: true);
+                    _componentValidation,
+                    TryGetCachedSectionTemplate), readOnly: true);
                 context.PushGlobal(new ScriptObject { ["comp"] = compObj });
             }
         }
@@ -242,6 +245,36 @@ public sealed class ScribanTemplateRenderer
     private readonly record struct FileSignature(DateTime LastWriteTimeUtc, long Length);
 
     private sealed record CachedTemplate(FileSignature Signature, Template Template, string? LayoutTemplateRelativePath);
+
+    private readonly record struct SectionFileSignature(DateTime LastWriteTimeUtc, long Length);
+
+    private sealed record CachedSectionTemplate(SectionFileSignature Signature, Template Template);
+
+    private bool TryGetCachedSectionTemplate(string templatePath, out Template template)
+    {
+        var fileInfo = new FileInfo(templatePath);
+        if (!fileInfo.Exists)
+        {
+            template = null!;
+            return false;
+        }
+
+        var signature = new SectionFileSignature(fileInfo.LastWriteTimeUtc, fileInfo.Length);
+        if (_sectionTemplateCache.TryGetValue(templatePath, out var cached) && cached.Signature.Equals(signature))
+        {
+            template = cached.Template;
+            return true;
+        }
+
+        var templateText = File.ReadAllText(templatePath);
+        template = Template.Parse(templateText, templatePath);
+        if (!template.HasErrors)
+        {
+            _sectionTemplateCache[templatePath] = new CachedSectionTemplate(signature, template);
+        }
+
+        return true;
+    }
 }
 
 internal sealed class SectionRenderHelper
@@ -253,8 +286,11 @@ internal sealed class SectionRenderHelper
     private readonly ScriptObject _parentGlobals;
     private readonly IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? _allPages;
     private readonly IReadOnlyDictionary<string, ISectionPlugin>? _sectionPlugins;
+    private readonly GetCachedSectionTemplate _getCachedTemplate;
 
     internal ScriptObject ParentGlobals => _parentGlobals;
+
+    internal delegate bool GetCachedSectionTemplate(string templatePath, out Template template);
 
     public SectionRenderHelper(
         ThemeComponentRegistry themeRegistry,
@@ -263,7 +299,8 @@ internal sealed class SectionRenderHelper
         FileTemplateLoader templateLoader,
         ScriptObject parentGlobals,
         IReadOnlyList<(ContentItem, RouteInfo?)>? allPages,
-        IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null)
+        IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null,
+        GetCachedSectionTemplate? getCachedTemplate = null)
     {
         _themeRegistry = themeRegistry;
         _schemaValidator = schemaValidator;
@@ -272,6 +309,20 @@ internal sealed class SectionRenderHelper
         _parentGlobals = parentGlobals;
         _allPages = allPages;
         _sectionPlugins = sectionPlugins;
+        _getCachedTemplate = getCachedTemplate ?? DefaultGetCachedTemplate;
+    }
+
+    private static bool DefaultGetCachedTemplate(string templatePath, out Template template)
+    {
+        if (!File.Exists(templatePath))
+        {
+            template = null!;
+            return false;
+        }
+
+        var templateText = File.ReadAllText(templatePath);
+        template = Template.Parse(templateText, templatePath);
+        return true;
     }
 
     public string render_section(string jsonInput)
@@ -418,9 +469,15 @@ internal sealed class SectionRenderHelper
             }
         }
 
-        var sectionTemplateText = File.ReadAllText(templatePath);
-        var sectionTemplate = Template.Parse(sectionTemplateText, templatePath);
-        if (sectionTemplate.HasErrors) return Diagnostic("theme.section.template_parse_failed", $"section template error: {sectionType}: {sectionTemplate.Messages}");
+        if (!_getCachedTemplate(templatePath, out var sectionTemplate))
+        {
+            return Diagnostic("theme.section.template_not_found", $"section template not found: {sectionType}");
+        }
+
+        if (sectionTemplate.HasErrors)
+        {
+            return Diagnostic("theme.section.template_parse_failed", $"section template error: {sectionType}: {sectionTemplate.Messages}");
+        }
 
         var sectionContext = new TemplateContext
         {
@@ -473,7 +530,8 @@ internal sealed class SectionRenderHelper
                     _templateLoader,
                     parentGlobals,
                     Path.Combine(_themeRegistry.ThemeRoot, "layouts"),
-                    _componentValidation),
+                    _componentValidation,
+                    _getCachedTemplate),
                 readOnly: true);
         }
 
@@ -619,9 +677,10 @@ internal sealed class RenderComponentFunction : IScriptCustomFunction
         FileTemplateLoader templateLoader,
         ScriptObject parentGlobals,
         string registryRoot,
-        string componentValidation)
+        string componentValidation,
+        SectionRenderHelper.GetCachedSectionTemplate? getCachedTemplate = null)
     {
-        _renderer = new ThemeComponentRenderFunction(components, templateLoader, parentGlobals, registryRoot, componentValidation);
+        _renderer = new ThemeComponentRenderFunction(components, templateLoader, parentGlobals, registryRoot, componentValidation, getCachedTemplate);
     }
 
     public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)

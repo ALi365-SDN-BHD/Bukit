@@ -19,32 +19,22 @@ internal static class ThemeBootstrapper
 {
     internal static ThemeBootstrapResult Bootstrap(AppConfig config, string rootDir, ILogger log)
     {
-        var themeName = config.Theme.Name;
+        return Bootstrap(config, rootDir, log,
+            ThemePathResolver.Resolve(rootDir, config.Theme, log));
+    }
+
+    internal static ThemeBootstrapResult Bootstrap(AppConfig config, string rootDir, ILogger log, ResolvedThemePaths resolved)
+    {
+        var themeName = resolved.ThemeName == "default" ? config.Theme.Name : resolved.ThemeName;
+        var themeRoot = resolved.ThemeRoot;
         ThemeManifestV2? themeManifest = null;
         ThemeComponentRegistry? themeRegistry = null;
         SectionSchemaValidator? schemaValidator = null;
         IReadOnlyDictionary<string, ISectionPlugin>? resolvedSectionPlugins = null;
 
-        if (string.IsNullOrWhiteSpace(themeName) && string.IsNullOrWhiteSpace(config.Theme.Source))
+        if ((string.IsNullOrWhiteSpace(config.Theme.Name) && string.IsNullOrWhiteSpace(config.Theme.Source)))
         {
             return new ThemeBootstrapResult(themeName, null, null, null, null, null, null);
-        }
-
-        var themeRoot = Path.Combine(rootDir, "themes", themeName ?? "remote");
-        if (!string.IsNullOrWhiteSpace(config.Theme.Source))
-        {
-            var themesCacheDir = Path.Combine(rootDir, ".cache", "themes");
-            Directory.CreateDirectory(themesCacheDir);
-            var resolved = ThemeSourceManager.Resolve(config.Theme.Source, themesCacheDir,
-                msg => log.Warn(msg));
-            if (resolved is not null)
-            {
-                themeRoot = resolved.ThemeRoot;
-                if (!string.IsNullOrWhiteSpace(themeName))
-                {
-                    themeRoot = Path.Combine(resolved.ThemeRoot, themeName);
-                }
-            }
         }
 
         themeManifest = ThemeManifestLoader.Load(themeRoot);
@@ -54,10 +44,14 @@ internal static class ThemeBootstrapper
         }
 
         ThemeComponentRegistry? parentRegistry = null;
-        string? parentThemeRoot = null;
-        if (!string.IsNullOrWhiteSpace(themeManifest.Extends))
+        var parentThemeRoot = resolved.ParentThemeRoot;
+        if (parentThemeRoot is null && !string.IsNullOrWhiteSpace(themeManifest.Extends))
         {
             parentThemeRoot = Path.Combine(rootDir, "themes", themeManifest.Extends);
+        }
+
+        if (!string.IsNullOrWhiteSpace(parentThemeRoot))
+        {
             var parentManifest = ThemeManifestLoader.Load(parentThemeRoot);
             if (parentManifest is not null)
             {
