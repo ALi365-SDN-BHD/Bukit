@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bukit.Shared\Bukit.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Config\Bukit.Config.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Routing\Bukit.Routing.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Content\Bukit.Content.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Rendering\Bukit.Rendering.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Engine\Bukit.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Cli\Bukit.Cli.csproj" />
+    <ProjectReference Include="..\..\src\plugins\PathReportPlugin\PathReportPlugin.csproj" />
+    <ProjectReference Include="..\..\src\plugins\SampleAfterBuildPlugin\SampleAfterBuildPlugin.csproj" />
+    <ProjectReference Include="..\..\src\plugins\VisualFeedbackPlugin\VisualFeedbackPlugin.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="NetArchTest.Rules" />
+  </ItemGroup>
+
+</Project>
