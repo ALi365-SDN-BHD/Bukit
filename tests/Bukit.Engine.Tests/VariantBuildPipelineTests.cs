@@ -1,0 +1,160 @@
+using Bukit.Config;
+using Bukit.Content;
+using Bukit.Engine;
+using Bukit.Rendering;
+using Xunit;
+
+namespace Bukit.Engine.Tests;
+
+public sealed class VariantBuildPipelineTests : IDisposable
+{
+    private readonly string _rootDir;
+
+    public VariantBuildPipelineTests()
+    {
+        _rootDir = Path.Combine(Path.GetTempPath(), "bukit-variant-pipeline-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_rootDir);
+    }
+
+    public void Dispose()
+    {
+        try { Directory.Delete(_rootDir, recursive: true); } catch { }
+    }
+
+    private static AppConfig CreateMinimalConfig()
+    {
+        return new AppConfig
+        {
+            Site = new SiteConfig { Name = "test", Title = "Test Site", BaseUrl = "/", Language = "en" },
+            Content = new ContentConfig { Provider = "markdown" },
+        };
+    }
+
+    [Fact]
+    public void Pipeline_CanBeConstructed()
+    {
+        var pipeline = new VariantBuildPipeline();
+        Assert.NotNull(pipeline);
+    }
+
+    [Fact]
+    public void PrepareDataModules_EmptyItems_ReturnsEmptyResult()
+    {
+        var pipeline = new VariantBuildPipeline();
+        var items = new List<ContentItem>();
+        var bodyStore = new NoOpBodyStore();
+
+        var result = pipeline.PrepareDataModules(items, "en", bodyStore);
+
+        Assert.Empty(result.DataItems);
+    }
+
+    [Fact]
+    public void BuildSiteModel_ConstructsFromConfigAndData()
+    {
+        var pipeline = new VariantBuildPipeline();
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "MySite",
+                Title = "My Title",
+                Description = "A test site description",
+                Url = "https://example.com",
+                Language = "zh",
+                BaseUrl = "/"
+            },
+            Content = new ContentConfig { Provider = "markdown" },
+            Theme = new ThemeConfig
+            {
+                Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["showSidebar"] = true
+                }
+            }
+        };
+
+        Dictionary<string, IReadOnlyList<ModuleInfo>>? modules = null;
+        Dictionary<string, object>? sourceData = null;
+
+        var model = pipeline.BuildSiteModel(config, "/custom/", modules, sourceData);
+
+        Assert.Equal("MySite", model.Name);
+        Assert.Equal("My Title", model.Title);
+        Assert.Equal("https://example.com", model.Url);
+        Assert.Equal("/custom/", model.BaseUrl);
+        Assert.Equal("zh", model.Language);
+        Assert.Equal("A test site description", model.Description);
+        Assert.NotNull(model.Params);
+        Assert.True((bool)model.Params!["showSidebar"]);
+    }
+
+    [Fact]
+    public void BuildStaticHtmlData_WithNullStaticTemplate_DefaultsToRawStatic()
+    {
+        var pipeline = new VariantBuildPipeline();
+
+        var (routes, template) = pipeline.BuildStaticHtmlData(
+            null, null, _ => { }, false);
+
+        Assert.NotNull(routes);
+        Assert.Empty(routes);
+        Assert.Equal("__raw_static__", template);
+    }
+
+    [Fact]
+    public void BuildStaticHtmlData_WithCustomTemplate_ReturnsCorrectTemplate()
+    {
+        var pipeline = new VariantBuildPipeline();
+        var staticDir = Path.Combine(_rootDir, "static");
+        Directory.CreateDirectory(staticDir);
+
+        var (routes, template) = pipeline.BuildStaticHtmlData(
+            staticDir, "custom-static", _ => { }, false);
+
+        Assert.NotNull(routes);
+        Assert.Equal("custom-static", template);
+    }
+
+    [Fact]
+    public void GetThemeRootForTokens_WithRegistry_ReturnsThemeRoot()
+    {
+        var pipeline = new VariantBuildPipeline();
+
+        var (themeRoot, parentRoot) = pipeline.GetThemeRootForTokens(
+            "/path/to/theme", true, null, false);
+
+        Assert.Equal("/path/to/theme", themeRoot);
+        Assert.Null(parentRoot);
+    }
+
+    [Fact]
+    public void GetThemeRootForTokens_WithRegistryAndExtends_ReturnsBothRoots()
+    {
+        var pipeline = new VariantBuildPipeline();
+
+        var (themeRoot, parentRoot) = pipeline.GetThemeRootForTokens(
+            "/path/to/theme", true, "/path/to/parent", true);
+
+        Assert.Equal("/path/to/theme", themeRoot);
+        Assert.Equal("/path/to/parent", parentRoot);
+    }
+
+    [Fact]
+    public void GetThemeRootForTokens_WithNullRegistry_ReturnsNulls()
+    {
+        var pipeline = new VariantBuildPipeline();
+
+        var (themeRoot, parentRoot) = pipeline.GetThemeRootForTokens(
+            "/path/to/theme", false, null, false);
+
+        Assert.Null(themeRoot);
+        Assert.Null(parentRoot);
+    }
+
+    private sealed class NoOpBodyStore : IContentBodyStore
+    {
+        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody(string.Empty));
+    }
+}
