@@ -25,7 +25,7 @@ internal static class ThemeBootstrapper
 
     internal static ThemeBootstrapResult Bootstrap(AppConfig config, string rootDir, ILogger log, ResolvedThemePaths resolved)
     {
-        var themeName = resolved.ThemeName == "default" ? config.Theme.Name : resolved.ThemeName;
+        var themeName = resolved.ThemeName == "default" ? (config.Theme.Name ?? "default") : resolved.ThemeName;
         var themeRoot = resolved.ThemeRoot;
         ThemeManifestV2? themeManifest = null;
         ThemeComponentRegistry? themeRegistry = null;
@@ -48,6 +48,14 @@ internal static class ThemeBootstrapper
         if (parentThemeRoot is null && !string.IsNullOrWhiteSpace(themeManifest.Extends))
         {
             parentThemeRoot = Path.Combine(rootDir, "themes", themeManifest.Extends);
+            if (resolved.IsRemote)
+            {
+                var remoteSibling = Path.Combine(Path.GetDirectoryName(themeRoot)!, themeManifest.Extends);
+                if (Directory.Exists(remoteSibling))
+                {
+                    parentThemeRoot = remoteSibling;
+                }
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(parentThemeRoot))

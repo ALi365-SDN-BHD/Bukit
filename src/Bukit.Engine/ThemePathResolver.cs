@@ -53,6 +53,15 @@ internal static class ThemePathResolver
         if (!string.IsNullOrWhiteSpace(theme.Extends))
         {
             parentThemeRoot = Path.Combine(rootDir, "themes", theme.Extends);
+            if (isRemote)
+            {
+                var remoteSibling = Path.Combine(Path.GetDirectoryName(themeRoot)!, theme.Extends);
+                if (Directory.Exists(remoteSibling))
+                {
+                    parentThemeRoot = remoteSibling;
+                }
+            }
+
             var parentTheme = new ThemeConfig { Name = theme.Extends };
             var (pLayouts, pAssets, pStatic) = ResolveThemeDirs(rootDir, parentTheme, parentThemeRoot, true);
             parentLayoutsDir = pLayouts;
