@@ -14,6 +14,13 @@ internal static class StaticFileService
         {
             cancellationToken.ThrowIfCancellationRequested();
             var relativeOutputPath = Path.GetRelativePath(staticDir, file);
+
+            if (!publishDotFiles && HasDotPrefixedSegment(relativeOutputPath))
+            {
+                warn?.Invoke($"Skipping dotfile in static dir: {relativeOutputPath}");
+                continue;
+            }
+
             var url = BuildUrlFromStaticHtmlPath(relativeOutputPath);
             var outputPath = BuildOutputPathFromStaticHtmlPath(relativeOutputPath);
 
@@ -91,7 +98,7 @@ internal static class StaticFileService
         return false;
     }
 
-    internal static IReadOnlyList<RouteInfo> BuildStaticHtmlRoutes(string staticDir, string templateName, Action<string>? warn = null)
+    internal static IReadOnlyList<RouteInfo> BuildStaticHtmlRoutes(string staticDir, string templateName, Action<string>? warn = null, bool publishDotFiles = false)
     {
         if (!Directory.Exists(staticDir))
         {
@@ -102,6 +109,13 @@ internal static class StaticFileService
         foreach (var file in Directory.GetFiles(staticDir, "*.html", SearchOption.AllDirectories))
         {
             var relativeOutputPath = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(staticDir, file));
+
+            if (!publishDotFiles && HasDotPrefixedSegment(relativeOutputPath))
+            {
+                warn?.Invoke($"Skipping dotfile in static dir: {relativeOutputPath}");
+                continue;
+            }
+
             var fileName = Path.GetFileNameWithoutExtension(file);
             if (string.IsNullOrEmpty(fileName))
             {

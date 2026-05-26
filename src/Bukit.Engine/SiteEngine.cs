@@ -313,7 +313,7 @@ public sealed class SiteEngine
         var listRoutes = routeResult.ListRoutes;
         var staticRouteTemplate = !string.IsNullOrWhiteSpace(staticTemplate) ? staticTemplate : "__raw_static__";
         var staticHtmlRoutes = hasStaticDir
-            ? StaticFileService.BuildStaticHtmlRoutes(ctx.StaticDir, staticRouteTemplate, log.Warn)
+            ? StaticFileService.BuildStaticHtmlRoutes(ctx.StaticDir, staticRouteTemplate, log.Warn, config.Build.PublishDotFiles)
             : Array.Empty<RouteInfo>();
         RouteInventoryValidator.ValidateFinalRoutes(routed, pluginContext.DerivedRouted, listRoutes, staticHtmlRoutes);
         var seoAlternates = SeoAlternatesService.AddVariantRouteAlternates(
