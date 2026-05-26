@@ -120,6 +120,10 @@ public static class DoctorCommand
         Console.WriteLine("--- Template chain analysis ---");
         AnalyzeTemplateChains(layoutsDir, allHtmlFiles);
 
+        Console.WriteLine();
+        Console.WriteLine("--- Template variable spell check ---");
+        CheckTemplateVariables(layoutsDir);
+
         var ctx = new DoctorContext(rootDir, config, layoutsDir, allHtmlFiles);
 
         Console.WriteLine();
@@ -1172,6 +1176,22 @@ public static class DoctorCommand
             }
 
             Console.WriteLine($"  ({totalExtras} extra field(s) total across {filesWithExtras} file(s))");
+        }
+    }
+
+    private static void CheckTemplateVariables(string layoutsDir)
+    {
+        var warnings = Bukit.Engine.ScribanTemplateLinter.LintDirectory(layoutsDir, "");
+
+        if (warnings.Count == 0)
+        {
+            Console.WriteLine("✔ No unknown template variables detected");
+            return;
+        }
+
+        foreach (var w in warnings)
+        {
+            Console.WriteLine($"⚠ {w.Template}: {w.Message}");
         }
     }
 
