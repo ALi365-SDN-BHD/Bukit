@@ -1,11 +1,25 @@
 using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Commands;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
 
-public sealed class BuildCommandTests
+public sealed class BuildCommandTests : IDisposable
 {
+    private readonly string _testDir;
+
+    public BuildCommandTests()
+    {
+        _testDir = Path.Combine(Path.GetTempPath(), "bukit-build-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_testDir);
+    }
+
+    public void Dispose()
+    {
+        try { Directory.Delete(_testDir, recursive: true); } catch { }
+    }
+
     [Fact]
     public async Task RunAsync_WithConfigOption_ResolvesAndStartsBuild()
     {
@@ -90,5 +104,62 @@ public sealed class BuildCommandTests
             Environment.CurrentDirectory = originalDir;
             try { Directory.Delete(dir, recursive: true); } catch { }
         }
+    }
+
+    [Fact]
+    public async Task RunAsync_MissingConfigFile_ThrowsConfigException()
+    {
+        var nonExistentConfig = Path.Combine(_testDir, "nonexistent.yaml");
+        var command = new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--config"] = nonExistentConfig,
+            },
+            Array.Empty<string>());
+
+        var ex = await Assert.ThrowsAsync<ConfigException>(
+            () => BuildCommand.RunAsync(command));
+
+        Assert.Contains("Config file not found", ex.Message);
+    }
+
+    [Fact]
+    public async Task RunAsync_InvalidYamlConfig_ThrowsConfigException()
+    {
+        var configPath = Path.Combine(_testDir, "invalid-site.yaml");
+        File.WriteAllText(configPath, "{{{ invalid ::: yaml ]]]");
+
+        var command = new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--config"] = configPath,
+            },
+            Array.Empty<string>());
+
+        await Assert.ThrowsAsync<ConfigException>(
+            () => BuildCommand.RunAsync(command));
+    }
+
+    [Fact]
+    public async Task RunAsync_ArgReaderWithMissingConfig_ReturnsErrorCode()
+    {
+        var reader = new ArgReader(new[] { "--config", Path.Combine(_testDir, "no-file.yaml") });
+
+        var ex = await Assert.ThrowsAsync<ConfigException>(
+            () => BuildCommand.RunAsync(reader));
+
+        Assert.Contains("not found", ex.Message);
+    }
+
+    [Fact]
+    public async Task RunAsync_ArgReaderWithInvalidYaml_ThrowsConfigException()
+    {
+        var configPath = Path.Combine(_testDir, "bad.yaml");
+        File.WriteAllText(configPath, "!!! not yaml !!!");
+
+        var reader = new ArgReader(new[] { "--config", configPath });
+
+        await Assert.ThrowsAsync<ConfigException>(
+            () => BuildCommand.RunAsync(reader));
     }
 }

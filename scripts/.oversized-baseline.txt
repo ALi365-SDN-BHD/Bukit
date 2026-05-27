@@ -9,26 +9,5 @@
 #
 # Format: one path per line (relative to repo root). Lines starting with # are ignored.
 
-# 🎉 ALL 18 original oversized files have been split below 600 lines.
-# Keep it that way.
-
 # special exception: string constants only, no logic
 src/Bukit.Cli/Commands/StarterThemeResources.cs
-
-# --- Bukit.Cli ---
-# (DoctorCommand.cs, SeoCommand.cs, StarterThemeScaffold.cs, ThemeCommand.cs split below 600 lines — removed from baseline)
-
-# --- Bukit.Config ---
-# (ConfigLoader.cs and ConfigValidator.cs split below 600 lines — removed from baseline)
-
-# --- Bukit.Content ---
-# (MarkdownFolderProvider.cs, ImageAssetLocalizer.cs, NotionContentProvider.cs split below 600 lines — removed from baseline)
-
-# --- Bukit.Engine ---
-# (PageRenderDispatcher.cs, PagesIndexPlugin.cs, SeoAuditReportWriter.cs, SeoModelBuilder.cs split below 600 lines — removed from baseline)
-
-# --- Bukit.Rendering ---
-# (ScribanTemplateRenderer.cs split below 600 lines — removed from baseline)
-
-# --- Bukit.Cli (Clone) ---
-# (CloneCommand.cs, CloneContentWriter.cs, CloneThemeGenerator.cs split below 600 lines — removed from baseline)
