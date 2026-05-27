@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Bukit.Engine;
 
+using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin

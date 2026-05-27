@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Bukit.Engine.Plugins.Protocol;
+using Bukit.Engine.Abstractions.Plugins.Protocol;
 
 namespace Bukit.Plugins.PathReportPlugin;
 
@@ -82,7 +82,7 @@ internal sealed partial class PathReportJsonContext : JsonSerializerContext
 #if false
 using System.Text.Json;
 using Bukit.Config;
-using Bukit.Engine.Plugins;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
 
 namespace Bukit.Plugins.PathReportPlugin;

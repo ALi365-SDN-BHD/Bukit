@@ -2,6 +2,7 @@
 #if false
 using System.Collections.Generic;
 
+using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins.Generated;
 
 internal sealed class GeneratedPluginSource : IPluginSource

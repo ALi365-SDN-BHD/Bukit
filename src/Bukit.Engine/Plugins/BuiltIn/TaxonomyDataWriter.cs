@@ -2,6 +2,7 @@ using System.Text.Json;
 using Bukit.Config;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Engine.Abstractions.Plugins;
 
 internal static class TaxonomyDataWriter
 {

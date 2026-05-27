@@ -3,6 +3,8 @@ using System.Text;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Plugins.Protocol;
+using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Abstractions.Plugins.Protocol;
 using Bukit.Engine.Plugins;
 using Bukit.Routing;
 using Bukit.Shared;

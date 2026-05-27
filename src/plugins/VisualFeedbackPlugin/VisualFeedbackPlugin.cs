@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Bukit.Engine.Plugins.Protocol;
+using Bukit.Engine.Abstractions.Plugins.Protocol;
 
 namespace Bukit.Plugins.VisualFeedbackPlugin;
 

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Bukit.Engine.Plugins.Protocol;
+namespace Bukit.Engine.Abstractions.Plugins.Protocol;
 
 internal static class JsonElementMaterializer
 {

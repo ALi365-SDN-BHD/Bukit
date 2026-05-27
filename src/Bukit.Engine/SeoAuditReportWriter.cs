@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Xml.Linq;
 using Bukit.Config;
-using Bukit.Engine.Plugins;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Shared;

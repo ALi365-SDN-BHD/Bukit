@@ -2,6 +2,7 @@ using Bukit.Content;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
+using Bukit.Engine.Abstractions.Plugins;
 internal static class TaxonomySortHelper
 {
     internal static int ComparePages(TaxonomyPage a, TaxonomyPage b)

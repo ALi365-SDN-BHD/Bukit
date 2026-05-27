@@ -1,5 +1,5 @@
 using Bukit.Config;
-using Bukit.Engine.Plugins;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
 
 namespace Bukit.Engine;

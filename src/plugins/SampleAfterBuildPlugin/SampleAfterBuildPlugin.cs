@@ -1,4 +1,4 @@
-using Bukit.Engine.Plugins.Protocol;
+using Bukit.Engine.Abstractions.Plugins.Protocol;
 
 namespace Bukit.Plugins.SampleAfterBuildPlugin;
 
@@ -21,7 +21,7 @@ internal sealed class SampleAfterBuildPlugin : ProcessPluginHost
 
 // DESKTOP-REMOVED: Original inline [BukitPlugin] implementation.
 #if false
-using Bukit.Engine.Plugins;
+using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Plugins.SampleAfterBuildPlugin;
 

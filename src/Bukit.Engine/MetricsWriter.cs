@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Bukit.Config;
-using Bukit.Engine.Plugins;
+using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine;
 

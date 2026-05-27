@@ -1,6 +1,6 @@
 using Bukit.Routing;
 
-namespace Bukit.Engine.Plugins;
+namespace Bukit.Engine.Abstractions.Plugins;
 
 public sealed record SeoIndexEntry(
     RouteInfo Route,

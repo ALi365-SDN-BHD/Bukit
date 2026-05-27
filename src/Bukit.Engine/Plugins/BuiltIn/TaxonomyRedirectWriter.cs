@@ -2,6 +2,7 @@ using System.Text;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
+using Bukit.Engine.Abstractions.Plugins;
 internal static class TaxonomyRedirectWriter
 {
     internal static void WriteRedirects(string outputDir, string kind, Dictionary<string, TaxonomyTerm> terms)

@@ -2,6 +2,7 @@ using System.Text;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Rendering;
+using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
@@ -63,7 +64,7 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             .Concat(context.DerivedRouted)
             .ToList();
 
-        var keyed = new Dictionary<string, (ContentItem Item, Plugins.SeoIndexEntry Entry, SeoModel? Model)>(StringComparer.OrdinalIgnoreCase);
+        var keyed = new Dictionary<string, (ContentItem Item, SeoIndexEntry Entry, SeoModel? Model)>(StringComparer.OrdinalIgnoreCase);
         foreach (var (item, route) in routed)
         {
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);

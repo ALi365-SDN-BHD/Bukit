@@ -1,7 +1,9 @@
+using Bukit.Engine.Abstractions.Plugins.Protocol;
 using Bukit.Config;
 
 namespace Bukit.Engine.Plugins.Protocol;
 
+using Bukit.Engine.Abstractions.Plugins;
 internal interface IProtocolPluginInvoker
 {
     Task<ProtocolPluginInvocationResult> InvokeAsync(

@@ -1,8 +1,9 @@
+using Bukit.Engine.Abstractions.Plugins.Protocol;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bukit.Config;
 using Bukit.Content;
-using Bukit.Engine.Plugins;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Routing;
 
 namespace Bukit.Engine.Plugins.Protocol;

@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using Bukit.Engine.Output;
-using Bukit.Engine.Plugins;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Incremental;

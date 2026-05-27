@@ -2,6 +2,7 @@ using Bukit.Content;
 using Bukit.Routing;
 using System.Diagnostics;
 
+using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins;
 
 public static class PluginRunner

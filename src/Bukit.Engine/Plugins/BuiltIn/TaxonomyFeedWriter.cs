@@ -2,6 +2,7 @@ using System.Text;
 using Bukit.Content;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Engine.Abstractions.Plugins;
 
 internal static class TaxonomyFeedWriter
 {

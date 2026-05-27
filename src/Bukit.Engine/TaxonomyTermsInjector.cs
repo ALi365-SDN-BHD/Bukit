@@ -3,7 +3,7 @@ using System.Text.Json;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Content.Notion;
-using Bukit.Engine.Plugins;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
 
 namespace Bukit.Engine;

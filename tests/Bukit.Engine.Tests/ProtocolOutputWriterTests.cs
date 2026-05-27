@@ -1,4 +1,5 @@
 using Bukit.Engine.Plugins.Protocol;
+using Bukit.Engine.Abstractions.Plugins.Protocol;
 using Xunit;
 
 namespace Bukit.Engine.Tests;

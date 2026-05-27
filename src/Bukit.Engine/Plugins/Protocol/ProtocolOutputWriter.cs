@@ -1,3 +1,5 @@
+using Bukit.Engine.Abstractions.Plugins.Protocol;
+
 namespace Bukit.Engine.Plugins.Protocol;
 
 internal static class ProtocolOutputWriter

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 
 namespace Bukit.Engine.Plugins;
 
+using Bukit.Engine.Abstractions.Plugins;
 public static class PluginCapability
 {
     public const string EmitOutputs = "emit-outputs";

@@ -2,6 +2,7 @@ using Bukit.Content;
 using Bukit.Routing;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Engine.Abstractions.Plugins;
 
 internal sealed class CollectionRouteIndex
 {

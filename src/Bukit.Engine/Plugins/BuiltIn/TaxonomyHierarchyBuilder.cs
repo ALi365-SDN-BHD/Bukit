@@ -1,3 +1,5 @@
+using Bukit.Engine.Abstractions.Plugins;
+
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal static class TaxonomyHierarchyBuilder

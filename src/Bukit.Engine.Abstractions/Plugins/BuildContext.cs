@@ -3,7 +3,7 @@ using Bukit.Content;
 using Bukit.Routing;
 using Bukit.Shared;
 
-namespace Bukit.Engine.Plugins;
+namespace Bukit.Engine.Abstractions.Plugins;
 
 public sealed class BuildContext
 {

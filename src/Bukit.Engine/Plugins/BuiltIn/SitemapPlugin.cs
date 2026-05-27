@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Engine;
 using Bukit.Routing;
 
+using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin

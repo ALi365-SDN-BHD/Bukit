@@ -2,6 +2,7 @@ using Bukit.Config;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
+using Bukit.Engine.Abstractions.Plugins;
 internal static class TaxonomyTemplateResolver
 {
     internal static (string IndexTemplate, string TermTemplate) ResolveTemplates(TaxonomyConfig config, string layoutsDir, string kind, TaxonomyKindConfig? kindConfig = null)

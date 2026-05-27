@@ -1,12 +1,9 @@
 using Bukit.Content;
-using Bukit.Engine.Plugins;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Routing;
 
 namespace Bukit.Plugins.ThrowingPlugin;
 
-/// <summary>
-/// Test-only plugin that throws to verify PluginRunner fail-mode behavior.
-/// </summary>
 public sealed class ThrowingPlugin : IBukitPlugin, IAfterBuildPlugin, IDerivePagesPlugin
 {
     public string Name => "throwing-test";

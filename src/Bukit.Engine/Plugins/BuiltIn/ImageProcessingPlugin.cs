@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Bukit.Config;
 using Bukit.Shared;
 
+using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 public sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildPlugin

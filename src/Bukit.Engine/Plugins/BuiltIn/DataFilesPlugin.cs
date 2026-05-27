@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using Bukit.Content;
 using Bukit.Routing;
+using Bukit.Engine.Abstractions.Plugins;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Engine.Plugins.BuiltIn;

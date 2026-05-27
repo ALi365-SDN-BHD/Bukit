@@ -1,6 +1,7 @@
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
 using Bukit.Routing;
 using Xunit;
@@ -40,7 +41,7 @@ public sealed class DefaultSearchIndexBuilderTests
             Array.Empty<(RouteInfo, DateTimeOffset)>(),
             new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, Bukit.Rendering.SeoModel>(),
-            Array.Empty<Bukit.Engine.Plugins.PluginExecutionInfo>(),
+            Array.Empty<PluginExecutionInfo>(),
             0,
             0,
             new Dictionary<string, int>(),

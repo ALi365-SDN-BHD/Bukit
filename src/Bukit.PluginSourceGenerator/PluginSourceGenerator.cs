@@ -24,8 +24,8 @@ public sealed class PluginSourceGenerator : ISourceGenerator
         }
 
         var compilation = context.Compilation;
-        var pluginInterface = compilation.GetTypeByMetadataName("Bukit.Engine.Plugins.IBukitPlugin");
-        var pluginAttribute = compilation.GetTypeByMetadataName("Bukit.Engine.Plugins.BukitPluginAttribute");
+        var pluginInterface = compilation.GetTypeByMetadataName("Bukit.Engine.Abstractions.Plugins.IBukitPlugin");
+        var pluginAttribute = compilation.GetTypeByMetadataName("Bukit.Engine.Abstractions.Plugins.BukitPluginAttribute");
 
         var pluginTypes = new List<INamedTypeSymbol>();
 
@@ -103,7 +103,7 @@ public sealed class PluginSourceGenerator : ISourceGenerator
     {
         var builder = new StringBuilder();
         builder.AppendLine("using System.Collections.Generic;");
-        builder.AppendLine("using Bukit.Engine.Plugins;");
+        builder.AppendLine("using Bukit.Engine.Abstractions.Plugins;");
         builder.AppendLine();
         builder.AppendLine("namespace Bukit.Engine.Plugins.Generated;");
         builder.AppendLine();

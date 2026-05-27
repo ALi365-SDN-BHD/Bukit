@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
 using Bukit.Config;
 using Bukit.Shared;

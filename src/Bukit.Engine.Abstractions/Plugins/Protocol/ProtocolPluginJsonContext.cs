@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Bukit.Engine.Plugins.Protocol;
+namespace Bukit.Engine.Abstractions.Plugins.Protocol;
 
 [JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(ProtocolPluginInvocationRequest))]

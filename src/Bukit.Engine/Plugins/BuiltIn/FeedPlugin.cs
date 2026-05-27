@@ -2,6 +2,7 @@ using Bukit.Config;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
+using Bukit.Engine.Abstractions.Plugins;
 public sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
 {
     public string Name => "feed";

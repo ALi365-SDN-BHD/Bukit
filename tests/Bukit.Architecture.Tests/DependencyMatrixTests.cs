@@ -44,9 +44,7 @@ public class DependencyMatrixTests
     {
         Types.InAssembly(AbstractionsAssembly)
             .That()
-            .DoNotResideInNamespace("Bukit.Engine.Plugins")
-            .And()
-            .DoNotResideInNamespace("Bukit.Engine.Abstractions")
+            .DoNotResideInNamespaceStartingWith("Bukit.Engine.Abstractions")
             .ShouldNot()
             .HaveDependencyOn("Bukit.Engine.")
             .GetResult()
@@ -168,7 +166,7 @@ public class DependencyMatrixTests
                 .That()
                 .HaveNameEndingWith("Plugin")
                 .Should()
-                .ImplementInterface(typeof(Bukit.Engine.Plugins.IBukitPlugin))
+                .ImplementInterface(typeof(Bukit.Engine.Abstractions.Plugins.IBukitPlugin))
                 .GetResult()
                 .ShouldBeSuccessful();
         }

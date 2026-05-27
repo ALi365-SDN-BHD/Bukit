@@ -1,4 +1,4 @@
-namespace Bukit.Engine.Plugins;
+namespace Bukit.Engine.Abstractions.Plugins;
 
 public sealed record PluginExecutionInfo(
     string Name,

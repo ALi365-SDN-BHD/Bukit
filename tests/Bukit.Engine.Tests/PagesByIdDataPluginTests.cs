@@ -1,6 +1,7 @@
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Content.Markdown;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
 using Bukit.Routing;
 using Bukit.Shared;
