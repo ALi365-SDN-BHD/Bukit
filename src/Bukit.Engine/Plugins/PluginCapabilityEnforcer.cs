@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins;
+
 using Bukit.Engine.Abstractions.Plugins;
 
 public static class PluginCapabilityEnforcer
