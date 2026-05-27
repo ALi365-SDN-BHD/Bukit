@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Xml.Linq;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
@@ -12,8 +11,6 @@ namespace Bukit.Engine;
 
 internal static class SeoAuditReportWriter
 {
-    private const string ReportSchemaVersion = "1.0";
-    private const string ReportSchema = "https://bukit.dev/schemas/seo-report.v1.json";
     private const int TitleMaxLength = 60;
     private const int DescriptionMaxLength = 160;
 
@@ -128,7 +125,7 @@ internal static class SeoAuditReportWriter
         foreach (var (key, entry) in seoIndex.OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             seoModels.TryGetValue(key, out var model);
-            var schemaTypes = model is null ? Array.Empty<string>() : ExtractSchemaTypes(model.JsonLd, entry.Route.Url, issues);
+            var schemaTypes = model is null ? Array.Empty<string>() : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, issues);
             var outputPath = Path.Combine(outputDir, entry.Route.OutputPath);
             var outputExists = File.Exists(outputPath);
             if (!outputExists)
@@ -232,8 +229,8 @@ internal static class SeoAuditReportWriter
             GeoScore: geoScore);
 
         return new SeoAuditReport(
-            Schema: ReportSchema,
-            SchemaVersion: ReportSchemaVersion,
+            Schema: SeoAuditModels.ReportSchema,
+            SchemaVersion: SeoAuditModels.ReportSchemaVersion,
             GeneratedAt: DateTimeOffset.UtcNow,
             SiteName: config.Site.Name,
             SiteUrl: config.Site.Url,
@@ -320,8 +317,8 @@ internal static class SeoAuditReportWriter
             issues.Add(Warning("seo.description_too_long", entry.Route.Url, $"SEO description length is {model.Description.Length}, recommended maximum is {DescriptionMaxLength}."));
         }
 
-        AnalyzeImage(config, "seo.og_image", entry.Route.Url, model.Og.Image, outputDir, issues);
-        AnalyzeImage(config, "seo.twitter_image", entry.Route.Url, model.Twitter.Image, outputDir, issues);
+        ImageMetadataReader.AnalyzeImage(config, "seo.og_image", entry.Route.Url, model.Og.Image, outputDir, issues);
+        ImageMetadataReader.AnalyzeImage(config, "seo.twitter_image", entry.Route.Url, model.Twitter.Image, outputDir, issues);
 
         if (string.IsNullOrWhiteSpace(config.Site.Url) && IsAbsoluteHttpUrl(model.Canonical))
         {
@@ -361,58 +358,6 @@ internal static class SeoAuditReportWriter
             !html.Contains("rel='canonical'", StringComparison.OrdinalIgnoreCase))
         {
             issues.Add(Error("seo.inject_canonical_missing", entry.Route.Url, "Inject mode did not produce a canonical link in the HTML head."));
-        }
-    }
-
-    private static void AnalyzeImage(AppConfig config, string codePrefix, string routeUrl, string? image, string outputDir, List<SeoAuditIssue> issues)
-    {
-        if (string.IsNullOrWhiteSpace(image))
-        {
-            return;
-        }
-
-        if (IsAbsoluteHttpUrl(image))
-        {
-            if (TryMapSiteUrlToOutputPath(config.Site.Url, config.Site.BaseUrl, image, outputDir, out var localPath))
-            {
-                AnalyzeLocalImage(codePrefix, routeUrl, image, localPath, issues);
-            }
-            else
-            {
-                issues.Add(Warning($"{codePrefix}_external_unverified", routeUrl, $"Image is external and was not fetched during SEO audit: {image}."));
-            }
-
-            return;
-        }
-
-        issues.Add(Warning($"{codePrefix}_not_absolute", routeUrl, $"Search/social image should be an absolute URL: {image}."));
-        var relative = image.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-        AnalyzeLocalImage(codePrefix, routeUrl, image, Path.Combine(outputDir, relative), issues);
-    }
-
-    private static void AnalyzeLocalImage(string codePrefix, string routeUrl, string image, string fullPath, List<SeoAuditIssue> issues)
-    {
-        if (!File.Exists(fullPath))
-        {
-            issues.Add(Warning($"{codePrefix}_missing_file", routeUrl, $"Image file was not found in build output: {image}."));
-            return;
-        }
-
-        var metadata = TryReadImageMetadata(fullPath);
-        if (metadata is null)
-        {
-            issues.Add(Warning($"{codePrefix}_mime_unknown", routeUrl, $"Image MIME/dimensions could not be detected: {image}."));
-            return;
-        }
-
-        if (!metadata.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-        {
-            issues.Add(Warning($"{codePrefix}_mime_invalid", routeUrl, $"Image MIME is not an image type: {metadata.MimeType}."));
-        }
-
-        if (metadata.Width < 300 || metadata.Height < 157)
-        {
-            issues.Add(Warning($"{codePrefix}_too_small", routeUrl, $"Image dimensions are small for social/search previews: {metadata.Width}x{metadata.Height}."));
         }
     }
 
@@ -570,267 +515,6 @@ internal static class SeoAuditReportWriter
         }
     }
 
-    private static IReadOnlyList<string> ExtractSchemaTypes(IReadOnlyList<string> jsonLd, string routeUrl, List<SeoAuditIssue> issues)
-    {
-        var types = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var json in jsonLd)
-        {
-            try
-            {
-                using var doc = JsonDocument.Parse(json);
-                ExtractSchemaTypes(doc.RootElement, types);
-                ValidateSchemaObject(doc.RootElement, routeUrl, issues);
-                if (types.Count == 0)
-                {
-                    issues.Add(Warning("seo.json_ld_type_missing", routeUrl, "JSON-LD does not declare @type."));
-                }
-            }
-            catch (JsonException ex)
-            {
-                issues.Add(Error("seo.json_ld_invalid", routeUrl, $"JSON-LD is not valid JSON: {ex.Message}"));
-            }
-        }
-
-        return types.ToArray();
-    }
-
-    private static void ExtractSchemaTypes(JsonElement element, ISet<string> types)
-    {
-        if (element.ValueKind == JsonValueKind.Object)
-        {
-            if (element.TryGetProperty("@type", out var type))
-            {
-                if (type.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(type.GetString()))
-                {
-                    types.Add(type.GetString()!);
-                }
-                else if (type.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var item in type.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String))
-                    {
-                        types.Add(item.GetString()!);
-                    }
-                }
-            }
-
-            foreach (var property in element.EnumerateObject())
-            {
-                ExtractSchemaTypes(property.Value, types);
-            }
-        }
-        else if (element.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in element.EnumerateArray())
-            {
-                ExtractSchemaTypes(item, types);
-            }
-        }
-    }
-
-    private static void ValidateSchemaObject(JsonElement element, string routeUrl, List<SeoAuditIssue> issues)
-    {
-        if (element.ValueKind == JsonValueKind.Object)
-        {
-            ValidateSchemaNode(element, routeUrl, issues);
-            foreach (var property in element.EnumerateObject())
-            {
-                ValidateSchemaObject(property.Value, routeUrl, issues);
-            }
-
-            return;
-        }
-
-        if (element.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in element.EnumerateArray())
-            {
-                ValidateSchemaObject(item, routeUrl, issues);
-            }
-        }
-    }
-
-    private static void ValidateSchemaNode(JsonElement node, string routeUrl, List<SeoAuditIssue> issues)
-    {
-        foreach (var type in ReadTypes(node))
-        {
-            switch (type)
-            {
-                case "WebSite":
-                    if (node.TryGetProperty("@context", out _) ||
-                        node.TryGetProperty("potentialAction", out _))
-                    {
-                        ValidateWebSite(node, routeUrl, issues);
-                    }
-                    break;
-                case "BlogPosting":
-                case "Article":
-                    ValidateArticle(node, type, routeUrl, issues);
-                    break;
-                case "ItemList":
-                    ValidateItemList(node, routeUrl, issues);
-                    break;
-            }
-        }
-    }
-
-    private static IReadOnlyList<string> ReadTypes(JsonElement node)
-    {
-        if (!node.TryGetProperty("@type", out var type))
-        {
-            return Array.Empty<string>();
-        }
-
-        if (type.ValueKind == JsonValueKind.String)
-        {
-            var value = type.GetString();
-            return string.IsNullOrWhiteSpace(value) ? Array.Empty<string>() : new[] { value! };
-        }
-
-        if (type.ValueKind == JsonValueKind.Array)
-        {
-            return type.EnumerateArray()
-                .Where(x => x.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(x.GetString()))
-                .Select(x => x.GetString()!)
-                .ToArray();
-        }
-
-        return Array.Empty<string>();
-    }
-
-    private static void ValidateWebSite(JsonElement node, string routeUrl, List<SeoAuditIssue> issues)
-    {
-        if (!HasNonEmptyString(node, "name"))
-        {
-            issues.Add(Warning("seo.schema_website_name_missing", routeUrl, "WebSite JSON-LD should include a non-empty name."));
-        }
-
-        if (!HasAbsoluteUrl(node, "url"))
-        {
-            issues.Add(Warning("seo.schema_website_url_invalid", routeUrl, "WebSite JSON-LD should include an absolute url."));
-        }
-
-        if (!node.TryGetProperty("@context", out _) &&
-            !node.TryGetProperty("potentialAction", out _))
-        {
-            return;
-        }
-
-        if (!node.TryGetProperty("potentialAction", out var action))
-        {
-            issues.Add(Warning("seo.schema_website_searchaction_missing", routeUrl, "WebSite JSON-LD should include potentialAction SearchAction when site search is enabled."));
-            return;
-        }
-
-        ValidateSearchAction(action, routeUrl, issues);
-    }
-
-    private static void ValidateSearchAction(JsonElement action, string routeUrl, List<SeoAuditIssue> issues)
-    {
-        if (action.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in action.EnumerateArray())
-            {
-                if (IsSchemaType(item, "SearchAction"))
-                {
-                    ValidateSearchAction(item, routeUrl, issues);
-                    return;
-                }
-            }
-
-            issues.Add(Warning("seo.schema_searchaction_missing", routeUrl, "WebSite potentialAction does not contain a SearchAction."));
-            return;
-        }
-
-        if (action.ValueKind != JsonValueKind.Object)
-        {
-            issues.Add(Warning("seo.schema_searchaction_invalid", routeUrl, "WebSite potentialAction must be an object or array."));
-            return;
-        }
-
-        if (!IsSchemaType(action, "SearchAction"))
-        {
-            issues.Add(Warning("seo.schema_searchaction_type_missing", routeUrl, "WebSite potentialAction should declare @type SearchAction."));
-        }
-
-        if (!HasNonEmptyString(action, "target"))
-        {
-            issues.Add(Warning("seo.schema_searchaction_target_missing", routeUrl, "SearchAction should include a non-empty target."));
-        }
-        else if (!HasAbsoluteUrl(action, "target"))
-        {
-            issues.Add(Warning("seo.schema_searchaction_target_not_absolute", routeUrl, "SearchAction target should be an absolute URL."));
-        }
-
-        if (!HasNonEmptyString(action, "query-input"))
-        {
-            issues.Add(Warning("seo.schema_searchaction_query_input_missing", routeUrl, "SearchAction should include query-input."));
-        }
-    }
-
-    private static void ValidateArticle(JsonElement node, string type, string routeUrl, List<SeoAuditIssue> issues)
-    {
-        var prefix = type.Equals("BlogPosting", StringComparison.OrdinalIgnoreCase)
-            ? "seo.schema_blogposting"
-            : "seo.schema_article";
-
-        if (!HasNonEmptyString(node, "headline"))
-        {
-            issues.Add(Error($"{prefix}_headline_missing", routeUrl, $"{type} JSON-LD must include headline."));
-        }
-
-        if (!HasNonEmptyString(node, "datePublished"))
-        {
-            issues.Add(Error($"{prefix}_date_published_missing", routeUrl, $"{type} JSON-LD must include datePublished."));
-        }
-
-        if (!node.TryGetProperty("author", out var author) || IsEmptySchemaValue(author))
-        {
-            issues.Add(Warning($"{prefix}_author_missing", routeUrl, $"{type} JSON-LD should include author."));
-        }
-
-        if (!node.TryGetProperty("image", out var image) || IsEmptySchemaValue(image))
-        {
-            issues.Add(Warning($"{prefix}_image_missing", routeUrl, $"{type} JSON-LD should include image."));
-        }
-    }
-
-    private static void ValidateItemList(JsonElement node, string routeUrl, List<SeoAuditIssue> issues)
-    {
-        if (!node.TryGetProperty("itemListElement", out var elements) ||
-            elements.ValueKind != JsonValueKind.Array ||
-            elements.GetArrayLength() == 0)
-        {
-            issues.Add(Error("seo.schema_itemlist_elements_missing", routeUrl, "ItemList JSON-LD must include a non-empty itemListElement array."));
-            return;
-        }
-
-        var index = 0;
-        foreach (var item in elements.EnumerateArray())
-        {
-            index++;
-            if (item.ValueKind != JsonValueKind.Object)
-            {
-                issues.Add(Error("seo.schema_itemlist_item_invalid", routeUrl, $"ItemList item #{index} must be an object."));
-                continue;
-            }
-
-            if (!item.TryGetProperty("position", out var position) || position.ValueKind != JsonValueKind.Number)
-            {
-                issues.Add(Error("seo.schema_itemlist_position_missing", routeUrl, $"ItemList item #{index} must include numeric position."));
-            }
-
-            if (!HasNonEmptyString(item, "name"))
-            {
-                issues.Add(Error("seo.schema_itemlist_name_missing", routeUrl, $"ItemList item #{index} must include name."));
-            }
-
-            if (!HasAbsoluteUrl(item, "url") && !HasAbsoluteUrl(item, "item"))
-            {
-                issues.Add(Warning("seo.schema_itemlist_url_missing", routeUrl, $"ItemList item #{index} should include an absolute url or item."));
-            }
-        }
-    }
-
     private static bool IsValidHreflang(string value)
     {
         if (string.Equals(value, "x-default", StringComparison.OrdinalIgnoreCase))
@@ -871,183 +555,9 @@ internal static class SeoAuditReportWriter
     private static bool IsRssContent(SeoIndexEntry entry)
         => string.Equals(entry.ContentType, "post", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsAbsoluteHttpUrl(string value)
+    internal static bool IsAbsoluteHttpUrl(string value)
         => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
-
-    private static bool TryMapSiteUrlToOutputPath(string? siteUrl, string baseUrl, string imageUrl, string outputDir, out string fullPath)
-    {
-        fullPath = string.Empty;
-        var normalizedBaseUrl = BuildPathUtils.NormalizeBaseUrl(baseUrl);
-        var siteRoot = siteUrl?.Trim().TrimEnd('/') + normalizedBaseUrl;
-        if (string.IsNullOrWhiteSpace(siteUrl) ||
-            !Uri.TryCreate(siteRoot, UriKind.Absolute, out var siteUri) ||
-            !Uri.TryCreate(imageUrl, UriKind.Absolute, out var imageUri) ||
-            !string.Equals(siteUri.Scheme, imageUri.Scheme, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(siteUri.Host, imageUri.Host, StringComparison.OrdinalIgnoreCase) ||
-            siteUri.Port != imageUri.Port ||
-            !imageUri.AbsolutePath.StartsWith(siteUri.AbsolutePath, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var relative = Uri.UnescapeDataString(imageUri.AbsolutePath[siteUri.AbsolutePath.Length..])
-            .TrimStart('/')
-            .Replace('/', Path.DirectorySeparatorChar);
-        if (string.IsNullOrWhiteSpace(relative))
-        {
-            return false;
-        }
-
-        fullPath = Path.Combine(outputDir, relative);
-        return true;
-    }
-
-    private static ImageMetadata? TryReadImageMetadata(string path)
-    {
-        Span<byte> buffer = stackalloc byte[64];
-        using var stream = File.OpenRead(path);
-        var read = stream.Read(buffer);
-        if (read < 10)
-        {
-            return null;
-        }
-
-        var bytes = buffer[..read];
-        if (bytes[0] == 0x89 &&
-            bytes[1] == 0x50 &&
-            bytes[2] == 0x4E &&
-            bytes[3] == 0x47 &&
-            read >= 24)
-        {
-            return new ImageMetadata("image/png", ReadBigEndianInt32(bytes[16..20]), ReadBigEndianInt32(bytes[20..24]));
-        }
-
-        if (bytes[0] == 0x47 &&
-            bytes[1] == 0x49 &&
-            bytes[2] == 0x46 &&
-            read >= 10)
-        {
-            return new ImageMetadata("image/gif", ReadLittleEndianUInt16(bytes[6..8]), ReadLittleEndianUInt16(bytes[8..10]));
-        }
-
-        if (bytes[0] == 0x52 &&
-            bytes[1] == 0x49 &&
-            bytes[2] == 0x46 &&
-            bytes[3] == 0x46 &&
-            read >= 30 &&
-            bytes[8] == 0x57 &&
-            bytes[9] == 0x45 &&
-            bytes[10] == 0x42 &&
-            bytes[11] == 0x50)
-        {
-            return TryReadWebpMetadata(path);
-        }
-
-        if (bytes[0] == 0xFF && bytes[1] == 0xD8)
-        {
-            return TryReadJpegMetadata(path);
-        }
-
-        return null;
-    }
-
-    private static ImageMetadata? TryReadJpegMetadata(string path)
-    {
-        using var stream = File.OpenRead(path);
-        if (stream.ReadByte() != 0xFF || stream.ReadByte() != 0xD8)
-        {
-            return null;
-        }
-
-        while (stream.Position < stream.Length)
-        {
-            if (stream.ReadByte() != 0xFF)
-            {
-                continue;
-            }
-
-            int marker;
-            do
-            {
-                marker = stream.ReadByte();
-            }
-            while (marker == 0xFF);
-
-            if (marker < 0 || marker is 0xD8 or 0xD9)
-            {
-                continue;
-            }
-
-            var length = ReadBigEndianUInt16(stream);
-            if (length < 2 || stream.Position + length - 2 > stream.Length)
-            {
-                return null;
-            }
-
-            if (marker is >= 0xC0 and <= 0xC3 or >= 0xC5 and <= 0xC7 or >= 0xC9 and <= 0xCB or >= 0xCD and <= 0xCF)
-            {
-                stream.ReadByte();
-                var height = ReadBigEndianUInt16(stream);
-                var width = ReadBigEndianUInt16(stream);
-                return new ImageMetadata("image/jpeg", width, height);
-            }
-
-            stream.Seek(length - 2, SeekOrigin.Current);
-        }
-
-        return null;
-    }
-
-    private static ImageMetadata? TryReadWebpMetadata(string path)
-    {
-        var bytes = File.ReadAllBytes(path);
-        if (bytes.Length < 30)
-        {
-            return null;
-        }
-
-        var chunk = System.Text.Encoding.ASCII.GetString(bytes, 12, 4);
-        if (chunk == "VP8X" && bytes.Length >= 30)
-        {
-            var width = 1 + bytes[24] + (bytes[25] << 8) + (bytes[26] << 16);
-            var height = 1 + bytes[27] + (bytes[28] << 8) + (bytes[29] << 16);
-            return new ImageMetadata("image/webp", width, height);
-        }
-
-        if (chunk == "VP8 " && bytes.Length >= 30)
-        {
-            var width = ReadLittleEndianUInt16(bytes.AsSpan(26, 2)) & 0x3FFF;
-            var height = ReadLittleEndianUInt16(bytes.AsSpan(28, 2)) & 0x3FFF;
-            return new ImageMetadata("image/webp", width, height);
-        }
-
-        if (chunk == "VP8L" && bytes.Length >= 25)
-        {
-            var b0 = bytes[21];
-            var b1 = bytes[22];
-            var b2 = bytes[23];
-            var b3 = bytes[24];
-            var width = 1 + (((b1 & 0x3F) << 8) | b0);
-            var height = 1 + (((b3 & 0x0F) << 10) | (b2 << 2) | ((b1 & 0xC0) >> 6));
-            return new ImageMetadata("image/webp", width, height);
-        }
-
-        return null;
-    }
-
-    private static int ReadBigEndianInt32(ReadOnlySpan<byte> value)
-        => (value[0] << 24) | (value[1] << 16) | (value[2] << 8) | value[3];
-
-    private static int ReadLittleEndianUInt16(ReadOnlySpan<byte> value)
-        => value[0] | (value[1] << 8);
-
-    private static int ReadBigEndianUInt16(Stream stream)
-    {
-        var high = stream.ReadByte();
-        var low = stream.ReadByte();
-        return high < 0 || low < 0 ? 0 : (high << 8) | low;
-    }
 
     private static bool HasFragment(string value)
     {
@@ -1058,49 +568,6 @@ internal static class SeoAuditReportWriter
 
         return value.Contains('#', StringComparison.Ordinal);
     }
-
-    private static bool HasNonEmptyString(JsonElement node, string property)
-        => node.TryGetProperty(property, out var value) &&
-           value.ValueKind == JsonValueKind.String &&
-           !string.IsNullOrWhiteSpace(value.GetString());
-
-    private static bool HasAbsoluteUrl(JsonElement node, string property)
-    {
-        if (!node.TryGetProperty(property, out var value))
-        {
-            return false;
-        }
-
-        if (value.ValueKind == JsonValueKind.String)
-        {
-            return IsAbsoluteHttpUrl(value.GetString() ?? string.Empty);
-        }
-
-        if (value.ValueKind == JsonValueKind.Object &&
-            value.TryGetProperty("@id", out var id) &&
-            id.ValueKind == JsonValueKind.String)
-        {
-            return IsAbsoluteHttpUrl(id.GetString() ?? string.Empty);
-        }
-
-        return false;
-    }
-
-    private static bool IsSchemaType(JsonElement node, string expectedType)
-    {
-        return node.ValueKind == JsonValueKind.Object &&
-               ReadTypes(node).Any(x => string.Equals(x, expectedType, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool IsEmptySchemaValue(JsonElement value)
-        => value.ValueKind switch
-        {
-            JsonValueKind.Null or JsonValueKind.Undefined => true,
-            JsonValueKind.String => string.IsNullOrWhiteSpace(value.GetString()),
-            JsonValueKind.Array => value.GetArrayLength() == 0,
-            JsonValueKind.Object => !value.EnumerateObject().Any(),
-            _ => false
-        };
 
     private static int SeverityRank(string severity)
         => string.Equals(severity, "error", StringComparison.OrdinalIgnoreCase) ? 0 : 1;
@@ -1116,74 +583,10 @@ internal static class SeoAuditReportWriter
 
     private static string BuildMergedKey(string language, string key) => language + "/" + key;
 
-    private sealed record ImageMetadata(string MimeType, int Width, int Height);
-
     private static string CombineBaseUrl(string baseUrl, string routeUrl)
     {
         var b = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
         var r = routeUrl.StartsWith('/') ? routeUrl : "/" + routeUrl;
         return string.IsNullOrWhiteSpace(b) ? r : b + r;
     }
-
 }
-
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
-[JsonSerializable(typeof(SeoAuditReport))]
-internal sealed partial class SeoAuditReportJsonContext : JsonSerializerContext;
-
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
-[JsonSerializable(typeof(GeoReport))]
-internal sealed partial class GeoReportJsonContext : JsonSerializerContext;
-
-internal sealed record GeoReport(
-    string Schema,
-    string SchemaVersion,
-    DateTimeOffset GeneratedAt,
-    int GeoScore,
-    bool LlmsTxtGenerated,
-    bool LlmsFullTxtGenerated,
-    int GeoEnhancedCount,
-    IReadOnlyList<GeoRouteEntry> GeoEnhancedRoutes);
-
-internal sealed record GeoRouteEntry(string Url, IReadOnlyList<string> SchemaTypes);
-
-internal sealed record SeoAuditReport(
-    string Schema,
-    string SchemaVersion,
-    DateTimeOffset GeneratedAt,
-    string SiteName,
-    string? SiteUrl,
-    string BaseUrl,
-    IReadOnlyList<SeoAuditRoute> Routes,
-    IReadOnlyList<SeoAuditIssue> Issues,
-    SeoAuditSummary Summary);
-
-internal sealed record SeoAuditRoute(
-    string Url,
-    string OutputPath,
-    string? Title,
-    string? Description,
-    string Canonical,
-    string? Robots,
-    bool Indexable,
-    DateTimeOffset LastModified,
-    string? ContentType,
-    string? SourceItemId,
-    bool SitemapIncluded,
-    bool SearchIncluded,
-    bool RssIncluded,
-    IReadOnlyList<SeoAlternateModel> Alternates,
-    IReadOnlyList<string> SchemaTypes);
-
-internal sealed record SeoAuditIssue(string Severity, string Code, string? Route, string Message);
-
-internal sealed record SeoAuditSummary(
-    int RouteCount,
-    int IndexableCount,
-    int NonIndexableCount,
-    int ErrorCount,
-    int WarningCount,
-    bool LlmsTxtGenerated,
-    bool LlmsFullTxtGenerated,
-    int GeoEnhancedCount,
-    int GeoScore);

@@ -32,14 +32,7 @@ src/Bukit.Cli/Commands/ThemeCommand.cs
 # (MarkdownFolderProvider.cs, ImageAssetLocalizer.cs, NotionContentProvider.cs split below 600 lines — removed from baseline)
 
 # --- Bukit.Engine ---
-# parallel page rendering; split candidate
-src/Bukit.Engine/PageRenderDispatcher.cs
-# pages index generation; split candidate
-src/Bukit.Engine/Plugins/BuiltIn/PagesIndexPlugin.cs
-# SEO audit report generation; split candidate
-src/Bukit.Engine/SeoAuditReportWriter.cs
-# SEO model construction; split candidate
-src/Bukit.Engine/SeoModelBuilder.cs
+# (PageRenderDispatcher.cs, PagesIndexPlugin.cs, SeoAuditReportWriter.cs, SeoModelBuilder.cs split below 600 lines — removed from baseline)
 
 # --- Bukit.Rendering ---
 # (ScribanTemplateRenderer.cs split below 600 lines — removed from baseline)
