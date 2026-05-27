@@ -4,11 +4,11 @@ using System.Text.RegularExpressions;
 using Scriban;
 using Bukit.Config;
 using Bukit.Content;
-using Bukit.Content.Markdown;
 using Bukit.Engine;
 using Bukit.Engine.Plugins;
 using Bukit.Routing;
 using Bukit.Shared;
+using Bukit.Shared.Notion;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Cli.Commands;
@@ -1199,9 +1199,9 @@ public static class DoctorCommand
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        http.DefaultRequestHeaders.Add("Notion-Version", Bukit.Content.Notion.NotionApiUrls.NotionVersion);
+        http.DefaultRequestHeaders.Add("Notion-Version", Bukit.Shared.Notion.NotionApiUrls.NotionVersion);
 
-        var url = Bukit.Content.Notion.NotionApiUrls.Database(databaseId);
+        var url = Bukit.Shared.Notion.NotionApiUrls.Database(databaseId);
         HttpResponseMessage response;
         try
         {
