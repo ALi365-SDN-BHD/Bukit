@@ -512,4 +512,335 @@ public sealed class ScribanTemplateRendererTests : IDisposable
 
         return count;
     }
+
+    [Fact]
+    public void RenderPage_ImageSrcset_RendersSrcset()
+    {
+        File.WriteAllText(Path.Combine(_layoutsDir, "page.html"),
+            "{{ image.srcset '/img/photo.jpg' '480,768' }}");
+
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var result = renderer.RenderPage("page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Srcset", Content = "", Url = "/srcset/" }
+        });
+
+        Assert.Contains("?w=480 480w", result);
+        Assert.Contains("?w=768 768w", result);
+    }
+
+    [Fact]
+    public void RenderPage_ImageSrcset_DefaultSizes()
+    {
+        File.WriteAllText(Path.Combine(_layoutsDir, "page.html"),
+            "{{ image.srcset '/img/photo.jpg' }}");
+
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var result = renderer.RenderPage("page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Srcset", Content = "", Url = "/srcset/" }
+        });
+
+        Assert.Contains("1200w", result);
+    }
+
+    [Fact]
+    public void RenderPage_ThemeComponentTemplateInvalidPath_RendersError()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "comp-invalid-path-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        Directory.CreateDirectory(layoutsDir);
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "comp-invalid-path-theme",
+            Version = "1.0.0",
+            Components = new()
+            {
+                ["bad"] = new() { Template = "" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(layoutsDir, "page.html"),
+            "{{ comp.render 'bad' {} }}");
+
+        var result = renderer.RenderPage("page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        });
+
+        Assert.Contains("code=theme.component.template_invalid", result);
+    }
+
+    [Fact]
+    public void RenderPage_ThemeComponentTemplateNotFound_RendersError()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "comp-notfound-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        Directory.CreateDirectory(layoutsDir);
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "comp-notfound-theme",
+            Version = "1.0.0",
+            Components = new()
+            {
+                ["missing"] = new() { Template = "components/missing.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(layoutsDir, "page.html"),
+            "{{ comp.render 'missing' {} }}");
+
+        var result = renderer.RenderPage("page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        });
+
+        Assert.Contains("code=theme.component.template_not_found", result);
+    }
+
+    [Fact]
+    public void RenderPage_ThemeComponentEscapesRoot_RendersError()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "comp-escape-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        Directory.CreateDirectory(layoutsDir);
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "comp-escape-theme",
+            Version = "1.0.0",
+            Components = new()
+            {
+                ["escape"] = new() { Template = "/etc/passwd" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(layoutsDir, "page.html"),
+            "{{ comp.render 'escape' {} }}");
+
+        var result = renderer.RenderPage("page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        });
+
+        Assert.Contains("code=theme.component.template_invalid", result);
+    }
+
+    [Fact]
+    public void RenderPage_ThemeComponentParseError_RendersError()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "comp-parse-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        var componentsDir = Path.Combine(layoutsDir, "components");
+        Directory.CreateDirectory(componentsDir);
+
+        File.WriteAllText(Path.Combine(componentsDir, "broken.html"),
+            "Hello {{ broken }");
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "comp-parse-theme",
+            Version = "1.0.0",
+            Components = new()
+            {
+                ["broken"] = new() { Template = "components/broken.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(layoutsDir, "page.html"),
+            "{{ comp.render 'broken' {} }}");
+
+        var result = renderer.RenderPage("page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        });
+
+        Assert.Contains("code=theme.component.template_parse_failed", result);
+    }
+
+    [Fact]
+    public void RenderPage_ThemeComponentStrictMode_Throws()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "comp-strict-theme");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        Directory.CreateDirectory(layoutsDir);
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "comp-strict-theme",
+            Version = "1.0.0",
+            Components = new()
+            {
+                ["alert"] = new() { Template = "components/missing.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "strict");
+
+        File.WriteAllText(Path.Combine(layoutsDir, "page.html"),
+            "{{ comp.render 'alert' {} }}");
+
+        var ex = Assert.Throws<RenderException>(() => renderer.RenderPage("page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        }));
+
+        Assert.Contains("theme.component.template_not_found", ex.Message);
+    }
+
+    [Fact]
+    public void RenderPage_SectionInvalidJson_RendersError()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "section-invalid-json");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        Directory.CreateDirectory(layoutsDir);
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "section-invalid-json",
+            Version = "1.0.0",
+            Sections = new()
+            {
+                ["hero"] = new() { Template = "sections/hero.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(layoutsDir, "page.html"),
+            "{{ render_section 'not-json' }}");
+
+        var result = renderer.RenderPage("page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        });
+
+        Assert.Contains("code=theme.render_section.invalid_json", result);
+    }
+
+    [Fact]
+    public void RenderPage_SectionMissingTemplate_RendersError()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "section-missing-tmpl");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        var pagesDir = Path.Combine(layoutsDir, "pages");
+        Directory.CreateDirectory(pagesDir);
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "section-missing-tmpl",
+            Version = "1.0.0",
+            Sections = new()
+            {
+                ["nonexistent"] = new() { Template = "sections/nonexistent.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(pagesDir, "page.html"),
+            "{{ render_section '[{\"type\":\"nonexistent\",\"props\":{\"title\":\"X\"}}]' }}");
+
+        var result = renderer.RenderPage("pages/page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        });
+
+        Assert.Contains("template not found", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void RenderPage_SectionWithoutType_RendersError()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "section-no-type");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        Directory.CreateDirectory(layoutsDir);
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "section-no-type",
+            Version = "1.0.0"
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(layoutsDir, "page.html"),
+            "{{ render_section '[{\"props\":{\"title\":\"X\"}}]' }}");
+
+        var result = renderer.RenderPage("page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        });
+
+        Assert.Contains("code=theme.render_section.empty", result);
+    }
+
+    [Fact]
+    public void RenderPage_SectionUndefinedInManifest_RendersError()
+    {
+        var themeDir = Path.Combine(_layoutsDir, "section-undefined");
+        var layoutsDir = Path.Combine(themeDir, "layouts");
+        Directory.CreateDirectory(layoutsDir);
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "section-undefined",
+            Version = "1.0.0",
+            Sections = new()
+            {
+                ["hero"] = new() { Template = "sections/hero.html" }
+            }
+        };
+
+        var registry = new ThemeComponentRegistry(themeDir, manifest, null);
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(
+            layoutsDir, null, null, null, null, registry, null, null, "off");
+
+        File.WriteAllText(Path.Combine(layoutsDir, "page.html"),
+            "{{ render_section '[{\"type\":\"unknown\",\"props\":{\"title\":\"X\"}}]' }}");
+
+        var result = renderer.RenderPage("page.html", new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        });
+
+        Assert.Contains("code=theme.section.not_found", result);
+    }
 }
