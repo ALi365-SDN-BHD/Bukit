@@ -1,4 +1,4 @@
-using Bukit.Routing;
+using Bukit.Engine.Abstractions.Routing;
 
 namespace Bukit.Engine.Abstractions.Plugins;
 

@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering.Scriban;
 using Xunit;
 
@@ -17,7 +18,7 @@ public sealed class SectionDataResolverAccessorTests
     public void AllItems_CanBeSetAndRead()
     {
         var accessor = new SectionDataResolverAccessor();
-        var items = new List<Bukit.Content.ContentItem>();
+        var items = new List<Bukit.Engine.Abstractions.Content.ContentItem>();
         accessor.AllItems = items;
         Assert.NotNull(accessor.AllItems);
     }

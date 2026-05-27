@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Content.Media;
 
 /// <summary>Records a single image URL that failed to localize.</summary>

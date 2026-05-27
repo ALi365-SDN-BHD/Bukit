@@ -3,11 +3,11 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Scriban;
 using Bukit.Config;
-using Bukit.Content;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
-using Bukit.Routing;
+using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using Bukit.Shared.Notion;
 using YamlDotNet.RepresentationModel;
@@ -201,8 +201,8 @@ public static class DoctorCommand
             OutputDir = Path.Combine(rootDir, config.Build.Output),
             BaseUrl = config.Site.BaseUrl,
             LayoutsDir = layoutsDir,
-            Routed = Array.Empty<(Bukit.Content.ContentItem Item, Bukit.Routing.RouteInfo Route)>(),
-            BodyStore = Bukit.Content.NullContentBodyStore.Instance,
+            Routed = Array.Empty<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route)>(),
+            BodyStore = Bukit.Engine.Abstractions.Content.NullContentBodyStore.Instance,
             Logger = new ConsoleLogger(LogLevel.Info)
         };
 
@@ -465,7 +465,7 @@ public static class DoctorCommand
         string layoutsDir,
         string[] allHtmlFiles,
         AppConfig config,
-        IReadOnlyList<Bukit.Routing.RouteInfo> listRoutes)
+        IReadOnlyList<Bukit.Engine.Abstractions.Routing.RouteInfo> listRoutes)
     {
         var usedTemplates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 

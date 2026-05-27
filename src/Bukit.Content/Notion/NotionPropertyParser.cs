@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Bukit.Content;
-
+using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Content.Notion;
 
 public static class NotionPropertyParser

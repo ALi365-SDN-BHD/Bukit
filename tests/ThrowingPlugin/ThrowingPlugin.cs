@@ -1,7 +1,6 @@
-using Bukit.Content;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
-using Bukit.Routing;
-
+using Bukit.Engine.Abstractions.Routing;
 namespace Bukit.Plugins.ThrowingPlugin;
 
 public sealed class ThrowingPlugin : IBukitPlugin, IAfterBuildPlugin, IDerivePagesPlugin

@@ -1,4 +1,4 @@
-namespace Bukit.Routing;
+namespace Bukit.Engine.Abstractions.Routing;
 
 public sealed record RouteInfo(
     string Url,

@@ -1,5 +1,5 @@
 using Bukit.Content;
-
+using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Content.Notion;
 
 internal static class NotionTaxonomyPromoter

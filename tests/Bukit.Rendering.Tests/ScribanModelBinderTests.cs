@@ -1,5 +1,5 @@
 using Xunit;
-using Bukit.Content;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering.Scriban;
 using Scriban.Runtime;
 

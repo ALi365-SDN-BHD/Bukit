@@ -1,6 +1,7 @@
 using System.Reflection;
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine;
 using Bukit.Shared;
 using Xunit;

@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Content;
 
 public interface IContentProvider

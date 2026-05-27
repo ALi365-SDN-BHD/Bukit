@@ -1,10 +1,11 @@
+using Bukit.Engine.Abstractions.Content;
 using System.Text;
 using System.Text.Json;
 using System.Net;
 using System.Buffers;
 using System.Diagnostics;
 using Bukit.Shared;
-
+using Bukit.Shared.Notion;
 namespace Bukit.Content.Notion;
 
 public sealed class NotionContentProvider : IContentProvider

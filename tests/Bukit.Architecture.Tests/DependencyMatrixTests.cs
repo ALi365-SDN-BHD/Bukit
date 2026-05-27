@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Content;
 using System.Reflection;
 using NetArchTest.Rules;
 using Xunit;
@@ -8,7 +9,7 @@ public class DependencyMatrixTests
 {
     private static readonly Assembly SharedAssembly = typeof(Bukit.Shared.ILogger).Assembly;
     private static readonly Assembly ConfigAssembly = typeof(Bukit.Config.AppConfig).Assembly;
-    private static readonly Assembly AbstractionsAssembly = typeof(Bukit.Content.ContentItem).Assembly;
+    private static readonly Assembly AbstractionsAssembly = typeof(Bukit.Engine.Abstractions.Content.ContentItem).Assembly;
     private static readonly Assembly RoutingAssembly = typeof(Bukit.Routing.RouteGenerator).Assembly;
     private static readonly Assembly ContentAssembly = typeof(Bukit.Content.IContentProvider).Assembly;
     private static readonly Assembly RenderingAssembly = typeof(Bukit.Rendering.SiteModel).Assembly;
@@ -95,10 +96,6 @@ public class DependencyMatrixTests
     public void Cli_MustNotDirectlyDependOn_Content_Rendering_Routing()
     {
         Types.InAssembly(CliAssembly)
-            .That()
-            .DoNotHaveNameStartingWith("Doctor")
-            .And()
-            .DoNotHaveNameStartingWith("Plugin")
             .ShouldNot()
             .HaveDependencyOnAny(["Bukit.Content", "Bukit.Rendering", "Bukit.Routing"])
             .GetResult()

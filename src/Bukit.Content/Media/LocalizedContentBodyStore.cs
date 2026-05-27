@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Content.Media;
 
 public sealed class LocalizedContentBodyStore : IContentBodyStore

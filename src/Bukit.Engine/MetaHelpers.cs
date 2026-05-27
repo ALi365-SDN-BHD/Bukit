@@ -1,5 +1,5 @@
 using Bukit.Content;
-
+using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Engine;
 
 internal static class MetaHelpers

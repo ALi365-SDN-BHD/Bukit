@@ -64,10 +64,25 @@ This project publishes as Native AOT. All new code must be AOT-compatible:
 ## Pull Request Process
 
 1. Update documentation if your change affects user-facing behavior
-2. Run `scripts/check-doc-asset-consistency.ps1` to verify documentation consistency
-3. Run the full test suite and smoke tests
-4. Ensure code formatting passes
-5. Rebase onto the main branch before creating a PR
+2. Run `bash scripts/quality-gate.sh` locally and ensure it passes (build + test + coverage + format + smoke)
+3. Rebase onto the main branch before creating a PR
+
+### Recommended Commit Sequence (TDD)
+
+Follow the Red → Green → Refactor rhythm:
+
+```text
+test: add failing test for <feature|bug>    ← Red
+feat: implement <feature>                   ← Green
+refactor: extract <helper|method>           ← Refactor
+```
+
+For bug fixes, the first commit MUST reproduce the bug:
+
+```text
+test: reproduce <bug-description>           ← Red
+fix: resolve <bug-description>              ← Green
+```
 
 ## License
 

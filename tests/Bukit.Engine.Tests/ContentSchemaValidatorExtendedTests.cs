@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Config;
 using Xunit;
 
@@ -43,7 +44,7 @@ public sealed class ContentSchemaValidatorExtendedTests
                 }
             }
         };
-        var item = new Content.ContentItem(
+        var item = new ContentItem(
             "hello",
             "Hello",
             "hello",

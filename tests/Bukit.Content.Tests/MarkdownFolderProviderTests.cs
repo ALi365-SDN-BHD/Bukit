@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Bukit.Content;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Markdown;
 using Bukit.Shared;
 using Xunit;
@@ -325,7 +326,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("bool", field.Type);
         Assert.True((bool)field.Value!);
     }
@@ -337,7 +338,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("number", field.Type);
     }
 
@@ -348,7 +349,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("number", field.Type);
     }
 
@@ -359,7 +360,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("number", field.Type);
     }
 
@@ -370,7 +371,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("number", field.Type);
     }
 
@@ -381,7 +382,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("number", field.Type);
     }
 
@@ -393,7 +394,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("date", field.Type);
     }
 
@@ -405,7 +406,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("date", field.Type);
     }
 
@@ -416,7 +417,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("text", field.Type);
         Assert.Equal("Hello World", field.Value);
     }
@@ -428,7 +429,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("date", field.Type);
     }
 
@@ -439,7 +440,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("bool", field.Type);
         Assert.True((bool)field.Value!);
     }
@@ -451,7 +452,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("number", field.Type);
         Assert.Equal(123L, (long)field.Value!);
     }
@@ -463,7 +464,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("number", field.Type);
     }
 
@@ -483,7 +484,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("text", field.Type);
         Assert.Contains("System.Object", field.Value!.ToString());
     }
@@ -496,7 +497,7 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
 
         Assert.True(ok);
-        var field = (Content.ContentField)args[1];
+        var field = (ContentField)args[1];
         Assert.Equal("list", field.Type);
     }
 
@@ -627,7 +628,7 @@ public sealed class MarkdownFolderProviderTests
             ["count"] = 42
         };
 
-        var fields = InvokePrivateStatic<IReadOnlyDictionary<string, Content.ContentField>>("BuildFields", meta);
+        var fields = InvokePrivateStatic<IReadOnlyDictionary<string, ContentField>>("BuildFields", meta);
 
         Assert.Contains("tags", fields.Keys);
         Assert.Contains("categories", fields.Keys);
@@ -648,7 +649,7 @@ public sealed class MarkdownFolderProviderTests
             ["custom_field"] = "visible"
         };
 
-        var fields = InvokePrivateStatic<IReadOnlyDictionary<string, Content.ContentField>>("BuildFields", meta);
+        var fields = InvokePrivateStatic<IReadOnlyDictionary<string, ContentField>>("BuildFields", meta);
 
         Assert.DoesNotContain("title", fields.Keys);
         Assert.DoesNotContain("slug", fields.Keys);
@@ -664,7 +665,7 @@ public sealed class MarkdownFolderProviderTests
             ["summary"] = "A short summary."
         };
 
-        var fields = InvokePrivateStatic<IReadOnlyDictionary<string, Content.ContentField>>("BuildFields", meta);
+        var fields = InvokePrivateStatic<IReadOnlyDictionary<string, ContentField>>("BuildFields", meta);
 
         Assert.Contains("summary", fields.Keys);
         Assert.Equal("text", fields["summary"].Type);

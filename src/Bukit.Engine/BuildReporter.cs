@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
 
 namespace Bukit.Engine;

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Bukit.Rendering;
 using Bukit.Routing;
+using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 
 namespace Bukit.Engine;

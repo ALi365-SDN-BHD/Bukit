@@ -1,8 +1,9 @@
+using Bukit.Engine.Abstractions.Content;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using Bukit.Shared;
-
+using Bukit.Shared.Notion;
 namespace Bukit.Content.Notion;
 
 public sealed class NotionBlocksRenderer

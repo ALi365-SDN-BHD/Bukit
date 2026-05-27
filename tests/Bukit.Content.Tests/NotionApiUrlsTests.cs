@@ -1,4 +1,5 @@
-using Bukit.Content.Notion;
+using Bukit.Engine.Abstractions.Content;
+using Bukit.Shared.Notion;
 using Xunit;
 
 namespace Bukit.Content.Tests;

@@ -2,8 +2,9 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Bukit.Content;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
-
+using Bukit.Engine.Abstractions.Routing;
 namespace Bukit.Engine;
 
 internal static class SearchIndexBuilder

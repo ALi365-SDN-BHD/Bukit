@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Content;
 using System.Diagnostics;
 using Bukit.Config;
 using Bukit.Shared;
@@ -17,7 +18,7 @@ internal sealed class ImageLocalizeStage : IContentStage
 
     public async Task<ContentStageOutput> ExecuteAsync(ContentStageInput input, CancellationToken cancellationToken)
     {
-        var loadResult = new Content.ContentLoadResult(input.Items, input.BodyStore);
+        var loadResult = new ContentLoadResult(input.Items, input.BodyStore);
 
         var sw = Stopwatch.StartNew();
         loadResult = await _factory.LocalizeContentImagesAsync(

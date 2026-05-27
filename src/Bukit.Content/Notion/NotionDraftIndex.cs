@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Content.Notion;
 
 internal sealed class NotionDraftIndex<T> where T : class

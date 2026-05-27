@@ -2,9 +2,10 @@ using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 using Bukit.Content;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Media;
 using Bukit.Routing;
-
+using Bukit.Engine.Abstractions.Routing;
 namespace Bukit.Engine.Incremental;
 
 internal static class IncrementalBuildEngine

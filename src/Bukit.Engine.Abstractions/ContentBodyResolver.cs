@@ -1,4 +1,4 @@
-namespace Bukit.Content;
+namespace Bukit.Engine.Abstractions.Content;
 
 public static class ContentBodyResolver
 {

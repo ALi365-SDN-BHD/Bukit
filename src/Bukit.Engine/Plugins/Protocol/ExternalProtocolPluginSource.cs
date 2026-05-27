@@ -1,3 +1,5 @@
+using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins.Protocol;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
@@ -51,14 +53,14 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
         public bool SupportsHook(string hook)
             => HasHook(_config, hook);
 
-        public Task<IReadOnlyList<(Bukit.Content.ContentItem Item, Bukit.Routing.RouteInfo Route, DateTimeOffset LastModified)>> DerivePagesAsync(
+        public Task<IReadOnlyList<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route, DateTimeOffset LastModified)>> DerivePagesAsync(
             BuildContext context,
             CancellationToken cancellationToken = default)
         {
             if (!HasHook(_config, "derive-pages"))
             {
-                return Task.FromResult<IReadOnlyList<(Bukit.Content.ContentItem Item, Bukit.Routing.RouteInfo Route, DateTimeOffset LastModified)>>(
-                    Array.Empty<(Bukit.Content.ContentItem Item, Bukit.Routing.RouteInfo Route, DateTimeOffset LastModified)>());
+                return Task.FromResult<IReadOnlyList<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route, DateTimeOffset LastModified)>>(
+                    Array.Empty<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route, DateTimeOffset LastModified)>());
             }
 
             PluginCapabilityEnforcer.Enforce(_config, "derive-pages");

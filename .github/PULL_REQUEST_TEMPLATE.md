@@ -12,6 +12,7 @@
 - Closes #
 - Spec: .trae/specs/<change-id>/spec.md  <!-- ≥ 200 行变更必填；若 < 200 行可写 N/A -->
 - 本 PR diff 行数：____ 行（若 > 400 行，请在"风险与回滚"中说明原因）
+- Bug 复现测试（bugfix 必填）：`tests/.../XxxTests.cs#LNN`  <!-- 非 bugfix 写 N/A -->
 
 ## TDD 流程（Red → Green → Refactor）
 

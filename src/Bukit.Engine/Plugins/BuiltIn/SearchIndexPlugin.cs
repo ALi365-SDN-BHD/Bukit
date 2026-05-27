@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Content;
 using System.Text;
 using System.Text.Json;
 using Bukit.Engine;
@@ -109,7 +110,7 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
         WriteSearchUi(context);
     }
 
-    private static bool IsSearchExcluded(Content.ContentItem item)
+    private static bool IsSearchExcluded(ContentItem item)
     {
         if (item.Meta.TryGetValue("searchExclude", out var value) && value is not null)
         {

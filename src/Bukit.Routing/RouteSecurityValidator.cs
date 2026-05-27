@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Routing;
 namespace Bukit.Routing;
 
 public static class RouteSecurityValidator

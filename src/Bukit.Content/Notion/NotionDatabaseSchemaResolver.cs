@@ -1,6 +1,7 @@
+using Bukit.Engine.Abstractions.Content;
 using System.Text.Json;
 using Bukit.Shared;
-
+using Bukit.Shared.Notion;
 namespace Bukit.Content.Notion;
 
 internal sealed record NotionResolvedDatabaseProperties(

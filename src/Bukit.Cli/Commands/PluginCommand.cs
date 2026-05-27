@@ -1,3 +1,5 @@
+using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
 using Bukit.Config;
@@ -34,8 +36,8 @@ public static class PluginCommand
             OutputDir = "",
             BaseUrl = config.Site.BaseUrl,
             LayoutsDir = "",
-            Routed = new List<(Bukit.Content.ContentItem Item, Bukit.Routing.RouteInfo Route)>(),
-            BodyStore = Bukit.Content.NullContentBodyStore.Instance,
+            Routed = new List<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route)>(),
+            BodyStore = Bukit.Engine.Abstractions.Content.NullContentBodyStore.Instance,
             Logger = new ConsoleLogger(LogLevel.Info)
         };
 
