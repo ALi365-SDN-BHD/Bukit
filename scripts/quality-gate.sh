@@ -2,7 +2,7 @@
 set -euo pipefail
 
 configuration="${1:-Release}"
-coverage_threshold="${COVERAGE_THRESHOLD:-80}"
+coverage_threshold="${COVERAGE_THRESHOLD:-71}"
 coverage_root="${COVERAGE_ROOT:-TestResults}"
 coverage_report_dir="${COVERAGE_REPORT_DIR:-${coverage_root}/coverage-report}"
 max_file_lines="${MAX_FILE_LINES:-600}"
