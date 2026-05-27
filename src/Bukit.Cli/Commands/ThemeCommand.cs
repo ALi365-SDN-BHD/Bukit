@@ -35,7 +35,7 @@ public static class ThemeCommand
     private static async Task<int> CreateAsync(ArgReader reader)
     {
         var name = reader.GetArg(2);
-        if (!IsSafeThemeName(name))
+        if (!ThemeFileHelper.IsSafeThemeName(name))
         {
             Console.Error.WriteLine("Missing or invalid theme name.");
             return 2;
@@ -44,7 +44,7 @@ public static class ThemeCommand
         var resolved = ConfigPathResolver.Resolve(reader);
         var rootDir = resolved.RootDir;
         var from = (reader.GetOption("--from") ?? "starter").Trim();
-        if (!IsSafeThemeName(from))
+        if (!ThemeFileHelper.IsSafeThemeName(from))
         {
             Console.Error.WriteLine("Invalid source theme name.");
             return 2;
@@ -87,8 +87,8 @@ public static class ThemeCommand
                 return 2;
             }
 
-            CopyDirectory(sourceRoot, themeRoot);
-            ApplyCssColorOverrides(themeRoot, primaryColor, accentColor);
+            ThemeFileHelper.CopyDirectory(sourceRoot, themeRoot);
+            ThemeFileHelper.ApplyCssColorOverrides(themeRoot, primaryColor, accentColor);
         }
 
         Console.WriteLine($"Theme created: {name}");
@@ -255,122 +255,15 @@ public static class ThemeCommand
         var v2Manifest = ThemeManifestLoader.Load(themeRoot);
         if (v2Manifest is not null)
         {
-            PrintSections(v2Manifest, themeRoot);
-            PrintComponents(v2Manifest);
-            PrintTokens(v2Manifest, themeRoot);
-            PrintLayouts(v2Manifest, themeRoot);
+            ThemeInfoPrinter.PrintSections(v2Manifest, themeRoot);
+            ThemeInfoPrinter.PrintComponents(v2Manifest);
+            ThemeInfoPrinter.PrintTokens(v2Manifest, themeRoot);
+            ThemeInfoPrinter.PrintLayouts(v2Manifest, themeRoot);
         }
 
-        PrintFileStats(themeRoot);
+        ThemeInfoPrinter.PrintFileStats(themeRoot);
         Console.WriteLine($"Local path:   {themeRoot}");
         return Task.FromResult(0);
-    }
-
-    private static void PrintSections(ThemeManifestV2 manifest, string themeRoot)
-    {
-        if (manifest.Sections is not { Count: > 0 }) return;
-
-        Console.WriteLine();
-        Console.WriteLine($"Sections ({manifest.Sections.Count}):");
-        foreach (var (name, section) in manifest.Sections.OrderBy(s => s.Key))
-        {
-            var desc = section.Description ?? "";
-            if (desc.Length > 54) desc = desc[..52] + "..";
-            var plugin = section.Plugin is not null ? $" [plugin: {section.Plugin}]" : "";
-            Console.WriteLine($"  {name,-24} {desc}{plugin}");
-        }
-    }
-
-    private static void PrintComponents(ThemeManifestV2 manifest)
-    {
-        if (manifest.Components is not { Count: > 0 }) return;
-
-        Console.WriteLine();
-        Console.WriteLine($"Components ({manifest.Components.Count}):");
-        foreach (var (name, comp) in manifest.Components.OrderBy(c => c.Key))
-        {
-            var props = comp.Props is { Count: > 0 }
-                ? $" props: [{string.Join(", ", comp.Props.Keys)}]"
-                : "";
-            Console.WriteLine($"  {name,-24}{props}");
-        }
-    }
-
-    private static void PrintTokens(ThemeManifestV2 manifest, string themeRoot)
-    {
-        var tokensPath = !string.IsNullOrWhiteSpace(manifest.Tokens)
-            ? Path.Combine(themeRoot, manifest.Tokens)
-            : Path.Combine(themeRoot, "tokens.yaml");
-
-        if (!File.Exists(tokensPath)) return;
-
-        var loader = new ThemeTokensLoader();
-        var tokens = loader.Load(themeRoot, tokensPath);
-        if (tokens is null) return;
-
-        var groups = new List<string>();
-        if (tokens.Colors is { Count: > 0 }) groups.Add($"colors ({tokens.Colors.Count})");
-        if (tokens.Font is { Count: > 0 }) groups.Add($"font ({tokens.Font.Count})");
-        if (tokens.Radius is { Count: > 0 }) groups.Add($"radius ({tokens.Radius.Count})");
-        if (tokens.Spacing is { Count: > 0 }) groups.Add($"spacing ({tokens.Spacing.Count})");
-        if (tokens.Layout is { Count: > 0 }) groups.Add($"layout ({tokens.Layout.Count})");
-
-        if (groups.Count == 0) return;
-
-        Console.WriteLine();
-        Console.WriteLine($"Design tokens: {string.Join(", ", groups)}");
-
-        if (tokens.Colors is { Count: > 0 })
-        {
-            var sampleCount = Math.Min(tokens.Colors.Count, 8);
-            var samples = tokens.Colors.Take(sampleCount)
-                .Select(kv => $"  {kv.Key}: {kv.Value}")
-                .ToList();
-            Console.WriteLine("  Color samples:");
-            foreach (var s in samples) Console.WriteLine(s);
-            if (tokens.Colors.Count > 8)
-                Console.WriteLine($"  ... and {tokens.Colors.Count - 8} more");
-        }
-    }
-
-    private static void PrintLayouts(ThemeManifestV2 manifest, string themeRoot)
-    {
-        var layoutsDir = Path.Combine(themeRoot, "layouts");
-        if (!Directory.Exists(layoutsDir)) return;
-
-        var layoutFiles = Directory.GetFiles(layoutsDir, "*.scriban", SearchOption.AllDirectories)
-            .Concat(Directory.GetFiles(layoutsDir, "*.html", SearchOption.AllDirectories))
-            .Concat(Directory.GetFiles(layoutsDir, "*.sbn", SearchOption.AllDirectories))
-            .Distinct()
-            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-            .Select(f => Path.GetRelativePath(layoutsDir, f))
-            .ToList();
-
-        if (layoutFiles.Count == 0) return;
-
-        Console.WriteLine();
-        Console.WriteLine($"Layout templates ({layoutFiles.Count}):");
-        foreach (var f in layoutFiles)
-            Console.WriteLine($"  {f}");
-    }
-
-    private static void PrintFileStats(string themeRoot)
-    {
-        var assetCount = 0;
-        var assetsDir = Path.Combine(themeRoot, "assets");
-        if (Directory.Exists(assetsDir))
-            assetCount = Directory.GetFiles(assetsDir, "*", SearchOption.AllDirectories).Length;
-
-        var staticCount = 0;
-        var staticDir = Path.Combine(themeRoot, "static");
-        if (Directory.Exists(staticDir))
-            staticCount = Directory.GetFiles(staticDir, "*", SearchOption.AllDirectories).Length;
-
-        if (assetCount > 0 || staticCount > 0)
-        {
-            Console.WriteLine();
-            Console.WriteLine($"Assets: {assetCount} files  |  Static: {staticCount} files");
-        }
     }
 
     private static Task<int> ParamsAsync(ArgReader reader)
@@ -658,55 +551,5 @@ public static class ThemeCommand
         }
 
         return themeRoot;
-    }
-
-    private static bool IsSafeThemeName(string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return false;
-        }
-
-        if (name is "." or "..")
-        {
-            return false;
-        }
-
-        return !Path.IsPathRooted(name) &&
-               name.IndexOfAny(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }) < 0;
-    }
-
-    private static void CopyDirectory(string sourceDir, string destinationDir)
-    {
-        Directory.CreateDirectory(destinationDir);
-        foreach (var dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
-        {
-            var relative = Path.GetRelativePath(sourceDir, dir);
-            Directory.CreateDirectory(Path.Combine(destinationDir, relative));
-        }
-
-        foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
-        {
-            var relative = Path.GetRelativePath(sourceDir, file);
-            var destination = Path.Combine(destinationDir, relative);
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            File.Copy(file, destination, overwrite: true);
-        }
-    }
-
-    private static void ApplyCssColorOverrides(string themeRoot, string? primaryColor, string? accentColor)
-    {
-        var stylePath = Path.Combine(themeRoot, "assets", "style.css");
-        if (!File.Exists(stylePath))
-        {
-            return;
-        }
-
-        var css = File.ReadAllText(stylePath);
-        var updated = StarterThemeScaffold.ApplyColorOverrides(css, primaryColor, accentColor);
-        if (!string.Equals(css, updated, StringComparison.Ordinal))
-        {
-            File.WriteAllText(stylePath, updated);
-        }
     }
 }

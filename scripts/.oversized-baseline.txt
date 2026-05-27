@@ -9,15 +9,12 @@
 #
 # Format: one path per line (relative to repo root). Lines starting with # are ignored.
 
+# 🎉 ALL 18 files have been split below 600 lines.
+# The baseline is now empty — no oversized files remain.
+# Keep it that way.
+
 # --- Bukit.Cli ---
-# comprehensive diagnostics; split candidate
-src/Bukit.Cli/Commands/DoctorCommand.cs
-# SEO audit CLI; split candidate
-src/Bukit.Cli/Commands/SeoCommand.cs
-# theme scaffolding; split candidate
-src/Bukit.Cli/Commands/StarterThemeScaffold.cs
-# theme management CLI; split candidate
-src/Bukit.Cli/Commands/ThemeCommand.cs
+# (DoctorCommand.cs, SeoCommand.cs, StarterThemeScaffold.cs, ThemeCommand.cs split below 600 lines — removed from baseline)
 
 # --- Bukit.Config ---
 # (ConfigLoader.cs and ConfigValidator.cs split below 600 lines — removed from baseline)

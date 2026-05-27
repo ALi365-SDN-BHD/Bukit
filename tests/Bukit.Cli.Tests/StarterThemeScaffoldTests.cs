@@ -46,7 +46,7 @@ public sealed class StarterThemeScaffoldTests : IDisposable
     [Fact]
     public void StyleCssFallback_IncludesSyntaxHighlightingSelectors()
     {
-        var css = StarterThemeScaffold.StyleCss;
+        var css = StarterThemeResources.StyleCss;
 
         Assert.Contains("pre code[class*=\"language-\"]", css, StringComparison.Ordinal);
         Assert.Contains(".token.comment", css, StringComparison.Ordinal);
@@ -72,7 +72,7 @@ public sealed class StarterThemeScaffoldTests : IDisposable
     [Fact]
     public void ApplyColorOverrides_NullColors_ReturnsUnchanged()
     {
-        var original = StarterThemeScaffold.StyleCss;
+        var original = StarterThemeResources.StyleCss;
 
         var result = StarterThemeScaffold.ApplyColorOverrides(original, null, null);
 
@@ -82,7 +82,7 @@ public sealed class StarterThemeScaffoldTests : IDisposable
     [Fact]
     public void ApplyColorOverrides_PrimaryOnly_ReplacesOnlyPrimary()
     {
-        var result = StarterThemeScaffold.ApplyColorOverrides(StarterThemeScaffold.StyleCss, "#ffffff", null);
+        var result = StarterThemeScaffold.ApplyColorOverrides(StarterThemeResources.StyleCss, "#ffffff", null);
 
         Assert.Contains("--primary: #ffffff;", result, StringComparison.Ordinal);
         Assert.DoesNotContain("--primary: #0b5fff;", result, StringComparison.Ordinal);
@@ -92,7 +92,7 @@ public sealed class StarterThemeScaffoldTests : IDisposable
     [Fact]
     public void ApplyColorOverrides_AccentOnly_ReplacesOnlyAccent()
     {
-        var result = StarterThemeScaffold.ApplyColorOverrides(StarterThemeScaffold.StyleCss, null, "#abcdef");
+        var result = StarterThemeScaffold.ApplyColorOverrides(StarterThemeResources.StyleCss, null, "#abcdef");
 
         Assert.Contains("--accent: #abcdef;", result, StringComparison.Ordinal);
         Assert.DoesNotContain("--accent: #0f7b6c;", result, StringComparison.Ordinal);
@@ -102,7 +102,7 @@ public sealed class StarterThemeScaffoldTests : IDisposable
     [Fact]
     public void ApplyColorOverrides_BothColors_ReplacesBoth()
     {
-        var result = StarterThemeScaffold.ApplyColorOverrides(StarterThemeScaffold.StyleCss, "#111111", "#222222");
+        var result = StarterThemeScaffold.ApplyColorOverrides(StarterThemeResources.StyleCss, "#111111", "#222222");
 
         Assert.Contains("--primary: #111111;", result, StringComparison.Ordinal);
         Assert.Contains("--accent: #222222;", result, StringComparison.Ordinal);
@@ -113,7 +113,7 @@ public sealed class StarterThemeScaffoldTests : IDisposable
     [Fact]
     public void ApplyColorOverrides_WhitespaceColors_Ignored()
     {
-        var result = StarterThemeScaffold.ApplyColorOverrides(StarterThemeScaffold.StyleCss, "   ", "\t");
+        var result = StarterThemeScaffold.ApplyColorOverrides(StarterThemeResources.StyleCss, "   ", "\t");
 
         Assert.Contains("--primary: #0b5fff;", result, StringComparison.Ordinal);
         Assert.Contains("--accent: #0f7b6c;", result, StringComparison.Ordinal);

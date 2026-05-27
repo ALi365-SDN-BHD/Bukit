@@ -61,27 +61,27 @@ internal static partial class CloneContentWriter
             themeFiles++;
         }
 
-        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/list-card.html", StarterThemeScaffold.ListCardPartial);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/list-card.html", StarterThemeResources.ListCardPartial);
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/pagination-nav.html", StarterThemeScaffold.PaginationNavPartial);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/pagination-nav.html", StarterThemeResources.PaginationNavPartial);
         themeFiles++;
         WriteFile(rootDir, $"themes/{themeName}/layouts/pages/index.html", GenerateStructuredIndex(normalizedSections));
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/page.html", StarterThemeScaffold.PageTemplate);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/page.html", StarterThemeResources.PageTemplate);
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/post.html", StarterThemeScaffold.PostTemplate);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/post.html", StarterThemeResources.PostTemplate);
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/list.html", StarterThemeScaffold.ListTemplate);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/list.html", StarterThemeResources.ListTemplate);
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", StarterThemeScaffold.PaginationTemplate);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", StarterThemeResources.PaginationTemplate);
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", StarterThemeScaffold.TaxonomyIndexTemplate);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", StarterThemeResources.TaxonomyIndexTemplate);
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", StarterThemeScaffold.TaxonomyTermTemplate);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", StarterThemeResources.TaxonomyTermTemplate);
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", StarterThemeScaffold.SearchTemplate);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", StarterThemeResources.SearchTemplate);
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml", StarterThemeScaffold.TemplateCapabilities);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml", StarterThemeResources.TemplateCapabilities);
         themeFiles++;
         WriteFile(rootDir, $"themes/{themeName}/theme.yaml", GenerateThemeYaml(themeName, tokens, brand, behaviors));
         themeFiles++;

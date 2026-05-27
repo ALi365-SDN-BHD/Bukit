@@ -1,0 +1,146 @@
+using System.Text.RegularExpressions;
+
+namespace Bukit.Cli.Commands;
+
+internal static class DoctorTemplateChecker
+{
+    internal static void CheckHardcodedUrls(DoctorCommand.DoctorContext ctx)
+    {
+        var issues = new List<string>();
+        foreach (var file in ctx.AllHtmlFiles)
+        {
+            var text = File.ReadAllText(file);
+            var relative = Path.GetRelativePath(ctx.LayoutsDir, file).Replace('\\', '/');
+
+            var withoutComments = RemoveHtmlComments(text);
+            var withoutScriban = RemoveScribanBlocks(withoutComments);
+
+            var lines = withoutScriban.Replace("\r\n", "\n").Split('\n');
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                var absUrlMatch = Regex.Match(line, @"(href|src)\s*=\s*""(https?://[^""]+)""", RegexOptions.IgnoreCase);
+                if (absUrlMatch.Success)
+                {
+                    var attr = absUrlMatch.Groups[1].Value;
+                    var url = absUrlMatch.Groups[2].Value;
+                    if (!url.Contains("{{", StringComparison.Ordinal) &&
+                        !url.Contains("{%", StringComparison.Ordinal) &&
+                        !line.TrimStart().StartsWith("xmlns", StringComparison.OrdinalIgnoreCase) &&
+                        !line.TrimStart().StartsWith("xsi:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        issues.Add($"{relative}: line {i + 1}: {attr}=\"{url}\" (consider using site.url)");
+                        break;
+                    }
+                }
+
+                var rootRelMatch = Regex.Match(line, @"(href|src)\s*=\s*""/([^""]+)""", RegexOptions.IgnoreCase);
+                if (rootRelMatch.Success)
+                {
+                    var attr = rootRelMatch.Groups[1].Value;
+                    var path = rootRelMatch.Groups[2].Value;
+                    if (!path.Contains("{{", StringComparison.Ordinal) &&
+                        !path.Contains("{%", StringComparison.Ordinal) &&
+                        !path.StartsWith("/", StringComparison.Ordinal))
+                    {
+                        issues.Add($"{relative}: line {i + 1}: {attr}=\"/{path}\" (consider using site.base_url)");
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (issues.Count > 0)
+        {
+            Console.WriteLine($"⚠ {issues.Count} hardcoded URL(s) in templates:");
+            foreach (var issue in issues)
+            {
+                Console.WriteLine($"  - {issue}");
+            }
+        }
+    }
+
+    internal static void CheckHardcodedText(DoctorCommand.DoctorContext ctx)
+    {
+        var issues = new List<string>();
+        var copyrightRegex = new Regex(@"©\s*20\d{2}", RegexOptions.IgnoreCase);
+        var copyrightRegex2 = new Regex(@"Copyright\s+20\d{2}", RegexOptions.IgnoreCase);
+
+        foreach (var file in ctx.AllHtmlFiles)
+        {
+            var text = File.ReadAllText(file);
+            var relative = Path.GetRelativePath(ctx.LayoutsDir, file).Replace('\\', '/');
+
+            var withoutComments = RemoveHtmlComments(text);
+            var cleaned = RemoveScribanBlocks(withoutComments);
+            var withoutScripts = RemoveTagContent(cleaned, "script");
+            var withoutStyles = RemoveTagContent(withoutScripts, "style");
+            var plainText = ExtractHtmlText(withoutStyles);
+
+            var lines = plainText.Replace("\r\n", "\n").Split('\n');
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                var trimmed = line.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    continue;
+                }
+
+                var m1 = copyrightRegex.Match(trimmed);
+                if (m1.Success)
+                {
+                    issues.Add($"{relative}: line {i + 1}: \"{m1.Value}\" (hardcoded year, consider {{{{ site.now }}}})");
+                    break;
+                }
+
+                var m2 = copyrightRegex2.Match(trimmed);
+                if (m2.Success)
+                {
+                    issues.Add($"{relative}: line {i + 1}: \"{m2.Value}\" (hardcoded year, consider {{{{ site.now }}}})");
+                    break;
+                }
+
+                if (trimmed.Length > 20 && !trimmed.Contains("{{", StringComparison.Ordinal) && !trimmed.Contains("{%", StringComparison.Ordinal))
+                {
+                    var snippet = trimmed.Length > 60 ? trimmed[..57] + "..." : trimmed;
+                    issues.Add($"{relative}: line {i + 1}: hardcoded text snippet ({trimmed.Length} chars): \"{snippet}\"");
+                    break;
+                }
+            }
+        }
+
+        if (issues.Count > 0)
+        {
+            Console.WriteLine($"⚠ {issues.Count} hardcoded text issue(s) in templates:");
+            foreach (var issue in issues)
+            {
+                Console.WriteLine($"  - {issue}");
+            }
+        }
+    }
+
+    internal static string RemoveScribanBlocks(string text)
+    {
+        var result = Regex.Replace(text, @"\{\{.*?\}\}", " ", RegexOptions.Singleline);
+        result = Regex.Replace(result, @"\{%[^%]*?%\}", " ", RegexOptions.Singleline);
+        return result;
+    }
+
+    internal static string RemoveHtmlComments(string text)
+    {
+        return Regex.Replace(text, @"<!--.*?-->", " ", RegexOptions.Singleline);
+    }
+
+    internal static string RemoveTagContent(string text, string tag)
+    {
+        return Regex.Replace(text, $@"<{tag}\b[^>]*>.*?</{tag}>", " ", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+    }
+
+    internal static string ExtractHtmlText(string text)
+    {
+        text = Regex.Replace(text, @"<[^>]+>", " ");
+        text = System.Net.WebUtility.HtmlDecode(text);
+        return Regex.Replace(text, @"\s+", " ").Trim();
+    }
+}

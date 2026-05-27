@@ -13,7 +13,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
     private readonly string _rootDir;
     private readonly string _configPath;
 
-    private static readonly MethodInfo s_isSafeThemeName = typeof(ThemeCommand)
+    private static readonly MethodInfo s_isSafeThemeName = typeof(ThemeFileHelper)
         .GetMethod("IsSafeThemeName", BindingFlags.NonPublic | BindingFlags.Static)!;
 
     public ThemeCommandExtendedTests()
@@ -182,7 +182,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, "file1.txt"), "content1");
         File.WriteAllText(Path.Combine(sourceDir, "subdir", "file2.txt"), "content2");
 
-        var copyMethod = typeof(ThemeCommand)
+        var copyMethod = typeof(ThemeFileHelper)
             .GetMethod("CopyDirectory", BindingFlags.NonPublic | BindingFlags.Static)!;
         copyMethod.Invoke(null, new object[] { sourceDir, destDir });
 
@@ -946,7 +946,7 @@ themes:
     [Fact]
     public void StarterThemeScaffold_FooterHasBrandPlaceholder()
     {
-        var footer = StarterThemeScaffold.FooterPartial;
+        var footer = StarterThemeResources.FooterPartial;
         Assert.Contains("{{-- bukit:brand --}}", footer, StringComparison.Ordinal);
     }
 }
