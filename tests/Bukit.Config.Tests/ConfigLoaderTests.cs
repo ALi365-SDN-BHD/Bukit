@@ -663,7 +663,7 @@ public sealed class ConfigLoaderTests : IDisposable
             var collectionsYaml = "post:\n  permalink: /blog/hello/\n  template: pages/post.html\n";
             File.WriteAllText(Path.Combine(dir, "collections.yaml"), collectionsYaml);
 
-            var result = ConfigLoader.TryReadCollectionsFile(sitePath);
+            var result = ConfigCollectionReader.TryReadCollectionsFile(sitePath);
 
             Assert.NotNull(result);
             Assert.True(result!.ContainsKey("post"));

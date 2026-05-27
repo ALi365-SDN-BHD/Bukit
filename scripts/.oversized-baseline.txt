@@ -26,10 +26,7 @@ src/Bukit.Cli/Commands/StarterThemeScaffold.cs
 src/Bukit.Cli/Commands/ThemeCommand.cs
 
 # --- Bukit.Config ---
-# YAML deserialization + merging; split candidate
-src/Bukit.Config/ConfigLoader.cs
-# validation rules; split candidate
-src/Bukit.Config/ConfigValidator.cs
+# (ConfigLoader.cs and ConfigValidator.cs split below 600 lines — removed from baseline)
 
 # --- Bukit.Content ---
 # Markdown content loading; split candidate
@@ -50,5 +47,4 @@ src/Bukit.Engine/SeoAuditReportWriter.cs
 src/Bukit.Engine/SeoModelBuilder.cs
 
 # --- Bukit.Rendering ---
-# Scriban rendering engine; split candidate
-src/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs
+# (ScribanTemplateRenderer.cs split below 600 lines — removed from baseline)
