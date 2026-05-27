@@ -4,7 +4,32 @@
 
 ## 端到端数据流
 
-```text
+```mermaid
+flowchart TD
+    CLI["🖥 CLI (bukit build)"] --> CFG["⚙ Config 加载 + Overrides"]
+    CFG --> P0["📋 BuildPlanner<br/>清理输出 / 解析路径"]
+
+    subgraph P1["📥 Phase 1: ContentPipeline（5 级 Pipe-and-Filter 链）"]
+        direction LR
+        C1["① ContentLoad<br/>加载 ContentItem"] --> C2["② ImageLocalize<br/>本地化远程图片"] --> C3["③ DraftFilter<br/>过滤 draft:true"] --> C4["④ SchemaDefaults<br/>应用 schema 默认值"] --> C5["⑤ SchemaValidate<br/>校验 schema 字段"]
+    end
+
+    P0 --> C1
+
+    subgraph P2["🔧 Phase 2: VariantBuildPipeline（每个语言独立/并行）"]
+        direction LR
+        G1["① Theme + Data<br/>引导主题 / 数据模块"] --> G2["② Routing<br/>RouteGenerator 生成 URL"] --> G3["③ Enrich<br/>分类注入 / 插件派生页"] --> G4["④ Model<br/>SiteModel / Manifest"] --> G5["⑤ Output<br/>SEO → 渲染 → 资产 → AfterBuild → 报告"]
+    end
+
+    C5 --> G1
+
+    P3["🌐 Phase 3: I18nOutputMerger<br/>合并多语言 sitemap / rss / search"]
+    G5 --> P3
+    P3 --> RESULT["✅ BuildResult"]
+```
+
+<details>
+<summary>文本摘要</summary>
 CLI (bukit build/doctor/...)
   └─ 解析参数 → 解析配置路径 → 加载 site.yaml
       └─ Config（Load + Validate + ApplyOverrides）
@@ -21,6 +46,8 @@ CLI (bukit build/doctor/...)
               ├─ I18nOutputMerger.GenerateRootOutputs（多语言合并产物）
               └─ MetricsWriter（可选构建指标输出）
 ```
+
+</details>
 
 ## 代码模块划分（按 src 工程）
 

@@ -4,7 +4,32 @@ Describes Bukit's end-to-end build pipeline, module boundaries, and key data str
 
 ## End-to-End Data Flow
 
-```text
+```mermaid
+flowchart TD
+    CLI["🖥 CLI (bukit build)"] --> CFG["⚙ Config Load + Overrides"]
+    CFG --> P0["📋 BuildPlanner<br/>clean output / resolve paths"]
+
+    subgraph P1["📥 Phase 1: ContentPipeline (5 stages, Pipe-and-Filter)"]
+        direction LR
+        C1["① ContentLoad<br/>load ContentItem"] --> C2["② ImageLocalize<br/>localize remote images"] --> C3["③ DraftFilter<br/>filter draft:true"] --> C4["④ SchemaDefaults<br/>apply schema defaults"] --> C5["⑤ SchemaValidate<br/>validate schema fields"]
+    end
+
+    P0 --> C1
+
+    subgraph P2["🔧 Phase 2: VariantBuildPipeline (per language, parallel)"]
+        direction LR
+        G1["① Theme + Data<br/>bootstrap theme / data modules"] --> G2["② Routing<br/>URL generation"] --> G3["③ Enrich<br/>taxonomy / derive pages"] --> G4["④ Model<br/>SiteModel / Manifest"] --> G5["⑤ Output<br/>SEO → Render → Assets → AfterBuild → Report"]
+    end
+
+    C5 --> G1
+
+    P3["🌐 Phase 3: I18nOutputMerger<br/>merge sitemap / rss / search"]
+    G5 --> P3
+    P3 --> RESULT["✅ BuildResult"]
+```
+
+<details>
+<summary>Text summary</summary>
 CLI (bukit build/doctor/...)
   → Config (Load + Validate + ApplyOverrides)
     → SiteEngine.BuildAsync (orchestrator with Pipeline chain)
@@ -17,6 +42,8 @@ CLI (bukit build/doctor/...)
       → I18nOutputMerger (merged artifacts)
       → MetricsWriter
 ```
+
+</details>
 
 ## Module Division
 

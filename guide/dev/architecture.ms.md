@@ -3,12 +3,26 @@
 Menerangkan saluran paip binaan hujung-ke-hujung Bukit, sempadan modul, dan struktur data utama.
 
 ## Aliran Data Hujung-ke-Hujung
-```text
-CLI → Config → SiteEngine.BuildAsync
-  → IContentProviderFactory (Markdown/Notion/sources)
-  → BuildVariantAsync setiap bahasa
-    → RouteGenerator → DataModuleBuilder → PluginRunner → PageRenderDispatcher
-  → I18nOutputMerger → MetricsWriter
+```mermaid
+flowchart LR
+    CLI["🖥 CLI"] --> CFG["⚙ Config"]
+    CFG --> P0["📋 BuildPlanner"]
+
+    subgraph P1["📥 ContentPipeline (5 peringkat)"]
+        direction LR
+        C1["ContentLoad"] --> C2["ImageLocalize"] --> C3["DraftFilter"] --> C4["SchemaDefaults"] --> C5["SchemaValidate"]
+    end
+
+    P0 --> C1
+
+    subgraph P2["🔧 VariantBuildPipeline (setiap bahasa)"]
+        direction LR
+        V1["Theme+Data"] --> V2["Routing"] --> V3["DerivePages"] --> V4["Render"] --> V5["AfterBuild+Report"]
+    end
+
+    C5 --> V1
+    V5 --> MERGE["🌐 I18nOutputMerger"]
+    MERGE --> RESULT["✅ BuildResult"]
 ```
 
 ## Pembahagian Modul
