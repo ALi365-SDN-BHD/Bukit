@@ -10,7 +10,10 @@ namespace Bukit.Content.Tests;
 
 public sealed class MarkdownFolderProviderTests
 {
-    private static readonly Type MfpType = typeof(Bukit.Content.Markdown.MarkdownFolderProvider);
+    private static readonly Type MfpType = typeof(MarkdownFolderProvider);
+    private static readonly Type FmType = typeof(MarkdownFrontMatterParser);
+    private static readonly Type FieldType = typeof(MarkdownFieldBuilder);
+    private static readonly Type TextType = typeof(MarkdownTextHelper);
 
     private static T InvokePrivateStatic<T>(string methodName, params object[] args)
     {
@@ -23,6 +26,20 @@ public sealed class MarkdownFolderProviderTests
     {
         var method = MfpType.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static)
                      ?? throw new InvalidOperationException($"Method '{methodName}' not found on MarkdownFolderProvider.");
+        return method.Invoke(null, args)!;
+    }
+
+    private static T InvokeFromType<T>(Type type, string methodName, params object[] args)
+    {
+        var method = type.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)
+                     ?? throw new InvalidOperationException($"Method '{methodName}' not found on {type.Name}.");
+        return (T)method.Invoke(null, args)!;
+    }
+
+    private static object InvokeFromType(Type type, string methodName, params object[] args)
+    {
+        var method = type.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)
+                     ?? throw new InvalidOperationException($"Method '{methodName}' not found on {type.Name}.");
         return method.Invoke(null, args)!;
     }
 
@@ -177,7 +194,7 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void ExtractSummaryFromMarkdown_StripsHtmlDecodesEntitiesAndTruncates()
     {
-        var summary = MarkdownFolderProvider.ExtractSummaryFromMarkdown("""
+        var summary = MarkdownTextHelper.ExtractSummaryFromMarkdown("""
         # Title
         This is a short &amp; useful paragraph with extra words.
         """, maxLength: 24);
@@ -188,7 +205,7 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void ExtractSummaryFromMarkdown_WithNonPositiveLength_ReturnsEmpty()
     {
-        var summary = MarkdownFolderProvider.ExtractSummaryFromMarkdown("# Title\nBody", maxLength: 0);
+        var summary = MarkdownTextHelper.ExtractSummaryFromMarkdown("# Title\nBody", maxLength: 0);
 
         Assert.Equal(string.Empty, summary);
     }
@@ -209,7 +226,7 @@ public sealed class MarkdownFolderProviderTests
             Body text
             """);
 
-            var html = await MarkdownFolderProvider.RenderHtmlFromFileAsync(path, CancellationToken.None);
+            var html = await MarkdownTextHelper.RenderHtmlFromFileAsync(path, CancellationToken.None);
 
             Assert.Contains("<h1 id=\"visible\">Visible</h1>", html);
             Assert.Contains("<p>Body text</p>", html);
@@ -238,7 +255,7 @@ public sealed class MarkdownFolderProviderTests
                        """;
 
         var args = new object[] { markdown, string.Empty, string.Empty };
-        var ok = (bool)InvokePrivateStatic("TryExtractFrontMatter", args);
+        var ok = (bool)InvokeFromType(FmType, "TryExtractFrontMatter", args);
 
         Assert.True(ok);
         Assert.Contains("title: Hello World", (string)args[1]);
@@ -252,7 +269,7 @@ public sealed class MarkdownFolderProviderTests
         var markdown = "# Just Content\n\nNo front matter here.";
 
         var args = new object[] { markdown, string.Empty, string.Empty };
-        var ok = (bool)InvokePrivateStatic("TryExtractFrontMatter", args);
+        var ok = (bool)InvokeFromType(FmType, "TryExtractFrontMatter", args);
 
         Assert.False(ok);
     }
@@ -261,7 +278,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryExtractFrontMatter_Malformed_ReturnsFalse()
     {
         var args = new object[] { "---\ntitle: incomplete", string.Empty, string.Empty };
-        var ok = (bool)InvokePrivateStatic("TryExtractFrontMatter", args);
+        var ok = (bool)InvokeFromType(FmType, "TryExtractFrontMatter", args);
 
         Assert.False(ok);
     }
@@ -278,7 +295,7 @@ public sealed class MarkdownFolderProviderTests
                        """;
 
         var args = new object[] { markdown, string.Empty, string.Empty };
-        var ok = (bool)InvokePrivateStatic("TryExtractFrontMatter", args);
+        var ok = (bool)InvokeFromType(FmType, "TryExtractFrontMatter", args);
 
         Assert.False(ok);
     }
@@ -288,7 +305,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var yaml = "title: Test\ncount: 42\nactive: true";
 
-        var dict = InvokePrivateStatic<IReadOnlyDictionary<string, object>>("ParseFrontMatter", yaml);
+        var dict = InvokeFromType<IReadOnlyDictionary<string, object>>(FmType, "ParseFrontMatter", yaml);
 
         Assert.Equal("Test", dict["title"]);
         Assert.Equal("42", dict["count"]);
@@ -300,7 +317,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var yaml = "tags: [one, two, three]";
 
-        var dict = InvokePrivateStatic<IReadOnlyDictionary<string, object>>("ParseFrontMatter", yaml);
+        var dict = InvokeFromType<IReadOnlyDictionary<string, object>>(FmType, "ParseFrontMatter", yaml);
 
         Assert.True(dict["tags"] is IEnumerable<object>);
         var list = ((IEnumerable<object>)dict["tags"]).Select(x => x.ToString()).ToList();
@@ -314,7 +331,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var yaml = "author:\n  name: Alice\n  email: a@b.com";
 
-        var dict = InvokePrivateStatic<IReadOnlyDictionary<string, object>>("ParseFrontMatter", yaml);
+        var dict = InvokeFromType<IReadOnlyDictionary<string, object>>(FmType, "ParseFrontMatter", yaml);
 
         Assert.True(dict["author"] is IReadOnlyDictionary<string, object>);
     }
@@ -323,7 +340,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryConvertToField_Bool_ReturnsBoolField()
     {
         var args = new object[] { true, null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -335,7 +352,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryConvertToField_Int_ReturnsNumberField()
     {
         var args = new object[] { 42, null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -346,7 +363,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryConvertToField_Long_ReturnsNumberField()
     {
         var args = new object[] { 42L, null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -357,7 +374,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryConvertToField_Float_ReturnsNumberField()
     {
         var args = new object[] { 3.14f, null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -368,7 +385,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryConvertToField_Double_ReturnsNumberField()
     {
         var args = new object[] { 3.14d, null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -379,7 +396,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryConvertToField_Decimal_ReturnsNumberField()
     {
         var args = new object[] { 3.14m, null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -391,7 +408,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var dt = new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Utc);
         var args = new object[] { dt, null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -403,7 +420,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var dto = new DateTimeOffset(2025, 6, 15, 12, 0, 0, TimeSpan.FromHours(8));
         var args = new object[] { dto, null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -414,7 +431,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryConvertToField_PlainText_ReturnsTextField()
     {
         var args = new object[] { "Hello World", null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -426,7 +443,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryConvertToField_DateString_ReturnsDateField()
     {
         var args = new object[] { "2025-06-15T10:30:00Z", null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -437,7 +454,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryConvertToField_BoolString_ReturnsBoolField()
     {
         var args = new object[] { "True", null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -449,7 +466,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryConvertToField_NumberString_ReturnsNumberField()
     {
         var args = new object[] { "123", null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -461,7 +478,7 @@ public sealed class MarkdownFolderProviderTests
     public void TryConvertToField_DoubleString_ReturnsNumberField()
     {
         var args = new object[] { "9.99", null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -473,7 +490,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var args = new object[] { null!, null! };
 
-        Assert.Throws<TargetInvocationException>(() => InvokePrivateStatic("TryConvertToField", args));
+        Assert.Throws<TargetInvocationException>(() => InvokeFromType(FieldType, "TryConvertToField", args));
     }
 
     [Fact]
@@ -481,7 +498,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var obj = new object();
         var args = new object[] { obj, null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -494,7 +511,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var list = new List<object> { "a", "b" };
         var args = new object[] { list, null! };
-        var ok = (bool)InvokePrivateStatic("TryConvertToField", args);
+        var ok = (bool)InvokeFromType(FieldType, "TryConvertToField", args);
 
         Assert.True(ok);
         var field = (ContentField)args[1];
@@ -508,7 +525,7 @@ public sealed class MarkdownFolderProviderTests
         {
             ["tags"] = "alpha, beta, gamma"
         };
-        InvokePrivateStatic("NormalizeTaxonomy", dict, "tags");
+        InvokeFromType(FmType, "NormalizeTaxonomy", dict, "tags");
 
         var result = dict["tags"];
         Assert.IsAssignableFrom<IEnumerable<object>>(result);
@@ -526,7 +543,7 @@ public sealed class MarkdownFolderProviderTests
         {
             ["categories"] = new List<object> { "News", "Tech" }
         };
-        InvokePrivateStatic("NormalizeTaxonomy", dict, "categories");
+        InvokeFromType(FmType, "NormalizeTaxonomy", dict, "categories");
 
         var result = dict["categories"];
         Assert.IsAssignableFrom<IEnumerable<object>>(result);
@@ -543,7 +560,7 @@ public sealed class MarkdownFolderProviderTests
         {
             ["tags"] = ""
         };
-        InvokePrivateStatic("NormalizeTaxonomy", dict, "tags");
+        InvokeFromType(FmType, "NormalizeTaxonomy", dict, "tags");
 
         var result = dict["tags"];
         Assert.IsAssignableFrom<IEnumerable<object>>(result);
@@ -554,7 +571,7 @@ public sealed class MarkdownFolderProviderTests
     public void NormalizeTaxonomy_KeyMissing_NoError()
     {
         var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        InvokePrivateStatic("NormalizeTaxonomy", dict, "tags");
+        InvokeFromType(FmType, "NormalizeTaxonomy", dict, "tags");
 
         Assert.Empty(dict);
     }
@@ -562,7 +579,7 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void ExtractTitle_WithHeading_ReturnsTitle()
     {
-        var title = InvokePrivateStatic<string?>("ExtractTitle", "# Hello World\n\nContent here.");
+        var title = InvokeFromType<string?>(TextType, "ExtractTitle", "# Hello World\n\nContent here.");
 
         Assert.NotNull(title);
         Assert.Equal("Hello World", title);
@@ -571,7 +588,7 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void ExtractTitle_WithoutHeading_ReturnsNull()
     {
-        var title = InvokePrivateStatic<string?>("ExtractTitle", "Just content\nNo heading.");
+        var title = InvokeFromType<string?>(TextType, "ExtractTitle", "Just content\nNo heading.");
 
         Assert.Null(title);
     }
@@ -579,7 +596,7 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void ExtractTitle_FirstHeading_IgnoresSubsequent()
     {
-        var title = InvokePrivateStatic<string?>("ExtractTitle", "# First\n## Second\n# Third");
+        var title = InvokeFromType<string?>(TextType, "ExtractTitle", "# First\n## Second\n# Third");
 
         Assert.NotNull(title);
         Assert.Equal("First", title);
@@ -588,7 +605,7 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void StripHtmlToText_Basic_RemovesTags()
     {
-        var text = InvokePrivateStatic<string>("StripHtmlToText", "<p>Hello <b>World</b></p>");
+        var text = InvokeFromType<string>(TextType, "StripHtmlToText", "<p>Hello <b>World</b></p>");
 
         Assert.Equal("Hello World", text);
     }
@@ -596,7 +613,7 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void StripHtmlToText_WithMultipleTags_CollapsesWhitespace()
     {
-        var text = InvokePrivateStatic<string>("StripHtmlToText", "<div><p>Line 1</p><p>Line 2</p></div>");
+        var text = InvokeFromType<string>(TextType, "StripHtmlToText", "<div><p>Line 1</p><p>Line 2</p></div>");
 
         Assert.Contains("Line 1", text);
         Assert.Contains("Line 2", text);
@@ -605,7 +622,7 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void StripHtmlToText_EmptyString_ReturnsEmpty()
     {
-        var text = InvokePrivateStatic<string>("StripHtmlToText", "");
+        var text = InvokeFromType<string>(TextType, "StripHtmlToText", "");
 
         Assert.Equal(string.Empty, text);
     }
@@ -613,7 +630,7 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void StripHtmlToText_HtmlEntities_Decoded()
     {
-        var text = InvokePrivateStatic<string>("StripHtmlToText", "Hello &amp; World &lt;3");
+        var text = InvokeFromType<string>(TextType, "StripHtmlToText", "Hello &amp; World &lt;3");
 
         Assert.Equal("Hello & World <3", text);
     }
@@ -628,7 +645,7 @@ public sealed class MarkdownFolderProviderTests
             ["count"] = 42
         };
 
-        var fields = InvokePrivateStatic<IReadOnlyDictionary<string, ContentField>>("BuildFields", meta);
+        var fields = InvokeFromType<IReadOnlyDictionary<string, ContentField>>(FieldType, "BuildFields", meta);
 
         Assert.Contains("tags", fields.Keys);
         Assert.Contains("categories", fields.Keys);
@@ -649,7 +666,7 @@ public sealed class MarkdownFolderProviderTests
             ["custom_field"] = "visible"
         };
 
-        var fields = InvokePrivateStatic<IReadOnlyDictionary<string, ContentField>>("BuildFields", meta);
+        var fields = InvokeFromType<IReadOnlyDictionary<string, ContentField>>(FieldType, "BuildFields", meta);
 
         Assert.DoesNotContain("title", fields.Keys);
         Assert.DoesNotContain("slug", fields.Keys);
@@ -665,7 +682,7 @@ public sealed class MarkdownFolderProviderTests
             ["summary"] = "A short summary."
         };
 
-        var fields = InvokePrivateStatic<IReadOnlyDictionary<string, ContentField>>("BuildFields", meta);
+        var fields = InvokeFromType<IReadOnlyDictionary<string, ContentField>>(FieldType, "BuildFields", meta);
 
         Assert.Contains("summary", fields.Keys);
         Assert.Equal("text", fields["summary"].Type);

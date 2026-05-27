@@ -13,7 +13,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"formula","formula":{"type":"string","string":"hello world"}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("formula", type);
@@ -26,7 +26,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"formula","formula":{"type":"number","number":42.5}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("formula", type);
@@ -39,7 +39,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"formula","formula":{"type":"boolean","boolean":true}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("formula", type);
@@ -52,7 +52,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"formula","formula":{"type":"date","date":{"start":"2025-06-15T10:30:00Z"}}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("formula", type);
@@ -65,7 +65,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"formula","formula":null}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var _, out var _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var _, out var _);
 
         Assert.False(ok);
     }
@@ -75,7 +75,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"formula","formula":{"type":"unknown","value":123}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var _, out var _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var _, out var _);
 
         Assert.False(ok);
     }
@@ -85,7 +85,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"rollup","rollup":{"type":"number","number":99.9}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("rollup", type);
@@ -98,7 +98,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"rollup","rollup":{"type":"date","date":{"start":"2025-01-01T00:00:00Z"}}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("rollup", type);
@@ -109,9 +109,9 @@ public sealed class NotionPropertyParserExtendedTests
     [Fact]
     public void ParseRollup_ArrayType_ReturnsListField()
     {
-        var json = """{"type":"rollup","rollup":{"type":"array","array":["a","b","c"]}}""";
+        var json = """{"type":"rollup","rollup":{"type":"array","array":[{"type":"rich_text","rich_text":[{"plain_text":"a"}]},{"type":"rich_text","rich_text":[{"plain_text":"b"}]},{"type":"rich_text","rich_text":[{"plain_text":"c"}]}]}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("rollup", type);
@@ -125,7 +125,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"select","select":{"name":"Draft"}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("select", type);
@@ -138,7 +138,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"status","status":{"name":"Done","color":"green"}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("status", type);
@@ -151,7 +151,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"unique_id","unique_id":{"prefix":"TASK","number":42}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("unique_id", type);
@@ -164,7 +164,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"verification","verification":{"state":"verified","verified_by":null}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("verification", type);
@@ -177,7 +177,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"verification","verification":{"state":"unverified","verified_by":null}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("unverified", field.Value);
@@ -188,7 +188,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"people","people":[{"object":"user","id":"user-1234","name":"Alice"},{"object":"user","id":"user-5678"}]}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("people", type);
@@ -203,7 +203,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"files","files":[{"name":"doc.pdf","type":"external","external":{"url":"https://cdn.example.com/doc.pdf"}}]}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("files", type);
@@ -216,7 +216,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"files","files":[{"name":"image.png","type":"file","file":{"url":"https://s3.notion/abc.png","expiry_time":"2026-01-01"}}]}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("file", field.Type);
@@ -258,7 +258,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"title","title":[{"plain_text":"Hello"},{"plain_text":"World"}]}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var _);
 
         Assert.True(ok);
         Assert.Equal("Hello World", field.Value);
@@ -269,7 +269,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"rich_text","rich_text":[{"plain_text":"bold text","annotations":{"bold":true,"italic":false,"strikethrough":false,"underline":false,"code":false,"color":"default"}}]}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var _);
 
         Assert.True(ok);
         Assert.Equal("bold text", field.Value);
@@ -280,7 +280,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"multi_select","multi_select":[{"name":"Tag A"},{"name":"Tag B"}]}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("multi_select", type);
@@ -295,7 +295,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"date","date":{"start":"2026-01-15","end":"2026-01-16","time_zone":"Asia/Shanghai"}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("date", type);
@@ -308,7 +308,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"date","date":{"start":"not-a-date"}}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var _, out var _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var _, out var _);
 
         Assert.False(ok);
     }
@@ -318,7 +318,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"checkbox","checkbox":false}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var type);
 
         Assert.True(ok);
         Assert.Equal("checkbox", type);
@@ -331,7 +331,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"checkbox","checkbox":true}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var _);
 
         Assert.True(ok);
         Assert.True((bool)field.Value!);
@@ -342,11 +342,11 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"number","number":100}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var _);
 
         Assert.True(ok);
         Assert.Equal("number", field.Type);
-        Assert.Equal(100L, (long)field.Value!);
+        Assert.Equal(100.0, (double)field.Value!);
     }
 
     [Fact]
@@ -354,20 +354,18 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"type":"number","number":3.14}""";
         using var doc = JsonDocument.Parse(json);
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var _);
 
         Assert.True(ok);
         Assert.Equal("number", field.Type);
     }
 
     [Fact]
-    public void IsReservedNotionField_All13KeysAreFiltered()
+    public void IsReservedNotionField_ReservedKeysAreFiltered()
     {
         var reservedKeys = new[]
         {
-            "title", "slug", "type", "publishat", "publish_date",
-            "language", "tags", "categories", "summary", "route",
-            "url", "outputpath", "template"
+            "published", "title", "slug", "type", "publishat", "publish_at"
         };
 
         var jsonParts = new System.Text.StringBuilder();
@@ -408,7 +406,7 @@ public sealed class NotionPropertyParserExtendedTests
         """);
 
         Assert.Empty(NotionPropertyParser.ExtractFields(nonObject.RootElement));
-        var fields = NotionPropertyParser.ExtractFields(withEmptyKeys.RootElement, includeReservedFields: true);
+        var fields = NotionPropertyParser.ExtractAllFields(withEmptyKeys.RootElement);
 
         Assert.Single(fields);
         Assert.Equal("shown", fields["visible"].Value);
@@ -423,7 +421,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         using var doc = JsonDocument.Parse(json);
 
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out var notionType);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out _, out var notionType);
 
         Assert.False(ok);
         if (json.Contains("\"type\":\"unknown\"", StringComparison.Ordinal))
@@ -443,7 +441,7 @@ public sealed class NotionPropertyParserExtendedTests
         })
         {
             using var doc = JsonDocument.Parse(json);
-            var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+            var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
             Assert.False(ok);
         }
     }
@@ -457,7 +455,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         using var doc = JsonDocument.Parse(json);
 
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var notionType);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var notionType);
 
         Assert.True(ok);
         Assert.Equal(expectedType, notionType);
@@ -477,7 +475,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         using var doc = JsonDocument.Parse(json);
 
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
 
         Assert.False(ok);
     }
@@ -487,15 +485,28 @@ public sealed class NotionPropertyParserExtendedTests
     [InlineData("""{"type":"checkbox","checkbox":"true"}""")]
     [InlineData("""{"type":"date","date":null}""")]
     [InlineData("""{"type":"date","date":{"start":"   "}}""")]
-    [InlineData("""{"type":"created_time","created_time":"not-a-date"}""")]
-    [InlineData("""{"type":"last_edited_time","last_edited_time":"not-a-date"}""")]
     public void TryParseScalarValues_WithInvalidPayloads_ReturnsFalse(string json)
     {
         using var doc = JsonDocument.Parse(json);
 
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
 
         Assert.False(ok);
+    }
+
+    [Theory]
+    [InlineData("""{"type":"created_time","created_time":"not-a-date"}""", "created_time")]
+    [InlineData("""{"type":"last_edited_time","last_edited_time":"not-a-date"}""", "last_edited_time")]
+    public void TryParseTimeValues_WithInvalidDate_ReturnsTextField(string json, string expectedType)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var notionType);
+
+        Assert.True(ok);
+        Assert.Equal(expectedType, notionType);
+        Assert.Equal("text", field.Type);
+        Assert.Equal("not-a-date", field.Value);
     }
 
     [Theory]
@@ -505,7 +516,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         using var doc = JsonDocument.Parse(json);
 
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var notionType);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var notionType);
 
         Assert.True(ok);
         Assert.Equal(expectedType, notionType);
@@ -519,7 +530,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         using var doc = JsonDocument.Parse(json);
 
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var notionType);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var notionType);
 
         Assert.True(ok);
         Assert.Equal(expectedType, notionType);
@@ -536,7 +547,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         using var doc = JsonDocument.Parse(json);
 
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
 
         Assert.False(ok);
     }
@@ -549,7 +560,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         using var doc = JsonDocument.Parse(json);
 
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
 
         Assert.False(ok);
     }
@@ -565,7 +576,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         using var doc = JsonDocument.Parse(json);
 
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
 
         Assert.False(ok);
     }
@@ -581,7 +592,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         using var doc = JsonDocument.Parse(json);
 
-        var ok = NotionPropertyParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
+        var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
 
         Assert.False(ok);
     }

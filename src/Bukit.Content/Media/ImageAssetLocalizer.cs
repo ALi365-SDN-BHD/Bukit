@@ -1,9 +1,6 @@
 using Bukit.Engine.Abstractions.Content;
 using System.Collections.Concurrent;
-using System.Net;
-using System.Net.Sockets;
 using System.Security.Cryptography;
-using System.Text.Json;
 using Bukit.Config;
 using Bukit.Shared;
 
@@ -11,10 +8,8 @@ namespace Bukit.Content.Media;
 
 public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 {
-    private const string IndexFileName = ".media-index.json";
     private const string UserAgentValue = "Bukit/1.0";
-    private const long DefaultMaxFileSize = 50L * 1024 * 1024; // 50 MB
-    private const int IndexPersistThreshold = 20;
+    private const long DefaultMaxFileSize = 50L * 1024 * 1024;
 
     private static readonly IReadOnlyDictionary<string, string> ContentTypeToExt =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -29,7 +24,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             ["image/bmp"] = ".bmp"
         };
 
-    private static readonly HashSet<string> AllowedExtensions =
+    internal static readonly HashSet<string> AllowedExtensions =
         new(StringComparer.OrdinalIgnoreCase)
         {
             ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif", ".bmp",
@@ -43,24 +38,21 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly ConcurrentDictionary<string, string> _cache = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Task<string>> _inflight = new(StringComparer.Ordinal);
     private readonly ConcurrentBag<MediaFailure> _failures = new();
-    private readonly object _indexLock = new();
-    private Dictionary<string, string> _diskIndex = new(StringComparer.Ordinal);
-    private volatile bool _indexLoaded;
-    private bool _indexDirty;
-    private int _pendingIndexChanges;
+    private readonly MediaIndexManager _indexManager;
 
-    /// <summary>Returns all image URLs that failed to localize during this session.</summary>
     public IReadOnlyList<MediaFailure> Failures => _failures.ToArray();
 
     public ImageAssetLocalizer(MediaConfig config, ILogger? logger = null)
     {
         _config = config;
         _logger = logger;
+        _indexManager = new MediaIndexManager(
+            config.DownloadDir ?? string.Empty, config.UrlBase ?? string.Empty, logger);
 
         var handler = new SocketsHttpHandler();
         if (config.BlockPrivateNetworks)
         {
-            handler.ConnectCallback = SsrfSafeConnectAsync;
+            handler.ConnectCallback = SsrfGuard.SsrfSafeConnectAsync;
         }
 
         _httpClient = new HttpClient(handler);
@@ -73,6 +65,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         _config = config;
         _httpClient = httpClient;
         _logger = logger;
+        _indexManager = new MediaIndexManager(
+            config.DownloadDir ?? string.Empty, config.UrlBase ?? string.Empty, logger);
         _ownsHttpClient = false;
     }
 
@@ -85,8 +79,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
         var source = sourceUrl.Trim();
 
-        // Defensive: decode HTML entities that may leak from HTML-sourced URLs.
-        // &amp; is never valid in a real URL; its presence always indicates HTML encoding.
         if (source.Contains("&amp;", StringComparison.Ordinal))
         {
             source = System.Net.WebUtility.HtmlDecode(source);
@@ -120,25 +112,24 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
         var root = _config.DownloadDir.Trim();
         Directory.CreateDirectory(root);
-        EnsureIndexLoaded(root);
+        _indexManager.EnsureIndexLoaded(root);
 
-        if (TryGetUrlFromIndex(root, normalizedKey, out var indexedUrl))
+        if (_indexManager.TryGetUrlFromIndex(root, normalizedKey, out var indexedUrl))
         {
             _cache.TryAdd(normalizedKey, indexedUrl);
             return indexedUrl;
         }
 
         var hashPrefix = BuildHashPrefix(normalizedKey);
-        var existingName = FindExistingFileByHash(root, hashPrefix);
+        var existingName = _indexManager.FindExistingFileByHash(root, hashPrefix);
         if (existingName is not null)
         {
-            RememberIndex(normalizedKey, existingName);
-            var existingUrl = CombineUrl(_config.UrlBase, existingName);
+            _indexManager.RememberIndex(normalizedKey, existingName);
+            var existingUrl = _indexManager.CombineUrl(existingName);
             _cache.TryAdd(normalizedKey, existingUrl);
             return existingUrl;
         }
 
-        // Single-flight: deduplicate concurrent downloads for the same URL
         var downloadTask = _inflight.GetOrAdd(normalizedKey,
             _ => DownloadCoreAsync(normalizedKey, uri, source, root, cancellationToken));
         try
@@ -151,15 +142,12 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         }
     }
 
-    // ── Download core ───────────────────────────────────────────────────
-
     private async Task<string> DownloadCoreAsync(
         string normalizedKey, Uri uri, string source, string root,
         CancellationToken cancellationToken)
     {
-        // Pre-flight SSRF check for injected HttpClient (owned client uses ConnectCallback)
         if (_config.BlockPrivateNetworks && !_ownsHttpClient &&
-            await IsPrivateHostAsync(uri.Host, cancellationToken))
+            await SsrfGuard.IsPrivateHostAsync(uri.Host, cancellationToken))
         {
             _logger?.Warn($"event=media.ssrf_blocked source={UrlRedactor.Redact(source)}");
             return RecordFailure(source, "SSRF blocked (private/reserved address)");
@@ -197,7 +185,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     continue;
                 }
 
-                // Content-Type validation: reject non-image responses
                 var contentType = response.Content.Headers.ContentType?.MediaType;
                 if (!IsAllowedContentType(contentType))
                 {
@@ -206,7 +193,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     return RecordFailure(source, $"Content-Type rejected: {contentType ?? "(null)"}");
                 }
 
-                // Size-limited streaming read
                 var bytes = await ReadWithLimitAsync(response.Content, maxFileSize, cts.Token);
                 if (bytes is null)
                 {
@@ -234,14 +220,14 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     await File.WriteAllBytesAsync(localPath, bytes, cts.Token);
                 }
 
-                var publicUrl = CombineUrl(_config.UrlBase, fileName);
-                RememberIndex(normalizedKey, fileName);
+                var publicUrl = _indexManager.CombineUrl(fileName);
+                _indexManager.RememberIndex(normalizedKey, fileName);
                 _cache.TryAdd(normalizedKey, publicUrl);
                 return publicUrl;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                throw; // propagate user-initiated cancellation
+                throw;
             }
             catch (Exception ex)
             {
@@ -263,12 +249,9 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         return _config.DefaultImageUrl;
     }
 
-    // ── Streaming read with size limit ──────────────────────────────────
-
     private static async Task<byte[]?> ReadWithLimitAsync(
         HttpContent content, long maxBytes, CancellationToken cancellationToken)
     {
-        // Check Content-Length header first for early rejection
         if (content.Headers.ContentLength is > 0 && content.Headers.ContentLength.Value > maxBytes)
         {
             return null;
@@ -293,14 +276,10 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         return ms.ToArray();
     }
 
-    // ── Content-Type validation ─────────────────────────────────────────
-
     private static bool IsAllowedContentType(string? contentType)
     {
         if (string.IsNullOrWhiteSpace(contentType))
         {
-            // Allow unknown content types to avoid breaking edge cases;
-            // the extension whitelist provides a secondary guard.
             return true;
         }
 
@@ -308,88 +287,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         return ct.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
                || string.Equals(ct, "application/octet-stream", StringComparison.OrdinalIgnoreCase);
     }
-
-    // ── SSRF protection ─────────────────────────────────────────────────
-
-    private static async ValueTask<Stream> SsrfSafeConnectAsync(
-        SocketsHttpConnectionContext context, CancellationToken cancellationToken)
-    {
-        var host = context.DnsEndPoint.Host;
-        var port = context.DnsEndPoint.Port;
-
-        var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
-        var safeAddress = Array.Find(addresses, static a => !IsPrivateAddress(a))
-                          ?? throw new HttpRequestException(
-                              $"SSRF blocked: all resolved addresses for '{host}' are private/reserved.");
-
-        var socket = new Socket(safeAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-        try
-        {
-            await socket.ConnectAsync(new IPEndPoint(safeAddress, port), cancellationToken);
-            return new NetworkStream(socket, ownsSocket: true);
-        }
-        catch
-        {
-            socket.Dispose();
-            throw;
-        }
-    }
-
-    private static async Task<bool> IsPrivateHostAsync(string host, CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (IPAddress.TryParse(host, out var directIp))
-            {
-                return IsPrivateAddress(directIp);
-            }
-
-            var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
-            return addresses.Length > 0 && Array.Exists(addresses, IsPrivateAddress);
-        }
-        catch
-        {
-            // DNS resolution failed; let the HTTP request proceed and fail naturally
-            return false;
-        }
-    }
-
-    internal static bool IsPrivateAddress(IPAddress address)
-    {
-        if (IPAddress.IsLoopback(address))
-        {
-            return true;
-        }
-
-        if (address.IsIPv4MappedToIPv6)
-        {
-            address = address.MapToIPv4();
-        }
-
-        if (address.AddressFamily == AddressFamily.InterNetwork)
-        {
-            var b = address.GetAddressBytes();
-            return b[0] switch
-            {
-                0 => true,                                 // 0.0.0.0/8
-                10 => true,                                // 10.0.0.0/8
-                127 => true,                               // 127.0.0.0/8
-                169 => b[1] == 254,                        // 169.254.0.0/16 link-local / cloud metadata
-                172 => b[1] >= 16 && b[1] <= 31,           // 172.16.0.0/12
-                192 => b[1] == 168,                        // 192.168.0.0/16
-                _ => false
-            };
-        }
-
-        if (address.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal;
-        }
-
-        return false;
-    }
-
-    // ── Retry backoff ───────────────────────────────────────────────────
 
     private static async Task DelayBeforeRetryAsync(
         int attempt, int baseDelayMs, CancellationToken cancellationToken)
@@ -402,8 +299,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         var delayMs = Math.Min(baseDelayMs * (1 << Math.Min(attempt, 10)), 30_000);
         await Task.Delay(delayMs, cancellationToken);
     }
-
-    // ── Extension resolution with whitelist ─────────────────────────────
 
     private static string ResolveExtension(Uri uri, string? contentType)
     {
@@ -422,8 +317,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         return ".img";
     }
 
-    // ── Stable file naming ──────────────────────────────────────────────
-
     private static string BuildStableFileName(string normalizedKey, string ext)
     {
         return $"{BuildHashPrefix(normalizedKey)}{ext}";
@@ -433,27 +326,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     {
         var hash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(normalizedKey));
         return Convert.ToHexString(hash).ToLowerInvariant()[..16];
-    }
-
-    private static string? FindExistingFileByHash(string directory, string hashPrefix)
-    {
-        try
-        {
-            foreach (var file in Directory.EnumerateFiles(directory, $"{hashPrefix}.*"))
-            {
-                var name = Path.GetFileName(file);
-                if (!name.StartsWith('.') && AllowedExtensions.Contains(Path.GetExtension(name)))
-                {
-                    return name;
-                }
-            }
-        }
-        catch (DirectoryNotFoundException)
-        {
-            // Directory may not exist yet
-        }
-
-        return null;
     }
 
     private static string NormalizeSourceUrlForKey(Uri uri)
@@ -477,211 +349,9 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         return $"{scheme}://{host}{port}{path}";
     }
 
-    // ── Index management ────────────────────────────────────────────────
-
-    private static bool IsSafeFileName(string fileName)
-    {
-        return !string.IsNullOrWhiteSpace(fileName)
-               && fileName.IndexOfAny(['/', '\\']) < 0
-               && !fileName.Contains("..", StringComparison.Ordinal)
-               && !Path.IsPathRooted(fileName);
-    }
-
-    private bool TryGetUrlFromIndex(string root, string normalizedKey, out string url)
-    {
-        url = string.Empty;
-        lock (_indexLock)
-        {
-            if (!_diskIndex.TryGetValue(normalizedKey, out var fileName))
-            {
-                return false;
-            }
-
-            if (!IsSafeFileName(fileName))
-            {
-                _logger?.Warn(
-                    $"event=media.index_path_traversal key={normalizedKey} fileName={fileName}");
-                _diskIndex.Remove(normalizedKey);
-                _indexDirty = true;
-                return false;
-            }
-
-            var fullPath = Path.Combine(root, fileName);
-            if (!File.Exists(fullPath))
-            {
-                _diskIndex.Remove(normalizedKey);
-                _indexDirty = true;
-                return false;
-            }
-
-            url = CombineUrl(_config.UrlBase, fileName);
-            return true;
-        }
-    }
-
-    private void RememberIndex(string normalizedKey, string fileName)
-    {
-        bool shouldPersist;
-        lock (_indexLock)
-        {
-            if (_diskIndex.TryGetValue(normalizedKey, out var existing) &&
-                string.Equals(existing, fileName, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _diskIndex[normalizedKey] = fileName;
-            _indexDirty = true;
-            _pendingIndexChanges++;
-            shouldPersist = _pendingIndexChanges >= IndexPersistThreshold;
-        }
-
-        if (shouldPersist)
-        {
-            PersistIndex();
-        }
-    }
-
-    private void EnsureIndexLoaded(string root)
-    {
-        if (_indexLoaded)
-        {
-            return;
-        }
-
-        lock (_indexLock)
-        {
-            if (_indexLoaded)
-            {
-                return;
-            }
-
-            var path = Path.Combine(root, IndexFileName);
-            if (!File.Exists(path))
-            {
-                _indexLoaded = true;
-                return;
-            }
-
-            try
-            {
-                using var stream = File.OpenRead(path);
-                using var doc = JsonDocument.Parse(stream);
-                var rootEl = doc.RootElement;
-                JsonElement entries;
-
-                if (rootEl.ValueKind == JsonValueKind.Object &&
-                    rootEl.TryGetProperty("entries", out var e) &&
-                    e.ValueKind == JsonValueKind.Object)
-                {
-                    entries = e;
-                }
-                else if (rootEl.ValueKind == JsonValueKind.Object)
-                {
-                    entries = rootEl;
-                }
-                else
-                {
-                    _indexLoaded = true;
-                    return;
-                }
-
-                foreach (var prop in entries.EnumerateObject())
-                {
-                    if (prop.Value.ValueKind != JsonValueKind.String)
-                    {
-                        continue;
-                    }
-
-                    var v = prop.Value.GetString();
-                    if (string.IsNullOrWhiteSpace(v))
-                    {
-                        continue;
-                    }
-
-                    var trimmed = v.Trim();
-                    if (!IsSafeFileName(trimmed))
-                    {
-                        _logger?.Warn($"event=media.index_unsafe_entry key={prop.Name} value={trimmed}");
-                        continue;
-                    }
-
-                    _diskIndex[prop.Name] = trimmed;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.Warn($"event=media.index_corrupt path={path} error={ex.GetType().Name}");
-                _diskIndex = new Dictionary<string, string>(StringComparer.Ordinal);
-            }
-            finally
-            {
-                _indexLoaded = true;
-            }
-        }
-    }
-
-    private void PersistIndex()
-    {
-        var root = (_config.DownloadDir ?? string.Empty).Trim();
-        if (root.Length == 0)
-        {
-            return;
-        }
-
-        lock (_indexLock)
-        {
-            if (!_indexLoaded || !_indexDirty)
-            {
-                return;
-            }
-
-            try
-            {
-                Directory.CreateDirectory(root);
-                var path = Path.Combine(root, IndexFileName);
-                using var fs = File.Create(path);
-                using var writer = new Utf8JsonWriter(fs, new JsonWriterOptions { Indented = false });
-                writer.WriteStartObject();
-                writer.WriteNumber("version", 1);
-                writer.WritePropertyName("entries");
-                writer.WriteStartObject();
-                foreach (var kv in _diskIndex.OrderBy(x => x.Key, StringComparer.Ordinal))
-                {
-                    writer.WriteString(kv.Key, kv.Value);
-                }
-                writer.WriteEndObject();
-                writer.WriteEndObject();
-                writer.Flush();
-                _indexDirty = false;
-                _pendingIndexChanges = 0;
-            }
-            catch (Exception ex)
-            {
-                _logger?.Warn($"event=media.index_write_failed error={ex.GetType().Name}");
-            }
-        }
-    }
-
-    private static string CombineUrl(string baseUrl, string fileName)
-    {
-        var trimmedBase = (baseUrl ?? string.Empty).Trim();
-        if (trimmedBase.Length == 0)
-        {
-            return "/" + fileName;
-        }
-
-        if (!trimmedBase.StartsWith('/'))
-        {
-            trimmedBase = "/" + trimmedBase;
-        }
-
-        return $"{trimmedBase.TrimEnd('/')}/{fileName}";
-    }
-
     public void Dispose()
     {
-        PersistIndex();
+        _indexManager.PersistIndex();
         if (_ownsHttpClient)
         {
             _httpClient.Dispose();

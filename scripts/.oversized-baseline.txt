@@ -29,12 +29,7 @@ src/Bukit.Cli/Commands/ThemeCommand.cs
 # (ConfigLoader.cs and ConfigValidator.cs split below 600 lines — removed from baseline)
 
 # --- Bukit.Content ---
-# Markdown content loading; split candidate
-src/Bukit.Content/Markdown/MarkdownFolderProvider.cs
-# image download + localize; split candidate
-src/Bukit.Content/Media/ImageAssetLocalizer.cs
-# Notion API integration; split candidate
-src/Bukit.Content/Notion/NotionContentProvider.cs
+# (MarkdownFolderProvider.cs, ImageAssetLocalizer.cs, NotionContentProvider.cs split below 600 lines — removed from baseline)
 
 # --- Bukit.Engine ---
 # parallel page rendering; split candidate

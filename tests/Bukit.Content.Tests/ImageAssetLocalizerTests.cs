@@ -474,19 +474,19 @@ public sealed class ImageAssetLocalizerTests
     [Fact]
     public void IsPrivateAddress_DetectsPrivateRanges()
     {
-        Assert.True(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("127.0.0.1")));
-        Assert.True(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("10.0.0.1")));
-        Assert.True(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("172.16.0.1")));
-        Assert.True(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("192.168.1.1")));
-        Assert.True(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("169.254.169.254")));
-        Assert.True(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("0.0.0.0")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("127.0.0.1")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("10.0.0.1")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("172.16.0.1")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("192.168.1.1")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("169.254.169.254")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("0.0.0.0")));
 
-        Assert.False(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("8.8.8.8")));
-        Assert.False(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("1.1.1.1")));
-        Assert.False(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("172.32.0.1")));
-        Assert.True(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("::ffff:192.168.1.10")));
-        Assert.True(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("fe80::1")));
-        Assert.False(ImageAssetLocalizer.IsPrivateAddress(System.Net.IPAddress.Parse("2001:4860:4860::8888")));
+        Assert.False(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("8.8.8.8")));
+        Assert.False(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("1.1.1.1")));
+        Assert.False(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("172.32.0.1")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("::ffff:192.168.1.10")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("fe80::1")));
+        Assert.False(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("2001:4860:4860::8888")));
     }
 
     [Fact]

@@ -1,26 +1,41 @@
-using System.Text.Json;
-using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using System.Text;
+using System.Text.Json;
 namespace Bukit.Content.Notion;
 
 public static class NotionPropertyParser
 {
     public static IReadOnlyDictionary<string, ContentField> ExtractFields(JsonElement properties)
     {
-        return ExtractFields(properties, includeReservedFields: false);
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (properties.ValueKind != JsonValueKind.Object)
+        {
+            return fields;
+        }
+
+        foreach (var prop in properties.EnumerateObject())
+        {
+            var key = NormalizeFieldKey(prop.Name);
+            if (string.IsNullOrWhiteSpace(key) || IsReservedNotionField(key))
+            {
+                continue;
+            }
+
+            if (NotionPropertyTypeParser.TryParseNotionPropertyToField(prop.Value, out var field, out _))
+            {
+                fields[key] = field;
+            }
+        }
+
+        return fields;
     }
 
     public static IReadOnlyDictionary<string, ContentField> ExtractAllFields(JsonElement properties)
     {
-        return ExtractFields(properties, includeReservedFields: true);
-    }
-
-    public static IReadOnlyDictionary<string, ContentField> ExtractFields(JsonElement properties, bool includeReservedFields)
-    {
-        var dict = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
         if (properties.ValueKind != JsonValueKind.Object)
         {
-            return dict;
+            return fields;
         }
 
         foreach (var prop in properties.EnumerateObject())
@@ -31,461 +46,269 @@ public static class NotionPropertyParser
                 continue;
             }
 
-            if (!includeReservedFields && IsReservedNotionField(key))
+            if (NotionPropertyTypeParser.TryParseNotionPropertyToField(prop.Value, out var field, out _))
+            {
+                fields[key] = field;
+            }
+        }
+
+        return fields;
+    }
+
+    internal static IReadOnlyDictionary<string, ContentField> ExtractFields(
+        JsonElement properties,
+        string policyMode,
+        HashSet<string>? allowed,
+        out IReadOnlyList<string> relationKeys)
+    {
+        var relations = new List<string>();
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (properties.ValueKind != JsonValueKind.Object)
+        {
+            relationKeys = relations;
+            return fields;
+        }
+
+        foreach (var prop in properties.EnumerateObject())
+        {
+            var rawName = prop.Name;
+            if (string.IsNullOrWhiteSpace(rawName))
             {
                 continue;
             }
 
-            if (TryParseNotionPropertyToField(prop.Value, out var field, out _))
+            var key = NormalizeFieldKey(rawName);
+            if (string.IsNullOrWhiteSpace(key))
             {
-                dict[key] = field;
+                continue;
+            }
+
+            if (IsReservedNotionField(key))
+            {
+                continue;
+            }
+
+            if (policyMode == "whitelist" && allowed is not null && !allowed.Contains(key))
+            {
+                continue;
+            }
+
+            if (NotionPropertyTypeParser.TryParseNotionPropertyToField(prop.Value, out var field, out var notionType))
+            {
+                fields[key] = field;
+                if (string.Equals(notionType, "relation", StringComparison.OrdinalIgnoreCase))
+                {
+                    relations.Add(key);
+                }
             }
         }
 
-        return dict;
+        relationKeys = relations;
+        return fields;
     }
 
-    public static string NormalizeFieldKey(string text)
+    internal static string? ExtractTitle(JsonElement properties)
     {
-        if (string.IsNullOrWhiteSpace(text))
+        if (properties.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (NotionContentProvider.TryGetPropertyIgnoreCase(properties, "Title", out var titleProp))
+        {
+            var text = ExtractTitleProperty(titleProp);
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                return text;
+            }
+        }
+
+        foreach (var prop in properties.EnumerateObject())
+        {
+            var v = prop.Value;
+            if (NotionContentProvider.GetString(v, "type") == "title")
+            {
+                var text = ExtractTitleProperty(v);
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    return text;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    internal static string? ExtractTitleProperty(JsonElement prop)
+    {
+        if (prop.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!prop.TryGetProperty("title", out var titleArray) || titleArray.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var sb = new StringBuilder();
+        foreach (var item in titleArray.EnumerateArray())
+        {
+            if (item.TryGetProperty("plain_text", out var plain) && plain.ValueKind == JsonValueKind.String)
+            {
+                sb.Append(plain.GetString());
+            }
+        }
+
+        return sb.ToString().Trim();
+    }
+
+    internal static string? ExtractSlug(JsonElement properties)
+    {
+        if (properties.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!NotionContentProvider.TryGetPropertyIgnoreCase(properties, "Slug", out var slugProp))
+        {
+            return null;
+        }
+
+        var type = NotionContentProvider.GetString(slugProp, "type");
+        if (type == "rich_text" && slugProp.TryGetProperty("rich_text", out var rt))
+        {
+            var text = NotionContentProvider.ExtractPlainText(rt);
+            return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        }
+
+        if (type == "formula" && slugProp.TryGetProperty("formula", out var f) && f.ValueKind == JsonValueKind.Object)
+        {
+            var value = NotionContentProvider.GetString(f, "string");
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+
+        return null;
+    }
+
+    internal static string? ExtractType(JsonElement properties)
+    {
+        if (properties.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!NotionContentProvider.TryGetPropertyIgnoreCase(properties, "Type", out var typeProp))
+        {
+            return null;
+        }
+
+        var t = NotionContentProvider.GetString(typeProp, "type");
+        if (t == "select" && typeProp.TryGetProperty("select", out var sel) && sel.ValueKind == JsonValueKind.Object)
+        {
+            return NotionContentProvider.GetString(sel, "name");
+        }
+
+        if (t == "multi_select" && typeProp.TryGetProperty("multi_select", out var ms) && ms.ValueKind == JsonValueKind.Array)
+        {
+            var first = ms.EnumerateArray().FirstOrDefault();
+            if (first.ValueKind == JsonValueKind.Object)
+            {
+                return NotionContentProvider.GetString(first, "name");
+            }
+        }
+
+        return null;
+    }
+
+    internal static DateTimeOffset? ExtractPublishAt(JsonElement properties)
+    {
+        if (properties.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (NotionContentProvider.TryGetPropertyIgnoreCase(properties, "PublishAt", out var dateProp))
+        {
+            var value = ReadDateProperty(dateProp);
+            if (value is not null)
+            {
+                return value;
+            }
+        }
+
+        if (NotionContentProvider.TryGetPropertyIgnoreCase(properties, "Date", out var dateProp2))
+        {
+            var value = ReadDateProperty(dateProp2);
+            if (value is not null)
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    internal static DateTimeOffset? ReadDateProperty(JsonElement prop)
+    {
+        var type = NotionContentProvider.GetString(prop, "type");
+        if (type != "date")
+        {
+            return null;
+        }
+
+        if (!prop.TryGetProperty("date", out var dateObj) || dateObj.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var start = NotionContentProvider.GetString(dateObj, "start");
+        if (string.IsNullOrWhiteSpace(start))
+        {
+            return null;
+        }
+
+        if (DateTimeOffset.TryParse(start, out var dto))
+        {
+            return dto;
+        }
+
+        return null;
+    }
+
+    internal static bool IsReservedNotionField(string normalizedKey)
+    {
+        return normalizedKey is "published" or "title" or "slug" or "type" or "publishat" or "publish_at";
+    }
+
+    internal static string NormalizeFieldKey(string text)
+    {
+        var trimmed = (text ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
         {
             return string.Empty;
         }
 
-        var sb = new System.Text.StringBuilder();
-        var lastUnderscore = false;
+        var sb = new StringBuilder(trimmed.Length);
+        var underscore = false;
 
-        foreach (var ch in text.Trim().ToLowerInvariant())
+        foreach (var ch in trimmed)
         {
-            if (ch is >= 'a' and <= 'z' || ch is >= '0' and <= '9')
+            var lower = char.ToLowerInvariant(ch);
+            if (lower is >= 'a' and <= 'z' or >= '0' and <= '9')
             {
-                sb.Append(ch);
-                lastUnderscore = false;
+                sb.Append(lower);
+                underscore = false;
                 continue;
             }
 
-            if (!lastUnderscore && sb.Length > 0)
+            if (!underscore)
             {
                 sb.Append('_');
-                lastUnderscore = true;
+                underscore = true;
             }
         }
 
         return sb.ToString().Trim('_');
-    }
-
-    public static bool TryParseNotionPropertyToField(JsonElement property, out ContentField field, out string notionType)
-    {
-        field = new ContentField("text", string.Empty);
-        notionType = string.Empty;
-
-        if (property.ValueKind != JsonValueKind.Object)
-        {
-            return false;
-        }
-
-        if (!property.TryGetProperty("type", out var typeEl) || typeEl.ValueKind != JsonValueKind.String)
-        {
-            return false;
-        }
-
-        notionType = typeEl.GetString() ?? string.Empty;
-        var type = notionType.Trim().ToLowerInvariant();
-
-        switch (type)
-        {
-            case "title":
-                return TryParseRichTextArray(property, "title", out field);
-            case "rich_text":
-                return TryParseRichTextArray(property, "rich_text", out field);
-            case "url":
-            case "email":
-            case "phone_number":
-            case "select":
-            case "status":
-            case "unique_id":
-            case "verification":
-                return TryParseTextLike(property, type, out field);
-            case "number":
-                return TryParseNumber(property, out field);
-            case "checkbox":
-                return TryParseCheckbox(property, out field);
-            case "date":
-            case "created_time":
-            case "last_edited_time":
-                return TryParseDate(property, type, out field);
-            case "multi_select":
-            case "people":
-            case "relation":
-                return TryParseList(property, type, out field);
-            case "files":
-                return TryParseFiles(property, out field);
-            case "formula":
-                return TryParseFormula(property, out field);
-            case "rollup":
-                return TryParseRollup(property, out field);
-            default:
-                return false;
-        }
-    }
-
-    private static bool IsReservedNotionField(string key)
-    {
-        return key.Equals("title", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("slug", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("type", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("publishat", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("publish_date", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("language", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("tags", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("categories", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("summary", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("route", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("url", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("outputpath", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("template", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool TryParseRichTextArray(JsonElement property, string key, out ContentField field)
-    {
-        field = new ContentField("text", string.Empty);
-        if (!property.TryGetProperty(key, out var arr) || arr.ValueKind != JsonValueKind.Array)
-        {
-            return false;
-        }
-
-        var sb = new System.Text.StringBuilder();
-        foreach (var item in arr.EnumerateArray())
-        {
-            if (item.ValueKind != JsonValueKind.Object)
-            {
-                continue;
-            }
-
-            var s = item.TryGetProperty("plain_text", out var pt) && pt.ValueKind == JsonValueKind.String ? pt.GetString() : null;
-            if (string.IsNullOrWhiteSpace(s))
-            {
-                continue;
-            }
-
-            if (sb.Length > 0)
-            {
-                sb.Append(' ');
-            }
-            sb.Append(s!.Trim());
-        }
-
-        var text = sb.ToString();
-        field = new ContentField("text", text);
-        return !string.IsNullOrWhiteSpace(text);
-    }
-
-    private static bool TryParseTextLike(JsonElement property, string type, out ContentField field)
-    {
-        field = new ContentField("text", string.Empty);
-
-        if (!property.TryGetProperty(type, out var el))
-        {
-            return false;
-        }
-
-        if (type is "select" or "status")
-        {
-            if (el.ValueKind == JsonValueKind.Object &&
-                el.TryGetProperty("name", out var n) &&
-                n.ValueKind == JsonValueKind.String)
-            {
-                var text = n.GetString() ?? string.Empty;
-                field = new ContentField("text", text);
-                return !string.IsNullOrWhiteSpace(text);
-            }
-
-            return false;
-        }
-
-        if (type == "unique_id")
-        {
-            if (el.ValueKind != JsonValueKind.Object)
-            {
-                return false;
-            }
-
-            var prefix = el.TryGetProperty("prefix", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
-            var number = el.TryGetProperty("number", out var num) && num.ValueKind == JsonValueKind.Number ? num.GetInt64().ToString() : null;
-            var text = string.IsNullOrWhiteSpace(prefix) ? number ?? string.Empty : $"{prefix}-{number}";
-            field = new ContentField("text", text);
-            return !string.IsNullOrWhiteSpace(text);
-        }
-
-        if (type == "verification")
-        {
-            if (el.ValueKind == JsonValueKind.Object &&
-                el.TryGetProperty("state", out var st) &&
-                st.ValueKind == JsonValueKind.String)
-            {
-                var text = st.GetString() ?? string.Empty;
-                field = new ContentField("text", text);
-                return !string.IsNullOrWhiteSpace(text);
-            }
-
-            return false;
-        }
-
-        if (el.ValueKind == JsonValueKind.String)
-        {
-            var text = el.GetString() ?? string.Empty;
-            field = new ContentField("text", text);
-            return !string.IsNullOrWhiteSpace(text);
-        }
-
-        return false;
-    }
-
-    private static bool TryParseNumber(JsonElement property, out ContentField field)
-    {
-        field = new ContentField("number", 0);
-        if (!property.TryGetProperty("number", out var n) || n.ValueKind != JsonValueKind.Number)
-        {
-            return false;
-        }
-
-        if (n.TryGetInt64(out var l))
-        {
-            field = new ContentField("number", l);
-            return true;
-        }
-
-        var d = n.GetDouble();
-        field = new ContentField("number", d);
-        return true;
-    }
-
-    private static bool TryParseCheckbox(JsonElement property, out ContentField field)
-    {
-        field = new ContentField("bool", false);
-        if (!property.TryGetProperty("checkbox", out var b) || (b.ValueKind != JsonValueKind.True && b.ValueKind != JsonValueKind.False))
-        {
-            return false;
-        }
-
-        field = new ContentField("bool", b.ValueKind == JsonValueKind.True);
-        return true;
-    }
-
-    private static bool TryParseDate(JsonElement property, string type, out ContentField field)
-    {
-        field = new ContentField("date", default(DateTimeOffset));
-
-        if (!property.TryGetProperty(type, out var dateEl))
-        {
-            return false;
-        }
-
-        if (type is "created_time" or "last_edited_time")
-        {
-            if (dateEl.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(dateEl.GetString(), out var dto))
-            {
-                field = new ContentField("date", dto);
-                return true;
-            }
-
-            return false;
-        }
-
-        if (dateEl.ValueKind != JsonValueKind.Object)
-        {
-            return false;
-        }
-
-        var start = dateEl.TryGetProperty("start", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
-        if (string.IsNullOrWhiteSpace(start))
-        {
-            return false;
-        }
-
-        if (DateTimeOffset.TryParse(start, out var parsed))
-        {
-            field = new ContentField("date", parsed);
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool TryParseList(JsonElement property, string type, out ContentField field)
-    {
-        field = new ContentField("list", Array.Empty<string>());
-
-        if (!property.TryGetProperty(type, out var arr) || arr.ValueKind != JsonValueKind.Array)
-        {
-            return false;
-        }
-
-        var list = new List<string>();
-        foreach (var item in arr.EnumerateArray())
-        {
-            if (type == "multi_select")
-            {
-                var name = item.ValueKind == JsonValueKind.Object && item.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    list.Add(name!.Trim());
-                }
-                continue;
-            }
-
-            if (type == "relation")
-            {
-                var id = item.ValueKind == JsonValueKind.Object && item.TryGetProperty("id", out var i) && i.ValueKind == JsonValueKind.String ? i.GetString() : null;
-                if (!string.IsNullOrWhiteSpace(id))
-                {
-                    list.Add(id!.Trim());
-                }
-                continue;
-            }
-
-            if (type == "people")
-            {
-                if (item.ValueKind != JsonValueKind.Object)
-                {
-                    continue;
-                }
-
-                var name = item.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
-                name = string.IsNullOrWhiteSpace(name)
-                    ? (item.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String ? id.GetString() : null)
-                    : name;
-
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    list.Add(name!.Trim());
-                }
-            }
-        }
-
-        field = new ContentField("list", list);
-        return list.Count > 0;
-    }
-
-    private static bool TryParseFiles(JsonElement property, out ContentField field)
-    {
-        field = new ContentField("file", string.Empty);
-        if (!property.TryGetProperty("files", out var arr) || arr.ValueKind != JsonValueKind.Array)
-        {
-            return false;
-        }
-
-        foreach (var item in arr.EnumerateArray())
-        {
-            if (item.ValueKind != JsonValueKind.Object)
-            {
-                continue;
-            }
-
-            var type = item.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() : null;
-            type = (type ?? string.Empty).Trim().ToLowerInvariant();
-
-            if (type == "external" &&
-                item.TryGetProperty("external", out var ex) && ex.ValueKind == JsonValueKind.Object &&
-                ex.TryGetProperty("url", out var url) && url.ValueKind == JsonValueKind.String)
-            {
-                var u = url.GetString() ?? string.Empty;
-                field = new ContentField("file", u);
-                return !string.IsNullOrWhiteSpace(u);
-            }
-
-            if (type == "file" &&
-                item.TryGetProperty("file", out var f) && f.ValueKind == JsonValueKind.Object &&
-                f.TryGetProperty("url", out var fu) && fu.ValueKind == JsonValueKind.String)
-            {
-                var u = fu.GetString() ?? string.Empty;
-                field = new ContentField("file", u);
-                return !string.IsNullOrWhiteSpace(u);
-            }
-        }
-
-        return false;
-    }
-
-    private static bool TryParseFormula(JsonElement property, out ContentField field)
-    {
-        field = new ContentField("text", string.Empty);
-        if (!property.TryGetProperty("formula", out var f) || f.ValueKind != JsonValueKind.Object)
-        {
-            return false;
-        }
-
-        if (!f.TryGetProperty("type", out var t) || t.ValueKind != JsonValueKind.String)
-        {
-            return false;
-        }
-
-        var type = (t.GetString() ?? string.Empty).Trim().ToLowerInvariant();
-        if (type == "string" && f.TryGetProperty("string", out var s) && s.ValueKind == JsonValueKind.String)
-        {
-            var text = s.GetString() ?? string.Empty;
-            field = new ContentField("text", text);
-            return !string.IsNullOrWhiteSpace(text);
-        }
-
-        if (type == "number" && f.TryGetProperty("number", out var n) && n.ValueKind == JsonValueKind.Number)
-        {
-            field = new ContentField("number", n.GetDouble());
-            return true;
-        }
-
-        if (type == "boolean" && f.TryGetProperty("boolean", out var b) && (b.ValueKind == JsonValueKind.True || b.ValueKind == JsonValueKind.False))
-        {
-            field = new ContentField("bool", b.ValueKind == JsonValueKind.True);
-            return true;
-        }
-
-        if (type == "date" && f.TryGetProperty("date", out var d) && d.ValueKind == JsonValueKind.Object &&
-            d.TryGetProperty("start", out var st) && st.ValueKind == JsonValueKind.String &&
-            DateTimeOffset.TryParse(st.GetString(), out var dto))
-        {
-            field = new ContentField("date", dto);
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool TryParseRollup(JsonElement property, out ContentField field)
-    {
-        field = new ContentField("text", string.Empty);
-        if (!property.TryGetProperty("rollup", out var r) || r.ValueKind != JsonValueKind.Object)
-        {
-            return false;
-        }
-
-        if (!r.TryGetProperty("type", out var t) || t.ValueKind != JsonValueKind.String)
-        {
-            return false;
-        }
-
-        var type = (t.GetString() ?? string.Empty).Trim().ToLowerInvariant();
-        if (type == "number" && r.TryGetProperty("number", out var n) && n.ValueKind == JsonValueKind.Number)
-        {
-            field = new ContentField("number", n.GetDouble());
-            return true;
-        }
-
-        if (type == "date" && r.TryGetProperty("date", out var d) && d.ValueKind == JsonValueKind.Object &&
-            d.TryGetProperty("start", out var st) && st.ValueKind == JsonValueKind.String &&
-            DateTimeOffset.TryParse(st.GetString(), out var dto))
-        {
-            field = new ContentField("date", dto);
-            return true;
-        }
-
-        if (type == "array" && r.TryGetProperty("array", out var arr) && arr.ValueKind == JsonValueKind.Array)
-        {
-            var list = arr.EnumerateArray().Select(x => x.ToString()).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
-            field = new ContentField("list", list);
-            return list.Count > 0;
-        }
-
-        return false;
     }
 }
