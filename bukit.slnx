@@ -22,6 +22,7 @@
     <Project Path="tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj" />
     <Project Path="tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj" />
     <Project Path="tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj" />
+    <Project Path="tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj" />
     <Project Path="tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj" />
     <Project Path="tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj" />
     <!-- DESKTOP-REMOVED: PluginSourceGenerator tests disabled (AOT-only). -->

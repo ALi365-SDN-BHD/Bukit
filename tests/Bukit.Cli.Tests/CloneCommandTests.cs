@@ -1363,6 +1363,36 @@ public sealed class CloneScreenshotDiffTests : IDisposable
         WriteChunk(file, "IEND", []);
     }
 
+    [Fact]
+    public void ComparePngScreenshots_Identical_ReturnsZeroDiff()
+    {
+        var target = Path.Combine(_rootDir, "target.png");
+        var local = Path.Combine(_rootDir, "local.png");
+        WritePngForTest(target, 2, 1, [255, 0, 0, 255, 0, 255, 0, 255]);
+        WritePngForTest(local, 2, 1, [255, 0, 0, 255, 0, 255, 0, 255]);
+
+        var result = CloneVerifier.ComparePngScreenshots("target.png", target, local);
+
+        Assert.Equal("identical", result.Status);
+        Assert.Equal(0, result.MismatchedPixels);
+        Assert.Equal(0, result.DiffRatio);
+    }
+
+    [Fact]
+    public void ComparePngScreenshots_Different_ReturnsNonZeroDiff()
+    {
+        var target = Path.Combine(_rootDir, "target.png");
+        var local = Path.Combine(_rootDir, "local.png");
+        WritePngForTest(target, 2, 1, [255, 0, 0, 255, 0, 255, 0, 255]);
+        WritePngForTest(local, 2, 1, [255, 0, 0, 255, 0, 0, 255, 255]);
+
+        var result = CloneVerifier.ComparePngScreenshots("target.png", target, local);
+
+        Assert.Equal("pixel-different", result.Status);
+        Assert.True(result.MismatchedPixels > 0);
+        Assert.True(result.DiffRatio > 0);
+    }
+
     private static void WriteChunk(Stream stream, string type, byte[] data)
     {
         Span<byte> length = stackalloc byte[4];

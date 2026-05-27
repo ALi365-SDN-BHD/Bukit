@@ -177,6 +177,7 @@ public class DependencyMatrixTests
         var allowedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Bukit.Engine.Tests",
+            "Bukit.Engine.Abstractions.Tests",
             "Bukit.Content.Tests",
             "Bukit.Cli.Tests",
             "Bukit.Rendering.Tests",

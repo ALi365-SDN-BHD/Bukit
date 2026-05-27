@@ -11,5 +11,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bukit.Engine.Abstractions.Tests" />
+  </ItemGroup>
+
 </Project>
 
