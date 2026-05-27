@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Cli.Commands;
 
@@ -39,10 +38,10 @@ internal static partial class CloneContentWriter
 
         CloneResearchWriter.WriteTo(rootDir, tokens, page, normalizedSections.Select(s => s.Source).ToList(), assets, behaviors, assetMap);
 
-        var css = CloneThemeGenerator.GenerateStyleCss(tokens) + "\n\n" + GenerateCloneCss(normalizedSections);
+        var css = CloneStyleSheetGenerator.GenerateStyleCss(tokens) + "\n\n" + GenerateCloneCss(normalizedSections);
         if (behaviors is not null && behaviors.HasAnyCssBehavior)
         {
-            css += "\n" + CloneThemeGenerator.GenerateBehaviorCss(behaviors, tokens);
+            css += "\n" + CloneBehaviorGenerator.GenerateBehaviorCss(behaviors, tokens);
         }
 
         WriteFile(rootDir, $"themes/{themeName}/assets/style.css", css);
@@ -89,7 +88,7 @@ internal static partial class CloneContentWriter
 
         if (behaviors is not null && behaviors.HasAnyJsBehavior)
         {
-            WriteFile(rootDir, $"themes/{themeName}/assets/behaviors.js", CloneThemeGenerator.GenerateBehaviorsJs(behaviors));
+            WriteFile(rootDir, $"themes/{themeName}/assets/behaviors.js", CloneBehaviorGenerator.GenerateBehaviorsJs(behaviors));
             themeFiles++;
         }
 
@@ -111,7 +110,7 @@ internal static partial class CloneContentWriter
             themeFiles++;
         }
 
-        var configUpdated = EnsureSourcesConfig(rootDir, themeName, brand, tokens, warnings);
+        var configUpdated = CloneYamlWriter.EnsureSourcesConfig(rootDir, themeName, brand, tokens, warnings);
 
         return new CloneContentWriteResult(
             ThemeFileCount: themeFiles,
@@ -147,16 +146,16 @@ internal static partial class CloneContentWriter
 
         var sb = new StringBuilder();
         sb.AppendLine("---");
-        sb.AppendLine($"title: {YamlScalar(title)}");
+        sb.AppendLine($"title: {CloneYamlWriter.YamlScalar(title)}");
         sb.AppendLine("type: page");
         sb.AppendLine("slug: index");
         sb.AppendLine("template: pages/index.html");
         if (!string.IsNullOrWhiteSpace(page.Url))
-            sb.AppendLine($"source_url: {YamlScalar(page.Url!)}");
+            sb.AppendLine($"source_url: {CloneYamlWriter.YamlScalar(page.Url!)}");
         if (!string.IsNullOrWhiteSpace(summary))
-            sb.AppendLine($"summary: {YamlScalar(summary!)}");
+            sb.AppendLine($"summary: {CloneYamlWriter.YamlScalar(summary!)}");
         if (!string.IsNullOrWhiteSpace(page.Seo?.Image))
-            sb.AppendLine($"og_image: {YamlScalar(page.Seo!.Image!)}");
+            sb.AppendLine($"og_image: {CloneYamlWriter.YamlScalar(page.Seo!.Image!)}");
         sb.AppendLine("---");
         sb.AppendLine();
         sb.AppendLine(body);
@@ -171,43 +170,43 @@ internal static partial class CloneContentWriter
 
         var sb = new StringBuilder();
         sb.AppendLine("---");
-        sb.AppendLine($"title: {YamlScalar(title)}");
-        sb.AppendLine($"type: {YamlScalar(normalized.Type)}");
+        sb.AppendLine($"title: {CloneYamlWriter.YamlScalar(title)}");
+        sb.AppendLine($"type: {CloneYamlWriter.YamlScalar(normalized.Type)}");
         sb.AppendLine($"order: {normalized.Order}");
         sb.AppendLine("enabled: true");
-        sb.AppendLine($"clone_key: {YamlScalar(normalized.Key)}");
-        sb.AppendLine($"clone_class: {YamlScalar(normalized.CssClass)}");
+        sb.AppendLine($"clone_key: {CloneYamlWriter.YamlScalar(normalized.Key)}");
+        sb.AppendLine($"clone_class: {CloneYamlWriter.YamlScalar(normalized.CssClass)}");
         if (!string.IsNullOrWhiteSpace(section.Semantic))
-            sb.AppendLine($"semantic: {YamlScalar(section.Semantic!)}");
+            sb.AppendLine($"semantic: {CloneYamlWriter.YamlScalar(section.Semantic!)}");
         if (!string.IsNullOrWhiteSpace(section.Eyebrow))
-            sb.AppendLine($"eyebrow: {YamlScalar(section.Eyebrow!)}");
+            sb.AppendLine($"eyebrow: {CloneYamlWriter.YamlScalar(section.Eyebrow!)}");
         if (!string.IsNullOrWhiteSpace(section.Subheading))
-            sb.AppendLine($"subheading: {YamlScalar(section.Subheading!)}");
+            sb.AppendLine($"subheading: {CloneYamlWriter.YamlScalar(section.Subheading!)}");
         if (section.Buttons.Count > 0)
-            sb.AppendLine($"buttons_json: {YamlScalar(CloneJson.Serialize(section.Buttons))}");
+            sb.AppendLine($"buttons_json: {CloneYamlWriter.YamlScalar(CloneJson.Serialize(section.Buttons))}");
         if (section.Items.Count > 0)
-            sb.AppendLine($"items_json: {YamlScalar(CloneJson.Serialize(section.Items))}");
+            sb.AppendLine($"items_json: {CloneYamlWriter.YamlScalar(CloneJson.Serialize(section.Items))}");
         if (section.Components.Count > 0)
-            sb.AppendLine($"components_json: {YamlScalar(CloneJson.Serialize(section.Components))}");
+            sb.AppendLine($"components_json: {CloneYamlWriter.YamlScalar(CloneJson.Serialize(section.Components))}");
         var imageUrls = RewriteUrls(section.ImageUrls.Concat(section.Assets.Select(a => a.Src)), assetMap)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (imageUrls.Count > 0)
-            sb.AppendLine($"image_urls_json: {YamlScalar(CloneJson.Serialize(imageUrls))}");
+            sb.AppendLine($"image_urls_json: {CloneYamlWriter.YamlScalar(CloneJson.Serialize(imageUrls))}");
         if (section.Styles is { Count: > 0 })
-            sb.AppendLine($"styles_json: {YamlScalar(CloneJson.Serialize(section.Styles))}");
+            sb.AppendLine($"styles_json: {CloneYamlWriter.YamlScalar(CloneJson.Serialize(section.Styles))}");
         if (section.ComputedStyles is { Count: > 0 })
-            sb.AppendLine($"computed_styles_json: {YamlScalar(CloneJson.Serialize(section.ComputedStyles))}");
+            sb.AppendLine($"computed_styles_json: {CloneYamlWriter.YamlScalar(CloneJson.Serialize(section.ComputedStyles))}");
         if (section.Bounds is not null)
-            sb.AppendLine($"bounds_json: {YamlScalar(CloneJson.Serialize(section.Bounds))}");
+            sb.AppendLine($"bounds_json: {CloneYamlWriter.YamlScalar(CloneJson.Serialize(section.Bounds))}");
         if (section.Interactions.Count > 0)
-            sb.AppendLine($"interactions_json: {YamlScalar(CloneJson.Serialize(section.Interactions))}");
+            sb.AppendLine($"interactions_json: {CloneYamlWriter.YamlScalar(CloneJson.Serialize(section.Interactions))}");
         if (section.HasStates)
-            sb.AppendLine($"states_json: {YamlScalar(CloneJson.Serialize(section.States))}");
+            sb.AppendLine($"states_json: {CloneYamlWriter.YamlScalar(CloneJson.Serialize(section.States))}");
         if (section.Responsive is not null)
-            sb.AppendLine($"responsive_json: {YamlScalar(CloneJson.Serialize(section.Responsive))}");
-        AppendBlockScalar(sb, "content_html", body);
+            sb.AppendLine($"responsive_json: {CloneYamlWriter.YamlScalar(CloneJson.Serialize(section.Responsive))}");
+        CloneYamlWriter.AppendBlockScalar(sb, "content_html", body);
         sb.AppendLine("---");
         sb.AppendLine();
         sb.AppendLine(body);
@@ -352,7 +351,7 @@ internal static partial class CloneContentWriter
         sb.AppendLine("type: 'assets'");
         sb.AppendLine("order: 0");
         sb.AppendLine("enabled: true");
-        sb.AppendLine($"assets_json: {YamlScalar(CloneJson.Serialize(manifest))}");
+        sb.AppendLine($"assets_json: {CloneYamlWriter.YamlScalar(CloneJson.Serialize(manifest))}");
         sb.AppendLine("---");
         sb.AppendLine();
         sb.AppendLine("Clone asset manifest generated from assets.json.");
@@ -384,87 +383,6 @@ internal static partial class CloneContentWriter
                 sb.AppendLine($"  .{section.CssClass} {{ max-width: {r.MaxWidthMobile}; }}");
             sb.AppendLine("}");
         }
-    }
-
-    private static bool EnsureSourcesConfig(string rootDir, string themeName, string? brand, CloneTokens tokens, List<string> warnings)
-    {
-        var path = Path.Combine(rootDir, "site.yaml");
-        if (!File.Exists(path))
-        {
-            warnings.Add("site.yaml not found; skipped content source configuration.");
-            return false;
-        }
-
-        try
-        {
-            var stream = new YamlStream();
-            using (var reader = File.OpenText(path))
-                stream.Load(reader);
-
-            if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
-            {
-                warnings.Add("site.yaml root is not a mapping; skipped content source configuration.");
-                return false;
-            }
-
-            var content = GetOrCreateMapping(root, "content");
-            content.Children[new YamlScalarNode("provider")] = new YamlScalarNode("sources");
-            var sources = GetOrCreateSequence(content, "sources");
-            EnsureMarkdownSource(sources, "content", "content", "content", "page");
-            EnsureMarkdownSource(sources, "modules", "data", "data", "module");
-
-            var theme = GetOrCreateMapping(root, "theme");
-            theme.Children[new YamlScalarNode("name")] = new YamlScalarNode(themeName);
-            var parameters = GetOrCreateMapping(theme, "params");
-            if (!string.IsNullOrWhiteSpace(brand))
-            {
-                parameters.Children[new YamlScalarNode("brand")] = new YamlScalarNode(brand);
-                parameters.Children[new YamlScalarNode("footer_text")] = new YamlScalarNode(brand);
-            }
-            if (!string.IsNullOrWhiteSpace(tokens.Primary))
-                parameters.Children[new YamlScalarNode("primary_color")] = new YamlScalarNode(tokens.Primary);
-            if (!string.IsNullOrWhiteSpace(tokens.Accent))
-                parameters.Children[new YamlScalarNode("accent_color")] = new YamlScalarNode(tokens.Accent);
-
-            using var writer = new StringWriter();
-            stream.Save(writer, assignAnchors: false);
-            File.WriteAllText(path, writer.ToString());
-            return true;
-        }
-        catch (Exception ex)
-        {
-            warnings.Add($"Failed to update site.yaml: {ex.Message}");
-            return false;
-        }
-    }
-
-    private static void EnsureMarkdownSource(YamlSequenceNode sources, string name, string mode, string dir, string defaultType)
-    {
-        foreach (var child in sources.Children.OfType<YamlMappingNode>())
-        {
-            if (GetScalar(child, "name")?.Equals(name, StringComparison.OrdinalIgnoreCase) == true)
-            {
-                child.Children[new YamlScalarNode("type")] = new YamlScalarNode("markdown");
-                child.Children[new YamlScalarNode("mode")] = new YamlScalarNode(mode);
-                if (mode.Equals("content", StringComparison.OrdinalIgnoreCase) && defaultType.Equals("page", StringComparison.OrdinalIgnoreCase))
-                    child.Children[new YamlScalarNode("collection")] = new YamlScalarNode("page");
-                var markdown = GetOrCreateMapping(child, "markdown");
-                markdown.Children[new YamlScalarNode("dir")] = new YamlScalarNode(dir);
-                markdown.Children[new YamlScalarNode("defaultType")] = new YamlScalarNode(defaultType);
-                return;
-            }
-        }
-
-        var newNode = new YamlMappingNode
-        {
-            { "type", "markdown" },
-            { "name", name },
-            { "mode", mode },
-        };
-        if (mode.Equals("content", StringComparison.OrdinalIgnoreCase) && defaultType.Equals("page", StringComparison.OrdinalIgnoreCase))
-            newNode.Children[new YamlScalarNode("collection")] = new YamlScalarNode("page");
-        newNode.Children[new YamlScalarNode("markdown")] = new YamlMappingNode { { "dir", dir }, { "defaultType", defaultType } };
-        sources.Add(newNode);
     }
 
     internal static IReadOnlyDictionary<string, string> BuildAssetMap(IReadOnlyList<CloneAsset> assets)
@@ -592,14 +510,14 @@ internal static partial class CloneContentWriter
         sb.AppendLine($"name: {themeName}");
         sb.AppendLine("version: 1.0.0");
         sb.AppendLine("description: High-fidelity clone theme generated from target website sections and data");
-        sb.AppendLine($"author: {YamlScalar(author)}");
+        sb.AppendLine($"author: {CloneYamlWriter.YamlScalar(author)}");
         sb.AppendLine("license: MIT");
         sb.AppendLine($"tags: [{string.Join(", ", tags)}]");
         sb.AppendLine("params:");
         sb.AppendLine("  - key: brand");
         sb.AppendLine("    label: Site Brand");
         sb.AppendLine("    type: string");
-        sb.AppendLine($"    default: {YamlScalar(author)}");
+        sb.AppendLine($"    default: {CloneYamlWriter.YamlScalar(author)}");
         sb.AppendLine("  - key: primary_color");
         sb.AppendLine("    label: Primary Color");
         sb.AppendLine("    type: color");
@@ -610,31 +528,6 @@ internal static partial class CloneContentWriter
         sb.AppendLine($"    default: \"{tokens.Accent ?? "#0f7b6c"}\"");
         return sb.ToString();
     }
-
-    private static YamlMappingNode GetOrCreateMapping(YamlMappingNode parent, string key)
-    {
-        var k = new YamlScalarNode(key);
-        if (parent.Children.TryGetValue(k, out var existing) && existing is YamlMappingNode map)
-            return map;
-
-        var created = new YamlMappingNode();
-        parent.Children[k] = created;
-        return created;
-    }
-
-    private static YamlSequenceNode GetOrCreateSequence(YamlMappingNode parent, string key)
-    {
-        var k = new YamlScalarNode(key);
-        if (parent.Children.TryGetValue(k, out var existing) && existing is YamlSequenceNode seq)
-            return seq;
-
-        var created = new YamlSequenceNode();
-        parent.Children[k] = created;
-        return created;
-    }
-
-    private static string? GetScalar(YamlMappingNode map, string key)
-        => map.Children.TryGetValue(new YamlScalarNode(key), out var node) && node is YamlScalarNode scalar ? scalar.Value : null;
 
     private static string SanitizeSlug(string value)
     {
@@ -652,22 +545,6 @@ internal static partial class CloneContentWriter
 
     private static bool IsSafeCssName(string key)
         => CssNameRegex().IsMatch(key);
-
-    private static string YamlScalar(string value)
-        => "'" + value.Replace("'", "''") + "'";
-
-    private static void AppendBlockScalar(StringBuilder sb, string key, string value)
-    {
-        sb.AppendLine($"{key}: |-");
-        if (string.IsNullOrEmpty(value))
-        {
-            sb.AppendLine("  ");
-            return;
-        }
-
-        foreach (var line in value.ReplaceLineEndings("\n").Split('\n'))
-            sb.AppendLine("  " + line);
-    }
 
     private static string Html(string value)
         => value.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");

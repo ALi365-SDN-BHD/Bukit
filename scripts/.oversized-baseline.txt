@@ -10,12 +10,6 @@
 # Format: one path per line (relative to repo root). Lines starting with # are ignored.
 
 # --- Bukit.Cli ---
-# multi-step clone orchestration; split candidate
-src/Bukit.Cli/Commands/CloneCommand.cs
-# content scraping + rewriting; split candidate
-src/Bukit.Cli/Commands/CloneContentWriter.cs
-# theme generation from scraped data; split candidate
-src/Bukit.Cli/Commands/CloneThemeGenerator.cs
 # comprehensive diagnostics; split candidate
 src/Bukit.Cli/Commands/DoctorCommand.cs
 # SEO audit CLI; split candidate
@@ -36,3 +30,6 @@ src/Bukit.Cli/Commands/ThemeCommand.cs
 
 # --- Bukit.Rendering ---
 # (ScribanTemplateRenderer.cs split below 600 lines — removed from baseline)
+
+# --- Bukit.Cli (Clone) ---
+# (CloneCommand.cs, CloneContentWriter.cs, CloneThemeGenerator.cs split below 600 lines — removed from baseline)

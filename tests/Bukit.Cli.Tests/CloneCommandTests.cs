@@ -1324,7 +1324,7 @@ public sealed class CloneScreenshotDiffTests : IDisposable
         WritePngForTest(target, 2, 1, [255, 0, 0, 255, 0, 255, 0, 255]);
         WritePngForTest(local, 2, 1, [255, 0, 0, 255, 0, 0, 255, 255]);
 
-        var result = CloneCommand.ComparePngScreenshots("target.png", target, local);
+        var result = CloneVerifier.ComparePngScreenshots("target.png", target, local);
 
         Assert.Equal("pixel-different", result.Status);
         Assert.Equal(2, result.ComparedPixels);
