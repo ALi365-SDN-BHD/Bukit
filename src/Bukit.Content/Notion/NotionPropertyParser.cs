@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using System.Text;
 using System.Text.Json;
@@ -107,14 +108,15 @@ public static class NotionPropertyParser
         return fields;
     }
 
-    internal static string? ExtractTitle(JsonElement properties)
+    internal static string? ExtractTitle(JsonElement properties, NotionPropertyMapConfig? propertyMap = null)
     {
         if (properties.ValueKind != JsonValueKind.Object)
         {
             return null;
         }
 
-        if (NotionContentProvider.TryGetPropertyIgnoreCase(properties, "Title", out var titleProp))
+        var fieldName = propertyMap?.Title ?? "Title";
+        if (NotionContentProvider.TryGetPropertyIgnoreCase(properties, fieldName, out var titleProp))
         {
             var text = ExtractTitleProperty(titleProp);
             if (!string.IsNullOrWhiteSpace(text))
@@ -163,14 +165,15 @@ public static class NotionPropertyParser
         return sb.ToString().Trim();
     }
 
-    internal static string? ExtractSlug(JsonElement properties)
+    internal static string? ExtractSlug(JsonElement properties, NotionPropertyMapConfig? propertyMap = null)
     {
         if (properties.ValueKind != JsonValueKind.Object)
         {
             return null;
         }
 
-        if (!NotionContentProvider.TryGetPropertyIgnoreCase(properties, "Slug", out var slugProp))
+        var fieldName = propertyMap?.Slug ?? "Slug";
+        if (!NotionContentProvider.TryGetPropertyIgnoreCase(properties, fieldName, out var slugProp))
         {
             return null;
         }
@@ -191,14 +194,15 @@ public static class NotionPropertyParser
         return null;
     }
 
-    internal static string? ExtractType(JsonElement properties)
+    internal static string? ExtractType(JsonElement properties, NotionPropertyMapConfig? propertyMap = null)
     {
         if (properties.ValueKind != JsonValueKind.Object)
         {
             return null;
         }
 
-        if (!NotionContentProvider.TryGetPropertyIgnoreCase(properties, "Type", out var typeProp))
+        var fieldName = propertyMap?.Type ?? "Type";
+        if (!NotionContentProvider.TryGetPropertyIgnoreCase(properties, fieldName, out var typeProp))
         {
             return null;
         }
@@ -221,14 +225,15 @@ public static class NotionPropertyParser
         return null;
     }
 
-    internal static DateTimeOffset? ExtractPublishAt(JsonElement properties)
+    internal static DateTimeOffset? ExtractPublishAt(JsonElement properties, NotionPropertyMapConfig? propertyMap = null)
     {
         if (properties.ValueKind != JsonValueKind.Object)
         {
             return null;
         }
 
-        if (NotionContentProvider.TryGetPropertyIgnoreCase(properties, "PublishAt", out var dateProp))
+        var primaryField = propertyMap?.PublishAt ?? "PublishAt";
+        if (NotionContentProvider.TryGetPropertyIgnoreCase(properties, primaryField, out var dateProp))
         {
             var value = ReadDateProperty(dateProp);
             if (value is not null)

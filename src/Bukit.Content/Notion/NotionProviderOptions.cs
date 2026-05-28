@@ -1,4 +1,6 @@
+using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
+
 namespace Bukit.Content.Notion;
 
 public sealed record NotionProviderOptions
@@ -23,4 +25,5 @@ public sealed record NotionProviderOptions
     public string IncludeSlugProperty { get; init; } = "Slug";
     public string CacheMode { get; init; } = "off";
     public string? CacheDir { get; init; }
+    public NotionPropertyMapConfig? PropertyMap { get; init; }
 }

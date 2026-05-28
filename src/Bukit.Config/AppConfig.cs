@@ -231,6 +231,19 @@ public sealed record NotionConfig
     public string IncludeSlugProperty { get; init; } = "Slug";
     public string CacheMode { get; init; } = "off";
     public string? CacheDir { get; init; }
+    public NotionPropertyMapConfig? PropertyMap { get; init; }
+}
+
+public sealed record NotionPropertyMapConfig
+{
+    public string? Title { get; init; }
+    public string? Slug { get; init; }
+    public string? Type { get; init; }
+    public string? PublishAt { get; init; }
+    public string? Language { get; init; }
+    public string? I18nKey { get; init; }
+    public string? Summary { get; init; }
+    public string? Collection { get; init; }
 }
 
 public sealed record MediaConfig

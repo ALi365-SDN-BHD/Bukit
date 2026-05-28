@@ -166,7 +166,8 @@ internal static class ContentProviderFactory
             IncludeSlugs = notion.IncludeSlugs,
             IncludeSlugProperty = notion.IncludeSlugProperty,
             CacheMode = cacheMode,
-            CacheDir = cacheDir
+            CacheDir = cacheDir,
+            PropertyMap = notion.PropertyMap
         }, logger: logger);
     }
 

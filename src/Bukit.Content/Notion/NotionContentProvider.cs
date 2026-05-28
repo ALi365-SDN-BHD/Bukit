@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using System.Text;
 using System.Text.Json;
@@ -83,10 +84,11 @@ public sealed class NotionContentProvider : IContentProvider
 
                     var props = page.TryGetProperty("properties", out var p) && p.ValueKind == JsonValueKind.Object ? p : default;
                     EnsureNoCaseInsensitiveConflicts(props, pageId);
-                    var title = NotionPropertyParser.ExtractTitle(props) ?? pageId;
-                    var slug = NotionPropertyParser.ExtractSlug(props) ?? Slugify(title) ?? pageId.Replace("-", string.Empty, StringComparison.Ordinal);
-                    var type = NotionPropertyParser.ExtractType(props) ?? "post";
-                    var publishAt = NotionPropertyParser.ExtractPublishAt(props) ?? DateTimeOffset.UtcNow;
+                    var pm = _options.PropertyMap;
+                    var title = NotionPropertyParser.ExtractTitle(props, pm) ?? pageId;
+                    var slug = NotionPropertyParser.ExtractSlug(props, pm) ?? Slugify(title) ?? pageId.Replace("-", string.Empty, StringComparison.Ordinal);
+                    var type = NotionPropertyParser.ExtractType(props, pm) ?? "post";
+                    var publishAt = NotionPropertyParser.ExtractPublishAt(props, pm) ?? DateTimeOffset.UtcNow;
 
                     var lastEditedTime = GetString(page, "last_edited_time");
 
@@ -100,14 +102,14 @@ public sealed class NotionContentProvider : IContentProvider
 
                     var fields = NotionPropertyParser.ExtractFields(props, policyMode, allowed, out var relationKeys);
                     fields = NotionMetaHelper.InjectPageCoverAndIcon(fields, page);
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, "language", "language");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, "i18n_key", "i18nKey");
+                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, pm?.Language ?? "language", "language");
+                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, pm?.I18nKey ?? "i18n_key", "i18nKey");
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, "i18nkey", "i18nKey");
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, "url", "url");
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, "outputpath", "outputPath");
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, "template", "template");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, "summary", "summary");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, "collection", "collection");
+                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, pm?.Summary ?? "summary", "summary");
+                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, pm?.Collection ?? "collection", "collection");
                     NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "tags");
                     NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "categories");
 
