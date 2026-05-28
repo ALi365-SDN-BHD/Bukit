@@ -79,6 +79,7 @@ public sealed class SiteEngine
         var contentResult = await contentPipeline.ExecuteAsync(effectiveConfig, rootDir, overrides, plan.MediaCacheDir, cancellationToken);
         var items = contentResult.Items;
         var bodyStore = contentResult.BodyStore;
+        var bodyCacheMetrics = contentResult.BodyCacheMetrics;
 
         var templateHashCache = new DirectoryHashCache();
 
@@ -93,7 +94,7 @@ public sealed class SiteEngine
                 templateHashCache, cancellationToken);
 
             _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
-            MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, items.Count, new[] { result });
+            MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, items.Count, new[] { result }, contentResult.BodyCacheMetrics);
             plan.Stopwatch.Stop();
             var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, plan.OutputDir, overrides, plan.StartedAt, DateTimeOffset.UtcNow, plan.Stopwatch.ElapsedMilliseconds, new[] { result }, contentResult.SchemaErrors);
             BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger);
@@ -107,6 +108,7 @@ public sealed class SiteEngine
             plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
             plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
             templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
+            bodyCacheMetrics,
             contentResult.SchemaErrors, cancellationToken);
     }
 
@@ -142,6 +144,7 @@ public sealed class SiteEngine
         DirectoryHashCache templateHashCache,
         IReadOnlyList<string> languages,
         DateTimeOffset buildStartedAt, Stopwatch buildStopwatch,
+        BodyCacheMetrics? bodyCacheMetrics,
         IReadOnlyList<ContentSchemaValidator.SchemaValidationError> schemaErrors,
         CancellationToken cancellationToken)
     {
@@ -185,7 +188,7 @@ public sealed class SiteEngine
         I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, _logger, _searchIndexBuilder);
         SeoAuditReportWriter.WriteMerged(config, outputDir, variantResults, _logger);
         _logger.Info("event=build.done");
-        MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, items.Count, variantResults);
+        MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, items.Count, variantResults, bodyCacheMetrics);
         buildStopwatch.Stop();
         var buildResult = BuildResultFactory.Create(config, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, variantResults, schemaErrors);
         BuildReporter.WriteIfEnabled(config, rootDir, outputDir, buildResult, variantResults, _logger);

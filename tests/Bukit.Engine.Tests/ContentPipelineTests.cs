@@ -35,7 +35,8 @@ public sealed class ContentPipelineTests
         var item = Assert.Single(result.Items);
         Assert.Equal("published", item.Id);
         Assert.Equal("published", item.Meta["status"]);
-        Assert.Same(EmptyContentBodyStore.Instance, result.BodyStore);
+        Assert.NotNull(result.BodyStore);
+        Assert.NotNull(result.BodyCacheMetrics);
         Assert.Empty(result.SchemaErrors);
         Assert.Contains(logger.Infos, message => message.StartsWith("event=content.loaded count=", StringComparison.Ordinal));
         Assert.Contains(logger.Infos, message => message == "event=content.draft_filtered removed=1");

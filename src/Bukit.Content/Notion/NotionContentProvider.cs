@@ -102,14 +102,14 @@ public sealed class NotionContentProvider : IContentProvider
 
                     var fields = NotionPropertyParser.ExtractFields(props, policyMode, allowed, out var relationKeys);
                     fields = NotionMetaHelper.InjectPageCoverAndIcon(fields, page);
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, pm?.Language ?? "language", "language");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, pm?.I18nKey ?? "i18n_key", "i18nKey");
+                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, NotionPropertyParser.NormalizeFieldKey(pm?.Language ?? "language"), "language");
+                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, NotionPropertyParser.NormalizeFieldKey(pm?.I18nKey ?? "i18n_key"), "i18nKey");
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, "i18nkey", "i18nKey");
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, "url", "url");
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, "outputpath", "outputPath");
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, "template", "template");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, pm?.Summary ?? "summary", "summary");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, pm?.Collection ?? "collection", "collection");
+                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, NotionPropertyParser.NormalizeFieldKey(pm?.Summary ?? "summary"), "summary");
+                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, NotionPropertyParser.NormalizeFieldKey(pm?.Collection ?? "collection"), "collection");
                     NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "tags");
                     NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "categories");
 

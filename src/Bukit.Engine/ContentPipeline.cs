@@ -10,7 +10,8 @@ namespace Bukit.Engine;
 public sealed record ContentPipelineResult(
     IReadOnlyList<ContentItem> Items,
     IContentBodyStore BodyStore,
-    IReadOnlyList<ContentSchemaValidator.SchemaValidationError> SchemaErrors);
+    IReadOnlyList<ContentSchemaValidator.SchemaValidationError> SchemaErrors,
+    BodyCacheMetrics? BodyCacheMetrics = null);
 
 public sealed class ContentPipeline
 {
@@ -63,6 +64,7 @@ public sealed class ContentPipeline
     {
         var currentItems = input.Items;
         var currentBodyStore = input.BodyStore;
+        BodyCacheDecorator? bodyCache = null;
         List<ContentSchemaValidator.SchemaValidationError>? allSchemaErrors = null;
 
         foreach (var stage in _stages)
@@ -79,6 +81,12 @@ public sealed class ContentPipeline
             currentItems = output.Items;
             currentBodyStore = output.BodyStore;
 
+            if (stage.Name == "ImageLocalize")
+            {
+                bodyCache = new BodyCacheDecorator(currentBodyStore);
+                currentBodyStore = bodyCache;
+            }
+
             if (output.SchemaErrors is { Count: > 0 } errors)
             {
                 allSchemaErrors ??= new List<ContentSchemaValidator.SchemaValidationError>();
@@ -89,6 +97,7 @@ public sealed class ContentPipeline
         return new ContentPipelineResult(
             currentItems,
             currentBodyStore,
-            (IReadOnlyList<ContentSchemaValidator.SchemaValidationError>?)allSchemaErrors ?? Array.Empty<ContentSchemaValidator.SchemaValidationError>());
+            (IReadOnlyList<ContentSchemaValidator.SchemaValidationError>?)allSchemaErrors ?? Array.Empty<ContentSchemaValidator.SchemaValidationError>(),
+            bodyCache?.Metrics);
     }
 }

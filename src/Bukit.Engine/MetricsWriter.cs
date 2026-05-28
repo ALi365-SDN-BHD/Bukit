@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Bukit.Config;
+using Bukit.Content;
 using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine;
@@ -12,7 +13,8 @@ internal static class MetricsWriter
         AppConfig config,
         string outputDir,
         int contentItemCount,
-        IReadOnlyList<BuildVariantResult> variants)
+        IReadOnlyList<BuildVariantResult> variants,
+        BodyCacheMetrics? bodyCacheMetrics = null)
     {
         if (string.IsNullOrWhiteSpace(metricsPath))
         {
@@ -140,6 +142,18 @@ internal static class MetricsWriter
             writer.WriteEndObject();
         }
         writer.WriteEndArray();
+
+        if (bodyCacheMetrics is not null)
+        {
+            writer.WritePropertyName("bodyCache");
+            writer.WriteStartObject();
+            writer.WriteNumber("totalRequests", bodyCacheMetrics.TotalRequests);
+            writer.WriteNumber("cacheHits", bodyCacheMetrics.CacheHits);
+            writer.WriteNumber("cacheMisses", bodyCacheMetrics.CacheMisses);
+            writer.WriteNumber("uniqueBodies", bodyCacheMetrics.UniqueBodies);
+            writer.WriteNumber("amplification", bodyCacheMetrics.Amplification);
+            writer.WriteEndObject();
+        }
 
         writer.WriteEndObject();
         writer.Flush();
