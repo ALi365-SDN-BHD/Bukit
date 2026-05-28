@@ -1,3 +1,4 @@
+using System.Reflection;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Cli.Binding;
 using System.Buffers.Binary;
@@ -1126,5 +1127,49 @@ public sealed class CloneScreenshotDiffTests : IDisposable
         stream.Write(Encoding.ASCII.GetBytes(type));
         stream.Write(data);
         stream.Write([0, 0, 0, 0]);
+    }
+}
+
+public sealed class CloneCommandTests
+{
+    [Fact]
+    public async Task RunAsync_MissingTokens_ReturnsExitCode2()
+    {
+        var cmd = new CliBoundCommand(new Dictionary<string, string?> { ["--theme"] = "test" }, Array.Empty<string>());
+        var result = await CloneCommand.RunAsync(cmd);
+        Assert.Equal(2, result);
+    }
+
+    [Fact]
+    public void ParseVisualThreshold_Valid_ReturnsDouble()
+    {
+        var method = typeof(CloneCommand).GetMethod("ParseVisualThreshold", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var result = method.Invoke(null, ["0.05"]);
+        Assert.Equal(0.05d, result);
+    }
+
+    [Fact]
+    public void ParseVisualThreshold_Invalid_ReturnsNull()
+    {
+        var method = typeof(CloneCommand).GetMethod("ParseVisualThreshold", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var result = method.Invoke(null, ["invalid"]);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ParseVisualThreshold_Empty_ReturnsDefault()
+    {
+        var method = typeof(CloneCommand).GetMethod("ParseVisualThreshold", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var result = method.Invoke(null, [null]);
+        Assert.Equal(0.03d, result);
+    }
+
+    [Fact]
+    public void CountBehaviors_AllTrue_Returns12()
+    {
+        var b = new CloneBehaviors { StickyHeader = true, CardHoverLift = true, AnimateOnScroll = true, ScrollShrinkNav = true, DarkModeToggle = true, MobileHamburger = true, SmoothScroll = true, BackToTop = true, HasModal = true, HasDropdown = true, HasTabs = true, UseLenis = true };
+        var method = typeof(CloneCommand).GetMethod("CountBehaviors", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var result = method.Invoke(null, [b]);
+        Assert.Equal(12, result);
     }
 }

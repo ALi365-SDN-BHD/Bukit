@@ -162,4 +162,20 @@ public sealed class BuildCommandTests : IDisposable
         await Assert.ThrowsAsync<ConfigException>(
             () => BuildCommand.RunAsync(reader));
     }
+
+    [Fact]
+    public async Task RunAsync_MissingConfig_ReturnsExitCode2()
+    {
+        var cmd = new CliBoundCommand(new Dictionary<string, string?> { ["--config"] = "nonexistent.yml" }, Array.Empty<string>());
+        var ex = await Assert.ThrowsAsync<ConfigException>(() => BuildCommand.RunAsync(cmd));
+        Assert.Contains("Config file not found", ex.Message);
+    }
+
+    [Fact]
+    public async Task RunAsync_NoConfig_ReturnsExitCode2()
+    {
+        var cmd = new CliBoundCommand(new Dictionary<string, string?>(), Array.Empty<string>());
+        var ex = await Assert.ThrowsAsync<ConfigException>(() => BuildCommand.RunAsync(cmd));
+        Assert.Contains("Config file not found", ex.Message);
+    }
 }

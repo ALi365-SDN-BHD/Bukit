@@ -229,4 +229,28 @@ public sealed class CloneContentWriterTests
         Assert.NotNull(result);
         Assert.True(result.Length > 0);
     }
+
+    [Fact]
+    public void NormalizeType_FaqType_ReturnsFaq()
+    {
+        var method = typeof(CloneContentWriter).GetMethod("NormalizeType",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        var result = method.Invoke(null, ["FAQ"]);
+        Assert.Equal("faq", result);
+    }
+
+    [Fact]
+    public void PartialFor_AllTypes_ReturnCorrectPartials()
+    {
+        var method = typeof(CloneContentWriter).GetMethod("PartialFor",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+        Assert.Equal("clone-navigation", method.Invoke(null, ["navigation"]));
+        Assert.Equal("clone-hero", method.Invoke(null, ["hero"]));
+        Assert.Equal("clone-feature-grid", method.Invoke(null, ["features"]));
+        Assert.Equal("clone-pricing", method.Invoke(null, ["pricing"]));
+        Assert.Equal("clone-faq", method.Invoke(null, ["faq"]));
+        Assert.Equal("clone-cta", method.Invoke(null, ["cta"]));
+        Assert.Equal("clone-footer", method.Invoke(null, ["footer"]));
+        Assert.Equal("clone-section", method.Invoke(null, ["unknown"]));
+    }
 }
