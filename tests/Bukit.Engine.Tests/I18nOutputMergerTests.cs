@@ -147,12 +147,135 @@ public sealed class I18nOutputMergerTests
         Assert.Empty(unmatched);
     }
 
+    [Fact]
+    public void FilterItemsByLanguage_OrphanContentExcluded_WhenNotDefaultLanguage()
+    {
+        var zhItem = CreateItem("1", "zh");
+        var items = new[] { zhItem };
+
+        var result = I18nOutputMerger.FilterItemsByLanguage(items, "en", "en");
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void FilterItemsByLanguage_OrphanContentIncluded_WhenMatchingLanguage()
+    {
+        var zhItem = CreateItem("1", "zh");
+        var items = new[] { zhItem };
+
+        var result = I18nOutputMerger.FilterItemsByLanguage(items, "zh", "en");
+
+        Assert.Single(result);
+        Assert.Equal("1", result[0].Id);
+    }
+
+    [Fact]
+    public void FilterItemsByLanguage_DefaultIsZh_FiltersCorrectly()
+    {
+        var enItem = CreateItem("1", "en");
+        var zhItem = CreateItem("2", "zh");
+        var items = new[] { enItem, zhItem };
+
+        var enResult = I18nOutputMerger.FilterItemsByLanguage(items, "en", "zh");
+        var zhResult = I18nOutputMerger.FilterItemsByLanguage(items, "zh", "zh");
+
+        Assert.Single(enResult);
+        Assert.Equal("1", enResult[0].Id);
+        Assert.Single(zhResult);
+        Assert.Equal("2", zhResult[0].Id);
+    }
+
+    [Fact]
+    public void FilterItemsByLanguage_LanguageCaseInsensitive()
+    {
+        var item1 = CreateItem("1", "zh-CN");
+        var item2 = CreateItem("2", "ZH-CN");
+        var items = new[] { item1, item2 };
+
+        var result = I18nOutputMerger.FilterItemsByLanguage(items, "zh-cn", "en");
+
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public void FilterItemsByLanguage_LanguageMismatch_Excludes()
+    {
+        var item = CreateItem("1", "zh-CN");
+        var items = new[] { item };
+
+        var result = I18nOutputMerger.FilterItemsByLanguage(items, "zh", "en");
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void FilterItemsByLanguage_I18nKeyPair_FiltersByLanguage()
+    {
+        var enItem = CreateItemWithMeta("1", "en", new Dictionary<string, object> { ["language"] = "en", ["i18nKey"] = "about" });
+        var zhItem = CreateItemWithMeta("2", "zh", new Dictionary<string, object> { ["language"] = "zh", ["i18nKey"] = "about" });
+        var items = new[] { enItem, zhItem };
+
+        var enResult = I18nOutputMerger.FilterItemsByLanguage(items, "en", "en");
+        var zhResult = I18nOutputMerger.FilterItemsByLanguage(items, "zh", "en");
+
+        Assert.Single(enResult);
+        Assert.Equal("1", enResult[0].Id);
+        Assert.Single(zhResult);
+        Assert.Equal("2", zhResult[0].Id);
+    }
+
+    [Fact]
+    public void GetLanguages_DeduplicatesCaseInsensitively()
+    {
+        var site = new SiteConfig { Name = "t", Title = "t", Languages = new[] { "en-US", "en-us", "EN-US", "zh-CN" } };
+        var result = I18nOutputMerger.GetLanguages(site);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains("en-US", result);
+        Assert.Contains("zh-CN", result);
+    }
+
+    [Theory]
+    [InlineData("/", "", "/")]
+    [InlineData("/", "  ", "/")]
+    [InlineData("/base/", "en", "/base/en")]
+    [InlineData("/base/", "zh-CN", "/base/zh-CN")]
+    public void CombineBaseUrlWithLanguage_EdgeCases(string baseUrl, string lang, string expected)
+    {
+        var result = I18nOutputMerger.CombineBaseUrlWithLanguage(baseUrl, lang);
+        Assert.Equal(expected, result);
+    }
+
     private static ContentItem CreateItem(string id, string? language)
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         if (language is not null)
         {
             meta["language"] = language;
+        }
+
+        return new ContentItem(
+            Id: id,
+            Title: $"Item {id}",
+            Slug: $"item-{id}",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: "<p>hi</p>",
+            Meta: meta,
+            Fields: null);
+    }
+
+    private static ContentItem CreateItemWithMeta(string id, string? language, Dictionary<string, object> extraMeta)
+    {
+        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        if (language is not null)
+        {
+            meta["language"] = language;
+        }
+
+        foreach (var (key, value) in extraMeta)
+        {
+            meta[key] = value;
         }
 
         return new ContentItem(

@@ -2159,6 +2159,234 @@ public sealed class SiteEngineIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task BuildAsync_DefaultLanguageFilter_OrphanContentNotInDefaultOutput()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-i18n-orphan-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: i18n-orphan
+                  title: I18n Orphan
+                  url: https://example.com
+                  baseUrl: /
+                  language: en
+                  languages: [en, zh]
+                  defaultLanguage: en
+                  sitemapMode: merged
+                  searchMode: merged
+                content:
+                  provider: markdown
+                  media:
+                    downloadToLocal: false
+                  markdown:
+                    dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "about.en.md"), """
+                ---
+                type: page
+                title: About
+                slug: about
+                language: en
+                i18nKey: about
+                ---
+                # About
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "about.zh.md"), """
+                ---
+                type: page
+                title: 关于
+                slug: guanyu
+                language: zh
+                i18nKey: about
+                ---
+                # 关于
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "solo.en.md"), """
+                ---
+                type: page
+                title: Solo
+                slug: solo
+                language: en
+                ---
+                # Solo
+                """);
+            // zh-only orphan content — no i18nKey, only zh language
+            File.WriteAllText(Path.Combine(root, "content", "orphan.zh.md"), """
+                ---
+                type: page
+                title: 孤儿
+                slug: orphan
+                language: zh
+                ---
+                # 孤儿
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            // en output should contain about, solo — NOT orphan (zh-only)
+            var enPagesDir = Path.Combine(root, "dist", "en", "pages");
+            Assert.True(Directory.Exists(enPagesDir), "en output directory should exist");
+            Assert.True(Directory.Exists(Path.Combine(enPagesDir, "about")), "about (en) should exist in en output");
+            Assert.True(Directory.Exists(Path.Combine(enPagesDir, "solo")), "solo (en) should exist in en output");
+            Assert.False(Directory.Exists(Path.Combine(enPagesDir, "orphan")), "orphan (zh-only) should NOT exist in en output");
+
+            // zh output should contain about (zh variant) and orphan — NOT solo (en-only)
+            var zhPagesDir = Path.Combine(root, "dist", "zh", "pages");
+            Assert.True(Directory.Exists(zhPagesDir), "zh output directory should exist");
+            Assert.True(Directory.Exists(Path.Combine(zhPagesDir, "guanyu")), "guanyu (zh) should exist in zh output");
+            Assert.True(Directory.Exists(Path.Combine(zhPagesDir, "orphan")), "orphan (zh) should exist in zh output");
+            Assert.False(Directory.Exists(Path.Combine(zhPagesDir, "solo")), "solo (en-only) should NOT exist in zh output");
+
+            // Merged sitemap should include all indexable routes
+            var sitemapPath = Path.Combine(root, "dist", "sitemap.xml");
+            Assert.True(File.Exists(sitemapPath), "merged sitemap should exist");
+            var sitemap = File.ReadAllText(sitemapPath);
+            Assert.Contains("hreflang=\"en\"", sitemap);
+            Assert.Contains("hreflang=\"zh\"", sitemap);
+
+            // Merged search index should exist
+            var searchPath = Path.Combine(root, "dist", "search.json");
+            Assert.True(File.Exists(searchPath), "merged search index should exist");
+
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_SearchMergedI18n_NoLanguageCrossContamination()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-search-i18n-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: i18n-search
+                  title: I18n Search
+                  url: https://example.com
+                  baseUrl: /
+                  language: en
+                  languages: [en, zh]
+                  defaultLanguage: en
+                  sitemapMode: merged
+                  searchMode: merged
+                content:
+                  provider: markdown
+                  media:
+                    downloadToLocal: false
+                  markdown:
+                    dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "alpha.en.md"), """
+                ---
+                type: page
+                title: Alpha
+                slug: alpha
+                language: en
+                i18nKey: alpha
+                ---
+                # Alpha EN
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "alpha.zh.md"), """
+                ---
+                type: page
+                title: 阿尔法
+                slug: a-er-fa
+                language: zh
+                i18nKey: alpha
+                ---
+                # 阿尔法 ZH
+                """);
+            // zh-only content
+            File.WriteAllText(Path.Combine(root, "content", "beta.zh.md"), """
+                ---
+                type: page
+                title: 贝塔
+                slug: beta
+                language: zh
+                ---
+                # 贝塔 ZH
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            // Verify en output
+            var enPagesDir = Path.Combine(root, "dist", "en", "pages");
+            Assert.True(Directory.Exists(Path.Combine(enPagesDir, "alpha")), "alpha (en) should exist in en output");
+            Assert.False(Directory.Exists(Path.Combine(enPagesDir, "a-er-fa")), "a-er-fa (zh variant) should NOT exist in en output");
+            Assert.False(Directory.Exists(Path.Combine(enPagesDir, "beta")), "beta (zh-only) should NOT exist in en output");
+
+            // Verify zh output
+            var zhPagesDir = Path.Combine(root, "dist", "zh", "pages");
+            Assert.True(Directory.Exists(Path.Combine(zhPagesDir, "a-er-fa")), "a-er-fa (zh) should exist in zh output");
+            Assert.True(Directory.Exists(Path.Combine(zhPagesDir, "beta")), "beta (zh) should exist in zh output");
+            Assert.False(Directory.Exists(Path.Combine(zhPagesDir, "alpha")), "alpha (en) should NOT exist in zh output");
+
+            // Merged search index should contain all pages from both languages
+            var searchPath = Path.Combine(root, "dist", "search.json");
+            Assert.True(File.Exists(searchPath), "merged search index should exist");
+            using var doc = JsonDocument.Parse(File.ReadAllText(searchPath));
+            var entries = doc.RootElement.EnumerateArray().ToArray();
+            Assert.Contains(entries, e => e.GetProperty("url").GetString() == "/en/pages/alpha/");
+            Assert.Contains(entries, e => e.GetProperty("url").GetString() == "/zh/pages/a-er-fa/");
+            Assert.Contains(entries, e => e.GetProperty("url").GetString() == "/zh/pages/beta/");
+            Assert.DoesNotContain(entries, e => e.GetProperty("url").GetString() == "/en/pages/beta/");
+
+            // Merged sitemap should contain all routes
+            var sitemapPath = Path.Combine(root, "dist", "sitemap.xml");
+            Assert.True(File.Exists(sitemapPath), "merged sitemap should exist");
+
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
     private static void CleanupDir(string dir)
     {
         try

@@ -1,6 +1,6 @@
 # Bukit Developer Guide (Maintenance and Extension)
 
-Language versions: English (current) | [绠€浣撲腑鏂嘳(./README.zh-CN.md) | [Bahasa Melayu](./README.ms.md)
+Language versions: English (current) | [简体中文](./README.zh-CN.md) | [Bahasa Melayu](./README.ms.md)
 
 This directory is for maintainers and contributors. It explains stable contracts (configuration/parameters/data models) and implementation details (pipeline/incremental build/plugin loading) for safe and fast iteration.
 

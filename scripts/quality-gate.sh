@@ -56,6 +56,9 @@ if [ -n "$new_oversized" ]; then
     exit 1
 fi
 
+# --- Encoding check (UTF-8 validity + mojibake detection) ---
+bash scripts/check-encoding.sh
+
 dotnet build bukit.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
 
 # Clean previous coverage artefacts so that the threshold check only sees this run's data.
