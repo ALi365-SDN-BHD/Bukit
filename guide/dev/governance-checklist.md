@@ -27,9 +27,9 @@ Post-change validation: `dotnet test ... --filter RouteGenerator`
 
 Monthly + before releases:
 ```bash
-pwsh ./scripts/check-doc-asset-consistency.ps1
+dotnet run --project src/Bukit.Cli -c Release -- docs check
 ```
 
-Check: whether solution files mentioned in docs exist, whether directories exist, whether embedded workflows exist.
+Check: CLI command coverage across README/guide/skills, site.yaml field references, file path validity, README example parsability, skill-CLI consistency.
 
 ## 4) Cadence: Monthly execute sections 1+3; Quarterly review collections strategy and architecture-review scores.

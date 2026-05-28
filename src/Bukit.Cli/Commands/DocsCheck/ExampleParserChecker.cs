@@ -86,7 +86,7 @@ public static class ExampleParserChecker
                     continue;
                 }
 
-                var spec = CommandPathExtractor.ResolveSpec(registry, command);
+                var spec = CommandPathExtractor.ResolveSpec(command, registry);
                 if (spec is null)
                 {
                     issues.Add(new DocsIssue(

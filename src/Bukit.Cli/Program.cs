@@ -76,7 +76,7 @@ try
         "geo" => await GeoCommand.RunAsync(reader),
         "clone" => await CloneCommand.RunAsync(reader),
         "data" => await DataCommand.RunAsync(reader),
-        "docs" => await DocsCheckCommand.RunAsync(reader),
+        "docs" => DocsCheckCommand.RunAsync(reader),
         "theme" => await ThemeCommand.RunAsync(reader),
         "template" => await TemplateCommand.RunAsync(reader),
         "intent" => await IntentCommand.RunAsync(reader),

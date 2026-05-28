@@ -4,7 +4,7 @@ namespace Bukit.Cli.Commands.DocsCheck;
 
 public static class DocsCheckCommand
 {
-    public static async Task<int> RunAsync(ArgReader reader)
+    public static int RunAsync(ArgReader reader)
     {
         var subCommand = reader.GetArg(1);
         if (subCommand is not "check")
@@ -49,33 +49,30 @@ public static class DocsCheckCommand
         var registry = BukitCliSpecs.CreateRegistry();
         var issues = new List<DocsIssue>();
 
-        await Task.Run(() =>
+        if (runCli)
         {
-            if (runCli)
-            {
-                issues.AddRange(CliCoverageChecker.Check(repoRoot, docFiles, registry));
-            }
+            issues.AddRange(CliCoverageChecker.Check(repoRoot, docFiles, registry));
+        }
 
-            if (runConfigFields)
-            {
-                issues.AddRange(ConfigFieldChecker.Check(docFiles));
-            }
+        if (runConfigFields)
+        {
+            issues.AddRange(ConfigFieldChecker.Check(docFiles));
+        }
 
-            if (runFileRefs)
-            {
-                issues.AddRange(FileRefChecker.Check(repoRoot, docFiles));
-            }
+        if (runFileRefs)
+        {
+            issues.AddRange(FileRefChecker.Check(repoRoot, docFiles));
+        }
 
-            if (runExamples)
-            {
-                issues.AddRange(ExampleParserChecker.Check(docFiles, registry));
-            }
+        if (runExamples)
+        {
+            issues.AddRange(ExampleParserChecker.Check(docFiles, registry));
+        }
 
-            if (runSkills)
-            {
-                issues.AddRange(SkillCliChecker.Check(docFiles, registry));
-            }
-        });
+        if (runSkills)
+        {
+            issues.AddRange(SkillCliChecker.Check(docFiles, registry));
+        }
 
         if (issues.Count == 0)
         {
