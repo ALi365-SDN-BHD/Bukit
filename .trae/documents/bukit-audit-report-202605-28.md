@@ -7,7 +7,7 @@ P0-1：文档编码异常，说明仓库存在编码治理漏洞
 
 guide/dev/README.md 第 5 行出现明显乱码：
 
-Language versions: English (current) | [绠€浣撲腑鏂嘳(./README.zh-CN.md)
+Language versions: English (current) | [简体中文(./README.zh-CN.md)
 
 这是典型 UTF-8 / GBK / 编码转换错误。
 

@@ -2,6 +2,7 @@ using Bukit.Cli;
 using Bukit.Cli.Cli.Parsing;
 using Bukit.Cli.Cli.Rendering;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Commands.DocsCheck;
 
 var reader = new ArgReader(args);
 var command = reader.Command;
@@ -75,6 +76,7 @@ try
         "geo" => await GeoCommand.RunAsync(reader),
         "clone" => await CloneCommand.RunAsync(reader),
         "data" => await DataCommand.RunAsync(reader),
+        "docs" => await DocsCheckCommand.RunAsync(reader),
         "theme" => await ThemeCommand.RunAsync(reader),
         "template" => await TemplateCommand.RunAsync(reader),
         "intent" => await IntentCommand.RunAsync(reader),

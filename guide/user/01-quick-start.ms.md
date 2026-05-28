@@ -1,6 +1,6 @@
 ﻿# 01 Permulaan Pantas: Dari Sifar ke Pratonton (10 Minit)
 
-Halaman ini membimbing anda melalui saluran lengkap menggunakan pendekatan "salin-tampal": mulakan tapak 鈫?tulis kandungan 鈫?bina 鈫?pratonton setempat 鈫?sediakan untuk penerapan.
+Halaman ini membimbing anda melalui saluran lengkap menggunakan pendekatan "salin-tampal": mulakan tapak →tulis kandungan →bina →pratonton setempat →sediakan untuk penerapan.
 
 ## Apa yang Anda Akan Dapat
 
@@ -94,7 +94,7 @@ logging:
   level: info
 ```
 
-> **Disyorkan: Gunakan site.collections untuk mentakrifkan penghalaan dan templat** Konfigurasi di atas bergantung pada lapisan keserasian post/page untuk penghalaan (page 鈫?`/pages/`, post 鈫?`/blog/`). Untuk projek baharu, kami mengesyorkan mengisytiharkan collections secara eksplisit (lihat [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)). Contoh:
+> **Disyorkan: Gunakan site.collections untuk mentakrifkan penghalaan dan templat** Konfigurasi di atas bergantung pada lapisan keserasian post/page untuk penghalaan (page →`/pages/`, post →`/blog/`). Untuk projek baharu, kami mengesyorkan mengisytiharkan collections secara eksplisit (lihat [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)). Contoh:
 >
 > ```yaml
 > site:

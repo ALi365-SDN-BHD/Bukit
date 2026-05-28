@@ -13,7 +13,7 @@ The repository provides a Pages workflow template sample [`.github/workflows/rel
 
 ## Step 1: Enable GitHub Pages (Repository Settings)
 
-1. GitHub repository Settings 鈫?Pages
+1. GitHub repository Settings →Pages
 2. Under Build and deployment, select "GitHub Actions"
 
 ## Step 2: Prepare the Workflow (Create pages.yml in Your Repository)
@@ -78,7 +78,7 @@ If your build outputs to `_site`, the upload path should also be `_site`:
 
 If you use the Notion provider, you need to inject `NOTION_TOKEN` in the workflow. Recommended approach:
 
-1. GitHub repository Settings 鈫?Secrets and variables 鈫?Actions
+1. GitHub repository Settings →Secrets and variables →Actions
 2. Create a new Secret: `NOTION_TOKEN`
 3. Inject the environment variable in the workflow build step:
 

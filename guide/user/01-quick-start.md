@@ -1,6 +1,6 @@
 ﻿# 01 Quick Start: From Zero to Preview (10 Minutes)
 
-This page walks you through the complete pipeline using a "copy-paste" approach: initialize a site 鈫?write content 鈫?build 鈫?local preview 鈫?prepare for deployment.
+This page walks you through the complete pipeline using a "copy-paste" approach: initialize a site →write content →build →local preview →prepare for deployment.
 
 ## What You Will Get
 
@@ -94,7 +94,7 @@ logging:
   level: info
 ```
 
-> **Recommended: Use site.collections to define routing and templates** The config above relies on the post/page compatibility layer for routing (page 鈫?`/pages/`, post 鈫?`/blog/`). For new projects, we recommend explicitly declaring collections (see [04 Site YAML Config](./04-site-yaml-config.md)). Example:
+> **Recommended: Use site.collections to define routing and templates** The config above relies on the post/page compatibility layer for routing (page →`/pages/`, post →`/blog/`). For new projects, we recommend explicitly declaring collections (see [04 Site YAML Config](./04-site-yaml-config.md)). Example:
 >
 > ```yaml
 > site:

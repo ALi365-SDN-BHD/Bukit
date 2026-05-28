@@ -6,7 +6,7 @@ Repositori ini menyediakan contoh templat aliran kerja Pages [`.github/workflows
 
 ## Langkah 1: Dayakan GitHub Pages
 
-1. GitHub repositori Settings 鈫?Pages
+1. GitHub repositori Settings →Pages
 2. Di bawah Build and deployment, pilih "GitHub Actions"
 
 ## Langkah 2: Sediakan Aliran Kerja

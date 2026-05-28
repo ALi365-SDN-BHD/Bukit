@@ -8,7 +8,7 @@ This directory is for maintainers and contributors. It explains stable contracts
 
 1. Run the example site first (see [CLI](./cli.md)).
 2. Understand `site.yaml` fields and validations (see [Config](./config-site-yaml.md)).
-3. Learn the end-to-end flow: Config 鈫?Content 鈫?Routing 鈫?Rendering 鈫?Plugins 鈫?Output (see [Architecture](./architecture.md)).
+3. Learn the end-to-end flow: Config →Content →Routing →Rendering →Plugins →Output (see [Architecture](./architecture.md)).
 
 ## If You Maintain Bukit Through AI / Agents
 

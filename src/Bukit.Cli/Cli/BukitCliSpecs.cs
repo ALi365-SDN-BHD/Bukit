@@ -445,6 +445,24 @@ public static class BukitCliSpecs
                 new CliCommandSpec(Name: "dump", Description: "导出数据模块", Options: new[] { new CliOptionSpec("--format", "输出格式 (json)") })
             });
 
-        return new CliCommandRegistry(new[] { build, clone, completion, deploy, dev, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, config, doctor, lint, init, data });
+        var docs = new CliCommandSpec(
+            Name: "docs",
+            Description: "文档一致性检查",
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "check",
+                    Description: "检查 README/guide/skills 之间的一致性",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--cli", "检查 CLI 命令覆盖率", CliOptionType.Flag),
+                        new CliOptionSpec("--config-fields", "检查 site.yaml 字段引用", CliOptionType.Flag),
+                        new CliOptionSpec("--file-refs", "检查文件路径引用", CliOptionType.Flag),
+                        new CliOptionSpec("--examples", "检查 README 示例可解析性", CliOptionType.Flag),
+                        new CliOptionSpec("--skills", "检查 Skill-CLI 一致性", CliOptionType.Flag)
+                    })
+            });
+
+        return new CliCommandRegistry(new[] { build, clone, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, config, doctor, lint, init, data });
     }
 }
