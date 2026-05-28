@@ -43,6 +43,7 @@ done < <(find . -type f -regextype posix-extended -regex ".*${extensions}" \
     -not -path '*/.git/*' \
     -not -path '*/.codex-tmp*/*' \
     -not -path '*/node_modules/*' \
+    -not -path '*/.trae/*' \
     -print0 2>/dev/null)
 
 if [ "$found_issues" -gt 0 ]; then
