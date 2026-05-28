@@ -165,4 +165,37 @@ public sealed class ConfigCommandTests : IDisposable
         Assert.Contains("\"site\"", json, StringComparison.Ordinal);
         Assert.Contains("\"content\"", json, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task RunAsync_NoSubcommand_ReturnsTwo()
+    {
+        var exitCode = await ConfigCommand.RunAsync(new ArgReader(new[] { "config" }));
+        Assert.Equal(2, exitCode);
+    }
+
+    [Fact]
+    public async Task RunAsync_UnknownSubcommand_ReturnsTwo()
+    {
+        var exitCode = await ConfigCommand.RunAsync(new ArgReader(new[] { "config", "unknown" }));
+        Assert.Equal(2, exitCode);
+    }
+
+    [Fact]
+    public async Task Schema_WithoutOutput_PrintsToConsole()
+    {
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await ConfigCommand.RunAsync(new ArgReader(new[] { "config", "schema" }));
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("\"$schema\"", writer.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
 }

@@ -26,6 +26,27 @@ public sealed class PluginCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_NoSubcommand_ReturnsTwo()
+    {
+        var exitCode = await PluginCommand.RunAsync(new ArgReader(new[] { "plugin" }));
+        Assert.Equal(2, exitCode);
+    }
+
+    [Fact]
+    public async Task RunAsync_Help_ReturnsZero()
+    {
+        var exitCode = await PluginCommand.RunAsync(new ArgReader(new[] { "plugin", "help" }));
+        Assert.Equal(0, exitCode);
+    }
+
+    [Fact]
+    public async Task RunAsync_UnknownSubcommand_ReturnsTwo()
+    {
+        var exitCode = await PluginCommand.RunAsync(new ArgReader(new[] { "plugin", "unknown" }));
+        Assert.Equal(2, exitCode);
+    }
+
+    [Fact]
     public async Task RunAsync_List_UsesConfigAndShowsEnabledState()
     {
         File.WriteAllText(_configPath, """
