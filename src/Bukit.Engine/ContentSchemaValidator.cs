@@ -62,7 +62,8 @@ public static class ContentSchemaValidator
     public static List<SchemaValidationError> Validate(
         IReadOnlyDictionary<string, object> meta,
         IReadOnlyList<SchemaFieldDefinition>? schema,
-        string sourcePath)
+        string sourcePath,
+        string failMode = "warn")
     {
         var errors = new List<SchemaValidationError>();
 
@@ -138,15 +139,18 @@ public static class ContentSchemaValidator
             }
         }
 
-        foreach (var key in meta.Keys)
+        if (failMode != "off")
         {
-            if (!schemaFieldNames.Contains(key) && !IsKnownSystemField(key))
+            foreach (var key in meta.Keys)
             {
-                errors.Add(new SchemaValidationError(
-                    key,
-                    "unknown_field",
-                    $"Field '{key}' is not declared in the collection schema.",
-                    sourcePath));
+                if (!schemaFieldNames.Contains(key) && !IsKnownSystemField(key))
+                {
+                    errors.Add(new SchemaValidationError(
+                        key,
+                        "unknown_field",
+                        $"Field '{key}' is not declared in the collection schema.",
+                        sourcePath));
+                }
             }
         }
 
@@ -170,7 +174,11 @@ public static class ContentSchemaValidator
         "created", "modified", "published", "updated",
         "seo_title", "seo_desc", "schema_type", "geo_schema_type",
         "description", "summary", "excerpt",
-        "image", "icon"
+        "image", "icon",
+        "seo_keywords", "ai_summary", "source_url", "original_url",
+        "cover_prompt", "generation_notes", "language", "url",
+        "outputPath", "i18nKey", "notionPageId", "bodyFingerprint",
+        "route"
     };
 
     private static bool ValidateType(string expectedType, object value)

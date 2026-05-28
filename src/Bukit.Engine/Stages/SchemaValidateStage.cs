@@ -31,7 +31,7 @@ internal sealed class SchemaValidateStage : IContentStage
                     continue;
                 }
 
-                var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id);
+            var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id, failMode: "strict");
                 if (errors.Count > 0)
                 {
                     allErrors.AddRange(errors);
@@ -58,10 +58,11 @@ internal sealed class SchemaValidateStage : IContentStage
                 continue;
             }
 
-            var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id);
+            var failMode = ContentSchemaValidator.ResolveSchemaFailMode(collection, globalFailMode);
+            var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id, failMode);
             if (errors.Count > 0)
             {
-                var failMode = ContentSchemaValidator.ResolveSchemaFailMode(collection, globalFailMode);
+
                 if (failMode == "strict")
                 {
                     throw new ConfigException($"Schema validation failed for collection '{collectionName}' with {errors.Count} error(s).", DiagnosticCode.SchemaStrictModeBlocked);

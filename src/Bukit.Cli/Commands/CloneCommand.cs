@@ -122,15 +122,23 @@ public static class CloneCommand
         }
 
         CloneTokens tokens;
-        var tokensJson = await File.ReadAllTextAsync(tokensFullPath);
-        var (parsed, tokenError) = CloneTokens.FromJson(tokensJson);
-        if (tokenError is not null)
+        try
         {
-            Console.Error.WriteLine($"Failed to parse tokens file: {tokenError}");
+            var tokensJson = await File.ReadAllTextAsync(tokensFullPath);
+            var (parsed, tokenError) = CloneTokens.FromJson(tokensJson);
+            if (tokenError is not null)
+            {
+                Console.Error.WriteLine($"Failed to parse tokens file: {tokenError}");
+                return 2;
+            }
+
+            tokens = parsed;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"Failed to read tokens file: {ex.Message}");
             return 2;
         }
-
-        tokens = parsed;
 
         CloneLayoutInfo layout;
         if (layoutPath is not null)
