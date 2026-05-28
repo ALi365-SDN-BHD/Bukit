@@ -133,4 +133,7 @@ if [ "$meets_threshold" != "yes" ]; then
     exit 1
 fi
 
+echo "=== smoke-all ==="
+bash scripts/smoke-all.sh "$configuration"
+
 echo "Quality gate OK"

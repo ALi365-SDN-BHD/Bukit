@@ -45,6 +45,10 @@ public static class DataCommand
             if (moduleItems.First().Meta.TryGetValue("sourceKey", out var sk) && sk is not null)
                 source = sk.ToString()!;
 
+            var sourceMode = "unknown";
+            if (moduleItems.First().Meta.TryGetValue("sourceMode", out var sm) && sm is not null)
+                sourceMode = sm.ToString()!;
+
             var allFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var m in moduleItems)
             {
@@ -54,7 +58,7 @@ public static class DataCommand
             }
 
             var fields = allFields.Count > 0 ? $"[{string.Join(", ", allFields.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))}]" : "";
-            Console.WriteLine($"  {type,-14} ×{moduleItems.Count}  source={source,-10} {fields}");
+            Console.WriteLine($"  {type,-14} ×{moduleItems.Count}  source={source,-10}  mode={sourceMode,-8} {fields}");
         }
     }
 
@@ -179,8 +183,12 @@ public static class DataCommand
                 return 0;
             case "dump":
                 var format = reader.GetOption("--format");
-                if (format == "json")
-                    Console.WriteLine(DumpModulesJson(items));
+                if (format is not null && format != "json")
+                {
+                    Console.Error.WriteLine("Unsupported format. Only json is supported.");
+                    return 1;
+                }
+                Console.WriteLine(DumpModulesJson(items));
                 return 0;
             default:
                 Console.Error.WriteLine($"Unknown subcommand: {sub}. Use inspect or dump.");
