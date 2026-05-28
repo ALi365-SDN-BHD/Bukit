@@ -69,6 +69,13 @@ dotnet run --project src/Bukit.Cli -c Release -- build --clean --jobs 8
 dotnet run --project src/Bukit.Cli -c Release -- build --site blog --clean
 ```
 
+### Dev Server (HMR)
+
+```bash
+dotnet run --project src/Bukit.Cli -c Release -- dev
+dotnet run --project src/Bukit.Cli -c Release -- dev --config site.yaml --port 8080
+```
+
 ### Validate / Clean / Theme / Clone
 
 ```bash

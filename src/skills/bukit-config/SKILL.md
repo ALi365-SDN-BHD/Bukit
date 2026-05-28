@@ -198,6 +198,7 @@ theme:
 | `menus` | map | — | Multi-menu navigation definitions |
 | `search` | map | — | Search UI: `ui`, `uiTheme`, `placeholderText` |
 | `pagination` | map | — | Global pagination defaults: `pageSize` |
+| `analytics` | map | — | Analytics configuration: `enabled`, `google_analytics_id` |
 
 SEO-oriented configs should include both `site.url` and `site.description`. Without `site.url`, canonical and schema URLs fall back to relative paths and audit emits warnings. Without `site.description`, generated home/list/taxonomy/pagination routes usually emit `seo.description_missing` unless the route has its own summary.
 | `permalinks` | map | — | Global permalink custom placeholders |
@@ -570,6 +571,37 @@ Front matter:
 searchWeight: 5       # Higher = ranked higher (default 1)
 searchExclude: true   # Exclude from search index
 ---
+```
+
+## Analytics Configuration (site.analytics)
+
+Controls Google Analytics (GA4) gtag output via the analytics partial.
+
+| Field | Type | Default | Description |
+|------|------|--------|------|
+| `analytics.enabled` | bool | true | Whether analytics code output is allowed |
+| `analytics.google_analytics_id` | string | — | GA4 Measurement ID (e.g., `G-XXXXXXXXXX`); must start with `G-` |
+
+```yaml
+site:
+  analytics:
+    enabled: true
+    google_analytics_id: "G-XXXXXXXXXX"
+```
+
+When `google_analytics_id` is configured and `enabled` is not `false`, the starter theme's analytics partial outputs the GA4 gtag snippet. To disable, set `enabled: false`.
+
+Template usage:
+```scriban
+{{ if site.analytics && site.analytics.enabled && site.analytics.google_analytics_id }}
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analytics.google_analytics_id | html.escape }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '{{ site.analytics.google_analytics_id | html.escape }}');
+  </script>
+{{ end }}
 ```
 
 ## Pagination Global Configuration (site.pagination)

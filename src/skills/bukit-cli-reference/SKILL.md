@@ -27,7 +27,7 @@ bukit version
 
 Sample output:
 ```
-bukit 2.x.x
+bukit 1.x.x
 runtime: jit   (or runtime: native-aot)
 ```
 
@@ -37,7 +37,7 @@ On Windows, if the `.exe` is not in PATH, use `.\bukit.exe` or `./bukit.exe`. In
 & .\bukit.exe version
 ```
 
-**Important note**: All commands except `version` will output the version number to stderr before execution (e.g., `bukit 2.x.x`). This is normal behavior, not an error.
+**Important note**: All commands except `version` will output the version number to stderr before execution (e.g., `bukit 1.x.x`). This is normal behavior, not an error.
 
 ## Installation Guide
 
@@ -88,6 +88,11 @@ After downloading, place the binary in a PATH directory or the project root.
 | `geo audit` | GEO audit on dist output | `--dir` `--config` |
 | `seo` | SEO audit and regression detection | `audit` `--dir` `--strict` `--external`; `diff` `--baseline` `--current` `--max-new-*` `--fail-on-*` |
 | `geo` | GEO audit for AI search engines | `audit` `--dir` |
+| `data inspect` | List all data modules (Markdown/Notion content + data sources) | `--config` `--site` `--module` |
+| `data dump` | Export data module content as JSON | `--config` `--site` `--format` |
+| `completion` | Generate shell auto-completion script | `<shell>` (bash\|zsh\|fish) |
+| `lint` | Check config and Markdown content | `--config` `--site` |
+| `visual generate` | Generate Playwright visual test script | `--config` `--dir` `--site-url` `--out` |
 | `version` | Output version number | No parameters |
 
 ## Key Command Details
@@ -421,6 +426,76 @@ bukit geo audit [--dir <dir>]
 Reads `seo-report.json` from the output directory and reports llms.txt/llms-full.txt status, GEO-enhanced routes, schema types, GEO Score, and geo.* diagnostic issues. Requires a full `bukit build` first.
 
 Exit codes: 0 = success, 2 = directory or report not found, 2 = invalid report JSON.
+
+### data
+
+Inspect and export data modules loaded by Bukit.
+
+```
+bukit data inspect [--config <path>] [--site <name>] [--module <name>]
+bukit data dump [--config <path>] [--site <name>] [--format json]
+```
+
+| Subcommand | Description |
+|------|------|
+| `inspect` | Lists all data modules (content sources + data files) with row counts, column names, and sample values. Use `--module` to focus on a single module. |
+| `dump` | Exports data module content as structured output (JSON format). |
+
+`data inspect` shows a summary of every data module available to templates via `site.modules` and `site.data`. `data dump` writes the full content to stdout for inspection or piping.
+
+### completion
+
+Generate shell auto-completion scripts for bash, zsh, or fish.
+
+```
+bukit completion <shell>
+```
+
+| Argument | Description |
+|------|------|
+| `<shell>` | Target shell: `bash`, `zsh`, or `fish` |
+
+Writes the completion script to stdout. To install:
+- **bash**: `bukit completion bash > /etc/bash_completion.d/bukit` or source it in `.bashrc`
+- **zsh**: `bukit completion zsh > "${fpath[1]}/_bukit"`
+- **fish**: `bukit completion fish > ~/.config/fish/completions/bukit.fish`
+
+### lint
+
+Check configuration and Markdown content for issues without building.
+
+```
+bukit lint [--config <path>] [--site <name>]
+```
+
+| Parameter | Default | Description |
+|------|--------|------|
+| `--config` | `site.yaml` | Config file path |
+| `--site` | — | Multi-site name |
+
+Runs config validation and content checks (front matter consistency, required fields, schema violations) without triggering a full build. Useful as a pre-commit or CI lint gate.
+
+### visual
+
+Generate Playwright visual regression test scripts.
+
+```
+bukit visual generate [--config <path>] [--dir <dir>] [--site-url <url>] [--out <path>]
+```
+
+| Parameter | Default | Description |
+|------|--------|------|
+| `--config` | `site.yaml` | Config file path |
+| `--dir` | `dist` | Output directory to scan for HTML pages |
+| `--site-url` | `http://localhost:4173` | Base URL for test navigation |
+| `--out` | `visual-tests.spec.js` | Output test script path |
+
+Discovers all `.html` files in the output directory and generates a Playwright test script with `toHaveScreenshot()` assertions for each page. Typical workflow:
+
+1. `bukit build`
+2. `bukit visual generate --dir dist`
+3. `npm init -y && npm install @playwright/test`
+4. `npx playwright test visual-tests.spec.js --reporter=list`
 
 ## Exit Codes
 

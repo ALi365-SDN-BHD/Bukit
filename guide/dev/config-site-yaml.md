@@ -90,6 +90,8 @@ Notes:
 | `site.externalPlugins` | dict | - | External protocol plugin configs |
 | `site.externalAssemblyTrustMode` | string | `warn` | DLL trust governance: `warn`/`strict` |
 | `site.externalAssemblyAllowlist` | dict | - | Filename → SHA256 allowlist |
+| `site.analytics.enabled` | bool | true | Whether analytics code output is allowed |
+| `site.analytics.google_analytics_id` | string | - | GA4 Measurement ID (e.g., `G-XXXXXXXXXX`); must start with `G-`. When configured and `enabled` is not `false`, the analytics partial outputs gtag. |
 | `site.searchIncludeDerived` | bool | false | Include derived pages in search |
 | `site.externalProtocolIncludeRoutedPages` | bool | false | Include full routedPages in after-build |
 | `site.deriveConflictPolicy` | string | `fail` | Derived page conflict: `fail`/`warn`/`last-wins`. Content-page conflicts always fail regardless. |
