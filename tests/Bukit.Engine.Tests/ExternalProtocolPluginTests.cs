@@ -648,6 +648,19 @@ public sealed class ExternalProtocolPluginTests
         Assert.Contains("[plugin-protocol][after-build]", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void ExternalProtocolPlugin_DerivePages_GeneratedPageContent_CanBeRendered()
+    {
+        using var temp = new TempDir();
+        var context = CreateContext(temp.Path, "strict", "derive-success", hooks: new[] { "derive-pages" });
+
+        var derived = PluginRunner.RunDerivePages(context);
+
+        Assert.Contains(derived, x => x.Item.Id == "derived-1");
+        var derivePage = derived.First(x => x.Item.Id == "derived-1");
+        Assert.Equal("Derived 1", derivePage.Item.Title);
+    }
+
     private static BuildContext CreateContext(
         string rootDir,
         string failMode,
