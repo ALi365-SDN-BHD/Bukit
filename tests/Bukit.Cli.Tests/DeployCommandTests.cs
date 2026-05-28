@@ -263,4 +263,76 @@ deploy:
             try { Directory.Delete(dir, recursive: true); } catch { }
         }
     }
+
+    [Fact]
+    public async Task RunAsync_FromArgReader_InvalidConfig_ReturnsOne()
+    {
+        var reader = new ArgReader(new[] { "deploy", "--config", "/nonexistent/site.yaml" });
+
+        var exitCode = await DeployCommand.RunAsync(reader);
+
+        Assert.Equal(1, exitCode);
+    }
+
+    [Fact]
+    public async Task RunAsync_FromArgReader_WithBasicOptions_ReturnsZero()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "bukit-test-argreader-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\n");
+        var distDir = Path.Combine(dir, "dist");
+        Directory.CreateDirectory(distDir);
+        File.WriteAllText(Path.Combine(distDir, "index.html"), "<h1>test</h1>");
+
+        var originalDir = Environment.CurrentDirectory;
+        try
+        {
+            Environment.CurrentDirectory = dir;
+
+            var reader = new ArgReader(new[]
+            {
+                "deploy", "--dry-run", "--skip-build", "--config", Path.Combine(dir, "site.yaml")
+            });
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var task = DeployCommand.RunAsync(reader);
+            var completed = await Task.WhenAny(task, Task.Delay(Timeout.Infinite, cts.Token));
+            if (completed != task)
+            {
+                cts.Cancel();
+                Assert.Fail("DeployCommand timed out.");
+            }
+
+            var exitCode = await task;
+            Assert.Equal(0, exitCode);
+        }
+        finally
+        {
+            Environment.CurrentDirectory = originalDir;
+            try { Directory.Delete(dir, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_FromArgReader_NoArgs_ReturnsOne()
+    {
+        var originalDir = Environment.CurrentDirectory;
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit-test-noargs-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            Environment.CurrentDirectory = tempDir;
+
+            var reader = new ArgReader(new[] { "deploy" });
+
+            var exitCode = await DeployCommand.RunAsync(reader);
+
+            Assert.Equal(1, exitCode);
+        }
+        finally
+        {
+            Environment.CurrentDirectory = originalDir;
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+    }
 }
