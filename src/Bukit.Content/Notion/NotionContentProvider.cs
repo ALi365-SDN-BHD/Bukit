@@ -107,6 +107,7 @@ public sealed class NotionContentProvider : IContentProvider
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, "outputpath", "outputPath");
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, "template", "template");
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, "summary", "summary");
+                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, "collection", "collection");
                     NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "tags");
                     NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "categories");
 

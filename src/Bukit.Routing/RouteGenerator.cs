@@ -84,6 +84,9 @@ public static class RouteGenerator
         var typeVal = item.Meta.TryGetValue("type", out var t) && t is not null ? (t.ToString() ?? "page") : "page";
         result = result.Replace("{type}", typeVal, StringComparison.OrdinalIgnoreCase);
 
+        var collectionVal = item.GetCollection();
+        result = result.Replace("{collection}", collectionVal, StringComparison.OrdinalIgnoreCase);
+
         return result;
     }
 
@@ -241,11 +244,6 @@ public static class RouteGenerator
 
     private static string GetCollection(ContentItem item)
     {
-        if (item.Meta.TryGetValue("collection", out var collection) && collection is not null && !string.IsNullOrWhiteSpace(collection.ToString()))
-        {
-            return collection.ToString()!;
-        }
-
-        return GetType(item);
+        return item.GetCollection(defaultCollection: GetType(item));
     }
 }

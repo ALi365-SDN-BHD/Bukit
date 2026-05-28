@@ -32,7 +32,8 @@ public sealed class ContentPipeline
             new ImageLocalizeStage(contentProviderFactory),
             new DraftFilterStage(),
             new SchemaDefaultsStage(),
-            new SchemaValidateStage()
+            new SchemaValidateStage(),
+            new CollectionWarningStage()
         }, logger)
     {
     }

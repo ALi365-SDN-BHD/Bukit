@@ -340,17 +340,7 @@ public static class SeoAlternatesService
 
     internal static string GetCollection(ContentItem item)
     {
-        if (item.Meta.TryGetValue("collection", out var collection) && collection is not null && !string.IsNullOrWhiteSpace(collection.ToString()))
-        {
-            return collection.ToString()!;
-        }
-
-        if (item.Meta.TryGetValue("type", out var type) && type is not null && !string.IsNullOrWhiteSpace(type.ToString()))
-        {
-            return type.ToString()!;
-        }
-
-        return "page";
+        return item.GetCollection();
     }
 
     internal static int NormalizePageSize(int pageSize) => pageSize <= 0 ? 10 : pageSize;
