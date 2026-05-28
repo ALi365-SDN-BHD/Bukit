@@ -265,6 +265,19 @@ public static class DoctorCommand
             return 1;
         }
 
+        Console.WriteLine();
+        try
+        {
+            var factory = new DefaultContentProviderFactory();
+            var contentPipeline = new ContentPipeline(factory, new ConsoleLogger(LogLevel.Error));
+            var contentResult = await contentPipeline.ExecuteAsync(config, rootDir, new ConfigOverrides(), Path.Combine(rootDir, ".cache", "media"));
+            DataCommand.PrintModuleSummary(contentResult.Items);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Data modules: (unavailable — {ex.Message})");
+        }
+
         Console.WriteLine("✔ Doctor passed");
         return 0;
     }

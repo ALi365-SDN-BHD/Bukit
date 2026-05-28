@@ -31,7 +31,7 @@ internal sealed class SchemaValidateStage : IContentStage
                     continue;
                 }
 
-            var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id, failMode: "strict");
+                var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id, failMode: "strict");
                 if (errors.Count > 0)
                 {
                     allErrors.AddRange(errors);

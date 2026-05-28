@@ -74,6 +74,7 @@ try
         "seo" => await SeoCommand.RunAsync(reader),
         "geo" => await GeoCommand.RunAsync(reader),
         "clone" => await CloneCommand.RunAsync(reader),
+        "data" => await DataCommand.RunAsync(reader),
         "theme" => await ThemeCommand.RunAsync(reader),
         "template" => await TemplateCommand.RunAsync(reader),
         "intent" => await IntentCommand.RunAsync(reader),

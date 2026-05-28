@@ -436,6 +436,15 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--template", "模板名 (minimal|blog|docs|landing|portfolio)")
             });
 
-        return new CliCommandRegistry(new[] { build, clone, completion, deploy, dev, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, config, doctor, lint, init });
+        var data = new CliCommandSpec(
+            Name: "data",
+            Description: "查看数据模块信息",
+            Subcommands: new[]
+            {
+                new CliCommandSpec(Name: "inspect", Description: "列出所有数据模块", Options: new[] { new CliOptionSpec("--module", "模块名") }),
+                new CliCommandSpec(Name: "dump", Description: "导出数据模块", Options: new[] { new CliOptionSpec("--format", "输出格式 (json)") })
+            });
+
+        return new CliCommandRegistry(new[] { build, clone, completion, deploy, dev, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, config, doctor, lint, init, data });
     }
 }
