@@ -228,7 +228,7 @@ public sealed class CloneDtoTests
     [Fact]
     public void CloneTokens_FromJson_Valid()
     {
-        var result = CloneTokens.FromJson("""{"bg":"#fff","text":"#000"}""");
+        var result = CloneTokens.FromJson("""{"bg":"#fff","text":"#000"}""").tokens;
         Assert.Equal("#fff", result.Bg);
         Assert.Equal("#000", result.Text);
     }
@@ -236,21 +236,21 @@ public sealed class CloneDtoTests
     [Fact]
     public void CloneTokens_FromJson_Empty_ReturnsNew()
     {
-        var result = CloneTokens.FromJson("");
+        var result = CloneTokens.FromJson("").tokens;
         Assert.NotNull(result);
     }
 
     [Fact]
     public void CloneTokens_FromJson_Invalid_ReturnsNew()
     {
-        var result = CloneTokens.FromJson("{invalid}");
+        var result = CloneTokens.FromJson("{invalid}").tokens;
         Assert.NotNull(result);
     }
 
     [Fact]
     public void CloneTokens_FromJson_Null_ReturnsNew()
     {
-        var result = CloneTokens.FromJson(null!);
+        var result = CloneTokens.FromJson(null!).tokens;
         Assert.NotNull(result);
     }
 

@@ -404,7 +404,7 @@ public sealed class CloneModelsTests
     {
         var json = """{"cardShadow":"0 0 10px black","modalShadow":"0 0 50px black","navPadding":"10px 20px","responsiveBreakpoints":{"mobile":"640px","tablet":"960px"},"spacingScale":{"xs":"2px","sm":"4px"}}""";
 
-        var t = CloneTokens.FromJson(json);
+        var t = CloneTokens.FromJson(json).tokens;
 
         Assert.Equal("0 0 10px black", t.CardShadow);
         Assert.Equal("0 0 50px black", t.ModalShadow);
@@ -431,7 +431,7 @@ public sealed class CloneModelsTests
     public void CloneTokens_FromJson_FlathFormat_ParsesAll()
     {
         var json = """{"bg":"#fff","primary":"#3b82f6"}""";
-        var tokens = CloneTokens.FromJson(json);
+        var tokens = CloneTokens.FromJson(json).tokens;
         Assert.Equal("#fff", tokens.Bg);
     }
 
@@ -439,14 +439,14 @@ public sealed class CloneModelsTests
     public void CloneTokens_FromJson_WrapperFormat_Parses()
     {
         var json = """{"tokens":{"primary":"#ff0000"}}""";
-        Assert.Equal("#ff0000", CloneTokens.FromJson(json).Primary);
+        Assert.Equal("#ff0000", CloneTokens.FromJson(json).tokens.Primary);
     }
 
     [Fact]
-    public void CloneTokens_FromJson_Null_ReturnsDefault() => Assert.Null(CloneTokens.FromJson(null!).Primary);
+    public void CloneTokens_FromJson_Null_ReturnsDefault() => Assert.Null(CloneTokens.FromJson(null!).tokens.Primary);
 
     [Fact]
-    public void CloneTokens_FromJson_Invalid_ReturnsDefault() => Assert.Null(CloneTokens.FromJson("bad").Primary);
+    public void CloneTokens_FromJson_Invalid_ReturnsDefault() => Assert.Null(CloneTokens.FromJson("bad").tokens.Primary);
 
     [Fact]
     public void CloneLayoutInfo_FromJson_Empty_Default() => Assert.Null(CloneLayoutInfo.FromJson("{}").SiteTitle);
@@ -545,7 +545,7 @@ public sealed class CloneModelsTests
     public void CloneTokens_FromJson_HoverFields_Parses()
     {
         var json = """{"hoverLift":"5px","hoverShadow":"0 5px 15px rgba(0,0,0,0.15)"}""";
-        var t = CloneTokens.FromJson(json);
+        var t = CloneTokens.FromJson(json).tokens;
         Assert.Equal("5px", t.HoverLift);
         Assert.Equal("0 5px 15px rgba(0,0,0,0.15)", t.HoverShadow);
     }

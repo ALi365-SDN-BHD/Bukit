@@ -125,7 +125,14 @@ public static class CloneCommand
         try
         {
             var tokensJson = await File.ReadAllTextAsync(tokensFullPath);
-            tokens = CloneTokens.FromJson(tokensJson);
+            var (parsed, tokenError) = CloneTokens.FromJson(tokensJson);
+            if (tokenError is not null)
+            {
+                Console.Error.WriteLine($"Failed to parse tokens file: {tokenError}");
+                return 2;
+            }
+
+            tokens = parsed;
         }
         catch (JsonException ex)
         {

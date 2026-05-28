@@ -63,22 +63,23 @@ public sealed record CloneTokens
     public List<string>? ExternalCssUrls { get; init; }
     public List<string>? ExternalJsUrls { get; init; }
 
-    public static CloneTokens FromJson(string json)
+    public static (CloneTokens tokens, string? error) FromJson(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
-            return new CloneTokens();
+            return (new CloneTokens(), null);
         }
 
         try
         {
-            return JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneTokensWrapper)?.Tokens
-                   ?? JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneTokens)
-                   ?? new CloneTokens();
+            var tokens = JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneTokensWrapper)?.Tokens
+                         ?? JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneTokens)
+                         ?? new CloneTokens();
+            return (tokens, null);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            return new CloneTokens();
+            return (new CloneTokens(), ex.Message);
         }
     }
 

@@ -79,7 +79,7 @@ dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
 dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
 # Interactive theme wizard with 5 presets (blog|docs|landing|minimal|portfolio)
 dotnet run --project src/Bukit.Cli -c Release -- theme wizard my-theme --preset blog
-# Clone any website's design into a Bukit theme
+# Extract design tokens and scaffold a Bukit-compatible theme
 dotnet run --project src/Bukit.Cli -c Release -- clone --tokens tokens.json --theme my-clone
 ```
 

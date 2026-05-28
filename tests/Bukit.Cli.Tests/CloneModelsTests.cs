@@ -56,7 +56,7 @@ public sealed class CloneModelsDeserializationTests
         }
         """;
 
-        var tokens = CloneTokens.FromJson(json);
+        var tokens = CloneTokens.FromJson(json).tokens;
 
         Assert.Equal("#ffffff", tokens.Bg);
         Assert.Equal("#3366ff", tokens.Primary);
@@ -82,15 +82,15 @@ public sealed class CloneModelsDeserializationTests
     [Fact]
     public void CloneTokens_FromJson_NullOrEmpty_ReturnsDefault()
     {
-        var fromNull = CloneTokens.FromJson(null!);
+        var fromNull = CloneTokens.FromJson(null!).tokens;
         Assert.NotNull(fromNull);
         Assert.Null(fromNull.Primary);
 
-        var fromEmpty = CloneTokens.FromJson("");
+        var fromEmpty = CloneTokens.FromJson("").tokens;
         Assert.NotNull(fromEmpty);
         Assert.Null(fromEmpty.Bg);
 
-        var fromWhitespace = CloneTokens.FromJson("   ");
+        var fromWhitespace = CloneTokens.FromJson("   ").tokens;
         Assert.NotNull(fromWhitespace);
         Assert.Null(fromWhitespace.Accent);
     }
@@ -98,7 +98,7 @@ public sealed class CloneModelsDeserializationTests
     [Fact]
     public void CloneTokens_FromJson_InvalidJson_ReturnsDefault()
     {
-        var tokens = CloneTokens.FromJson("{ invalid json!!! }");
+        var tokens = CloneTokens.FromJson("{ invalid json!!! }").tokens;
         Assert.NotNull(tokens);
         Assert.Null(tokens.Primary);
     }
@@ -115,7 +115,7 @@ public sealed class CloneModelsDeserializationTests
         }
         """;
 
-        var tokens = CloneTokens.FromJson(json);
+        var tokens = CloneTokens.FromJson(json).tokens;
 
         Assert.Equal("#ff0000", tokens.Primary);
         Assert.Equal("#ffffff", tokens.Bg);
@@ -477,7 +477,7 @@ public sealed class CloneModelsDeserializationTests
         }
         """;
 
-        var tokens = CloneTokens.FromJson(json);
+        var tokens = CloneTokens.FromJson(json).tokens;
 
         Assert.NotNull(tokens.SpacingScale);
         Assert.Equal("4px", tokens.SpacingScale!.Xs);
@@ -500,7 +500,7 @@ public sealed class CloneModelsDeserializationTests
         }
         """;
 
-        var tokens = CloneTokens.FromJson(json);
+        var tokens = CloneTokens.FromJson(json).tokens;
 
         Assert.NotNull(tokens.ResponsiveBreakpoints);
         Assert.Equal("480px", tokens.ResponsiveBreakpoints!.Mobile);
