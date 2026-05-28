@@ -12,6 +12,9 @@ internal static class ScribanModelKnownFields
         public const string PublishDate = "publish_date";
         public const string Fields = "fields";
         public const string Seo = "seo";
+        public const string Alternates = "alternates";
+        public const string Term = "term";
+        public const string Terms = "terms";
     }
 
     internal static class SiteFields
@@ -80,7 +83,8 @@ internal static class ScribanModelKnownFields
     {
         PageFields.Title, PageFields.Url, PageFields.Content,
         PageFields.Summary, PageFields.TableOfContents,
-        PageFields.PublishDate, PageFields.Fields, PageFields.Seo
+        PageFields.PublishDate, PageFields.Fields, PageFields.Seo,
+        PageFields.Alternates, PageFields.Term, PageFields.Terms
     };
 
     private static readonly HashSet<string> _siteFields = new(StringComparer.OrdinalIgnoreCase)
@@ -171,7 +175,7 @@ internal static class ScribanModelKnownFields
         return parts[offset].ToLowerInvariant() switch
         {
             "seo" => IsKnownSeoField(parts, offset + 1),
-            "fields" => true,
+            "fields" or "alternates" or "term" or "terms" => true,
             _ => false
         };
     }
