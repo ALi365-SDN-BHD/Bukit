@@ -44,7 +44,10 @@ public static class DoctorCommand
             return 1;
         }
 
-        CheckOutputDirectorySafety(config, rootDir);
+        if (!CheckOutputDirectorySafety(config, rootDir))
+        {
+            return 1;
+        }
 
         if (config.Site.Collections is null || config.Site.Collections.Count == 0)
         {
@@ -410,7 +413,7 @@ public static class DoctorCommand
         }
     }
 
-    private static void CheckOutputDirectorySafety(AppConfig config, string rootDir)
+    private static bool CheckOutputDirectorySafety(AppConfig config, string rootDir)
     {
         var outputDir = Path.GetFullPath(Path.Combine(rootDir, config.Build.Output));
         var exists = Directory.Exists(outputDir);
@@ -427,18 +430,22 @@ public static class DoctorCommand
         if (!exists)
         {
             Console.WriteLine("  - result: ok (directory will be created)");
+            return true;
         }
         else if (!nonEmpty)
         {
             Console.WriteLine("  - result: ok (directory is empty)");
+            return true;
         }
         else if (!cleanRequested)
         {
             Console.WriteLine("  - result: ok (clean not requested, existing files will be overwritten)");
+            return true;
         }
         else if (markerExists)
         {
             Console.WriteLine("  - result: ok (directory has Bukit marker, will be cleaned)");
+            return true;
         }
         else
         {
@@ -446,6 +453,7 @@ public static class DoctorCommand
             Console.WriteLine("  - fix: run 'bukit clean --init-marker' to mark this as a Bukit output directory,");
             Console.WriteLine("         or choose a dedicated dist directory,");
             Console.WriteLine("         or set build.clean: false in site.yaml.");
+            return false;
         }
     }
 
