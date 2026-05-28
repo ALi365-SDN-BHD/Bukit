@@ -20,6 +20,27 @@ internal static class RenderDependencyHasher
         hasher.AppendData(newline);
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Language);
         hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Url);
+        hasher.AppendData(newline);
+
+        if (config.Site.Languages is { Count: > 0 })
+        {
+            foreach (var lang in config.Site.Languages.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            {
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, lang);
+            }
+        }
+
+        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.DefaultLanguage);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.SitemapMode);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.RssMode);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.SearchMode);
+        hasher.AppendData(newline);
+
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Analytics.Enabled.ToString());
         hasher.AppendData(newline);
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Analytics.GoogleAnalyticsId);
