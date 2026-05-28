@@ -2387,6 +2387,149 @@ public sealed class SiteEngineIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task BuildAsync_PaginationI18n_EachLanguageHasOnlyItsOwnContent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-pagination-i18n-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: pagination-i18n
+                  title: Pagination I18n
+                  url: https://example.com
+                  baseUrl: /
+                  language: en
+                  languages: [en, zh]
+                  defaultLanguage: en
+                content:
+                  provider: markdown
+                  media:
+                    downloadToLocal: false
+                  markdown:
+                    dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+
+            File.WriteAllText(Path.Combine(root, "content", "a.en.md"), """
+                ---
+                type: post
+                title: Alpha
+                slug: a
+                language: en
+                publishAt: 2024-01-01T00:00:00Z
+                ---
+                # Alpha EN
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "b.en.md"), """
+                ---
+                type: post
+                title: Beta
+                slug: b
+                language: en
+                publishAt: 2024-02-01T00:00:00Z
+                ---
+                # Beta EN
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "c.zh.md"), """
+                ---
+                type: post
+                title: 查理
+                slug: c
+                language: zh
+                publishAt: 2024-01-15T00:00:00Z
+                ---
+                # 查理 ZH
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "d.zh.md"), """
+                ---
+                type: post
+                title: 德尔塔
+                slug: d
+                language: zh
+                publishAt: 2024-02-15T00:00:00Z
+                ---
+                # 德尔塔 ZH
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "pagination.html"),
+                "{% layout \"layouts/base.html\" %}\nPage {{ pagination.page }}");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var configWithPagination = config with
+            {
+                Site = config.Site with
+                {
+                    Collections = new Dictionary<string, CollectionConfig>
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/blog/{slug}/",
+                            Template = "pages/post.html",
+                            ListRoute = "/blog/",
+                            ListTemplate = "pages/list.html",
+                            Pagination = new CollectionPaginationConfig { Enabled = true, PageSize = 1 }
+                        }
+                    }
+                }
+            };
+
+            var engine = new SiteEngine(new TestLogger());
+            await engine.BuildAsync(configWithPagination, root, new ConfigOverrides(), CancellationToken.None);
+
+            // en pagination page 2 should exist (2 en posts with pageSize 1)
+            var enPage2 = Path.Combine(root, "dist", "en", "blog", "page", "2", "index.html");
+            Assert.True(File.Exists(enPage2), "en pagination page 2 should exist");
+
+            // zh pagination page 2 should exist (2 zh posts with pageSize 1)
+            var zhPage2 = Path.Combine(root, "dist", "zh", "blog", "page", "2", "index.html");
+            Assert.True(File.Exists(zhPage2), "zh pagination page 2 should exist");
+
+            // en pagination page 3 should NOT exist (only 2 en posts)
+            var enPage3 = Path.Combine(root, "dist", "en", "blog", "page", "3", "index.html");
+            Assert.False(File.Exists(enPage3), "en pagination page 3 should NOT exist");
+
+            // zh pagination page 3 should NOT exist (only 2 zh posts)
+            var zhPage3 = Path.Combine(root, "dist", "zh", "blog", "page", "3", "index.html");
+            Assert.False(File.Exists(zhPage3), "zh pagination page 3 should NOT exist");
+
+            // en posts exist in en output
+            Assert.True(File.Exists(Path.Combine(root, "dist", "en", "blog", "a", "index.html")), "en post a should exist");
+            Assert.True(File.Exists(Path.Combine(root, "dist", "en", "blog", "b", "index.html")), "en post b should exist");
+
+            // zh posts exist in zh output
+            Assert.True(File.Exists(Path.Combine(root, "dist", "zh", "blog", "c", "index.html")), "zh post c should exist");
+            Assert.True(File.Exists(Path.Combine(root, "dist", "zh", "blog", "d", "index.html")), "zh post d should exist");
+
+            // en posts do NOT leak into zh output
+            Assert.False(File.Exists(Path.Combine(root, "dist", "zh", "blog", "a", "index.html")), "en post a should NOT be in zh output");
+            Assert.False(File.Exists(Path.Combine(root, "dist", "zh", "blog", "b", "index.html")), "en post b should NOT be in zh output");
+
+            // zh posts do NOT leak into en output
+            Assert.False(File.Exists(Path.Combine(root, "dist", "en", "blog", "c", "index.html")), "zh post c should NOT be in en output");
+            Assert.False(File.Exists(Path.Combine(root, "dist", "en", "blog", "d", "index.html")), "zh post d should NOT be in en output");
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
     private static void CleanupDir(string dir)
     {
         try
