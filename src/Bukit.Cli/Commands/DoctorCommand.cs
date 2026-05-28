@@ -44,6 +44,8 @@ public static class DoctorCommand
             return 1;
         }
 
+        CheckOutputDirectorySafety(config, rootDir);
+
         if (config.Site.Collections is null || config.Site.Collections.Count == 0)
         {
             Console.WriteLine("✖ Migration required: site.collections is not configured");
@@ -405,6 +407,45 @@ public static class DoctorCommand
         foreach (var w in warnings)
         {
             Console.WriteLine($"⚠ {w.Template}: {w.Message}");
+        }
+    }
+
+    private static void CheckOutputDirectorySafety(AppConfig config, string rootDir)
+    {
+        var outputDir = Path.GetFullPath(Path.Combine(rootDir, config.Build.Output));
+        var exists = Directory.Exists(outputDir);
+        var markerExists = File.Exists(Path.Combine(outputDir, ".bukit-output-marker"));
+        var cleanRequested = config.Build.Clean;
+        var nonEmpty = exists && Directory.EnumerateFileSystemEntries(outputDir).Any();
+
+        Console.WriteLine("Output directory safety:");
+        Console.WriteLine($"  - output: {outputDir}");
+        Console.WriteLine($"  - exists: {(exists ? "yes" : "no")}");
+        Console.WriteLine($"  - marker exists: {(markerExists ? "yes" : "no")}");
+        Console.WriteLine($"  - clean requested: {(cleanRequested ? "yes" : "no")}");
+
+        if (!exists)
+        {
+            Console.WriteLine("  - result: ok (directory will be created)");
+        }
+        else if (!nonEmpty)
+        {
+            Console.WriteLine("  - result: ok (directory is empty)");
+        }
+        else if (!cleanRequested)
+        {
+            Console.WriteLine("  - result: ok (clean not requested, existing files will be overwritten)");
+        }
+        else if (markerExists)
+        {
+            Console.WriteLine("  - result: ok (directory has Bukit marker, will be cleaned)");
+        }
+        else
+        {
+            Console.WriteLine("  - result: refuse (no Bukit marker, clean would be blocked)");
+            Console.WriteLine("  - fix: run 'bukit clean --init-marker' to mark this as a Bukit output directory,");
+            Console.WriteLine("         or choose a dedicated dist directory,");
+            Console.WriteLine("         or set build.clean: false in site.yaml.");
         }
     }
 

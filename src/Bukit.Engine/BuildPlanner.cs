@@ -84,7 +84,12 @@ internal static class BuildPlanner
 
         if (!File.Exists(Path.Combine(fullOutput, OutputMarkerFileName)))
         {
-            throw new ConfigException($"Refusing to clean output directory without Bukit marker: {outputDir}. How to fix: add a '.bukit-output-marker' file to mark this as a Bukit output directory, or set build.clean: false.", DiagnosticCode.BuildOutputNoMarker);
+            throw new ConfigException(
+                $"Bukit refuses to clean this directory because it does not contain .bukit-output-marker: {outputDir}. " +
+                $"This prevents accidental deletion of non-Bukit files. " +
+                $"How to fix: run 'bukit clean --init-marker' to mark this as a Bukit output directory, " +
+                $"or set build.clean: false in site.yaml.",
+                DiagnosticCode.BuildOutputNoMarker);
         }
     }
 }
