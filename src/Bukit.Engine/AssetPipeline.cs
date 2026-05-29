@@ -31,9 +31,13 @@ internal sealed record AssetPipelineResult(
 internal sealed class AssetPipeline
 {
     public Task<AssetPipelineResult> ExecuteAsync(AssetPipelineContext ctx, CancellationToken cancellationToken = default)
+        => Task.Run(() => ExecuteCore(ctx, cancellationToken), cancellationToken);
+
+    private static AssetPipelineResult ExecuteCore(AssetPipelineContext ctx, CancellationToken cancellationToken)
     {
         var metricsCollector = new BuildStageMetricsCollector();
 
+        cancellationToken.ThrowIfCancellationRequested();
         var hasStaticDir = ctx.StaticDir is not null && Directory.Exists(ctx.StaticDir);
         if (hasStaticDir || (ctx.ParentStaticDir is not null && Directory.Exists(ctx.ParentStaticDir)))
         {
@@ -63,6 +67,7 @@ internal sealed class AssetPipeline
             metricsCollector.AddDuration("staticSync", staticStopwatch.ElapsedMilliseconds);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         if (ctx.AssetsDir is not null && Directory.Exists(ctx.AssetsDir) || (ctx.ParentAssetsDir is not null && Directory.Exists(ctx.ParentAssetsDir)))
         {
             var assetsSyncStopwatch = Stopwatch.StartNew();
@@ -96,6 +101,7 @@ internal sealed class AssetPipeline
             metricsCollector.AddDuration("assetsSync", assetsSyncStopwatch.ElapsedMilliseconds);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         if (ctx.ThemeRoot is not null)
         {
             var tokensStopwatch = Stopwatch.StartNew();
@@ -112,6 +118,7 @@ internal sealed class AssetPipeline
             metricsCollector.AddDuration("tokensGen", tokensStopwatch.ElapsedMilliseconds);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         if (ctx.MediaDownloadDir is not null && Directory.Exists(ctx.MediaDownloadDir))
         {
             var mediaCopyStopwatch = Stopwatch.StartNew();
@@ -120,7 +127,7 @@ internal sealed class AssetPipeline
             metricsCollector.AddDuration("mediaCopy", mediaCopyStopwatch.ElapsedMilliseconds);
         }
 
-        return Task.FromResult(new AssetPipelineResult(metricsCollector.Snapshot()));
+        return new AssetPipelineResult(metricsCollector.Snapshot());
     }
 
     private static DirectoryCopyOptions BuildCopyOptions(AssetPipelineContext ctx)

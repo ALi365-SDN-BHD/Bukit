@@ -101,6 +101,42 @@ public sealed class AssetPipelineTests
         Assert.True(File.Exists(Path.Combine(outputDir, "favicon.ico")));
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WithCanceledToken_DoesNotRunAssetWork()
+    {
+        var rootDir = Path.Combine(Path.GetTempPath(), "bukit-asset-pipeline-tests", Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(rootDir, "dist");
+        var staticDir = Path.Combine(rootDir, "static");
+
+        Directory.CreateDirectory(staticDir);
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(staticDir, "robots.txt"), "User-agent: *");
+
+        var pipeline = new AssetPipeline();
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pipeline.ExecuteAsync(new AssetPipelineContext(
+            StaticDir: staticDir,
+            ParentStaticDir: null,
+            AssetsDir: null,
+            ParentAssetsDir: null,
+            MediaDownloadDir: null,
+            ThemeRoot: null,
+            ParentThemeRoot: null,
+            OutputDir: outputDir,
+            Manifest: new BuildManifest(),
+            IncrementalEnabled: false,
+            AssetHashMode: null,
+            ScssConfig: null,
+            ImageConfig: null,
+            Logger: new RecordingLogger(),
+            PublishDotFiles: false),
+            cts.Token));
+
+        Assert.False(File.Exists(Path.Combine(outputDir, "robots.txt")));
+    }
+
     private sealed class RecordingLogger : ILogger
     {
         public List<string> Infos { get; } = new();
