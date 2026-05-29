@@ -1,3 +1,4 @@
+using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Intent;
 
 namespace Bukit.Cli.Commands;
@@ -6,7 +7,13 @@ public static class IntentCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        var sub = reader.GetArg(1);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("intent");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
+        var sub = command.GetArgument(0);
         if (string.IsNullOrWhiteSpace(sub) || sub is "help" or "--help" or "-h")
         {
             PrintHelp();
@@ -15,16 +22,16 @@ public static class IntentCommand
 
         return sub switch
         {
-            "init" => InitAsync(reader),
-            "validate" => ValidateAsync(reader),
-            "apply" => ApplyAsync(reader),
+            "init" => InitAsync(command),
+            "validate" => ValidateAsync(command),
+            "apply" => ApplyAsync(command),
             _ => Task.FromResult(Unknown(sub))
         };
     }
 
-    private static Task<int> InitAsync(ArgReader reader)
+    private static Task<int> InitAsync(CliBoundCommand command)
     {
-        var outPath = reader.GetOption("--out") ?? "intent.yaml";
+        var outPath = command.GetString("--out") ?? "intent.yaml";
         var fullOutPath = Path.GetFullPath(outPath);
         Bukit.Cli.Intent.IntentWizard.RunInteractive(fullOutPath);
         Console.WriteLine($"Wrote intent: {fullOutPath}");
@@ -34,9 +41,9 @@ public static class IntentCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> ValidateAsync(ArgReader reader)
+    private static Task<int> ValidateAsync(CliBoundCommand command)
     {
-        var intentPath = reader.GetArg(2);
+        var intentPath = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(intentPath))
         {
             Console.Error.WriteLine("Missing intent path.");
@@ -45,16 +52,16 @@ public static class IntentCommand
         }
 
         var full = Path.GetFullPath(intentPath);
-        var rootDir = ResolveRootDir(reader);
+        var rootDir = ResolveRootDir(command);
         var intent = IntentLoader.Load(full);
         var validation = IntentValidator.Validate(intent, rootDir);
         Print(validation);
         return Task.FromResult(validation.IsValid ? 0 : 1);
     }
 
-    private static Task<int> ApplyAsync(ArgReader reader)
+    private static Task<int> ApplyAsync(CliBoundCommand command)
     {
-        var intentPath = reader.GetArg(2);
+        var intentPath = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(intentPath))
         {
             Console.Error.WriteLine("Missing intent path.");
@@ -62,7 +69,7 @@ public static class IntentCommand
             return Task.FromResult(2);
         }
 
-        var outPath = reader.GetOption("--out") ?? "site.yaml";
+        var outPath = command.GetString("--out") ?? "site.yaml";
         var (validation, rootDir) = IntentApplier.Apply(intentPath, outPath);
         Print(validation);
         if (!validation.IsValid)
@@ -79,15 +86,15 @@ public static class IntentCommand
         return Task.FromResult(0);
     }
 
-    private static string ResolveRootDir(ArgReader reader)
+    private static string ResolveRootDir(CliBoundCommand command)
     {
-        var rootDir = reader.GetOption("--root-dir");
+        var rootDir = command.GetString("--root-dir");
         if (!string.IsNullOrWhiteSpace(rootDir))
         {
             return Path.GetFullPath(rootDir);
         }
 
-        var outPath = reader.GetOption("--out");
+        var outPath = command.GetString("--out");
         if (string.IsNullOrWhiteSpace(outPath))
         {
             return Directory.GetCurrentDirectory();

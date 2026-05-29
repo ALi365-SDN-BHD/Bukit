@@ -1,12 +1,23 @@
+using Bukit.Cli.Cli.Binding;
+
 namespace Bukit.Cli.Commands;
 
 public static class ThemeWizardCommand
 {
-    public static async Task<int> RunAsync(ArgReader reader)
+    public static Task<int> RunAsync(ArgReader reader)
     {
-        var raw = reader.GetArg(2);
+        var registry = BukitCliSpecs.CreateRegistry();
+        var parentSpec = registry.Resolve("theme");
+        var subSpec = registry.ResolveSubcommand(parentSpec!, "wizard");
+        var command = CliBoundCommandFactory.Create(reader, subSpec);
+        return RunAsync(command);
+    }
 
-        var presetName = reader.GetOption("--preset");
+    public static async Task<int> RunAsync(CliBoundCommand command)
+    {
+        var raw = command.GetArgument(1);
+
+        var presetName = command.GetString("--preset");
         var hasPreset = !string.IsNullOrWhiteSpace(presetName);
 
         if (!hasPreset && (string.IsNullOrWhiteSpace(raw) || raw.StartsWith('-') || !CloneModels.IsSafeThemeName(raw)))
@@ -22,12 +33,12 @@ public static class ThemeWizardCommand
             return 2;
         }
 
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
         var themesDir = Path.Combine(rootDir, "themes");
         var themeRoot = Path.Combine(themesDir, name!);
 
-        var force = reader.HasFlag("--force");
+        var force = command.GetBool("--force");
         if (Directory.Exists(themeRoot))
         {
             if (!force)
@@ -61,14 +72,14 @@ public static class ThemeWizardCommand
         {
             if (hasPreset && preset is not null)
             {
-                return await RunPresetFlowAsync(preset, name!, reader, rootDir, force);
+                return await RunPresetFlowAsync(preset, name!, command, rootDir, force);
             }
 
             Console.WriteLine();
             Console.WriteLine($"=== Bukit Theme Wizard: {name} ===");
             Console.WriteLine();
 
-            return await RunInteractiveFlowAsync(name!, reader, rootDir);
+            return await RunInteractiveFlowAsync(name!, command, rootDir);
         }
         catch (OperationCanceledException)
         {
@@ -78,7 +89,7 @@ public static class ThemeWizardCommand
         }
     }
 
-    private static Task<int> RunPresetFlowAsync(WizardPreset preset, string name, ArgReader reader, string rootDir, bool force)
+    private static Task<int> RunPresetFlowAsync(WizardPreset preset, string name, CliBoundCommand command, string rootDir, bool force)
     {
         Console.WriteLine();
         Console.WriteLine("Presets provide sensible defaults. You can override them below.");
@@ -120,15 +131,16 @@ public static class ThemeWizardCommand
         Console.WriteLine($"Preview:  bukit preview");
         Console.WriteLine($"Info:     bukit theme info {finalThemeName}");
 
-        if (reader.HasFlag("--use"))
+        if (command.GetBool("--use"))
         {
-            return ThemeCommand.SetThemeAsync(finalThemeName, reader, brand, primaryColor, accentColor);
+            var resolvedForSet = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
+            return ThemeCommand.SetThemeAsync(finalThemeName, resolvedForSet.FullConfigPath, resolvedForSet.RootDir, brand, primaryColor, accentColor);
         }
 
         return Task.FromResult(0);
     }
 
-    private static Task<int> RunInteractiveFlowAsync(string name, ArgReader reader, string rootDir)
+    private static Task<int> RunInteractiveFlowAsync(string name, CliBoundCommand command, string rootDir)
     {
         Console.WriteLine();
 
@@ -232,9 +244,10 @@ public static class ThemeWizardCommand
         Console.WriteLine($"Preview:  bukit preview");
         Console.WriteLine($"Info:     bukit theme info {finalThemeName}");
 
-        if (reader.HasFlag("--use"))
+        if (command.GetBool("--use"))
         {
-            return ThemeCommand.SetThemeAsync(finalThemeName, reader, brand, primaryColor, accentColor);
+            var resolvedForSet = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
+            return ThemeCommand.SetThemeAsync(finalThemeName, resolvedForSet.FullConfigPath, resolvedForSet.RootDir, brand, primaryColor, accentColor);
         }
 
         return Task.FromResult(0);

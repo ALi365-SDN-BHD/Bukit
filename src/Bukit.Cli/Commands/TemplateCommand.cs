@@ -1,4 +1,5 @@
 using System.Text;
+using Bukit.Cli.Cli.Binding;
 using Scriban;
 
 namespace Bukit.Cli.Commands;
@@ -7,7 +8,13 @@ public static class TemplateCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        var sub = reader.GetArg(1);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("template");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
+        var sub = command.GetArgument(0);
         if (string.IsNullOrWhiteSpace(sub))
         {
             Console.Error.WriteLine("Usage: bukit template <create|list|show|validate|snippets|hints|sync>");
@@ -16,27 +23,27 @@ public static class TemplateCommand
 
         return sub switch
         {
-            "create" => CreateAsync(reader),
-            "list" => ListAsync(reader),
-            "show" => ShowAsync(reader),
-            "validate" => ValidateAsync(reader),
-            "snippets" => SnippetsAsync(reader),
-            "hints" => HintsAsync(reader),
-            "sync" => SyncAsync(reader),
+            "create" => CreateAsync(command),
+            "list" => ListAsync(command),
+            "show" => ShowAsync(command),
+            "validate" => ValidateAsync(command),
+            "snippets" => SnippetsAsync(command),
+            "hints" => HintsAsync(command),
+            "sync" => SyncAsync(command),
             _ => Task.FromResult(Unknown(sub))
         };
     }
 
-    private static Task<int> CreateAsync(ArgReader reader)
+    private static Task<int> CreateAsync(CliBoundCommand command)
     {
-        var name = reader.GetArg(2);
+        var name = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(name) || name.StartsWith('-'))
         {
             Console.Error.WriteLine("Missing template name. Usage: bukit template create <path>");
             return Task.FromResult(2);
         }
 
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
 
         var activeThemeName = ResolveActiveThemeName(resolved, rootDir);
@@ -66,7 +73,7 @@ public static class TemplateCommand
 
         if (File.Exists(templatePath))
         {
-            var force = reader.HasFlag("--force");
+            var force = command.GetBool("--force");
             if (!force)
             {
                 Console.Error.WriteLine($"Template already exists: {name}. Use --force to overwrite.");
@@ -182,9 +189,9 @@ public static class TemplateCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> ListAsync(ArgReader reader)
+    private static Task<int> ListAsync(CliBoundCommand command)
     {
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
 
         var activeThemeName = ResolveActiveThemeName(resolved, rootDir);
@@ -234,16 +241,16 @@ public static class TemplateCommand
         return Task.FromResult(0);
     }
 
-    private static async Task<int> ShowAsync(ArgReader reader)
+    private static async Task<int> ShowAsync(CliBoundCommand command)
     {
-        var name = reader.GetArg(2);
+        var name = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(name) || name.StartsWith('-'))
         {
             Console.Error.WriteLine("Missing template name. Usage: bukit template show <path>");
             return 2;
         }
 
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
 
         var activeThemeName = ResolveActiveThemeName(resolved, rootDir);
@@ -279,9 +286,9 @@ public static class TemplateCommand
         return 0;
     }
 
-    private static async Task<int> ValidateAsync(ArgReader reader)
+    private static async Task<int> ValidateAsync(CliBoundCommand command)
     {
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
 
         var activeThemeName = ResolveActiveThemeName(resolved, rootDir);
@@ -338,7 +345,7 @@ public static class TemplateCommand
         return errorCount > 0 ? 1 : 0;
     }
 
-    private static Task<int> HintsAsync(ArgReader reader)
+    private static Task<int> HintsAsync(CliBoundCommand command)
     {
         Console.WriteLine("Available template variables:");
         Console.WriteLine();
@@ -405,9 +412,9 @@ public static class TemplateCommand
         return resolved;
     }
 
-    private static Task<int> SyncAsync(ArgReader reader)
+    private static Task<int> SyncAsync(CliBoundCommand command)
     {
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
 
         var activeThemeName = ResolveActiveThemeName(resolved, rootDir);
@@ -424,7 +431,7 @@ public static class TemplateCommand
             return Task.FromResult(2);
         }
 
-        var force = reader.HasFlag("--force");
+        var force = command.GetBool("--force");
         var manifestPath = Path.Combine(layoutsDir, "bukit.templates.yaml");
 
         if (File.Exists(manifestPath) && !force)
@@ -465,9 +472,9 @@ public static class TemplateCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> SnippetsAsync(ArgReader reader)
+    private static Task<int> SnippetsAsync(CliBoundCommand command)
     {
-        var filter = reader.GetArg(2);
+        var filter = command.GetArgument(1);
 
         if (!string.IsNullOrWhiteSpace(filter) && !filter.StartsWith('-'))
         {

@@ -1,3 +1,4 @@
+using Bukit.Cli.Cli.Binding;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
@@ -11,7 +12,13 @@ public static class PluginCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        var sub = reader.GetArg(1);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("plugin");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
+        var sub = command.GetArgument(0);
         if (string.IsNullOrWhiteSpace(sub) || sub is "help" or "--help" or "-h")
         {
             PrintHelp();
@@ -20,14 +27,14 @@ public static class PluginCommand
 
         return sub switch
         {
-            "list" => ListAsync(reader),
+            "list" => ListAsync(command),
             _ => Task.FromResult(Unknown(sub))
         };
     }
 
-    private static Task<int> ListAsync(ArgReader reader)
+    private static Task<int> ListAsync(CliBoundCommand command)
     {
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var config = ConfigLoader.Load(resolved.FullConfigPath);
         var context = new BuildContext
         {

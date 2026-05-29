@@ -4,6 +4,7 @@ using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Bukit.Cli.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 
@@ -12,9 +13,15 @@ public static class WebhookCommand
     private const int RateLimitMaxRequests = 10;
     private static readonly TimeSpan RateLimitWindow = TimeSpan.FromMinutes(1);
 
-    public static async Task<int> RunAsync(ArgReader reader)
+    public static Task<int> RunAsync(ArgReader reader)
     {
-        var sub = reader.GetArg(1);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("webhook");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static async Task<int> RunAsync(CliBoundCommand command)
+    {
+        var sub = command.GetArgument(0);
         if (sub is "help" or "--help" or "-h")
         {
             PrintHelp();
@@ -28,9 +35,9 @@ public static class WebhookCommand
             return 2;
         }
 
-        var host = (reader.GetOption("--host") ?? "localhost").Trim();
-        var portText = (reader.GetOption("--port") ?? "8787").Trim();
-        var path = NormalizePath(reader.GetOption("--path") ?? "/webhook/notion");
+        var host = (command.GetString("--host") ?? "localhost").Trim();
+        var portText = (command.GetString("--port") ?? "8787").Trim();
+        var path = NormalizePath(command.GetString("--path") ?? "/webhook/notion");
 
         if (!int.TryParse(portText, out var port) || port <= 0 || port > 65535)
         {
@@ -45,7 +52,7 @@ public static class WebhookCommand
             return 2;
         }
 
-        var repo = reader.GetOption("--repo") ?? Environment.GetEnvironmentVariable("BUKIT_GITHUB_REPO");
+        var repo = command.GetString("--repo") ?? Environment.GetEnvironmentVariable("BUKIT_GITHUB_REPO");
         if (string.IsNullOrWhiteSpace(repo) || !repo.Contains('/', StringComparison.Ordinal))
         {
             Console.Error.WriteLine("Missing --repo <owner/repo> or env: BUKIT_GITHUB_REPO");
@@ -62,7 +69,7 @@ public static class WebhookCommand
             return 2;
         }
 
-        var eventType = reader.GetOption("--event") ?? "bukit_notion";
+        var eventType = command.GetString("--event") ?? "bukit_notion";
         var prefix = $"http://{host}:{port}/";
 
         using var listener = new HttpListener();

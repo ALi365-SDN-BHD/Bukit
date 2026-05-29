@@ -1,3 +1,4 @@
+using Bukit.Cli.Cli.Binding;
 using Bukit.Config;
 
 namespace Bukit.Cli.Commands;
@@ -6,15 +7,21 @@ public static class CleanCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        var configPath = reader.GetOption("--config");
-        var site = reader.GetOption("--site");
-        var dirOption = reader.GetOption("--dir");
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("clean");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
+        var configPath = command.GetString("--config");
+        var site = command.GetString("--site");
+        var dirOption = command.GetString("--dir");
 
         string rootDir;
         string outputDir;
         if (!string.IsNullOrWhiteSpace(configPath) || !string.IsNullOrWhiteSpace(site))
         {
-            var resolved = ConfigPathResolver.Resolve(reader);
+            var resolved = ConfigPathResolver.Resolve(configPath, site);
             rootDir = resolved.RootDir;
             var config = ConfigLoader.Load(resolved.FullConfigPath);
             outputDir = Path.GetFullPath(Path.Combine(rootDir, config.Build.Output));

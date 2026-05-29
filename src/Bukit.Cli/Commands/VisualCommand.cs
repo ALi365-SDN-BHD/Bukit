@@ -1,21 +1,29 @@
+using Bukit.Cli.Cli.Binding;
+
 namespace Bukit.Cli.Commands;
 
 public static class VisualCommand
 {
-    public static async Task<int> RunAsync(ArgReader reader)
+    public static Task<int> RunAsync(ArgReader reader)
     {
-        var subcommand = reader.GetArg(1);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("visual");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
+        var subcommand = command.GetArgument(0);
         if (string.Equals(subcommand, "generate", StringComparison.OrdinalIgnoreCase))
         {
-            var config = reader.GetOption("--config") ?? "site.yaml";
-            var baseUrl = reader.GetOption("--site-url") ?? "http://localhost:4173";
-            var outputDir = reader.GetOption("--dir") ?? "dist";
-            var outFile = reader.GetOption("--out") ?? "visual-tests.spec.js";
-            return await GenerateAsync(config, outputDir, baseUrl, outFile);
+            var config = command.GetString("--config") ?? "site.yaml";
+            var baseUrl = command.GetString("--site-url") ?? "http://localhost:4173";
+            var outputDir = command.GetString("--dir") ?? "dist";
+            var outFile = command.GetString("--out") ?? "visual-tests.spec.js";
+            return GenerateAsync(config, outputDir, baseUrl, outFile);
         }
 
         PrintHelp();
-        return 2;
+        return Task.FromResult(2);
     }
 
     private static void PrintHelp()

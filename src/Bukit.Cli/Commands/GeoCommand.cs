@@ -1,15 +1,22 @@
 using System.Text.Json;
+using Bukit.Cli.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 
 public static class GeoCommand
 {
-    public static async Task<int> RunAsync(ArgReader reader)
+    public static Task<int> RunAsync(ArgReader reader)
     {
-        var subcommand = reader.GetArg(1);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("geo");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static async Task<int> RunAsync(CliBoundCommand command)
+    {
+        var subcommand = command.GetArgument(0);
         if (string.Equals(subcommand, "audit", StringComparison.OrdinalIgnoreCase))
         {
-            var dir = reader.GetOption("--dir") ?? "dist";
+            var dir = command.GetString("--dir") ?? "dist";
             return await AuditAsync(dir);
         }
 

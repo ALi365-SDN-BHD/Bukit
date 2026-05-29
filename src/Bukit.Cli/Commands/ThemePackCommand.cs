@@ -1,5 +1,6 @@
 using System.Formats.Tar;
 using System.IO.Compression;
+using Bukit.Cli.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 
@@ -7,10 +8,19 @@ public static class ThemePackCommand
 {
     public static async Task<int> RunAsync(ArgReader reader)
     {
-        var name = reader.GetArg(2);
+        var registry = BukitCliSpecs.CreateRegistry();
+        var parentSpec = registry.Resolve("theme");
+        var subSpec = registry.ResolveSubcommand(parentSpec!, "pack");
+        var command = CliBoundCommandFactory.Create(reader, subSpec);
+        return await RunAsync(command);
+    }
+
+    public static async Task<int> RunAsync(CliBoundCommand command)
+    {
+        var name = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(name))
         {
-            var resolved = ConfigPathResolver.Resolve(reader);
+            var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
             var rootDir = resolved.RootDir;
             name = ResolveActiveThemeName(resolved);
         }
@@ -21,7 +31,7 @@ public static class ThemePackCommand
             return 2;
         }
 
-        var resolvedFinal = ConfigPathResolver.Resolve(reader);
+        var resolvedFinal = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDirFinal = resolvedFinal.RootDir;
         var themeRoot = Path.Combine(rootDirFinal, "themes", name);
 
@@ -34,7 +44,7 @@ public static class ThemePackCommand
         var manifest = ThemeManifest.Load(themeRoot);
         var version = manifest?.Version ?? "0.0.0";
         var outputName = $"{name}-{version}.tar.gz";
-        var outputPath = reader.GetOption("--output") ?? outputName;
+        var outputPath = command.GetString("--output") ?? outputName;
         if (!outputPath.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
         {
             outputPath = outputPath + ".tar.gz";

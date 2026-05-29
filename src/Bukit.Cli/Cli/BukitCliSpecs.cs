@@ -57,6 +57,11 @@ public static class BukitCliSpecs
         var plugin = new CliCommandSpec(
             Name: "plugin",
             Description: "插件相关命令",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名")
+            },
             Subcommands: new[]
             {
                 new CliCommandSpec(
@@ -96,6 +101,11 @@ public static class BukitCliSpecs
         var theme = new CliCommandSpec(
             Name: "theme",
             Description: "主题相关命令",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名")
+            },
             Subcommands: new[]
             {
                 new CliCommandSpec(
@@ -207,6 +217,12 @@ public static class BukitCliSpecs
         var template = new CliCommandSpec(
             Name: "template",
             Description: "模板级别操作命令",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名"),
+                new CliOptionSpec("--force", "覆盖已有文件", CliOptionType.Flag)
+            },
             Subcommands: new[]
             {
                 new CliCommandSpec(
@@ -270,6 +286,21 @@ public static class BukitCliSpecs
         var seo = new CliCommandSpec(
             Name: "seo",
             Description: "SEO 审计命令",
+            Options: new[]
+            {
+                new CliOptionSpec("--dir", "构建输出目录"),
+                new CliOptionSpec("--report", "seo-report.json 路径"),
+                new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag),
+                new CliOptionSpec("--external", "联网检查 canonical、链接和图片", CliOptionType.Flag),
+                new CliOptionSpec("--baseline", "基线 seo-report.json 路径"),
+                new CliOptionSpec("--current", "当前 seo-report.json 路径"),
+                new CliOptionSpec("--max-new-errors", "允许新增 error 数量", CliOptionType.Integer, ValueName: "n"),
+                new CliOptionSpec("--max-new-warnings", "允许新增 warning 数量", CliOptionType.Integer, ValueName: "n"),
+                new CliOptionSpec("--max-new-issues", "允许新增 issue 总数", CliOptionType.Integer, ValueName: "n"),
+                new CliOptionSpec("--fail-on-new-code", "逗号分隔的新增 issue code 黑名单"),
+                new CliOptionSpec("--fail-on-route-removed", "route 删除时失败", CliOptionType.Flag),
+                new CliOptionSpec("--fail-on-indexable-drop", "indexable route 变成 noindex 时失败", CliOptionType.Flag)
+            },
             Subcommands: new[]
             {
                 new CliCommandSpec(
@@ -318,6 +349,10 @@ public static class BukitCliSpecs
         var geo = new CliCommandSpec(
             Name: "geo",
             Description: "GEO (生成式引擎优化) 审计",
+            Options: new[]
+            {
+                new CliOptionSpec("--dir", "构建输出目录")
+            },
             Subcommands: new[]
             {
                 new CliCommandSpec(
@@ -329,6 +364,30 @@ public static class BukitCliSpecs
                     })
             });
 
+        var visual = new CliCommandSpec(
+            Name: "visual",
+            Description: "视觉回归测试",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site-url", "站点 URL"),
+                new CliOptionSpec("--dir", "构建输出目录"),
+                new CliOptionSpec("--out", "输出文件名")
+            },
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "generate",
+                    Description: "生成 Playwright 视觉测试脚本",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site-url", "站点 URL"),
+                        new CliOptionSpec("--dir", "构建输出目录"),
+                        new CliOptionSpec("--out", "输出文件名")
+                    })
+            });
+
         var version = new CliCommandSpec(
             Name: "version",
             Description: "显示版本信息");
@@ -336,6 +395,11 @@ public static class BukitCliSpecs
         var intent = new CliCommandSpec(
             Name: "intent",
             Description: "意图驱动的站点创建",
+            Options: new[]
+            {
+                new CliOptionSpec("--out", "输出路径"),
+                new CliOptionSpec("--root-dir", "根目录")
+            },
             Subcommands: new[]
             {
                 new CliCommandSpec(
@@ -392,6 +456,13 @@ public static class BukitCliSpecs
         var config = new CliCommandSpec(
             Name: "config",
             Description: "配置诊断命令",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名"),
+                new CliOptionSpec("--site-url", "覆盖 site.url"),
+                new CliOptionSpec("--output", "输出 schema 文件路径")
+            },
             Subcommands: new[]
             {
                 new CliCommandSpec(
@@ -439,6 +510,13 @@ public static class BukitCliSpecs
         var data = new CliCommandSpec(
             Name: "data",
             Description: "查看数据模块信息",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名"),
+                new CliOptionSpec("--module", "模块名"),
+                new CliOptionSpec("--format", "输出格式 (json)")
+            },
             Subcommands: new[]
             {
                 new CliCommandSpec(Name: "inspect", Description: "列出所有数据模块", Options: new[] { new CliOptionSpec("--module", "模块名") }),
@@ -463,6 +541,6 @@ public static class BukitCliSpecs
                     })
             });
 
-        return new CliCommandRegistry(new[] { build, clone, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, version, intent, webhook, clean, config, doctor, lint, init, data });
+        return new CliCommandRegistry(new[] { build, clone, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, version, intent, visual, webhook, clean, config, doctor, lint, init, data });
     }
 }

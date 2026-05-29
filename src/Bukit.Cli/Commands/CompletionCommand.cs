@@ -1,10 +1,18 @@
+using Bukit.Cli.Cli.Binding;
+
 namespace Bukit.Cli.Commands;
 
 public static class CompletionCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        var shell = reader.GetArg(1) ?? "bash";
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("completion");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
+        var shell = command.GetArgument(0) ?? "bash";
         var script = Render(shell);
         if (script.Length == 0)
         {

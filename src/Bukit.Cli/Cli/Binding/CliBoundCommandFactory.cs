@@ -8,22 +8,37 @@ public static class CliBoundCommandFactory
     {
         var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         var arguments = new List<string>();
+        var optionSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (spec?.Options is not null)
+        void CollectOptions(IReadOnlyList<CliOptionSpec>? opts)
         {
-            foreach (var option in spec.Options)
+            if (opts is null) return;
+            foreach (var option in opts)
             {
-                if (option.Type == CliOptionType.Flag)
+                if (optionSet.Add(option.Name))
                 {
-                    if (reader.HasFlag(option.Name))
-                        options[option.Name] = "true";
+                    if (option.Type == CliOptionType.Flag)
+                    {
+                        if (reader.HasFlag(option.Name))
+                            options[option.Name] = "true";
+                    }
+                    else
+                    {
+                        var value = reader.GetOption(option.Name);
+                        if (value is not null)
+                            options[option.Name] = value;
+                    }
                 }
-                else
-                {
-                    var value = reader.GetOption(option.Name);
-                    if (value is not null)
-                        options[option.Name] = value;
-                }
+            }
+        }
+
+        if (spec is not null)
+        {
+            CollectOptions(spec.Options);
+            if (spec.Subcommands is not null)
+            {
+                foreach (var sub in spec.Subcommands)
+                    CollectOptions(sub.Options);
             }
         }
 

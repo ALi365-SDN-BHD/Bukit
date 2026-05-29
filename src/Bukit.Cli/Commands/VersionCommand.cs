@@ -1,4 +1,5 @@
 using Bukit.Cli;
+using Bukit.Cli.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 
@@ -6,7 +7,13 @@ public static class VersionCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        if (reader.HasFlag("--help") || reader.HasFlag("-h"))
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("version");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
+        if (command.GetBool("--help") || command.GetBool("-h"))
         {
             Console.WriteLine("version — 显示 bukit 版本信息");
             Console.WriteLine();

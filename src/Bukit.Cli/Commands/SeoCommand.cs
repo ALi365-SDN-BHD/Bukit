@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Bukit.Cli.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 
@@ -19,13 +20,19 @@ public static class SeoCommand
         return File.Exists(legacy) ? legacy : null;
     }
 
-    public static async Task<int> RunAsync(ArgReader reader)
+    public static Task<int> RunAsync(ArgReader reader)
     {
-        var subcommand = reader.GetArg(1);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("seo");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static async Task<int> RunAsync(CliBoundCommand command)
+    {
+        var subcommand = command.GetArgument(0);
         if (string.Equals(subcommand, "audit", StringComparison.OrdinalIgnoreCase))
         {
-            var reportPath = reader.GetOption("--report");
-            var dir = reader.GetOption("--dir") ?? "dist";
+            var reportPath = command.GetString("--report");
+            var dir = command.GetString("--dir") ?? "dist";
             if (string.IsNullOrWhiteSpace(reportPath))
             {
                 reportPath = ResolveSeoReportPath(dir);
@@ -36,24 +43,24 @@ public static class SeoCommand
                 }
             }
 
-            return await AuditAsync(reportPath, dir, strict: reader.HasFlag("--strict"), external: reader.HasFlag("--external"));
+            return await AuditAsync(reportPath, dir, strict: command.GetBool("--strict"), external: command.GetBool("--external"));
         }
 
         if (string.Equals(subcommand, "diff", StringComparison.OrdinalIgnoreCase))
         {
             try
             {
-                var baseline = reader.GetOption("--baseline") ?? reader.GetArg(2);
-                var current = reader.GetOption("--current") ?? reader.GetArg(3);
+                var baseline = command.GetString("--baseline") ?? command.GetArgument(1);
+                var current = command.GetString("--current") ?? command.GetArgument(2);
                 return Diff(
                     baseline,
                     current,
-                    maxNewErrors: SeoReportValidator.ReadOptionalInt(reader.GetOption("--max-new-errors")),
-                    maxNewWarnings: SeoReportValidator.ReadOptionalInt(reader.GetOption("--max-new-warnings")),
-                    maxNewIssues: SeoReportValidator.ReadOptionalInt(reader.GetOption("--max-new-issues")),
-                    failOnNewCodes: SeoReportValidator.SplitCsv(reader.GetOption("--fail-on-new-code")),
-                    failOnRouteRemoved: reader.HasFlag("--fail-on-route-removed"),
-                    failOnIndexableDrop: reader.HasFlag("--fail-on-indexable-drop"));
+                    maxNewErrors: command.GetInt("--max-new-errors"),
+                    maxNewWarnings: command.GetInt("--max-new-warnings"),
+                    maxNewIssues: command.GetInt("--max-new-issues"),
+                    failOnNewCodes: SeoReportValidator.SplitCsv(command.GetString("--fail-on-new-code")),
+                    failOnRouteRemoved: command.GetBool("--fail-on-route-removed"),
+                    failOnIndexableDrop: command.GetBool("--fail-on-indexable-drop"));
             }
             catch (InvalidDataException ex)
             {

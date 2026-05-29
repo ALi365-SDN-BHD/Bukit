@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Bukit.Cli.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 
@@ -9,14 +10,23 @@ public static class ThemeRegistryCommand
 
     private const double CacheTtlHours = 24;
 
-    public static async Task<int> SearchAsync(ArgReader reader)
+    public static Task<int> SearchAsync(ArgReader reader)
     {
-        var query = reader.GetArg(2);
+        var registry = BukitCliSpecs.CreateRegistry();
+        var parentSpec = registry.Resolve("theme");
+        var subSpec = registry.ResolveSubcommand(parentSpec!, "search");
+        var command = CliBoundCommandFactory.Create(reader, subSpec);
+        return SearchAsync(command);
+    }
+
+    public static async Task<int> SearchAsync(CliBoundCommand command)
+    {
+        var query = command.GetArgument(1);
         if (!string.IsNullOrWhiteSpace(query) && query.StartsWith('-'))
             query = null;
 
-        var refresh = reader.HasFlag("--refresh");
-        var registryUrl = reader.GetOption("--registry-url") ?? DefaultRegistryUrl;
+        var refresh = command.GetBool("--refresh");
+        var registryUrl = command.GetString("--registry-url") ?? DefaultRegistryUrl;
 
         var index = await LoadRegistryAsync(registryUrl, refresh);
         if (index is null)
@@ -70,10 +80,10 @@ public static class ThemeRegistryCommand
         return 0;
     }
 
-    public static async Task<RegistryThemeEntry?> ResolveAsync(string name, ArgReader reader)
+    public static async Task<RegistryThemeEntry?> ResolveAsync(string name, CliBoundCommand command)
     {
-        var registryUrl = reader.GetOption("--registry-url") ?? DefaultRegistryUrl;
-        var refresh = reader.HasFlag("--refresh");
+        var registryUrl = command.GetString("--registry-url") ?? DefaultRegistryUrl;
+        var refresh = command.GetBool("--refresh");
         var index = await LoadRegistryAsync(registryUrl, refresh);
         if (index is null) return null;
 

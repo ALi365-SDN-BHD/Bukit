@@ -1,3 +1,5 @@
+using Bukit.Cli.Cli.Binding;
+
 namespace Bukit.Cli.Commands;
 
 public static class InitCommand
@@ -6,15 +8,21 @@ public static class InitCommand
 
     public static Task<int> RunAsync(ArgReader reader)
     {
-        var targetDir = reader.GetArg(1);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("init");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
+        var targetDir = command.GetArgument(0);
         if (string.IsNullOrWhiteSpace(targetDir))
         {
             Console.Error.WriteLine("init requires a target directory.");
             return Task.FromResult(2);
         }
 
-        var provider = (reader.GetOption("--provider") ?? "markdown").Trim().ToLowerInvariant();
-        var templateName = (reader.GetOption("--template") ?? "minimal").Trim().ToLowerInvariant();
+        var provider = (command.GetString("--provider") ?? "markdown").Trim().ToLowerInvariant();
+        var templateName = (command.GetString("--template") ?? "minimal").Trim().ToLowerInvariant();
         if (!SupportedTemplates.Contains(templateName, StringComparer.OrdinalIgnoreCase))
         {
             Console.Error.WriteLine($"Unknown template: {templateName}. Available: {string.Join(", ", SupportedTemplates)}.");

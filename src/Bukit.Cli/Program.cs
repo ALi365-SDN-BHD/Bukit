@@ -45,12 +45,17 @@ try
             var resolved = spec.Name switch
             {
                 "build" => await BuildCommand.RunAsync(simple.BoundCommand),
+                "clean" => await CleanCommand.RunAsync(simple.BoundCommand),
                 "clone" => await CloneCommand.RunAsync(simple.BoundCommand),
+                "completion" => await CompletionCommand.RunAsync(simple.BoundCommand),
                 "deploy" => await DeployCommand.RunAsync(simple.BoundCommand),
                 "dev" => await DevCommand.RunAsync(simple.BoundCommand),
+                "docs" => await DocsCheckCommand.RunAsync(simple.BoundCommand),
                 "doctor" => await DoctorCommand.RunAsync(simple.BoundCommand),
-                "preview" => await PreviewCommand.RunAsync(simple.BoundCommand),
+                "init" or "create" => await InitCommand.RunAsync(simple.BoundCommand),
                 "lint" => await LintCommand.RunAsync(simple.BoundCommand),
+                "preview" => await PreviewCommand.RunAsync(simple.BoundCommand),
+                "version" => await VersionCommand.RunAsync(simple.BoundCommand),
                 _ => (int?)null
             };
             if (resolved.HasValue)
@@ -62,29 +67,16 @@ try
 
     return command switch
     {
-        "create" => await InitCommand.RunAsync(reader),
-        "init" => await InitCommand.RunAsync(reader),
-        "build" => await BuildCommand.RunAsync(reader),
-        "deploy" => await DeployCommand.RunAsync(reader),
-        "dev" => await DevCommand.RunAsync(reader),
-        "preview" => await PreviewCommand.RunAsync(reader),
-        "clean" => await CleanCommand.RunAsync(reader),
-        "completion" => await CompletionCommand.RunAsync(reader),
         "config" => await ConfigCommand.RunAsync(reader),
-        "doctor" => await DoctorCommand.RunAsync(reader),
-        "lint" => await LintCommand.RunAsync(reader),
         "plugin" => await PluginCommand.RunAsync(reader),
         "seo" => await SeoCommand.RunAsync(reader),
         "geo" => await GeoCommand.RunAsync(reader),
-        "clone" => await CloneCommand.RunAsync(reader),
         "data" => await DataCommand.RunAsync(reader),
-        "docs" => DocsCheckCommand.RunAsync(reader),
         "theme" => await ThemeCommand.RunAsync(reader),
         "template" => await TemplateCommand.RunAsync(reader),
         "intent" => await IntentCommand.RunAsync(reader),
         "visual" => await VisualCommand.RunAsync(reader),
         "webhook" => await WebhookCommand.RunAsync(reader),
-        "version" => await VersionCommand.RunAsync(reader),
         _ => UnknownCommand(command)
     };
 }

@@ -1,5 +1,6 @@
 using System.Formats.Tar;
 using System.IO.Compression;
+using Bukit.Cli.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 
@@ -7,18 +8,27 @@ public static class ThemeInstallCommand
 {
     public static async Task<int> RunAsync(ArgReader reader)
     {
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var registry = BukitCliSpecs.CreateRegistry();
+        var parentSpec = registry.Resolve("theme");
+        var subSpec = registry.ResolveSubcommand(parentSpec!, "install");
+        var command = CliBoundCommandFactory.Create(reader, subSpec);
+        return await RunAsync(command);
+    }
+
+    public static async Task<int> RunAsync(CliBoundCommand command)
+    {
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
         var themesDir = Path.Combine(rootDir, "themes");
-        var force = reader.HasFlag("--force");
+        var force = command.GetBool("--force");
 
-        var registryName = reader.GetOption("--registry");
+        var registryName = command.GetString("--registry");
         if (!string.IsNullOrWhiteSpace(registryName))
         {
-            return await InstallFromRegistryAsync(registryName, themesDir, force, reader);
+            return await InstallFromRegistryAsync(registryName, themesDir, force, command);
         }
 
-        var source = reader.GetArg(2);
+        var source = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(source) || source.StartsWith('-'))
         {
             Console.Error.WriteLine("Missing source. Usage: bukit theme install <path|url>  or  bukit theme install --registry <name>");
@@ -36,11 +46,11 @@ public static class ThemeInstallCommand
         return await InstallFromArchiveAsync(source, themesDir, force);
     }
 
-    private static async Task<int> InstallFromRegistryAsync(string name, string themesDir, bool force, ArgReader reader)
+    private static async Task<int> InstallFromRegistryAsync(string name, string themesDir, bool force, CliBoundCommand command)
     {
         Console.WriteLine($"Looking up '{name}' in registry...");
 
-        var entry = await ThemeRegistryCommand.ResolveAsync(name, reader);
+        var entry = await ThemeRegistryCommand.ResolveAsync(name, command);
         if (entry is null)
         {
             Console.Error.WriteLine($"Theme '{name}' not found in registry.");

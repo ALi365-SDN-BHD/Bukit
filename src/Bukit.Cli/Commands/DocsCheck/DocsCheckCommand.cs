@@ -1,3 +1,4 @@
+using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Cli.Metadata;
 
 namespace Bukit.Cli.Commands.DocsCheck;
@@ -6,27 +7,34 @@ public static class DocsCheckCommand
 {
     public static int RunAsync(ArgReader reader)
     {
-        var subCommand = reader.GetArg(1);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("docs");
+        var command = CliBoundCommandFactory.Create(reader, spec);
+        return RunAsync(command).Result;
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
+        var subCommand = command.GetArgument(0);
         if (subCommand is not "check")
         {
             Console.Error.WriteLine(subCommand is null
                 ? "Usage: bukit docs check [options]"
                 : $"Unknown subcommand: docs {subCommand}");
             PrintHelp();
-            return 2;
+            return Task.FromResult(2);
         }
 
-        if (reader.HasFlag("--help") || reader.HasFlag("-h"))
+        if (command.GetBool("--help") || command.GetBool("-h"))
         {
             PrintHelp();
-            return 0;
+            return Task.FromResult(0);
         }
 
-        var runCli = reader.HasFlag("--cli");
-        var runConfigFields = reader.HasFlag("--config-fields");
-        var runFileRefs = reader.HasFlag("--file-refs");
-        var runExamples = reader.HasFlag("--examples");
-        var runSkills = reader.HasFlag("--skills");
+        var runCli = command.GetBool("--cli");
+        var runConfigFields = command.GetBool("--config-fields");
+        var runFileRefs = command.GetBool("--file-refs");
+        var runExamples = command.GetBool("--examples");
+        var runSkills = command.GetBool("--skills");
         var runAll = !runCli && !runConfigFields && !runFileRefs && !runExamples && !runSkills;
 
         if (runAll)
@@ -42,7 +50,7 @@ public static class DocsCheckCommand
         if (repoRoot is null)
         {
             Console.Error.WriteLine("Error: Could not find repository root (looking for bukit.slnx)");
-            return 1;
+            return Task.FromResult(1);
         }
 
         var docFiles = DocFileScanner.Scan(repoRoot);
@@ -77,7 +85,7 @@ public static class DocsCheckCommand
         if (issues.Count == 0)
         {
             Console.WriteLine("OK docs check passed, 0 issues");
-            return 0;
+            return Task.FromResult(0);
         }
 
         foreach (var group in issues.GroupBy(i => i.CheckType).OrderBy(g => g.Key))
@@ -100,7 +108,7 @@ public static class DocsCheckCommand
         var warnCount = issues.Count(i => i.Severity == Severity.Warn);
         Console.WriteLine($"docs check: errors={errorCount} warnings={warnCount}");
 
-        return errorCount > 0 ? 1 : 0;
+        return Task.FromResult(errorCount > 0 ? 1 : 0);
     }
 
     private static string? FindRepoRoot()

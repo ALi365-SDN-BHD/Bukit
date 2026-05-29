@@ -1,5 +1,6 @@
 using YamlDotNet.RepresentationModel;
 using Bukit.Theme;
+using Bukit.Cli.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 
@@ -7,7 +8,14 @@ public static class ThemeCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        var sub = reader.GetArg(1);
+        var parentSpec = BukitCliSpecs.CreateRegistry().Resolve("theme");
+        var command = CliBoundCommandFactory.Create(reader, parentSpec);
+        return RunAsync(command);
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
+        var sub = command.GetArgument(0);
         if (string.IsNullOrWhiteSpace(sub))
         {
             return Task.FromResult(2);
@@ -15,35 +23,35 @@ public static class ThemeCommand
 
         return sub switch
         {
-            "create" => CreateAsync(reader),
-            "list" => ListAsync(reader),
-            "use" => UseAsync(reader),
-            "info" => InfoAsync(reader),
-            "params" => ParamsAsync(reader),
-            "preview" => PreviewAsync(reader),
-            "wizard" => ThemeWizardCommand.RunAsync(reader),
-            "pack" => ThemePackCommand.RunAsync(reader),
-            "install" => ThemeInstallCommand.RunAsync(reader),
-            "search" => ThemeRegistryCommand.SearchAsync(reader),
-            "doctor" => DoctorAsync(reader),
-            "list-components" => ListComponentsAsync(reader),
-            "export-catalog" => ExportCatalogAsync(reader),
+            "create" => CreateAsync(command),
+            "list" => ListAsync(command),
+            "use" => UseAsync(command),
+            "info" => InfoAsync(command),
+            "params" => ParamsAsync(command),
+            "preview" => PreviewAsync(command),
+            "wizard" => ThemeWizardCommand.RunAsync(command),
+            "pack" => ThemePackCommand.RunAsync(command),
+            "install" => ThemeInstallCommand.RunAsync(command),
+            "search" => ThemeRegistryCommand.SearchAsync(command),
+            "doctor" => DoctorAsync(command),
+            "list-components" => ListComponentsAsync(command),
+            "export-catalog" => ExportCatalogAsync(command),
             _ => Task.FromResult(Unknown(sub))
         };
     }
 
-    private static async Task<int> CreateAsync(ArgReader reader)
+    private static async Task<int> CreateAsync(CliBoundCommand command)
     {
-        var name = reader.GetArg(2);
+        var name = command.GetArgument(1);
         if (!ThemeFileHelper.IsSafeThemeName(name))
         {
             Console.Error.WriteLine("Missing or invalid theme name.");
             return 2;
         }
 
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
-        var from = (reader.GetOption("--from") ?? "starter").Trim();
+        var from = (command.GetString("--from") ?? "starter").Trim();
         if (!ThemeFileHelper.IsSafeThemeName(from))
         {
             Console.Error.WriteLine("Invalid source theme name.");
@@ -56,7 +64,7 @@ public static class ThemeCommand
             return 2;
         }
 
-        var force = reader.HasFlag("--force");
+        var force = command.GetBool("--force");
         var themesDir = Path.Combine(rootDir, "themes");
         var themeRoot = Path.Combine(themesDir, name!);
         if (Directory.Exists(themeRoot))
@@ -70,9 +78,9 @@ public static class ThemeCommand
             Directory.Delete(themeRoot, recursive: true);
         }
 
-        var brand = reader.GetOption("--brand");
-        var primaryColor = reader.GetOption("--primary-color");
-        var accentColor = reader.GetOption("--accent-color");
+        var brand = command.GetString("--brand");
+        var primaryColor = command.GetString("--primary-color");
+        var accentColor = command.GetString("--accent-color");
 
         if (string.Equals(from, "starter", StringComparison.OrdinalIgnoreCase))
         {
@@ -93,17 +101,18 @@ public static class ThemeCommand
 
         Console.WriteLine($"Theme created: {name}");
 
-        if (reader.HasFlag("--use"))
+        if (command.GetBool("--use"))
         {
-            return await SetThemeAsync(name!, reader, brand, primaryColor, accentColor);
+            var resolvedForSet = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
+            return await SetThemeAsync(name!, resolvedForSet.FullConfigPath, resolvedForSet.RootDir, brand, primaryColor, accentColor);
         }
 
         return 0;
     }
 
-    private static Task<int> ListAsync(ArgReader reader)
+    private static Task<int> ListAsync(CliBoundCommand command)
     {
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
 
         var themesDir = Path.Combine(rootDir, "themes");
@@ -164,16 +173,16 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> InfoAsync(ArgReader reader)
+    private static Task<int> InfoAsync(CliBoundCommand command)
     {
-        var name = ResolveThemeName(reader);
+        var name = ResolveThemeName(command);
         if (string.IsNullOrWhiteSpace(name))
         {
             Console.Error.WriteLine("Missing theme name.");
             return Task.FromResult(2);
         }
 
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
         var themeRoot = Path.Combine(rootDir, "themes", name);
         if (!Directory.Exists(themeRoot))
@@ -224,16 +233,16 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> PreviewAsync(ArgReader reader)
+    private static Task<int> PreviewAsync(CliBoundCommand command)
     {
-        var name = reader.GetArg(2) ?? ResolveThemeName(reader);
+        var name = command.GetArgument(1) ?? ResolveThemeName(command);
         if (string.IsNullOrWhiteSpace(name))
         {
             Console.Error.WriteLine("Missing theme name.");
             return Task.FromResult(2);
         }
 
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var themeRoot = Path.Combine(resolved.RootDir, "themes", name);
         if (!Directory.Exists(themeRoot))
         {
@@ -266,16 +275,16 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> ParamsAsync(ArgReader reader)
+    private static Task<int> ParamsAsync(CliBoundCommand command)
     {
-        var name = ResolveThemeName(reader);
+        var name = ResolveThemeName(command);
         if (string.IsNullOrWhiteSpace(name))
         {
             Console.Error.WriteLine("Missing theme name.");
             return Task.FromResult(2);
         }
 
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
         var themeRoot = Path.Combine(rootDir, "themes", name);
         if (!Directory.Exists(themeRoot))
@@ -302,20 +311,20 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static string? ResolveThemeName(ArgReader reader)
+    private static string? ResolveThemeName(CliBoundCommand command)
     {
-        var raw = reader.GetArg(2);
+        var raw = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(raw) || raw.StartsWith('-'))
         {
-            return ResolveActiveThemeName(reader);
+            return ResolveActiveThemeName(command);
         }
 
         return raw;
     }
 
-    private static string? ResolveActiveThemeName(ArgReader reader)
+    private static string? ResolveActiveThemeName(CliBoundCommand command)
     {
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         if (!File.Exists(resolved.FullConfigPath))
         {
             return null;
@@ -343,27 +352,17 @@ public static class ThemeCommand
         return null;
     }
 
-    private static Task<int> UseAsync(ArgReader reader)
+    private static Task<int> UseAsync(CliBoundCommand command)
     {
-        var name = reader.GetArg(2);
+        var name = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(name))
         {
             Console.Error.WriteLine("Missing theme name.");
             return Task.FromResult(2);
         }
 
-        return SetThemeAsync(name, reader, brand: null, primaryColor: null, accentColor: null);
-    }
-
-    internal static Task<int> SetThemeAsync(
-        string name,
-        ArgReader reader,
-        string? brand,
-        string? primaryColor,
-        string? accentColor)
-    {
-        var resolved = ConfigPathResolver.Resolve(reader);
-        return SetThemeAsync(name, resolved.FullConfigPath, resolved.RootDir, brand, primaryColor, accentColor);
+        var resolvedForSet = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
+        return SetThemeAsync(name, resolvedForSet.FullConfigPath, resolvedForSet.RootDir, brand: null, primaryColor: null, accentColor: null);
     }
 
     internal static Task<int> SetThemeAsync(
@@ -449,9 +448,9 @@ public static class ThemeCommand
         return 2;
     }
 
-    private static Task<int> DoctorAsync(ArgReader reader)
+    private static Task<int> DoctorAsync(CliBoundCommand command)
     {
-        var themeRoot = ResolveFullThemeRoot(reader);
+        var themeRoot = ResolveFullThemeRoot(command);
         if (themeRoot is null) return Task.FromResult(2);
 
         var manifest = ThemeManifestLoader.Load(themeRoot);
@@ -478,9 +477,9 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> ListComponentsAsync(ArgReader reader)
+    private static Task<int> ListComponentsAsync(CliBoundCommand command)
     {
-        var themeRoot = ResolveFullThemeRoot(reader);
+        var themeRoot = ResolveFullThemeRoot(command);
         if (themeRoot is null) return Task.FromResult(2);
 
         var manifest = ThemeManifestLoader.Load(themeRoot);
@@ -514,9 +513,9 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> ExportCatalogAsync(ArgReader reader)
+    private static Task<int> ExportCatalogAsync(CliBoundCommand command)
     {
-        var themeRoot = ResolveFullThemeRoot(reader);
+        var themeRoot = ResolveFullThemeRoot(command);
         if (themeRoot is null) return Task.FromResult(2);
 
         var manifest = ThemeManifestLoader.Load(themeRoot);
@@ -528,7 +527,7 @@ public static class ThemeCommand
 
         var registry = new ThemeComponentRegistry(themeRoot, manifest, null);
 
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var cacheDir = Path.Combine(resolved.RootDir, ".cache");
         var outputPath = Path.Combine(cacheDir, "theme-catalog.json");
 
@@ -537,12 +536,12 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static string? ResolveFullThemeRoot(ArgReader reader)
+    private static string? ResolveFullThemeRoot(CliBoundCommand command)
     {
-        var name = reader.GetArg(2);
+        var name = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(name) || name.StartsWith('-'))
         {
-            name = ResolveActiveThemeName(reader);
+            name = ResolveActiveThemeName(command);
         }
 
         if (string.IsNullOrWhiteSpace(name))
@@ -551,7 +550,7 @@ public static class ThemeCommand
             return null;
         }
 
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var themeRoot = Path.Combine(resolved.RootDir, "themes", name);
         if (!Directory.Exists(themeRoot))
         {

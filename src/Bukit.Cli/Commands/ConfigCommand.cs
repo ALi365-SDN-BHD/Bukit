@@ -1,3 +1,4 @@
+using Bukit.Cli.Cli.Binding;
 using Bukit.Config;
 using Bukit.Shared;
 
@@ -7,7 +8,13 @@ public static class ConfigCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        var sub = reader.GetArg(1);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("config");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
+        var sub = command.GetArgument(0) ?? "default";
         if (string.IsNullOrWhiteSpace(sub))
         {
             PrintUsage();
@@ -16,20 +23,20 @@ public static class ConfigCommand
 
         return sub switch
         {
-            "check" => Task.FromResult(Check(reader)),
-            "schema" => Task.FromResult(Schema(reader)),
+            "check" => Task.FromResult(Check(command)),
+            "schema" => Task.FromResult(Schema(command)),
             _ => Task.FromResult(Unknown(sub))
         };
     }
 
-    private static int Check(ArgReader reader)
+    private static int Check(CliBoundCommand command)
     {
         try
         {
-            var resolved = ConfigPathResolver.Resolve(reader);
+            var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
             var config = ConfigLoader.Load(resolved.FullConfigPath);
 
-            var siteUrl = reader.GetOption("--site-url");
+            var siteUrl = command.GetString("--site-url");
             if (!string.IsNullOrWhiteSpace(siteUrl))
             {
                 config = config with { Site = config.Site with { Url = siteUrl } };
@@ -68,12 +75,12 @@ public static class ConfigCommand
         }
     }
 
-    private static int Schema(ArgReader reader)
+    private static int Schema(CliBoundCommand command)
     {
         try
         {
             var json = ConfigJsonSchemaGenerator.Generate();
-            var output = reader.GetOption("--output");
+            var output = command.GetString("--output");
             if (string.IsNullOrWhiteSpace(output))
             {
                 Console.WriteLine(json);
