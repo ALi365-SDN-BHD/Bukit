@@ -1,11 +1,6 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
-using System.Net.WebSockets;
-using System.Text;
-using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Commands.Dev;
 using Bukit.Config;
 using Bukit.Engine;
 using Bukit.Shared;
@@ -14,16 +9,6 @@ namespace Bukit.Cli.Commands;
 
 public static class DevCommand
 {
-    private const string LivereloadScript =
-"""
-<script>
-(function(){var s=new WebSocket('ws://'+(location.host||'localhost:__PORT__').split(':')[0]+':__PORT__/__ws__');s.onclose=function(){console.log('[bukit] livereload disconnected, retrying in 1s...');setTimeout(function(){location.reload();},1000);};s.onmessage=function(e){if(e.data==='reload'){console.log('[bukit] change detected, reloading...');location.reload();}};s.onerror=function(){}})();
-</script>
-""";
-
-    private static readonly ConcurrentDictionary<string, WebSocket> _wsClients = new();
-    private static volatile int _devPort;
-
     internal static (string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride) ExtractOptions(CliBoundCommand command)
     {
         return (
@@ -101,25 +86,41 @@ public static class DevCommand
         sw.Stop();
         Console.WriteLine($"[build] done in {sw.ElapsedMilliseconds}ms, serving {outputDir}\n");
 
-        var listener = CreateListener(host, port, out var actualPort);
-        _devPort = actualPort;
-        var prefix = $"http://{host}:{actualPort}/";
+        using var serverHost = DevServerHost.Start(host, port, logger);
+        var hub = new DevWebSocketHub(logger);
+        var handler = new DevRequestHandler(outputDir, serverHost.Port,
+            ResolveDisableAnalytics(rootDir), logger);
 
         var watchedDirs = ResolveWatchDirs(rootDir, config);
+        DevFileWatcher? watcher = null;
         if (!noWatch && watchedDirs.Count > 0)
         {
-            StartFileWatchers(watchedDirs, rootDir, outputDir, outputOverride, config, cacheDir, engine, logger, cts.Token);
+            watcher = new DevFileWatcher(watchedDirs, rootDir, logger,
+                async (_, rebuildCt) =>
+                {
+                    await engine.BuildAsync(config, rootDir,
+                        CreateBuildOverrides(clean: false, outputOverride, cacheDir),
+                        rebuildCt);
+                    await hub.BroadcastReloadAsync();
+                });
+            watcher.Start(cts.Token);
         }
 
-        Console.WriteLine($"  dev server: {prefix}");
+        Console.WriteLine($"  dev server: {serverHost.Prefix}");
         if (!noWatch)
         {
-            Console.WriteLine($"  live reload: ws://{host}:{actualPort}/__ws__");
+            Console.WriteLine($"  live reload: ws://{host}:{serverHost.Port}/__ws__");
             Console.WriteLine($"  watching: {watchedDirs.Count} directorie(s)");
         }
         Console.WriteLine("  Press Ctrl+C to stop.\n");
 
-        _ = Task.Run(() => AcceptLoop(listener, outputDir, config, actualPort, cts.Token), cts.Token);
+        _ = serverHost.RunAcceptLoopAsync(async ctx =>
+        {
+            if (ctx.Request.Url?.AbsolutePath == "/__ws__")
+                await hub.HandleUpgradeAsync(ctx, cts.Token);
+            else
+                await handler.HandleAsync(ctx, cts.Token);
+        }, cts.Token);
 
         try
         {
@@ -130,46 +131,8 @@ public static class DevCommand
         }
 
         Console.WriteLine("\ndev server stopped.");
-        listener.Close();
+        watcher?.Dispose();
         return 0;
-    }
-
-    private static HttpListener CreateListener(string host, int port, out int actualPort)
-    {
-        var chosen = port == 0 ? PickFreePort() : port;
-        var listener = new HttpListener();
-
-        for (var attempt = 0; attempt < 20; attempt++)
-        {
-            var candidate = chosen + attempt;
-            if (candidate > 65535) break;
-
-            try
-            {
-                listener.Prefixes.Clear();
-                listener.Prefixes.Add($"http://{host}:{candidate}/");
-                listener.Start();
-                if (attempt > 0)
-                    Console.WriteLine($"Port {chosen} unavailable, using {candidate}.");
-                actualPort = candidate;
-                return listener;
-            }
-            catch (HttpListenerException)
-            {
-            }
-        }
-
-        listener.Close();
-        throw new InvalidOperationException($"Failed to listen on {host}:{chosen}");
-    }
-
-    private static int PickFreePort()
-    {
-        using var tcp = new TcpListener(IPAddress.Loopback, 0);
-        tcp.Start();
-        var p = ((IPEndPoint)tcp.LocalEndpoint).Port;
-        tcp.Stop();
-        return p;
     }
 
     internal static ConfigOverrides CreateBuildOverrides(bool clean, string? outputOverride, string cacheDir)
@@ -181,102 +144,6 @@ public static class DevCommand
             Incremental = true,
             CacheDir = cacheDir
         };
-    }
-
-    private static async Task AcceptLoop(HttpListener listener, string outputDir, AppConfig config, int port, CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
-                var context = await listener.GetContextAsync().WaitAsync(ct);
-                var path = context.Request.Url?.AbsolutePath ?? "/";
-
-                if (path == "/__ws__")
-                {
-                    _ = HandleWebSocketUpgradeAsync(context, ct);
-                }
-                else
-                {
-                    _ = Task.Run(() => HandleFileRequest(outputDir, context, config, port, ct));
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (HttpListenerException) when (ct.IsCancellationRequested)
-            {
-                break;
-            }
-        }
-
-        listener.Stop();
-    }
-
-    private static async Task HandleWebSocketUpgradeAsync(HttpListenerContext context, CancellationToken ct)
-    {
-        try
-        {
-            var wsCtx = await context.AcceptWebSocketAsync(null);
-            var ws = wsCtx.WebSocket;
-            var clientId = Guid.NewGuid().ToString("N");
-            _wsClients[clientId] = ws;
-
-            var buffer = new byte[256];
-            while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
-            {
-                try
-                {
-                    var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
-                    if (result.MessageType == WebSocketMessageType.Close)
-                    {
-                        await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", ct);
-                        break;
-                    }
-                }
-                catch (WebSocketException)
-                {
-                    break;
-                }
-            }
-
-            _wsClients.TryRemove(clientId, out _);
-        }
-        catch
-        {
-        }
-    }
-
-    private static async Task BroadcastReloadAsync()
-    {
-        var payload = Encoding.UTF8.GetBytes("reload");
-        var deadClients = new List<string>();
-
-        foreach (var (id, ws) in _wsClients)
-        {
-            try
-            {
-                if (ws.State == WebSocketState.Open)
-                {
-                    await ws.SendAsync(new ArraySegment<byte>(payload),
-                        WebSocketMessageType.Text, true, CancellationToken.None);
-                }
-                else
-                {
-                    deadClients.Add(id);
-                }
-            }
-            catch
-            {
-                deadClients.Add(id);
-            }
-        }
-
-        foreach (var id in deadClients)
-        {
-            _wsClients.TryRemove(id, out _);
-        }
     }
 
     private static List<string> ResolveWatchDirs(string rootDir, AppConfig config)
@@ -310,167 +177,6 @@ public static class DevCommand
         AddIfNotUnderTheme(config.Theme.Static);
 
         return dirs;
-    }
-
-    private static void StartFileWatchers(
-        List<string> watchDirs, string rootDir, string outputDir, string? outputOverride,
-        AppConfig config, string cacheDir, SiteEngine engine, ILogger logger,
-        CancellationToken ct)
-    {
-        var rebuildLock = new SemaphoreSlim(1, 1);
-        var pending = 0;
-        const int debounceMs = 300;
-
-        foreach (var dir in watchDirs)
-        {
-            var watcher = new FileSystemWatcher(dir)
-            {
-                IncludeSubdirectories = true,
-                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName |
-                               NotifyFilters.DirectoryName | NotifyFilters.CreationTime,
-                EnableRaisingEvents = true
-            };
-
-            watcher.Changed += OnChange;
-            watcher.Created += OnChange;
-            watcher.Deleted += OnChange;
-            watcher.Renamed += (_, e) => ScheduleRebuild(e.FullPath);
-            watcher.Error += (_, e) => logger.Warn($"dev.filewatcher: {e.GetException().Message}");
-        }
-
-        void OnChange(object sender, FileSystemEventArgs e)
-        {
-            var name = e.Name ?? string.Empty;
-            if (e.FullPath.Contains($"{Path.DirectorySeparatorChar}.cache{Path.DirectorySeparatorChar}") ||
-                e.FullPath.Contains($"{Path.DirectorySeparatorChar}dist{Path.DirectorySeparatorChar}") ||
-                name.StartsWith('.'))
-            {
-                return;
-            }
-
-            ScheduleRebuild(e.FullPath);
-        }
-
-        async void ScheduleRebuild(string file)
-        {
-            Interlocked.Increment(ref pending);
-            await Task.Delay(debounceMs, ct).ConfigureAwait(false);
-            if (Interlocked.Decrement(ref pending) > 0) return;
-
-            await rebuildLock.WaitAsync(ct);
-            try
-            {
-                var rel = Path.GetRelativePath(rootDir, file);
-                logger.Info($"dev.change {rel}");
-
-                var sw = Stopwatch.StartNew();
-                await engine.BuildAsync(config, rootDir,
-                    CreateBuildOverrides(clean: false, outputOverride, cacheDir),
-                    ct);
-                sw.Stop();
-                logger.Info($"dev.rebuild {sw.ElapsedMilliseconds}ms");
-
-                _ = BroadcastReloadAsync();
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex)
-            {
-                logger.Error($"dev.rebuild.error: {ex.Message}");
-            }
-            finally
-            {
-                rebuildLock.Release();
-            }
-        }
-    }
-
-    private static void HandleFileRequest(string rootDir, HttpListenerContext context, AppConfig config, int port, CancellationToken ct)
-    {
-        try
-        {
-            var path = context.Request.Url?.AbsolutePath ?? "/";
-            var relative = path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-
-            var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar);
-            var candidate = Path.GetFullPath(Path.Combine(fullRoot, relative));
-            var safeRoot = fullRoot + Path.DirectorySeparatorChar;
-            if (!candidate.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase)
-                && candidate != fullRoot)
-            {
-                context.Response.StatusCode = 403;
-                context.Response.Close();
-                return;
-            }
-
-            if (path.EndsWith("/", StringComparison.Ordinal))
-            {
-                candidate = Path.Combine(candidate, "index.html");
-            }
-
-            if (!File.Exists(candidate) && !Path.HasExtension(candidate))
-            {
-                candidate = Path.Combine(candidate, "index.html");
-            }
-
-            if (!File.Exists(candidate))
-            {
-                context.Response.StatusCode = 404;
-                context.Response.Close();
-                return;
-            }
-
-            var ext = Path.GetExtension(candidate).ToLowerInvariant();
-            context.Response.ContentType = ext switch
-            {
-                ".html" => "text/html; charset=utf-8",
-                ".css" => "text/css; charset=utf-8",
-                ".js" => "application/javascript; charset=utf-8",
-                ".json" => "application/json; charset=utf-8",
-                ".xml" => "application/xml; charset=utf-8",
-                ".svg" => "image/svg+xml",
-                ".png" => "image/png",
-                ".jpg" or ".jpeg" => "image/jpeg",
-                ".gif" => "image/gif",
-                ".webp" => "image/webp",
-                ".txt" => "text/plain; charset=utf-8",
-                _ => "application/octet-stream"
-            };
-
-            if (ext == ".html")
-            {
-                var html = File.ReadAllText(candidate);
-                html = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, ResolveDisableAnalytics(rootDir));
-
-                var script = LivereloadScript.Replace("__PORT__", port.ToString());
-                var idx = html.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
-                if (idx >= 0)
-                {
-                    html = html.Insert(idx, script);
-                }
-                else
-                {
-                    html += script;
-                }
-
-                var bytes = Encoding.UTF8.GetBytes(html);
-                context.Response.ContentLength64 = bytes.Length;
-                context.Response.OutputStream.Write(bytes, 0, bytes.Length);
-            }
-            else
-            {
-                using var fs = File.OpenRead(candidate);
-                context.Response.ContentLength64 = fs.Length;
-                fs.CopyTo(context.Response.OutputStream);
-            }
-        }
-        catch
-        {
-            try { context.Response.StatusCode = 500; } catch { }
-        }
-        finally
-        {
-            try { context.Response.Close(); } catch { }
-        }
     }
 
     private static bool ResolveDisableAnalytics(string dir)
