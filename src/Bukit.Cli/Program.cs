@@ -1,11 +1,10 @@
-using Bukit.Cli;
+using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Cli.Parsing;
 using Bukit.Cli.Cli.Rendering;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Commands.DocsCheck;
 
-var reader = new ArgReader(args);
-var command = reader.Command;
+var command = args.Length > 0 ? args[0] : null;
 
 if (command is null || command is "help" or "--help" or "-h")
 {
@@ -63,22 +62,32 @@ try
                 return resolved.Value;
             }
         }
+
+        if (parsed is SubcommandParseResult sub)
+        {
+            var merged = CliBoundCommand.MergeForSubcommand(sub.BoundCommand, sub.SubcommandName, sub.InnerResult.BoundCommand);
+            var resolved = spec.Name switch
+            {
+                "config" => await ConfigCommand.RunAsync(merged),
+                "plugin" => await PluginCommand.RunAsync(merged),
+                "seo" => await SeoCommand.RunAsync(merged),
+                "geo" => await GeoCommand.RunAsync(merged),
+                "data" => await DataCommand.RunAsync(merged),
+                "theme" => await ThemeCommand.RunAsync(merged),
+                "template" => await TemplateCommand.RunAsync(merged),
+                "intent" => await IntentCommand.RunAsync(merged),
+                "visual" => await VisualCommand.RunAsync(merged),
+                "webhook" => await WebhookCommand.RunAsync(merged),
+                _ => (int?)null
+            };
+            if (resolved.HasValue)
+            {
+                return resolved.Value;
+            }
+        }
     }
 
-    return command switch
-    {
-        "config" => await ConfigCommand.RunAsync(reader),
-        "plugin" => await PluginCommand.RunAsync(reader),
-        "seo" => await SeoCommand.RunAsync(reader),
-        "geo" => await GeoCommand.RunAsync(reader),
-        "data" => await DataCommand.RunAsync(reader),
-        "theme" => await ThemeCommand.RunAsync(reader),
-        "template" => await TemplateCommand.RunAsync(reader),
-        "intent" => await IntentCommand.RunAsync(reader),
-        "visual" => await VisualCommand.RunAsync(reader),
-        "webhook" => await WebhookCommand.RunAsync(reader),
-        _ => UnknownCommand(command)
-    };
+    return UnknownCommand(command);
 }
 catch (Exception ex)
 {

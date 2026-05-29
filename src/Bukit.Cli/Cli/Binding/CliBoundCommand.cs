@@ -22,4 +22,26 @@ public sealed class CliBoundCommand
     }
 
     public string? GetArgument(int index) => index >= 0 && index < _arguments.Count ? _arguments[index] : null;
+
+    internal IReadOnlyDictionary<string, string?> Options => _options;
+
+    internal IReadOnlyList<string> Arguments => _arguments;
+
+    internal static CliBoundCommand MergeForSubcommand(
+        CliBoundCommand parentBounded, string subName, CliBoundCommand innerBounded)
+    {
+        var mergedOptions = new Dictionary<string, string?>(parentBounded.Options, StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in innerBounded.Options)
+            mergedOptions[kv.Key] = kv.Value;
+
+        var mergedArgs = new List<string> { subName };
+        for (var i = 0; i < innerBounded.Arguments.Count; i++)
+        {
+            var arg = innerBounded.GetArgument(i);
+            if (arg is not null)
+                mergedArgs.Add(arg);
+        }
+
+        return new CliBoundCommand(mergedOptions, mergedArgs);
+    }
 }
