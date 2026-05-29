@@ -8,31 +8,6 @@ namespace Bukit.Cli.Commands;
 
 internal static class CloneVerifier
 {
-    internal sealed record ScreenshotComparison(string Name, string Status, int ComparedPixels, int MismatchedPixels, double DiffRatio, int TargetWidth, int TargetHeight, int LocalWidth, int LocalHeight, int? MismatchMinX, int? MismatchMinY, int? MismatchMaxX, int? MismatchMaxY)
-    {
-        public bool HasMismatchBounds => MismatchMinX is not null && MismatchMinY is not null && MismatchMaxX is not null && MismatchMaxY is not null;
-    }
-    private sealed record MissingScreenshotPair(string Viewport, string TargetPath, string LocalPath, bool TargetExists, bool LocalExists);
-    private sealed record AffectedSection(
-        string Screenshot,
-        string Viewport,
-        int SectionIndex,
-        string SectionKey,
-        string? SectionId,
-        string? SectionType,
-        int? SectionOrder,
-        string SectionLabel,
-        string DataPath,
-        string SpecPath,
-        double SectionY,
-        double SectionHeight,
-        int MismatchMinY,
-        int MismatchMaxY);
-    internal sealed record VisualVerifyResult(int Comparisons, int FailedComparisons, int MissingScreenshots)
-    {
-        public bool HasFailures => FailedComparisons > 0;
-    }
-
     public static async Task<int> VerifyCloneAsync(CliBoundCommand command, string rootDir, bool failOnVisualDiff, double visualThreshold)
     {
         var configPath = ResolveConfigPathForCommand(command, rootDir);
@@ -83,7 +58,7 @@ internal static class CloneVerifier
         var buildResult = await BuildCommand.RunAsync(new CliBoundCommand(buildOptions, Array.Empty<string>()));
         Console.WriteLine(buildResult == 0 ? "  Verify build: passed" : "  Verify build: failed");
         var sections = command.GetString("--sections") is { } sectionsPath
-            ? await CloneCommand.LoadSectionsAsync(sectionsPath)
+            ? await CloneInputLoader.LoadSectionsAsync(sectionsPath)
             : Array.Empty<CloneSectionInfo>();
 
         WriteBehaviorVerifyScript(rootDir);
@@ -107,10 +82,10 @@ internal static class CloneVerifier
         var distDir = Path.Combine(rootDir, "dist");
         var targetScreenshotsDir = Path.Combine(rootDir, "docs", "design-references");
         var localScreenshotsDir = Path.Combine(rootDir, "docs", "research", "local-screenshots");
-        var screenshotComparisons = CompareScreenshotFiles(targetScreenshotsDir, localScreenshotsDir).ToList();
-        var missingScreenshots = FindMissingScreenshotPairs(targetScreenshotsDir, localScreenshotsDir).ToList();
+        var screenshotComparisons = CloneScreenshotComparer.CompareScreenshotFiles(targetScreenshotsDir, localScreenshotsDir).ToList();
+        var missingScreenshots = CloneScreenshotComparer.FindMissingScreenshotPairs(targetScreenshotsDir, localScreenshotsDir).ToList();
         var failedComparisons = screenshotComparisons.Count(c => c.DiffRatio > visualThreshold);
-        var affectedSections = FindAffectedSections(screenshotComparisons, sections, visualThreshold).ToList();
+        var affectedSections = CloneScreenshotComparer.FindAffectedSections(screenshotComparisons, sections, visualThreshold).ToList();
 
         var sb = new StringBuilder();
         sb.AppendLine("# Clone Verify Report");
@@ -142,7 +117,7 @@ internal static class CloneVerifier
                 sb.AppendLine($"- {comparison.Name}: `{pass}` `{comparison.Status}` pixels={comparison.MismatchedPixels}/{comparison.ComparedPixels} diff={comparison.DiffRatio:P2} threshold={visualThreshold:P2} dimensions={comparison.TargetWidth}x{comparison.TargetHeight} vs {comparison.LocalWidth}x{comparison.LocalHeight}{bbox}");
             }
         }
-        AppendAffectedSections(sb, affectedSections, sections.Count > 0);
+        CloneScreenshotComparer.AppendAffectedSections(sb, affectedSections, sections.Count > 0);
         sb.AppendLine();
         sb.AppendLine("## Missing Screenshots");
         if (missingScreenshots.Count == 0)
@@ -181,130 +156,26 @@ internal static class CloneVerifier
         return new VisualVerifyResult(screenshotComparisons.Count, failedComparisons, missingScreenshots.Count);
     }
 
+    internal static ScreenshotComparison ComparePngScreenshots(string name, string targetPath, string localPath)
+        => CloneScreenshotComparer.ComparePngScreenshots(name, targetPath, localPath);
+
+    private static IEnumerable<ScreenshotComparison> CompareScreenshotFiles(string targetDir, string localDir)
+        => CloneScreenshotComparer.CompareScreenshotFiles(targetDir, localDir);
+
+    private static IEnumerable<MissingScreenshotPair> FindMissingScreenshotPairs(string targetDir, string localDir)
+        => CloneScreenshotComparer.FindMissingScreenshotPairs(targetDir, localDir);
+
+    private static string ExtractViewportName(string screenshotName)
+        => CloneScreenshotComparer.ExtractViewportName(screenshotName);
+
+    private static string SectionLabel(CloneSectionInfo section)
+        => CloneScreenshotComparer.SectionLabel(section);
+
     internal static void WriteBehaviorVerifyScript(string rootDir)
     {
         var path = Path.Combine(rootDir, "docs", "research", "BEHAVIORS_VERIFY.js");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-
-        File.WriteAllText(path, """
-(function(){'use strict';
-var results=[];
-function pass(name,detail){results.push({name:name,status:'pass',detail:detail||''});console.log('%c PASS %c '+name,'color:green','color:inherit',detail||'');}
-function fail(name,detail){results.push({name:name,status:'fail',detail:detail||''});console.log('%c FAIL %c '+name,'color:red','color:inherit',detail||'');}
-function warn(name,detail){results.push({name:name,status:'warn',detail:detail||''});console.log('%c WARN %c '+name,'color:orange','color:inherit',detail||'');}
-
-// Header sticky
-var header=document.querySelector('.site-header');
-if(header){var pos=getComputedStyle(header).position;if(pos==='sticky'||pos==='fixed')pass('HeaderSticky','position: '+pos);else warn('HeaderSticky','position: '+pos+' (not sticky)');}else{fail('HeaderSticky','.site-header not found');}
-
-// Header shrink (nav-hidden class toggle check)
-if(header&&document.querySelector('.nav-hidden')!==null)pass('HeaderShrink','.nav-hidden class present');else if(header)warn('HeaderShrink','.nav-hidden not present (may need scroll)');else fail('HeaderShrink','header not found');
-
-// Dark mode toggle
-var dt=document.querySelector('.dark-mode-toggle');
-if(dt){pass('DarkModeToggle:exists','found');var wasDark=document.body.classList.contains('dark');dt.click();var nowDark=document.body.classList.contains('dark');if(wasDark!==nowDark)pass('DarkModeToggle:toggles','body.dark toggled');else fail('DarkModeToggle:toggles','body.dark did not change');dt.click();}else{warn('DarkModeToggle','.dark-mode-toggle not found (dark mode may not be configured)');}
-
-// Modal
-var mo=document.getElementById('site-modal')||document.querySelector('.modal-overlay');
-if(mo){pass('Modal:exists','found');var wasVis=!mo.classList.contains('hidden')&&mo.classList.contains('visible');if(!wasVis){mo.classList.remove('hidden');mo.classList.add('visible');mo.setAttribute('aria-hidden','false');var nowVis=!mo.classList.contains('hidden')&&mo.classList.contains('visible');mo.classList.add('hidden');mo.classList.remove('visible');mo.setAttribute('aria-hidden','true');if(nowVis)pass('Modal:opens','modal became visible');else fail('Modal:opens','modal did not become visible');}else{pass('Modal:visible','already visible');}}else{warn('Modal','.modal-overlay not found');}
-
-// Hamburger
-var ham=document.querySelector('.hamburger');
-if(ham){pass('Hamburger:exists','found');var nav=document.querySelector('.nav-links');var wasOpen=nav&&nav.classList.contains('open');ham.click();var nowOpen=nav&&nav.classList.contains('open');if(wasOpen!==nowOpen)pass('Hamburger:toggles','.nav-links.open toggled');else fail('Hamburger:toggles','did not toggle');ham.click();}else{warn('Hamburger','.hamburger not found');}
-
-// Tabs (tab-nav or state-tabs)
-var tabs=document.querySelector('.tab-nav')||document.querySelector('.state-tabs');
-if(tabs){var firstBtn=tabs.querySelector('[role="tab"]');if(firstBtn){pass('Tabs:exists','found');var wasSel=firstBtn.getAttribute('aria-selected')==='true';firstBtn.click();setTimeout(function(){var nowSel=firstBtn.getAttribute('aria-selected')==='true';if(nowSel)pass('Tabs:switches','tab selected');else fail('Tabs:switches','tab did not become selected');},50);}else{fail('Tabs','no tab button found');}}else{warn('Tabs','no .tab-nav or .state-tabs found');}
-
-// Lenis
-if(typeof lenis!=='undefined'){pass('Lenis','window.lenis defined');}else{warn('Lenis','window.lenis not defined (Lenis may not be configured)');}
-
-// Back to top
-var btt=document.querySelector('.back-to-top');
-if(btt){pass('BackToTop:exists','found');var bttOp=getComputedStyle(btt).opacity;if(parseFloat(bttOp)>0)pass('BackToTop:visible','opacity: '+bttOp);else warn('BackToTop:hidden','opacity: '+bttOp+' (may need scroll)');}else{warn('BackToTop','.back-to-top not found');}
-
-// Animate on scroll
-var anim=document.querySelector('.animate-in');
-if(anim){pass('AnimateOnScroll','.animate-in element found');}else{warn('AnimateOnScroll','no .animate-in elements found');}
-
-// Summary
-console.log('\n=== BEHAVIOR VERIFY SUMMARY ===');
-var passed=results.filter(function(r){return r.status==='pass';}).length;
-var failed=results.filter(function(r){return r.status==='fail';}).length;
-var warnings=results.filter(function(r){return r.status==='warn';}).length;
-console.log('Passed: '+passed+' Failed: '+failed+' Warnings: '+warnings+' Total: '+results.length);
-if(failed>0){console.log('%c FAILURES DETECTED','color:red;font-weight:bold');}else if(warnings===0){console.log('%c ALL CHECKS PASSED','color:green;font-weight:bold');}else{console.log('%c ALL CRITICAL CHECKS PASSED (with warnings)','color:orange;font-weight:bold');}
-window.__bukitBehaviorResults=results;
-
-// Export as JSON
-var json=JSON.stringify({timestamp:new Date().toISOString(),summary:{passed:passed,failed:failed,warnings:warnings,total:results.length},results:results},null,2);
-console.log('\n=== RESULTS JSON ===');
-console.log(json);
-
-})();
-""");
-    }
-
-    private static void AppendAffectedSections(StringBuilder sb, IReadOnlyList<AffectedSection> affectedSections, bool hasSections)
-    {
-        sb.AppendLine();
-        sb.AppendLine("## Likely Affected Sections");
-        if (!hasSections)
-        {
-            sb.AppendLine("- No sections metadata available. Pass `--sections sections.json` to map visual diffs back to extracted sections.");
-            return;
-        }
-
-        if (affectedSections.Count == 0)
-        {
-            sb.AppendLine("- none inferred");
-            return;
-        }
-
-        foreach (var group in affectedSections.GroupBy(a => a.Screenshot))
-        {
-            sb.AppendLine($"- {group.Key}: overlaps:");
-            foreach (var item in group)
-            {
-                sb.AppendLine($"  - section {item.SectionIndex}: `{item.SectionLabel}` id=`{item.SectionId ?? ""}` type=`{item.SectionType ?? ""}` order=`{item.SectionOrder?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? ""}` y={item.SectionY:0} height={item.SectionHeight:0}");
-                sb.AppendLine($"    data: `{item.DataPath}`");
-                sb.AppendLine($"    spec: `{item.SpecPath}`");
-            }
-        }
-    }
-
-    private static IEnumerable<AffectedSection> FindAffectedSections(IReadOnlyList<ScreenshotComparison> comparisons, IReadOnlyList<CloneSectionInfo> sections, double visualThreshold)
-    {
-        foreach (var comparison in comparisons.Where(c => c.DiffRatio > visualThreshold && c.HasMismatchBounds))
-        {
-            var viewport = ExtractViewportName(comparison.Name);
-            foreach (var item in sections.Select((section, index) => new { Section = section, Index = index, Bounds = ResolveSectionBounds(section, viewport) }))
-            {
-                var bounds = item.Bounds;
-                if (bounds is null)
-                    continue;
-                var y = bounds.Y ?? 0;
-                var height = bounds.Height ?? 0;
-                if (!RangesOverlap(y, y + height, comparison.MismatchMinY!.Value, comparison.MismatchMaxY!.Value))
-                    continue;
-
-                yield return new AffectedSection(
-                    Screenshot: comparison.Name,
-                    Viewport: viewport,
-                    SectionIndex: item.Index + 1,
-                    SectionKey: CloneContentWriter.SectionDataKey(item.Section, item.Index),
-                    SectionId: item.Section.Id,
-                    SectionType: item.Section.Type ?? item.Section.Semantic,
-                    SectionOrder: item.Section.Order,
-                    SectionLabel: SectionLabel(item.Section),
-                    DataPath: $"data/{CloneContentWriter.SectionDataKey(item.Section, item.Index)}.md",
-                    SpecPath: $"docs/research/components/{CloneContentWriter.SectionSpecFileName(item.Section, item.Index)}",
-                    SectionY: y,
-                    SectionHeight: height,
-                    MismatchMinY: comparison.MismatchMinY.Value,
-                    MismatchMaxY: comparison.MismatchMaxY.Value);
-            }
-        }
+        File.WriteAllText(path, CloneBehaviorVerifyScript.Script);
     }
 
     private static void WriteVerifyJsonReport(
@@ -365,42 +236,6 @@ console.log(json);
         File.WriteAllText(path, CloneJson.SerializeIndented(payload));
     }
 
-    private static CloneBox? ResolveSectionBounds(CloneSectionInfo section, string viewport)
-    {
-        if (section.Responsive?.Viewports is { Count: > 0 })
-        {
-            if (section.Responsive.Viewports.TryGetValue(viewport, out var exact) && exact.Bounds is not null)
-                return exact.Bounds;
-            var alias = viewport switch
-            {
-                "1440" => "desktop",
-                "768" => "tablet",
-                "390" => "mobile",
-                _ => null
-            };
-            if (alias is not null && section.Responsive.Viewports.TryGetValue(alias, out var named) && named.Bounds is not null)
-                return named.Bounds;
-        }
-
-        return section.Bounds;
-    }
-
-    private static string ExtractViewportName(string screenshotName)
-    {
-        var file = Path.GetFileNameWithoutExtension(screenshotName);
-        if (file.StartsWith("target-", StringComparison.OrdinalIgnoreCase))
-            return file["target-".Length..];
-        if (file.StartsWith("local-", StringComparison.OrdinalIgnoreCase))
-            return file["local-".Length..];
-        return file;
-    }
-
-    private static bool RangesOverlap(double aStart, double aEnd, double bStart, double bEnd)
-        => aEnd >= bStart && bEnd >= aStart;
-
-    private static string SectionLabel(CloneSectionInfo section)
-        => section.Id ?? section.Heading ?? section.Title ?? section.Type ?? section.Semantic ?? "section";
-
     private static int CountFiles(string dir, string pattern)
         => Directory.Exists(dir) ? Directory.EnumerateFiles(dir, pattern, SearchOption.AllDirectories).Count() : 0;
 
@@ -414,96 +249,6 @@ console.log(json);
             .Select(theme => Path.Combine(theme, "assets"))
             .Where(Directory.Exists)
             .Sum(assets => Directory.EnumerateFiles(assets, "*.*", SearchOption.AllDirectories).Count());
-    }
-
-    private static IEnumerable<ScreenshotComparison> CompareScreenshotFiles(string targetDir, string localDir)
-    {
-        if (!Directory.Exists(targetDir) || !Directory.Exists(localDir))
-            yield break;
-
-        foreach (var target in Directory.EnumerateFiles(targetDir, "*.png"))
-        {
-            var targetName = Path.GetFileName(target);
-            var localName = targetName.StartsWith("target-", StringComparison.OrdinalIgnoreCase)
-                ? "local-" + targetName["target-".Length..]
-                : targetName;
-            var local = Path.Combine(localDir, localName);
-            if (!File.Exists(local))
-                continue;
-
-            yield return ComparePngScreenshots(targetName, target, local);
-        }
-    }
-
-    private static IEnumerable<MissingScreenshotPair> FindMissingScreenshotPairs(string targetDir, string localDir)
-    {
-        foreach (var viewport in new[] { "1440", "768", "390" })
-        {
-            var target = Path.Combine(targetDir, $"target-{viewport}.png");
-            var local = Path.Combine(localDir, $"local-{viewport}.png");
-            var targetExists = File.Exists(target);
-            var localExists = File.Exists(local);
-            if (!targetExists || !localExists)
-                yield return new MissingScreenshotPair(viewport, target, local, targetExists, localExists);
-        }
-    }
-
-    internal static ScreenshotComparison ComparePngScreenshots(string name, string targetPath, string localPath)
-    {
-        try
-        {
-            var target = PngImage.Read(targetPath);
-            var local = PngImage.Read(localPath);
-            var width = Math.Min(target.Width, local.Width);
-            var height = Math.Min(target.Height, local.Height);
-            var compared = width * height;
-            var mismatched = 0;
-            int? minX = null;
-            int? minY = null;
-            int? maxX = null;
-            int? maxY = null;
-
-            for (var y = 0; y < height; y++)
-            {
-                for (var x = 0; x < width; x++)
-                {
-                    var ti = ((y * target.Width) + x) * 4;
-                    var li = ((y * local.Width) + x) * 4;
-                    if (target.Pixels[ti] != local.Pixels[li] ||
-                        target.Pixels[ti + 1] != local.Pixels[li + 1] ||
-                        target.Pixels[ti + 2] != local.Pixels[li + 2] ||
-                        target.Pixels[ti + 3] != local.Pixels[li + 3])
-                    {
-                        mismatched++;
-                        minX = minX is null ? x : Math.Min(minX.Value, x);
-                        minY = minY is null ? y : Math.Min(minY.Value, y);
-                        maxX = maxX is null ? x : Math.Max(maxX.Value, x);
-                        maxY = maxY is null ? y : Math.Max(maxY.Value, y);
-                    }
-                }
-            }
-
-            if (target.Width != local.Width || target.Height != local.Height)
-            {
-                mismatched += Math.Abs((target.Width * target.Height) - (local.Width * local.Height));
-                minX ??= 0;
-                minY ??= 0;
-                maxX = Math.Max(target.Width, local.Width) - 1;
-                maxY = Math.Max(target.Height, local.Height) - 1;
-            }
-
-            var total = Math.Max(target.Width * target.Height, local.Width * local.Height);
-            var ratio = total == 0 ? 0 : (double)mismatched / total;
-            var status = mismatched == 0 ? "identical" : "pixel-different";
-            return new ScreenshotComparison(name, status, compared, mismatched, ratio, target.Width, target.Height, local.Width, local.Height, minX, minY, maxX, maxY);
-        }
-        catch (Exception ex)
-        {
-            var targetBytes = new FileInfo(targetPath).Length;
-            var localBytes = new FileInfo(localPath).Length;
-            var same = File.ReadAllBytes(targetPath).SequenceEqual(File.ReadAllBytes(localPath));
-            return new ScreenshotComparison(name, same ? "identical-bytes" : $"unsupported-png: {ex.Message}", 0, same ? 0 : 1, same ? 0 : 1, (int)targetBytes, 0, (int)localBytes, 0, null, null, null, null);
-        }
     }
 
     private static string ResolveConfigPathForCommand(CliBoundCommand command, string rootDir)
