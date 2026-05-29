@@ -27,29 +27,10 @@ public static class DevCommand
         return await RunCoreAsync(configPath, site, host, port, noWatch, outputOverride);
     }
 
-    public static async Task<int> RunAsync(string[] args)
+    public static Task<int> RunAsync(ArgReader reader)
     {
-        var configPath = (string?)null;
-        var site = (string?)null;
-        var host = "localhost";
-        var port = 35729;
-        var noWatch = false;
-        var outputOverride = (string?)null;
-
-        for (var i = 0; i < args.Length; i++)
-        {
-            switch (args[i])
-            {
-                case "--config" when i + 1 < args.Length: configPath = args[++i]; break;
-                case "--site" when i + 1 < args.Length: site = args[++i]; break;
-                case "--host" when i + 1 < args.Length: host = args[++i]; break;
-                case "--port" when i + 1 < args.Length: port = int.Parse(args[++i]); break;
-                case "--output" or "--dir" when i + 1 < args.Length: outputOverride = args[++i]; break;
-                case "--no-watch": noWatch = true; break;
-            }
-        }
-
-        return await RunCoreAsync(configPath, site, host, port, noWatch, outputOverride);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("dev");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
     }
 
     private static async Task<int> RunCoreAsync(

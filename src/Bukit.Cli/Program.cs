@@ -66,7 +66,7 @@ try
         "init" => await InitCommand.RunAsync(reader),
         "build" => await BuildCommand.RunAsync(reader),
         "deploy" => await DeployCommand.RunAsync(reader),
-        "dev" => await DevCommand.RunAsync(args[1..]),
+        "dev" => await DevCommand.RunAsync(reader),
         "preview" => await PreviewCommand.RunAsync(reader),
         "clean" => await CleanCommand.RunAsync(reader),
         "completion" => await CompletionCommand.RunAsync(reader),
