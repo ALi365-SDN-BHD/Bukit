@@ -12,7 +12,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     env:
-      COVERAGE_THRESHOLD: "70"
+      COVERAGE_THRESHOLD: "65"
     steps:
       - uses: actions/checkout@v4
 

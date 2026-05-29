@@ -6,36 +6,6 @@ namespace Bukit.Content.Media;
 
 public sealed class ContentImageRewritePipeline
 {
-    // Matches <img ... src="url" ...>
-    private static readonly Regex ImgSrcRegex = new(
-        "<img\\b(?<before>[^>]*?)\\bsrc\\s*=\\s*(?<q>[\"'])(?<url>.*?)(\\k<q>)(?<after>[^>]*?)>",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
-    // Matches data-src="url" on any element
-    private static readonly Regex DataSrcRegex = new(
-        @"\bdata-src\s*=\s*(?<q>[""'])(?<url>.*?)(\k<q>)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
-    // Matches <video ... poster="url" ...>
-    private static readonly Regex VideoPosterRegex = new(
-        @"<video\b[^>]*?\bposter\s*=\s*(?<q>[""'])(?<url>.*?)(\k<q>)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
-    // Matches <video ... src="url" ...>
-    private static readonly Regex VideoSrcRegex = new(
-        @"<video\b[^>]*?\bsrc\s*=\s*(?<q>[""'])(?<url>.*?)(\k<q>)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
-    // Matches <a ... href="url" ...> where URL points to a known media host (S3/CDN)
-    private static readonly Regex AnchorHrefRegex = new(
-        @"<a\b[^>]*?\bhref\s*=\s*(?<q>[""'])(?<url>https?://[^""']*?\.(?:jpg|jpeg|png|gif|webp|svg|avif|bmp|ico|tiff|tif)(?:\?[^""']*)?)(\k<q>)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
-    // Matches srcset="url1 1x, url2 2x" or srcset="url1 300w, url2 600w"
-    private static readonly Regex SrcsetAttrRegex = new(
-        @"\bsrcset\s*=\s*(?<q>[""'])(?<value>.*?)(\k<q>)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
     private static readonly Regex SrcsetEntryRegex = new(
         @"(?<url>https?://[^\s,]+)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -105,124 +75,61 @@ public sealed class ContentImageRewritePipeline
             return html;
         }
 
-        await PrimeHtmlUrlsAsync(html, localizeMemo, cancellationToken);
-
-        // Pass 1: <img src="...">
-        html = await RewriteByRegexAsync(html, ImgSrcRegex, "url", localizeMemo, cancellationToken);
-
-        // Pass 2: data-src="..." (lazy loading)
-        html = await RewriteByRegexAsync(html, DataSrcRegex, "url", localizeMemo, cancellationToken);
-
-        // Pass 3: <video poster="...">
-        html = await RewriteByRegexAsync(html, VideoPosterRegex, "url", localizeMemo, cancellationToken);
-
-        // Pass 4: <video src="...">
-        html = await RewriteByRegexAsync(html, VideoSrcRegex, "url", localizeMemo, cancellationToken);
-
-        // Pass 5: <a href="...image_url..."> (file blocks with image extensions)
-        html = await RewriteByRegexAsync(html, AnchorHrefRegex, "url", localizeMemo, cancellationToken);
-
-        // Pass 6: srcset="url1 1x, url2 2x"
-        html = await RewriteSrcsetAsync(html, localizeMemo, cancellationToken);
-
-        return html;
-    }
-
-    private async Task PrimeHtmlUrlsAsync(
-        string html,
-        Dictionary<string, string> localizeMemo,
-        CancellationToken cancellationToken)
-    {
-        var urls = new List<string>();
-        CollectGroupUrls(html, ImgSrcRegex, "url", urls);
-        CollectGroupUrls(html, DataSrcRegex, "url", urls);
-        CollectGroupUrls(html, VideoPosterRegex, "url", urls);
-        CollectGroupUrls(html, VideoSrcRegex, "url", urls);
-        CollectGroupUrls(html, AnchorHrefRegex, "url", urls);
-        CollectSrcsetUrls(html, urls);
-
-        if (urls.Count == 0)
-        {
-            return;
-        }
-
-        await LocalizeDistinctUrlsAsync(urls, localizeMemo, cancellationToken);
-    }
-
-    private async Task<string> RewriteByRegexAsync(
-        string html,
-        Regex regex,
-        string urlGroupName,
-        Dictionary<string, string> localizeMemo,
-        CancellationToken cancellationToken)
-    {
-        var matches = regex.Matches(html);
-        if (matches.Count == 0)
+        var references = HtmlMediaReferenceScanner.Find(html);
+        if (references.Count == 0)
         {
             return html;
         }
 
-        var urls = new List<string>(matches.Count);
-        foreach (Match m in matches)
+        var urls = new List<string>(references.Count);
+        foreach (var reference in references)
         {
-            urls.Add(System.Net.WebUtility.HtmlDecode(m.Groups[urlGroupName].Value));
+            if (reference.Kind == HtmlMediaReferenceKind.Srcset)
+            {
+                CollectSrcsetValueUrls(reference.Value, urls);
+            }
+            else
+            {
+                urls.Add(System.Net.WebUtility.HtmlDecode(reference.Value));
+            }
         }
 
         var localizedMap = await LocalizeDistinctUrlsAsync(urls, localizeMemo, cancellationToken);
         var sb = new System.Text.StringBuilder();
         var last = 0;
-        foreach (Match m in matches)
+        foreach (var reference in references)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var urlGroup = m.Groups[urlGroupName];
-            var url = System.Net.WebUtility.HtmlDecode(urlGroup.Value);
-            var localized = localizedMap.TryGetValue(url, out var mapped)
-                ? mapped
-                : await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
-            var safe = System.Net.WebUtility.HtmlEncode(localized);
+            var rewritten = reference.Kind == HtmlMediaReferenceKind.Srcset
+                ? await RewriteSrcsetValueAsync(reference.Value, localizedMap, localizeMemo, cancellationToken)
+                : await RewriteUrlValueAsync(reference.Value, localizedMap, localizeMemo, cancellationToken);
 
-            sb.Append(html, last, urlGroup.Index - last);
-            sb.Append(safe);
-            last = urlGroup.Index + urlGroup.Length;
+            sb.Append(html, last, reference.ValueStart - last);
+            sb.Append(rewritten);
+            last = reference.ValueStart + reference.ValueLength;
         }
 
         sb.Append(html, last, html.Length - last);
         return sb.ToString();
     }
 
-    private async Task<string> RewriteSrcsetAsync(
-        string html,
+    private async Task<string> RewriteUrlValueAsync(
+        string value,
+        IReadOnlyDictionary<string, string> localizedMap,
         Dictionary<string, string> localizeMemo,
         CancellationToken cancellationToken)
     {
-        var matches = SrcsetAttrRegex.Matches(html);
-        if (matches.Count == 0)
-        {
-            return html;
-        }
-
-        var sb = new System.Text.StringBuilder();
-        var last = 0;
-        foreach (Match m in matches)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var valueGroup = m.Groups["value"];
-            var srcsetValue = valueGroup.Value;
-            var rewritten = await RewriteSrcsetValueAsync(srcsetValue, localizeMemo, cancellationToken);
-
-            sb.Append(html, last, valueGroup.Index - last);
-            sb.Append(rewritten);
-            last = valueGroup.Index + valueGroup.Length;
-        }
-
-        sb.Append(html, last, html.Length - last);
-        return sb.ToString();
+        var url = System.Net.WebUtility.HtmlDecode(value);
+        var localized = localizedMap.TryGetValue(url, out var mapped)
+            ? mapped
+            : await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
+        return System.Net.WebUtility.HtmlEncode(localized);
     }
 
     private async Task<string> RewriteSrcsetValueAsync(
         string srcsetValue,
+        IReadOnlyDictionary<string, string> localizedMap,
         Dictionary<string, string> localizeMemo,
         CancellationToken cancellationToken)
     {
@@ -232,13 +139,6 @@ public sealed class ContentImageRewritePipeline
             return srcsetValue;
         }
 
-        var urls = new List<string>(matches.Count);
-        foreach (Match m in matches)
-        {
-            urls.Add(System.Net.WebUtility.HtmlDecode(m.Groups["url"].Value));
-        }
-
-        var localizedMap = await LocalizeDistinctUrlsAsync(urls, localizeMemo, cancellationToken);
         var sb = new System.Text.StringBuilder();
         var last = 0;
         foreach (Match m in matches)
@@ -258,26 +158,12 @@ public sealed class ContentImageRewritePipeline
         return sb.ToString();
     }
 
-    private static void CollectGroupUrls(string html, Regex regex, string groupName, List<string> urls)
+    private static void CollectSrcsetValueUrls(string srcsetValue, List<string> urls)
     {
-        var matches = regex.Matches(html);
-        foreach (Match match in matches)
+        var entries = SrcsetEntryRegex.Matches(srcsetValue);
+        foreach (Match entry in entries)
         {
-            urls.Add(System.Net.WebUtility.HtmlDecode(match.Groups[groupName].Value));
-        }
-    }
-
-    private static void CollectSrcsetUrls(string html, List<string> urls)
-    {
-        var attrs = SrcsetAttrRegex.Matches(html);
-        foreach (Match attr in attrs)
-        {
-            var value = attr.Groups["value"].Value;
-            var entries = SrcsetEntryRegex.Matches(value);
-            foreach (Match entry in entries)
-            {
-                urls.Add(System.Net.WebUtility.HtmlDecode(entry.Groups["url"].Value));
-            }
+            urls.Add(System.Net.WebUtility.HtmlDecode(entry.Groups["url"].Value));
         }
     }
 

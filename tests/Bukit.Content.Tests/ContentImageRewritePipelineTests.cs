@@ -247,6 +247,141 @@ public sealed class ContentImageRewritePipelineTests
         Assert.Contains("https://img.example/large.jpg?x=1&y=2", localizer.ReceivedUrls);
     }
 
+    [Fact]
+    public async Task RewriteBodyHtmlAsync_RewritesMultipleReferencesOnSameImageTag()
+    {
+        var html = """
+                   <img
+                     data-src="https://img.example/lazy.jpg"
+                     src="https://img.example/fallback.jpg"
+                     srcset="https://img.example/small.jpg 480w, https://img.example/large.jpg 960w" />
+                   """;
+        var cfg = new MediaConfig
+        {
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+        var localizer = new MappingLocalizer(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["https://img.example/lazy.jpg"] = "/assets/uploads/lazy.jpg",
+            ["https://img.example/fallback.jpg"] = "/assets/uploads/fallback.jpg",
+            ["https://img.example/small.jpg"] = "/assets/uploads/small.jpg",
+            ["https://img.example/large.jpg"] = "/assets/uploads/large.jpg"
+        });
+        var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+        var rewritten = await pipeline.RewriteBodyHtmlAsync(html, CancellationToken.None);
+
+        Assert.NotNull(rewritten);
+        Assert.Contains("data-src=\"/assets/uploads/lazy.jpg\"", rewritten);
+        Assert.Contains("src=\"/assets/uploads/fallback.jpg\"", rewritten);
+        Assert.Contains("/assets/uploads/small.jpg 480w", rewritten);
+        Assert.Contains("/assets/uploads/large.jpg 960w", rewritten);
+    }
+
+    [Fact]
+    public void HtmlMediaReferenceScanner_FindsSupportedReferencesInDocumentOrder()
+    {
+        var html = """
+                   <picture>
+                     <source srcset="https://img.example/small.jpg 480w, https://img.example/large.jpg 960w" />
+                     <img data-src='https://img.example/lazy.jpg' src="https://img.example/fallback.jpg" />
+                   </picture>
+                   <video poster="https://img.example/poster.jpg" src="https://media.example/clip.mp4"></video>
+                   <a href="https://img.example/download.png?x=1&amp;y=2">image</a>
+                   <a href="https://img.example/file.pdf">document</a>
+                   <span data-src="https://img.example/span.gif"></span>
+                   """;
+
+        var references = HtmlMediaReferenceScanner.Find(html);
+
+        Assert.Equal(
+            new[]
+            {
+                "https://img.example/small.jpg 480w, https://img.example/large.jpg 960w",
+                "https://img.example/lazy.jpg",
+                "https://img.example/fallback.jpg",
+                "https://img.example/poster.jpg",
+                "https://media.example/clip.mp4",
+                "https://img.example/download.png?x=1&amp;y=2",
+                "https://img.example/span.gif"
+            },
+            references.Select(reference => reference.Value));
+        Assert.Equal(HtmlMediaReferenceKind.Srcset, references[0].Kind);
+        Assert.All(references.Skip(1), reference => Assert.Equal(HtmlMediaReferenceKind.Url, reference.Kind));
+    }
+
+    [Fact]
+    public void HtmlMediaReferenceScanner_HandlesEmptyAndNullSafeInputs()
+    {
+        Assert.Empty(HtmlMediaReferenceScanner.Find(string.Empty));
+        Assert.Empty(HtmlMediaReferenceScanner.Find("plain text without tags"));
+        Assert.Empty(HtmlMediaReferenceScanner.Find("<p>no media references here</p>"));
+    }
+
+    [Fact]
+    public void HtmlMediaReferenceScanner_IgnoresMalformedTags()
+    {
+        var html = "<img src=\"https://img.example/ok.jpg\"><img src=\"unterminated";
+        var references = HtmlMediaReferenceScanner.Find(html);
+        Assert.Single(references);
+        Assert.Equal("https://img.example/ok.jpg", references[0].Value);
+    }
+
+    [Fact]
+    public void HtmlMediaReferenceScanner_PreservesValuePositionsForSubstringReplacement()
+    {
+        var html = "before <img src=\"https://img.example/a.jpg\"> after";
+        var references = HtmlMediaReferenceScanner.Find(html);
+        Assert.Single(references);
+        var reference = references[0];
+        Assert.Equal("https://img.example/a.jpg", html.Substring(reference.ValueStart, reference.ValueLength));
+    }
+
+    [Fact]
+    public void HtmlMediaReferenceScanner_SkipsNonImageAnchors()
+    {
+        var html = "<a href=\"https://example.com/page.html\">link</a><a href=\"https://img.example/photo.jpg\">img</a>";
+        var references = HtmlMediaReferenceScanner.Find(html);
+        Assert.Single(references);
+        Assert.Equal("https://img.example/photo.jpg", references[0].Value);
+    }
+
+    [Fact]
+    public void HtmlMediaReferenceScanner_HandlesAttributesWithExtraWhitespace()
+    {
+        var html = "<img  src  =  \"https://img.example/a.jpg\" />";
+        var references = HtmlMediaReferenceScanner.Find(html);
+        Assert.Single(references);
+        Assert.Equal("https://img.example/a.jpg", references[0].Value);
+    }
+
+    [Fact]
+    public void HtmlMediaReferenceScanner_HandlesBooleanAndUnquotedAttributes()
+    {
+        var html = "<img loading data-id=42 src=\"https://img.example/a.jpg\" />";
+        var references = HtmlMediaReferenceScanner.Find(html);
+        Assert.Single(references);
+        Assert.Equal("https://img.example/a.jpg", references[0].Value);
+    }
+
+    [Fact]
+    public void HtmlMediaReferenceScanner_AppendOnlyToReturnInDocumentOrder()
+    {
+        var html = string.Concat(
+            "<img src=\"https://img.example/1.jpg\">",
+            "<span data-src=\"https://img.example/2.jpg\"></span>",
+            "<img src=\"https://img.example/3.jpg\">");
+        var references = HtmlMediaReferenceScanner.Find(html);
+        Assert.Equal(
+            new[]
+            {
+                "https://img.example/1.jpg",
+                "https://img.example/2.jpg",
+                "https://img.example/3.jpg"
+            },
+            references.Select(r => r.Value));
+    }
+
     private sealed class StubLocalizer : IImageAssetLocalizer
     {
         public Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
