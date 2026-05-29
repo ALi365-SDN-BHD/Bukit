@@ -8,21 +8,9 @@ public static class LintCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        var command = ParseOptions(reader);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("lint");
+        var command = CliBoundCommandFactory.Create(reader, spec);
         return RunAsync(command);
-    }
-
-    private static CliBoundCommand ParseOptions(ArgReader reader)
-    {
-        var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["--config"] = reader.GetOption("--config"),
-            ["--site"] = reader.GetOption("--site"),
-        }
-            .Where(x => x.Value is not null)
-            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
-
-        return new CliBoundCommand(options, Array.Empty<string>());
     }
 
     public static Task<int> RunAsync(CliBoundCommand command)

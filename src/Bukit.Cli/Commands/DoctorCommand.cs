@@ -21,17 +21,8 @@ public static class DoctorCommand
         string[] AllHtmlFiles);
     public static Task<int> RunAsync(ArgReader reader)
     {
-        return RunAsync(new CliBoundCommand(
-            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["--config"] = reader.GetOption("--config"),
-                ["--site"] = reader.GetOption("--site"),
-                ["--site-url"] = reader.GetOption("--site-url"),
-                ["--notion-schema"] = reader.GetOption("--notion-schema"),
-            }
-            .Where(x => x.Value is not null)
-            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
-            Array.Empty<string>()));
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("doctor");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
     }
 
     public static async Task<int> RunAsync(CliBoundCommand command)

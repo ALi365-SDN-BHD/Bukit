@@ -5,7 +5,7 @@ namespace Bukit.Cli.Commands;
 
 internal static class CloneFidelityRunner
 {
-    internal static async Task<int> RunAsync(string rootDir, string themeName, string htmlDir, bool force, bool use, ArgReader? reader)
+    internal static async Task<int> RunAsync(string rootDir, string themeName, string htmlDir, bool force, bool use, CliBoundCommand command)
     {
         var fullHtmlDir = Path.GetFullPath(htmlDir);
         if (!Directory.Exists(fullHtmlDir))
@@ -50,9 +50,10 @@ internal static class CloneFidelityRunner
         foreach (var w in result.Warnings)
             Console.WriteLine($"  Warning: {w}");
 
-        if (use && reader is not null)
+        if (use)
         {
-            var useResult = await ThemeCommand.SetThemeAsync(themeName, reader, brand: null, primaryColor: null, accentColor: null);
+            var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
+            var useResult = await ThemeCommand.SetThemeAsync(themeName, resolved.FullConfigPath, resolved.RootDir, brand: null, primaryColor: null, accentColor: null);
             if (useResult != 0)
                 return useResult;
         }

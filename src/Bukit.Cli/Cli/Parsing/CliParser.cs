@@ -1,3 +1,4 @@
+using System.Linq;
 using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Cli.Metadata;
 
@@ -8,6 +9,30 @@ public static class CliParser
     public static CliParseResult Parse(CliCommandSpec command, IReadOnlyList<string> args)
     {
         var diagnostics = new List<CliDiagnostic>();
+
+        if (command.Subcommands is { Count: > 0 } && args.Count > 0)
+        {
+            var firstToken = args[0];
+            if (!firstToken.StartsWith("-", StringComparison.Ordinal))
+            {
+                var subSpec = command.Subcommands
+                    .FirstOrDefault(s => string.Equals(s.Name, firstToken, StringComparison.OrdinalIgnoreCase));
+                if (subSpec is null)
+                {
+                    subSpec = command.Subcommands
+                        .FirstOrDefault(s => s.Aliases is not null && s.Aliases.Any(a => string.Equals(a, firstToken, StringComparison.OrdinalIgnoreCase)));
+                }
+
+                if (subSpec is not null)
+                {
+                    var remainingArgs = args.Skip(1).ToList();
+                    var parentBound = new CliBoundCommand(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase), new[] { firstToken }.ToList());
+                    var innerResult = Parse(subSpec, remainingArgs);
+                    return new SubcommandParseResult(command, parentBound, Array.Empty<CliDiagnostic>(), firstToken, innerResult);
+                }
+            }
+        }
+
         var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         var positionals = new List<string>();
         var optionMap = (command.Options ?? Array.Empty<CliOptionSpec>())
@@ -74,6 +99,6 @@ public static class CliParser
             }
         }
 
-        return new CliParseResult(command, new CliBoundCommand(options, positionals), diagnostics);
+        return new SimpleParseResult(command, new CliBoundCommand(options, positionals), diagnostics);
     }
 }

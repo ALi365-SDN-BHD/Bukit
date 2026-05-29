@@ -9,22 +9,8 @@ public static class BuildCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        return RunAsync(new CliBoundCommand(
-            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["--config"] = reader.GetOption("--config"),
-                ["--site"] = reader.GetOption("--site"),
-                ["--output"] = reader.GetOption("--output"),
-                ["--base-url"] = reader.GetOption("--base-url"),
-                ["--site-url"] = reader.GetOption("--site-url"),
-                ["--cache-dir"] = reader.GetOption("--cache-dir"),
-                ["--metrics"] = reader.GetOption("--metrics"),
-                ["--jobs"] = reader.GetOption("--jobs"),
-                ["--log-format"] = reader.GetOption("--log-format"),
-            }
-            .Where(x => x.Value is not null)
-            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
-            Array.Empty<string>()));
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("build");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
     }
 
     public static async Task<int> RunAsync(CliBoundCommand command)

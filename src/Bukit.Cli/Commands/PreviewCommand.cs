@@ -12,19 +12,8 @@ public static partial class PreviewCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        return RunAsync(new CliBoundCommand(
-            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["--dir"] = reader.GetOption("--dir"),
-                ["--config"] = reader.GetOption("--config"),
-                ["--site"] = reader.GetOption("--site"),
-                ["--host"] = reader.GetOption("--host"),
-                ["--port"] = reader.GetOption("--port"),
-                ["--strict-port"] = reader.HasFlag("--strict-port") ? "true" : null,
-            }
-            .Where(x => x.Value is not null)
-            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
-            Array.Empty<string>()));
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("preview");
+        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
     }
 
     public static async Task<int> RunAsync(CliBoundCommand command)

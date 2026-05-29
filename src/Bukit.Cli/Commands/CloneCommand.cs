@@ -6,8 +6,9 @@ public static class CloneCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
-        var command = CloneCommandOptions.BuildCommand(reader);
-        return RunAsync(command, reader);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("clone");
+        var command = CliBoundCommandFactory.Create(reader, spec);
+        return RunAsync(command);
     }
 
     public static async Task<int> RunAsync(CliBoundCommand command)
@@ -33,22 +34,14 @@ public static class CloneCommand
 
         var (options, errorCode) = CloneCommandOptions.Parse(command);
         if (options is null) return errorCode;
-        return await RunCoreAsync(options, rootDir, command, reader: null);
+        return await RunCoreAsync(options, rootDir, command);
     }
 
-    private static async Task<int> RunAsync(CliBoundCommand command, ArgReader reader)
-    {
-        var resolved = ConfigPathResolver.Resolve(reader);
-        var (options, errorCode) = CloneCommandOptions.Parse(command);
-        if (options is null) return errorCode;
-        return await RunCoreAsync(options, resolved.RootDir, command, reader);
-    }
-
-    private static async Task<int> RunCoreAsync(CloneCommandOptions options, string rootDir, CliBoundCommand command, ArgReader? reader)
+    private static async Task<int> RunCoreAsync(CloneCommandOptions options, string rootDir, CliBoundCommand command)
     {
         if (!string.IsNullOrWhiteSpace(options.Fidelity))
         {
-            return await CloneFidelityRunner.RunAsync(rootDir, options.Theme, options.Fidelity, options.Force, options.Use, reader);
+            return await CloneFidelityRunner.RunAsync(rootDir, options.Theme, options.Fidelity, options.Force, options.Use, command);
         }
 
         if (string.IsNullOrWhiteSpace(options.Tokens))
@@ -138,9 +131,10 @@ public static class CloneCommand
         foreach (var warning in summary.Warnings)
             Console.WriteLine($"  Warning: {warning}");
 
-        if (options.Use && reader is not null)
+        if (options.Use)
         {
-            var useResult = await ThemeCommand.SetThemeAsync(options.Theme, reader,
+            var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
+            var useResult = await ThemeCommand.SetThemeAsync(options.Theme, resolved.FullConfigPath, resolved.RootDir,
                 brand: options.Brand, primaryColor: tokens.Primary, accentColor: tokens.Accent);
             if (useResult != 0)
                 return useResult;
@@ -160,4 +154,3 @@ public static class CloneCommand
 
     private static int CountBehaviors(CloneBehaviors? b) => CloneAssetDownloader.CountBehaviors(b);
 }
-

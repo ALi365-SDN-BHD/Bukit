@@ -32,25 +32,25 @@ try
             return 0;
         }
 
-        if (spec.Subcommands is null or { Count: 0 })
+        var parsed = CliParser.Parse(spec, tail);
+        if (!parsed.IsSuccess)
         {
-            var parsed = CliParser.Parse(spec, tail);
-            if (!parsed.IsSuccess)
-            {
-                Console.Error.WriteLine(CliErrorRenderer.Render(parsed.Diagnostics[0]));
-                Console.Error.WriteLine(CliHelpRenderer.Render(spec, $"bukit {spec.Name}"));
-                return 2;
-            }
+            Console.Error.WriteLine(CliErrorRenderer.Render(parsed.Diagnostics[0]));
+            Console.Error.WriteLine(CliHelpRenderer.Render(spec, $"bukit {spec.Name}"));
+            return 2;
+        }
 
+        if (parsed is SimpleParseResult simple)
+        {
             var resolved = spec.Name switch
             {
-                "build" => await BuildCommand.RunAsync(parsed.BoundCommand),
-                "clone" => await CloneCommand.RunAsync(parsed.BoundCommand),
-                "deploy" => await DeployCommand.RunAsync(parsed.BoundCommand),
-                "dev" => await DevCommand.RunAsync(parsed.BoundCommand),
-                "doctor" => await DoctorCommand.RunAsync(parsed.BoundCommand),
-                "preview" => await PreviewCommand.RunAsync(parsed.BoundCommand),
-                "lint" => await LintCommand.RunAsync(parsed.BoundCommand),
+                "build" => await BuildCommand.RunAsync(simple.BoundCommand),
+                "clone" => await CloneCommand.RunAsync(simple.BoundCommand),
+                "deploy" => await DeployCommand.RunAsync(simple.BoundCommand),
+                "dev" => await DevCommand.RunAsync(simple.BoundCommand),
+                "doctor" => await DoctorCommand.RunAsync(simple.BoundCommand),
+                "preview" => await PreviewCommand.RunAsync(simple.BoundCommand),
+                "lint" => await LintCommand.RunAsync(simple.BoundCommand),
                 _ => (int?)null
             };
             if (resolved.HasValue)

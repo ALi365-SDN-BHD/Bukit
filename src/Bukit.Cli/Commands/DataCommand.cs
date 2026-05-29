@@ -161,26 +161,9 @@ public static class DataCommand
 
     public static Task<int> RunAsync(ArgReader reader)
     {
-        var command = ParseOptions(reader);
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("data");
+        var command = CliBoundCommandFactory.Create(reader, spec);
         return RunAsync(command);
-    }
-
-    private static CliBoundCommand ParseOptions(ArgReader reader)
-    {
-        var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["--config"] = reader.GetOption("--config"),
-            ["--site"] = reader.GetOption("--site"),
-            ["--module"] = reader.GetOption("--module"),
-            ["--format"] = reader.GetOption("--format"),
-        }
-            .Where(x => x.Value is not null)
-            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
-
-        var sub = reader.GetArg(1);
-        var arguments = sub is not null ? new[] { sub } : Array.Empty<string>();
-
-        return new CliBoundCommand(options, arguments);
     }
 
     public static async Task<int> RunAsync(CliBoundCommand command)

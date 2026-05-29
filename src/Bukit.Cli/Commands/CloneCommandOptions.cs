@@ -55,34 +55,6 @@ internal sealed record CloneCommandOptions
         return (options, 0);
     }
 
-    public static CliBoundCommand BuildCommand(ArgReader reader)
-    {
-        var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["--tokens"] = reader.GetOption("--tokens"),
-            ["--layout"] = reader.GetOption("--layout"),
-            ["--page"] = reader.GetOption("--page"),
-            ["--sections"] = reader.GetOption("--sections"),
-            ["--theme"] = reader.GetOption("--theme"),
-            ["--brand"] = reader.GetOption("--brand"),
-            ["--behaviors"] = reader.GetOption("--behaviors"),
-            ["--icons"] = reader.GetOption("--icons"),
-            ["--assets"] = reader.GetOption("--assets"),
-            ["--visual-threshold"] = reader.GetOption("--visual-threshold"),
-            ["--fidelity"] = reader.GetOption("--fidelity"),
-        };
-        if (reader.HasFlag("--use")) options["--use"] = "true";
-        if (reader.HasFlag("--force")) options["--force"] = "true";
-        if (reader.HasFlag("--verify")) options["--verify"] = "true";
-        if (reader.HasFlag("--fail-on-visual-diff")) options["--fail-on-visual-diff"] = "true";
-
-        return new CliBoundCommand(
-            options
-                .Where(x => x.Value is not null)
-                .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
-            Array.Empty<string>());
-    }
-
     internal static double? ParseVisualThreshold(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))

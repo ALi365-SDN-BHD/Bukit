@@ -10,26 +10,11 @@ public static class DeployCommand
 {
     public static async Task<int> RunAsync(ArgReader reader)
     {
-        var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["--config"] = reader.GetOption("--config"),
-            ["--site"] = reader.GetOption("--site"),
-            ["--output"] = reader.GetOption("--output"),
-            ["--base-url"] = reader.GetOption("--base-url"),
-            ["--site-url"] = reader.GetOption("--site-url"),
-            ["--branch"] = reader.GetOption("--branch"),
-            ["--message"] = reader.GetOption("--message"),
-        }
-            .Where(x => x.Value is not null)
-            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
-
-        if (reader.HasFlag("--dry-run")) options["--dry-run"] = "true";
-        if (reader.HasFlag("--skip-build")) options["--skip-build"] = "true";
-        if (reader.HasFlag("--ci")) options["--ci"] = "true";
-
+        var spec = BukitCliSpecs.CreateRegistry().Resolve("deploy");
+        var command = CliBoundCommandFactory.Create(reader, spec);
         try
         {
-            return await RunAsync(new CliBoundCommand(options, Array.Empty<string>()));
+            return await RunAsync(command);
         }
         catch (ConfigException ex)
         {

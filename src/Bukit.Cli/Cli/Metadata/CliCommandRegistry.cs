@@ -35,4 +35,27 @@ public sealed class CliCommandRegistry
 
         return _commands.TryGetValue(name, out var command) ? command : null;
     }
+
+    public CliCommandSpec? ResolveSubcommand(CliCommandSpec parent, string subName)
+    {
+        if (string.IsNullOrWhiteSpace(subName) || parent.Subcommands is null)
+            return null;
+
+        foreach (var sub in parent.Subcommands)
+        {
+            if (string.Equals(sub.Name, subName, StringComparison.OrdinalIgnoreCase))
+                return sub;
+
+            if (sub.Aliases is not null)
+            {
+                foreach (var alias in sub.Aliases)
+                {
+                    if (string.Equals(alias, subName, StringComparison.OrdinalIgnoreCase))
+                        return sub;
+                }
+            }
+        }
+
+        return null;
+    }
 }

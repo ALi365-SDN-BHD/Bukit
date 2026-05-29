@@ -363,8 +363,17 @@ public static class ThemeCommand
         string? accentColor)
     {
         var resolved = ConfigPathResolver.Resolve(reader);
-        var fullConfigPath = resolved.FullConfigPath;
-        var rootDir = resolved.RootDir;
+        return SetThemeAsync(name, resolved.FullConfigPath, resolved.RootDir, brand, primaryColor, accentColor);
+    }
+
+    internal static Task<int> SetThemeAsync(
+        string name,
+        string fullConfigPath,
+        string rootDir,
+        string? brand,
+        string? primaryColor,
+        string? accentColor)
+    {
 
         var themesDir = Path.Combine(rootDir, "themes");
         var themeRoot = Path.Combine(themesDir, name);
