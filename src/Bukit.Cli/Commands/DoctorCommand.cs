@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using System.Text.Json;
 using Scriban;
+using Bukit.Cli.Cli.Binding;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine;
@@ -18,13 +19,28 @@ public static class DoctorCommand
         AppConfig Config,
         string LayoutsDir,
         string[] AllHtmlFiles);
-    public static async Task<int> RunAsync(ArgReader reader)
+    public static Task<int> RunAsync(ArgReader reader)
     {
-        var resolved = ConfigPathResolver.Resolve(reader);
+        return RunAsync(new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--config"] = reader.GetOption("--config"),
+                ["--site"] = reader.GetOption("--site"),
+                ["--site-url"] = reader.GetOption("--site-url"),
+                ["--notion-schema"] = reader.GetOption("--notion-schema"),
+            }
+            .Where(x => x.Value is not null)
+            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
+            Array.Empty<string>()));
+    }
+
+    public static async Task<int> RunAsync(CliBoundCommand command)
+    {
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
         var config = ConfigLoader.Load(resolved.FullConfigPath);
 
-        var siteUrl = reader.GetOption("--site-url");
+        var siteUrl = command.GetString("--site-url");
         if (!string.IsNullOrWhiteSpace(siteUrl))
         {
             config = config with { Site = config.Site with { Url = siteUrl } };
@@ -105,6 +121,60 @@ public static class DoctorCommand
 
         Console.WriteLine("✔ Templates parse");
 
+        var scribanFiles = Directory.GetFiles(layoutsDir, "*.scriban", SearchOption.AllDirectories);
+        foreach (var p in scribanFiles)
+        {
+            var text = await File.ReadAllTextAsync(p);
+            var template = Template.Parse(text, p);
+            if (template.HasErrors)
+            {
+                var relative = Path.GetRelativePath(layoutsDir, p);
+                Console.WriteLine($"✖ Template parse error: {relative}");
+                foreach (var m in template.Messages)
+                {
+                    Console.WriteLine($"  - {m}");
+                }
+                return 1;
+            }
+        }
+
+        if (scribanFiles.Length > 0)
+        {
+            Console.WriteLine($"✔ Scriban templates parse ({scribanFiles.Length} files)");
+        }
+
+        var allTemplates = Directory.GetFiles(layoutsDir, "*.*", SearchOption.AllDirectories)
+            .Where(f => f.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ||
+                        f.EndsWith(".scriban", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        foreach (var p in allTemplates)
+        {
+            var text = await File.ReadAllTextAsync(p);
+            var openDouble = CountOpenings(text, "{{");
+            var closeDouble = CountOpenings(text, "}}");
+            if (openDouble != closeDouble)
+            {
+                var relative = Path.GetRelativePath(layoutsDir, p);
+                Console.WriteLine($"⚠ Unmatched {{{{/}}}} in {relative}: {openDouble} opens, {closeDouble} closes");
+            }
+
+            var openPercent = CountOpenings(text, "{%");
+            var closePercent = CountOpenings(text, "%}");
+            if (openPercent != closePercent)
+            {
+                var relative = Path.GetRelativePath(layoutsDir, p);
+                Console.WriteLine($"⚠ Unmatched {{%/ %}} in {relative}: {openPercent} opens, {closePercent} closes");
+            }
+
+            var openHash = CountOpenings(text, "{#");
+            var closeHash = CountOpenings(text, "#}");
+            if (openHash != closeHash)
+            {
+                var relative = Path.GetRelativePath(layoutsDir, p);
+                Console.WriteLine($"⚠ Unmatched {{#/#}} in {relative}: {openHash} opens, {closeHash} closes");
+            }
+        }
+
         try
         {
             Bukit.Engine.TemplateCapabilitiesResolver.ValidateManifest(layoutsDir);
@@ -178,6 +248,9 @@ public static class DoctorCommand
             Console.WriteLine("✔ Static dir present");
         }
 
+        CheckThemeAssetDirs(config, rootDir);
+        CheckThemeAssetContent(config, rootDir);
+
         var cacheDir = Path.Combine(rootDir, ".cache");
         if (Directory.Exists(cacheDir))
         {
@@ -211,6 +284,24 @@ public static class DoctorCommand
         var plugins = PluginRegistry.GetAllPlugins(pluginContext).Select(x => x.Plugin).ToList();
         Console.WriteLine($"✔ Plugins discovered: {plugins.Count}");
 
+        var issues = 0;
+
+        var knownPlugins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "feed", "taxonomy", "sitemap", "search", "related", "menus", "seo", "geo"
+        };
+        if (config.Site.Plugins is { Count: > 0 })
+        {
+            foreach (var key in config.Site.Plugins.Keys)
+            {
+                if (!knownPlugins.Contains(key))
+                {
+                    Console.WriteLine($"⚠ Unknown plugin '{key}' in site.plugins configuration");
+                    issues++;
+                }
+            }
+        }
+
         if (config.Content.Provider.Equals("notion", StringComparison.OrdinalIgnoreCase) && config.Content.Notion is not null)
         {
             var token = EnvironmentHelper.GetNotionToken();
@@ -226,9 +317,31 @@ public static class DoctorCommand
                 return 1;
             }
 
-            if (reader.GetOption("--notion-schema") is not null)
+            await CheckNotionConnectivityAsync(token);
+
+            if (command.GetString("--notion-schema") is not null)
             {
                 await DoctorNotionChecker.CheckNotionSchemaAsync(token, config.Content.Notion);
+            }
+        }
+        else if (config.Content.Sources is { Count: > 0 })
+        {
+            var hasNotionSource = config.Content.Sources.Any(s =>
+                s.Type.Equals("notion", StringComparison.OrdinalIgnoreCase) ||
+                (s.Notion is not null));
+            if (hasNotionSource)
+            {
+                var token = EnvironmentHelper.GetNotionToken();
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    Console.WriteLine("⚠ Notion integration configured but NOTION_TOKEN environment variable is not set");
+                    issues++;
+                }
+                else
+                {
+                    Console.WriteLine("✔ Notion integration configured. Token found.");
+                    await CheckNotionConnectivityAsync(token);
+                }
             }
         }
 
@@ -413,6 +526,19 @@ public static class DoctorCommand
         catch (Exception ex) { Console.WriteLine($"⚠ Failed to read {file}: {ex.Message}"); }
     }
 
+    private static int CountOpenings(string text, string pattern)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(pattern, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += pattern.Length;
+        }
+
+        return count;
+    }
+
     private static void CheckTemplateVariables(string layoutsDir)
     {
         var warnings = Bukit.Engine.ScribanTemplateLinter.LintDirectory(layoutsDir, "");
@@ -470,6 +596,104 @@ public static class DoctorCommand
             Console.WriteLine("         or choose a dedicated dist directory,");
             Console.WriteLine("         or set build.clean: false in site.yaml.");
             return false;
+        }
+    }
+
+    private static void CheckThemeAssetDirs(AppConfig config, string rootDir)
+    {
+        var theme = config.Theme;
+        var themeRoot = string.IsNullOrWhiteSpace(theme.Name)
+            ? rootDir
+            : Path.Combine(rootDir, "themes", theme.Name);
+
+        if (!string.IsNullOrWhiteSpace(theme.Name) && !Directory.Exists(themeRoot))
+        {
+            Console.WriteLine($"⚠ Theme root directory not found: {themeRoot}");
+            return;
+        }
+
+        var assetsPath = string.Equals(theme.Assets, "assets", StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine(themeRoot, "assets")
+            : Path.IsPathRooted(theme.Assets)
+                ? theme.Assets
+                : Path.Combine(rootDir, theme.Assets);
+
+        if (!Directory.Exists(assetsPath))
+        {
+            Console.WriteLine($"⚠ Theme assets directory '{assetsPath}' does not exist");
+        }
+        else
+        {
+            Console.WriteLine("✔ Theme assets directory exists");
+        }
+
+        var staticPath = string.Equals(theme.Static, "static", StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine(themeRoot, "static")
+            : Path.IsPathRooted(theme.Static)
+                ? theme.Static
+                : Path.Combine(rootDir, theme.Static);
+
+        if (!Directory.Exists(staticPath))
+        {
+            Console.WriteLine($"⚠ Theme static directory '{staticPath}' does not exist");
+        }
+        else
+        {
+            Console.WriteLine("✔ Theme static directory exists");
+        }
+    }
+
+    private static void CheckThemeAssetContent(AppConfig config, string rootDir)
+    {
+        var theme = config.Theme;
+        var themeRoot = string.IsNullOrWhiteSpace(theme.Name)
+            ? rootDir
+            : Path.Combine(rootDir, "themes", theme.Name);
+
+        var assetsPath = string.Equals(theme.Assets, "assets", StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine(themeRoot, "assets")
+            : Path.IsPathRooted(theme.Assets)
+                ? theme.Assets
+                : Path.Combine(rootDir, theme.Assets);
+
+        if (Directory.Exists(assetsPath) && !Directory.EnumerateFileSystemEntries(assetsPath).Any())
+        {
+            Console.WriteLine($"⚠ Theme assets directory '{assetsPath}' is empty");
+        }
+
+        var staticPath = string.Equals(theme.Static, "static", StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine(themeRoot, "static")
+            : Path.IsPathRooted(theme.Static)
+                ? theme.Static
+                : Path.Combine(rootDir, theme.Static);
+
+        if (Directory.Exists(staticPath) && !Directory.EnumerateFileSystemEntries(staticPath).Any())
+        {
+            Console.WriteLine($"⚠ Theme static directory '{staticPath}' is empty");
+        }
+    }
+
+    private static async Task CheckNotionConnectivityAsync(string token)
+    {
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.notion.com/v1/users/me");
+            request.Headers.Add("Authorization", $"Bearer {token}");
+            request.Headers.Add("Notion-Version", "2022-06-28");
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"⚠ Notion API unreachable: HTTP {(int)response.StatusCode}");
+            }
+            else
+            {
+                Console.WriteLine("✔ Notion API reachable");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠ Notion API connectivity check failed: {ex.Message}");
         }
     }
 

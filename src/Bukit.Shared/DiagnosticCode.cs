@@ -37,4 +37,18 @@ public enum DiagnosticCode
     PluginExecutionFailed = 0x0701,
     PluginTimeoutExceeded = 0x0702,
     PluginOutputLimitExceeded = 0x0703,
+
+    SeoAuditFailed = 0x0801,
+    SeoMetaMissing = 0x0802,
+    SeoImageMissing = 0x0803,
+    SeoSitemapIncomplete = 0x0804,
+
+    GeoLlmsTxtMissing = 0x0810,
+    GeoLlmsFullTxtMissing = 0x0811,
+    GeoAuditScoreLow = 0x0812,
+
+    MediaImageMissing = 0x0901,
+    MediaImageLocalizeFailed = 0x0902,
+    MediaImageFormatInvalid = 0x0903,
+    MediaImageSizeExceeded = 0x0904,
 }

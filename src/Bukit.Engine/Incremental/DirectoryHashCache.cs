@@ -6,10 +6,17 @@ internal sealed class DirectoryHashCache
 {
     private readonly ConcurrentDictionary<string, string> _hashes = new(StringComparer.Ordinal);
     private readonly Func<string, string> _hashFactory;
+    private readonly int _maxFiles;
+    private readonly long _maxTotalSize;
 
-    public DirectoryHashCache(Func<string, string>? hashFactory = null)
+    public DirectoryHashCache(
+        Func<string, string>? hashFactory = null,
+        int maxFiles = 10000,
+        long maxTotalSize = 100 * 1024 * 1024)
     {
-        _hashFactory = hashFactory ?? HashUtil.Sha256HexForDirectory;
+        _maxFiles = maxFiles;
+        _maxTotalSize = maxTotalSize;
+        _hashFactory = hashFactory ?? (path => HashUtil.Sha256HexForDirectory(path, _maxFiles, _maxTotalSize));
     }
 
     public string GetOrAdd(string directoryPath)

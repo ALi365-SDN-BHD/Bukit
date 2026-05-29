@@ -86,4 +86,51 @@ public sealed class HashUtilTests
         Assert.NotNull(result);
         Assert.Equal(64, result.Length);
     }
+
+    [Fact]
+    public void Sha256HexForDirectory_WithLargeFileCount_DoesNotThrow()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit-hash-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            for (var i = 0; i < 10; i++)
+            {
+                File.WriteAllText(Path.Combine(tempDir, $"file-{i:D4}.txt"), $"content-{i}");
+            }
+
+            var result = HashUtil.Sha256HexForDirectory(tempDir, maxFiles: 5, maxTotalSize: 1024);
+            Assert.NotNull(result);
+            Assert.Equal(64, result.Length);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+                Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Sha256HexForDirectory_StableHash_WithLimits()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit-hash-stable-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            for (var i = 0; i < 5; i++)
+            {
+                File.WriteAllText(Path.Combine(tempDir, $"file-{i:D4}.txt"), $"content-{i}");
+            }
+
+            var result1 = HashUtil.Sha256HexForDirectory(tempDir, maxFiles: 10, maxTotalSize: 10 * 1024 * 1024);
+            var result2 = HashUtil.Sha256HexForDirectory(tempDir, maxFiles: 10, maxTotalSize: 10 * 1024 * 1024);
+
+            Assert.Equal(result1, result2);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+                Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }

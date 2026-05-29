@@ -152,6 +152,7 @@ internal static class MetricsWriter
             writer.WriteNumber("cacheMisses", bodyCacheMetrics.CacheMisses);
             writer.WriteNumber("uniqueBodies", bodyCacheMetrics.UniqueBodies);
             writer.WriteNumber("amplification", bodyCacheMetrics.Amplification);
+            writer.WriteNumber("cacheSkips", bodyCacheMetrics.CacheSkips);
             writer.WriteEndObject();
         }
 

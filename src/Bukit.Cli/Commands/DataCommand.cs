@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Bukit.Cli.Cli.Binding;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine;
@@ -158,9 +159,33 @@ public static class DataCommand
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    public static async Task<int> RunAsync(ArgReader reader)
+    public static Task<int> RunAsync(ArgReader reader)
     {
-        var resolved = ConfigPathResolver.Resolve(reader);
+        var command = ParseOptions(reader);
+        return RunAsync(command);
+    }
+
+    private static CliBoundCommand ParseOptions(ArgReader reader)
+    {
+        var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["--config"] = reader.GetOption("--config"),
+            ["--site"] = reader.GetOption("--site"),
+            ["--module"] = reader.GetOption("--module"),
+            ["--format"] = reader.GetOption("--format"),
+        }
+            .Where(x => x.Value is not null)
+            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
+
+        var sub = reader.GetArg(1);
+        var arguments = sub is not null ? new[] { sub } : Array.Empty<string>();
+
+        return new CliBoundCommand(options, arguments);
+    }
+
+    public static async Task<int> RunAsync(CliBoundCommand command)
+    {
+        var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
         var config = ConfigLoader.Load(resolved.FullConfigPath);
         ConfigValidator.Validate(config);
@@ -170,19 +195,19 @@ public static class DataCommand
         var contentResult = await contentPipeline.ExecuteAsync(config, rootDir, new ConfigOverrides(), Path.Combine(rootDir, ".cache", "media"));
 
         var items = contentResult.Items;
-        var sub = reader.GetArg(1) ?? "inspect";
+        var sub = command.GetArgument(0) ?? "inspect";
 
         switch (sub)
         {
             case "inspect":
-                var moduleName = reader.GetOption("--module");
+                var moduleName = command.GetString("--module");
                 if (moduleName is not null)
                     PrintModuleDetail(items, moduleName);
                 else
                     PrintModuleSummary(items);
                 return 0;
             case "dump":
-                var format = reader.GetOption("--format");
+                var format = command.GetString("--format");
                 if (format is not null && format != "json")
                 {
                     Console.Error.WriteLine("Unsupported format. Only json is supported.");

@@ -1,3 +1,4 @@
+using Bukit.Cli.Cli.Binding;
 using Bukit.Config;
 using Bukit.Shared;
 
@@ -7,10 +8,29 @@ public static class LintCommand
 {
     public static Task<int> RunAsync(ArgReader reader)
     {
+        var command = ParseOptions(reader);
+        return RunAsync(command);
+    }
+
+    private static CliBoundCommand ParseOptions(ArgReader reader)
+    {
+        var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["--config"] = reader.GetOption("--config"),
+            ["--site"] = reader.GetOption("--site"),
+        }
+            .Where(x => x.Value is not null)
+            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
+
+        return new CliBoundCommand(options, Array.Empty<string>());
+    }
+
+    public static Task<int> RunAsync(CliBoundCommand command)
+    {
         var issues = new List<string>();
         try
         {
-            var resolved = ConfigPathResolver.Resolve(reader);
+            var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
             var config = ConfigLoader.Load(resolved.FullConfigPath);
             ConfigValidator.Validate(config);
 

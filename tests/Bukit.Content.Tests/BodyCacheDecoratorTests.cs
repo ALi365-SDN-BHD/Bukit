@@ -133,4 +133,37 @@ public sealed class BodyCacheDecoratorTests
 
         Assert.Equal(2, decorator.Metrics.UniqueBodies);
     }
+
+    [Fact]
+    public async Task CacheEvictsOldestEntry_WhenMaxEntriesExceeded()
+    {
+        var inner = new CountingBodyStore();
+        var decorator = new BodyCacheDecorator(inner, maxEntries: 3);
+
+        for (var i = 1; i <= 5; i++)
+        {
+            await decorator.GetAsync(CreateItem($"item-{i}"));
+        }
+
+        Assert.True(decorator.Metrics.UniqueBodies <= 3);
+    }
+
+    [Fact]
+    public async Task CacheEviction_DoesNotAffectMetrics()
+    {
+        var inner = new CountingBodyStore();
+        var decorator = new BodyCacheDecorator(inner, maxEntries: 3);
+
+        for (var i = 1; i <= 5; i++)
+        {
+            await decorator.GetAsync(CreateItem($"item-{i}"));
+        }
+
+        var metrics = decorator.Metrics;
+        Assert.Equal(5, metrics.TotalRequests);
+        Assert.Equal(0, metrics.CacheHits);
+        Assert.Equal(5, metrics.CacheMisses);
+        Assert.True(metrics.UniqueBodies <= 3);
+        Assert.True(metrics.CacheSkips >= 2);
+    }
 }

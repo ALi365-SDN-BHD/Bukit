@@ -55,6 +55,9 @@ public sealed class BuildDiagnosticCodeTests
         Assert.StartsWith("Content", DiagnosticCode.ContentLoadFailed.ToString());
         Assert.StartsWith("Build", DiagnosticCode.BuildOutputUnsafe.ToString());
         Assert.StartsWith("Plugin", DiagnosticCode.PluginExecutionFailed.ToString());
+        Assert.StartsWith("Seo", DiagnosticCode.SeoAuditFailed.ToString());
+        Assert.StartsWith("Geo", DiagnosticCode.GeoLlmsTxtMissing.ToString());
+        Assert.StartsWith("Media", DiagnosticCode.MediaImageMissing.ToString());
     }
 
     [Fact]
@@ -70,6 +73,9 @@ public sealed class BuildDiagnosticCodeTests
             ["Content"] = (0x0501, 0x05FF),
             ["Build"] = (0x0601, 0x06FF),
             ["Plugin"] = (0x0701, 0x07FF),
+            ["Seo"] = (0x0801, 0x080F),
+            ["Geo"] = (0x0810, 0x081F),
+            ["Media"] = (0x0901, 0x09FF),
         };
 
         foreach (DiagnosticCode code in Enum.GetValues<DiagnosticCode>())

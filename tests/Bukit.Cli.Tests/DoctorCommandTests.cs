@@ -1,4 +1,5 @@
 using System.Text;
+using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Commands;
 using Xunit;
 
@@ -65,7 +66,12 @@ public sealed class DoctorCommandTests : IDisposable
         Console.SetOut(writer);
         try
         {
-            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+            var exitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = _configPath
+                },
+                Array.Empty<string>()));
 
             Assert.Equal(1, exitCode);
             Assert.Contains("bukit.templates.yaml", writer.ToString());
@@ -91,7 +97,12 @@ public sealed class DoctorCommandTests : IDisposable
         Console.SetOut(writer);
         try
         {
-            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+            var exitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = _configPath
+                },
+                Array.Empty<string>()));
 
             Assert.Equal(1, exitCode);
             Assert.Contains("pages/missing.html", writer.ToString());
@@ -113,7 +124,12 @@ public sealed class DoctorCommandTests : IDisposable
         Console.SetOut(writer);
         try
         {
-            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+            var exitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = _configPath
+                },
+                Array.Empty<string>()));
 
             Assert.Equal(0, exitCode);
             Assert.Contains("heuristic fallback", writer.ToString(), StringComparison.OrdinalIgnoreCase);
@@ -137,7 +153,12 @@ public sealed class DoctorCommandTests : IDisposable
         Console.SetOut(writer);
         try
         {
-            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+            var exitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = _configPath
+                },
+                Array.Empty<string>()));
 
             Assert.Equal(0, exitCode);
             Assert.DoesNotContain("heuristic fallback", writer.ToString(), StringComparison.OrdinalIgnoreCase);
@@ -166,7 +187,12 @@ public sealed class DoctorCommandTests : IDisposable
         Console.SetOut(writer);
         try
         {
-            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+            var exitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = _configPath
+                },
+                Array.Empty<string>()));
 
             Assert.Equal(1, exitCode);
             var output = writer.ToString();
@@ -205,7 +231,12 @@ public sealed class DoctorCommandTests : IDisposable
         Console.SetOut(writer);
         try
         {
-            var exitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", _configPath }));
+            var exitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = _configPath
+                },
+                Array.Empty<string>()));
 
             Assert.Equal(1, exitCode);
             var output = writer.ToString();
@@ -255,7 +286,12 @@ public sealed class DoctorCommandTests : IDisposable
             Console.SetOut(writer);
             try
             {
-                var doctorExitCode = await DoctorCommand.RunAsync(new ArgReader(new[] { "--config", generatedConfigPath }));
+                var doctorExitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
+                    new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["--config"] = generatedConfigPath
+                    },
+                    Array.Empty<string>()));
 
                 Assert.Equal(0, doctorExitCode);
                 Assert.Contains("Doctor passed", writer.ToString(), StringComparison.OrdinalIgnoreCase);

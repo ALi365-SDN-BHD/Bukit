@@ -8,7 +8,7 @@ Read that file and use `activate_skill("using-bukit")` when the user
 mentions bukit, site.yaml, Scriban, or any Bukit-related concepts.
 
 Key paths:
-- Skills: src/skills/<skill-name>/SKILL.md (18 skills)
+- Skills: src/skills/<skill-name>/SKILL.md (19 skills)
 - Index: src/skills/skills-index.yaml
 - Plugin: src/skills/plugin.json
 

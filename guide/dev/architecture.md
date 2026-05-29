@@ -62,7 +62,7 @@ CLI (bukit build/doctor/...)
 
 After refactoring, `SiteEngine` was split from a God Class into an orchestrator with a Pipeline chain plus dedicated components.
 
-### Pipeline Chain (8 pipelines)
+### Pipeline Chain (9 pipelines)
 
 | Pipeline | Responsibility |
 |---|---|
@@ -74,6 +74,7 @@ After refactoring, `SiteEngine` was split from a God Class into an orchestrator 
 | `SeoPipeline` | SEO index building, diagnostics, Open Graph / JSON-LD |
 | `PluginPipeline` | After-build plugin execution, stale deletion, manifest persistence |
 | `BuildReportPipeline` | BuildVariantResult aggregation, logging, audit report |
+| `VariantBuildPipeline` | Per-language build orchestration (Theme → Route → Enrich → Model → Output) |
 
 Additional components: `ThemeBootstrapper`, `BuildOptionsMapper`, `FixedContentProviderFactory`.
 

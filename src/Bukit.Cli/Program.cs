@@ -48,7 +48,9 @@ try
                 "clone" => await CloneCommand.RunAsync(parsed.BoundCommand),
                 "deploy" => await DeployCommand.RunAsync(parsed.BoundCommand),
                 "dev" => await DevCommand.RunAsync(parsed.BoundCommand),
+                "doctor" => await DoctorCommand.RunAsync(parsed.BoundCommand),
                 "preview" => await PreviewCommand.RunAsync(parsed.BoundCommand),
+                "lint" => await LintCommand.RunAsync(parsed.BoundCommand),
                 _ => (int?)null
             };
             if (resolved.HasValue)
