@@ -60,7 +60,7 @@ public sealed class BodyCacheDecoratorTests
 
         var metrics = decorator.Metrics;
         Assert.Equal(3, metrics.TotalRequests);
-        Assert.Equal(3, metrics.CacheHits);
+        Assert.Equal(2, metrics.CacheHits);
         Assert.Equal(1, metrics.CacheMisses);
         Assert.Equal(1, metrics.UniqueBodies);
         Assert.Equal(3.0, metrics.Amplification);
@@ -79,6 +79,7 @@ public sealed class BodyCacheDecoratorTests
         Assert.Equal(3, inner.CallCount);
         var metrics = decorator.Metrics;
         Assert.Equal(3, metrics.TotalRequests);
+        Assert.Equal(0, metrics.CacheHits);
         Assert.Equal(3, metrics.CacheMisses);
         Assert.Equal(3, metrics.UniqueBodies);
     }

@@ -39,14 +39,25 @@ public sealed class BodyCacheDecorator : IContentBodyStore
         }
 
         var key = item.BodyKey ?? item.Id;
-        var lazy = _cache.GetOrAdd(key, _ =>
+        if (_cache.TryGetValue(key, out var lazy))
+        {
+            Interlocked.Increment(ref _cacheHits);
+            return await lazy.Value;
+        }
+
+        var newLazy = new Lazy<Task<ContentBody>>(
+            async () => new ContentBody((await _inner.GetAsync(item, cancellationToken)).Html),
+            LazyThreadSafetyMode.ExecutionAndPublication);
+        lazy = _cache.GetOrAdd(key, newLazy);
+        if (ReferenceEquals(lazy, newLazy))
         {
             Interlocked.Increment(ref _cacheMisses);
-            return new Lazy<Task<ContentBody>>(
-                async () => new ContentBody((await _inner.GetAsync(item, cancellationToken)).Html),
-                LazyThreadSafetyMode.ExecutionAndPublication);
-        });
-        Interlocked.Increment(ref _cacheHits);
+        }
+        else
+        {
+            Interlocked.Increment(ref _cacheHits);
+        }
+
         return await lazy.Value;
     }
 }
