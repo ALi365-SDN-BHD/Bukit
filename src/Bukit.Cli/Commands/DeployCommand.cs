@@ -8,21 +8,6 @@ namespace Bukit.Cli.Commands;
 
 public static class DeployCommand
 {
-    public static async Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("deploy");
-        var command = CliBoundCommandFactory.Create(reader, spec);
-        try
-        {
-            return await RunAsync(command);
-        }
-        catch (ConfigException ex)
-        {
-            Console.Error.WriteLine(ex.Message);
-            return 1;
-        }
-    }
-
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));

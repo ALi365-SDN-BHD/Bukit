@@ -13,12 +13,6 @@ public static class WebhookCommand
     private const int RateLimitMaxRequests = 10;
     private static readonly TimeSpan RateLimitWindow = TimeSpan.FromMinutes(1);
 
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("webhook");
-        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
-    }
-
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var sub = command.GetArgument(0);

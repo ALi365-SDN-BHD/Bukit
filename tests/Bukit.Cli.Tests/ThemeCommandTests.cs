@@ -1,4 +1,5 @@
 using Bukit.Cli.Commands;
+using Bukit.Cli.Tests;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -35,14 +36,14 @@ public sealed class ThemeCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_ReturnsTwo_WhenThemeNameMissing()
     {
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[] { "theme", "use" }));
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[] { "theme", "use" }));
         Assert.Equal(2, exitCode);
     }
 
     [Fact]
     public async Task CreateAsync_CreatesStarterBasedTheme()
     {
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "create", "custom",
             "--config", _configPath,
@@ -78,8 +79,8 @@ public sealed class ThemeCommandTests : IDisposable
     [Fact]
     public async Task CreateAsync_ReturnsTwo_WhenThemeAlreadyExistsWithoutForce()
     {
-        var first = await ThemeCommand.RunAsync(new ArgReader(new[] { "theme", "create", "custom", "--config", _configPath }));
-        var second = await ThemeCommand.RunAsync(new ArgReader(new[] { "theme", "create", "custom", "--config", _configPath }));
+        var first = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[] { "theme", "create", "custom", "--config", _configPath }));
+        var second = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[] { "theme", "create", "custom", "--config", _configPath }));
 
         Assert.Equal(0, first);
         Assert.Equal(2, second);
@@ -88,7 +89,7 @@ public sealed class ThemeCommandTests : IDisposable
     [Fact]
     public async Task CreateAsync_WithUse_UpdatesSiteYaml()
     {
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "create", "custom",
             "--config", _configPath,
@@ -114,7 +115,7 @@ public sealed class ThemeCommandTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(sourceRoot, "layouts", "pages", "index.html"), "source-index");
         await File.WriteAllTextAsync(Path.Combine(sourceRoot, "assets", "style.css"), ":root { --primary: #0b5fff; --accent: #0f7b6c; }");
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "create", "copy",
             "--config", _configPath,

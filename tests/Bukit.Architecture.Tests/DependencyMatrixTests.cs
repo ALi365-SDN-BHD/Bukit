@@ -14,7 +14,7 @@ public class DependencyMatrixTests
     private static readonly Assembly ContentAssembly = typeof(Bukit.Content.IContentProvider).Assembly;
     private static readonly Assembly RenderingAssembly = typeof(Bukit.Rendering.SiteModel).Assembly;
     private static readonly Assembly EngineAssembly = typeof(Bukit.Engine.SiteEngine).Assembly;
-    private static readonly Assembly CliAssembly = typeof(Bukit.Cli.ArgReader).Assembly;
+    private static readonly Assembly CliAssembly = typeof(Bukit.Cli.ConfigPathResolver).Assembly;
 
     // ── Layer isolation ──────────────────────────────────────────
 

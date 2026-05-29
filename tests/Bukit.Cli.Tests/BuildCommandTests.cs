@@ -1,5 +1,6 @@
 using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Tests;
 using Bukit.Shared;
 using Xunit;
 
@@ -143,10 +144,10 @@ public sealed class BuildCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_ArgReaderWithMissingConfig_ReturnsErrorCode()
     {
-        var reader = new ArgReader(new[] { "--config", Path.Combine(_testDir, "no-file.yaml") });
+        var command = CliTestHelper.CreateCommand("build", new[] { "--config", Path.Combine(_testDir, "no-file.yaml") });
 
         var ex = await Assert.ThrowsAsync<ConfigException>(
-            () => BuildCommand.RunAsync(reader));
+            () => BuildCommand.RunAsync(command));
 
         Assert.Contains("not found", ex.Message);
     }
@@ -157,10 +158,10 @@ public sealed class BuildCommandTests : IDisposable
         var configPath = Path.Combine(_testDir, "bad.yaml");
         File.WriteAllText(configPath, "!!! not yaml !!!");
 
-        var reader = new ArgReader(new[] { "--config", configPath });
+        var command = CliTestHelper.CreateCommand("build", new[] { "--config", configPath });
 
         await Assert.ThrowsAsync<ConfigException>(
-            () => BuildCommand.RunAsync(reader));
+            () => BuildCommand.RunAsync(command));
     }
 
     [Fact]

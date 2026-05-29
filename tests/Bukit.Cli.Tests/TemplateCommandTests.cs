@@ -1,5 +1,6 @@
 using System.Reflection;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Tests;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -90,9 +91,7 @@ public sealed class TemplateCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_NoSubcommand_ReturnsTwo()
     {
-        var reader = new ArgReader(new[] { "template" });
-
-        var exitCode = await TemplateCommand.RunAsync(reader);
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[] { "template" }));
 
         Assert.Equal(2, exitCode);
     }
@@ -100,9 +99,7 @@ public sealed class TemplateCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_UnknownSubcommand_ReturnsTwo()
     {
-        var reader = new ArgReader(new[] { "template", "unknown" });
-
-        var exitCode = await TemplateCommand.RunAsync(reader);
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[] { "template", "unknown" }));
 
         Assert.Equal(2, exitCode);
     }
@@ -110,9 +107,7 @@ public sealed class TemplateCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_Snippets_ReturnsZero()
     {
-        var reader = new ArgReader(new[] { "template", "snippets" });
-
-        var exitCode = await TemplateCommand.RunAsync(reader);
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[] { "template", "snippets" }));
 
         Assert.Equal(0, exitCode);
     }
@@ -120,9 +115,7 @@ public sealed class TemplateCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_Snippets_KnownSnippet_ReturnsZero()
     {
-        var reader = new ArgReader(new[] { "template", "snippets", "post-card" });
-
-        var exitCode = await TemplateCommand.RunAsync(reader);
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[] { "template", "snippets", "post-card" }));
 
         Assert.Equal(0, exitCode);
     }
@@ -130,9 +123,7 @@ public sealed class TemplateCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_Snippets_UnknownSnippet_ReturnsZero()
     {
-        var reader = new ArgReader(new[] { "template", "snippets", "nonexistent-snippet" });
-
-        var exitCode = await TemplateCommand.RunAsync(reader);
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[] { "template", "snippets", "nonexistent-snippet" }));
 
         Assert.Equal(0, exitCode);
     }
@@ -140,9 +131,7 @@ public sealed class TemplateCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_Hints_ReturnsZero()
     {
-        var reader = new ArgReader(new[] { "template", "hints" });
-
-        var exitCode = await TemplateCommand.RunAsync(reader);
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[] { "template", "hints" }));
 
         Assert.Equal(0, exitCode);
     }

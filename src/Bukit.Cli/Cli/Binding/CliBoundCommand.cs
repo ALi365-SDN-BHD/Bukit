@@ -35,12 +35,8 @@ public sealed class CliBoundCommand
             mergedOptions[kv.Key] = kv.Value;
 
         var mergedArgs = new List<string> { subName };
-        for (var i = 0; i < innerBounded.Arguments.Count; i++)
-        {
-            var arg = innerBounded.GetArgument(i);
-            if (arg is not null)
-                mergedArgs.Add(arg);
-        }
+        foreach (var arg in innerBounded.Arguments)
+            mergedArgs.Add(arg);
 
         return new CliBoundCommand(mergedOptions, mergedArgs);
     }

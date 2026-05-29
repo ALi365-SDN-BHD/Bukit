@@ -159,13 +159,6 @@ public static class DataCommand
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("data");
-        var command = CliBoundCommandFactory.Create(reader, spec);
-        return RunAsync(command);
-    }
-
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));

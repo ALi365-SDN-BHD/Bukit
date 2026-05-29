@@ -20,12 +20,6 @@ public static class SeoCommand
         return File.Exists(legacy) ? legacy : null;
     }
 
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("seo");
-        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
-    }
-
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var subcommand = command.GetArgument(0);

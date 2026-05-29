@@ -4,7 +4,7 @@ namespace Bukit.Cli.Cli.Binding;
 
 public static class CliBoundCommandFactory
 {
-    public static CliBoundCommand Create(ArgReader reader, CliCommandSpec? spec = null)
+    public static CliBoundCommand Create(IReadOnlyList<string> args, CliCommandSpec? spec = null)
     {
         var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         var arguments = new List<string>();
@@ -19,12 +19,12 @@ public static class CliBoundCommandFactory
                 {
                     if (option.Type == CliOptionType.Flag)
                     {
-                        if (reader.HasFlag(option.Name))
+                        if (args.Any(a => string.Equals(a, option.Name, StringComparison.OrdinalIgnoreCase)))
                             options[option.Name] = "true";
                     }
                     else
                     {
-                        var value = reader.GetOption(option.Name);
+                        var value = GetOption(args, option.Name);
                         if (value is not null)
                             options[option.Name] = value;
                     }
@@ -44,12 +44,38 @@ public static class CliBoundCommandFactory
 
         for (var i = 1; ; i++)
         {
-            var arg = reader.GetArg(i);
-            if (arg is null) break;
+            if (i >= args.Count) break;
+            var arg = args[i];
             if (arg.StartsWith("-", StringComparison.Ordinal)) break;
             arguments.Add(arg);
         }
 
         return new CliBoundCommand(options, arguments);
+    }
+
+    private static string? GetOption(IReadOnlyList<string> args, string name)
+    {
+        for (var i = 0; i < args.Count; i++)
+        {
+            var arg = args[i];
+            if (arg.StartsWith(name + "=", StringComparison.OrdinalIgnoreCase))
+            {
+                return arg[(name.Length + 1)..];
+            }
+
+            if (!string.Equals(arg, name, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (i + 1 >= args.Count)
+            {
+                return null;
+            }
+
+            return args[i + 1];
+        }
+
+        return null;
     }
 }

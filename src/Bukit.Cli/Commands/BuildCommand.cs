@@ -7,12 +7,6 @@ namespace Bukit.Cli.Commands;
 
 public static class BuildCommand
 {
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("build");
-        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
-    }
-
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));

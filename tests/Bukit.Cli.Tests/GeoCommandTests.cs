@@ -1,5 +1,5 @@
-using Bukit.Cli;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Tests;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -21,7 +21,7 @@ public sealed class GeoCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_AuditReturnsTwoWhenDirNotFound()
     {
-        var exitCode = await GeoCommand.RunAsync(new ArgReader(new[] { "geo", "audit", "--dir", Path.Combine(_root, "nonexistent") }));
+        var exitCode = await GeoCommand.RunAsync(CliTestHelper.CreateCommand("geo", new[] { "geo", "audit", "--dir", Path.Combine(_root, "nonexistent") }));
 
         Assert.Equal(2, exitCode);
     }
@@ -29,7 +29,7 @@ public sealed class GeoCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_AuditReturnsOneWhenReportNotFound()
     {
-        var exitCode = await GeoCommand.RunAsync(new ArgReader(new[] { "geo", "audit", "--dir", _root }));
+        var exitCode = await GeoCommand.RunAsync(CliTestHelper.CreateCommand("geo", new[] { "geo", "audit", "--dir", _root }));
 
         Assert.Equal(1, exitCode);
     }
@@ -40,7 +40,7 @@ public sealed class GeoCommandTests : IDisposable
         WriteGeoReport(geoEnhancedCount: 3, geoSchemaTypes: new[] { "FAQPage", "HowTo", "WebPage" },
             llmsTxtGenerated: true, llmsFullTxtGenerated: false, geoScore: 75);
 
-        var exitCode = await GeoCommand.RunAsync(new ArgReader(new[] { "geo", "audit", "--dir", _root }));
+        var exitCode = await GeoCommand.RunAsync(CliTestHelper.CreateCommand("geo", new[] { "geo", "audit", "--dir", _root }));
 
         Assert.Equal(0, exitCode);
     }
@@ -51,7 +51,7 @@ public sealed class GeoCommandTests : IDisposable
         WriteGeoReport(geoEnhancedCount: 0, geoSchemaTypes: new[] { "WebPage", "WebSite" },
             llmsTxtGenerated: false, llmsFullTxtGenerated: false, geoScore: 0);
 
-        var exitCode = await GeoCommand.RunAsync(new ArgReader(new[] { "geo", "audit", "--dir", _root }));
+        var exitCode = await GeoCommand.RunAsync(CliTestHelper.CreateCommand("geo", new[] { "geo", "audit", "--dir", _root }));
 
         Assert.Equal(0, exitCode);
     }
@@ -62,7 +62,7 @@ public sealed class GeoCommandTests : IDisposable
         WriteGeoReport(geoEnhancedCount: 2, geoSchemaTypes: new[] { "Article", "Person", "WebPage" },
             llmsTxtGenerated: true, llmsFullTxtGenerated: true, geoScore: 90);
 
-        var exitCode = await GeoCommand.RunAsync(new ArgReader(new[] { "geo", "audit", "--dir", _root }));
+        var exitCode = await GeoCommand.RunAsync(CliTestHelper.CreateCommand("geo", new[] { "geo", "audit", "--dir", _root }));
 
         Assert.Equal(0, exitCode);
     }

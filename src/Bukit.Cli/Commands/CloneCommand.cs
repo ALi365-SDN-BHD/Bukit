@@ -4,13 +4,6 @@ namespace Bukit.Cli.Commands;
 
 public static class CloneCommand
 {
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("clone");
-        var command = CliBoundCommandFactory.Create(reader, spec);
-        return RunAsync(command);
-    }
-
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var configPath = command.GetString("--config");

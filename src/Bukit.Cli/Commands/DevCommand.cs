@@ -27,12 +27,6 @@ public static class DevCommand
         return await RunCoreAsync(configPath, site, host, port, noWatch, outputOverride);
     }
 
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("dev");
-        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
-    }
-
     private static async Task<int> RunCoreAsync(
         string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride)
     {

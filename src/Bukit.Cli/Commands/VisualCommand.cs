@@ -4,12 +4,6 @@ namespace Bukit.Cli.Commands;
 
 public static class VisualCommand
 {
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("visual");
-        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
-    }
-
     public static Task<int> RunAsync(CliBoundCommand command)
     {
         var subcommand = command.GetArgument(0);

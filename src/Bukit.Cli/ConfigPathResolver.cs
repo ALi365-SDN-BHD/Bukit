@@ -4,11 +4,6 @@ public sealed record ResolvedConfigPath(string FullConfigPath, string RootDir);
 
 public static class ConfigPathResolver
 {
-    public static ResolvedConfigPath Resolve(ArgReader reader)
-    {
-        return Resolve(reader.GetOption("--config"), reader.GetOption("--site"));
-    }
-
     public static ResolvedConfigPath Resolve(string? configPath, string? site)
     {
         if (!string.IsNullOrWhiteSpace(configPath))

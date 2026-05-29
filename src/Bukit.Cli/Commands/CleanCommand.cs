@@ -5,12 +5,6 @@ namespace Bukit.Cli.Commands;
 
 public static class CleanCommand
 {
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("clean");
-        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
-    }
-
     public static Task<int> RunAsync(CliBoundCommand command)
     {
         var configPath = command.GetString("--config");

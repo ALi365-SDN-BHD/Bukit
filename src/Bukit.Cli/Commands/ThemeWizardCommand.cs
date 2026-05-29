@@ -4,15 +4,6 @@ namespace Bukit.Cli.Commands;
 
 public static class ThemeWizardCommand
 {
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var registry = BukitCliSpecs.CreateRegistry();
-        var parentSpec = registry.Resolve("theme");
-        var subSpec = registry.ResolveSubcommand(parentSpec!, "wizard");
-        var command = CliBoundCommandFactory.Create(reader, subSpec);
-        return RunAsync(command);
-    }
-
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var raw = command.GetArgument(1);

@@ -10,15 +10,6 @@ public static class ThemeRegistryCommand
 
     private const double CacheTtlHours = 24;
 
-    public static Task<int> SearchAsync(ArgReader reader)
-    {
-        var registry = BukitCliSpecs.CreateRegistry();
-        var parentSpec = registry.Resolve("theme");
-        var subSpec = registry.ResolveSubcommand(parentSpec!, "search");
-        var command = CliBoundCommandFactory.Create(reader, subSpec);
-        return SearchAsync(command);
-    }
-
     public static async Task<int> SearchAsync(CliBoundCommand command)
     {
         var query = command.GetArgument(1);

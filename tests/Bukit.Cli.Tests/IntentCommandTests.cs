@@ -1,5 +1,6 @@
 using Bukit.Cli.Commands;
 using Bukit.Cli.Intent;
+using Bukit.Cli.Tests;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -23,9 +24,7 @@ public sealed class IntentCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_NoSubcommand_PrintsHelp()
     {
-        var reader = new ArgReader(new[] { "intent" });
-
-        var code = await IntentCommand.RunAsync(reader);
+        var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent" }));
 
         Assert.Equal(0, code);
     }
@@ -33,9 +32,7 @@ public sealed class IntentCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_Help_PrintsHelp()
     {
-        var reader = new ArgReader(new[] { "intent", "help" });
-
-        var code = await IntentCommand.RunAsync(reader);
+        var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent", "help" }));
 
         Assert.Equal(0, code);
     }
@@ -43,9 +40,7 @@ public sealed class IntentCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_UnknownSubcommand_ReturnsError()
     {
-        var reader = new ArgReader(new[] { "intent", "unknown" });
-
-        var code = await IntentCommand.RunAsync(reader);
+        var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent", "unknown" }));
 
         Assert.Equal(2, code);
     }
@@ -53,9 +48,7 @@ public sealed class IntentCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_Validate_MissingIntentPath_ReturnsError()
     {
-        var reader = new ArgReader(new[] { "intent", "validate" });
-
-        var code = await IntentCommand.RunAsync(reader);
+        var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent", "validate" }));
 
         Assert.Equal(2, code);
     }
@@ -75,9 +68,7 @@ theme:
   name: starter
 """);
 
-        var reader = new ArgReader(new[] { "intent", "validate", intentPath });
-
-        var code = await IntentCommand.RunAsync(reader);
+        var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent", "validate", intentPath }));
 
         Assert.Equal(1, code);
     }
@@ -97,9 +88,7 @@ theme:
   name: starter
 """);
 
-        var reader = new ArgReader(new[] { "intent", "validate", intentPath });
-
-        var code = await IntentCommand.RunAsync(reader);
+        var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent", "validate", intentPath }));
 
         Assert.Equal(0, code);
     }
@@ -107,9 +96,7 @@ theme:
     [Fact]
     public async Task RunAsync_Apply_MissingIntentPath_ReturnsError()
     {
-        var reader = new ArgReader(new[] { "intent", "apply" });
-
-        var code = await IntentCommand.RunAsync(reader);
+        var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent", "apply" }));
 
         Assert.Equal(2, code);
     }
@@ -130,9 +117,7 @@ theme:
   name: starter
 """);
 
-        var reader = new ArgReader(new[] { "intent", "apply", intentPath, "--out", outPath });
-
-        var code = await IntentCommand.RunAsync(reader);
+        var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent", "apply", intentPath, "--out", outPath }));
 
         Assert.Equal(0, code);
         Assert.True(File.Exists(outPath));
@@ -154,9 +139,7 @@ theme:
   name: starter
 """);
 
-        var reader = new ArgReader(new[] { "intent", "apply", intentPath, "--out", outPath });
-
-        var code = await IntentCommand.RunAsync(reader);
+        var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent", "apply", intentPath, "--out", outPath }));
 
         Assert.Equal(1, code);
     }

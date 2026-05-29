@@ -1,5 +1,5 @@
-using Bukit.Cli;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Tests;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -22,7 +22,7 @@ public sealed class SeoCommandTests : IDisposable
             ]
             """);
 
-        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "audit", "--dir", _root }));
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "audit", "--dir", _root }));
 
         Assert.Equal(1, exitCode);
     }
@@ -36,7 +36,7 @@ public sealed class SeoCommandTests : IDisposable
             ]
             """);
 
-        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "audit", "--dir", _root, "--strict" }));
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "audit", "--dir", _root, "--strict" }));
 
         Assert.Equal(1, exitCode);
     }
@@ -50,7 +50,7 @@ public sealed class SeoCommandTests : IDisposable
             ]
             """);
 
-        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "audit", "--dir", _root }));
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "audit", "--dir", _root }));
 
         Assert.Equal(0, exitCode);
     }
@@ -65,7 +65,7 @@ public sealed class SeoCommandTests : IDisposable
                 "geoScore": 75,
             """);
 
-        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "audit", "--dir", _root }));
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "audit", "--dir", _root }));
 
         Assert.Equal(0, exitCode);
     }
@@ -75,7 +75,7 @@ public sealed class SeoCommandTests : IDisposable
     {
         WriteReport(0, 0, "[]", schemaVersion: "2.0");
 
-        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "audit", "--dir", _root }));
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "audit", "--dir", _root }));
 
         Assert.Equal(2, exitCode);
     }
@@ -98,7 +98,7 @@ public sealed class SeoCommandTests : IDisposable
             }
             """);
 
-        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "audit", "--dir", _root }));
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "audit", "--dir", _root }));
 
         Assert.Equal(2, exitCode);
     }
@@ -110,7 +110,7 @@ public sealed class SeoCommandTests : IDisposable
               "unexpected": true,
             """);
 
-        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "audit", "--dir", _root }));
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "audit", "--dir", _root }));
 
         Assert.Equal(2, exitCode);
     }
@@ -127,7 +127,7 @@ public sealed class SeoCommandTests : IDisposable
             ]
             """);
 
-        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "diff", "--baseline", baseline, "--current", current, "--max-new-errors", "0" }));
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "diff", "--baseline", baseline, "--current", current, "--max-new-errors", "0" }));
 
         Assert.Equal(1, exitCode);
     }
@@ -144,7 +144,7 @@ public sealed class SeoCommandTests : IDisposable
             ]
             """);
 
-        var exitCode = await SeoCommand.RunAsync(new ArgReader(new[] { "seo", "diff", "--baseline", baseline, "--current", current, "--fail-on-new-code", "seo.description_missing" }));
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "diff", "--baseline", baseline, "--current", current, "--fail-on-new-code", "seo.description_missing" }));
 
         Assert.Equal(1, exitCode);
     }

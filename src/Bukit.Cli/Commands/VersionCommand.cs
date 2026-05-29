@@ -1,16 +1,9 @@
-using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 
 public static class VersionCommand
 {
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("version");
-        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
-    }
-
     public static Task<int> RunAsync(CliBoundCommand command)
     {
         if (command.GetBool("--help") || command.GetBool("-h"))

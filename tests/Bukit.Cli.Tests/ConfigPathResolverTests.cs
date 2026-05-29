@@ -1,4 +1,3 @@
-using Bukit.Cli;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -25,8 +24,7 @@ public sealed class ConfigPathResolverTests : IDisposable
     [Fact]
     public void Resolve_DefaultConfig_ReturnsSiteYaml()
     {
-        var reader = new ArgReader(Array.Empty<string>());
-        var result = ConfigPathResolver.Resolve(reader);
+        var result = ConfigPathResolver.Resolve(null, null);
         Assert.EndsWith("site.yaml", result.FullConfigPath);
     }
 
@@ -34,8 +32,7 @@ public sealed class ConfigPathResolverTests : IDisposable
     public void Resolve_WithConfig_ReturnsSpecifiedPath()
     {
         var configPath = Path.Combine(_testDir, "custom.yaml");
-        var reader = new ArgReader(new[] { "--config", configPath });
-        var result = ConfigPathResolver.Resolve(reader);
+        var result = ConfigPathResolver.Resolve(configPath, null);
         Assert.Equal(Path.GetFullPath(configPath), result.FullConfigPath);
     }
 
@@ -46,8 +43,7 @@ public sealed class ConfigPathResolverTests : IDisposable
         try
         {
             Directory.SetCurrentDirectory(_testDir);
-            var reader = new ArgReader(new[] { "--site", "blog" });
-            var result = ConfigPathResolver.Resolve(reader);
+            var result = ConfigPathResolver.Resolve(null, "blog");
             var cwd = Directory.GetCurrentDirectory();
             var expected = Path.GetFullPath(Path.Combine(cwd, "sites", "blog.yaml"));
             Assert.Equal(expected, result.FullConfigPath);
@@ -65,9 +61,8 @@ public sealed class ConfigPathResolverTests : IDisposable
         try
         {
             Directory.SetCurrentDirectory(_testDir);
-            var reader = new ArgReader(new[] { "--site", "../../../etc/passwd" });
             Assert.Throws<InvalidOperationException>(() =>
-                ConfigPathResolver.Resolve(reader));
+                ConfigPathResolver.Resolve(null, "../../../etc/passwd"));
         }
         finally
         {
@@ -82,8 +77,7 @@ public sealed class ConfigPathResolverTests : IDisposable
         try
         {
             Directory.SetCurrentDirectory(_testDir);
-            var reader = new ArgReader(new[] { "--site", "mysite.yaml" });
-            var result = ConfigPathResolver.Resolve(reader);
+            var result = ConfigPathResolver.Resolve(null, "mysite.yaml");
             Assert.EndsWith("mysite.yaml", result.FullConfigPath);
             Assert.DoesNotContain(".yaml.yaml", result.FullConfigPath);
         }

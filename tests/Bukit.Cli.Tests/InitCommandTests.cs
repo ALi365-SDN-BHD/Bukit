@@ -1,5 +1,6 @@
 using Bukit.Cli.Commands;
 using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Tests;
 using System.Text.Json;
 using Xunit;
 
@@ -25,9 +26,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_CreatesSiteYamlInOutputDir()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target });
 
-        var code = await InitCommand.RunAsync(reader);
+        var code = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target }));
 
         Assert.Equal(0, code);
         Assert.True(File.Exists(Path.Combine(target, "site.yaml")));
@@ -41,9 +41,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_CreatesContentDirWithSampleMd()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target });
 
-        await InitCommand.RunAsync(reader);
+        await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target }));
 
         var contentDir = Path.Combine(target, "content");
         Assert.True(Directory.Exists(contentDir));
@@ -56,9 +55,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_CreatesLayoutsDirWithBaseTemplate()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target });
 
-        await InitCommand.RunAsync(reader);
+        await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target }));
 
         var baseLayout = Path.Combine(target, "themes", "starter", "layouts", "layouts", "base.html");
         Assert.True(File.Exists(baseLayout));
@@ -70,9 +68,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_CreatesAssetsDir()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target });
 
-        await InitCommand.RunAsync(reader);
+        await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target }));
 
         var assetsDir = Path.Combine(target, "themes", "starter", "assets");
         Assert.True(Directory.Exists(assetsDir));
@@ -83,9 +80,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_CreatesStaticDir()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target });
 
-        await InitCommand.RunAsync(reader);
+        await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target }));
 
         Assert.True(Directory.Exists(Path.Combine(target, "themes", "starter", "static")));
     }
@@ -94,9 +90,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_CreatesGitignore()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target });
 
-        await InitCommand.RunAsync(reader);
+        await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target }));
 
         Assert.True(File.Exists(Path.Combine(target, ".gitignore")));
         var content = File.ReadAllText(Path.Combine(target, ".gitignore"));
@@ -108,9 +103,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_CreatesReadme()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target });
 
-        await InitCommand.RunAsync(reader);
+        await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target }));
 
         Assert.True(File.Exists(Path.Combine(target, "README.md")));
         var content = File.ReadAllText(Path.Combine(target, "README.md"));
@@ -120,9 +114,7 @@ public sealed class InitCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_MissingTargetDir_ReturnsError()
     {
-        var reader = new ArgReader(new[] { "init" });
-
-        var code = await InitCommand.RunAsync(reader);
+        var code = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init" }));
 
         Assert.Equal(2, code);
     }
@@ -131,9 +123,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_ProviderMarkdownOption()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target, "--provider", "markdown" });
 
-        await InitCommand.RunAsync(reader);
+        await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--provider", "markdown" }));
 
         var yaml = File.ReadAllText(Path.Combine(target, "site.yaml"));
         Assert.Contains("provider: markdown", yaml);
@@ -143,9 +134,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_ProviderNotionOption()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target, "--provider", "notion" });
 
-        await InitCommand.RunAsync(reader);
+        await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--provider", "notion" }));
 
         var yaml = File.ReadAllText(Path.Combine(target, "site.yaml"));
         Assert.Contains("provider: notion", yaml);
@@ -156,9 +146,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_TemplatePreset_GeneratesPresetTheme()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target, "--template", "blog" });
 
-        var code = await InitCommand.RunAsync(reader);
+        var code = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--template", "blog" }));
 
         Assert.Equal(0, code);
         var themeRoot = Path.Combine(target, "themes", "starter");
@@ -175,9 +164,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_BlogTemplate_GeneratesBlogContentSkeleton()
     {
         var target = Path.Combine(_tempDir, "my-blog");
-        var reader = new ArgReader(new[] { "init", target, "--template", "blog" });
 
-        var code = await InitCommand.RunAsync(reader);
+        var code = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--template", "blog" }));
 
         Assert.Equal(0, code);
         var yaml = await File.ReadAllTextAsync(Path.Combine(target, "site.yaml"));
@@ -196,9 +184,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_DocsTemplate_GeneratesDocsContentSkeleton()
     {
         var target = Path.Combine(_tempDir, "my-docs");
-        var reader = new ArgReader(new[] { "init", target, "--template", "docs" });
 
-        var code = await InitCommand.RunAsync(reader);
+        var code = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--template", "docs" }));
 
         Assert.Equal(0, code);
         var yaml = await File.ReadAllTextAsync(Path.Combine(target, "site.yaml"));
@@ -214,9 +201,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_LandingTemplate_GeneratesLandingContentSkeleton()
     {
         var target = Path.Combine(_tempDir, "my-landing");
-        var reader = new ArgReader(new[] { "init", target, "--template", "landing" });
 
-        var code = await InitCommand.RunAsync(reader);
+        var code = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--template", "landing" }));
 
         Assert.Equal(0, code);
         var yaml = await File.ReadAllTextAsync(Path.Combine(target, "site.yaml"));
@@ -231,9 +217,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_PortfolioTemplate_GeneratesPortfolioContentSkeleton()
     {
         var target = Path.Combine(_tempDir, "my-portfolio");
-        var reader = new ArgReader(new[] { "init", target, "--template", "portfolio" });
 
-        var code = await InitCommand.RunAsync(reader);
+        var code = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--template", "portfolio" }));
 
         Assert.Equal(0, code);
         var yaml = await File.ReadAllTextAsync(Path.Combine(target, "site.yaml"));
@@ -249,9 +234,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_TemplatePreset_GeneratesTemplatesThatNormalizeRootBaseUrl()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target, "--template", "blog" });
 
-        var code = await InitCommand.RunAsync(reader);
+        var code = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--template", "blog" }));
 
         Assert.Equal(0, code);
         var layoutsRoot = Path.Combine(target, "themes", "starter", "layouts");
@@ -273,9 +257,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_TemplatePreset_BuildsTemplateSpecificHomepage(string template, string heroText, string sectionText)
     {
         var target = Path.Combine(_tempDir, "my-" + template);
-        var reader = new ArgReader(new[] { "init", target, "--template", template });
 
-        var initCode = await InitCommand.RunAsync(reader);
+        var initCode = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--template", template }));
         var buildCode = await BuildCommand.RunAsync(new CliBoundCommand(
             new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
             {
@@ -300,9 +283,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_TemplatePreset_BuildsWithoutNoisyStarterSeoWarnings(string template)
     {
         var target = Path.Combine(_tempDir, "seo-" + template);
-        var reader = new ArgReader(new[] { "init", target, "--template", template });
 
-        var initCode = await InitCommand.RunAsync(reader);
+        var initCode = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--template", template }));
         var buildCode = await BuildCommand.RunAsync(new CliBoundCommand(
             new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
             {
@@ -329,9 +311,8 @@ public sealed class InitCommandTests : IDisposable
     public async Task RunAsync_UnknownTemplate_ReturnsError()
     {
         var target = Path.Combine(_tempDir, "my-site");
-        var reader = new ArgReader(new[] { "init", target, "--template", "unknown" });
 
-        var code = await InitCommand.RunAsync(reader);
+        var code = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--template", "unknown" }));
 
         Assert.Equal(2, code);
         Assert.False(Directory.Exists(target));
@@ -345,9 +326,8 @@ public sealed class InitCommandTests : IDisposable
         try
         {
             Environment.CurrentDirectory = _tempDir;
-            var reader = new ArgReader(new[] { "init", dirName });
 
-            await InitCommand.RunAsync(reader);
+            await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", dirName }));
 
             Assert.True(File.Exists(Path.Combine(_tempDir, dirName, "site.yaml")));
         }
@@ -364,9 +344,7 @@ public sealed class InitCommandTests : IDisposable
         Directory.CreateDirectory(target);
         File.WriteAllText(Path.Combine(target, "existing.txt"), "leave me");
 
-        var reader = new ArgReader(new[] { "init", target });
-
-        await InitCommand.RunAsync(reader);
+        await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target }));
 
         Assert.True(File.Exists(Path.Combine(target, "site.yaml")));
         Assert.True(File.Exists(Path.Combine(target, "existing.txt")));

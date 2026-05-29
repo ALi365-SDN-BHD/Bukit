@@ -19,12 +19,6 @@ public static class DoctorCommand
         AppConfig Config,
         string LayoutsDir,
         string[] AllHtmlFiles);
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("doctor");
-        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
-    }
-
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));

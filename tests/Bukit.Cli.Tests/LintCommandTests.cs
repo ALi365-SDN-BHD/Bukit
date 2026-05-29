@@ -1,6 +1,7 @@
 using System.Reflection;
 using Xunit;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Tests;
 
 namespace Bukit.Cli.Tests;
 
@@ -61,7 +62,7 @@ public sealed class LintCommandTests : IDisposable
             Body.
             """);
 
-        var exitCode = await LintCommand.RunAsync(new ArgReader(new[] { "lint", "--config", _configPath }));
+        var exitCode = await LintCommand.RunAsync(CliTestHelper.CreateCommand("lint", new[] { "lint", "--config", _configPath }));
 
         Assert.Equal(0, exitCode);
     }
@@ -71,7 +72,7 @@ public sealed class LintCommandTests : IDisposable
     {
         await File.WriteAllTextAsync(Path.Combine(_root, "content", "bad.md"), "Body without heading.");
 
-        var exitCode = await LintCommand.RunAsync(new ArgReader(new[] { "lint", "--config", _configPath }));
+        var exitCode = await LintCommand.RunAsync(CliTestHelper.CreateCommand("lint", new[] { "lint", "--config", _configPath }));
 
         Assert.Equal(1, exitCode);
     }
@@ -79,7 +80,7 @@ public sealed class LintCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_MissingConfig_ReturnsOne()
     {
-        var exitCode = await LintCommand.RunAsync(new ArgReader(new[] { "lint", "--config", Path.Combine(_root, "nonexistent.yaml") }));
+        var exitCode = await LintCommand.RunAsync(CliTestHelper.CreateCommand("lint", new[] { "lint", "--config", Path.Combine(_root, "nonexistent.yaml") }));
 
         Assert.Equal(1, exitCode);
     }

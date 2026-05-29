@@ -6,15 +6,6 @@ namespace Bukit.Cli.Commands;
 
 public static class ThemePackCommand
 {
-    public static async Task<int> RunAsync(ArgReader reader)
-    {
-        var registry = BukitCliSpecs.CreateRegistry();
-        var parentSpec = registry.Resolve("theme");
-        var subSpec = registry.ResolveSubcommand(parentSpec!, "pack");
-        var command = CliBoundCommandFactory.Create(reader, subSpec);
-        return await RunAsync(command);
-    }
-
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var name = command.GetArgument(1);

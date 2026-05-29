@@ -1,5 +1,6 @@
 using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Tests;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -267,9 +268,7 @@ deploy:
     [Fact]
     public async Task RunAsync_FromArgReader_InvalidConfig_ReturnsOne()
     {
-        var reader = new ArgReader(new[] { "deploy", "--config", "/nonexistent/site.yaml" });
-
-        var exitCode = await DeployCommand.RunAsync(reader);
+        var exitCode = await DeployCommand.RunAsync(CliTestHelper.CreateCommand("deploy", new[] { "deploy", "--config", "/nonexistent/site.yaml" }));
 
         Assert.Equal(1, exitCode);
     }
@@ -289,13 +288,13 @@ deploy:
         {
             Environment.CurrentDirectory = dir;
 
-            var reader = new ArgReader(new[]
+            var command = CliTestHelper.CreateCommand("deploy", new[]
             {
                 "deploy", "--dry-run", "--skip-build", "--config", Path.Combine(dir, "site.yaml")
             });
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var task = DeployCommand.RunAsync(reader);
+            var task = DeployCommand.RunAsync(command);
             var completed = await Task.WhenAny(task, Task.Delay(Timeout.Infinite, cts.Token));
             if (completed != task)
             {
@@ -323,9 +322,7 @@ deploy:
             Directory.CreateDirectory(tempDir);
             Environment.CurrentDirectory = tempDir;
 
-            var reader = new ArgReader(new[] { "deploy" });
-
-            var exitCode = await DeployCommand.RunAsync(reader);
+            var exitCode = await DeployCommand.RunAsync(CliTestHelper.CreateCommand("deploy", new[] { "deploy" }));
 
             Assert.Equal(1, exitCode);
         }

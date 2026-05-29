@@ -5,13 +5,6 @@ namespace Bukit.Cli.Commands.DocsCheck;
 
 public static class DocsCheckCommand
 {
-    public static int RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("docs");
-        var command = CliBoundCommandFactory.Create(reader, spec);
-        return RunAsync(command).Result;
-    }
-
     public static Task<int> RunAsync(CliBoundCommand command)
     {
         var subCommand = command.GetArgument(0);

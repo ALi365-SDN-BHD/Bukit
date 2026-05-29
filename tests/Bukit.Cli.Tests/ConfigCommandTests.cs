@@ -1,5 +1,6 @@
 using System.Text;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Tests;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -54,7 +55,7 @@ public sealed class ConfigCommandTests : IDisposable
         Console.SetOut(writer);
         try
         {
-            var exitCode = await ConfigCommand.RunAsync(new ArgReader(new[] { "config", "check", "--config", _configPath }));
+            var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[] { "config", "check", "--config", _configPath }));
 
             Assert.Equal(0, exitCode);
             var output = writer.ToString();
@@ -84,7 +85,7 @@ public sealed class ConfigCommandTests : IDisposable
         Console.SetOut(writer);
         try
         {
-            var exitCode = await ConfigCommand.RunAsync(new ArgReader(new[] { "config", "check", "--config", _configPath }));
+            var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[] { "config", "check", "--config", _configPath }));
 
             Assert.Equal(1, exitCode);
             var output = writer.ToString();
@@ -107,7 +108,7 @@ public sealed class ConfigCommandTests : IDisposable
         Console.SetOut(writer);
         try
         {
-            var exitCode = await ConfigCommand.RunAsync(new ArgReader(new[] { "config", "check", "--config", missingPath }));
+            var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[] { "config", "check", "--config", missingPath }));
 
             Assert.Equal(1, exitCode);
             Assert.Contains("Config file not found", writer.ToString(), StringComparison.OrdinalIgnoreCase);
@@ -135,7 +136,7 @@ public sealed class ConfigCommandTests : IDisposable
         Console.SetOut(writer);
         try
         {
-            var exitCode = await ConfigCommand.RunAsync(new ArgReader(new[]
+            var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[]
             {
                 "config", "check", "--config", _configPath, "--site-url", "https://example.com"
             }));
@@ -154,7 +155,7 @@ public sealed class ConfigCommandTests : IDisposable
     {
         var outputPath = Path.Combine(_rootDir, "site.schema.json");
 
-        var exitCode = await ConfigCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[]
         {
             "config", "schema", "--output", outputPath
         }));
@@ -169,14 +170,14 @@ public sealed class ConfigCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_NoSubcommand_ReturnsTwo()
     {
-        var exitCode = await ConfigCommand.RunAsync(new ArgReader(new[] { "config" }));
+        var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[] { "config" }));
         Assert.Equal(2, exitCode);
     }
 
     [Fact]
     public async Task RunAsync_UnknownSubcommand_ReturnsTwo()
     {
-        var exitCode = await ConfigCommand.RunAsync(new ArgReader(new[] { "config", "unknown" }));
+        var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[] { "config", "unknown" }));
         Assert.Equal(2, exitCode);
     }
 
@@ -188,7 +189,7 @@ public sealed class ConfigCommandTests : IDisposable
         Console.SetOut(writer);
         try
         {
-            var exitCode = await ConfigCommand.RunAsync(new ArgReader(new[] { "config", "schema" }));
+            var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[] { "config", "schema" }));
 
             Assert.Equal(0, exitCode);
             Assert.Contains("\"$schema\"", writer.ToString(), StringComparison.Ordinal);

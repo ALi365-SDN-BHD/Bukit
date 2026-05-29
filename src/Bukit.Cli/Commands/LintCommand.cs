@@ -6,13 +6,6 @@ namespace Bukit.Cli.Commands;
 
 public static class LintCommand
 {
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("lint");
-        var command = CliBoundCommandFactory.Create(reader, spec);
-        return RunAsync(command);
-    }
-
     public static Task<int> RunAsync(CliBoundCommand command)
     {
         var issues = new List<string>();

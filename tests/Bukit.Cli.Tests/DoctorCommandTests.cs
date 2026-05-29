@@ -1,6 +1,7 @@
 using System.Text;
 using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Tests;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -259,7 +260,7 @@ public sealed class DoctorCommandTests : IDisposable
         try
         {
             var siteDir = Path.Combine(initRootDir, "site");
-            var initExitCode = await InitCommand.RunAsync(new ArgReader(new[] { "init", siteDir }));
+            var initExitCode = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", siteDir }));
             Assert.Equal(0, initExitCode);
 
             var generatedConfigPath = Path.Combine(siteDir, "site.yaml");
@@ -319,7 +320,7 @@ public sealed class DoctorCommandTests : IDisposable
         try
         {
             var siteDir = Path.Combine(initRootDir, "site");
-            var initExitCode = await InitCommand.RunAsync(new ArgReader(new[] { "init", siteDir, "--provider", "notion" }));
+            var initExitCode = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", siteDir, "--provider", "notion" }));
             Assert.Equal(0, initExitCode);
 
             var generatedConfigPath = Path.Combine(siteDir, "site.yaml");

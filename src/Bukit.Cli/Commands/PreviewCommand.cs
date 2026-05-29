@@ -10,12 +10,6 @@ namespace Bukit.Cli.Commands;
 
 public static partial class PreviewCommand
 {
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("preview");
-        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
-    }
-
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var dirOpt = command.GetString("--dir");

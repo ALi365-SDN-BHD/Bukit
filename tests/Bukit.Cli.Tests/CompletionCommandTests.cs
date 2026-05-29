@@ -1,5 +1,6 @@
 using Xunit;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Tests;
 
 namespace Bukit.Cli.Tests;
 
@@ -62,9 +63,7 @@ public sealed class CompletionCommandTests
     [Fact]
     public async Task RunAsync_InvalidShell_ReturnsTwo()
     {
-        var reader = new ArgReader(new[] { "completion", "invalid" });
-
-        var exitCode = await CompletionCommand.RunAsync(reader);
+        var exitCode = await CompletionCommand.RunAsync(CliTestHelper.CreateCommand("completion", new[] { "completion", "invalid" }));
 
         Assert.Equal(2, exitCode);
     }

@@ -5,12 +5,6 @@ namespace Bukit.Cli.Commands;
 
 public static class IntentCommand
 {
-    public static Task<int> RunAsync(ArgReader reader)
-    {
-        var spec = BukitCliSpecs.CreateRegistry().Resolve("intent");
-        return RunAsync(CliBoundCommandFactory.Create(reader, spec));
-    }
-
     public static Task<int> RunAsync(CliBoundCommand command)
     {
         var sub = command.GetArgument(0);

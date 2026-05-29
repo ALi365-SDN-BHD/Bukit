@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Text;
-using Bukit.Cli;
+using Bukit.Cli.Tests;
 using Bukit.Cli.Commands;
 using Xunit;
 
@@ -56,14 +56,14 @@ public sealed class ThemeCommandExtendedTests : IDisposable
     [Fact]
     public async Task RunAsync_UnknownSubcommand_ReturnsTwo()
     {
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[] { "theme", "unknown-cmd" }));
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[] { "theme", "unknown-cmd" }));
         Assert.Equal(2, exitCode);
     }
 
     [Fact]
     public async Task RunAsync_ListWithNoThemesDir_ReturnsZero()
     {
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "list", "--config", _configPath
         }));
@@ -77,7 +77,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
         Directory.CreateDirectory(Path.Combine(_rootDir, "themes", "theme-a", "layouts"));
         Directory.CreateDirectory(Path.Combine(_rootDir, "themes", "theme-b", "assets"));
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "list", "--config", _configPath
         }));
@@ -91,7 +91,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
         Directory.CreateDirectory(Path.Combine(_rootDir, "themes", "has-layouts", "layouts"));
         Directory.CreateDirectory(Path.Combine(_rootDir, "themes", "empty-dir"));
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "list", "--config", _configPath
         }));
@@ -102,7 +102,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
     [Fact]
     public async Task RunAsync_UseMissingTheme_ReturnsTwo()
     {
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "use"
         }));
@@ -115,7 +115,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
     {
         Directory.CreateDirectory(Path.Combine(_rootDir, "themes", "my-theme", "layouts"));
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "use", "my-theme", "--config", _configPath
         }));
@@ -128,7 +128,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
     [Fact]
     public async Task UseAsync_NonExistentConfig_ReturnsTwo()
     {
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "use", "some-theme", "--config", Path.Combine(_rootDir, "nonexistent.yaml")
         }));
@@ -139,7 +139,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
     [Fact]
     public async Task CreateAsync_WithBrandParam_SetsBrandAndFooterText()
     {
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "create", "branded",
             "--config", _configPath,
@@ -157,7 +157,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
     [Fact]
     public async Task CreateAsync_WithPrimaryAccentColorParams_WritesColors()
     {
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "create", "colorful",
             "--config", _configPath,
@@ -199,7 +199,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
         Directory.CreateDirectory(Path.Combine(themeDir, "layouts"));
         File.WriteAllText(Path.Combine(themeDir, "old.txt"), "old");
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "create", "overwrite-me",
             "--config", _configPath,
@@ -216,7 +216,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
     {
         Directory.CreateDirectory(Path.Combine(_rootDir, "themes", "same-name", "layouts"));
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "create", "same-name",
             "--config", _configPath,
@@ -235,7 +235,7 @@ public sealed class ThemeCommandExtendedTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(sourceRoot, "layouts", "pages", "index.html"), "custom-index");
         await File.WriteAllTextAsync(Path.Combine(sourceRoot, "assets", "custom.css"), ".custom {}");
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "create", "copied-theme",
             "--config", _configPath,
@@ -314,7 +314,7 @@ description: Info command test theme
 author: TestAuthor
 """);
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "info", "info-theme", "--config", _configPath
         }));
@@ -334,13 +334,13 @@ version: 1.0.0
 description: Active info theme
 """);
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "use", "active-info", "--config", _configPath
         }));
         Assert.Equal(0, exitCode);
 
-        var infoExitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var infoExitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "info", "--config", _configPath
         }));
@@ -350,7 +350,7 @@ description: Active info theme
     [Fact]
     public async Task RunAsync_InfoNonExistentTheme_ReturnsTwo()
     {
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "info", "nonexistent", "--config", _configPath
         }));
@@ -376,7 +376,7 @@ params:
     default: "16px"
 """);
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "params", "params-theme", "--config", _configPath
         }));
@@ -393,7 +393,7 @@ params:
 name: no-params-theme
 """);
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "params", "no-params-theme", "--config", _configPath
         }));
@@ -437,7 +437,7 @@ author: Dev
 tags: [blog, dark-mode, responsive]
 """);
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "list", "--config", _configPath
         }));
@@ -448,7 +448,7 @@ tags: [blog, dark-mode, responsive]
     [Fact]
     public async Task RunAsync_WizardRequiresName()
     {
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "wizard", "--config", _configPath
         }));
@@ -462,7 +462,7 @@ tags: [blog, dark-mode, responsive]
         var themeRoot = Path.Combine(_rootDir, "themes", "wiz-existing");
         Directory.CreateDirectory(Path.Combine(themeRoot, "layouts"));
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "wizard", "wiz-existing", "--config", _configPath
         }));
@@ -491,7 +491,7 @@ tags: [blog, dark-mode, responsive]
     [Fact]
     public async Task TemplateCommand_List_NoTemplatesDir_ReturnsZero()
     {
-        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[]
         {
             "template", "list", "--config", _configPath
         }));
@@ -501,7 +501,7 @@ tags: [blog, dark-mode, responsive]
     [Fact]
     public async Task TemplateCommand_Show_MissingName_ReturnsTwo()
     {
-        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[]
         {
             "template", "show", "--config", _configPath
         }));
@@ -516,12 +516,12 @@ tags: [blog, dark-mode, responsive]
         await File.WriteAllTextAsync(Path.Combine(themeRoot, "theme.yaml"), "name: safe-theme");
         await File.WriteAllTextAsync(Path.Combine(_rootDir, "outside.html"), "outside");
 
-        await ThemeCommand.RunAsync(new ArgReader(new[]
+        await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "use", "safe-theme", "--config", _configPath
         }));
 
-        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[]
         {
             "template", "show", "../../outside.html", "--config", _configPath
         }));
@@ -536,12 +536,12 @@ tags: [blog, dark-mode, responsive]
         Directory.CreateDirectory(Path.Combine(themeRoot, "layouts"));
         await File.WriteAllTextAsync(Path.Combine(themeRoot, "theme.yaml"), "name: safe-theme");
 
-        await ThemeCommand.RunAsync(new ArgReader(new[]
+        await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "use", "safe-theme", "--config", _configPath
         }));
 
-        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[]
         {
             "template", "create", "../../outside.html", "--config", _configPath
         }));
@@ -562,12 +562,12 @@ tags: [blog, dark-mode, responsive]
 name: validate-theme
 """);
 
-        await ThemeCommand.RunAsync(new ArgReader(new[]
+        await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "use", "validate-theme", "--config", _configPath
         }));
 
-        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[]
         {
             "template", "validate", "--config", _configPath
         }));
@@ -577,7 +577,7 @@ name: validate-theme
     [Fact]
     public async Task TemplateCommand_Snippets_ListAll()
     {
-        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[]
         {
             "template", "snippets"
         }));
@@ -587,7 +587,7 @@ name: validate-theme
     [Fact]
     public async Task TemplateCommand_Snippets_ShowOne()
     {
-        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[]
         {
             "template", "snippets", "post-card"
         }));
@@ -597,7 +597,7 @@ name: validate-theme
     [Fact]
     public async Task ThemePack_RequiresName()
     {
-        var exitCode = await ThemePackCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemePackCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "pack", "--config", _configPath
         }));
@@ -607,7 +607,7 @@ name: validate-theme
     [Fact]
     public async Task ThemePack_NonExistentTheme_ReturnsTwo()
     {
-        var exitCode = await ThemePackCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemePackCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "pack", "nonexistent", "--config", _configPath
         }));
@@ -626,7 +626,7 @@ version: 1.0.0
 """);
         await File.WriteAllTextAsync(Path.Combine(themeRoot, "layouts", "pages", "index.html"), "test");
 
-        var exitCode = await ThemePackCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemePackCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "pack", "packable", "--config", _configPath
         }));
@@ -640,7 +640,7 @@ version: 1.0.0
     [Fact]
     public async Task ThemeInstall_MissingSource_ReturnsTwo()
     {
-        var exitCode = await ThemeInstallCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeInstallCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "install", "--config", _configPath
         }));
@@ -650,7 +650,7 @@ version: 1.0.0
     [Fact]
     public async Task ThemeInstall_NonexistentFile_ReturnsTwo()
     {
-        var exitCode = await ThemeInstallCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeInstallCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "install", "/nonexistent/path.tar.gz", "--config", _configPath
         }));
@@ -663,7 +663,7 @@ version: 1.0.0
         var badArchive = Path.Combine(_rootDir, "bad.tar.gz");
         await File.WriteAllTextAsync(badArchive, "not a real archive");
 
-        var exitCode = await ThemeInstallCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeInstallCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "install", badArchive, "--config", _configPath
         }));
@@ -676,7 +676,7 @@ version: 1.0.0
         var archive = Path.Combine(_rootDir, "unsafe.tar.gz");
         await CreateThemeArchiveAsync(archive, "../escaped");
 
-        var exitCode = await ThemeInstallCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeInstallCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "install", archive, "--config", _configPath
         }));
@@ -689,14 +689,14 @@ version: 1.0.0
     [Fact]
     public async Task TemplateCommand_Hints_ReturnsZero()
     {
-        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[] { "template", "hints" }));
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[] { "template", "hints" }));
         Assert.Equal(0, exitCode);
     }
 
     [Fact]
     public async Task TemplateCommand_Sync_NoActiveTheme_ReturnsTwo()
     {
-        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[]
         {
             "template", "sync", "--config", _configPath
         }));
@@ -715,12 +715,12 @@ version: 1.0.0
             "{% layout \"layouts/base.html\" %}\n{{ for p in pages }}<a href=\"{{ p.url }}\">{{ p.title }}</a>{{ end }}");
         await File.WriteAllTextAsync(Path.Combine(themeRoot, "theme.yaml"), "name: sync-theme");
 
-        await ThemeCommand.RunAsync(new ArgReader(new[]
+        await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "use", "sync-theme", "--config", _configPath
         }));
 
-        var exitCode = await TemplateCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await TemplateCommand.RunAsync(CliTestHelper.CreateCommand("template", new[]
         {
             "template", "sync", "--config", _configPath
         }));
@@ -821,7 +821,7 @@ themes:
     [Fact]
     public async Task ThemeInstall_RegistryUnknownTheme_ReturnsTwo()
     {
-        var exitCode = await ThemeInstallCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeInstallCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "install", "--registry", "totally-fake-theme-xyz",
             "--config", _configPath,
@@ -836,7 +836,7 @@ themes:
         var testCacheFile = ThemeRegistryCommand.CacheFilePath;
         try { File.Delete(testCacheFile); } catch { }
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "search", "--config", _configPath
         }));
@@ -870,7 +870,7 @@ themes:
             tags: [blog, docs]
             """);
 
-        var exitCode = await ThemeCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "preview", "previewable", "--config", _configPath
         }));
@@ -935,7 +935,7 @@ themes:
     [Fact]
     public async Task ThemeWizard_UnknownPreset_ReturnsTwo()
     {
-        var exitCode = await ThemeWizardCommand.RunAsync(new ArgReader(new[]
+        var exitCode = await ThemeWizardCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
             "theme", "wizard", "test-preset", "--preset", "unknown-preset-xyz",
             "--config", _configPath

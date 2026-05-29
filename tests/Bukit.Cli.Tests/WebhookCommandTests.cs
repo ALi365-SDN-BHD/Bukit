@@ -1,4 +1,5 @@
 using Bukit.Cli.Commands;
+using Bukit.Cli.Tests;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -18,9 +19,7 @@ public sealed class WebhookCommandTests
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_REPO", "owner/repo");
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_TOKEN", "ghp_test");
 
-            var reader = new ArgReader(new[] { "webhook" });
-
-            var code = await WebhookCommand.RunAsync(reader);
+            var code = await WebhookCommand.RunAsync(CliTestHelper.CreateCommand("webhook", new[] { "webhook" }));
 
             Assert.Equal(2, code);
         }
@@ -46,9 +45,7 @@ public sealed class WebhookCommandTests
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_TOKEN", null);
             Environment.SetEnvironmentVariable("GITHUB_TOKEN", null);
 
-            var reader = new ArgReader(new[] { "webhook" });
-
-            var code = await WebhookCommand.RunAsync(reader);
+            var code = await WebhookCommand.RunAsync(CliTestHelper.CreateCommand("webhook", new[] { "webhook" }));
 
             Assert.Equal(2, code);
         }
@@ -73,9 +70,7 @@ public sealed class WebhookCommandTests
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_REPO", null);
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_TOKEN", "ghp_test");
 
-            var reader = new ArgReader(new[] { "webhook" });
-
-            var code = await WebhookCommand.RunAsync(reader);
+            var code = await WebhookCommand.RunAsync(CliTestHelper.CreateCommand("webhook", new[] { "webhook" }));
 
             Assert.Equal(2, code);
         }
@@ -99,9 +94,7 @@ public sealed class WebhookCommandTests
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_REPO", null);
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_TOKEN", "ghp_test");
 
-            var reader = new ArgReader(new[] { "webhook", "--repo", "invalidrepo" });
-
-            var code = await WebhookCommand.RunAsync(reader);
+            var code = await WebhookCommand.RunAsync(CliTestHelper.CreateCommand("webhook", new[] { "webhook", "--repo", "invalidrepo" }));
 
             Assert.Equal(2, code);
         }
@@ -125,9 +118,7 @@ public sealed class WebhookCommandTests
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_REPO", "owner/repo");
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_TOKEN", "ghp_test");
 
-            var reader = new ArgReader(new[] { "webhook", "--port", "not-a-port" });
-
-            var code = await WebhookCommand.RunAsync(reader);
+            var code = await WebhookCommand.RunAsync(CliTestHelper.CreateCommand("webhook", new[] { "webhook", "--port", "not-a-port" }));
 
             Assert.Equal(2, code);
         }
@@ -151,9 +142,7 @@ public sealed class WebhookCommandTests
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_REPO", "owner/repo");
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_TOKEN", "ghp_test");
 
-            var reader = new ArgReader(new[] { "webhook", "--port", "99999" });
-
-            var code = await WebhookCommand.RunAsync(reader);
+            var code = await WebhookCommand.RunAsync(CliTestHelper.CreateCommand("webhook", new[] { "webhook", "--port", "99999" }));
 
             Assert.Equal(2, code);
         }
@@ -177,9 +166,7 @@ public sealed class WebhookCommandTests
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_REPO", "owner/repo");
             Environment.SetEnvironmentVariable("BUKIT_GITHUB_TOKEN", "ghp_test");
 
-            var reader = new ArgReader(new[] { "webhook" });
-
-            var code = await WebhookCommand.RunAsync(reader);
+            var code = await WebhookCommand.RunAsync(CliTestHelper.CreateCommand("webhook", new[] { "webhook" }));
 
             Assert.Equal(2, code);
         }
