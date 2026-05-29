@@ -8,22 +8,34 @@ namespace Bukit.Cli.Commands;
 
 public static class DeployCommand
 {
-    public static Task<int> RunAsync(ArgReader reader)
+    public static async Task<int> RunAsync(ArgReader reader)
     {
-        return RunAsync(new CliBoundCommand(
-            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["--config"] = reader.GetOption("--config"),
-                ["--site"] = reader.GetOption("--site"),
-                ["--output"] = reader.GetOption("--output"),
-                ["--base-url"] = reader.GetOption("--base-url"),
-                ["--site-url"] = reader.GetOption("--site-url"),
-                ["--branch"] = reader.GetOption("--branch"),
-                ["--message"] = reader.GetOption("--message"),
-            }
+        var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["--config"] = reader.GetOption("--config"),
+            ["--site"] = reader.GetOption("--site"),
+            ["--output"] = reader.GetOption("--output"),
+            ["--base-url"] = reader.GetOption("--base-url"),
+            ["--site-url"] = reader.GetOption("--site-url"),
+            ["--branch"] = reader.GetOption("--branch"),
+            ["--message"] = reader.GetOption("--message"),
+        }
             .Where(x => x.Value is not null)
-            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
-            Array.Empty<string>()));
+            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
+
+        if (reader.HasFlag("--dry-run")) options["--dry-run"] = "true";
+        if (reader.HasFlag("--skip-build")) options["--skip-build"] = "true";
+        if (reader.HasFlag("--ci")) options["--ci"] = "true";
+
+        try
+        {
+            return await RunAsync(new CliBoundCommand(options, Array.Empty<string>()));
+        }
+        catch (ConfigException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
     }
 
     public static async Task<int> RunAsync(CliBoundCommand command)
