@@ -22,7 +22,7 @@ public sealed class EquationBlockRenderer : INotionBlockRenderer
         }
 
         var color = GetBlockColor(equation);
-        var cssClasses = color is not null ? $"math-block notion-{color}" : "math-block";
+        var cssClasses = color is not null ? $"math-block notion-{WebUtility.HtmlEncode(color)}" : "math-block";
 
         return Task.FromResult<string?>($"<div class=\"{cssClasses}\">\\[{WebUtility.HtmlEncode(expression)}\\]</div>");
     }

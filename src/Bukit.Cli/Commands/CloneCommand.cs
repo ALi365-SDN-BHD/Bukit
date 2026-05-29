@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Bukit.Cli.Cli.Binding;
+using Bukit.Shared;
 
 namespace Bukit.Cli.Commands;
 
@@ -331,7 +332,11 @@ public static class CloneCommand
 
     private static async Task DownloadAssetsAsync(string rootDir, string themeName, List<CloneAsset> assets)
     {
-        using var http = new HttpClient();
+        var ssrfHandler = new System.Net.Http.SocketsHttpHandler
+        {
+            ConnectCallback = SsrfGuard.SsrfSafeConnectAsync
+        };
+        using var http = new HttpClient(ssrfHandler, disposeHandler: true);
         http.DefaultRequestHeaders.UserAgent.ParseAdd("bukit-clone/1.0");
         http.Timeout = TimeSpan.FromSeconds(30);
 

@@ -25,7 +25,7 @@ public sealed class BookmarkBlockRenderer : INotionBlockRenderer
         var linkText = string.IsNullOrWhiteSpace(captionText) ? WebUtility.HtmlEncode(url) : captionText;
 
         var color = GetBlockColor(bookmark);
-        var cssClasses = color is not null ? $"bookmark notion-{color}" : "bookmark";
+        var cssClasses = color is not null ? $"bookmark notion-{WebUtility.HtmlEncode(color)}" : "bookmark";
 
         return Task.FromResult<string?>($"<a href=\"{WebUtility.HtmlEncode(url)}\" class=\"{cssClasses}\">{linkText}</a>");
     }

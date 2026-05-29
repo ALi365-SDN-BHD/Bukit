@@ -12,6 +12,12 @@ namespace Bukit.Engine;
 
 internal static class SpecialListRenderer
 {
+    internal static int ComputeNestedDegreeOfParallelism(int outerCount, int requestedMDoP)
+    {
+        if (outerCount > 1) return 1;
+        return requestedMDoP > 0 ? requestedMDoP : Environment.ProcessorCount;
+    }
+
     internal static async Task<BuildStageMetrics> RenderSpecialListAlwaysAsync(
         RouteInfo listRoute,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> source,
@@ -21,6 +27,7 @@ internal static class SpecialListRenderer
         string outputDir,
         ConcurrentDictionary<string, SemaphoreSlim> writeLocks,
         int maxDegreeOfParallelism,
+        int outerCount,
         bool includeContent,
         CancellationToken cancellationToken,
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder,
@@ -29,7 +36,7 @@ internal static class SpecialListRenderer
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var listBuildStopwatch = Stopwatch.StartNew();
-        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
+        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, outerCount, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
         var listPage = CreateListPageInfo(siteModel, listRoute);
         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
 
@@ -63,6 +70,7 @@ internal static class SpecialListRenderer
         BuildManifest manifest,
         ConcurrentDictionary<string, int> renderReasons,
         int maxDegreeOfParallelism,
+        int outerCount,
         bool includeContent,
         CancellationToken cancellationToken,
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder,
@@ -73,7 +81,9 @@ internal static class SpecialListRenderer
         var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
         var routeHash = IncrementalBuildEngine.ComputeRouteHash(listRoute);
         var listHashStopwatch = Stopwatch.StartNew();
+#pragma warning disable CS0618
         var contentHash = IncrementalBuildEngine.ComputeListContentHash(templateHash, listRoute.Template, source, manifest, bodyStore, includeContent);
+#pragma warning restore CS0618
         listHashStopwatch.Stop();
         stageMetrics.Increment("listHash");
         stageMetrics.AddDuration("listHash", listHashStopwatch.ElapsedMilliseconds);
@@ -95,7 +105,7 @@ internal static class SpecialListRenderer
         }
 
         var listBuildStopwatch = Stopwatch.StartNew();
-        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
+        var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, outerCount, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
         var listPage = CreateListPageInfo(siteModel, listRoute);
         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
 
@@ -113,7 +123,7 @@ internal static class SpecialListRenderer
         listBuildStopwatch.Stop();
         stageMetrics.Increment("listBuild");
         stageMetrics.AddDuration("listBuild", listBuildStopwatch.ElapsedMilliseconds);
-        await PageRenderDispatcher.WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, html, new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase), cancellationToken);
+        FileWriter.WriteUtf8(outputDir, listRoute.OutputPath, html);
         renderReasons.AddOrUpdate("list_render", 1, (_, v) => v + 1);
 
         lock (manifest)
@@ -138,6 +148,7 @@ internal static class SpecialListRenderer
         IContentBodyStore bodyStore,
         bool includeContent,
         int maxDegreeOfParallelism,
+        int outerCount,
         CancellationToken cancellationToken,
         BuildStageMetricsCollector? stageMetrics = null,
         string bodyLoadMetricName = "listBodyLoad",
@@ -165,15 +176,14 @@ internal static class SpecialListRenderer
             return new List<PageInfo>(pageInfos);
         }
 
+        var effectiveMDoP = ComputeNestedDegreeOfParallelism(outerCount, maxDegreeOfParallelism);
         var metricsLock = new object();
-        await Parallel.ForEachAsync(
-            source.Select((entry, i) => (entry, i)),
-            new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism > 0 ? maxDegreeOfParallelism : Environment.ProcessorCount, CancellationToken = cancellationToken },
-            async (work, ct) =>
+        await Parallel.ForAsync(0, source.Count,
+            new ParallelOptions { MaxDegreeOfParallelism = effectiveMDoP, CancellationToken = cancellationToken },
+            async (i, ct) =>
             {
-                var (entry, i) = work;
                 var bodyLoadStopwatch = Stopwatch.StartNew();
-                var content = await ContentBodyResolver.GetHtmlAsync(entry.Item, bodyStore, ct);
+                var content = await ContentBodyResolver.GetHtmlAsync(source[i].Item, bodyStore, ct);
                 bodyLoadStopwatch.Stop();
                 if (stageMetrics is not null)
                 {
@@ -186,14 +196,14 @@ internal static class SpecialListRenderer
 
                 pageInfos[i] = new PageInfo
                 {
-                    Title = entry.Item.Title,
-                    Url = entry.Route.Url,
+                    Title = source[i].Item.Title,
+                    Url = source[i].Route.Url,
                     Content = content,
-                    Summary = entry.Item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
-                    TableOfContents = GetTableOfContents(entry.Item),
-                    PublishDate = entry.Item.PublishAt,
-                    Fields = entry.Item.Fields,
-                    Seo = seoBuilder?.Invoke(entry.Item, entry.Route)
+                    Summary = source[i].Item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
+                    TableOfContents = GetTableOfContents(source[i].Item),
+                    PublishDate = source[i].Item.PublishAt,
+                    Fields = source[i].Item.Fields,
+                    Seo = seoBuilder?.Invoke(source[i].Item, source[i].Route)
                 };
             });
 

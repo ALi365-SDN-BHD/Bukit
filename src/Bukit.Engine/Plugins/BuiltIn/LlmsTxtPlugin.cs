@@ -221,7 +221,9 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
                 sb.AppendLine();
             }
 
+#pragma warning disable CS0618
             var html = ContentBodyResolver.GetHtml(item, context.BodyStore);
+#pragma warning restore CS0618
             var text = SearchIndexBuilder.StripHtmlToText(html);
             sb.AppendLine(text);
             sb.AppendLine();

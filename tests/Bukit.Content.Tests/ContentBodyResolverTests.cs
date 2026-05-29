@@ -19,7 +19,9 @@ public sealed class ContentBodyResolverTests
             Fields: null,
             BodyKey: "test");
 
+#pragma warning disable CS0618
         var html = ContentBodyResolver.GetHtml(item, store);
+#pragma warning restore CS0618
 
         Assert.Equal("<p>resolved body</p>", html);
     }
@@ -38,7 +40,9 @@ public sealed class ContentBodyResolverTests
             Fields: null,
             BodyKey: null);
 
+#pragma warning disable CS0618
         var html = ContentBodyResolver.GetHtml(item, store);
+#pragma warning restore CS0618
 
         Assert.Equal("<p>inlined content</p>", html);
     }

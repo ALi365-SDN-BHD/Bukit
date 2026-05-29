@@ -60,7 +60,9 @@ internal static class SearchIndexBuilder
             writer.WriteString("summary", summary.ToString());
         }
 
+#pragma warning disable CS0618
         var text = StripHtmlToText(ContentBodyResolver.GetHtml(item, bodyStore));
+#pragma warning restore CS0618
         if (text.Length > 8000)
         {
             text = text[..8000];

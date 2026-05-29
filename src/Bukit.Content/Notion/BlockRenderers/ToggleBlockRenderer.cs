@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using System.Net;
 using System.Text.Json;
 using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
 
@@ -29,7 +30,7 @@ public sealed class ToggleBlockRenderer : INotionBlockRenderer
         }
 
         var color = NotionBlockHelpers.GetBlockColor(toggle);
-        var colorClass = color is not null ? $" class=\"notion-{color}\"" : string.Empty;
+        var colorClass = color is not null ? $" class=\"notion-{WebUtility.HtmlEncode(color)}\"" : string.Empty;
 
         return $"<details{colorClass}><summary>{summary}</summary>{childrenHtml}</details>";
     }

@@ -54,7 +54,7 @@ public sealed class CalloutBlockRenderer : INotionBlockRenderer
         var cssClasses = "callout";
         if (color is not null)
         {
-            cssClasses += $" notion-{color}";
+            cssClasses += $" notion-{WebUtility.HtmlEncode(color)}";
         }
 
         var childrenHtml = string.Empty;

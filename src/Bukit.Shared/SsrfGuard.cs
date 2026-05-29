@@ -1,11 +1,11 @@
 using System.Net;
 using System.Net.Sockets;
 
-namespace Bukit.Content.Media;
+namespace Bukit.Shared;
 
-internal static class SsrfGuard
+public static class SsrfGuard
 {
-    internal static async ValueTask<Stream> SsrfSafeConnectAsync(
+    public static async ValueTask<Stream> SsrfSafeConnectAsync(
         SocketsHttpConnectionContext context, CancellationToken cancellationToken)
     {
         var host = context.DnsEndPoint.Host;
@@ -29,7 +29,7 @@ internal static class SsrfGuard
         }
     }
 
-    internal static async Task<bool> IsPrivateHostAsync(
+    public static async Task<bool> IsPrivateHostAsync(
         string host, CancellationToken cancellationToken)
     {
         try
@@ -48,7 +48,7 @@ internal static class SsrfGuard
         }
     }
 
-    internal static bool IsPrivateAddress(IPAddress address)
+    public static bool IsPrivateAddress(IPAddress address)
     {
         if (IPAddress.IsLoopback(address))
         {

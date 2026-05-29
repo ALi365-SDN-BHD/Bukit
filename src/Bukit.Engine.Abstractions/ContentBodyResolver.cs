@@ -15,6 +15,7 @@ public static class ContentBodyResolver
         return body.Html;
     }
 
+    [Obsolete("Blocking. Use GetHtmlAsync instead to avoid sync-over-async deadlocks.")]
     public static string GetHtml(ContentItem item, IContentBodyStore bodyStore)
     {
         if (!string.IsNullOrEmpty(item.ContentHtml))

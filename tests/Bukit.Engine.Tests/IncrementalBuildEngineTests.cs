@@ -9,6 +9,7 @@ using Xunit;
 
 namespace Bukit.Engine.Tests;
 
+#pragma warning disable CS0618 // ComputeListContentHash is intentionally tested in its obsolete sync form for backward compatibility.
 public sealed class IncrementalBuildEngineTests
 {
     private static readonly DateTimeOffset s_testPublishAt = new(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
@@ -665,3 +666,4 @@ public sealed class IncrementalBuildEngineTests
         Assert.Equal(expected, hash);
     }
 }
+#pragma warning restore CS0618

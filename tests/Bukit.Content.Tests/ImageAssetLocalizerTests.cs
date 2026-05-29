@@ -3,6 +3,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Bukit.Content.Media;
+using Bukit.Shared;
 using Bukit.Config;
 using Xunit;
 

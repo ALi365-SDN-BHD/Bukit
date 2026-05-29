@@ -46,7 +46,9 @@ public static partial class ShortcodeProcessor
         return ShortcodeArgRegex().Replace(template, match =>
         {
             var key = match.Groups[1].Value.Trim();
-            return args.TryGetValue(key, out var value) ? value : match.Value;
+            return args.TryGetValue(key, out var value)
+                ? System.Net.WebUtility.HtmlEncode(value)
+                : match.Value;
         });
     }
 

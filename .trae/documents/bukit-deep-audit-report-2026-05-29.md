@@ -133,6 +133,8 @@ Bukit.Cli  →  Engine, Config, Shared
 
 **建议**：`BlockPrivateNetworks` 应默认为 `true`。CloneCommand 和 SeoExternalAuditor 应添加 SSRF 保护。
 
+> **2026-05-29 更新**：经验证 `MediaConfig.BlockPrivateNetworks` 默认值已为 `true`（AppConfig.cs:260），此 issue 已在更早版本中修复，本次仅补充回归测试。
+
 ### 3.4 并发安全
 
 **总体评估：优秀。零可变静态状态，所有并行点正确同步。**
@@ -273,7 +275,7 @@ Bukit.Cli  →  Engine, Config, Shared
 |------|------|------|------|
 | P1-1 | 安全 | ShortcodeProcessor.cs | 参数值未 HTML 编码 |
 | P1-2 | 安全 | 5 个 BlockRenderer | 未编码颜色值用于 class 属性 |
-| P1-3 | 安全 | ImageAssetLocalizer.cs | SSRF 保护应默认启用 |
+| P1-3 | 安全 | ImageAssetLocalizer.cs | SSRF 保护应默认启用 |<br>**2026-05-29 更新**：经验证 `MediaConfig.BlockPrivateNetworks` 默认值已为 `true`（AppConfig.cs:260），此 issue 已在更早版本中修复，本次仅补充回归测试。
 | P1-4 | 性能 | IncrementalBuildEngine.cs | `GetAwaiter().GetResult()` 阻塞异步调用 |
 | P1-5 | 性能 | SpecialListRenderer.cs | 嵌套 Parallel.ForEachAsync |
 | P1-6 | 安全 | CloneCommand.cs + SeoExternalAuditor.cs | 无 SSRF 保护 |

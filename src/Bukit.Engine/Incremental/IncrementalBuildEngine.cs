@@ -20,7 +20,9 @@ internal static class IncrementalBuildEngine
             return stableContentHash;
         }
 
+#pragma warning disable CS0618
         return ComputeContentHash(item, metadataHash, ContentBodyResolver.GetHtml(item, bodyStore));
+#pragma warning restore CS0618
     }
 
     internal static string ComputeMetadataHash(ContentItem item)
@@ -94,6 +96,7 @@ internal static class IncrementalBuildEngine
         return HashUtil.Sha256Hex(fingerprint);
     }
 
+    [Obsolete("Blocking. Use ComputeListContentHashAsync instead to avoid sync-over-async deadlocks.")]
     internal static string ComputeListContentHash(
         string templateHash,
         string template,
@@ -138,6 +141,54 @@ internal static class IncrementalBuildEngine
         return HashUtil.ToHexLower(digest);
     }
 
+    internal static async Task<string> ComputeListContentHashAsync(
+        string templateHash,
+        string template,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> source,
+        BuildManifest manifest,
+        IContentBodyStore bodyStore,
+        bool includeContent,
+        CancellationToken cancellationToken)
+    {
+        using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var newline = new byte[] { (byte)'\n' };
+
+        AppendUtf8(hasher, templateHash);
+        hasher.AppendData(newline);
+        AppendUtf8(hasher, template);
+
+        foreach (var (item, route) in source)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            hasher.AppendData(newline);
+            AppendUtf8(hasher, route.Url);
+            hasher.AppendData(newline);
+
+            var k = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+            AppendUtf8(hasher, k);
+            hasher.AppendData(newline);
+
+            if (manifest.Entries.TryGetValue(k, out var entry) && entry is not null)
+            {
+                AppendUtf8(hasher, entry.ContentHash);
+                hasher.AppendData(newline);
+                AppendUtf8(hasher, entry.RouteHash);
+            }
+            else
+            {
+                var itemHash = await ComputeListItemHashAsync(item, bodyStore, includeContent, cancellationToken).ConfigureAwait(false);
+                AppendUtf8(hasher, itemHash);
+                hasher.AppendData(newline);
+                AppendUtf8(hasher, ComputeRouteHash(route));
+            }
+        }
+
+        var digest = hasher.GetHashAndReset();
+        return HashUtil.ToHexLower(digest);
+    }
+
+    [Obsolete("Blocking. Use ComputeListItemHashAsync instead to avoid sync-over-async deadlocks.")]
     private static string ComputeListItemHash(ContentItem item, IContentBodyStore bodyStore, bool includeContent)
     {
         var metadataHash = ComputeMetadataHash(item);
@@ -149,7 +200,31 @@ internal static class IncrementalBuildEngine
                 return stableContentHash;
             }
 
+#pragma warning disable CS0618
             return ComputeContentHash(item, metadataHash, ContentBodyResolver.GetHtml(item, bodyStore));
+#pragma warning restore CS0618
+        }
+
+        return metadataHash;
+    }
+
+    private static async Task<string> ComputeListItemHashAsync(
+        ContentItem item,
+        IContentBodyStore bodyStore,
+        bool includeContent,
+        CancellationToken cancellationToken)
+    {
+        var metadataHash = ComputeMetadataHash(item);
+
+        if (includeContent)
+        {
+            if (TryComputeStableContentHash(item, bodyStore, metadataHash, out var stableContentHash))
+            {
+                return stableContentHash;
+            }
+
+            var html = await ContentBodyResolver.GetHtmlAsync(item, bodyStore, cancellationToken).ConfigureAwait(false);
+            return ComputeContentHash(item, metadataHash, html);
         }
 
         return metadataHash;

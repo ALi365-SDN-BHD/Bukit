@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using System.Net;
 using System.Text.Json;
 using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
 
@@ -23,7 +24,7 @@ public sealed class ToDoBlockRenderer : INotionBlockRenderer
         var cssClasses = "to-do";
         if (color is not null)
         {
-            cssClasses += $" notion-{color}";
+            cssClasses += $" notion-{WebUtility.HtmlEncode(color)}";
         }
 
         var childrenHtml = string.Empty;

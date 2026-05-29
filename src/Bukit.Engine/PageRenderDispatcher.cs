@@ -149,7 +149,7 @@ internal static class PageRenderDispatcher
                         var includeContent = entry.IncludeContent;
                         var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
                         var rh = IncrementalBuildEngine.ComputeRouteHash(listRoute);
-                        var ch = IncrementalBuildEngine.ComputeListContentHash(templateHash, listRoute.Template, source, manifest, bodyStore, includeContent);
+                        var ch = await IncrementalBuildEngine.ComputeListContentHashAsync(templateHash, listRoute.Template, source, manifest, bodyStore, includeContent, ct);
                         var outputPath = Path.Combine(outputDir, listRoute.OutputPath);
                         var outputExists = File.Exists(outputPath);
                         manifest.Entries.TryGetValue(key, out var le);
@@ -166,7 +166,7 @@ internal static class PageRenderDispatcher
                             return;
                         }
 
-                        var pageInfos = await SpecialListRenderer.BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, ct, stageMetrics, "listBodyLoad", seoBuilder);
+                        var pageInfos = await SpecialListRenderer.BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, entries.Count, ct, stageMetrics, "listBodyLoad", seoBuilder);
                         var listPage = SpecialListRenderer.CreateListPageInfo(siteModel, listRoute);
                         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
                         var listModel = new ListPageModel { Site = siteModel, Page = listPage, Pages = pageInfos };
@@ -428,7 +428,7 @@ internal static class PageRenderDispatcher
             var skipped = 0;
             await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
             {
-                var result = await SpecialListRenderer.RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, manifest, renderReasons, maxDegreeOfParallelism, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
+                var result = await SpecialListRenderer.RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, manifest, renderReasons, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
                 Interlocked.Add(ref rendered, result.RenderedCount);
                 Interlocked.Add(ref skipped, result.SkippedCount);
                 lock (stageMetricsLock) { stageMetrics = SpecialListRenderer.MergeCollectors(stageMetrics, result.StageMetrics); }
@@ -440,7 +440,7 @@ internal static class PageRenderDispatcher
         var writeLocks = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
         await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
         {
-            var metrics = await SpecialListRenderer.RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, maxDegreeOfParallelism, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
+            var metrics = await SpecialListRenderer.RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
             lock (stageMetricsLock) { stageMetrics = SpecialListRenderer.MergeCollectors(stageMetrics, metrics); }
         });
 

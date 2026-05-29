@@ -41,7 +41,9 @@ internal static class DataModuleBuilder
                 Id = item.Id,
                 Title = item.Title,
                 Slug = item.Slug,
+#pragma warning disable CS0618
                 Content = ContentBodyResolver.GetHtml(item, bodyStore),
+#pragma warning restore CS0618
                 Fields = item.Fields
             });
         }
@@ -93,7 +95,9 @@ internal static class DataModuleBuilder
                 Id = item.Id,
                 Title = item.Title,
                 Slug = item.Slug,
+#pragma warning disable CS0618
                 Content = ContentBodyResolver.GetHtml(item, bodyStore),
+#pragma warning restore CS0618
                 Fields = item.Fields
             });
         }

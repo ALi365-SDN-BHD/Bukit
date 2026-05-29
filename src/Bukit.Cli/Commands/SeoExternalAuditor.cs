@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Bukit.Shared;
 
 namespace Bukit.Cli.Commands;
 
@@ -8,7 +9,11 @@ internal static class SeoExternalAuditor
 {
     internal static async Task<(int Errors, int Warnings)> RunExternalAuditAsync(JsonElement report, string outputDir)
     {
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        var ssrfHandler = new System.Net.Http.SocketsHttpHandler
+        {
+            ConnectCallback = SsrfGuard.SsrfSafeConnectAsync
+        };
+        using var http = new HttpClient(ssrfHandler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(15) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("bukit-seo-audit/1.0");
         var errors = 0;
         var warnings = 0;

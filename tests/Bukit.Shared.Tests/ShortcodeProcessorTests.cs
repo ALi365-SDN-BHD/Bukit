@@ -152,4 +152,39 @@ public sealed class ShortcodeProcessorTests
         var result = ShortcodeProcessor.ParseShortcodeArgs("");
         Assert.Empty(result);
     }
+
+    [Fact]
+    public void RenderShortcodes_EncodesScriptTagInArgs()
+    {
+        var html = "{% card \"<script>alert(1)</script>\" %}";
+        var templates = new Dictionary<string, string>
+        {
+            ["card"] = "<div>{{ $1 }}</div>"
+        };
+        var result = ShortcodeProcessor.RenderShortcodes(html, templates);
+        Assert.Equal("<div>&lt;script&gt;alert(1)&lt;/script&gt;</div>", result);
+    }
+
+    [Fact]
+    public void RenderShortcodes_PreservesPlainTextArg()
+    {
+        var html = "{% greet \"hello world\" %}";
+        var templates = new Dictionary<string, string>
+        {
+            ["greet"] = "<p>{{ $1 }}</p>"
+        };
+        var result = ShortcodeProcessor.RenderShortcodes(html, templates);
+        Assert.Equal("<p>hello world</p>", result);
+    }
+
+    [Fact]
+    public void RenderShortcode_EncodesPositionalArgs()
+    {
+        var templates = new Dictionary<string, string>
+        {
+            ["link"] = "<a>{{ $1 }}</a>"
+        };
+        var result = ShortcodeProcessor.RenderShortcode("link", templates, "<img onerror=x>");
+        Assert.Equal("<a>&lt;img onerror=x&gt;</a>", result);
+    }
 }

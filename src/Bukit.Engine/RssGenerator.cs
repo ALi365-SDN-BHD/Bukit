@@ -208,7 +208,9 @@ public static class RssGenerator
             PublishAt: item.PublishAt,
             Description: GetString(item.Meta, "summary"),
             Categories: MergeCategories(GetStringList(item.Meta, "tags"), GetStringList(item.Meta, "categories")),
+#pragma warning disable CS0618
             ContentHtml: ContentBodyResolver.GetHtml(item, bodyStore));
+#pragma warning restore CS0618
 
     private static IReadOnlyList<string>? GetStringList(IReadOnlyDictionary<string, object> meta, string key)
     {
