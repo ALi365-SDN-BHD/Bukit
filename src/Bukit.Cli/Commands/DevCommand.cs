@@ -193,7 +193,7 @@ public static class DevCommand
                     return c.Site.Analytics.DisableInPreview &&
                            !string.IsNullOrWhiteSpace(c.Site.Analytics.GoogleAnalyticsId);
                 }
-                catch
+                catch (Exception)
                 {
                     return false;
                 }

@@ -87,7 +87,7 @@ internal sealed class DevServerHost : IDevServerHost
         _disposed = true;
         try
         {
-            _listener.Close();
+            _listener.Stop();
         }
         catch (ObjectDisposedException)
         {
