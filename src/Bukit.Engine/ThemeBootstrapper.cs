@@ -47,13 +47,20 @@ internal static class ThemeBootstrapper
         var parentThemeRoot = resolved.ParentThemeRoot;
         if (parentThemeRoot is null && !string.IsNullOrWhiteSpace(themeManifest.Extends))
         {
-            parentThemeRoot = Path.Combine(rootDir, "themes", themeManifest.Extends);
-            if (resolved.IsRemote)
+            if (!ThemeNameSanitizer.TrySanitize(themeManifest.Extends, out var safeExtends, out var sanitizeError))
             {
-                var remoteSibling = Path.Combine(Path.GetDirectoryName(themeRoot)!, themeManifest.Extends);
-                if (Directory.Exists(remoteSibling))
+                log.Warn($"theme.manifest.extends '{themeManifest.Extends}' rejected: {sanitizeError}. Parent theme will not be loaded.");
+            }
+            else
+            {
+                parentThemeRoot = Path.Combine(rootDir, "themes", safeExtends);
+                if (resolved.IsRemote)
                 {
-                    parentThemeRoot = remoteSibling;
+                    var remoteSibling = Path.Combine(Path.GetDirectoryName(themeRoot)!, safeExtends);
+                    if (Directory.Exists(remoteSibling))
+                    {
+                        parentThemeRoot = remoteSibling;
+                    }
                 }
             }
         }

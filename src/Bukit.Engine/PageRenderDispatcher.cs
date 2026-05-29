@@ -54,7 +54,6 @@ internal static class PageRenderDispatcher
         var skippedCount = 0;
         var renderReasons = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var stageMetrics = new BuildStageMetricsCollector();
-        var stageMetricsLock = new object();
 
         if (maxDegreeOfParallelism <= 0) maxDegreeOfParallelism = Environment.ProcessorCount;
         var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism, CancellationToken = cancellationToken };
@@ -137,7 +136,8 @@ internal static class PageRenderDispatcher
                         if (htmlPostProcessor is not null) html = htmlPostProcessor(item, route, pageInfo, html);
                         await WriteUtf8LockedAsync(outputDir, route.OutputPath, html, writeLocks, ct);
                         Interlocked.Increment(ref renderedCount);
-                        lock (stageMetricsLock) { stageMetrics.Increment("pageRender"); stageMetrics.AddDuration("pageRender", 0); }
+                        stageMetrics.Increment("pageRender");
+                        stageMetrics.AddDuration("pageRender", 0);
                         if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(item, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = renderDependencyHash };
                         break;
                     }
@@ -175,7 +175,8 @@ internal static class PageRenderDispatcher
                         await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, listHtml, writeLocks, ct);
                         Interlocked.Increment(ref renderedCount);
                         renderReasons.AddOrUpdate("list_render", 1, (_, v) => v + 1);
-                        lock (stageMetricsLock) { stageMetrics.Increment("listBuild"); stageMetrics.AddDuration("listBuild", 0); }
+                        stageMetrics.Increment("listBuild");
+                        stageMetrics.AddDuration("listBuild", 0);
 
                         if (needsIncrementalMode)
                         {
@@ -198,7 +199,8 @@ internal static class PageRenderDispatcher
                         var staticHtml = renderer.RenderPage(route.Template, pageModel);
                         await WriteUtf8LockedAsync(outputDir, route.OutputPath, staticHtml, writeLocks, ct);
                         Interlocked.Increment(ref renderedCount);
-                        lock (stageMetricsLock) { stageMetrics.Increment("staticRender"); stageMetrics.AddDuration("staticRender", 0); }
+                        stageMetrics.Increment("staticRender");
+                        stageMetrics.AddDuration("staticRender", 0);
                         break;
                     }
             }
@@ -413,7 +415,6 @@ internal static class PageRenderDispatcher
         Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null)
     {
         var stageMetrics = new BuildStageMetricsCollector();
-        var stageMetricsLock = new object();
         var specialLists = SpecialListRouteBuilder.Build(routed, collections, layoutsDir, listPageContentMode, outputPathEncoding);
         foreach (var x in specialLists)
         {
@@ -431,7 +432,7 @@ internal static class PageRenderDispatcher
                 var result = await SpecialListRenderer.RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, manifest, renderReasons, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
                 Interlocked.Add(ref rendered, result.RenderedCount);
                 Interlocked.Add(ref skipped, result.SkippedCount);
-                lock (stageMetricsLock) { stageMetrics = SpecialListRenderer.MergeCollectors(stageMetrics, result.StageMetrics); }
+                stageMetrics.Merge(result.StageMetrics);
             });
 
             return new SpecialListRenderResult(rendered, skipped, stageMetrics.Snapshot());
@@ -441,7 +442,7 @@ internal static class PageRenderDispatcher
         await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
         {
             var metrics = await SpecialListRenderer.RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
-            lock (stageMetricsLock) { stageMetrics = SpecialListRenderer.MergeCollectors(stageMetrics, metrics); }
+            stageMetrics.Merge(metrics);
         });
 
         return new SpecialListRenderResult(specialLists.Count, 0, stageMetrics.Snapshot());

@@ -202,6 +202,23 @@ public sealed class ThemePathResolverTests : IDisposable
     [Fact]
     public void Resolve_AbsoluteLayoutsPath_IsRespected()
     {
+        var absoluteLayouts = Path.GetFullPath(Path.Combine(_rootDir, "custom-layouts"));
+        Directory.CreateDirectory(absoluteLayouts);
+
+        var theme = new ThemeConfig
+        {
+            Name = "base",
+            Layouts = absoluteLayouts
+        };
+
+        var result = ThemePathResolver.Resolve(_rootDir, theme, _logger);
+
+        Assert.Equal(absoluteLayouts, result.LayoutsDir);
+    }
+
+    [Fact]
+    public void Resolve_AbsoluteLayoutsPath_OutsideRoot_ThrowsConfigException()
+    {
         var absoluteLayouts = Path.Combine(Path.GetTempPath(), "bukit-test-abs-layouts-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(absoluteLayouts);
         try
@@ -212,9 +229,7 @@ public sealed class ThemePathResolverTests : IDisposable
                 Layouts = absoluteLayouts
             };
 
-            var result = ThemePathResolver.Resolve(_rootDir, theme, _logger);
-
-            Assert.Equal(Path.GetFullPath(absoluteLayouts), result.LayoutsDir);
+            Assert.Throws<ConfigException>(() => ThemePathResolver.Resolve(_rootDir, theme, _logger));
         }
         finally
         {

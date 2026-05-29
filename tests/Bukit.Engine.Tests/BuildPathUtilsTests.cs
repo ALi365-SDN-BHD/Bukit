@@ -2,6 +2,7 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -159,5 +160,41 @@ public sealed class BuildPathUtilsTests
         var result = BuildPathUtils.MakeAbsolute("/Users/site/public", "images/logo.png");
 
         Assert.Equal(Path.GetFullPath(Path.Combine("/Users/site/public", "images/logo.png")), result);
+    }
+
+    [Fact]
+    public void MakeAbsolute_Should_ThrowConfigException_When_AbsolutePathOutsideRoot_AndEnforceWithinRoot()
+    {
+        var ex = Assert.Throws<ConfigException>(() =>
+            BuildPathUtils.MakeAbsolute("/Users/site/public", "/etc/passwd", enforceWithinRoot: true));
+        Assert.Contains("path outside root boundary", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void MakeAbsolute_Should_ThrowConfigException_When_RelativeEscapesRoot()
+    {
+        var ex = Assert.Throws<ConfigException>(() =>
+            BuildPathUtils.MakeAbsolute("/Users/site/public", "../../../etc/passwd", enforceWithinRoot: true));
+        Assert.Contains("path outside root boundary", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void MakeAbsolute_Should_AcceptPath_When_WithinRoot()
+    {
+        var result = BuildPathUtils.MakeAbsolute("/Users/site/public", "themes/foo/layouts", enforceWithinRoot: true);
+        Assert.Equal(Path.GetFullPath(Path.Combine("/Users/site/public", "themes/foo/layouts")), result);
+    }
+
+    [Fact]
+    public void MakeAbsolute_Should_PreserveOldBehavior_When_DefaultOverload()
+    {
+        var rooted = BuildPathUtils.MakeAbsolute("/Users/site/public", "/etc/passwd");
+        Assert.Equal("/etc/passwd", rooted);
+
+        var relative = BuildPathUtils.MakeAbsolute("/Users/site/public", "../../../etc/passwd");
+        Assert.Equal(Path.GetFullPath("/etc/passwd"), relative);
+
+        var safe = BuildPathUtils.MakeAbsolute("/Users/site/public", "images/logo.png");
+        Assert.Equal(Path.GetFullPath("/Users/site/public/images/logo.png"), safe);
     }
 }

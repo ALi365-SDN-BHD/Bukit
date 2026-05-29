@@ -12,12 +12,40 @@ internal static class BuildPathUtils
 {
     internal static string MakeAbsolute(string rootDir, string path)
     {
-        if (Path.IsPathRooted(path))
+        return MakeAbsolute(rootDir, path, enforceWithinRoot: false);
+    }
+
+    internal static string MakeAbsolute(string rootDir, string path, bool enforceWithinRoot)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        var resolved = Path.IsPathRooted(path)
+            ? Path.GetFullPath(path)
+            : Path.GetFullPath(Path.Combine(rootDir, path));
+
+        if (!enforceWithinRoot)
         {
-            return path;
+            return Path.IsPathRooted(path) ? path : resolved;
         }
 
-        return Path.GetFullPath(Path.Combine(rootDir, path));
+        var rootFull = Path.GetFullPath(rootDir);
+        var rootWithSep = rootFull.EndsWith(Path.DirectorySeparatorChar)
+            ? rootFull
+            : rootFull + Path.DirectorySeparatorChar;
+
+        var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        if (!string.Equals(resolved, rootFull, comparison) &&
+            !resolved.StartsWith(rootWithSep, comparison))
+        {
+            throw new ConfigException(
+                $"Resolved path '{resolved}' is path outside root boundary '{rootFull}'.",
+                DiagnosticCode.ConfigPathTraversal);
+        }
+
+        return resolved;
     }
 
     internal static string NormalizeBaseUrl(string baseUrl)
@@ -92,9 +120,9 @@ internal static class BuildPathUtils
         if (string.IsNullOrWhiteSpace(theme.Name) && string.IsNullOrWhiteSpace(resolvedThemeRoot))
         {
             return (
-                MakeAbsolute(rootDir, theme.Layouts),
-                MakeAbsolute(rootDir, theme.Assets),
-                MakeAbsolute(rootDir, theme.Static)
+                MakeAbsolute(rootDir, theme.Layouts, enforceWithinRoot: true),
+                MakeAbsolute(rootDir, theme.Assets, enforceWithinRoot: true),
+                MakeAbsolute(rootDir, theme.Static, enforceWithinRoot: true)
             );
         }
 
@@ -104,15 +132,15 @@ internal static class BuildPathUtils
 
         var layouts = string.Equals(theme.Layouts, "layouts", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(themeRoot, "layouts")
-            : MakeAbsolute(rootDir, theme.Layouts);
+            : MakeAbsolute(rootDir, theme.Layouts, enforceWithinRoot: true);
 
         var assets = string.Equals(theme.Assets, "assets", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(themeRoot, "assets")
-            : MakeAbsolute(rootDir, theme.Assets);
+            : MakeAbsolute(rootDir, theme.Assets, enforceWithinRoot: true);
 
         var stat = string.Equals(theme.Static, "static", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(themeRoot, "static")
-            : MakeAbsolute(rootDir, theme.Static);
+            : MakeAbsolute(rootDir, theme.Static, enforceWithinRoot: true);
 
         return (layouts, assets, stat);
     }
@@ -248,7 +276,7 @@ internal static class BuildPathUtils
         return sb.ToString();
     }
 
-    private static bool IsWindowsDeviceName(string segment)
+    internal static bool IsWindowsDeviceName(string segment)
     {
         if (string.IsNullOrWhiteSpace(segment))
         {

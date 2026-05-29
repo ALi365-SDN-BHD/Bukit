@@ -23,6 +23,14 @@ internal static class ThemePathResolver
         string? resolvedThemeRoot = null;
         var isRemote = false;
 
+        if (!string.IsNullOrWhiteSpace(theme.Name) &&
+            !ThemeNameSanitizer.TrySanitize(theme.Name, out _, out var nameError))
+        {
+            throw new ConfigException(
+                $"theme.name '{theme.Name}' is invalid: {nameError}",
+                DiagnosticCode.ConfigPathTraversal);
+        }
+
         if (!string.IsNullOrWhiteSpace(theme.Source))
         {
             var themesCacheDir = Path.Combine(rootDir, ".cache", "themes");
@@ -52,21 +60,28 @@ internal static class ThemePathResolver
 
         if (!string.IsNullOrWhiteSpace(theme.Extends))
         {
-            parentThemeRoot = Path.Combine(rootDir, "themes", theme.Extends);
-            if (isRemote)
+            if (!ThemeNameSanitizer.TrySanitize(theme.Extends, out var safeExtends, out var extendsError))
             {
-                var remoteSibling = Path.Combine(Path.GetDirectoryName(themeRoot)!, theme.Extends);
-                if (Directory.Exists(remoteSibling))
-                {
-                    parentThemeRoot = remoteSibling;
-                }
+                logger.Warn($"theme.extends '{theme.Extends}' rejected: {extendsError}. Parent theme will not be loaded.");
             }
+            else
+            {
+                parentThemeRoot = Path.Combine(rootDir, "themes", safeExtends);
+                if (isRemote)
+                {
+                    var remoteSibling = Path.Combine(Path.GetDirectoryName(themeRoot)!, safeExtends);
+                    if (Directory.Exists(remoteSibling))
+                    {
+                        parentThemeRoot = remoteSibling;
+                    }
+                }
 
-            var parentTheme = new ThemeConfig { Name = theme.Extends };
-            var (pLayouts, pAssets, pStatic) = ResolveThemeDirs(rootDir, parentTheme, parentThemeRoot, true);
-            parentLayoutsDir = pLayouts;
-            parentAssetsDir = pAssets;
-            parentStaticDir = pStatic;
+                var parentTheme = new ThemeConfig { Name = safeExtends };
+                var (pLayouts, pAssets, pStatic) = ResolveThemeDirs(rootDir, parentTheme, parentThemeRoot, true);
+                parentLayoutsDir = pLayouts;
+                parentAssetsDir = pAssets;
+                parentStaticDir = pStatic;
+            }
         }
 
         var userLayoutsDir = Path.Combine(rootDir, "layouts");
@@ -94,23 +109,23 @@ internal static class ThemePathResolver
         if (!hasTheme)
         {
             return (
-                BuildPathUtils.MakeAbsolute(rootDir, theme.Layouts),
-                BuildPathUtils.MakeAbsolute(rootDir, theme.Assets),
-                BuildPathUtils.MakeAbsolute(rootDir, theme.Static)
+                BuildPathUtils.MakeAbsolute(rootDir, theme.Layouts, enforceWithinRoot: true),
+                BuildPathUtils.MakeAbsolute(rootDir, theme.Assets, enforceWithinRoot: true),
+                BuildPathUtils.MakeAbsolute(rootDir, theme.Static, enforceWithinRoot: true)
             );
         }
 
         var layouts = string.Equals(theme.Layouts, "layouts", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(themeRoot, "layouts")
-            : BuildPathUtils.MakeAbsolute(rootDir, theme.Layouts);
+            : BuildPathUtils.MakeAbsolute(rootDir, theme.Layouts, enforceWithinRoot: true);
 
         var assets = string.Equals(theme.Assets, "assets", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(themeRoot, "assets")
-            : BuildPathUtils.MakeAbsolute(rootDir, theme.Assets);
+            : BuildPathUtils.MakeAbsolute(rootDir, theme.Assets, enforceWithinRoot: true);
 
         var stat = string.Equals(theme.Static, "static", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(themeRoot, "static")
-            : BuildPathUtils.MakeAbsolute(rootDir, theme.Static);
+            : BuildPathUtils.MakeAbsolute(rootDir, theme.Static, enforceWithinRoot: true);
 
         return (layouts, assets, stat);
     }

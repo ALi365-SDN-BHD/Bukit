@@ -338,8 +338,7 @@ public static class DoctorCommand
         var allContent = new System.Text.StringBuilder();
         foreach (var file in ctx.AllHtmlFiles)
         {
-            try { allContent.Append(File.ReadAllText(file)); }
-            catch { }
+            AppendFileOrWarn(file, allContent);
         }
 
         var combined = allContent.ToString();
@@ -406,6 +405,12 @@ public static class DoctorCommand
             foreach (var key in undeclaredRefs)
                 Console.WriteLine($"  - {key}");
         }
+    }
+
+    internal static void AppendFileOrWarn(string file, System.Text.StringBuilder dst)
+    {
+        try { dst.Append(File.ReadAllText(file)); }
+        catch (Exception ex) { Console.WriteLine($"⚠ Failed to read {file}: {ex.Message}"); }
     }
 
     private static void CheckTemplateVariables(string layoutsDir)
