@@ -382,6 +382,20 @@ public sealed class ContentImageRewritePipelineTests
             references.Select(r => r.Value));
     }
 
+    [Fact]
+    public void HtmlMediaReferenceScanner_FastReturnForNonMediaHtml()
+    {
+        var html = string.Join("", Enumerable.Range(0, 100).Select(_ => "<p>Some text</p>"));
+        Assert.Empty(HtmlMediaReferenceScanner.Find(html));
+    }
+
+    [Fact]
+    public void HtmlMediaReferenceScanner_FastReturnForPureText()
+    {
+        var html = string.Concat(Enumerable.Repeat("Lorem ipsum dolor sit amet. ", 200));
+        Assert.Empty(HtmlMediaReferenceScanner.Find(html));
+    }
+
     private sealed class StubLocalizer : IImageAssetLocalizer
     {
         public Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)

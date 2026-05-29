@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 
 namespace Bukit.Content.Media;
 
@@ -16,9 +16,10 @@ internal readonly record struct HtmlMediaReference(
 
 internal static class HtmlMediaReferenceScanner
 {
-    private static readonly Regex AnchorImageHrefValueRegex = new(
-        @"^https?://[^""']*?\.(?:jpg|jpeg|png|gif|webp|svg|avif|bmp|ico|tiff|tif)(?:\?[^""']*)?$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly string[] ImageExtensions =
+    {
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif", ".bmp", ".ico", ".tiff", ".tif"
+    };
 
     public static IReadOnlyList<HtmlMediaReference> Find(string html)
     {
@@ -27,18 +28,21 @@ internal static class HtmlMediaReferenceScanner
             return Array.Empty<HtmlMediaReference>();
         }
 
-        var references = new List<HtmlMediaReference>();
+        List<HtmlMediaReference>? references = null;
+        var span = html.AsSpan();
         var length = html.Length;
         var i = 0;
 
         while (i < length)
         {
-            if (html[i] != '<')
+            var remaining = span.Slice(i);
+            var nextLt = remaining.IndexOf('<');
+            if (nextLt < 0)
             {
-                i++;
-                continue;
+                break;
             }
 
+            i += nextLt;
             var tagStart = i + 1;
             if (tagStart >= length || !IsTagNameStart(html[tagStart]))
             {
@@ -61,24 +65,21 @@ internal static class HtmlMediaReferenceScanner
                 break;
             }
 
-            // Only scan attributes for tags that may carry media references.
-            // (img/video/a have known attrs; any other tag may carry data-src.)
-            if (MayHaveMediaAttributes(tagName))
+            // Fast path: if there's no '=' in the tag, no attribute values can exist.
+            var tagBody = html.AsSpan(nameEnd, tagEnd - nameEnd);
+            if (tagBody.IndexOf('=') < 0)
             {
-                ScanAttributes(html, nameEnd, tagEnd, tagName, references);
+                i = tagEnd + 1;
+                continue;
             }
+
+            ScanAttributes(html, nameEnd, tagEnd, tagName, ref references);
 
             i = tagEnd + 1;
         }
 
-        return references;
+        return (IReadOnlyList<HtmlMediaReference>?)references ?? Array.Empty<HtmlMediaReference>();
     }
-
-    private static bool MayHaveMediaAttributes(ReadOnlySpan<char> tagName)
-        // Always true: any tag may carry data-src. The fast path is short-circuited
-        // by ScanAttributes (which iterates only attribute boundaries within the
-        // pre-bounded tag region), so this check exists only as a documentation hook.
-        => !tagName.IsEmpty;
 
     private static int FindTagEnd(string html, int from)
     {
@@ -116,13 +117,13 @@ internal static class HtmlMediaReferenceScanner
         int attrsStart,
         int tagEnd,
         ReadOnlySpan<char> tagName,
-        List<HtmlMediaReference> references)
+        ref List<HtmlMediaReference>? references)
     {
         var i = attrsStart;
         while (i < tagEnd)
         {
             // Skip whitespace and '/' (e.g. self-closing slashes).
-            while (i < tagEnd && (char.IsWhiteSpace(html[i]) || html[i] == '/'))
+            while (i < tagEnd && (IsAsciiWhitespace(html[i]) || html[i] == '/'))
             {
                 i++;
             }
@@ -144,7 +145,7 @@ internal static class HtmlMediaReferenceScanner
             var attributeName = html.AsSpan(nameStart, nameEnd - nameStart);
 
             // Skip whitespace before '='.
-            while (i < tagEnd && char.IsWhiteSpace(html[i]))
+            while (i < tagEnd && IsAsciiWhitespace(html[i]))
             {
                 i++;
             }
@@ -158,7 +159,7 @@ internal static class HtmlMediaReferenceScanner
             i++; // consume '='.
 
             // Skip whitespace after '='.
-            while (i < tagEnd && char.IsWhiteSpace(html[i]))
+            while (i < tagEnd && IsAsciiWhitespace(html[i]))
             {
                 i++;
             }
@@ -170,7 +171,7 @@ internal static class HtmlMediaReferenceScanner
             if (quote != '"' && quote != '\'')
             {
                 // Unquoted value — skip to next whitespace or end of tag.
-                while (i < tagEnd && !char.IsWhiteSpace(html[i]))
+                while (i < tagEnd && !IsAsciiWhitespace(html[i]))
                 {
                     i++;
                 }
@@ -195,6 +196,7 @@ internal static class HtmlMediaReferenceScanner
 
             if (TryClassify(tagName, attributeName, html, valueStart, valueLength, out var kind))
             {
+                references ??= new List<HtmlMediaReference>(4);
                 references.Add(new HtmlMediaReference(
                     kind,
                     valueStart,
@@ -212,61 +214,152 @@ internal static class HtmlMediaReferenceScanner
         int valueLength,
         out HtmlMediaReferenceKind kind)
     {
-        if (attributeName.Equals("srcset", StringComparison.OrdinalIgnoreCase))
+        kind = default;
+
+        // Dispatch on tag name first to avoid checking attributes that don't apply.
+        if (tagName.Equals("img", StringComparison.OrdinalIgnoreCase))
         {
-            kind = HtmlMediaReferenceKind.Srcset;
-            return true;
+            if (attributeName.Equals("src", StringComparison.OrdinalIgnoreCase)
+                || attributeName.Equals("data-src", StringComparison.OrdinalIgnoreCase))
+            {
+                kind = HtmlMediaReferenceKind.Url;
+                return true;
+            }
+            if (attributeName.Equals("srcset", StringComparison.OrdinalIgnoreCase))
+            {
+                kind = HtmlMediaReferenceKind.Srcset;
+                return true;
+            }
+            return false;
         }
 
+        if (tagName.Equals("video", StringComparison.OrdinalIgnoreCase))
+        {
+            if (attributeName.Equals("poster", StringComparison.OrdinalIgnoreCase)
+                || attributeName.Equals("src", StringComparison.OrdinalIgnoreCase)
+                || attributeName.Equals("data-src", StringComparison.OrdinalIgnoreCase))
+            {
+                kind = HtmlMediaReferenceKind.Url;
+                return true;
+            }
+            if (attributeName.Equals("srcset", StringComparison.OrdinalIgnoreCase))
+            {
+                kind = HtmlMediaReferenceKind.Srcset;
+                return true;
+            }
+            return false;
+        }
+
+        if (tagName.Equals("a", StringComparison.OrdinalIgnoreCase))
+        {
+            if (attributeName.Equals("href", StringComparison.OrdinalIgnoreCase))
+            {
+                if (IsImageHrefValue(html, valueStart, valueLength))
+                {
+                    kind = HtmlMediaReferenceKind.Url;
+                    return true;
+                }
+                return false;
+            }
+            if (attributeName.Equals("data-src", StringComparison.OrdinalIgnoreCase))
+            {
+                kind = HtmlMediaReferenceKind.Url;
+                return true;
+            }
+            if (attributeName.Equals("srcset", StringComparison.OrdinalIgnoreCase))
+            {
+                kind = HtmlMediaReferenceKind.Srcset;
+                return true;
+            }
+            return false;
+        }
+
+        // Unknown tag: only data-src and srcset are relevant.
         if (attributeName.Equals("data-src", StringComparison.OrdinalIgnoreCase))
         {
             kind = HtmlMediaReferenceKind.Url;
             return true;
         }
-
-        if (tagName.Equals("img", StringComparison.OrdinalIgnoreCase)
-            && attributeName.Equals("src", StringComparison.OrdinalIgnoreCase))
+        if (attributeName.Equals("srcset", StringComparison.OrdinalIgnoreCase))
         {
-            kind = HtmlMediaReferenceKind.Url;
+            kind = HtmlMediaReferenceKind.Srcset;
             return true;
         }
+        return false;
+    }
 
-        if (tagName.Equals("video", StringComparison.OrdinalIgnoreCase)
-            && (attributeName.Equals("poster", StringComparison.OrdinalIgnoreCase)
-                || attributeName.Equals("src", StringComparison.OrdinalIgnoreCase)))
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsTagNameStart(char c)
+        => (uint)((c | 0x20) - 'a') <= (uint)('z' - 'a');
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsTagNameChar(char c)
+        => IsTagNameStart(c)
+           || (uint)(c - '0') <= (uint)('9' - '0')
+           || c == ':' || c == '_' || c == '-';
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsAttributeNameStart(char c)
+        => (uint)((c | 0x20) - 'a') <= (uint)('z' - 'a') || c == '_' || c == ':';
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsAttributeNameChar(char c)
+        => IsAttributeNameStart(c)
+           || (uint)(c - '0') <= (uint)('9' - '0')
+           || c == '-' || c == '.';
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsAsciiWhitespace(char c)
+        => c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
+
+    /// <summary>
+    /// Returns true if <paramref name="html"/>[valueStart..valueStart+valueLength] looks like
+    /// an http(s) URL whose path ends in a known image extension (optionally followed by a query).
+    /// Allocation-free; does not invoke <see cref="System.Net.WebUtility.HtmlDecode"/> because the
+    /// scheme and extension portions of a URL never contain HTML entities in practice.
+    /// </summary>
+    private static bool IsImageHrefValue(string html, int valueStart, int valueLength)
+    {
+        if (valueLength < 8) return false; // shortest viable: "http://a"
+
+        var value = html.AsSpan(valueStart, valueLength);
+
+        if (!value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            && !value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            kind = HtmlMediaReferenceKind.Url;
-            return true;
+            return false;
         }
 
-        if (tagName.Equals("a", StringComparison.OrdinalIgnoreCase)
-            && attributeName.Equals("href", StringComparison.OrdinalIgnoreCase))
+        var questionMark = value.IndexOf('?');
+        var pathEnd = questionMark >= 0 ? questionMark : value.Length;
+        if (pathEnd < 5) return false;
+
+        var extStart = -1;
+        for (var j = pathEnd - 1; j >= 0; j--)
         {
-            var rawValue = html.Substring(valueStart, valueLength);
-            if (AnchorImageHrefValueRegex.IsMatch(System.Net.WebUtility.HtmlDecode(rawValue)))
+            var ch = value[j];
+            if (ch == '.')
             {
-                kind = HtmlMediaReferenceKind.Url;
+                extStart = j;
+                break;
+            }
+            if (ch == '/' || ch == ':')
+            {
+                break;
+            }
+        }
+
+        if (extStart < 0) return false;
+
+        var ext = value.Slice(extStart, pathEnd - extStart);
+        foreach (var imageExt in ImageExtensions)
+        {
+            if (ext.Equals(imageExt.AsSpan(), StringComparison.OrdinalIgnoreCase))
+            {
                 return true;
             }
         }
 
-        kind = default;
         return false;
     }
-
-    private static bool IsTagNameStart(char c)
-        => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
-
-    private static bool IsTagNameChar(char c)
-        => IsTagNameStart(c)
-           || (c >= '0' && c <= '9')
-           || c == ':' || c == '_' || c == '-';
-
-    private static bool IsAttributeNameStart(char c)
-        => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c == ':';
-
-    private static bool IsAttributeNameChar(char c)
-        => IsAttributeNameStart(c)
-           || (c >= '0' && c <= '9')
-           || c == '-' || c == '.';
 }

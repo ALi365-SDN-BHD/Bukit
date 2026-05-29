@@ -90,7 +90,7 @@ public sealed class ContentImageRewritePipeline
             }
             else
             {
-                urls.Add(System.Net.WebUtility.HtmlDecode(reference.Value));
+                urls.Add(MaybeHtmlDecode(reference.Value));
             }
         }
 
@@ -114,13 +114,20 @@ public sealed class ContentImageRewritePipeline
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Fast-path HTML decode: returns the original string if it contains no '&',
+    /// avoiding the StringBuilder allocation inside <see cref="System.Net.WebUtility.HtmlDecode(string)"/>.
+    /// </summary>
+    private static string MaybeHtmlDecode(string value)
+        => value.IndexOf('&') < 0 ? value : System.Net.WebUtility.HtmlDecode(value);
+
     private async Task<string> RewriteUrlValueAsync(
         string value,
         IReadOnlyDictionary<string, string> localizedMap,
         Dictionary<string, string> localizeMemo,
         CancellationToken cancellationToken)
     {
-        var url = System.Net.WebUtility.HtmlDecode(value);
+        var url = MaybeHtmlDecode(value);
         var localized = localizedMap.TryGetValue(url, out var mapped)
             ? mapped
             : await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
@@ -143,7 +150,7 @@ public sealed class ContentImageRewritePipeline
         var last = 0;
         foreach (Match m in matches)
         {
-            var url = System.Net.WebUtility.HtmlDecode(m.Groups["url"].Value);
+            var url = MaybeHtmlDecode(m.Groups["url"].Value);
             var localized = localizedMap.TryGetValue(url, out var mapped)
                 ? mapped
                 : await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
@@ -163,7 +170,7 @@ public sealed class ContentImageRewritePipeline
         var entries = SrcsetEntryRegex.Matches(srcsetValue);
         foreach (Match entry in entries)
         {
-            urls.Add(System.Net.WebUtility.HtmlDecode(entry.Groups["url"].Value));
+            urls.Add(MaybeHtmlDecode(entry.Groups["url"].Value));
         }
     }
 
