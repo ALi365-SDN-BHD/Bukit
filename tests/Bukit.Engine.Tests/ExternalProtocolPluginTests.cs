@@ -605,7 +605,7 @@ public sealed class ExternalProtocolPluginTests
     }
 
     [Fact]
-    public void ExternalProtocolPlugin_DerivePages_LastWinsPolicy_AllowsConflictingDerivedPages()
+    public void ExternalProtocolPlugin_DerivePages_LastWinsPolicy_AllowsDerivedPages()
     {
         using var temp = new TempDir();
         var context = CreateContext(
@@ -619,6 +619,70 @@ public sealed class ExternalProtocolPluginTests
 
         Assert.Contains(derived, x => x.Item.Id == "derived-conflict");
         Assert.Contains(context.PluginExecutions, x => x.Name == "sample" && x.Hook == "derive-pages" && x.Success);
+    }
+
+    [Fact]
+    public void ExternalProtocolPlugin_DerivePages_LastWins_ReplacesEarlierPluginDerivedPage()
+    {
+        using var temp = new TempDir();
+        var outputDir = Path.Combine(temp.Path, "dist");
+        Directory.CreateDirectory(outputDir);
+        var context = new BuildContext
+        {
+            Config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test",
+                    Title = "Test",
+                    PluginFailMode = "strict",
+                    DeriveConflictPolicy = "last-wins",
+                    ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["sample-a"] = new()
+                        {
+                            Runtime = "process",
+                            Entry = DotNetHostPath(),
+                            Hooks = new[] { "derive-pages" },
+                            TimeoutMs = 5000,
+                            Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                ["processArgs"] = BuildProcessArgsOptions("derive-plugin-a")
+                            }
+                        },
+                        ["sample-b"] = new()
+                        {
+                            Runtime = "process",
+                            Entry = DotNetHostPath(),
+                            Hooks = new[] { "derive-pages" },
+                            TimeoutMs = 5000,
+                            Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                ["processArgs"] = BuildProcessArgsOptions("derive-plugin-b")
+                            }
+                        }
+                    }
+                },
+                Content = new ContentConfig { Provider = "markdown" }
+            },
+            RootDir = temp.Path,
+            OutputDir = outputDir,
+            BaseUrl = "/",
+            LayoutsDir = Path.Combine(temp.Path, "layouts"),
+            Routed = new List<(ContentItem, RouteInfo)>
+            {
+                (new ContentItem("post-1", "Post 1", "post-1", DateTimeOffset.UtcNow, "<p>Body</p>",
+                    new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post" }),
+                    new RouteInfo("/blog/post-1/", Path.Combine("blog", "post-1", "index.html"), "pages/post.html"))
+            },
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        var derived = PluginRunner.RunDerivePages(context);
+
+        Assert.Contains(derived, x => x.Item.Id == "plugin-b");
+        Assert.DoesNotContain(derived, x => x.Item.Id == "plugin-a");
+        Assert.Contains(context.PluginExecutions, x => x.Name == "sample-b" && x.Hook == "derive-pages" && x.Success);
     }
 
     [Fact]
