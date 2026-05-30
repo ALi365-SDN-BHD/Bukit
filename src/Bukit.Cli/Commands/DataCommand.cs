@@ -50,6 +50,21 @@ public static class DataCommand
             if (moduleItems.First().Meta.TryGetValue("sourceMode", out var sm) && sm is not null)
                 sourceMode = sm.ToString()!;
 
+            var languages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var m in moduleItems)
+            {
+                if (m.Meta.TryGetValue("language", out var l) && l is not null && !string.IsNullOrWhiteSpace(l.ToString()))
+                    languages.Add(l.ToString()!);
+            }
+            var languageStr = languages.Count == 0 ? "-" : languages.Count == 1 ? languages.First() : "mixed";
+
+            var fieldCount = 0;
+            foreach (var m in moduleItems)
+            {
+                if (m.Fields is { Count: > 0 } && m.Fields.Count > fieldCount)
+                    fieldCount = m.Fields.Count;
+            }
+
             var allFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var m in moduleItems)
             {
@@ -59,7 +74,7 @@ public static class DataCommand
             }
 
             var fields = allFields.Count > 0 ? $"[{string.Join(", ", allFields.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))}]" : "";
-            Console.WriteLine($"  {type,-14} ×{moduleItems.Count}  source={source,-10}  mode={sourceMode,-8} {fields}");
+            Console.WriteLine($"  {type,-14} ×{moduleItems.Count}  source={source,-10}  mode={sourceMode,-8}  lang={languageStr,-6}  fields={fieldCount}  {fields}");
         }
     }
 
