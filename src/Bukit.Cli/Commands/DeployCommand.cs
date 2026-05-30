@@ -22,6 +22,11 @@ public static class DeployCommand
             Console.Error.WriteLine(ex.Message);
             return 1;
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
 
         var deployConfig = config.Deploy ?? new DeployConfig();
 
