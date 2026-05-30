@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Plugins.Protocol;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
+using System.Security.Cryptography;
 
 namespace Bukit.Engine.Plugins.Protocol;
 
@@ -23,6 +24,20 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
             yield break;
         }
 
+        var policy = _context.Config.Site.ExternalPluginPolicy;
+        if (policy == ExternalPluginPolicy.Deny)
+        {
+            _context.Logger.Warn("External plugins are disabled (externalPluginPolicy: deny).");
+            yield break;
+        }
+
+        if (policy == ExternalPluginPolicy.Warn)
+        {
+            _context.Logger.Warn(
+                "External plugins execute local processes and should only be enabled for trusted projects. " +
+                "Set site.externalPluginPolicy: deny to disable external plugins.");
+        }
+
         foreach (var (name, config) in _context.Config.Site.ExternalPlugins)
         {
             if (!config.Enabled)
@@ -30,8 +45,35 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
                 continue;
             }
 
+            if (!string.IsNullOrWhiteSpace(config.Sha256))
+            {
+                var resolvedEntry = config.Entry;
+                if (!Path.IsPathRooted(resolvedEntry))
+                {
+                    resolvedEntry = Path.Combine(_context.RootDir, resolvedEntry.Replace('/', Path.DirectorySeparatorChar));
+                }
+
+                if (!ValidateSha256(resolvedEntry, config.Sha256))
+                {
+                    throw new ConfigException(
+                        $"site.externalPlugins.{name}: sha256 mismatch for entry '{config.Entry}'. " +
+                        "The plugin binary has been modified. Update the sha256 hash or remove the plugin.",
+                        DiagnosticCode.PluginExecutionFailed);
+                }
+            }
+
             yield return new ExternalProtocolPlugin(name, config, _context);
         }
+    }
+
+    private static bool ValidateSha256(string filePath, string expectedHash)
+    {
+        if (!File.Exists(filePath)) return false;
+        using var sha256 = SHA256.Create();
+        using var stream = File.OpenRead(filePath);
+        var hash = sha256.ComputeHash(stream);
+        var hex = Convert.ToHexStringLower(hash);
+        return string.Equals(hex, expectedHash.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class ExternalProtocolPlugin : IBukitPlugin, IAfterBuildAsyncPlugin, IDerivePagesAsyncPlugin, IHookFilterPlugin

@@ -50,7 +50,8 @@ public sealed class NotionRichTextRendererExtendedTests
 
         var html = NotionRichTextRenderer.Render(doc.RootElement);
 
-        Assert.Contains("<a href=\"https://example.com\">Click here</a>", html);
+        Assert.Contains("href=\"https://example.com\"", html);
+        Assert.Contains("Click here</a>", html);
     }
 
     [Fact]
@@ -68,7 +69,8 @@ public sealed class NotionRichTextRendererExtendedTests
 
         var html = NotionRichTextRenderer.Render(doc.RootElement);
 
-        Assert.Contains("<a href=\"https://example.org\">Visit</a>", html);
+        Assert.Contains("href=\"https://example.org\"", html);
+        Assert.Contains("Visit</a>", html);
     }
 
     [Fact]
@@ -220,7 +222,121 @@ public sealed class NotionRichTextRendererExtendedTests
 
         var html = NotionRichTextRenderer.Render(doc.RootElement);
 
-        Assert.Contains("<a href=\"https://notion.so/page-1\">Test Page</a>", html);
+        Assert.Contains("https://notion.so/page-1", html);
+        Assert.Contains("Test Page</a>", html);
         Assert.Contains("data-mention-type=\"page\"", html);
+    }
+
+    [Fact]
+    public void Render_JavascriptUrl_ExcludedFromAnchor()
+    {
+        using var doc = JsonDocument.Parse("""
+        [
+          {
+            "type": "text",
+            "plain_text": "Click me",
+            "href": "javascript:alert(1)"
+          }
+        ]
+        """);
+
+        var html = NotionRichTextRenderer.Render(doc.RootElement);
+
+        Assert.DoesNotContain("<a", html);
+        Assert.Contains("Click me", html);
+    }
+
+    [Fact]
+    public void Render_DataUrl_ExcludedFromAnchor()
+    {
+        using var doc = JsonDocument.Parse("""
+        [
+          {
+            "type": "text",
+            "plain_text": "See data",
+            "text": { "link": { "url": "data:text/html,evil" } }
+          }
+        ]
+        """);
+
+        var html = NotionRichTextRenderer.Render(doc.RootElement);
+
+        Assert.DoesNotContain("<a", html);
+        Assert.Contains("See data", html);
+    }
+
+    [Fact]
+    public void Render_ExternalLink_HasNoopenerRel()
+    {
+        using var doc = JsonDocument.Parse("""
+        [
+          {
+            "type": "text",
+            "plain_text": "External",
+            "href": "https://example.com"
+          }
+        ]
+        """);
+
+        var html = NotionRichTextRenderer.Render(doc.RootElement);
+
+        Assert.Contains("rel=\"noopener noreferrer\"", html);
+        Assert.Contains("https://example.com", html);
+    }
+
+    [Fact]
+    public void Render_InternalLink_NoRel()
+    {
+        using var doc = JsonDocument.Parse("""
+        [
+          {
+            "type": "text",
+            "plain_text": "Internal",
+            "href": "/about"
+          }
+        ]
+        """);
+
+        var html = NotionRichTextRenderer.Render(doc.RootElement);
+
+        Assert.Contains("<a href=\"/about\">Internal</a>", html);
+        Assert.DoesNotContain("rel=", html);
+    }
+
+    [Fact]
+    public void Render_MailtoLink_PassesThrough()
+    {
+        using var doc = JsonDocument.Parse("""
+        [
+          {
+            "type": "text",
+            "plain_text": "Email us",
+            "href": "mailto:user@example.com"
+          }
+        ]
+        """);
+
+        var html = NotionRichTextRenderer.Render(doc.RootElement);
+
+        Assert.Contains("mailto:user@example.com", html);
+        Assert.Contains("rel=\"noopener noreferrer\"", html);
+    }
+
+    [Fact]
+    public void Render_NullHref_NoAnchor()
+    {
+        using var doc = JsonDocument.Parse("""
+        [
+          {
+            "type": "text",
+            "plain_text": "Just text"
+          }
+        ]
+        """);
+
+        var html = NotionRichTextRenderer.Render(doc.RootElement);
+
+        Assert.DoesNotContain("<a", html);
+        Assert.Contains("Just text", html);
     }
 }

@@ -455,7 +455,7 @@ public sealed class NotionBlockRendererEdgeCasesTests
     }
 
     [Fact]
-    public void NotionRichTextRenderer_UnknownColor_UsedAsIs()
+    public void NotionRichTextRenderer_UnknownColor_ReturnsInherit()
     {
         using var doc = JsonDocument.Parse("""
         [
@@ -469,7 +469,7 @@ public sealed class NotionBlockRendererEdgeCasesTests
 
         var html = NotionRichTextRenderer.Render(doc.RootElement);
 
-        Assert.Contains("color:teal", html);
+        Assert.Contains("color:inherit", html);
         Assert.Contains("custom color", html);
     }
 

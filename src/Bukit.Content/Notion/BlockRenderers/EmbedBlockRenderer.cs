@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Shared;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -26,11 +27,23 @@ public sealed class EmbedBlockRenderer : INotionBlockRenderer
 
         if (IsYouTubeUrl(url, out var embedUrl))
         {
-            return Task.FromResult<string?>($"<div class=\"video-embed\"><iframe src=\"{WebUtility.HtmlEncode(embedUrl)}\" frameborder=\"0\" allowfullscreen></iframe></div>");
+            var safeEmbed = SafeUrl.ForEmbed(embedUrl);
+            if (string.IsNullOrWhiteSpace(safeEmbed))
+            {
+                return Task.FromResult<string?>(null);
+            }
+
+            return Task.FromResult<string?>($"<div class=\"video-embed\"><iframe src=\"{WebUtility.HtmlEncode(safeEmbed)}\" frameborder=\"0\" allowfullscreen></iframe></div>");
+        }
+
+        var safeUrl = SafeUrl.ForEmbed(url);
+        if (string.IsNullOrWhiteSpace(safeUrl))
+        {
+            return Task.FromResult<string?>(null);
         }
 
         var sb = new StringBuilder();
-        sb.Append("<figure><iframe src=\"").Append(WebUtility.HtmlEncode(url)).Append("\" frameborder=\"0\"></iframe>");
+        sb.Append("<figure><iframe src=\"").Append(WebUtility.HtmlEncode(safeUrl)).Append("\" frameborder=\"0\"></iframe>");
         if (!string.IsNullOrWhiteSpace(captionText))
         {
             sb.Append("<figcaption>").Append(captionText).Append("</figcaption>");

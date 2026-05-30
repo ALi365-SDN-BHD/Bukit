@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Shared;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -24,12 +25,24 @@ public sealed class VideoBlockRenderer : INotionBlockRenderer
 
         if (IsYouTubeUrl(url, out var embedUrl))
         {
-            return Task.FromResult<string?>($"<div class=\"video-embed\"><iframe src=\"{WebUtility.HtmlEncode(embedUrl)}\" frameborder=\"0\" allowfullscreen></iframe></div>");
+            var safeEmbed = SafeUrl.ForEmbed(embedUrl);
+            if (string.IsNullOrWhiteSpace(safeEmbed))
+            {
+                return Task.FromResult<string?>(null);
+            }
+
+            return Task.FromResult<string?>($"<div class=\"video-embed\"><iframe src=\"{WebUtility.HtmlEncode(safeEmbed)}\" frameborder=\"0\" allowfullscreen></iframe></div>");
+        }
+
+        var safeUrl = SafeUrl.ForMedia(url);
+        if (string.IsNullOrWhiteSpace(safeUrl))
+        {
+            return Task.FromResult<string?>(null);
         }
 
         var captionText = video.TryGetProperty("caption", out var cap) ? NotionRichTextRenderer.Render(cap) : null;
         var sb = new StringBuilder();
-        sb.Append("<video src=\"").Append(WebUtility.HtmlEncode(url)).Append("\" controls></video>");
+        sb.Append("<video src=\"").Append(WebUtility.HtmlEncode(safeUrl)).Append("\" controls></video>");
         if (!string.IsNullOrWhiteSpace(captionText))
         {
             sb.Append("<p>").Append(captionText).Append("</p>");

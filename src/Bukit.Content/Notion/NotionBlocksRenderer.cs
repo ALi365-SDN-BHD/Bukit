@@ -140,7 +140,7 @@ public sealed class NotionBlocksRenderer
         if (!string.IsNullOrWhiteSpace(color) &&
             !string.Equals(color, "default", StringComparison.OrdinalIgnoreCase))
         {
-            colorClass = $" class=\"notion-{color}\"";
+            colorClass = $" class=\"notion-{WebUtility.HtmlEncode(color)}\"";
         }
 
         var hasChildren = block.TryGetProperty("has_children", out var hc) && hc.ValueKind == JsonValueKind.True;

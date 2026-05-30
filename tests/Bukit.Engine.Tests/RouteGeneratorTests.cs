@@ -1,7 +1,8 @@
 using Bukit.Content;
-using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -332,7 +333,7 @@ public sealed class RouteGeneratorTests
         };
         var item = Item("x", meta);
 
-        Assert.Throws<InvalidOperationException>(() => RouteGenerator.Generate(item));
+        Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
     }
 
     [Fact]
@@ -349,7 +350,7 @@ public sealed class RouteGeneratorTests
         };
         var item = Item("x", meta);
 
-        Assert.Throws<InvalidOperationException>(() => RouteGenerator.Generate(item));
+        Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
     }
 
     [Theory]
@@ -361,7 +362,7 @@ public sealed class RouteGeneratorTests
     {
         var item = Item(slug, new Dictionary<string, object> { ["type"] = "post" });
 
-        Assert.Throws<InvalidOperationException>(() => RouteGenerator.Generate(item, "none"));
+        Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, "none"));
     }
 
     [Fact]

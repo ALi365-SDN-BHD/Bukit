@@ -14,11 +14,6 @@ if (command is null || command is "help" or "--help" or "-h")
     return 0;
 }
 
-if (command is not "version")
-{
-    Console.Error.WriteLine($"bukit {CliBuildInfo.Version}");
-}
-
 try
 {
     var registry = BukitCliSpecs.CreateRegistry();
@@ -96,6 +91,27 @@ catch (CommandArgumentException ex)
 {
     Console.Error.WriteLine(ex.Message);
     return 2;
+}
+catch (ConfigException ex)
+{
+    Console.Error.WriteLine(ex.Message);
+    if (ex.Code.HasValue)
+        Console.Error.WriteLine($"  DiagnosticCode: {ex.Code.Value}");
+    return 2;
+}
+catch (ContentException ex)
+{
+    Console.Error.WriteLine(ex.Message);
+    if (ex.Code.HasValue)
+        Console.Error.WriteLine($"  DiagnosticCode: {ex.Code.Value}");
+    return 2;
+}
+catch (RenderException ex)
+{
+    Console.Error.WriteLine(ex.Message);
+    if (ex.Code.HasValue)
+        Console.Error.WriteLine($"  DiagnosticCode: {ex.Code.Value}");
+    return 3;
 }
 catch (Exception ex)
 {

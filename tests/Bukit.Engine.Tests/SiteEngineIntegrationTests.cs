@@ -2695,6 +2695,7 @@ public sealed class SiteEngineIntegrationTests
                     {
                         Runtime = "process",
                         Entry = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet",
+                        AllowAbsoluteEntry = true,
                         Hooks = new[] { "after-build" },
                         TimeoutMs = 5000,
                         Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)

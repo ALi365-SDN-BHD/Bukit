@@ -41,6 +41,16 @@ public static class ConfigApplier
             build = build with { Draft = overrides.Draft.Value };
         }
 
+        if (overrides.IsCI)
+        {
+            site = site with { ExternalPluginPolicy = ExternalPluginPolicy.Deny };
+        }
+
+        if (overrides.AllowExternalPlugins && site.ExternalPluginPolicy == ExternalPluginPolicy.Deny && !overrides.IsCI)
+        {
+            site = site with { ExternalPluginPolicy = ExternalPluginPolicy.Allow };
+        }
+
         return config with
         {
             Site = site,

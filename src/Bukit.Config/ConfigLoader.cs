@@ -75,6 +75,7 @@ public static class ConfigLoader
             Permalinks = ConfigYamlHelpers.ReadStringMap(siteNode, "permalinks"),
             Collections = collections,
             ExternalPlugins = SiteDefaultsApplier.ReadExternalPlugins(siteNode),
+            ExternalPluginPolicy = ReadExternalPluginPolicy(siteNode),
             Plugins = SiteDefaultsApplier.ReadPluginToggles(siteNode)
         };
 
@@ -165,6 +166,23 @@ public static class ConfigLoader
             Taxonomy = taxonomy,
             Logging = logging,
             Deploy = deploy
+        };
+    }
+
+    private static ExternalPluginPolicy ReadExternalPluginPolicy(YamlMappingNode siteNode)
+    {
+        var policy = ConfigYamlHelpers.GetOptionalString(siteNode, "externalPluginPolicy");
+        if (string.IsNullOrWhiteSpace(policy))
+        {
+            return ExternalPluginPolicy.Warn;
+        }
+
+        return policy.Trim().ToLowerInvariant() switch
+        {
+            "deny" => ExternalPluginPolicy.Deny,
+            "warn" => ExternalPluginPolicy.Warn,
+            "allow" => ExternalPluginPolicy.Allow,
+            _ => ExternalPluginPolicy.Warn
         };
     }
 }

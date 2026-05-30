@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Shared;
 namespace Bukit.Routing;
 
 public static class RouteSecurityValidator
@@ -15,22 +16,22 @@ public static class RouteSecurityValidator
         var value = (url ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(value))
         {
-            Fail("URL must not be empty", url, source);
+            Fail("URL must not be empty", url, source, DiagnosticCode.RouteInvalidInternalUrl);
         }
 
         if (ContainsControlCharacter(value))
         {
-            Fail("URL must not contain control characters", value, source);
+            Fail("URL must not contain control characters", value, source, DiagnosticCode.RouteInvalidInternalUrl);
         }
 
         if (value.StartsWith("//", StringComparison.Ordinal))
         {
-            Fail("URL must not be protocol-relative", value, source);
+            Fail("URL must not be protocol-relative", value, source, DiagnosticCode.RouteInvalidInternalUrl);
         }
 
         if (!value.StartsWith("/", StringComparison.Ordinal) && Uri.TryCreate(value, UriKind.Absolute, out var absolute) && !string.IsNullOrWhiteSpace(absolute.Scheme))
         {
-            Fail("URL must be an internal path", value, source);
+            Fail("URL must be an internal path", value, source, DiagnosticCode.RouteInvalidInternalUrl);
         }
 
         ValidateUrlPathSegments(value, source);
@@ -60,7 +61,7 @@ public static class RouteSecurityValidator
 
             if (segment is "." or "..")
             {
-                Fail("Path segment must not traverse directories", url, source);
+                Fail("Path segment must not traverse directories", url, source, DiagnosticCode.RouteInvalidInternalUrl);
             }
 
             string decoded;
@@ -70,18 +71,18 @@ public static class RouteSecurityValidator
             }
             catch
             {
-                Fail("Path segment must contain valid percent-encoding", url, source);
+                Fail("Path segment must contain valid percent-encoding", url, source, DiagnosticCode.RouteInvalidInternalUrl);
                 return;
             }
 
             if (decoded is "." or "..")
             {
-                Fail("Path segment must not traverse directories", url, source);
+                Fail("Path segment must not traverse directories", url, source, DiagnosticCode.RouteInvalidInternalUrl);
             }
 
             if (decoded.Contains('/') || decoded.Contains('\\'))
             {
-                Fail("Path segment must not contain encoded slashes", url, source);
+                Fail("Path segment must not contain encoded slashes", url, source, DiagnosticCode.RouteEncodedSlashInPath);
             }
         }
     }
@@ -91,22 +92,22 @@ public static class RouteSecurityValidator
         var value = (outputPath ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(value))
         {
-            Fail("Output path must not be empty", outputPath, source);
+            Fail("Output path must not be empty", outputPath, source, DiagnosticCode.RouteUnsafeOutputPath);
         }
 
         if (ContainsControlCharacter(value))
         {
-            Fail("Output path must not contain control characters", value, source);
+            Fail("Output path must not contain control characters", value, source, DiagnosticCode.RouteUnsafeOutputPath);
         }
 
         if (Path.IsPathRooted(value) || value.StartsWith("/", StringComparison.Ordinal) || value.StartsWith("\\", StringComparison.Ordinal))
         {
-            Fail("Output path must be relative", value, source);
+            Fail("Output path must be relative", value, source, DiagnosticCode.RouteUnsafeOutputPath);
         }
 
         if (value.Length >= 2 && char.IsLetter(value[0]) && value[1] == ':')
         {
-            Fail("Output path must not be drive-qualified", value, source);
+            Fail("Output path must not be drive-qualified", value, source, DiagnosticCode.RouteUnsafeOutputPath);
         }
 
         var normalized = value.Replace('\\', '/');
@@ -125,32 +126,34 @@ public static class RouteSecurityValidator
     {
         if (string.IsNullOrWhiteSpace(segment))
         {
-            Fail("Path segment must not be empty", fullValue, source);
+            Fail("Path segment must not be empty", fullValue, source, DiagnosticCode.RouteUnsafeOutputPath);
         }
 
         if (segment is "." or "..")
         {
-            Fail("Path segment must not traverse directories", fullValue, source);
+            Fail("Path segment must not traverse directories", fullValue, source, DiagnosticCode.RouteUnsafeOutputPath);
         }
 
         if (ContainsControlCharacter(segment))
         {
-            Fail("Path segment must not contain control characters", fullValue, source);
+            Fail("Path segment must not contain control characters", fullValue, source, DiagnosticCode.RouteUnsafeOutputPath);
         }
 
         var reservedCandidate = allowFileExtension ? Path.GetFileNameWithoutExtension(segment) : segment;
         if (ReservedWindowsNames.Contains(reservedCandidate))
         {
-            Fail("Path segment uses a reserved device name", fullValue, source);
+            Fail("Path segment uses a reserved device name", fullValue, source, DiagnosticCode.RouteReservedWindowsPath);
         }
     }
 
     private static bool ContainsControlCharacter(string value)
         => value.Any(char.IsControl);
 
-    private static void Fail(string reason, string? value, string? source)
+    private static void Fail(string reason, string? value, string? source, DiagnosticCode code)
     {
         var sourceText = string.IsNullOrWhiteSpace(source) ? "route" : source;
-        throw new InvalidOperationException($"Invalid {sourceText}: {reason}. Value: '{value ?? string.Empty}'");
+        throw new ConfigException(
+            $"Invalid {sourceText}: {reason}. Value: '{value ?? string.Empty}'",
+            code);
     }
 }

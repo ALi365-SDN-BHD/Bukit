@@ -1,4 +1,5 @@
 using Bukit.Engine.Output;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -16,7 +17,7 @@ public sealed class SafeOutputFileSystemTests : IDisposable
     {
         var fs = new SafeOutputFileSystem(_root);
 
-        Assert.Throws<InvalidOperationException>(() => fs.GetSafeFullPath(relativePath));
+        Assert.Throws<ConfigException>(() => fs.GetSafeFullPath(relativePath));
     }
 
     [Theory]
@@ -26,7 +27,7 @@ public sealed class SafeOutputFileSystemTests : IDisposable
     {
         var fs = new SafeOutputFileSystem(_root);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fs.DeleteFileAsync(relativePath, CancellationToken.None));
+        await Assert.ThrowsAsync<ConfigException>(() => fs.DeleteFileAsync(relativePath, CancellationToken.None));
     }
 
     [Fact]

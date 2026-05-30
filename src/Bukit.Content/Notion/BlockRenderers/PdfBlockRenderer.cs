@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Shared;
 using System.Net;
 using System.Text.Json;
 using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
@@ -16,13 +17,15 @@ public sealed class PdfBlockRenderer : INotionBlockRenderer
         }
 
         var url = ExtractFileUrl(pdf);
-        if (string.IsNullOrWhiteSpace(url))
+        var safeUrl = SafeUrl.ForMedia(url);
+        if (string.IsNullOrWhiteSpace(safeUrl))
         {
             return Task.FromResult<string?>(null);
         }
 
         var captionText = pdf.TryGetProperty("caption", out var cap) ? NotionRichTextRenderer.Render(cap) : null;
         var linkText = string.IsNullOrWhiteSpace(captionText) ? "PDF" : captionText;
-        return Task.FromResult<string?>($"<p class=\"notion-pdf\"><a href=\"{WebUtility.HtmlEncode(url)}\">{linkText}</a></p>");
+        var rel = SafeUrl.IsExternal(safeUrl) ? " rel=\"noopener noreferrer\"" : "";
+        return Task.FromResult<string?>($"<p class=\"notion-pdf\"><a href=\"{WebUtility.HtmlEncode(safeUrl)}\"{rel}>{linkText}</a></p>");
     }
 }

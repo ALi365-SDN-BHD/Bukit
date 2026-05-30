@@ -341,7 +341,10 @@ internal sealed class VariantBuildPipeline
     {
         var seoAlternates = SeoAlternatesService.AddVariantRouteAlternates(
             config, seoAlternateInputs, listRoutes, rootBaseUrl, defaultLanguage);
-        var maxDegreeOfParallelism = overrides.Jobs ?? Environment.ProcessorCount;
+        var maxDegreeOfParallelism = Math.Clamp(
+            overrides.Jobs ?? Environment.ProcessorCount,
+            1,
+            Math.Max(1, Environment.ProcessorCount * 2));
 
         var seoResult = new SeoPipeline().Execute(
             config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger);

@@ -56,6 +56,7 @@ internal static class PageRenderDispatcher
         var stageMetrics = new BuildStageMetricsCollector();
 
         if (maxDegreeOfParallelism <= 0) maxDegreeOfParallelism = Environment.ProcessorCount;
+        maxDegreeOfParallelism = Math.Clamp(maxDegreeOfParallelism, 1, Math.Max(1, Environment.ProcessorCount * 2));
         var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism, CancellationToken = cancellationToken };
         var writeLocks = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
 
@@ -250,6 +251,8 @@ internal static class PageRenderDispatcher
         {
             maxDegreeOfParallelism = Environment.ProcessorCount;
         }
+
+        maxDegreeOfParallelism = Math.Clamp(maxDegreeOfParallelism, 1, Math.Max(1, Environment.ProcessorCount * 2));
 
         var parallelOptions = new ParallelOptions
         {

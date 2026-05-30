@@ -12,10 +12,14 @@ public enum DiagnosticCode
     ThemeTemplatePathEscape = 0x0103,
     ThemeSourceUnavailable = 0x0104,
 
-    RouteConflict = 0x0201,
-    RouteDuplicateOutputPath = 0x0202,
-    RouteInvalidPattern = 0x0203,
-    RouteListRouteInvalid = 0x0204,
+    RouteConflict              = 0x0201,
+    RouteDuplicateOutputPath   = 0x0202,
+    RouteInvalidPattern        = 0x0203,
+    RouteListRouteInvalid      = 0x0204,
+    RouteInvalidInternalUrl    = 0x0205,
+    RouteUnsafeOutputPath      = 0x0206,
+    RouteReservedWindowsPath   = 0x0207,
+    RouteEncodedSlashInPath    = 0x0208,
 
     RenderTemplateNotFound = 0x0301,
     RenderTemplateParseError = 0x0302,

@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Shared;
 using System.Net;
 using System.Text.Json;
 using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
@@ -16,12 +17,14 @@ public sealed class LinkPreviewBlockRenderer : INotionBlockRenderer
         }
 
         var url = GetString(preview, "url");
-        if (string.IsNullOrWhiteSpace(url))
+        var safeUrl = SafeUrl.ForLink(url);
+        if (string.IsNullOrWhiteSpace(safeUrl))
         {
             return Task.FromResult<string?>(null);
         }
 
-        var encodedUrl = WebUtility.HtmlEncode(url);
-        return Task.FromResult<string?>($"<a href=\"{encodedUrl}\" class=\"bookmark notion-link-preview\">{encodedUrl}</a>");
+        var encodedUrl = WebUtility.HtmlEncode(safeUrl);
+        var rel = SafeUrl.IsExternal(safeUrl) ? " rel=\"noopener noreferrer\"" : "";
+        return Task.FromResult<string?>($"<a href=\"{encodedUrl}\"{rel} class=\"bookmark notion-link-preview\">{encodedUrl}</a>");
     }
 }

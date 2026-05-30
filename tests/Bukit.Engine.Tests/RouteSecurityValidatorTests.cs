@@ -2,6 +2,7 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -16,7 +17,7 @@ public sealed class RouteSecurityValidatorTests
     [InlineData("vbscript:msgbox(1)")]
     public void ValidateInternalUrl_ExternalOrDangerousUrl_Throws(string url)
     {
-        var ex = Assert.Throws<InvalidOperationException>(() => RouteSecurityValidator.ValidateInternalUrl(url, "test"));
+        var ex = Assert.Throws<ConfigException>(() => RouteSecurityValidator.ValidateInternalUrl(url, "test"));
 
         Assert.Contains("test", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(url, ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -31,7 +32,7 @@ public sealed class RouteSecurityValidatorTests
     [InlineData("")]
     public void ValidateOutputPath_UnsafeSegments_Throws(string value)
     {
-        var ex = Assert.Throws<InvalidOperationException>(() => RouteSecurityValidator.ValidateOutputPath(value, "test"));
+        var ex = Assert.Throws<ConfigException>(() => RouteSecurityValidator.ValidateOutputPath(value, "test"));
 
         Assert.Contains("test", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -41,7 +42,7 @@ public sealed class RouteSecurityValidatorTests
     {
         var route = new RouteInfo("https://evil.com", "safe/index.html", "pages/static.html");
 
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<ConfigException>(() =>
             RouteInventoryValidator.ValidateFinalRoutes(
                 Array.Empty<(ContentItem Item, RouteInfo Route)>(),
                 Array.Empty<(ContentItem Item, RouteInfo Route)>(),
@@ -60,7 +61,7 @@ public sealed class RouteSecurityValidatorTests
             Meta: new Dictionary<string, object>());
         var route = new RouteInfo("/plugin-page/", "../evil/index.html", "pages/page.html");
 
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<ConfigException>(() =>
             RouteInventoryValidator.ValidateFinalRoutes(
                 Array.Empty<(ContentItem Item, RouteInfo Route)>(),
                 new[] { (item, route) }));

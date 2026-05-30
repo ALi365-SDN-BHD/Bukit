@@ -351,7 +351,8 @@ public sealed class NotionBlockRenderersTests
 
         Assert.Contains("class=\"notion-mention\"", html);
         Assert.Contains("data-mention-type=\"page\"", html);
-        Assert.Contains("<a href=\"https://notion.so/page-1\">Linked Page</a>", html);
+        Assert.Contains("https://notion.so/page-1", html);
+        Assert.Contains("Linked Page</a>", html);
     }
 
     [Fact]

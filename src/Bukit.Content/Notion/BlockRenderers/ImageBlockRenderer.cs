@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Shared;
 using System.Net;
 using System.Text.Json;
 using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
@@ -16,13 +17,14 @@ public sealed class ImageBlockRenderer : INotionBlockRenderer
         }
 
         var url = ExtractFileUrl(image);
-        if (string.IsNullOrWhiteSpace(url))
+        var safeUrl = SafeUrl.ForMedia(url);
+        if (string.IsNullOrWhiteSpace(safeUrl))
         {
             return Task.FromResult<string?>(null);
         }
 
         var captionText = image.TryGetProperty("caption", out var cap) ? NotionRichTextRenderer.Render(cap) : null;
-        var img = $"<img src=\"{WebUtility.HtmlEncode(url)}\" alt=\"\" />";
+        var img = $"<img src=\"{WebUtility.HtmlEncode(safeUrl)}\" alt=\"\" />";
         if (string.IsNullOrWhiteSpace(captionText))
         {
             return Task.FromResult<string?>(img);

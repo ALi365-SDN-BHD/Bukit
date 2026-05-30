@@ -1,5 +1,12 @@
 namespace Bukit.Config;
 
+public enum ExternalPluginPolicy
+{
+    Deny,
+    Warn,
+    Allow
+}
+
 public sealed record AppConfig
 {
     public required SiteConfig Site { get; init; }
@@ -37,6 +44,7 @@ public sealed record SiteConfig
     public IReadOnlyDictionary<string, string>? Permalinks { get; init; }
     public IReadOnlyDictionary<string, CollectionConfig>? Collections { get; init; }
     public IReadOnlyDictionary<string, ExternalPluginConfig>? ExternalPlugins { get; init; }
+    public ExternalPluginPolicy ExternalPluginPolicy { get; init; } = ExternalPluginPolicy.Warn;
     // DESKTOP-REMOVED: ExternalAssembly loading disabled (AOT-only).
     // public string ExternalAssemblyTrustMode { get; init; } = "warn";
     // public IReadOnlyDictionary<string, string>? ExternalAssemblyAllowlist { get; init; }
@@ -185,6 +193,7 @@ public sealed record ExternalPluginConfig
     public IReadOnlyList<string>? AllowEnvironment { get; init; }
     public IReadOnlyList<string>? Capabilities { get; init; }
     public bool AllowAbsoluteEntry { get; init; }
+    public string? Sha256 { get; init; }
     // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
     // public string WasmProfile { get; init; } = "wasi-preview1";
     // public int MaxMemoryMb { get; init; } = 64;

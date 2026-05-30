@@ -64,7 +64,8 @@ public sealed class BlockRendererMediaAndContainerTests
 
         var html = await new PdfBlockRenderer().RenderAsync(doc.RootElement, null!, CancellationToken.None);
 
-        Assert.Equal("<p class=\"notion-pdf\"><a href=\"https://cdn.example.com/doc.pdf\">PDF</a></p>", html);
+        Assert.Contains("href=\"https://cdn.example.com/doc.pdf\"", html);
+        Assert.Contains(">PDF</a>", html);
     }
 
     [Fact]
@@ -575,7 +576,9 @@ public sealed class BlockRendererMediaAndContainerTests
         Assert.Contains("https://cdn.example.com/icon.png?x=1&amp;y=2", calloutHtml);
         Assert.Contains("<div class=\"callout-children\"><p>Nested callout</p>", calloutHtml);
         Assert.Equal("<div class=\"math-block notion-purple\">\\[x &lt; y\\]</div>", equationHtml);
-        Assert.Equal("<a href=\"https://example.com?a=1&amp;b=2\" class=\"bookmark notion-yellow\">Example link</a>", bookmarkHtml);
+        Assert.Contains("href=\"https://example.com?a=1&amp;b=2\"", bookmarkHtml);
+        Assert.Contains("class=\"bookmark notion-yellow\"", bookmarkHtml);
+        Assert.Contains("Example link</a>", bookmarkHtml);
         Assert.Equal("<p class=\"notion-child-page\">child_page</p>", childHtml);
 
         Assert.Null(await new EquationBlockRenderer().RenderAsync(JsonDocument.Parse("""{"equation":{"expression":" "}}""").RootElement, context, CancellationToken.None));

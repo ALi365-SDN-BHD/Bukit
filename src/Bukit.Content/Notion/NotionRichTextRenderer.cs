@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Shared;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -52,7 +53,8 @@ public static class NotionRichTextRenderer
                 }
 
                 var encoded = WebUtility.HtmlEncode(mentionText);
-                var href = GetHref(item);
+                var rawHref = GetHref(item);
+                var safeHref = SafeUrl.ForLink(rawHref);
                 var mentionSubtype = string.Empty;
                 if (item.TryGetProperty("mention", out var mentionObj) && mentionObj.ValueKind == JsonValueKind.Object)
                 {
@@ -60,9 +62,10 @@ public static class NotionRichTextRenderer
                 }
 
                 string mentionHtml;
-                if (!string.IsNullOrWhiteSpace(href))
+                if (!string.IsNullOrWhiteSpace(safeHref))
                 {
-                    mentionHtml = $"<a href=\"{WebUtility.HtmlEncode(href)}\">{encoded}</a>";
+                    var rel = SafeUrl.IsExternal(safeHref) ? " rel=\"noopener noreferrer\"" : "";
+                    mentionHtml = $"<a href=\"{WebUtility.HtmlEncode(safeHref)}\"{rel}>{encoded}</a>";
                 }
                 else
                 {
@@ -91,12 +94,14 @@ public static class NotionRichTextRenderer
                 continue;
             }
 
-            var href2 = GetHref(item);
+            var rawHref2 = GetHref(item);
+            var safeHref2 = SafeUrl.ForLink(rawHref2);
             var annotations = item.TryGetProperty("annotations", out var ann) ? ann : default;
 
-            if (!string.IsNullOrWhiteSpace(href2))
+            if (!string.IsNullOrWhiteSpace(safeHref2))
             {
-                text = $"<a href=\"{WebUtility.HtmlEncode(href2)}\">{text}</a>";
+                var rel = SafeUrl.IsExternal(safeHref2) ? " rel=\"noopener noreferrer\"" : "";
+                text = $"<a href=\"{WebUtility.HtmlEncode(safeHref2)}\"{rel}>{text}</a>";
             }
 
             if (annotations.ValueKind == JsonValueKind.Object)
@@ -216,8 +221,7 @@ public static class NotionRichTextRenderer
     private static string NotionColorToCss(string notionColor)
     {
         var result = NotionColorPalette.ToForeground(notionColor);
-        // If the palette returns "inherit" (unknown color), fall back to the color name as-is
-        return string.Equals(result, "inherit", StringComparison.Ordinal) ? notionColor : result;
+        return string.Equals(result, "inherit", StringComparison.Ordinal) ? "inherit" : result;
     }
 }
 
