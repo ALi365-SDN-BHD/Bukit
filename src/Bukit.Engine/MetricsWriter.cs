@@ -150,6 +150,7 @@ internal static class MetricsWriter
             writer.WriteNumber("totalRequests", bodyCacheMetrics.TotalRequests);
             writer.WriteNumber("cacheHits", bodyCacheMetrics.CacheHits);
             writer.WriteNumber("cacheMisses", bodyCacheMetrics.CacheMisses);
+            writer.WriteNumber("inlineBypasses", bodyCacheMetrics.InlineBypasses);
             writer.WriteNumber("uniqueBodies", bodyCacheMetrics.UniqueBodies);
             writer.WriteNumber("amplification", bodyCacheMetrics.Amplification);
             writer.WriteNumber("cacheSkips", bodyCacheMetrics.CacheSkips);

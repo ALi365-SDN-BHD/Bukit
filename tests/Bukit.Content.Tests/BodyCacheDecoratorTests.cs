@@ -62,6 +62,7 @@ public sealed class BodyCacheDecoratorTests
         Assert.Equal(3, metrics.TotalRequests);
         Assert.Equal(2, metrics.CacheHits);
         Assert.Equal(1, metrics.CacheMisses);
+        Assert.Equal(0, metrics.InlineBypasses);
         Assert.Equal(1, metrics.UniqueBodies);
         Assert.Equal(3.0, metrics.Amplification);
     }
@@ -81,6 +82,7 @@ public sealed class BodyCacheDecoratorTests
         Assert.Equal(3, metrics.TotalRequests);
         Assert.Equal(0, metrics.CacheHits);
         Assert.Equal(3, metrics.CacheMisses);
+        Assert.Equal(0, metrics.InlineBypasses);
         Assert.Equal(3, metrics.UniqueBodies);
     }
 
@@ -108,6 +110,10 @@ public sealed class BodyCacheDecoratorTests
         await decorator.GetAsync(item);
 
         Assert.Equal(0, inner.CallCount);
+        var metrics = decorator.Metrics;
+        Assert.Equal(1, metrics.TotalRequests);
+        Assert.Equal(0, metrics.CacheHits);
+        Assert.Equal(1, metrics.InlineBypasses);
     }
 
     [Fact]
@@ -163,7 +169,41 @@ public sealed class BodyCacheDecoratorTests
         Assert.Equal(5, metrics.TotalRequests);
         Assert.Equal(0, metrics.CacheHits);
         Assert.Equal(5, metrics.CacheMisses);
+        Assert.Equal(0, metrics.InlineBypasses);
         Assert.True(metrics.UniqueBodies <= 3);
         Assert.True(metrics.CacheSkips >= 2);
+    }
+
+    [Fact]
+    public async Task TotalRequests_Equals_CacheHits_Plus_CacheMisses_Plus_InlineBypasses()
+    {
+        var inner = new CountingBodyStore();
+        var decorator = new BodyCacheDecorator(inner);
+
+        await decorator.GetAsync(CreateItem("inline", contentHtml: "<p>inline</p>"));
+        var item = CreateItem("key-1");
+        await decorator.GetAsync(item);
+        await decorator.GetAsync(item);
+
+        var m = decorator.Metrics;
+        Assert.Equal(m.CacheHits + m.CacheMisses + m.InlineBypasses, m.TotalRequests);
+    }
+
+    [Fact]
+    public async Task NormalCachePath_HasZero_InlineBypasses()
+    {
+        var inner = new CountingBodyStore();
+        var decorator = new BodyCacheDecorator(inner);
+
+        for (var i = 0; i < 5; i++)
+        {
+            await decorator.GetAsync(CreateItem($"item-{i}"));
+        }
+
+        await decorator.GetAsync(CreateItem("item-0"));
+
+        var metrics = decorator.Metrics;
+        Assert.Equal(0, metrics.InlineBypasses);
+        Assert.True(metrics.CacheHits > 0);
     }
 }

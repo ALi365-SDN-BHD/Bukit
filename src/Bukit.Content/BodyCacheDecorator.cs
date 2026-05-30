@@ -3,7 +3,7 @@ using Bukit.Engine.Abstractions.Content;
 
 namespace Bukit.Content;
 
-public sealed record BodyCacheMetrics(long TotalRequests, long CacheHits, long CacheMisses, long UniqueBodies, long CacheSkips)
+public sealed record BodyCacheMetrics(long TotalRequests, long CacheHits, long CacheMisses, long InlineBypasses, long UniqueBodies, long CacheSkips)
 {
     public double Amplification => UniqueBodies == 0 ? 0 : (double)TotalRequests / UniqueBodies;
 }
@@ -18,6 +18,7 @@ public sealed class BodyCacheDecorator : IContentBodyStore
     private long _totalRequests;
     private long _cacheHits;
     private long _cacheMisses;
+    private long _inlineBypasses;
     private long _cacheSkips;
 
     public BodyCacheDecorator(IContentBodyStore inner, int maxEntries = 10000)
@@ -30,6 +31,7 @@ public sealed class BodyCacheDecorator : IContentBodyStore
         Volatile.Read(ref _totalRequests),
         Volatile.Read(ref _cacheHits),
         Volatile.Read(ref _cacheMisses),
+        Volatile.Read(ref _inlineBypasses),
         _cache.Count,
         Volatile.Read(ref _cacheSkips));
 
@@ -39,7 +41,7 @@ public sealed class BodyCacheDecorator : IContentBodyStore
 
         if (!string.IsNullOrWhiteSpace(item.ContentHtml))
         {
-            Interlocked.Increment(ref _cacheHits);
+            Interlocked.Increment(ref _inlineBypasses);
             return new ContentBody(item.ContentHtml);
         }
 
