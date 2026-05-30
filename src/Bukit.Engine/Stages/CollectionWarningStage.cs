@@ -19,6 +19,21 @@ internal sealed class CollectionWarningStage : IContentStage
 
             if (hasCollection)
             {
+                if (item.Meta.TryGetValue("type", out var typeObj) &&
+                    typeObj is not null &&
+                    !string.IsNullOrWhiteSpace(typeObj.ToString()))
+                {
+                    var typeVal = typeObj.ToString()!;
+                    if (typeVal.Equals("post", StringComparison.OrdinalIgnoreCase) ||
+                        typeVal.Equals("page", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var collectionVal = c?.ToString() ?? "(unknown)";
+                        input.Logger.Warn(
+                            $"[WARN] Content \"{item.Id}\" defines both type={typeVal} and collection={collectionVal}. " +
+                            "Collection routing takes precedence; type is treated as legacy metadata.");
+                        warned++;
+                    }
+                }
                 continue;
             }
 

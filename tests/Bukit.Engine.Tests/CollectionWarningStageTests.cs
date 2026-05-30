@@ -97,7 +97,7 @@ public sealed class CollectionWarningStageTests
         var item = CreateItem("with-col", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["collection"] = "blog",
-            ["type"] = "post"
+            ["type"] = "custom"
         });
         var stage = new CollectionWarningStage();
         var input = CreateInput(new[] { item }, logger);
@@ -138,8 +138,49 @@ public sealed class CollectionWarningStageTests
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
-        Assert.Equal(2, logger.Warnings.Count);
+        Assert.Equal(3, logger.Warnings.Count);
         Assert.Contains(logger.Warnings, w => w.Contains("\"a\"", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, w => w.Contains("[DEPRECATED]", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, w => w.Contains("\"b\"", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, w => w.Contains("[WARN]", StringComparison.Ordinal));
         Assert.Contains(logger.Warnings, w => w.Contains("\"c\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_TypePostWithCollection_EmitsConflictWarning()
+    {
+        var logger = new TestLogger();
+        var item = CreateItem("my-conflict", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "post",
+            ["collection"] = "companies"
+        });
+        var stage = new CollectionWarningStage();
+        var input = CreateInput(new[] { item }, logger);
+
+        await stage.ExecuteAsync(input, CancellationToken.None);
+
+        Assert.Single(logger.Warnings);
+        Assert.Contains("[WARN]", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("type=post", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("collection=companies", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("Collection routing takes precedence", logger.Warnings[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_TypeWithNonPostPageCollection_NoWarning()
+    {
+        var logger = new TestLogger();
+        var item = CreateItem("my-custom", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "custom",
+            ["collection"] = "companies"
+        });
+        var stage = new CollectionWarningStage();
+        var input = CreateInput(new[] { item }, logger);
+
+        await stage.ExecuteAsync(input, CancellationToken.None);
+
+        Assert.Empty(logger.Warnings);
     }
 }
