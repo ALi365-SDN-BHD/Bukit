@@ -42,7 +42,28 @@ if (mode == "env")
     var pluginHook = Environment.GetEnvironmentVariable("BUKIT_PLUGIN_HOOK") ?? string.Empty;
     var projectRoot = Environment.GetEnvironmentVariable("BUKIT_PROJECT_ROOT") ?? string.Empty;
     var outputDir = Environment.GetEnvironmentVariable("BUKIT_OUTPUT_DIR") ?? string.Empty;
-    Console.Out.Write($$"""{"ok":true,"outputs":[{"path":"plugin-output.json","contentType":"application/json","text":"{\"openAi\":\"{{openAi}}\",\"github\":\"{{github}}\",\"pluginName\":\"{{pluginName}}\",\"pluginHook\":\"{{pluginHook}}\",\"projectRoot\":\"{{projectRoot.Replace("\\", "\\\\")}}\",\"outputDir\":\"{{outputDir.Replace("\\", "\\\\")}}\"}"}]}""");
+    var innerJson = JsonSerializer.Serialize(new
+    {
+        openAi,
+        github,
+        pluginName,
+        pluginHook,
+        projectRoot,
+        outputDir
+    });
+    Console.Out.Write(JsonSerializer.Serialize(new
+    {
+        ok = true,
+        outputs = new[]
+        {
+            new
+            {
+                path = "plugin-output.json",
+                contentType = "application/json",
+                text = innerJson
+            }
+        }
+    }));
     return;
 }
 
