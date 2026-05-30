@@ -24,7 +24,12 @@ GitHub Actions Windows CI fails in `dotnet test` due to 5 categories of cross-pl
 ### 5. ProtocolEchoPlugin — Windows HOME fallback
 - `env-allowlist` mode reads `Environment.GetEnvironmentVariable("HOME")` which doesn't exist on Windows
 - Fix: fallback to `USERPROFILE` on Windows
-- ExternalProtocolPluginTests path assertion: replace string-contains with JSON parsing
+- ExternalProtocolPluginTests path assertion: replace string-contains with JSON parsing for non-path fields (`openAi`, `github`, `pluginName`, `pluginHook`), but keep `Assert.Contains` for path assertions (`projectRoot`, `outputDir`) since `ProtocolOutputWriter` writes the plugin's `text` field as-is (unescaped backslashes on Windows make it invalid JSON)
+
+### 6. ExternalProtocolPluginTests — Unescaped backslashes on Windows (follow-up)
+- `plugin-output.json` written by `ProtocolOutputWriter.WriteOutputs` contains raw Windows paths with single backslashes (e.g. `D:\a\Bukit...`)
+- `JsonDocument.Parse` fails with `"U is an invalid escapable character"` because `\U` is not a valid JSON escape
+- Fix: use `Assert.Contains` for path assertions (cross-platform safe), JSON parse only for non-path fields
 
 ## Impact
 - Affected specs: build pipeline, plugin protocol, Notion rendering
@@ -71,3 +76,13 @@ The `env-allowlist` mode SHALL fall back to `USERPROFILE` when `HOME` is not set
 - **GIVEN** the plugin runs on Windows where `HOME` is not set
 - **WHEN** the `env-allowlist` mode reads home directory
 - **THEN** falls back to `USERPROFILE`
+
+### Requirement: Plugin output test uses string-contains for path assertions
+Tests that verify plugin output containing file paths SHALL use `Assert.Contains` for path assertions, because `ProtocolOutputWriter.WriteOutputs` writes the plugin's `text` field as-is and Windows paths contain unescaped backslashes.
+
+#### Scenario: Path assertion on Windows
+- **GIVEN** a plugin outputs `{"projectRoot": "D:\\a\\Bukit..."}` as its text field
+- **AND** `ProtocolOutputWriter` writes this to `plugin-output.json` as-is
+- **WHEN** the test reads `plugin-output.json`
+- **THEN** `JsonDocument.Parse` fails (unescaped `\U`)
+- **THEN** `Assert.Contains(temp.Path, output)` succeeds (cross-platform safe)

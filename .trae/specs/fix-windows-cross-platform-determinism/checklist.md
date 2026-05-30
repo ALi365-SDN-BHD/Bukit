@@ -8,3 +8,5 @@
 - [x] `ExternalProtocolPluginTests` path assertions use JSON parsing instead of string-contains
 - [x] `dotnet test bukit.slnx -c Release` passes on macOS, no regressions
 - [x] `bash scripts/smoke.sh Release` passes on macOS
+- [x] `ExternalProtocolPlugin_AfterBuild_DefaultEnvironmentDoesNotExposeHostSecrets` reverted to `Assert.Contains` for all assertions (Windows backslash issue)
+- [x] macOS tests pass after revert
