@@ -77,30 +77,30 @@ public sealed class NotionBlocksRenderer
                     var listTag = type == "bulleted_list_item" ? "ul" : "ol";
                     if (openList is null)
                     {
-                        sb.AppendLine($"<{listTag}>");
+                        sb.Append($"<{listTag}>").Append('\n');
                         openList = listTag;
                     }
                     else if (!string.Equals(openList, listTag, StringComparison.Ordinal))
                     {
-                        sb.AppendLine($"</{openList}>");
-                        sb.AppendLine($"<{listTag}>");
+                        sb.Append($"</{openList}>").Append('\n');
+                        sb.Append($"<{listTag}>").Append('\n');
                         openList = listTag;
                     }
 
-                    sb.AppendLine(await RenderListItemAsync(block, type, cancellationToken));
+                    sb.Append(await RenderListItemAsync(block, type, cancellationToken)).Append('\n');
                     continue;
                 }
 
                 if (openList is not null)
                 {
-                    sb.AppendLine($"</{openList}>");
+                    sb.Append($"</{openList}>").Append('\n');
                     openList = null;
                 }
 
                 var rendered = await _registry.RenderBlockAsync(type, block, _context, cancellationToken);
                 if (!string.IsNullOrWhiteSpace(rendered))
                 {
-                    sb.AppendLine(rendered);
+                    sb.Append(rendered).Append('\n');
                 }
             }
 
@@ -120,7 +120,7 @@ public sealed class NotionBlocksRenderer
 
         if (openList is not null)
         {
-            sb.AppendLine($"</{openList}>");
+            sb.Append($"</{openList}>").Append('\n');
         }
     }
 

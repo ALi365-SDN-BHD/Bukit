@@ -46,7 +46,7 @@ public sealed class BuildPathUtilsTests
     {
         var result = BuildPathUtils.SanitizeFileSegment("hello<world?>test.txt");
 
-        Assert.Equal("hello<world?>test.txt", result);
+        Assert.Equal("hello_world__test.txt", result);
     }
 
     [Fact]
@@ -141,11 +141,12 @@ public sealed class BuildPathUtilsTests
     }
 
     [Fact]
-    public void MakeAbsolute_ReturnsRootedPathUnchanged()
+    public void MakeAbsolute_TreatsUrlLikeRelativePath_ForLegacyBehavior()
     {
-        var result = BuildPathUtils.MakeAbsolute("/Users/site/public", "https://cdn.example.com/style.css");
+        var root = Path.GetFullPath("/Users/site/public");
+        var result = BuildPathUtils.MakeAbsolute(root, "https://cdn.example.com/style.css");
 
-        Assert.Equal("/Users/site/public/https:/cdn.example.com/style.css", result);
+        Assert.Equal(Path.GetFullPath(Path.Combine(root, "https:/cdn.example.com/style.css")), result);
     }
 
     [Fact]

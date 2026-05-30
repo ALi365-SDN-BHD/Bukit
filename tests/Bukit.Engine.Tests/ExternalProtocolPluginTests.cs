@@ -388,12 +388,13 @@ public sealed class ExternalProtocolPluginTests
             PluginRunner.RunAfterBuild(context);
 
             var output = File.ReadAllText(Path.Combine(context.OutputDir, "plugin-output.json"));
-            Assert.Contains("\"openAi\":\"\"", output, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("\"github\":\"\"", output, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("\"pluginName\":\"sample\"", output, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("\"pluginHook\":\"after-build\"", output, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains(JsonEncodedPath(temp.Path), output, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains(JsonEncodedPath(context.OutputDir), output, StringComparison.OrdinalIgnoreCase);
+            using var doc = JsonDocument.Parse(output);
+            Assert.Equal("", doc.RootElement.GetProperty("openAi").GetString());
+            Assert.Equal("", doc.RootElement.GetProperty("github").GetString());
+            Assert.Equal("sample", doc.RootElement.GetProperty("pluginName").GetString());
+            Assert.Equal("after-build", doc.RootElement.GetProperty("pluginHook").GetString());
+            Assert.Equal(temp.Path, doc.RootElement.GetProperty("projectRoot").GetString());
+            Assert.Equal(context.OutputDir, doc.RootElement.GetProperty("outputDir").GetString());
         }
         finally
         {

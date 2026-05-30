@@ -79,7 +79,8 @@ internal static class BuildPathUtils
             return "default";
         }
 
-        var chars = value.Trim().Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c).ToArray();
+        var trimmed = value.Trim();
+        var chars = trimmed.Select(c => c < 32 || c is '<' or '>' or ':' or '"' or '/' or '\\' or '|' or '?' or '*' ? '_' : c).ToArray();
         return new string(chars);
     }
 

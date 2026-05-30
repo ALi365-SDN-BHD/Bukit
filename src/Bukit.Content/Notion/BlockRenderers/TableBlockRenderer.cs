@@ -96,7 +96,7 @@ public sealed class TableBlockRenderer : INotionBlockRenderer
         }
 
         var sb = new StringBuilder();
-        sb.AppendLine("<table>");
+        sb.Append("<table>").Append('\n');
         for (var i = 0; i < rows.Count; i++)
         {
             var isHeaderRow = hasColumnHeader && i == 0;
@@ -109,7 +109,7 @@ public sealed class TableBlockRenderer : INotionBlockRenderer
                 sb.Append($"<{cellTag}>{rows[i][j]}</{cellTag}>");
             }
 
-            sb.AppendLine("</tr>");
+            sb.Append("</tr>").Append('\n');
         }
 
         sb.Append("</table>");

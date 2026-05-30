@@ -116,6 +116,16 @@ internal sealed class ProcessPluginInvoker : IProtocolPluginInvoker
         IDictionary hostEnvironment,
         IEnumerable<string> names)
     {
+        var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (DictionaryEntry entry in hostEnvironment)
+        {
+            if (entry.Key is string key && entry.Value is string value)
+            {
+                lookup[key] = value;
+            }
+        }
+
         foreach (var name in names)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -124,10 +134,9 @@ internal sealed class ProcessPluginInvoker : IProtocolPluginInvoker
             }
 
             var trimmed = name.Trim();
-            var value = hostEnvironment[trimmed];
-            if (value is string stringValue)
+            if (lookup.TryGetValue(trimmed, out var value))
             {
-                startInfo.Environment[trimmed] = stringValue;
+                startInfo.Environment[trimmed] = value;
             }
         }
     }
