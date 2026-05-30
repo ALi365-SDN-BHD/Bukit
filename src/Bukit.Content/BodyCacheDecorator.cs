@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using Bukit.Engine.Abstractions.Content;
 
 namespace Bukit.Content;
@@ -13,7 +14,9 @@ public sealed class BodyCacheDecorator : IContentBodyStore
     private readonly IContentBodyStore _inner;
     private readonly ConcurrentDictionary<string, Lazy<Task<ContentBody>>> _cache = new(StringComparer.Ordinal);
     private readonly int _maxEntries;
-    private readonly ConcurrentQueue<string> _accessOrder = new();
+    private readonly object _lruLock = new();
+    private readonly LinkedList<string> _lruList = new();
+    private readonly ConcurrentDictionary<string, LinkedListNode<string>> _lruNodes = new(StringComparer.Ordinal);
 
     private long _totalRequests;
     private long _cacheHits;
@@ -49,6 +52,14 @@ public sealed class BodyCacheDecorator : IContentBodyStore
         if (_cache.TryGetValue(key, out var lazy))
         {
             Interlocked.Increment(ref _cacheHits);
+            lock (_lruLock)
+            {
+                if (_lruNodes.TryGetValue(key, out var node))
+                {
+                    _lruList.Remove(node);
+                    _lruList.AddLast(node);
+                }
+            }
             return await lazy.Value;
         }
 
@@ -59,7 +70,11 @@ public sealed class BodyCacheDecorator : IContentBodyStore
         if (ReferenceEquals(lazy, newLazy))
         {
             Interlocked.Increment(ref _cacheMisses);
-            _accessOrder.Enqueue(key);
+            lock (_lruLock)
+            {
+                var node = _lruList.AddLast(key);
+                _lruNodes[key] = node;
+            }
             TrimExcess();
         }
         else
@@ -80,12 +95,19 @@ public sealed class BodyCacheDecorator : IContentBodyStore
         var removeCount = Math.Max(_maxEntries / 10, 1);
         for (var i = 0; i < removeCount; i++)
         {
-            if (!_accessOrder.TryDequeue(out var key))
+            string? keyToRemove;
+            lock (_lruLock)
             {
-                break;
+                if (_lruList.First is null)
+                {
+                    break;
+                }
+                keyToRemove = _lruList.First.Value;
+                _lruList.RemoveFirst();
+                _lruNodes.TryRemove(keyToRemove, out _);
             }
 
-            _cache.TryRemove(key, out _);
+            _cache.TryRemove(keyToRemove, out _);
             Interlocked.Increment(ref _cacheSkips);
         }
     }

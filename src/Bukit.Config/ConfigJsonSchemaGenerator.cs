@@ -53,7 +53,7 @@ public static class ConfigJsonSchemaGenerator
             ("pluginFailMode", EnumSchema("strict", "warn", "ignore")),
             ("deriveConflictPolicy", EnumSchema("fail", "warn", "first", "last")),
             ("timezone", StringSchema()),
-            ("collections", Obj(("type", "object"))),
+            ("collections", CollectionSchema()),
             ("permalinks", Obj(("type", "object"))),
             ("externalPlugins", ExternalPluginsSchema()),
             ("plugins", Obj(("type", "object"))),
@@ -357,6 +357,80 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject NotionFieldPoliciesSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("mode", EnumSchema("auto", "discard", "lax")))));
+
+    private static JsonObject CollectionSchema()
+        => Obj(
+            ("type", "object"),
+            ("additionalProperties", CollectionItemSchema()));
+
+    private static JsonObject CollectionItemSchema()
+    {
+        var schema = Obj(("type", "object"));
+        schema["required"] = Arr("permalink", "template");
+        schema["properties"] = Obj(
+            ("permalink", StringSchema()),
+            ("template", StringSchema()),
+            ("listRoute", StringSchema()),
+            ("listTemplate", StringSchema()),
+            ("schemaFailMode", EnumSchema("off", "warn", "strict")),
+            ("pagination", CollectionPaginationSchema()),
+            ("output", CollectionOutputSchema()),
+            ("filteredLists", Obj(("type", "array"), ("items", CollectionFilteredListItemSchema()))),
+            ("schema", Obj(("type", "array"), ("items", CollectionSchemaFieldItemSchema()))));
+        return schema;
+    }
+
+    private static JsonObject CollectionPaginationSchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("enabled", BoolSchema()),
+            ("pageSize", IntSchema(1)),
+            ("urlPattern", StringSchema()),
+            ("firstPageUsesListRoute", BoolSchema()))));
+
+    private static JsonObject CollectionOutputSchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("rss", BoolSchema()),
+            ("sitemap", BoolSchema()),
+            ("archive", BoolSchema()),
+            ("feedPath", StringSchema()),
+            ("feedTitle", StringSchema()),
+            ("feedDescription", StringSchema()),
+            ("archiveDetail", CollectionArchiveDetailSchema()))));
+
+    private static JsonObject CollectionArchiveDetailSchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("depth", StringSchema()),
+            ("template", StringSchema()),
+            ("routePrefix", StringSchema()))));
+
+    private static JsonObject CollectionFilteredListItemSchema()
+    {
+        var schema = Obj(("type", "object"));
+        schema["required"] = Arr("field", "value", "listRoute");
+        schema["properties"] = Obj(
+            ("field", StringSchema()),
+            ("value", StringSchema()),
+            ("listRoute", StringSchema()),
+            ("listTemplate", StringSchema()));
+        return schema;
+    }
+
+    private static JsonObject CollectionSchemaFieldItemSchema()
+    {
+        var schema = Obj(("type", "object"));
+        schema["required"] = Arr("name");
+        schema["properties"] = Obj(
+            ("name", StringSchema()),
+            ("type", StringSchema()),
+            ("label", StringSchema()),
+            ("format", StringSchema()),
+            ("enum", StringArraySchema()),
+            ("min", Obj(("type", "number"))),
+            ("max", Obj(("type", "number"))),
+            ("required", BoolSchema()),
+            ("default", Obj()));
+        return schema;
+    }
 
     private static JsonObject StringSchema() => Obj(("type", "string"));
 

@@ -206,4 +206,70 @@ public sealed class BodyCacheDecoratorTests
         Assert.Equal(0, metrics.InlineBypasses);
         Assert.True(metrics.CacheHits > 0);
     }
+
+    [Fact]
+    public async Task LruHitRefreshesEvictionOrder()
+    {
+        var inner = new CountingBodyStore();
+        var decorator = new BodyCacheDecorator(inner, maxEntries: 2);
+
+        var itemA = CreateItem("a");
+        var itemB = CreateItem("b");
+        var itemC = CreateItem("c");
+
+        await decorator.GetAsync(itemA);
+        await decorator.GetAsync(itemB);
+        await decorator.GetAsync(itemA);
+        await decorator.GetAsync(itemC);
+
+        Assert.Equal(3, inner.CallCount);
+        Assert.Equal(2, decorator.Metrics.UniqueBodies);
+        Assert.Equal(3, decorator.Metrics.CacheMisses);
+        Assert.Equal(1, decorator.Metrics.CacheHits);
+        Assert.True(decorator.Metrics.CacheSkips >= 1);
+
+        var hitsBefore = decorator.Metrics.CacheHits;
+        var missesBefore = decorator.Metrics.CacheMisses;
+
+        await decorator.GetAsync(itemA);
+        Assert.Equal(hitsBefore + 1, decorator.Metrics.CacheHits);
+        Assert.Equal(missesBefore, decorator.Metrics.CacheMisses);
+
+        await decorator.GetAsync(itemB);
+        Assert.Equal(missesBefore + 1, decorator.Metrics.CacheMisses);
+    }
+
+    [Fact]
+    public async Task LruEvictsLeastRecentlyUsed()
+    {
+        var inner = new CountingBodyStore();
+        var decorator = new BodyCacheDecorator(inner, maxEntries: 2);
+
+        var itemA = CreateItem("a");
+        var itemB = CreateItem("b");
+        var itemC = CreateItem("c");
+
+        await decorator.GetAsync(itemA);
+        await decorator.GetAsync(itemB);
+        await decorator.GetAsync(itemC);
+
+        Assert.Equal(3, inner.CallCount);
+        Assert.Equal(2, decorator.Metrics.UniqueBodies);
+        Assert.Equal(3, decorator.Metrics.CacheMisses);
+        Assert.Equal(0, decorator.Metrics.CacheHits);
+        Assert.True(decorator.Metrics.CacheSkips >= 1);
+
+        var hitsBefore = decorator.Metrics.CacheHits;
+        var missesBefore = decorator.Metrics.CacheMisses;
+
+        await decorator.GetAsync(itemB);
+        Assert.Equal(hitsBefore + 1, decorator.Metrics.CacheHits);
+        Assert.Equal(missesBefore, decorator.Metrics.CacheMisses);
+
+        await decorator.GetAsync(itemC);
+        Assert.Equal(hitsBefore + 2, decorator.Metrics.CacheHits);
+
+        await decorator.GetAsync(itemA);
+        Assert.Equal(missesBefore + 1, decorator.Metrics.CacheMisses);
+    }
 }
