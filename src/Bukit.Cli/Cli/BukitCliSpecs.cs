@@ -412,10 +412,20 @@ public static class BukitCliSpecs
                     }),
                 new CliCommandSpec(
                     Name: "apply",
-                    Description: "应用 intent.yaml 生成站点"),
+                    Description: "应用 intent.yaml 生成站点",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--out", "输出路径"),
+                        new CliOptionSpec("--root-dir", "根目录")
+                    }),
                 new CliCommandSpec(
                     Name: "validate",
-                    Description: "校验 intent.yaml")
+                    Description: "校验 intent.yaml",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--out", "输出路径"),
+                        new CliOptionSpec("--root-dir", "根目录")
+                    })
             });
 
         var webhook = new CliCommandSpec(

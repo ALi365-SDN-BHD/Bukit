@@ -33,6 +33,7 @@ test ! -f "examples/starter/$smoke_run/dist_taxonomy_disabled/tags/index.html"
 mkdir -p "$(dirname "$intent_out")"
 dotnet run --project src/Bukit.Cli -c "$configuration" -- intent validate samples/intent/markdown_blog.yaml --out "$intent_out"
 dotnet run --project src/Bukit.Cli -c "$configuration" -- intent apply samples/intent/markdown_blog.yaml --out "$intent_out"
+test -f "$intent_out"
 dotnet run --project src/Bukit.Cli -c "$configuration" -- doctor --config "$intent_out"
 dotnet run --project src/Bukit.Cli -c "$configuration" -- build --config "$intent_out" --output "$smoke_run/dist_intent" --clean --site-url https://example.com --allow-external-plugins
 

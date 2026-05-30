@@ -143,4 +143,91 @@ theme:
 
         Assert.Equal(1, code);
     }
+
+    [Fact]
+    public async Task RunAsync_Apply_WithOut_WritesToSpecifiedPath()
+    {
+        var intentPath = Path.Combine(_tempDir, "intent.yaml");
+        var customOutPath = Path.Combine(_tempDir, "custom-site.yaml");
+        File.WriteAllText(intentPath, """
+site:
+  name: test
+  title: Test
+  base_url: /
+content:
+  provider: markdown
+theme:
+  name: starter
+""");
+
+        var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent", "apply", intentPath, "--out", customOutPath }));
+
+        Assert.Equal(0, code);
+        Assert.True(File.Exists(customOutPath));
+        Assert.False(File.Exists(Path.Combine(_tempDir, "site.yaml")));
+    }
+
+    [Fact]
+    public async Task RunAsync_Apply_WithoutOut_WritesDefaultSiteYaml()
+    {
+        var originalDir = Directory.GetCurrentDirectory();
+        try
+        {
+            Directory.SetCurrentDirectory(_tempDir);
+            var intentPath = Path.Combine(_tempDir, "intent.yaml");
+            File.WriteAllText(intentPath, """
+site:
+  name: test
+  title: Test
+  base_url: /
+content:
+  provider: markdown
+theme:
+  name: starter
+""");
+
+            var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent", "apply", intentPath }));
+
+            Assert.Equal(0, code);
+            Assert.True(File.Exists(Path.Combine(_tempDir, "site.yaml")));
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalDir);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_Apply_WithOut_OutputMessageContainsPath()
+    {
+        var intentPath = Path.Combine(_tempDir, "intent.yaml");
+        var customOutPath = Path.Combine(_tempDir, "custom-msg.yaml");
+        File.WriteAllText(intentPath, """
+site:
+  name: test
+  title: Test
+  base_url: /
+content:
+  provider: markdown
+theme:
+  name: starter
+""");
+
+        var consoleOut = new StringWriter();
+        var originalOut = Console.Out;
+        try
+        {
+            Console.SetOut(consoleOut);
+            var code = await IntentCommand.RunAsync(CliTestHelper.CreateCommand("intent", new[] { "intent", "apply", intentPath, "--out", customOutPath }));
+
+            Assert.Equal(0, code);
+            var output = consoleOut.ToString();
+            Assert.Contains("Wrote config:", output);
+            Assert.Contains(customOutPath, output);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
 }
