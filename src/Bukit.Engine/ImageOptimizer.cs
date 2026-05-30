@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Threading;
 using Bukit.Config;
 using Bukit.Shared;
 
@@ -6,7 +7,7 @@ namespace Bukit.Engine;
 
 internal static class ImageOptimizer
 {
-    internal static void OptimizeIfEnabled(string assetsDir, ImageOptimizationConfig? config, ILogger logger)
+    internal static async Task OptimizeIfEnabled(string assetsDir, ImageOptimizationConfig? config, ILogger logger, CancellationToken cancellationToken = default)
     {
         if (config is not { Enabled: true })
         {
@@ -28,6 +29,8 @@ internal static class ImageOptimizer
 
         foreach (var format in formats)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (!string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase) &&
                 !string.Equals(format, "avif", StringComparison.OrdinalIgnoreCase))
             {
@@ -46,11 +49,11 @@ internal static class ImageOptimizer
 
                     if (string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase))
                     {
-                        ConvertToWebp(imageFile, outputFile, quality, logger);
+                        await ConvertToWebp(imageFile, outputFile, quality, logger, cancellationToken);
                     }
                     else if (string.Equals(format, "avif", StringComparison.OrdinalIgnoreCase))
                     {
-                        ConvertToAvif(imageFile, outputFile, quality, logger);
+                        await ConvertToAvif(imageFile, outputFile, quality, logger, cancellationToken);
                     }
                 }
                 catch (Exception ex)
@@ -74,7 +77,7 @@ internal static class ImageOptimizer
         return string.Join(", ", parts);
     }
 
-    private static void ConvertToWebp(string inputFile, string outputFile, int quality, ILogger logger)
+    private static async Task ConvertToWebp(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
     {
         var toolPath = FindImageTool();
         if (toolPath is null)
@@ -87,10 +90,12 @@ internal static class ImageOptimizer
             ? $"-q {quality} \"{inputFile}\" -o \"{outputFile}\""
             : $"magick \"{inputFile}\" -quality {quality} \"{outputFile}\"";
 
-        RunTool(toolPath, args, logger, inputFile);
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        await RunTool(toolPath, args, logger, inputFile, linkedCts.Token);
     }
 
-    private static void ConvertToAvif(string inputFile, string outputFile, int quality, ILogger logger)
+    private static async Task ConvertToAvif(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
     {
         var toolPath = FindImageTool();
         if (toolPath is null)
@@ -100,7 +105,9 @@ internal static class ImageOptimizer
         }
 
         var args = $"magick \"{inputFile}\" -quality {quality} \"{outputFile}\"";
-        RunTool(toolPath, args, logger, inputFile);
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        await RunTool(toolPath, args, logger, inputFile, linkedCts.Token);
     }
 
     private static string? FindImageTool()
@@ -120,7 +127,8 @@ internal static class ImageOptimizer
 
                 if (process is not null)
                 {
-                    process.WaitForExit(3000);
+                    using var cts = new CancellationTokenSource(3000);
+                    process.WaitForExitAsync(cts.Token).GetAwaiter().GetResult();
                     if (process.ExitCode == 0)
                     {
                         return name;
@@ -135,7 +143,7 @@ internal static class ImageOptimizer
         return null;
     }
 
-    private static void RunTool(string toolPath, string args, ILogger logger, string inputFile)
+    private static async Task RunTool(string toolPath, string args, ILogger logger, string inputFile, CancellationToken cancellationToken)
     {
         using var process = Process.Start(new ProcessStartInfo
         {
@@ -147,14 +155,14 @@ internal static class ImageOptimizer
             CreateNoWindow = true
         });
 
-        process?.WaitForExit(10000);
-        if (process?.ExitCode == 0)
+        await process!.WaitForExitAsync(cancellationToken);
+        if (process.ExitCode == 0)
         {
             logger.Info($"event=image_optimize.ok file={Path.GetFileName(inputFile)}");
         }
         else
         {
-            var err = process?.StandardError.ReadToEnd();
+            var err = process.StandardError.ReadToEnd();
             logger.Warn($"event=image_optimize.error file={Path.GetFileName(inputFile)} reason={err}");
         }
     }

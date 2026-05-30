@@ -6,7 +6,7 @@ namespace Bukit.Engine;
 
 internal static class ScssCompiler
 {
-    internal static void CompileIfEnabled(string assetsDir, ScssConfig? scssConfig, ILogger logger)
+    internal static async Task CompileIfEnabled(string assetsDir, ScssConfig? scssConfig, ILogger logger, CancellationToken cancellationToken = default)
     {
         if (scssConfig is not { Enabled: true })
         {
@@ -28,6 +28,8 @@ internal static class ScssCompiler
 
         foreach (var scssFile in scssFiles)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
                 var cssFile = Path.ChangeExtension(scssFile, ".css");
@@ -47,7 +49,8 @@ internal static class ScssCompiler
                     continue;
                 }
 
-                process.WaitForExit(5000);
+                using var cts = new CancellationTokenSource(5000);
+                await process.WaitForExitAsync(cts.Token);
                 if (process.ExitCode == 0)
                 {
                     logger.Info($"event=scss.compiled file={Path.GetFileName(scssFile)}");
@@ -89,7 +92,7 @@ internal static class ScssCompiler
 
                 if (process is not null)
                 {
-                    process.WaitForExit(3000);
+                    process.WaitForExitAsync(new CancellationTokenSource(3000).Token).GetAwaiter().GetResult();
                     if (process.ExitCode == 0)
                     {
                         return name;
