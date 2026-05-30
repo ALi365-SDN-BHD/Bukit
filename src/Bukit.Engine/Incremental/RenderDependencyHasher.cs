@@ -95,31 +95,9 @@ internal static class RenderDependencyHasher
         IncrementalBuildEngine.AppendUtf8(hasher, config.Build.ListPageContentMode);
         hasher.AppendData(newline);
 
-        if (config.Site.Collections is { Count: > 0 })
-        {
-            foreach (var kv in config.Site.Collections.OrderBy(x => x.Key, StringComparer.Ordinal))
-            {
-                hasher.AppendData(newline);
-                IncrementalBuildEngine.AppendUtf8(hasher, kv.Key);
-                hasher.AppendData(newline);
-                IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.Permalink);
-                hasher.AppendData(newline);
-                IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.Template);
-                hasher.AppendData(newline);
-                IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.ListRoute);
-                hasher.AppendData(newline);
-                IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.ListTemplate);
-            }
-        }
+        AppendStableCollectionConfig(hasher, config.Site.Collections);
 
-        if (config.Taxonomy.Kinds is { Count: > 0 })
-        {
-            foreach (var kind in config.Taxonomy.Kinds.OrderBy(x => x.Key, StringComparer.Ordinal))
-            {
-                hasher.AppendData(newline);
-                IncrementalBuildEngine.AppendUtf8(hasher, kind.Key);
-            }
-        }
+        AppendStableTaxonomyConfig(hasher, config.Taxonomy);
 
         if (config.Site.Plugins is { Count: > 0 })
         {
@@ -239,6 +217,189 @@ internal static class RenderDependencyHasher
         {
             hasher.AppendData(newline);
             IncrementalBuildEngine.AppendUtf8(hasher, kv.Key);
+        }
+    }
+
+    private static void AppendStableCollectionConfig(IncrementalHash hasher, IReadOnlyDictionary<string, CollectionConfig>? collections)
+    {
+        if (collections is null || collections.Count == 0) return;
+        Span<byte> newline = stackalloc byte[1];
+        newline[0] = (byte)'\n';
+        foreach (var kv in collections.OrderBy(x => x.Key, StringComparer.Ordinal))
+        {
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, kv.Key);
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.Permalink);
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.Template);
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.ListRoute);
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.ListTemplate);
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.SchemaFailMode);
+            var pagination = kv.Value.Pagination;
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, pagination.Enabled.ToString());
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, pagination.PageSize.ToString());
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, pagination.UrlPattern);
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, pagination.FirstPageUsesListRoute.ToString());
+            var output = kv.Value.Output;
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, output.Rss.ToString());
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, output.Sitemap.ToString());
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, output.Archive.ToString());
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, output.FeedPath);
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, output.FeedTitle);
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, output.FeedDescription);
+            if (output.ArchiveDetail is not null)
+            {
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, output.ArchiveDetail.Depth);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, output.ArchiveDetail.Template);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, output.ArchiveDetail.RoutePrefix);
+            }
+            if (kv.Value.FilteredLists is { Count: > 0 })
+            {
+                foreach (var fl in kv.Value.FilteredLists.OrderBy(x => x.Field, StringComparer.Ordinal))
+                {
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, fl.Field);
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, fl.Value);
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, fl.ListRoute);
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, fl.ListTemplate);
+                }
+            }
+            if (kv.Value.Schema is { Count: > 0 })
+            {
+                foreach (var sf in kv.Value.Schema.OrderBy(x => x.Name, StringComparer.Ordinal))
+                {
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Name);
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Type);
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Label);
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Format);
+                    if (sf.Enum is { Count: > 0 })
+                    {
+                        foreach (var e in sf.Enum.OrderBy(x => x, StringComparer.Ordinal))
+                        {
+                            hasher.AppendData(newline);
+                            IncrementalBuildEngine.AppendUtf8(hasher, e);
+                        }
+                    }
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Min?.ToString());
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Max?.ToString());
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Required.ToString());
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Default?.ToString());
+                }
+            }
+        }
+    }
+
+    private static void AppendStableTaxonomyConfig(IncrementalHash hasher, TaxonomyConfig taxonomy)
+    {
+        Span<byte> newline = stackalloc byte[1];
+        newline[0] = (byte)'\n';
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Template);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.IndexTemplate);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.TermTemplate);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.OutputMode);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.PageSize.ToString());
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.IndexEnabled.ToString());
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.PinField);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.PinOrderField);
+        if (taxonomy.ItemFields is { Count: > 0 })
+        {
+            foreach (var f in taxonomy.ItemFields.OrderBy(x => x, StringComparer.Ordinal))
+            {
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, f);
+            }
+        }
+        if (taxonomy.PinFieldBySource is { Count: > 0 })
+        {
+            foreach (var kvPair in taxonomy.PinFieldBySource.OrderBy(x => x.Key, StringComparer.Ordinal))
+            {
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kvPair.Key);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kvPair.Value);
+            }
+        }
+        if (taxonomy.PinOrderFieldBySource is { Count: > 0 })
+        {
+            foreach (var kvPair in taxonomy.PinOrderFieldBySource.OrderBy(x => x.Key, StringComparer.Ordinal))
+            {
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kvPair.Key);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kvPair.Value);
+            }
+        }
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Tags.Template);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Tags.IndexTemplate);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Tags.TermTemplate);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Categories.Template);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Categories.IndexTemplate);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Categories.TermTemplate);
+        if (taxonomy.Kinds is { Count: > 0 })
+        {
+            foreach (var kind in taxonomy.Kinds.OrderBy(x => x.Key, StringComparer.Ordinal))
+            {
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kind.Key);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kind.Kind);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kind.Title);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kind.SingularTitlePrefix);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kind.Template);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kind.IndexTemplate);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kind.TermTemplate);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kind.IndexEnabled?.ToString());
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kind.Hierarchical.ToString());
+            }
         }
     }
 }

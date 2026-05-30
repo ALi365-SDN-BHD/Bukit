@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Incremental;
@@ -216,5 +217,119 @@ public sealed class RenderDependencyHasherTests
         var hash2 = RenderDependencyHasher.Compute(config2, s_emptySiteModel);
 
         Assert.NotEqual(hash1, hash2);
+    }
+
+    [Fact]
+    public void Compute_DifferentCollectionPaginationEnabled_ProducesDifferentHash()
+    {
+        var baseConfig = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["blog"] = new CollectionConfig { Permalink = "/blog/{slug}/", Template = "pages/post.html" }
+                }
+            }
+        };
+        var config2 = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["blog"] = new CollectionConfig
+                    {
+                        Permalink = "/blog/{slug}/", Template = "pages/post.html",
+                        Pagination = new CollectionPaginationConfig { Enabled = true }
+                    }
+                }
+            }
+        };
+        Assert.NotEqual(RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel), RenderDependencyHasher.Compute(config2, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_DifferentCollectionOutputRss_ProducesDifferentHash()
+    {
+        var baseConfig = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["blog"] = new CollectionConfig
+                    {
+                        Permalink = "/blog/{slug}/", Template = "pages/post.html",
+                        Output = new CollectionOutputConfig { Rss = true }
+                    }
+                }
+            }
+        };
+        var config2 = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["blog"] = new CollectionConfig
+                    {
+                        Permalink = "/blog/{slug}/", Template = "pages/post.html",
+                        Output = new CollectionOutputConfig { Rss = false }
+                    }
+                }
+            }
+        };
+        Assert.NotEqual(RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel), RenderDependencyHasher.Compute(config2, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_DifferentTaxonomyPageSize_ProducesDifferentHash()
+    {
+        var baseConfig = CreateBaseConfig() with
+        {
+            Taxonomy = new TaxonomyConfig { Kinds = new[] { new TaxonomyKindConfig { Key = "tags" } }, PageSize = 10 }
+        };
+        var config2 = baseConfig with
+        {
+            Taxonomy = new TaxonomyConfig { Kinds = new[] { new TaxonomyKindConfig { Key = "tags" } }, PageSize = 20 }
+        };
+        Assert.NotEqual(RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel), RenderDependencyHasher.Compute(config2, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_DifferentTaxonomyOutputMode_ProducesDifferentHash()
+    {
+        var baseConfig = CreateBaseConfig() with
+        {
+            Taxonomy = new TaxonomyConfig { Kinds = new[] { new TaxonomyKindConfig { Key = "tags" } }, OutputMode = "both" }
+        };
+        var config2 = baseConfig with
+        {
+            Taxonomy = new TaxonomyConfig { Kinds = new[] { new TaxonomyKindConfig { Key = "tags" } }, OutputMode = "terms_only" }
+        };
+        Assert.NotEqual(RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel), RenderDependencyHasher.Compute(config2, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_DifferentTaxonomyTemplates_ProducesDifferentHash()
+    {
+        var baseConfig = CreateBaseConfig() with
+        {
+            Taxonomy = new TaxonomyConfig
+            {
+                Kinds = new[] { new TaxonomyKindConfig { Key = "tags" } },
+                Templates = new TaxonomyTemplatesConfig { Tags = new TaxonomyKindTemplateConfig { Template = "pages/tag.html" } }
+            }
+        };
+        var config2 = baseConfig with
+        {
+            Taxonomy = new TaxonomyConfig
+            {
+                Kinds = new[] { new TaxonomyKindConfig { Key = "tags" } },
+                Templates = new TaxonomyTemplatesConfig { Tags = new TaxonomyKindTemplateConfig { Template = "pages/tag-alt.html" } }
+            }
+        };
+        Assert.NotEqual(RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel), RenderDependencyHasher.Compute(config2, s_emptySiteModel));
     }
 }
