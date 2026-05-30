@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests;
 
-[Collection("Console")]
+[Collection("CWD")]
 public sealed class DeployCommandTests
 {
     [Fact]

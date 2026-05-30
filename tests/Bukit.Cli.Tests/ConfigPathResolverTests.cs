@@ -2,6 +2,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests;
 
+[Collection("CWD")]
 public sealed class ConfigPathResolverTests : IDisposable
 {
     private readonly string _testDir;
@@ -39,51 +40,27 @@ public sealed class ConfigPathResolverTests : IDisposable
     [Fact]
     public void Resolve_WithSite_ResolvesSitesSubdir()
     {
-        var savedDir = Directory.GetCurrentDirectory();
-        try
-        {
-            Directory.SetCurrentDirectory(_testDir);
-            var result = ConfigPathResolver.Resolve(null, "blog");
-            var cwd = Directory.GetCurrentDirectory();
-            var expected = Path.GetFullPath(Path.Combine(cwd, "sites", "blog.yaml"));
-            Assert.Equal(expected, result.FullConfigPath);
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(savedDir);
-        }
+        using var _ = new CurrentDirectoryScope(_testDir);
+        var result = ConfigPathResolver.Resolve(null, "blog");
+        var cwd = Directory.GetCurrentDirectory();
+        var expected = Path.GetFullPath(Path.Combine(cwd, "sites", "blog.yaml"));
+        Assert.Equal(expected, result.FullConfigPath);
     }
 
     [Fact]
     public void Resolve_WithSitePathTraversal_ThrowsInvalidOperation()
     {
-        var savedDir = Directory.GetCurrentDirectory();
-        try
-        {
-            Directory.SetCurrentDirectory(_testDir);
-            Assert.Throws<InvalidOperationException>(() =>
-                ConfigPathResolver.Resolve(null, "../../../etc/passwd"));
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(savedDir);
-        }
+        using var _ = new CurrentDirectoryScope(_testDir);
+        Assert.Throws<InvalidOperationException>(() =>
+            ConfigPathResolver.Resolve(null, "../../../etc/passwd"));
     }
 
     [Fact]
     public void Resolve_WithSiteYamlExtension_DoesNotDoubleAppend()
     {
-        var savedDir = Directory.GetCurrentDirectory();
-        try
-        {
-            Directory.SetCurrentDirectory(_testDir);
-            var result = ConfigPathResolver.Resolve(null, "mysite.yaml");
-            Assert.EndsWith("mysite.yaml", result.FullConfigPath);
-            Assert.DoesNotContain(".yaml.yaml", result.FullConfigPath);
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(savedDir);
-        }
+        using var _ = new CurrentDirectoryScope(_testDir);
+        var result = ConfigPathResolver.Resolve(null, "mysite.yaml");
+        Assert.EndsWith("mysite.yaml", result.FullConfigPath);
+        Assert.DoesNotContain(".yaml.yaml", result.FullConfigPath);
     }
 }

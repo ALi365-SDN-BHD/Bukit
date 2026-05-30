@@ -6,6 +6,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests;
 
+[Collection("CWD")]
 public sealed class BuildCommandTests : IDisposable
 {
     private readonly string _testDir;
@@ -36,17 +37,8 @@ public sealed class BuildCommandTests : IDisposable
             },
             Array.Empty<string>());
 
-        try
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception)
-        {
-        }
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
     }
 
     [Fact]
@@ -80,31 +72,17 @@ public sealed class BuildCommandTests : IDisposable
         Directory.CreateDirectory(Path.Combine(dir, "sites"));
         File.WriteAllText(Path.Combine(dir, "sites", "testsite.yaml"), "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
 
-        var originalDir = Environment.CurrentDirectory;
-        try
-        {
-            Environment.CurrentDirectory = dir;
-            var command = new CliBoundCommand(
-                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["--site"] = "testsite",
-                },
-                Array.Empty<string>());
+        using var _ = new CurrentDirectoryScope(dir);
+        var command = new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--site"] = "testsite",
+            },
+            Array.Empty<string>());
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception)
-        {
-        }
-        finally
-        {
-            Environment.CurrentDirectory = originalDir;
-            try { Directory.Delete(dir, recursive: true); } catch { }
-        }
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
+        try { Directory.Delete(dir, recursive: true); } catch { }
     }
 
     [Fact]
@@ -175,9 +153,21 @@ public sealed class BuildCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_NoConfig_ReturnsExitCode2()
     {
+        using var _ = new CurrentDirectoryScope(_testDir);
         var cmd = new CliBoundCommand(new Dictionary<string, string?>(), Array.Empty<string>());
         var ex = await Assert.ThrowsAsync<ConfigException>(() => BuildCommand.RunAsync(cmd));
         Assert.Contains("Config file not found", ex.Message);
+        Assert.Contains(_testDir, ex.Message);
+    }
+
+    [Fact]
+    public async Task RunAsync_NoConfig_UsesCurrentDirectorySiteYaml()
+    {
+        using var _ = new CurrentDirectoryScope(_testDir);
+        var expectedPath = Path.GetFullPath(Path.Combine(_testDir, "site.yaml"));
+        var cmd = new CliBoundCommand(new Dictionary<string, string?>(), Array.Empty<string>());
+        var ex = await Assert.ThrowsAsync<ConfigException>(() => BuildCommand.RunAsync(cmd));
+        Assert.Contains(expectedPath, ex.Message);
     }
 
     [Fact]
@@ -248,17 +238,8 @@ public sealed class BuildCommandTests : IDisposable
             },
             Array.Empty<string>());
 
-        try
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            await Task.WhenAny(BuildCommand.RunAsync(cmd), Task.Delay(Timeout.Infinite, cts.Token));
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception)
-        {
-        }
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await Task.WhenAny(BuildCommand.RunAsync(cmd), Task.Delay(Timeout.Infinite, cts.Token));
     }
 
     [Fact]
@@ -331,20 +312,13 @@ public sealed class BuildCommandTests : IDisposable
 
             var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml, "--allow-external-plugins" });
 
-            try
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var buildTask = BuildCommand.RunAsync(command);
+            var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
+            if (completed == buildTask)
             {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (ConfigException ex) when (ex.Message.Contains("External plugins are disabled in CI"))
-            {
-                Assert.Fail("Should not throw CI disable error when --allow-external-plugins is set");
-            }
-            catch (Exception)
-            {
+                try { await buildTask; }
+                catch (Exception ex) { Assert.DoesNotContain("External plugins are disabled in CI", ex.Message); }
             }
         }
         finally
@@ -383,20 +357,13 @@ public sealed class BuildCommandTests : IDisposable
 
             var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml });
 
-            try
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var buildTask = BuildCommand.RunAsync(command);
+            var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
+            if (completed == buildTask)
             {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (ConfigException ex) when (ex.Message.Contains("External plugins are disabled in CI"))
-            {
-                Assert.Fail("Should not block external plugins in non-CI environment");
-            }
-            catch (Exception)
-            {
+                try { await buildTask; }
+                catch (Exception ex) { Assert.DoesNotContain("External plugins are disabled in CI", ex.Message); }
             }
         }
         finally
@@ -463,21 +430,8 @@ public sealed class BuildCommandTests : IDisposable
 
         var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml, "--ci" });
 
-        try
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (ConfigException ex) when (ex.Message.Contains("External plugins are disabled in CI"))
-        {
-            Assert.Fail("Should not throw when no external plugins are configured");
-        }
-        catch (Exception)
-        {
-        }
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
     }
 
     [Fact]

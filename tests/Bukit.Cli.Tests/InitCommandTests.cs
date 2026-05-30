@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests;
 
-[Collection("Console")]
+[Collection("CWD")]
 public sealed class InitCommandTests : IDisposable
 {
     private readonly string _tempDir;
