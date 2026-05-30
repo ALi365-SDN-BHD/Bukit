@@ -1,0 +1,24 @@
+site:
+  name: i18n-test
+  title: I18N Test
+  languages:
+    - en
+    - zh-CN
+  defaultLanguage: en
+  collections:
+    page:
+      permalink: /{slug}/
+      template: pages/page.html
+  sitemap: merged
+  rss: merged
+  search: merged
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
+build:
+  output: dist
+  clean: false
+theme:
+  layouts: layouts

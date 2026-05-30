@@ -1,0 +1,73 @@
+{
+  "schema": "https://bukit.dev/schemas/seo-report.v1.json",
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-05-30T13:52:02.500989+00:00",
+  "siteName": "output-safety-test",
+  "siteUrl": "https://example.com",
+  "baseUrl": "/",
+  "routes": [
+    {
+      "url": "/",
+      "outputPath": "index.html",
+      "title": "Output Safety",
+      "description": "Browse 1 content items from Output Safety.",
+      "canonical": "https://example.com/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-05-30T13:52:02.394631+00:00",
+      "contentType": "list",
+      "sourceItemId": null,
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ]
+    },
+    {
+      "url": "/index/",
+      "outputPath": "index/index.html",
+      "title": "Output Safety Test",
+      "description": null,
+      "canonical": "https://example.com/index/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-05-30T13:36:02.8585358+00:00",
+      "contentType": "page",
+      "sourceItemId": "index",
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "ListItem",
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "seo.description_missing",
+      "route": "/index/",
+      "message": "SEO description is missing."
+    }
+  ],
+  "summary": {
+    "routeCount": 2,
+    "indexableCount": 2,
+    "nonIndexableCount": 0,
+    "errorCount": 0,
+    "warningCount": 1,
+    "llmsTxtGenerated": true,
+    "llmsFullTxtGenerated": false,
+    "geoEnhancedCount": 0,
+    "geoScore": 25
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "schema": "https://bukit.dev/schemas/seo-report.v1.json",
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-05-30T14:04:03.996582+00:00",
+  "siteName": "bukit-basic-test",
+  "siteUrl": "https://example.com",
+  "baseUrl": "/",
+  "routes": [
+    {
+      "url": "/",
+      "outputPath": "index.html",
+      "title": "Basic Test",
+      "description": "Browse 1 content items from Basic Test.",
+      "canonical": "https://example.com/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-05-30T14:04:03.855652+00:00",
+      "contentType": "list",
+      "sourceItemId": null,
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ]
+    },
+    {
+      "url": "/index/",
+      "outputPath": "index/index.html",
+      "title": "Hello Bukit",
+      "description": null,
+      "canonical": "https://example.com/index/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-05-30T13:36:02.780046+00:00",
+      "contentType": "page",
+      "sourceItemId": "index",
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "ListItem",
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "seo.description_missing",
+      "route": "/index/",
+      "message": "SEO description is missing."
+    }
+  ],
+  "summary": {
+    "routeCount": 2,
+    "indexableCount": 2,
+    "nonIndexableCount": 0,
+    "errorCount": 0,
+    "warningCount": 1,
+    "llmsTxtGenerated": true,
+    "llmsFullTxtGenerated": false,
+    "geoEnhancedCount": 0,
+    "geoScore": 25
+  }
+}

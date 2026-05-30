@@ -1,0 +1,85 @@
+{
+  "schema": "https://bukit.dev/schemas/seo-report.v1.json",
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-05-30T13:52:28.171014+00:00",
+  "siteName": "incremental-test",
+  "siteUrl": "https://example.com",
+  "baseUrl": "/",
+  "routes": [
+    {
+      "url": "/",
+      "outputPath": "index.html",
+      "title": "Incremental Test",
+      "description": "Browse 1 content items from Incremental Test.",
+      "canonical": "https://example.com/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-05-30T13:52:28.05548+00:00",
+      "contentType": "list",
+      "sourceItemId": null,
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ]
+    },
+    {
+      "url": "/index/",
+      "outputPath": "index/index.html",
+      "title": "Incremental Test",
+      "description": null,
+      "canonical": "https://example.com/index/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-05-30T13:36:05.5889775+00:00",
+      "contentType": "page",
+      "sourceItemId": "index",
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "ListItem",
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "seo.title_duplicate",
+      "route": "/",
+      "message": "SEO title is duplicated by 2 routes."
+    },
+    {
+      "severity": "warning",
+      "code": "seo.description_missing",
+      "route": "/index/",
+      "message": "SEO description is missing."
+    },
+    {
+      "severity": "warning",
+      "code": "seo.title_duplicate",
+      "route": "/index/",
+      "message": "SEO title is duplicated by 2 routes."
+    }
+  ],
+  "summary": {
+    "routeCount": 2,
+    "indexableCount": 2,
+    "nonIndexableCount": 0,
+    "errorCount": 0,
+    "warningCount": 3,
+    "llmsTxtGenerated": true,
+    "llmsFullTxtGenerated": false,
+    "geoEnhancedCount": 0,
+    "geoScore": 25
+  }
+}

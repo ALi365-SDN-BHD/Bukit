@@ -1,0 +1,99 @@
+{
+  "schema": "https://bukit.dev/schemas/seo-report.v1.json",
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-05-30T13:52:10.757683+00:00",
+  "siteName": "i18n-test",
+  "siteUrl": "https://example.com",
+  "baseUrl": "/en",
+  "routes": [
+    {
+      "url": "/",
+      "outputPath": "index.html",
+      "title": "I18N Test",
+      "description": "Browse 1 content items from I18N Test.",
+      "canonical": "https://example.com/en/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-05-30T13:52:10.65243+00:00",
+      "contentType": "list",
+      "sourceItemId": null,
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [
+        {
+          "hreflang": "x-default",
+          "href": "https://example.com/en/"
+        },
+        {
+          "hreflang": "en",
+          "href": "https://example.com/en/"
+        },
+        {
+          "hreflang": "zh-CN",
+          "href": "https://example.com/zh-CN/"
+        }
+      ],
+      "schemaTypes": [
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ]
+    },
+    {
+      "url": "/index/",
+      "outputPath": "index/index.html",
+      "title": "English Page",
+      "description": null,
+      "canonical": "https://example.com/en/index/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-05-30T13:36:05.5889817+00:00",
+      "contentType": "page",
+      "sourceItemId": "index",
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [
+        {
+          "hreflang": "x-default",
+          "href": "https://example.com/en/index/"
+        },
+        {
+          "hreflang": "en",
+          "href": "https://example.com/en/index/"
+        },
+        {
+          "hreflang": "zh-CN",
+          "href": "https://example.com/zh-CN/index/"
+        }
+      ],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "ListItem",
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "seo.description_missing",
+      "route": "/index/",
+      "message": "SEO description is missing."
+    }
+  ],
+  "summary": {
+    "routeCount": 2,
+    "indexableCount": 2,
+    "nonIndexableCount": 0,
+    "errorCount": 0,
+    "warningCount": 1,
+    "llmsTxtGenerated": true,
+    "llmsFullTxtGenerated": false,
+    "geoEnhancedCount": 0,
+    "geoScore": 25
+  }
+}

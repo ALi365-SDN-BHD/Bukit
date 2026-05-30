@@ -1,0 +1,19 @@
+site:
+  name: dotfile-test
+  title: Dotfile Leak Test
+  language: en
+  collections:
+    page:
+      permalink: /{slug}/
+      template: pages/page.html
+content:
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
+build:
+  output: dist
+  clean: false
+theme:
+  layouts: layouts
+  static: static

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>I18N Test</title>
+    <link>https://example.com/zh-CN/</link>
+    <description>I18N Test</description>
+    <lastBuildDate>Sat, 30 May 2026 13:52:10 GMT</lastBuildDate>
+    <generator>bukit</generator>
+    <atom:link href="https://example.com/zh-CN/rss.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Chinese Page</title>
+      <link>https://example.com/zh-CN/index/</link>
+      <guid>https://example.com/zh-CN/index/</guid>
+      <pubDate>Sat, 30 May 2026 13:36:06 GMT</pubDate>
+      <content:encoded><![CDATA[<p>这是中文页面。使用中文进行测试。</p>]]></content:encoded>
+    </item>
+  </channel>
+</rss>

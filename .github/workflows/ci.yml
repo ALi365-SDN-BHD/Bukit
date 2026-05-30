@@ -1,54 +1,70 @@
-name: CI
+name: Full Validation
 
 on:
   push:
     branches: [main, master]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  build-and-test:
+  quality-gate:
     runs-on: ubuntu-latest
     env:
       COVERAGE_THRESHOLD: "65"
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - run: bash scripts/quality-gate.sh Release
 
-      - name: Quality gate (build + test + coverage >= ${{ env.COVERAGE_THRESHOLD }}% + format + doc check + smoke)
-        run: bash scripts/quality-gate.sh Release
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
+  cross-platform-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
         with:
-          name: coverage-report
-          path: TestResults/coverage-report
-          if-no-files-found: warn
+          dotnet-version: 10.0.x
+      - run: dotnet restore bukit.slnx
+      - run: dotnet build bukit.slnx -c Release
+      - run: dotnet test bukit.slnx -c Release --no-build
 
-      - name: Build example sites
-        run: |
-          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/blog-site/site.yaml --clean --site-url https://example.com
-          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/corporate-site/site.yaml --clean --site-url https://example.com
-          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/docs-site/site.yaml --clean --site-url https://example.com
-          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/multilingual-site/site.yaml --clean --site-url https://example.com
-          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/plugin-site/site.yaml --clean --site-url https://example.com
-          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/theme-inheritance-site/site.yaml --clean --site-url https://example.com
-          dotnet run --project src/Bukit.Cli -c Release -- build --config examples/component-theme/site.yaml --clean --site-url https://example.com
-
-  aot-check:
+  smoke-examples:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - run: bash scripts/smoke.sh Release
+      - run: bash scripts/smoke-all.sh Release
 
-      - name: Native AOT publish
-        run: dotnet publish src/Bukit.Cli/Bukit.Cli.csproj -c Release -p:PublishAot=true
+  native-aot:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet publish src/Bukit.Cli/Bukit.Cli.csproj -c Release -p:PublishAot=true
+
+  stress-cli:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: bash scripts/stress-test.sh 20 Release

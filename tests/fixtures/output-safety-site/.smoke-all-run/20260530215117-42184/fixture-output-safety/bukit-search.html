@@ -1,0 +1,18 @@
+﻿<style>
+.bukit-search{max-width:600px;margin:0 auto;font-family:system-ui,sans-serif;}
+.bukit-search-input{width:100%;padding:12px 16px;border:1px solid #e0e0e0;border-radius:8px;background:#f5f5f5;color:#333333;font-size:16px;box-sizing:border-box;outline:none;transition:border-color .2s;}
+.bukit-search-input:focus{border-color:#7c3aed;}
+.bukit-search-input::placeholder{color:#999999;}
+.bukit-search-results{margin-top:8px;}
+.bukit-search-item{display:block;padding:10px 16px;border-radius:6px;color:#333333;text-decoration:none;transition:background .15s;cursor:pointer;}
+.bukit-search-item:hover,.bukit-search-item.active{background:#eeeeee;}
+.bukit-search-item mark{background:#fff9c4;padding:0 2px;border-radius:2px;}
+.bukit-search-empty{padding:20px;text-align:center;color:#999999;}
+</style>
+<div class="bukit-search">
+  <input type="search" class="bukit-search-input" placeholder="Search..." autocomplete="off" />
+  <div class="bukit-search-results"></div>
+</div>
+<script>
+(function(){var input=document.querySelector('.bukit-search-input');var results=document.querySelector('.bukit-search-results');var items=[];var activeIndex=-1;var searchUrl=input.getAttribute('data-search-url')||'/search.json';fetch(searchUrl).then(function(r){return r.json();}).then(function(data){items=data;});function highlight(text,query){if(!query)return text;var re=new RegExp('('+query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');return text.replace(re,'<mark>$1</mark>');}function search(){var q=input.value.trim().toLowerCase();results.innerHTML='';activeIndex=-1;if(!q||items.length===0)return;var matched=items.map(function(item,i){var ts=(item.title||'').toLowerCase().indexOf(q)>=0?10:0;var cs=(item.content||'').toLowerCase().indexOf(q)>=0?1:0;var w=item.weight||1;return {item:item,index:i,score:(ts+cs)*w};}).filter(function(m){return m.score>0;}).sort(function(a,b){return b.score-a.score;}).slice(0,20);if(matched.length===0){results.innerHTML='<div class="bukit-search-empty">No results found</div>';return;}matched.forEach(function(m,i){var it=m.item;var d=document.createElement('a');d.className='bukit-search-item'+(i===0?' active':'');d.href=it.url;d.innerHTML='<strong>'+highlight(it.title||'Untitled',q)+'</strong>'+(it.snippet?'<br><small>'+highlight(it.snippet,q)+'</small>':'');d.setAttribute('data-index',i);results.appendChild(d);});activeIndex=0;}input.addEventListener('input',search);input.addEventListener('keydown',function(e){var list=results.querySelectorAll('.bukit-search-item');if(e.key==='ArrowDown'){e.preventDefault();if(list.length>0){activeIndex=(activeIndex+1)%list.length;updateActive(list);}}else if(e.key==='ArrowUp'){e.preventDefault();if(list.length>0){activeIndex=(activeIndex-1+list.length)%list.length;updateActive(list);}}else if(e.key==='Enter'&&activeIndex>=0&&list[activeIndex]){e.preventDefault();list[activeIndex].click();}else if(e.key==='Escape'){results.innerHTML='';activeIndex=-1;}});function updateActive(list){list.forEach(function(el){el.classList.remove('active');});if(list[activeIndex]){list[activeIndex].classList.add('active');list[activeIndex].scrollIntoView({block:'nearest'});}}})();
+</script>
