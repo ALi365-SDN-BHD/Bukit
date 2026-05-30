@@ -34,6 +34,7 @@ internal static class SafeUrl
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
         var trimmed = url.Trim();
+        if (trimmed.StartsWith('/')) return trimmed;
         if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)) return null;
         if (!string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase)) return null;
         return trimmed;

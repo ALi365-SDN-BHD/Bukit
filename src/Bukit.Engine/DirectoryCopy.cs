@@ -105,6 +105,12 @@ public static class DirectoryCopy
                 continue;
             }
 
+            if (options.FollowSymlinks && IsSymlink(file) && !IsRealpathWithinSource(file, sourceDir))
+            {
+                Console.Error.WriteLine($"[warn] Skipping symlink outside source directory: {file}");
+                continue;
+            }
+
             SyncFile(file, destinationDir, options.HashMode, outputRoot, pathPolicy);
         }
 
@@ -119,6 +125,12 @@ public static class DirectoryCopy
             if (!options.FollowSymlinks && IsSymlink(dir))
             {
                 Console.Error.WriteLine($"[warn] Skipping symlink directory: {dir}");
+                continue;
+            }
+
+            if (options.FollowSymlinks && IsSymlink(dir) && !IsRealpathWithinSource(dir, sourceDir))
+            {
+                Console.Error.WriteLine($"[warn] Skipping symlink directory outside source directory: {dir}");
                 continue;
             }
 
@@ -256,6 +268,54 @@ public static class DirectoryCopy
         catch
         {
             return false;
+        }
+    }
+
+    private static bool IsRealpathWithinSource(string symlinkPath, string sourceDir)
+    {
+        try
+        {
+            var resolved = ResolveSymlinkTarget(symlinkPath);
+            if (resolved is null) return false;
+            var fullSource = Path.GetFullPath(sourceDir).TrimEnd(Path.DirectorySeparatorChar);
+            var fullTarget = Path.GetFullPath(resolved);
+            return fullTarget.StartsWith(fullSource + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(fullTarget, fullSource, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string? ResolveSymlinkTarget(string path)
+    {
+        try
+        {
+            var resolved = path;
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            while (true)
+            {
+                var fullPath = Path.GetFullPath(resolved);
+                if (!visited.Add(fullPath))
+                {
+                    return null;
+                }
+
+                var target = new FileInfo(fullPath).LinkTarget;
+                if (target is null)
+                {
+                    return fullPath;
+                }
+
+                resolved = Path.IsPathRooted(target)
+                    ? target
+                    : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(fullPath)!, target));
+            }
+        }
+        catch
+        {
+            return null;
         }
     }
 

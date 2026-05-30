@@ -115,6 +115,11 @@ public static class ConfigLoader
             }
         };
 
+        if (build.FollowSymlinks)
+        {
+            Console.Error.WriteLine("[warn] build.followSymlinks is enabled. Symlinks may point outside the project directory. Ensure all symlinks are trusted.");
+        }
+
         var theme = new ThemeConfig
         {
             Name = themeNode is null ? null : ConfigYamlHelpers.GetOptionalString(themeNode, "name"),

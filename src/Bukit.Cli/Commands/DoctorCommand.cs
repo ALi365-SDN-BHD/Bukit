@@ -48,6 +48,8 @@ public static class DoctorCommand
             return 1;
         }
 
+        CheckFollowSymlinksSafety(config);
+
         if (config.Site.Collections is null || config.Site.Collections.Count == 0)
         {
             Console.WriteLine("✖ Migration required: site.collections is not configured");
@@ -433,6 +435,14 @@ public static class DoctorCommand
         }
 
         return results;
+    }
+
+    private static void CheckFollowSymlinksSafety(AppConfig config)
+    {
+        if (config.Build.FollowSymlinks)
+        {
+            Console.WriteLine("⚠ build.followSymlinks is enabled. Ensure all symlinks are within the project directory and trusted. Consider disabling in CI environments.");
+        }
     }
 
     internal static void AppendFileOrWarn(string file, System.Text.StringBuilder dst)

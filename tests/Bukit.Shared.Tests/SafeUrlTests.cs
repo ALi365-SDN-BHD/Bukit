@@ -66,7 +66,9 @@ public sealed class SafeUrlTests
     [Theory]
     [InlineData("https://youtube.com/embed/test")]
     [InlineData("https://example.com/widget")]
-    public void ForEmbed_HttpsUrl_ReturnUrl(string url)
+    [InlineData("/local/videos/intro.mp4")]
+    [InlineData("/assets/embed.html")]
+    public void ForEmbed_ValidUrls_ReturnUrl(string url)
     {
         var result = SafeUrl.ForEmbed(url);
 

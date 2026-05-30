@@ -44,6 +44,7 @@ public static class ConfigApplier
         if (overrides.IsCI)
         {
             site = site with { ExternalPluginPolicy = ExternalPluginPolicy.Deny };
+            build = build with { FollowSymlinks = false };
         }
 
         if (overrides.AllowExternalPlugins && site.ExternalPluginPolicy == ExternalPluginPolicy.Deny && !overrides.IsCI)
