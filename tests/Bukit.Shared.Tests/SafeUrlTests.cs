@@ -99,4 +99,34 @@ public sealed class SafeUrlTests
 
         Assert.Equal(expected, result);
     }
+
+    [Theory]
+    [InlineData("//evil.com")]
+    [InlineData("//evil.com/x.js")]
+    public void ForLink_ProtocolRelativeUrl_ReturnsNull(string url)
+    {
+        Assert.Null(SafeUrl.ForLink(url));
+    }
+
+    [Theory]
+    [InlineData("//evil.com/a.png")]
+    [InlineData("//cdn.evil.com/audio.mp3")]
+    public void ForMedia_ProtocolRelativeUrl_ReturnsNull(string url)
+    {
+        Assert.Null(SafeUrl.ForMedia(url));
+    }
+
+    [Theory]
+    [InlineData("//evil.com/embed")]
+    [InlineData("//attacker.com/widget")]
+    public void ForEmbed_ProtocolRelativeUrl_ReturnsNull(string url)
+    {
+        Assert.Null(SafeUrl.ForEmbed(url));
+    }
+
+    [Fact]
+    public void IsExternal_ProtocolRelativeUrl_ReturnsTrue()
+    {
+        Assert.True(SafeUrl.IsExternal("//evil.com"));
+    }
 }

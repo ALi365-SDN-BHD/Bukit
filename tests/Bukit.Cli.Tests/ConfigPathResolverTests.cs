@@ -1,3 +1,4 @@
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -48,10 +49,10 @@ public sealed class ConfigPathResolverTests : IDisposable
     }
 
     [Fact]
-    public void Resolve_WithSitePathTraversal_ThrowsInvalidOperation()
+    public void Resolve_WithSitePathTraversal_ThrowsConfigException()
     {
         using var _ = new CurrentDirectoryScope(_testDir);
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<ConfigException>(() =>
             ConfigPathResolver.Resolve(null, "../../../etc/passwd"));
     }
 

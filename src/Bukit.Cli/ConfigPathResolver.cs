@@ -1,3 +1,5 @@
+using Bukit.Shared;
+
 namespace Bukit.Cli;
 
 public sealed record ResolvedConfigPath(string FullConfigPath, string RootDir);
@@ -21,8 +23,9 @@ public static class ConfigPathResolver
             var safeRoot = Path.GetFullPath(Path.Combine(rootDir, "sites")) + Path.DirectorySeparatorChar;
             if (!fullConfigPath.StartsWith(safeRoot, Bukit.Shared.PlatformPathHelper.PathComparison))
             {
-                throw new InvalidOperationException(
-                    $"--site value '{site}' resolves to a path outside the sites directory.");
+                throw new ConfigException(
+                    $"--site value '{site}' resolves to a path outside the sites directory.",
+                    DiagnosticCode.ConfigPathTraversal);
             }
             return new ResolvedConfigPath(fullConfigPath, rootDir);
         }

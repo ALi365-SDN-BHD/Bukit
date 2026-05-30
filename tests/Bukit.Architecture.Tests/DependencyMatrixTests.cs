@@ -188,6 +188,7 @@ public class DependencyMatrixTests
             "Bukit.Architecture.Tests",
             "Bukit.Theme.Benchmarks",
             "Bukit.Engine",
+            "Bukit.Content",
             "Bukit.Cli",
             "bukit"
         };

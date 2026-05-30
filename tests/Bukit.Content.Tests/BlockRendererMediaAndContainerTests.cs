@@ -27,7 +27,7 @@ public sealed class BlockRendererMediaAndContainerTests
 
         Assert.NotNull(html);
         Assert.Contains("<audio controls src=\"https://cdn.example.com/audio.mp3?x=1&amp;y=2\"></audio>", html);
-        Assert.Contains("<a href=\"https://cdn.example.com/audio.mp3?x=1&amp;y=2\">Audio</a>", html);
+        Assert.Contains("<a href=\"https://cdn.example.com/audio.mp3?x=1&amp;y=2\" rel=\"noopener noreferrer\">Audio</a>", html);
         Assert.Contains("<p>Listen now</p>", html);
     }
 

@@ -180,8 +180,40 @@ public sealed class NotionBlockRendererEdgeCasesTests
 
         Assert.NotNull(html);
         Assert.Contains("<audio controls src=\"https://cdn.example.com/track.mp3\"></audio>", html);
-        Assert.Contains("<a href=\"https://cdn.example.com/track.mp3\">Audio</a>", html);
+        Assert.Contains("<a href=\"https://cdn.example.com/track.mp3\" rel=\"noopener noreferrer\">Audio</a>", html);
         Assert.DoesNotContain("<p><p>", html);
+    }
+
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("data:text/html,<script>alert(1)</script>")]
+    [InlineData("//evil.com/audio.mp3")]
+    public async Task AudioBlockRenderer_DangerousUrl_ReturnsNull(string fileUrl)
+    {
+        var json = $"{{\"audio\":{{\"type\":\"external\",\"external\":{{\"url\":\"{fileUrl}\"}}}}}}";
+        using var doc = JsonDocument.Parse(json);
+
+        var html = await new AudioBlockRenderer().RenderAsync(doc.RootElement, null!, CancellationToken.None);
+
+        Assert.Null(html);
+    }
+
+    [Fact]
+    public async Task AudioBlockRenderer_ExternalUrl_RendersRelNoopener()
+    {
+        using var doc = JsonDocument.Parse("""
+        {
+          "audio": {
+            "type": "external",
+            "external": { "url": "https://cdn.example.com/track.mp3" }
+          }
+        }
+        """);
+
+        var html = await new AudioBlockRenderer().RenderAsync(doc.RootElement, null!, CancellationToken.None);
+
+        Assert.NotNull(html);
+        Assert.Contains("rel=\"noopener noreferrer\"", html);
     }
 
     // ── ColumnListBlockRenderer with children ────────────────────────────

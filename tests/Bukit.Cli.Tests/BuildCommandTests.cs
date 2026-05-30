@@ -38,7 +38,12 @@ public sealed class BuildCommandTests : IDisposable
             Array.Empty<string>());
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
+        var buildTask = BuildCommand.RunAsync(command);
+        var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
+        Assert.Same(buildTask, completed);
+        try { await buildTask; }
+        catch (ConfigException) { }
+        catch (ContentException) { }
     }
 
     [Fact]
@@ -80,9 +85,20 @@ public sealed class BuildCommandTests : IDisposable
             },
             Array.Empty<string>());
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
-        try { Directory.Delete(dir, recursive: true); } catch { }
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var buildTask = BuildCommand.RunAsync(command);
+            var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
+            Assert.Same(buildTask, completed);
+            try { await buildTask; }
+            catch (ConfigException) { }
+            catch (ContentException) { }
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch { }
+        }
     }
 
     [Fact]
@@ -239,7 +255,12 @@ public sealed class BuildCommandTests : IDisposable
             Array.Empty<string>());
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        await Task.WhenAny(BuildCommand.RunAsync(cmd), Task.Delay(Timeout.Infinite, cts.Token));
+        var buildTask = BuildCommand.RunAsync(cmd);
+        var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
+        Assert.Same(buildTask, completed);
+        try { await buildTask; }
+        catch (ConfigException) { }
+        catch (ContentException) { }
     }
 
     [Fact]
@@ -431,7 +452,13 @@ public sealed class BuildCommandTests : IDisposable
         var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml, "--ci" });
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
+        var buildTask = BuildCommand.RunAsync(command);
+        var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
+        if (completed == buildTask)
+        {
+            try { await buildTask; }
+            catch (Exception ex) { Assert.DoesNotContain("External plugins are disabled", ex.Message); }
+        }
     }
 
     [Fact]

@@ -727,4 +727,44 @@ public sealed class ConfigLoaderTests : IDisposable
             try { Directory.Delete(dir, true); } catch { }
         }
     }
+
+    [Theory]
+    [InlineData("alow")]
+    [InlineData("denyy")]
+    [InlineData("denyallow")]
+    public void Load_InvalidExternalPluginPolicy_ThrowsConfigException(string invalidPolicy)
+    {
+        var yaml = $"""
+            site:
+              name: test
+              title: Test
+              externalPluginPolicy: {invalidPolicy}
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+        Assert.Contains("externalPluginPolicy", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("deny")]
+    [InlineData("warn")]
+    [InlineData("allow")]
+    public void Load_ValidExternalPluginPolicy_ReturnsPolicy(string policy)
+    {
+        var yaml = $"""
+            site:
+              name: test
+              title: Test
+              externalPluginPolicy: {policy}
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+        Assert.Equal(policy, config.Site.ExternalPluginPolicy.ToString(), StringComparer.OrdinalIgnoreCase);
+    }
 }

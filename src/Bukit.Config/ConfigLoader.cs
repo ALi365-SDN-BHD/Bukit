@@ -187,7 +187,9 @@ public static class ConfigLoader
             "deny" => ExternalPluginPolicy.Deny,
             "warn" => ExternalPluginPolicy.Warn,
             "allow" => ExternalPluginPolicy.Allow,
-            _ => ExternalPluginPolicy.Warn
+            _ => throw new ConfigException(
+                $"site.externalPluginPolicy must be 'deny', 'warn', or 'allow'. Got: '{policy.Trim()}'.",
+                DiagnosticCode.ConfigInvalidValue)
         };
     }
 }
