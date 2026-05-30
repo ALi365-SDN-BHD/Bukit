@@ -19,7 +19,9 @@ internal static class NotionDatabaseSchemaResolver
         var filterType = (options.FilterType ?? "checkbox_true").Trim().ToLowerInvariant();
         var filterProp = filterType == "none" ? null : (options.FilterProperty ?? "Published").Trim();
         var sortProp = options.SortProperty?.Trim();
-        var includeSlugProp = options.IncludeSlugs is { Count: > 0 } ? (options.IncludeSlugProperty ?? "Slug").Trim() : null;
+        var includeSlugProp = options.IncludeSlugs is { Count: > 0 }
+            ? (options.IncludeSlugProperty ?? options.PropertyMap?.Slug ?? "Slug").Trim()
+            : null;
 
         if (string.IsNullOrWhiteSpace(filterProp) &&
             string.IsNullOrWhiteSpace(sortProp) &&

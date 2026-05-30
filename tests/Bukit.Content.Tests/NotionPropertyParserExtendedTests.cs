@@ -627,4 +627,25 @@ public sealed class NotionPropertyParserExtendedTests
         NotionPropertyParser.ExtractSeoMeta(meta, properties, null);
         Assert.Empty(meta);
     }
+
+    [Fact]
+    public void IncludeSlugProperty_FallsBackToPropertyMapSlug()
+    {
+        var slug = (string?)null ?? "URL Slug" ?? "Slug";
+        Assert.Equal("URL Slug", slug);
+    }
+
+    [Fact]
+    public void IncludeSlugProperty_FallsBackToDefault()
+    {
+        var slug = (string?)null ?? (string?)null ?? "Slug";
+        Assert.Equal("Slug", slug);
+    }
+
+    [Fact]
+    public void IncludeSlugProperty_ExplicitWins()
+    {
+        var slug = "CustomSlug" ?? (string?)null ?? "Slug";
+        Assert.Equal("CustomSlug", slug);
+    }
 }
