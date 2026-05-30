@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Notion;
@@ -595,5 +596,35 @@ public sealed class NotionPropertyParserExtendedTests
         var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out _, out _);
 
         Assert.False(ok);
+    }
+
+    [Fact]
+    public void ExtractSeoMeta_WithPropertyMap_SetsSeoFields()
+    {
+        var json = @"{
+            ""SEO Title"": { ""type"": ""rich_text"", ""rich_text"": [{ ""plain_text"": ""Custom SEO Title"" }] },
+            ""SEO Desc"": { ""type"": ""rich_text"", ""rich_text"": [{ ""plain_text"": ""Custom Description"" }] }
+        }";
+        var properties = JsonDocument.Parse(json).RootElement;
+        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var propertyMap = new NotionPropertyMapConfig
+        {
+            SeoTitle = "SEO Title",
+            SeoDescription = "SEO Desc"
+        };
+
+        NotionPropertyParser.ExtractSeoMeta(meta, properties, propertyMap);
+
+        Assert.Equal("Custom SEO Title", meta["seo_title"]);
+        Assert.Equal("Custom Description", meta["seo_desc"]);
+    }
+
+    [Fact]
+    public void ExtractSeoMeta_NullPropertyMap_DoesNotThrow()
+    {
+        var properties = JsonDocument.Parse(@"{}").RootElement;
+        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        NotionPropertyParser.ExtractSeoMeta(meta, properties, null);
+        Assert.Empty(meta);
     }
 }

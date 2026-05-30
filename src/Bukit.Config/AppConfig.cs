@@ -245,6 +245,10 @@ public sealed record NotionPropertyMapConfig
     public string? I18nKey { get; init; }
     public string? Summary { get; init; }
     public string? Collection { get; init; }
+    public string? SeoTitle { get; init; }
+    public string? SeoDescription { get; init; }
+    public string? SeoImage { get; init; }
+    public string? Canonical { get; init; }
 }
 
 public sealed record MediaConfig

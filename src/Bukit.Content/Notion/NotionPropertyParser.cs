@@ -316,4 +316,61 @@ public static class NotionPropertyParser
 
         return sb.ToString().Trim('_');
     }
+
+    internal static string? GetRichTextPlain(JsonElement property)
+    {
+        if (property.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var type = NotionContentProvider.GetString(property, "type");
+        if (type != "rich_text" || !property.TryGetProperty("rich_text", out var rt))
+        {
+            return null;
+        }
+
+        var text = NotionContentProvider.ExtractPlainText(rt);
+        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+    }
+
+    internal static void ExtractSeoMeta(
+        Dictionary<string, object> meta,
+        JsonElement properties,
+        NotionPropertyMapConfig? propertyMap)
+    {
+        if (propertyMap is null) return;
+
+        if (!string.IsNullOrWhiteSpace(propertyMap.SeoTitle) &&
+            NotionContentProvider.TryGetPropertyIgnoreCase(properties, propertyMap.SeoTitle, out var seoTitleProp))
+        {
+            var value = GetRichTextPlain(seoTitleProp);
+            if (!string.IsNullOrWhiteSpace(value))
+                meta["seo_title"] = value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(propertyMap.SeoDescription) &&
+            NotionContentProvider.TryGetPropertyIgnoreCase(properties, propertyMap.SeoDescription, out var seoDescProp))
+        {
+            var value = GetRichTextPlain(seoDescProp);
+            if (!string.IsNullOrWhiteSpace(value))
+                meta["seo_desc"] = value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(propertyMap.SeoImage) &&
+            NotionContentProvider.TryGetPropertyIgnoreCase(properties, propertyMap.SeoImage, out var seoImageProp))
+        {
+            var value = GetRichTextPlain(seoImageProp);
+            if (!string.IsNullOrWhiteSpace(value))
+                meta["seo_image"] = value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(propertyMap.Canonical) &&
+            NotionContentProvider.TryGetPropertyIgnoreCase(properties, propertyMap.Canonical, out var canonicalProp))
+        {
+            var value = GetRichTextPlain(canonicalProp);
+            if (!string.IsNullOrWhiteSpace(value))
+                meta["canonical"] = value;
+        }
+    }
 }

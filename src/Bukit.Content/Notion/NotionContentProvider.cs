@@ -112,6 +112,7 @@ public sealed class NotionContentProvider : IContentProvider
                     NotionMetaHelper.PromoteFieldToMeta(fields, meta, NotionPropertyParser.NormalizeFieldKey(pm?.Collection ?? "collection"), "collection");
                     NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "tags");
                     NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "categories");
+                    NotionPropertyParser.ExtractSeoMeta(meta, props, pm);
 
                     drafts.Add(new PageDraft(pageId, title, slug, type, publishAt, lastEditedTime, meta, fields, relationKeys));
                 }
