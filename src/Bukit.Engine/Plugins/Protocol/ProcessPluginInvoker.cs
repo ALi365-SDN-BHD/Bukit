@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Plugins.Protocol;
+using System.Collections;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -9,6 +10,29 @@ namespace Bukit.Engine.Plugins.Protocol;
 
 internal sealed class ProcessPluginInvoker : IProtocolPluginInvoker
 {
+    private static readonly string[] DefaultRuntimeEnvironmentAllowlist =
+    {
+        // POSIX
+        "PATH",
+        "HOME",
+        "USER",
+        "SHELL",
+        "TMPDIR",
+        // Windows
+        "USERPROFILE",
+        "SystemRoot",
+        "WINDIR",
+        "COMSPEC",
+        "PATHEXT",
+        // Cross-platform
+        "TEMP",
+        "TMP",
+        // .NET
+        "DOTNET_ROOT",
+        "DOTNET_ROOT_X64",
+        "DOTNET_ROOT_X86",
+        "DOTNET_CLI_HOME"
+    };
     public async Task<ProtocolPluginInvocationResult> InvokeAsync(
         ExternalPluginConfig plugin,
         string requestJson,
@@ -68,28 +92,44 @@ internal sealed class ProcessPluginInvoker : IProtocolPluginInvoker
     {
         var hostEnvironment = Environment.GetEnvironmentVariables();
         startInfo.Environment.Clear();
+
+        CopyAllowedEnvironment(startInfo, hostEnvironment, DefaultRuntimeEnvironmentAllowlist);
+
         if (plugin.AllowEnvironment is not null)
         {
-            foreach (var name in plugin.AllowEnvironment)
-            {
-                if (string.IsNullOrWhiteSpace(name))
-                {
-                    continue;
-                }
-
-                var value = hostEnvironment[name];
-                if (value is string stringValue)
-                {
-                    startInfo.Environment[name] = stringValue;
-                }
-            }
+            CopyAllowedEnvironment(startInfo, hostEnvironment, plugin.AllowEnvironment);
         }
+
+        startInfo.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
+        startInfo.Environment["DOTNET_NOLOGO"] = "1";
+        startInfo.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1";
 
         var identity = ReadInvocationIdentity(requestJson);
         startInfo.Environment["BUKIT_PLUGIN_NAME"] = identity.PluginName;
         startInfo.Environment["BUKIT_PLUGIN_HOOK"] = identity.Hook;
         startInfo.Environment["BUKIT_PROJECT_ROOT"] = identity.ProjectRoot;
         startInfo.Environment["BUKIT_OUTPUT_DIR"] = identity.OutputDir;
+    }
+
+    private static void CopyAllowedEnvironment(
+        ProcessStartInfo startInfo,
+        IDictionary hostEnvironment,
+        IEnumerable<string> names)
+    {
+        foreach (var name in names)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var trimmed = name.Trim();
+            var value = hostEnvironment[trimmed];
+            if (value is string stringValue)
+            {
+                startInfo.Environment[trimmed] = stringValue;
+            }
+        }
     }
 
     private static (string PluginName, string Hook, string ProjectRoot, string OutputDir) ReadInvocationIdentity(string requestJson)

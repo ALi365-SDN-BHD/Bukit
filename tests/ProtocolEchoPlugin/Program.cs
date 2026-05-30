@@ -46,6 +46,20 @@ if (mode == "env")
     return;
 }
 
+if (mode == "env-allowlist")
+{
+    var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+    var home = Environment.GetEnvironmentVariable("HOME") ?? string.Empty;
+    var notion = Environment.GetEnvironmentVariable("NOTION_TOKEN") ?? string.Empty;
+    var openAi = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? string.Empty;
+    var pluginName = Environment.GetEnvironmentVariable("BUKIT_PLUGIN_NAME") ?? string.Empty;
+    var pluginHook = Environment.GetEnvironmentVariable("BUKIT_PLUGIN_HOOK") ?? string.Empty;
+    var customEnv = Environment.GetEnvironmentVariable("BUKIT_TEST_ALLOW_ENV") ?? string.Empty;
+    var escapedCustom = customEnv.Replace("\\", "\\\\");
+    Console.Out.Write($$"""{"ok":true,"outputs":[{"path":"env-report.json","contentType":"application/json","text":"{\"pathNotEmpty\":{{(path.Length > 0).ToString().ToLowerInvariant()}},\"homeNotEmpty\":{{(home.Length > 0).ToString().ToLowerInvariant()}},\"notionNotEmpty\":{{(notion.Length > 0).ToString().ToLowerInvariant()}},\"openAiNotEmpty\":{{(openAi.Length > 0).ToString().ToLowerInvariant()}},\"pluginName\":\"{{pluginName}}\",\"pluginHook\":\"{{pluginHook}}\",\"customEnv\":\"{{escapedCustom}}\"}"}]}""");
+    return;
+}
+
 if (mode == "large-stdout")
 {
     Console.Out.Write(new string('x', 4096));

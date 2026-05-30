@@ -670,7 +670,8 @@ public sealed class ExternalProtocolPluginTests
         string? deriveConflictPolicy = null,
         IReadOnlyList<string>? extraPluginArgs = null,
         bool includeRoutedPages = false,
-        int timeoutMs = 5000)
+        int timeoutMs = 5000,
+        IReadOnlyList<string>? allowEnvironment = null)
     {
         var outputDir = Path.Combine(rootDir, "dist");
         Directory.CreateDirectory(outputDir);
@@ -695,6 +696,7 @@ public sealed class ExternalProtocolPluginTests
                             Entry = isWasm ? CreateWasmModuleForMode(rootDir, pluginMode) : DotNetHostPath(),
                             Hooks = hooks ?? new[] { "after-build" },
                             TimeoutMs = timeoutMs,
+                            AllowEnvironment = allowEnvironment,
                             Options = isWasm
                                 ? null
                                 : new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -815,5 +817,87 @@ public sealed class ExternalProtocolPluginTests
   (func (export "_start"))
 )
 """;
+    }
+
+    [Fact]
+    public void ProtocolPlugin_Environment_RetainsPathAndHome()
+    {
+        using var temp = new TempDir();
+        var context = CreateContext(temp.Path, "warn", "env-allowlist");
+
+        PluginRunner.RunAfterBuild(context);
+
+        var reportPath = Path.Combine(context.OutputDir, "env-report.json");
+        Assert.True(File.Exists(reportPath), "env-report.json not created");
+        using var doc = JsonDocument.Parse(File.ReadAllText(reportPath));
+        Assert.True(doc.RootElement.GetProperty("pathNotEmpty").GetBoolean(), "PATH should not be empty");
+        Assert.True(doc.RootElement.GetProperty("homeNotEmpty").GetBoolean(), "HOME should not be empty");
+    }
+
+    [Fact]
+    public void ProtocolPlugin_Environment_BlocksSensitiveVariables()
+    {
+        using var temp = new TempDir();
+        var context = CreateContext(temp.Path, "warn", "env-allowlist");
+
+        PluginRunner.RunAfterBuild(context);
+
+        var reportPath = Path.Combine(context.OutputDir, "env-report.json");
+        Assert.True(File.Exists(reportPath), "env-report.json not created");
+        using var doc = JsonDocument.Parse(File.ReadAllText(reportPath));
+        Assert.False(doc.RootElement.GetProperty("notionNotEmpty").GetBoolean(), "NOTION_TOKEN should be empty");
+        Assert.False(doc.RootElement.GetProperty("openAiNotEmpty").GetBoolean(), "OPENAI_API_KEY should be empty");
+    }
+
+    [Fact]
+    public void ProtocolPlugin_Environment_InjectBukitContext()
+    {
+        using var temp = new TempDir();
+        var context = CreateContext(temp.Path, "warn", "env-allowlist");
+
+        PluginRunner.RunAfterBuild(context);
+
+        var reportPath = Path.Combine(context.OutputDir, "env-report.json");
+        Assert.True(File.Exists(reportPath), "env-report.json not created");
+        using var doc = JsonDocument.Parse(File.ReadAllText(reportPath));
+        Assert.Equal("sample", doc.RootElement.GetProperty("pluginName").GetString());
+        Assert.Equal("after-build", doc.RootElement.GetProperty("pluginHook").GetString());
+    }
+
+    [Fact]
+    public void ProtocolPlugin_AllowEnvironment_RetainsCustomVariable()
+    {
+        var testVarName = "BUKIT_TEST_ALLOW_ENV";
+        try
+        {
+            Environment.SetEnvironmentVariable(testVarName, "custom-value");
+
+            using var temp = new TempDir();
+            var context = CreateContext(temp.Path, "warn", "env-allowlist",
+                allowEnvironment: new[] { testVarName });
+
+            PluginRunner.RunAfterBuild(context);
+
+            var reportPath = Path.Combine(context.OutputDir, "env-report.json");
+            Assert.True(File.Exists(reportPath), "env-report.json not created");
+            using var doc = JsonDocument.Parse(File.ReadAllText(reportPath));
+            Assert.Equal("custom-value", doc.RootElement.GetProperty("customEnv").GetString());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(testVarName, null);
+        }
+    }
+
+    [Fact]
+    public void ProtocolPlugin_DeriveConflict_InvokesSuccessfully()
+    {
+        using var temp = new TempDir();
+        var context = CreateContext(temp.Path, "strict", "derive-lastwins",
+            hooks: new[] { "derive-pages" }, deriveConflictPolicy: "last-wins");
+
+        var derived = PluginRunner.RunDerivePages(context);
+
+        Assert.Contains(derived, x => x.Item.Id == "derived-conflict");
     }
 }
