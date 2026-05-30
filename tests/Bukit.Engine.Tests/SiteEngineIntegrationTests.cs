@@ -1400,13 +1400,13 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
 
             var config = CreatePluginOutputConfig("success");
-            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides { AllowExternalPlugins = true }, CancellationToken.None);
             var pluginOutput = Path.Combine(root, "dist", "plugin-output.json");
             Assert.True(File.Exists(pluginOutput));
 
             var incrementalConfig = CreatePluginOutputConfig("no-output") with { Build = config.Build with { Clean = false } };
 
-            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false }, CancellationToken.None);
+            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false, AllowExternalPlugins = true }, CancellationToken.None);
 
             Assert.False(File.Exists(pluginOutput));
         }

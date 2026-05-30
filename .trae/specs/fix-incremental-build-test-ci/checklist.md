@@ -1,0 +1,4 @@
+- [x] `BuildAsync_IncrementalBuildDeletesRemovedPluginOutputs` passes `AllowExternalPlugins = true` in both `ConfigOverrides`
+- [x] `BuildPlanner.cs` CI guard remains unchanged
+- [x] `dotnet test bukit.slnx -c Release --filter "BuildAsync_IncrementalBuildDeletesRemovedPluginOutputs"` passes locally
+- [x] The test still correctly asserts plugin output deletion behavior
