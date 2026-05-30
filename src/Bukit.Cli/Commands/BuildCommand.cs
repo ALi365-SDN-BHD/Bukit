@@ -7,7 +7,7 @@ namespace Bukit.Cli.Commands;
 
 public static class BuildCommand
 {
-    public static async Task<int> RunAsync(CliBoundCommand command)
+    public static async Task<int> RunAsync(CliBoundCommand command, CancellationToken cancellationToken = default)
     {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var config = ConfigLoader.Load(resolved.FullConfigPath);
@@ -39,7 +39,7 @@ public static class BuildCommand
         }
 
         var engine = new SiteEngine(logger);
-        await engine.BuildAsync(config, resolved.RootDir, overrides);
+        await engine.BuildAsync(config, resolved.RootDir, overrides, cancellationToken);
         return 0;
     }
 
