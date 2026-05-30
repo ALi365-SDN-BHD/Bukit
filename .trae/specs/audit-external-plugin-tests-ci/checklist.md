@@ -1,0 +1,5 @@
+- [x] `BuildAsync_IncrementalBuildDeletesRemovedPluginOutputs` passes `AllowExternalPlugins = true` in both `ConfigOverrides`
+- [x] No other Engine test using `ExternalPlugins` + `BuildAsync` exists without the fix
+- [x] `BuildPlanner.cs` CI guard remains unchanged
+- [x] All Engine tests pass in `dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release` — **1106 passed, 0 failed**
+- [x] `bash scripts/quality-gate.sh Release` — all tests pass (0 test failures; pre-existing `dotnet format` whitespace issues in unrelated files)
