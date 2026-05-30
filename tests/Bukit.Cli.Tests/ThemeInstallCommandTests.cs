@@ -100,8 +100,8 @@ public sealed class ThemeInstallCommandTests : IDisposable
         SetupSiteYaml();
 
         var source = Path.Combine(_rootDir, "nope.tar.gz");
-        var themesDir = Path.Combine(_rootDir, "themes");
-        var result = await (Task<int>)s_resolveThemeDest.Invoke(null, new object[] { source, themesDir, false })!;
+        var command = CliTestHelper.CreateCommand("theme", new[] { "theme", "install", source, "--config", GetSiteYamlPath() });
+        var result = await ThemeInstallCommand.RunAsync(command);
 
         Assert.Equal(2, result);
     }

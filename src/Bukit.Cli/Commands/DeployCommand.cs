@@ -11,7 +11,17 @@ public static class DeployCommand
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
-        var config = ConfigLoader.Load(resolved.FullConfigPath);
+
+        AppConfig config;
+        try
+        {
+            config = ConfigLoader.Load(resolved.FullConfigPath);
+        }
+        catch (ConfigException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
 
         var deployConfig = config.Deploy ?? new DeployConfig();
 
