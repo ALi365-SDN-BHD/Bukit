@@ -508,6 +508,28 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--template", "模板名 (minimal|blog|docs|landing|portfolio)")
             });
 
+        var route = new CliCommandSpec(
+            Name: "route",
+            Description: "查看路由信息",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名"),
+                new CliOptionSpec("--json", "JSON 格式输出", CliOptionType.Flag),
+                new CliOptionSpec("--collection", "按 collection 过滤")
+            },
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "inspect",
+                    Description: "列出所有路由",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--json", "JSON 格式输出", CliOptionType.Flag),
+                        new CliOptionSpec("--collection", "按 collection 过滤")
+                    })
+            });
+
         var data = new CliCommandSpec(
             Name: "data",
             Description: "查看数据模块信息",
@@ -542,6 +564,6 @@ public static class BukitCliSpecs
                     })
             });
 
-        return new CliCommandRegistry(new[] { build, clone, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, version, intent, visual, webhook, clean, config, doctor, lint, init, data });
+        return new CliCommandRegistry(new[] { build, clone, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, version, intent, visual, webhook, clean, config, doctor, lint, init, route, data });
     }
 }

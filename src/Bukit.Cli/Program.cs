@@ -80,6 +80,7 @@ try
                 "intent" => await IntentCommand.RunAsync(merged),
                 "visual" => await VisualCommand.RunAsync(merged),
                 "webhook" => await WebhookCommand.RunAsync(merged),
+                "route" => await RouteCommand.RunAsync(merged),
                 _ => (int?)null
             };
             if (resolved.HasValue)
