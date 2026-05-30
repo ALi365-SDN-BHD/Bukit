@@ -20,7 +20,16 @@ public static class CliBoundCommandFactory
                 continue;
             }
 
-            if (!optionMap.TryGetValue(token, out var optionSpec))
+            var optionName = token;
+            string? inlineValue = null;
+            var eqIndex = token.IndexOf('=');
+            if (eqIndex >= 0)
+            {
+                optionName = token.Substring(0, eqIndex);
+                inlineValue = token.Substring(eqIndex + 1);
+            }
+
+            if (!optionMap.TryGetValue(optionName, out var optionSpec))
                 continue;
 
             if (optionSpec.Type == CliOptionType.Flag)
@@ -29,7 +38,13 @@ public static class CliBoundCommandFactory
                 continue;
             }
 
-            if (i + 1 < args.Count)
+            if (inlineValue is not null)
+            {
+                options[optionSpec.Name] = inlineValue;
+                continue;
+            }
+
+            if (i + 1 < args.Count && !args[i + 1].StartsWith("-", StringComparison.Ordinal))
             {
                 options[optionSpec.Name] = args[++i];
             }

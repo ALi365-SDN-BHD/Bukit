@@ -48,31 +48,44 @@ public static class CliParser
             if (!token.StartsWith("-", StringComparison.Ordinal))
                 continue;
 
-            if (!optionMap.TryGetValue(token, out var spec))
+            var optionName = token;
+            string? inlineValue = null;
+            var eqIndex = token.IndexOf('=');
+            if (eqIndex >= 0)
             {
-                diagnostics.Add(new CliDiagnostic("unknown-option", $"Unknown option: {token}"));
+                optionName = token.Substring(0, eqIndex);
+                inlineValue = token.Substring(eqIndex + 1);
+            }
+
+            if (!optionMap.TryGetValue(optionName, out var spec))
+            {
+                diagnostics.Add(new CliDiagnostic("unknown-option", $"Unknown option: {optionName}"));
                 continue;
             }
 
             if (spec.Type == CliOptionType.Flag)
+            {
+                if (inlineValue is not null)
+                {
+                    diagnostics.Add(new CliDiagnostic("invalid-option-value", $"Flag option {spec.Name} does not accept a value"));
+                }
                 continue;
+            }
 
-            if (i + 1 >= args.Count)
+            if (inlineValue is not null)
+            {
+                ValidateOptionValue(spec, inlineValue, diagnostics);
+                continue;
+            }
+
+            if (i + 1 >= args.Count || args[i + 1].StartsWith("-", StringComparison.Ordinal))
             {
                 diagnostics.Add(new CliDiagnostic("missing-option-value", $"Missing value for {spec.Name}"));
                 continue;
             }
 
             var value = args[++i];
-            if (spec.Type == CliOptionType.Integer && !int.TryParse(value, out _))
-            {
-                diagnostics.Add(new CliDiagnostic("invalid-option-value", $"Invalid value for {spec.Name}: {value}"));
-            }
-
-            if (spec.AllowedValues is { Count: > 0 } && !spec.AllowedValues.Contains(value, StringComparer.OrdinalIgnoreCase))
-            {
-                diagnostics.Add(new CliDiagnostic("invalid-option-value", $"Invalid value for {spec.Name}: {value}"));
-            }
+            ValidateOptionValue(spec, value, diagnostics);
         }
 
         var argumentSpecs = command.Arguments ?? Array.Empty<CliArgumentSpec>();
@@ -109,5 +122,18 @@ public static class CliParser
         }
 
         return map;
+    }
+
+    private static void ValidateOptionValue(CliOptionSpec spec, string value, List<CliDiagnostic> diagnostics)
+    {
+        if (spec.Type == CliOptionType.Integer && !int.TryParse(value, out _))
+        {
+            diagnostics.Add(new CliDiagnostic("invalid-option-value", $"Invalid value for {spec.Name}: {value}"));
+        }
+
+        if (spec.AllowedValues is { Count: > 0 } && !spec.AllowedValues.Contains(value, StringComparer.OrdinalIgnoreCase))
+        {
+            diagnostics.Add(new CliDiagnostic("invalid-option-value", $"Invalid value for {spec.Name}: {value}"));
+        }
     }
 }

@@ -1,3 +1,4 @@
+using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Cli.Metadata;
 using Bukit.Cli.Cli.Parsing;
 using Xunit;
@@ -140,5 +141,125 @@ public sealed class CliParserExtendedTests
         var result = CliParser.Parse(spec, Array.Empty<string>());
 
         Assert.Contains(result.Diagnostics, d => d.Code == "missing-argument");
+    }
+
+    [Fact]
+    public void Parse_OptionFollowedByOption_DoesNotConsumeNextOptionAsValue()
+    {
+        var spec = new CliCommandSpec(
+            Name: "build",
+            Description: "build",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "config path", CliOptionType.String),
+                new CliOptionSpec("--clean", "clean build", CliOptionType.Flag),
+            });
+
+        var result = CliParser.Parse(spec, new[] { "--config", "--clean" });
+
+        Assert.Contains(result.Diagnostics, d => d.Code == "missing-option-value");
+        Assert.True(result.BoundCommand.GetBool("--clean"));
+        Assert.Null(result.BoundCommand.GetString("--config"));
+    }
+
+    [Fact]
+    public void Parse_StringOptionBeforeFlag_FlagNotConsumedAsValue()
+    {
+        var spec = new CliCommandSpec(
+            Name: "build",
+            Description: "build",
+            Options: new[]
+            {
+                new CliOptionSpec("--output", "output dir", CliOptionType.String),
+                new CliOptionSpec("--force", "force build", CliOptionType.Flag, ShortName: "-f"),
+            });
+
+        var bound = CliBoundCommandFactory.Create(new[] { "--output", "-f" }, spec);
+
+        Assert.Equal("true", bound.GetString("--force"));
+        Assert.Null(bound.GetString("--output"));
+    }
+
+    [Fact]
+    public void Parse_OptionEqualsValue_ParsesInlineValue()
+    {
+        var spec = new CliCommandSpec(
+            Name: "build",
+            Description: "build",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "config path", CliOptionType.String),
+            });
+
+        var result = CliParser.Parse(spec, new[] { "--config=path/to/file.yaml" });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("path/to/file.yaml", result.BoundCommand.GetString("--config"));
+    }
+
+    [Fact]
+    public void Parse_OptionEqualsValueWithMultipleEquals_ParsesCorrectly()
+    {
+        var spec = new CliCommandSpec(
+            Name: "build",
+            Description: "build",
+            Options: new[]
+            {
+                new CliOptionSpec("--filter", "filter expression", CliOptionType.String),
+            });
+
+        var result = CliParser.Parse(spec, new[] { "--filter=a=b=c" });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("a=b=c", result.BoundCommand.GetString("--filter"));
+    }
+
+    [Fact]
+    public void Parse_FlagOptionEqualsValue_ProducesDiagnostic()
+    {
+        var spec = new CliCommandSpec(
+            Name: "build",
+            Description: "build",
+            Options: new[]
+            {
+                new CliOptionSpec("--clean", "clean build", CliOptionType.Flag),
+            });
+
+        var result = CliParser.Parse(spec, new[] { "--clean=true" });
+
+        Assert.Contains(result.Diagnostics, d => d.Code == "invalid-option-value");
+    }
+
+    [Fact]
+    public void Parse_UnknownOptionEqualsValue_ReportsUnknownOption()
+    {
+        var spec = new CliCommandSpec(
+            Name: "build",
+            Description: "build");
+
+        var result = CliParser.Parse(spec, new[] { "--unknown=value" });
+
+        Assert.Contains(result.Diagnostics, d => d.Code == "unknown-option");
+    }
+
+    [Fact]
+    public void Parse_MixedInlineAndSeparateValue_BothParsedCorrectly()
+    {
+        var spec = new CliCommandSpec(
+            Name: "build",
+            Description: "build",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "config path", CliOptionType.String),
+                new CliOptionSpec("--output", "output dir", CliOptionType.String),
+                new CliOptionSpec("--force", "force build", CliOptionType.Flag),
+            });
+
+        var result = CliParser.Parse(spec, new[] { "--config=site.yaml", "--force", "--output", "dist" });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("site.yaml", result.BoundCommand.GetString("--config"));
+        Assert.True(result.BoundCommand.GetBool("--force"));
+        Assert.Equal("dist", result.BoundCommand.GetString("--output"));
     }
 }
