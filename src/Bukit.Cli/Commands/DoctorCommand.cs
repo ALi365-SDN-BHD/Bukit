@@ -191,7 +191,7 @@ public static class DoctorCommand
         var ctx = new DoctorContext(rootDir, config, layoutsDir, allHtmlFiles);
 
         Console.WriteLine();
-        CheckThemeParamsConsistency(ctx);
+        DoctorTemplateChecker.CheckThemeParamsConsistency(ctx);
 
         var themeRoot = Path.Combine(rootDir, "themes", config.Theme.Name ?? "starter");
         if (Directory.Exists(themeRoot))
@@ -239,8 +239,8 @@ public static class DoctorCommand
             Console.WriteLine("✔ Static dir present");
         }
 
-        CheckThemeAssetDirs(config, rootDir);
-        CheckThemeAssetContent(config, rootDir);
+        DoctorThemeChecker.CheckThemeAssetDirs(config, rootDir);
+        DoctorThemeChecker.CheckThemeAssetContent(config, rootDir);
 
         var cacheDir = Path.Combine(rootDir, ".cache");
         if (Directory.Exists(cacheDir))
@@ -308,7 +308,7 @@ public static class DoctorCommand
                 return 1;
             }
 
-            await CheckNotionConnectivityAsync(token);
+            await DoctorNotionChecker.CheckNotionConnectivityAsync(token);
 
             if (command.GetString("--notion-schema") is not null)
             {
@@ -331,7 +331,7 @@ public static class DoctorCommand
                 else
                 {
                     Console.WriteLine("✔ Notion integration configured. Token found.");
-                    await CheckNotionConnectivityAsync(token);
+                    await DoctorNotionChecker.CheckNotionConnectivityAsync(token);
                 }
             }
         }
@@ -435,82 +435,6 @@ public static class DoctorCommand
         return results;
     }
 
-    private static void CheckThemeParamsConsistency(DoctorContext ctx)
-    {
-        var themeParams = ctx.Config.Theme.Params;
-
-        var allContent = new System.Text.StringBuilder();
-        foreach (var file in ctx.AllHtmlFiles)
-        {
-            AppendFileOrWarn(file, allContent);
-        }
-
-        var combined = allContent.ToString();
-
-        if (themeParams is { Count: > 0 })
-        {
-            var unused = new List<string>();
-
-            foreach (var kv in themeParams)
-            {
-                var searchPattern = $"site.theme.params.{kv.Key}";
-                if (!combined.Contains(searchPattern, StringComparison.OrdinalIgnoreCase))
-                {
-                    searchPattern = $"site.params.{kv.Key}";
-                    if (!combined.Contains(searchPattern, StringComparison.OrdinalIgnoreCase))
-                    {
-                        unused.Add(kv.Key);
-                    }
-                }
-            }
-
-            if (unused.Count > 0)
-            {
-                Console.WriteLine($"⚠ {unused.Count} theme param(s) declared but not used in templates:");
-                foreach (var key in unused)
-                {
-                    Console.WriteLine($"  - {key}");
-                }
-            }
-        }
-
-        var referencedParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var paramRegex = new Regex(@"site\.theme\.params\.(\w+)", RegexOptions.IgnoreCase);
-        foreach (Match m in paramRegex.Matches(combined))
-        {
-            if (m.Groups.Count > 1)
-                referencedParams.Add(m.Groups[1].Value);
-        }
-
-        var paramRegex2 = new Regex(@"site\.params\.(\w+)", RegexOptions.IgnoreCase);
-        foreach (Match m in paramRegex2.Matches(combined))
-        {
-            if (m.Groups.Count > 1)
-                referencedParams.Add(m.Groups[1].Value);
-        }
-
-        if (themeParams is null || themeParams.Count == 0)
-        {
-            if (referencedParams.Count > 0)
-            {
-                Console.WriteLine($"⚠ Templates reference {referencedParams.Count} theme param(s) not declared in config:");
-                foreach (var key in referencedParams.OrderBy(x => x))
-                    Console.WriteLine($"  - {key}");
-            }
-
-            return;
-        }
-
-        var declaredKeys = new HashSet<string>(themeParams.Keys, StringComparer.OrdinalIgnoreCase);
-        var undeclaredRefs = referencedParams.Where(r => !declaredKeys.Contains(r)).OrderBy(x => x).ToList();
-        if (undeclaredRefs.Count > 0)
-        {
-            Console.WriteLine($"⚠ Templates reference {undeclaredRefs.Count} theme param(s) not declared in config:");
-            foreach (var key in undeclaredRefs)
-                Console.WriteLine($"  - {key}");
-        }
-    }
-
     internal static void AppendFileOrWarn(string file, System.Text.StringBuilder dst)
     {
         try { dst.Append(File.ReadAllText(file)); }
@@ -587,104 +511,6 @@ public static class DoctorCommand
             Console.WriteLine("         or choose a dedicated dist directory,");
             Console.WriteLine("         or set build.clean: false in site.yaml.");
             return false;
-        }
-    }
-
-    private static void CheckThemeAssetDirs(AppConfig config, string rootDir)
-    {
-        var theme = config.Theme;
-        var themeRoot = string.IsNullOrWhiteSpace(theme.Name)
-            ? rootDir
-            : Path.Combine(rootDir, "themes", theme.Name);
-
-        if (!string.IsNullOrWhiteSpace(theme.Name) && !Directory.Exists(themeRoot))
-        {
-            Console.WriteLine($"⚠ Theme root directory not found: {themeRoot}");
-            return;
-        }
-
-        var assetsPath = string.Equals(theme.Assets, "assets", StringComparison.OrdinalIgnoreCase)
-            ? Path.Combine(themeRoot, "assets")
-            : Path.IsPathRooted(theme.Assets)
-                ? theme.Assets
-                : Path.Combine(rootDir, theme.Assets);
-
-        if (!Directory.Exists(assetsPath))
-        {
-            Console.WriteLine($"⚠ Theme assets directory '{assetsPath}' does not exist");
-        }
-        else
-        {
-            Console.WriteLine("✔ Theme assets directory exists");
-        }
-
-        var staticPath = string.Equals(theme.Static, "static", StringComparison.OrdinalIgnoreCase)
-            ? Path.Combine(themeRoot, "static")
-            : Path.IsPathRooted(theme.Static)
-                ? theme.Static
-                : Path.Combine(rootDir, theme.Static);
-
-        if (!Directory.Exists(staticPath))
-        {
-            Console.WriteLine($"⚠ Theme static directory '{staticPath}' does not exist");
-        }
-        else
-        {
-            Console.WriteLine("✔ Theme static directory exists");
-        }
-    }
-
-    private static void CheckThemeAssetContent(AppConfig config, string rootDir)
-    {
-        var theme = config.Theme;
-        var themeRoot = string.IsNullOrWhiteSpace(theme.Name)
-            ? rootDir
-            : Path.Combine(rootDir, "themes", theme.Name);
-
-        var assetsPath = string.Equals(theme.Assets, "assets", StringComparison.OrdinalIgnoreCase)
-            ? Path.Combine(themeRoot, "assets")
-            : Path.IsPathRooted(theme.Assets)
-                ? theme.Assets
-                : Path.Combine(rootDir, theme.Assets);
-
-        if (Directory.Exists(assetsPath) && !Directory.EnumerateFileSystemEntries(assetsPath).Any())
-        {
-            Console.WriteLine($"⚠ Theme assets directory '{assetsPath}' is empty");
-        }
-
-        var staticPath = string.Equals(theme.Static, "static", StringComparison.OrdinalIgnoreCase)
-            ? Path.Combine(themeRoot, "static")
-            : Path.IsPathRooted(theme.Static)
-                ? theme.Static
-                : Path.Combine(rootDir, theme.Static);
-
-        if (Directory.Exists(staticPath) && !Directory.EnumerateFileSystemEntries(staticPath).Any())
-        {
-            Console.WriteLine($"⚠ Theme static directory '{staticPath}' is empty");
-        }
-    }
-
-    private static async Task CheckNotionConnectivityAsync(string token)
-    {
-        try
-        {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.notion.com/v1/users/me");
-            request.Headers.Add("Authorization", $"Bearer {token}");
-            request.Headers.Add("Notion-Version", "2022-06-28");
-            var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                Console.WriteLine($"⚠ Notion API unreachable: HTTP {(int)response.StatusCode}");
-            }
-            else
-            {
-                Console.WriteLine("✔ Notion API reachable");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"⚠ Notion API connectivity check failed: {ex.Message}");
         }
     }
 

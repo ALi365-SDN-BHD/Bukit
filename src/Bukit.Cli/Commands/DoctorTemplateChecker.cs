@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
+using System.Text;
 
 namespace Bukit.Cli.Commands;
 
@@ -207,5 +208,81 @@ internal static class DoctorTemplateChecker
         }
 
         if (issues == 0) Console.WriteLine("  ✔ Template context usage appears correct");
+    }
+
+    internal static void CheckThemeParamsConsistency(DoctorCommand.DoctorContext ctx)
+    {
+        var themeParams = ctx.Config.Theme.Params;
+
+        var allContent = new StringBuilder();
+        foreach (var file in ctx.AllHtmlFiles)
+        {
+            DoctorCommand.AppendFileOrWarn(file, allContent);
+        }
+
+        var combined = allContent.ToString();
+
+        if (themeParams is { Count: > 0 })
+        {
+            var unused = new List<string>();
+
+            foreach (var kv in themeParams)
+            {
+                var searchPattern = $"site.theme.params.{kv.Key}";
+                if (!combined.Contains(searchPattern, StringComparison.OrdinalIgnoreCase))
+                {
+                    searchPattern = $"site.params.{kv.Key}";
+                    if (!combined.Contains(searchPattern, StringComparison.OrdinalIgnoreCase))
+                    {
+                        unused.Add(kv.Key);
+                    }
+                }
+            }
+
+            if (unused.Count > 0)
+            {
+                Console.WriteLine($"⚠ {unused.Count} theme param(s) declared but not used in templates:");
+                foreach (var key in unused)
+                {
+                    Console.WriteLine($"  - {key}");
+                }
+            }
+        }
+
+        var referencedParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var paramRegex = new Regex(@"site\.theme\.params\.(\w+)", RegexOptions.IgnoreCase);
+        foreach (Match m in paramRegex.Matches(combined))
+        {
+            if (m.Groups.Count > 1)
+                referencedParams.Add(m.Groups[1].Value);
+        }
+
+        var paramRegex2 = new Regex(@"site\.params\.(\w+)", RegexOptions.IgnoreCase);
+        foreach (Match m in paramRegex2.Matches(combined))
+        {
+            if (m.Groups.Count > 1)
+                referencedParams.Add(m.Groups[1].Value);
+        }
+
+        if (themeParams is null || themeParams.Count == 0)
+        {
+            if (referencedParams.Count > 0)
+            {
+                Console.WriteLine($"⚠ Templates reference {referencedParams.Count} theme param(s) not declared in config:");
+                foreach (var key in referencedParams.OrderBy(x => x))
+                    Console.WriteLine($"  - {key}");
+            }
+
+            return;
+        }
+
+        var declaredKeys = new HashSet<string>(themeParams.Keys, StringComparer.OrdinalIgnoreCase);
+        var undeclaredRefs = referencedParams.Where(r => !declaredKeys.Contains(r)).OrderBy(x => x).ToList();
+        if (undeclaredRefs.Count > 0)
+        {
+            Console.WriteLine($"⚠ Templates reference {undeclaredRefs.Count} theme param(s) not declared in config:");
+            foreach (var key in undeclaredRefs)
+                Console.WriteLine($"  - {key}");
+        }
     }
 }

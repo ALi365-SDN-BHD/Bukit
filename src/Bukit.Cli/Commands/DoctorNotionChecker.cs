@@ -143,4 +143,28 @@ internal static class DoctorNotionChecker
             Console.WriteLine("✔ All mapped properties found in Notion database.");
         }
     }
+
+    public static async Task CheckNotionConnectivityAsync(string token)
+    {
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.notion.com/v1/users/me");
+            request.Headers.Add("Authorization", $"Bearer {token}");
+            request.Headers.Add("Notion-Version", NotionApiUrls.NotionVersion);
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"⚠ Notion API unreachable: HTTP {(int)response.StatusCode}");
+            }
+            else
+            {
+                Console.WriteLine("✔ Notion API reachable");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠ Notion API connectivity check failed: {ex.Message}");
+        }
+    }
 }
