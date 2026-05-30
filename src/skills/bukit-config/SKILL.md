@@ -796,6 +796,9 @@ Starting from v3.x, Bukit exceptions carry stable diagnostic codes in `BKT-XXXX`
 | **Content** | `BKT-0501` – `BKT-05FF` | `BKT-0501` LoadFailed, `BKT-0502` ProviderUnavailable |
 | **Build** | `BKT-0601` – `BKT-06FF` | `BKT-0601` OutputUnsafe, `BKT-0602` OutputNoMarker |
 | **Plugin** | `BKT-0701` – `BKT-07FF` | `BKT-0701` ExecutionFailed, `BKT-0702` TimeoutExceeded |
+| **SEO** | `BKT-0801` – `BKT-08FF` | `BKT-0801` SeoAuditFailed |
+| **GEO** | `BKT-0810` – `BKT-081F` | `BKT-0810` GeoAuditFailed |
+| **Media** | `BKT-0901` – `BKT-09FF` | `BKT-0901` MediaDownloadFailed, `BKT-0902` ImageOptimizeFailed, `BKT-0904` MediaSsrfBlocked |
 
 ### How to Read Diagnostic Codes
 
@@ -845,6 +848,36 @@ These stages can be extended or reordered via `IContentStage` (plugin developmen
 | Config works locally but fails in CI | Environment overrides with `BUKIT_` changed scalar values unexpectedly | Print the effective config in CI diagnostics and review `BUKIT_*` variables before editing `site.yaml` |
 | Theme templates or assets cannot be found | `theme.name`, `theme.layouts`, `theme.assets`, or `theme.static` does not match the active theme directory | Verify `themes/<theme.name>/` exists and keep layout paths relative to the theme root conventions |
 | Schema validation warnings appear for fields that exist | Schema `type`, `format`, or `enum` does not match actual Markdown front matter or Notion property values | Normalize content values, add `default` where safe, or temporarily use `build.schemaFailMode: warn` while migrating content |
+| Image downloads fail silently or images appear broken | `content.media.blockPrivateNetworks` is blocking internal image hosts (default: `true`) | If images are on a private network, add the host to the allowlist or use a public CDN; see SSRF Protection below |
+| Deprecation warnings about old config fields | Config uses legacy field names (e.g., `rss` → `feed`, `outputPath` → `permalink`) | Run `bukit doctor` to see migration suggestions; follow the Config Deprecation Scanner table below |
+
+## SSRF Protection (P1-3/P1-6)
+
+`content.media.blockPrivateNetworks` defaults to `true` and blocks image downloads from internal/private network addresses. This is powered by `SsrfGuard.cs` which rejects:
+
+- Loopback: 127.0.0.0/8, ::1
+- RFC1918 private: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+- Link-local: 169.254.0.0/16
+
+SSRF protection is also applied to `CloneCommand` (theme asset downloads) and `SeoExternalAuditor` (SEO external link audits) via `SsrfGuard.SsrfSafeConnectAsync`.
+
+## Config Deprecation Scanner (P3-3)
+
+`ConfigDeprecationScanner` detects legacy config patterns and emits migration warnings during `bukit doctor` and build:
+
+| Legacy Pattern | Replacement | Rule |
+|---|---|---|
+| `site.rss` | `site.feed` | RSS→Feed migration |
+| `site.collections.<k>.outputPath` | `site.collections.<k>.permalink` | OutputPath→Permalink |
+| `content.notion.rootPageId` | `content.notion.rootBlockId` | PageId→BlockId |
+| `content.markdown.rootPageId` | `content.markdown.rootBlockId` | PageId→BlockId |
+| `theme.sourceRef` | `theme.source` with `@` version | SourceRef→Source |
+| `site.rssMode` | `site.plugins.feed.enabled` | RssMode→Plugin toggle |
+| `build.outputPath` | `build.output` | OutputPath→Output |
+
+## JSON Schema (P3-2)
+
+`bukit config schema` generates a complete JSON Schema for `site.yaml` including all 18 collection sub-fields: `permalink`, `template`, `listRoute`, `listTemplate`, `pagination` (enabled/pageSize/urlPattern/firstPageUsesListRoute), `output` (rss/sitemap/archive/archiveDetail/feedPath/feedTitle/feedDescription), `filteredLists`, `schema` (all SchemaFieldDefinition properties), `sortBy`, `sortDirection`, `filter`, `pageSize`, `taxonomy`, `deriveArchive`, `source`, `label`.
 
 ## Checklist: New Site Config Review
 

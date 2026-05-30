@@ -81,6 +81,7 @@ Or on failure: `{ "ok": false, "error": { "code": "PLUGIN_ERROR", "message": "..
 ## Security Boundaries
 - `outputs.path` must be relative to output directory (no absolute paths, no `..`)
 - Host is solely responsible for actual file writes
+- **SSRF Protection (P1-6)**: External plugin entries are validated via `SsrfGuard.SsrfSafeConnectAsync` when accessing network resources. The host rejects connections to loopback (127.0.0.0/8, ::1), RFC1918 private networks (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), and link-local addresses (169.254.0.0/16).
 
 ## Environment Isolation
 

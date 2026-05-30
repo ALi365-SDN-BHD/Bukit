@@ -8,8 +8,6 @@ public static class CliParser
 {
     public static CliParseResult Parse(CliCommandSpec command, IReadOnlyList<string> args)
     {
-        var diagnostics = new List<CliDiagnostic>();
-
         if (command.Subcommands is { Count: > 0 } && args.Count > 0)
         {
             var firstToken = args[0];
@@ -33,20 +31,22 @@ public static class CliParser
             }
         }
 
-        var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        var positionals = new List<string>();
-        var optionMap = (command.Options ?? Array.Empty<CliOptionSpec>())
-            .SelectMany(x => new[] { x.Name, x.ShortName }.Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => (Key: v!, Spec: x)))
-            .ToDictionary(x => x.Key, x => x.Spec, StringComparer.OrdinalIgnoreCase);
+        var bound = CliBoundCommandFactory.Create(args, command);
+        var diagnostics = Validate(command, args, bound);
+        return new SimpleParseResult(command, bound, diagnostics);
+    }
+
+    private static List<CliDiagnostic> Validate(CliCommandSpec command, IReadOnlyList<string> args, CliBoundCommand bound)
+    {
+        var diagnostics = new List<CliDiagnostic>();
+
+        var optionMap = BuildValidationOptionMap(command);
 
         for (var i = 0; i < args.Count; i++)
         {
             var token = args[i];
             if (!token.StartsWith("-", StringComparison.Ordinal))
-            {
-                positionals.Add(token);
                 continue;
-            }
 
             if (!optionMap.TryGetValue(token, out var spec))
             {
@@ -55,10 +55,7 @@ public static class CliParser
             }
 
             if (spec.Type == CliOptionType.Flag)
-            {
-                options[spec.Name] = "true";
                 continue;
-            }
 
             if (i + 1 >= args.Count)
             {
@@ -70,22 +67,18 @@ public static class CliParser
             if (spec.Type == CliOptionType.Integer && !int.TryParse(value, out _))
             {
                 diagnostics.Add(new CliDiagnostic("invalid-option-value", $"Invalid value for {spec.Name}: {value}"));
-                continue;
             }
 
-            if (spec.AllowedValues is not null && spec.AllowedValues.Count > 0 && !spec.AllowedValues.Contains(value, StringComparer.OrdinalIgnoreCase))
+            if (spec.AllowedValues is { Count: > 0 } && !spec.AllowedValues.Contains(value, StringComparer.OrdinalIgnoreCase))
             {
                 diagnostics.Add(new CliDiagnostic("invalid-option-value", $"Invalid value for {spec.Name}: {value}"));
-                continue;
             }
-
-            options[spec.Name] = value;
         }
 
         var argumentSpecs = command.Arguments ?? Array.Empty<CliArgumentSpec>();
         for (var i = 0; i < argumentSpecs.Count; i++)
         {
-            if (argumentSpecs[i].Required && i >= positionals.Count)
+            if (argumentSpecs[i].Required && bound.GetArgument(i) is null)
             {
                 diagnostics.Add(new CliDiagnostic("missing-argument", $"Missing required argument: <{argumentSpecs[i].Name}>"));
             }
@@ -93,12 +86,28 @@ public static class CliParser
 
         foreach (var spec in command.Options ?? Array.Empty<CliOptionSpec>())
         {
-            if (!string.IsNullOrWhiteSpace(spec.ConflictWith) && options.ContainsKey(spec.Name) && options.ContainsKey(spec.ConflictWith))
+            if (!string.IsNullOrWhiteSpace(spec.ConflictWith) &&
+                bound.GetString(spec.Name) is not null &&
+                bound.GetString(spec.ConflictWith) is not null)
             {
                 diagnostics.Add(new CliDiagnostic("conflicting-options", $"Options {spec.Name} and {spec.ConflictWith} cannot be used together"));
             }
         }
 
-        return new SimpleParseResult(command, new CliBoundCommand(options, positionals), diagnostics);
+        return diagnostics;
+    }
+
+    private static Dictionary<string, CliOptionSpec> BuildValidationOptionMap(CliCommandSpec command)
+    {
+        var map = new Dictionary<string, CliOptionSpec>(StringComparer.OrdinalIgnoreCase);
+        var opts = command.Options ?? Array.Empty<CliOptionSpec>();
+        foreach (var o in opts)
+        {
+            map[o.Name] = o;
+            if (!string.IsNullOrWhiteSpace(o.ShortName))
+                map[o.ShortName] = o;
+        }
+
+        return map;
     }
 }

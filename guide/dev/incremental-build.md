@@ -41,6 +41,26 @@ Homepage/list pages use dedicated `ListContentHash`. Plugin-derived pages use th
 
 **TemplateHash** is a composite fingerprint combining: child theme `layouts/` directory content, parent theme `layouts/` (if `theme.extends` is in use), user `layouts/` directory (if `theme.layouts` is overridden), each theme's `theme.yaml` manifest, and a renderer version marker. This means changes to parent theme templates or `theme.yaml` correctly trigger re-rendering.
 
+**ContentHash** covers the full ContentItem: Id, Title, Slug, PublishAt, meta.type, meta.summary, fields, and ContentHtml. Body content is served via the `BodyCacheDecorator` — a build-scoped LRU cache that avoids repeated reads of the same body across multiple render passes.
+
+### BodyCacheDecorator LRU Eviction (P3-8)
+
+The body cache uses a real LRU (Least Recently Used) eviction strategy backed by `LinkedList<T>` + `ConcurrentDictionary<K, LinkedListNode<T>>` + `lock`:
+
+- **Default capacity**: 256 entries
+- **Hit**: Node is moved to the tail of the linked list (marking it as most recently used)
+- **Miss**: New entry is added to the tail; if over capacity, the head (least recently used) entry is evicted
+- **Inline bypass**: ContentHtml that is already inline (no deferred load needed) is counted as `inlineBypasses`, NOT as cache hits — maintaining the identity `totalRequests = cacheHits + cacheMisses + inlineBypasses`
+- LRU behavior is verified by `BodyCacheDecoratorTests`
+
+### DirectoryHashCache Limits (P3-9)
+
+TemplateHash computation uses `DirectoryHashCache` which now enforces safety limits:
+
+- **maxFiles**: 10,000 files per directory (prevents OOM on directories with very large file counts)
+- **maxTotalSize**: 100 MB total scan size (prevents excessive I/O on directories with large files)
+- Directories exceeding either limit trigger a warning and fall back to a simpler hash strategy
+
 ## renderReasons (in `--metrics` output)
 
 - `new_page`, `output_missing`, `template_changed`, `content_changed`, `route_changed`, `full_render`

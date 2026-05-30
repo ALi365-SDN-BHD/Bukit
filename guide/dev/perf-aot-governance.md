@@ -34,6 +34,18 @@ CI enforcement: `scripts/check-aot-warnings.sh` must produce zero `ILC : warning
 - `--metrics <path>`: output structured build timing data
 - `--jobs <n>`: control parallel rendering concurrency
 
+### Performance Fixes (P0/P1 审计修复)
+
+| Fix | Issue | Description |
+|---|---|---|
+| **P0-1** | ContentImageRewritePipeline | 12-round regex scan replaced with `HtmlMediaReferenceScanner` single-pass handwritten parser — ~2x per-page CPU reduction |
+| **P0-2** | AssetPipeline | Pseudo-async replaced with `Task.WhenAll` true async parallel (4 sub-operations: static/assets/tokens/media). External processes use `await Process.WaitForExitAsync()`. |
+| **P1-4** | IncrementalBuildEngine | Removed `GetAwaiter().GetResult()` blocking async call — eliminates potential deadlock |
+| **P1-5** | SpecialListRenderer | Nested `Parallel.ForEachAsync` replaced with `Parallel.ForAsync` to prevent thread pool exhaustion; direct `FileWriter.WriteUtf8` writes |
+| **P2-4** | PageRenderDispatcher | Removed 5 redundant `lock(stageMetricsLock)` blocks, replaced with `stageMetrics.Merge()` lock-free merge |
+| **P3-8** | BodyCacheDecorator | FIFO eviction replaced with real LRU (`LinkedList` + `lock`), with `_inlineBypasses` independent counter |
+| **P3-9** | DirectoryHashCache | Added `maxFiles=10000` and `maxTotalSize=100MB` limits to prevent OOM/IO storms on large directories |
+
 ## CI Verification Commands
 
 ```bash

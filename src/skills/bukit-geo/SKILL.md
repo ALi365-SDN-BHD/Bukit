@@ -239,5 +239,13 @@ GEO diagnostics run during `bukit build` (when `site.seo.diagnostics` is `warn` 
 | GEO Score is 0 or low | No llms.txt, no GEO routes | Enable llmsTxt, add `geo:` fields to content front matter |
 | `aiBotMode: selective` has no effect | No lists configured | Set `aiBotAllowList` and/or `aiBotBlockList` |
 | llms.txt has "No indexable pages found" | All pages have `robots: noindex` or content is empty | Remove `noindex` from at least one page or set `robots: index` |
+
+## GEO Diagnostic Code Range (P3-1)
+
+GEO-related diagnostic codes use the expanded range `BKT-0810` – `BKT-081F` (16 code positions):
+
+| Code | Description |
+|---|---|
+| `BKT-0810` | GeoAuditFailed — GEO readiness audit failure |
 |
 

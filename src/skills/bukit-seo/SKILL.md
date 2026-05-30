@@ -439,3 +439,21 @@ Build-time errors related to rendering carry diagnostic codes that may appear al
 | `BKT-0401` | SchemaStrictModeBlocked | Schema validation in strict mode blocks the entire build |
 
 When SEO audit generates warnings about missing pages or inconsistent metadata, cross-check with `bukit doctor` for these codes.
+
+## SEO Security (P1-6)
+
+### External Link Audit SSRF Protection
+
+`SeoExternalAuditor` validates all external links via `SsrfGuard.SsrfSafeConnectAsync` before connecting. This prevents SEO audits from being used as SSRF probes against internal networks. The guard rejects:
+
+- Loopback: 127.0.0.0/8, ::1
+- RFC1918 private: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+- Link-local: 169.254.0.0/16
+
+### SEO Diagnostic Code Range (P3-1)
+
+SEO-related diagnostic codes use the expanded range `BKT-0801` – `BKT-08FF` (256 code positions):
+
+| Code | Description |
+|---|---|
+| `BKT-0801` | SeoAuditFailed — SEO external link audit or index validation failure |

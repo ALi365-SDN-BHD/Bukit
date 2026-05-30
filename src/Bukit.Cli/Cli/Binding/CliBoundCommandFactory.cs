@@ -8,74 +8,61 @@ public static class CliBoundCommandFactory
     {
         var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         var arguments = new List<string>();
-        var optionSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        void CollectOptions(IReadOnlyList<CliOptionSpec>? opts)
+        var optionMap = BuildOptionMap(spec);
+
+        for (var i = 0; i < args.Count; i++)
         {
-            if (opts is null) return;
-            foreach (var option in opts)
+            var token = args[i];
+            if (!token.StartsWith("-", StringComparison.Ordinal))
             {
-                if (optionSet.Add(option.Name))
-                {
-                    if (option.Type == CliOptionType.Flag)
-                    {
-                        if (args.Any(a => string.Equals(a, option.Name, StringComparison.OrdinalIgnoreCase)))
-                            options[option.Name] = "true";
-                    }
-                    else
-                    {
-                        var value = GetOption(args, option.Name);
-                        if (value is not null)
-                            options[option.Name] = value;
-                    }
-                }
+                arguments.Add(token);
+                continue;
             }
-        }
 
-        if (spec is not null)
-        {
-            CollectOptions(spec.Options);
-            if (spec.Subcommands is not null)
+            if (!optionMap.TryGetValue(token, out var optionSpec))
+                continue;
+
+            if (optionSpec.Type == CliOptionType.Flag)
             {
-                foreach (var sub in spec.Subcommands)
-                    CollectOptions(sub.Options);
+                options[optionSpec.Name] = "true";
+                continue;
             }
-        }
 
-        for (var i = 1; ; i++)
-        {
-            if (i >= args.Count) break;
-            var arg = args[i];
-            if (arg.StartsWith("-", StringComparison.Ordinal)) break;
-            arguments.Add(arg);
+            if (i + 1 < args.Count)
+            {
+                options[optionSpec.Name] = args[++i];
+            }
         }
 
         return new CliBoundCommand(options, arguments);
     }
 
-    private static string? GetOption(IReadOnlyList<string> args, string name)
+    private static Dictionary<string, CliOptionSpec> BuildOptionMap(CliCommandSpec? spec)
     {
-        for (var i = 0; i < args.Count; i++)
+        var map = new Dictionary<string, CliOptionSpec>(StringComparer.OrdinalIgnoreCase);
+
+        void Collect(IReadOnlyList<CliOptionSpec>? opts)
         {
-            var arg = args[i];
-            if (arg.StartsWith(name + "=", StringComparison.OrdinalIgnoreCase))
+            if (opts is null) return;
+            foreach (var o in opts)
             {
-                return arg[(name.Length + 1)..];
+                map[o.Name] = o;
+                if (!string.IsNullOrWhiteSpace(o.ShortName))
+                    map[o.ShortName] = o;
             }
-
-            if (!string.Equals(arg, name, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (i + 1 >= args.Count)
-            {
-                return null;
-            }
-
-            return args[i + 1];
         }
 
-        return null;
+        if (spec is not null)
+        {
+            Collect(spec.Options);
+            if (spec.Subcommands is not null)
+            {
+                foreach (var sub in spec.Subcommands)
+                    Collect(sub.Options);
+            }
+        }
+
+        return map;
     }
 }

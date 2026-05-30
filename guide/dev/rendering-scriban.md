@@ -60,3 +60,41 @@ Whether `pages[*].content` is populated is controlled by `build.listPageContentM
 
 - Markdown reserved keys don't enter fields; tags/categories/summary are written into fields
 - Notion: fields keys normalized to `lowercase_with_underscores`, controlled by `fieldPolicy`
+
+## Template Security
+
+### Shortcode HTML Encoding (P1-1)
+
+Shortcode parameter values are HTML-encoded via `WebUtility.HtmlEncode` before template substitution in `ShortcodeProcessor.cs`. This prevents stored XSS attacks where content authors could inject `<script>` tags through shortcode parameters like `{% card "<script>alert(1)</script>" %}`.
+
+When defining custom shortcodes in `theme.shortcodes`, use Scriban's `html.escape` filter in parameter output:
+```yaml
+theme:
+  shortcodes:
+    card: '<div class="card">{{ $1 | html.escape }}</div>'
+```
+
+### Block Renderer Color Safety (P1-2)
+
+All Notion block renderers (Callout, ToDo, Toggle, Bookmark, Equation) now use manually HTML-encoded color values when constructing `class="notion-{color}"` CSS attributes. This prevents HTML injection through Notion's color property values.
+
+### Image Tag Safety
+
+All image tags generated via `BuildImgTag`/`BuildSrcset` in `ImageHelper` use `WebUtility.HtmlEncode` on attribute values combined with an `IsSafeImageSource` protocol whitelist.
+
+## Rendering Module Structure (P2-3)
+
+The rendering module has been decomposed from a single `ScribanTemplateRenderer.cs` (~422 lines) into 10 independent files under `src/Bukit.Rendering/Scriban/`:
+
+| File | Responsibility |
+|---|---|
+| `ScribanTemplateRenderer.cs` | Core rendering orchestrator |
+| `RenderSectionFunction.cs` | `render_section` Scriban function |
+| `RenderComponentFunction.cs` | `render_component` Scriban function |
+| `TemplateContextBuilder.cs` | Template context and model construction |
+| `FileTemplateLoader.cs` | Template file resolution with path safety |
+| `ImageFunctions.cs` | Image processing Scriban functions |
+| `ComponentFunctions.cs` | Component system Scriban functions (instance-based, all readonly) |
+| `SectionRenderHelper.cs` | Section rendering logic |
+| `SectionDataResolverAccessor.cs` | Section data resolver bridge |
+| `ScribanModelBinder.cs` | Model-to-Scriban binding logic |

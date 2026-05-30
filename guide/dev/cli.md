@@ -6,6 +6,8 @@ Implementation references: `src/Bukit.Cli/Cli/BukitCliSpecs.cs`, `src/Bukit.Cli/
 
 ## Command Overview
 
+> **P3-7 修复**：旧 CLI 解析器 `ArgReader.cs` 已完全移除。所有命令已统一迁移至 `BukitCliSpecs` + `CliParser`（`CliBoundCommandFactory` 模式），不再存在新旧解析器并存的问题。
+
 | Command | Purpose |
 |---|---|
 | `create <dir>` | Create a new site project (equivalent to `init`) |

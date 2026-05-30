@@ -38,19 +38,31 @@ doctor 的检查顺序基本如下：
 8. Notion 模式下探活（需要 `NOTION_TOKEN`）
    - 若 `content.provider: notion`：缺少 `NOTION_TOKEN` 会失败返回 1
    - 会调用 Notion API 检查 databaseId 可达；失败返回 1
-9. **模板变量拼写检查**（新增）
+9. **模板变量拼写检查**
    - 对所有 `layouts/` 下的 `.html` 模板执行 AST 解析
    - 提取所有变量引用（`page.title`、`site.params.theme` 等）
    - 与已知字段白名单交叉比对
    - 发现未知变量时输出警告（不会失败，仅 ⚠）
    - 白名单定义：`src/Bukit.Rendering/Scriban/ScribanModelKnownFields.cs`
-10. **Extra fields 报告**（新增）
+10. **Extra fields 报告**
     - 检查内容 front matter 中的字段是否在 collection schema 中声明
     - 发现未声明字段时输出警告
 11. **诊断码格式化输出**
     - 所有配置错误使用 `BKT-XXXX` 稳定格式输出
     - 实现：`src/Bukit.Shared/DiagnosticExceptionFormatter.cs`
     - 示例：`[BKT-0601] Refusing to clean unsafe output directory`
+12. **主题资产完整性检查（P3-6 新增）**
+    - 检查 `theme.assets` 目录下 SCSS 文件的存在性与可编译性
+    - 检查 `theme.static` 目录下是否存在可疑符号链接（默认拒绝）
+    - 检查主题 `manifest.yaml`/`theme.yaml` 的 `extends` 字段安全性（ThemeNameSanitizer）
+13. **Notion 连通性深度检查（P3-6 新增）**
+    - 在 Notion 模式下，除基本探活外增加：
+    - 检查 `fieldPolicy` 白名单字段在 Notion 数据库中是否实际存在
+    - 检查 `includeSlugs` 指定的 slug 是否可查找到对应页面
+    - 检查 `cacheDir` 是否可写（如果启用缓存）
+14. **配置废弃警告扫描（P3-3 新增）**
+    - `ConfigDeprecationScanner` 检测 7 种历史配置模式
+    - 发现旧字段时输出迁移建议（如 `rss` → `feed`、`outputPath` → `permalink`）
 
 通过后输出 “Doctor passed”，返回码 0。
 

@@ -883,3 +883,31 @@ Tokens = new CloneTokens
     ZHeader = "100",
 }
 ```
+
+## Theme Security (P2-6/P2-7)
+
+### Path Boundary Enforcement
+
+All theme path resolution (layouts/assets/static) uses `BuildPathUtils.MakeAbsolute(rootDir, path, enforceWithinRoot: true)`. When a resolved path escapes the project root, the engine throws `ConfigException` with `BKT-0004` (ConfigPathTraversal). This applies to:
+
+- `theme.layouts`, `theme.assets`, `theme.static` directories
+- Parent theme paths when using `theme.extends`
+- Any user-overridden theme paths
+
+### Theme Name Sanitizer
+
+When `theme.name` or `theme.extends` references a theme, `ThemeNameSanitizer` applies 7 layers of validation before path combining:
+
+1. Null/empty check
+2. Absolute path rejection
+3. `..` traversal rejection
+4. Path separator rejection (`/`, `\`)
+5. Control character rejection (U+0000–U+001F, U+007F–U+009F)
+6. Windows device name rejection (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+7. Invalid filename character rejection (`<`, `>`, `:`, `"`, `|`, `?`, `*`)
+
+For `extends`: sanitization failure → warning + skip parent theme. For `theme.name`: sanitization failure → `ConfigException`.
+
+### Shortcode Safety
+
+When defining theme shortcodes, HTML-encode parameters: `{{ $1 | html.escape }}`. See bukit-templating for details.

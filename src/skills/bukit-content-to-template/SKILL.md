@@ -224,3 +224,20 @@ Custom stages receive `ContentStageInput` (with `Items`, `BodyStore`, `Config`, 
 | Not escaping user content | Use `{{ value | html.escape }}` |
 | Missing `loading="lazy"` on list images | Add `loading="lazy"` to card images |
 | No empty state for list pages | Add `{{ if pages.size == 0 }}...empty...{{ end }}` |
+| Shortcode values not encoded in theme shortcodes | HTML-encode shortcode params: `{{ $1 | html.escape }}` (P1-1) |
+
+## Performance Notes
+
+### Image Rewrite Performance (P0-1)
+
+Content image URL rewriting (e.g., localizing remote Notion images) uses a single-pass handwritten `HtmlMediaReferenceScanner` parser instead of multi-round regex scanning. This eliminates ~2x per-page CPU overhead for HTML documents containing multiple image references. Content authors with many inline images benefit most from this optimization.
+
+### Shortcode Safety (P1-1)
+
+When defining `theme.shortcodes`, always HTML-encode dynamic parameters. The engine now enforces `WebUtility.HtmlEncode` on shortcode values at the processor level, but explicit `html.escape` in template definitions is still the recommended defense-in-depth practice:
+
+```yaml
+theme:
+  shortcodes:
+    alert: '<div class="alert alert-{{ $1 | html.escape }}">{{ $2 | html.escape }}</div>'
+```

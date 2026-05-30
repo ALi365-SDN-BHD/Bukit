@@ -82,3 +82,31 @@ When baseUrl is `/`, `site.base_url` is injected as empty string.
   {{ end }}
 {{ end }}
 ```
+
+## Theme Security
+
+### Path Boundary Enforcement (P2-6)
+
+Since v3.x, all theme path resolution (layouts/assets/static) is validated via `BuildPathUtils.MakeAbsolute(rootDir, path, enforceWithinRoot: true)`. When a resolved theme path escapes the project root (e.g., via `../` traversal or absolute paths), the engine throws `ConfigException` with diagnostic code `BKT-0004` (ConfigPathTraversal) and refuses to continue.
+
+### Theme Name Sanitizer (P2-7)
+
+When a theme declares `extends: <parent-theme>` or `name: <theme-name>`, the `ThemeNameSanitizer` applies **7 layers of sanitization** before any `Path.Combine`:
+
+1. Null/empty check
+2. Absolute path rejection
+3. `..` traversal rejection
+4. Path separator character rejection (`/`, `\`)
+5. Control character rejection (U+0000–U+001F, U+007F–U+009F)
+6. Windows device name rejection (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+7. Invalid filename character rejection (`<`, `>`, `:`, `"`, `|`, `?`, `*`)
+
+For `extends`: if sanitization fails, the engine logs a warning and **skips** loading the parent theme (graceful degradation). For `theme.name`: if sanitization fails, the engine throws `ConfigException`. Implementation: `src/Bukit.Engine/ThemeNameSanitizer.cs`.
+
+### Shortcode HTML Encoding (P1-1)
+
+Shortcode parameter values are HTML-encoded before template substitution. This prevents stored XSS when content authors use shortcodes with scripts or HTML in parameter values. The encoding uses `WebUtility.HtmlEncode` (matching ASP.NET conventions). When defining custom shortcodes, always output parameter values through `{{ $n | html.escape }}` in your Scriban templates.
+
+### Block Renderer Color Safety (P1-2)
+
+All Notion block renderers (Callout, ToDo, Toggle, Bookmark, Equation) use HTML-encoded color values when constructing CSS class attributes. This prevents HTML injection through Notion color property values.

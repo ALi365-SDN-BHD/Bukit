@@ -158,3 +158,17 @@ Run `bukit doctor` after writing new templates to detect typos in Scriban variab
 ### Slow rebuilds
 
 Incremental build is enabled by default. First build is full, subsequent builds only re-render changed pages. Use `--no-watch` for static-only serving.
+
+### Dev Server Architecture (P2-2)
+
+The dev command has been decomposed into a modular `Dev/` subdirectory under `src/Bukit.Cli/Commands/`:
+
+| Component | Responsibility |
+|---|---|
+| `DevServerHost` | HTTP server lifecycle and middleware |
+| `DevWebSocketHub` | WebSocket connections for HMR live reload |
+| `DevFileWatcher` | File system change detection with debouncing |
+| `DevRequestHandler` | HTTP request routing and static file serving |
+| `DevPathGuard` | Path traversal protection for dev server file access |
+
+This separation makes it easier to diagnose dev server issues: check the specific component based on the symptom (WebSocket connection errors → DevWebSocketHub, file changes not detected → DevFileWatcher, 404 errors → DevRequestHandler).

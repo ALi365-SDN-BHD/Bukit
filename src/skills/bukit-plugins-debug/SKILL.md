@@ -492,3 +492,25 @@ Use `bukit plugin list` to verify the plugin is registered.
 | Related content not shown | `site.related.enabled: false` or `threshold` too high | Enable `related.enabled` and lower `threshold` |
 | Menu not appearing | `site.menus` not configured or empty | Configure `site.menus` with at least one menu key |
 | Image processing skipped | No ImageMagick (`magick`/`convert`) installed | Install ImageMagick for image resize support |
+
+## Plugin Security (P1-6)
+
+### SSRF Protection for External Plugins
+
+External plugin entries that access network resources are validated via `SsrfGuard.SsrfSafeConnectAsync`. The host rejects connections to:
+
+- Loopback: 127.0.0.0/8, ::1
+- RFC1918 private: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+- Link-local: 169.254.0.0/16
+
+This applies to:
+- `CloneCommand` — theme asset downloads from remote URLs
+- `SeoExternalAuditor` — SEO external link audits
+- `ImageAssetLocalizer` — remote image downloads (governed by `content.media.blockPrivateNetworks: true` by default)
+
+### Process Plugin Sandbox
+
+External process plugins (`runtime: process`) run with the host's process permissions. They are **not sandboxed** — treat them as trusted local commands:
+- `allowEnvironment` only exposes explicitly listed variables
+- Plugin `entry` paths are validated against `SsrfGuard`
+- Use `--allow-external-plugins` in CI to explicitly enable

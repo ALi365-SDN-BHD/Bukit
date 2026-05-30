@@ -807,3 +807,32 @@ templates:
 ### How `suggestion` Works in Practice
 
 When a user asks "generate a post template for my blog schema," the AI Skill (bukit-content-to-template) reads the field declarations from `bukit.templates.yaml` and uses the `suggestion` snippets as building blocks to compose the complete template. If no `suggestion` is provided, the AI falls back to type-based defaults from the Schema Field → Template Pattern Map.
+
+## Template Security Best Practices (P1-1/P1-2)
+
+### Shortcode HTML Encoding
+
+All shortcode parameter values are HTML-encoded via `WebUtility.HtmlEncode` before template substitution. When defining custom shortcodes in `theme.shortcodes`, always use `html.escape` filter for parameter values:
+
+```yaml
+theme:
+  shortcodes:
+    card: '<div class="card">{{ $1 | html.escape }}</div>'
+```
+
+Without encoding, a content author could inject scripts via `{% card "<script>alert(1)</script>" %}` — the engine now prevents this at the ShortcodeProcessor level.
+
+### Notion Block Renderer Color Safety
+
+All Notion block renderers (CalloutBlockRenderer, ToDoBlockRenderer, ToggleBlockRenderer, BookmarkBlockRenderer, EquationBlockRenderer) now HTML-encode color property values when constructing CSS class attributes. This prevents class attribute injection through Notion color fields.
+
+### Image Tag Safety
+
+Image tags generated via `image.img` and `image.srcset` helpers use `WebUtility.HtmlEncode` on all attribute values combined with an `IsSafeImageSource` protocol whitelist (http/https/data only).
+
+### Scriban Output Encoding
+
+For user-supplied content in templates, always use Scriban's built-in filters:
+- `{{ value | html.escape }}` — HTML attribute/value context
+- `{{ value | object.format "json" }}` — JSON/script context
+- `{{ site.analytics.google_analytics_id | html.escape }}` — IDs in script contexts

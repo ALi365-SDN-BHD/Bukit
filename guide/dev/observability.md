@@ -23,9 +23,11 @@ All Bukit exceptions carry stable diagnostic codes in `BKT-XXXX` hex format. Imp
 | Content | `BKT-0501` – `BKT-05FF` | `BKT-0501` LoadFailed |
 | Build | `BKT-0601` – `BKT-06FF` | `BKT-0601` OutputUnsafe |
 | Plugin | `BKT-0701` – `BKT-07FF` | `BKT-0701` ExecutionFailed |
-| SEO | `BKT-0801` – `BKT-0804` | |
-| GEO | `BKT-0810` – `BKT-0812` | |
-| Media | `BKT-0901` – `BKT-0904` | |
+| SEO | `BKT-0801` – `BKT-08FF` | `BKT-0801` SeoAuditFailed — SEO external link audit or index validation |
+| GEO | `BKT-0810` – `BKT-081F` | `BKT-0810` GeoAuditFailed — GEO readiness audit |
+| Media | `BKT-0901` – `BKT-09FF` | `BKT-0901` MediaDownloadFailed, `BKT-0902` ImageOptimizeFailed, `BKT-0903` ScssCompileFailed, `BKT-0904` MediaSsrfBlocked |
+
+> **P3-1 修复记录**：诊断码范围从 SEO(0x0800-0x0804)/GEO(0x0810-0x0812)/Media(0x0900-0x0904) 扩展为完整的 256 个码位子范围（0x0800-0x08FF / 0x0810-0x081F / 0x0900-0x09FF），为 SEO/GEO/媒体诊断提供充足扩展空间。
 
 DoctorCommand outputs errors formatted with diagnostic codes via `DiagnosticExceptionFormatter.Format()`. All 13 critical throw sites in the engine carry diagnostic codes; other throws remain backward-compatible (Code = null).
 
@@ -53,11 +55,31 @@ Writing build metrics JSON provides structured data for CI performance tracking:
     "language": "zh-CN",
     "renderCount": 42,
     "skipCount": 18,
+    "bodyCache": {
+      "totalRequests": 100,
+      "cacheHits": 72,
+      "cacheMisses": 20,
+      "inlineBypasses": 8,
+      "uniqueBodies": 15,
+      "amplification": 6.7,
+      "maxSize": 256,
+      "currentSize": 142
+    },
     "reasons": { "new_page": 5, "template_changed": 3, "content_changed": 15, "unchanged": 18, "full_render": 1 }
   }],
   "plugins": { "sitemap": { "durationMs": 120 }, "rss": { "durationMs": 80 } }
 }
 ```
+
+**BodyCache 指标说明**（P0-3 修复）：
+- `totalRequests`：构建期间请求 body 的总次数
+- `cacheHits`：缓存命中次数（已缓存的 body 直接返回）
+- `cacheMisses`：缓存未命中次数（需要从底层存储加载）
+- `inlineBypasses`：内联 ContentHtml 直通次数（无需走缓存路径），独立计数保持 `totalRequests = cacheHits + cacheMisses + inlineBypasses` 恒等式
+- `uniqueBodies`：缓存中不重复的 body 数量
+- `amplification`：缓存放大比 = totalRequests / uniqueBodies（体现缓存复用的效果）
+- `maxSize`：缓存容量上限（LRU 淘汰阈值）
+- `currentSize`：当前缓存条目数
 
 ## Notion Statistics
 
