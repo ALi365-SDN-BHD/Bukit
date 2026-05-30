@@ -1,6 +1,6 @@
 namespace Bukit.Shared;
 
-internal static class SafeUrl
+public static class SafeUrl
 {
     private static readonly HashSet<string> LinkSchemes = new(StringComparer.OrdinalIgnoreCase)
     {

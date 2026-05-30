@@ -241,7 +241,7 @@ public sealed class BuildCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task RunAsync_JobsFour_RunsSuccessfully()
+    public async Task RunAsync_JobsFour_StartsBuildWithoutArgumentError()
     {
         var siteYaml = Path.Combine(_testDir, "site.yaml");
         File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
@@ -336,11 +336,9 @@ public sealed class BuildCommandTests : IDisposable
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var buildTask = BuildCommand.RunAsync(command);
             var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
-            if (completed == buildTask)
-            {
-                try { await buildTask; }
-                catch (Exception ex) { Assert.DoesNotContain("External plugins are disabled in CI", ex.Message); }
-            }
+            Assert.Same(buildTask, completed);
+            try { await buildTask; }
+            catch (Exception ex) { Assert.DoesNotContain("External plugins are disabled in CI", ex.Message); }
         }
         finally
         {
@@ -381,11 +379,9 @@ public sealed class BuildCommandTests : IDisposable
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var buildTask = BuildCommand.RunAsync(command);
             var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
-            if (completed == buildTask)
-            {
-                try { await buildTask; }
-                catch (Exception ex) { Assert.DoesNotContain("External plugins are disabled in CI", ex.Message); }
-            }
+            Assert.Same(buildTask, completed);
+            try { await buildTask; }
+            catch (Exception ex) { Assert.DoesNotContain("External plugins are disabled in CI", ex.Message); }
         }
         finally
         {
