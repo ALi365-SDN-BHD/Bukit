@@ -59,6 +59,9 @@ public sealed class CompositeContentProvider : IContentProvider
                 all.Add(item with
                 {
                     Id = $"{sourceKey}:{item.Id}",
+                    BodyKey = item.BodyKey is null
+                        ? $"{sourceKey}:{item.Id}"
+                        : $"{sourceKey}:{item.BodyKey}",
                     Meta = meta
                 });
 
@@ -82,6 +85,9 @@ public sealed class CompositeContentProvider : IContentProvider
                     all.Add(item with
                     {
                         Id = $"{sourceKey}:{item.Id}:{extraCollection.Trim()}",
+                        BodyKey = item.BodyKey is null
+                            ? $"{sourceKey}:{item.Id}"
+                            : $"{sourceKey}:{item.BodyKey}",
                         Meta = extraMeta
                     });
                 }

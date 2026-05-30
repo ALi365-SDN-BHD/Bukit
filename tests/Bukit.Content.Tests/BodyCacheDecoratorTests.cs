@@ -272,4 +272,40 @@ public sealed class BodyCacheDecoratorTests
         await decorator.GetAsync(itemA);
         Assert.Equal(missesBefore + 1, decorator.Metrics.CacheMisses);
     }
+
+    [Fact]
+    public async Task CompositeSources_SameBodyKey_DoesNotShareCachedBody()
+    {
+        var bodyStoreA = new CountingBodyStore();
+        var bodyStoreB = new CountingBodyStore();
+
+        var itemFromA = CreateItem("index.md", bodyKey: "index.md");
+        var itemFromB = CreateItem("index.md", bodyKey: "index.md");
+
+        var decoratorA = new BodyCacheDecorator(bodyStoreA);
+        var decoratorB = new BodyCacheDecorator(bodyStoreB);
+
+        var bodyA = await decoratorA.GetAsync(itemFromA);
+        var bodyB = await decoratorB.GetAsync(itemFromB);
+
+        Assert.Equal(1, bodyStoreA.CallCount);
+        Assert.Equal(1, bodyStoreB.CallCount);
+        Assert.NotSame(bodyA, bodyB);
+    }
+
+    [Fact]
+    public async Task AddToCollections_DuplicatedRoute_SharesSourceBody()
+    {
+        var inner = new CountingBodyStore();
+        var decorator = new BodyCacheDecorator(inner);
+
+        var mainItem = CreateItem("blog:my-post", bodyKey: "blog:my-post");
+        var copyItem = CreateItem("blog:my-post:companies", bodyKey: "blog:my-post");
+
+        var mainBody = await decorator.GetAsync(mainItem);
+        var copyBody = await decorator.GetAsync(copyItem);
+
+        Assert.Equal(1, inner.CallCount);
+        Assert.Equal(mainBody.Html, copyBody.Html);
+    }
 }
