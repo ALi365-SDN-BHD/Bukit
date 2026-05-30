@@ -139,25 +139,25 @@ if (mode == "handshake-invalid")
 
 if (mode == "derive-success")
 {
-    if (string.Equals(hook, "derive-pages", StringComparison.OrdinalIgnoreCase))
+    if (!string.Equals(hook, "derive-pages", StringComparison.OrdinalIgnoreCase))
     {
-        Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"derived-1","title":"Derived 1","slug":"derived-1","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Derived</p>","meta":{"type":"page"},"url":"/derived/derived-1/","outputPath":"derived/derived-1/index.html","template":"pages/page.html"}]}""");
+        Fail($"derive-success mode expects hook=derive-pages, got '{hook ?? "null"}' (stdin empty or missing hook field)");
         return;
     }
 
-    Console.Out.Write("""{"ok":true,"outputs":[{"path":"plugin-output.json","contentType":"application/json","text":"{\"ok\":true}"}]}""");
+    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"derived-1","title":"Derived 1","slug":"derived-1","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Derived</p>","meta":{"type":"page"},"url":"/derived/derived-1/","outputPath":"derived/derived-1/index.html","template":"pages/page.html"}]}""");
     return;
 }
 
 if (mode == "derive-conflict")
 {
-    if (string.Equals(hook, "derive-pages", StringComparison.OrdinalIgnoreCase))
-    {
-        Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"derived-conflict","title":"Derived Conflict","slug":"derived-conflict","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Derived Conflict</p>","meta":{"type":"page"},"url":"/blog/post-1/","outputPath":"blog/post-1/index.html","template":"pages/page.html"}]}""");
-        return;
-    }
+    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"derived-conflict","title":"Derived Conflict","slug":"derived-conflict","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Derived Conflict</p>","meta":{"type":"page"},"url":"/blog/post-1/","outputPath":"blog/post-1/index.html","template":"pages/page.html"}]}""");
+    return;
+}
 
-    Console.Out.Write("""{"ok":true,"outputs":[{"path":"plugin-output.json","contentType":"application/json","text":"{\"ok\":true}"}]}""");
+if (mode == "derive-lastwins")
+{
+    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"derived-conflict","title":"Derived Conflict","slug":"derived-conflict","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Derived Conflict</p>","meta":{"type":"page"},"url":"/derived/conflict/","outputPath":"derived/conflict/index.html","template":"pages/page.html"}]}""");
     return;
 }
 
@@ -171,19 +171,19 @@ static string? ReadStringProperty(string json, string propertyName)
         return null;
     }
 
-    try
+    using var doc = JsonDocument.Parse(json);
+    if (doc.RootElement.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String)
     {
-        using var doc = JsonDocument.Parse(json);
-        if (doc.RootElement.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String)
-        {
-            return property.GetString();
-        }
-    }
-    catch
-    {
+        return property.GetString();
     }
 
     return null;
+}
+
+static void Fail(string message)
+{
+    Console.Out.Write($$"""{"ok":false,"error":{"code":"PLUGIN_ERROR","message":"{{message}}"},"logs":[{"level":"error","message":"{{message}}"}]}""");
+    Environment.Exit(1);
 }
 
 static int ReadRoutedPagesCount(string json)

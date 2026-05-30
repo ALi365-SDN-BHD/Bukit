@@ -1011,6 +1011,8 @@ public sealed class SiteEngineIntegrationTests
                     slug: hello
                     language: en
                     i18nKey: hello
+                    date: 2026-01-01
+                    publishAt: 2026-01-01T00:00:00Z
                     ---
                     # Hello
                     """);
@@ -1021,6 +1023,7 @@ public sealed class SiteEngineIntegrationTests
                     slug: bonjour
                     language: fr
                     i18nKey: hello
+                    publishAt: 2026-01-01T00:00:00Z
                     ---
                     # Bonjour
                     """);
@@ -1031,6 +1034,7 @@ public sealed class SiteEngineIntegrationTests
                     slug: hallo
                     language: de
                     i18nKey: hello
+                    publishAt: 2026-01-01T00:00:00Z
                     ---
                     # Hallo
                     """);
@@ -2774,13 +2778,23 @@ public sealed class SiteEngineIntegrationTests
 
     private static bool DirectoriesMatch(string dir1, string dir2)
     {
+        static bool ShouldIgnore(string relativePath)
+        {
+            var fileName = Path.GetFileName(relativePath);
+            if (fileName is ".bukit-build-state.json" or ".bukit-output-marker") return true;
+            if (relativePath.Split('/', '\\').Any(s => s == ".bukit")) return true;
+            return false;
+        }
+
         var files1 = Directory.GetFiles(dir1, "*", SearchOption.AllDirectories)
-            .Select(f => (Relative: Path.GetRelativePath(dir1, f), Content: File.ReadAllText(f)))
+            .Select(f => (Relative: Path.GetRelativePath(dir1, f), Absolute: f, Content: File.ReadAllText(f)))
+            .Where(f => !ShouldIgnore(f.Relative))
             .OrderBy(x => x.Relative, StringComparer.Ordinal)
             .ToList();
 
         var files2 = Directory.GetFiles(dir2, "*", SearchOption.AllDirectories)
-            .Select(f => (Relative: Path.GetRelativePath(dir2, f), Content: File.ReadAllText(f)))
+            .Select(f => (Relative: Path.GetRelativePath(dir2, f), Absolute: f, Content: File.ReadAllText(f)))
+            .Where(f => !ShouldIgnore(f.Relative))
             .OrderBy(x => x.Relative, StringComparer.Ordinal)
             .ToList();
 
@@ -2789,6 +2803,12 @@ public sealed class SiteEngineIntegrationTests
 
         if (!rel1.SetEquals(rel2))
         {
+            var onlyIn1 = rel1.Except(rel2).ToList();
+            var onlyIn2 = rel2.Except(rel1).ToList();
+            var diffs = new List<string>();
+            if (onlyIn1.Count > 0) diffs.Add($"Only in dir1: [{string.Join(", ", onlyIn1)}]");
+            if (onlyIn2.Count > 0) diffs.Add($"Only in dir2: [{string.Join(", ", onlyIn2)}]");
+            Assert.Fail($"File sets differ: {string.Join("; ", diffs)}");
             return false;
         }
 
@@ -2796,6 +2816,9 @@ public sealed class SiteEngineIntegrationTests
         {
             if (!string.Equals(files1[i].Content, files2[i].Content, StringComparison.Ordinal))
             {
+                Assert.Fail($"Content differs in file '{files1[i].Relative}'." +
+                    $"\n  dir1 ({files1[i].Absolute}): [{files1[i].Content.Substring(0, Math.Min(500, files1[i].Content.Length))}]" +
+                    $"\n  dir2 ({files2[i].Absolute}): [{files2[i].Content.Substring(0, Math.Min(500, files2[i].Content.Length))}]");
                 return false;
             }
         }

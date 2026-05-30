@@ -611,7 +611,7 @@ public sealed class ExternalProtocolPluginTests
         var context = CreateContext(
             temp.Path,
             "strict",
-            "derive-conflict",
+            "derive-lastwins",
             hooks: new[] { "derive-pages" },
             deriveConflictPolicy: "last-wins");
 
