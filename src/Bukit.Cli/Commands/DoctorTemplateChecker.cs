@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
 
 namespace Bukit.Cli.Commands;
 
@@ -142,5 +143,69 @@ internal static class DoctorTemplateChecker
         text = Regex.Replace(text, @"<[^>]+>", " ");
         text = System.Net.WebUtility.HtmlDecode(text);
         return Regex.Replace(text, @"\s+", " ").Trim();
+    }
+
+    internal static void CheckIncludeExistence(DoctorCommand.DoctorContext ctx)
+    {
+        Console.WriteLine("--- Include file existence check ---");
+        var issues = 0;
+        foreach (var file in ctx.AllHtmlFiles)
+        {
+            var text = File.ReadAllText(file);
+            var includeRefs = DoctorCommand.ExtractDirectives(text, "include");
+            foreach (var includePath in includeRefs)
+            {
+                var resolved = Path.Combine(ctx.LayoutsDir, includePath);
+                if (!File.Exists(resolved))
+                {
+                    var relative = Path.GetRelativePath(ctx.LayoutsDir, file).Replace('\\', '/');
+                    Console.WriteLine($"  ⚠ {relative}: include \"{includePath}\" not found");
+                    issues++;
+                }
+            }
+        }
+        if (issues == 0) Console.WriteLine("  ✔ All includes exist");
+    }
+
+    internal static void CheckTemplateContextCorrectness(DoctorCommand.DoctorContext ctx)
+    {
+        Console.WriteLine("--- Template context correctness check ---");
+        var issues = 0;
+
+        var listRouteTemplates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (ctx.Config.Site.Collections is { Count: > 0 })
+        {
+            foreach (var kv in ctx.Config.Site.Collections)
+            {
+                if (!string.IsNullOrWhiteSpace(kv.Value.ListTemplate))
+                    listRouteTemplates.Add(kv.Value.ListTemplate);
+            }
+        }
+
+        var taxonomyTemplates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(ctx.Config.Taxonomy.Template))
+            taxonomyTemplates.Add(ctx.Config.Taxonomy.Template);
+        if (!string.IsNullOrWhiteSpace(ctx.Config.Taxonomy.TermTemplate))
+            taxonomyTemplates.Add(ctx.Config.Taxonomy.TermTemplate);
+        if (!string.IsNullOrWhiteSpace(ctx.Config.Taxonomy.IndexTemplate))
+            taxonomyTemplates.Add(ctx.Config.Taxonomy.IndexTemplate);
+
+        foreach (var file in ctx.AllHtmlFiles)
+        {
+            var relative = Path.GetRelativePath(ctx.LayoutsDir, file).Replace('\\', '/');
+            var text = File.ReadAllText(file);
+            if (listRouteTemplates.Contains(relative) && text.Contains("page.title"))
+            {
+                Console.WriteLine($"  ⚠ {relative}: list template uses 'page.title' — use 'this.title' instead");
+                issues++;
+            }
+            if (taxonomyTemplates.Contains(relative) && text.Contains("page.title"))
+            {
+                Console.WriteLine($"  ⚠ {relative}: taxonomy template uses 'page.title' — use 'term.title' or 'this.title' instead");
+                issues++;
+            }
+        }
+
+        if (issues == 0) Console.WriteLine("  ✔ Template context usage appears correct");
     }
 }

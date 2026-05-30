@@ -182,6 +182,12 @@ public static class DoctorCommand
         Console.WriteLine("--- Template variable spell check ---");
         CheckTemplateVariables(layoutsDir);
 
+        Console.WriteLine();
+        DoctorTemplateChecker.CheckIncludeExistence(new DoctorContext(rootDir, config, layoutsDir, allHtmlFiles));
+
+        Console.WriteLine();
+        DoctorTemplateChecker.CheckTemplateContextCorrectness(new DoctorContext(rootDir, config, layoutsDir, allHtmlFiles));
+
         var ctx = new DoctorContext(rootDir, config, layoutsDir, allHtmlFiles);
 
         Console.WriteLine();
