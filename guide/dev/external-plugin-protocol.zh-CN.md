@@ -193,30 +193,40 @@ site:
 - `outputs.path` 必须是相对输出目录的相对路径
 - 不允许绝对路径
 
-## 7. 环境隔离
+## 7. 进程环境隔离
 
-插件进程运行在干净的环境中——**不会**继承宿主环境变量。仅注入以下 Bukit 变量：
+插件进程运行在受控环境中，遵循特定规则：
 
-| 变量 | 说明 |
-|---|---|
-| `BUKIT_PLUGIN_NAME` | 插件名（来自 `site.externalPlugins` 键名） |
-| `BUKIT_PLUGIN_HOOK` | 当前 hook：`derive-pages` 或 `after-build` |
-| `BUKIT_PROJECT_ROOT` | 站点项目根目录的绝对路径 |
-| `BUKIT_OUTPUT_DIR` | 构建输出目录的绝对路径 |
+- **默认运行时白名单**：`ProcessPluginInvoker` 默认保留以下变量：
+  - POSIX：`PATH`、`HOME`、`USER`、`SHELL`、`TMPDIR`
+  - Windows：`USERPROFILE`、`SystemRoot`、`WINDIR`、`COMSPEC`、`PATHEXT`
+  - 跨平台：`TEMP`、`TMP`
+  - .NET：`DOTNET_ROOT`、`DOTNET_ROOT_X64`、`DOTNET_ROOT_X86`、`DOTNET_CLI_HOME`
+- **安全保障**：敏感变量（`NOTION_TOKEN`、`OPENAI_API_KEY`、`GITHUB_TOKEN`、`DATABASE_URL`、`AWS_SECRET_ACCESS_KEY`、`CLOUDFLARE_API_TOKEN`）绝不会被继承，除非在 `allowEnvironment` 中显式列出。
+- **AllowEnvironment**：用户可显式白名单添加额外变量：
 
-如需暴露额外的宿主环境变量，使用 `allowEnvironment`：
+  ```yaml
+  site:
+    externalPlugins:
+      sample:
+        runtime: process
+        entry: plugins/plugin.exe
+        hooks: [after-build]
+        allowEnvironment:
+          - MY_CUSTOM_VAR
+  ```
 
-```yaml
-site:
-  externalPlugins:
-    sample:
-      runtime: process
-      entry: plugins/plugin.exe
-      hooks: [after-build]
-      allowEnvironment:
-        - PATH
-        - HOME
-```
+- **确定性 .NET CLI 设置**：调用器始终在插件子进程中设置 `DOTNET_CLI_TELEMETRY_OPTOUT=1`、`DOTNET_NOLOGO=1`、`DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1`。
+- **BUKIT_* 上下文变量**：始终注入：
+
+  | 变量 | 说明 |
+  |---|---|
+  | `BUKIT_PLUGIN_NAME` | 插件名（来自 `site.externalPlugins` 键名） |
+  | `BUKIT_PLUGIN_HOOK` | 当前 hook：`derive-pages` 或 `after-build` |
+  | `BUKIT_PROJECT_ROOT` | 站点项目根目录的绝对路径 |
+  | `BUKIT_OUTPUT_DIR` | 构建输出目录的绝对路径 |
+
+- **实现参考**：`ProcessPluginInvoker.cs` — `ApplyEnvironment`、`CopyAllowedEnvironment`、`DefaultRuntimeEnvironmentAllowlist`
 
 ## 8. 输出限制
 

@@ -33,7 +33,10 @@ Bukit categorizes plugins into four types based on their runtime model and trust
 - **Plugin entry paths must be within the project directory.** Absolute paths like `/usr/bin/some-tool` are rejected unless the plugin explicitly sets `allowAbsoluteEntry: true` in its configuration.
 - **Stdout/stderr output is capped** at 1 MB by default (configurable via `maxStdoutBytes` / `maxStderrBytes`).
 - **Timeout protection:** Plugins are automatically killed if they exceed `timeoutMs`.
-- **Environment isolation:** Only `BUKIT_*` variables and the `AllowEnvironment` whitelist are passed to the plugin subprocess.
+- **Environment isolation with runtime allowlist:** By default, the plugin process receives only a minimal set of runtime variables (`PATH`, `HOME`, `USER`, `SHELL`, `TMPDIR`, `TEMP`, `TMP`, and `.NET` runtime variables like `DOTNET_ROOT`). Sensitive host variables (`NOTION_TOKEN`, `OPENAI_API_KEY`, `GITHUB_TOKEN`, `DATABASE_URL`, etc.) are **never** inherited unless explicitly whitelisted.
+- **`AllowEnvironment` whitelist:** To pass custom variables, list them in `allowEnvironment`. Example: `allowEnvironment: [MY_API_KEY, NODE_ENV]`
+- **Deterministic .NET settings:** `DOTNET_CLI_TELEMETRY_OPTOUT=1`, `DOTNET_NOLOGO=1`, and `DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1` are always set in the plugin subprocess.
+- **`BUKIT_*` context variables:** `BUKIT_PLUGIN_NAME`, `BUKIT_PLUGIN_HOOK`, `BUKIT_PROJECT_ROOT`, and `BUKIT_OUTPUT_DIR` are always available in the plugin subprocess.
 - **Output path validation:** Plugins cannot write outside the configured output directory.
 
 ## How It Works

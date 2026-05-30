@@ -67,28 +67,38 @@ site:
 
 ## Pengasingan Persekitaran
 
-Proses plugin berjalan dalam persekitaran bersih — pemboleh ubah persekitaran hos **tidak** diwarisi. Hanya pemboleh ubah Bukit berikut disuntik:
+Proses plugin berjalan dalam persekitaran terkawal dengan peraturan khusus:
 
-| Pemboleh Ubah | Penerangan |
-|---|---|
-| `BUKIT_PLUGIN_NAME` | Nama plugin (dari kunci `site.externalPlugins`) |
-| `BUKIT_PLUGIN_HOOK` | Hook semasa: `derive-pages` atau `after-build` |
-| `BUKIT_PROJECT_ROOT` | Laluan mutlak ke direktori akar projek tapak |
-| `BUKIT_OUTPUT_DIR` | Laluan mutlak ke direktori output binaan |
+- **Senarai Benarkan Masa Larian Lalai**: `ProcessPluginInvoker` mengekalkan pemboleh ubah berikut secara lalai:
+  - POSIX: `PATH`, `HOME`, `USER`, `SHELL`, `TMPDIR`
+  - Windows: `USERPROFILE`, `SystemRoot`, `WINDIR`, `COMSPEC`, `PATHEXT`
+  - Merentas platform: `TEMP`, `TMP`
+  - .NET: `DOTNET_ROOT`, `DOTNET_ROOT_X64`, `DOTNET_ROOT_X86`, `DOTNET_CLI_HOME`
+- **Jaminan Keselamatan**: Pemboleh ubah sensitif (`NOTION_TOKEN`, `OPENAI_API_KEY`, `GITHUB_TOKEN`, `DATABASE_URL`, `AWS_SECRET_ACCESS_KEY`, `CLOUDFLARE_API_TOKEN`) tidak pernah diwarisi kecuali disenaraikan secara eksplisit dalam `allowEnvironment`.
+- **AllowEnvironment**: Pengguna boleh menyenarai putihkan pemboleh ubah tambahan secara eksplisit:
 
-Untuk mendedahkan pemboleh ubah persekitaran hos tambahan, gunakan `allowEnvironment`:
+  ```yaml
+  site:
+    externalPlugins:
+      sample:
+        runtime: process
+        entry: plugins/plugin.exe
+        hooks: [after-build]
+        allowEnvironment:
+          - MY_CUSTOM_VAR
+  ```
 
-```yaml
-site:
-  externalPlugins:
-    sample:
-      runtime: process
-      entry: plugins/plugin.exe
-      hooks: [after-build]
-      allowEnvironment:
-        - PATH
-        - HOME
-```
+- **Tetapan CLI .NET Deterministik**: Penjalan sentiasa menetapkan `DOTNET_CLI_TELEMETRY_OPTOUT=1`, `DOTNET_NOLOGO=1`, `DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1` dalam subproses plugin.
+- **Pemboleh Ubah Konteks BUKIT_***: Sentiasa disuntik:
+
+  | Pemboleh Ubah | Penerangan |
+  |---|---|
+  | `BUKIT_PLUGIN_NAME` | Nama plugin (dari kunci `site.externalPlugins`) |
+  | `BUKIT_PLUGIN_HOOK` | Hook semasa: `derive-pages` atau `after-build` |
+  | `BUKIT_PROJECT_ROOT` | Laluan mutlak ke direktori akar projek tapak |
+  | `BUKIT_OUTPUT_DIR` | Laluan mutlak ke direktori output binaan |
+
+- **Pelaksanaan**: `ProcessPluginInvoker.cs` — `ApplyEnvironment`, `CopyAllowedEnvironment`, `DefaultRuntimeEnvironmentAllowlist`
 
 ## Had Output
 

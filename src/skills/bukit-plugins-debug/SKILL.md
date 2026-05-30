@@ -139,6 +139,44 @@ To expose additional host environment variables, use `allowEnvironment` as shown
 
 Bukit tracks every file produced by external protocol plugins in the build manifest (`build-manifest.json`) under `pluginOutputs`. Each entry records `plugin`, `hook`, `path`, and `hash`. During incremental builds, files from a previous build that are no longer produced are automatically deleted from the output directory (stale output cleanup).
 
+## External Plugin Environment Debugging
+
+When an external protocol plugin fails to start or produces unexpected output:
+
+### Check Environment Isolation
+
+The `ProcessPluginInvoker` clears host environment and only preserves a minimal runtime allowlist:
+- `PATH`, `HOME`, `USER`, `SHELL`, `TMPDIR` (POSIX)
+- `USERPROFILE`, `SystemRoot`, `WINDIR`, `COMSPEC`, `PATHEXT` (Windows)
+- `TEMP`, `TMP`, `DOTNET_ROOT`, `DOTNET_ROOT_X64`, `DOTNET_ROOT_X86`, `DOTNET_CLI_HOME`
+
+If the plugin entry is a command like `dotnet`, `node`, or `python3` that requires `PATH`, ensure the host environment has the correct path.
+
+To pass custom variables, list them in `site.externalPlugins.<name>.allowEnvironment`.
+
+### Trace Plugin Execution
+
+The build context records every plugin execution in `context.PluginExecutions`:
+
+```
+PluginName/Hook: success=True/False, error=<message>, ms=<duration>
+```
+
+Use this to identify which plugin failed and why:
+- `success=False` → exception caught, check `error` for the exception message
+- `success=True, ms=<N>` but output missing → plugin returned ok=true with empty results
+- `Timeout` → plugin exceeded `timeoutMs`
+
+### Use ProtocolEchoPlugin for Testing
+
+For integration tests, `ProtocolEchoPlugin` (`tests/ProtocolEchoPlugin/Program.cs`) provides deterministic modes:
+- `derive-success`, `derive-conflict`, `derive-lastwins` — derive-pages hook
+- `derive-plugin-a`, `derive-plugin-b` — produce conflicting derived pages (URL `/plugin-conflict/page/`)
+- `env-allowlist` — reports environment variables to `env-report.json`
+- `env` — reports BUKIT_* context and sensitive vars to file
+- `error` — returns ok=false for error path testing
+- `traversal` — outputs path traversal attempt for security validation
+
 ## Plugin Execution Order
 
 ```

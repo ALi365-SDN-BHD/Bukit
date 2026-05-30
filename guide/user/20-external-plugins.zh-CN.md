@@ -33,7 +33,10 @@ Bukit 根据运行时模型和信任边界将插件分为四种类型：
 - **插件入口路径必须在项目目录内。**绝对路径如 `/usr/bin/some-tool` 会被拒绝，除非插件在配置中显式设置 `allowAbsoluteEntry: true`。
 - **stdout/stderr 输出有大小限制**，默认 1MB（可通过 `maxStdoutBytes` / `maxStderrBytes` 配置）。
 - **超时保护：**插件超过 `timeoutMs` 会被自动终止。
-- **环境隔离：**仅透传 `BUKIT_*` 变量和 `AllowEnvironment` 白名单中的变量给插件子进程。
+- **运行时白名单环境隔离：**默认情况下，插件进程仅接收最小化的运行时变量集（`PATH`、`HOME`、`USER`、`SHELL`、`TMPDIR`、`TEMP`、`TMP` 以及 `.NET` 运行时变量如 `DOTNET_ROOT`）。敏感的宿主变量（`NOTION_TOKEN`、`OPENAI_API_KEY`、`GITHUB_TOKEN`、`DATABASE_URL` 等）**绝不会**被继承，除非显式加入白名单。
+- **`AllowEnvironment` 白名单：**要传递自定义变量，请在 `allowEnvironment` 中列出。示例：`allowEnvironment: [MY_API_KEY, NODE_ENV]`
+- **确定性 .NET 设置：**`DOTNET_CLI_TELEMETRY_OPTOUT=1`、`DOTNET_NOLOGO=1` 和 `DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1` 始终在插件子进程中设置。
+- **`BUKIT_*` 上下文变量：**`BUKIT_PLUGIN_NAME`、`BUKIT_PLUGIN_HOOK`、`BUKIT_PROJECT_ROOT` 和 `BUKIT_OUTPUT_DIR` 始终在插件子进程中可用。
 - **输出路径校验：**插件无法写入配置的输出目录之外。
 
 ## 工作原理

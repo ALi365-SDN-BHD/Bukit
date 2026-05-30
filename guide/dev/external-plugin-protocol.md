@@ -83,30 +83,40 @@ Or on failure: `{ "ok": false, "error": { "code": "PLUGIN_ERROR", "message": "..
 - Host is solely responsible for actual file writes
 - **SSRF Protection (P1-6)**: External plugin entries are validated via `SsrfGuard.SsrfSafeConnectAsync` when accessing network resources. The host rejects connections to loopback (127.0.0.0/8, ::1), RFC1918 private networks (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), and link-local addresses (169.254.0.0/16).
 
-## Environment Isolation
+## Process Environment Isolation
 
-The plugin process runs in a clean environment — host environment variables are **not** inherited. Only these Bukit-injected variables are exposed:
+The plugin process runs in a controlled environment with specific rules:
 
-| Variable | Description |
-|---|---|
-| `BUKIT_PLUGIN_NAME` | Plugin name (from `site.externalPlugins` key) |
-| `BUKIT_PLUGIN_HOOK` | Current hook: `derive-pages` or `after-build` |
-| `BUKIT_PROJECT_ROOT` | Absolute path to the site project root |
-| `BUKIT_OUTPUT_DIR` | Absolute path to the build output directory |
+- **Default Runtime Allowlist**: `ProcessPluginInvoker` preserves these variables by default:
+  - POSIX: `PATH`, `HOME`, `USER`, `SHELL`, `TMPDIR`
+  - Windows: `USERPROFILE`, `SystemRoot`, `WINDIR`, `COMSPEC`, `PATHEXT`
+  - Cross-platform: `TEMP`, `TMP`
+  - .NET: `DOTNET_ROOT`, `DOTNET_ROOT_X64`, `DOTNET_ROOT_X86`, `DOTNET_CLI_HOME`
+- **Security Guarantee**: Sensitive variables (`NOTION_TOKEN`, `OPENAI_API_KEY`, `GITHUB_TOKEN`, `DATABASE_URL`, `AWS_SECRET_ACCESS_KEY`, `CLOUDFLARE_API_TOKEN`) are never inherited unless explicitly listed in `allowEnvironment`.
+- **AllowEnvironment**: Users can explicitly whitelist additional variables:
 
-To expose additional host environment variables, use `allowEnvironment`:
+  ```yaml
+  site:
+    externalPlugins:
+      sample:
+        runtime: process
+        entry: plugins/plugin.exe
+        hooks: [after-build]
+        allowEnvironment:
+          - MY_CUSTOM_VAR
+  ```
 
-```yaml
-site:
-  externalPlugins:
-    sample:
-      runtime: process
-      entry: plugins/plugin.exe
-      hooks: [after-build]
-      allowEnvironment:
-        - PATH
-        - HOME
-```
+- **Deterministic .NET CLI Settings**: The invoker always sets `DOTNET_CLI_TELEMETRY_OPTOUT=1`, `DOTNET_NOLOGO=1`, `DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1` in the plugin subprocess.
+- **BUKIT_* Context Variables**: Always injected:
+
+  | Variable | Description |
+  |---|---|
+  | `BUKIT_PLUGIN_NAME` | Plugin name (from `site.externalPlugins` key) |
+  | `BUKIT_PLUGIN_HOOK` | Current hook: `derive-pages` or `after-build` |
+  | `BUKIT_PROJECT_ROOT` | Absolute path to the site project root |
+  | `BUKIT_OUTPUT_DIR` | Absolute path to the build output directory |
+
+- **Implementation**: `ProcessPluginInvoker.cs` — `ApplyEnvironment`, `CopyAllowedEnvironment`, `DefaultRuntimeEnvironmentAllowlist`
 
 ## Output Limits
 

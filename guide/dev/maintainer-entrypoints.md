@@ -109,3 +109,46 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter
 | Page writing and list pages | `PageRenderDispatcher.cs` |
 | Search, RSS, sitemap, taxonomy | `PluginRunner.cs` + `Plugins/BuiltIn/*` |
 | Caching and render skipping | `SiteEngine.cs` / `PageRenderDispatcher.cs` |
+
+## Testing and CI Entry Points
+
+### Primary Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/test-all.sh Release` | Full pipeline: restore → build → test → quality gate → smoke → smoke-all → AOT publish |
+| `scripts/quality-gate.sh Release` | Coverage threshold (65%), encoding checks, dotnet format |
+| `scripts/smoke-all.sh Release` | Build all 7 examples + 9 fixture sites, validate outputs |
+| `scripts/security-regression.sh Release` | Isolated security tests (Shared/Config/CLI/Engine/Content) |
+| `scripts/stress-test.sh 20 Release` | Repeat full suite N times for stability verification |
+
+### CI Verification
+
+GitHub Actions (`ci.yml`):
+
+```bash
+# Quality gate
+dotnet test bukit.slnx -c Release
+bash scripts/quality-gate.sh Release
+
+# Cross-platform (ubuntu/windows/macos)
+dotnet test bukit.slnx -c Release
+
+# Smoke
+bash scripts/smoke.sh Release
+bash scripts/smoke-all.sh Release
+
+# AOT
+dotnet publish src/Bukit.Cli/Bukit.Cli.csproj -c Release -p:PublishAot=true
+
+# Stress (manual trigger only)
+bash scripts/stress-test.sh 20 Release
+```
+
+### Fixture Sites
+
+10 fixture sites at `tests/fixtures/` for deterministic end-to-end validation. See `guide/dev/testing-smoke.md` for the full catalog.
+
+### Test Protocol Plugin
+
+`tests/ProtocolEchoPlugin/Program.cs` — deterministic external plugin with modes for derive-pages, after-build, handshake, environment reporting, and error testing. See `guide/dev/testing-smoke.md` for the mode catalog.
