@@ -50,6 +50,7 @@ internal static class ScssCompiler
                 }
 
                 using var cts = new CancellationTokenSource(5000);
+                var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
                 await process.WaitForExitAsync(cts.Token);
                 if (process.ExitCode == 0)
                 {
@@ -62,7 +63,7 @@ internal static class ScssCompiler
                 }
                 else
                 {
-                    var stderr = process.StandardError.ReadToEnd();
+                    var stderr = await stderrTask;
                     logger.Warn($"event=scss.error file={Path.GetFileName(scssFile)} reason=compile_failed detail={stderr}");
                 }
             }

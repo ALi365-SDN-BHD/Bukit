@@ -155,14 +155,21 @@ internal static class ImageOptimizer
             CreateNoWindow = true
         });
 
-        await process!.WaitForExitAsync(cancellationToken);
+        if (process is null)
+        {
+            logger.Warn($"event=image_optimize.error file={Path.GetFileName(inputFile)} reason=process_start_failed");
+            return;
+        }
+
+        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
         if (process.ExitCode == 0)
         {
             logger.Info($"event=image_optimize.ok file={Path.GetFileName(inputFile)}");
         }
         else
         {
-            var err = process.StandardError.ReadToEnd();
+            var err = await stderrTask;
             logger.Warn($"event=image_optimize.error file={Path.GetFileName(inputFile)} reason={err}");
         }
     }
