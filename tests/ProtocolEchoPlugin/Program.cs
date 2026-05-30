@@ -171,10 +171,17 @@ static string? ReadStringProperty(string json, string propertyName)
         return null;
     }
 
-    using var doc = JsonDocument.Parse(json);
-    if (doc.RootElement.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String)
+    try
     {
-        return property.GetString();
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String)
+        {
+            return property.GetString();
+        }
+    }
+    catch (JsonException ex)
+    {
+        Console.Error.Write($"[plugin] Failed to parse stdin JSON for property '{propertyName}': {ex.Message}");
     }
 
     return null;
