@@ -143,7 +143,7 @@ public static class DevCommand
         void AddIfNotUnderTheme(string relPath)
         {
             var full = Path.Combine(rootDir, relPath);
-            if (Directory.Exists(full) && !dirs.Any(d => full.StartsWith(d, StringComparison.OrdinalIgnoreCase)))
+            if (Directory.Exists(full) && !dirs.Any(d => full.StartsWith(d, Bukit.Shared.PlatformPathHelper.PathComparison)))
                 dirs.Add(full);
         }
 

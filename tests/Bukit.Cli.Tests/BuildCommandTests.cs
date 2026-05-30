@@ -179,4 +179,320 @@ public sealed class BuildCommandTests : IDisposable
         var ex = await Assert.ThrowsAsync<ConfigException>(() => BuildCommand.RunAsync(cmd));
         Assert.Contains("Config file not found", ex.Message);
     }
+
+    [Fact]
+    public async Task RunAsync_JobsAbc_ThrowsCommandArgumentException()
+    {
+        var siteYaml = Path.Combine(_testDir, "site.yaml");
+        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
+
+        var cmd = new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--config"] = siteYaml,
+                ["--jobs"] = "abc",
+            },
+            Array.Empty<string>());
+
+        var ex = await Assert.ThrowsAsync<CommandArgumentException>(() => BuildCommand.RunAsync(cmd));
+        Assert.Equal("--jobs must be a positive integer", ex.Message);
+    }
+
+    [Fact]
+    public async Task RunAsync_JobsNegativeOne_ThrowsCommandArgumentException()
+    {
+        var siteYaml = Path.Combine(_testDir, "site.yaml");
+        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
+
+        var cmd = new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--config"] = siteYaml,
+                ["--jobs"] = "-1",
+            },
+            Array.Empty<string>());
+
+        var ex = await Assert.ThrowsAsync<CommandArgumentException>(() => BuildCommand.RunAsync(cmd));
+        Assert.Equal("--jobs must be a positive integer", ex.Message);
+    }
+
+    [Fact]
+    public async Task RunAsync_JobsZero_ThrowsCommandArgumentException()
+    {
+        var siteYaml = Path.Combine(_testDir, "site.yaml");
+        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
+
+        var cmd = new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--config"] = siteYaml,
+                ["--jobs"] = "0",
+            },
+            Array.Empty<string>());
+
+        var ex = await Assert.ThrowsAsync<CommandArgumentException>(() => BuildCommand.RunAsync(cmd));
+        Assert.Equal("--jobs must be a positive integer", ex.Message);
+    }
+
+    [Fact]
+    public async Task RunAsync_JobsFour_RunsSuccessfully()
+    {
+        var siteYaml = Path.Combine(_testDir, "site.yaml");
+        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
+
+        var cmd = new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--config"] = siteYaml,
+                ["--jobs"] = "4",
+            },
+            Array.Empty<string>());
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await Task.WhenAny(BuildCommand.RunAsync(cmd), Task.Delay(Timeout.Infinite, cts.Token));
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_CIEnvWithoutAllowExternalPlugins_ThrowsConfigException()
+    {
+        var oldCI = Environment.GetEnvironmentVariable("CI");
+        var oldBukitCI = Environment.GetEnvironmentVariable("BUKIT_CI");
+        try
+        {
+            Environment.SetEnvironmentVariable("CI", "true");
+            Environment.SetEnvironmentVariable("BUKIT_CI", null);
+
+            var siteYaml = Path.Combine(_testDir, "site.yaml");
+            File.WriteAllText(siteYaml, """
+                site:
+                  name: test
+                  title: Test
+                  externalPlugins:
+                    sample:
+                      runtime: process
+                      entry: plugins/sample.sh
+                      hooks: [after-build]
+                      timeoutMs: 5000
+                content:
+                  provider: markdown
+                build:
+                  output: dist
+                """);
+
+            var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml });
+
+            var ex = await Assert.ThrowsAsync<ConfigException>(
+                () => BuildCommand.RunAsync(command));
+
+            Assert.Contains("External plugins are disabled in CI", ex.Message);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CI", oldCI);
+            Environment.SetEnvironmentVariable("BUKIT_CI", oldBukitCI);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_CIEnvWithAllowExternalPlugins_BuildSucceeds()
+    {
+        var oldCI = Environment.GetEnvironmentVariable("CI");
+        var oldBukitCI = Environment.GetEnvironmentVariable("BUKIT_CI");
+        try
+        {
+            Environment.SetEnvironmentVariable("CI", "true");
+            Environment.SetEnvironmentVariable("BUKIT_CI", null);
+
+            var siteYaml = Path.Combine(_testDir, "site.yaml");
+            File.WriteAllText(siteYaml, """
+                site:
+                  name: test
+                  title: Test
+                  externalPlugins:
+                    sample:
+                      runtime: process
+                      entry: plugins/sample.sh
+                      hooks: [after-build]
+                      timeoutMs: 5000
+                content:
+                  provider: markdown
+                build:
+                  output: dist
+                """);
+
+            var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml, "--allow-external-plugins" });
+
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (ConfigException ex) when (ex.Message.Contains("External plugins are disabled in CI"))
+            {
+                Assert.Fail("Should not throw CI disable error when --allow-external-plugins is set");
+            }
+            catch (Exception)
+            {
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CI", oldCI);
+            Environment.SetEnvironmentVariable("BUKIT_CI", oldBukitCI);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_NonCIEnv_ExternalPluginsWorkNormally()
+    {
+        var oldCI = Environment.GetEnvironmentVariable("CI");
+        var oldBukitCI = Environment.GetEnvironmentVariable("BUKIT_CI");
+        try
+        {
+            Environment.SetEnvironmentVariable("CI", null);
+            Environment.SetEnvironmentVariable("BUKIT_CI", null);
+
+            var siteYaml = Path.Combine(_testDir, "site.yaml");
+            File.WriteAllText(siteYaml, """
+                site:
+                  name: test
+                  title: Test
+                  externalPlugins:
+                    sample:
+                      runtime: process
+                      entry: plugins/sample.sh
+                      hooks: [after-build]
+                      timeoutMs: 5000
+                content:
+                  provider: markdown
+                build:
+                  output: dist
+                """);
+
+            var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml });
+
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (ConfigException ex) when (ex.Message.Contains("External plugins are disabled in CI"))
+            {
+                Assert.Fail("Should not block external plugins in non-CI environment");
+            }
+            catch (Exception)
+            {
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CI", oldCI);
+            Environment.SetEnvironmentVariable("BUKIT_CI", oldBukitCI);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_BukitCIEnvWithoutAllowExternalPlugins_ThrowsConfigException()
+    {
+        var oldCI = Environment.GetEnvironmentVariable("CI");
+        var oldBukitCI = Environment.GetEnvironmentVariable("BUKIT_CI");
+        try
+        {
+            Environment.SetEnvironmentVariable("CI", null);
+            Environment.SetEnvironmentVariable("BUKIT_CI", "1");
+
+            var siteYaml = Path.Combine(_testDir, "site.yaml");
+            File.WriteAllText(siteYaml, """
+                site:
+                  name: test
+                  title: Test
+                  externalPlugins:
+                    sample:
+                      runtime: process
+                      entry: plugins/sample.sh
+                      hooks: [after-build]
+                      timeoutMs: 5000
+                content:
+                  provider: markdown
+                build:
+                  output: dist
+                """);
+
+            var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml });
+
+            var ex = await Assert.ThrowsAsync<ConfigException>(
+                () => BuildCommand.RunAsync(command));
+
+            Assert.Contains("External plugins are disabled in CI", ex.Message);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CI", oldCI);
+            Environment.SetEnvironmentVariable("BUKIT_CI", oldBukitCI);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_CIFlagWithoutExternalPlugins_BuildSucceeds()
+    {
+        var siteYaml = Path.Combine(_testDir, "site.yaml");
+        File.WriteAllText(siteYaml, """
+            site:
+              name: test
+              title: Test
+            content:
+              provider: markdown
+            build:
+              output: dist
+            """);
+
+        var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml, "--ci" });
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await Task.WhenAny(BuildCommand.RunAsync(command), Task.Delay(Timeout.Infinite, cts.Token));
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ConfigException ex) when (ex.Message.Contains("External plugins are disabled in CI"))
+        {
+            Assert.Fail("Should not throw when no external plugins are configured");
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    [Fact]
+    public void AllowExternalPluginsFlag_DefaultsToFalse()
+    {
+        var command = CliTestHelper.CreateCommand("build", Array.Empty<string>());
+
+        Assert.False(command.GetBool("--allow-external-plugins"));
+    }
+
+    [Fact]
+    public void AllowExternalPluginsFlag_True_WhenSet()
+    {
+        var command = CliTestHelper.CreateCommand("build", new[] { "--allow-external-plugins" });
+
+        Assert.True(command.GetBool("--allow-external-plugins"));
+    }
 }

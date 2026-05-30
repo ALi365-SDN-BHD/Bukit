@@ -98,7 +98,7 @@ public static class IntentCommand
         var cwd = Directory.GetCurrentDirectory();
         var sitesDir = Path.GetFullPath(Path.Combine(cwd, "sites"));
 
-        if (fullOutPath.StartsWith(sitesDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        if (fullOutPath.StartsWith(sitesDir + Path.DirectorySeparatorChar, Bukit.Shared.PlatformPathHelper.PathComparison))
         {
             return cwd;
         }

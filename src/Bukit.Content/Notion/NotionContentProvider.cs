@@ -189,10 +189,10 @@ public sealed class NotionContentProvider : IContentProvider
             var html = await NotionCacheManager.GetOrRenderPageHtmlAsync(renderer, pageHtmlCache, draft.PageId, draft.LastEditedTime, ct, _logger);
 
             if ((!item.Meta.TryGetValue("summary", out var summaryObj) || string.IsNullOrWhiteSpace(summaryObj?.ToString())) &&
-                IsAutoSummaryEnabled() &&
+                _options.AutoSummary &&
                 !string.IsNullOrWhiteSpace(html))
             {
-                var extracted = NotionAutoSummary.ExtractFromHtml(html, GetAutoSummaryMaxLength());
+                var extracted = NotionAutoSummary.ExtractFromHtml(html, _options.AutoSummaryMaxLength);
                 if (!string.IsNullOrWhiteSpace(extracted))
                 {
                     if (item.Meta is Dictionary<string, object> mutableMeta)
@@ -311,10 +311,6 @@ public sealed class NotionContentProvider : IContentProvider
 
         return DateTimeOffset.TryParse(text, out dto);
     }
-
-    private static bool IsAutoSummaryEnabled() => EnvironmentHelper.IsAutoSummaryEnabled();
-
-    private static int GetAutoSummaryMaxLength() => EnvironmentHelper.GetAutoSummaryMaxLength();
 
     private static void EnsureNoCaseInsensitiveConflicts(JsonElement properties, string pageId)
     {

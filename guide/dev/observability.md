@@ -23,6 +23,9 @@ All Bukit exceptions carry stable diagnostic codes in `BKT-XXXX` hex format. Imp
 | Content | `BKT-0501` – `BKT-05FF` | `BKT-0501` LoadFailed |
 | Build | `BKT-0601` – `BKT-06FF` | `BKT-0601` OutputUnsafe |
 | Plugin | `BKT-0701` – `BKT-07FF` | `BKT-0701` ExecutionFailed |
+| SEO | `BKT-0801` – `BKT-0804` | |
+| GEO | `BKT-0810` – `BKT-0812` | |
+| Media | `BKT-0901` – `BKT-0904` | |
 
 DoctorCommand outputs errors formatted with diagnostic codes via `DiagnosticExceptionFormatter.Format()`. All 13 critical throw sites in the engine carry diagnostic codes; other throws remain backward-compatible (Code = null).
 

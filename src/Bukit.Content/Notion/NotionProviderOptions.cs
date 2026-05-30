@@ -26,4 +26,6 @@ public sealed record NotionProviderOptions
     public string CacheMode { get; init; } = "off";
     public string? CacheDir { get; init; }
     public NotionPropertyMapConfig? PropertyMap { get; init; }
+    public bool AutoSummary { get; init; }
+    public int AutoSummaryMaxLength { get; init; } = 200;
 }

@@ -92,8 +92,11 @@ public static class ConfigJsonSchemaGenerator
             ("listPageContentMode", EnumSchema("auto", "summary", "none", "full")),
             ("schemaFailMode", EnumSchema("off", "warn", "strict")),
             ("report", BuildReportSchema()),
-            ("assetHashMode", EnumSchema("none", "query", "shortName")),
-            ("publishDotFiles", BoolSchema()))));
+            ("assetHashMode", EnumSchema("none", "query", "shortName", "size-time", "sha256")),
+            ("fingerprintMode", EnumSchema("size-time", "sha256")),
+            ("publishDotFiles", BoolSchema()),
+            ("followSymlinks", BoolSchema()),
+            ("languageJobs", IntSchema(1)))));
 
     private static JsonObject ThemeSchema()
         => Obj(("type", "object"), ("properties", Obj(

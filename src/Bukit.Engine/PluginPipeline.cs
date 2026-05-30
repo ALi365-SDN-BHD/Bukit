@@ -37,7 +37,7 @@ internal sealed class PluginPipeline
 
         var afterBuildStopwatch = Stopwatch.StartNew();
         await PluginRunner.RunAfterBuildAsync(ctx.PluginContext, cancellationToken);
-        BuildManifestTracker.TrackPluginOutputs(ctx.PluginContext, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger);
+        BuildManifestTracker.TrackPluginOutputs(ctx.PluginContext, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger, ctx.Config.Build.FingerprintMode);
         RobotsTxtWriter.WriteIfRequested(ctx.Config, ctx.OutputDir, ctx.BaseUrl, ctx.PluginContext.SeoIndex ?? new Dictionary<string, SeoIndexEntry>());
         afterBuildStopwatch.Stop();
         metricsCollector.AddDuration("afterBuildPlugins", afterBuildStopwatch.ElapsedMilliseconds);

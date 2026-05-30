@@ -162,7 +162,7 @@ public static partial class PreviewCommand
 
             var candidate = Path.GetFullPath(Path.Combine(rootDir, relative));
             var safeRoot = Path.GetFullPath(rootDir) + Path.DirectorySeparatorChar;
-            if (!candidate.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase)
+            if (!candidate.StartsWith(safeRoot, Bukit.Shared.PlatformPathHelper.PathComparison)
                 && candidate != Path.GetFullPath(rootDir))
             {
                 context.Response.StatusCode = 403;

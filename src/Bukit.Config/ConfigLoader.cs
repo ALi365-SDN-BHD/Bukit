@@ -104,7 +104,10 @@ public static class ConfigLoader
             ListPageContentMode = buildNode is null ? "auto" : ConfigYamlHelpers.GetOptionalString(buildNode, "listPageContentMode") ?? "auto",
             SchemaFailMode = buildNode is null ? "warn" : ConfigYamlHelpers.GetOptionalString(buildNode, "schemaFailMode") ?? "warn",
             AssetHashMode = buildNode is null ? "size-time" : ConfigYamlHelpers.GetOptionalString(buildNode, "assetHashMode") ?? "size-time",
+            FingerprintMode = buildNode is null ? "size-time" : ConfigYamlHelpers.GetOptionalString(buildNode, "fingerprintMode") ?? "size-time",
             PublishDotFiles = buildNode is null ? false : ConfigYamlHelpers.GetOptionalBool(buildNode, "publishDotFiles") ?? false,
+            FollowSymlinks = buildNode is null ? false : ConfigYamlHelpers.GetOptionalBool(buildNode, "followSymlinks") ?? false,
+            LanguageJobs = buildNode is null ? 1 : ConfigYamlHelpers.GetOptionalIntStrict(buildNode, "languageJobs") ?? 1,
             Report = new BuildReportConfig
             {
                 Enabled = buildReportNode is not null && (ConfigYamlHelpers.GetOptionalBool(buildReportNode, "enabled") ?? false)

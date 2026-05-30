@@ -184,6 +184,7 @@ public sealed record ExternalPluginConfig
     public int MaxStderrBytes { get; init; } = 1048576;
     public IReadOnlyList<string>? AllowEnvironment { get; init; }
     public IReadOnlyList<string>? Capabilities { get; init; }
+    public bool AllowAbsoluteEntry { get; init; }
     // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
     // public string WasmProfile { get; init; } = "wasi-preview1";
     // public int MaxMemoryMb { get; init; } = 64;
@@ -285,7 +286,10 @@ public sealed record BuildConfig
     public string SchemaFailMode { get; init; } = "warn";
     public BuildReportConfig Report { get; init; } = new();
     public string AssetHashMode { get; init; } = "size-time";
+    public string FingerprintMode { get; init; } = "size-time";
     public bool PublishDotFiles { get; init; }
+    public bool FollowSymlinks { get; init; }
+    public int LanguageJobs { get; init; } = 1;
 }
 
 public sealed record BuildReportConfig

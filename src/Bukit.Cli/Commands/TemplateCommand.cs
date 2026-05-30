@@ -398,7 +398,7 @@ public static class TemplateCommand
         var normalized = templateName.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
         var resolved = Path.GetFullPath(Path.Combine(layoutsDir, normalized));
         var safeRoot = Path.GetFullPath(layoutsDir) + Path.DirectorySeparatorChar;
-        if (!resolved.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
+        if (!resolved.StartsWith(safeRoot, Bukit.Shared.PlatformPathHelper.PathComparison))
         {
             throw new ArgumentException("Template path must stay inside the layouts directory.");
         }

@@ -73,7 +73,7 @@ dotnet run --project src/Bukit.Cli -c Release -- build --site blog --clean
 
 ## dev
 
-Implementation: `src/Bukit.Cli/Commands/DevCommand.cs`
+Implementation: `src/Bukit.Cli/Commands/Dev/` (DevServerHost, DevWebSocketHub, DevFileWatcher, DevRequestHandler, DevPathGuard)
 
 ```
 bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--output <dir>] [--no-watch]
@@ -104,7 +104,7 @@ For detailed parameter information on the following commands, refer to the corre
 - `deploy`: `src/Bukit.Cli/Commands/DeployCommand.cs`
 - `seo`: `src/Bukit.Cli/Commands/SeoCommand.cs`
 - `geo`: `src/Bukit.Cli/Commands/GeoCommand.cs`
-- `clone`: `src/Bukit.Cli/Commands/CloneCommand.cs`
+- `clone`: `src/Bukit.Cli/Commands/Clone/` (CloneInputLoader, CloneAssetDownloader, CloneContentWriter, CloneFidelityRunner, CloneThemeGenerator, CloneVerifier)
 - `plugin`: `src/Bukit.Cli/Commands/PluginCommand.cs`
 - `intent`: `src/Bukit.Cli/Commands/IntentCommand.cs`
 - `webhook`: `src/Bukit.Cli/Commands/WebhookCommand.cs`

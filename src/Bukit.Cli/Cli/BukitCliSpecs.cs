@@ -25,6 +25,7 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--cache-dir", "覆盖缓存目录"),
                 new CliOptionSpec("--metrics", "输出构建指标"),
                 new CliOptionSpec("--jobs", "并行渲染并发度", CliOptionType.Integer, ValueName: "n"),
+                new CliOptionSpec("--allow-external-plugins", "在 CI 环境中启���外部协议插件", CliOptionType.Flag),
                 new CliOptionSpec("--log-format", "日志格式", CliOptionType.String, AllowedValues: new[] { "text", "json" })
             });
 

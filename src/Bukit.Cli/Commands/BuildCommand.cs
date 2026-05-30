@@ -25,14 +25,12 @@ public static class BuildCommand
             Clean = command.GetBool("--clean") ? true : command.GetBool("--no-clean") ? false : null,
             Draft = command.GetBool("--draft") ? true : null,
             IsCI = command.GetBool("--ci"),
+            AllowExternalPlugins = command.GetBool("--allow-external-plugins"),
             Incremental = command.GetBool("--incremental") ? true : command.GetBool("--no-incremental") ? false : null,
             CacheDir = command.GetString("--cache-dir"),
             MetricsPath = command.GetString("--metrics"),
             Jobs = TryParsePositiveInt(command.GetString("--jobs"))
         };
-
-        Environment.SetEnvironmentVariable("BUKIT_AUTO_SUMMARY", config.Site.AutoSummary ? "1" : "0");
-        Environment.SetEnvironmentVariable("BUKIT_AUTO_SUMMARY_MAXLEN", config.Site.AutoSummaryMaxLength.ToString());
 
         var logger = new ConsoleLogger(ParseLogLevel(config.Logging.Level, overrides.IsCI), command.GetString("--log-format") ?? "text");
         foreach (var warning in ConfigDeprecationScanner.ScanFile(resolved.FullConfigPath))
@@ -52,12 +50,12 @@ public static class BuildCommand
             return null;
         }
 
-        if (int.TryParse(text.Trim(), out var n) && n > 0)
+        if (!int.TryParse(text.Trim(), out var n) || n <= 0)
         {
-            return n;
+            throw new CommandArgumentException("--jobs must be a positive integer");
         }
 
-        return null;
+        return n;
     }
 
     private static LogLevel ParseLogLevel(string? level, bool isCi)

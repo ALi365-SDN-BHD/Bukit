@@ -991,6 +991,105 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_LanguageJobs_ProducesIdenticalOutputRegardlessOfConcurrency()
+    {
+        var root1 = Path.Combine(Path.GetTempPath(), "bukit-langjobs-1", Guid.NewGuid().ToString("N"));
+        var root2 = Path.Combine(Path.GetTempPath(), "bukit-langjobs-3", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            foreach (var root in new[] { root1, root2 })
+            {
+                Directory.CreateDirectory(Path.Combine(root, "content"));
+                Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+                Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+                File.WriteAllText(Path.Combine(root, "content", "page.en.md"), """
+                    ---
+                    type: page
+                    title: Hello
+                    slug: hello
+                    language: en
+                    i18nKey: hello
+                    ---
+                    # Hello
+                    """);
+                File.WriteAllText(Path.Combine(root, "content", "page.fr.md"), """
+                    ---
+                    type: page
+                    title: Bonjour
+                    slug: bonjour
+                    language: fr
+                    i18nKey: hello
+                    ---
+                    # Bonjour
+                    """);
+                File.WriteAllText(Path.Combine(root, "content", "page.de.md"), """
+                    ---
+                    type: page
+                    title: Hallo
+                    slug: hallo
+                    language: de
+                    i18nKey: hello
+                    ---
+                    # Hallo
+                    """);
+
+                File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                    <!DOCTYPE html>
+                    <html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                    """);
+                File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+                File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+                File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+            }
+
+            var logger1 = new TestLogger();
+            var config1 = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "T",
+                    Language = "en",
+                    Languages = new[] { "en", "fr", "de" },
+                    DefaultLanguage = "en",
+                    BaseUrl = "/"
+                },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true, LanguageJobs = 1 },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+            await new SiteEngine(logger1).BuildAsync(config1, root1, new ConfigOverrides(), CancellationToken.None);
+
+            var logger3 = new TestLogger();
+            var config3 = config1 with { Build = config1.Build with { LanguageJobs = 3 } };
+            await new SiteEngine(logger3).BuildAsync(config3, root2, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.Empty(logger1.Errors);
+            Assert.Empty(logger3.Errors);
+
+            var dist1 = Path.Combine(root1, "dist");
+            var dist2 = Path.Combine(root2, "dist");
+            Assert.True(Directory.Exists(dist1));
+            Assert.True(Directory.Exists(dist2));
+
+            var dirsMatch = DirectoriesMatch(dist1, dist2);
+            Assert.True(dirsMatch, "Output directories should be identical regardless of languageJobs setting.");
+        }
+        finally
+        {
+            try { CleanupDir(root1); } catch { }
+            try { CleanupDir(root2); } catch { }
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_SeoInjectMode_I18nPagesEmitMutualHreflang()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-seo-i18n-test", Guid.NewGuid().ToString("N"));
@@ -2670,5 +2769,36 @@ public sealed class SiteEngineIntegrationTests
         }
 
         return count;
+    }
+
+    private static bool DirectoriesMatch(string dir1, string dir2)
+    {
+        var files1 = Directory.GetFiles(dir1, "*", SearchOption.AllDirectories)
+            .Select(f => (Relative: Path.GetRelativePath(dir1, f), Content: File.ReadAllText(f)))
+            .OrderBy(x => x.Relative, StringComparer.Ordinal)
+            .ToList();
+
+        var files2 = Directory.GetFiles(dir2, "*", SearchOption.AllDirectories)
+            .Select(f => (Relative: Path.GetRelativePath(dir2, f), Content: File.ReadAllText(f)))
+            .OrderBy(x => x.Relative, StringComparer.Ordinal)
+            .ToList();
+
+        var rel1 = files1.Select(f => f.Relative).ToHashSet(StringComparer.Ordinal);
+        var rel2 = files2.Select(f => f.Relative).ToHashSet(StringComparer.Ordinal);
+
+        if (!rel1.SetEquals(rel2))
+        {
+            return false;
+        }
+
+        for (var i = 0; i < files1.Count; i++)
+        {
+            if (!string.Equals(files1[i].Content, files2[i].Content, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

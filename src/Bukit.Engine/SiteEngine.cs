@@ -152,9 +152,18 @@ public sealed class SiteEngine
         var rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl);
         var seoAlternates = SeoAlternatesService.BuildSeoAlternates(config, items, languages, defaultLanguage, rootBaseUrl);
         var results = new BuildVariantResult[languages.Count];
+
+        var languageJobs = Math.Max(1, config.Build.LanguageJobs);
+        var processorCount = Environment.ProcessorCount;
+        if (languageJobs > processorCount)
+        {
+            languageJobs = processorCount;
+        }
+
+        _logger.Info($"event=build.i18n.start languages={languages.Count} concurrent_jobs={languageJobs}");
         await Parallel.ForEachAsync(
             languages.Select((lang, i) => (lang, i)),
-            new ParallelOptions { MaxDegreeOfParallelism = 1, CancellationToken = cancellationToken },
+            new ParallelOptions { MaxDegreeOfParallelism = languageJobs, CancellationToken = cancellationToken },
             async (entry, ct) =>
             {
                 var (lang, i) = entry;

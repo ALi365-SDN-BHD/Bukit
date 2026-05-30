@@ -4,6 +4,7 @@ using Bukit.Cli.Cli.Parsing;
 using Bukit.Cli.Cli.Rendering;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Commands.DocsCheck;
+using Bukit.Shared;
 
 var command = args.Length > 0 ? args[0] : null;
 
@@ -89,6 +90,11 @@ try
     }
 
     return UnknownCommand(command);
+}
+catch (CommandArgumentException ex)
+{
+    Console.Error.WriteLine(ex.Message);
+    return 2;
 }
 catch (Exception ex)
 {

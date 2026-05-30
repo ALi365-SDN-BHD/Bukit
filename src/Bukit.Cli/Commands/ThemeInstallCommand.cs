@@ -198,7 +198,7 @@ public static class ThemeInstallCommand
                 if (string.IsNullOrWhiteSpace(entryPath)) continue;
 
                 var destPath = Path.GetFullPath(Path.Combine(tmpDir, entryPath));
-                if (!destPath.StartsWith(tmpDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!destPath.StartsWith(tmpDir + Path.DirectorySeparatorChar, Bukit.Shared.PlatformPathHelper.PathComparison)) continue;
 
                 var destDir = Path.GetDirectoryName(destPath);
                 if (!string.IsNullOrWhiteSpace(destDir)) Directory.CreateDirectory(destDir);

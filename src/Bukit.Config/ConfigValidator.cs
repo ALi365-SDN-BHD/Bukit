@@ -147,6 +147,12 @@ public static class ConfigValidator
             throw new ConfigException("build.assetHashMode must be size-time|sha256.");
         }
 
+        var fingerprintMode = (config.Build.FingerprintMode ?? "size-time").Trim().ToLowerInvariant();
+        if (fingerprintMode is not ("size-time" or "sha256"))
+        {
+            throw new ConfigException("build.fingerprintMode must be size-time|sha256.");
+        }
+
         var loggingLevel = (config.Logging.Level ?? "info").Trim().ToLowerInvariant();
         if (loggingLevel is not ("debug" or "info" or "warn" or "error"))
         {

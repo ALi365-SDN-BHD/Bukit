@@ -52,6 +52,9 @@ json 日志格式（每行一条 JSON，输出到 stderr）：
 | 内容 | `BKT-0501` – `BKT-05FF` | `BKT-0501` LoadFailed |
 | 构建 | `BKT-0601` – `BKT-06FF` | `BKT-0601` OutputUnsafe |
 | 插件 | `BKT-0701` – `BKT-07FF` | `BKT-0701` ExecutionFailed |
+| SEO | `BKT-0801` – `BKT-0804` | |
+| GEO | `BKT-0810` – `BKT-0812` | |
+| 媒体 | `BKT-0901` – `BKT-0904` | |
 
 DoctorCommand 通过 `DiagnosticExceptionFormatter.Format()` 以格式化诊断码输出错误。引擎中 13 个关键抛出点携带诊断码；其他抛出保持向后兼容（Code = null）。
 

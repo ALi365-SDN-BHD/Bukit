@@ -33,9 +33,7 @@ internal static class BuildPathUtils
             ? rootFull
             : rootFull + Path.DirectorySeparatorChar;
 
-        var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
+        var comparison = PlatformPathHelper.PathComparison;
 
         if (!string.Equals(resolved, rootFull, comparison) &&
             !resolved.StartsWith(rootWithSep, comparison))

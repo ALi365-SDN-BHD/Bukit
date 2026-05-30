@@ -463,41 +463,30 @@ public sealed class NotionContentProviderEndToEndTests
     [Fact]
     public async Task BodyStore_WithAutoSummaryEnabled_ExtractsSummaryFromRenderedHtml()
     {
-        var previousEnabled = Environment.GetEnvironmentVariable("BUKIT_AUTO_SUMMARY");
-        var previousMaxLen = Environment.GetEnvironmentVariable("BUKIT_AUTO_SUMMARY_MAXLEN");
-        try
+        var handler = new AutoSummaryHandler();
+        var options = new NotionProviderOptions
         {
-            Environment.SetEnvironmentVariable("BUKIT_AUTO_SUMMARY", "1");
-            Environment.SetEnvironmentVariable("BUKIT_AUTO_SUMMARY_MAXLEN", "42");
+            DatabaseId = "db-123",
+            Token = "secret-token",
+            RequestDelayMs = 0,
+            FilterType = "none",
+            AutoSummary = true,
+            AutoSummaryMaxLength = 42
+        };
+        NotionApiClient CreateClient() =>
+            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var result = await provider.LoadAsync();
+        var item = Assert.Single(result.Items);
 
-            var handler = new AutoSummaryHandler();
-            var options = new NotionProviderOptions
-            {
-                DatabaseId = "db-123",
-                Token = "secret-token",
-                RequestDelayMs = 0,
-                FilterType = "none"
-            };
-            NotionApiClient CreateClient() =>
-                new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
-            var provider = new NotionContentProvider(options, logger: null, CreateClient);
-            var result = await provider.LoadAsync();
-            var item = Assert.Single(result.Items);
+        Assert.False(item.Meta.ContainsKey("summary"));
 
-            Assert.False(item.Meta.ContainsKey("summary"));
+        var body = await result.BodyStore.GetAsync(item);
 
-            var body = await result.BodyStore.GetAsync(item);
-
-            Assert.Contains("<p>Alpha", body.Html);
-            var summary = Assert.IsType<string>(item.Meta["summary"]);
-            Assert.StartsWith("Alpha beta & gamma text that should stop", summary);
-            Assert.True(summary.Length <= 42);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("BUKIT_AUTO_SUMMARY", previousEnabled);
-            Environment.SetEnvironmentVariable("BUKIT_AUTO_SUMMARY_MAXLEN", previousMaxLen);
-        }
+        Assert.Contains("<p>Alpha", body.Html);
+        var summary = Assert.IsType<string>(item.Meta["summary"]);
+        Assert.StartsWith("Alpha beta & gamma text that should stop", summary);
+        Assert.True(summary.Length <= 42);
     }
 
     [Fact]

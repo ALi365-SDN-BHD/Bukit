@@ -17,8 +17,10 @@ public static class PluginRunner
         CancellationToken cancellationToken = default)
     {
         var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
-        var usedRouteUrls = new HashSet<string>(context.Routed.Select(x => NormalizeUrl(x.Route.Url)), StringComparer.OrdinalIgnoreCase);
-        var usedOutputPaths = new HashSet<string>(context.Routed.Select(x => NormalizeOutputPath(x.Route.OutputPath)), StringComparer.OrdinalIgnoreCase);
+        var contentRouteUrls = new HashSet<string>(context.Routed.Select(x => NormalizeUrl(x.Route.Url)), StringComparer.OrdinalIgnoreCase);
+        var contentOutputPaths = new HashSet<string>(context.Routed.Select(x => NormalizeOutputPath(x.Route.OutputPath)), StringComparer.OrdinalIgnoreCase);
+        var usedRouteUrls = new HashSet<string>(contentRouteUrls, StringComparer.OrdinalIgnoreCase);
+        var usedOutputPaths = new HashSet<string>(contentOutputPaths, StringComparer.OrdinalIgnoreCase);
         var deriveConflictPolicy = (context.Config.Site.DeriveConflictPolicy ?? "fail").Trim().ToLowerInvariant();
         var warnOnPluginFailure = string.Equals(context.Config.Site.PluginFailMode, "warn", StringComparison.OrdinalIgnoreCase);
 
@@ -55,8 +57,11 @@ public static class PluginRunner
                         context,
                         plugin.Name,
                         pages,
+                        derived,
                         usedRouteUrls,
                         usedOutputPaths,
+                        contentRouteUrls,
+                        contentOutputPaths,
                         deriveConflictPolicy);
                     if (acceptedPages.Count > 0)
                     {
@@ -87,8 +92,11 @@ public static class PluginRunner
         BuildContext context,
         string pluginName,
         IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> pages,
+        List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> derived,
         HashSet<string> usedRouteUrls,
         HashSet<string> usedOutputPaths,
+        HashSet<string> contentRouteUrls,
+        HashSet<string> contentOutputPaths,
         string deriveConflictPolicy)
     {
         var acceptedPages = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
@@ -96,31 +104,75 @@ public static class PluginRunner
         {
             var normalizedUrl = NormalizeUrl(page.Route.Url);
             var normalizedOutputPath = NormalizeOutputPath(page.Route.OutputPath);
-            var urlTaken = !usedRouteUrls.Add(normalizedUrl);
-            var outputTaken = !usedOutputPaths.Add(normalizedOutputPath);
-            if (!urlTaken && !outputTaken)
+
+            var urlInAll = usedRouteUrls.Contains(normalizedUrl);
+            var outputInAll = usedOutputPaths.Contains(normalizedOutputPath);
+            var urlInContent = contentRouteUrls.Contains(normalizedUrl);
+            var outputInContent = contentOutputPaths.Contains(normalizedOutputPath);
+
+            var hasConflict = urlInAll || outputInAll;
+
+            if (!hasConflict)
             {
+                usedRouteUrls.Add(normalizedUrl);
+                usedOutputPaths.Add(normalizedOutputPath);
                 acceptedPages.Add(page);
                 continue;
             }
 
-            if (!urlTaken)
-            {
-                usedRouteUrls.Remove(normalizedUrl);
-            }
-
-            if (!outputTaken)
-            {
-                usedOutputPaths.Remove(normalizedOutputPath);
-            }
-
-            var conflictTarget = urlTaken
+            var conflictTarget = urlInAll
                 ? $"url: {page.Route.Url}"
                 : $"outputPath: {page.Route.OutputPath}";
             var message = $"Plugin '{pluginName}' derive-pages route conflict on {conflictTarget}";
 
             if (deriveConflictPolicy == "last-wins")
             {
+                var isContentConflict = urlInContent || outputInContent;
+
+                if (isContentConflict)
+                {
+                    context.Logger.Warn($"{message}. Content route preserved by last-wins.");
+                    continue;
+                }
+
+                var conflictingIndices = new HashSet<int>();
+                for (int i = 0; i < derived.Count; i++)
+                {
+                    var d = derived[i];
+                    if (string.Equals(NormalizeUrl(d.Route.Url), normalizedUrl, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(NormalizeOutputPath(d.Route.OutputPath), normalizedOutputPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        conflictingIndices.Add(i);
+                    }
+                }
+
+                for (int i = derived.Count - 1; i >= 0; i--)
+                {
+                    if (!conflictingIndices.Contains(i))
+                    {
+                        continue;
+                    }
+
+                    var old = derived[i];
+                    var oldUrl = NormalizeUrl(old.Route.Url);
+                    var oldOutputPath = NormalizeOutputPath(old.Route.OutputPath);
+
+                    if (!string.Equals(oldUrl, normalizedUrl, StringComparison.OrdinalIgnoreCase))
+                    {
+                        usedRouteUrls.Remove(oldUrl);
+                    }
+
+                    if (!string.Equals(oldOutputPath, normalizedOutputPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        usedOutputPaths.Remove(oldOutputPath);
+                    }
+
+                    context.Logger.Info($"Derive conflict: {page.Route.Url} [{pluginName}] replaces {old.Route.Url} (last-wins)");
+                    derived.RemoveAt(i);
+                }
+
+                usedRouteUrls.Add(normalizedUrl);
+                usedOutputPaths.Add(normalizedOutputPath);
                 acceptedPages.Add(page);
                 continue;
             }

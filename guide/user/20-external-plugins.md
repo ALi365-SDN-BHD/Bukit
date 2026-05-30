@@ -1,6 +1,39 @@
 # Writing External Plugins
 
-External plugins let you extend Bukit using **any language** (Node.js, Python, Go, etc.) via a simple stdin/stdout JSON protocol. They run as subprocesses — fully compatible with Bukit's Native AOT builds.
+## Plugin Classification & Security Levels
+
+Bukit categorizes plugins into four types based on their runtime model and trust boundaries:
+
+| Plugin Type | Positioning | Security Level | Notes |
+|-------------|-------------|---------------|-------|
+| Built-in Plugin | Engine internal capabilities | High | Runs in-process, full trust |
+| Process Plugin | Local trusted extension | Low | Full host process privileges, no sandbox. Disabled in CI by default. Use `--allow-external-plugins` to enable. |
+| Future WASM Plugin | Distributable community plugins | Medium-High | Sandboxed, resource-limited |
+| Section Plugin | Theme component-level | Medium | Theme-scoped capabilities |
+
+**Process plugins** are the currently supported external plugin runtime. The following sections document their security model, configuration, and usage in detail.
+
+## Security & Trust Model
+
+**External plugins run as subprocesses with full host process privileges.** This means:
+
+- They can read any file on the host filesystem, not just the project directory.
+- They can access the network and make arbitrary outbound connections.
+- They can execute arbitrary subprocesses and system commands.
+- There is **no sandbox** or container isolation between your plugin and the host.
+
+**Because of this, you must:**
+- Only install plugins from **trusted sources** (authors you know and trust, or official Bukit plugin registries).
+- Review plugin source code before adding it to your project.
+- Never use plugins from untrusted third parties in production environments.
+
+**Additional safety measures:**
+- **CI environments disable external plugins by default.** To enable them in CI, pass `--allow-external-plugins` on the command line.
+- **Plugin entry paths must be within the project directory.** Absolute paths like `/usr/bin/some-tool` are rejected unless the plugin explicitly sets `allowAbsoluteEntry: true` in its configuration.
+- **Stdout/stderr output is capped** at 1 MB by default (configurable via `maxStdoutBytes` / `maxStderrBytes`).
+- **Timeout protection:** Plugins are automatically killed if they exceed `timeoutMs`.
+- **Environment isolation:** Only `BUKIT_*` variables and the `AllowEnvironment` whitelist are passed to the plugin subprocess.
+- **Output path validation:** Plugins cannot write outside the configured output directory.
 
 ## How It Works
 
@@ -28,6 +61,7 @@ site:
       hooks: [derive-pages]     # or [after-build], or both
       capabilities: [derive-pages]
       timeoutMs: 5000
+      allowAbsoluteEntry: false # set true only if entry is an absolute path
 ```
 
 | Field | Description |
@@ -37,6 +71,7 @@ site:
 | `hooks` | Which hooks to participate in: `after-build`, `derive-pages` |
 | `capabilities` | Required: `emit-outputs` (for after-build), `derive-pages` (for derive-pages) |
 | `timeoutMs` | Max time before the plugin is killed (default 5000) |
+| `allowAbsoluteEntry` | Allow absolute paths for `entry` (default `false`). Only needed when the plugin binary is outside the project. |
 | `options` | Optional: custom key-value pairs passed to your plugin |
 
 ## Protocol Overview
@@ -107,13 +142,6 @@ Use derive-pages to generate additional pages based on existing routes. Your plu
   ]
 }
 ```
-
-## Security
-
-- **Stdout/stderr limits**: 1MB default (configurable via `maxStdoutBytes`/`maxStderrBytes`)
-- **Timeout**: Plugin is killed if it exceeds `timeoutMs`
-- **Environment isolation**: Only `BUKIT_*` variables and `AllowEnvironment` whitelist are passed
-- **Output path validation**: Plugins cannot write outside the output directory
 
 ## Complete Example: Node.js Derive-Pages Plugin
 

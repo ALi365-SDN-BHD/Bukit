@@ -1115,4 +1115,104 @@ public sealed class ConfigValidatorTests
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
         Assert.Contains("deriveConflictPolicy", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Validate_ExternalPlugins_AbsoluteEntryPath_RejectedByDefault()
+    {
+        var config = ValidConfig() with
+        {
+            Site = ValidConfig().Site with
+            {
+                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sample"] = new()
+                    {
+                        Runtime = "process",
+                        Entry = "/usr/bin/some-tool",
+                        Hooks = new[] { "after-build" },
+                        TimeoutMs = 5000
+                    }
+                }
+            }
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("entry must be within project directory", ex.Message);
+    }
+
+    [Fact]
+    public void Validate_ExternalPlugins_AbsoluteEntryPath_AllowedWhenAllowAbsoluteEntryTrue()
+    {
+        var config = ValidConfig() with
+        {
+            Site = ValidConfig().Site with
+            {
+                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sample"] = new()
+                    {
+                        Runtime = "process",
+                        Entry = "/usr/bin/some-tool",
+                        Hooks = new[] { "after-build" },
+                        TimeoutMs = 5000,
+                        AllowAbsoluteEntry = true
+                    }
+                }
+            }
+        };
+
+        var ex = Record.Exception(() => ConfigValidator.Validate(config));
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void Validate_ExternalPlugins_RelativeEntryPath_Accepted()
+    {
+        var config = ValidConfig() with
+        {
+            Site = ValidConfig().Site with
+            {
+                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sample"] = new()
+                    {
+                        Runtime = "process",
+                        Entry = "plugins/my-plugin.js",
+                        Hooks = new[] { "after-build" },
+                        TimeoutMs = 5000
+                    }
+                }
+            }
+        };
+
+        var ex = Record.Exception(() => ConfigValidator.Validate(config));
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void Validate_ExternalPlugins_WindowsAbsoluteEntryPath_RejectedByDefault()
+    {
+        var config = ValidConfig() with
+        {
+            Site = ValidConfig().Site with
+            {
+                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sample"] = new()
+                    {
+                        Runtime = "process",
+                        Entry = "C:\\tools\\plugin.exe",
+                        Hooks = new[] { "after-build" },
+                        TimeoutMs = 5000
+                    }
+                }
+            }
+        };
+
+        if (OperatingSystem.IsWindows())
+        {
+            var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+            Assert.Contains("entry must be within project directory", ex.Message);
+        }
+    }
 }

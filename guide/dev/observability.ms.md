@@ -22,6 +22,9 @@ Semua pengecualian Bukit membawa kod diagnostik stabil dalam format heks `BKT-XX
 | Content | `BKT-0501` – `BKT-05FF` | `BKT-0501` LoadFailed |
 | Build | `BKT-0601` – `BKT-06FF` | `BKT-0601` OutputUnsafe |
 | Plugin | `BKT-0701` – `BKT-07FF` | `BKT-0701` ExecutionFailed |
+| SEO | `BKT-0801` – `BKT-0804` | |
+| GEO | `BKT-0810` – `BKT-0812` | |
+| Media | `BKT-0901` – `BKT-0904` | |
 
 DoctorCommand mengeluarkan ralat yang diformat dengan kod diagnostik melalui `DiagnosticExceptionFormatter.Format()`. Semua 13 tapak lemparan kritikal dalam enjin membawa kod diagnostik; lemparan lain kekal serasi ke belakang (Code = null).
 

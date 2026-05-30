@@ -2,7 +2,7 @@
 
 The rendering layer is responsible for rendering engine-generated models into HTML using Scriban.
 
-Implementation: `src/Bukit.Rendering/Models.cs`, `src/Bukit.Rendering/Scriban/ScribanModelBinder.cs`, `src/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs`, `src/Bukit.Rendering/Scriban/ComponentFunctions.cs`
+Implementation: `src/Bukit.Rendering/Models.cs`, `src/Bukit.Rendering/Scriban/` (10 files: ScribanTemplateRenderer, RenderSectionFunction, RenderComponentFunction, TemplateContextBuilder, FileTemplateLoader, ImageFunctions, ComponentFunctions, SectionRenderHelper, SectionDataResolverAccessor, ScribanModelBinder)
 
 ## Unified Rendering Pipeline
 

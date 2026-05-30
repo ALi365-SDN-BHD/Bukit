@@ -1,6 +1,39 @@
 # 编写外部插件
 
-外部插件让你可以用**任意语言**（Node.js、Python、Go 等）扩展 Bukit，通过简单的 stdin/stdout JSON 协议通信。它们作为子进程运行，完全兼容 Bukit 的 Native AOT 构建。
+## 插件分类与安全级别
+
+Bukit 根据运行时模型和信任边界将插件分为四种类型：
+
+| 插件类型 | 定位 | 安全级别 | 备注 |
+|---------|------|---------|------|
+| 内置插件 | 引擎内部能力 | 高 | 进程内运行，完全信任 |
+| 进程插件 | 本地可信扩展 | 低 | 拥有宿主机完整进程权限，无沙箱隔离。CI 环境默认禁用，使用 `--allow-external-plugins` 启用。 |
+| 未来 WASM 插件 | 可分发社区插件 | 中高 | 沙箱隔离，资源受限 |
+| Section 插件 | 主题组件级能力 | 中 | 主题范围内能力 |
+
+**进程插件**是目前支持的外部插件运行时。以下章节详细说明其安全模型、配置和使用方式。
+
+## 安全与信任模型
+
+**外部插件作为子进程运行，拥有完整的宿主机进程权限。**这意味着：
+
+- 它们可以读取宿主机文件系统上的**任何文件**，不限于项目目录。
+- 它们可以访问网络并建立任意出站连接。
+- 它们可以执行任意的子进程和系统命令。
+- 插件与宿主机之间**没有沙箱**或容器隔离。
+
+**因此，你必须：**
+- 只从**可信来源**安装插件（你认识并信任的作者，或官方 Bukit 插件注册表）。
+- 在将插件添加到项目之前审查其源代码。
+- 绝不在生产环境中使用来自不可信第三方的插件。
+
+**额外的安全措施：**
+- **CI 环境默认禁用外部插件。**要在 CI 中启用，请在命令行传递 `--allow-external-plugins`。
+- **插件入口路径必须在项目目录内。**绝对路径如 `/usr/bin/some-tool` 会被拒绝，除非插件在配置中显式设置 `allowAbsoluteEntry: true`。
+- **stdout/stderr 输出有大小限制**，默认 1MB（可通过 `maxStdoutBytes` / `maxStderrBytes` 配置）。
+- **超时保护：**插件超过 `timeoutMs` 会被自动终止。
+- **环境隔离：**仅透传 `BUKIT_*` 变量和 `AllowEnvironment` 白名单中的变量给插件子进程。
+- **输出路径校验：**插件无法写入配置的输出目录之外。
 
 ## 工作原理
 
@@ -28,6 +61,7 @@ site:
       hooks: [derive-pages]     # 或 [after-build]，或两者都加
       capabilities: [derive-pages]
       timeoutMs: 5000
+      allowAbsoluteEntry: false # 仅在 entry 为绝对路径时设为 true
 ```
 
 | 字段 | 说明 |
@@ -37,6 +71,7 @@ site:
 | `hooks` | 参与的生命周期钩子：`after-build`、`derive-pages` |
 | `capabilities` | 必填：`emit-outputs`（after-build 用）、`derive-pages`（derive-pages 用） |
 | `timeoutMs` | 插件超时时间（默认 5000 毫秒） |
+| `allowAbsoluteEntry` | 允许 `entry` 使用绝对路径（默认 `false`）。仅在插件二进制文件位于项目外部时需要。 |
 | `options` | 可选：传递给插件的自定义键值对 |
 
 ## 协议概述
@@ -107,13 +142,6 @@ Bukit 发送的 JSON 对象：
   ]
 }
 ```
-
-## 安全模型
-
-- **输出大小限制**：stdout/stderr 默认 1MB（可通过 `maxStdoutBytes`/`maxStderrBytes` 调整）
-- **超时保护**：超过 `timeoutMs` 自动终止
-- **环境隔离**：仅透传 `BUKIT_*` 变量和 `AllowEnvironment` 白名单中的变量
-- **输出路径校验**：插件无法写入输出目录之外
 
 ## 完整示例：Node.js Derive-Pages 插件
 

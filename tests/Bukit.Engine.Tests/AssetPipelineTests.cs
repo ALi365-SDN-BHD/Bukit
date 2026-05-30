@@ -50,7 +50,8 @@ public sealed class AssetPipelineTests
             ScssConfig: null,
             ImageConfig: null,
             Logger: logger,
-            PublishDotFiles: false),
+            PublishDotFiles: false,
+            FollowSymlinks: false),
             CancellationToken.None);
 
         Assert.True(File.Exists(Path.Combine(outputDir, "robots.txt")), "robots.txt not found");
@@ -95,7 +96,8 @@ public sealed class AssetPipelineTests
             ScssConfig: null,
             ImageConfig: null,
             Logger: logger,
-            PublishDotFiles: false),
+            PublishDotFiles: false,
+            FollowSymlinks: false),
             CancellationToken.None);
 
         Assert.True(File.Exists(Path.Combine(outputDir, "favicon.ico")));
@@ -131,7 +133,8 @@ public sealed class AssetPipelineTests
             ScssConfig: null,
             ImageConfig: null,
             Logger: new RecordingLogger(),
-            PublishDotFiles: false),
+            PublishDotFiles: false,
+            FollowSymlinks: false),
             cts.Token));
 
         Assert.False(File.Exists(Path.Combine(outputDir, "robots.txt")));

@@ -27,6 +27,11 @@ internal static class BuildPlanner
         var effectiveConfig = ConfigApplier.Apply(config, overrides);
         ConfigValidator.Validate(effectiveConfig);
 
+        if (IsCI(overrides) && !overrides.AllowExternalPlugins && effectiveConfig.Site.ExternalPlugins is { Count: > 0 })
+        {
+            throw new ConfigException("External plugins are disabled in CI environments. Use --allow-external-plugins to enable.");
+        }
+
         var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);
         var resolved = ThemePathResolver.Resolve(rootDir, effectiveConfig.Theme, logger);
 
@@ -41,6 +46,13 @@ internal static class BuildPlanner
             resolved.LayoutsDir, resolved.AssetsDir, resolved.StaticDir,
             resolved.ParentLayoutsDir, resolved.ParentAssetsDir, resolved.ParentStaticDir, resolved.UserLayoutsDir,
             mediaCacheDir, startedAt, stopwatch);
+    }
+
+    private static bool IsCI(ConfigOverrides overrides)
+    {
+        return overrides.IsCI
+            || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"))
+            || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("BUKIT_CI"));
     }
 
     private static void PrepareOutputDirectory(AppConfig config, string rootDir, string outputDir, ILogger logger)
@@ -69,9 +81,9 @@ internal static class BuildPlanner
     {
         var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var fullOutput = Path.GetFullPath(outputDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        if (string.Equals(fullOutput, fullRoot, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fullOutput, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fullOutput, Path.GetPathRoot(fullOutput)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
+        if (string.Equals(fullOutput, fullRoot, PlatformPathHelper.PathComparison)
+            || string.Equals(fullOutput, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), PlatformPathHelper.PathComparison)
+            || string.Equals(fullOutput, Path.GetPathRoot(fullOutput)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), PlatformPathHelper.PathComparison)
             || string.Equals(Path.GetFileName(fullOutput), ".git", StringComparison.OrdinalIgnoreCase))
         {
             throw new ConfigException($"Refusing to clean unsafe output directory: {outputDir}. How to fix: set build.output to a dedicated subdirectory like 'dist' or 'public'.", DiagnosticCode.BuildOutputUnsafe);

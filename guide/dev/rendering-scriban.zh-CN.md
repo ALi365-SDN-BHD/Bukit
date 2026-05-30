@@ -5,7 +5,7 @@
 实现参考：
 - 模型：`src/Bukit.Rendering/Models.cs`
 - 模型绑定：`src/Bukit.Rendering/Scriban/ScribanModelBinder.cs`
-- 渲染器：`src/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs`
+- 渲染器：`src/Bukit.Rendering/Scriban/`（10 个文件：ScribanTemplateRenderer、RenderSectionFunction、RenderComponentFunction、TemplateContextBuilder、FileTemplateLoader、ImageFunctions、ComponentFunctions、SectionRenderHelper、SectionDataResolverAccessor、ScribanModelBinder）
 
 ## 统一渲染管道
 
@@ -130,7 +130,7 @@ Shortcodes 是主题级可复用 HTML 片段，在 `site.yaml` 的 `theme.shortc
 {{ shortcode "youtube" "dQw4w9WgXcQ" }}
 ```
 
-Shortcodes 在 `ScribanTemplateRenderer` 的 `RenderTemplate` 方法中注入为内置函数。
+Shortcodes 通过 `RenderComponentFunction` 注册为内置函数。
 
 ### Components（组件）
 

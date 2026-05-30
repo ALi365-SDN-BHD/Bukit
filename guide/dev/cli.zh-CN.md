@@ -99,7 +99,7 @@ dotnet run --project src/Bukit.Cli -c Release -- build --output dist --base-url 
 
 ## dev
 
-实现参考：`src/Bukit.Cli/Commands/DevCommand.cs`
+实现参考：`src/Bukit.Cli/Commands/Dev/`（DevServerHost、DevWebSocketHub、DevFileWatcher、DevRequestHandler、DevPathGuard）
 
 ```
 bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--output <dir>] [--no-watch]
@@ -130,7 +130,7 @@ bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--o
 - `src/Bukit.Cli/Commands/DeployCommand.cs`
 - `src/Bukit.Cli/Commands/SeoCommand.cs`
 - `src/Bukit.Cli/Commands/GeoCommand.cs`
-- `src/Bukit.Cli/Commands/CloneCommand.cs`
+- `src/Bukit.Cli/Commands/Clone/`（CloneInputLoader、CloneAssetDownloader、CloneContentWriter、CloneFidelityRunner、CloneThemeGenerator、CloneVerifier）
 - `src/Bukit.Cli/Commands/PluginCommand.cs`
 - `src/Bukit.Cli/Commands/IntentCommand.cs`
 - `src/Bukit.Cli/Commands/WebhookCommand.cs`

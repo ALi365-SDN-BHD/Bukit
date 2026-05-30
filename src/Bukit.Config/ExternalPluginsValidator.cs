@@ -30,6 +30,11 @@ internal static class ExternalPluginsValidator
                 throw new ConfigException($"site.externalPlugins.{name}.entry is required.");
             }
 
+            if (Path.IsPathRooted(plugin.Entry) && !plugin.AllowAbsoluteEntry)
+            {
+                throw new ConfigException($"site.externalPlugins.{name}: plugin entry must be within project directory. Set allowAbsoluteEntry: true to allow absolute paths.");
+            }
+
             if (plugin.Hooks is null || plugin.Hooks.Count == 0)
             {
                 throw new ConfigException($"site.externalPlugins.{name}.hooks must contain at least one hook.");

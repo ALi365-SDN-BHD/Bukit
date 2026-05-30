@@ -23,7 +23,9 @@ internal sealed record AssetPipelineContext(
     ScssConfig? ScssConfig,
     ImageOptimizationConfig? ImageConfig,
     ILogger Logger,
-    bool PublishDotFiles);
+    bool PublishDotFiles,
+    bool FollowSymlinks,
+    string? FingerprintMode = null);
 
 internal sealed record AssetPipelineResult(
     BuildStageMetrics StageMetrics);
@@ -78,14 +80,15 @@ internal sealed class AssetPipeline
             BuildManifestTracker.TrackStaticOutputs(
                 ctx.ParentStaticDir, hasStaticDir ? ctx.StaticDir : null,
                 ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger,
-                renderHtmlStaticFiles: false);
+                renderHtmlStaticFiles: false, fingerprintMode: ctx.FingerprintMode);
         }
 
         if (hasAssetsDir || hasParentAssetsDir)
         {
             BuildManifestTracker.TrackAssetOutputs(
-                ctx.ParentAssetsDir, ctx.AssetsDir!,
-                ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger);
+                ctx.ParentAssetsDir, ctx.AssetsDir,
+                ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger,
+                fingerprintMode: ctx.FingerprintMode);
         }
 
         return new AssetPipelineResult(metricsCollector.Snapshot());
@@ -198,7 +201,7 @@ internal sealed class AssetPipeline
 
             BuildManifestTracker.SyncMediaOutputs(
                 ctx.MediaDownloadDir!, ctx.OutputDir, ctx.Manifest,
-                ctx.IncrementalEnabled, ctx.Logger);
+                ctx.IncrementalEnabled, ctx.Logger, ctx.FingerprintMode);
 
             sw.Stop();
             mc.AddDuration("mediaCopy", sw.ElapsedMilliseconds);
@@ -208,8 +211,10 @@ internal sealed class AssetPipeline
 
     private static DirectoryCopyOptions BuildCopyOptions(AssetPipelineContext ctx)
     {
-        return ctx.PublishDotFiles
-            ? new DirectoryCopyOptions { IgnoreDotPrefixedFiles = false }
-            : new DirectoryCopyOptions();
+        return new DirectoryCopyOptions
+        {
+            IgnoreDotPrefixedFiles = !ctx.PublishDotFiles,
+            FollowSymlinks = ctx.FollowSymlinks
+        };
     }
 }

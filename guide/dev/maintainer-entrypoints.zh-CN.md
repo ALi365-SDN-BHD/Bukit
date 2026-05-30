@@ -160,8 +160,11 @@ dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filt
 
 - `src/Bukit.Engine/BuildPathUtils.cs`
 - `src/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs`
+- `src/Bukit.Rendering/Scriban/TemplateContextBuilder.cs`
 - `src/Bukit.Rendering/Scriban/ScribanModelBinder.cs`
 - `src/Bukit.Rendering/Scriban/FileTemplateLoader.cs`
+- `src/Bukit.Rendering/Scriban/RenderSectionFunction.cs`
+- `src/Bukit.Rendering/Scriban/RenderComponentFunction.cs`
 - `src/Bukit.Engine/PageRenderDispatcher.cs`
 
 ### 5.3 常见改动落点
@@ -169,8 +172,8 @@ dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filt
 | 需求 | 先看哪里 |
 |---|---|
 | 主题目录解析 | `BuildPathUtils.ResolveThemeDirectories` |
-| 模板渲染入口 | `ScribanTemplateRenderer.cs` |
-| layout 指令 / 模板缓存 | `ScribanTemplateRenderer.cs` |
+| 模板渲染入口 | `ScribanTemplateRenderer.cs` / `TemplateContextBuilder.cs` |
+| layout 指令解析 | `src/Bukit.Shared/ScribanLayoutDirectiveParser.cs` |
 | include 加载与路径边界 | `FileTemplateLoader.cs` |
 | 模型如何暴露给模板 | `ScribanModelBinder.cs` |
 | 页面/列表页面渲染 | `PageRenderDispatcher.cs` |
@@ -300,7 +303,7 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter
 | 配置字段或校验 | `ConfigLoader.cs` / `ConfigValidator.cs` |
 | Markdown / Notion 接入 | `ContentProviderFactory.cs` / `MarkdownFolderProvider.cs` / `NotionContentProvider.cs` |
 | 页面 URL 与输出路径 | `RouteGenerator.cs` |
-| 模板变量与渲染 | `ScribanModelBinder.cs` / `ScribanTemplateRenderer.cs` |
+| 模板变量与渲染 | `ScribanModelBinder.cs` / `ScribanTemplateRenderer.cs` / `TemplateContextBuilder.cs` |
 | 页面写出与列表页 | `PageRenderDispatcher.cs` |
 | 搜索、RSS、sitemap、taxonomy | `PluginRunner.cs` + `Plugins/BuiltIn/*` |
 | 缓存与跳过渲染 | `SiteEngine.cs` / `PageRenderDispatcher.cs` / `BuildManifest.cs` |

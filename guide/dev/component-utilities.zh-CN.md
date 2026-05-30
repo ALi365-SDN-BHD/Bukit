@@ -4,7 +4,7 @@ Scriban 模板中可通过 `util` 对象访问内置工具函数，用于日期�
 
 实现参考：
 - `src/Bukit.Rendering/Scriban/ComponentFunctions.cs` (ComponentUtilityFunctions)
-- `src/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs` (util 注册)
+- `src/Bukit.Rendering/Scriban/RenderComponentFunction.cs` (util 注册)
 
 ## 可用函数
 

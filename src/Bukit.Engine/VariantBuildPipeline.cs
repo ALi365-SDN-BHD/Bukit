@@ -26,6 +26,17 @@ internal sealed record ManifestSetupResult(
     ConcurrentDictionary<string, BuildManifestEntry>? ManifestEntries,
     bool IncrementalEnabled);
 
+internal sealed record BuildRoutePipelineResult(
+    RoutePipelineResult RouteResult,
+    IReadOnlyList<RouteInfo> StaticHtmlRoutes,
+    IReadOnlyList<RenderEntry>? StaticEntries,
+    BuildContext PluginContext);
+
+internal sealed record SeoStageResult(
+    SeoPipelineResult SeoResult,
+    IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> SeoAlternates,
+    int MaxDegreeOfParallelism);
+
 internal sealed class VariantBuildPipeline
 {
     internal DataModuleResult PrepareDataModules(
@@ -173,40 +184,100 @@ internal sealed class VariantBuildPipeline
 
         Directory.CreateDirectory(outputDir);
 
-        var bootstrap = ThemeBootstrapper.Bootstrap(config, rootDir, logger);
-        var themeName = bootstrap.ThemeName;
-        var themeRoot = bootstrap.ThemeRoot;
-        var parentThemeRoot = bootstrap.ParentThemeRoot;
-        var themeManifest = bootstrap.Manifest;
-        var themeRegistry = bootstrap.Registry;
-        var schemaValidator = bootstrap.SchemaValidator;
-        var resolvedSectionPlugins = bootstrap.SectionPlugins;
+        var bootstrap = await BootstrapThemeAsync(config, rootDir, logger);
+        var dataModules = await BuildDataModulesAsync(items, config.Site.Language, bodyStore, variantStageMetrics);
+        var routePipelineResult = await BuildRoutePipelineAsync(
+            config, items, dataModules.DataItems, bodyStore, ctx, logger, variantStageMetrics, cancellationToken);
 
+        await RunPluginDeriveStageAsync(routePipelineResult.PluginContext, variantStageMetrics, cancellationToken);
+
+        var allPagesForSections = bootstrap.Registry is not null
+            ? routePipelineResult.RouteResult.Routed.Select(x => ((ContentItem)x.Item, (RouteInfo?)x.Route)).ToList()
+            : (IReadOnlyList<(ContentItem, RouteInfo?)>?)null;
+
+        ITemplateRenderer renderer = rendererFactory is not null
+            ? rendererFactory(ctx.LayoutsDir)
+            : CreateRenderer(ctx, bootstrap.Registry, bootstrap.SchemaValidator, bootstrap.SectionPlugins, allPagesForSections);
+
+        var siteModel = BuildSiteModel(config, baseUrl, dataModules.Modules, dataModules.SourceData, routePipelineResult.PluginContext.Data);
+        var manifestSetup = SetupManifest(ctx, overrides, templateHashCache);
+
+        var renderQueue = routePipelineResult.RouteResult.Routed.Concat(routePipelineResult.PluginContext.DerivedRouted).ToList();
+        var listRoutes = routePipelineResult.RouteResult.ListRoutes;
+
+        var seoStage = await BuildSeoStageAsync(
+            config, baseUrl, renderQueue, listRoutes, siteModel.Analytics, logger,
+            ctx.SeoAlternates, ctx.RootBaseUrl, ctx.DefaultLanguage, overrides,
+            routePipelineResult.PluginContext);
+
+        var renderPipelineResult = await RenderPagesStageAsync(
+            renderQueue, routePipelineResult.RouteResult.Routed, bodyStore, renderer, siteModel,
+            config, ctx, outputDir, manifestSetup, seoStage, routePipelineResult.StaticEntries,
+            variantStageMetrics, logger, cancellationToken);
+
+        var hasStaticDir = Directory.Exists(ctx.StaticDir);
+        var (themeRootForTokens, parentThemeRootForTokens) = GetThemeRootForTokens(
+            bootstrap.ThemeRoot, bootstrap.Registry is not null, bootstrap.ParentThemeRoot,
+            !string.IsNullOrWhiteSpace(bootstrap.Manifest?.Extends));
+
+        var assetPipelineResult = await SyncAssetsStageAsync(
+            ctx, hasStaticDir, themeRootForTokens, parentThemeRootForTokens,
+            outputDir, manifestSetup, config, variantStageMetrics, logger, cancellationToken);
+
+        await RunPluginAfterBuildStageAsync(
+            routePipelineResult.PluginContext, outputDir, baseUrl, manifestSetup,
+            renderPipelineResult, config, variantStageMetrics, logger, cancellationToken);
+
+        variantTotalStopwatch.Stop();
+        variantStageMetrics.AddDuration("variantTotal", variantTotalStopwatch.ElapsedMilliseconds);
+
+        var searchSnippetsEnabled = TemplateCapabilitiesResolver.SupportsSearchSnippets(
+            TemplateCapabilitiesResolver.SearchTemplatePath, ctx.LayoutsDir);
+
+        return await GenerateReportStageAsync(
+            config, baseUrl, outputDir, searchSnippetsEnabled, bodyStore,
+            routePipelineResult.RouteResult.Routed, routePipelineResult.PluginContext,
+            seoStage.SeoResult, renderPipelineResult, variantStageMetrics, logger, ctx.DefaultLanguage);
+    }
+
+    private static Task<ThemeBootstrapResult> BootstrapThemeAsync(AppConfig config, string rootDir, ILogger logger)
+    {
+        return Task.FromResult(ThemeBootstrapper.Bootstrap(config, rootDir, logger));
+    }
+
+    private Task<DataModuleResult> BuildDataModulesAsync(
+        IReadOnlyList<ContentItem> items, string language, IContentBodyStore bodyStore,
+        BuildStageMetricsCollector metrics)
+    {
         var splitItemsStopwatch = Stopwatch.StartNew();
-        var dataModules = PrepareDataModules(items, config.Site.Language, bodyStore);
+        var dataModules = PrepareDataModules(items, language, bodyStore);
         splitItemsStopwatch.Stop();
-        variantStageMetrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
+        metrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
+        return Task.FromResult(dataModules);
+    }
 
+    private async Task<BuildRoutePipelineResult> BuildRoutePipelineAsync(
+        AppConfig config,
+        IReadOnlyList<ContentItem> items,
+        IReadOnlyList<ContentItem> dataItems,
+        IContentBodyStore bodyStore,
+        BuildVariantContext ctx,
+        ILogger logger,
+        BuildStageMetricsCollector metrics,
+        CancellationToken cancellationToken)
+    {
         var routeGenerationStopwatch = Stopwatch.StartNew();
         var routeResult = GenerateRoutes(config, items);
         var routed = routeResult.Routed;
         routeGenerationStopwatch.Stop();
-        variantStageMetrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
-
-        IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? allPagesForSections = themeRegistry is not null
-            ? routed.Select(x => ((ContentItem)x.Item, (RouteInfo?)x.Route)).ToList()
-            : null;
-
-        ITemplateRenderer renderer = rendererFactory is not null
-            ? rendererFactory(ctx.LayoutsDir)
-            : CreateRenderer(ctx, themeRegistry, schemaValidator, resolvedSectionPlugins, allPagesForSections);
+        metrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
 
         var pluginContext = new BuildContext
         {
             Config = config,
-            RootDir = rootDir,
-            OutputDir = outputDir,
-            BaseUrl = baseUrl,
+            RootDir = ctx.RootDir,
+            OutputDir = ctx.OutputDir,
+            BaseUrl = ctx.BaseUrl,
             LayoutsDir = ctx.LayoutsDir,
             Routed = routed,
             BodyStore = bodyStore,
@@ -214,27 +285,10 @@ internal sealed class VariantBuildPipeline
         };
 
         var taxonomyStopwatch = Stopwatch.StartNew();
-        TaxonomyTermsInjector.InjectFromDataItems(pluginContext, dataModules.DataItems);
+        TaxonomyTermsInjector.InjectFromDataItems(pluginContext, dataItems);
         await TaxonomyTermsInjector.InjectFromNotionDatabaseOptionsAsync(pluginContext, cancellationToken);
         taxonomyStopwatch.Stop();
-        variantStageMetrics.AddDuration("taxonomySetup", taxonomyStopwatch.ElapsedMilliseconds);
-
-        var derivePagesStopwatch = Stopwatch.StartNew();
-        var derived = await PluginRunner.RunDerivePagesAsync(pluginContext, cancellationToken);
-        derivePagesStopwatch.Stop();
-        variantStageMetrics.AddDuration("derivePages", derivePagesStopwatch.ElapsedMilliseconds);
-        foreach (var (item, route, lastModified) in derived)
-        {
-            pluginContext.DerivedRouted.Add((item, route));
-            pluginContext.DerivedRoutes.Add((route, lastModified));
-        }
-
-        var siteModel = BuildSiteModel(config, baseUrl, dataModules.Modules, dataModules.SourceData, pluginContext.Data);
-
-        var manifestSetup = SetupManifest(ctx, overrides, templateHashCache);
-
-        var renderQueue = routed.Concat(pluginContext.DerivedRouted).ToList();
-        var listRoutes = routeResult.ListRoutes;
+        metrics.AddDuration("taxonomySetup", taxonomyStopwatch.ElapsedMilliseconds);
 
         var hasStaticDir = Directory.Exists(ctx.StaticDir);
         var staticRouteTemplate = !string.IsNullOrWhiteSpace(config.Theme.StaticTemplate) ? config.Theme.StaticTemplate : null;
@@ -251,21 +305,73 @@ internal sealed class VariantBuildPipeline
             logger.Warn("Static HTML files in static dir are skipped because no static template is configured (theme.staticTemplate).");
         }
 
-        RouteInventoryValidator.ValidateFinalRoutes(routed, pluginContext.DerivedRouted, listRoutes, staticHtmlRoutes);
+        RouteInventoryValidator.ValidateFinalRoutes(routed, pluginContext.DerivedRouted, routeResult.ListRoutes, staticHtmlRoutes);
+
+        return new BuildRoutePipelineResult(routeResult, staticHtmlRoutes, staticEntries, pluginContext);
+    }
+
+    private async Task RunPluginDeriveStageAsync(
+        BuildContext pluginContext,
+        BuildStageMetricsCollector metrics,
+        CancellationToken cancellationToken)
+    {
+        var derivePagesStopwatch = Stopwatch.StartNew();
+        var derived = await PluginRunner.RunDerivePagesAsync(pluginContext, cancellationToken);
+        derivePagesStopwatch.Stop();
+        metrics.AddDuration("derivePages", derivePagesStopwatch.ElapsedMilliseconds);
+        foreach (var (item, route, lastModified) in derived)
+        {
+            pluginContext.DerivedRouted.Add((item, route));
+            pluginContext.DerivedRoutes.Add((route, lastModified));
+        }
+    }
+
+    private static Task<SeoStageResult> BuildSeoStageAsync(
+        AppConfig config,
+        string baseUrl,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> renderQueue,
+        IReadOnlyList<RouteInfo> listRoutes,
+        AnalyticsModel analytics,
+        ILogger logger,
+        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> seoAlternateInputs,
+        string? rootBaseUrl,
+        string? defaultLanguage,
+        ConfigOverrides overrides,
+        BuildContext pluginContext)
+    {
         var seoAlternates = SeoAlternatesService.AddVariantRouteAlternates(
-            config, ctx.SeoAlternates, listRoutes, ctx.RootBaseUrl, ctx.DefaultLanguage);
+            config, seoAlternateInputs, listRoutes, rootBaseUrl, defaultLanguage);
         var maxDegreeOfParallelism = overrides.Jobs ?? Environment.ProcessorCount;
 
         var seoResult = new SeoPipeline().Execute(
-            config, baseUrl, renderQueue, listRoutes, seoAlternates, siteModel.Analytics, logger);
+            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
 
+        return Task.FromResult(new SeoStageResult(seoResult, seoAlternates, maxDegreeOfParallelism));
+    }
+
+    private async Task<RenderPipelineResult> RenderPagesStageAsync(
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> renderQueue,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IContentBodyStore bodyStore,
+        ITemplateRenderer renderer,
+        SiteModel siteModel,
+        AppConfig config,
+        BuildVariantContext ctx,
+        string outputDir,
+        ManifestSetupResult manifestSetup,
+        SeoStageResult seoStage,
+        IReadOnlyList<RenderEntry>? staticEntries,
+        BuildStageMetricsCollector metrics,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
         var renderDependencyHashStopwatch = Stopwatch.StartNew();
         var renderDependencyHash = manifestSetup.IncrementalEnabled
             ? RenderDependencyHasher.Compute(config, siteModel)
             : string.Empty;
         renderDependencyHashStopwatch.Stop();
-        variantStageMetrics.AddDuration("renderDependencyHash", renderDependencyHashStopwatch.ElapsedMilliseconds);
+        metrics.AddDuration("renderDependencyHash", renderDependencyHashStopwatch.ElapsedMilliseconds);
 
         var renderPipelineResult = await new RenderPipeline().ExecuteAsync(new RenderPipelineContext(
             RenderQueue: renderQueue, Routed: routed, BodyStore: bodyStore,
@@ -278,27 +384,31 @@ internal sealed class VariantBuildPipeline
             IncrementalEnabled: manifestSetup.IncrementalEnabled,
             Manifest: manifestSetup.Manifest,
             ManifestEntries: manifestSetup.ManifestEntries,
-            MaxDegreeOfParallelism: maxDegreeOfParallelism, Logger: logger,
+            MaxDegreeOfParallelism: seoStage.MaxDegreeOfParallelism, Logger: logger,
             StaticEntries: staticEntries,
-            SeoBuilder: seoResult.SeoBuilder,
-            HtmlPostProcessor: seoResult.HtmlPostProcessor,
-            ListItemSeoBuilder: seoResult.ListItemSeoBuilder,
-            ListSeoBuilder: seoResult.ListSeoBuilder,
-            ListHtmlPostProcessor: seoResult.ListHtmlPostProcessor),
+            SeoBuilder: seoStage.SeoResult.SeoBuilder,
+            HtmlPostProcessor: seoStage.SeoResult.HtmlPostProcessor,
+            ListItemSeoBuilder: seoStage.SeoResult.ListItemSeoBuilder,
+            ListSeoBuilder: seoStage.SeoResult.ListSeoBuilder,
+            ListHtmlPostProcessor: seoStage.SeoResult.ListHtmlPostProcessor),
             cancellationToken);
 
-        variantStageMetrics.Merge(renderPipelineResult.StageMetrics);
+        metrics.Merge(renderPipelineResult.StageMetrics);
+        return renderPipelineResult;
+    }
 
-        var renderedCount = renderPipelineResult.RenderedCount;
-        var skippedCount = renderPipelineResult.SkippedCount;
-        var renderReasons = new ConcurrentDictionary<string, int>(
-            renderPipelineResult.RenderReasons, StringComparer.OrdinalIgnoreCase);
-        var currentKeys = renderPipelineResult.CurrentKeys;
-
-        var (themeRootForTokens, parentThemeRootForTokens) = GetThemeRootForTokens(
-            themeRoot, themeRegistry is not null, parentThemeRoot,
-            !string.IsNullOrWhiteSpace(themeManifest?.Extends));
-
+    private static async Task<AssetPipelineResult> SyncAssetsStageAsync(
+        BuildVariantContext ctx,
+        bool hasStaticDir,
+        string? themeRootForTokens,
+        string? parentThemeRootForTokens,
+        string outputDir,
+        ManifestSetupResult manifestSetup,
+        AppConfig config,
+        BuildStageMetricsCollector metrics,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
         var assetPipelineResult = await new AssetPipeline().ExecuteAsync(new AssetPipelineContext(
             StaticDir: hasStaticDir ? ctx.StaticDir : null,
             ParentStaticDir: ctx.ParentStaticDir, AssetsDir: ctx.AssetsDir,
@@ -307,12 +417,33 @@ internal sealed class VariantBuildPipeline
             OutputDir: outputDir,
             Manifest: manifestSetup.Manifest, IncrementalEnabled: manifestSetup.IncrementalEnabled,
             AssetHashMode: config.Build.AssetHashMode,
+            FingerprintMode: config.Build.FingerprintMode,
             ScssConfig: config.Theme.Scss, ImageConfig: config.Theme.Images,
             Logger: logger,
-            PublishDotFiles: config.Build.PublishDotFiles),
+            PublishDotFiles: config.Build.PublishDotFiles,
+            FollowSymlinks: config.Build.FollowSymlinks),
             cancellationToken);
 
-        variantStageMetrics.Merge(assetPipelineResult.StageMetrics);
+        metrics.Merge(assetPipelineResult.StageMetrics);
+        return assetPipelineResult;
+    }
+
+    private async Task RunPluginAfterBuildStageAsync(
+        BuildContext pluginContext,
+        string outputDir,
+        string baseUrl,
+        ManifestSetupResult manifestSetup,
+        RenderPipelineResult renderPipelineResult,
+        AppConfig config,
+        BuildStageMetricsCollector metrics,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var renderedCount = renderPipelineResult.RenderedCount;
+        var skippedCount = renderPipelineResult.SkippedCount;
+        var renderReasons = new ConcurrentDictionary<string, int>(
+            renderPipelineResult.RenderReasons, StringComparer.OrdinalIgnoreCase);
+        var currentKeys = renderPipelineResult.CurrentKeys;
 
         var pluginPipelineResult = await new PluginPipeline().ExecuteAsync(new PluginPipelineContext(
             PluginContext: pluginContext, OutputDir: outputDir, BaseUrl: baseUrl,
@@ -321,15 +452,29 @@ internal sealed class VariantBuildPipeline
             RenderedCount: renderedCount, SkippedCount: skippedCount,
             Logger: logger, Config: config),
             cancellationToken);
-        variantStageMetrics.Merge(pluginPipelineResult.StageMetrics);
+        metrics.Merge(pluginPipelineResult.StageMetrics);
+    }
 
-        variantTotalStopwatch.Stop();
-        variantStageMetrics.AddDuration("variantTotal", variantTotalStopwatch.ElapsedMilliseconds);
+    private static Task<BuildVariantResult> GenerateReportStageAsync(
+        AppConfig config,
+        string baseUrl,
+        string outputDir,
+        bool searchSnippetsEnabled,
+        IContentBodyStore bodyStore,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        BuildContext pluginContext,
+        SeoPipelineResult seoResult,
+        RenderPipelineResult renderPipelineResult,
+        BuildStageMetricsCollector variantStageMetrics,
+        ILogger logger,
+        string? defaultLanguage)
+    {
+        var renderedCount = renderPipelineResult.RenderedCount;
+        var skippedCount = renderPipelineResult.SkippedCount;
+        var renderReasons = new Dictionary<string, int>(
+            renderPipelineResult.RenderReasons, StringComparer.OrdinalIgnoreCase);
 
-        var searchSnippetsEnabled = TemplateCapabilitiesResolver.SupportsSearchSnippets(
-            TemplateCapabilitiesResolver.SearchTemplatePath, ctx.LayoutsDir);
-
-        return new BuildReportPipeline().Execute(new BuildReportPipelineContext(
+        return Task.FromResult(new BuildReportPipeline().Execute(new BuildReportPipelineContext(
             Config: config, Language: config.Site.Language, OutputDir: outputDir,
             BaseUrl: baseUrl, SearchSnippetsEnabled: searchSnippetsEnabled,
             BodyStore: bodyStore, Routed: routed,
@@ -339,10 +484,10 @@ internal sealed class VariantBuildPipeline
             SeoModels: seoResult.SeoIndex.Models,
             PluginExecutions: pluginContext.PluginExecutions.ToList(),
             RenderedCount: renderedCount, SkippedCount: skippedCount,
-            RenderReasons: new Dictionary<string, int>(renderReasons, StringComparer.OrdinalIgnoreCase),
+            RenderReasons: renderReasons,
             StageMetrics: variantStageMetrics.Snapshot(),
             Logger: logger,
-            DefaultLanguage: ctx.DefaultLanguage));
+            DefaultLanguage: defaultLanguage)));
     }
 
     private static IReadOnlyDictionary<string, object>? MergeSiteData(

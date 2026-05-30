@@ -1,14 +1,17 @@
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+
 namespace Bukit.Engine.Output;
 
 public sealed class SafeOutputFileSystem : IOutputFileSystem
 {
     private readonly string _outputRoot;
+    private readonly IOutputPathPolicy _pathPolicy;
 
-    public SafeOutputFileSystem(string outputRoot)
+    public SafeOutputFileSystem(string outputRoot, IOutputPathPolicy? pathPolicy = null)
     {
         _outputRoot = Path.GetFullPath(outputRoot);
+        _pathPolicy = pathPolicy ?? new SafePathResolver();
     }
 
     public async Task WriteTextAsync(string relativePath, string content, CancellationToken cancellationToken)
@@ -51,13 +54,6 @@ public sealed class SafeOutputFileSystem : IOutputFileSystem
     public string GetSafeFullPath(string relativePath)
     {
         RouteSecurityValidator.ValidateOutputPath(relativePath, "output path");
-        var fullPath = Path.GetFullPath(Path.Combine(_outputRoot, relativePath));
-        var safeRoot = _outputRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        if (!fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException($"Output path escapes output root: {relativePath}");
-        }
-
-        return fullPath;
+        return _pathPolicy.ResolveSafePath(_outputRoot, relativePath);
     }
 }

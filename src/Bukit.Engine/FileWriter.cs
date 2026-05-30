@@ -1,26 +1,26 @@
 using System.Text;
+using Bukit.Engine.Output;
 
 namespace Bukit.Engine;
 
 public static class FileWriter
 {
-    public static string GetSafeFullPath(string outputRoot, string relativePath)
+    private static IOutputPathPolicy? s_defaultPolicy;
+
+    internal static IOutputPathPolicy DefaultPolicy
     {
-        var fullPath = Path.GetFullPath(Path.Combine(outputRoot, relativePath));
-        var safeRoot = Path.GetFullPath(outputRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-
-        if (!fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                $"Path traversal detected: resolved path '{fullPath}' escapes output root '{safeRoot}'.");
-        }
-
-        return fullPath;
+        get => s_defaultPolicy ??= new SafePathResolver();
+        set => s_defaultPolicy = value;
     }
 
-    public static void WriteUtf8(string outputRoot, string relativePath, string content)
+    public static string GetSafeFullPath(string outputRoot, string relativePath, IOutputPathPolicy? pathPolicy = null)
     {
-        var fullPath = GetSafeFullPath(outputRoot, relativePath);
+        return (pathPolicy ?? DefaultPolicy).ResolveSafePath(outputRoot, relativePath);
+    }
+
+    public static void WriteUtf8(string outputRoot, string relativePath, string content, IOutputPathPolicy? pathPolicy = null)
+    {
+        var fullPath = GetSafeFullPath(outputRoot, relativePath, pathPolicy);
 
         var dir = Path.GetDirectoryName(fullPath);
         if (!string.IsNullOrWhiteSpace(dir))

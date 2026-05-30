@@ -11,7 +11,9 @@ public sealed record MarkdownFolderProviderOptions(
     string DefaultType = "page",
     int? MaxItems = null,
     IReadOnlyList<string>? IncludePaths = null,
-    IReadOnlyList<string>? IncludeGlobs = null
+    IReadOnlyList<string>? IncludeGlobs = null,
+    bool AutoSummary = false,
+    int AutoSummaryMaxLength = 200
 );
 
 public sealed class MarkdownFolderProvider : IContentProvider
@@ -120,9 +122,9 @@ public sealed class MarkdownFolderProvider : IContentProvider
 
             if (!meta.TryGetValue("summary", out var summaryObj) || string.IsNullOrWhiteSpace(summaryObj?.ToString()))
             {
-                if (IsAutoSummaryEnabled())
+                if (_options.AutoSummary)
                 {
-                    var maxLen = GetAutoSummaryMaxLength();
+                    var maxLen = _options.AutoSummaryMaxLength;
                     var extracted = ExtractSummaryFromMarkdown(bodyMarkdown, maxLen);
                     if (!string.IsNullOrWhiteSpace(extracted))
                     {
@@ -210,9 +212,6 @@ public sealed class MarkdownFolderProvider : IContentProvider
         return new Regex(sb.ToString(), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
-    private static bool IsAutoSummaryEnabled() => EnvironmentHelper.IsAutoSummaryEnabled();
-
-    private static int GetAutoSummaryMaxLength() => EnvironmentHelper.GetAutoSummaryMaxLength();
 
     internal static string ExtractSummaryFromMarkdown(string markdown, int maxLength)
         => MarkdownTextHelper.ExtractSummaryFromMarkdown(markdown, maxLength);

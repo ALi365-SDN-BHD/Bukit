@@ -4,7 +4,7 @@ Section 插件允许在 section 渲染管线的关键节点注入自定义逻辑
 
 实现参考：
 - `src/Bukit.Engine.Abstractions/Plugins/ISectionPlugin.cs`
-- `src/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs` (SectionRenderHelper.RenderOneSectionBase)
+- `src/Bukit.Rendering/Scriban/RenderSectionFunction.cs` (RenderSectionFunction)
 - `src/plugins/WordCountSectionPlugin/WordCountPlugin.cs`
 
 ## 架构

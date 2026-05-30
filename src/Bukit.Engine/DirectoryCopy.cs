@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Bukit.Engine.Output;
 
 namespace Bukit.Engine;
 
@@ -7,6 +8,8 @@ public sealed record DirectoryCopyOptions
     public string HashMode { get; init; } = "size-time";
     public bool Prune { get; init; }
     public bool IgnoreDotPrefixedFiles { get; init; } = true;
+    public bool AlwaysDenySensitiveDotfiles { get; init; } = true;
+    public bool FollowSymlinks { get; init; }
     public IReadOnlySet<string>? DotfileAllowList { get; init; }
     public IReadOnlySet<string>? DotfileDenyList { get; init; }
 }
@@ -26,7 +29,7 @@ public static class DirectoryCopy
         ".well-known"
     };
 
-    public static void Copy(string sourceDir, string destinationDir, string? outputRoot = null)
+    public static void Copy(string sourceDir, string destinationDir, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -43,10 +46,16 @@ public static class DirectoryCopy
                 continue;
             }
 
+            if (IsSymlink(file))
+            {
+                Console.Error.WriteLine($"[warn] Skipping symlink: {file}");
+                continue;
+            }
+
             var dest = Path.Combine(destinationDir, name);
             if (outputRoot is not null)
             {
-                FileWriter.GetSafeFullPath(outputRoot, Path.GetRelativePath(outputRoot, dest));
+                FileWriter.GetSafeFullPath(outputRoot, Path.GetRelativePath(outputRoot, dest), pathPolicy);
             }
             File.Copy(file, dest, overwrite: true);
         }
@@ -59,15 +68,21 @@ public static class DirectoryCopy
                 continue;
             }
 
+            if (IsSymlink(dir))
+            {
+                Console.Error.WriteLine($"[warn] Skipping symlink directory: {dir}");
+                continue;
+            }
+
             var dest = Path.Combine(destinationDir, name);
-            Copy(dir, dest, outputRoot);
+            Copy(dir, dest, outputRoot, pathPolicy);
         }
     }
 
-    public static void Sync(string sourceDir, string destinationDir, bool prune = false, string? outputRoot = null)
-        => Sync(sourceDir, destinationDir, new DirectoryCopyOptions { Prune = prune, IgnoreDotPrefixedFiles = true }, outputRoot);
+    public static void Sync(string sourceDir, string destinationDir, bool prune = false, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
+        => Sync(sourceDir, destinationDir, new DirectoryCopyOptions { Prune = prune, IgnoreDotPrefixedFiles = true }, outputRoot, pathPolicy);
 
-    public static void Sync(string sourceDir, string destinationDir, DirectoryCopyOptions options, string? outputRoot = null)
+    public static void Sync(string sourceDir, string destinationDir, DirectoryCopyOptions options, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -79,24 +94,36 @@ public static class DirectoryCopy
         foreach (var file in Directory.GetFiles(sourceDir))
         {
             var name = Path.GetFileName(file);
-            if (options.IgnoreDotPrefixedFiles && ShouldSkipDotfile(name, options))
+            if (ShouldSkipDotfile(name, options))
             {
                 continue;
             }
 
-            SyncFile(file, destinationDir, options.HashMode, outputRoot);
+            if (!options.FollowSymlinks && IsSymlink(file))
+            {
+                Console.Error.WriteLine($"[warn] Skipping symlink: {file}");
+                continue;
+            }
+
+            SyncFile(file, destinationDir, options.HashMode, outputRoot, pathPolicy);
         }
 
         foreach (var dir in Directory.GetDirectories(sourceDir))
         {
             var name = Path.GetFileName(dir);
-            if (options.IgnoreDotPrefixedFiles && ShouldSkipDotfile(name, options))
+            if (ShouldSkipDotfile(name, options))
             {
                 continue;
             }
 
+            if (!options.FollowSymlinks && IsSymlink(dir))
+            {
+                Console.Error.WriteLine($"[warn] Skipping symlink directory: {dir}");
+                continue;
+            }
+
             var dest = Path.Combine(destinationDir, name);
-            Sync(dir, dest, options, outputRoot);
+            Sync(dir, dest, options, outputRoot, pathPolicy);
         }
 
         if (options.Prune)
@@ -105,7 +132,7 @@ public static class DirectoryCopy
         }
     }
 
-    public static void SyncFiles(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false, string? outputRoot = null)
+    public static void SyncFiles(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -113,20 +140,28 @@ public static class DirectoryCopy
         }
 
         Directory.CreateDirectory(destinationDir);
+
+        var skipOptions = new DirectoryCopyOptions { IgnoreDotPrefixedFiles = ignoreDotPrefixedFiles };
 
         foreach (var file in Directory.GetFiles(sourceDir))
         {
             var name = Path.GetFileName(file);
-            if (ignoreDotPrefixedFiles && ShouldSkipDotfile(name))
+            if (ShouldSkipDotfile(name, skipOptions))
             {
                 continue;
             }
 
-            SyncFile(file, destinationDir, "size-time", outputRoot);
+            if (IsSymlink(file))
+            {
+                Console.Error.WriteLine($"[warn] Skipping symlink: {file}");
+                continue;
+            }
+
+            SyncFile(file, destinationDir, "size-time", outputRoot, pathPolicy);
         }
     }
 
-    public static void SyncFilesRecursive(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false, string? outputRoot = null)
+    public static void SyncFilesRecursive(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -135,11 +170,19 @@ public static class DirectoryCopy
 
         Directory.CreateDirectory(destinationDir);
 
+        var skipOptions = new DirectoryCopyOptions { IgnoreDotPrefixedFiles = ignoreDotPrefixedFiles };
+
         foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
         {
             var name = Path.GetFileName(file);
-            if (ignoreDotPrefixedFiles && ShouldSkipDotfile(name))
+            if (ShouldSkipDotfile(name, skipOptions))
             {
+                continue;
+            }
+
+            if (IsSymlink(file))
+            {
+                Console.Error.WriteLine($"[warn] Skipping symlink: {file}");
                 continue;
             }
 
@@ -148,7 +191,7 @@ public static class DirectoryCopy
                 ? destinationDir
                 : Path.Combine(destinationDir, relativeDirectory);
             Directory.CreateDirectory(destinationSubdir);
-            SyncFile(file, destinationSubdir, "size-time", outputRoot);
+            SyncFile(file, destinationSubdir, "size-time", outputRoot, pathPolicy);
         }
     }
 
@@ -159,9 +202,40 @@ public static class DirectoryCopy
             return false;
         }
 
-        if (options?.DotfileDenyList?.Contains(name) == true)
+        if (DefaultDotfileAllowList.Contains(name))
         {
-            return true;
+            return false;
+        }
+
+        if (options?.AlwaysDenySensitiveDotfiles != false)
+        {
+            if (options?.DotfileDenyList?.Contains(name) == true)
+            {
+                return true;
+            }
+
+            if (DefaultDotfileDenyList.Contains(name))
+            {
+                return true;
+            }
+
+            if (name.StartsWith(".env.", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            foreach (var ext in DefaultDotfileDenyExtensions)
+            {
+                if (name.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        if (options != null && options.IgnoreDotPrefixedFiles == false)
+        {
+            return false;
         }
 
         if (!name.StartsWith('.'))
@@ -169,30 +243,20 @@ public static class DirectoryCopy
             return false;
         }
 
-        if (DefaultDotfileAllowList.Contains(name))
+        return true;
+    }
+
+    private static bool IsSymlink(string path)
+    {
+        try
+        {
+            var attr = File.GetAttributes(path);
+            return (attr & FileAttributes.ReparsePoint) != 0;
+        }
+        catch
         {
             return false;
         }
-
-        if (DefaultDotfileDenyList.Contains(name))
-        {
-            return true;
-        }
-
-        if (name.StartsWith(".env.", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        foreach (var ext in DefaultDotfileDenyExtensions)
-        {
-            if (name.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return true;
     }
 
     private static void PruneDestination(string sourceDir, string destinationDir)
@@ -216,14 +280,14 @@ public static class DirectoryCopy
         }
     }
 
-    private static void SyncFile(string sourceFile, string destinationDir, string hashMode, string? outputRoot = null)
+    private static void SyncFile(string sourceFile, string destinationDir, string hashMode, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
         var name = Path.GetFileName(sourceFile);
         var destinationFile = Path.Combine(destinationDir, name);
 
         if (outputRoot is not null)
         {
-            FileWriter.GetSafeFullPath(outputRoot, Path.GetRelativePath(outputRoot, destinationFile));
+            FileWriter.GetSafeFullPath(outputRoot, Path.GetRelativePath(outputRoot, destinationFile), pathPolicy);
         }
 
         var sourceInfo = new FileInfo(sourceFile);

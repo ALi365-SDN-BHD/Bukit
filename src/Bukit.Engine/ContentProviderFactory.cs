@@ -67,7 +67,7 @@ internal static class ContentProviderFactory
                     }
 
                     var renderContent = notion.RenderContent ?? mode != "data";
-                    providers.Add((key, mode, s.Collection, s.AddToCollections, CreateNotionProvider(rootDir, notion, isCi, renderContent: renderContent, logger: logger)));
+                    providers.Add((key, mode, s.Collection, s.AddToCollections, CreateNotionProvider(rootDir, notion, isCi, renderContent: renderContent, logger: logger, autoSummary: config.Site.AutoSummary, autoSummaryMaxLength: config.Site.AutoSummaryMaxLength)));
                     continue;
                 }
 
@@ -81,7 +81,7 @@ internal static class ContentProviderFactory
         {
             var md = config.Content.Markdown ?? new MarkdownConfig();
             var contentDir = BuildPathUtils.MakeAbsolute(rootDir, md.Dir);
-            return new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs));
+            return new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs, config.Site.AutoSummary, config.Site.AutoSummaryMaxLength));
         }
 
         if (config.Content.Provider.Equals("notion", StringComparison.OrdinalIgnoreCase))
@@ -93,7 +93,7 @@ internal static class ContentProviderFactory
             }
 
             var renderContent = notion.RenderContent ?? true;
-            return CreateNotionProvider(rootDir, notion, isCi, renderContent: renderContent, logger: logger);
+            return CreateNotionProvider(rootDir, notion, isCi, renderContent: renderContent, logger: logger, autoSummary: config.Site.AutoSummary, autoSummaryMaxLength: config.Site.AutoSummaryMaxLength);
         }
 
         throw new ContentException($"Unknown content provider: {config.Content.Provider}");
@@ -125,7 +125,7 @@ internal static class ContentProviderFactory
         return new ContentLoadResult(localizedItems, new LocalizedContentBodyStore(result.BodyStore, pipeline));
     }
 
-    private static NotionContentProvider CreateNotionProvider(string rootDir, NotionConfig notion, bool isCi, bool renderContent, ILogger logger)
+    private static NotionContentProvider CreateNotionProvider(string rootDir, NotionConfig notion, bool isCi, bool renderContent, ILogger logger, bool autoSummary = false, int autoSummaryMaxLength = 200)
     {
         var token = EnvironmentHelper.GetNotionToken();
         if (string.IsNullOrWhiteSpace(token))
@@ -167,7 +167,9 @@ internal static class ContentProviderFactory
             IncludeSlugProperty = notion.IncludeSlugProperty,
             CacheMode = cacheMode,
             CacheDir = cacheDir,
-            PropertyMap = notion.PropertyMap
+            PropertyMap = notion.PropertyMap,
+            AutoSummary = autoSummary,
+            AutoSummaryMaxLength = autoSummaryMaxLength
         }, logger: logger);
     }
 

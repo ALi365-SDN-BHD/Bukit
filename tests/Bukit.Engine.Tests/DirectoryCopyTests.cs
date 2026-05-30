@@ -185,6 +185,237 @@ public sealed class DirectoryCopyTests : IDisposable
         Assert.Equal("article", File.ReadAllText(Path.Combine(destinationDir, "posts", "2026", "article-cover.png")));
     }
 
+    [Fact]
+    public void Sync_DotfilesAllowed_SensitiveDotfilesStillDenied()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+
+        File.WriteAllText(Path.Combine(sourceDir, ".env"), "secret");
+        File.WriteAllText(Path.Combine(sourceDir, ".env.local"), "local-secret");
+        File.WriteAllText(Path.Combine(sourceDir, "server.pem"), "private-key");
+        File.WriteAllText(Path.Combine(sourceDir, "cert.key"), "cert-key");
+        File.WriteAllText(Path.Combine(sourceDir, "prod.pfx"), "pfx-data");
+        File.WriteAllText(Path.Combine(sourceDir, "ca.p12"), "p12-data");
+        File.WriteAllText(Path.Combine(sourceDir, ".git"), "git-dir");
+        File.WriteAllText(Path.Combine(sourceDir, ".github"), "github-dir");
+        File.WriteAllText(Path.Combine(sourceDir, ".npmrc"), "npmrc-data");
+        File.WriteAllText(Path.Combine(sourceDir, ".htaccess"), "htaccess-data");
+        File.WriteAllText(Path.Combine(sourceDir, "regular.txt"), "regular");
+
+        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions { IgnoreDotPrefixedFiles = false });
+
+        Assert.False(File.Exists(Path.Combine(destinationDir, ".env")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, ".env.local")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "server.pem")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "cert.key")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "prod.pfx")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "ca.p12")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, ".git")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, ".github")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, ".npmrc")));
+        Assert.True(File.Exists(Path.Combine(destinationDir, ".htaccess")));
+        Assert.Equal("htaccess-data", File.ReadAllText(Path.Combine(destinationDir, ".htaccess")));
+        Assert.True(File.Exists(Path.Combine(destinationDir, "regular.txt")));
+    }
+
+    [Fact]
+    public void Sync_DotfilesAllowed_WellKnownAlwaysAllowed()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var wellKnownDir = Path.Combine(sourceDir, ".well-known");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(wellKnownDir);
+        File.WriteAllText(Path.Combine(wellKnownDir, "security.txt"), "security-content");
+        File.WriteAllText(Path.Combine(sourceDir, "index.html"), "home");
+
+        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions { IgnoreDotPrefixedFiles = false });
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, ".well-known", "security.txt")));
+        Assert.Equal("security-content", File.ReadAllText(Path.Combine(destinationDir, ".well-known", "security.txt")));
+        Assert.True(File.Exists(Path.Combine(destinationDir, "index.html")));
+    }
+
+    [Fact]
+    public void Sync_DefaultOptions_DotPrefixedFilesStillSkipped()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+
+        File.WriteAllText(Path.Combine(sourceDir, ".hidden"), "hidden");
+        File.WriteAllText(Path.Combine(sourceDir, ".config"), "config");
+        File.WriteAllText(Path.Combine(sourceDir, "visible.txt"), "visible");
+
+        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions());
+
+        Assert.False(File.Exists(Path.Combine(destinationDir, ".hidden")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, ".config")));
+        Assert.True(File.Exists(Path.Combine(destinationDir, "visible.txt")));
+    }
+
+    [Fact]
+    public void Sync_AlwaysDenySensitiveDotfilesFalse_AllowsSensitiveFiles()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+
+        File.WriteAllText(Path.Combine(sourceDir, ".env"), "secret");
+        File.WriteAllText(Path.Combine(sourceDir, ".htaccess"), "htaccess-data");
+
+        DirectoryCopy.Sync(sourceDir, destinationDir,
+            new DirectoryCopyOptions { IgnoreDotPrefixedFiles = false, AlwaysDenySensitiveDotfiles = false });
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, ".env")));
+        Assert.True(File.Exists(Path.Combine(destinationDir, ".htaccess")));
+    }
+
+    [Fact]
+    public void Sync_SkipsSymlinkFile_CopiesRegularFile()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+
+        var regularFile = Path.Combine(sourceDir, "photo.jpg");
+        File.WriteAllText(regularFile, "regular");
+
+        var symlinkFile = Path.Combine(sourceDir, "link.jpg");
+        try
+        {
+            File.CreateSymbolicLink(symlinkFile, regularFile);
+        }
+        catch
+        {
+            return;
+        }
+
+        DirectoryCopy.Sync(sourceDir, destinationDir, prune: false);
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, "photo.jpg")));
+        Assert.Equal("regular", File.ReadAllText(Path.Combine(destinationDir, "photo.jpg")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "link.jpg")));
+    }
+
+    [Fact]
+    public void Sync_SkipsSymlinkDirectory()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+
+        var realSubDir = Path.Combine(sourceDir, "real");
+        Directory.CreateDirectory(realSubDir);
+        File.WriteAllText(Path.Combine(realSubDir, "inside.txt"), "inside");
+
+        var symlinkDir = Path.Combine(sourceDir, "linkdir");
+        try
+        {
+            Directory.CreateSymbolicLink(symlinkDir, realSubDir);
+        }
+        catch
+        {
+            return;
+        }
+
+        DirectoryCopy.Sync(sourceDir, destinationDir, prune: false);
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, "real", "inside.txt")));
+        Assert.False(Directory.Exists(Path.Combine(destinationDir, "linkdir")));
+    }
+
+    [Fact]
+    public void Sync_CopiesSymlink_WhenFollowSymlinksTrue()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+
+        var regularFile = Path.Combine(sourceDir, "photo.jpg");
+        File.WriteAllText(regularFile, "regular");
+
+        var symlinkFile = Path.Combine(sourceDir, "link.jpg");
+        try
+        {
+            File.CreateSymbolicLink(symlinkFile, regularFile);
+        }
+        catch
+        {
+            return;
+        }
+
+        var options = new DirectoryCopyOptions { FollowSymlinks = true, IgnoreDotPrefixedFiles = false };
+        DirectoryCopy.Sync(sourceDir, destinationDir, options);
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, "photo.jpg")));
+        Assert.True(File.Exists(Path.Combine(destinationDir, "link.jpg")));
+    }
+
+    [Fact]
+    public void SyncFilesRecursive_SkipsSymlink()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var nestedDir = Path.Combine(sourceDir, "nested");
+        Directory.CreateDirectory(nestedDir);
+
+        var regularFile = Path.Combine(nestedDir, "real.txt");
+        File.WriteAllText(regularFile, "real");
+
+        var symlinkFile = Path.Combine(nestedDir, "link.txt");
+        try
+        {
+            File.CreateSymbolicLink(symlinkFile, regularFile);
+        }
+        catch
+        {
+            return;
+        }
+
+        var destinationDir = Path.Combine(root, "output");
+        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, "nested", "real.txt")));
+        Assert.Equal("real", File.ReadAllText(Path.Combine(destinationDir, "nested", "real.txt")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "nested", "link.txt")));
+    }
+
+    [Fact]
+    public void Copy_SkipsSymlink()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+
+        var regularFile = Path.Combine(sourceDir, "photo.jpg");
+        File.WriteAllText(regularFile, "regular");
+
+        var symlinkFile = Path.Combine(sourceDir, "link.jpg");
+        try
+        {
+            File.CreateSymbolicLink(symlinkFile, regularFile);
+        }
+        catch
+        {
+            return;
+        }
+
+        DirectoryCopy.Copy(sourceDir, destinationDir);
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, "photo.jpg")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "link.jpg")));
+    }
+
     public void Dispose()
     {
         foreach (var root in _tempRoots)

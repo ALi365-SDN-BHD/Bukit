@@ -19,7 +19,7 @@ public static class ConfigPathResolver
             var fileName = NormalizeSiteFileName(site);
             var fullConfigPath = Path.GetFullPath(Path.Combine(rootDir, "sites", fileName));
             var safeRoot = Path.GetFullPath(Path.Combine(rootDir, "sites")) + Path.DirectorySeparatorChar;
-            if (!fullConfigPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
+            if (!fullConfigPath.StartsWith(safeRoot, Bukit.Shared.PlatformPathHelper.PathComparison))
             {
                 throw new InvalidOperationException(
                     $"--site value '{site}' resolves to a path outside the sites directory.");

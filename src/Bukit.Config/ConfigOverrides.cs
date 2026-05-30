@@ -7,6 +7,7 @@ public sealed record ConfigOverrides
     public bool? Clean { get; init; }
     public bool? Draft { get; init; }
     public bool IsCI { get; init; }
+    public bool AllowExternalPlugins { get; init; }
     public bool? Incremental { get; init; }
     public string? CacheDir { get; init; }
     public string? MetricsPath { get; init; }
