@@ -31,14 +31,17 @@ public sealed class CompositeContentBodyStore : IContentBodyStore
             throw new InvalidOperationException($"No content body store registered for source '{sourceKey}'.");
         }
 
-        var sourceItem = item;
-        if (item.Meta.TryGetValue("sourceId", out var sourceId) &&
-            sourceId is not null &&
-            !string.IsNullOrWhiteSpace(sourceId.ToString()))
+        if (item.Meta.TryGetValue("sourceId", out var sourceIdObj) &&
+            sourceIdObj is not null &&
+            !string.IsNullOrWhiteSpace(sourceIdObj.ToString()))
         {
-            sourceItem = item with { Id = sourceId.ToString()! };
+            var originalBodyKey = item.BodyKey is not null && item.BodyKey.StartsWith(sourceKey + ":", StringComparison.Ordinal)
+                ? item.BodyKey.Substring(sourceKey.Length + 1)
+                : item.BodyKey;
+            var sourceItem = item with { Id = sourceIdObj.ToString()!, BodyKey = originalBodyKey };
+            return store.GetAsync(sourceItem, cancellationToken);
         }
 
-        return store.GetAsync(sourceItem, cancellationToken);
+        return store.GetAsync(item, cancellationToken);
     }
 }
