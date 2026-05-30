@@ -499,11 +499,14 @@ Discovers all `.html` files in the output directory and generates a Playwright t
 
 ## Exit Codes
 
-| Exit Code | Meaning |
-|--------|------|
-| 0 | Success |
-| 1 | Runtime error (config error, template error, Notion connection failure, etc.) |
-| 2 | Parameter error (unknown command, invalid parameter, missing required parameter) |
+| Exit Code | Meaning | Exception Types |
+|--------|------|------|
+| 0 | Success | — |
+| 1 | Unexpected error | Unhandled `Exception` (runtime failures, bugs) |
+| 2 | Configuration or content error | `ConfigException`, `CommandArgumentException`, `ContentException` |
+| 3 | Render error | `RenderException` |
+
+> **v1.0.7+**: `ConfigPathResolver` path traversal (`--site ../../../etc/passwd`) now exits with code 2 (`ConfigException` + `BKT-0004`), consistent with other path traversal guards.
 
 ## Cross-Platform Execution Notes
 

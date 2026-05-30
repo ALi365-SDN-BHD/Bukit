@@ -88,6 +88,7 @@ Notes:
 - Schema error count is available in `dist/.bukit/build-report.json` under `summary.schemaErrorCount`.
 - Set `build.schemaFailMode: strict` to abort the build on schema validation errors.
 | `site.externalPlugins` | dict | - | External protocol plugin configs |
+| `site.externalPluginPolicy` | string | `warn` | External plugin safety policy: `deny`/`warn`/`allow`. Invalid values throw `ConfigException` with `BKT-0002`. |
 | `site.externalAssemblyTrustMode` | string | `warn` | DLL trust governance: `warn`/`strict` |
 | `site.externalAssemblyAllowlist` | dict | - | Filename → SHA256 allowlist |
 | `site.analytics.enabled` | bool | true | Whether analytics code output is allowed |

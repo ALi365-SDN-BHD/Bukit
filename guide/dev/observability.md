@@ -31,6 +31,19 @@ All Bukit exceptions carry stable diagnostic codes in `BKT-XXXX` hex format. Imp
 
 DoctorCommand outputs errors formatted with diagnostic codes via `DiagnosticExceptionFormatter.Format()`. All 13 critical throw sites in the engine carry diagnostic codes; other throws remain backward-compatible (Code = null).
 
+## CLI Exit Codes
+
+Bukit CLI uses a layered exit code strategy. Implementation: `src/Bukit.Cli/Program.cs`.
+
+| Exit Code | Meaning | Exception Types |
+|---|---|---|
+| `0` | Success | — |
+| `1` | Unexpected error | Unhandled `Exception` (runtime failures, bugs) |
+| `2` | Configuration or content error | `ConfigException`, `CommandArgumentException`, `ContentException` |
+| `3` | Render error | `RenderException` |
+
+> **v1.0.7+**: `ConfigPathResolver` path traversal (`--site ../../../etc/passwd`) now throws `ConfigException` with `BKT-0004` (exit code 2), consistent with `BuildPathUtils` and `ThemePathResolver`.
+
 ## Content Pipeline Stage Logs
 
 Each content loading stage logs its completion with name and duration:

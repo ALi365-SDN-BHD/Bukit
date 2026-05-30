@@ -58,6 +58,7 @@ logging:
 | `site.pluginFailMode` | 插件失败策略 | `strict` / `warn` |
 | `site.plugins` | 插件开关与插件参数 | `sitemap: false` 或 `path-report: { enabled: true, options: {...} }` |
 | `site.externalPlugins` | 外部进程插件配置 | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`。同时支持 `maxStdoutBytes`/`maxStderrBytes`（输出限制）、`allowEnvironment`（环境变量透传）、`timeoutMs`、`capabilities`（沙箱：`emit-outputs` / `derive-pages`）、`options`。 |
+| `site.externalPluginPolicy` | 外部插件安全策略 | `deny` / `warn` / `allow`（默认：`warn`）。`deny` 阻止所有外部插件；`warn` 加载但记录警告；`allow` 静默加载。无效值会导致构建错误（`BKT-0002`）。 |
 | `site.autoSummary` | 未提供 summary 时是否从正文提取摘要 | `true` / `false` |
 | `site.autoSummaryMaxLength` | 自动摘要最大长度（字符数） | `200` |
 | `site.outputPathEncoding` | 输出路径编码策略（处理中文/特殊字符） | `none` / `slug` / `urlencode` / `sanitize` |

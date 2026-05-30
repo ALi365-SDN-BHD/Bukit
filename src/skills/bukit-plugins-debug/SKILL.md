@@ -52,6 +52,7 @@ Bukit has 13 core built-in plugins plus support for external process protocol pl
 |------|------|------|
 | **BuiltIn** | 13 framework built-in plugins, always loaded | None, toggle via `site.plugins` |
 | **ExternalProtocol** | Standalone process plugins | `site.externalPlugins` config |
+| **Policy** | Global external plugin safety control | `site.externalPluginPolicy`: `deny` (block all), `warn` (load with warning, default), `allow` (load silently). Invalid values throw `ConfigException` with `BKT-0002`. |
 
 ### External Protocol Plugins
 

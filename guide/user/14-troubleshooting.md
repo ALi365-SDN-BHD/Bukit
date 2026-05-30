@@ -23,6 +23,8 @@ When Bukit encounters an error, it outputs a stable `BKT-XXXX` diagnostic code. 
 
 | Code | Meaning | Quick Fix |
 |---|---|---|
+| `BKT-0002` | Config invalid value | A config field has an unrecognized value — e.g. `externalPluginPolicy: alow` (should be `allow`). Check spelling. |
+| `BKT-0004` | Path traversal detected | A path value escapes the project boundary — e.g. `--site ../../../etc/passwd`. Use a valid relative path. |
 | `BKT-0201` | Route conflict | Two pages have same URL/path — rename slugs or adjust permalinks |
 | `BKT-0301` | Template not found | Check `site.collections` template paths exist under `layouts/` |
 | `BKT-0302` | Template parse error | Scriban syntax error — check `{{ }}` matching |

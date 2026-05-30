@@ -29,6 +29,7 @@ Bukit 根据运行时模型和信任边界将插件分为四种类型：
 
 **额外的安全措施：**
 - **CI 环境默认禁用外部插件。**要在 CI 中启用，请在命令行传递 `--allow-external-plugins`。
+- **通过 `externalPluginPolicy` 控制插件加载：**设置 `site.externalPluginPolicy` 为 `deny`（阻止所有）、`warn`（加载并警告，默认）或 `allow`（静默加载）。无效值会抛出 `ConfigException`，错误码 `BKT-0002`。
 - **插件入口路径必须在项目目录内。**绝对路径如 `/usr/bin/some-tool` 会被拒绝，除非插件在配置中显式设置 `allowAbsoluteEntry: true`。
 - **stdout/stderr 输出有大小限制**，默认 1MB（可通过 `maxStdoutBytes` / `maxStderrBytes` 配置）。
 - **超时保护：**插件超过 `timeoutMs` 会被自动终止。

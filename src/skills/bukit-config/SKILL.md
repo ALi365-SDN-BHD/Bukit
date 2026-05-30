@@ -192,6 +192,7 @@ theme:
 | `collections` | map | — | Collection route definitions |
 | `plugins` | map | — | Plugin toggles (`{pluginName: {enabled: false}}`). Key `feed` replaces old `rss` |
 | `externalPlugins` | map | — | External plugin configuration. Each entry supports `runtime`, `entry`, `hooks`, `timeoutMs`, `maxStdoutBytes`/`maxStderrBytes` (output byte limits), `allowEnvironment` (list of host env vars to expose), and `capabilities` (list of required capabilities: `emit-outputs`, `derive-pages`). When `capabilities` is declared, the plugin is **enforced** at runtime — if its hooks don't match declared capabilities, the build fails. |
+| `externalPluginPolicy` | string | `warn` | External plugin safety policy: `deny` (block all), `warn` (load with warning, default), `allow` (load silently). Invalid values throw `ConfigException` with `BKT-0002`. |
 | `feed` | map | — | Feed config: `formats`, `limit`, `path` |
 | `sitemapDetail` | map | — | Sitemap detail: `defaultPriority`, `defaultChangefreq`, `imageEnabled`, `videoEnabled` |
 | `related` | map | — | Related content: `enabled`, `threshold`, `limit`, `indices` |

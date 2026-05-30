@@ -23,6 +23,8 @@ Bukit 遇到错误时会输出稳定的 `BKT-XXXX` 诊断码。常见面向用�
 
 | 码 | 含义 | 快速修复 |
 |---|---|---|
+| `BKT-0002` | 配置值无效 | 配置字段的值不被识别 — 例如 `externalPluginPolicy: alow`（应为 `allow`）。检查拼写。 |
+| `BKT-0004` | 路径穿越检测 | 路径值越出了项目边界 — 例如 `--site ../../../etc/passwd`。使用有效的相对路径。 |
 | `BKT-0201` | 路由冲突 | 两个页面有相同的 URL/路径 — 修改 slug 或调整 permalink |
 | `BKT-0301` | 模板未找到 | 检查 `site.collections` 中的模板路径在 `layouts/` 下存在 |
 | `BKT-0302` | 模板解析错误 | Scriban 语法错误 — 检查 `{{ }}` 匹配 |

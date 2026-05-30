@@ -29,6 +29,7 @@ Bukit categorizes plugins into four types based on their runtime model and trust
 
 **Additional safety measures:**
 - **CI environments disable external plugins by default.** To enable them in CI, pass `--allow-external-plugins` on the command line.
+- **Control plugin loading with `externalPluginPolicy`:** Set `site.externalPluginPolicy` to `deny` (block all), `warn` (load with warning, default), or `allow` (load silently). Invalid values throw `ConfigException` with `BKT-0002`.
 - **Plugin entry paths must be within the project directory.** Absolute paths like `/usr/bin/some-tool` are rejected unless the plugin explicitly sets `allowAbsoluteEntry: true` in its configuration.
 - **Stdout/stderr output is capped** at 1 MB by default (configurable via `maxStdoutBytes` / `maxStderrBytes`).
 - **Timeout protection:** Plugins are automatically killed if they exceed `timeoutMs`.
