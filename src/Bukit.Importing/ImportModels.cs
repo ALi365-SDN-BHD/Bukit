@@ -8,7 +8,7 @@ public sealed record HtmlDemoImportOptions
     public bool Force { get; init; }
     public bool Use { get; init; }
     public bool Verify { get; init; }
-    public string Language { get; init; } = "en";
+    public string Language { get; init; } = "zh";
     public bool ExtractContent { get; init; } = true;
     public bool GenerateSeed { get; init; } = true;
     public string ContentSource { get; init; } = "notion";
@@ -16,8 +16,8 @@ public sealed record HtmlDemoImportOptions
     public bool DryRun { get; init; }
     public bool Strict { get; init; }
     public bool Overwrite { get; init; }
-    public bool PreserveHtml { get; init; }
-    public bool GenerateReport { get; init; }
+    public bool PreserveHtml { get; init; } = true;
+    public bool GenerateReport { get; init; } = true;
     public string? BaseUrl { get; init; }
 }
 
@@ -53,6 +53,7 @@ public enum PageType
 public sealed record ImportResult
 {
     public required string ThemePath { get; init; }
+    public string? SitePath { get; init; }
     public int PagesFound { get; init; }
     public int TemplatesGenerated { get; init; }
     public int PartialsGenerated { get; init; }
@@ -63,6 +64,7 @@ public sealed record ImportResult
     public bool TemplatesSynced { get; init; }
     public bool SeedGenerated { get; init; }
     public List<string> Warnings { get; init; } = [];
+    public List<ImportDiagnostic> Diagnostics { get; init; } = [];
 }
 
 public sealed record DiscoveredComponent
@@ -79,6 +81,7 @@ public sealed record ExtractedContent
     public List<SectionRecord> Sections { get; set; } = [];
     public List<PostRecord> Posts { get; set; } = [];
     public List<CompanyRecord> Companies { get; set; } = [];
+    public List<ServiceRecord> Services { get; set; } = [];
     public List<FaqRecord> Faqs { get; set; } = [];
 }
 
@@ -131,6 +134,18 @@ public sealed record CompanyRecord
     public string? Content { get; init; }
     public string? Country { get; init; }
     public string? Industry { get; init; }
+    public string Language { get; init; } = "zh";
+    public bool Published { get; init; } = true;
+    public string? SeoTitle { get; init; }
+    public string? SeoDescription { get; init; }
+}
+
+public sealed record ServiceRecord
+{
+    public required string Title { get; init; }
+    public string Slug { get; init; } = "";
+    public string? Summary { get; init; }
+    public string? Content { get; init; }
     public string Language { get; init; } = "zh";
     public bool Published { get; init; } = true;
     public string? SeoTitle { get; init; }

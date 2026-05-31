@@ -71,8 +71,7 @@ internal static partial class AssetImporter
 
                 File.Copy(sourcePath, destPath, overwrite: true);
 
-                var destRel = "/" + destSubDir + "/" +
-                    assetPath.TrimStart('/').Replace('\\', '/');
+                var destRel = "/" + assetPath.TrimStart('/').Replace('\\', '/');
                 mappings[assetPath] = destRel;
                 count++;
             }

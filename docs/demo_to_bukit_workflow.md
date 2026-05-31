@@ -774,10 +774,8 @@ bukit import html-demo ./demo --theme silkroadbiz
 ```bash
 bukit import html-demo ./demo \
   --theme silkroadbiz \
-  --site sites/silkroadbiz \
+  --site-path sites/silkroadbiz \
   --content-source notion \
-  --extract-content \
-  --generate-seed \
   --report \
   --dry-run
 ```
@@ -790,8 +788,8 @@ bukit import html-demo ./demo \
 |---|---|---|
 | `input` | HTML Demo 目录 | 必填 |
 | `--theme` | 目标主题名称 | 必填 |
-| `--site` | 目标站点目录 | `sites/{theme}` |
-| `--content-source` | 内容源类型：`notion` / `json` / `yaml` | `notion` |
+| `--site-path` | 目标站点目录 | `sites/{theme}` |
+| `--content-source` | seed 输出类型：`notion` / `json` / `yaml`，默认仍生成本地 markdown 草稿用于 build | `notion` |
 | `--extract-content` | 是否抽取业务内容 | `true` |
 | `--generate-seed` | 是否生成 seed 数据 | `true` |
 | `--preserve-html` | 是否保留原始 HTML 快照 | `true` |
@@ -813,6 +811,12 @@ bukit import html-demo ./demo \
 sites/
 └── silkroadbiz/
     ├── site.yaml
+    ├── content/
+    │   ├── index.md
+    │   ├── pages/
+    │   ├── posts/
+    │   ├── companies/
+    │   └── services/
     ├── notion-seed/
     │   ├── pages.json
     │   ├── sections.json
@@ -829,27 +833,28 @@ sites/
 
 themes/
 └── silkroadbiz/
-    ├── theme.yaml
     ├── layouts/
-    │   └── base.html
-    ├── pages/
-    │   ├── index.html
-    │   ├── page.html
-    │   ├── insights.html
-    │   ├── article.html
-    │   ├── companies.html
-    │   └── company.html
-    ├── components/
-    │   ├── header.html
-    │   ├── footer.html
-    │   ├── hero.html
-    │   ├── section-renderer.html
-    │   ├── service-card.html
-    │   ├── article-card.html
-    │   ├── company-card.html
-    │   ├── faq.html
-    │   ├── cta.html
-    │   └── pagination.html
+    │   ├── layouts/
+    │   │   └── base.html
+    │   ├── pages/
+    │   │   ├── index.html
+    │   │   ├── page.html
+    │   │   ├── insights.html
+    │   │   ├── article.html
+    │   │   ├── companies.html
+    │   │   └── company.html
+    │   ├── partials/
+    │   │   ├── header.html
+    │   │   ├── nav.html
+    │   │   └── footer.html
+    │   └── components/
+    │       ├── hero.html
+    │       ├── service-card.html
+    │       ├── article-card.html
+    │       ├── company-card.html
+    │       ├── faq.html
+    │       ├── cta.html
+    │       └── pagination.html
     └── assets/
         ├── css/
         ├── js/
@@ -1331,39 +1336,50 @@ base_url
 
 ```yaml
 site:
+  name: "silkroadbiz"
   title: "silkroadbiz"
   description: "Generated from HTML Demo"
-  base_url: ""
+  baseUrl: "/"
   language: "zh"
-  theme: "silkroadbiz"
+  seo:
+    renderMode: inject
+  collections:
+    page:
+      permalink: "/{slug}/"
+      template: "pages/page.html"
+    post:
+      permalink: "/insights/{slug}/"
+      template: "pages/article.html"
+      listRoute: "/insights/"
+      listTemplate: "pages/insights.html"
+    company:
+      permalink: "/companies/{slug}/"
+      template: "pages/company.html"
+      listRoute: "/companies/"
+      listTemplate: "pages/companies.html"
+    service:
+      permalink: "/services/{slug}/"
+      template: "pages/service.html"
+      listRoute: "/services/"
+      listTemplate: "pages/services.html"
 
-source:
-  type: "notion"
-  databases:
-    pages: "${NOTION_PAGES_DATABASE_ID}"
-    sections: "${NOTION_SECTIONS_DATABASE_ID}"
-    posts: "${NOTION_POSTS_DATABASE_ID}"
-    companies: "${NOTION_COMPANIES_DATABASE_ID}"
-    services: "${NOTION_SERVICES_DATABASE_ID}"
-    faqs: "${NOTION_FAQS_DATABASE_ID}"
+content:
+  provider: markdown
+  markdown:
+    dir: "sites/silkroadbiz/content"
+    defaultType: page
 
 build:
   output: "dist"
   clean: true
 
-seo:
-  sitemap: true
-  robots: true
-  canonical: true
+theme:
+  name: "silkroadbiz"
 ```
 
-如果 `--content-source json`：
+如果 `--content-source json` 或 `--content-source yaml`，该选项只影响 seed 审核文件的输出目录/格式意图；当前默认可构建工程仍由本地 markdown content 驱动。
 
-```yaml
-source:
-  type: "json"
-  path: "notion-seed"
-```
+`--content-source notion` 生成 `sites/silkroadbiz/notion-seed/*.json`；`json` / `yaml` 生成 `sites/silkroadbiz/data/*.json`，供后续人工或外部命令导入。
 
 ---
 
@@ -1764,7 +1780,7 @@ public sealed record HtmlDemoImportResult
 bukit import html-demo ./demo --theme silkroadbiz --dry-run
 
 # 2. 生成 Bukit 工程草稿
-bukit import html-demo ./demo --theme silkroadbiz --site sites/silkroadbiz
+bukit import html-demo ./demo --theme silkroadbiz --site-path sites/silkroadbiz
 
 # 3. 人工检查导入报告
 cat sites/silkroadbiz/import-report.md
@@ -1779,7 +1795,7 @@ bukit notion push --input sites/silkroadbiz/notion-seed
 bukit build --config sites/silkroadbiz/site.yaml
 
 # 7. 本地预览
-bukit serve --root sites/silkroadbiz/dist --port 5080
+bukit preview --dir dist
 ```
 
 ---
@@ -1849,4 +1865,3 @@ Seed 数据生成
 > Import 负责生成可审查的 Bukit 工程草稿；Notion Push 负责内容入库；Build 负责构建；Deploy 负责发布。
 
 这可以确保 Demo-to-Bukit 既具备自动化效率，又保留工程可控性、安全性和可审计性。
-

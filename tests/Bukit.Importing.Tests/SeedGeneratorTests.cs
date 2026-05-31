@@ -71,6 +71,52 @@ public sealed class SeedGeneratorTests : IDisposable
 
         Assert.True(result);
         Assert.True(Directory.Exists(Path.Combine(_tempDir, "sites", "test-json", "data")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "test-json", "data", "pages.json")));
+    }
+
+    [Fact]
+    public void Generate_YamlSource_WritesYamlFilesToData()
+    {
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "test-yaml",
+            RootDir = _tempDir,
+            ContentSource = "yaml"
+        };
+
+        var content = new ExtractedContent
+        {
+            Pages = [new PageRecord { Title = "Home", Slug = "", Type = "Home" }],
+            Services = [new ServiceRecord { Title = "Consulting", Slug = "consulting" }]
+        };
+
+        var result = SeedGenerator.Generate(options, content, [], []);
+
+        Assert.True(result);
+        var dataDir = Path.Combine(_tempDir, "sites", "test-yaml", "data");
+        Assert.True(File.Exists(Path.Combine(dataDir, "pages.yaml")));
+        Assert.True(File.Exists(Path.Combine(dataDir, "services.yaml")));
+        Assert.False(File.Exists(Path.Combine(dataDir, "pages.json")));
+        var yaml = File.ReadAllText(Path.Combine(dataDir, "pages.yaml"));
+        Assert.Contains("title: \"Home\"", yaml);
+    }
+
+    [Fact]
+    public void Generate_ContentSource_IsCaseInsensitive()
+    {
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "test-yaml-case",
+            RootDir = _tempDir,
+            ContentSource = "YAML"
+        };
+
+        SeedGenerator.Generate(options, new ExtractedContent(), [], []);
+
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "test-yaml-case", "data", "pages.yaml")));
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "sites", "test-yaml-case", "notion-seed")));
     }
 
     [Fact]
@@ -90,6 +136,7 @@ public sealed class SeedGeneratorTests : IDisposable
             Sections = [new SectionRecord { SectionType = "hero" }],
             Posts = [new PostRecord { Title = "Post", Slug = "post" }],
             Companies = [new CompanyRecord { Title = "Co", Slug = "co" }],
+            Services = [new ServiceRecord { Title = "Svc", Slug = "svc" }],
             Faqs = [new FaqRecord { Question = "Q?", Answer = "A." }]
         };
 
@@ -106,6 +153,7 @@ public sealed class SeedGeneratorTests : IDisposable
         Assert.True(File.Exists(Path.Combine(seedDir, "sections.json")));
         Assert.True(File.Exists(Path.Combine(seedDir, "posts.json")));
         Assert.True(File.Exists(Path.Combine(seedDir, "companies.json")));
+        Assert.True(File.Exists(Path.Combine(seedDir, "services.json")));
         Assert.True(File.Exists(Path.Combine(seedDir, "faqs.json")));
         Assert.True(File.Exists(Path.Combine(seedDir, "media.json")));
         Assert.True(File.Exists(Path.Combine(seedDir, "components.json")));

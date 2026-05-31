@@ -183,6 +183,6 @@ public sealed class AssetImporterTests : IDisposable
         var result = AssetImporter.Import(options, pages);
 
         Assert.True(result.PathMappings.ContainsKey("img/logo.png"));
-        Assert.Equal("/assets/img/logo.png", result.PathMappings["img/logo.png"]);
+        Assert.Equal("/img/logo.png", result.PathMappings["img/logo.png"]);
     }
 }

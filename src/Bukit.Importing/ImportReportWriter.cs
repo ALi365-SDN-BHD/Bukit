@@ -122,6 +122,37 @@ internal static class ImportReportWriter
         }
 
         sb.AppendLine();
+        sb.AppendLine("## Hardcoded Residuals");
+        sb.AppendLine();
+        var residuals = result.Warnings
+            .Where(w => w.Contains("硬编码", StringComparison.OrdinalIgnoreCase) ||
+                        w.Contains("手动", StringComparison.OrdinalIgnoreCase) ||
+                        w.Contains("审查", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (residuals.Count == 0)
+        {
+            sb.AppendLine("- No high-confidence hardcoded residuals detected automatically.");
+        }
+        else
+        {
+            foreach (var residual in residuals)
+                sb.AppendLine($"- {residual}");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("## Manual Review Required");
+        sb.AppendLine();
+        if (diagnostics.Any(d => d.Severity >= ImportDiagnosticSeverity.Warning))
+        {
+            foreach (var d in diagnostics.Where(d => d.Severity >= ImportDiagnosticSeverity.Warning))
+                sb.AppendLine($"- Review {d.Code}: {d.Message}");
+        }
+        else
+        {
+            sb.AppendLine("- Confirm extracted slugs, SEO descriptions, collection classification, and visual parity before publishing.");
+        }
+
+        sb.AppendLine();
         sb.AppendLine("## Next Steps");
         sb.AppendLine();
         sb.AppendLine("```bash");

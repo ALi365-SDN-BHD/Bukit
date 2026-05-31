@@ -18,9 +18,6 @@ internal static partial class ThemeGenerator
     {
         var themeDir = Path.Combine(options.RootDir, "themes", options.ThemeName);
 
-        if (Directory.Exists(themeDir) && options.Force)
-            Directory.Delete(themeDir, recursive: true);
-
         Directory.CreateDirectory(Path.Combine(themeDir, "layouts", "layouts"));
         Directory.CreateDirectory(Path.Combine(themeDir, "layouts", "pages"));
         Directory.CreateDirectory(Path.Combine(themeDir, "layouts", "partials"));
@@ -85,9 +82,18 @@ internal static partial class ThemeGenerator
             templateCount++;
         }
 
+        templateCount += EnsureFallbackTemplate(themeDir, "article.html", WriteDetailTemplateBody());
+        templateCount += EnsureFallbackTemplate(themeDir, "company.html", WriteDetailTemplateBody());
+        templateCount += EnsureFallbackTemplate(themeDir, "service.html", WriteDetailTemplateBody());
+        templateCount += EnsureFallbackTemplate(themeDir, "page.html", WriteDetailTemplateBody());
+        templateCount += EnsureFallbackTemplate(themeDir, "insights.html", WriteListTemplateBody());
+        templateCount += EnsureFallbackTemplate(themeDir, "companies.html", WriteListTemplateBody());
+        templateCount += EnsureFallbackTemplate(themeDir, "services.html", WriteListTemplateBody());
+
         return new ImportResult
         {
             ThemePath = themeDir,
+            SitePath = HtmlDemoImporter.GetSiteDir(options),
             PagesFound = pages.Count,
             TemplatesGenerated = templateCount,
             PartialsGenerated = partialCount,
@@ -96,6 +102,18 @@ internal static partial class ThemeGenerator
             TemplatesSynced = false,
             Warnings = warnings
         };
+    }
+
+    private static int EnsureFallbackTemplate(string themeDir, string fileName, string body)
+    {
+        var path = Path.Combine(themeDir, "layouts", "pages", fileName);
+        if (File.Exists(path)) return 0;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("{% layout \"layouts/base.html\" %}");
+        sb.AppendLine(body);
+        File.WriteAllText(path, sb.ToString());
+        return 1;
     }
 
     private static (List<string> CssLinks, List<string> ScriptTags) ExtractHeadAssets(
@@ -209,9 +227,61 @@ internal static partial class ThemeGenerator
     {
         var sb = new StringBuilder();
         sb.AppendLine("{% layout \"layouts/base.html\" %}");
-        var body = AssetImporter.RewritePaths(page.UniqueBody.Trim(), pathMappings);
-        sb.AppendLine(body);
+        sb.AppendLine(page.Type switch
+        {
+            PageType.Home => WriteHomeTemplateBody(),
+            PageType.PostList or PageType.CompanyList or PageType.ServiceList => WriteListTemplateBody(),
+            PageType.PostDetail or PageType.CompanyDetail or PageType.ServiceDetail => WriteDetailTemplateBody(),
+            _ => WriteDetailTemplateBody()
+        });
         File.WriteAllText(templatePath, sb.ToString());
+    }
+
+    private static string WriteHomeTemplateBody()
+    {
+        return """
+<main>
+  <h1>{{ page.title }}</h1>
+  {{ if page.content }}
+  <div class="content">{{ page.content }}</div>
+  {{ end }}
+  {{ for p in pages }}
+  <article>
+    <h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
+    {{ if p.summary }}<p>{{ p.summary }}</p>{{ end }}
+  </article>
+  {{ end }}
+</main>
+""";
+    }
+
+    private static string WriteDetailTemplateBody()
+    {
+        return """
+<main>
+  <article>
+    <h1>{{ page.title }}</h1>
+    {{ if page.summary }}<p>{{ page.summary }}</p>{{ end }}
+    <div class="content">{{ page.content }}</div>
+  </article>
+</main>
+""";
+    }
+
+    private static string WriteListTemplateBody()
+    {
+        return """
+<main>
+  <h1>{{ page.title }}</h1>
+  {{ if page.content }}<div class="content">{{ page.content }}</div>{{ end }}
+  {{ for p in pages }}
+  <article>
+    <h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
+    {{ if p.summary }}<p>{{ p.summary }}</p>{{ end }}
+  </article>
+  {{ end }}
+</main>
+""";
     }
 
     private static void WriteIndexTemplate(string themeDir, List<DiscoveredPage> pages,
