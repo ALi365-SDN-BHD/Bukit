@@ -7,7 +7,7 @@ skills_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     import yaml
 except ImportError:
-    if os.environ.get('ALLOW_SKIP_YAML', '') == '1':
+    if os.environ.get('ALLOW_SKIP_YAML_VALIDATION', '') == '1':
         print('  Warning: PyYAML not installed, skipping YAML validation')
         sys.exit(0)
     print('  ERROR: PyYAML not installed — YAML validation cannot run. Install: pip3 install pyyaml', file=sys.stderr)

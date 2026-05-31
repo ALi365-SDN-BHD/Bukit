@@ -83,15 +83,18 @@ Status distribution: 15 stable, 4 beta (bukit-content-to-template, bukit-clone, 
 
 | Risk | Status |
 |------|--------|
-| CLI quick reference table merge (clone||geo, docs||version) | Fixed (2026-05-31) |
+| CLI quick reference table merge (clone\|\|geo, docs\|\|version) | Fixed (2026-05-31) |
 | clone/docs check/route inspect missing from CLI reference | Fixed |
 | propertyMap/filterValue/analytics.disableInPreview docs missing | Fixed |
 | CLI semantic validation not hard-gating | Fixed — check-cli-commands.py now hard-gates |
-| theme planned commands (doctor, list-components, export-catalog) | Mitigated — marked as planned in skill |
-| Tailwind CDN in external_css example | Mitigated — replaced with font CDN example |
-| check-cli-commands.py does not parse full command paths | Fixed — parses parent.child paths with whitelist |
-| check-cli-commands.py inline subcommand parsing | Fixed — inline Name: detection added; parser still regex-based |
-| V2 componentized theme stability | Marked beta; may need reassessment as implementation stabilizes |
+| check-cli-commands.py inline subcommand parsing | Fixed — inline `Name:` detection added |
+| check-cli-commands.py regex-based C# parsing | Remaining — replace with generated CLI metadata before stable |
+| PyYAML missing causes YAML check skip | Fixed — check-yaml-examples.py exits 1 unless ALLOW_SKIP_YAML_VALIDATION=1 |
+| status keyword warnings not propagated to strict validator | Fixed — check-status-keywords.py now exits 1 on mismatch |
+| theme planned commands (doctor, list-components, export-catalog) | Mitigated — marked as planned in skill; code handlers exist but CLI specs not registered |
+| V2 componentized theme stability | Beta — may need reassessment as implementation stabilizes |
+| skills-index.yaml duplicate source_anchors | Remaining — needs deduplication |
+| skills-index.yaml generated date stale | Remaining — needs update |
 
 ## Recommended Next Steps
 

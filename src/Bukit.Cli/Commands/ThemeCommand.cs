@@ -26,6 +26,9 @@ public static class ThemeCommand
             "pack" => ThemePackCommand.RunAsync(command),
             "install" => ThemeInstallCommand.RunAsync(command),
             "search" => ThemeRegistryCommand.SearchAsync(command),
+            // NOTE: The following subcommands are NOT registered in BukitCliSpecs.cs yet.
+            // They are unreachable via CLI until registered. See theme-component-system SKILL.md
+            // which marks them as (planned). Enable them in BukitCliSpecs.cs when ready for stable.
             "doctor" => DoctorAsync(command),
             "list-components" => ListComponentsAsync(command),
             "export-catalog" => ExportCatalogAsync(command),

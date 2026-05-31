@@ -1,10 +1,12 @@
 # Bukit Agent Skills Index
 # Machine-readable catalog of all Bukit agent skills.
-# Drives platform entry points (CLAUDE.md, AGENTS.md, GEMINI.md, etc.)
-# Single source of truth — update here first, then regenerate derived files.
+# Intended source of truth for skill metadata.
+# Platform entry files (CLAUDE.md, AGENTS.md, GEMINI.md, copilot-instructions.md)
+# are currently maintained manually and validated for consistency.
+# skills-index.json is auto-generated from this file via generate-index-json.sh.
 
 version: "3.0.0"
-generated: "2026-05-22"
+updated: "2026-05-31"
 skill_count: 19
 
 skills:
@@ -105,9 +107,7 @@ skills:
     since: v3.0.0
     source_anchors:
       - "src/Bukit.Cli/Commands/ThemeCommand.cs"
-      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
     verified_by:
-      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
       - "src/Bukit.Cli/Commands/ThemeCommand.cs"
     guide_chapters:
       - "guide/user/08-themes-templates.md"
@@ -537,9 +537,7 @@ skills:
     since: v3.0.0
     source_anchors:
       - "src/Bukit.Cli/Commands/ThemeCommand.cs"
-      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
     verified_by:
-      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
       - "src/Bukit.Cli/Commands/ThemeCommand.cs"
     guide_chapters:
       - "guide/user/08-themes-templates.md"

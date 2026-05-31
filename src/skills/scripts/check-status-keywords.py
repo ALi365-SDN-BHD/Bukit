@@ -39,5 +39,7 @@ for skill_file in sorted(glob.glob(os.path.join(skills_dir, '*/SKILL.md'))):
 
 if warnings:
     print(f'  {warnings} keyword/status mismatch(es) found')
+    sys.exit(1)
 else:
     print('  All keyword/status combinations consistent')
+    sys.exit(0)

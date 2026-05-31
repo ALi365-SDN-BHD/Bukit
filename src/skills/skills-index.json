@@ -1,6 +1,6 @@
 {
   "version": "3.0.0",
-  "generated": "2026-05-22",
+  "updated": "2026-05-31",
   "skill_count": 19,
   "skills": [
     {
@@ -152,11 +152,9 @@
       "status": "stable",
       "since": "v3.0.0",
       "source_anchors": [
-        "src/Bukit.Cli/Commands/ThemeCommand.cs",
         "src/Bukit.Cli/Commands/ThemeCommand.cs"
       ],
       "verified_by": [
-        "src/Bukit.Cli/Commands/ThemeCommand.cs",
         "src/Bukit.Cli/Commands/ThemeCommand.cs"
       ],
       "guide_chapters": [
@@ -764,11 +762,9 @@
       "status": "beta",
       "since": "v3.0.0",
       "source_anchors": [
-        "src/Bukit.Cli/Commands/ThemeCommand.cs",
         "src/Bukit.Cli/Commands/ThemeCommand.cs"
       ],
       "verified_by": [
-        "src/Bukit.Cli/Commands/ThemeCommand.cs",
         "src/Bukit.Cli/Commands/ThemeCommand.cs"
       ],
       "guide_chapters": [

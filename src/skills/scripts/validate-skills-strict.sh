@@ -322,24 +322,82 @@ echo "--- Check 15: Status keyword consistency ---"
 python3 "$SKILLS_DIR/scripts/check-status-keywords.py" || WARNINGS=$((WARNINGS + 1))
 
 
-# --- Check 16: Duplicate source_anchors/verified_by entries ---
+# --- Check 16: Duplicate entries in skills-index.yaml ---
 echo ""
-echo "--- Check 16: Duplicate entries in Front Matter lists ---"
+echo "--- Check 16: No duplicate entries in skills-index.yaml ---"
 python3 -c "
-import os, glob
+import yaml, os, sys
 skills_dir = os.environ.get('SKILLS_DIR', 'src/skills')
+index_path = os.path.join(skills_dir, 'skills-index.yaml')
+with open(index_path) as f:
+    data = yaml.safe_load(f)
+errors = 0
+for s in data.get('skills', []):
+    name = s.get('name', '?')
+    for field in ('source_anchors', 'verified_by', 'guide_chapters'):
+        vals = s.get(field, [])
+        seen = set()
+        dup = []
+        for v in vals:
+            if v in seen:
+                dup.append(v)
+            else:
+                seen.add(v)
+        if dup:
+            print(f'  WARNING: [{name}] {field} has duplicates: {dup}')
+            errors += 1
+if errors:
+    print(f'  {errors} duplicate entry issue(s) found')
+    sys.exit(1)
+else:
+    print('  No duplicate entries in skills-index.yaml')
+    sys.exit(0)
+" 2>/dev/null
+if [ $? -ne 0 ]; then
+  echo -e "  ${YELLOW}⚠️  Duplicate entries found in skills-index.yaml${NC}"
+  WARNINGS=$((WARNINGS + 1))
+fi
+
+# --- Check 16b: Duplicate entries in SKILL.md Front Matter ---
+echo ""
+echo "--- Check 16b: No duplicate entries in SKILL.md Front Matter ---"
+python3 -c "
+import os, glob, sys
+skills_dir = os.environ.get('SKILLS_DIR', 'src/skills')
+errors = 0
 for sf in sorted(glob.glob(os.path.join(skills_dir, '*/SKILL.md'))):
     name = os.path.basename(os.path.dirname(sf))
     with open(sf) as f:
         lines = f.readlines()
-    seen = {}; dup = []
-    for l in lines:
-        if l.startswith('  - '):
-            if l in seen: dup.append(l.strip())
-            seen[l] = 1
-    if dup:
-        print(f'  WARNING: [{name}] Duplicate entries: {dup}')
-" 2>/dev/null || true
+    # Track duplicates per YAML key (source_anchors, verified_by, guide_chapters)
+    in_key = None
+    seen = {}
+    for line in lines:
+        ls = line.lstrip()
+        if ls.startswith('source_anchors:') or ls.startswith('verified_by:') or ls.startswith('guide_chapters:'):
+            in_key = ls.split(':')[0]
+            seen[in_key] = set()
+            continue
+        if ls.startswith('  - ') and in_key:
+            val = line.strip()
+            if val in seen.get(in_key, set()):
+                print(f'  WARNING: [{name}] {in_key} has duplicate: {val}')
+                errors += 1
+            else:
+                seen[in_key].add(val)
+        elif ls and not ls.startswith('  - ') and not ls.startswith(' '):
+            in_key = None
+if errors:
+    print(f'  {errors} duplicate entry issue(s) found')
+    sys.exit(1)
+else:
+    print('  No duplicate entries in Front Matter')
+    sys.exit(0)
+" 2>/dev/null
+if [ $? -ne 0 ]; then
+  echo -e "  ${YELLOW}⚠️  Duplicate entries found in SKILL.md Front Matter${NC}"
+  WARNINGS=$((WARNINGS + 1))
+fi
 
 # --- Summary ---
 echo ""

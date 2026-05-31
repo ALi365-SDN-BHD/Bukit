@@ -2,7 +2,7 @@
 
 语言版本：简体中文（当前）| [English](./README.md) | [Bahasa Melayu](./README.ms.md)
 
-本目录面向“站点使用者”（不是引擎维护者）：你将学会如何用 Bukit 从内容（Markdown/Notion）生成可部署的静态网站，并在常见场景下正确配置与排障。
+本目录面向"站点使用者"（不是引擎维护者）：你将学会如何用 Bukit 从内容（Markdown/Notion）生成可部署的静态网站，并在常见场景下正确配置与排障。
 
 如果你需要了解内部实现、扩展点、或想贡献代码，请阅读开发者文档：[guide/dev](../dev/README.zh-CN.md)。
 
@@ -83,29 +83,7 @@
 - 命令执行：[`bukit-cli-reference`](../../src/skills/bukit-cli-reference/SKILL.md)
 - 用户文档仍然负责：安装、配置、主题、内容组织、部署与排障的完整操作路径
 
-## 目录导航
-
-- [01-快速开始](./01-quick-start.zh-CN.md)
-- [02-核心概念](./02-core-concepts.zh-CN.md)
-- [03-项目目录与约定](./03-project-structure.zh-CN.md)
-- [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)
-- [05-内容-Markdown](./05-markdown-content.zh-CN.md)
-- [06-内容-Notion](./06-notion-content.zh-CN.md)
-- [07-内容-多源-sources](./07-multi-source.zh-CN.md)
-- [08-主题与模板](./08-themes-templates.zh-CN.md)
-- [09-Modules-结构化数据](./09-modules-data.zh-CN.md)
-- [10-内置功能与输出](./10-built-in-features.zh-CN.md)
-- [11-多语言与SEO](./11-i18n-seo.zh-CN.md)
-- [12-命令行参考](./12-cli-reference.zh-CN.md)
-- [13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)
-- [14-故障排查](./14-troubleshooting.zh-CN.md)
-- [15-场景化示例（Recipes）](./15-recipes.zh-CN.md)
-- [16-参数速查表](./16-parameter-cheatsheet.zh-CN.md)
-- [17-GEO](./17-geo.zh-CN.md)
-- [18-网站克隆](./18-clone-website.zh-CN.md)
-- [19-v3.0新增功能](./19-new-features-v3.zh-CN.md)
-
-## 仓库内“可运行示例”在哪里
+## 仓库内"可运行示例"在哪里
 
 文档中的大多数示例都能在 `examples/starter/` 找到对照版本：
 
@@ -117,7 +95,7 @@
 
 ## 深入阅读对照（用户操作 ↔ 开发者契约）
 
-当你需要更“权威的字段表/边界/实现约束”（例如排查复杂 bug、或做主题/插件深度定制），按下表跳转到开发者文档：
+当你需要更"权威的字段表/边界/实现约束"（例如排查复杂 bug、或做主题/插件深度定制），按下表跳转到开发者文档：
 
 | 主题 | 用户文档 | 开发者文档 |
 |---|---|---|
@@ -138,3 +116,25 @@
 - 主题（Theme）：模板 + 资源 + 静态文件目录约定
 - Modules（结构化数据）：通过 `content.sources[].mode: data` 读取，不生成路由，只注入 `site.modules.*` 供模板渲染
 - 内置产物：构建结束后额外生成的 `sitemap.xml` / `rss.xml` / `search.json` 等
+
+## 完整文件索引
+
+- [01-快速开始](./01-quick-start.zh-CN.md)
+- [02-核心概念](./02-core-concepts.zh-CN.md)
+- [03-项目目录与约定](./03-project-structure.zh-CN.md)
+- [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)
+- [05-内容-Markdown](./05-markdown-content.zh-CN.md)
+- [06-内容-Notion](./06-notion-content.zh-CN.md)
+- [07-内容-多源-sources](./07-multi-source.zh-CN.md)
+- [08-主题与模板](./08-themes-templates.zh-CN.md)
+- [09-Modules-结构化数据](./09-modules-data.zh-CN.md)
+- [10-内置功能与输出](./10-built-in-features.zh-CN.md)
+- [11-多语言与SEO](./11-i18n-seo.zh-CN.md)
+- [12-命令行参考](./12-cli-reference.zh-CN.md)
+- [13-部署-GitHub-Pages](./13-deploy-github-pages.zh-CN.md)
+- [14-故障排查](./14-troubleshooting.zh-CN.md)
+- [15-场景化示例（Recipes）](./15-recipes.zh-CN.md)
+- [16-参数速查表](./16-parameter-cheatsheet.zh-CN.md)
+- [17-GEO](./17-geo.zh-CN.md)
+- [18-网站克隆](./18-clone-website.zh-CN.md)
+- [19-v3.0新增功能](./19-new-features-v3.zh-CN.md)
