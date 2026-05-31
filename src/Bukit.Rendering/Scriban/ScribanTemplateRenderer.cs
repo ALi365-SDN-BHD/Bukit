@@ -7,6 +7,8 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using Bukit.Theme;
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Bukit.Rendering.Scriban;
 
@@ -128,13 +130,14 @@ public sealed class ScribanTemplateRenderer
             throw new RenderException($"Template not found: {templateRelativePath}", DiagnosticCode.RenderTemplateNotFound);
         }
 
-        var signature = new FileSignature(fileInfo.LastWriteTimeUtc, fileInfo.Length);
+        var templateText = File.ReadAllText(templatePath);
+        var contentHash = ComputeContentHash(templateText);
+        var signature = new TemplateFileSignature(fileInfo.LastWriteTimeUtc, fileInfo.Length, contentHash);
         if (_cache.TryGetValue(templatePath, out var existing) && existing.Signature.Equals(signature))
         {
             return existing;
         }
 
-        var templateText = File.ReadAllText(templatePath);
         CachedTemplate parsed;
         if (ScribanLayoutDirectiveParser.TryExtractLayoutDirective(templateText, out var layoutTemplateRelativePath, out var bodyTemplateText))
         {
@@ -174,13 +177,18 @@ public sealed class ScribanTemplateRenderer
         return template;
     }
 
-    private readonly record struct FileSignature(DateTime LastWriteTimeUtc, long Length);
+    private readonly record struct TemplateFileSignature(DateTime LastWriteTimeUtc, long Length, long ContentHash);
 
-    private sealed record CachedTemplate(FileSignature Signature, Template Template, string? LayoutTemplateRelativePath);
+    private sealed record CachedTemplate(TemplateFileSignature Signature, Template Template, string? LayoutTemplateRelativePath);
 
-    private readonly record struct SectionFileSignature(DateTime LastWriteTimeUtc, long Length);
+    private sealed record CachedSectionTemplate(TemplateFileSignature Signature, Template Template);
 
-    private sealed record CachedSectionTemplate(SectionFileSignature Signature, Template Template);
+    private static long ComputeContentHash(string content)
+    {
+        var bytes = Encoding.UTF8.GetBytes(content);
+        var hash = SHA256.HashData(bytes);
+        return BitConverter.ToInt64(hash, 0);
+    }
 
     private bool TryGetCachedSectionTemplate(string templatePath, out Template template)
     {
@@ -191,14 +199,15 @@ public sealed class ScribanTemplateRenderer
             return false;
         }
 
-        var signature = new SectionFileSignature(fileInfo.LastWriteTimeUtc, fileInfo.Length);
+        var templateText = File.ReadAllText(templatePath);
+        var contentHash = ComputeContentHash(templateText);
+        var signature = new TemplateFileSignature(fileInfo.LastWriteTimeUtc, fileInfo.Length, contentHash);
         if (_sectionTemplateCache.TryGetValue(templatePath, out var cached) && cached.Signature.Equals(signature))
         {
             template = cached.Template;
             return true;
         }
 
-        var templateText = File.ReadAllText(templatePath);
         template = Template.Parse(templateText, templatePath);
         if (!template.HasErrors)
         {
