@@ -153,9 +153,11 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var result = HtmlDemoImporter.Import(options);
 
         Assert.True(result.SiteYamlCreated);
-        Assert.True(File.Exists(Path.Combine(_tempDir, "site.yaml")));
-        var yaml = File.ReadAllText(Path.Combine(_tempDir, "site.yaml"));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "test-theme", "site.yaml")));
+        var yaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "test-theme", "site.yaml"));
         Assert.Contains("test-theme", yaml);
+        Assert.Contains("provider: markdown", yaml);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "test-theme", "content", "index.md")));
     }
 
     [Fact]
@@ -163,7 +165,9 @@ public sealed class HtmlDemoImporterTests : IDisposable
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
             "<html><head><title>Test</title></head><body><main><h1>Hello</h1></main></body></html>");
-        File.WriteAllText(Path.Combine(_tempDir, "site.yaml"), "existing: config");
+        var siteDir = Path.Combine(_tempDir, "sites", "test-theme");
+        Directory.CreateDirectory(siteDir);
+        File.WriteAllText(Path.Combine(siteDir, "site.yaml"), "existing: config");
 
         var options = new HtmlDemoImportOptions
         {
@@ -175,7 +179,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var result = HtmlDemoImporter.Import(options);
 
         Assert.False(result.SiteYamlCreated);
-        Assert.Equal("existing: config", File.ReadAllText(Path.Combine(_tempDir, "site.yaml")));
+        Assert.Equal("existing: config", File.ReadAllText(Path.Combine(siteDir, "site.yaml")));
     }
 
     [Fact]
@@ -303,6 +307,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var content = File.ReadAllText(reportPath);
         Assert.Contains("HTML Demo Import Report", content);
         Assert.Contains("report-test", content);
+        Assert.Contains("Hardcoded Residuals", content);
+        Assert.Contains("Manual Review Required", content);
     }
 
     [Fact]
@@ -323,7 +329,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var result = HtmlDemoImporter.Import(options);
 
         Assert.True(result.SiteYamlCreated);
-        var yaml = File.ReadAllText(Path.Combine(_tempDir, "site.yaml"));
+        var yaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "baseurl-test", "site.yaml"));
         Assert.Contains("https://example.com", yaml);
     }
 
@@ -346,5 +352,96 @@ public sealed class HtmlDemoImporterTests : IDisposable
 
         var compDir = Path.Combine(_tempDir, "themes", "overwrite-test", "layouts", "components");
         Assert.True(Directory.Exists(compDir));
+    }
+
+    [Fact]
+    public void Import_WithForce_PreservesCopiedAssets()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, "assets", "images"));
+        File.WriteAllText(Path.Combine(_tempDir, "assets", "images", "hero.jpg"), "fake");
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Test</title></head><body><main><img src=\"assets/images/hero.jpg\" /></main></body></html>");
+
+        var themeDir = Path.Combine(_tempDir, "themes", "asset-force");
+        Directory.CreateDirectory(themeDir);
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "asset-force",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        Assert.True(File.Exists(Path.Combine(themeDir, "static", "assets", "images", "hero.jpg")));
+    }
+
+    [Fact]
+    public void Import_ComponentTemplates_UseValidHeadingTags()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Test</title></head><body><main><section class=\"hero\"><h1>Hero</h1><p>Intro</p></section><div class=\"faq-item\"><h3>Q?</h3><p>A.</p></div></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "component-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var hero = File.ReadAllText(Path.Combine(_tempDir, "themes", "component-test", "layouts", "components", "hero.html"));
+        var faq = File.ReadAllText(Path.Combine(_tempDir, "themes", "component-test", "layouts", "components", "faq.html"));
+        Assert.Contains("<h1>{{ section.heading }}</h1>", hero);
+        Assert.Contains("<h3>{{ section.heading }}</h3>", faq);
+        Assert.DoesNotContain("<1>", hero);
+        Assert.DoesNotContain("<3>", faq);
+    }
+
+    [Fact]
+    public void Import_Strict_InlineScript_ThrowsAndDoesNotWriteTheme()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Test</title><script src=\"app.js\"></script></head><body><main><h1>Hello</h1><script>alert(1)</script></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "strict-script",
+            RootDir = _tempDir,
+            Strict = true
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => HtmlDemoImporter.Import(options));
+        Assert.Contains("INLINE_SCRIPT", ex.Message);
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "themes", "strict-script")));
+    }
+
+    [Fact]
+    public void Import_DefaultContentDraft_UsesExtractedContent()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Welcome</h1><p>Intro text.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About Us</h1><p>About body.</p></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "content-test",
+            RootDir = _tempDir
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var pageTemplate = File.ReadAllText(Path.Combine(_tempDir, "themes", "content-test", "layouts", "pages", "page.html"));
+        var aboutDraft = File.ReadAllText(Path.Combine(_tempDir, "sites", "content-test", "content", "pages", "about.md"));
+        Assert.Contains("{{ page.content }}", pageTemplate);
+        Assert.DoesNotContain("About body.", pageTemplate);
+        Assert.Contains("About body.", aboutDraft);
     }
 }

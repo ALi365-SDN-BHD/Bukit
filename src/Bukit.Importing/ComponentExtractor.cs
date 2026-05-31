@@ -132,8 +132,9 @@ internal static partial class ComponentExtractor
 
         content = HeadingRegex.Replace(content, m =>
         {
+            var tagName = m.Groups[1].Value;
             if (!ListComponentNames.Contains(componentName))
-                return $"<{m.Groups[1].Value}>{{{{ section.heading }}}}</{m.Groups[1].Value}>";
+                return $"<{tagName}>{{{{ section.heading }}}}</{tagName}>";
             return m.Value;
         });
 
@@ -150,7 +151,10 @@ internal static partial class ComponentExtractor
                 $"<a href=\"{{{{ item.url }}}}\">{{{{ item.title }}}}</a>");
 
             content = HeadingRegex.Replace(content, m =>
-                $"<{m.Groups[1].Value}>{{{{ item.title }}}}</{m.Groups[1].Value}>");
+            {
+                var tagName = m.Groups[1].Value;
+                return $"<{tagName}>{{{{ item.title }}}}</{tagName}>";
+            });
         }
 
         return content;
@@ -166,7 +170,7 @@ internal static partial class ComponentExtractor
     [GeneratedRegex(@"<([a-zA-Z][a-zA-Z0-9]*)(?:[^/>][^>]*)?>", RegexOptions.IgnoreCase)]
     private static partial Regex HtmlTagPattern();
 
-    [GeneratedRegex(@"<h([1-6])[^>]*>.*?</h\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<(h[1-6])[^>]*>.*?</\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex HeadingPattern();
 
     [GeneratedRegex(@"<a[^>]*href=[""'][^""']*[""'][^>]*>.*?</a>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]

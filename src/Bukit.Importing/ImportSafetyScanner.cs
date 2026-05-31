@@ -1,6 +1,6 @@
 namespace Bukit.Importing;
 
-internal static class ImportSafetyScanner
+internal static partial class ImportSafetyScanner
 {
     private static readonly string[] SensitiveFileNames =
     [
@@ -14,7 +14,7 @@ internal static class ImportSafetyScanner
 
     private static readonly string[] DangerousProtocols =
     [
-        "javascript:", "vbscript:", "file:"
+        "javascript:", "vbscript:", "file:", "data:"
     ];
 
     internal static List<ImportDiagnostic> Scan(
@@ -75,13 +75,30 @@ internal static class ImportSafetyScanner
         var html = page.FullHtml;
         if (string.IsNullOrEmpty(html)) return;
 
-        if (html.Contains("<script", StringComparison.OrdinalIgnoreCase) &&
-            !html.Contains("<script src=", StringComparison.OrdinalIgnoreCase))
+        if (InlineScriptPattern().IsMatch(html))
         {
             diagnostics.Add(new ImportDiagnostic(
                 ImportDiagnosticSeverity.Warning,
                 "INLINE_SCRIPT",
                 "页面包含内联 script 标签",
+                page.FilePath));
+        }
+
+        if (ExternalScriptPattern().IsMatch(html))
+        {
+            diagnostics.Add(new ImportDiagnostic(
+                ImportDiagnosticSeverity.Warning,
+                "EXTERNAL_SCRIPT",
+                "页面包含外部 script，需要人工审查",
+                page.FilePath));
+        }
+
+        if (ExternalFormActionPattern().IsMatch(html))
+        {
+            diagnostics.Add(new ImportDiagnostic(
+                ImportDiagnosticSeverity.Warning,
+                "EXTERNAL_FORM_ACTION",
+                "页面包含外部 form action，需要人工审查",
                 page.FilePath));
         }
 
@@ -127,4 +144,13 @@ internal static class ImportSafetyScanner
                 page.FilePath));
         }
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"<script\b(?![^>]*\bsrc\s*=)[^>]*>.*?</script>", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline)]
+    private static partial System.Text.RegularExpressions.Regex InlineScriptPattern();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"<script\b[^>]*\bsrc\s*=\s*[""']https?://", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex ExternalScriptPattern();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"<form\b[^>]*\baction\s*=\s*[""']https?://", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex ExternalFormActionPattern();
 }

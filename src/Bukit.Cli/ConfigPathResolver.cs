@@ -12,6 +12,14 @@ public static class ConfigPathResolver
         {
             var fullConfigPath = Path.GetFullPath(configPath);
             var rootDir = Path.GetDirectoryName(fullConfigPath) ?? Directory.GetCurrentDirectory();
+            var configFileName = Path.GetFileName(fullConfigPath);
+            var siteDir = Directory.GetParent(rootDir);
+            if (configFileName.Equals("site.yaml", StringComparison.OrdinalIgnoreCase) &&
+                siteDir?.Name.Equals("sites", StringComparison.OrdinalIgnoreCase) == true &&
+                siteDir.Parent is not null)
+            {
+                rootDir = siteDir.Parent.FullName;
+            }
             return new ResolvedConfigPath(fullConfigPath, rootDir);
         }
 
@@ -47,4 +55,3 @@ public static class ConfigPathResolver
         return trimmed + ".yaml";
     }
 }
-

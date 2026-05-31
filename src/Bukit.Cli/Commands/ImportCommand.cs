@@ -50,17 +50,27 @@ public static class ImportCommand
         var generateSeed = !command.GetBool("--no-seed");
         var contentSource = command.GetString("--content-source") ?? "notion";
         var sitePath = command.GetString("--site-path");
-        var language = command.GetString("--language") ?? "en";
+        var language = command.GetString("--language") ?? "zh";
         var dryRun = command.GetBool("--dry-run");
         var strict = command.GetBool("--strict");
         var overwrite = command.GetBool("--overwrite");
-        var preserveHtml = command.GetBool("--preserve-html");
-        var generateReport = command.GetBool("--report");
+        var preserveHtml = true;
+        var generateReport = true;
         var baseUrl = command.GetString("--base-url");
 
         var resolved = ConfigPathResolver.Resolve(
             command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
+        if (!contentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
+            !contentSource.Equals("json", StringComparison.OrdinalIgnoreCase) &&
+            !contentSource.Equals("yaml", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine($"不支持的内容源类型: {contentSource}");
+            return 2;
+        }
+
+        if (!string.IsNullOrWhiteSpace(sitePath) && !Path.IsPathRooted(sitePath))
+            sitePath = Path.GetFullPath(Path.Combine(rootDir, sitePath));
 
         var themeDir = Path.Combine(rootDir, "themes", themeName);
         if (!dryRun && Directory.Exists(themeDir) && !force)

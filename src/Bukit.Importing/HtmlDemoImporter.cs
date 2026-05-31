@@ -15,27 +15,36 @@ public static class HtmlDemoImporter
         var pages = HtmlDemoScanner.Scan(options.InputPath);
         var warnings = new List<string>();
         var layout = LayoutExtractor.Extract(pages, warnings);
+        var diagnostics = ImportSafetyScanner.Scan(options, pages);
 
         if (options.Strict)
+        {
             RunStrictValidation(pages, warnings);
+            ThrowIfStrictDiagnostics(diagnostics);
+        }
 
         if (options.DryRun)
         {
             var dryResult = new ImportResult
             {
                 ThemePath = Path.Combine(options.RootDir, "themes", options.ThemeName),
+                SitePath = GetSiteDir(options),
                 PagesFound = pages.Count,
                 TemplatesGenerated = pages.Count + 2,
                 PartialsGenerated = CountEstimatedPartials(layout),
                 ComponentsGenerated = 0,
                 RecordsExtracted = pages.Count,
                 AssetsCopied = pages.Sum(p => p.AssetPaths.Count),
-                Warnings = warnings
+                Warnings = warnings,
+                Diagnostics = diagnostics
             };
-            var diagnostics = ImportSafetyScanner.Scan(options, pages);
             ImportReportWriter.Write(options, dryResult, diagnostics);
             return dryResult;
         }
+
+        var themeDir = Path.Combine(options.RootDir, "themes", options.ThemeName);
+        if (Directory.Exists(themeDir) && options.Force)
+            Directory.Delete(themeDir, recursive: true);
 
         if (options.PreserveHtml)
             PreserveOriginalHtml(options, pages);
@@ -54,11 +63,13 @@ public static class HtmlDemoImporter
             if (!options.DryRun)
                 WriteComponentTemplates(options, components);
 
+            ContentDraftWriter.Write(options, pages);
+
             result = result with
             {
                 ComponentsGenerated = components.Count,
                 RecordsExtracted = content.Pages.Count + content.Posts.Count +
-                    content.Companies.Count + content.Faqs.Count + content.Sections.Count
+                    content.Companies.Count + content.Services.Count + content.Faqs.Count + content.Sections.Count
             };
 
             if (options.GenerateSeed)
@@ -68,14 +79,17 @@ public static class HtmlDemoImporter
             }
         }
 
-        var diagnostics2 = ImportSafetyScanner.Scan(options, pages);
-
         var siteYamlCreated = SiteConfigGenerator.Generate(options);
-        result = result with { SiteYamlCreated = siteYamlCreated };
+        result = result with
+        {
+            SiteYamlCreated = siteYamlCreated,
+            SitePath = GetSiteDir(options),
+            Diagnostics = diagnostics
+        };
 
         AssetImporter.TransferAssetsToStatic(options.RootDir, options.ThemeName);
 
-        ImportReportWriter.Write(options, result, diagnostics2);
+        ImportReportWriter.Write(options, result, diagnostics);
 
         return result;
     }
@@ -102,9 +116,25 @@ public static class HtmlDemoImporter
         }
     }
 
+    private static void ThrowIfStrictDiagnostics(List<ImportDiagnostic> diagnostics)
+    {
+        var strictDiagnostics = diagnostics
+            .Where(d => d.Severity >= ImportDiagnosticSeverity.Warning)
+            .ToList();
+        if (strictDiagnostics.Count == 0) return;
+
+        var summary = string.Join(", ", strictDiagnostics.Select(d => d.Code).Distinct());
+        throw new InvalidOperationException($"Strict 模式: 导入诊断失败: {summary}");
+    }
+
+    internal static string GetSiteDir(HtmlDemoImportOptions options)
+    {
+        return options.SitePath ?? Path.Combine(options.RootDir, "sites", options.ThemeName);
+    }
+
     private static void PreserveOriginalHtml(HtmlDemoImportOptions options, List<DiscoveredPage> pages)
     {
-        var siteDir = options.SitePath ?? Path.Combine(options.RootDir, "sites", options.ThemeName);
+        var siteDir = GetSiteDir(options);
         var preserveDir = Path.Combine(siteDir, "original-demo");
         Directory.CreateDirectory(preserveDir);
 

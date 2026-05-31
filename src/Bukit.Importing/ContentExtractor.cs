@@ -33,6 +33,11 @@ internal static partial class ContentExtractor
             .Select(g => g.First())
             .ToList();
 
+        content.Services = content.Services
+            .GroupBy(s => s.Title)
+            .Select(g => g.First())
+            .ToList();
+
         content.Faqs = content.Faqs
             .GroupBy(f => f.Question)
             .Select(g => g.First())
@@ -85,9 +90,25 @@ internal static partial class ContentExtractor
         {
             ExtractPosts(page, content);
         }
+        else if (page.Type is PageType.PostDetail)
+        {
+            ExtractPostDetail(page, content);
+        }
         else if (page.Type is PageType.CompanyList)
         {
             ExtractCompanies(page, content);
+        }
+        else if (page.Type is PageType.CompanyDetail)
+        {
+            ExtractCompanyDetail(page, content);
+        }
+        else if (page.Type is PageType.ServiceList)
+        {
+            ExtractServices(page, content);
+        }
+        else if (page.Type is PageType.ServiceDetail)
+        {
+            ExtractServiceDetail(page, content);
         }
     }
 
@@ -116,17 +137,23 @@ internal static partial class ContentExtractor
             });
         }
 
-        if (page.Type is PageType.PostDetail && content.Posts.Count == 0)
+    }
+
+    private static void ExtractPostDetail(DiscoveredPage page, ExtractedContent content)
+    {
+        var h1 = H1Regex.Match(page.UniqueBody);
+        if (h1.Success)
         {
-            var h1 = H1Regex.Match(page.UniqueBody);
-            if (h1.Success)
+            var title = StripHtml(h1.Groups[1].Value).Trim();
+            content.Posts.Add(new PostRecord
             {
-                content.Posts.Add(new PostRecord
-                {
-                    Title = StripHtml(h1.Groups[1].Value).Trim(),
-                    Slug = page.Slug
-                });
-            }
+                Title = title,
+                Slug = string.IsNullOrWhiteSpace(page.Slug) ? Slugify(title) : page.Slug,
+                Summary = ExtractSummary(page.UniqueBody),
+                Content = page.UniqueBody,
+                SeoTitle = title,
+                SeoDescription = ExtractSummary(page.UniqueBody)
+            });
         }
     }
 
@@ -149,6 +176,61 @@ internal static partial class ContentExtractor
                 SeoTitle = title
             });
         }
+    }
+
+    private static void ExtractCompanyDetail(DiscoveredPage page, ExtractedContent content)
+    {
+        var h1 = H1Regex.Match(page.UniqueBody);
+        if (!h1.Success) return;
+
+        var title = StripHtml(h1.Groups[1].Value).Trim();
+        content.Companies.Add(new CompanyRecord
+        {
+            Title = title,
+            Slug = string.IsNullOrWhiteSpace(page.Slug) ? Slugify(title) : page.Slug,
+            Summary = ExtractSummary(page.UniqueBody),
+            Content = page.UniqueBody,
+            SeoTitle = title,
+            SeoDescription = ExtractSummary(page.UniqueBody)
+        });
+    }
+
+    private static void ExtractServices(DiscoveredPage page, ExtractedContent content)
+    {
+        foreach (Match match in CardRegex.Matches(page.UniqueBody))
+        {
+            var cardHtml = match.Value;
+            var h3 = Regex.Match(cardHtml, @"<h3[^>]*>(.*?)</h3>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var p = Regex.Match(cardHtml, @"<p[^>]*>(.*?)</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+            var title = h3.Success ? StripHtml(h3.Groups[1].Value).Trim() : "";
+            if (string.IsNullOrWhiteSpace(title)) continue;
+
+            content.Services.Add(new ServiceRecord
+            {
+                Title = title,
+                Slug = Slugify(title),
+                Summary = p.Success ? StripHtml(p.Groups[1].Value).Trim() : null,
+                SeoTitle = title
+            });
+        }
+    }
+
+    private static void ExtractServiceDetail(DiscoveredPage page, ExtractedContent content)
+    {
+        var h1 = H1Regex.Match(page.UniqueBody);
+        if (!h1.Success) return;
+
+        var title = StripHtml(h1.Groups[1].Value).Trim();
+        content.Services.Add(new ServiceRecord
+        {
+            Title = title,
+            Slug = string.IsNullOrWhiteSpace(page.Slug) ? Slugify(title) : page.Slug,
+            Summary = ExtractSummary(page.UniqueBody),
+            Content = page.UniqueBody,
+            SeoTitle = title,
+            SeoDescription = ExtractSummary(page.UniqueBody)
+        });
     }
 
     private static void ExtractSections(DiscoveredPage page, ExtractedContent content)
@@ -174,7 +256,7 @@ internal static partial class ContentExtractor
             {
                 PageSlug = page.Slug,
                 SectionType = sectionType,
-                Heading = heading.Success ? StripHtml(heading.Groups[1].Value).Trim() : null,
+                Heading = heading.Success ? StripHtml(heading.Groups[2].Value).Trim() : null,
                 Subheading = null,
                 ButtonText = link.Success ? StripHtml(Regex.Replace(link.Value, "<[^>]*>", "")).Trim() : null,
                 ButtonUrl = link.Success ? link.Groups[1].Value : null,

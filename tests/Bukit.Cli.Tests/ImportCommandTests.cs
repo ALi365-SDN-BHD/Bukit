@@ -203,7 +203,8 @@ public sealed class ImportCommandTests : IDisposable
         var result = await ImportCommand.RunAsync(cmd);
 
         Assert.Equal(0, result);
-        Assert.True(File.Exists(Path.Combine(_tempDir, "site.yaml")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "yaml-test", "site.yaml")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "yaml-test", "content", "index.md")));
     }
 
     [Fact]
@@ -238,5 +239,36 @@ public sealed class ImportCommandTests : IDisposable
         var result = await ImportCommand.RunAsync(cmd);
 
         Assert.Equal(1, result);
+    }
+
+    [Fact]
+    public async Task ImportThenBuild_DefaultOutput_BuildsSuccessfully()
+    {
+        var demoDir = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(Path.Combine(demoDir, "assets", "css"));
+        File.WriteAllText(Path.Combine(demoDir, "assets", "css", "style.css"), "body{font-family:sans-serif}");
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"assets/css/style.css\"></head><body><header><nav>Nav</nav></header><main><h1>Home</h1><p>Welcome.</p></main><footer>Footer</footer></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "about.html"),
+            "<html><head><title>About</title></head><body><header><nav>Nav</nav></header><main><h1>About</h1><p>About body.</p></main><footer>Footer</footer></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "build-test";
+        opts["--force"] = "true";
+        var importResult = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+
+        Assert.Equal(0, importResult);
+
+        var siteConfig = Path.Combine(_tempDir, "sites", "build-test", "site.yaml");
+        var buildResult = await BuildCommand.RunAsync(MakeCommand(new Dictionary<string, string?>
+        {
+            ["--config"] = siteConfig,
+            ["--output"] = "dist-build-test",
+            ["--no-clean"] = "true"
+        }, []));
+
+        Assert.Equal(0, buildResult);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "dist-build-test", "index.html")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "dist-build-test", "about", "index.html")));
     }
 }
