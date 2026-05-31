@@ -132,6 +132,43 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--base-url", "设置 site.baseUrl"),
                 new CliOptionSpec("--config", "配置文件路径"),
                 new CliOptionSpec("--site", "多站点名")
+                    }),
+                new CliCommandSpec(
+                    Name: "seed",
+                    Description: "将 import 生成的 JSON/YAML seed 转为本地 markdown content",
+                    Arguments: new[] { new CliArgumentSpec("seed-dir", "seed 目录路径", Required: true) },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--output", "目标 content 目录", CliOptionType.String, ValueName: "dir", Required: true),
+                        new CliOptionSpec("--force", "覆盖已有 markdown 文件", CliOptionType.Flag),
+                        new CliOptionSpec("--config", "配置文件路径"),
+                        new CliOptionSpec("--site", "多站点名")
+                    })
+            });
+
+        var notion = new CliCommandSpec(
+            Name: "notion",
+            Description: "Notion 迁移与内容同步命令",
+            Options: new[]
+            {
+                new CliOptionSpec("--input", "seed 输入目录", CliOptionType.String, ValueName: "dir"),
+                new CliOptionSpec("--database-id", "Notion database ID", CliOptionType.String, ValueName: "id"),
+                new CliOptionSpec("--dry-run", "只生成推送计划，不调用 Notion API", CliOptionType.Flag),
+                new CliOptionSpec("--report", "推送计划/报告输出路径", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name")
+            },
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "push",
+                    Description: "从 notion-seed 生成 Notion 推送计划，非 dry-run 前校验 token",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--input", "seed 输入目录", CliOptionType.String, ValueName: "dir", Required: true),
+                        new CliOptionSpec("--database-id", "Notion database ID", CliOptionType.String, ValueName: "id", Required: true),
+                        new CliOptionSpec("--dry-run", "只生成推送计划，不调用 Notion API", CliOptionType.Flag),
+                        new CliOptionSpec("--report", "推送计划/报告输出路径", CliOptionType.String, ValueName: "file"),
+                        new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name")
                     })
             });
 
@@ -610,6 +647,6 @@ public static class BukitCliSpecs
                     })
             });
 
-        return new CliCommandRegistry(new[] { build, clone, importCmd, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, version, intent, visual, webhook, clean, config, doctor, lint, init, route, data });
+        return new CliCommandRegistry(new[] { build, clone, importCmd, notion, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, version, intent, visual, webhook, clean, config, doctor, lint, init, route, data });
     }
 }

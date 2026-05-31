@@ -1379,7 +1379,15 @@ theme:
 
 如果 `--content-source json` 或 `--content-source yaml`，该选项只影响 seed 审核文件的输出目录/格式意图；当前默认可构建工程仍由本地 markdown content 驱动。
 
-`--content-source notion` 生成 `sites/silkroadbiz/notion-seed/*.json`；`json` / `yaml` 生成 `sites/silkroadbiz/data/*.json`，供后续人工或外部命令导入。
+`--content-source notion` 生成 `sites/silkroadbiz/notion-seed/*.json`；`json` 生成 `sites/silkroadbiz/data/*.json`；`yaml` 生成 `sites/silkroadbiz/data/*.yaml`，供后续人工或外部命令导入。
+
+JSON/YAML seed 如果需要回灌为本地 markdown content，可使用：
+
+```bash
+bukit import seed sites/silkroadbiz/data --output sites/silkroadbiz/content --force
+```
+
+该命令只处理 `pages`、`posts`、`companies`、`services` 四类内容记录，并写入 `content/pages/`、`content/posts/`、`content/companies/`、`content/services/`。FAQ、media、components 仍作为审核数据保留，不会自动变成可路由页面。
 
 ---
 
@@ -1405,8 +1413,13 @@ report
 然后由独立命令写入 Notion：
 
 ```bash
-bukit notion push --input sites/silkroadbiz/notion-seed
+bukit notion push \
+  --input sites/silkroadbiz/notion-seed \
+  --database-id <notion-database-id> \
+  --dry-run
 ```
+
+当前实现首先生成本地推送计划 `notion-push-plan.json`。非 `--dry-run` 会校验 `NOTION_TOKEN`（或 `--token-env` 指定的环境变量），但实际数据库字段映射仍应在人工审核推送计划后按目标 Notion schema 明确配置。
 
 原因：
 

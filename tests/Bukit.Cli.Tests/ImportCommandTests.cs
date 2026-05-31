@@ -271,4 +271,95 @@ public sealed class ImportCommandTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_tempDir, "dist-build-test", "index.html")));
         Assert.True(File.Exists(Path.Combine(_tempDir, "dist-build-test", "about", "index.html")));
     }
+
+    [Fact]
+    public async Task Verify_UsesGeneratedSiteConfigAndBuilds()
+    {
+        var demoDir = Path.Combine(_tempDir, "verify-demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1><p>Welcome.</p></main></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "verify-test";
+        opts["--verify"] = "true";
+        var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+
+        Assert.Equal(0, result);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "verify-test", "site.yaml")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "dist", "index.html")));
+    }
+
+    [Fact]
+    public async Task SeedJson_WritesMarkdownContent()
+    {
+        var seedDir = Path.Combine(_tempDir, "seed-json");
+        Directory.CreateDirectory(seedDir);
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  {
+    "title": "About",
+    "slug": "about",
+    "type": "page",
+    "summary": "About summary",
+    "content": "<p>About body.</p>",
+    "language": "zh",
+    "published": true
+  }
+]
+""");
+        File.WriteAllText(Path.Combine(seedDir, "posts.json"), """
+[
+  {
+    "title": "News",
+    "slug": "news",
+    "summary": "News summary",
+    "content": "<p>News body.</p>",
+    "language": "zh",
+    "published": true
+  }
+]
+""");
+
+        var outputDir = Path.Combine(_tempDir, "content-json");
+        var result = await ImportCommand.RunAsync(MakeCommand(new Dictionary<string, string?>
+        {
+            ["--output"] = outputDir
+        }, ["seed", seedDir]));
+
+        Assert.Equal(0, result);
+        var page = File.ReadAllText(Path.Combine(outputDir, "pages", "about.md"));
+        var post = File.ReadAllText(Path.Combine(outputDir, "posts", "news.md"));
+        Assert.Contains("title: \"About\"", page);
+        Assert.Contains("<p>About body.</p>", page);
+        Assert.Contains("type: \"post\"", post);
+    }
+
+    [Fact]
+    public async Task SeedYaml_WritesMarkdownContent()
+    {
+        var seedDir = Path.Combine(_tempDir, "seed-yaml");
+        Directory.CreateDirectory(seedDir);
+        File.WriteAllText(Path.Combine(seedDir, "services.yaml"), """
+-
+  title: "Consulting"
+  slug: "consulting"
+  summary: "Service summary"
+  content: "<p>Service body.</p>"
+  language: "zh"
+  published: true
+""");
+
+        var outputDir = Path.Combine(_tempDir, "content-yaml");
+        var result = await ImportCommand.RunAsync(MakeCommand(new Dictionary<string, string?>
+        {
+            ["--output"] = outputDir
+        }, ["seed", seedDir]));
+
+        Assert.Equal(0, result);
+        var service = File.ReadAllText(Path.Combine(outputDir, "services", "consulting.md"));
+        Assert.Contains("title: \"Consulting\"", service);
+        Assert.Contains("type: \"service\"", service);
+        Assert.Contains("<p>Service body.</p>", service);
+    }
 }

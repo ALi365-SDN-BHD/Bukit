@@ -70,6 +70,7 @@ try
                 "seo" => await SeoCommand.RunAsync(merged),
                 "geo" => await GeoCommand.RunAsync(merged),
                 "data" => await DataCommand.RunAsync(merged),
+                "notion" => await NotionCommand.RunAsync(merged),
                 "theme" => await ThemeCommand.RunAsync(merged),
                 "template" => await TemplateCommand.RunAsync(merged),
                 "intent" => await IntentCommand.RunAsync(merged),

@@ -12,8 +12,39 @@ public static class ImportCommand
         return sub switch
         {
             "html-demo" => await HtmlDemoAsync(command),
+            "seed" => await SeedAsync(command),
             _ => Unknown(sub)
         };
+    }
+
+    private static Task<int> SeedAsync(CliBoundCommand command)
+    {
+        var inputArg = command.GetArgument(1);
+        if (string.IsNullOrWhiteSpace(inputArg))
+        {
+            Console.Error.WriteLine("缺少必填参数: <seed-dir>");
+            return Task.FromResult(2);
+        }
+
+        var inputDir = Path.GetFullPath(inputArg);
+        if (!Directory.Exists(inputDir))
+        {
+            Console.Error.WriteLine($"seed 目录不存在: {inputDir}");
+            return Task.FromResult(2);
+        }
+
+        var output = command.GetString("--output");
+        if (string.IsNullOrWhiteSpace(output))
+        {
+            Console.Error.WriteLine("缺少必填选项: --output <content-dir>");
+            return Task.FromResult(2);
+        }
+
+        var outputDir = Path.GetFullPath(output);
+        var records = ImportSeedRecordReader.ReadDirectory(inputDir);
+        var written = ImportSeedContentWriter.WriteMarkdown(outputDir, records, command.GetBool("--force"));
+        Console.WriteLine($"seed import 完成: records={records.Count} written={written} output={outputDir}");
+        return Task.FromResult(0);
     }
 
     private static async Task<int> HtmlDemoAsync(CliBoundCommand command)
@@ -130,12 +161,30 @@ public static class ImportCommand
 
         if (verify)
         {
-            var verifyResult = await CloneVerifier.VerifyCloneAsync(
-                command, rootDir, failOnVisualDiff: false, visualThreshold: 0.03);
+            var verifyResult = await VerifyImportAsync(result, rootDir, themeName);
             if (verifyResult != 0) return verifyResult;
         }
 
         return 0;
+    }
+
+    private static async Task<int> VerifyImportAsync(ImportResult result, string rootDir, string themeName)
+    {
+        var siteDir = string.IsNullOrWhiteSpace(result.SitePath)
+            ? Path.Combine(rootDir, "sites", themeName)
+            : result.SitePath;
+        var siteConfig = Path.Combine(siteDir, "site.yaml");
+
+        var doctorResult = await DoctorCommand.RunAsync(new CliBoundCommand(new Dictionary<string, string?>
+        {
+            ["--config"] = siteConfig
+        }, []));
+        if (doctorResult != 0) return doctorResult;
+
+        return await BuildCommand.RunAsync(new CliBoundCommand(new Dictionary<string, string?>
+        {
+            ["--config"] = siteConfig
+        }, []));
     }
 
     private static bool SyncTemplates(string rootDir, string themeName, bool force)
