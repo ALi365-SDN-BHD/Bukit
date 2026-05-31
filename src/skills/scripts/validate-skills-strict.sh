@@ -301,12 +301,23 @@ python3 "$SKILLS_DIR/scripts/check-markdown-tables.py" || ERRORS=$((ERRORS + 1))
 # --- Check 12: CLI commands consistency ---
 echo ""
 echo "--- Check 12: CLI commands consistency ---"
-python3 "$SKILLS_DIR/scripts/check-cli-commands.py" || true
+python3 "$SKILLS_DIR/scripts/check-cli-commands.py" || ERRORS=$((ERRORS + 1))
 
 # --- Check 13: Status consistency ---
 echo ""
 echo "--- Check 13: Status consistency ---"
 python3 "$SKILLS_DIR/scripts/check-status-consistency.py" || ERRORS=$((ERRORS + 1))
+
+
+# --- Check 14: YAML code block validation ---
+echo ""
+echo "--- Check 14: YAML code block validation ---"
+python3 "$SKILLS_DIR/scripts/check-yaml-examples.py" || true
+
+# --- Check 15: Status keyword consistency ---
+echo ""
+echo "--- Check 15: Status keyword consistency ---"
+python3 "$SKILLS_DIR/scripts/check-status-keywords.py" || true
 
 # --- Summary ---
 echo ""

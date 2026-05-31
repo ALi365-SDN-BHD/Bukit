@@ -1,3 +1,7 @@
+> **Status: Beta** — These skills are actively maintained and verified against source code,
+> but the knowledge base structure and validation tooling may evolve. See [QUALITY_REPORT.md](QUALITY_REPORT.md)
+> for known issues.
+
 # Bukit Agent Skills
 
 `src/skills/` contains Bukit-specific guidance for AI agents, not runtime source code. It breaks common Bukit tasks into focused `SKILL.md` files so an agent can choose the right knowledge boundary for site creation, configuration, theming, content integration, routing, multilingual output, and debugging.

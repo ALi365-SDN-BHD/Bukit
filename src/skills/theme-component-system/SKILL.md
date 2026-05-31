@@ -6,9 +6,7 @@ status: beta
 since: "v3.0.0"
 verified_by:
   - "src/Bukit.Cli/Commands/ThemeCommand.cs"
-  - "src/Bukit.Cli/Commands/ThemeCommand.cs"
 source_anchors:
-  - "src/Bukit.Cli/Commands/ThemeCommand.cs"
   - "src/Bukit.Cli/Commands/ThemeCommand.cs"
 guide_chapters:
   - "guide/user/08-themes-templates.md"

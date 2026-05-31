@@ -247,17 +247,8 @@ Design tokens work alongside external CSS/JS frameworks. Bukit's `style.css` loa
 
 ```yaml
 theme:
-  params:
     external_css:
-      - "https://cdn.tailwindcss.com"  # Not recommended — prefer build-time integration
-    primary_color: "#7c3aed"
-    font_family: "Inter, system-ui, sans-serif"
-```
-
-In templates, use Tailwind for layout (grid, flex, spacing) and Bukit tokens for theming (colors, fonts, content styles):
-
-```html
-<!-- Tailwind for layout -->
+      - "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700"
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
   <!-- Bukit tokens for theming -->
