@@ -1,9 +1,137 @@
 using Bukit.Cli.Cli.Metadata;
+using Bukit.Cli.Commands;
+using Bukit.Cli.Commands.DocsCheck;
 
 namespace Bukit.Cli;
 
 public static class BukitCliSpecs
 {
+    internal static readonly CliCommandSpec ThemeCreateSpec = new(
+        Name: "create",
+        Description: "创建主题",
+        Arguments: new[] { new CliArgumentSpec("name", "主题名", Required: true) },
+        Options: new[]
+        {
+            new CliOptionSpec("--config", "配置文件路径"),
+            new CliOptionSpec("--site", "多站点名"),
+            new CliOptionSpec("--from", "源主题名"),
+            new CliOptionSpec("--brand", "品牌名"),
+            new CliOptionSpec("--primary-color", "主色"),
+            new CliOptionSpec("--accent-color", "强调色"),
+            new CliOptionSpec("--use", "创建后切换到该主题", CliOptionType.Flag),
+            new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag)
+        });
+
+    internal static readonly CliCommandSpec ThemeListSpec = new(
+        Name: "list",
+        Description: "列出可用主题",
+        Options: new[]
+        {
+            new CliOptionSpec("--config", "配置文件路径"),
+            new CliOptionSpec("--site", "多站点名")
+        });
+
+    internal static readonly CliCommandSpec ThemeUseSpec = new(
+        Name: "use",
+        Description: "切换主题",
+        Arguments: new[] { new CliArgumentSpec("name", "主题名", Required: true) },
+        Options: new[]
+        {
+            new CliOptionSpec("--config", "配置文件路径"),
+            new CliOptionSpec("--site", "多站点名")
+        });
+
+    internal static readonly CliCommandSpec ThemeInfoSpec = new(
+        Name: "info",
+        Description: "查看主题详细信息",
+        Arguments: new[] { new CliArgumentSpec("name", "主题名") },
+        Options: new[]
+        {
+            new CliOptionSpec("--config", "配置文件路径"),
+            new CliOptionSpec("--site", "多站点名")
+        });
+
+    internal static readonly CliCommandSpec ThemeParamsSpec = new(
+        Name: "params",
+        Description: "列出主题可定制参数",
+        Arguments: new[] { new CliArgumentSpec("name", "主题名") },
+        Options: new[]
+        {
+            new CliOptionSpec("--config", "配置文件路径"),
+            new CliOptionSpec("--site", "多站点名")
+        });
+
+    internal static readonly CliCommandSpec ThemePreviewSpec = new(
+        Name: "preview",
+        Description: "显示主题预览元数据",
+        Arguments: new[] { new CliArgumentSpec("name", "主题名") },
+        Options: new[]
+        {
+            new CliOptionSpec("--config", "配置文件路径"),
+            new CliOptionSpec("--site", "多站点名")
+        });
+
+    internal static readonly CliCommandSpec ThemeWizardSpec = new(
+        Name: "wizard",
+        Description: "交互式主题创建向导",
+        Arguments: new[] { new CliArgumentSpec("name", "主题名") },
+        Options: new[]
+        {
+            new CliOptionSpec("--preset", "预设风格 (blog|docs|landing|minimal|portfolio)"),
+            new CliOptionSpec("--use", "创建后切换", CliOptionType.Flag),
+            new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
+            new CliOptionSpec("--config", "配置文件路径"),
+            new CliOptionSpec("--site", "多站点名")
+        });
+
+    internal static readonly CliCommandSpec ThemePackSpec = new(
+        Name: "pack",
+        Description: "打包主题为 tar.gz",
+        Arguments: new[] { new CliArgumentSpec("name", "主题名") },
+        Options: new[]
+        {
+            new CliOptionSpec("--output", "输出路径"),
+            new CliOptionSpec("--config", "配置文件路径"),
+            new CliOptionSpec("--site", "多站点名")
+        });
+
+    internal static readonly CliCommandSpec ThemeInstallSpec = new(
+        Name: "install",
+        Description: "安装主题 (本地/URL/注册表)",
+        Arguments: new[] { new CliArgumentSpec("source", "路径或 URL") },
+        Options: new[]
+        {
+            new CliOptionSpec("--registry", "注册表中的主题名"),
+            new CliOptionSpec("--registry-url", "注册表 URL"),
+            new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
+            new CliOptionSpec("--config", "配置文件路径"),
+            new CliOptionSpec("--site", "多站点名")
+        });
+
+    internal static readonly CliCommandSpec ThemeSearchSpec = new(
+        Name: "search",
+        Description: "搜索社区主题注册表",
+        Arguments: new[] { new CliArgumentSpec("query", "搜索关键词") },
+        Options: new[]
+        {
+            new CliOptionSpec("--refresh", "强制刷新缓存", CliOptionType.Flag),
+            new CliOptionSpec("--registry-url", "注册表 URL"),
+            new CliOptionSpec("--config", "配置文件路径"),
+            new CliOptionSpec("--site", "多站点名")
+        });
+
+    internal static readonly CliCommandSpec ThemeDoctorSpec = new(
+        Name: "doctor",
+        Description: "诊断组件化主题");
+
+    internal static readonly CliCommandSpec ThemeListComponentsSpec = new(
+        Name: "list-components",
+        Description: "列出主题组件");
+
+    internal static readonly CliCommandSpec ThemeExportCatalogSpec = new(
+        Name: "export-catalog",
+        Description: "导出主题目录");
+
     public static CliCommandRegistry CreateRegistry()
     {
         var build = new CliCommandSpec(
@@ -182,110 +310,16 @@ public static class BukitCliSpecs
             },
             Subcommands: new[]
             {
-                new CliCommandSpec(
-                    Name: "create",
-                    Description: "创建主题",
-                    Arguments: new[] { new CliArgumentSpec("name", "主题名", Required: true) },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名"),
-                        new CliOptionSpec("--from", "源主题名"),
-                        new CliOptionSpec("--brand", "品牌名"),
-                        new CliOptionSpec("--primary-color", "主色"),
-                        new CliOptionSpec("--accent-color", "强调色"),
-                        new CliOptionSpec("--use", "创建后切换到该主题", CliOptionType.Flag),
-                        new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag)
-                    }),
-                new CliCommandSpec(
-                    Name: "list",
-                    Description: "列出可用主题",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "use",
-                    Description: "切换主题",
-                    Arguments: new[] { new CliArgumentSpec("name", "主题名", Required: true) },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "info",
-                    Description: "查看主题详细信息",
-                    Arguments: new[] { new CliArgumentSpec("name", "主题名") },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "params",
-                    Description: "列出主题可定制参数",
-                    Arguments: new[] { new CliArgumentSpec("name", "主题名") },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "preview",
-                    Description: "显示主题预览元数据",
-                    Arguments: new[] { new CliArgumentSpec("name", "主题名") },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "wizard",
-                    Description: "交互式主题创建向导",
-                    Arguments: new[] { new CliArgumentSpec("name", "主题名") },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--preset", "预设风格 (blog|docs|landing|minimal|portfolio)"),
-                        new CliOptionSpec("--use", "创建后切换", CliOptionType.Flag),
-                        new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "pack",
-                    Description: "打包主题为 tar.gz",
-                    Arguments: new[] { new CliArgumentSpec("name", "主题名") },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--output", "输出路径"),
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "install",
-                    Description: "安装主题 (本地/URL/注册表)",
-                    Arguments: new[] { new CliArgumentSpec("source", "路径或 URL") },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--registry", "注册表中的主题名"),
-                        new CliOptionSpec("--registry-url", "注册表 URL"),
-                        new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "search",
-                    Description: "搜索社区主题注册表",
-                    Arguments: new[] { new CliArgumentSpec("query", "搜索关键词") },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--refresh", "强制刷新缓存", CliOptionType.Flag),
-                        new CliOptionSpec("--registry-url", "注册表 URL"),
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    })
+                ThemeCreateSpec,
+                ThemeListSpec,
+                ThemeUseSpec,
+                ThemeInfoSpec,
+                ThemeParamsSpec,
+                ThemePreviewSpec,
+                ThemeWizardSpec,
+                ThemePackSpec,
+                ThemeInstallSpec,
+                ThemeSearchSpec
             });
 
         var template = new CliCommandSpec(
@@ -648,5 +682,61 @@ public static class BukitCliSpecs
             });
 
         return new CliCommandRegistry(new[] { build, clone, importCmd, notion, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, version, intent, visual, webhook, clean, config, doctor, lint, init, route, data });
+    }
+
+    public static IReadOnlyList<CommandDescriptor> CreateDescriptors()
+    {
+        var registry = CreateRegistry();
+
+        var themeChildren = ThemeCommand.CreateDescriptors().ToList();
+
+        return new CommandDescriptor[]
+        {
+            new(registry.Commands.First(c => c.Name == "build"), cmd => BuildCommand.RunAsync(cmd)),
+            new(registry.Commands.First(c => c.Name == "clean"), CleanCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "clone"), CloneCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "completion"), CompletionCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "deploy"), DeployCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "dev"), DevCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "doctor"), DoctorCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "init"), InitCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "lint"), LintCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "preview"), PreviewCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "version"), VersionCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "docs"), DocsCheckCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "plugin"), PluginCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "config"), ConfigCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "seo"), SeoCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "geo"), GeoCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "data"), DataCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "route"), RouteCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "import"), ImportCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "notion"), NotionCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "template"), TemplateCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "intent"), IntentCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "visual"), VisualCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "webhook"), WebhookCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "theme"), null, themeChildren),
+        };
+    }
+
+    public static CommandDescriptor? ResolveDescriptor(IReadOnlyList<CommandDescriptor> descriptors, string name)
+    {
+        foreach (var d in descriptors)
+        {
+            if (string.Equals(d.Spec.Name, name, StringComparison.OrdinalIgnoreCase))
+                return d;
+
+            if (d.Spec.Aliases is not null)
+            {
+                foreach (var alias in d.Spec.Aliases)
+                {
+                    if (string.Equals(alias, name, StringComparison.OrdinalIgnoreCase))
+                        return d;
+                }
+            }
+        }
+
+        return null;
     }
 }

@@ -1,6 +1,7 @@
 using YamlDotNet.RepresentationModel;
 using Bukit.Theme;
 using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Cli.Metadata;
 
 namespace Bukit.Cli.Commands;
 
@@ -14,29 +15,37 @@ public static class ThemeCommand
             return Task.FromResult(2);
         }
 
-        return sub switch
+        var child = ThemeDescriptors.FirstOrDefault(c =>
+            string.Equals(c.Spec.Name, sub, StringComparison.OrdinalIgnoreCase));
+        if (child?.Handler is null)
+            return Task.FromResult(Unknown(sub));
+
+        return child.Handler(command);
+    }
+
+    internal static IReadOnlyList<CommandDescriptor> ThemeDescriptors => CreateDescriptors();
+
+    internal static IReadOnlyList<CommandDescriptor> CreateDescriptors()
+    {
+        return new CommandDescriptor[]
         {
-            "create" => CreateAsync(command),
-            "list" => ListAsync(command),
-            "use" => UseAsync(command),
-            "info" => InfoAsync(command),
-            "params" => ParamsAsync(command),
-            "preview" => PreviewAsync(command),
-            "wizard" => ThemeWizardCommand.RunAsync(command),
-            "pack" => ThemePackCommand.RunAsync(command),
-            "install" => ThemeInstallCommand.RunAsync(command),
-            "search" => ThemeRegistryCommand.SearchAsync(command),
-            // NOTE: The following subcommands are NOT registered in BukitCliSpecs.cs yet.
-            // They are unreachable via CLI until registered. See theme-component-system SKILL.md
-            // which marks them as (planned). Enable them in BukitCliSpecs.cs when ready for stable.
-            "doctor" => DoctorAsync(command),
-            "list-components" => ListComponentsAsync(command),
-            "export-catalog" => ExportCatalogAsync(command),
-            _ => Task.FromResult(Unknown(sub))
+            new(BukitCliSpecs.ThemeCreateSpec, CreateAsync),
+            new(BukitCliSpecs.ThemeListSpec, ListAsync),
+            new(BukitCliSpecs.ThemeUseSpec, UseAsync),
+            new(BukitCliSpecs.ThemeInfoSpec, InfoAsync),
+            new(BukitCliSpecs.ThemeParamsSpec, ParamsAsync),
+            new(BukitCliSpecs.ThemePreviewSpec, PreviewAsync),
+            new(BukitCliSpecs.ThemeWizardSpec, ThemeWizardCommand.RunAsync),
+            new(BukitCliSpecs.ThemePackSpec, ThemePackCommand.RunAsync),
+            new(BukitCliSpecs.ThemeInstallSpec, ThemeInstallCommand.RunAsync),
+            new(BukitCliSpecs.ThemeSearchSpec, ThemeRegistryCommand.SearchAsync),
+            new(BukitCliSpecs.ThemeDoctorSpec, DoctorAsync),
+            new(BukitCliSpecs.ThemeListComponentsSpec, ListComponentsAsync),
+            new(BukitCliSpecs.ThemeExportCatalogSpec, ExportCatalogAsync),
         };
     }
 
-    private static async Task<int> CreateAsync(CliBoundCommand command)
+    internal static async Task<int> CreateAsync(CliBoundCommand command)
     {
         var name = command.GetArgument(1);
         if (!ThemeFileHelper.IsSafeThemeName(name))
@@ -106,7 +115,7 @@ public static class ThemeCommand
         return 0;
     }
 
-    private static Task<int> ListAsync(CliBoundCommand command)
+    internal static Task<int> ListAsync(CliBoundCommand command)
     {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
@@ -169,7 +178,7 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> InfoAsync(CliBoundCommand command)
+    internal static Task<int> InfoAsync(CliBoundCommand command)
     {
         var name = ResolveThemeName(command);
         if (string.IsNullOrWhiteSpace(name))
@@ -229,7 +238,7 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> PreviewAsync(CliBoundCommand command)
+    internal static Task<int> PreviewAsync(CliBoundCommand command)
     {
         var name = command.GetArgument(1) ?? ResolveThemeName(command);
         if (string.IsNullOrWhiteSpace(name))
@@ -271,7 +280,7 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> ParamsAsync(CliBoundCommand command)
+    internal static Task<int> ParamsAsync(CliBoundCommand command)
     {
         var name = ResolveThemeName(command);
         if (string.IsNullOrWhiteSpace(name))
@@ -348,7 +357,7 @@ public static class ThemeCommand
         return null;
     }
 
-    private static Task<int> UseAsync(CliBoundCommand command)
+    internal static Task<int> UseAsync(CliBoundCommand command)
     {
         var name = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(name))
@@ -444,7 +453,7 @@ public static class ThemeCommand
         return 2;
     }
 
-    private static Task<int> DoctorAsync(CliBoundCommand command)
+    internal static Task<int> DoctorAsync(CliBoundCommand command)
     {
         var themeRoot = ResolveFullThemeRoot(command);
         if (themeRoot is null) return Task.FromResult(2);
@@ -473,7 +482,7 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> ListComponentsAsync(CliBoundCommand command)
+    internal static Task<int> ListComponentsAsync(CliBoundCommand command)
     {
         var themeRoot = ResolveFullThemeRoot(command);
         if (themeRoot is null) return Task.FromResult(2);
@@ -509,7 +518,7 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> ExportCatalogAsync(CliBoundCommand command)
+    internal static Task<int> ExportCatalogAsync(CliBoundCommand command)
     {
         var themeRoot = ResolveFullThemeRoot(command);
         if (themeRoot is null) return Task.FromResult(2);
@@ -532,7 +541,7 @@ public static class ThemeCommand
         return Task.FromResult(0);
     }
 
-    private static string? ResolveFullThemeRoot(CliBoundCommand command)
+    internal static string? ResolveFullThemeRoot(CliBoundCommand command)
     {
         var name = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(name) || name.StartsWith('-'))
