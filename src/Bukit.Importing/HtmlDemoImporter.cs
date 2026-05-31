@@ -176,9 +176,13 @@ public static class HtmlDemoImporter
             }
             else
             {
-                var fullPath = Path.Combine(inputPath, pattern);
-                if (File.Exists(fullPath) || Directory.Exists(fullPath))
-                    throw new InvalidOperationException($"输入目录包含敏感项: {pattern}");
+                var fileMatches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
+                if (fileMatches.Length > 0)
+                    throw new InvalidOperationException($"输入目录包含敏感项: {Path.GetRelativePath(inputPath, fileMatches[0])}");
+
+                var dirMatches = Directory.GetDirectories(inputPath, pattern, SearchOption.AllDirectories);
+                if (dirMatches.Length > 0)
+                    throw new InvalidOperationException($"输入目录包含敏感项: {Path.GetRelativePath(inputPath, dirMatches[0])}");
             }
         }
     }

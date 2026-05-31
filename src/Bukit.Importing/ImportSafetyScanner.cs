@@ -34,13 +34,23 @@ internal static class ImportSafetyScanner
     {
         foreach (var pattern in SensitiveFileNames)
         {
-            var matches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
-            foreach (var match in matches)
+            var fileMatches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
+            foreach (var match in fileMatches)
             {
                 diagnostics.Add(new ImportDiagnostic(
                     ImportDiagnosticSeverity.Error,
                     "SENSITIVE_FILE",
                     $"发现敏感文件: {Path.GetRelativePath(inputPath, match)}",
+                    match));
+            }
+
+            var dirMatches = Directory.GetDirectories(inputPath, pattern, SearchOption.AllDirectories);
+            foreach (var match in dirMatches)
+            {
+                diagnostics.Add(new ImportDiagnostic(
+                    ImportDiagnosticSeverity.Error,
+                    "SENSITIVE_FILE",
+                    $"发现敏感目录: {Path.GetRelativePath(inputPath, match)}",
                     match));
             }
         }

@@ -13,13 +13,13 @@ internal static class SeedGenerator
             : Path.Combine(siteDir, "notion-seed");
         Directory.CreateDirectory(seedDir);
 
-        WritePages(Path.Combine(seedDir, "pages.json"), content.Pages);
-        WriteSections(Path.Combine(seedDir, "sections.json"), content.Sections);
-        WritePosts(Path.Combine(seedDir, "posts.json"), content.Posts);
-        WriteCompanies(Path.Combine(seedDir, "companies.json"), content.Companies);
-        WriteFaqs(Path.Combine(seedDir, "faqs.json"), content.Faqs);
-        WriteMedia(Path.Combine(seedDir, "media.json"), pages);
-        WriteComponents(Path.Combine(seedDir, "components.json"), components);
+        WritePages(Path.Combine(seedDir, "pages.json"), content.Pages, options.Overwrite);
+        WriteSections(Path.Combine(seedDir, "sections.json"), content.Sections, options.Overwrite);
+        WritePosts(Path.Combine(seedDir, "posts.json"), content.Posts, options.Overwrite);
+        WriteCompanies(Path.Combine(seedDir, "companies.json"), content.Companies, options.Overwrite);
+        WriteFaqs(Path.Combine(seedDir, "faqs.json"), content.Faqs, options.Overwrite);
+        WriteMedia(Path.Combine(seedDir, "media.json"), pages, options.Overwrite);
+        WriteComponents(Path.Combine(seedDir, "components.json"), components, options.Overwrite);
 
         Console.WriteLine($"  种子数据生成完成: {seedDir}");
         Console.WriteLine($"    pages:     {content.Pages.Count}");
@@ -33,9 +33,9 @@ internal static class SeedGenerator
         return true;
     }
 
-    private static void WritePages(string path, List<PageRecord> records)
+    private static void WritePages(string path, List<PageRecord> records, bool overwrite)
     {
-        WriteArray(path, records, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"title\": {JsonStr(r.Title)},");
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
@@ -50,9 +50,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteSections(string path, List<SectionRecord> records)
+    private static void WriteSections(string path, List<SectionRecord> records, bool overwrite)
     {
-        WriteArray(path, records, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"page_slug\": {JsonVal(r.PageSlug)},");
             sb.AppendLine($"    \"section_type\": {JsonStr(r.SectionType)},");
@@ -66,9 +66,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WritePosts(string path, List<PostRecord> records)
+    private static void WritePosts(string path, List<PostRecord> records, bool overwrite)
     {
-        WriteArray(path, records, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"title\": {JsonStr(r.Title)},");
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
@@ -83,9 +83,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteCompanies(string path, List<CompanyRecord> records)
+    private static void WriteCompanies(string path, List<CompanyRecord> records, bool overwrite)
     {
-        WriteArray(path, records, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"title\": {JsonStr(r.Title)},");
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
@@ -100,9 +100,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteFaqs(string path, List<FaqRecord> records)
+    private static void WriteFaqs(string path, List<FaqRecord> records, bool overwrite)
     {
-        WriteArray(path, records, (sb, r, i, last) =>
+        WriteArray(path, records, overwrite, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"question\": {JsonStr(r.Question)},");
             sb.AppendLine($"    \"answer\": {JsonStr(r.Answer)},");
@@ -114,7 +114,7 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteMedia(string path, List<DiscoveredPage> pages)
+    private static void WriteMedia(string path, List<DiscoveredPage> pages, bool overwrite)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var mediaItems = new List<(string source, string target, List<string> usedBy, string status)>();
@@ -147,7 +147,7 @@ internal static class SeedGenerator
             }
         }
 
-        WriteArray(path, mediaItems, (sb, m, i, last) =>
+        WriteArray(path, mediaItems, overwrite, (sb, m, i, last) =>
         {
             sb.AppendLine($"    \"source\": {JsonStr(m.source)},");
             sb.AppendLine($"    \"target\": {JsonStr(m.target)},");
@@ -157,9 +157,9 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteComponents(string path, List<DiscoveredComponent> components)
+    private static void WriteComponents(string path, List<DiscoveredComponent> components, bool overwrite)
     {
-        WriteArray(path, components, (sb, c, i, last) =>
+        WriteArray(path, components, overwrite, (sb, c, i, last) =>
         {
             sb.AppendLine($"    \"name\": {JsonStr(c.Name)},");
             sb.AppendLine($"    \"template\": {JsonVal(c.NormalizedTemplate)},");
@@ -170,9 +170,12 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteArray<T>(string path, List<T> records,
+    private static void WriteArray<T>(string path, List<T> records, bool overwrite,
         Action<StringBuilder, T, int, bool> writeItem)
     {
+        if (File.Exists(path) && !overwrite)
+            return;
+
         var sb = new StringBuilder();
         sb.AppendLine("[");
         for (var i = 0; i < records.Count; i++)
