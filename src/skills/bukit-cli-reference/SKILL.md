@@ -83,6 +83,7 @@ After downloading, place the binary in a PATH directory or the project root.
 | `theme pack` | Package theme as `<name>-<version>.tar.gz` | `[name]` `--config` `--site` |
 | `theme install` | Install theme from local file, URL, or registry | `<path\|url>` `--registry <name>` `--force` `--config` `--site` |
 | `theme search` | Query community theme registry | `[query]` `--refresh` `--registry-url <url>` `--config` `--site` |
+| `theme preview` | Display detailed theme anatomy | `[name]` `--config` `--site` |
 | `template create` | Interactive template file creation | `<path>` `--force` `--config` `--site` |
 | `template list` | List all templates in active theme | `--config` `--site` |
 | `template show` | Print template content | `<path>` `--config` `--site` |
@@ -97,7 +98,8 @@ After downloading, place the binary in a PATH directory or the project root.
 | `webhook` | Webhook server (Notion trigger → GitHub repository_dispatch) | `--host` `--port` `--path` `--repo` `--event` |
 | `clone` (beta) | Generate Bukit theme and content from target website | `--tokens` `--theme` `--layout` `--page` `--sections` `--behaviors` `--icons` `--assets` `--brand` `--use` `--force` `--verify` `--visual-threshold` `--fail-on-visual-diff` `--fidelity` `--config` `--site` |
 | `geo audit` | GEO audit on dist output | `--dir` |
-| `seo` | SEO audit and regression detection | `audit` `--dir` `--strict` `--external`; `diff` `--baseline` `--current` `--max-new-*` `--fail-on-*` |
+| `seo audit` | Audit SEO health from build report | `--dir` `--report` `--strict` `--external` |
+| `seo diff` | Compare SEO reports for regression budgets | `--baseline` `--current` `--max-new-errors N` `--max-new-warnings N` `--max-new-issues N` `--fail-on-new-code c1,c2` `--fail-on-route-removed` `--fail-on-indexable-drop` |
 | `data inspect` | List all data modules (Markdown/Notion content + data sources) | `--config` `--site` `--module` |
 | `data dump` | Export data module content as JSON | `--config` `--site` `--format` |
 | `completion` | Generate shell auto-completion script | `<shell>` (bash\|zsh\|fish) |

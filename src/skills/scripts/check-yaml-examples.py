@@ -23,7 +23,7 @@ for skill_file in sorted(glob.glob(os.path.join(skills_dir, '*/SKILL.md'))):
         if not yaml_text.strip():
             continue
         try:
-            yaml.safe_load(yaml_text)
+            list(yaml.safe_load_all(yaml_text))
         except yaml.YAMLError as e:
             lineno = content[:m.start()].count('\n') + 1
             print(f'  [{skill_name}:{lineno}] YAML parse error: {e}')

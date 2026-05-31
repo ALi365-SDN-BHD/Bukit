@@ -93,7 +93,7 @@ Mismatched or missing tokens receive `401 Unauthorized`.
 
 ### IP Allowlisting
 
-For production deployments, place the webhook behind a reverse proxy (nginx, Caddy) and restrict inbound IPs to Notion's webhook IP ranges.
+For production deployments, place the webhook behind a reverse proxy (nginx, Caddy) and rely on TLS, shared token verification, reverse proxy rate limiting, and network-level access controls.
 
 ## Webhook Payload Flow
 
@@ -147,7 +147,7 @@ The server continues running after each request — it handles multiple triggers
 For production use:
 
 1. **Reverse proxy**: Place behind nginx/Caddy with TLS
-2. **IP restriction**: Allow only Notion webhook IPs at the firewall/reverse-proxy level
+2. **IP restriction**: Restrict inbound traffic to known webhook source IPs if stable at the firewall/reverse-proxy level
 3. **Process manager**: Use systemd or supervisord to keep the webhook running
 4. **Logging**: Redirect stderr to a log file for debugging
 5. **Health check**: The webhook path responds to all valid requests — no separate health endpoint

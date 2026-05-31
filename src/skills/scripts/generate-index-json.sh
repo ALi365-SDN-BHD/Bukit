@@ -17,7 +17,7 @@ if command -v yq &>/dev/null; then
 elif command -v python3 &>/dev/null; then
   echo "yq not found, using python3 fallback..."
   python3 -c "
-import json
+import json, sys, os
 # Simple YAML to JSON for our skills-index format
 # Falls back to manual parsing if PyYAML is not available
 try:
@@ -31,6 +31,9 @@ except ImportError:
     print('Warning: Neither PyYAML nor yq is installed. Skipping JSON generation.', file=__import__('sys').stderr)
     print('Install PyYAML: pip3 install pyyaml')
     print('Or install yq: brew install yq')
+    if os.environ.get('CI', '') == 'true':
+        print('ERROR: yq and PyYAML not available in CI — refusing to skip JSON generation', file=sys.stderr)
+        sys.exit(1)
     exit(0)
 "
 else

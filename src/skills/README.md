@@ -55,7 +55,7 @@ src/skills/
 | `bukit-deploy` | GitHub Pages deployment via `bukit deploy` command, site.yaml deploy config, environment variables, CI/CD integration | Deploying site, pushing to gh-pages, configuring CNAME, troubleshooting deploy failures |
 | `bukit-clone` | Browser MCP extraction → `bukit clone` CLI → verification pipeline for cloning any website's visual design into a Bukit theme | Cloning a website's appearance, replicating a design, creating a theme from an existing live site |
 | `bukit-seo` | Traditional SEO configuration (site.seo node), inject/theme render modes, front matter SEO fields, 6 Schema.org JSON-LD types, build-time diagnostics (11 codes), post-build audit (~40 codes), CLI seo audit/diff | Configuring SEO, running seo audit/diff, interpreting seo.* diagnostic codes, setting up OG/Twitter/JSON-LD/sitemap |
-| `bukit-geo` | Generative engine optimization for AI search engines: llms.txt/llms-full.txt generation, AI crawler robots.txt rules, FAQ/HowTo structured data, geo audit with GEO Score (7 diagnostic codes) | Optimizing for AI search (ChatGPT Search/Perplexity/Google AI Overviews), generating llms.txt, adding FAQ/HowTo schema, running geo audit |
+| `bukit-geo` | Generative engine optimization for AI search engines: llms.txt/llms-full.txt generation, AI crawler robots.txt rules, FAQ/HowTo structured data, geo audit with GEO Score (10 diagnostic codes) | Optimizing for AI search (ChatGPT Search/Perplexity/Google AI Overviews), generating llms.txt, adding FAQ/HowTo schema, running geo audit |
 | `bukit-preview` | Local preview server — serves dist/ at localhost:4173, MIME type handling, analytics disabling, port conflict resolution | Previewing build output locally before deployment, troubleshooting port conflicts |
 | `bukit-dev` | HMR development server — file watching with 300ms debounce, incremental rebuild, WebSocket live browser refresh at localhost:35729 | Active development with automatic rebuild and live browser refresh |
 | `bukit-webhook` | Webhook server — authenticated Notion-style trigger → GitHub repository_dispatch for automated CI/CD builds | Setting up webhook-triggered auto-deploy from Notion updates |
@@ -99,8 +99,9 @@ src/skills/
 ├── skills-index.yaml            ← Machine-readable skill catalog (single source of truth)
 ├── skills-index.json            ← JSON version (auto-generated from YAML)
 │
-├── using-bukit/SKILL.md         ← Gateway: routes to all sub-skills
-├── bukit-*/SKILL.md             ← 19 domain skills (CLI, config, theme, templates, …)
+├── using-bukit/SKILL.md           ← Gateway skill
+├── bukit-*/SKILL.md               ← Bukit domain skills
+├── theme-component-system/SKILL.md ← V2 componentized theme skill
 │
 └── scripts/
     ├── validate-skills.sh       ← CI: validates all skill files
@@ -193,14 +194,19 @@ print(json.dumps(data['workflows'], indent=2))
 ### CI Verification
 
 ```bash
-# Validate all skill files
+# Basic validation (format, triggers, common errors)
 bash src/skills/scripts/validate-skills.sh
+
+# Strict validation (15 semantic checks — see below)
+bash src/skills/scripts/validate-skills-strict.sh
 
 # Regenerate JSON index after YAML changes
 bash src/skills/scripts/generate-index-json.sh
 ```
 
-The validate script checks:
+The strict validator runs 15 checks: skill count, plugin.json sync, Front Matter completeness, source_anchors paths, guide_chapters paths, local absolute paths, platform tool names, JSON sync, requires dependencies, workflow chains, Markdown table consistency, CLI commands consistency, status consistency, YAML code block validation, status keyword consistency.
+
+The basic validate script checks:
 - Front Matter completeness (`name` + `description`)
 - `description` starts with "Use when…"
 - Multilingual Triggers section present

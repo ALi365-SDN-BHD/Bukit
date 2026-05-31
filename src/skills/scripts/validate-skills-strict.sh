@@ -3,6 +3,8 @@ set -euo pipefail
 
 SKILLS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$SKILLS_DIR/../.." && pwd)"
+export SKILLS_DIR
+export REPO_ROOT
 ERRORS=0
 WARNINGS=0
 
@@ -312,12 +314,12 @@ python3 "$SKILLS_DIR/scripts/check-status-consistency.py" || ERRORS=$((ERRORS + 
 # --- Check 14: YAML code block validation ---
 echo ""
 echo "--- Check 14: YAML code block validation ---"
-python3 "$SKILLS_DIR/scripts/check-yaml-examples.py" || true
+python3 "$SKILLS_DIR/scripts/check-yaml-examples.py" || ERRORS=$((ERRORS + 1))
 
 # --- Check 15: Status keyword consistency ---
 echo ""
 echo "--- Check 15: Status keyword consistency ---"
-python3 "$SKILLS_DIR/scripts/check-status-keywords.py" || true
+python3 "$SKILLS_DIR/scripts/check-status-keywords.py" || WARNINGS=$((WARNINGS + 1))
 
 # --- Summary ---
 echo ""

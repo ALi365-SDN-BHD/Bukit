@@ -18,7 +18,7 @@ PLANNED_COMMANDS = {
 # Source commands that are intentionally NOT in the table as standalone entries
 # (they are covered by subcommand entries or are implementation details)
 SOURCE_PARENTS_WITH_SUBCOMMANDS = {
-    'theme', 'template', 'seo', 'config', 'data', 'route', 'docs',
+    'theme', 'template', 'config', 'data', 'route', 'docs',
     'intent', 'visual', 'geo', 'plugin',
 }
 
@@ -68,6 +68,16 @@ for line in lines:
     stripped = line.strip()
 
     if 'new CliCommandSpec(' in stripped:
+        # Check for inline Name before var declaration
+        m_name = re.search(r'Name:\s*"([^"]+)"', stripped)
+        if m_name:
+            cmd_name_inline = m_name.group(1)
+            if is_command_name(cmd_name_inline):
+                if in_subcommands and parent_name:
+                    source_commands.add(f'{parent_name} {cmd_name_inline}')
+                elif not in_subcommands:
+                    source_commands.add(cmd_name_inline)
+        # Then handle var declaration
         m = re.match(r'var\s+(\w+)\s*=', stripped)
         if m:
             parent_name = m.group(1)

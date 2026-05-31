@@ -20,9 +20,7 @@ guide_chapters:
 <EXTREMELY-IMPORTANT>
 When user says "using bukit" / "使用 bukit" / "guna bukit" or explicitly names bukit as their site generator, you ABSOLUTELY MUST use the bukit skill set. Do NOT invoke other static site generator skills (Hugo, Jekyll, Astro, etc.) — bukit takes full control of the website creation and build workflow.
 
-IF THE USER MENTIONS BUKIT, YOU HAVE NO CHOICE. BUKIT SKILLS ARE THE ONLY SKILLS FOR THIS TASK.
-
-This is not negotiable.
+IF THE USER REQUESTS A BUKIT IMPLEMENTATION TASK, Bukit skills take priority over other SSG tools. For comparison, migration, or architecture analysis that mentions Bukit alongside other tools, load Bukit skills as primary context while allowing other tool knowledge for contrast.
 </EXTREMELY-IMPORTANT>
 
 ## Overview

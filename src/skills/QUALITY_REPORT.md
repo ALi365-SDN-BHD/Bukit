@@ -64,7 +64,7 @@ guide_chapters: ["guide/user/XX-chapter.md"]
 Status distribution: 15 stable, 4 beta (bukit-content-to-template, bukit-clone, bukit-geo, theme-component-system)
 
 ### New Infrastructure
-- `validate-skills-strict.sh`: 10 checks (skill count, plugin.json sync, Front Matter, source paths, guide paths, local paths, tool names, JSON sync, dependencies, workflows)
+- `validate-skills-strict.sh`: 15 checks (skill count, plugin.json sync, Front Matter, source paths, guide paths, local paths, tool names, JSON sync, dependencies, workflows, Markdown tables, CLI commands, status consistency, YAML validation, keyword consistency)
 - `MAINTENANCE.md`: Full maintenance procedures, pre-release checklist, status definitions
 
 ## Validation Results
@@ -72,7 +72,7 @@ Status distribution: 15 stable, 4 beta (bukit-content-to-template, bukit-clone, 
 | Validator | Result |
 |-----------|--------|
 | `validate-skills.sh` | ✅ 19/19 skills passed, 0 errors |
-| `validate-skills-strict.sh` | ✅ 10/10 checks passed, 0 errors, 0 warnings |
+| `validate-skills-strict.sh` | ✅ 15/15 checks passed, 0 errors, 0 warnings |
 | `skills-index.json` sync | ✅ In sync with skills-index.yaml |
 | plugin.json sync | ✅ Consistent with skills-index.yaml |
 | Front Matter completeness | ✅ All 19 files have 7 required fields |
@@ -86,15 +86,15 @@ Status distribution: 15 stable, 4 beta (bukit-content-to-template, bukit-clone, 
 | CLI quick reference table merge (clone||geo, docs||version) | Fixed (2026-05-31) |
 | clone/docs check/route inspect missing from CLI reference | Fixed |
 | propertyMap/filterValue/analytics.disableInPreview docs missing | Fixed |
-| CLI semantic validation not hard-gating | Remaining — planned for next validator version |
+| CLI semantic validation not hard-gating | Fixed — check-cli-commands.py now hard-gates |
 | theme planned commands (doctor, list-components, export-catalog) | Mitigated — marked as planned in skill |
 | Tailwind CDN in external_css example | Mitigated — replaced with font CDN example |
-| check-cli-commands.py does not parse full command paths | Remaining — planned |
+| check-cli-commands.py does not parse full command paths | Fixed — parses parent.child paths with whitelist |
+| check-cli-commands.py inline subcommand parsing | Remaining — inline Name: detection needs hardening |
 | V2 componentized theme stability | Marked beta; may need reassessment as implementation stabilizes |
 
 ## Recommended Next Steps
 
-1. **Upgrade check-cli-commands.py**: Parse parent.child command paths correctly (e.g., `theme create`, `seo audit`)
 2. **Add Markdown table column-count consistency** to check-markdown-tables.py validator
 3. **Add YAML example parsing validation** to catch malformed YAML code blocks
 4. **Run `dotnet test`**: Verify no regressions from content changes

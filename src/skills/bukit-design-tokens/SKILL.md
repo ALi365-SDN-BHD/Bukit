@@ -247,6 +247,7 @@ Design tokens work alongside external CSS/JS frameworks. Bukit's `style.css` loa
 
 ```yaml
 theme:
+  params:
     external_css:
       - "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700"
       - "https://cdn.jsdelivr.net/npm/modern-normalize/modern-normalize.min.css"
