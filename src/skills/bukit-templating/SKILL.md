@@ -5,9 +5,9 @@ description: Use when using bukit to write or modify Scriban templates, encounte
 status: stable
 since: "v3.0.0"
 verified_by:
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Engine/Plugins/BuiltIn/PagesIndexPlugin.cs"
 source_anchors:
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Engine/Plugins/BuiltIn/PagesIndexPlugin.cs"
 guide_chapters:
   - "guide/user/08-themes-templates.md"
 ---

@@ -5,9 +5,9 @@ description: Use when using bukit to customize URL structures, bukit URLs are no
 status: stable
 since: "v3.0.0"
 verified_by:
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Engine/BuildPlanner.cs"
 source_anchors:
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Engine/BuildPlanner.cs"
 guide_chapters:
   - "guide/user/02-core-concepts.md"
   - "guide/user/03-project-structure.md"

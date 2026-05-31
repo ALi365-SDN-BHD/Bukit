@@ -5,10 +5,10 @@ description: Use when using bukit with Notion as a content source, troubleshooti
 status: stable
 since: "v3.0.0"
 verified_by:
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Engine/ContentProviderFactory.cs"
   - "src/Bukit.Shared/Notion/"
 source_anchors:
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Engine/ContentProviderFactory.cs"
   - "src/Bukit.Shared/Notion/"
 guide_chapters:
   - "guide/user/06-notion-content.md"

@@ -292,6 +292,22 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+
+# --- Check 11: Markdown table consistency (no merged rows) ---
+echo ""
+echo "--- Check 11: Markdown table consistency ---"
+python3 "$SKILLS_DIR/scripts/check-markdown-tables.py" || ERRORS=$((ERRORS + 1))
+
+# --- Check 12: CLI commands consistency ---
+echo ""
+echo "--- Check 12: CLI commands consistency ---"
+python3 "$SKILLS_DIR/scripts/check-cli-commands.py" || true
+
+# --- Check 13: Status consistency ---
+echo ""
+echo "--- Check 13: Status consistency ---"
+python3 "$SKILLS_DIR/scripts/check-status-consistency.py" || ERRORS=$((ERRORS + 1))
+
 # --- Summary ---
 echo ""
 echo "============================================"

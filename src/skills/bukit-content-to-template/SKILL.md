@@ -5,9 +5,9 @@ description: Use when the user has defined a content schema (in site.yaml collec
 status: beta
 since: "v3.0.0"
 verified_by:
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Engine/ContentSchemaValidator.cs"
 source_anchors:
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Engine/ContentSchemaValidator.cs"
 guide_chapters:
   - "guide/user/08-themes-templates.md"
 ---

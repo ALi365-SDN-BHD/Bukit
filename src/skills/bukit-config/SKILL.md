@@ -5,9 +5,9 @@ description: Use when using bukit to create or modify site.yaml, asking about th
 status: stable
 since: "v3.0.0"
 verified_by:
-  - "src/Bukit.Config/"
+  - "src/Bukit.Config/AppConfig.cs"
 source_anchors:
-  - "src/Bukit.Config/"
+  - "src/Bukit.Config/AppConfig.cs"
 guide_chapters:
   - "guide/user/04-site-yaml-config.md"
 ---

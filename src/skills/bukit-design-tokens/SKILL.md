@@ -5,9 +5,9 @@ description: Use when creating or customizing a Bukit theme's design system — 
 status: stable
 since: "v3.0.0"
 verified_by:
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Cli/Commands/ThemeCommand.cs"
 source_anchors:
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Cli/Commands/ThemeCommand.cs"
 guide_chapters:
   - "guide/user/08-themes-templates.md"
 ---
@@ -228,7 +228,7 @@ Design tokens work alongside external CSS/JS frameworks. Bukit's `style.css` loa
 
 ```html
 <!-- 1. External framework CSS (Tailwind, DaisyUI, Bootstrap, etc.) -->
-<link rel="stylesheet" href="https://cdn.tailwindcss.com" />
+<script src="https://cdn.tailwindcss.com"></script>
 
 <!-- 2. Bukit CSS with design tokens (loads last, overrides framework) -->
 <link rel="stylesheet" href="{{ site.base_url }}/assets/style.css" />
@@ -249,7 +249,7 @@ Design tokens work alongside external CSS/JS frameworks. Bukit's `style.css` loa
 theme:
   params:
     external_css:
-      - "https://cdn.tailwindcss.com"
+      - "https://cdn.tailwindcss.com"  # Not recommended — prefer build-time integration
     primary_color: "#7c3aed"
     font_family: "Inter, system-ui, sans-serif"
 ```

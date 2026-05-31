@@ -5,9 +5,9 @@ description: Use when using bukit CLI — agent needs to execute Bukit commands 
 status: stable
 since: "v3.0.0"
 verified_by:
-  - "src/Bukit.Cli/"
+  - "src/Bukit.Cli/Cli/BukitCliSpecs.cs"
 source_anchors:
-  - "src/Bukit.Cli/"
+  - "src/Bukit.Cli/Cli/BukitCliSpecs.cs"
 guide_chapters:
   - "guide/user/12-cli-reference.md"
   - "guide/user/16-parameter-cheatsheet.md"
@@ -66,9 +66,9 @@ After downloading, place the binary in a PATH directory or the project root.
 |------|------|---------|
 | `init` | Initialize site scaffolding | `<target-dir>` `--provider`(markdown/notion) `--template`(minimal\|blog\|docs\|landing\|portfolio) |
 | `create` | Alias for `init` | Same as above |
-| `build` | Build static site | `--config` `--output` `--base-url` `--draft` `--ci` `--incremental` / `--no-incremental` `--jobs` `--metrics` `--log-format` |
+| `build` | Build static site | `--config` `--output` `--base-url` `--draft` `--ci` `--incremental` / `--no-incremental` `--jobs` `--metrics` `--log-format` `--allow-external-plugins` |
 | `dev` | HMR dev server (watch + live reload) | `--config` `--site` `--host` `--port` `--output` `--no-watch` |
-| `preview` | Static preview of dist/ | `--dir` `--host` `--port` `--strict-port` |
+| `preview` | Static preview of dist/ | `--dir` `--host` `--port` `--strict-port` `--config` `--site` |
 | `clean` | Clean output and cache directories | `--config` `--site` `--dir` |
 | `config check` | Validate site.yaml without building | `--config` `--site` `--site-url` |
 | `config schema` | Generate site.yaml JSON Schema | `--output` |
@@ -95,14 +95,16 @@ After downloading, place the binary in a PATH directory or the project root.
 | `intent apply` | Apply intent to generate site.yaml | `<intent.yaml>` `--out` |
 | `deploy` | Build and deploy to GitHub Pages | `--config` `--site` `--output` `--base-url` `--site-url` `--branch` `--message` `--ci` `--dry-run` `--skip-build` |
 | `webhook` | Webhook server (Notion trigger → GitHub repository_dispatch) | `--host` `--port` `--path` `--repo` `--event` |
-| `clone` (beta) | Generate Bukit theme and content from target website | `--tokens` `--theme` `--layout` `--page` `--sections` `--behaviors` `--icons` `--assets` `--brand` `--use` `--force` `--verify` `--visual-threshold` `--fail-on-visual-diff` `--fidelity` `--config` `--site` || `geo audit` | GEO audit on dist output | `--dir` `--config` |
+| `clone` (beta) | Generate Bukit theme and content from target website | `--tokens` `--theme` `--layout` `--page` `--sections` `--behaviors` `--icons` `--assets` `--brand` `--use` `--force` `--verify` `--visual-threshold` `--fail-on-visual-diff` `--fidelity` `--config` `--site` |
+| `geo audit` | GEO audit on dist output | `--dir` |
 | `seo` | SEO audit and regression detection | `audit` `--dir` `--strict` `--external`; `diff` `--baseline` `--current` `--max-new-*` `--fail-on-*` |
 | `data inspect` | List all data modules (Markdown/Notion content + data sources) | `--config` `--site` `--module` |
 | `data dump` | Export data module content as JSON | `--config` `--site` `--format` |
 | `completion` | Generate shell auto-completion script | `<shell>` (bash\|zsh\|fish) |
 | `lint` | Check config and Markdown content | `--config` `--site` |
 | `visual generate` | Generate Playwright visual test script | `--config` `--dir` `--site-url` `--out` |
-| `docs check` (beta) | Check documentation consistency (README/guide/skills) | `--cli` `--config-fields` `--file-refs` `--examples` `--skills` || `version` | Output version number | No parameters |
+| `docs check` (beta) | Check documentation consistency (README/guide/skills) | `--cli` `--config-fields` `--file-refs` `--examples` `--skills` |
+| `version` | Output version number | No parameters |
 | `route inspect` | List all routes with optional JSON output and collection filtering | `--json` `--collection` `--config` `--site` |
 ## Key Command Details
 
@@ -129,6 +131,7 @@ bukit build [--config <path>] [--output <dir>] [--base-url <url>] [--draft] [--c
 | `--metrics` | Output JSON build metrics to specified file |
 | `--jobs` | Parallel rendering concurrency (positive integer) |
 | `--log-format` | Log format: `text` (default) or `json` |
+| `--allow-external-plugins` | Allow loading external protocol plugins (overrides `site.externalPluginPolicy`) |
 
 **Working directory requirement:** Must be run from the site root containing `site.yaml`.
 
@@ -185,6 +188,8 @@ bukit preview [--dir <dir>] [--host <host>] [--port <port>] [--strict-port]
 | `--host` | `localhost` | Listen address |
 | `--port` | `4173` | Listen port (`auto` = auto-select free port) |
 | `--strict-port` | false | Error immediately on port conflict, no auto-switch |
+| `--config` | `site.yaml` | Config file path |
+| `--site` | — | Multi-site name |
 
 **Port selection logic:**
 - Default port 4173 → try 4174 if busy, up to 20 attempts

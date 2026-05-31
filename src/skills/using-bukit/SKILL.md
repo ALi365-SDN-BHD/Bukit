@@ -8,9 +8,9 @@ description_en: Use when the user explicitly says "using bukit", mentions bukit 
 status: stable
 since: "v3.0.0"
 verified_by:
-  - "src/skills/using-bukit/"
+  - "src/skills/using-bukit/SKILL.md"
 source_anchors:
-  - "src/skills/using-bukit/"
+  - "src/skills/using-bukit/SKILL.md"
 guide_chapters:
   - "guide/user/README.md"
 ---

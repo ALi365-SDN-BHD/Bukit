@@ -5,9 +5,9 @@ description: Use when using bukit and plugins do not take effect or behave unexp
 status: stable
 since: "v3.0.0"
 verified_by:
-  - "src/Bukit.Engine/Plugins/"
+  - "src/Bukit.Engine/Plugins/PluginRegistry.cs"
 source_anchors:
-  - "src/Bukit.Engine/Plugins/"
+  - "src/Bukit.Engine/Plugins/PluginRegistry.cs"
 guide_chapters:
   - "guide/user/10-built-in-features.md"
   - "guide/user/14-troubleshooting.md"

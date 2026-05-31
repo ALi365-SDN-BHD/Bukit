@@ -10,6 +10,14 @@ skill_count: 19
 skills:
   # === GATEWAY ===
   - name: using-bukit
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/skills/using-bukit/SKILL.md"
+    verified_by:
+      - "src/skills/using-bukit/SKILL.md"
+    guide_chapters:
+      - "guide/user/README.md"
     type: gateway
     priority: 1
     path: src/skills/using-bukit/SKILL.md
@@ -35,6 +43,15 @@ skills:
 
   # === REFERENCE ===
   - name: bukit-cli-reference
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Cli/Cli/BukitCliSpecs.cs"
+    verified_by:
+      - "src/Bukit.Cli/Cli/BukitCliSpecs.cs"
+    guide_chapters:
+      - "guide/user/12-cli-reference.md"
+      - "guide/user/16-parameter-cheatsheet.md"
     type: reference
     priority: 2
     path: src/skills/bukit-cli-reference/SKILL.md
@@ -57,6 +74,14 @@ skills:
 
   # === TECHNIQUE ===
   - name: bukit-config
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Config/AppConfig.cs"
+    verified_by:
+      - "src/Bukit.Config/AppConfig.cs"
+    guide_chapters:
+      - "guide/user/04-site-yaml-config.md"
     type: technique
     priority: 3
     path: src/skills/bukit-config/SKILL.md
@@ -76,6 +101,16 @@ skills:
 
   # === PATTERN ===
   - name: bukit-theme
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+    verified_by:
+      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+    guide_chapters:
+      - "guide/user/08-themes-templates.md"
     type: pattern
     priority: 4
     path: src/skills/bukit-theme/SKILL.md
@@ -95,6 +130,14 @@ skills:
       gemini: "activate_skill"
 
   - name: bukit-design-tokens
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+    verified_by:
+      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+    guide_chapters:
+      - "guide/user/08-themes-templates.md"
     type: pattern
     priority: 5
     path: src/skills/bukit-design-tokens/SKILL.md
@@ -114,6 +157,14 @@ skills:
       gemini: "activate_skill"
 
   - name: bukit-content-to-template
+    status: beta
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Engine/ContentSchemaValidator.cs"
+    verified_by:
+      - "src/Bukit.Engine/ContentSchemaValidator.cs"
+    guide_chapters:
+      - "guide/user/08-themes-templates.md"
     type: technique
     priority: 6
     path: src/skills/bukit-content-to-template/SKILL.md
@@ -134,6 +185,14 @@ skills:
 
   # === TECHNIQUE ===
   - name: bukit-templating
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Engine/Plugins/BuiltIn/PagesIndexPlugin.cs"
+    verified_by:
+      - "src/Bukit.Engine/Plugins/BuiltIn/PagesIndexPlugin.cs"
+    guide_chapters:
+      - "guide/user/08-themes-templates.md"
     type: technique
     priority: 7
     path: src/skills/bukit-templating/SKILL.md
@@ -154,6 +213,16 @@ skills:
 
   # === REFERENCE ===
   - name: bukit-notion
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Engine/ContentProviderFactory.cs"
+      - "src/Bukit.Shared/Notion/"
+    verified_by:
+      - "src/Bukit.Engine/ContentProviderFactory.cs"
+      - "src/Bukit.Shared/Notion/"
+    guide_chapters:
+      - "guide/user/06-notion-content.md"
     type: reference
     priority: 8
     path: src/skills/bukit-notion/SKILL.md
@@ -174,6 +243,15 @@ skills:
 
   # === TECHNIQUE ===
   - name: bukit-routing
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Engine/BuildPlanner.cs"
+    verified_by:
+      - "src/Bukit.Engine/BuildPlanner.cs"
+    guide_chapters:
+      - "guide/user/02-core-concepts.md"
+      - "guide/user/03-project-structure.md"
     type: technique
     priority: 9
     path: src/skills/bukit-routing/SKILL.md
@@ -194,6 +272,14 @@ skills:
 
   # === PATTERN ===
   - name: bukit-i18n
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Engine/I18nOutputMerger.cs"
+    verified_by:
+      - "src/Bukit.Engine/I18nOutputMerger.cs"
+    guide_chapters:
+      - "guide/user/11-i18n-seo.md"
     type: pattern
     priority: 10
     path: src/skills/bukit-i18n/SKILL.md
@@ -214,6 +300,15 @@ skills:
 
   # === TECHNIQUE ===
   - name: bukit-plugins-debug
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Engine/Plugins/PluginRegistry.cs"
+    verified_by:
+      - "src/Bukit.Engine/Plugins/PluginRegistry.cs"
+    guide_chapters:
+      - "guide/user/10-built-in-features.md"
+      - "guide/user/14-troubleshooting.md"
     type: technique
     priority: 11
     path: src/skills/bukit-plugins-debug/SKILL.md
@@ -235,6 +330,16 @@ skills:
 
   # === OPERATION ===
   - name: bukit-deploy
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Cli/Commands/DeployCommand.cs"
+      - "src/Bukit.Config/DeployConfig.cs"
+    verified_by:
+      - "src/Bukit.Cli/Commands/DeployCommand.cs"
+      - "src/Bukit.Config/DeployConfig.cs"
+    guide_chapters:
+      - "guide/user/13-deploy-github-pages.md"
     type: operation
     priority: 12
     path: src/skills/bukit-deploy/SKILL.md
@@ -255,6 +360,14 @@ skills:
 
   # === OPERATION ===
   - name: bukit-clone
+    status: beta
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Cli/Commands/CloneCommand.cs"
+    verified_by:
+      - "src/Bukit.Cli/Commands/CloneCommand.cs"
+    guide_chapters:
+      - "guide/user/18-clone-website.md"
     type: operation
     priority: 13
     path: src/skills/bukit-clone/SKILL.md
@@ -276,6 +389,16 @@ skills:
 
   # === TECHNIQUE ===
   - name: bukit-seo
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Engine/SeoDiagnostics.cs"
+      - "src/Bukit.Engine/SeoAuditReportWriter.cs"
+    verified_by:
+      - "src/Bukit.Engine/SeoDiagnostics.cs"
+      - "src/Bukit.Engine/SeoAuditReportWriter.cs"
+    guide_chapters:
+      - "guide/user/11-i18n-seo.md"
     type: technique
     priority: 14
     path: src/skills/bukit-seo/SKILL.md
@@ -296,6 +419,16 @@ skills:
 
   # === TECHNIQUE ===
   - name: bukit-geo
+    status: beta
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Engine/SeoDiagnostics.cs"
+      - "src/Bukit.Engine/Plugins/BuiltIn/LlmsTxtPlugin.cs"
+    verified_by:
+      - "src/Bukit.Engine/SeoDiagnostics.cs"
+      - "src/Bukit.Engine/Plugins/BuiltIn/LlmsTxtPlugin.cs"
+    guide_chapters:
+      - "guide/user/17-geo.md"
     type: technique
     priority: 15
     path: src/skills/bukit-geo/SKILL.md
@@ -316,6 +449,14 @@ skills:
 
   # === OPERATION ===
   - name: bukit-preview
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Cli/Commands/PreviewCommand.cs"
+    verified_by:
+      - "src/Bukit.Cli/Commands/PreviewCommand.cs"
+    guide_chapters:
+      - "guide/user/12-cli-reference.md"
     type: operation
     priority: 16
     path: src/skills/bukit-preview/SKILL.md
@@ -336,6 +477,14 @@ skills:
 
   # === OPERATION ===
   - name: bukit-dev
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Cli/Commands/DevCommand.cs"
+    verified_by:
+      - "src/Bukit.Cli/Commands/DevCommand.cs"
+    guide_chapters:
+      - "guide/user/12-cli-reference.md"
     type: operation
     priority: 17
     path: src/skills/bukit-dev/SKILL.md
@@ -356,6 +505,14 @@ skills:
 
   # === OPERATION ===
   - name: bukit-webhook
+    status: stable
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Cli/Commands/WebhookCommand.cs"
+    verified_by:
+      - "src/Bukit.Cli/Commands/WebhookCommand.cs"
+    guide_chapters:
+      - "guide/user/14-troubleshooting.md"
     type: operation
     priority: 18
     path: src/skills/bukit-webhook/SKILL.md
@@ -376,6 +533,16 @@ skills:
 
   # === PATTERN ===
   - name: theme-component-system
+    status: beta
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+    verified_by:
+      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+      - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+    guide_chapters:
+      - "guide/user/08-themes-templates.md"
     type: pattern
     priority: 19
     path: src/skills/theme-component-system/SKILL.md

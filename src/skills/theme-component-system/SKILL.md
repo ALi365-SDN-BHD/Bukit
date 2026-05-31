@@ -5,11 +5,11 @@ description: Use when working with Bukit's componentized theme system — theme.
 status: beta
 since: "v3.0.0"
 verified_by:
-  - "src/Bukit.Engine/"
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+  - "src/Bukit.Cli/Commands/ThemeCommand.cs"
 source_anchors:
-  - "src/Bukit.Engine/"
-  - "src/Bukit.Engine/"
+  - "src/Bukit.Cli/Commands/ThemeCommand.cs"
+  - "src/Bukit.Cli/Commands/ThemeCommand.cs"
 guide_chapters:
   - "guide/user/08-themes-templates.md"
 ---
@@ -337,13 +337,13 @@ Child themes extend parent themes via `extends` in theme.yaml. The `ThemeCompone
 
 ## CLI Commands
 
-### `bukit theme doctor`
+### `bukit theme doctor` (planned)
 
 Validates the componentized theme:
 
 ```bash
-bukit theme doctor              # Validates active theme
-bukit theme doctor my-theme     # Validates specific theme
+bukit theme doctor              # (planned - not yet available in CLI)
+bukit theme doctor my-theme     # (planned - not yet available in CLI)
 ```
 
 Checks performed:
@@ -355,13 +355,16 @@ Checks performed:
 - Component names are unique
 - Unused components (not yet implemented)
 
-### `bukit theme list-components`
+### `bukit theme list-components` (planned)
+
+
+> **⚠️ Planned**: This command has internal implementation but is not yet registered in the CLI. It may not be available. See ThemeCommand.cs for current status.
 
 Lists all sections and components available in a theme:
 
 ```bash
-bukit theme list-components              # Active theme
-bukit theme list-components my-theme     # Specific theme
+bukit theme list-components              # (planned - not yet available in CLI)
+bukit theme list-components my-theme     # (planned - not yet available in CLI)
 ```
 
 Output:
@@ -377,13 +380,13 @@ Components:
   ...
 ```
 
-### `bukit theme export-catalog`
+### `bukit theme export-catalog` (planned)
 
 Exports `theme-catalog.json` to the `.cache/` directory for AI Agent consumption:
 
 ```bash
-bukit theme export-catalog              # Active theme
-bukit theme export-catalog my-theme     # Specific theme
+bukit theme export-catalog              # (planned - not yet available in CLI)
+bukit theme export-catalog my-theme     # (planned - not yet available in CLI)
 ```
 
 Output: `.cache/theme-catalog.json`
@@ -653,7 +656,7 @@ https://github.com/user/theme.git           ← latest main/master
 bukit build --config site.yaml    # site.yaml includes theme.source
 
 # Theme doctor on remote theme
-bukit theme doctor --config site.yaml
+bukit theme doctor --config site.yaml  # (planned - not yet available in CLI)
 ```
 
 ## Component Utility Functions (util.*)
