@@ -70,8 +70,8 @@ if (mode == "env")
 if (mode == "env-allowlist")
 {
     var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-    var home = Environment.GetEnvironmentVariable("HOME") 
-        ?? Environment.GetEnvironmentVariable("USERPROFILE") 
+    var home = Environment.GetEnvironmentVariable("HOME")
+        ?? Environment.GetEnvironmentVariable("USERPROFILE")
         ?? string.Empty;
     var notion = Environment.GetEnvironmentVariable("NOTION_TOKEN") ?? string.Empty;
     var openAi = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? string.Empty;

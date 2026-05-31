@@ -240,7 +240,8 @@ public sealed class RenderDependencyHasherTests
                 {
                     ["blog"] = new CollectionConfig
                     {
-                        Permalink = "/blog/{slug}/", Template = "pages/post.html",
+                        Permalink = "/blog/{slug}/",
+                        Template = "pages/post.html",
                         Pagination = new CollectionPaginationConfig { Enabled = true }
                     }
                 }
@@ -260,7 +261,8 @@ public sealed class RenderDependencyHasherTests
                 {
                     ["blog"] = new CollectionConfig
                     {
-                        Permalink = "/blog/{slug}/", Template = "pages/post.html",
+                        Permalink = "/blog/{slug}/",
+                        Template = "pages/post.html",
                         Output = new CollectionOutputConfig { Rss = true }
                     }
                 }
@@ -274,7 +276,8 @@ public sealed class RenderDependencyHasherTests
                 {
                     ["blog"] = new CollectionConfig
                     {
-                        Permalink = "/blog/{slug}/", Template = "pages/post.html",
+                        Permalink = "/blog/{slug}/",
+                        Template = "pages/post.html",
                         Output = new CollectionOutputConfig { Rss = false }
                     }
                 }
