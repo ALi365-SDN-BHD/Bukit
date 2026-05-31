@@ -25,4 +25,18 @@ public sealed class CliProgramFlowTests
         Assert.NotNull(theme);
         Assert.NotEmpty(theme!.Subcommands!);
     }
+
+    [Fact]
+    public void Specs_IncludeImportSeed_AndNotionPush()
+    {
+        var registry = BukitCliSpecs.CreateRegistry();
+
+        var import = registry.Resolve("import");
+        Assert.NotNull(import);
+        Assert.Contains(import!.Subcommands!, s => s.Name == "seed");
+
+        var notion = registry.Resolve("notion");
+        Assert.NotNull(notion);
+        Assert.Contains(notion!.Subcommands!, s => s.Name == "push");
+    }
 }

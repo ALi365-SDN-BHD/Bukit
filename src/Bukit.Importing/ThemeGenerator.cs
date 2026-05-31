@@ -83,6 +83,7 @@ internal static partial class ThemeGenerator
         }
 
         templateCount += EnsureFallbackTemplate(themeDir, "article.html", WriteDetailTemplateBody());
+        templateCount += EnsureFallbackTemplate(themeDir, "post.html", WriteDetailTemplateBody());
         templateCount += EnsureFallbackTemplate(themeDir, "company.html", WriteDetailTemplateBody());
         templateCount += EnsureFallbackTemplate(themeDir, "service.html", WriteDetailTemplateBody());
         templateCount += EnsureFallbackTemplate(themeDir, "page.html", WriteDetailTemplateBody());
