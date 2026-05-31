@@ -6,6 +6,19 @@ This directory is for site users (not engine maintainers). It helps you build an
 
 If you need internals, extension points, or contribution details, read the developer guide: [guide/dev](../dev/README.md).
 
+## Choose Your Path
+
+| Goal | Start here | Then read |
+|---|---|---|
+| Try Bukit locally | [01 Quick Start](./01-quick-start.md) | [12 CLI Reference](./12-cli-reference.md) |
+| Use Notion as CMS | [06 Notion Content](./06-notion-content.md) | [13 Deploy GitHub Pages](./13-deploy-github-pages.md) |
+| Build a company website | [07 Multi-Source](./07-multi-source.zh-CN.md) + [09 Modules](./09-modules-data.md) | [08 Themes & Templates](./08-themes-templates.md) |
+| Build with AI / ChatGPT | [ChatGPT Prompt Pack](../ai/chatgpt/README.md) | [Intent CLI](../dev/intent-cli.md) |
+| Deploy a site | [13 Deploy GitHub Pages](./13-deploy-github-pages.md) | [14 Troubleshooting](./14-troubleshooting.md) |
+| Optimize for SEO/GEO | [11 I18n & SEO](./11-i18n-seo.md) + [17 GEO](./17-geo.md) | [12 CLI Reference](./12-cli-reference.md) |
+| Develop a theme | [08 Themes & Templates](./08-themes-templates.md) | [Theme (dev)](../dev/theme.md) |
+| Troubleshoot a build | [14 Troubleshooting](./14-troubleshooting.md) | [Doctor (dev)](../dev/doctor.zh-CN.md) |
+
 ## Recommended Reading Paths
 
 ### First-time setup (local Markdown)
@@ -27,7 +40,7 @@ If you need internals, extension points, or contribution details, read the devel
 
 ### Company website / landing page (Modules data)
 
-1. [07 Multi-Source (Chinese)](./07-multi-source.zh-CN.md)
+1. [07 Multi-Source](./07-multi-source.zh-CN.md) (currently available in Chinese and Malay)
 2. [09 Modules Structured Data](./09-modules-data.md)
 3. [08 Themes & Templates](./08-themes-templates.md)
 4. [15 Recipes](./15-recipes.md)
@@ -101,4 +114,4 @@ For authoritative field boundaries and implementation constraints, cross-check:
 - Modules data: loaded with `content.sources[].mode: data`; injected to `site.modules.*` only.
 - Built-in outputs: `sitemap.xml`, `rss.xml`, `search.json`, etc.
 
-Full Chinese source: [README.zh-CN.md](./README.zh-CN.md)
+Canonical reference: [README.zh-CN.md](./README.zh-CN.md)

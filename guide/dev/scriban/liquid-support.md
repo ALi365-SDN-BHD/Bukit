@@ -1,5 +1,7 @@
 # Liquid Support
 
+> **Language note**: This page is currently available in English only. 中文版本待补充。Versi Bahasa Melayu belum tersedia.
+
 Scriban supports all the [core liquid syntax](https://shopify.github.io/liquid/) types, operators, tags and filters.
 
 - [Known issues](#known-issues)

@@ -10,6 +10,21 @@ This directory is for maintainers and contributors. It explains stable contracts
 2. Understand `site.yaml` fields and validations (see [Config](./config-site-yaml.md)).
 3. Learn the end-to-end flow: Config →Content →Routing →Rendering →Plugins →Output (see [Architecture](./architecture.md)).
 
+## Maintainer Task Map
+
+| Task | Start here |
+|---|---|
+| Change CLI behavior | [CLI argument reference](./cli.md) |
+| Change `site.yaml` schema | [`site.yaml` field reference](./config-site-yaml.md) |
+| Change content model | [Content system](./content.md) |
+| Change routing | [Routing system](./routing.md) |
+| Change rendering / Scriban | [Rendering (Scriban)](./rendering-scriban.md) |
+| Change theme behavior | [Theme development](./theme.md), [Theme source](./theme-source.md) |
+| Change plugins | [Plugin system](./plugins.md), [Built-in plugins](./built-in-plugins.md) |
+| Change Notion provider | [Content system](./content.md) (Notion section) |
+| Change AOT / performance | [AOT](./aot.md), [Performance notes](./perf-aot-governance.md) |
+| Change release / docs process | [Documentation governance](./documentation-governance.md), [Release checklist](./release-checklist.md) |
+
 ## If You Maintain Bukit Through AI / Agents
 
 If you maintain Bukit in a skill-aware environment such as Trae, Claude Code, Copilot CLI, Codex CLI, or Gemini CLI, use `src/skills/` as the agent-facing Bukit navigation layer and this directory as the maintainer-facing contract and implementation reference.
@@ -46,11 +61,14 @@ If you maintain Bukit in a skill-aware environment such as Trae, Claude Code, Co
 - [Publish and deploy](./publish-deploy.md)
 - [Incremental build](./incremental-build.md)
 - [Cache and clean](./cache-clean.md)
-- [Doctor checks (Chinese)](./doctor.zh-CN.md)
+- [Doctor checks](./doctor.zh-CN.md) (currently available in Chinese and Malay)
 - [Observability (logs and metrics)](./observability.md)
 - [I18n and SEO](./i18n-seo.md)
 - [Webhook trigger and security constraints](./webhook.md)
 - [Testing and smoke acceptance](./testing-smoke.md)
+- [Documentation governance](./documentation-governance.md)
+- [Release checklist](./release-checklist.md)
+- [Public preview scope](./public-preview-scope.md)
 
 ## How to Use Other Docs in This Repository
 
@@ -71,5 +89,5 @@ Common entries:
 - `mode=content` vs `mode=data`: content creates routes/pages; data injects into `site.modules`.
 - Plugins: two lifecycle hooks (`derive-pages`, `after-build`).
 
-Full Chinese source: [README.zh-CN.md](./README.zh-CN.md)
+Canonical reference: [README.zh-CN.md](./README.zh-CN.md)
 

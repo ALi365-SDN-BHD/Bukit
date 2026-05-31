@@ -1,5 +1,7 @@
 # 组件化主题系统（Componentized Theme System）
 
+> **语言说明**：本页目前仅有中文版本。English version pending. Versi Bahasa Melayu belum tersedia.
+
 组件化主题系统是 Bukit 的主题新范式，通过 `theme.yaml` 声明主题的 sections（区块）、components（组件）与 pageTemplates（页面模板），实现模板行为的声明式编排。
 
 相关文档：

@@ -29,9 +29,27 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config site.yaml --clea
 2. Tambah fail pengetahuan GPT yang disenaraikan dalam [knowledge_manifest.md](./knowledge_manifest.md).
 3. Untuk penggunaan harian, utamakan output `intent.yaml`, kemudian jalankan `intent validate/apply`.
 
+## Keselamatan dan Validasi
+
+Konfigurasi yang dijana AI mesti divalidasi sebelum digunakan.
+
+1. Utamakan `intent.yaml` berbanding penjanaan terus `site.yaml`.
+2. Sentiasa jalankan gelung validasi:
+   ```bash
+   intent validate intent.yaml
+   intent apply intent.yaml --out site.yaml
+   doctor --config site.yaml
+   build --config site.yaml --clean
+   ```
+3. Jika validasi gagal, tampal hanya output ralat kepada ChatGPT.
+4. Jangan sekali-kali tampal kunci rahsia ke dalam ChatGPT. Sentiasa guna pemboleh ubah persekitaran:
+   - `NOTION_TOKEN` untuk akses kandungan Notion
+   - GitHub Secrets untuk deployment CI/CD
+5. Jangan minta AI menjana token, kunci, laluan fail mutlak, atau arahan shell yang tidak disahkan.
+
 ## Keperluan Minimum Sebelum Menjalankan
 
 - Untuk kandungan Notion: tetapkan `NOTION_TOKEN` sebagai pemboleh ubah persekitaran (jangan tampal ke dalam chat).
 - Untuk sublaluan GitHub Pages: `site.baseUrl` mesti bermula dengan `/`, contohnya `/my-repo`; laluan root menggunakan `/`.
 
-Sumber penuh bahasa Cina: [README.zh-CN.md](./README.zh-CN.md)
+Rujukan kanonik: [README.zh-CN.md](./README.zh-CN.md)

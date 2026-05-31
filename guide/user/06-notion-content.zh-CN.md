@@ -4,7 +4,7 @@
 
 本页会讲清楚：需要哪些 Notion 字段、如何过滤/排序、如何把自定义字段传到模板、以及常见的 token/权限问题。
 
-深入的字段归一化规则与开发者契约见：[guide/dev/content](../dev/content.md) 与 `dosc/notion_schema.md`。
+深入的字段归一化规则与开发者契约见：[guide/dev/content](../dev/content.md) 与 `docs/notion_schema.md`。
 
 ## 你将获得什么
 

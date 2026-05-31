@@ -1,5 +1,7 @@
 # 性能基准测试
 
+> **语言说明**：本页目前仅有中文版本。English version pending. Versi Bahasa Melayu belum tersedia.
+
 Bukit.Theme 提供了 BenchmarkDotNet 基准测试套件，用于验证 `SectionDataResolver` 和 `PageComposer` 在大规模数据下的性能表现。
 
 实现参考：

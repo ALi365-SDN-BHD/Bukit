@@ -1,5 +1,7 @@
 # 组件工具函数
 
+> **语言说明**：本页目前仅有中文版本。English version pending. Versi Bahasa Melayu belum tersedia.
+
 Scriban 模板中可通过 `util` 对象访问内置工具函数，用于日期格式化、文本截断等常见操作。
 
 实现参考：

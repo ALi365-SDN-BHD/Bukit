@@ -1,5 +1,7 @@
 # Writing External Plugins
 
+> Bahasa Melayu: pada masa ini hanya tersedia dalam bahasa Inggeris dan Cina.
+
 ## Plugin Classification & Security Levels
 
 Bukit categorizes plugins into four types based on their runtime model and trust boundaries:

@@ -6,6 +6,19 @@
 
 如果你需要了解内部实现、扩展点、或想贡献代码，请阅读开发者文档：[guide/dev](../dev/README.zh-CN.md)。
 
+## 按目标选择路径
+
+| 目标 | 先读 | 再读 |
+|---|---|---|
+| 本地跑通 Bukit | [01 快速开始](./01-quick-start.zh-CN.md) | [12 CLI 参考](./12-cli-reference.zh-CN.md) |
+| 用 Notion 做 CMS | [06 Notion 内容](./06-notion-content.zh-CN.md) | [13 GitHub Pages 部署](./13-deploy-github-pages.zh-CN.md) |
+| 做企业官网 / Landing Page | [07 多源内容](./07-multi-source.zh-CN.md) + [09 Modules](./09-modules-data.zh-CN.md) | [08 主题与模板](./08-themes-templates.zh-CN.md) |
+| 用 AI 辅助建站 | [ChatGPT Prompt Pack](../ai/chatgpt/README.zh-CN.md) | [Intent CLI](../dev/intent-cli.zh-CN.md) |
+| 部署上线 | [13 GitHub Pages 部署](./13-deploy-github-pages.zh-CN.md) | [14 故障排查](./14-troubleshooting.zh-CN.md) |
+| 做 SEO/GEO 优化 | [11 多语言与SEO](./11-i18n-seo.zh-CN.md) + [17 GEO](./17-geo.zh-CN.md) | [12 CLI 参考](./12-cli-reference.zh-CN.md) |
+| 开发主题 | [08 主题与模板](./08-themes-templates.zh-CN.md) | [主题 (dev)](../dev/theme.zh-CN.md) |
+| 排障 | [14 故障排查](./14-troubleshooting.zh-CN.md) | [Doctor (dev)](../dev/doctor.zh-CN.md) |
+
 ## 推荐阅读路径
 
 ### 第一次上手（本地 Markdown）

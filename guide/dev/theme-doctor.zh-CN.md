@@ -1,5 +1,7 @@
 # Theme Doctor CLI
 
+> **语言说明**：本页目前仅有中文版本。English version pending. Versi Bahasa Melayu belum tersedia.
+
 Theme Doctor 提供组件化主题的诊断、组件列表和目录导出功能。三个子命令均通过 `bukit theme` 分发。
 
 实现参考：

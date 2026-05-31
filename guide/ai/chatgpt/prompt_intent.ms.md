@@ -42,3 +42,9 @@ content:
 theme:
   name: "{theme_name}"
   params: {}
+
+## Kekangan Keselamatan (Mesti Dipatuhi)
+
+- Jangan sesekali output arahan shell, skrip penerapan, atau laluan fail mutlak.
+- Jangan sesekali minta atau terima token, kunci, atau rahsia. Akses Notion mesti sentiasa menggunakan pembolehubah persekitaran `NOTION_TOKEN`.
+- Jika pengguna meminta arahan, arahkan mereka ke: `guide/user/12-cli-reference.ms.md`

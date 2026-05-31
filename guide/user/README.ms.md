@@ -6,13 +6,26 @@ Direktori ini untuk pengguna tapak (bukan penyelenggara enjin). Ia membantu anda
 
 Jika anda perlukan butiran dalaman, titik pengembangan, atau mahu menyumbang kod, rujuk panduan pembangun: [guide/dev](../dev/README.ms.md).
 
+## Pilih Laluan Anda
+
+| Matlamat | Mula di sini | Kemudian baca |
+|---|---|---|
+| Cuba Bukit secara setempat | [01 Permulaan Pantas](./01-quick-start.ms.md) | [12 Rujukan CLI](./12-cli-reference.ms.md) |
+| Guna Notion sebagai CMS | [06 Kandungan Notion](./06-notion-content.ms.md) | [13 Terap GitHub Pages](./13-deploy-github-pages.ms.md) |
+| Bina laman korporat | [07 Pelbagai Sumber](./07-multi-source.ms.md) + [09 Modules](./09-modules-data.ms.md) | [08 Tema & Templat](./08-themes-templates.ms.md) |
+| Bina dengan AI / ChatGPT | [ChatGPT Prompt Pack](../ai/chatgpt/README.ms.md) | [Intent CLI](../dev/intent-cli.ms.md) |
+| Terapkan tapak | [13 Terap GitHub Pages](./13-deploy-github-pages.ms.md) | [14 Penyelesaian Masalah](./14-troubleshooting.ms.md) |
+| Optimum untuk SEO/GEO | [11 I18n & SEO](./11-i18n-seo.ms.md) + [17 GEO](./17-geo.ms.md) | [12 Rujukan CLI](./12-cli-reference.ms.md) |
+| Bangunkan tema | [08 Tema & Templat](./08-themes-templates.ms.md) | [Tema (dev)](../dev/theme.ms.md) |
+| Selesai masalah binaan | [14 Penyelesaian Masalah](./14-troubleshooting.ms.md) | [Doctor (dev)](../dev/doctor.ms.md) |
+
 ## Laluan Bacaan Disyorkan
 
 ### Kali pertama bermula (Markdown tempatan)
 
 1. [01 Permulaan Pantas](./01-quick-start.ms.md)
 2. [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)
-3. [05 Kandungan Markdown](./05-markdown-content.md)
+3. [05 Kandungan Markdown](./05-markdown-content.md) (pada masa ini hanya tersedia dalam bahasa Inggeris dan Cina)
 4. [12 Rujukan CLI](./12-cli-reference.ms.md)
 5. [13 Terap GitHub Pages](./13-deploy-github-pages.ms.md)
 
@@ -100,4 +113,4 @@ Untuk sempadan medan dan kekangan implementasi yang lebih autoritatif, rujuk:
 - Data Modules: dimuatkan melalui `content.sources[].mode: data`; hanya disuntik ke `site.modules.*`.
 - Output terbina dalam: `sitemap.xml`, `rss.xml`, `search.json`, dan lain-lain.
 
-Sumber penuh bahasa Cina: [README.zh-CN.md](./README.zh-CN.md)
+Rujukan kanonik: [README.zh-CN.md](./README.zh-CN.md)

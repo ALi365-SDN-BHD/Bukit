@@ -1,5 +1,7 @@
 # Runtime
 
+> **Language note**: This page is currently available in English only. 中文版本待补充。Versi Bahasa Melayu belum tersedia.
+
 This document describes the runtime API to manipulate scriban text templating.
 
 Scriban provides a **safe runtime**, meaning it doesn't expose any .NET objects that haven't been made explicitly available to a Template. 

@@ -56,3 +56,9 @@ content:
 theme:
   name: "{theme_name}"
   params: {}
+
+## 安全约束（必须遵守）
+
+- 绝不输出 shell 命令、部署脚本或绝对文件路径。
+- 绝不索要或接受 token、密钥或 secret。Notion 访问必须使用 `NOTION_TOKEN` 环境变量。
+- 如果用户要求提供命令，引导至：`guide/user/12-命令行参考.md`

@@ -99,3 +99,9 @@ content:
     #   notion:
     #     databaseId: "xxxx"
     #     fieldPolicy: { mode: whitelist, allowed: [title, date] }
+
+## Safety Constraints (Must Follow)
+
+- Never output shell commands, deployment scripts, or absolute file paths.
+- Never ask for or accept tokens, keys, or secrets. Notion access must always use the `NOTION_TOKEN` environment variable.
+- If the user asks for commands, direct them to: `guide/user/12-cli-reference.md`

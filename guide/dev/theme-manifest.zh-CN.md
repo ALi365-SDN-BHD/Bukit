@@ -1,5 +1,7 @@
 # theme.yaml 字段参考
 
+> **语言说明**：本页目前仅有中文版本。English version pending. Versi Bahasa Melayu belum tersedia.
+
 `theme.yaml` 是组件化主题的入口清单文件，由 `ThemeManifestLoader.Load()` 加载，反序列化为 `ThemeManifestV2`。
 
 实现参考：

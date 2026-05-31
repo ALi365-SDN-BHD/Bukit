@@ -1,5 +1,7 @@
 # 05 Content (Markdown): Front Matter Fields, Structure and Examples
 
+> Bahasa Melayu: pada masa ini hanya tersedia dalam bahasa Inggeris dan Cina.
+
 If you want your content to follow repository version control and be authored in a local editor, the Markdown mode is the simplest and most reliable choice.
 
 See running example: `examples/starter/content/`.

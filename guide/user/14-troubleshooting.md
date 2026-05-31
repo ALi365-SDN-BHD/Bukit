@@ -6,7 +6,7 @@ When you encounter a problem, do not guess first. Follow this order for diagnosi
 2. `build --clean` (eliminate incremental cache effects)
 3. Compare against `examples/starter/` (find a "working baseline")
 
-Developer-oriented troubleshooting docs: [guide/dev/doctor](../dev/doctor.zh-CN.md), [guide/dev/cache-clean](../dev/cache-clean.zh-CN.md).
+Developer-oriented troubleshooting docs: [guide/dev/doctor](../dev/doctor.zh-CN.md) (Chinese/Malay), [guide/dev/cache-clean](../dev/cache-clean.md).
 
 ## Quick Command Reference
 

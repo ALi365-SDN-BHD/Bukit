@@ -29,9 +29,27 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config site.yaml --clea
 2. Add GPT knowledge files listed in [knowledge_manifest.md](./knowledge_manifest.md).
 3. In daily usage, prefer `intent.yaml` output first, then run `intent validate/apply`.
 
+## Safety and Validation
+
+AI-generated configuration must always be validated before use.
+
+1. Prefer `intent.yaml` over direct `site.yaml` generation.
+2. Always run the validation loop:
+   ```bash
+   intent validate intent.yaml
+   intent apply intent.yaml --out site.yaml
+   doctor --config site.yaml
+   build --config site.yaml --clean
+   ```
+3. If validation fails, paste only the error output back to ChatGPT.
+4. Never paste secrets into ChatGPT. Always use environment variables:
+   - `NOTION_TOKEN` for Notion content access
+   - GitHub Secrets for CI/CD deployment
+5. Do not ask AI to generate tokens, keys, absolute file paths, or unverified shell commands.
+
 ## Minimum Prerequisites
 
 - For Notion content: set `NOTION_TOKEN` as an environment variable (never paste it in chat).
 - For GitHub Pages subpath: `site.baseUrl` must start with `/`, for example `/my-repo`; root path uses `/`.
 
-Full Chinese source: [README.zh-CN.md](./README.zh-CN.md)
+Canonical reference: [README.zh-CN.md](./README.zh-CN.md)

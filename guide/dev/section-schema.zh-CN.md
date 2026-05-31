@@ -1,5 +1,7 @@
 # Section Schema 参考
 
+> **语言说明**：本页目前仅有中文版本。English version pending. Versi Bahasa Melayu belum tersedia.
+
 Section Schema 是 JSON 格式的文件，用于定义 section 的 props 类型、必填性及约束。由 `SectionSchema.Load()` 加载，`SectionSchemaValidator.Validate()` 执行校验。
 
 实现参考：

@@ -1,5 +1,7 @@
 # Language
 
+> **Language note**: This page is currently available in English only. 中文版本待补充。Versi Bahasa Melayu belum tersedia.
+
 This document describes the syntax of the scriban language in a templating context (within `{{` and `}}`).
 
 The language rules are the same in a pure scripting context.

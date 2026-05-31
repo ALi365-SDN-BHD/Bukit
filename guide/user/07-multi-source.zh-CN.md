@@ -1,5 +1,7 @@
 # 07 内容（多源 sources）：把 pages / posts / modules 组合起来
 
+> English version pending. Versi Bahasa Melayu: [07-multi-source.ms.md](./07-multi-source.ms.md)
+
 当你的站点内容不止一个来源时（例如：页面用 Markdown、博客用 Notion、官网模块用 data），就应该使用 `content.provider: sources`。
 
 本页会讲清楚 sources 的结构、`mode=content|data` 的含义、以及常见组合的完整示例。

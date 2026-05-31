@@ -4,7 +4,7 @@ Fail berikut disyorkan untuk dimuat naik sebagai Pengetahuan "GPT Tersuai" untuk
 
 ## Wajib (kekangan keras)
 
-- `dosc/intent.md`: Kontrak Intent (snake_case) dan peraturan pemetaan
+- `docs/intent.md`: Kontrak Intent (snake_case) dan peraturan pemetaan
 - `guide/dev/config-site-yaml.md`: Rujukan medan berwibawa site.yaml (camelCase)
 - `guide/user/12-cli-reference.md`: Perintah CLI salin-tampal dan parameter lazim
 - `examples/starter/site.yaml`: Contoh boleh laku minimum (markdown)
@@ -15,6 +15,6 @@ Fail berikut disyorkan untuk dimuat naik sebagai Pengetahuan "GPT Tersuai" untuk
 - `guide/user/14-troubleshooting.md`: Ralat lazim dan pembaikan (sangat disyorkan)
 - `guide/user/01-quick-start.md`: Permulaan pengguna baharu dan konvensyen direktori
 - `guide/user/06-notion-content.md`: Penggunaan Notion dan perangkap lazim
-- `guide/user/07-multi-source.md`: Sumber komposit dan semantik mod
+- `guide/user/07-multi-source.ms.md`: Sumber komposit dan semantik mod
 - `guide/user/09-modules-data.md`: Peraturan suntikan Modules dan bentuk data
-- `dosc/ai_guide.md`: Mod penyampaian AI dan garis dasar prompt
+- `docs/ai_guide.md`: Mod penyampaian AI dan garis dasar prompt

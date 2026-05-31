@@ -10,6 +10,21 @@
 2. 理解 `site.yaml` 字段与校验规则：查看 [配置](./config-site-yaml.zh-CN.md)
 3. 建立端到端主线认知：配置 → 内容 → 路由 → 渲染 → 插件 → 输出，查看 [架构总览](./architecture.zh-CN.md)
 
+## 按维护任务导航
+
+| 任务 | 入口文档 |
+|---|---|
+| 修改 CLI 行为 | [CLI 参数参考](./cli.zh-CN.md) |
+| 修改 site.yaml schema | [site.yaml 字段参考](./config-site-yaml.zh-CN.md) |
+| 修改内容模型 | [内容系统](./content.zh-CN.md) |
+| 修改路由 | [路由系统](./routing.zh-CN.md) |
+| 修改渲染/Scriban | [渲染与模板](./rendering-scriban.zh-CN.md) |
+| 修改主题行为 | [主题开发](./theme.zh-CN.md)、[Git 主题源](./theme-source.zh-CN.md) |
+| 修改插件 | [插件系统](./plugins.zh-CN.md)、[内置插件](./built-in-plugins.zh-CN.md) |
+| 修改 Notion 源 | [内容系统](./content.zh-CN.md)（Notion 章节） |
+| 修改 AOT/性能 | [AOT](./aot.zh-CN.md)、[性能/AOT 治理](./perf-aot-governance.zh-CN.md) |
+| 修改发布/文档流程 | [文档治理](./documentation-governance.zh-CN.md)、[发布检查清单](./release-checklist.zh-CN.md) |
+
 ## 如果你通过 AI / Agents 维护 Bukit
 
 如果你是在 Trae、Claude Code、Copilot CLI、Codex CLI、Gemini CLI 这类支持 skill 的环境里维护 Bukit，建议把 `src/skills/` 当作 Agent 侧导航层，而把本目录当作维护者侧的契约与实现参考。
@@ -51,6 +66,9 @@
 - [多语言与 SEO](./i18n-seo.zh-CN.md)
 - [Webhook 触发与安全约束](./webhook.zh-CN.md)
 - [测试与 smoke 验收](./testing-smoke.zh-CN.md)
+- [文档治理规则](./documentation-governance.zh-CN.md)
+- [发布检查清单](./release-checklist.zh-CN.md)
+- [公开测试范围](./public-preview-scope.zh-CN.md)
 
 ## 如何使用仓库中的其他文档
 

@@ -1,5 +1,7 @@
 # Builtins
 
+> **Language note**: This page is currently available in English only. 中文版本待补充。Versi Bahasa Melayu belum tersedia.
+
 This document describes the various built-in functions available in scriban.
 
 

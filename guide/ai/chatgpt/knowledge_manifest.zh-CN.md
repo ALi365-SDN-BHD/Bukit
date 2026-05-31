@@ -4,7 +4,7 @@
 
 ## 必选（强约束）
 
-- `dosc/intent.md`：Intent 契约（snake_case）与映射规则
+- `docs/intent.md`：Intent 契约（snake_case）与映射规则
 - `guide/dev/config-site-yaml.md`：`site.yaml` 权威字段表（camelCase）
 - `guide/user/12-命令行参考.md`：可复制的 CLI 闭环命令与常见参数
 - `examples/starter/site.yaml`：最小可运行示例（markdown）
@@ -17,5 +17,5 @@
 - `guide/user/06-notion-content.zh-CN.md`：Notion 使用与常见坑（token、字段等）
 - `guide/user/07-内容-多源-sources.md`：组合源与 mode 语义
 - `guide/user/09-Modules-结构化数据.md`：Modules 注入规则与数据形态
-- `dosc/ai_guide.md`：AI 落地形态与 Prompt 基线
+- `docs/ai_guide.md`：AI 落地形态与 Prompt 基线
 

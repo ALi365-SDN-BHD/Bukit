@@ -1,4 +1,6 @@
-# scriban [![ci](https://github.com/scriban/scriban/actions/workflows/CI.yml/badge.svg)](https://github.com/scriban/scriban/actions/workflows/CI.yml) [![Coverage Status](https://coveralls.io/repos/github/scriban/scriban/badge.svg?branch=master)](https://coveralls.io/github/scriban/scriban?branch=master) [![NuGet](https://img.shields.io/nuget/v/Scriban.svg)](https://www.nuget.org/packages/Scriban/)
+# scriban 
+
+> **Language note**: This page is currently available in English only. 中文版本待补充。Versi Bahasa Melayu belum tersedia.
 
 <img align="right" width="160px" height="160px" src="img/scriban.png">
 

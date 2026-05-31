@@ -1,5 +1,7 @@
 # PageComposer 使用指南
 
+> **语言说明**：本页目前仅有中文版本。English version pending. Versi Bahasa Melayu belum tersedia.
+
 `PageComposer` 是 `src/Bukit.Theme/PageComposer.cs` 中的一个静态工具类，负责解析页面的 section JSON 并与主题的 section 定义合并（compose）。
 
 ## 核心职责

@@ -1,4 +1,4 @@
-﻿# 01 Quick Start: From Zero to Preview (10 Minutes)
+# 01 Quick Start: From Zero to Preview (10 Minutes)
 
 This page walks you through the complete pipeline using a "copy-paste" approach: initialize a site →write content →build →local preview →prepare for deployment.
 
@@ -27,7 +27,7 @@ dotnet build bukit.slnx -c Release
 dotnet run --project src/Bukit.Cli -c Release -- doctor --config examples/starter/site.yaml
 ```
 
-If doctor reports errors, check first: [14 Troubleshooting](./14-troubleshooting.md) (and the developer version of the doctor guide: [guide/dev/doctor](../dev/doctor.zh-CN.md)).
+If doctor reports errors, check first: [14 Troubleshooting](./14-troubleshooting.md) (and the developer version of the doctor guide: [guide/dev/doctor](../dev/doctor.zh-CN.md); currently available in Chinese and Malay).
 
 ### 2) Build the Site (build)
 
@@ -146,7 +146,7 @@ dotnet run --project ../src/Bukit.Cli -c Release -- preview --dir dist --port au
 
 - Writing content (Markdown): [05 Content Markdown](./05-markdown-content.md)
 - Using Notion: [06 Content Notion](./06-notion-content.md)
-- Multi-source composition (pages/posts/modules): [07 Multi Source](./07-multi-source.zh-CN.md)
+- Multi-source composition (pages/posts/modules): [07 Multi Source](./07-multi-source.zh-CN.md) (currently available in Chinese and Malay)
 - Company site modules (Modules): [09 Modules Structured Data](./09-modules-data.md)
 - Multilingual & SEO: [11 Multilingual & SEO](./11-i18n-seo.md)
 - Deploying to GitHub Pages: [13 Deploy GitHub Pages](./13-deploy-github-pages.md)

@@ -1,5 +1,7 @@
 # Section 插件系统
 
+> **语言说明**：本页目前仅有中文版本。English version pending. Versi Bahasa Melayu belum tersedia.
+
 Section 插件允许在 section 渲染管线的关键节点注入自定义逻辑，实现动态数据注入、渲染后处理等能力。
 
 实现参考：

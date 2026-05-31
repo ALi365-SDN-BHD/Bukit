@@ -1,5 +1,7 @@
 # 编写外部插件
 
+> Bahasa Melayu: pada masa ini hanya tersedia dalam bahasa Inggeris dan Cina.
+
 ## 插件分类与安全级别
 
 Bukit 根据运行时模型和信任边界将插件分为四种类型：

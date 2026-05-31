@@ -29,6 +29,24 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config site.yaml --clea
 2. GPT Knowledge 建议放入 [knowledge_manifest.md](./knowledge_manifest.md) 列出的文件（字段表、Intent 契约、示例配置、CLI 速查等）。
 3. 日常对话中优先让 GPT 输出 `intent.yaml`，再走 `intent validate/apply`。
 
+## 安全与校验
+
+AI 生成的配置必须经过校验才能使用。
+
+1. 优先使用 `intent.yaml`，避免直接让 AI 写 `site.yaml`。
+2. 始终运行校验闭环：
+   ```bash
+   intent validate intent.yaml
+   intent apply intent.yaml --out site.yaml
+   doctor --config site.yaml
+   build --config site.yaml --clean
+   ```
+3. 校验失败时只把错误输出粘贴给 ChatGPT，不要粘贴完整配置。
+4. 绝不要把密钥粘贴到 ChatGPT 对话中。始终使用环境变量：
+   - `NOTION_TOKEN` 用于 Notion 内容访问
+   - CI 部署使用 GitHub Secrets
+5. 不要让 AI 生成 token、密钥、绝对路径或未经验证的 shell 命令。
+
 ## 运行前的最低准备
 
 - Notion 内容源：`NOTION_TOKEN` 必须设置为环境变量（不要粘贴到对话里）。

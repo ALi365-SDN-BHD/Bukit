@@ -10,6 +10,21 @@ Direktori ini ditujukan kepada penyelenggara dan penyumbang. Ia menerangkan kont
 2. Fahami medan `site.yaml` dan peraturan validasi: rujuk [Konfigurasi](./config-site-yaml.ms.md)
 3. Bina gambaran hujung ke hujung: Config → Content → Routing → Rendering → Plugins → Output, rujuk [Architecture](./architecture.ms.md)
 
+## Peta Tugas Penyelenggara
+
+| Tugas | Titik masuk |
+|---|---|
+| Ubah tingkah laku CLI | [Rujukan argumen CLI](./cli.ms.md) |
+| Ubah skema `site.yaml` | [Rujukan medan `site.yaml`](./config-site-yaml.ms.md) |
+| Ubah model kandungan | [Sistem kandungan](./content.ms.md) |
+| Ubah routing | [Sistem routing](./routing.ms.md) |
+| Ubah rendering / Scriban | [Rendering (Scriban)](./rendering-scriban.ms.md) |
+| Ubah tingkah laku tema | [Pembangunan tema](./theme.ms.md), [Sumber tema](./theme-source.ms.md) |
+| Ubah plugin | [Sistem plugin](./plugins.ms.md), [Plugin terbina dalam](./built-in-plugins.ms.md) |
+| Ubah penyedia Notion | [Sistem kandungan](./content.ms.md) (bahagian Notion) |
+| Ubah AOT / prestasi | [AOT](./aot.ms.md), [Nota prestasi](./perf-aot-governance.ms.md) |
+| Ubah proses terbitan / dokumen | [Tadbir urus dokumentasi](./documentation-governance.ms.md), [Senarai semak terbitan](./release-checklist.ms.md) |
+
 ## Jika Anda Menyelenggara Bukit Melalui AI / Agent
 
 Jika anda menyelenggara Bukit dalam persekitaran yang menyokong skill seperti Trae, Claude Code, Copilot CLI, Codex CLI, atau Gemini CLI, gunakan `src/skills/` sebagai lapisan navigasi untuk agent dan direktori ini sebagai rujukan kontrak serta implementasi untuk penyelenggara.
@@ -51,6 +66,9 @@ Jika anda menyelenggara Bukit dalam persekitaran yang menyokong skill seperti Tr
 - [I18n dan SEO](./i18n-seo.ms.md)
 - [Pencetus webhook dan kekangan keselamatan](./webhook.ms.md)
 - [Pengujian dan smoke acceptance](./testing-smoke.ms.md)
+- [Tadbir urus dokumentasi](./documentation-governance.ms.md)
+- [Senarai semak terbitan](./release-checklist.ms.md)
+- [Skop pratonton awam](./public-preview-scope.ms.md)
 
 ## Cara Menggunakan Dokumen Lain Dalam Repositori Ini
 
@@ -71,5 +89,5 @@ Kemasukan biasa:
 - `mode=content` dan `mode=data`: yang pertama menjana route dan halaman, yang kedua hanya menyuntik data ke `site.modules`
 - Kitar hayat plugin: cangkuk utama semasa ialah `derive-pages` dan `after-build`
 
-Rujukan bahasa Inggeris: [README.md](./README.md)
+Rujukan kanonik: [README.zh-CN.md](./README.zh-CN.md)
 
