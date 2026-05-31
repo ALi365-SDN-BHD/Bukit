@@ -37,6 +37,6 @@ except ImportError:
     exit(0)
 "
 else
-  echo "Warning: Neither yq nor python3 is available. Skipping JSON generation."
-  exit 0
+  echo "ERROR: Neither yq nor python3 is available — refusing to skip JSON generation" >&2
+  exit 1
 fi

@@ -18,7 +18,7 @@ PLANNED_COMMANDS = {
 # Source commands that are intentionally NOT in the table as standalone entries
 # (they are covered by subcommand entries or are implementation details)
 SOURCE_PARENTS_WITH_SUBCOMMANDS = {
-    'theme', 'template', 'config', 'data', 'route', 'docs',
+    'theme', 'template', 'seo', 'config', 'data', 'route', 'docs',
     'intent', 'visual', 'geo', 'plugin',
 }
 

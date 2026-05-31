@@ -321,6 +321,26 @@ echo ""
 echo "--- Check 15: Status keyword consistency ---"
 python3 "$SKILLS_DIR/scripts/check-status-keywords.py" || WARNINGS=$((WARNINGS + 1))
 
+
+# --- Check 16: Duplicate source_anchors/verified_by entries ---
+echo ""
+echo "--- Check 16: Duplicate entries in Front Matter lists ---"
+python3 -c "
+import os, glob
+skills_dir = os.environ.get('SKILLS_DIR', 'src/skills')
+for sf in sorted(glob.glob(os.path.join(skills_dir, '*/SKILL.md'))):
+    name = os.path.basename(os.path.dirname(sf))
+    with open(sf) as f:
+        lines = f.readlines()
+    seen = {}; dup = []
+    for l in lines:
+        if l.startswith('  - '):
+            if l in seen: dup.append(l.strip())
+            seen[l] = 1
+    if dup:
+        print(f'  WARNING: [{name}] Duplicate entries: {dup}')
+" 2>/dev/null || true
+
 # --- Summary ---
 echo ""
 echo "============================================"

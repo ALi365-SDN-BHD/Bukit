@@ -172,7 +172,7 @@ Gemini CLI activates skills via `activate_skill`. The root `GEMINI.md` redirects
 
 ### Programmatic Access
 
-The `skills-index.yaml` file is the machine-readable catalog. Use it to:
+The `skills-index.yaml` file is the machine-readable catalog. Platform entry files (CLAUDE.md, AGENTS.md, etc.) are currently maintained manually and validated for consistency with the index. A future release will auto-generate them. Use the catalog to:
 
 - **Query skill metadata**: name, type, triggers, dependencies, guide chapter cross-references
 - **Resolve dependency chains**: each skill declares its `requires` list; the `workflows` section defines common task chains

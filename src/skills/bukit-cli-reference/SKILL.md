@@ -95,7 +95,7 @@ After downloading, place the binary in a PATH directory or the project root.
 | `intent validate` | Validate intent file | `<intent.yaml>` `--root-dir` `--out` |
 | `intent apply` | Apply intent to generate site.yaml | `<intent.yaml>` `--out` |
 | `deploy` | Build and deploy to GitHub Pages | `--config` `--site` `--output` `--base-url` `--site-url` `--branch` `--message` `--ci` `--dry-run` `--skip-build` |
-| `webhook` | Webhook server (Notion trigger → GitHub repository_dispatch) | `--host` `--port` `--path` `--repo` `--event` |
+| `webhook` | Webhook server (Notion trigger → GitHub repository_dispatch) — note: `start` arg in help is not CLI-registered | `--host` `--port` `--path` `--repo` `--event` |
 | `clone` (beta) | Generate Bukit theme and content from target website | `--tokens` `--theme` `--layout` `--page` `--sections` `--behaviors` `--icons` `--assets` `--brand` `--use` `--force` `--verify` `--visual-threshold` `--fail-on-visual-diff` `--fidelity` `--config` `--site` |
 | `geo audit` | GEO audit on dist output | `--dir` |
 | `seo audit` | Audit SEO health from build report | `--dir` `--report` `--strict` `--external` |

@@ -18,6 +18,19 @@ guide_chapters:
 
 The componentized theme system (`ThemeManifestV2`) is Bukit's beta componentized theme architecture. It extends and coexists with the flat `theme.yaml` V1 format, adding a structured approach where themes define **sections**, **components**, **pageTemplates**, **data bindings**, and **design tokens** in a structured, machine-readable format. This enables AI Agents to understand theme capabilities through `theme-catalog.json` and empowers the Page Composer to assemble pages from modular building blocks.
 
+## Capability Status
+
+| Capability | Status |
+|---|---|
+| theme.yaml V2 manifest parsing | beta |
+| section/component rendering | beta |
+| section schema validation | beta |
+| theme-catalog.json export | planned |
+| Page Composer | planned |
+| data binding auto-resolve | beta |
+| theme inheritance chains | beta |
+
+
 Key concepts:
 - **Section**: A self-contained template unit (hero, cta, features, etc.) with optional schema validation, variants, and data source bindings.
 - **Component**: A reusable Scriban partial with declared props, invokable via `{{ comp.render "Name" ... }}`.

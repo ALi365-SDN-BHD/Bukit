@@ -90,12 +90,10 @@ Status distribution: 15 stable, 4 beta (bukit-content-to-template, bukit-clone, 
 | theme planned commands (doctor, list-components, export-catalog) | Mitigated — marked as planned in skill |
 | Tailwind CDN in external_css example | Mitigated — replaced with font CDN example |
 | check-cli-commands.py does not parse full command paths | Fixed — parses parent.child paths with whitelist |
-| check-cli-commands.py inline subcommand parsing | Remaining — inline Name: detection needs hardening |
+| check-cli-commands.py inline subcommand parsing | Fixed — inline Name: detection added; parser still regex-based |
 | V2 componentized theme stability | Marked beta; may need reassessment as implementation stabilizes |
 
 ## Recommended Next Steps
 
-2. **Add Markdown table column-count consistency** to check-markdown-tables.py validator
-3. **Add YAML example parsing validation** to catch malformed YAML code blocks
-4. **Run `dotnet test`**: Verify no regressions from content changes
-5. **Add `validate-skills-strict.sh` to CI pipeline**: Already added to quality-gate.sh
+1. **Run `dotnet test`**: Verify no regressions from content changes
+2. **Add `validate-skills-strict.sh` to CI pipeline**: Already added to quality-gate.sh
