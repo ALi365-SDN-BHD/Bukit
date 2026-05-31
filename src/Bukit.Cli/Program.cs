@@ -76,6 +76,7 @@ try
                 "visual" => await VisualCommand.RunAsync(merged),
                 "webhook" => await WebhookCommand.RunAsync(merged),
                 "route" => await RouteCommand.RunAsync(merged),
+                "import" => await ImportCommand.RunAsync(merged),
                 _ => (int?)null
             };
             if (resolved.HasValue)

@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Bukit.Engine\Bukit.Engine.csproj" />
     <ProjectReference Include="..\Bukit.Config\Bukit.Config.csproj" />
+    <ProjectReference Include="..\Bukit.Importing\Bukit.Importing.csproj" />
     <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
   </ItemGroup>
 

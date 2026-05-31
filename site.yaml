@@ -1,0 +1,17 @@
+site:
+  name: smoke-test
+  title: smoke-test
+  baseUrl: /
+  language: en
+  seo:
+    renderMode: 'off'
+  collections:
+    page:
+      permalink: '/{slug}/'
+      template: 'pages/page.html'
+      listRoute: '/'
+content:
+  provider: markdown
+  contentDir: content
+theme:
+  name: smoke-test

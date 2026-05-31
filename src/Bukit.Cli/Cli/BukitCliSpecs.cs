@@ -99,6 +99,42 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--site", "多站点名")
             });
 
+        var importCmd = new CliCommandSpec(
+            Name: "import",
+            Description: "导入外部资源以创建 Bukit 主题或内容",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名")
+            },
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "html-demo",
+                    Description: "将静态 HTML demo 目录迁移为 Bukit 主题",
+                    Arguments: new[] { new CliArgumentSpec("demo-dir", "HTML demo 目录路径", Required: true) },
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--theme", "目标主题名", CliOptionType.String, ValueName: "name", Required: true),
+                new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
+                new CliOptionSpec("--use", "创建后切换到该主题", CliOptionType.Flag),
+                new CliOptionSpec("--verify", "生成后执行 doctor/build 验证", CliOptionType.Flag),
+                new CliOptionSpec("--no-extract-content", "跳过内容抽取", CliOptionType.Flag),
+                new CliOptionSpec("--no-seed", "跳过种子数据生成", CliOptionType.Flag),
+                new CliOptionSpec("--content-source", "内容源类型 (notion|json)", CliOptionType.String, ValueName: "type"),
+                new CliOptionSpec("--site-path", "目标站点目录路径"),
+                new CliOptionSpec("--language", "默认语言 (默认 en)"),
+                new CliOptionSpec("--dry-run", "只分析不写入文件", CliOptionType.Flag),
+                new CliOptionSpec("--strict", "严格模式，硬编码残留/空slug/重复slug 直接失败", CliOptionType.Flag),
+                new CliOptionSpec("--overwrite", "覆盖已有组件文件", CliOptionType.Flag),
+                new CliOptionSpec("--preserve-html", "保留原始 HTML 快照", CliOptionType.Flag),
+                new CliOptionSpec("--report", "生成 import-report.md 文件", CliOptionType.Flag),
+                new CliOptionSpec("--base-url", "设置 site.baseUrl"),
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名")
+                    })
+            });
+
         var theme = new CliCommandSpec(
             Name: "theme",
             Description: "主题相关命令",
@@ -574,6 +610,6 @@ public static class BukitCliSpecs
                     })
             });
 
-        return new CliCommandRegistry(new[] { build, clone, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, version, intent, visual, webhook, clean, config, doctor, lint, init, route, data });
+        return new CliCommandRegistry(new[] { build, clone, importCmd, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, version, intent, visual, webhook, clean, config, doctor, lint, init, route, data });
     }
 }

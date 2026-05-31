@@ -1,0 +1,31 @@
+templates:
+  layouts/base.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/index.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/list.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  partials/footer.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  partials/header.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
