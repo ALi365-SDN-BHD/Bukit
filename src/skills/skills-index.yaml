@@ -301,7 +301,7 @@ skills:
     path: src/skills/bukit-geo/SKILL.md
     description: >
       Generative Engine Optimization — llms.txt/llms-full.txt, AI crawler robots.txt rules,
-      FAQ/HowTo structured data, GEO Score (0-100, 7 diagnostic codes).
+      FAQ/HowTo structured data, GEO Score (0-100, 10 diagnostic codes).
     triggers:
       - pattern: "GEO|generative engine optimization|llms\\.txt|AI search|ChatGPT Search|Perplexity|Google AI Overviews|生成式引擎优化|AI 搜索引擎|geo audit"
         languages: [en, zh-CN, ms]

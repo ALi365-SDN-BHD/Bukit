@@ -6,6 +6,15 @@ description_ms: Klon reka bentuk visual mana-mana laman web ke dalam tema Bukit.
 description_en: Clone any website's visual design into a Bukit theme. Full pipeline: browser design token extraction, layout analysis, asset download, and CLI-driven theme generation.
 argument-hint: "<url> [--theme <name>] [--verify] [--fail-on-visual-diff]"
 user-invocable: true
+
+status: beta
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Cli/Commands/CloneCommand.cs"
+source_anchors:
+  - "src/Bukit.Cli/Commands/CloneCommand.cs"
+guide_chapters:
+  - "guide/user/18-clone-website.md"
 ---
 
 # Bukit Clone Website → Theme

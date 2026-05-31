@@ -1,6 +1,15 @@
 ---
 name: bukit-design-tokens
 description: Use when creating or customizing a Bukit theme's design system — defining CSS variables, color palettes, typography scales, spacing systems, dark mode, or when wanting to improve the visual consistency of a Bukit site
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Engine/"
+source_anchors:
+  - "src/Bukit.Engine/"
+guide_chapters:
+  - "guide/user/08-themes-templates.md"
 ---
 
 # Bukit Design Tokens

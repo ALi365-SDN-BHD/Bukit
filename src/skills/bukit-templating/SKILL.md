@@ -1,6 +1,15 @@
 ---
 name: bukit-templating
 description: Use when using bukit to write or modify Scriban templates, encountering bukit template rendering errors, needing to access page/site/data in bukit templates, using layout inheritance in bukit, or working with bukit list pages, pagination, or multi-language conditional rendering
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Engine/"
+source_anchors:
+  - "src/Bukit.Engine/"
+guide_chapters:
+  - "guide/user/08-themes-templates.md"
 ---
 
 # Bukit Scriban Template Development

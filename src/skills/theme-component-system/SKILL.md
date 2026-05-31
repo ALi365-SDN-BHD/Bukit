@@ -1,6 +1,17 @@
 ---
 name: theme-component-system
 description: Use when working with Bukit's componentized theme system — theme.yaml V2 manifest, sections, components, pageTemplates, data bindings, tokens, theme-catalog.json, section schemas, page composer, and theme inheritance chains. Covers the structured approach for building modular, AI-consumable themes.
+
+status: beta
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Engine/"
+  - "src/Bukit.Engine/"
+source_anchors:
+  - "src/Bukit.Engine/"
+  - "src/Bukit.Engine/"
+guide_chapters:
+  - "guide/user/08-themes-templates.md"
 ---
 
 # Theme Component System
@@ -544,11 +555,11 @@ The V2 componentized theme system coexists with V1 themes:
 
 ## Related Skills
 
-- [bukit-theme](file:///Users/ali/mydev/Git/Github/Bukit/src/skills/bukit-theme/SKILL.md) — Theme basics: layouts, assets, static, theme.yaml V1, theme.params, wizard presets, SCSS, image optimization
-- [bukit-templating](file:///Users/ali/mydev/Git/Github/Bukit/src/skills/bukit-templating/SKILL.md) — Scriban template syntax, includes, layouts, variables, functions
-- [bukit-design-tokens](file:///Users/ali/mydev/Git/Github/Bukit/src/skills/bukit-design-tokens/SKILL.md) — Design token system, CSS custom properties, color palettes, typography scales
-- [bukit-config](file:///Users/ali/mydev/Git/Github/Bukit/src/skills/bukit-config/SKILL.md) — site.yaml configuration, theme config section
-- [bukit-cli-reference](file:///Users/ali/mydev/Git/Github/Bukit/src/skills/bukit-cli-reference/SKILL.md) — CLI command reference
+- [bukit-theme](./bukit-theme/SKILL.md) — Theme basics: layouts, assets, static, theme.yaml V1, theme.params, wizard presets, SCSS, image optimization
+- [bukit-templating](./bukit-templating/SKILL.md) — Scriban template syntax, includes, layouts, variables, functions
+- [bukit-design-tokens](./bukit-design-tokens/SKILL.md) — Design token system, CSS custom properties, color palettes, typography scales
+- [bukit-config](./bukit-config/SKILL.md) — site.yaml configuration, theme config section
+- [bukit-cli-reference](./bukit-cli-reference/SKILL.md) — CLI command reference
 
 
 ## Section Plugins (ISectionPlugin)

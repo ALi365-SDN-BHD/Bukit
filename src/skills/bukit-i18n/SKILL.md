@@ -1,6 +1,15 @@
 ---
 name: bukit-i18n
 description: Use when using bukit to create a multilingual site, bukit language switching does not work, bukit multilingual content is not correctly separated, or encountering bukit sitemap/RSS/search index merging issues
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Engine/I18nOutputMerger.cs"
+source_anchors:
+  - "src/Bukit.Engine/I18nOutputMerger.cs"
+guide_chapters:
+  - "guide/user/11-i18n-seo.md"
 ---
 
 # Bukit Multilingual Sites

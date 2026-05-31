@@ -27,6 +27,10 @@ src/skills/
   bukit-clone/            # Website design cloning → Bukit theme
   bukit-seo/              # Traditional search engine optimization (SEO)
   bukit-geo/              # Generative engine optimization (GEO)
+  bukit-preview/          # Local preview server
+  bukit-dev/              # HMR development server
+  bukit-webhook/          # Webhook-triggered automated builds
+  theme-component-system/ # Componentized theme system (V2)
 ```
 
 ## Skill Responsibilities
@@ -48,6 +52,10 @@ src/skills/
 | `bukit-clone` | Browser MCP extraction → `bukit clone` CLI → verification pipeline for cloning any website's visual design into a Bukit theme | Cloning a website's appearance, replicating a design, creating a theme from an existing live site |
 | `bukit-seo` | Traditional SEO configuration (site.seo node), inject/theme render modes, front matter SEO fields, 6 Schema.org JSON-LD types, build-time diagnostics (11 codes), post-build audit (~40 codes), CLI seo audit/diff | Configuring SEO, running seo audit/diff, interpreting seo.* diagnostic codes, setting up OG/Twitter/JSON-LD/sitemap |
 | `bukit-geo` | Generative engine optimization for AI search engines: llms.txt/llms-full.txt generation, AI crawler robots.txt rules, FAQ/HowTo structured data, geo audit with GEO Score (7 diagnostic codes) | Optimizing for AI search (ChatGPT Search/Perplexity/Google AI Overviews), generating llms.txt, adding FAQ/HowTo schema, running geo audit |
+| `bukit-preview` | Local preview server — serves dist/ at localhost:4173, MIME type handling, analytics disabling, port conflict resolution | Previewing build output locally before deployment, troubleshooting port conflicts |
+| `bukit-dev` | HMR development server — file watching with 300ms debounce, incremental rebuild, WebSocket live browser refresh at localhost:35729 | Active development with automatic rebuild and live browser refresh |
+| `bukit-webhook` | Webhook server — authenticated Notion-style trigger → GitHub repository_dispatch for automated CI/CD builds | Setting up webhook-triggered auto-deploy from Notion updates |
+| `theme-component-system` | Componentized theme system — theme.yaml V2 manifest, sections, components, pageTemplates, data bindings, tokens, theme-catalog.json, section schemas, page composer, theme inheritance chains | Building modular, AI-consumable themes with structured sections and components |
 
 ## Loading Rules
 
@@ -60,6 +68,7 @@ These skills are designed to be combined with clear boundaries:
 5. Load `bukit-design-tokens` when visual consistency is a goal — it provides palettes, scales, and dark mode patterns
 6. Load `bukit-content-to-template` when generating templates from collection schemas — it bridges schema field definitions to Scriban code
 7. Load `bukit-seo` for traditional SEO tasks and `bukit-geo` for AI search optimization tasks — they share `site.seo` config but target different audiences
+8. Load `theme-component-system` for V2 componentized theme work — it depends on `bukit-theme` and `bukit-templating` as prerequisites
 
 One common flow looks like this:
 
@@ -87,7 +96,7 @@ src/skills/
 ├── skills-index.json            ← JSON version (auto-generated from YAML)
 │
 ├── using-bukit/SKILL.md         ← Gateway: routes to all sub-skills
-├── bukit-*/SKILL.md             ← 18 domain skills (CLI, config, theme, templates, …)
+├── bukit-*/SKILL.md             ← 19 domain skills (CLI, config, theme, templates, …)
 │
 └── scripts/
     ├── validate-skills.sh       ← CI: validates all skill files
@@ -121,7 +130,7 @@ claude plugins install src/skills
 claude plugins install github.com/ALi365-SDN-BHD/Bukit
 ```
 
-After installation, all 18 Bukit skills become available via the `Skill` tool whenever you mention Bukit-related concepts.
+After installation, all 19 Bukit skills become available via the `Skill` tool whenever you mention Bukit-related concepts.
 
 #### Codex CLI
 
@@ -295,6 +304,25 @@ The validate script checks:
 3. `bukit-config` (for collection schema)
 4. `bukit-templating`
 5. `bukit-design-tokens` (for visual styling)
+
+### Build a componentized theme
+
+1. `using-bukit`
+2. `theme-component-system`
+3. `bukit-theme`
+4. `bukit-templating`
+
+## Skill Layer Structure
+
+Bukit skills are organized in five layers for clear responsibility boundaries:
+
+| Layer | Skills | Purpose |
+|---|---|---|
+| **Gateway** | `using-bukit` | Entry point — routes to sub-skills, prevents other SSG skills from loading |
+| **Core Reference** | `bukit-cli-reference`, `bukit-config` | Foundation — CLI commands and configuration model |
+| **Build Authoring** | `bukit-theme`, `bukit-templating`, `bukit-design-tokens`, `bukit-content-to-template`, `theme-component-system` | Visual layer — themes, templates, design tokens, and componentized themes |
+| **Data / Site Features** | `bukit-notion`, `bukit-routing`, `bukit-i18n`, `bukit-seo`, `bukit-geo` | Content and optimization — content sources, URL routing, multilingual, search engine optimization |
+| **Operations / Debug** | `bukit-plugins-debug`, `bukit-preview`, `bukit-dev`, `bukit-deploy`, `bukit-webhook`, `bukit-clone` | Runtime — debugging, preview, development, deployment, webhooks, website cloning |
 
 ## Maintenance Notes
 

@@ -27,6 +27,7 @@ site.yaml files, or any related Bukit concepts:
    - `bukit-preview` — for local preview server at localhost:4173
    - `bukit-dev` — for HMR development server with live reload
    - `bukit-webhook` — for webhook-triggered automated builds
+   - `theme-component-system` — for componentized theme system (theme.yaml V2, sections, components, page composer)
 
 3. **Trigger keywords** — Load when user mentions ANY of:
    - "bukit", "site.yaml", "Scriban", "scriban"
@@ -65,6 +66,7 @@ site.yaml files, or any related Bukit concepts:
 | Automated webhook builds | using-bukit → webhook → notion → cli-reference |
 | Customize URL routing | using-bukit → routing → config → templating |
 | Multilingual site | using-bukit → i18n → config → cli-reference |
+| Componentized theme | using-bukit → theme-component-system → theme → templating |
 
 ## Environment Detection
 

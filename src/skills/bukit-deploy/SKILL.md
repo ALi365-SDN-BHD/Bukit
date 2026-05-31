@@ -1,6 +1,17 @@
 ---
 name: bukit-deploy
 description: Use when using bukit to deploy a site to GitHub Pages, troubleshooting bukit deploy failures, configuring deploy in site.yaml, setting up CI/CD deployment with bukit, or the user asks about "deploy my site", "publish to GitHub Pages", "bukit deploy", "gh-pages deployment"
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Cli/Commands/DeployCommand.cs"
+  - "src/Bukit.Config/DeployConfig.cs"
+source_anchors:
+  - "src/Bukit.Cli/Commands/DeployCommand.cs"
+  - "src/Bukit.Config/DeployConfig.cs"
+guide_chapters:
+  - "guide/user/13-deploy-github-pages.md"
 ---
 
 # Bukit Deployment (GitHub Pages)

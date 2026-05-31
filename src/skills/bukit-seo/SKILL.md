@@ -1,6 +1,17 @@
 ---
 name: bukit-seo
 description: Use when using bukit to configure traditional SEO (site.seo node, renderMode, organization, schema, robotsTxt), adding seo_title/seo_desc/canonical/og_image front matter fields, running bukit seo audit or bukit seo diff, interpreting seo.* diagnostic codes, setting up Open Graph / Twitter Card / JSON-LD / sitemap / robots.txt, or troubleshooting SEO audit failures
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Engine/SeoDiagnostics.cs"
+  - "src/Bukit.Engine/SeoAuditReportWriter.cs"
+source_anchors:
+  - "src/Bukit.Engine/SeoDiagnostics.cs"
+  - "src/Bukit.Engine/SeoAuditReportWriter.cs"
+guide_chapters:
+  - "guide/user/11-i18n-seo.md"
 ---
 
 # Bukit Traditional Search Engine Optimization (SEO)

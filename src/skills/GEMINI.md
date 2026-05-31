@@ -28,7 +28,7 @@ Recognize these keywords and activate Bukit skills:
 
 All skills: `src/skills/<skill-name>/SKILL.md`
 
-Available skills (18 total):
+Available skills (19 total):
 
 | Skill | Purpose |
 |-------|---------|
@@ -50,6 +50,7 @@ Available skills (18 total):
 | bukit-preview | Local preview server |
 | bukit-dev | HMR development server |
 | bukit-webhook | Webhook automated deployment |
+| theme-component-system | Componentized theme system (V2) |
 
 ## Platform Notes
 
@@ -74,5 +75,6 @@ Common task → skill chains:
 | SEO | using-bukit → seo → config → cli-reference |
 | GEO (AI search) | using-bukit → geo → config → cli-reference |
 | Design system | using-bukit → design-tokens → theme → config |
+| Componentized theme | using-bukit → theme-component-system → theme → templating |
 
 See `src/skills/skills-index.yaml` for the complete machine-readable catalog.

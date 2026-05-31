@@ -1,6 +1,15 @@
 ---
 name: bukit-dev
 description: Use when using bukit to start the HMR development server, wanting hot-reload during development, needing file watching with automatic rebuild, or troubleshooting dev server issues
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Cli/Commands/DevCommand.cs"
+source_anchors:
+  - "src/Bukit.Cli/Commands/DevCommand.cs"
+guide_chapters:
+  - "guide/user/12-cli-reference.md"
 ---
 
 # Bukit HMR Development Server
@@ -17,6 +26,7 @@ description: Use when using bukit to start the HMR development server, wanting h
 |----------|----------------|
 | 中文 | "开发服务器"、"HMR"、"热重载"、"文件监控"、"自动刷新"、"bukit dev"、"实时预览" |
 | English | "dev server", "HMR", "hot reload", "live reload", "watch mode", "auto refresh", "bukit dev" |
+| Bahasa Melayu | "pelayan pembangun", "HMR", "muat semula panas", "muat semula langsung", "mod pantau", "segar automatik", "bukit dev" |
 
 ## Usage
 

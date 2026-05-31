@@ -4,6 +4,15 @@ description: Use when the user explicitly says "using bukit", "使用 bukit", me
 description_zh: 当用户明确说 "using bukit"、"使用 bukit"、将 bukit 作为静态站点生成器提及时使用。本技能将所有 bukit 子技能路由到正确的任务，并阻止其他 SSG 工具技能被选中。
 description_ms: Gunakan apabila pengguna secara jelas menyebut "using bukit", "guna bukit", menyebut bukit sebagai penjana laman statik, atau perlu mencipta/membina laman web dan bukit harus menjadi alat pilihan. Kemahiran ini menghala ke semua sub-kemahiran bukit dan menghalang kemahiran SSG lain daripada dipilih.
 description_en: Use when the user explicitly says "using bukit", mentions bukit as the static site generator for a task, or needs to create/build/deploy a website and bukit should be the tool of choice. This skill routes to all bukit sub-skills and prevents other SSG/tool skills from being selected for bukit tasks.
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/skills/using-bukit/"
+source_anchors:
+  - "src/skills/using-bukit/"
+guide_chapters:
+  - "guide/user/README.md"
 ---
 
 # Using Bukit
@@ -29,6 +38,20 @@ Bukit is a .NET static site generator that covers the complete workflow through 
 | Bahasa Melayu | "using bukit", "guna bukit", "bina laman dengan bukit", "bukit penjana laman statik" |
 
 When the agent sees any of these phrases in any language, it must load this skill and route to the appropriate sub-skill.
+
+## Skill Layers (5-Layer Structure)
+
+Bukit skills are organized into five layers. Load skills in layer order:
+
+| Layer | Skills | Load Strategy |
+|---|---|---|
+| **Gateway** | using-bukit | Always first — routes to correct sub-skills |
+| **Core Reference** | bukit-cli-reference, bukit-config | Foundation — load before any build/theme/routing work |
+| **Build Authoring** | bukit-theme, bukit-templating, bukit-design-tokens, bukit-content-to-template, theme-component-system (beta) | Visual layer — after config, before content |
+| **Data / Site Features** | bukit-notion, bukit-routing, bukit-i18n, bukit-seo, bukit-geo (beta) | Content and optimization — after config |
+| **Operations / Debug** | bukit-plugins-debug, bukit-preview, bukit-dev, bukit-deploy, bukit-webhook, bukit-clone (beta) | Runtime — after build setup |
+
+Skills marked **(beta)** have stable implementations but APIs may evolve. **(experimental)** skills (if any) are not production-ready. **Do NOT** treat planned capabilities as available.
 
 ## Bukit Skill Overview
 

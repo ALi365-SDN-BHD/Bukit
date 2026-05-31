@@ -1,6 +1,15 @@
 ---
 name: bukit-content-to-template
 description: Use when the user has defined a content schema (in site.yaml collections) and needs to generate precise, field-aware Scriban templates — helping bridge the gap between content structure and visual presentation
+
+status: beta
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Engine/"
+source_anchors:
+  - "src/Bukit.Engine/"
+guide_chapters:
+  - "guide/user/08-themes-templates.md"
 ---
 
 # Bukit Content-to-Template Generator

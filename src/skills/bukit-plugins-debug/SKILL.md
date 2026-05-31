@@ -1,6 +1,16 @@
 ---
 name: bukit-plugins-debug
 description: Use when using bukit and plugins do not take effect or behave unexpectedly, bukit build output does not meet expectations, bukit incremental builds behave incorrectly, when developing custom bukit plugins, or diagnosing bukit build performance issues
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Engine/Plugins/"
+source_anchors:
+  - "src/Bukit.Engine/Plugins/"
+guide_chapters:
+  - "guide/user/10-built-in-features.md"
+  - "guide/user/14-troubleshooting.md"
 ---
 
 # Bukit Plugin System & Build Debugging

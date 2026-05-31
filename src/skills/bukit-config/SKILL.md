@@ -1,13 +1,22 @@
 ---
 name: bukit-config
 description: Use when using bukit to create or modify site.yaml, asking about the meaning of a bukit configuration field, encountering bukit config validation errors, or needing to configure a specific Bukit feature (collections, taxonomy, i18n, plugins, media) through YAML
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Config/"
+source_anchors:
+  - "src/Bukit.Config/"
+guide_chapters:
+  - "guide/user/04-site-yaml-config.md"
 ---
 
 # Bukit Site Configuration
 
 ## Overview
 
-`site.yaml` is Bukit's single configuration entry point, following the convention-over-configuration philosophy. Six top-level nodes: `site`, `content`, `build`, `theme`, `taxonomy`, `logging`. Most fields have sensible defaults — a minimal working site.yaml needs only about 20 lines.
+`site.yaml` is Bukit's single configuration entry point, following the convention-over-configuration philosophy. Seven top-level nodes: `site`, `content`, `build`, `theme`, `taxonomy`, `logging`, `deploy`. Most fields have sensible defaults — a minimal working site.yaml needs only about 20 lines.
 
 **REQUIRED SUB-SKILL:** Verify config changes with `bukit build`. CLI commands reference bukit-cli-reference.
 
@@ -29,7 +38,7 @@ description: Use when using bukit to create or modify site.yaml, asking about th
 | `theme` | Theme configuration | name, layouts, assets, static, params |
 | `taxonomy` | Taxonomy configuration | template, kinds, pageSize, outputMode |
 | `logging` | Log level | level (debug/info/warn/error) |
-| `deploy` | Deployment configuration | provider, branch, output, message |
+| `deploy` | Deployment configuration | provider, branch, message, cname, keepHistory |
 
 ## Scenario Templates
 
@@ -226,7 +235,7 @@ SEO-oriented configs should include both `site.url` and `site.description`. With
 | `maxRps` | int | — | API request rate limit |
 | `maxRetries` | int | — | Request failure retry count |
 | `filterProperty` | string | `Published` | Filter property name |
-| `filterType` | string | `checkbox_true` | Filter type: `checkbox_true`/`none` |
+| `filterType` | string | `checkbox_true` | Filter type: `checkbox_true`/`checkbox_false`/`select_equals`/`status_equals`/`rich_text_equals`/`none` |
 | `sortProperty` | string | — | Sort property name |
 | `sortDirection` | string | `ascending` | Sort direction: `ascending`/`descending` |
 | `includeSlugs` | string[] | — | Only include pages with specified slugs |
@@ -806,7 +815,7 @@ Starting from v3.x, Bukit exceptions carry stable diagnostic codes in `BKT-XXXX`
 When Bukit encounters an error, it outputs `<code> <message>`:
 ```
 ✖ Config error
-[BKT-0601] Refusing to clean unsafe output directory: /Users/xxx.
+[BKT-0601] Refusing to clean unsafe output directory: /path/to/dir.
              How to fix: set build.output to a dedicated subdirectory like 'dist' or 'public'.
 ```
 

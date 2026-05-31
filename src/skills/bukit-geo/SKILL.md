@@ -1,13 +1,24 @@
 ---
 name: bukit-geo
 description: Use when using bukit to optimize a site for AI-driven search engines (ChatGPT Search, Perplexity, Google AI Overviews, Bing Copilot), generating or troubleshooting llms.txt / llms-full.txt, adding FAQ/HowTo structured data in content front matter, running bukit geo audit, interpreting GEO Score, or resolving geo.* diagnostic warnings
+
+status: beta
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Engine/SeoDiagnostics.cs"
+  - "src/Bukit.Engine/Plugins/BuiltIn/LlmsTxtPlugin.cs"
+source_anchors:
+  - "src/Bukit.Engine/SeoDiagnostics.cs"
+  - "src/Bukit.Engine/Plugins/BuiltIn/LlmsTxtPlugin.cs"
+guide_chapters:
+  - "guide/user/17-geo.md"
 ---
 
 # Bukit Generative Engine Optimization (GEO)
 
 ## Overview
 
-GEO optimizes Bukit sites for AI-driven search engines — ChatGPT Search, Perplexity, Google AI Overviews, Bing Copilot — beyond traditional SEO. Bukit implements GEO through three layers: **static artifacts** (llms.txt / llms-full.txt / AI crawler rules), **structured data** (FAQPage / HowTo / Person / Article / Speakable via front matter), and **audit diagnostics** (7 geo.* codes + GEO Score).
+GEO optimizes Bukit sites for AI-driven search engines — ChatGPT Search, Perplexity, Google AI Overviews, Bing Copilot — beyond traditional SEO. Bukit implements GEO through three layers: **static artifacts** (llms.txt / llms-full.txt / AI crawler rules), **structured data** (FAQPage / HowTo / Person / Article / Speakable via front matter), and **audit diagnostics** (10 geo.* codes + GEO Score).
 
 **REQUIRED BACKGROUND:** GEO config lives under `site.seo.geo` in site.yaml — you must understand bukit-config for the parent `site.seo` node.
 **REQUIRED SUB-SKILL:** Build sites with `bukit build`, audit with `bukit geo audit`. CLI commands reference bukit-cli-reference.

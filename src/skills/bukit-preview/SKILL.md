@@ -1,6 +1,15 @@
 ---
 name: bukit-preview
 description: Use when using bukit to preview a built site locally, starting the local preview server, troubleshooting preview port conflicts, configuring preview host/port, or understanding preview behavior with analytics disabling and MIME type handling
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Cli/Commands/PreviewCommand.cs"
+source_anchors:
+  - "src/Bukit.Cli/Commands/PreviewCommand.cs"
+guide_chapters:
+  - "guide/user/12-cli-reference.md"
 ---
 
 # Bukit Local Preview Server

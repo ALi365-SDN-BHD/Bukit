@@ -439,7 +439,7 @@
       "type": "technique",
       "priority": 15,
       "path": "src/skills/bukit-geo/SKILL.md",
-      "description": "Generative Engine Optimization — llms.txt/llms-full.txt, AI crawler robots.txt rules, FAQ/HowTo structured data, GEO Score (0-100, 7 diagnostic codes).\n",
+      "description": "Generative Engine Optimization — llms.txt/llms-full.txt, AI crawler robots.txt rules, FAQ/HowTo structured data, GEO Score (0-100, 10 diagnostic codes).\n",
       "triggers": [
         {
           "pattern": "GEO|generative engine optimization|llms\\.txt|AI search|ChatGPT Search|Perplexity|Google AI Overviews|生成式引擎优化|AI 搜索引擎|geo audit",

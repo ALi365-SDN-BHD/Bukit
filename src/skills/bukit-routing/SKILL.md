@@ -1,6 +1,16 @@
 ---
 name: bukit-routing
 description: Use when using bukit to customize URL structures, bukit URLs are not generated as expected, configuring bukit permalink patterns, setting up bukit collection routes, or troubleshooting 404 errors on bukit-deployed sites
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Engine/"
+source_anchors:
+  - "src/Bukit.Engine/"
+guide_chapters:
+  - "guide/user/02-core-concepts.md"
+  - "guide/user/03-project-structure.md"
 ---
 
 # Bukit URL Routing & Permalinks

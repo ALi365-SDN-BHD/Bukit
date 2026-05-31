@@ -1,6 +1,15 @@
 ---
 name: bukit-webhook
 description: Use when using bukit to set up a webhook listener that authenticates incoming triggers and dispatches a GitHub repository_dispatch event, configuring Notion-to-GitHub webhook triggers, troubleshooting token verification or rate limiting, or understanding webhook security constraints
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Cli/Commands/WebhookCommand.cs"
+source_anchors:
+  - "src/Bukit.Cli/Commands/WebhookCommand.cs"
+guide_chapters:
+  - "guide/user/14-troubleshooting.md"
 ---
 
 # Bukit Webhook Server

@@ -1,6 +1,16 @@
 ---
 name: bukit-cli-reference
 description: Use when using bukit CLI — agent needs to execute Bukit commands (build, deploy, init, preview, clean, doctor, plugin, theme, intent, webhook, version), detect whether the Bukit CLI tool is installed, install or upgrade bukit, or interpret bukit build output and exit codes
+
+status: stable
+since: "v3.0.0"
+verified_by:
+  - "src/Bukit.Cli/"
+source_anchors:
+  - "src/Bukit.Cli/"
+guide_chapters:
+  - "guide/user/12-cli-reference.md"
+  - "guide/user/16-parameter-cheatsheet.md"
 ---
 
 # Bukit CLI Command Reference
@@ -63,7 +73,7 @@ After downloading, place the binary in a PATH directory or the project root.
 | `config check` | Validate site.yaml without building | `--config` `--site` `--site-url` |
 | `config schema` | Generate site.yaml JSON Schema | `--output` |
 | `doctor` | Diagnose config and templates | `--config` `--site` `--site-url` |
-| `plugin list` | List registered plugins (14 built-in) | `--config` `--site` |
+| `plugin list` | List registered plugins (13 built-in) | `--config` `--site` |
 | `theme list` | List available themes with metadata (version, description, tags) | `--config` `--site` |
 | `theme create` | Create a theme from starter or an existing theme | `<name>` `--from` `--brand` `--primary-color` `--accent-color` `--use` `--force` `--config` `--site` |
 | `theme use` | Switch current theme | `<name>` `--config` `--site` |
@@ -84,10 +94,9 @@ After downloading, place the binary in a PATH directory or the project root.
 | `intent validate` | Validate intent file | `<intent.yaml>` `--root-dir` `--out` |
 | `intent apply` | Apply intent to generate site.yaml | `<intent.yaml>` `--out` |
 | `deploy` | Build and deploy to GitHub Pages | `--config` `--site` `--output` `--base-url` `--site-url` `--branch` `--message` `--ci` `--dry-run` `--skip-build` |
-| `webhook` | Webhook server (Notion trigger → build + push) | `--host` `--port` `--path` `--token` `--repo` `--event` |
+| `webhook` | Webhook server (Notion trigger → GitHub repository_dispatch) | `--host` `--port` `--path` `--repo` `--event` |
 | `geo audit` | GEO audit on dist output | `--dir` `--config` |
 | `seo` | SEO audit and regression detection | `audit` `--dir` `--strict` `--external`; `diff` `--baseline` `--current` `--max-new-*` `--fail-on-*` |
-| `geo` | GEO audit for AI search engines | `audit` `--dir` |
 | `data inspect` | List all data modules (Markdown/Notion content + data sources) | `--config` `--site` `--module` |
 | `data dump` | Export data module content as JSON | `--config` `--site` `--format` |
 | `completion` | Generate shell auto-completion script | `<shell>` (bash\|zsh\|fish) |
@@ -278,7 +287,7 @@ Checks:
 All config errors are formatted with diagnostic codes in `BKT-XXXX` format:
 ```
 ✖ Config error
-[BKT-0601] Refusing to clean unsafe output directory: /Users/xxx.
+[BKT-0601] Refusing to clean unsafe output directory: /path/to/dir.
 ```
 
 Template variable spell check output:
@@ -425,7 +434,7 @@ bukit geo audit [--dir <dir>]
 
 Reads `seo-report.json` from the output directory and reports llms.txt/llms-full.txt status, GEO-enhanced routes, schema types, GEO Score, and geo.* diagnostic issues. Requires a full `bukit build` first.
 
-Exit codes: 0 = success, 2 = directory or report not found, 2 = invalid report JSON.
+Exit codes: 0 = success, 1 = report or directory not found, 1 = invalid report JSON.
 
 ### data
 
