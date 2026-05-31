@@ -1,20 +1,20 @@
-# bukit（.NET 10 Native AOT 静态站点引擎）
+# Bukit — .NET Native AOT 静态站点引擎
 
 <p align="center">
   <img src="docs/bukit-logo.svg" alt="bukit logo" width="400">
 </p>
 
-语言版本：简体中文（当前）| [English](./README.md) | [Bahasa Melayu](./README.ms.md)
+语言版本：[English](./README.md) | 简体中文（当前）| [Bahasa Melayu](./README.ms.md)
 
-Bukit 是一个面向"笔记即 CMS"、AI Agent 与 GEO 优化的 .NET Native AOT 静态网站生成引擎。它可以将 Notion、Markdown 或其他结构化笔记内容转换为高性能、可部署、可被搜索引擎与 AI 引擎理解的静态网站。
+Bukit 是一个面向 **笔记即 CMS**、**AI Agent 工作流**和 **GEO 优化**的 .NET Native AOT 静态网站生成引擎。将 Notion 数据库和 Markdown 内容转换为高性能、可部署的静态网站。
 
-## 产品生态定位
+## 什么是 Bukit？
 
 ```
 Bukit
 = 静态网站引擎
 = 构建核心
-= 内容读取、路由生成、模板渲染、SEO/GEO 输出
+= 内容读取、路由生成、Scriban 模板渲染、SEO/GEO 输出
 
 BukitJalil
 = 本地应用 / 控制面板
@@ -22,321 +22,124 @@ BukitJalil
 
 Notes-as-CMS
 = 内容生产方式
-= Notion / Markdown / Obsidian / 飞书 / 语雀 / 微信公众号 / 其他知识库
+= Notion / Markdown / Obsidian / 飞书 / 语雀 / 其他知识库
 ```
 
-## 文档
+Bukit 负责内容读取、路由生成、Scriban 模板渲染、SEO/GEO 输出和静态 HTML 生成。适用于公司官网、文档站、内容站、落地页和 AI 辅助发布工作流。
 
-- 普通用户使用文档：[`guide/user`](guide/user/README.zh-CN.md)
-- 开发者/维护者文档：[`guide/dev`](guide/dev/README.zh-CN.md)
-- Agent Skills 导航：[`src/skills`](src/skills/README.zh-CN.md)
-- 本轮治理补充说明：[`guide/dev/perf-aot-governance.md`](guide/dev/perf-aot-governance.md)
+**BukitJalil** 是独立的本地控制面板，不属于 Bukit 运行时引擎，使用 Bukit 构建网站不需要它。
 
-## Agent Skills
+Bukit **不是** SaaS 平台、全功能 CMS 后端、可视化页面构建器或 BukitJalil 的替代品。
 
-`src/skills/` 是 Bukit 面向 AI Agent 的知识层，不是运行时代码目录。这里把建站、命令执行、配置、主题、模板、Notion、路由、多语言和插件排障拆成一组可组合的 `SKILL.md` 文件，便于 Agent 在 Bukit 任务中快速选对上下文。
+## 为什么选择 Bukit？
 
-- 统一入口：[`using-bukit`](src/skills/using-bukit/SKILL.md)
-- 命令单一来源：[`bukit-cli-reference`](src/skills/bukit-cli-reference/SKILL.md)
-- 详细导航：[`src/skills/README.zh-CN.md`](src/skills/README.zh-CN.md)
-- 覆盖范围：CLI / `site.yaml` / 主题 / Scriban 模板 / Notion / 路由 / i18n / 插件与调试
+- **Native AOT** — 启动低于 50ms，内存占用低，Linux/macOS/Windows 单文件部署
+- **笔记即 CMS** — 用 Notion 或 Markdown 写内容，Bukit 转为静态站点
+- **AI Agent 原生** — `src/skills/` 提供 AI 编程助手的知识层
+- **GEO 就绪** — 内置 AI 搜索引擎优化，支持 `llms.txt`、FAQ/HowTo 结构化数据、GEO 评分审计
 
-## 快速开始（使用仓库内示例站点）
+## 核心功能
 
-先验证端到端构建是否正常：
+- **Markdown 与 Notion 内容源**，支持可配置的字段映射
+- **Scriban 模板引擎**，支持布局继承、局部模板和代码片段库
+- **基于集合的路由**，支持永久链接、列表页、分页和分类
+- **多语言支持** — 按语言构建，合并 sitemap/RSS/搜索
+- **SEO** — sitemap、RSS/Atom/JSON Feed、JSON-LD、Open Graph、Twitter Cards、canonical URL、hreflang
+- **GEO** — `llms.txt`、AI 爬虫 robots.txt 规则、FAQ/HowTo 结构化数据、GEO 评分审计
+- **主题系统**，含设计令牌、组件化主题、主题分发和注册表
+- **HMR 开发服务器**（WebSocket 实时刷新）；构建产物的本地预览服务器
+- **插件系统** — `derive-pages` 和 `after-build` 钩子；支持 WASM 和进程插件
+- **增量构建** — 内容感知变更检测；可选 SHA256 资源哈希
+- **GitHub Pages 部署**，通过 CLI 或 GitHub Actions 工作流
+
+## 快速开始
 
 ```bash
+# 构建 CLI
 dotnet build bukit.slnx -c Release
+
+# 验证示例站点配置
 dotnet run --project src/Bukit.Cli -c Release -- doctor --config examples/starter/site.yaml
+
+# 构建示例站点
 dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter/site.yaml --clean --site-url https://example.com
+
+# 本地预览
 dotnet run --project src/Bukit.Cli -c Release -- preview --dir examples/starter/dist --port auto
 ```
 
-浏览器打开：
+完整上手教程见 [快速开始指南](guide/user/01-quick-start.zh-CN.md)。
 
-```
-控制台会输出实际的 Preview URL（端口可能不同）
-```
+## 文档
 
-## 命令行
+| 读者 | 入口 |
+|---|---|
+| 新用户 | [`guide/user`](guide/user/README.zh-CN.md) — 快速开始、配置、内容、部署、排障 |
+| 维护者 / 贡献者 | [`guide/dev`](guide/dev/README.zh-CN.md) — 架构、CLI 契约、渲染、插件、可观测性 |
+| AI Agent 用户 | [`src/skills`](src/skills/README.zh-CN.md) — 面向 Codex、Claude Code、Copilot、Gemini CLI 的技能文件 |
+| AI 建站 | [`guide/ai/chatgpt`](guide/ai/chatgpt/README.zh-CN.md) — ChatGPT 提示包与意图契约 |
+| CLI 参考 | [`guide/user/12-cli-reference.zh-CN.md`](guide/user/12-cli-reference.zh-CN.md) |
+| 配置参考 | [`guide/user/04-site-yaml-config.zh-CN.md`](guide/user/04-site-yaml-config.zh-CN.md) |
+| 部署 | [`guide/user/13-deploy-github-pages.zh-CN.md`](guide/user/13-deploy-github-pages.zh-CN.md) |
 
-### 初始化站点
+## Notion CMS 工作流
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- create my-site
-```
+- 在 `site.yaml` 中设置 `content.provider: notion`
+- 通过环境变量提供 Token：`NOTION_TOKEN`（切勿写在 `site.yaml` 中）
+- 默认数据库字段：`Published`（checkbox）、`Title`、`Slug`、`Type`（post/page）、`PublishAt`
+- 完整指南：[`guide/user/06-notion-content.zh-CN.md`](guide/user/06-notion-content.zh-CN.md)
+- Schema 参考：[`guide/dev/content.zh-CN.md`](guide/dev/content.zh-CN.md)
 
-Notion 模式：
+## AI / Agent 工作流
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- create my-site --provider notion
-```
+`src/skills/` 是面向 AI Agent 的知识层，不是运行时代码。帮助编程助手理解 Bukit CLI、配置、主题、模板、Notion、路由、i18n、部署、SEO/GEO 和调试。
 
-### 构建
+- 适用工具：Codex CLI、Claude Code、Copilot CLI、Gemini CLI 等
+- 普通用户：从 [`guide/user`](guide/user/README.zh-CN.md) 开始
+- Agent 用户：从 [`src/skills/using-bukit/SKILL.md`](src/skills/using-bukit/SKILL.md) 或 [`src/skills/bukit-cli-reference/SKILL.md`](src/skills/bukit-cli-reference/SKILL.md) 开始
+- 技能目录：[`src/skills/README.zh-CN.md`](src/skills/README.zh-CN.md)
 
-默认读取当前目录 `site.yaml`：
+## 部署
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --clean
-```
+GitHub Actions 工作流模板位于 [`.github/workflows/release.yml`](.github/workflows/release.yml)。
 
-输出构建指标（JSON）与结构化日志（便于 CI 采集）：
+1. 在 GitHub **Settings → Pages** 中选择 "GitHub Actions"
+2. 如使用 Notion，在仓库 Secrets 中添加 `NOTION_TOKEN`
+3. 推送至 `main` 分支 — 工作流将自动构建并部署站点
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --clean --metrics metrics.json --log-format json
-```
+详细指引见 [`guide/user/13-deploy-github-pages.zh-CN.md`](guide/user/13-deploy-github-pages.zh-CN.md)。
 
-并行渲染（可加速大站点构建；默认使用 CPU 核心数）：
+## 项目状态
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --clean --jobs 8
-```
+**Bukit 当前处于公开预览阶段。** 适用于：
 
-多站点（读取 `sites/<name>.yaml`，但 rootDir 仍为当前目录）：
+- 基于 Markdown 和 Notion 的本地静态站点生成
+- GitHub Pages 部署
+- 主题开发与定制
+- SEO/GEO 输出验证
+- AI Agent 辅助建站
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --site blog --clean
-```
+**仍在演进中：** 主题注册表、克隆主题工作流、外部插件生态、BukitJalil 本地控制面板、高级 AI 意图工作流。这些功能尚未稳定。
 
-覆盖输出目录与 baseUrl：
+## 路线图
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --output dist --base-url /my-repo --site-url https://user.github.io/my-repo --clean
-```
+| 领域 | 状态 |
+|---|---|
+| 构建、预览、路由、模板 | 已稳定 |
+| Markdown、Notion、SEO/GEO | 已稳定 |
+| 主题生态、模板工具 | 改进中 |
+| AI 意图工作流 | 改进中 |
+| BukitJalil 控制面板 | 未来 |
+| 插件市场 / 注册表 | 未来 |
+| 更广泛的知识源集成 | 未来 |
 
-### 诊断
+## 参与贡献
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
-```
+欢迎贡献。开发者指南包含架构文档、测试流程和贡献流程：
 
-### 清理
+- [`guide/dev/README.zh-CN.md`](guide/dev/README.zh-CN.md)
+- [`guide/dev/testing-smoke.zh-CN.md`](guide/dev/testing-smoke.zh-CN.md)
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
-```
+## 许可证
 
-### 主题
-
-列出工程根目录下的 `themes/<name>`：
-
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
-```
-
-写回配置（设置 `theme.name`）：
-
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
-```
-
-### Webhook（触发 GitHub Actions dispatch）
-
-用于 Notion webhook → GitHub `repository_dispatch` 的触发器（不影响核心引擎）：
-
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- webhook --repo owner/repo --port 8787 --path /webhook/notion --event bukit_notion
-```
-
-环境变量要求：
-
-- `BUKIT_WEBHOOK_TOKEN`（入站请求头 `X-Sitegen-Token`）
-- `BUKIT_GITHUB_TOKEN`（或 `GITHUB_TOKEN`）
-
-## 配置（site.yaml）
-
-参考：[examples/starter/site.yaml](examples/starter/site.yaml)
-
-关键字段：
-
-- `site.collections`：推荐的内容组织与路由主模型（每个集合声明 `permalink`、`template`，可选 `listRoute`）。`post/page` 默认规则仍作为兼容层保留。
-- `site.baseUrl`：GitHub Pages 子路径（例如 `/my-repo`），根站点用 `/`
-- `site.url`：站点绝对域名（用于 sitemap/rss），也可通过 `--site-url` 覆盖
-- `site.seo`：引擎级 SEO 模型配置（canonical/OG/Twitter/hreflang/JSON-LD），主题通过 `page.seo` 渲染
-- `site.analytics.google_analytics_id`：GA4 Measurement ID；配置后新版 Analytics partial 会输出 gtag，`site.analytics.enabled: false` 可关闭
-- `site.pluginFailMode`：插件失败策略（`strict` 默认中断构建；`warn` 仅记录错误继续）
-- `site.externalPlugins`：外部协议插件配置（`runtime: process|wasm`，支持 `after-build|derive-pages`）
-- `site.externalAssemblyTrustMode` + `site.externalAssemblyAllowlist`：外部 DLL 信任治理（`warn|strict` + SHA256 allowlist）
-- `externalPlugins.<name>.options.processArgs`：process 插件结构化参数（`positionals/named`），`options.arguments` 已禁用
-- `externalPlugins.<name>.maxMemoryMb/wasmFsMode/wasmAllowNetwork`：wasm 资源与权限约束（默认禁网）
-- `site.autoSummary`：未提供 summary 时是否从正文提取摘要（用于 taxonomy/rss/search 等）
-- `site.autoSummaryMaxLength`：自动摘要最大长度（字符数）
-- `content.provider`：`markdown` 或 `notion`
-- `content.markdown.maxItems`：最多读取多少篇 Markdown（正整数）
-- `content.markdown.includePaths/includeGlobs`：只读取指定的 Markdown（用于大仓库/单篇调试）
-- `content.notion.maxItems`：最多拉取多少条 Notion 页面（正整数）
-- `content.notion.includeSlugs`：只拉取 slug 在列表中的页面（数据库 query 过滤）
-- `content.notion.cacheMode/cacheDir`：Notion 渲染缓存（off/readwrite/readonly）
-- `content.notion.renderConcurrency/maxRps/maxRetries`：Notion 并发渲染与限流/重试（提升大库渲染速度与稳定性）
-- 构建结束会输出 `event=notion.stats`：Notion 请求数与节流等待统计（便于评估吞吐与瓶颈）
-- `build.output`：输出目录（相对 `site.yaml` 所在目录）
-- `theme.layouts/assets/static`：模板、资源与静态文件目录（相对 `site.yaml` 所在目录）
-
-## 模板自定义字段（v2）
-
-v2 支持在模板中读取“自定义字段”，统一入口是：
-
-- `page.fields.<key>.value`
-- `page.fields.<key>.type`（text/number/date/list/bool/file）
-
-### Markdown（Front Matter）
-
-在 Markdown 文件的 Front Matter 中新增字段即可（示例）：
-
-```yaml
----
-type: page
-seo_title: 关于 - Bukit 示例站点
-reading_time: 5
-tags:
-  - bukit
----
-```
-
-模板中使用（注意：本项目模板语法使用 Scriban 的 `{{ if ... }}` 形式）：
-
-```scriban
-<title>
-  {{ if page.fields.seo_title }}
-    {{ page.fields.seo_title.value }}
-  {{ else }}
-    {{ page.title }}
-  {{ end }}
-  - {{ site.title }}
-</title>
-```
-
-### Notion（fieldPolicy）
-
-Notion 内容源会按 `content.notion.fieldPolicy` 决定哪些 properties 会进入 `page.fields`：
-
-```yaml
-content:
-  provider: notion
-  notion:
-    databaseId: "<your_database_id>"
-    fieldPolicy:
-      mode: whitelist   # whitelist | all
-      allowed:
-        - cover
-        - seo_title
-        - seo_desc
-        - reading_time
-        - my_link
-```
-
-模板示例：
-
-```scriban
-{{ if page.fields.cover }}
-  <img src="{{ page.fields.cover.value }}" />
-{{ end }}
-```
-
-## v2 验收与测试
-
-当前仓库主要采用“可运行验收（smoke/acceptance）”方式覆盖核心链路（build/doctor/i18n/sitemap/rss/taxonomy/multi-site/webhook）。推荐两种方式：
-
-- 一键 smoke（本地）：[`scripts/smoke.ps1`](scripts/smoke.ps1) / [`scripts/smoke.sh`](scripts/smoke.sh)
-- 分项验收文档：
-  - v2.1（P1）：[`guide/dev/testing-smoke.md`](guide/dev/testing-smoke.md)
-  - v2.2+（P2）：[`guide/dev/testing-smoke.md`](guide/dev/testing-smoke.md)
-
-## AI 建站（v2）
-
-- 对话式建站指南：[`guide/ai/chatgpt/README.zh-CN.md`](guide/ai/chatgpt/README.zh-CN.md)
-- Intent 契约与映射规则：[`guide/dev/intent-cli.md`](guide/dev/intent-cli.md)
-
-> 说明：当前仓库聚焦 `Bukit` 主线，不包含 [BukitJalil](https://github.com/ALi365-SDN-BHD/BukitJalil) 桌面端源码与解决方案。
-
-## Notion 内容源
-
-### 环境变量
-
-Notion Token 只允许通过环境变量注入：
-
-- `NOTION_TOKEN`
-
-### 数据库字段约定（v1）
-
-`content.provider: notion` 模式下，默认按以下字段解析：
-
-- `Published`（checkbox）：是否发布；仅发布内容会被渲染
-- `Title`（title）：标题
-- `Slug`（rich_text 或 formula/string）：URL slug（缺省会从 Title 生成）
-- `Type`（select 或 multi_select）：`post`/`page`（缺省 `post`）
-- `PublishAt`（date，可选）：发布时间（缺省当前时间）
-
-v2 的字段模板与 schema 说明见：
-
-- [`guide/dev/content.md`](guide/dev/content.md)
-
-## GitHub Actions + GitHub Pages
-
-仓库提供了 Pages workflow 模板样例 [`.github/workflows/release.yml`](.github/workflows/release.yml)，可直接复制到自己的仓库使用。
-详细指引见：[`guide/user/13-deploy-github-pages.zh-CN.md`](guide/user/13-deploy-github-pages.zh-CN.md)。
-
-要启用部署：
-
-1. 在 GitHub 仓库 Settings → Pages → Build and deployment 选择 “GitHub Actions”
-2. 如使用 Notion：在仓库 Settings → Secrets and variables → Actions 添加 `NOTION_TOKEN`
-3. 按你的 workflow 配置推送到 `main` 分支，触发构建与部署
-
-## AOT 发布（本地）
-
-示例（linux-x64）：
-
-```bash
-dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
-```
-
-默认使用 `BukitStripSymbols=false` 以避免本地环境缺少 `objcopy/llvm-objcopy` 时发布失败。  
-若需要符号剥离（体积优化），请显式启用：
-
-```bash
-dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit -p:BukitStripSymbols=true
-```
-
-当启用符号剥离但系统没有 `objcopy/llvm-objcopy` 时，发布会给出清晰错误提示。
-
-Windows 示例（win-x64）：
-```bash
-dotnet publish src/Bukit.Cli -c AOT -r win-x64 -o out/bukit
-dotnet publish src/Bukit.Cli -c Release -r win-x64 -o out/bukit /p:PublishSingleFile=true /p:SelfContained=true
-```
-
-## 验证命令矩阵
-
-```bash
-# 编译（告警即错误）
-dotnet build bukit.slnx -c Release -warnaserror
-
-# 单测
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release
-dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj -c Release
-dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release
-dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj -c Release
-
-# WASM 协议路径
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter "FullyQualifiedName~RuntimeIsWasm|FullyQualifiedName~WasmPluginInvoker"
-
-# 代码规范
-dotnet format bukit.slnx --verify-no-changes
-
-# AOT 告警检查（零告警策略，Scriban/ImageSharp 已全部 AOT 兼容）
-bash scripts/check-aot-warnings.sh linux-x64 out/bukit /tmp/bukit-aot-check.log
-```
-
-CI `smoke` 工作流还包含以下质量门：
-
-- Coverage gate（分项目阈值）
-- Vulnerable package gate（阻断 High/Critical）
-- 仓库 smoke 脚本（端到端）
-
-## 性能基线（冷启动优先）
-
-使用脚本对比 JIT 与 AOT 在同一配置下的构建耗时、RSS 与 metrics：
-
-```bash
-bash scripts/perf-baseline.sh Release osx-arm64 examples/starter/site.yaml
-```
+本项目基于 [LICENSE](./LICENSE) 中的条款授权。

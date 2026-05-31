@@ -208,7 +208,7 @@ theme:
 | `menus` | map | — | Multi-menu navigation definitions |
 | `search` | map | — | Search UI: `ui`, `uiTheme`, `placeholderText` |
 | `pagination` | map | — | Global pagination defaults: `pageSize` |
-| `analytics` | map | — | Analytics configuration: `enabled`, `google_analytics_id` |
+| `analytics` | map | — | Analytics configuration: `enabled`, `google_analytics_id`, `disableInPreview` |
 
 SEO-oriented configs should include both `site.url` and `site.description`. Without `site.url`, canonical and schema URLs fall back to relative paths and audit emits warnings. Without `site.description`, generated home/list/taxonomy/pagination routes usually emit `seo.description_missing` unless the route has its own summary.
 | `permalinks` | map | — | Global permalink custom placeholders |
@@ -236,9 +236,11 @@ SEO-oriented configs should include both `site.url` and `site.description`. With
 | `maxRetries` | int | — | Request failure retry count |
 | `filterProperty` | string | `Published` | Filter property name |
 | `filterType` | string | `checkbox_true` | Filter type: `checkbox_true`/`checkbox_false`/`select_equals`/`status_equals`/`rich_text_equals`/`none` |
+| `filterValue` | string | — | Filter value (required for `select_equals`/`status_equals`/`rich_text_equals`) |
 | `sortProperty` | string | — | Sort property name |
 | `sortDirection` | string | `ascending` | Sort direction: `ascending`/`descending` |
 | `includeSlugs` | string[] | — | Only include pages with specified slugs |
+| `propertyMap` | map | — | Custom Notion property name → Bukit field name mapping. Supports 12 fields: `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, `Canonical` |
 | `includeSlugProperty` | string | `Slug` | Slug property name |
 | `cacheMode` | string | `off` | Cache mode: `off`/`readwrite`/`readonly` |
 | `cacheDir` | string | — | Cache directory |
@@ -591,6 +593,7 @@ Controls Google Analytics (GA4) gtag output via the analytics partial.
 |------|------|--------|------|
 | `analytics.enabled` | bool | true | Whether analytics code output is allowed |
 | `analytics.google_analytics_id` | string | — | GA4 Measurement ID (e.g., `G-XXXXXXXXXX`); must start with `G-` |
+| `analytics.disableInPreview` | bool | true | Disable analytics during `bukit preview`. Set `false` to enable analytics in preview mode. |
 
 ```yaml
 site:

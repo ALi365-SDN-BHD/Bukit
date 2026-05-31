@@ -1,4 +1,4 @@
-# bukit (.NET 10 Native AOT Static Site Engine)
+# Bukit — .NET Native AOT Static Site Engine
 
 <p align="center">
   <img src="docs/bukit-logo.svg" alt="bukit logo" width="400">
@@ -6,172 +6,140 @@
 
 Language versions: English (current) | [简体中文](./README.zh-CN.md) | [Bahasa Melayu](./README.ms.md)
 
-Bukit is a .NET Native AOT static site generation engine designed for Notes-as-CMS workflows, AI Agent automation, and GEO-ready websites. It transforms structured notes, Notion databases, Markdown content, and future knowledge sources into fast, deployable, AI-readable static websites.
+Bukit is a .NET Native AOT static site generation engine for **Notes-as-CMS**, **AI Agent workflows**, and **GEO-ready websites**. Turn Notion databases and Markdown into fast, deployable static sites.
 
-## Product Ecosystem
+## What is Bukit?
 
 ```
  Bukit
  = Static Site Engine
  = Build Core
- = Content ingestion, route generation, template rendering, SEO/GEO output
+ = Content ingestion, route generation, Scriban template rendering, SEO/GEO output
 
  BukitJalil
  = Local App / Control Panel
- = Project management, theme management, AI-powered conversational workflows, build & deploy control
+ = Project management, theme management, AI conversational workflows, build & deploy control
 
  Notes-as-CMS
  = Content Production
- = Notion / Markdown / Obsidian / Feishu / Yuque / WeChat Official Account / other knowledge bases
+ = Notion / Markdown / Obsidian / Feishu / Yuque / other knowledge bases
 ```
 
-## Documents
+Bukit handles content ingestion, route generation, Scriban template rendering, SEO/GEO output, and static HTML generation. It powers company websites, documentation sites, content sites, landing pages, and AI-assisted publishing workflows.
 
-- User guide: [`guide/user`](guide/user/README.md)
-- Developer guide: [`guide/dev`](guide/dev/README.md)
-- Agent skills: [`src/skills`](src/skills/README.md)
-- Governance notes: [`guide/dev/perf-aot-governance.md`](guide/dev/perf-aot-governance.md)
-- Full Chinese reference: [`README.zh-CN.md`](README.zh-CN.md)
+**BukitJalil** is a separate local control panel — not part of the Bukit runtime engine, and not required to build sites with Bukit.
 
-## Agent Skills
+Bukit is **not** a SaaS platform, a full CMS backend, a visual page builder, or a replacement for BukitJalil.
 
-`src/skills/` is the agent-facing Bukit knowledge layer, not a runtime source directory. It splits site creation, command execution, configuration, theming, templating, Notion integration, routing, i18n, and debugging into focused `SKILL.md` files so an agent can load the right context for Bukit work.
+## Why Bukit?
 
-- Unified entry: [`using-bukit`](src/skills/using-bukit/SKILL.md)
-- Command source of truth: [`bukit-cli-reference`](src/skills/bukit-cli-reference/SKILL.md)
-- Full navigation: [`src/skills/README.md`](src/skills/README.md)
-- Coverage: CLI, `site.yaml`, theme, Scriban templates, Notion, routing, i18n, plugins, debugging, **clone**, **theme registry**
+- **Native AOT** — sub-50ms startup, low memory, single-binary deployment on Linux, macOS, and Windows
+- **Notes-as-CMS** — write content in Notion or Markdown; Bukit turns it into a static site
+- **AI Agent native** — `src/skills/` provides a knowledge layer for AI coding agents
+- **GEO-ready** — built-in AI search engine optimization with `llms.txt`, FAQ/HowTo structured data, and GEO audit
 
-## Quick Start (using the example site in this repo)
+## Core Features
+
+- **Markdown & Notion content providers** with configurable field mapping
+- **Scriban template engine** with layout inheritance, partials, and snippet library
+- **Collection-based routing** with permalinks, list pages, pagination, and taxonomy
+- **Multilingual support** — per-language builds, merged sitemap/RSS/search
+- **SEO** — sitemap, RSS/Atom/JSON Feed, JSON-LD, Open Graph, Twitter Cards, canonical URLs, hreflang
+- **GEO** — `llms.txt`, AI crawler `robots.txt` rules, FAQ/HowTo structured data, GEO Score audit
+- **Theme system** with design tokens, componentized themes, theme distribution, and registry
+- **HMR dev server** with WebSocket live reload; preview server for build output
+- **Plugin system** — `derive-pages` and `after-build` hooks; WASM and process plugin support
+- **Incremental builds** — content-aware change detection; optional SHA256 asset hashing
+- **GitHub Pages deployment** via CLI or GitHub Actions workflow
+
+## Quick Start
 
 ```bash
+# Build the CLI
 dotnet build bukit.slnx -c Release
+
+# Validate the example site configuration
 dotnet run --project src/Bukit.Cli -c Release -- doctor --config examples/starter/site.yaml
+
+# Build the example site
 dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter/site.yaml --clean --site-url https://example.com
+
+# Preview locally
 dotnet run --project src/Bukit.Cli -c Release -- preview --dir examples/starter/dist --port auto
 ```
 
-## Core CLI Commands
+For a full walkthrough, see the [Quick Start guide](guide/user/01-quick-start.md).
 
-### Create a site
+## Documentation
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- create my-site
-dotnet run --project src/Bukit.Cli -c Release -- create my-site --provider notion
-```
+| Audience | Start here |
+|---|---|
+| New users | [`guide/user`](guide/user/README.md) — Quick Start, config, content, deployment, troubleshooting |
+| Maintainers / contributors | [`guide/dev`](guide/dev/README.md) — architecture, CLI contract, rendering, plugins, observability |
+| AI Agent users | [`src/skills`](src/skills/README.md) — skill files for Codex, Claude Code, Copilot, Gemini CLI |
+| AI site building | [`guide/ai/chatgpt`](guide/ai/chatgpt/README.md) — ChatGPT prompt pack and intent contract |
+| CLI reference | [`guide/user/12-cli-reference.md`](guide/user/12-cli-reference.md) |
+| Config reference | [`guide/user/04-site-yaml-config.md`](guide/user/04-site-yaml-config.md) |
+| Deployment | [`guide/user/13-deploy-github-pages.md`](guide/user/13-deploy-github-pages.md) |
 
-### Build
+## Notion CMS Workflow
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --clean
-dotnet run --project src/Bukit.Cli -c Release -- build --clean --metrics metrics.json --log-format json
-dotnet run --project src/Bukit.Cli -c Release -- build --clean --jobs 8
-dotnet run --project src/Bukit.Cli -c Release -- build --site blog --clean
-```
+- Set `content.provider: notion` in `site.yaml`
+- Provide your token as an environment variable: `NOTION_TOKEN` (never in `site.yaml`)
+- Default database fields: `Published` (checkbox), `Title`, `Slug`, `Type` (post/page), `PublishAt`
+- Full guide: [`guide/user/06-notion-content.md`](guide/user/06-notion-content.md)
+- Schema reference: [`guide/dev/content.md`](guide/dev/content.md)
 
-### Dev Server (HMR)
+## AI / Agent Workflow
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- dev
-dotnet run --project src/Bukit.Cli -c Release -- dev --config site.yaml --port 8080
-```
+`src/skills/` is an AI Agent knowledge layer — not runtime code. It helps coding agents understand Bukit CLI, configuration, themes, templates, Notion, routing, i18n, deployment, SEO/GEO, and debugging.
 
-### Validate / Clean / Theme / Clone
+- Intended for: Codex CLI, Claude Code, Copilot CLI, Gemini CLI, and similar tools
+- Normal users: start from [`guide/user`](guide/user/README.md)
+- Agent users: start from [`src/skills/using-bukit/SKILL.md`](src/skills/using-bukit/SKILL.md) or [`src/skills/bukit-cli-reference/SKILL.md`](src/skills/bukit-cli-reference/SKILL.md)
+- Skill catalog: [`src/skills/README.md`](src/skills/README.md)
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
-dotnet run --project src/Bukit.Cli -c Release -- seo audit --dir dist
-dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
-# Interactive theme wizard with 5 presets (blog|docs|landing|minimal|portfolio)
-dotnet run --project src/Bukit.Cli -c Release -- theme wizard my-theme --preset blog
-# Extract design tokens and scaffold a Bukit-compatible theme
-dotnet run --project src/Bukit.Cli -c Release -- clone --tokens tokens.json --theme my-clone
-```
+## Deployment
 
-### Theme Distribution & Registry
+A GitHub Actions workflow template is at [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
-```bash
-# Pack a theme for sharing
-bukit theme pack my-blog          # → my-blog-1.0.0.tar.gz
+1. Go to GitHub **Settings → Pages** and choose "GitHub Actions"
+2. If using Notion, add `NOTION_TOKEN` to repository secrets
+3. Push to `main` — the workflow builds and deploys your site
 
-# Install from local / URL / registry
-bukit theme install ./my-blog-1.0.0.tar.gz
-bukit theme install --registry blog-clean
+See [`guide/user/13-deploy-github-pages.md`](guide/user/13-deploy-github-pages.md) for detailed guidance.
 
-# Search community themes
-bukit theme search blog           # filter by name/tags
-```
+## Project Status
 
-### Template Commands
+**Bukit is in public preview.** It is suitable for:
 
-```bash
-bukit template list               # List all templates
-bukit template create pages/gallery.html  # Interactive creation
-bukit template validate           # Validate Scriban syntax
-bukit template snippets           # Browse snippet library (8 Scriban + 9 CSS)
-bukit template hints              # Available template variables
-bukit template sync               # Auto-generate bukit.templates.yaml
-```
+- Local static site generation from Markdown and Notion
+- GitHub Pages deployment
+- Theme development and customization
+- SEO/GEO output validation
+- AI Agent-assisted site building
 
-## Key `site.yaml` Fields
+**Still evolving:** theme registry, clone-to-theme workflow, external plugin ecosystem, BukitJalil local control panel, and advanced AI intent workflows. These features are not yet stable.
 
-- `site.collections`: primary recommended model for content organization and routing (declare `permalink`, `template`, optional `listRoute`, and optional `listTemplate` per collection). `post/page` defaults remain as a compatibility fallback.
-- `site.baseUrl`: GitHub Pages subpath (`/my-repo`) or `/` for root.
-- `site.base_url` in templates is an empty string when `site.baseUrl: /`; use `site.base_path` when a literal `/` root prefix is required.
-- `site.url`: canonical site URL (sitemap/rss); can be overridden by `--site-url`.
-- `site.seo`: engine-level SEO model and index policy for canonical, robots, OG, Twitter, hreflang, JSON-LD, sitemap/search/RSS filtering, optional head injection, `seo-report.json`, `bukit seo audit`, and optional `robots.txt`. See [`docs/seo.md`](docs/seo.md).
-- `site.analytics.google_analytics_id`: GA4 Measurement ID; Bukit emits gtag when the ID exists unless `site.analytics.enabled: false`.
-- `content.provider`: `markdown` or `notion`.
-- `content.markdown.maxItems`: max Markdown items to load.
-- `content.notion.maxItems`: max Notion pages to fetch.
-- `content.notion.filterType/filterValue`: Notion database filters support `checkbox_true`, `checkbox_false`, `select_equals`, `status_equals`, `rich_text_equals`, and `none`.
-- `content.notion.cacheMode/cacheDir`: Notion render cache options.
-- `content.sources[].collection/addToCollections`: map a source into one or more `site.collections` routes; `mode: data` sources are exposed as `site.data.{name}` and still populate `site.modules` by type.
-- `build.output`: output directory.
-- `build.clean`: requires a `.bukit-output-marker` file before cleaning; refuses to clean non-Bukit directories (project root, home, `.git`).
-- `build.assetHashMode`: `"sha256"` uses SHA256 content hashing for asset copy detection (recommended for CI/network filesystems).
-- `theme.layouts/assets/static`: theme directories. `static` is copied unchanged; use content pages or collections when you need Scriban includes/partials.
-- `theme.source`: remote theme Git URL with optional `@ref`; cached locally, not auto-pulled, locked via `bukit-theme.lock.json`.
+## Roadmap
 
-## AI Site Building (v2)
+| Area | Status |
+|---|---|
+| Build, preview, routing, templates | Stable |
+| Markdown, Notion, SEO/GEO | Stable |
+| Theme ecosystem, template tooling | Improving |
+| AI intent workflow | Improving |
+| BukitJalil control panel | Future |
+| Plugin marketplace / registry | Future |
+| Broader knowledge-source integrations | Future |
 
-- Guide: [`guide/ai/chatgpt/README.md`](guide/ai/chatgpt/README.md)
-- Intent contract: [`guide/dev/intent-cli.md`](guide/dev/intent-cli.md)
-- ChatGPT prompt pack: [`guide/ai/chatgpt`](guide/ai/chatgpt/README.md)
+## Contributing
 
-## Notion Content Source
+Contributions are welcome. See the developer guide for architecture docs, testing procedures, and contribution workflows:
 
-- Token must be provided via environment variable only: `NOTION_TOKEN`.
-- For v1 schema reference: [`guide/dev/content.md`](guide/dev/content.md)
+- [`guide/dev/README.md`](guide/dev/README.md)
+- [`guide/dev/testing-smoke.md`](guide/dev/testing-smoke.md)
 
-## GitHub Actions + GitHub Pages
+## License
 
-A workflow template is provided at [`.github/workflows/release.yml`](.github/workflows/release.yml).
-Copy it to your repository and customize as needed. See [`guide/user/13-deploy-github-pages.md`](guide/user/13-deploy-github-pages.md) for detailed guidance.
-
-Typical setup:
-
-1. In GitHub Settings → Pages, choose "GitHub Actions".
-2. If you use Notion, add `NOTION_TOKEN` in repository secrets.
-3. Push to `main` after your workflow is configured to build and deploy the site.
-
-## AOT Publishing
-
-```bash
-dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
-dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit -p:BukitStripSymbols=true
-dotnet publish src/Bukit.Cli -c AOT -r win-x64 -o out/bukit
-```
-
-## Validation Matrix
-
-```bash
-dotnet build bukit.slnx -c Release -warnaserror
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release
-dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj -c Release
-dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release
-dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj -c Release
-dotnet format bukit.slnx --verify-no-changes
-```
+This project is licensed under the terms in [LICENSE](./LICENSE).

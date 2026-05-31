@@ -95,15 +95,15 @@ After downloading, place the binary in a PATH directory or the project root.
 | `intent apply` | Apply intent to generate site.yaml | `<intent.yaml>` `--out` |
 | `deploy` | Build and deploy to GitHub Pages | `--config` `--site` `--output` `--base-url` `--site-url` `--branch` `--message` `--ci` `--dry-run` `--skip-build` |
 | `webhook` | Webhook server (Notion trigger → GitHub repository_dispatch) | `--host` `--port` `--path` `--repo` `--event` |
-| `geo audit` | GEO audit on dist output | `--dir` `--config` |
+| `clone` (beta) | Generate Bukit theme and content from target website | `--tokens` `--theme` `--layout` `--page` `--sections` `--behaviors` `--icons` `--assets` `--brand` `--use` `--force` `--verify` `--visual-threshold` `--fail-on-visual-diff` `--fidelity` `--config` `--site` || `geo audit` | GEO audit on dist output | `--dir` `--config` |
 | `seo` | SEO audit and regression detection | `audit` `--dir` `--strict` `--external`; `diff` `--baseline` `--current` `--max-new-*` `--fail-on-*` |
 | `data inspect` | List all data modules (Markdown/Notion content + data sources) | `--config` `--site` `--module` |
 | `data dump` | Export data module content as JSON | `--config` `--site` `--format` |
 | `completion` | Generate shell auto-completion script | `<shell>` (bash\|zsh\|fish) |
 | `lint` | Check config and Markdown content | `--config` `--site` |
 | `visual generate` | Generate Playwright visual test script | `--config` `--dir` `--site-url` `--out` |
-| `version` | Output version number | No parameters |
-
+| `docs check` (beta) | Check documentation consistency (README/guide/skills) | `--cli` `--config-fields` `--file-refs` `--examples` `--skills` || `version` | Output version number | No parameters |
+| `route inspect` | List all routes with optional JSON output and collection filtering | `--json` `--collection` `--config` `--site` |
 ## Key Command Details
 
 ### build
@@ -505,6 +505,75 @@ Discovers all `.html` files in the output directory and generates a Playwright t
 2. `bukit visual generate --dir dist`
 3. `npm init -y && npm install @playwright/test`
 4. `npx playwright test visual-tests.spec.js --reporter=list`
+
+
+### clone (beta)
+
+Generate Bukit theme and content by extracting data from a target website.
+Requires design token JSON files (typically produced by Browser MCP extraction).
+
+```
+bukit clone --tokens <file> --theme <name> [options]
+```
+
+| Parameter | Default | Description |
+|------|--------|------|
+| `--tokens` | - | Design tokens JSON file (required) |
+| `--theme` | - | Target theme name (required) |
+| `--layout` | - | Page layout JSON file |
+| `--page` | - | Page metadata JSON file |
+| `--sections` | - | Page sections JSON file |
+| `--behaviors` | - | Interaction behavior JSON file |
+| `--icons` | - | SVG icons JSON file |
+| `--assets` | - | Static assets JSON file (auto-downloads images) |
+| `--brand` | - | Brand name for navbar and footer |
+| `--use` | false | Switch to this theme after creation |
+| `--force` | false | Overwrite existing theme |
+| `--verify` | false | Run doctor/build verification after generation |
+| `--visual-threshold` | - | Visual screenshot diff threshold (0-1) |
+| `--fail-on-visual-diff` | false | Fail when screenshot diff exceeds threshold |
+| `--fidelity` | - | Fidelity mode: directly migrate HTML directory as templates |
+| `--config` | site.yaml | Config file path |
+| `--site` | - | Multi-site name |
+
+Two modes:
+- Standard mode: Requires --tokens. Flow: design tokens to theme generation to optional verification.
+- Fidelity mode (--fidelity): Directly migrates a directory of HTML files as Scriban templates.
+
+See bukit-clone skill for the full Browser MCP extraction workflow.
+
+### route inspect
+
+List all routes with optional JSON output and collection filtering.
+
+```
+bukit route inspect [--json] [--collection <name>] [--config <path>] [--site <name>]
+```
+
+| Parameter | Default | Description |
+|------|--------|------|
+| `--json` | false | Output in JSON format |
+| `--collection` | - | Filter by collection name |
+| `--config` | site.yaml | Config file path |
+| `--site` | - | Multi-site name |
+
+### docs check (beta)
+
+Check consistency between README, user guide, skills documentation, and source code.
+
+```
+bukit docs check [--cli] [--config-fields] [--file-refs] [--examples] [--skills]
+```
+
+| Parameter | Default | Description |
+|------|--------|------|
+| `--cli` | false | Check CLI command coverage in docs |
+| `--config-fields` | false | Check site.yaml field references |
+| `--file-refs` | false | Check file path reference validity |
+| `--examples` | false | Check README example parseability |
+| `--skills` | false | Check Skill-CLI consistency |
+
+Without any flags, all checks are performed. Use individual flags to limit scope.
 
 ## Exit Codes
 

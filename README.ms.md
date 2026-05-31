@@ -1,4 +1,4 @@
-# bukit (Enjin Tapak Statik .NET 10 Native AOT)
+# Bukit — Enjin Tapak Statik .NET Native AOT
 
 <p align="center">
   <img src="docs/bukit-logo.svg" alt="bukit logo" width="400">
@@ -6,127 +6,140 @@
 
 Versi bahasa: [English](./README.md) | [简体中文](./README.zh-CN.md) | Bahasa Melayu (semasa)
 
-Bukit ialah enjin penjanaan tapak statik .NET Native AOT yang direka untuk "nota sebagai CMS", Ejen AI, dan pengoptimuman GEO. Ia menukar Notion, Markdown, atau kandungan nota berstruktur lain kepada tapak web statik berprestasi tinggi, boleh dideploy, serta difahami oleh enjin carian dan enjin AI.
+Bukit ialah enjin penjanaan tapak statik .NET Native AOT untuk **Nota-sebagai-CMS**, **aliran kerja Ejen AI**, dan **laman web sedia GEO**. Tukar pangkalan data Notion dan Markdown kepada tapak statik yang pantas dan boleh dideploy.
 
-## Kedudukan Ekosistem Produk
+## Apa itu Bukit?
 
 ```
  Bukit
  = Enjin Tapak Statik
  = Teras Binaan
- = Penghamilan kandungan, penjanaan laluan, pemaparan templat, output SEO/GEO
+ = Penghamilan kandungan, penjanaan laluan, pemaparan templat Scriban, output SEO/GEO
 
  BukitJalil
  = Aplikasi Tempatan / Panel Kawalan
- = Pengurusan projek, pengurusan tema, operasi perbualan AI, kawalan bina & deploy
+ = Pengurusan projek, pengurusan tema, aliran kerja perbualan AI, kawalan bina & deploy
 
- Notes-as-CMS
- = Cara Penghasilan Kandungan
- = Notion / Markdown / Obsidian / Feishu / Yuque / WeChat Official Account / pangkalan pengetahuan lain
+ Nota-sebagai-CMS
+ = Penghasilan Kandungan
+ = Notion / Markdown / Obsidian / Feishu / Yuque / pangkalan pengetahuan lain
 ```
 
-## Dokumen
+Bukit mengendalikan penghamilan kandungan, penjanaan laluan, pemaparan templat Scriban, output SEO/GEO, dan penjanaan HTML statik. Ia sesuai untuk laman web syarikat, laman dokumentasi, laman kandungan, halaman pendaratan, dan aliran kerja penerbitan berbantu AI.
 
-- Panduan pengguna: [`guide/user`](guide/user/README.ms.md)
-- Panduan pembangun: [`guide/dev`](guide/dev/README.ms.md)
-- Navigasi agent skills: [`src/skills`](src/skills/README.ms.md)
-- Nota tadbir urus: [`guide/dev/perf-aot-governance.md`](guide/dev/perf-aot-governance.md)
-- Rujukan penuh dalam bahasa Cina: [`README.zh-CN.md`](README.zh-CN.md)
+**BukitJalil** ialah panel kawalan tempatan yang berasingan — bukan sebahagian daripada enjin runtime Bukit, dan tidak diperlukan untuk membina tapak dengan Bukit.
 
-## Agent Skills
+Bukit **bukan** platform SaaS, backend CMS penuh, pembina halaman visual, atau pengganti untuk BukitJalil.
 
-`src/skills/` ialah lapisan pengetahuan Bukit untuk AI Agent, bukan direktori kod runtime. Ia memecahkan kerja pembinaan tapak, pelaksanaan arahan, konfigurasi, tema, templating, integrasi Notion, routing, i18n, dan debugging kepada beberapa fail `SKILL.md` supaya agent boleh memuatkan konteks yang betul untuk tugasan Bukit.
+## Kenapa Bukit?
 
-- Pintu masuk utama: [`using-bukit`](src/skills/using-bukit/SKILL.md)
-- Sumber arahan tunggal: [`bukit-cli-reference`](src/skills/bukit-cli-reference/SKILL.md)
-- Navigasi penuh: [`src/skills/README.ms.md`](src/skills/README.ms.md)
-- Skop: CLI, `site.yaml`, tema, templat Scriban, Notion, routing, i18n, plugin, dan debugging
+- **Native AOT** — permulaan bawah 50ms, memori rendah, deployan binari tunggal di Linux, macOS, dan Windows
+- **Nota-sebagai-CMS** — tulis kandungan dalam Notion atau Markdown; Bukit menukarnya menjadi tapak statik
+- **Ejen AI asli** — `src/skills/` menyediakan lapisan pengetahuan untuk ejen pengekodan AI
+- **Sedia GEO** — pengoptimuman enjin carian AI terbina dengan `llms.txt`, data berstruktur FAQ/HowTo, dan audit GEO
 
-## Mula Pantas (guna contoh tapak dalam repositori ini)
+## Ciri Teras
+
+- **Penyedia kandungan Markdown & Notion** dengan pemetaan medan boleh konfigurasi
+- **Enjin templat Scriban** dengan pewarisan susun atur, separa, dan pustaka coretan
+- **Penghalaan berasaskan koleksi** dengan pautan kekal, halaman senarai, penomboran, dan taksonomi
+- **Sokongan pelbagai bahasa** — binaan mengikut bahasa, gabungan sitemap/RSS/carian
+- **SEO** — sitemap, RSS/Atom/JSON Feed, JSON-LD, Open Graph, Twitter Cards, URL kanonik, hreflang
+- **GEO** — `llms.txt`, peraturan robots.txt perangkak AI, data berstruktur FAQ/HowTo, audit Skor GEO
+- **Sistem tema** dengan token reka bentuk, tema berkomponen, pengedaran tema, dan pendaftaran
+- **Pelayan pembangunan HMR** dengan muat semula langsung WebSocket; pelayan pratonton untuk output binaan
+- **Sistem plugin** — cangkuk `derive-pages` dan `after-build`; sokongan plugin WASM dan proses
+- **Binaan inkremental** — pengesanan perubahan sedar kandungan; pilihan pengecaman aset SHA256
+- **Deployan GitHub Pages** melalui CLI atau aliran kerja GitHub Actions
+
+## Mula Pantas
 
 ```bash
+# Bina CLI
 dotnet build bukit.slnx -c Release
+
+# Sahkan konfigurasi tapak contoh
 dotnet run --project src/Bukit.Cli -c Release -- doctor --config examples/starter/site.yaml
+
+# Bina tapak contoh
 dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter/site.yaml --clean --site-url https://example.com
+
+# Pratonton setempat
 dotnet run --project src/Bukit.Cli -c Release -- preview --dir examples/starter/dist --port auto
 ```
 
-## Perintah CLI Teras
+Untuk panduan lengkap, lihat [Panduan Mula Pantas](guide/user/01-quick-start.ms.md).
 
-### Cipta tapak
+## Dokumentasi
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- create my-site
-dotnet run --project src/Bukit.Cli -c Release -- create my-site --provider notion
-```
+| Khalayak | Mula di sini |
+|---|---|
+| Pengguna baharu | [`guide/user`](guide/user/README.ms.md) — Mula Pantas, konfigurasi, kandungan, deployan, penyelesaian masalah |
+| Penyelenggara / penyumbang | [`guide/dev`](guide/dev/README.ms.md) — seni bina, kontrak CLI, pemaparan, plugin, kebolehcerapan |
+| Pengguna Ejen AI | [`src/skills`](src/skills/README.ms.md) — fail kemahiran untuk Codex, Claude Code, Copilot, Gemini CLI |
+| Bina tapak dengan AI | [`guide/ai/chatgpt`](guide/ai/chatgpt/README.ms.md) — pek dorongan ChatGPT dan kontrak intent |
+| Rujukan CLI | [`guide/user/12-cli-reference.ms.md`](guide/user/12-cli-reference.ms.md) |
+| Rujukan konfigurasi | [`guide/user/04-site-yaml-config.ms.md`](guide/user/04-site-yaml-config.ms.md) |
+| Deployan | [`guide/user/13-deploy-github-pages.ms.md`](guide/user/13-deploy-github-pages.ms.md) |
 
-### Bina
+## Aliran Kerja Notion CMS
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --clean
-dotnet run --project src/Bukit.Cli -c Release -- build --clean --metrics metrics.json --log-format json
-dotnet run --project src/Bukit.Cli -c Release -- build --clean --jobs 8
-dotnet run --project src/Bukit.Cli -c Release -- build --site blog --clean
-```
+- Tetapkan `content.provider: notion` dalam `site.yaml`
+- Sediakan token anda sebagai pemboleh ubah persekitaran: `NOTION_TOKEN` (jangan letak dalam `site.yaml`)
+- Medan pangkalan data lalai: `Published` (checkbox), `Title`, `Slug`, `Type` (post/page), `PublishAt`
+- Panduan penuh: [`guide/user/06-notion-content.ms.md`](guide/user/06-notion-content.ms.md)
+- Rujukan skema: [`guide/dev/content.ms.md`](guide/dev/content.ms.md)
 
-### Semak / Bersih / Tema
+## Aliran Kerja AI / Ejen
 
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
-dotnet run --project src/Bukit.Cli -c Release -- theme list --config site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- theme use alt --config site.yaml
-```
+`src/skills/` ialah lapisan pengetahuan Ejen AI — bukan kod runtime. Ia membantu ejen pengekodan memahami CLI Bukit, konfigurasi, tema, templat, Notion, penghalaan, i18n, deployan, SEO/GEO, dan penyahpepijatan.
 
-## Medan Penting `site.yaml`
+- Sesuai untuk: Codex CLI, Claude Code, Copilot CLI, Gemini CLI, dan alat serupa
+- Pengguna biasa: mula dari [`guide/user`](guide/user/README.ms.md)
+- Pengguna ejen: mula dari [`src/skills/using-bukit/SKILL.md`](src/skills/using-bukit/SKILL.md) atau [`src/skills/bukit-cli-reference/SKILL.md`](src/skills/bukit-cli-reference/SKILL.md)
+- Katalog kemahiran: [`src/skills/README.ms.md`](src/skills/README.ms.md)
 
-- `site.collections`: model utama yang disyorkan untuk organisasi kandungan dan routing (isytihar `permalink`, `template`, dan `listRoute` pilihan setiap koleksi). Peraturan lalai `post/page` kekal sebagai lapisan keserasian.
-- `site.baseUrl`: sublaluan GitHub Pages (`/my-repo`) atau `/` untuk root.
-- `site.url`: URL kanonik tapak (sitemap/rss); boleh ditindih dengan `--site-url`.
-- `content.provider`: `markdown` atau `notion`.
-- `content.markdown.maxItems`: jumlah maksimum item Markdown.
-- `content.notion.maxItems`: jumlah maksimum halaman Notion.
-- `content.notion.cacheMode/cacheDir`: pilihan cache render Notion.
-- `build.output`: direktori output.
-- `theme.layouts/assets/static`: direktori tema.
+## Penerapan (Deployment)
 
-## Bina Tapak dengan AI (v2)
+Templat aliran kerja GitHub Actions tersedia di [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
-- Panduan: [`guide/ai/chatgpt/README.ms.md`](guide/ai/chatgpt/README.ms.md)
-- Kontrak Intent: [`guide/dev/intent-cli.md`](guide/dev/intent-cli.md)
-- Prompt Pack ChatGPT: [`guide/ai/chatgpt`](guide/ai/chatgpt/README.ms.md)
+1. Pergi ke GitHub **Settings → Pages** dan pilih "GitHub Actions"
+2. Jika menggunakan Notion, tambah `NOTION_TOKEN` dalam rahsia repositori
+3. Tolak ke `main` — aliran kerja akan membina dan menerapkan tapak anda
 
-## Sumber Kandungan Notion
+Lihat [`guide/user/13-deploy-github-pages.ms.md`](guide/user/13-deploy-github-pages.ms.md) untuk panduan terperinci.
 
-- Token mesti dibekalkan melalui pemboleh ubah persekitaran sahaja: `NOTION_TOKEN`.
-- Rujukan skema v1: [`guide/dev/content.md`](guide/dev/content.md)
+## Status Projek
 
-## GitHub Actions + GitHub Pages
+**Bukit kini dalam pratonton awam.** Ia sesuai untuk:
 
-Templat aliran kerja disediakan di [`.github/workflows/release.yml`](.github/workflows/release.yml).
-Salin ke repositori anda dan ubah suai mengikut keperluan. Lihat [`guide/user/13-deploy-github-pages.ms.md`](guide/user/13-deploy-github-pages.ms.md) untuk panduan terperinci.
+- Penjanaan tapak statik setempat daripada Markdown dan Notion
+- Deployan GitHub Pages
+- Pembangunan dan penyesuaian tema
+- Pengesahan output SEO/GEO
+- Pembinaan tapak berbantu Ejen AI
 
-Langkah biasa:
+**Masih berkembang:** pendaftaran tema, aliran kerja klon-ke-tema, ekosistem plugin luaran, panel kawalan BukitJalil, dan aliran kerja intent AI lanjutan. Ciri-ciri ini belum stabil.
 
-1. Di GitHub Settings → Pages, pilih "GitHub Actions".
-2. Jika guna Notion, tambah `NOTION_TOKEN` dalam repository secrets.
-3. Push ke `main` selepas aliran kerja anda disediakan untuk bina dan terbitkan tapak.
+## Pelan Hala Tuju
 
-## Penerbitan AOT
+| Bidang | Status |
+|---|---|
+| Bina, pratonton, penghalaan, templat | Stabil |
+| Markdown, Notion, SEO/GEO | Stabil |
+| Ekosistem tema, perkakasan templat | Diperbaiki |
+| Aliran kerja intent AI | Diperbaiki |
+| Panel kawalan BukitJalil | Akan datang |
+| Pasaran / pendaftaran plugin | Akan datang |
+| Integrasi sumber pengetahuan lebih luas | Akan datang |
 
-```bash
-dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
-dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit -p:BukitStripSymbols=true
-dotnet publish src/Bukit.Cli -c AOT -r win-x64 -o out/bukit
-```
+## Menyumbang
 
-## Matriks Pengesahan
+Sumbangan dialu-alukan. Lihat panduan pembangun untuk dokumen seni bina, prosedur pengujian, dan aliran kerja sumbangan:
 
-```bash
-dotnet build bukit.slnx -c Release -warnaserror
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release
-dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj -c Release
-dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release
-dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj -c Release
-dotnet format bukit.slnx --verify-no-changes
-```
+- [`guide/dev/README.ms.md`](guide/dev/README.ms.md)
+- [`guide/dev/testing-smoke.ms.md`](guide/dev/testing-smoke.ms.md)
+
+## Lesen
+
+Projek ini dilesenkan di bawah syarat dalam [LICENSE](./LICENSE).

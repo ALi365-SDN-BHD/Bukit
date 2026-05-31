@@ -59,6 +59,10 @@ fi
 # --- Encoding check (UTF-8 validity + mojibake detection) ---
 bash scripts/check-encoding.sh
 
+# --- Skills strict validation ---
+bash src/skills/scripts/validate-skills-strict.sh || { echo "ERROR: Skills strict validation failed"; exit 1; }
+
+
 dotnet build bukit.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
 
 # Clean previous coverage artefacts so that the threshold check only sees this run's data.
