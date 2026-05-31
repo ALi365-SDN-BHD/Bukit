@@ -31,6 +31,8 @@ for skill_file in sorted(glob.glob(os.path.join(skills_dir, '*/SKILL.md'))):
         # Remove inline code to avoid false positives
         clean = re.sub(r'`[^`]*`', 'COL', stripped)
         clean = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', clean)
+        # Replace Markdown-escaped pipes before column counting
+        clean = clean.replace('\\|', 'ESCAPED_PIPE')
 
         # Check for merged rows
         if '||' in clean:

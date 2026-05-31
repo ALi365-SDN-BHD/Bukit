@@ -49,7 +49,7 @@ Bukit skills are organized into five layers. Load skills in layer order:
 | **Data / Site Features** | bukit-notion, bukit-routing, bukit-i18n, bukit-seo, bukit-geo (beta) | Content and optimization — after config |
 | **Operations / Debug** | bukit-plugins-debug, bukit-preview, bukit-dev, bukit-deploy, bukit-webhook, bukit-clone (beta) | Runtime — after build setup |
 
-Skills marked **(beta)** have stable implementations but APIs may evolve. **(experimental)** skills (if any) are not production-ready. **Do NOT** treat planned capabilities as available.
+Skills marked **(beta)** have stable implementations but APIs may evolve. **(exp.)** skills (if any) are not production-ready. **Do NOT** treat pre-release capabilities as available.
 
 ## Bukit Skill Overview
 

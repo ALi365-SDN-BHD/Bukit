@@ -47,7 +47,7 @@ def is_command_name(name):
         return False
     if name in ('dir', 'n', 'name', 'port', 'ratio', 'file', 'output',
                 'host', 'site', 'config', 'out', 'shell', 'repo', 'event',
-                'path', 'force', 'use', 'brand', 'theme', 'layout', 'page',
+                'path', 'force', 'brand', 'theme', 'layout', 'page',
                 'sections', 'behaviors', 'icons', 'assets', 'tokens',
                 'message', 'collection', 'strict', 'external', 'json',
                 'report', 'baseline', 'current', 'visual-threshold',
@@ -56,7 +56,7 @@ def is_command_name(name):
                 'from', 'primary-color', 'accent-color', 'site-url',
                 'base-url', 'cache-dir', 'metrics', 'jobs', 'log-format',
                 'no-watch', 'draft', 'incremental', 'no-incremental',
-                'strict-port', 'ci', 'clean', 'no-clean', 'dry-run',
+                'strict-port', 'ci', 'no-clean', 'dry-run',
                 'skip-build', 'max-new-errors', 'max-new-warnings',
                 'max-new-issues', 'fail-on-new-code', 'fail-on-route-removed',
                 'fail-on-indexable-drop', 'fail-on-visual-diff',
@@ -131,7 +131,8 @@ with open(ref_path) as f:
         if not in_quick_ref:
             continue
         
-        m = re.match(r'\| `([^`]+)` \|', stripped)
+        clean_line = re.sub(r'\s*\([^)]*\)', '', stripped)
+        m = re.match(r'\| `([^`]+)` \|', clean_line)
         if not m:
             continue
         

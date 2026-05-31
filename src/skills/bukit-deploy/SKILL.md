@@ -166,14 +166,14 @@ This is usually caused by incorrect `baseUrl`. For project pages, set `baseUrl: 
 
 ## Architecture (for extending)
 
-The deployment system uses a provider interface for future extensibility:
+The deployment system uses a provider interface for extensibility:
 
 ```
 IDeployProvider (interface)
   └── GitHubPagesDeployProvider (current implementation)
-  └── NetlifyDeployProvider (future)
-  └── VercelDeployProvider (future)
-  └── OssDeployProvider (future)
+  └── NetlifyDeployProvider (upcoming)
+  └── VercelDeployProvider (upcoming)
+  └── OssDeployProvider (upcoming)
 ```
 
 To add a new provider, implement `IDeployProvider` and register it in `DeployCommand`.
