@@ -14,8 +14,19 @@ except ImportError:
     sys.exit(1)
 
 errors = 0
-for skill_file in sorted(glob.glob(os.path.join(skills_dir, '*/SKILL.md'))):
-    skill_name = os.path.basename(os.path.dirname(skill_file))
+all_files = sorted(glob.glob(os.path.join(skills_dir, '*/SKILL.md')))
+extra_patterns = ['README.md', 'QUALITY_REPORT.md', 'MAINTENANCE.md',
+                  'AGENTS.md', 'CLAUDE.md', 'GEMINI.md', 'copilot-instructions.md']
+for pat in extra_patterns:
+    path = os.path.join(skills_dir, pat)
+    if os.path.exists(path):
+        all_files.append(path)
+
+for skill_file in sorted(all_files):
+    if skill_file.endswith('/SKILL.md'):
+        skill_name = os.path.basename(os.path.dirname(skill_file))
+    else:
+        skill_name = 'docs/' + os.path.splitext(os.path.basename(skill_file))[0]
     with open(skill_file) as f:
         content = f.read()
     

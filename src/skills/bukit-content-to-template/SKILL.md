@@ -186,7 +186,12 @@ Generated template:
 
 ## Content Pipeline Extension (IContentStage)
 
-The content loading pipeline is organized as a sequence of independent stages. Plugin developers can inject custom stages by implementing `IContentStage`:
+Bukit internally models content loading as a pipeline of `IContentStage` implementations.
+Engine-level contributors can add custom stages in code by implementing `IContentStage`
+and registering them via the `ContentPipeline` constructor.
+
+**Important**: There is currently no public configuration mechanism for external plugins
+to inject content stages. Stage injection is an engine-internal extension point.
 
 ```
 Before (monolithic)                After (stage-based)
@@ -197,7 +202,7 @@ ContentPipeline.ExecuteAsync()     ContentPipeline.ExecuteAsync()
                                      ├─ DraftFilterStage
                                      ├─ SchemaDefaultsStage
                                      └─ SchemaValidateStage
-                                   (custom stages injectable)
+                                   (custom stages — engine internal)
 ```
 
 ### Stage Contract

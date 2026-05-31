@@ -38,10 +38,9 @@ This file documents the maintenance procedures for the Bukit `src/skills/` agent
 
 1. Create `src/skills/<skill-name>/SKILL.md` with required Front Matter:
    ```yaml
-   ---
-   name: <skill-name>
+   name: skill-name
    description: Use when...
-   status: stable|beta|experimental|planned
+   status: stable  # or: beta, experimental, planned
    since: "vX.Y.Z"
    verified_by:
      - "path/to/source"
@@ -49,7 +48,6 @@ This file documents the maintenance procedures for the Bukit `src/skills/` agent
      - "path/to/source"
    guide_chapters:
      - "guide/user/XX-chapter.md"
-   ---
    ```
 2. Add to `src/skills/skills-index.yaml` in the correct section
 3. Update `skill_count` in skills-index.yaml

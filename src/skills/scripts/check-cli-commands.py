@@ -32,8 +32,8 @@ specs_path = os.path.join(repo_root, 'src', 'Bukit.Cli', 'Cli', 'BukitCliSpecs.c
 source_commands = set()
 
 if not os.path.exists(specs_path):
-    print(f'  Warning: {specs_path} not found')
-    sys.exit(0)
+    print(f'ERROR: {specs_path} not found — cannot verify CLI consistency', file=sys.stderr)
+    sys.exit(1)
 
 with open(specs_path) as f:
     lines = f.readlines()
@@ -112,8 +112,8 @@ ref_path = os.path.join(repo_root, 'src', 'skills', 'bukit-cli-reference', 'SKIL
 ref_commands = set()
 
 if not os.path.exists(ref_path):
-    print(f'  Warning: {ref_path} not found')
-    sys.exit(0)
+    print(f'ERROR: {ref_path} not found — cannot verify CLI consistency', file=sys.stderr)
+    sys.exit(1)
 
 with open(ref_path) as f:
     in_quick_ref = False

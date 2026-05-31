@@ -80,8 +80,8 @@ After downloading, place the binary in a PATH directory or the project root.
 | `theme info` | Show full theme information (name, version, author, params, template files) | `<name>` `--config` `--site` |
 | `theme params` | List customizable theme parameters (from theme.yaml) | `[name]` `--config` `--site` |
 | `theme wizard` | Interactive Q&A theme creation + 5 presets | `<name>` `--preset`(blog\|docs\|landing\|minimal\|portfolio) `--use` `--force` `--config` `--site` |
-| `theme pack` | Package theme as `<name>-<version>.tar.gz` | `[name]` `--config` `--site` |
-| `theme install` | Install theme from local file, URL, or registry | `<path\|url>` `--registry <name>` `--force` `--config` `--site` |
+| `theme pack` | Package theme as `<name>-<version>.tar.gz` | `[name]` `--output` `--config` `--site` |
+| `theme install` | Install theme from local file, URL, or registry | `<path\|url>` `--registry <name>` `--registry-url` `--force` `--config` `--site` |
 | `theme search` | Query community theme registry | `[query]` `--refresh` `--registry-url <url>` `--config` `--site` |
 | `theme preview` | Display detailed theme anatomy | `[name]` `--config` `--site` |
 | `template create` | Interactive template file creation | `<path>` `--force` `--config` `--site` |

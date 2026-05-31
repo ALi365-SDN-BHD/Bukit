@@ -60,16 +60,33 @@ try:
         pj = json.load(f)
     with open('$INDEX_YAML') as f:
         idx = yaml.safe_load(f)
+    errors = 0
     pset = set(s.replace('/SKILL.md','') for s in pj.get('skills',[]))
     iset = set(s['name'] for s in idx.get('skills',[]))
     missing_in_plugin = iset - pset
     extra_in_plugin = pset - iset
     if missing_in_plugin:
         print('MISSING_IN_PLUGIN:' + ','.join(sorted(missing_in_plugin)))
+        errors += 1
     if extra_in_plugin:
         print('EXTRA_IN_PLUGIN:' + ','.join(sorted(extra_in_plugin)))
-    if not missing_in_plugin and not extra_in_plugin:
+        errors += 1
+    # Path match
+    idx_paths = {s['name']: s['path'].replace('src/skills/', '') for s in idx.get('skills',[])}
+    for ps in pj.get('skills',[]):
+        name = ps.replace('/SKILL.md','')
+        expected = idx_paths.get(name, '')
+        if expected and ps != expected:
+            print(f'PATH_MISMATCH: plugin.json has {ps}, index has {expected}')
+            errors += 1
+    # Version match
+    if pj.get('version') != idx.get('version'):
+        print(f'VERSION_MISMATCH: plugin.json={pj.get(\"version\")} vs index={idx.get(\"version\")}')
+        errors += 1
+    if not missing_in_plugin and not extra_in_plugin and errors == 0:
         print('MATCH')
+    elif errors:
+        sys.exit(1)
 except Exception as e:
     print(f'ERROR:{e}', file=sys.stderr)
     sys.exit(1)
@@ -219,17 +236,22 @@ try:
         ydata = yaml.safe_load(f)
     with open('$INDEX_JSON') as f:
         jdata = json.load(f)
-    # Compare skill_count
-    if ydata.get('skill_count') != jdata.get('skill_count'):
-        print(f'DISCREPANCY: YAML skill_count={ydata.get(\"skill_count\")} vs JSON skill_count={jdata.get(\"skill_count\")}')
-        sys.exit(1)
-    # Compare skill names
-    ynames = sorted(s['name'] for s in ydata.get('skills',[]))
-    jnames = sorted(s['name'] for s in jdata.get('skills',[]))
-    if ynames != jnames:
-        print('DISCREPANCY: skill names differ')
-        print('YAML:', ynames)
-        print('JSON:', jnames)
+    # Deep comparison via canonical JSON dump
+    ycanon = json.dumps(ydata, sort_keys=True, ensure_ascii=False)
+    jcanon = json.dumps(jdata, sort_keys=True, ensure_ascii=False)
+    if ycanon != jcanon:
+        print('DISCREPANCY: skills-index.json does not exactly match skills-index.yaml')
+        ylines = ycanon.split('\n')
+        jlines = jcanon.split('\n')
+        maxl = max(len(ylines), len(jlines))
+        for i in range(maxl):
+            yl = ylines[i] if i < len(ylines) else '<missing>'
+            jl = jlines[i] if i < len(jlines) else '<missing>'
+            if yl != jl:
+                print(f'  First diff at line {i+1}:')
+                print(f'    YAML: {yl[:120]}')
+                print(f'    JSON: {jl[:120]}')
+                break
         sys.exit(1)
     print('MATCH')
 except Exception as e:

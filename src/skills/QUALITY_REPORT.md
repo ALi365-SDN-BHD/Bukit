@@ -25,7 +25,7 @@ Completed a systematic upgrade of Bukit's `src/skills/` agent knowledge system f
 | `src/skills/bukit-dev/SKILL.md` | Added Bahasa Melayu multilingual triggers |
 | `src/skills/theme-component-system/SKILL.md` | Removed file:// links and local absolute paths |
 | `src/skills/*/SKILL.md` (19 files) | Added status, since, verified_by, source_anchors, guide_chapters |
-| `src/skills/scripts/validate-skills-strict.sh` | **New** — 10 strict validation checks |
+| `src/skills/scripts/validate-skills-strict.sh` | **New** — 17 strict validation checks (16 + 16b) |
 | `src/skills/scripts/add-status-metadata.py` | **New** — status metadata injection tool |
 | `src/skills/MAINTENANCE.md` | **New** — maintenance procedures, checklist, standards |
 | `src/skills/QUALITY_REPORT.md` | **New** — this file |
@@ -64,7 +64,7 @@ guide_chapters: ["guide/user/XX-chapter.md"]
 Status distribution: 15 stable, 4 beta (bukit-content-to-template, bukit-clone, bukit-geo, theme-component-system)
 
 ### New Infrastructure
-- `validate-skills-strict.sh`: 15 checks (skill count, plugin.json sync, Front Matter, source paths, guide paths, local paths, tool names, JSON sync, dependencies, workflows, Markdown tables, CLI commands, status consistency, YAML validation, keyword consistency)
+- `validate-skills-strict.sh`: 17 checks (16 + 16b: skill count, plugin.json sync, Front Matter, source paths, guide paths, local paths, tool names, JSON deep sync, dependencies, workflows, Markdown tables, CLI commands, status consistency, YAML validation, keyword consistency, skills-index.yaml duplicates, SKILL.md front matter duplicates)
 - `MAINTENANCE.md`: Full maintenance procedures, pre-release checklist, status definitions
 
 ## Validation Results
@@ -72,7 +72,7 @@ Status distribution: 15 stable, 4 beta (bukit-content-to-template, bukit-clone, 
 | Validator | Result |
 |-----------|--------|
 | `validate-skills.sh` | ✅ 19/19 skills passed, 0 errors |
-| `validate-skills-strict.sh` | ✅ 15/15 checks passed, 0 errors, 0 warnings |
+| `validate-skills-strict.sh` | ✅ 17/17 checks passed, 0 errors, 0 warnings |
 | `skills-index.json` sync | ✅ In sync with skills-index.yaml |
 | plugin.json sync | ✅ Consistent with skills-index.yaml |
 | Front Matter completeness | ✅ All 19 files have 7 required fields |
@@ -100,3 +100,6 @@ Status distribution: 15 stable, 4 beta (bukit-content-to-template, bukit-clone, 
 
 1. **Run `dotnet test`**: Verify no regressions from content changes
 2. **Add `validate-skills-strict.sh` to CI pipeline**: Already added to quality-gate.sh
+3. **Implement CLI parameter-level validation**: Extend check-cli-commands.py to cross-check options/arguments against BukitCliSpecs.cs
+4. **Expand Markdown/YAML checkers to auxiliary docs**: README.md, QUALITY_REPORT.md, MAINTENANCE.md, platform entry files
+5. **Generate CLI metadata from CLI itself**: Replace regex-based C# parsing with `bukit --metadata` or similar machine-readable output
