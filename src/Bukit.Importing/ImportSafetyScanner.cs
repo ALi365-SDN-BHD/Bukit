@@ -4,7 +4,13 @@ internal static partial class ImportSafetyScanner
 {
     private static readonly string[] SensitiveFileNames =
     [
-        ".env", ".npmrc", ".git", "node_modules", ".vscode", "dist", "build"
+        ".env", ".npmrc", ".git", "node_modules", ".vscode", "dist", "build",
+        "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519"
+    ];
+
+    private static readonly string[] SensitiveFilePatterns =
+    [
+        ".env.*"
     ];
 
     private static readonly string[] SensitiveExtensions =
@@ -51,6 +57,19 @@ internal static partial class ImportSafetyScanner
                     ImportDiagnosticSeverity.Error,
                     "SENSITIVE_FILE",
                     $"发现敏感目录: {Path.GetRelativePath(inputPath, match)}",
+                    match));
+            }
+        }
+
+        foreach (var pattern in SensitiveFilePatterns)
+        {
+            var matches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
+            foreach (var match in matches)
+            {
+                diagnostics.Add(new ImportDiagnostic(
+                    ImportDiagnosticSeverity.Error,
+                    "SENSITIVE_FILE",
+                    $"发现敏感文件: {Path.GetRelativePath(inputPath, match)}",
                     match));
             }
         }

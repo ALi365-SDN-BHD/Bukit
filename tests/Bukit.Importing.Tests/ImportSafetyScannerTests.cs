@@ -47,6 +47,37 @@ public sealed class ImportSafetyScannerTests : IDisposable
         Assert.Contains(diagnostics, d => d.Code == "SENSITIVE_FILE" && d.Severity == ImportDiagnosticSeverity.Error);
     }
 
+    [Theory]
+    [InlineData(".env.local")]
+    [InlineData("id_rsa")]
+    public void Scan_SensitiveNamePattern_Detected(string fileName)
+    {
+        File.WriteAllText(Path.Combine(_tempDir, fileName), "SECRET=xxx");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "test",
+            RootDir = _tempDir
+        };
+
+        var pages = new List<DiscoveredPage>
+        {
+            new()
+            {
+                FilePath = Path.Combine(_tempDir, "index.html"),
+                RelativePath = "index.html",
+                Slug = "",
+                Type = PageType.Home,
+                FullHtml = "<html></html>"
+            }
+        };
+
+        var diagnostics = ImportSafetyScanner.Scan(options, pages);
+
+        Assert.Contains(diagnostics, d => d.Code == "SENSITIVE_FILE" && d.Message.Contains(fileName, StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Scan_InlineScript_Warning()
     {

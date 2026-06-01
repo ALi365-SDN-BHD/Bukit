@@ -6,7 +6,8 @@ public static class HtmlDemoImporter
 {
     private static readonly string[] DangerousInputPatterns =
     [
-        ".env", ".npmrc", ".git", "node_modules", ".vscode", "dist", "build",
+        ".env", ".env.*", ".npmrc", ".git", "node_modules", ".vscode", "dist", "build",
+        "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
         "*.key", "*.pfx", "*.p12", "*.pem", "*.crt", "*.cert"
     ];
 
@@ -27,6 +28,8 @@ public static class HtmlDemoImporter
 
         if (options.DryRun)
         {
+            var dryComponents = options.ExtractContent ? ComponentExtractor.Extract(pages) : [];
+            var dryContent = options.ExtractContent ? ContentExtractor.Extract(pages) : new ExtractedContent();
             var dryResult = new ImportResult
             {
                 ThemePath = Path.Combine(options.RootDir, "themes", options.ThemeName),
@@ -34,11 +37,14 @@ public static class HtmlDemoImporter
                 PagesFound = pages.Count,
                 TemplatesGenerated = pages.Count + 2,
                 PartialsGenerated = CountEstimatedPartials(layout),
-                ComponentsGenerated = 0,
-                RecordsExtracted = pages.Count,
+                ComponentsGenerated = dryComponents.Count,
+                RecordsExtracted = CountRecords(dryContent),
                 AssetsCopied = pages.Sum(p => p.AssetPaths.Count),
                 Warnings = warnings,
-                Diagnostics = diagnostics
+                Diagnostics = diagnostics,
+                ReportPages = BuildReportPages(pages),
+                ReportComponents = BuildReportComponents(dryComponents),
+                ReportSeedFiles = options.GenerateSeed ? BuildReportSeedFiles(options, dryContent, pages, dryComponents) : []
             };
             ImportReportWriter.Write(options, dryResult, diagnostics);
             return dryResult;
@@ -70,8 +76,9 @@ public static class HtmlDemoImporter
             result = result with
             {
                 ComponentsGenerated = components.Count,
-                RecordsExtracted = content.Pages.Count + content.Posts.Count +
-                    content.Companies.Count + content.Services.Count + content.Faqs.Count + content.Sections.Count
+                RecordsExtracted = CountRecords(content),
+                ReportComponents = BuildReportComponents(components),
+                ReportSeedFiles = options.GenerateSeed ? BuildReportSeedFiles(options, content, pages, components) : []
             };
 
             if (options.GenerateSeed)
@@ -88,7 +95,8 @@ public static class HtmlDemoImporter
             SiteYamlCreated = siteYamlCreated,
             TemplatesSynced = templatesSynced,
             SitePath = GetSiteDir(options),
-            Diagnostics = diagnostics
+            Diagnostics = diagnostics,
+            ReportPages = BuildReportPages(pages)
         };
 
         AssetImporter.TransferAssetsToStatic(options.RootDir, options.ThemeName);
@@ -147,6 +155,67 @@ public static class HtmlDemoImporter
         return true;
     }
 
+    private static int CountRecords(ExtractedContent content)
+        => content.Pages.Count + content.Posts.Count + content.Companies.Count +
+           content.Services.Count + content.Faqs.Count + content.Sections.Count;
+
+    private static List<ImportReportPage> BuildReportPages(List<DiscoveredPage> pages)
+        => pages.Select(p => new ImportReportPage(
+            p.RelativePath,
+            RouteForPage(p),
+            p.Type.ToString(),
+            TemplateForPage(p),
+            "generated")).ToList();
+
+    private static List<ImportReportComponent> BuildReportComponents(List<DiscoveredComponent> components)
+        => components.Select(c => new ImportReportComponent(
+            c.Name,
+            string.Join(", ", c.UsedBy.Select(p => p.RelativePath).Distinct(StringComparer.OrdinalIgnoreCase)),
+            string.IsNullOrWhiteSpace(c.NormalizedTemplate) ? "skipped" : "generated")).ToList();
+
+    private static List<ImportReportSeedFile> BuildReportSeedFiles(
+        HtmlDemoImportOptions options,
+        ExtractedContent content,
+        List<DiscoveredPage> pages,
+        List<DiscoveredComponent> components)
+    {
+        var ext = options.ContentSource.Equals("yaml", StringComparison.OrdinalIgnoreCase) ? "yaml" : "json";
+        return
+        [
+            new($"pages.{ext}", content.Pages.Count),
+            new($"sections.{ext}", content.Sections.Count),
+            new($"posts.{ext}", content.Posts.Count),
+            new($"companies.{ext}", content.Companies.Count),
+            new($"services.{ext}", content.Services.Count),
+            new($"faqs.{ext}", content.Faqs.Count),
+            new($"media.{ext}", pages.Sum(p => p.AssetPaths.Count)),
+            new($"components.{ext}", components.Count)
+        ];
+    }
+
+    private static string RouteForPage(DiscoveredPage page)
+        => page.Type switch
+        {
+            PageType.Home => "/",
+            PageType.PostDetail => $"/insights/{page.Slug}/",
+            PageType.CompanyDetail => $"/companies/{page.Slug}/",
+            PageType.ServiceDetail => $"/services/{page.Slug}/",
+            _ => string.IsNullOrWhiteSpace(page.Slug) ? "/" : $"/{page.Slug}/"
+        };
+
+    private static string TemplateForPage(DiscoveredPage page)
+        => page.Type switch
+        {
+            PageType.Home => "index",
+            PageType.PostList => "insights",
+            PageType.PostDetail => "article",
+            PageType.CompanyList => "companies",
+            PageType.CompanyDetail => "company",
+            PageType.ServiceList => "services",
+            PageType.ServiceDetail => "service",
+            _ => "page"
+        };
+
     private static void RunStrictValidation(List<DiscoveredPage> pages, List<string> warnings)
     {
         var slugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -180,18 +249,21 @@ public static class HtmlDemoImporter
     {
         var siteDir = GetSiteDir(options);
         var preserveDir = Path.Combine(siteDir, "original-demo");
+        var sourceFiles = Directory.GetFiles(options.InputPath, "*", SearchOption.AllDirectories)
+            .ToList();
         Directory.CreateDirectory(preserveDir);
 
-        foreach (var page in pages)
+        foreach (var file in sourceFiles)
         {
-            var relativeDir = Path.GetDirectoryName(page.RelativePath);
+            var relativePath = Path.GetRelativePath(options.InputPath, file);
+            var relativeDir = Path.GetDirectoryName(relativePath);
             var destDir = string.IsNullOrEmpty(relativeDir)
                 ? preserveDir
                 : Path.Combine(preserveDir, relativeDir);
             Directory.CreateDirectory(destDir);
 
-            var destFile = Path.Combine(destDir, Path.GetFileName(page.FilePath));
-            File.Copy(page.FilePath, destFile, overwrite: true);
+            var destFile = Path.Combine(destDir, Path.GetFileName(file));
+            File.Copy(file, destFile, overwrite: true);
         }
 
         Console.WriteLine($"  原始 HTML 已保留: {preserveDir}");
@@ -241,12 +313,11 @@ public static class HtmlDemoImporter
     {
         foreach (var pattern in DangerousInputPatterns)
         {
-            if (pattern.StartsWith("*."))
+            if (pattern.Contains('*', StringComparison.Ordinal))
             {
-                var ext = pattern[1..];
                 var matches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
                 if (matches.Length > 0)
-                    throw new ImportException(ImportErrorKind.UserInput, $"输入目录包含敏感文件 (扩展名 {ext}): {Path.GetRelativePath(inputPath, matches[0])}");
+                    throw new ImportException(ImportErrorKind.UserInput, $"输入目录包含敏感文件 ({pattern}): {Path.GetRelativePath(inputPath, matches[0])}");
             }
             else
             {

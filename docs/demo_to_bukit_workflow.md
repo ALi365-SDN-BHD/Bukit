@@ -1419,13 +1419,23 @@ bukit notion push \
   --dry-run
 ```
 
-当前实现首先生成本地推送计划 `notion-push-plan.json`。非 `--dry-run` 会校验 `NOTION_TOKEN`（或 `--token-env` 指定的环境变量），但实际数据库字段映射仍应在人工审核推送计划后按目标 Notion schema 明确配置。
+当前实现首先支持 `--dry-run` 生成本地推送计划 `notion-push-plan.json`。非 `--dry-run` 会校验 `NOTION_TOKEN`（或 `--token-env` 指定的环境变量），然后调用 Notion API 将 seed 记录写入目标 database，并生成 `notion-push-report.json`。默认字段映射为 `Title`、`Slug`、`Type`、`Summary`、`Content`、`Language`、`Published`、`SeoTitle`、`SeoDescription`，目标 Notion database 需要存在兼容字段。
 
 原因：
 
 - 导入阶段需要人工检查
 - Notion 写入是外部副作用
 - 避免错误 Demo 直接污染正式内容库
+
+如明确接受外部副作用，也可以在导入后直接推送：
+
+```bash
+bukit import html-demo ./demo \
+  --theme silkroadbiz \
+  --content-source notion \
+  --push-notion \
+  --notion-database-id <notion-database-id>
+```
 - 方便 dry-run 和版本控制
 
 如果未来支持一体化，可增加显式参数：

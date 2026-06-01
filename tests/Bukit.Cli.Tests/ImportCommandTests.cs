@@ -1,5 +1,6 @@
 using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Commands;
+using System.Net;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -175,6 +176,76 @@ public sealed class ImportCommandTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "sync-status-test", "layouts", "bukit.templates.yaml")));
         Assert.Contains("bukit.templates.yaml: 已创建", output);
         Assert.DoesNotContain("bukit.templates.yaml: 已跳过", output);
+        Assert.Equal(1, CountOccurrences(output, "bukit.templates.yaml: 已创建"));
+    }
+
+    [Fact]
+    public async Task Import_WithPushNotion_PostsGeneratedSeed()
+    {
+        CreateDemoHtml("index.html", "Home");
+
+        var requests = new List<HttpRequestMessage>();
+        var handler = new RecordingHandler(req =>
+        {
+            requests.Add(CloneRequest(req));
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-1"}""")
+            };
+        });
+
+        var opts = BaseOptions();
+        opts["--theme"] = "push-notion-test";
+        opts["--push-notion"] = "true";
+        opts["--notion-database-id"] = "db123";
+        opts["--notion-token-env"] = "BUKIT_TEST_IMPORT_NOTION_TOKEN";
+
+        var originalFactory = NotionCommand.CreateHttpClient;
+        var originalToken = Environment.GetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_TOKEN");
+        NotionCommand.CreateHttpClient = () => new HttpClient(handler);
+        Environment.SetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_TOKEN", "secret_import");
+        try
+        {
+            var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", _tempDir]));
+
+            Assert.Equal(0, result);
+            Assert.Single(requests);
+            Assert.Equal("Bearer secret_import", requests[0].Headers.Authorization!.ToString());
+            Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "push-notion-test", "notion-seed", "notion-push-report.json")));
+        }
+        finally
+        {
+            NotionCommand.CreateHttpClient = originalFactory;
+            Environment.SetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_TOKEN", originalToken);
+        }
+    }
+
+    private static int CountOccurrences(string haystack, string needle)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = haystack.IndexOf(needle, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += needle.Length;
+        }
+        return count;
+    }
+
+    private static HttpRequestMessage CloneRequest(HttpRequestMessage request)
+    {
+        var clone = new HttpRequestMessage(request.Method, request.RequestUri);
+        foreach (var header in request.Headers)
+            clone.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        if (request.Content is not null)
+            clone.Content = new StringContent(request.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+        return clone;
+    }
+
+    private sealed class RecordingHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(responder(request));
     }
 
     [Fact]
