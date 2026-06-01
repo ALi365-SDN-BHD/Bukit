@@ -90,7 +90,7 @@ public static class HtmlDemoImporter
             }
         }
 
-        var siteYamlCreated = SiteConfigGenerator.Generate(options);
+        var siteYamlCreated = SiteConfigGenerator.Generate(options, routeMap);
         var templatesSynced = SyncTemplates(options.RootDir, options.ThemeName, options.Force);
         result = result with
         {

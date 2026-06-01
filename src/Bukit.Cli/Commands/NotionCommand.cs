@@ -50,6 +50,11 @@ public static class NotionCommand
         }
         var uniqueField = command.GetString("--unique-field") ?? "Slug";
         var updateContent = command.GetString("--update-content") ?? "";
+        if (updateContent is not ("" or "append" or "replace"))
+        {
+            Console.Error.WriteLine($"不支持的 --update-content 值: {updateContent}，可用: append | replace");
+            return 2;
+        }
 
         if (!dryRun && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(tokenEnv)))
         {

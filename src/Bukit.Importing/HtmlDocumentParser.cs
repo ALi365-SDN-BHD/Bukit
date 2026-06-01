@@ -129,9 +129,14 @@ internal static class HtmlDocumentParser
         if (match == null || string.IsNullOrWhiteSpace(match.Route))
             return null;
 
+        if (!string.IsNullOrWhiteSpace(match.Slug))
+            return match.Slug;
+
         var route = match.Route.Trim('/');
         if (route.Length == 0)
             return "";
+        if (route.Contains('{'))
+            return null;
         return SanitizeSlug(route.Split('/').Last());
     }
 }

@@ -11,15 +11,23 @@ internal static class RouteMapLoader
         {
             var config = new RouteMapConfig();
             var lines = File.ReadAllLines(path);
+            var inPagesBlock = false;
 
-            foreach (var line in lines)
+            for (var lineNo = 0; lineNo < lines.Length; lineNo++)
             {
-                var trimmed = line.Trim();
+                var trimmed = lines[lineNo].Trim();
                 if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith('#'))
                     continue;
 
+                if (!inPagesBlock && trimmed == "pages:")
+                {
+                    inPagesBlock = true;
+                    continue;
+                }
+
                 if (trimmed.StartsWith("- source:"))
                 {
+                    inPagesBlock = true;
                     config.Pages.Add(new RouteMapPage
                     {
                         Source = ExtractYamlValue(trimmed, "- source:")
@@ -34,6 +42,12 @@ internal static class RouteMapLoader
                         config.Pages[^1] = last with { Type = ExtractYamlValue(trimmed, "type:") };
                     else if (trimmed.StartsWith("template:"))
                         config.Pages[^1] = last with { Template = ExtractYamlValue(trimmed, "template:") };
+                    else if (trimmed.StartsWith("slug:"))
+                        config.Pages[^1] = last with { Slug = ExtractYamlValue(trimmed, "slug:") };
+                    else if (trimmed.StartsWith("description:"))
+                        config.Pages[^1] = last with { Description = ExtractYamlValue(trimmed, "description:") };
+                    else if (!trimmed.StartsWith("-"))
+                        Console.Error.WriteLine($"Route map line {lineNo + 1}: unknown field '{trimmed.Split(':')[0]}'");
                 }
             }
 

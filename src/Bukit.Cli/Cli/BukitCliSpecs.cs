@@ -136,11 +136,11 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--report", "生成 import-report.md 文件 (默认开启)", CliOptionType.Flag),
                 new CliOptionSpec("--no-report", "不生成 import-report.md 文件", CliOptionType.Flag),
                 new CliOptionSpec("--base-url", "设置 site.baseUrl"),
-                new CliOptionSpec("--push-notion", "导入后直接将生成的 seed 写入 Notion", CliOptionType.Flag),
+                new CliOptionSpec("--push-notion", "导入后直接将生成的 seed 写入 Notion（推送前默认校验 database schema）", CliOptionType.Flag),
                 new CliOptionSpec("--notion-database-id", "Notion database ID，用于 --push-notion", CliOptionType.String, ValueName: "id"),
                 new CliOptionSpec("--notion-token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),
                 new CliOptionSpec("--notion-report", "Notion push 报告输出路径", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--no-validate-notion-schema", "--push-notion 时跳过 schema 校验", CliOptionType.Flag),
+                new CliOptionSpec("--no-validate-notion-schema", "--push-notion 时跳过 schema 校验（用于本地 smoke test 或 mock 环境）", CliOptionType.Flag),
                 new CliOptionSpec("--config", "配置文件路径"),
                 new CliOptionSpec("--site", "多站点名")
                     }),

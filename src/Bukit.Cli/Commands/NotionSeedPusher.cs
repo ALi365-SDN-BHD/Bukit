@@ -72,12 +72,24 @@ internal static partial class NotionSeedPusher
             if (existingPageId != null)
             {
                 var (success, pageId, error) = await UpdatePageAsync(http, options, existingPageId, record, cancellationToken);
-                if (success && isUpsert && options.UpdateContent == "append" && !string.IsNullOrWhiteSpace(record.Content))
+                if (success && isUpsert && !string.IsNullOrWhiteSpace(record.Content) &&
+                    (options.UpdateContent == "append" || options.UpdateContent == "replace"))
                 {
+                    if (options.UpdateContent == "replace")
+                    {
+                        var existingBlockIds = await GetBlockChildrenIdsAsync(http, options, pageId!, cancellationToken);
+                        foreach (var blockId in existingBlockIds)
+                            await DeleteBlockAsync(http, options, blockId, cancellationToken);
+                    }
                     var blocksJson = HtmlToNotionBlockConverter.ToBlocksJson(record.Content);
                     if (blocksJson != "[]")
                     {
-                        await AppendBlockChildrenAsync(http, options, pageId!, blocksJson, cancellationToken);
+                        var (appendSuccess, appendError) = await AppendBlockChildrenAsync(http, options, pageId!, blocksJson, cancellationToken);
+                        if (!appendSuccess)
+                        {
+                            items.Add(new NotionPushItemResult(record, "append-failed", false, pageId, appendError));
+                            continue;
+                        }
                     }
                 }
                 items.Add(new NotionPushItemResult(record, "updated", success, pageId, error));
@@ -195,7 +207,7 @@ internal static partial class NotionSeedPusher
         request.Headers.TryAddWithoutValidation("Notion-Version", NotionApiUrls.NotionVersion);
     }
 
-    private static async Task AppendBlockChildrenAsync(
+    private static async Task<(bool Success, string? Error)> AppendBlockChildrenAsync(
         HttpClient http, NotionPushOptions options, string pageId,
         string blocksJson, CancellationToken ct)
     {
@@ -205,6 +217,40 @@ internal static partial class NotionSeedPusher
         request.Content = new StringContent($"{{\"children\":{blocksJson}}}");
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
+        using var response = await http.SendAsync(request, ct);
+        if (response.IsSuccessStatusCode)
+            return (true, null);
+        var errorBody = await response.Content.ReadAsStringAsync(ct);
+        return (false, string.IsNullOrWhiteSpace(errorBody) ? response.ReasonPhrase : errorBody);
+    }
+
+    private static async Task<List<string>> GetBlockChildrenIdsAsync(
+        HttpClient http, NotionPushOptions options, string pageId, CancellationToken ct)
+    {
+        var ids = new List<string>();
+        var url = $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/blocks/{pageId}/children?page_size=100";
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        BuildCommonRequestHeaders(request, options.Token);
+        using var response = await http.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode) return ids;
+
+        var body = await response.Content.ReadAsStringAsync(ct);
+        using var doc = JsonDocument.Parse(body);
+        foreach (var block in doc.RootElement.GetProperty("results").EnumerateArray())
+        {
+            var id = block.GetProperty("id").GetString();
+            if (!string.IsNullOrWhiteSpace(id))
+                ids.Add(id);
+        }
+        return ids;
+    }
+
+    private static async Task DeleteBlockAsync(
+        HttpClient http, NotionPushOptions options, string blockId, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete,
+            $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/blocks/{blockId}");
+        BuildCommonRequestHeaders(request, options.Token);
         await http.SendAsync(request, ct);
     }
 

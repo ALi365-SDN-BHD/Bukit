@@ -4,7 +4,7 @@ namespace Bukit.Importing;
 
 internal static class SiteConfigGenerator
 {
-    internal static bool Generate(HtmlDemoImportOptions options)
+    internal static bool Generate(HtmlDemoImportOptions options, RouteMapConfig? routeMap = null)
     {
         var siteDir = HtmlDemoImporter.GetSiteDir(options);
         Directory.CreateDirectory(siteDir);
@@ -49,6 +49,30 @@ internal static class SiteConfigGenerator
         sb.AppendLine("      listRoute: '/services/'");
         sb.AppendLine("      listTemplate: 'pages/services.html'");
 
+        if (routeMap != null)
+        {
+            var appPages = routeMap.Pages
+                .Where(p => !string.IsNullOrWhiteSpace(p.Route) &&
+                            !string.IsNullOrWhiteSpace(p.Template) &&
+                            !IsDefaultPageRoute(p.Route, p.Template))
+                .ToList();
+            if (appPages.Count > 0)
+            {
+                sb.AppendLine("  appPages:");
+                foreach (var page in appPages)
+                {
+                    var slug = !string.IsNullOrWhiteSpace(page.Slug)
+                        ? page.Slug
+                        : SanitizeAppPageSlug(page.Source);
+                    sb.AppendLine($"    {slug}:");
+                    sb.AppendLine($"      route: {page.Route}");
+                    sb.AppendLine($"      template: pages/{page.Template}.html");
+                    if (!string.IsNullOrWhiteSpace(page.Description))
+                        sb.AppendLine($"      description: {page.Description}");
+                }
+            }
+        }
+
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             var dbId = !string.IsNullOrWhiteSpace(options.NotionDatabaseId)
@@ -84,5 +108,28 @@ internal static class SiteConfigGenerator
 
         File.WriteAllText(yamlPath, sb.ToString());
         return true;
+    }
+
+    private static bool IsDefaultPageRoute(string route, string template)
+    {
+        route = route.Trim('/');
+        return (route, template.ToLowerInvariant()) switch
+        {
+            ("" or "index", "index") => true,
+            ("insights", "insights") => true,
+            ("companies", "companies") => true,
+            ("services", "services") => true,
+            _ => false
+        };
+    }
+
+    private static string SanitizeAppPageSlug(string source)
+    {
+        var name = Path.GetFileNameWithoutExtension(source);
+        var chars = name.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' ? c : '-').ToArray();
+        var result = new string(chars);
+        while (result.Contains("--"))
+            result = result.Replace("--", "-");
+        return result.Trim('-').ToLowerInvariant();
     }
 }

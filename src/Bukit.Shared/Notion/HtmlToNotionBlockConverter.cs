@@ -95,6 +95,40 @@ public static class HtmlToNotionBlockConverter
                 writer.WriteEndObject();
                 writer.WriteEndObject();
                 break;
+            case CodeBlock code:
+                writer.WriteStartObject();
+                writer.WriteString("object", "block");
+                writer.WriteString("type", "code");
+                writer.WriteStartObject("code");
+                writer.WriteStartArray("rich_text");
+                writer.WriteStartObject();
+                writer.WriteString("type", "text");
+                writer.WriteStartObject("text");
+                writer.WriteString("content", TruncateBlockText(code.Code));
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+                writer.WriteEndArray();
+                writer.WriteStartObject("language");
+                writer.WriteString("name", code.Language);
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+                break;
+            case CalloutBlock callout:
+                writer.WriteStartObject();
+                writer.WriteString("object", "block");
+                writer.WriteString("type", "callout");
+                writer.WriteStartObject("callout");
+                writer.WriteStartArray("rich_text");
+                WriteTextObject(writer, callout.Text);
+                writer.WriteEndArray();
+                writer.WriteStartObject("icon");
+                writer.WriteString("type", "emoji");
+                writer.WriteString("emoji", callout.Icon);
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+                break;
         }
     }
 
@@ -329,6 +363,34 @@ public static class HtmlToNotionBlockConverter
                     continue;
                 }
 
+                if (tagName == "pre")
+                {
+                    i++;
+                    var codeText = CollectRawTextUntilClose(tokens, ref i, "pre");
+                    string? lang = null;
+                    if (!string.IsNullOrWhiteSpace(codeText) && codeText.Length > 0)
+                    {
+                        var langMatch = System.Text.RegularExpressions.Regex.Match(codeText, @"^class\s*=\s*[""']([^""']*)[""']");
+                        if (langMatch.Success)
+                        {
+                            lang = langMatch.Groups[1].Value;
+                            codeText = codeText[langMatch.Length..].TrimStart();
+                        }
+                    }
+                    if (!string.IsNullOrWhiteSpace(codeText))
+                        blocks.Add(new CodeBlock(codeText, lang ?? "plain text"));
+                    continue;
+                }
+
+                if (tagName == "div" && HasClass(attrs, "callout"))
+                {
+                    i++;
+                    var textContent = CollectTextUntilClose(tokens, ref i, "div");
+                    if (!string.IsNullOrWhiteSpace(textContent))
+                        blocks.Add(new CalloutBlock(textContent));
+                    continue;
+                }
+
                 if (tagName == "img")
                 {
                     var src = GetAttribute(attrs, "src");
@@ -413,6 +475,41 @@ public static class HtmlToNotionBlockConverter
             }
             if (t.Type == HtmlTokenizer.HtmlTokenType.OpenTag && t.TagName == "br")
             {
+                sb.AppendLine();
+            }
+            i++;
+        }
+        return sb.ToString().Trim();
+    }
+
+    private static string CollectRawTextUntilClose(
+        List<HtmlTokenizer.HtmlToken> tokens, ref int i, string closeTag)
+    {
+        var sb = new StringBuilder();
+        while (i < tokens.Count)
+        {
+            var t = tokens[i];
+            if (t.Type == HtmlTokenizer.HtmlTokenType.CloseTag && t.TagName == closeTag)
+            {
+                i++;
+                break;
+            }
+            if (t.Type == HtmlTokenizer.HtmlTokenType.OpenTag &&
+                (t.TagName == "code" || t.TagName == "span"))
+            {
+                var attrs = t.Attributes;
+                if (!string.IsNullOrWhiteSpace(t.Attributes) && sb.Length == 0)
+                    sb.Append(attrs);
+                continue;
+            }
+            if (t.Type == HtmlTokenizer.HtmlTokenType.CloseTag &&
+                (t.TagName == "code" || t.TagName == "span"))
+            {
+                continue;
+            }
+            if (t.Type == HtmlTokenizer.HtmlTokenType.Text)
+            {
+                sb.Append(t.TextContent);
                 sb.AppendLine();
             }
             i++;

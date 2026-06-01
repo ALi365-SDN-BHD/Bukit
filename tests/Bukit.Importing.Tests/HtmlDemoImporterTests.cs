@@ -742,4 +742,101 @@ public sealed class HtmlDemoImporterTests : IDisposable
         Assert.DoesNotContain("type: \"", post);
         Assert.DoesNotContain("type: \"", company);
     }
+
+    [Fact]
+    public void RouteMap_ChangesPageTypeAndTemplate()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "china-companies.html"),
+            "<html><head><title>China</title></head><body><main><h1>China Companies</h1></main></body></html>");
+        var routeMapPath = Path.Combine(_tempDir, "demo.routes.yaml");
+        File.WriteAllText(routeMapPath, """
+pages:
+  - source: china-companies.html
+    route: /china-companies/
+    type: CompanyList
+    template: china-companies
+""");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "routemap-type-test",
+            RootDir = _tempDir,
+            Force = true,
+            RouteMapPath = routeMapPath,
+            ContentSource = "markdown"
+        };
+
+        var result = HtmlDemoImporter.Import(options);
+
+        Assert.Equal(2, result.ReportPages.Count);
+        var chinaPage = result.ReportPages.First(p => p.Template.Contains("china-companies"));
+        Assert.Contains("/china-companies/", chinaPage.Route);
+        Assert.Contains("CompanyList", chinaPage.Type);
+
+        var pageTemplate = Path.Combine(_tempDir, "themes", "routemap-type-test", "layouts", "pages", "china-companies.html");
+        Assert.True(File.Exists(pageTemplate), "Expected template china-companies.html to be generated from route-map");
+    }
+
+    [Fact]
+    public void Import_WithContentSourceNotion_SkipsMarkdownDraft()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Notion Test</title></head><body><main><h1>Hello</h1></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "notion-md-skip-test",
+            RootDir = _tempDir,
+            Force = true,
+            ContentSource = "notion",
+            NoMarkdownDraft = true
+        };
+
+        var result = HtmlDemoImporter.Import(options);
+
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "sites", "notion-md-skip-test", "content")),
+            "content/ directory must not exist when using --content-source notion");
+        Assert.True(Directory.Exists(Path.Combine(_tempDir, "sites", "notion-md-skip-test", "notion-seed")),
+            "notion-seed/ directory must exist when using --content-source notion");
+
+        var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-md-skip-test", "site.yaml"));
+        Assert.Contains("provider: notion", siteYaml);
+        Assert.DoesNotContain("provider: markdown", siteYaml);
+    }
+
+    [Fact]
+    public void RouteMap_DynamicRouteWithBrace_NotUsedAsSlug()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "insights.html"),
+            "<html><head><title>Insights</title></head><body><main><h1>Insights</h1></main></body></html>");
+        var routeMapPath = Path.Combine(_tempDir, "dynamic.routes.yaml");
+        File.WriteAllText(routeMapPath, """
+pages:
+  - source: insights.html
+    route: /insights/{slug}/
+    type: PostList
+    template: insights
+""");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "dynamic-slug-test",
+            RootDir = _tempDir,
+            Force = true,
+            RouteMapPath = routeMapPath,
+            ContentSource = "markdown"
+        };
+
+        var result = HtmlDemoImporter.Import(options);
+
+        var insightPage = result.ReportPages.First(p => p.Template.Contains("insights"));
+        Assert.Contains("/insights/{slug}/", insightPage.Route);
+    }
 }

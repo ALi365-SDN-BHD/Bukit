@@ -11,4 +11,6 @@ public sealed record RouteMapPage
     public string Route { get; init; } = "";
     public string Type { get; init; } = "";
     public string Template { get; init; } = "";
+    public string? Slug { get; init; }
+    public string? Description { get; init; }
 }

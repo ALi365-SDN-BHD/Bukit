@@ -23,6 +23,8 @@ public sealed record QuoteBlock(List<RichTextSegment> Segments) : NotionBlock
 }
 public sealed record ImageBlock(string Url, string? Caption = null) : NotionBlock;
 public sealed record ToggleBlock(string Heading, List<NotionBlock> Children) : NotionBlock;
+public sealed record CodeBlock(string Code, string Language = "plain text") : NotionBlock;
+public sealed record CalloutBlock(string Text, string Icon = "📝") : NotionBlock;
 
 public sealed record RichTextSegment(
     string Text,

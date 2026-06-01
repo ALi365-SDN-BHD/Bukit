@@ -586,4 +586,99 @@ public sealed class ImportCommandTests : IDisposable
         Assert.Contains("type: \"service\"", service);
         Assert.Contains("<p>Service body.</p>", service);
     }
+
+    [Fact]
+    public async Task Import_WithPushNotion_QueryFailed_DoesNotCreate()
+    {
+        CreateDemoHtml("index.html", "Home");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1></main></body></html>");
+
+        var requests = new List<HttpRequestMessage>();
+        var handler = new RecordingHandler(req =>
+        {
+            requests.Add(CloneRequest(req));
+            if (req.RequestUri!.AbsolutePath.Contains("/query"))
+                return new HttpResponseMessage(HttpStatusCode.BadRequest)
+                {
+                    Content = new StringContent("""{"message":"Invalid filter"}""")
+                };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-1"}""")
+            };
+        });
+
+        var opts = BaseOptions();
+        opts["--theme"] = "query-failed-test";
+        opts["--push-notion"] = "true";
+        opts["--notion-database-id"] = "db123";
+        opts["--notion-token-env"] = "BUKIT_TEST_QF_TOKEN";
+        opts["--no-validate-notion-schema"] = "true";
+
+        var originalFactory = NotionCommand.CreateHttpClient;
+        var originalToken = Environment.GetEnvironmentVariable("BUKIT_TEST_QF_TOKEN");
+        NotionCommand.CreateHttpClient = () => new HttpClient(handler);
+        Environment.SetEnvironmentVariable("BUKIT_TEST_QF_TOKEN", "secret_qf");
+        try
+        {
+            await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", _tempDir]));
+
+            var reportPath = Path.Combine(_tempDir, "sites", "query-failed-test", "notion-seed", "notion-push-report.json");
+            Assert.True(File.Exists(reportPath), $"Report not found at {reportPath}");
+            var report = File.ReadAllText(reportPath);
+            Assert.Contains("query-failed", report);
+        }
+        finally
+        {
+            NotionCommand.CreateHttpClient = originalFactory;
+            Environment.SetEnvironmentVariable("BUKIT_TEST_QF_TOKEN", originalToken);
+        }
+    }
+
+    [Fact]
+    public async Task Import_WithPushNotion_SchemaValidationFails_BlocksPush()
+    {
+        CreateDemoHtml("index.html", "Home");
+
+        var requests = new List<HttpRequestMessage>();
+        var handler = new RecordingHandler(req =>
+        {
+            requests.Add(CloneRequest(req));
+            if (req.RequestUri!.AbsolutePath.Contains("/databases/") && req.Method == HttpMethod.Get)
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"properties":{}}""")
+                };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-1"}""")
+            };
+        });
+
+        var opts = BaseOptions();
+        opts["--theme"] = "schema-fail-test";
+        opts["--push-notion"] = "true";
+        opts["--notion-database-id"] = "db123";
+        opts["--notion-token-env"] = "BUKIT_TEST_SCHEMA_TOKEN";
+
+        var originalFactory = NotionCommand.CreateHttpClient;
+        var originalToken = Environment.GetEnvironmentVariable("BUKIT_TEST_SCHEMA_TOKEN");
+        NotionCommand.CreateHttpClient = () => new HttpClient(handler);
+        Environment.SetEnvironmentVariable("BUKIT_TEST_SCHEMA_TOKEN", "secret_sc");
+        try
+        {
+            var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", _tempDir]));
+            Assert.Equal(2, result);
+
+            var pushRequest = requests.FirstOrDefault(r =>
+                r.RequestUri!.AbsolutePath.Contains("/pages") && r.Method == HttpMethod.Post);
+            Assert.Null(pushRequest);
+        }
+        finally
+        {
+            NotionCommand.CreateHttpClient = originalFactory;
+            Environment.SetEnvironmentVariable("BUKIT_TEST_SCHEMA_TOKEN", originalToken);
+        }
+    }
 }
