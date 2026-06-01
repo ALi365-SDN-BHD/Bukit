@@ -319,6 +319,48 @@ public sealed class ImportCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task ImportThenDoctor_DoesNotWarnForSeoFieldAccessOrBaseUrlAssets()
+    {
+        var demoDir = Path.Combine(_tempDir, "doctor-demo");
+        Directory.CreateDirectory(Path.Combine(demoDir, "assets", "css"));
+        File.WriteAllText(Path.Combine(demoDir, "assets", "css", "style.css"), "body{}");
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"assets/css/style.css\"></head><body><main><h1>Home</h1><p>Welcome.</p></main></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "doctor-import-test";
+        opts["--force"] = "true";
+        var importResult = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+
+        Assert.Equal(0, importResult);
+
+        var siteConfig = Path.Combine(_tempDir, "sites", "doctor-import-test", "site.yaml");
+        var originalOut = Console.Out;
+        using var writer = new StringWriter();
+        Console.SetOut(writer);
+        try
+        {
+            var doctorResult = await DoctorCommand.RunAsync(MakeCommand(new Dictionary<string, string?>
+            {
+                ["--config"] = siteConfig
+            }, []));
+
+            Assert.Equal(0, doctorResult);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        var output = writer.ToString();
+        Assert.Contains("No unknown template variables detected", output);
+        Assert.DoesNotContain("page.seo_title", output);
+        Assert.DoesNotContain("page.seo_description", output);
+        Assert.DoesNotContain("hardcoded URL", output);
+        Assert.DoesNotContain("href=\"/assets/css/style.css\"", output);
+    }
+
+    [Fact]
     public async Task SeedJson_WritesMarkdownContent()
     {
         var seedDir = Path.Combine(_tempDir, "seed-json");

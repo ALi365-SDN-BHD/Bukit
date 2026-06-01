@@ -184,17 +184,19 @@ internal static partial class ThemeGenerator
         sb.AppendLine("<head>");
         sb.AppendLine("  <meta charset=\"UTF-8\" />");
         sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");
+        sb.AppendLine("  {{ base_url = site.base_url }}");
+        sb.AppendLine("  {{ if base_url == \"/\" }}{{ base_url = \"\" }}{{ end }}");
 
         foreach (var css in cssLinks)
-            sb.AppendLine($"  {AssetImporter.RewritePaths(css.Trim(), pathMappings)}");
+            sb.AppendLine($"  {RewriteHeadAssetTag(css.Trim(), pathMappings)}");
 
-        sb.AppendLine("  {{ if page.seo_title }}");
-        sb.AppendLine("  <title>{{ page.seo_title }} | {{ site.title }}</title>");
+        sb.AppendLine("  {{ if page.fields.seo_title }}");
+        sb.AppendLine("  <title>{{ page.fields.seo_title.value }} | {{ site.title }}</title>");
         sb.AppendLine("  {{ else }}");
         sb.AppendLine("  <title>{{ page.title }} | {{ site.title }}</title>");
         sb.AppendLine("  {{ end }}");
-        sb.AppendLine("  {{ if page.seo_description }}");
-        sb.AppendLine("  <meta name=\"description\" content=\"{{ page.seo_description }}\" />");
+        sb.AppendLine("  {{ if page.fields.seo_desc }}");
+        sb.AppendLine("  <meta name=\"description\" content=\"{{ page.fields.seo_desc.value }}\" />");
         sb.AppendLine("  {{ end }}");
         sb.AppendLine("  {{ if page.seo }}");
         sb.AppendLine("  <link rel=\"canonical\" href=\"{{ page.seo.canonical }}\" />");
@@ -214,13 +216,23 @@ internal static partial class ThemeGenerator
             sb.AppendLine("  {{ include 'partials/footer.html' }}");
 
         foreach (var script in scriptTags)
-            sb.AppendLine($"  {AssetImporter.RewritePaths(script.Trim(), pathMappings)}");
+            sb.AppendLine($"  {RewriteHeadAssetTag(script.Trim(), pathMappings)}");
 
         sb.AppendLine("</body>");
         sb.AppendLine("</html>");
 
         File.WriteAllText(
             Path.Combine(themeDir, "layouts", "layouts", "base.html"), sb.ToString());
+    }
+
+    private static string RewriteHeadAssetTag(string tag, Dictionary<string, string> pathMappings)
+    {
+        var rewritten = AssetImporter.RewritePaths(tag, pathMappings);
+        return Regex.Replace(
+            rewritten,
+            @"\b(href|src)=[""'](/(?!/)[^""']*)[""']",
+            m => $"{m.Groups[1].Value}=\"{{{{ base_url }}}}{m.Groups[2].Value}\"",
+            RegexOptions.IgnoreCase);
     }
 
     private static void WritePageTemplate(string templatePath, DiscoveredPage page,

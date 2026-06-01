@@ -65,6 +65,35 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_BaseLayout_UsesKnownSeoFieldsAndBaseUrlForAssets()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, "assets", "css"));
+        File.WriteAllText(Path.Combine(_tempDir, "assets", "css", "style.css"), "body{}");
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Test</title><link rel=\"stylesheet\" href=\"assets/css/style.css\"></head><body><main><h1>Hello</h1></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "base-layout-fields",
+            RootDir = _tempDir
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var layoutPath = Path.Combine(_tempDir, "themes", "base-layout-fields", "layouts", "layouts", "base.html");
+        var content = File.ReadAllText(layoutPath);
+        Assert.Contains("{{ page.fields.seo_title.value }}", content);
+        Assert.Contains("{{ page.fields.seo_desc.value }}", content);
+        Assert.Contains("base_url = site.base_url", content);
+        Assert.Contains("if base_url == \"/\"", content);
+        Assert.Contains("href=\"{{ base_url }}/assets/css/style.css\"", content);
+        Assert.DoesNotContain("page.seo_title", content);
+        Assert.DoesNotContain("page.seo_description", content);
+        Assert.DoesNotContain("href=\"/assets/css/style.css\"", content);
+    }
+
+    [Fact]
     public void Import_MissingIndexHtml_Throws()
     {
         File.WriteAllText(Path.Combine(_tempDir, "about.html"),
