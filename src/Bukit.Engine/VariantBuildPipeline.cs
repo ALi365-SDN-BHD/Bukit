@@ -138,9 +138,11 @@ internal sealed class VariantBuildPipeline
     {
         var template = !string.IsNullOrWhiteSpace(staticTemplate) ? staticTemplate : null;
         var hasStaticDir = staticDir is not null && Directory.Exists(staticDir);
+        var hasStaticHtmlFiles = hasStaticDir &&
+                                 Directory.GetFiles(staticDir!, "*.html", SearchOption.AllDirectories).Length > 0;
         if (template is null)
         {
-            if (hasStaticDir)
+            if (hasStaticHtmlFiles)
             {
                 warn("Static HTML files in static dir are skipped because no static template is configured (theme.staticTemplate).");
             }
@@ -300,7 +302,8 @@ internal sealed class VariantBuildPipeline
             staticEntries = RenderEntry.ForStaticDir(ctx.StaticDir!, staticRouteTemplate, msg => logger.Warn(msg), config.Build.PublishDotFiles);
             staticHtmlRoutes = staticEntries.Select(e => e.Route).ToList();
         }
-        else if (hasStaticDir)
+        else if (hasStaticDir &&
+                 Directory.GetFiles(ctx.StaticDir!, "*.html", SearchOption.AllDirectories).Length > 0)
         {
             logger.Warn("Static HTML files in static dir are skipped because no static template is configured (theme.staticTemplate).");
         }

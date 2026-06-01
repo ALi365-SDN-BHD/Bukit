@@ -144,4 +144,22 @@ public sealed class ComponentExtractorTests
         Assert.Contains("{{ item.url }}", card.NormalizedTemplate);
         Assert.Contains("{{ item.title }}", card.NormalizedTemplate);
     }
+
+    [Fact]
+    public void Extract_PaginationComponent_GeneratesGenericTemplate()
+    {
+        var pages = new List<DiscoveredPage>
+        {
+            MakePage("<div class=\"pagination\"><a href=\"page-1.html\">← 上一页</a><span class=\"page-label\">第 2 / 3 页</span><a href=\"page-3.html\">下一页 →</a></div>")
+        };
+
+        var components = ComponentExtractor.Extract(pages);
+
+        var pagination = components.First(c => c.Name == "pagination");
+        Assert.Contains("{{ pagination.page }}", pagination.NormalizedTemplate);
+        Assert.Contains("{{ pagination.total_pages }}", pagination.NormalizedTemplate);
+        Assert.DoesNotContain("上一页", pagination.NormalizedTemplate);
+        Assert.DoesNotContain("下一页", pagination.NormalizedTemplate);
+        Assert.DoesNotContain("第 2 / 3 页", pagination.NormalizedTemplate);
+    }
 }

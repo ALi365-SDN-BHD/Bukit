@@ -185,6 +185,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "test-theme", "site.yaml")));
         var yaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "test-theme", "site.yaml"));
         Assert.Contains("test-theme", yaml);
+        Assert.Contains("url: https://example.com", yaml);
         Assert.Contains("provider: markdown", yaml);
         Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "test-theme", "content", "index.md")));
     }
@@ -405,6 +406,27 @@ public sealed class HtmlDemoImporterTests : IDisposable
         HtmlDemoImporter.Import(options);
 
         Assert.True(File.Exists(Path.Combine(themeDir, "static", "assets", "images", "hero.jpg")));
+    }
+
+    [Fact]
+    public void Import_HtmlLinks_AreNotCopiedAsStaticAssets()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1><a href=\"about.html\">About</a></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "html-link-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        Assert.False(File.Exists(Path.Combine(_tempDir, "themes", "html-link-test", "static", "about.html")));
     }
 
     [Fact]

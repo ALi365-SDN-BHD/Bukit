@@ -128,6 +128,20 @@ internal static partial class ComponentExtractor
 
     private static string GenerateTemplate(string fragment, string componentName)
     {
+        if (componentName.Equals("pagination", StringComparison.OrdinalIgnoreCase))
+        {
+            return """
+{{ pagination = page.fields.pagination.value }}
+{{ if pagination }}
+<nav class="pagination" aria-label="Pagination">
+  {{ if pagination.has_prev }}<a href="{{ pagination.prev_url }}" rel="prev">‹</a>{{ end }}
+  <span>{{ pagination.page }} / {{ pagination.total_pages }}</span>
+  {{ if pagination.has_next }}<a href="{{ pagination.next_url }}" rel="next">›</a>{{ end }}
+</nav>
+{{ end }}
+""";
+        }
+
         var content = fragment;
 
         content = HeadingRegex.Replace(content, m =>
