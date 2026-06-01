@@ -262,6 +262,10 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--report", "生成 import-report.md 文件 (默认开启)", CliOptionType.Flag),
                 new CliOptionSpec("--no-report", "不生成 import-report.md 文件", CliOptionType.Flag),
                 new CliOptionSpec("--base-url", "设置 site.baseUrl"),
+                new CliOptionSpec("--push-notion", "导入后直接将生成的 seed 写入 Notion", CliOptionType.Flag),
+                new CliOptionSpec("--notion-database-id", "Notion database ID，用于 --push-notion", CliOptionType.String, ValueName: "id"),
+                new CliOptionSpec("--notion-token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),
+                new CliOptionSpec("--notion-report", "Notion push 报告输出路径", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--config", "配置文件路径"),
                 new CliOptionSpec("--site", "多站点名")
                     }),
@@ -285,21 +289,21 @@ public static class BukitCliSpecs
             {
                 new CliOptionSpec("--input", "seed 输入目录", CliOptionType.String, ValueName: "dir"),
                 new CliOptionSpec("--database-id", "Notion database ID", CliOptionType.String, ValueName: "id"),
-                new CliOptionSpec("--dry-run", "只生成推送计划，不调用 Notion API", CliOptionType.Flag),
-                new CliOptionSpec("--report", "推送计划/报告输出路径", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--dry-run", "只生成推送计划，不调用 Notion API；不传则实际写入", CliOptionType.Flag),
+                new CliOptionSpec("--report", "推送计划/结果报告输出路径", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name")
             },
             Subcommands: new[]
             {
                 new CliCommandSpec(
                     Name: "push",
-                    Description: "生成 Notion push 计划（不执行实际 Notion API 调用，仅输出计划/报告文件）",
+                    Description: "将 seed 内容写入 Notion；传 --dry-run 时仅输出推送计划",
                     Options: new[]
                     {
                         new CliOptionSpec("--input", "seed 输入目录", CliOptionType.String, ValueName: "dir", Required: true),
                         new CliOptionSpec("--database-id", "Notion database ID", CliOptionType.String, ValueName: "id", Required: true),
-                        new CliOptionSpec("--dry-run", "只生成推送计划，不调用 Notion API", CliOptionType.Flag),
-                        new CliOptionSpec("--report", "推送计划/报告输出路径", CliOptionType.String, ValueName: "file"),
+                        new CliOptionSpec("--dry-run", "只生成推送计划，不调用 Notion API；不传则实际写入", CliOptionType.Flag),
+                        new CliOptionSpec("--report", "推送计划/结果报告输出路径", CliOptionType.String, ValueName: "file"),
                         new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name")
                     })
             });

@@ -52,5 +52,7 @@ public sealed class CliProgramFlowTests
         Assert.Contains("--generate-seed", options);
         Assert.Contains("--preserve-html", options);
         Assert.Contains("--report", options);
+        Assert.Contains("--push-notion", options);
+        Assert.Contains("--notion-database-id", options);
     }
 }

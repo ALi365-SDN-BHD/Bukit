@@ -97,9 +97,9 @@ After downloading, place the binary in a PATH directory or the project root.
 | `deploy` | Build and deploy to GitHub Pages | `--config` `--site` `--output` `--base-url` `--site-url` `--branch` `--message` `--ci` `--dry-run` `--skip-build` |
 | `webhook` | Webhook server (Notion trigger → GitHub repository_dispatch) — note: `start` arg in help is not CLI-registered | `--host` `--port` `--path` `--repo` `--event` |
 | `clone` (beta) | Generate Bukit theme and content from target website | `--tokens` `--theme` `--layout` `--page` `--sections` `--behaviors` `--icons` `--assets` `--brand` `--use` `--force` `--verify` `--visual-threshold` `--fail-on-visual-diff` `--fidelity` `--config` `--site` |
-| `import html-demo` | Convert an HTML demo directory into a buildable Bukit theme/site draft | `<demo-dir>` `--theme` `--force` `--verify` `--content-source`(notion\|json\|yaml) `--site-path` `--strict` |
+| `import html-demo` | Convert an HTML demo directory into a buildable Bukit theme/site draft | `<demo-dir>` `--theme` `--force` `--verify` `--content-source`(notion\|json\|yaml) `--site-path` `--strict` `--push-notion` `--notion-database-id` |
 | `import seed` | Convert generated JSON/YAML seed into local Markdown content | `<seed-dir>` `--output` `--force` |
-| `notion push` | Generate a reviewable Notion seed push plan and validate push prerequisites | `--input` `--database-id` `--dry-run` `--report` `--token-env` |
+| `notion push` | Push generated seed records to Notion; use `--dry-run` for a reviewable local plan | `--input` `--database-id` `--dry-run` `--report` `--token-env` |
 | `geo audit` | GEO audit on dist output | `--dir` |
 | `seo audit` | Audit SEO health from build report | `--dir` `--report` `--strict` `--external` |
 | `seo diff` | Compare SEO reports for regression budgets | `--baseline` `--current` `--max-new-errors N` `--max-new-warnings N` `--max-new-issues N` `--fail-on-new-code c1,c2` `--fail-on-route-removed` `--fail-on-indexable-drop` |
