@@ -95,7 +95,6 @@ public sealed class MarkdownFolderProvider : IContentProvider
 
             var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = _options.DefaultType,
                 ["source"] = "markdown",
                 ["sourcePath"] = file
             };
@@ -109,6 +108,11 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 {
                     meta[kv.Key] = kv.Value;
                 }
+            }
+
+            if (!meta.ContainsKey("collection") && !meta.ContainsKey("type"))
+            {
+                meta["type"] = _options.DefaultType;
             }
 
             if (meta.TryGetValue("slug", out var slugObj) && slugObj is string slugText && !string.IsNullOrWhiteSpace(slugText))

@@ -291,6 +291,34 @@ public sealed class ImportCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Verify_ListPages_DoNotConflictWithCollectionListRoutes()
+    {
+        var demoDir = Path.Combine(_tempDir, "list-demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "insights.html"),
+            "<html><head><title>Insights</title></head><body><main><h1>Insights</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "companies.html"),
+            "<html><head><title>Companies</title></head><body><main><h1>Companies</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "article-detail.html"),
+            "<html><head><title>Article</title></head><body><main><h1>Article</h1><p>Body.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "company-detail.html"),
+            "<html><head><title>Company</title></head><body><main><h1>Company</h1><p>Body.</p></main></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "list-route-test";
+        opts["--verify"] = "true";
+        var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+
+        Assert.Equal(0, result);
+        Assert.False(File.Exists(Path.Combine(_tempDir, "sites", "list-route-test", "content", "insights.md")));
+        Assert.False(File.Exists(Path.Combine(_tempDir, "sites", "list-route-test", "content", "companies.md")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "dist", "insights", "index.html")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "dist", "companies", "index.html")));
+    }
+
+    [Fact]
     public async Task SeedJson_WritesMarkdownContent()
     {
         var seedDir = Path.Combine(_tempDir, "seed-json");

@@ -273,7 +273,7 @@ internal static partial class ThemeGenerator
     {
         return """
 <main>
-  <h1>{{ page.title }}</h1>
+  <h1>{{ this.title }}</h1>
   {{ if page.content }}<div class="content">{{ page.content }}</div>{{ end }}
   {{ for p in pages }}
   <article>
@@ -314,7 +314,7 @@ internal static partial class ThemeGenerator
         var sb = new StringBuilder();
         sb.AppendLine("{% layout \"layouts/base.html\" %}");
         sb.AppendLine("<main>");
-        sb.AppendLine("  <h1>{{ page.title }}</h1>");
+        sb.AppendLine("  <h1>{{ this.title }}</h1>");
         sb.AppendLine("  {{ for p in pages }}");
         sb.AppendLine("  <article>");
         sb.AppendLine("    <h2><a href=\"{{ p.url }}\">{{ p.title }}</a></h2>");

@@ -44,3 +44,6 @@ publish/
 /examples/docs-site/.smoke-all-run/
 /examples/plugin-site/.smoke-all-run/
 /examples/theme-inheritance-site/.smoke-all-run/
+/sites/
+/themes/
+/tmp-smoke-input/
