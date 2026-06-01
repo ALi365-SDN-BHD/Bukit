@@ -1,4 +1,3 @@
-using System.Text;
 using Bukit.Cli.Cli.Binding;
 using Bukit.Importing;
 
@@ -152,13 +151,6 @@ public static class ImportCommand
             return 1;
         }
 
-        if (!dryRun)
-        {
-            var synced = SyncTemplates(rootDir, themeName, force);
-            if (synced)
-                Console.WriteLine("  bukit.templates.yaml: 已创建");
-        }
-
         if (use && !dryRun)
         {
             var resolved2 = ConfigPathResolver.Resolve(
@@ -196,46 +188,6 @@ public static class ImportCommand
         {
             ["--config"] = siteConfig
         }, []));
-    }
-
-    private static bool SyncTemplates(string rootDir, string themeName, bool force)
-    {
-        var layoutsDir = Path.Combine(rootDir, "themes", themeName, "layouts");
-        if (!Directory.Exists(layoutsDir))
-            return false;
-
-        var manifestPath = Path.Combine(layoutsDir, "bukit.templates.yaml");
-        if (File.Exists(manifestPath) && !force)
-            return false;
-
-        var htmlFiles = Directory.GetFiles(layoutsDir, "*.html", SearchOption.AllDirectories)
-            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var sb = new StringBuilder();
-        sb.AppendLine("templates:");
-
-        foreach (var file in htmlFiles)
-        {
-            var relative = Path.GetRelativePath(layoutsDir, file).Replace('\\', '/');
-            var text = File.ReadAllText(file);
-
-            var needsPageContent = text.Contains("p.content", StringComparison.Ordinal) ||
-                                   text.Contains("item.content", StringComparison.Ordinal);
-            var supportsPagination = relative.StartsWith("pages/pagination", StringComparison.OrdinalIgnoreCase);
-            var supportsTaxonomy = relative.StartsWith("pages/taxonomy", StringComparison.OrdinalIgnoreCase);
-            var supportsSearch = relative.StartsWith("pages/search", StringComparison.OrdinalIgnoreCase);
-
-            sb.AppendLine($"  {relative}:");
-            sb.AppendLine("    capabilities:");
-            sb.AppendLine($"      needs_page_content: {needsPageContent.ToString().ToLowerInvariant()}");
-            sb.AppendLine($"      supports_pagination: {supportsPagination.ToString().ToLowerInvariant()}");
-            sb.AppendLine($"      supports_taxonomy: {supportsTaxonomy.ToString().ToLowerInvariant()}");
-            sb.AppendLine($"      supports_search_snippets: {supportsSearch.ToString().ToLowerInvariant()}");
-        }
-
-        File.WriteAllText(manifestPath, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        return true;
     }
 
     private static int Unknown(string sub)

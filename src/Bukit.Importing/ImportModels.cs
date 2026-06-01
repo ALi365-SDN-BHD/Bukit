@@ -65,7 +65,26 @@ public sealed record ImportResult
     public bool SeedGenerated { get; init; }
     public List<string> Warnings { get; init; } = [];
     public List<ImportDiagnostic> Diagnostics { get; init; } = [];
+    public List<ImportReportPage> ReportPages { get; init; } = [];
+    public List<ImportReportComponent> ReportComponents { get; init; } = [];
+    public List<ImportReportSeedFile> ReportSeedFiles { get; init; } = [];
 }
+
+public sealed record ImportReportPage(
+    string Source,
+    string Route,
+    string Type,
+    string Template,
+    string Status);
+
+public sealed record ImportReportComponent(
+    string Name,
+    string Source,
+    string Status);
+
+public sealed record ImportReportSeedFile(
+    string FileName,
+    int Count);
 
 public sealed record DiscoveredComponent
 {

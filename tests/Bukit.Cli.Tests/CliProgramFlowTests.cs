@@ -39,4 +39,18 @@ public sealed class CliProgramFlowTests
         Assert.NotNull(notion);
         Assert.Contains(notion!.Subcommands!, s => s.Name == "push");
     }
+
+    [Fact]
+    public void Specs_ImportHtmlDemo_IncludeDocumentedPositiveFlags()
+    {
+        var registry = BukitCliSpecs.CreateRegistry();
+        var import = registry.Resolve("import");
+        var htmlDemo = import!.Subcommands!.Single(s => s.Name == "html-demo");
+        var options = htmlDemo.Options!.Select(o => o.Name).ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("--extract-content", options);
+        Assert.Contains("--generate-seed", options);
+        Assert.Contains("--preserve-html", options);
+        Assert.Contains("--report", options);
+    }
 }

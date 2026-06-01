@@ -28,7 +28,7 @@ internal static class ImportReportWriter
         Console.WriteLine($"  警告:            {warnCount}");
         Console.WriteLine($"  site.yaml:        {(result.SiteYamlCreated ? "已创建" : "已跳过（已存在）")}");
         Console.WriteLine($"  bukit.templates.yaml: {(result.TemplatesSynced ? "已创建" : "待同步")}");
-        Console.WriteLine($"  notion-seed:      {(result.SeedGenerated ? "已生成" : "跳过")}");
+        Console.WriteLine($"  {SeedLabel(options),-16}{(result.SeedGenerated ? "已生成" : "跳过")}");
 
         foreach (var w in result.Warnings)
             Console.WriteLine($"  注意: {w}");
@@ -121,6 +121,39 @@ internal static class ImportReportWriter
             }
         }
 
+        if (result.ReportPages.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("## Pages");
+            sb.AppendLine();
+            sb.AppendLine("| Source | Route | Type | Template | Status |");
+            sb.AppendLine("|---|---|---|---|---|");
+            foreach (var page in result.ReportPages)
+                sb.AppendLine($"| {EscapeCell(page.Source)} | {EscapeCell(page.Route)} | {EscapeCell(page.Type)} | {EscapeCell(page.Template)} | {EscapeCell(page.Status)} |");
+        }
+
+        if (result.ReportComponents.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("## Components");
+            sb.AppendLine();
+            sb.AppendLine("| Component | Source | Status |");
+            sb.AppendLine("|---|---|---|");
+            foreach (var component in result.ReportComponents)
+                sb.AppendLine($"| {EscapeCell(component.Name)} | {EscapeCell(component.Source)} | {EscapeCell(component.Status)} |");
+        }
+
+        if (result.ReportSeedFiles.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("## Content Seeds");
+            sb.AppendLine();
+            sb.AppendLine("| Seed File | Count |");
+            sb.AppendLine("|---|---:|");
+            foreach (var seed in result.ReportSeedFiles)
+                sb.AppendLine($"| {EscapeCell(seed.FileName)} | {seed.Count} |");
+        }
+
         sb.AppendLine();
         sb.AppendLine("## Build/Data Source Relationship");
         sb.AppendLine();
@@ -178,4 +211,12 @@ internal static class ImportReportWriter
         File.WriteAllText(reportPath, sb.ToString());
         Console.WriteLine($"  导入报告已生成: {reportPath}");
     }
+
+    private static string SeedLabel(HtmlDemoImportOptions options)
+        => options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase)
+            ? "notion-seed:"
+            : $"{options.ContentSource}-seed:";
+
+    private static string EscapeCell(string value)
+        => value.Replace("|", "\\|");
 }

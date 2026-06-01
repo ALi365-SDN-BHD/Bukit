@@ -175,6 +175,19 @@ public sealed class ImportCommandTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "sync-status-test", "layouts", "bukit.templates.yaml")));
         Assert.Contains("bukit.templates.yaml: 已创建", output);
         Assert.DoesNotContain("bukit.templates.yaml: 已跳过", output);
+        Assert.Equal(1, CountOccurrences(output, "bukit.templates.yaml: 已创建"));
+    }
+
+    private static int CountOccurrences(string haystack, string needle)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = haystack.IndexOf(needle, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += needle.Length;
+        }
+        return count;
     }
 
     [Fact]

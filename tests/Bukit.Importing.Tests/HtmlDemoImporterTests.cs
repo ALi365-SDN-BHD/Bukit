@@ -252,11 +252,42 @@ public sealed class HtmlDemoImporterTests : IDisposable
         Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
     }
 
+    [Theory]
+    [InlineData(".env.local")]
+    [InlineData("id_rsa")]
+    public void Import_SensitiveNamePattern_Throws(string fileName)
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Test</title></head><body><main><h1>Hello</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, fileName), "SECRET=xxx");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "sensitive-pattern-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
+        Assert.Contains("敏感", ex.Message);
+    }
+
     [Fact]
     public void Import_DryRun_DoesNotWriteFiles()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
-            "<html><head><title>Test</title></head><body><header>Nav</header><main><h1>Hello</h1></main><footer>End</footer></body></html>");
+            """
+            <html><head><title>Test</title></head><body>
+            <header>Nav</header>
+            <main>
+              <section class="hero"><h1>Hello</h1><p>Intro text.</p></section>
+              <section class="cards"><article class="article-card"><h3>Guide</h3><p>Summary.</p></article></section>
+              <section class="faq"><div class="faq-item"><h3>Question?</h3><p>Answer.</p></div></section>
+            </main>
+            <footer>End</footer>
+            </body></html>
+            """);
 
         var options = new HtmlDemoImportOptions
         {
@@ -271,6 +302,9 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var themeDir = Path.Combine(_tempDir, "themes", "dry-test");
         Assert.False(Directory.Exists(themeDir));
         Assert.True(result.PagesFound > 0);
+        Assert.True(result.ComponentsGenerated >= 3);
+        Assert.True(result.RecordsExtracted >= 3);
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "sites", "dry-test")));
     }
 
     [Fact]
@@ -298,6 +332,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
             "<html><head><title>Test</title></head><body><main><h1>Hello</h1></main></body></html>");
+        Directory.CreateDirectory(Path.Combine(_tempDir, "assets", "css"));
+        File.WriteAllText(Path.Combine(_tempDir, "assets", "css", "site.css"), "body{}");
 
         var options = new HtmlDemoImportOptions
         {
@@ -313,6 +349,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var originalDir = Path.Combine(_tempDir, "sites", "preserve-test", "original-demo");
         Assert.True(Directory.Exists(originalDir));
         Assert.True(File.Exists(Path.Combine(originalDir, "index.html")));
+        Assert.True(File.Exists(Path.Combine(originalDir, "assets", "css", "site.css")));
     }
 
     [Fact]
