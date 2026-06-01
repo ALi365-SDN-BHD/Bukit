@@ -155,7 +155,8 @@ public static class ImportCommand
         if (!dryRun)
         {
             var synced = SyncTemplates(rootDir, themeName, force);
-            Console.WriteLine($"  bukit.templates.yaml: {(synced ? "已创建" : "跳过")}");
+            if (synced)
+                Console.WriteLine("  bukit.templates.yaml: 已创建");
         }
 
         if (use && !dryRun)

@@ -8,7 +8,8 @@ internal static partial class LayoutExtractor
         string Header,
         string Nav,
         string Footer,
-        string HeadExtras);
+        string HeadExtras,
+        bool HeaderContainsNav);
 
     private static readonly Regex NavRegex = NavPattern();
     private static readonly Regex HeaderRegex = HeaderTagPattern();
@@ -33,7 +34,8 @@ internal static partial class LayoutExtractor
                 Header: string.IsNullOrWhiteSpace(extractedHeader) ? "" : extractedHeader,
                 Nav: extractedNav,
                 Footer: string.IsNullOrWhiteSpace(extractedFooter) ? "" : extractedFooter,
-                HeadExtras: single.HeadContent ?? "");
+                HeadExtras: single.HeadContent ?? "",
+                HeaderContainsNav: !string.IsNullOrWhiteSpace(extractedNav));
         }
 
         var normalizedOpenings = pages.Select(p => StripClassId(p.BodyOpening)).ToList();
@@ -64,7 +66,8 @@ internal static partial class LayoutExtractor
             Header: headerContent,
             Nav: navContent,
             Footer: footerContent,
-            HeadExtras: firstHead);
+            HeadExtras: firstHead,
+            HeaderContainsNav: !string.IsNullOrWhiteSpace(ExtractNavBlock(headerContent)));
     }
 
     private static string? ExtractByTag(string content, string tagName)

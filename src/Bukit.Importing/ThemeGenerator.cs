@@ -31,7 +31,7 @@ internal static partial class ThemeGenerator
             partialCount++;
         }
 
-        if (!string.IsNullOrWhiteSpace(layout.Nav))
+        if (!string.IsNullOrWhiteSpace(layout.Nav) && !layout.HeaderContainsNav)
         {
             WritePartial(themeDir, "nav.html", layout.Nav, pathMappings);
             partialCount++;
@@ -207,7 +207,7 @@ internal static partial class ThemeGenerator
         if (!string.IsNullOrWhiteSpace(layout.Header))
             sb.AppendLine("  {{ include 'partials/header.html' }}");
 
-        if (!string.IsNullOrWhiteSpace(layout.Nav))
+        if (!string.IsNullOrWhiteSpace(layout.Nav) && !layout.HeaderContainsNav)
             sb.AppendLine("  {{ include 'partials/nav.html' }}");
 
         sb.AppendLine("  {{ content }}");
@@ -240,14 +240,19 @@ internal static partial class ThemeGenerator
     {
         var sb = new StringBuilder();
         sb.AppendLine("{% layout \"layouts/base.html\" %}");
-        sb.AppendLine(page.Type switch
+        sb.AppendLine(TemplateBodyTransformer.Transform(page, pathMappings));
+        File.WriteAllText(templatePath, sb.ToString());
+    }
+
+    internal static string GetDefaultTemplateBody(PageType pageType)
+    {
+        return pageType switch
         {
             PageType.Home => WriteHomeTemplateBody(),
             PageType.PostList or PageType.CompanyList or PageType.ServiceList => WriteListTemplateBody(),
             PageType.PostDetail or PageType.CompanyDetail or PageType.ServiceDetail => WriteDetailTemplateBody(),
             _ => WriteDetailTemplateBody()
-        });
-        File.WriteAllText(templatePath, sb.ToString());
+        };
     }
 
     private static string WriteHomeTemplateBody()

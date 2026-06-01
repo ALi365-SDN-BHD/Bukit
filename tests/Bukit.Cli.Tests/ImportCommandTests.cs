@@ -151,6 +151,33 @@ public sealed class ImportCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Import_TemplateSyncStatusMatchesActualManifest()
+    {
+        CreateDemoHtml("index.html", "Test Site");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "sync-status-test";
+
+        var originalOut = Console.Out;
+        using var writer = new StringWriter();
+        Console.SetOut(writer);
+        try
+        {
+            var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", _tempDir]));
+            Assert.Equal(0, result);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        var output = writer.ToString();
+        Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "sync-status-test", "layouts", "bukit.templates.yaml")));
+        Assert.Contains("bukit.templates.yaml: 已创建", output);
+        Assert.DoesNotContain("bukit.templates.yaml: 已跳过", output);
+    }
+
+    [Fact]
     public async Task MultipleHtmlFiles_CorrectlySplits()
     {
         CreateDemoHtml("index.html", "Home");
