@@ -27,11 +27,17 @@ internal static partial class ImportSafetyScanner
         HtmlDemoImportOptions options, List<DiscoveredPage> pages)
     {
         var diagnostics = new List<ImportDiagnostic>();
+        var htmlFiles = Directory.GetFiles(options.InputPath, "*.html", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(options.InputPath, path).Replace('\\', '/'))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         ScanSensitiveFiles(options.InputPath, diagnostics);
 
         foreach (var page in pages)
+        {
             ScanHtmlContent(page, diagnostics);
+            ScanInternalLinks(options.InputPath, page, htmlFiles, diagnostics);
+        }
 
         return diagnostics;
     }
@@ -164,6 +170,51 @@ internal static partial class ImportSafetyScanner
         }
     }
 
+    private static void ScanInternalLinks(
+        string inputPath,
+        DiscoveredPage page,
+        HashSet<string> htmlFiles,
+        List<ImportDiagnostic> diagnostics)
+    {
+        foreach (System.Text.RegularExpressions.Match match in LinkHrefPattern().Matches(page.FullHtml))
+        {
+            var href = match.Groups["href"].Value.Trim();
+            if (string.IsNullOrWhiteSpace(href) ||
+                href.StartsWith('#') ||
+                href.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                href.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                href.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) ||
+                href.StartsWith("tel:", StringComparison.OrdinalIgnoreCase) ||
+                href.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase) ||
+                href.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var cleanHref = href.Split('#')[0].Split('?')[0];
+            if (!cleanHref.EndsWith(".html", StringComparison.OrdinalIgnoreCase) &&
+                !cleanHref.EndsWith(".htm", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var baseDir = Path.GetDirectoryName(page.RelativePath.Replace('\\', '/')) ?? "";
+            var candidate = cleanHref.StartsWith('/')
+                ? cleanHref.TrimStart('/')
+                : Path.GetRelativePath(inputPath, Path.GetFullPath(Path.Combine(
+                    inputPath, baseDir, cleanHref))).Replace('\\', '/');
+
+            if (!htmlFiles.Contains(candidate))
+            {
+                diagnostics.Add(new ImportDiagnostic(
+                    ImportDiagnosticSeverity.Warning,
+                    "INVALID_INTERNAL_LINK",
+                    $"内部 HTML 链接目标不存在: {href}",
+                    page.FilePath));
+            }
+        }
+    }
+
     [System.Text.RegularExpressions.GeneratedRegex(@"<script\b(?![^>]*\bsrc\s*=)[^>]*>.*?</script>", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline)]
     private static partial System.Text.RegularExpressions.Regex InlineScriptPattern();
 
@@ -172,4 +223,7 @@ internal static partial class ImportSafetyScanner
 
     [System.Text.RegularExpressions.GeneratedRegex(@"<form\b[^>]*\baction\s*=\s*[""']https?://", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
     private static partial System.Text.RegularExpressions.Regex ExternalFormActionPattern();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\bhref\s*=\s*[""'](?<href>[^""']+)[""']", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex LinkHrefPattern();
 }

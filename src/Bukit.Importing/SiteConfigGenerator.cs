@@ -15,8 +15,14 @@ internal static class SiteConfigGenerator
             return false;
         }
 
-        var contentDir = Path.GetRelativePath(options.RootDir, Path.Combine(siteDir, "content"))
+        var contentPath = Path.Combine(siteDir, "content");
+        var contentDir = Path.GetRelativePath(options.RootDir, contentPath)
             .Replace('\\', '/');
+        if (contentDir.Equals("..", StringComparison.Ordinal) ||
+            contentDir.StartsWith("../", StringComparison.Ordinal))
+        {
+            contentDir = "content";
+        }
 
         var sb = new StringBuilder();
         sb.AppendLine("site:");
@@ -73,7 +79,8 @@ internal static class SiteConfigGenerator
             }
         }
 
-        if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
+        if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
+            options.NoMarkdownDraft)
         {
             var dbId = !string.IsNullOrWhiteSpace(options.NotionDatabaseId)
                 ? options.NotionDatabaseId

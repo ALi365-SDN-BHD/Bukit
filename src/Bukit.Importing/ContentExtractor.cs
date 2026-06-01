@@ -271,6 +271,7 @@ internal static partial class ContentExtractor
             var sectionType = DetermineSectionType(className);
 
             var heading = SectionHeadingRegex.Match(sectionHtml);
+            var subheading = FirstParagraphRegex.Match(sectionHtml);
             var link = SectionLinkRegex.Match(sectionHtml);
 
             content.Sections.Add(new SectionRecord
@@ -278,7 +279,7 @@ internal static partial class ContentExtractor
                 PageSlug = page.Slug,
                 SectionType = sectionType,
                 Heading = heading.Success ? StripHtml(heading.Groups[2].Value).Trim() : null,
-                Subheading = null,
+                Subheading = subheading.Success ? StripHtml(subheading.Groups[1].Value).Trim() : null,
                 ButtonText = link.Success ? StripHtml(Regex.Replace(link.Value, "<[^>]*>", "")).Trim() : null,
                 ButtonUrl = link.Success ? link.Groups[1].Value : null,
                 SortOrder = sortOrder

@@ -21,6 +21,7 @@ public static class HtmlDemoImporter
         var warnings = new List<string>();
         var layout = LayoutExtractor.Extract(pages, warnings);
         var diagnostics = ImportSafetyScanner.Scan(options, pages);
+        ThrowIfErrorDiagnostics(diagnostics);
 
         if (options.Strict)
         {
@@ -34,7 +35,7 @@ public static class HtmlDemoImporter
             var dryContent = options.ExtractContent ? ContentExtractor.Extract(pages) : new ExtractedContent();
             var dryResult = new ImportResult
             {
-                ThemePath = Path.Combine(options.RootDir, "themes", options.ThemeName),
+                ThemePath = GetThemeDir(options),
                 SitePath = GetSiteDir(options),
                 PagesFound = pages.Count,
                 TemplatesGenerated = pages.Count + 2,
@@ -52,7 +53,7 @@ public static class HtmlDemoImporter
             return dryResult;
         }
 
-        var themeDir = Path.Combine(options.RootDir, "themes", options.ThemeName);
+        var themeDir = GetThemeDir(options);
         if (Directory.Exists(themeDir) && options.Force)
             Directory.Delete(themeDir, recursive: true);
 
@@ -91,7 +92,7 @@ public static class HtmlDemoImporter
         }
 
         var siteYamlCreated = SiteConfigGenerator.Generate(options, routeMap);
-        var templatesSynced = SyncTemplates(options.RootDir, options.ThemeName, options.Force);
+        var templatesSynced = SyncTemplates(options, options.Force);
         result = result with
         {
             SiteYamlCreated = siteYamlCreated,
@@ -101,7 +102,7 @@ public static class HtmlDemoImporter
             ReportPages = BuildReportPages(pages, routeMap)
         };
 
-        AssetImporter.TransferAssetsToStatic(options.RootDir, options.ThemeName);
+        AssetImporter.TransferAssetsToStatic(options);
 
         var hardcodedReport = TemplateResidueAnalyzer.Analyze(themeDir, null, routeMap);
         result = result with { HardcodedContentReport = hardcodedReport };
@@ -120,9 +121,9 @@ public static class HtmlDemoImporter
         return count;
     }
 
-    private static bool SyncTemplates(string rootDir, string themeName, bool force)
+    private static bool SyncTemplates(HtmlDemoImportOptions options, bool force)
     {
-        var layoutsDir = Path.Combine(rootDir, "themes", themeName, "layouts");
+        var layoutsDir = Path.Combine(GetThemeDir(options), "layouts");
         if (!Directory.Exists(layoutsDir))
             return false;
 
@@ -259,9 +260,36 @@ public static class HtmlDemoImporter
         throw new ImportException(ImportErrorKind.UserInput, $"Strict 模式: 导入诊断失败: {summary}");
     }
 
+    private static void ThrowIfErrorDiagnostics(List<ImportDiagnostic> diagnostics)
+    {
+        var errors = diagnostics
+            .Where(d => d.Severity == ImportDiagnosticSeverity.Error)
+            .ToList();
+        if (errors.Count == 0) return;
+
+        var summary = string.Join(", ", errors.Select(d => d.Code).Distinct());
+        throw new ImportException(ImportErrorKind.UserInput, $"导入诊断失败: {summary}");
+    }
+
     internal static string GetSiteDir(HtmlDemoImportOptions options)
     {
         return options.SitePath ?? Path.Combine(options.RootDir, "sites", options.ThemeName);
+    }
+
+    internal static string GetThemeDir(HtmlDemoImportOptions options)
+    {
+        if (!string.IsNullOrWhiteSpace(options.SitePath))
+        {
+            var relative = Path.GetRelativePath(options.RootDir, options.SitePath);
+            if (relative.Equals("..", StringComparison.Ordinal) ||
+                relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+                relative.StartsWith("../", StringComparison.Ordinal))
+            {
+                return Path.Combine(options.SitePath, "themes", options.ThemeName);
+            }
+        }
+
+        return Path.Combine(options.RootDir, "themes", options.ThemeName);
     }
 
     private static void PreserveOriginalHtml(HtmlDemoImportOptions options, List<DiscoveredPage> pages)
@@ -293,8 +321,7 @@ public static class HtmlDemoImporter
     {
         if (components.Count == 0) return;
 
-        var compDir = Path.Combine(options.RootDir, "themes", options.ThemeName,
-            "layouts", "components");
+        var compDir = Path.Combine(GetThemeDir(options), "layouts", "components");
         Directory.CreateDirectory(compDir);
 
         foreach (var component in components)
@@ -320,7 +347,7 @@ public static class HtmlDemoImporter
 
         if (!options.DryRun)
         {
-            var themeDir = Path.Combine(options.RootDir, "themes", options.ThemeName);
+            var themeDir = GetThemeDir(options);
             if (Directory.Exists(themeDir) && !options.Force)
                 throw new ImportException(ImportErrorKind.UserInput, $"主题已存在: {options.ThemeName}。使用 --force 覆盖。");
         }
@@ -343,6 +370,14 @@ public static class HtmlDemoImporter
                 var fullPath = Path.Combine(inputPath, pattern);
                 if (File.Exists(fullPath) || Directory.Exists(fullPath))
                     throw new ImportException(ImportErrorKind.UserInput, $"输入目录包含敏感项: {pattern}");
+
+                var fileMatches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
+                if (fileMatches.Length > 0)
+                    throw new ImportException(ImportErrorKind.UserInput, $"输入目录包含敏感文件 ({pattern}): {Path.GetRelativePath(inputPath, fileMatches[0])}");
+
+                var dirMatches = Directory.GetDirectories(inputPath, pattern, SearchOption.AllDirectories);
+                if (dirMatches.Length > 0)
+                    throw new ImportException(ImportErrorKind.UserInput, $"输入目录包含敏感目录 ({pattern}): {Path.GetRelativePath(inputPath, dirMatches[0])}");
             }
         }
     }
