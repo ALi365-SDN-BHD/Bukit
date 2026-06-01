@@ -228,19 +228,32 @@ internal static partial class NotionSeedPusher
         HttpClient http, NotionPushOptions options, string pageId, CancellationToken ct)
     {
         var ids = new List<string>();
-        var url = $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/blocks/{pageId}/children?page_size=100";
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        BuildCommonRequestHeaders(request, options.Token);
-        using var response = await http.SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode) return ids;
+        string? startCursor = null;
+        var hasMore = true;
 
-        var body = await response.Content.ReadAsStringAsync(ct);
-        using var doc = JsonDocument.Parse(body);
-        foreach (var block in doc.RootElement.GetProperty("results").EnumerateArray())
+        while (hasMore)
         {
-            var id = block.GetProperty("id").GetString();
-            if (!string.IsNullOrWhiteSpace(id))
-                ids.Add(id);
+            var url = $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/blocks/{pageId}/children?page_size=100";
+            if (startCursor != null)
+                url += $"&start_cursor={Uri.EscapeDataString(startCursor)}";
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            BuildCommonRequestHeaders(request, options.Token);
+            using var response = await http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) return ids;
+
+            var body = await response.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(body);
+            foreach (var block in doc.RootElement.GetProperty("results").EnumerateArray())
+            {
+                var id = block.GetProperty("id").GetString();
+                if (!string.IsNullOrWhiteSpace(id))
+                    ids.Add(id);
+            }
+
+            hasMore = doc.RootElement.TryGetProperty("has_more", out var hm) && hm.GetBoolean();
+            startCursor = hasMore && doc.RootElement.TryGetProperty("next_cursor", out var nc)
+                ? nc.GetString() : null;
         }
         return ids;
     }

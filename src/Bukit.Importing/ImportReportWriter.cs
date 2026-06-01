@@ -163,7 +163,15 @@ internal static class ImportReportWriter
         sb.AppendLine();
         sb.AppendLine("## Build/Data Source Relationship");
         sb.AppendLine();
-        sb.AppendLine("- Build uses the generated Markdown draft under `content/` so `bukit build` and `--verify` do not require external credentials.");
+        if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine("- Build uses the Notion API (`provider: notion`). Ensure `NOTION_TOKEN` is set before running `bukit build` or `--verify`.");
+            sb.AppendLine("- Seed files in `notion-seed/` are for push only and do not serve as a build source.");
+        }
+        else
+        {
+            sb.AppendLine("- Build uses the generated Markdown draft under `content/` so `bukit build` and `--verify` do not require external credentials.");
+        }
         sb.AppendLine($"- `{options.ContentSource}` seed files are generated for review/import and are not treated as a live build provider in this step.");
 
         sb.AppendLine();

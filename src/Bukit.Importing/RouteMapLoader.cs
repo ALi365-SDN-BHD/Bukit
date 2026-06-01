@@ -1,3 +1,5 @@
+using YamlDotNet.RepresentationModel;
+
 namespace Bukit.Importing;
 
 internal static class RouteMapLoader
@@ -9,49 +11,70 @@ internal static class RouteMapLoader
 
         try
         {
-            var config = new RouteMapConfig();
-            var lines = File.ReadAllLines(path);
-            var inPagesBlock = false;
+            var yaml = new YamlStream();
+            using var reader = File.OpenText(path);
+            yaml.Load(reader);
 
-            for (var lineNo = 0; lineNo < lines.Length; lineNo++)
+            if (yaml.Documents.Count == 0 || yaml.Documents[0].RootNode == null)
             {
-                var trimmed = lines[lineNo].Trim();
-                if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith('#'))
+                Console.Error.WriteLine($"Route map '{path}' is empty.");
+                return null;
+            }
+
+            var root = yaml.Documents[0].RootNode;
+            YamlSequenceNode pagesSeq;
+
+            if (root is YamlMappingNode mapping)
+            {
+                if (!mapping.Children.TryGetValue("pages", out var pagesNode) ||
+                    pagesNode is not YamlSequenceNode seq)
+                {
+                    Console.Error.WriteLine($"Route map '{path}' is missing the 'pages' sequence.");
+                    return null;
+                }
+                pagesSeq = seq;
+            }
+            else if (root is YamlSequenceNode directSeq)
+            {
+                pagesSeq = directSeq;
+            }
+            else
+            {
+                Console.Error.WriteLine($"Route map '{path}' has unsupported structure.");
+                return null;
+            }
+
+            var config = new RouteMapConfig();
+            foreach (var node in pagesSeq.Children)
+            {
+                if (node is not YamlMappingNode item)
                     continue;
 
-                if (!inPagesBlock && trimmed == "pages:")
+                var page = new RouteMapPage
                 {
-                    inPagesBlock = true;
+                    Source      = ReadString(item, "source"),
+                    Route       = ReadString(item, "route"),
+                    Type        = ReadString(item, "type"),
+                    Template    = ReadString(item, "template"),
+                    Slug        = ReadOptionalString(item, "slug"),
+                    Description = ReadOptionalString(item, "description")
+                };
+
+                if (string.IsNullOrWhiteSpace(page.Source))
+                {
+                    Console.Error.WriteLine("Route map entry missing required 'source' field.");
                     continue;
                 }
 
-                if (trimmed.StartsWith("- source:"))
-                {
-                    inPagesBlock = true;
-                    config.Pages.Add(new RouteMapPage
-                    {
-                        Source = ExtractYamlValue(trimmed, "- source:")
-                    });
-                }
-                else if (config.Pages.Count > 0)
-                {
-                    var last = config.Pages[^1];
-                    if (trimmed.StartsWith("route:"))
-                        config.Pages[^1] = last with { Route = ExtractYamlValue(trimmed, "route:") };
-                    else if (trimmed.StartsWith("type:"))
-                        config.Pages[^1] = last with { Type = ExtractYamlValue(trimmed, "type:") };
-                    else if (trimmed.StartsWith("template:"))
-                        config.Pages[^1] = last with { Template = ExtractYamlValue(trimmed, "template:") };
-                    else if (trimmed.StartsWith("slug:"))
-                        config.Pages[^1] = last with { Slug = ExtractYamlValue(trimmed, "slug:") };
-                    else if (trimmed.StartsWith("description:"))
-                        config.Pages[^1] = last with { Description = ExtractYamlValue(trimmed, "description:") };
-                    else if (!trimmed.StartsWith("-"))
-                        Console.Error.WriteLine($"Route map line {lineNo + 1}: unknown field '{trimmed.Split(':')[0]}'");
-                }
+                config.Pages.Add(page);
             }
 
             return config;
+        }
+        catch (YamlDotNet.Core.YamlException ex)
+        {
+            Console.Error.WriteLine($"Failed to parse route map '{path}': {ex.Message}");
+            return null;
         }
         catch (Exception ex)
         {
@@ -60,13 +83,18 @@ internal static class RouteMapLoader
         }
     }
 
-    private static string ExtractYamlValue(string line, string prefix)
+    private static string ReadString(YamlMappingNode node, string key)
     {
-        var value = line[prefix.Length..].Trim();
-        if (value.StartsWith('"') && value.EndsWith('"'))
-            value = value[1..^1];
-        else if (value.StartsWith('\'') && value.EndsWith('\''))
-            value = value[1..^1];
-        return value;
+        if (!node.Children.TryGetValue(key, out var valueNode))
+            return "";
+        return ((YamlScalarNode)valueNode).Value ?? "";
+    }
+
+    private static string? ReadOptionalString(YamlMappingNode node, string key)
+    {
+        if (!node.Children.TryGetValue(key, out var valueNode))
+            return null;
+        var val = ((YamlScalarNode)valueNode).Value;
+        return string.IsNullOrWhiteSpace(val) ? null : val;
     }
 }
