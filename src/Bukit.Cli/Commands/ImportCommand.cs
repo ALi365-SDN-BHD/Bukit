@@ -268,7 +268,8 @@ public static class ImportCommand
             ["--database-id"] = databaseId,
             ["--token-env"] = tokenEnv,
             ["--mode"] = "upsert",
-            ["--unique-field"] = "Slug"
+            ["--unique-field"] = "Slug",
+            ["--update-content"] = "replace"
         };
         if (!string.IsNullOrWhiteSpace(reportPath))
             options["--report"] = Path.IsPathRooted(reportPath)

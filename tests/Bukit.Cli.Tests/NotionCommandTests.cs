@@ -171,6 +171,100 @@ public sealed class NotionCommandTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task Push_AppendFailed_MarksAppendFailed()
+    {
+        var seedDir = Path.Combine(_tempDir, "notion-seed");
+        Directory.CreateDirectory(seedDir);
+        var records = new List<ImportSeedRecord>
+        {
+            new("page", "Home", "home", null, "<p>Content</p>", "zh", true, null, null)
+        };
+
+        var blocksRequested = false;
+        var handler = new RecordingHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/query"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"results":[{"id":"page-1"}],"has_more":false}""")
+                };
+            if (req.Method == HttpMethod.Patch && req.RequestUri.AbsolutePath.Contains("/pages/"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"id":"page-1"}""")
+                };
+            if (req.Method == HttpMethod.Patch && req.RequestUri.AbsolutePath.Contains("/blocks/"))
+            {
+                blocksRequested = true;
+                return new HttpResponseMessage(HttpStatusCode.BadRequest);
+            }
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-1"}""")
+            };
+        });
+
+        var reportPath = Path.Combine(seedDir, "notion-push-report.json");
+        using var http = new HttpClient(handler);
+        var result = await NotionSeedPusher.PushAsync(http, records, new NotionPushOptions(
+            DatabaseId: "db123",
+            Token: "token",
+            ReportPath: reportPath,
+            DryRun: false,
+            Mode: "upsert",
+            UpdateContent: "append"));
+
+        Assert.True(blocksRequested, "Expected PATCH /blocks/{id}/children for append mode");
+        Assert.True(File.Exists(reportPath));
+        Assert.Contains("append-failed", File.ReadAllText(reportPath));
+    }
+
+    [Fact]
+    public async Task Push_ReplaceFailed_MarksReplaceFailed()
+    {
+        var seedDir = Path.Combine(_tempDir, "notion-seed");
+        Directory.CreateDirectory(seedDir);
+        var records = new List<ImportSeedRecord>
+        {
+            new("page", "Home", "home", null, "<p>Content</p>", "zh", true, null, null)
+        };
+
+        var blocksReadAttempted = false;
+        var handler = new RecordingHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/blocks/") &&
+                req.Method == HttpMethod.Get)
+            {
+                blocksReadAttempted = true;
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+            if (req.RequestUri.AbsolutePath.Contains("/query"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"results":[{"id":"page-1"}],"has_more":false}""")
+                };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-1"}""")
+            };
+        });
+
+        var reportPath = Path.Combine(seedDir, "notion-push-report.json");
+        using var http = new HttpClient(handler);
+        var result = await NotionSeedPusher.PushAsync(http, records, new NotionPushOptions(
+            DatabaseId: "db123",
+            Token: "token",
+            ReportPath: reportPath,
+            DryRun: false,
+            Mode: "upsert",
+            UpdateContent: "replace"));
+
+        Assert.True(blocksReadAttempted, "Expected GET /blocks/{id}/children for replace mode");
+        Assert.True(File.Exists(reportPath));
+        Assert.Contains("replace-failed", File.ReadAllText(reportPath));
+    }
+
     private static HttpRequestMessage CloneRequest(HttpRequestMessage request)
     {
         var clone = new HttpRequestMessage(request.Method, request.RequestUri);

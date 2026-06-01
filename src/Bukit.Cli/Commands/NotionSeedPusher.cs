@@ -77,9 +77,23 @@ internal static partial class NotionSeedPusher
                 {
                     if (options.UpdateContent == "replace")
                     {
-                        var existingBlockIds = await GetBlockChildrenIdsAsync(http, options, pageId!, cancellationToken);
+                        var (readSuccess, existingBlockIds) = await GetBlockChildrenIdsAsync(http, options, pageId!, cancellationToken);
+                        if (!readSuccess)
+                        {
+                            items.Add(new NotionPushItemResult(record, "replace-failed", false, pageId, "Failed to read existing block children."));
+                            continue;
+                        }
+                        var allDeleted = true;
                         foreach (var blockId in existingBlockIds)
-                            await DeleteBlockAsync(http, options, blockId, cancellationToken);
+                        {
+                            if (!await DeleteBlockAsync(http, options, blockId, cancellationToken))
+                                allDeleted = false;
+                        }
+                        if (!allDeleted)
+                        {
+                            items.Add(new NotionPushItemResult(record, "replace-failed", false, pageId, "Failed to delete one or more existing blocks."));
+                            continue;
+                        }
                     }
                     var blocksJson = HtmlToNotionBlockConverter.ToBlocksJson(record.Content);
                     if (blocksJson != "[]")
@@ -224,12 +238,13 @@ internal static partial class NotionSeedPusher
         return (false, string.IsNullOrWhiteSpace(errorBody) ? response.ReasonPhrase : errorBody);
     }
 
-    private static async Task<List<string>> GetBlockChildrenIdsAsync(
+    private static async Task<(bool Success, List<string> Ids)> GetBlockChildrenIdsAsync(
         HttpClient http, NotionPushOptions options, string pageId, CancellationToken ct)
     {
         var ids = new List<string>();
         string? startCursor = null;
         var hasMore = true;
+        var allSucceeded = true;
 
         while (hasMore)
         {
@@ -240,7 +255,11 @@ internal static partial class NotionSeedPusher
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             BuildCommonRequestHeaders(request, options.Token);
             using var response = await http.SendAsync(request, ct);
-            if (!response.IsSuccessStatusCode) return ids;
+            if (!response.IsSuccessStatusCode)
+            {
+                allSucceeded = false;
+                break;
+            }
 
             var body = await response.Content.ReadAsStringAsync(ct);
             using var doc = JsonDocument.Parse(body);
@@ -255,16 +274,17 @@ internal static partial class NotionSeedPusher
             startCursor = hasMore && doc.RootElement.TryGetProperty("next_cursor", out var nc)
                 ? nc.GetString() : null;
         }
-        return ids;
+        return (allSucceeded, ids);
     }
 
-    private static async Task DeleteBlockAsync(
+    private static async Task<bool> DeleteBlockAsync(
         HttpClient http, NotionPushOptions options, string blockId, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Delete,
             $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/blocks/{blockId}");
         BuildCommonRequestHeaders(request, options.Token);
-        await http.SendAsync(request, ct);
+        using var response = await http.SendAsync(request, ct);
+        return response.IsSuccessStatusCode;
     }
 
     private static NotionPushResult BuildResult(IReadOnlyList<NotionPushItemResult> items)
