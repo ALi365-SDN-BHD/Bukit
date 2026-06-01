@@ -32,7 +32,7 @@ internal static partial class AssetImporter
     internal static AssetImportResult Import(
         HtmlDemoImportOptions options, List<DiscoveredPage> pages)
     {
-        var themeDir = Path.Combine(options.RootDir, "themes", options.ThemeName);
+        var themeDir = HtmlDemoImporter.GetThemeDir(options);
         var count = 0;
         var warnings = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -114,9 +114,9 @@ internal static partial class AssetImporter
         return new AssetImportResult(count, warnings, mappings);
     }
 
-    internal static void TransferAssetsToStatic(string rootDir, string themeName)
+    internal static void TransferAssetsToStatic(HtmlDemoImportOptions options)
     {
-        var themeBase = Path.Combine(rootDir, "themes", themeName);
+        var themeBase = HtmlDemoImporter.GetThemeDir(options);
         var themeAssetsDir = Path.Combine(themeBase, "assets");
         var themeStaticDir = Path.Combine(themeBase, "static");
 

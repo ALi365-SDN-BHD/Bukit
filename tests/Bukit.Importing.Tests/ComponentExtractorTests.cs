@@ -143,6 +143,8 @@ public sealed class ComponentExtractorTests
         var card = components.First(c => c.Name == "article-card");
         Assert.Contains("{{ item.url }}", card.NormalizedTemplate);
         Assert.Contains("{{ item.title }}", card.NormalizedTemplate);
+        Assert.Contains("{{ item.summary }}", card.NormalizedTemplate);
+        Assert.DoesNotContain("Desc", card.NormalizedTemplate);
     }
 
     [Fact]

@@ -17,7 +17,7 @@ internal static partial class ThemeGenerator
         Dictionary<string, string> pathMappings,
         RouteMapConfig? routeMap = null)
     {
-        var themeDir = Path.Combine(options.RootDir, "themes", options.ThemeName);
+        var themeDir = HtmlDemoImporter.GetThemeDir(options);
 
         Directory.CreateDirectory(Path.Combine(themeDir, "layouts", "layouts"));
         Directory.CreateDirectory(Path.Combine(themeDir, "layouts", "pages"));

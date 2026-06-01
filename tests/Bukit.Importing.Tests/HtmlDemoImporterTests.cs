@@ -672,6 +672,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
         Assert.Contains("Markdown draft", report);
         Assert.Contains("Hardcoded Content Residue", report);
         Assert.Contains("Extraction Coverage", report);
+        Assert.Contains("Link Validation", report);
+        Assert.Contains("Visual Verification", report);
     }
 
     [Fact]
@@ -838,5 +840,148 @@ pages:
 
         var insightPage = result.ReportPages.First(p => p.Template.Contains("insights"));
         Assert.Contains("/insights/{slug}/", insightPage.Route);
+    }
+
+    [Fact]
+    public void Import_AbsoluteSitePath_GeneratesBuildableMarkdownDir()
+    {
+        var rootDir = Path.Combine(_tempDir, "root");
+        var demoDir = Path.Combine(rootDir, "demo");
+        var siteDir = Path.Combine(_tempDir, "external-site");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Test</title></head><body><main><h1>Hello</h1><p>Intro.</p></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = demoDir,
+            ThemeName = "absolute-site-test",
+            RootDir = rootDir,
+            SitePath = siteDir,
+            Force = true,
+            ContentSource = "json"
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var yaml = File.ReadAllText(Path.Combine(siteDir, "site.yaml"));
+        Assert.Contains("provider: markdown", yaml);
+        Assert.Contains("dir: content", yaml.Replace('\\', '/'));
+        Assert.DoesNotContain("..", yaml);
+        Assert.True(File.Exists(Path.Combine(siteDir, "themes", "absolute-site-test", "layouts", "pages", "index.html")));
+        Assert.False(Directory.Exists(Path.Combine(rootDir, "themes", "absolute-site-test")));
+    }
+
+    [Fact]
+    public void Import_SensitiveNestedDirectory_ThrowsBeforePreservingHtml()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Test</title></head><body><main><h1>Hello</h1></main></body></html>");
+        var gitDir = Path.Combine(_tempDir, "nested", ".git");
+        Directory.CreateDirectory(gitDir);
+        File.WriteAllText(Path.Combine(gitDir, "HEAD"), "ref: refs/heads/main");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "sensitive-dir-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
+        Assert.Contains("敏感", ex.Message);
+        Assert.False(File.Exists(Path.Combine(_tempDir, "sites", "sensitive-dir-test", "original-demo", "nested", ".git", "HEAD")));
+    }
+
+    [Fact]
+    public void Import_ListTemplate_ReplacesCardGroupWithSingleLoop()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "insights.html"),
+            """
+            <html><head><title>Insights</title></head><body><main>
+              <h1>Insights</h1>
+              <section class="article-grid">
+                <article class="article-card"><h3>A</h3><p>Summary A.</p><a href="a.html">Read</a></article>
+                <article class="article-card"><h3>B</h3><p>Summary B.</p><a href="b.html">Read</a></article>
+                <article class="article-card"><h3>C</h3><p>Summary C.</p><a href="c.html">Read</a></article>
+              </section>
+            </main></body></html>
+            """);
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "single-loop-test",
+            RootDir = _tempDir,
+            Force = true,
+            ContentSource = "json"
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var template = File.ReadAllText(Path.Combine(_tempDir, "themes", "single-loop-test", "layouts", "pages", "insights.html"));
+        Assert.Equal(1, CountOccurrences(template, "{{ for item in pages }}"));
+        Assert.DoesNotContain("Summary A.", template);
+        Assert.DoesNotContain("Summary B.", template);
+        Assert.DoesNotContain("Summary C.", template);
+    }
+
+    [Fact]
+    public void Import_WithContentSourceNotion_StillBuildsFromMarkdownDraftByDefault()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Notion Test</title></head><body><main><h1>Hello</h1><p>Intro.</p></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "notion-review-test",
+            RootDir = _tempDir,
+            Force = true,
+            ContentSource = "notion"
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        Assert.True(Directory.Exists(Path.Combine(_tempDir, "sites", "notion-review-test", "content")));
+        Assert.True(Directory.Exists(Path.Combine(_tempDir, "sites", "notion-review-test", "notion-seed")));
+
+        var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-review-test", "site.yaml"));
+        Assert.Contains("provider: markdown", siteYaml);
+        Assert.DoesNotContain("provider: notion", siteYaml);
+    }
+
+    [Fact]
+    public void Import_Strict_InvalidInternalLink_Throws()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1><a href=\"missing.html\">Missing</a></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "bad-link-test",
+            RootDir = _tempDir,
+            Force = true,
+            Strict = true
+        };
+
+        var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
+        Assert.Contains("INVALID_INTERNAL_LINK", ex.Message);
+    }
+
+    private static int CountOccurrences(string text, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+        return count;
     }
 }

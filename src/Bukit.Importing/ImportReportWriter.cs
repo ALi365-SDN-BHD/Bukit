@@ -163,7 +163,8 @@ internal static class ImportReportWriter
         sb.AppendLine();
         sb.AppendLine("## Build/Data Source Relationship");
         sb.AppendLine();
-        if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
+        if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
+            options.NoMarkdownDraft)
         {
             sb.AppendLine("- Build uses the Notion API (`provider: notion`). Ensure `NOTION_TOKEN` is set before running `bukit build` or `--verify`.");
             sb.AppendLine("- Seed files in `notion-seed/` are for push only and do not serve as a build source.");
@@ -215,19 +216,47 @@ internal static class ImportReportWriter
         sb.AppendLine("|---|---:|---:|");
         sb.AppendLine($"| Pages | {result.RecordsExtracted} | — |");
 
+        sb.AppendLine();
+        sb.AppendLine("## Link Validation");
+        sb.AppendLine();
+        var linkDiagnostics = diagnostics
+            .Where(d => d.Code is "INVALID_INTERNAL_LINK" or "DANGEROUS_PROTOCOL" or "EXTERNAL_SCRIPT" or "EXTERNAL_FORM_ACTION")
+            .ToList();
+        if (linkDiagnostics.Count == 0)
+        {
+            sb.AppendLine("- No broken internal HTML links or dangerous URL protocols detected during import analysis.");
+        }
+        else
+        {
+            foreach (var d in linkDiagnostics)
+                sb.AppendLine($"- [{d.Severity}] {d.Code}: {d.Message}");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("## Visual Verification");
+        sb.AppendLine();
+        sb.AppendLine("- `--verify` runs `bukit doctor` and `bukit build` against the generated site config.");
+        sb.AppendLine("- Before publishing, compare the generated preview against the original demo at desktop/tablet/mobile breakpoints.");
+        sb.AppendLine("- Treat visual parity as pending until screenshots or browser review confirm layout, navigation, CTA, and responsive behavior.");
+
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine();
-            sb.AppendLine("- Notion push seed files are in `notion-seed/`. Run `bukit notion validate-schema` then `bukit notion push --mode upsert` to sync.");
+            sb.AppendLine("- Notion push seed files are in `notion-seed/`. Run `bukit notion push --dry-run` then `bukit notion push --mode upsert` to sync.");
             sb.AppendLine();
             sb.AppendLine("## Notion Provider Status");
             sb.AppendLine();
             var dbStatus = string.IsNullOrWhiteSpace(options.NotionDatabaseId)
                 ? "${NOTION_DATABASE_ID} (environment variable)"
                 : options.NotionDatabaseId;
-            sb.AppendLine($"- provider: notion ✓");
+            var providerStatus = options.NoMarkdownDraft
+                ? "provider: notion"
+                : "provider: markdown (Notion seed review mode)";
+            sb.AppendLine($"- {providerStatus}");
             sb.AppendLine($"- databaseId: {dbStatus}");
-            sb.AppendLine("- bukit build requires valid NOTION_TOKEN environment variable");
+            sb.AppendLine(options.NoMarkdownDraft
+                ? "- bukit build requires valid NOTION_TOKEN environment variable"
+                : "- bukit build uses local Markdown and does not require NOTION_TOKEN until seed push");
         }
 
         sb.AppendLine();

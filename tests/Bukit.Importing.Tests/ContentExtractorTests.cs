@@ -181,6 +181,31 @@ public sealed class ContentExtractorTests
     }
 
     [Fact]
+    public void Extract_HomePageSection_ExtractsSubheadingAndButton()
+    {
+        var pages = new List<DiscoveredPage>
+        {
+            MakePage("""
+                <main>
+                  <section class="hero">
+                    <h1>Connect Markets</h1>
+                    <p>Cross-border services and verified directory.</p>
+                    <a href="/companies/">Browse Companies</a>
+                  </section>
+                </main>
+                """, "", PageType.Home)
+        };
+
+        var content = ContentExtractor.Extract(pages);
+
+        var hero = Assert.Single(content.Sections);
+        Assert.Equal("Connect Markets", hero.Heading);
+        Assert.Equal("Cross-border services and verified directory.", hero.Subheading);
+        Assert.Equal("Browse Companies", hero.ButtonText);
+        Assert.Equal("/companies/", hero.ButtonUrl);
+    }
+
+    [Fact]
     public void Extract_EmptyInput_ReturnsEmptyContent()
     {
         var pages = new List<DiscoveredPage>

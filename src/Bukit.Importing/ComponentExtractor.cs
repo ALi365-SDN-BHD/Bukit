@@ -156,7 +156,7 @@ internal static partial class ComponentExtractor
         {
             if (!ListComponentNames.Contains(componentName))
                 return $"<p>{{{{ section.content }}}}</p>";
-            return m.Value;
+            return "<p>{{ item.summary }}</p>";
         });
 
         if (ListComponentNames.Contains(componentName))

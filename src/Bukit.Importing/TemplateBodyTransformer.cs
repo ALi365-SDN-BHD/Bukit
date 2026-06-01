@@ -120,20 +120,34 @@ internal static partial class TemplateBodyTransformer
             if (!ContainsClass(result, className)) continue;
 
             var componentName = className == "card" ? "card" : className;
-            result = ReplaceElementsByClass(result, className, match =>
-            {
-                var tag = match.Groups["tag"].Value;
-                var attrs = match.Groups["attrs"].Value;
-                return "{{ for item in pages }}" + Environment.NewLine +
-                       "<" + tag + attrs + ">" + Environment.NewLine +
-                       "  {{ include 'components/" + componentName + ".html' }}" + Environment.NewLine +
-                       "</" + tag + ">" + Environment.NewLine +
-                       "{{ end }}";
-            });
+            result = ReplaceCardGroupWithLoop(result, className, componentName);
             break;
         }
 
         return result;
+    }
+
+    private static string ReplaceCardGroupWithLoop(string html, string className, string componentName)
+    {
+        var matches = Regex.Matches(
+            html,
+            ElementWithClassPattern(className),
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        if (matches.Count == 0) return html;
+
+        var first = matches[0];
+        var last = matches[^1];
+        var tag = first.Groups["tag"].Value;
+        var attrs = first.Groups["attrs"].Value;
+        var loop = "{{ for item in pages }}" + Environment.NewLine +
+                   "<" + tag + attrs + ">" + Environment.NewLine +
+                   "  {{ include 'components/" + componentName + ".html' }}" + Environment.NewLine +
+                   "</" + tag + ">" + Environment.NewLine +
+                   "{{ end }}";
+
+        var start = first.Index;
+        var end = last.Index + last.Length;
+        return html[..start] + loop + html[end..];
     }
 
     private static bool HasRecognizedSectionComponent(string html)

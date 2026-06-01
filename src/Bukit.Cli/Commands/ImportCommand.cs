@@ -109,11 +109,6 @@ public static class ImportCommand
             return 2;
         }
 
-        if (contentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) && !noMarkdownDraftExplicit)
-        {
-            noMarkdownDraft = true;
-        }
-
         if (!string.IsNullOrWhiteSpace(sitePath) && !Path.IsPathRooted(sitePath))
             sitePath = Path.GetFullPath(Path.Combine(rootDir, sitePath));
 

@@ -393,6 +393,31 @@ public sealed class ImportCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task ContentSourceNotion_DefaultsToBuildableMarkdownWithNotionSeed()
+    {
+        var demoDir = Path.Combine(_tempDir, "notion-default-demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1><p>Welcome.</p></main></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "notion-default-test";
+        opts["--force"] = "true";
+        opts["--verify"] = "true";
+        opts["--content-source"] = "notion";
+
+        var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+
+        Assert.Equal(0, result);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "notion-default-test", "content", "index.md")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "notion-default-test", "notion-seed", "pages.json")));
+        var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-default-test", "site.yaml"));
+        Assert.Contains("provider: markdown", siteYaml);
+        Assert.DoesNotContain("provider: notion", siteYaml);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "dist", "index.html")));
+    }
+
+    [Fact]
     public async Task Verify_ListPages_DoNotConflictWithCollectionListRoutes()
     {
         var demoDir = Path.Combine(_tempDir, "list-demo");
