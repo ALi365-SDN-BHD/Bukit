@@ -29,19 +29,19 @@ public static class ThemeCommand
     {
         return new CommandDescriptor[]
         {
-            new(BukitCliSpecs.ThemeCreateSpec, CreateAsync),
-            new(BukitCliSpecs.ThemeListSpec, ListAsync),
-            new(BukitCliSpecs.ThemeUseSpec, UseAsync),
-            new(BukitCliSpecs.ThemeInfoSpec, InfoAsync),
-            new(BukitCliSpecs.ThemeParamsSpec, ParamsAsync),
-            new(BukitCliSpecs.ThemePreviewSpec, PreviewAsync),
-            new(BukitCliSpecs.ThemeWizardSpec, ThemeWizardCommand.RunAsync),
-            new(BukitCliSpecs.ThemePackSpec, ThemePackCommand.RunAsync),
-            new(BukitCliSpecs.ThemeInstallSpec, ThemeInstallCommand.RunAsync),
-            new(BukitCliSpecs.ThemeSearchSpec, ThemeRegistryCommand.SearchAsync),
-            new(BukitCliSpecs.ThemeDoctorSpec, DoctorAsync),
-            new(BukitCliSpecs.ThemeListComponentsSpec, ListComponentsAsync),
-            new(BukitCliSpecs.ThemeExportCatalogSpec, ExportCatalogAsync),
+            new(BukitCliThemeSpecs.ThemeCreateSpec, CreateAsync),
+            new(BukitCliThemeSpecs.ThemeListSpec, ListAsync),
+            new(BukitCliThemeSpecs.ThemeUseSpec, UseAsync),
+            new(BukitCliThemeSpecs.ThemeInfoSpec, InfoAsync),
+            new(BukitCliThemeSpecs.ThemeParamsSpec, ParamsAsync),
+            new(BukitCliThemeSpecs.ThemePreviewSpec, PreviewAsync),
+            new(BukitCliThemeSpecs.ThemeWizardSpec, ThemeWizardCommand.RunAsync),
+            new(BukitCliThemeSpecs.ThemePackSpec, ThemePackCommand.RunAsync),
+            new(BukitCliThemeSpecs.ThemeInstallSpec, ThemeInstallCommand.RunAsync),
+            new(BukitCliThemeSpecs.ThemeSearchSpec, ThemeRegistryCommand.SearchAsync),
+            new(BukitCliThemeSpecs.ThemeDoctorSpec, DoctorAsync),
+            new(BukitCliThemeSpecs.ThemeListComponentsSpec, ListComponentsAsync),
+            new(BukitCliThemeSpecs.ThemeExportCatalogSpec, ExportCatalogAsync),
         };
     }
 

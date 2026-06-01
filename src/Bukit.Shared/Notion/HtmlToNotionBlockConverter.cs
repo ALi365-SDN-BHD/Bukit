@@ -2,37 +2,6 @@ using System.Text;
 using System.Text.Json;
 
 namespace Bukit.Shared.Notion;
-
-public abstract record NotionBlock;
-
-public sealed record Heading1Block(string Text) : NotionBlock;
-public sealed record Heading2Block(string Text) : NotionBlock;
-public sealed record Heading3Block(string Text) : NotionBlock;
-public sealed record ParagraphBlock(List<RichTextSegment> Segments) : NotionBlock
-{
-    public ParagraphBlock(string text) : this([new RichTextSegment(text)]) { }
-}
-public sealed record BulletedListItemBlock(List<RichTextSegment> Segments) : NotionBlock
-{
-    public BulletedListItemBlock(string text) : this([new RichTextSegment(text)]) { }
-}
-public sealed record NumberedListItemBlock(List<RichTextSegment> Segments) : NotionBlock
-{
-    public NumberedListItemBlock(string text) : this([new RichTextSegment(text)]) { }
-}
-public sealed record QuoteBlock(List<RichTextSegment> Segments) : NotionBlock
-{
-    public QuoteBlock(string text) : this([new RichTextSegment(text)]) { }
-}
-public sealed record ImageBlock(string Url, string? Caption = null) : NotionBlock;
-public sealed record ToggleBlock(string Heading, List<NotionBlock> Children) : NotionBlock;
-
-public sealed record RichTextSegment(
-    string Text,
-    bool Bold = false,
-    bool Italic = false,
-    string? LinkUrl = null);
-
 public static class HtmlToNotionBlockConverter
 {
     public static string ToBlocksJson(string html)
@@ -46,7 +15,7 @@ public static class HtmlToNotionBlockConverter
         if (string.IsNullOrWhiteSpace(html))
             return [];
 
-        var tokens = Tokenize(html);
+        var tokens = HtmlTokenizer.Tokenize(html);
         var (blocks, _) = ParseBlocks(tokens, 0);
         return blocks;
     }
@@ -198,89 +167,6 @@ public static class HtmlToNotionBlockConverter
         writer.WriteEndObject();
     }
 
-    private enum HtmlTokenType
-    {
-        OpenTag, CloseTag, SelfClosingTag, Text
-    }
-
-    private sealed class HtmlToken
-    {
-        public HtmlTokenType Type { get; init; }
-        public string TagName { get; init; } = "";
-        public string Attributes { get; init; } = "";
-        public string TextContent { get; init; } = "";
-    }
-
-    private static List<HtmlToken> Tokenize(string html)
-    {
-        var tokens = new List<HtmlToken>();
-        var i = 0;
-
-        while (i < html.Length)
-        {
-            if (html[i] == '<')
-            {
-                var tagEnd = html.IndexOf('>', i);
-                if (tagEnd < 0) break;
-
-                var tagContent = html[(i + 1)..tagEnd];
-                i = tagEnd + 1;
-
-                if (tagContent.StartsWith('/'))
-                {
-                    tokens.Add(new HtmlToken
-                    {
-                        Type = HtmlTokenType.CloseTag,
-                        TagName = ExtractTagName(tagContent[1..])
-                    });
-                }
-                else if (tagContent.EndsWith('/'))
-                {
-                    tokens.Add(new HtmlToken
-                    {
-                        Type = HtmlTokenType.SelfClosingTag,
-                        TagName = ExtractTagName(tagContent[..^1])
-                    });
-                }
-                else
-                {
-                    tokens.Add(new HtmlToken
-                    {
-                        Type = HtmlTokenType.OpenTag,
-                        TagName = ExtractTagName(tagContent),
-                        Attributes = tagContent
-                    });
-                }
-            }
-            else
-            {
-                var nextTag = html.IndexOf('<', i);
-                var textEnd = nextTag >= 0 ? nextTag : html.Length;
-                var text = html[i..textEnd];
-                i = textEnd;
-
-                var trimmed = DecodeHtmlEntities(text.Trim());
-                if (!string.IsNullOrWhiteSpace(trimmed))
-                {
-                    tokens.Add(new HtmlToken
-                    {
-                        Type = HtmlTokenType.Text,
-                        TextContent = trimmed
-                    });
-                }
-            }
-        }
-
-        return tokens;
-    }
-
-    private static string ExtractTagName(string tagContent)
-    {
-        var space = tagContent.IndexOf(' ');
-        var name = space >= 0 ? tagContent[..space] : tagContent;
-        return name.Trim().ToLowerInvariant();
-    }
-
     private static string? GetAttribute(string attrs, string attrName)
     {
         var lower = attrs.ToLowerInvariant();
@@ -319,22 +205,11 @@ public static class HtmlToNotionBlockConverter
             if (ch == '>') { inTag = false; continue; }
             if (!inTag) result.Append(ch);
         }
-        return DecodeHtmlEntities(result.ToString().Trim());
-    }
-
-    private static string DecodeHtmlEntities(string text)
-    {
-        return text
-            .Replace("&amp;", "&")
-            .Replace("&lt;", "<")
-            .Replace("&gt;", ">")
-            .Replace("&quot;", "\"")
-            .Replace("&#39;", "'")
-            .Replace("&nbsp;", " ");
+        return HtmlTokenizer.DecodeHtmlEntities(result.ToString().Trim());
     }
 
     private static (List<NotionBlock> Blocks, int NextIndex) ParseBlocks(
-        List<HtmlToken> tokens, int startIndex)
+        List<HtmlTokenizer.HtmlToken> tokens, int startIndex)
     {
         var blocks = new List<NotionBlock>();
         var i = startIndex;
@@ -343,19 +218,19 @@ public static class HtmlToNotionBlockConverter
         {
             var token = tokens[i];
 
-            if (token.Type == HtmlTokenType.CloseTag)
+            if (token.Type == HtmlTokenizer.HtmlTokenType.CloseTag)
             {
                 return (blocks, i + 1);
             }
 
-            if (token.Type == HtmlTokenType.Text)
+            if (token.Type == HtmlTokenizer.HtmlTokenType.Text)
             {
                 blocks.Add(new ParagraphBlock(token.TextContent));
                 i++;
                 continue;
             }
 
-            if (token.Type == HtmlTokenType.SelfClosingTag)
+            if (token.Type == HtmlTokenizer.HtmlTokenType.SelfClosingTag)
             {
                 if (token.TagName == "img")
                 {
@@ -368,7 +243,7 @@ public static class HtmlToNotionBlockConverter
                 continue;
             }
 
-            if (token.Type == HtmlTokenType.OpenTag)
+            if (token.Type == HtmlTokenizer.HtmlTokenType.OpenTag)
             {
                 var tagName = token.TagName;
                 var attrs = token.Attributes;
@@ -419,13 +294,13 @@ public static class HtmlToNotionBlockConverter
                     i++;
                     while (i < tokens.Count)
                     {
-                        if (tokens[i].Type == HtmlTokenType.CloseTag &&
+                        if (tokens[i].Type == HtmlTokenizer.HtmlTokenType.CloseTag &&
                             tokens[i].TagName == tagName)
                         {
                             i++;
                             break;
                         }
-                        if (tokens[i].Type == HtmlTokenType.OpenTag &&
+                        if (tokens[i].Type == HtmlTokenizer.HtmlTokenType.OpenTag &&
                             tokens[i].TagName == "li")
                         {
                             i++;
@@ -514,29 +389,29 @@ public static class HtmlToNotionBlockConverter
     }
 
     private static string CollectTextUntilClose(
-        List<HtmlToken> tokens, ref int i, string closeTag)
+        List<HtmlTokenizer.HtmlToken> tokens, ref int i, string closeTag)
     {
         var sb = new StringBuilder();
         while (i < tokens.Count)
         {
             var t = tokens[i];
-            if (t.Type == HtmlTokenType.CloseTag && t.TagName == closeTag)
+            if (t.Type == HtmlTokenizer.HtmlTokenType.CloseTag && t.TagName == closeTag)
             {
                 i++;
                 break;
             }
-            if (t.Type == HtmlTokenType.Text)
+            if (t.Type == HtmlTokenizer.HtmlTokenType.Text)
             {
                 sb.Append(t.TextContent);
                 sb.Append(' ');
             }
-            if (t.Type == HtmlTokenType.OpenTag && t.TagName == "img")
+            if (t.Type == HtmlTokenizer.HtmlTokenType.OpenTag && t.TagName == "img")
             {
                 var alt = GetAttribute(t.Attributes, "alt");
                 if (!string.IsNullOrWhiteSpace(alt))
                     sb.Append($"[Image: {alt}] ");
             }
-            if (t.Type == HtmlTokenType.OpenTag && t.TagName == "br")
+            if (t.Type == HtmlTokenizer.HtmlTokenType.OpenTag && t.TagName == "br")
             {
                 sb.AppendLine();
             }
@@ -546,20 +421,20 @@ public static class HtmlToNotionBlockConverter
     }
 
     private static List<RichTextSegment> CollectRichText(
-        List<HtmlToken> tokens, ref int i, string closeTag)
+        List<HtmlTokenizer.HtmlToken> tokens, ref int i, string closeTag)
     {
         var segments = new List<RichTextSegment>();
 
         while (i < tokens.Count)
         {
             var t = tokens[i];
-            if (t.Type == HtmlTokenType.CloseTag && t.TagName == closeTag)
+            if (t.Type == HtmlTokenizer.HtmlTokenType.CloseTag && t.TagName == closeTag)
             {
                 i++;
                 break;
             }
 
-            if (t.Type == HtmlTokenType.OpenTag && t.TagName == "a")
+            if (t.Type == HtmlTokenizer.HtmlTokenType.OpenTag && t.TagName == "a")
             {
                 var href = GetAttribute(t.Attributes, "href");
                 i++;
@@ -567,7 +442,7 @@ public static class HtmlToNotionBlockConverter
                 if (!string.IsNullOrWhiteSpace(linkText))
                     segments.Add(new RichTextSegment(linkText, LinkUrl: href));
             }
-            else if (t.Type == HtmlTokenType.OpenTag &&
+            else if (t.Type == HtmlTokenizer.HtmlTokenType.OpenTag &&
                      (t.TagName == "strong" || t.TagName == "b"))
             {
                 i++;
@@ -575,7 +450,7 @@ public static class HtmlToNotionBlockConverter
                 if (!string.IsNullOrWhiteSpace(text))
                     segments.Add(new RichTextSegment(text, Bold: true));
             }
-            else if (t.Type == HtmlTokenType.OpenTag &&
+            else if (t.Type == HtmlTokenizer.HtmlTokenType.OpenTag &&
                      (t.TagName == "em" || t.TagName == "i"))
             {
                 i++;
@@ -583,7 +458,7 @@ public static class HtmlToNotionBlockConverter
                 if (!string.IsNullOrWhiteSpace(text))
                     segments.Add(new RichTextSegment(text, Italic: true));
             }
-            else if (t.Type == HtmlTokenType.OpenTag &&
+            else if (t.Type == HtmlTokenizer.HtmlTokenType.OpenTag &&
                      IsHeadingTag(t.TagName))
             {
                 i++;
@@ -591,7 +466,7 @@ public static class HtmlToNotionBlockConverter
                 if (!string.IsNullOrWhiteSpace(text))
                     segments.Add(new RichTextSegment(text, Bold: true));
             }
-            else if (t.Type == HtmlTokenType.Text)
+            else if (t.Type == HtmlTokenizer.HtmlTokenType.Text)
             {
                 segments.Add(new RichTextSegment(t.TextContent));
                 i++;
@@ -610,7 +485,7 @@ public static class HtmlToNotionBlockConverter
         string? Question);
 
     private static FaqParseResult CollectFaqBlocks(
-        List<HtmlToken> tokens, ref int i)
+        List<HtmlTokenizer.HtmlToken> tokens, ref int i)
     {
         string? question = null;
         string? answer = null;
@@ -618,19 +493,19 @@ public static class HtmlToNotionBlockConverter
         while (i < tokens.Count)
         {
             var t = tokens[i];
-            if (t.Type == HtmlTokenType.CloseTag &&
+            if (t.Type == HtmlTokenizer.HtmlTokenType.CloseTag &&
                 (t.TagName == "div" || t.TagName == "p" || t.TagName == "section"))
             {
                 break;
             }
 
-            if (t.Type == HtmlTokenType.OpenTag &&
+            if (t.Type == HtmlTokenizer.HtmlTokenType.OpenTag &&
                 (t.TagName == "h3" || t.TagName == "h4"))
             {
                 i++;
                 question = CollectTextUntilClose(tokens, ref i, t.TagName);
             }
-            else if (t.Type == HtmlTokenType.OpenTag && t.TagName == "p")
+            else if (t.Type == HtmlTokenizer.HtmlTokenType.OpenTag && t.TagName == "p")
             {
                 i++;
                 var text = CollectTextUntilClose(tokens, ref i, "p");

@@ -14,8 +14,8 @@ if (command is null || command is "help" or "--help" or "-h")
 
 try
 {
-    var descriptors = BukitCliSpecs.CreateDescriptors();
-    var descriptor = BukitCliSpecs.ResolveDescriptor(descriptors, command);
+    var descriptors = BukitCliDescriptors.CreateDescriptors();
+    var descriptor = BukitCliDescriptors.ResolveDescriptor(descriptors, command);
 
     if (descriptor is not null)
     {

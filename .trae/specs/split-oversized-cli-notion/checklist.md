@@ -1,0 +1,11 @@
+- [x] `src/Bukit.Cli/Cli/BukitCliThemeSpecs.cs` exists and contains all 13 theme spec fields
+- [x] `BukitCliSpecs.cs` references theme specs via `BukitCliThemeSpecs.*` qualifier
+- [x] `BukitCliSpecs.cs` is fewer than 600 lines (580 lines)
+- [x] `src/Bukit.Shared/Notion/NotionBlockTypes.cs` exists and contains `NotionBlock`, its 9 subtypes, and `RichTextSegment`
+- [x] `HtmlToNotionBlockConverter.cs` no longer contains domain record type declarations
+- [x] `src/Bukit.Shared/Notion/HtmlTokenizer.cs` exists and contains `HtmlTokenType`, `HtmlToken`, `Tokenize()`, and `ExtractTagName()`
+- [x] `HtmlToNotionBlockConverter.cs` references tokenizer types via `HtmlTokenizer.*` qualifier
+- [x] `HtmlToNotionBlockConverter.cs` is fewer than 600 lines (532 lines)
+- [x] `dotnet build bukit.slnx -c Release` succeeds
+- [x] `dotnet test bukit.slnx -c Release` passes all tests (0 failures, 3292 total)
+- [x] `bash scripts/quality-gate.sh Release` passes the oversized file check (no ERROR about oversized .cs files)
