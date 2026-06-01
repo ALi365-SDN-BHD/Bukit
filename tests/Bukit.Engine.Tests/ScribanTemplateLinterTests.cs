@@ -29,6 +29,20 @@ public sealed class ScribanTemplateLinterTests : IDisposable
     }
 
     [Fact]
+    public void Lint_Directory_BaseUrlLocalVariable_ReturnsNoWarnings()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "page.html"), """
+            {{ base_url = site.base_url }}
+            {{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+            <link rel="stylesheet" href="{{ base_url }}/assets/style.css" />
+            """);
+
+        var warnings = ScribanTemplateLinter.LintDirectory(_tempDir, "page.html");
+
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
     public void Lint_Directory_UnknownVariable_ReturnsWarning()
     {
         File.WriteAllText(Path.Combine(_tempDir, "page.html"), "{{ page.mispelled_field }}");

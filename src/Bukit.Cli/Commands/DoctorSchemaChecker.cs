@@ -144,7 +144,7 @@ internal static class DoctorSchemaChecker
 
         var reservedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "title", "slug", "type", "publishat", "language", "tags", "categories",
+            "title", "slug", "type", "collection", "publishat", "published", "language", "tags", "categories",
             "summary", "route", "url", "outputpath", "template", "source", "sourcepath",
             "bodyfingerprint", "draft"
         };

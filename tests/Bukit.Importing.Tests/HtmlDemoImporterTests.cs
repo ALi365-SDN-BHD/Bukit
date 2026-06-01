@@ -65,6 +65,35 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_BaseLayout_UsesKnownSeoFieldsAndBaseUrlForAssets()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, "assets", "css"));
+        File.WriteAllText(Path.Combine(_tempDir, "assets", "css", "style.css"), "body{}");
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Test</title><link rel=\"stylesheet\" href=\"assets/css/style.css\"></head><body><main><h1>Hello</h1></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "base-layout-fields",
+            RootDir = _tempDir
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var layoutPath = Path.Combine(_tempDir, "themes", "base-layout-fields", "layouts", "layouts", "base.html");
+        var content = File.ReadAllText(layoutPath);
+        Assert.Contains("{{ page.fields.seo_title.value }}", content);
+        Assert.Contains("{{ page.fields.seo_desc.value }}", content);
+        Assert.Contains("base_url = site.base_url", content);
+        Assert.Contains("if base_url == \"/\"", content);
+        Assert.Contains("href=\"{{ base_url }}/assets/css/style.css\"", content);
+        Assert.DoesNotContain("page.seo_title", content);
+        Assert.DoesNotContain("page.seo_description", content);
+        Assert.DoesNotContain("href=\"/assets/css/style.css\"", content);
+    }
+
+    [Fact]
     public void Import_MissingIndexHtml_Throws()
     {
         File.WriteAllText(Path.Combine(_tempDir, "about.html"),
@@ -156,6 +185,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "test-theme", "site.yaml")));
         var yaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "test-theme", "site.yaml"));
         Assert.Contains("test-theme", yaml);
+        Assert.Contains("url: https://example.com", yaml);
         Assert.Contains("provider: markdown", yaml);
         Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "test-theme", "content", "index.md")));
     }
@@ -379,6 +409,27 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_HtmlLinks_AreNotCopiedAsStaticAssets()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1><a href=\"about.html\">About</a></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "html-link-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        Assert.False(File.Exists(Path.Combine(_tempDir, "themes", "html-link-test", "static", "about.html")));
+    }
+
+    [Fact]
     public void Import_ComponentTemplates_UseValidHeadingTags()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
@@ -443,5 +494,72 @@ public sealed class HtmlDemoImporterTests : IDisposable
         Assert.Contains("{{ page.content }}", pageTemplate);
         Assert.DoesNotContain("About body.", pageTemplate);
         Assert.Contains("About body.", aboutDraft);
+    }
+
+    [Fact]
+    public void Import_ListTemplates_UseCurrentPageTitleContext()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "insights.html"),
+            "<html><head><title>Insights</title></head><body><main><h1>Insights</h1><article class=\"article-card\"><h3>Guide</h3><p>Summary.</p></article></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "companies.html"),
+            "<html><head><title>Companies</title></head><body><main><h1>Companies</h1><article class=\"company-card\"><h3>ACME</h3><p>Summary.</p></article></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "list-title-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var pagesDir = Path.Combine(_tempDir, "themes", "list-title-test", "layouts", "pages");
+        var insightsTemplate = File.ReadAllText(Path.Combine(pagesDir, "insights.html"));
+        var companiesTemplate = File.ReadAllText(Path.Combine(pagesDir, "companies.html"));
+
+        Assert.Contains("<h1>{{ this.title }}</h1>", insightsTemplate);
+        Assert.Contains("<h1>{{ this.title }}</h1>", companiesTemplate);
+        Assert.DoesNotContain("<h1>{{ page.title }}</h1>", insightsTemplate);
+        Assert.DoesNotContain("<h1>{{ page.title }}</h1>", companiesTemplate);
+    }
+
+    [Fact]
+    public void Import_ContentDrafts_IncludeCollectionFrontMatter()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1><p>Intro.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1><p>About.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "article-detail.html"),
+            "<html><head><title>Article</title></head><body><main><h1>Article</h1><p>Article.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "company-detail.html"),
+            "<html><head><title>Company</title></head><body><main><h1>Company</h1><p>Company.</p></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "collection-fm-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var contentDir = Path.Combine(_tempDir, "sites", "collection-fm-test", "content");
+        var index = File.ReadAllText(Path.Combine(contentDir, "index.md"));
+        var about = File.ReadAllText(Path.Combine(contentDir, "pages", "about.md"));
+        var post = File.ReadAllText(Path.Combine(contentDir, "posts", "article-detail.md"));
+        var company = File.ReadAllText(Path.Combine(contentDir, "companies", "company-detail.md"));
+        Assert.Contains("collection: \"page\"", index);
+        Assert.Contains("collection: \"page\"", about);
+        Assert.Contains("collection: \"post\"", post);
+        Assert.Contains("collection: \"company\"", company);
+        Assert.DoesNotContain("type: \"", index);
+        Assert.DoesNotContain("type: \"", about);
+        Assert.DoesNotContain("type: \"", post);
+        Assert.DoesNotContain("type: \"", company);
     }
 }

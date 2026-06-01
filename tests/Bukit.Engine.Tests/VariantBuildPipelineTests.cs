@@ -104,6 +104,41 @@ public sealed class VariantBuildPipelineTests : IDisposable
     }
 
     [Fact]
+    public void BuildStaticHtmlData_WithStaticDirButNoHtml_DoesNotWarn()
+    {
+        var pipeline = new VariantBuildPipeline();
+        var staticDir = Path.Combine(_rootDir, "static");
+        Directory.CreateDirectory(staticDir);
+        File.WriteAllText(Path.Combine(staticDir, "style.css"), "body{}");
+        var warnings = new List<string>();
+
+        var (routes, template) = pipeline.BuildStaticHtmlData(
+            staticDir, null, warnings.Add, false);
+
+        Assert.Empty(routes);
+        Assert.Null(template);
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public void BuildStaticHtmlData_WithHtmlAndNoStaticTemplate_Warns()
+    {
+        var pipeline = new VariantBuildPipeline();
+        var staticDir = Path.Combine(_rootDir, "static");
+        Directory.CreateDirectory(staticDir);
+        File.WriteAllText(Path.Combine(staticDir, "legacy.html"), "<h1>Legacy</h1>");
+        var warnings = new List<string>();
+
+        var (routes, template) = pipeline.BuildStaticHtmlData(
+            staticDir, null, warnings.Add, false);
+
+        Assert.Empty(routes);
+        Assert.Null(template);
+        Assert.Single(warnings);
+        Assert.Contains("Static HTML files", warnings[0]);
+    }
+
+    [Fact]
     public void BuildStaticHtmlData_WithCustomTemplate_ReturnsCorrectTemplate()
     {
         var pipeline = new VariantBuildPipeline();

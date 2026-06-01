@@ -52,7 +52,7 @@ internal static partial class ContentExtractor
             return;
 
         var h1 = H1Regex.Match(page.UniqueBody);
-        var title = h1.Success ? h1.Groups[1].Value.Trim() : page.Title ?? page.Slug;
+        var title = h1.Success ? CleanText(h1.Groups[1].Value) : page.Title ?? page.Slug;
         var summary = ExtractSummary(page.UniqueBody);
 
         content.Pages.Add(new PageRecord
@@ -301,6 +301,11 @@ internal static partial class ContentExtractor
     private static string StripHtml(string html)
     {
         return Regex.Replace(html, "<[^>]*>", "").Trim();
+    }
+
+    private static string CleanText(string html)
+    {
+        return Regex.Replace(StripHtml(html), @"\s+", " ").Trim();
     }
 
     private static string Slugify(string text)

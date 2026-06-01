@@ -22,6 +22,7 @@ internal static class SiteConfigGenerator
         sb.AppendLine("site:");
         sb.AppendLine($"  name: {options.ThemeName}");
         sb.AppendLine($"  title: {options.ThemeName}");
+        sb.AppendLine("  url: https://example.com");
         sb.AppendLine("  description: Generated from HTML Demo");
         var baseUrl = string.IsNullOrWhiteSpace(options.BaseUrl) ? "/" : options.BaseUrl;
         sb.AppendLine($"  baseUrl: {baseUrl}");

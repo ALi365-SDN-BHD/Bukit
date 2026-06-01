@@ -114,6 +114,6 @@ internal static class ScribanTemplateLinter
     {
         return variableName is "now" or "today" or "include" or "content"
             or "index" or "odd" or "even" or "for" or "if"
-            or "len" or "count" or "size";
+            or "len" or "count" or "size" or "base_url";
     }
 }

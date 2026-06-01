@@ -37,6 +37,21 @@ public sealed class ContentExtractorTests
     }
 
     [Fact]
+    public void Extract_PageContent_StripsHtmlFromTitle()
+    {
+        var pages = new List<DiscoveredPage>
+        {
+            MakePage("<main><h1>马中商务资讯与<span>企业资源平台</span></h1><p>Intro.</p></main>", "about")
+        };
+
+        var content = ContentExtractor.Extract(pages);
+
+        Assert.Single(content.Pages);
+        Assert.Equal("马中商务资讯与企业资源平台", content.Pages[0].Title);
+        Assert.DoesNotContain("<span>", content.Pages[0].Title);
+    }
+
+    [Fact]
     public void Extract_HomePage_SetsTypeHome()
     {
         var pages = new List<DiscoveredPage>

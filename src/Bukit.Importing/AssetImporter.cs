@@ -19,6 +19,11 @@ internal static partial class AssetImporter
         ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".bmp"
     };
 
+    private static readonly HashSet<string> HtmlExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".html", ".htm"
+    };
+
     internal sealed record AssetImportResult(
         int Count,
         List<string> Warnings,
@@ -44,6 +49,9 @@ internal static partial class AssetImporter
                     warnings.Add($"跳过敏感文件: {assetPath}");
                     continue;
                 }
+
+                if (HtmlExtensions.Contains(Path.GetExtension(assetPath)))
+                    continue;
 
                 var sourcePath = Path.GetFullPath(
                     Path.Combine(options.InputPath, assetPath.TrimStart('/')));

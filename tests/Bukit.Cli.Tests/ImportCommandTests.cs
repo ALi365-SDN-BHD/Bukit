@@ -291,6 +291,125 @@ public sealed class ImportCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Verify_ListPages_DoNotConflictWithCollectionListRoutes()
+    {
+        var demoDir = Path.Combine(_tempDir, "list-demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "insights.html"),
+            "<html><head><title>Insights</title></head><body><main><h1>Insights</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "companies.html"),
+            "<html><head><title>Companies</title></head><body><main><h1>Companies</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "article-detail.html"),
+            "<html><head><title>Article</title></head><body><main><h1>Article</h1><p>Body.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "company-detail.html"),
+            "<html><head><title>Company</title></head><body><main><h1>Company</h1><p>Body.</p></main></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "list-route-test";
+        opts["--verify"] = "true";
+        var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+
+        Assert.Equal(0, result);
+        Assert.False(File.Exists(Path.Combine(_tempDir, "sites", "list-route-test", "content", "insights.md")));
+        Assert.False(File.Exists(Path.Combine(_tempDir, "sites", "list-route-test", "content", "companies.md")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "dist", "insights", "index.html")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "dist", "companies", "index.html")));
+    }
+
+    [Fact]
+    public async Task ImportThenDoctor_DoesNotWarnForSeoFieldAccessOrBaseUrlAssets()
+    {
+        var demoDir = Path.Combine(_tempDir, "doctor-demo");
+        Directory.CreateDirectory(Path.Combine(demoDir, "assets", "css"));
+        File.WriteAllText(Path.Combine(demoDir, "assets", "css", "style.css"), "body{}");
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"assets/css/style.css\"></head><body><main><h1>Home</h1><p>Welcome.</p></main></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "doctor-import-test";
+        opts["--force"] = "true";
+        var importResult = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+
+        Assert.Equal(0, importResult);
+
+        var siteConfig = Path.Combine(_tempDir, "sites", "doctor-import-test", "site.yaml");
+        var originalOut = Console.Out;
+        using var writer = new StringWriter();
+        Console.SetOut(writer);
+        try
+        {
+            var doctorResult = await DoctorCommand.RunAsync(MakeCommand(new Dictionary<string, string?>
+            {
+                ["--config"] = siteConfig
+            }, []));
+
+            Assert.Equal(0, doctorResult);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        var output = writer.ToString();
+        Assert.Contains("No unknown template variables detected", output);
+        Assert.DoesNotContain("page.seo_title", output);
+        Assert.DoesNotContain("page.seo_description", output);
+        Assert.DoesNotContain("hardcoded URL", output);
+        Assert.DoesNotContain("href=\"/assets/css/style.css\"", output);
+    }
+
+    [Fact]
+    public async Task ImportVerify_DoesNotEmitResolvedImportWarnings()
+    {
+        var demoDir = Path.Combine(_tempDir, "verify-warning-demo");
+        Directory.CreateDirectory(Path.Combine(demoDir, "assets", "css"));
+        File.WriteAllText(Path.Combine(demoDir, "assets", "css", "style.css"), "body{}");
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            """
+            <html>
+              <head><title>Home</title><link rel="stylesheet" href="assets/css/style.css"></head>
+              <body>
+                <main>
+                  <h1>Home</h1>
+                  <p>Welcome.</p>
+                  <a href="about.html">About</a>
+                  <div class="pagination"><a href="page-1.html">← 上一页</a><span>第 2 / 3 页</span><a href="page-3.html">下一页 →</a></div>
+                </main>
+              </body>
+            </html>
+            """);
+        File.WriteAllText(Path.Combine(demoDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1><p>About.</p></main></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "verify-warning-test";
+        opts["--force"] = "true";
+        opts["--verify"] = "true";
+
+        var originalOut = Console.Out;
+        using var writer = new StringWriter();
+        Console.SetOut(writer);
+        try
+        {
+            var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+            Assert.Equal(0, result);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        var output = writer.ToString();
+        Assert.DoesNotContain("Static HTML files in static dir are skipped", output);
+        Assert.DoesNotContain("seo.site_url_missing", output);
+        Assert.DoesNotContain("hardcoded text issue", output);
+        Assert.DoesNotContain("上一页", output);
+        Assert.DoesNotContain("下一页", output);
+    }
+
+    [Fact]
     public async Task SeedJson_WritesMarkdownContent()
     {
         var seedDir = Path.Combine(_tempDir, "seed-json");

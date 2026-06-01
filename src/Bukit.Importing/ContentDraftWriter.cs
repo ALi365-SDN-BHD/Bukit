@@ -19,6 +19,9 @@ internal static partial class ContentDraftWriter
 
     private static void WritePageDraft(string contentDir, DiscoveredPage page, bool overwrite)
     {
+        if (page.Type is PageType.PostList or PageType.CompanyList or PageType.ServiceList)
+            return;
+
         var collection = page.Type switch
         {
             PageType.PostDetail => "posts",
@@ -54,7 +57,7 @@ internal static partial class ContentDraftWriter
         sb.AppendLine("---");
         sb.AppendLine($"title: \"{EscapeYaml(title)}\"");
         sb.AppendLine($"slug: \"{EscapeYaml(slug)}\"");
-        sb.AppendLine($"type: \"{type}\"");
+        sb.AppendLine($"collection: \"{type}\"");
         if (!string.IsNullOrWhiteSpace(summary))
             sb.AppendLine($"summary: \"{EscapeYaml(summary)}\"");
         sb.AppendLine("published: true");
