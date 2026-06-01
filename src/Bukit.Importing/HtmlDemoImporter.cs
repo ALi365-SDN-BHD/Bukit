@@ -15,6 +15,8 @@ public static class HtmlDemoImporter
     {
         ValidateInput(options);
 
+        var routeMap = RouteMapLoader.Load(options.RouteMapPath);
+
         var pages = HtmlDemoScanner.Scan(options.InputPath);
         var warnings = new List<string>();
         var layout = LayoutExtractor.Extract(pages, warnings);
@@ -42,7 +44,7 @@ public static class HtmlDemoImporter
                 AssetsCopied = pages.Sum(p => p.AssetPaths.Count),
                 Warnings = warnings,
                 Diagnostics = diagnostics,
-                ReportPages = BuildReportPages(pages),
+                ReportPages = BuildReportPages(pages, routeMap),
                 ReportComponents = BuildReportComponents(dryComponents),
                 ReportSeedFiles = options.GenerateSeed ? BuildReportSeedFiles(options, dryContent, pages, dryComponents) : []
             };
@@ -96,10 +98,13 @@ public static class HtmlDemoImporter
             TemplatesSynced = templatesSynced,
             SitePath = GetSiteDir(options),
             Diagnostics = diagnostics,
-            ReportPages = BuildReportPages(pages)
+            ReportPages = BuildReportPages(pages, routeMap)
         };
 
         AssetImporter.TransferAssetsToStatic(options.RootDir, options.ThemeName);
+
+        var hardcodedReport = TemplateResidueAnalyzer.Analyze(themeDir, null, routeMap);
+        result = result with { HardcodedContentReport = hardcodedReport };
 
         ImportReportWriter.Write(options, result, diagnostics);
 
@@ -159,12 +164,12 @@ public static class HtmlDemoImporter
         => content.Pages.Count + content.Posts.Count + content.Companies.Count +
            content.Services.Count + content.Faqs.Count + content.Sections.Count;
 
-    private static List<ImportReportPage> BuildReportPages(List<DiscoveredPage> pages)
+    private static List<ImportReportPage> BuildReportPages(List<DiscoveredPage> pages, RouteMapConfig? routeMap)
         => pages.Select(p => new ImportReportPage(
             p.RelativePath,
-            RouteForPage(p),
+            RouteForPage(p, routeMap),
             p.Type.ToString(),
-            TemplateForPage(p),
+            TemplateForPage(p, routeMap),
             "generated")).ToList();
 
     private static List<ImportReportComponent> BuildReportComponents(List<DiscoveredComponent> components)
@@ -193,8 +198,14 @@ public static class HtmlDemoImporter
         ];
     }
 
-    private static string RouteForPage(DiscoveredPage page)
-        => page.Type switch
+    private static string RouteForPage(DiscoveredPage page, RouteMapConfig? routeMap = null)
+    {
+        var fileName = Path.GetFileNameWithoutExtension(page.RelativePath);
+        var routeMapRoute = PageClassifier.GetRoute(routeMap, fileName);
+        if (routeMapRoute != null)
+            return routeMapRoute;
+
+        return page.Type switch
         {
             PageType.Home => "/",
             PageType.PostDetail => $"/insights/{page.Slug}/",
@@ -202,9 +213,16 @@ public static class HtmlDemoImporter
             PageType.ServiceDetail => $"/services/{page.Slug}/",
             _ => string.IsNullOrWhiteSpace(page.Slug) ? "/" : $"/{page.Slug}/"
         };
+    }
 
-    private static string TemplateForPage(DiscoveredPage page)
-        => page.Type switch
+    private static string TemplateForPage(DiscoveredPage page, RouteMapConfig? routeMap = null)
+    {
+        var fileName = Path.GetFileNameWithoutExtension(page.RelativePath);
+        var routeMapTemplate = PageClassifier.GetTemplate(routeMap, fileName);
+        if (routeMapTemplate != null)
+            return routeMapTemplate;
+
+        return page.Type switch
         {
             PageType.Home => "index",
             PageType.PostList => "insights",
@@ -215,6 +233,7 @@ public static class HtmlDemoImporter
             PageType.ServiceDetail => "service",
             _ => "page"
         };
+    }
 
     private static void RunStrictValidation(List<DiscoveredPage> pages, List<string> warnings)
     {

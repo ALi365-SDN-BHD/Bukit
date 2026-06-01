@@ -12,6 +12,7 @@ public static class NotionCommand
         return sub switch
         {
             "push" => PushAsync(command),
+            "validate-schema" => ValidateSchemaAsync(command),
             _ => Unknown(sub)
         };
     }
@@ -41,6 +42,14 @@ public static class NotionCommand
 
         var dryRun = command.GetBool("--dry-run");
         var tokenEnv = command.GetString("--token-env") ?? "NOTION_TOKEN";
+        var mode = command.GetString("--mode") ?? "create";
+        if (mode is not ("create" or "upsert"))
+        {
+            Console.Error.WriteLine($"不支持的推送模式: {mode}，可用: create | upsert");
+            return 2;
+        }
+        var uniqueField = command.GetString("--unique-field") ?? "Slug";
+
         if (!dryRun && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(tokenEnv)))
         {
             Console.Error.WriteLine($"{tokenEnv} is required for notion push. Use --dry-run to generate a local review plan.");
@@ -58,8 +67,10 @@ public static class NotionCommand
             DatabaseId: databaseId,
             Token: Environment.GetEnvironmentVariable(tokenEnv) ?? "",
             ReportPath: reportPath,
-            DryRun: dryRun));
-        Console.WriteLine($"notion push {(dryRun ? "dry-run" : "api")} 完成: records={result.Total} pushed={result.Pushed} failed={result.Failed} report={reportPath}");
+            DryRun: dryRun,
+            Mode: mode,
+            UniqueField: uniqueField));
+        Console.WriteLine($"notion push {(dryRun ? "dry-run" : "api")} 完成: records={result.Total} created={result.Created} updated={result.Updated} failed={result.Failed} report={reportPath}");
         if (result.Failed > 0)
         {
             Console.Error.WriteLine("Notion push failed for one or more records. See report for details.");
@@ -69,10 +80,45 @@ public static class NotionCommand
         return 0;
     }
 
+    private static async Task<int> ValidateSchemaAsync(CliBoundCommand command)
+    {
+        var databaseId = command.GetString("--database-id");
+        if (string.IsNullOrWhiteSpace(databaseId))
+        {
+            Console.Error.WriteLine("缺少必填选项: --database-id <id>");
+            return 2;
+        }
+
+        var tokenEnv = command.GetString("--token-env") ?? "NOTION_TOKEN";
+        var token = Environment.GetEnvironmentVariable(tokenEnv);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            Console.Error.WriteLine($"{tokenEnv} is required for notion validate-schema.");
+            return 2;
+        }
+
+        var reportPath = command.GetString("--report");
+
+        using var http = CreateHttpClient();
+        var report = await NotionSchemaValidator.ValidateAsync(http, databaseId, token, reportPath);
+
+        Console.WriteLine($"schema validation: {(report.Success ? "PASSED" : "FAILED")}");
+        foreach (var f in report.FieldResults)
+            Console.WriteLine($"  {f.Name,-18} {f.ExpectedType,-10} {f.Result}");
+        if (!report.Success)
+        {
+            foreach (var e in report.Errors)
+                Console.Error.WriteLine($"  ERROR: {e}");
+            return 1;
+        }
+
+        return 0;
+    }
+
     private static Task<int> Unknown(string sub)
     {
         Console.Error.WriteLine($"未知的 notion 子命令: {sub}");
-        Console.Error.WriteLine("可用: push");
+        Console.Error.WriteLine("可用: push, validate-schema");
         return Task.FromResult(2);
     }
 }

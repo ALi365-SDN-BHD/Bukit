@@ -87,24 +87,37 @@ public static class ImportCommand
         var preserveHtml = !command.GetBool("--no-preserve-html");
         var generateReport = !command.GetBool("--no-report");
         var baseUrl = command.GetString("--base-url");
+        var routeMapPath = command.GetString("--route-map");
         var pushNotion = command.GetBool("--push-notion");
         var notionDatabaseId = command.GetString("--notion-database-id");
         var notionTokenEnv = command.GetString("--notion-token-env") ?? "NOTION_TOKEN";
         var notionReport = command.GetString("--notion-report");
+
+        var noMarkdownDraftExplicit = command.Options.ContainsKey("--no-markdown-draft");
+        var noMarkdownDraft = command.GetBool("--no-markdown-draft");
 
         var resolved = ConfigPathResolver.Resolve(
             command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
         if (!contentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
             !contentSource.Equals("json", StringComparison.OrdinalIgnoreCase) &&
-            !contentSource.Equals("yaml", StringComparison.OrdinalIgnoreCase))
+            !contentSource.Equals("yaml", StringComparison.OrdinalIgnoreCase) &&
+            !contentSource.Equals("markdown", StringComparison.OrdinalIgnoreCase))
         {
             Console.Error.WriteLine($"不支持的内容源类型: {contentSource}");
             return 2;
         }
 
+        if (contentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) && !noMarkdownDraftExplicit)
+        {
+            noMarkdownDraft = true;
+        }
+
         if (!string.IsNullOrWhiteSpace(sitePath) && !Path.IsPathRooted(sitePath))
             sitePath = Path.GetFullPath(Path.Combine(rootDir, sitePath));
+
+        if (!string.IsNullOrWhiteSpace(routeMapPath) && !Path.IsPathRooted(routeMapPath))
+            routeMapPath = Path.GetFullPath(Path.Combine(demoDir, routeMapPath));
 
         if (pushNotion)
         {
@@ -150,7 +163,9 @@ public static class ImportCommand
             Overwrite = overwrite,
             PreserveHtml = preserveHtml,
             GenerateReport = generateReport,
-            BaseUrl = baseUrl
+            BaseUrl = baseUrl,
+            NoMarkdownDraft = noMarkdownDraft,
+            RouteMapPath = routeMapPath
         };
 
         ImportResult result;
@@ -227,7 +242,9 @@ public static class ImportCommand
         {
             ["--input"] = seedDir,
             ["--database-id"] = databaseId,
-            ["--token-env"] = tokenEnv
+            ["--token-env"] = tokenEnv,
+            ["--mode"] = "upsert",
+            ["--unique-field"] = "Slug"
         };
         if (!string.IsNullOrWhiteSpace(reportPath))
             options["--report"] = Path.IsPathRooted(reportPath)

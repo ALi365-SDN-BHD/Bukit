@@ -6,6 +6,12 @@ internal static class ContentDraftWriter
 {
     internal static void Write(HtmlDemoImportOptions options, ExtractedContent content)
     {
+        if (options.NoMarkdownDraft)
+        {
+            Console.WriteLine("  Content draft 已跳过（--no-markdown-draft / notion mode）");
+            return;
+        }
+
         var siteDir = HtmlDemoImporter.GetSiteDir(options);
         var contentDir = Path.Combine(siteDir, "content");
         Directory.CreateDirectory(contentDir);

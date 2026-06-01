@@ -251,7 +251,9 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--no-extract-content", "跳过内容抽取", CliOptionType.Flag),
                 new CliOptionSpec("--generate-seed", "生成 seed 数据 (默认开启)", CliOptionType.Flag),
                 new CliOptionSpec("--no-seed", "跳过种子数据生成", CliOptionType.Flag),
-                new CliOptionSpec("--content-source", "seed 内容源类型 (notion|json|yaml)，不影响默认 markdown build 草稿", CliOptionType.String, ValueName: "type"),
+                new CliOptionSpec("--content-source", "seed 内容源类型 (notion|json|yaml|markdown)，使用 notion 时默认启用 --no-markdown-draft", CliOptionType.String, ValueName: "type"),
+                new CliOptionSpec("--no-markdown-draft", "跳过生成 content/*.md 草稿（使用 --content-source notion 时默认启用）", CliOptionType.Flag),
+                new CliOptionSpec("--route-map", "显式页面路由映射 YAML 文件路径", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--site-path", "目标站点目录路径 (默认 sites/<theme>)"),
                 new CliOptionSpec("--language", "默认语言 (默认 zh)"),
                 new CliOptionSpec("--dry-run", "只分析不写入文件", CliOptionType.Flag),
@@ -304,7 +306,18 @@ public static class BukitCliSpecs
                         new CliOptionSpec("--database-id", "Notion database ID", CliOptionType.String, ValueName: "id", Required: true),
                         new CliOptionSpec("--dry-run", "只生成推送计划，不调用 Notion API；不传则实际写入", CliOptionType.Flag),
                         new CliOptionSpec("--report", "推送计划/结果报告输出路径", CliOptionType.String, ValueName: "file"),
-                        new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name")
+                        new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),
+                        new CliOptionSpec("--mode", "推送模式: create (仅创建) | upsert (创建或更新，默认 create)", CliOptionType.String, ValueName: "mode"),
+                        new CliOptionSpec("--unique-field", "判断记录是否已存在的唯一字段名 (默认 Slug)", CliOptionType.String, ValueName: "name")
+                    }),
+                new CliCommandSpec(
+                    Name: "validate-schema",
+                    Description: "校验 Notion database schema 是否包含 Bukit 所需字段",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--database-id", "Notion database ID", CliOptionType.String, ValueName: "id", Required: true),
+                        new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),
+                        new CliOptionSpec("--report", "校验报告输出路径", CliOptionType.String, ValueName: "file")
                     })
             });
 

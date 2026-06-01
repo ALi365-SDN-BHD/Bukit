@@ -19,6 +19,8 @@ public sealed record HtmlDemoImportOptions
     public bool PreserveHtml { get; init; } = true;
     public bool GenerateReport { get; init; } = true;
     public string? BaseUrl { get; init; }
+    public bool NoMarkdownDraft { get; init; }
+    public string? RouteMapPath { get; init; }
 }
 
 public sealed record DiscoveredPage
@@ -68,6 +70,7 @@ public sealed record ImportResult
     public List<ImportReportPage> ReportPages { get; init; } = [];
     public List<ImportReportComponent> ReportComponents { get; init; } = [];
     public List<ImportReportSeedFile> ReportSeedFiles { get; init; } = [];
+    public HardcodedContentReport? HardcodedContentReport { get; init; }
 }
 
 public sealed record ImportReportPage(
@@ -129,6 +132,22 @@ public sealed record SectionRecord
     public int SortOrder { get; init; }
     public string Language { get; init; } = "zh";
     public bool Published { get; init; } = true;
+}
+
+public sealed record TemplateResidueAnalysis
+{
+    public string TemplatePath { get; init; } = "";
+    public int ResidualTextCount { get; init; }
+    public int TotalTextSegments { get; init; }
+    public string Severity { get; init; } = "low";
+    public List<string> ResidualSamples { get; init; } = [];
+}
+
+public sealed record HardcodedContentReport
+{
+    public int OverallScore { get; init; }
+    public List<TemplateResidueAnalysis> Residues { get; init; } = [];
+    public int TotalResidualCount { get; init; }
 }
 
 public sealed record PostRecord

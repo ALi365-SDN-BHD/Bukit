@@ -11,6 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AngleSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
   </ItemGroup>
 

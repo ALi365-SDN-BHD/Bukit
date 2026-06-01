@@ -28,7 +28,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
         {
             InputPath = _tempDir,
             ThemeName = "test-theme",
-            RootDir = _tempDir
+            RootDir = _tempDir,
+            ContentSource = "markdown"
         };
 
         var result = HtmlDemoImporter.Import(options);
@@ -176,7 +177,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
         {
             InputPath = _tempDir,
             ThemeName = "test-theme",
-            RootDir = _tempDir
+            RootDir = _tempDir,
+            ContentSource = "markdown"
         };
 
         var result = HtmlDemoImporter.Import(options);
@@ -364,7 +366,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
             ThemeName = "report-test",
             RootDir = _tempDir,
             Force = true,
-            GenerateReport = true
+            GenerateReport = true,
+            ContentSource = "markdown"
         };
 
         var result = HtmlDemoImporter.Import(options);
@@ -374,7 +377,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var content = File.ReadAllText(reportPath);
         Assert.Contains("HTML Demo Import Report", content);
         Assert.Contains("report-test", content);
-        Assert.Contains("Hardcoded Residuals", content);
+        Assert.Contains("Hardcoded Content Residue", content);
         Assert.Contains("Manual Review Required", content);
     }
 
@@ -658,7 +661,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
             ThemeName = "report-residual-test",
             RootDir = _tempDir,
             Force = true,
-            GenerateReport = true
+            GenerateReport = true,
+            ContentSource = "markdown"
         };
 
         HtmlDemoImporter.Import(options);
@@ -666,8 +670,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var report = File.ReadAllText(Path.Combine(_tempDir, "sites", "report-residual-test", "import-report.md"));
         Assert.Contains("Build/Data Source Relationship", report);
         Assert.Contains("Markdown draft", report);
-        Assert.Contains("Hardcoded Residuals", report);
-        Assert.DoesNotContain("No high-confidence hardcoded residuals detected automatically.", report);
+        Assert.Contains("Hardcoded Content Residue", report);
+        Assert.Contains("Extraction Coverage", report);
     }
 
     [Fact]

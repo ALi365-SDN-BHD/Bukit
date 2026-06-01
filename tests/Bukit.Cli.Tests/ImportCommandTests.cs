@@ -296,6 +296,7 @@ public sealed class ImportCommandTests : IDisposable
 
         var opts = BaseOptions();
         opts["--theme"] = "yaml-test";
+        opts["--content-source"] = "markdown";
         var cmd = MakeCommand(opts, ["html-demo", _tempDir]);
 
         var result = await ImportCommand.RunAsync(cmd);
@@ -353,6 +354,7 @@ public sealed class ImportCommandTests : IDisposable
         var opts = BaseOptions();
         opts["--theme"] = "build-test";
         opts["--force"] = "true";
+        opts["--content-source"] = "markdown";
         var importResult = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
 
         Assert.Equal(0, importResult);
@@ -381,6 +383,7 @@ public sealed class ImportCommandTests : IDisposable
         var opts = BaseOptions();
         opts["--theme"] = "verify-test";
         opts["--verify"] = "true";
+        opts["--content-source"] = "markdown";
         var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
 
         Assert.Equal(0, result);
@@ -407,6 +410,7 @@ public sealed class ImportCommandTests : IDisposable
         var opts = BaseOptions();
         opts["--theme"] = "list-route-test";
         opts["--verify"] = "true";
+        opts["--content-source"] = "markdown";
         var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
 
         Assert.Equal(0, result);
@@ -428,6 +432,7 @@ public sealed class ImportCommandTests : IDisposable
         var opts = BaseOptions();
         opts["--theme"] = "doctor-import-test";
         opts["--force"] = "true";
+        opts["--content-source"] = "markdown";
         var importResult = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
 
         Assert.Equal(0, importResult);
@@ -485,6 +490,7 @@ public sealed class ImportCommandTests : IDisposable
         opts["--theme"] = "verify-warning-test";
         opts["--force"] = "true";
         opts["--verify"] = "true";
+        opts["--content-source"] = "markdown";
 
         var originalOut = Console.Out;
         using var writer = new StringWriter();

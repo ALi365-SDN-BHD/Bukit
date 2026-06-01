@@ -56,6 +56,12 @@ internal static class ImportReportWriter
         Console.WriteLine("  bukit build");
         Console.WriteLine("  bukit doctor");
 
+        if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine();
+            Console.WriteLine("  提示: content 已配置为 notion provider，使用 bukit notion push 推送内容到 Notion。");
+        }
+
         if (options.GenerateReport)
             WriteReportFile(options, result, diagnostics);
     }
@@ -161,29 +167,50 @@ internal static class ImportReportWriter
         sb.AppendLine($"- `{options.ContentSource}` seed files are generated for review/import and are not treated as a live build provider in this step.");
 
         sb.AppendLine();
-        sb.AppendLine("## Hardcoded Residuals");
+        sb.AppendLine("## Hardcoded Content Residue");
         sb.AppendLine();
-        var residuals = result.Warnings
-            .Where(w => w.Contains("硬编码", StringComparison.OrdinalIgnoreCase) ||
-                        w.Contains("手动", StringComparison.OrdinalIgnoreCase) ||
-                        w.Contains("审查", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-        if (result.ComponentsGenerated > 0)
+
+        var hardcodedReport = result.HardcodedContentReport;
+        if (hardcodedReport != null && hardcodedReport.Residues.Count > 0)
         {
-            residuals.Add("Generated component templates preserve demo HTML structure; review links, button labels, and non-text attributes before publishing.");
-        }
-        if (diagnostics.Any(d => d.Code is "INLINE_SCRIPT" or "INLINE_EVENT_HANDLER" or "EXTERNAL_SCRIPT"))
-        {
-            residuals.Add("Script or event-handler diagnostics require manual review before production use.");
-        }
-        if (residuals.Count == 0)
-        {
-            sb.AppendLine("- No high-confidence hardcoded residuals detected automatically in generated templates.");
+            sb.AppendLine($"**Overall Score:** {hardcodedReport.OverallScore}/100 (lower is better)");
+            sb.AppendLine();
+            sb.AppendLine($"**Total Residual Text Count:** {hardcodedReport.TotalResidualCount}");
+            sb.AppendLine();
+            sb.AppendLine("| Template | Residual Text Count | Severity |");
+            sb.AppendLine("|---|---:|---|");
+            foreach (var r in hardcodedReport.Residues.OrderByDescending(r => r.ResidualTextCount))
+                sb.AppendLine($"| {EscapeCell(r.TemplatePath)} | {r.ResidualTextCount} | {r.Severity} |");
+
+            if (hardcodedReport.Residues.Any(r => r.ResidualSamples.Count > 0))
+            {
+                sb.AppendLine();
+                sb.AppendLine("### Sample Residuals");
+                sb.AppendLine();
+                foreach (var r in hardcodedReport.Residues.Where(r => r.ResidualSamples.Count > 0).Take(3))
+                {
+                    sb.AppendLine($"**{EscapeCell(r.TemplatePath)}:**");
+                    foreach (var sample in r.ResidualSamples.Take(3))
+                        sb.AppendLine($"  - `{EscapeCell(sample.Trim().Length > 80 ? sample.Trim()[..80] + "..." : sample.Trim())}`");
+                }
+            }
         }
         else
         {
-            foreach (var residual in residuals)
-                sb.AppendLine($"- {residual}");
+            sb.AppendLine("- No significant hardcoded content residues detected in generated templates.");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("## Extraction Coverage");
+        sb.AppendLine();
+        sb.AppendLine("| Collection | Extracted | Coverage |");
+        sb.AppendLine("|---|---:|---:|");
+        sb.AppendLine($"| Pages | {result.RecordsExtracted} | — |");
+
+        if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine();
+            sb.AppendLine("- Notion push seed files are in `notion-seed/`. Run `bukit notion validate-schema` then `bukit notion push --mode upsert` to sync.");
         }
 
         sb.AppendLine();

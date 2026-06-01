@@ -48,11 +48,27 @@ internal static class SiteConfigGenerator
         sb.AppendLine("      template: 'pages/service.html'");
         sb.AppendLine("      listRoute: '/services/'");
         sb.AppendLine("      listTemplate: 'pages/services.html'");
-        sb.AppendLine("content:");
-        sb.AppendLine("  provider: markdown");
-        sb.AppendLine("  markdown:");
-        sb.AppendLine($"    dir: {contentDir}");
-        sb.AppendLine("    defaultType: page");
+
+        if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine("content:");
+            sb.AppendLine("  provider: notion");
+            sb.AppendLine("  notion:");
+            sb.AppendLine("    databaseId: ${NOTION_DATABASE_ID}");
+            sb.AppendLine("    tokenEnv: NOTION_TOKEN");
+            sb.AppendLine("    filterProperty: Published");
+            sb.AppendLine("    filterType: checkbox_true");
+            sb.AppendLine("    sortProperty: Title");
+            sb.AppendLine("    sortDirection: ascending");
+        }
+        else
+        {
+            sb.AppendLine("content:");
+            sb.AppendLine("  provider: markdown");
+            sb.AppendLine("  markdown:");
+            sb.AppendLine($"    dir: {contentDir}");
+            sb.AppendLine("    defaultType: page");
+        }
         sb.AppendLine("build:");
         sb.AppendLine("  output: dist");
         sb.AppendLine("  clean: true");

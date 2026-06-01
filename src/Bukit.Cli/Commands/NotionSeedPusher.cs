@@ -1,6 +1,5 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Bukit.Shared.Notion;
 
 namespace Bukit.Cli.Commands;
@@ -9,7 +8,9 @@ internal sealed record NotionPushOptions(
     string DatabaseId,
     string Token,
     string ReportPath,
-    bool DryRun);
+    bool DryRun,
+    string Mode = "create",
+    string UniqueField = "Slug");
 
 internal sealed record NotionPushItemResult(
     ImportSeedRecord Record,
@@ -20,7 +21,9 @@ internal sealed record NotionPushItemResult(
 
 internal sealed record NotionPushResult(
     int Total,
-    int Pushed,
+    int Created,
+    int Updated,
+    int Skipped,
     int Failed,
     IReadOnlyList<NotionPushItemResult> Items);
 
@@ -43,24 +46,25 @@ internal static partial class NotionSeedPusher
             return dryResult;
         }
 
+        var isUpsert = options.Mode.Equals("upsert", StringComparison.OrdinalIgnoreCase);
+
         foreach (var record in records)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/pages");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.Token);
-            request.Headers.TryAddWithoutValidation("Notion-Version", NotionApiUrls.NotionVersion);
-            request.Content = new StringContent(BuildCreatePagePayload(options.DatabaseId, record));
-            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
-            using var response = await http.SendAsync(request, cancellationToken);
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            if (response.IsSuccessStatusCode)
+            string? existingPageId = null;
+            if (isUpsert)
             {
-                items.Add(new NotionPushItemResult(record, "created", true, ExtractPageId(body), null));
+                existingPageId = await QueryExistingPageAsync(http, options, record, cancellationToken);
+            }
+
+            if (existingPageId != null)
+            {
+                var (success, pageId, error) = await UpdatePageAsync(http, options, existingPageId, record, cancellationToken);
+                items.Add(new NotionPushItemResult(record, "updated", success, pageId, error));
             }
             else
             {
-                items.Add(new NotionPushItemResult(record, "failed", false, null,
-                    string.IsNullOrWhiteSpace(body) ? response.ReasonPhrase : body));
+                var (success, pageId, error) = await CreatePageAsync(http, options, record, cancellationToken);
+                items.Add(new NotionPushItemResult(record, "created", success, pageId, error));
             }
         }
 
@@ -69,10 +73,108 @@ internal static partial class NotionSeedPusher
         return result;
     }
 
+    private static async Task<string?> QueryExistingPageAsync(
+        HttpClient http,
+        NotionPushOptions options,
+        ImportSeedRecord record,
+        CancellationToken ct)
+    {
+        var uniqueValue = GetUniqueFieldValue(record, options.UniqueField);
+        if (string.IsNullOrWhiteSpace(uniqueValue)) return null;
+
+        var filterJson = BuildSlugFilterJson(options.UniqueField, uniqueValue);
+        var queryUrl = $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/databases/{options.DatabaseId}/query";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, queryUrl);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.Token);
+        request.Headers.TryAddWithoutValidation("Notion-Version", NotionApiUrls.NotionVersion);
+        request.Content = new StringContent(filterJson);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+        using var response = await http.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode) return null;
+
+        var body = await response.Content.ReadAsStringAsync(ct);
+        using var doc = JsonDocument.Parse(body);
+        var results = doc.RootElement.GetProperty("results");
+        if (results.GetArrayLength() > 0)
+            return results[0].GetProperty("id").GetString();
+        return null;
+    }
+
+    private static string GetUniqueFieldValue(ImportSeedRecord record, string uniqueField)
+    {
+        return uniqueField switch
+        {
+            "Slug" => record.Slug,
+            "Title" => record.Title,
+            _ => record.Slug
+        };
+    }
+
+    private static string BuildSlugFilterJson(string propertyName, string value)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new Utf8JsonWriter(stream);
+
+        writer.WriteStartObject();
+        writer.WriteStartObject("filter");
+        writer.WriteString("property", propertyName);
+        writer.WriteStartObject("rich_text");
+        writer.WriteString("equals", value);
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+        writer.Flush();
+
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static async Task<(bool Success, string? PageId, string? Error)> CreatePageAsync(
+        HttpClient http, NotionPushOptions options, ImportSeedRecord record, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/pages");
+        BuildCommonRequestHeaders(request, options.Token);
+        request.Content = new StringContent(BuildCreatePagePayload(options.DatabaseId, record));
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+        using var response = await http.SendAsync(request, ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+        if (response.IsSuccessStatusCode)
+            return (true, ExtractPageId(body), null);
+        return (false, null, string.IsNullOrWhiteSpace(body) ? response.ReasonPhrase : body);
+    }
+
+    private static async Task<(bool Success, string? PageId, string? Error)> UpdatePageAsync(
+        HttpClient http, NotionPushOptions options, string pageId,
+        ImportSeedRecord record, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Patch,
+            $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/pages/{pageId}");
+        BuildCommonRequestHeaders(request, options.Token);
+        request.Content = new StringContent(BuildUpdatePagePayload(record));
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+        using var response = await http.SendAsync(request, ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+        if (response.IsSuccessStatusCode)
+            return (true, pageId, null);
+        return (false, pageId, string.IsNullOrWhiteSpace(body) ? response.ReasonPhrase : body);
+    }
+
+    private static void BuildCommonRequestHeaders(HttpRequestMessage request, string token)
+    {
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.TryAddWithoutValidation("Notion-Version", NotionApiUrls.NotionVersion);
+    }
+
     private static NotionPushResult BuildResult(IReadOnlyList<NotionPushItemResult> items)
         => new(
             Total: items.Count,
-            Pushed: items.Count(i => i.Success && i.Action == "created"),
+            Created: items.Count(i => i.Success && i.Action == "created"),
+            Updated: items.Count(i => i.Success && i.Action == "updated"),
+            Skipped: items.Count(i => i.Success && i.Action == "skipped"),
             Failed: items.Count(i => !i.Success),
             Items: items);
 
@@ -86,6 +188,37 @@ internal static partial class NotionSeedPusher
         writer.WriteString("database_id", databaseId);
         writer.WriteEndObject();
 
+        WriteProperties(writer, record);
+
+        if (!string.IsNullOrWhiteSpace(record.Content))
+        {
+            var blocksJson = HtmlToNotionBlockConverter.ToBlocksJson(record.Content);
+            if (blocksJson != "[]")
+            {
+                writer.WritePropertyName("children");
+                writer.WriteRawValue(blocksJson);
+            }
+        }
+
+        writer.WriteEndObject();
+        writer.Flush();
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static string BuildUpdatePagePayload(ImportSeedRecord record)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+
+        writer.WriteStartObject();
+        WriteProperties(writer, record);
+        writer.WriteEndObject();
+        writer.Flush();
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static void WriteProperties(Utf8JsonWriter writer, ImportSeedRecord record)
+    {
         writer.WriteStartObject("properties");
         WriteTitleProperty(writer, "Title", record.Title);
         WriteRichTextProperty(writer, "Slug", record.Slug);
@@ -97,19 +230,6 @@ internal static partial class NotionSeedPusher
         WriteRichTextProperty(writer, "SeoTitle", record.SeoTitle);
         WriteRichTextProperty(writer, "SeoDescription", record.SeoDescription);
         writer.WriteEndObject();
-
-        var blocks = BuildParagraphBlocks(record.Content).ToList();
-        if (blocks.Count > 0)
-        {
-            writer.WriteStartArray("children");
-            foreach (var block in blocks)
-                WriteParagraphBlock(writer, block);
-            writer.WriteEndArray();
-        }
-
-        writer.WriteEndObject();
-        writer.Flush();
-        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
     }
 
     private static void WriteTitleProperty(Utf8JsonWriter writer, string name, string value)
@@ -148,18 +268,8 @@ internal static partial class NotionSeedPusher
         writer.WriteEndObject();
     }
 
-    private static void WriteParagraphBlock(Utf8JsonWriter writer, string text)
-    {
-        writer.WriteStartObject();
-        writer.WriteString("object", "block");
-        writer.WriteString("type", "paragraph");
-        writer.WriteStartObject("paragraph");
-        writer.WriteStartArray("rich_text");
-        WriteTextObject(writer, text);
-        writer.WriteEndArray();
-        writer.WriteEndObject();
-        writer.WriteEndObject();
-    }
+    private static string Truncate(string value, int max)
+        => value.Length <= max ? value : value[..max];
 
     private static void WriteTextObject(Utf8JsonWriter writer, string value)
     {
@@ -170,22 +280,6 @@ internal static partial class NotionSeedPusher
         writer.WriteEndObject();
         writer.WriteEndObject();
     }
-
-    private static IEnumerable<string> BuildParagraphBlocks(string? html)
-    {
-        var plain = StripHtml(html ?? "");
-        if (string.IsNullOrWhiteSpace(plain)) yield break;
-
-        const int max = 1900;
-        for (var i = 0; i < plain.Length; i += max)
-            yield return plain.Substring(i, Math.Min(max, plain.Length - i));
-    }
-
-    private static string StripHtml(string html)
-        => WhitespacePattern().Replace(HtmlTagPattern().Replace(html, " "), " ").Trim();
-
-    private static string Truncate(string value, int max)
-        => value.Length <= max ? value : value[..max];
 
     private static string? ExtractPageId(string json)
     {
@@ -210,7 +304,9 @@ internal static partial class NotionSeedPusher
         writer.WriteBoolean("dryRun", dryRun);
         writer.WriteString("databaseId", databaseId);
         writer.WriteNumber("recordCount", result.Total);
-        writer.WriteNumber("pushed", result.Pushed);
+        writer.WriteNumber("created", result.Created);
+        writer.WriteNumber("updated", result.Updated);
+        writer.WriteNumber("skipped", result.Skipped);
         writer.WriteNumber("failed", result.Failed);
         writer.WriteStartArray("records");
         foreach (var item in result.Items)
@@ -234,10 +330,4 @@ internal static partial class NotionSeedPusher
 
         File.WriteAllText(reportPath, System.Text.Encoding.UTF8.GetString(stream.ToArray()));
     }
-
-    [GeneratedRegex("<[^>]*>", RegexOptions.Singleline)]
-    private static partial Regex HtmlTagPattern();
-
-    [GeneratedRegex(@"\s+")]
-    private static partial Regex WhitespacePattern();
 }

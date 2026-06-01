@@ -26,11 +26,62 @@ internal static class PageClassifier
     };
 
     internal static PageType Classify(string fileNameWithoutExtension, string html)
+        => Classify(fileNameWithoutExtension, html, null);
+
+    internal static PageType Classify(string fileNameWithoutExtension, string html, RouteMapConfig? routeMap)
     {
+        if (routeMap != null)
+        {
+            var match = routeMap.Pages.FirstOrDefault(p =>
+                string.Equals(p.Source, $"{fileNameWithoutExtension}.html", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(Path.GetFileNameWithoutExtension(p.Source), fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+                return ParsePageType(match.Type);
+        }
+
         if (FileNameMapping.TryGetValue(fileNameWithoutExtension, out var type))
             return type;
 
         return ClassifyByContent(html);
+    }
+
+    internal static PageType ParsePageType(string typeName)
+    {
+        if (Enum.TryParse<PageType>(typeName, ignoreCase: true, out var result))
+            return result;
+
+        return typeName.ToLowerInvariant() switch
+        {
+            "home" => PageType.Home,
+            "page" => PageType.Page,
+            "postlist" => PageType.PostList,
+            "postdetail" => PageType.PostDetail,
+            "companylist" => PageType.CompanyList,
+            "companydetail" => PageType.CompanyDetail,
+            "servicelist" => PageType.ServiceList,
+            "servicedetail" => PageType.ServiceDetail,
+            _ => PageType.Unknown
+        };
+    }
+
+    internal static string? GetRoute(RouteMapConfig? routeMap, string fileNameWithoutExtension)
+    {
+        if (routeMap == null) return null;
+
+        var match = routeMap.Pages.FirstOrDefault(p =>
+            string.Equals(p.Source, $"{fileNameWithoutExtension}.html", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Path.GetFileNameWithoutExtension(p.Source), fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase));
+        return match?.Route;
+    }
+
+    internal static string? GetTemplate(RouteMapConfig? routeMap, string fileNameWithoutExtension)
+    {
+        if (routeMap == null) return null;
+
+        var match = routeMap.Pages.FirstOrDefault(p =>
+            string.Equals(p.Source, $"{fileNameWithoutExtension}.html", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Path.GetFileNameWithoutExtension(p.Source), fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase));
+        return match?.Template;
     }
 
     private static PageType ClassifyByContent(string html)

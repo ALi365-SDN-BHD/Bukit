@@ -161,7 +161,7 @@ public sealed class NotionCommandTests : IDisposable
             Assert.True(doc.RootElement.GetProperty("properties").TryGetProperty("Title", out _));
             Assert.Equal("Home", doc.RootElement.GetProperty("properties").GetProperty("Title").GetProperty("title")[0].GetProperty("text").GetProperty("content").GetString());
             var report = File.ReadAllText(reportPath);
-            Assert.Contains("\"pushed\": 1", report);
+            Assert.Contains("\"created\": 1", report);
             Assert.Contains("\"notionPageId\": \"page-1\"", report);
         }
         finally
