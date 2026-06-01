@@ -69,6 +69,7 @@ internal static partial class ContentExtractor
                 _ => "page"
             },
             Summary = summary,
+            Content = ExtractContentBody(page.UniqueBody),
             SeoTitle = title,
             SeoDescription = summary
         });
@@ -160,7 +161,7 @@ internal static partial class ContentExtractor
                 Title = title,
                 Slug = slug,
                 Summary = ExtractSummary(page.UniqueBody),
-                Content = page.UniqueBody,
+                Content = ExtractContentBody(page.UniqueBody),
                 SeoTitle = title,
                 SeoDescription = ExtractSummary(page.UniqueBody)
             });
@@ -204,7 +205,7 @@ internal static partial class ContentExtractor
             Title = title,
             Slug = slug,
             Summary = ExtractSummary(page.UniqueBody),
-            Content = page.UniqueBody,
+            Content = ExtractContentBody(page.UniqueBody),
             SeoTitle = title,
             SeoDescription = ExtractSummary(page.UniqueBody)
         });
@@ -247,7 +248,7 @@ internal static partial class ContentExtractor
             Title = title,
             Slug = slug,
             Summary = ExtractSummary(page.UniqueBody),
-            Content = page.UniqueBody,
+            Content = ExtractContentBody(page.UniqueBody),
             SeoTitle = title,
             SeoDescription = ExtractSummary(page.UniqueBody)
         });
@@ -321,6 +322,28 @@ internal static partial class ContentExtractor
     private static string StripHtml(string html)
     {
         return Regex.Replace(html, "<[^>]*>", "").Trim();
+    }
+
+    internal static string ExtractContentBody(string html)
+    {
+        var body = html.Trim();
+        if (string.IsNullOrWhiteSpace(body))
+            return "";
+
+        body = StripOuterElement(body, "main");
+        body = StripOuterElement(body, "article");
+        body = H1Regex.Replace(body, "", 1).Trim();
+
+        return body;
+    }
+
+    private static string StripOuterElement(string html, string tagName)
+    {
+        var match = Regex.Match(
+            html,
+            $@"^\s*<{tagName}\b[^>]*>(?<inner>.*)</{tagName}>\s*$",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        return match.Success ? match.Groups["inner"].Value.Trim() : html;
     }
 
     private static string CleanText(string html)

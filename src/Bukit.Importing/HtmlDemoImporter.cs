@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Bukit.Importing;
 
 public static class HtmlDemoImporter
@@ -63,7 +65,7 @@ public static class HtmlDemoImporter
             if (!options.DryRun)
                 WriteComponentTemplates(options, components);
 
-            ContentDraftWriter.Write(options, pages);
+            ContentDraftWriter.Write(options, content);
 
             result = result with
             {
@@ -80,9 +82,11 @@ public static class HtmlDemoImporter
         }
 
         var siteYamlCreated = SiteConfigGenerator.Generate(options);
+        var templatesSynced = SyncTemplates(options.RootDir, options.ThemeName, options.Force);
         result = result with
         {
             SiteYamlCreated = siteYamlCreated,
+            TemplatesSynced = templatesSynced,
             SitePath = GetSiteDir(options),
             Diagnostics = diagnostics
         };
@@ -98,9 +102,49 @@ public static class HtmlDemoImporter
     {
         var count = 0;
         if (!string.IsNullOrWhiteSpace(layout.Header)) count++;
-        if (!string.IsNullOrWhiteSpace(layout.Nav)) count++;
+        if (!string.IsNullOrWhiteSpace(layout.Nav) && !layout.HeaderContainsNav) count++;
         if (!string.IsNullOrWhiteSpace(layout.Footer)) count++;
         return count;
+    }
+
+    private static bool SyncTemplates(string rootDir, string themeName, bool force)
+    {
+        var layoutsDir = Path.Combine(rootDir, "themes", themeName, "layouts");
+        if (!Directory.Exists(layoutsDir))
+            return false;
+
+        var manifestPath = Path.Combine(layoutsDir, "bukit.templates.yaml");
+        if (File.Exists(manifestPath) && !force)
+            return true;
+
+        var htmlFiles = Directory.GetFiles(layoutsDir, "*.html", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var sb = new StringBuilder();
+        sb.AppendLine("templates:");
+
+        foreach (var file in htmlFiles)
+        {
+            var relative = Path.GetRelativePath(layoutsDir, file).Replace('\\', '/');
+            var text = File.ReadAllText(file);
+
+            var needsPageContent = text.Contains("page.content", StringComparison.Ordinal) ||
+                                   text.Contains("item.content", StringComparison.Ordinal);
+            var supportsPagination = relative.StartsWith("pages/pagination", StringComparison.OrdinalIgnoreCase);
+            var supportsTaxonomy = relative.StartsWith("pages/taxonomy", StringComparison.OrdinalIgnoreCase);
+            var supportsSearch = relative.StartsWith("pages/search", StringComparison.OrdinalIgnoreCase);
+
+            sb.AppendLine($"  {relative}:");
+            sb.AppendLine("    capabilities:");
+            sb.AppendLine($"      needs_page_content: {needsPageContent.ToString().ToLowerInvariant()}");
+            sb.AppendLine($"      supports_pagination: {supportsPagination.ToString().ToLowerInvariant()}");
+            sb.AppendLine($"      supports_taxonomy: {supportsTaxonomy.ToString().ToLowerInvariant()}");
+            sb.AppendLine($"      supports_search_snippets: {supportsSearch.ToString().ToLowerInvariant()}");
+        }
+
+        File.WriteAllText(manifestPath, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        return true;
     }
 
     private static void RunStrictValidation(List<DiscoveredPage> pages, List<string> warnings)

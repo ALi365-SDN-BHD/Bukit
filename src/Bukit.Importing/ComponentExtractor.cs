@@ -7,7 +7,6 @@ internal static partial class ComponentExtractor
     private static readonly Dictionary<string, string> ClassToComponent = new(StringComparer.OrdinalIgnoreCase)
     {
         [".hero"] = "hero",
-        [".card"] = "card",
         [".article-card"] = "article-card",
         [".post-card"] = "article-card",
         [".company-card"] = "company-card",
@@ -20,6 +19,7 @@ internal static partial class ComponentExtractor
         [".stats"] = "stats",
         [".testimonial"] = "testimonial",
         [".contact-form"] = "contact-form",
+        [".card"] = "card",
     };
 
     private static readonly HashSet<string> ListComponentNames = new(StringComparer.OrdinalIgnoreCase)
@@ -42,7 +42,7 @@ internal static partial class ComponentExtractor
             foreach (var (cssClass, componentName) in ClassToComponent)
             {
                 var className = cssClass.StartsWith('.') ? cssClass[1..] : cssClass;
-                if (page.FullHtml.Contains(className, StringComparison.OrdinalIgnoreCase))
+                if (TemplateBodyTransformer.ContainsClass(page.FullHtml, className))
                 {
                     var fragment = ExtractComponentHtml(page, cssClass);
                     if (!string.IsNullOrWhiteSpace(fragment))
@@ -90,7 +90,7 @@ internal static partial class ComponentExtractor
     private static string ExtractComponentHtml(DiscoveredPage page, string cssClass)
     {
         var tagEnd = cssClass.StartsWith('.') ? cssClass[1..] : cssClass;
-        var pattern = $@"<([a-zA-Z][a-zA-Z0-9]*)[^>]*?\bclass\s*=\s*""[^""]*{Regex.Escape(tagEnd)}[^""]*""[^>]*>";
+        var pattern = $@"<([a-zA-Z][a-zA-Z0-9]*)[^>]*?\bclass\s*=\s*""(?:[^""]*\s)?{Regex.Escape(tagEnd)}(?:\s[^""]*)?""[^>]*>";
         var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Singleline);
         var match = regex.Match(page.FullHtml);
 

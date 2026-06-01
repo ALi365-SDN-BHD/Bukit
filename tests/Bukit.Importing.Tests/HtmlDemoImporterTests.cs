@@ -454,6 +454,64 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_DoesNotDuplicateNav_WhenHeaderContainsNav()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><header><nav><a href=\"/\">Home</a></nav></header><main><h1>Home</h1></main><footer>End</footer></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "nav-dedupe-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var layout = File.ReadAllText(Path.Combine(_tempDir, "themes", "nav-dedupe-test", "layouts", "layouts", "base.html"));
+        Assert.Contains("{{ include 'partials/header.html' }}", layout);
+        Assert.DoesNotContain("{{ include 'partials/nav.html' }}", layout);
+    }
+
+    [Fact]
+    public void Import_PageTemplatesPreserveDemoSectionsAndReferenceComponents()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            """
+            <html><head><title>Home</title></head><body>
+            <main>
+              <section class="hero"><h1>Silk Road</h1><p>Connect markets.</p><a href="contact.html">Talk</a></section>
+              <section class="cards"><article class="article-card"><h3>Market Guide</h3><p>Card copy.</p><a href="article.html">Read</a></article></section>
+              <section class="faq"><div class="faq-item"><h3>What?</h3><p>Answer.</p></div></section>
+            </main>
+            </body></html>
+            """);
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "structure-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var indexTemplate = File.ReadAllText(Path.Combine(_tempDir, "themes", "structure-test", "layouts", "pages", "index.html"));
+        Assert.Contains("class=\"hero\"", indexTemplate);
+        Assert.Contains("class=\"faq", indexTemplate);
+        Assert.Contains("{{ include 'components/hero.html' }}", indexTemplate);
+        Assert.Contains("{{ include 'components/article-card.html' }}", indexTemplate);
+        Assert.Contains("{{ include 'components/faq.html' }}", indexTemplate);
+        Assert.DoesNotContain("Silk Road", indexTemplate);
+        Assert.DoesNotContain("Connect markets.", indexTemplate);
+
+        Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "structure-test", "layouts", "components", "article-card.html")));
+        Assert.False(File.Exists(Path.Combine(_tempDir, "themes", "structure-test", "layouts", "components", "card.html")));
+    }
+
+    [Fact]
     public void Import_Strict_InlineScript_ThrowsAndDoesNotWriteTheme()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
@@ -525,6 +583,57 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_ContentSeedAndMarkdownDraftUseSameExtractedContent()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Welcome</h1><p>Intro text.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About Us</h1><p>About body.</p><section><h2>Details</h2><p>Detailed body.</p></section></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "content-loop-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var seed = File.ReadAllText(Path.Combine(_tempDir, "sites", "content-loop-test", "notion-seed", "pages.json"));
+        var aboutDraft = File.ReadAllText(Path.Combine(_tempDir, "sites", "content-loop-test", "content", "pages", "about.md"));
+        Assert.Contains("\"content\": \"<p>About body.</p>", seed);
+        Assert.Contains("Detailed body.", seed);
+        Assert.Contains("<p>About body.</p>", aboutDraft);
+        Assert.Contains("Detailed body.", aboutDraft);
+        Assert.DoesNotContain("<main>", aboutDraft);
+    }
+
+    [Fact]
+    public void Import_ReportFlagsResidualHardcodedHtml()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><section class=\"hero\"><h1>Home</h1><p>Intro.</p><a href=\"contact.html\">Talk</a></section></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "report-residual-test",
+            RootDir = _tempDir,
+            Force = true,
+            GenerateReport = true
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var report = File.ReadAllText(Path.Combine(_tempDir, "sites", "report-residual-test", "import-report.md"));
+        Assert.Contains("Build/Data Source Relationship", report);
+        Assert.Contains("Markdown draft", report);
+        Assert.Contains("Hardcoded Residuals", report);
+        Assert.DoesNotContain("No high-confidence hardcoded residuals detected automatically.", report);
+    }
+
+    [Fact]
     public void Import_ListTemplates_UseCurrentPageTitleContext()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
@@ -585,6 +694,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
         Assert.Contains("collection: \"page\"", about);
         Assert.Contains("collection: \"post\"", post);
         Assert.Contains("collection: \"company\"", company);
+        Assert.False(File.Exists(Path.Combine(contentDir, "pages", "article-detail.md")));
+        Assert.False(File.Exists(Path.Combine(contentDir, "pages", "company-detail.md")));
         Assert.DoesNotContain("type: \"", index);
         Assert.DoesNotContain("type: \"", about);
         Assert.DoesNotContain("type: \"", post);

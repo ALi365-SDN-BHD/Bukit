@@ -27,7 +27,7 @@ internal static class ImportReportWriter
         Console.WriteLine($"  错误:            {errors}");
         Console.WriteLine($"  警告:            {warnCount}");
         Console.WriteLine($"  site.yaml:        {(result.SiteYamlCreated ? "已创建" : "已跳过（已存在）")}");
-        Console.WriteLine($"  bukit.templates.yaml: {(result.TemplatesSynced ? "已创建" : "已跳过")}");
+        Console.WriteLine($"  bukit.templates.yaml: {(result.TemplatesSynced ? "已创建" : "待同步")}");
         Console.WriteLine($"  notion-seed:      {(result.SeedGenerated ? "已生成" : "跳过")}");
 
         foreach (var w in result.Warnings)
@@ -122,6 +122,12 @@ internal static class ImportReportWriter
         }
 
         sb.AppendLine();
+        sb.AppendLine("## Build/Data Source Relationship");
+        sb.AppendLine();
+        sb.AppendLine("- Build uses the generated Markdown draft under `content/` so `bukit build` and `--verify` do not require external credentials.");
+        sb.AppendLine($"- `{options.ContentSource}` seed files are generated for review/import and are not treated as a live build provider in this step.");
+
+        sb.AppendLine();
         sb.AppendLine("## Hardcoded Residuals");
         sb.AppendLine();
         var residuals = result.Warnings
@@ -129,9 +135,17 @@ internal static class ImportReportWriter
                         w.Contains("手动", StringComparison.OrdinalIgnoreCase) ||
                         w.Contains("审查", StringComparison.OrdinalIgnoreCase))
             .ToList();
+        if (result.ComponentsGenerated > 0)
+        {
+            residuals.Add("Generated component templates preserve demo HTML structure; review links, button labels, and non-text attributes before publishing.");
+        }
+        if (diagnostics.Any(d => d.Code is "INLINE_SCRIPT" or "INLINE_EVENT_HANDLER" or "EXTERNAL_SCRIPT"))
+        {
+            residuals.Add("Script or event-handler diagnostics require manual review before production use.");
+        }
         if (residuals.Count == 0)
         {
-            sb.AppendLine("- No high-confidence hardcoded residuals detected automatically.");
+            sb.AppendLine("- No high-confidence hardcoded residuals detected automatically in generated templates.");
         }
         else
         {
