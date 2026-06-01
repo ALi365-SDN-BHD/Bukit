@@ -10,7 +10,8 @@ internal sealed record NotionPushOptions(
     string ReportPath,
     bool DryRun,
     string Mode = "create",
-    string UniqueField = "Slug");
+    string UniqueField = "Slug",
+    string UpdateContent = "");
 
 internal sealed record NotionPushItemResult(
     ImportSeedRecord Record,
@@ -26,6 +27,11 @@ internal sealed record NotionPushResult(
     int Skipped,
     int Failed,
     IReadOnlyList<NotionPushItemResult> Items);
+
+internal sealed record QueryExistingPageResult(
+    bool QuerySucceeded,
+    string? PageId,
+    string? Error);
 
 internal static partial class NotionSeedPusher
 {
@@ -53,12 +59,27 @@ internal static partial class NotionSeedPusher
             string? existingPageId = null;
             if (isUpsert)
             {
-                existingPageId = await QueryExistingPageAsync(http, options, record, cancellationToken);
+                var queryResult = await QueryExistingPageAsync(http, options, record, cancellationToken);
+                if (!queryResult.QuerySucceeded)
+                {
+                    items.Add(new NotionPushItemResult(record, "query-failed", false, null,
+                        $"Schema query failed: {queryResult.Error}"));
+                    continue;
+                }
+                existingPageId = queryResult.PageId;
             }
 
             if (existingPageId != null)
             {
                 var (success, pageId, error) = await UpdatePageAsync(http, options, existingPageId, record, cancellationToken);
+                if (success && isUpsert && options.UpdateContent == "append" && !string.IsNullOrWhiteSpace(record.Content))
+                {
+                    var blocksJson = HtmlToNotionBlockConverter.ToBlocksJson(record.Content);
+                    if (blocksJson != "[]")
+                    {
+                        await AppendBlockChildrenAsync(http, options, pageId!, blocksJson, cancellationToken);
+                    }
+                }
                 items.Add(new NotionPushItemResult(record, "updated", success, pageId, error));
             }
             else
@@ -73,14 +94,14 @@ internal static partial class NotionSeedPusher
         return result;
     }
 
-    private static async Task<string?> QueryExistingPageAsync(
+    private static async Task<QueryExistingPageResult> QueryExistingPageAsync(
         HttpClient http,
         NotionPushOptions options,
         ImportSeedRecord record,
         CancellationToken ct)
     {
         var uniqueValue = GetUniqueFieldValue(record, options.UniqueField);
-        if (string.IsNullOrWhiteSpace(uniqueValue)) return null;
+        if (string.IsNullOrWhiteSpace(uniqueValue)) return new QueryExistingPageResult(true, null, null);
 
         var filterJson = BuildSlugFilterJson(options.UniqueField, uniqueValue);
         var queryUrl = $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/databases/{options.DatabaseId}/query";
@@ -92,14 +113,19 @@ internal static partial class NotionSeedPusher
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
         using var response = await http.SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode) return null;
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            return new QueryExistingPageResult(false, null,
+                string.IsNullOrWhiteSpace(errorBody) ? response.ReasonPhrase : errorBody);
+        }
 
         var body = await response.Content.ReadAsStringAsync(ct);
         using var doc = JsonDocument.Parse(body);
         var results = doc.RootElement.GetProperty("results");
         if (results.GetArrayLength() > 0)
-            return results[0].GetProperty("id").GetString();
-        return null;
+            return new QueryExistingPageResult(true, results[0].GetProperty("id").GetString(), null);
+        return new QueryExistingPageResult(true, null, null);
     }
 
     private static string GetUniqueFieldValue(ImportSeedRecord record, string uniqueField)
@@ -167,6 +193,19 @@ internal static partial class NotionSeedPusher
     {
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.TryAddWithoutValidation("Notion-Version", NotionApiUrls.NotionVersion);
+    }
+
+    private static async Task AppendBlockChildrenAsync(
+        HttpClient http, NotionPushOptions options, string pageId,
+        string blocksJson, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Patch,
+            $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/blocks/{pageId}/children");
+        BuildCommonRequestHeaders(request, options.Token);
+        request.Content = new StringContent($"{{\"children\":{blocksJson}}}");
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+        await http.SendAsync(request, ct);
     }
 
     private static NotionPushResult BuildResult(IReadOnlyList<NotionPushItemResult> items)

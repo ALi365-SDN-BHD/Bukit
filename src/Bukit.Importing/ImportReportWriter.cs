@@ -211,6 +211,15 @@ internal static class ImportReportWriter
         {
             sb.AppendLine();
             sb.AppendLine("- Notion push seed files are in `notion-seed/`. Run `bukit notion validate-schema` then `bukit notion push --mode upsert` to sync.");
+            sb.AppendLine();
+            sb.AppendLine("## Notion Provider Status");
+            sb.AppendLine();
+            var dbStatus = string.IsNullOrWhiteSpace(options.NotionDatabaseId)
+                ? "${NOTION_DATABASE_ID} (environment variable)"
+                : options.NotionDatabaseId;
+            sb.AppendLine($"- provider: notion ✓");
+            sb.AppendLine($"- databaseId: {dbStatus}");
+            sb.AppendLine("- bukit build requires valid NOTION_TOKEN environment variable");
         }
 
         sb.AppendLine();

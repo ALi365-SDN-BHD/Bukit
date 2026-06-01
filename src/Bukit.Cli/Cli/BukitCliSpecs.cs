@@ -140,6 +140,7 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--notion-database-id", "Notion database ID，用于 --push-notion", CliOptionType.String, ValueName: "id"),
                 new CliOptionSpec("--notion-token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),
                 new CliOptionSpec("--notion-report", "Notion push 报告输出路径", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--no-validate-notion-schema", "--push-notion 时跳过 schema 校验", CliOptionType.Flag),
                 new CliOptionSpec("--config", "配置文件路径"),
                 new CliOptionSpec("--site", "多站点名")
                     }),
@@ -180,7 +181,8 @@ public static class BukitCliSpecs
                         new CliOptionSpec("--report", "推送计划/结果报告输出路径", CliOptionType.String, ValueName: "file"),
                         new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),
                         new CliOptionSpec("--mode", "推送模式: create (仅创建) | upsert (创建或更新，默认 create)", CliOptionType.String, ValueName: "mode"),
-                        new CliOptionSpec("--unique-field", "判断记录是否已存在的唯一字段名 (默认 Slug)", CliOptionType.String, ValueName: "name")
+                        new CliOptionSpec("--unique-field", "判断记录是否已存在的唯一字段名 (默认 Slug)", CliOptionType.String, ValueName: "name"),
+                        new CliOptionSpec("--update-content", "upsert 时更新页面正文 blocks: append (追加) | replace (替换)", CliOptionType.String, ValueName: "strategy")
                     }),
                 new CliCommandSpec(
                     Name: "validate-schema",

@@ -92,6 +92,7 @@ public static class ImportCommand
         var notionDatabaseId = command.GetString("--notion-database-id");
         var notionTokenEnv = command.GetString("--notion-token-env") ?? "NOTION_TOKEN";
         var notionReport = command.GetString("--notion-report");
+        var validateNotionSchema = !command.GetBool("--no-validate-notion-schema");
 
         var noMarkdownDraftExplicit = command.Options.ContainsKey("--no-markdown-draft");
         var noMarkdownDraft = command.GetBool("--no-markdown-draft");
@@ -165,7 +166,9 @@ public static class ImportCommand
             GenerateReport = generateReport,
             BaseUrl = baseUrl,
             NoMarkdownDraft = noMarkdownDraft,
-            RouteMapPath = routeMapPath
+            RouteMapPath = routeMapPath,
+            NotionDatabaseId = notionDatabaseId,
+            NotionTokenEnv = notionTokenEnv
         };
 
         ImportResult result;
@@ -209,7 +212,8 @@ public static class ImportCommand
                 contentSource,
                 notionDatabaseId!,
                 notionTokenEnv,
-                notionReport);
+                notionReport,
+                validateNotionSchema);
             if (pushResult != 0) return pushResult;
         }
 
@@ -229,11 +233,36 @@ public static class ImportCommand
         string contentSource,
         string databaseId,
         string tokenEnv,
-        string? reportPath)
+        string? reportPath,
+        bool validateSchema)
     {
         var siteDir = string.IsNullOrWhiteSpace(result.SitePath)
             ? Path.Combine(rootDir, "sites", themeName)
             : result.SitePath;
+
+        if (validateSchema)
+        {
+            Console.WriteLine("校验 Notion schema...");
+            var token = Environment.GetEnvironmentVariable(tokenEnv);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                Console.Error.WriteLine($"{tokenEnv} is required for schema validation.");
+                return 2;
+            }
+            using var http = NotionCommand.CreateHttpClient();
+            var validationReport = await NotionSchemaValidator.ValidateAsync(
+                http, databaseId, token, null);
+
+            if (!validationReport.Success)
+            {
+                Console.Error.WriteLine("Notion schema validation failed:");
+                foreach (var f in validationReport.FieldResults.Where(r => r.Result != "OK"))
+                    Console.Error.WriteLine($"  {f.Name}: {f.Result} - {f.Message}");
+                return 2;
+            }
+            Console.WriteLine("  Schema validation passed.");
+        }
+
         var seedDir = contentSource.Equals("notion", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(siteDir, "notion-seed")
             : Path.Combine(siteDir, "data");

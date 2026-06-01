@@ -49,6 +49,7 @@ public static class NotionCommand
             return 2;
         }
         var uniqueField = command.GetString("--unique-field") ?? "Slug";
+        var updateContent = command.GetString("--update-content") ?? "";
 
         if (!dryRun && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(tokenEnv)))
         {
@@ -69,7 +70,8 @@ public static class NotionCommand
             ReportPath: reportPath,
             DryRun: dryRun,
             Mode: mode,
-            UniqueField: uniqueField));
+            UniqueField: uniqueField,
+            UpdateContent: updateContent));
         Console.WriteLine($"notion push {(dryRun ? "dry-run" : "api")} 完成: records={result.Total} created={result.Created} updated={result.Updated} failed={result.Failed} report={reportPath}");
         if (result.Failed > 0)
         {

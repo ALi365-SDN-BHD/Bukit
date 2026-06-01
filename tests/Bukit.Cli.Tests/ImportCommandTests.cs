@@ -199,6 +199,7 @@ public sealed class ImportCommandTests : IDisposable
         opts["--push-notion"] = "true";
         opts["--notion-database-id"] = "db123";
         opts["--notion-token-env"] = "BUKIT_TEST_IMPORT_NOTION_TOKEN";
+        opts["--no-validate-notion-schema"] = "true";
 
         var originalFactory = NotionCommand.CreateHttpClient;
         var originalToken = Environment.GetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_TOKEN");

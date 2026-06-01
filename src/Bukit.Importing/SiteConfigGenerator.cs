@@ -51,11 +51,18 @@ internal static class SiteConfigGenerator
 
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
+            var dbId = !string.IsNullOrWhiteSpace(options.NotionDatabaseId)
+                ? options.NotionDatabaseId
+                : "${NOTION_DATABASE_ID}";
+            var tokenEnv = !string.IsNullOrWhiteSpace(options.NotionTokenEnv)
+                ? options.NotionTokenEnv
+                : "NOTION_TOKEN";
+
             sb.AppendLine("content:");
             sb.AppendLine("  provider: notion");
             sb.AppendLine("  notion:");
-            sb.AppendLine("    databaseId: ${NOTION_DATABASE_ID}");
-            sb.AppendLine("    tokenEnv: NOTION_TOKEN");
+            sb.AppendLine($"    databaseId: {dbId}");
+            sb.AppendLine($"    tokenEnv: {tokenEnv}");
             sb.AppendLine("    filterProperty: Published");
             sb.AppendLine("    filterType: checkbox_true");
             sb.AppendLine("    sortProperty: Title");

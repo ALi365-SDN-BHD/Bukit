@@ -21,6 +21,8 @@ public sealed record HtmlDemoImportOptions
     public string? BaseUrl { get; init; }
     public bool NoMarkdownDraft { get; init; }
     public string? RouteMapPath { get; init; }
+    public string? NotionDatabaseId { get; init; }
+    public string? NotionTokenEnv { get; init; }
 }
 
 public sealed record DiscoveredPage

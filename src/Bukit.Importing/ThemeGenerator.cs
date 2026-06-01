@@ -14,7 +14,8 @@ internal static partial class ThemeGenerator
         List<DiscoveredPage> pages,
         LayoutExtractor.LayoutInfo layout,
         List<string> warnings,
-        Dictionary<string, string> pathMappings)
+        Dictionary<string, string> pathMappings,
+        RouteMapConfig? routeMap = null)
     {
         var themeDir = Path.Combine(options.RootDir, "themes", options.ThemeName);
 
@@ -49,10 +50,10 @@ internal static partial class ThemeGenerator
         var templateCount = 0;
         foreach (var page in pages)
         {
-            var templateName = GetTemplateFileName(page);
+            var templateName = GetTemplateFileName(page, routeMap);
             var templatePath = Path.Combine(themeDir, "layouts", "pages", templateName);
             var existingPage = pages.FirstOrDefault(p =>
-                GetTemplateFileName(p) == templateName && p != page);
+                GetTemplateFileName(p, routeMap) == templateName && p != page);
 
             if (existingPage != null)
             {
@@ -67,7 +68,7 @@ internal static partial class ThemeGenerator
         }
 
         var indexExists = pages.Any(p =>
-            GetTemplateFileName(p) == "index.html");
+            GetTemplateFileName(p, routeMap) == "index.html");
         if (!indexExists)
         {
             WriteIndexTemplate(themeDir, pages, pathMappings);
@@ -75,7 +76,7 @@ internal static partial class ThemeGenerator
         }
 
         var listExists = pages.Any(p =>
-            GetTemplateFileName(p) == "list.html");
+            GetTemplateFileName(p, routeMap) == "list.html");
         if (!listExists)
         {
             WriteListTemplate(themeDir, pathMappings);
@@ -139,8 +140,16 @@ internal static partial class ThemeGenerator
         return (cssLinks, scriptTags);
     }
 
-    private static string GetTemplateFileName(DiscoveredPage page)
+    private static string GetTemplateFileName(DiscoveredPage page, RouteMapConfig? routeMap = null)
     {
+        if (routeMap != null)
+        {
+            var fileName = Path.GetFileNameWithoutExtension(page.RelativePath);
+            var routeTemplate = PageClassifier.GetTemplate(routeMap, fileName);
+            if (routeTemplate != null)
+                return routeTemplate + ".html";
+        }
+
         return page.Type switch
         {
             PageType.Home => "index.html",

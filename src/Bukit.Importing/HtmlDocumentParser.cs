@@ -12,7 +12,7 @@ internal static class HtmlDocumentParser
         IsNotConsumingCharacterReferences = false
     });
 
-    internal static DiscoveredPage Parse(string filePath, string baseDir)
+    internal static DiscoveredPage Parse(string filePath, string baseDir, RouteMapConfig? routeMap = null)
     {
         var html = File.ReadAllText(filePath);
         var relativePath = Path.GetRelativePath(baseDir, filePath);
@@ -25,7 +25,14 @@ internal static class HtmlDocumentParser
         var title = document.QuerySelector("title")?.TextContent?.Trim();
         var headContent = document.Head?.InnerHtml?.Trim();
         var bodyContent = document.Body?.InnerHtml?.Trim() ?? html;
-        var pageType = PageClassifier.Classify(fileNameWithoutExtension, html);
+        var pageType = PageClassifier.Classify(fileNameWithoutExtension, html, routeMap);
+
+        if (routeMap != null)
+        {
+            var routeSlug = GetSlugFromRouteMap(routeMap, fileNameWithoutExtension);
+            if (routeSlug != null)
+                slug = routeSlug;
+        }
 
         var (bodyOpening, uniqueBody, bodyClosing) = SplitBody(html);
         var assetPaths = ExtractAssetPaths(document, html);
@@ -112,5 +119,19 @@ internal static class HtmlDocumentParser
         while (result.Contains("--"))
             result = result.Replace("--", "-");
         return result.Trim('-').ToLowerInvariant();
+    }
+
+    private static string? GetSlugFromRouteMap(RouteMapConfig routeMap, string fileNameWithoutExtension)
+    {
+        var match = routeMap.Pages.FirstOrDefault(p =>
+            string.Equals(p.Source, $"{fileNameWithoutExtension}.html", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Path.GetFileNameWithoutExtension(p.Source), fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase));
+        if (match == null || string.IsNullOrWhiteSpace(match.Route))
+            return null;
+
+        var route = match.Route.Trim('/');
+        if (route.Length == 0)
+            return "";
+        return SanitizeSlug(route.Split('/').Last());
     }
 }

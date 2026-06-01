@@ -17,7 +17,7 @@ public static class HtmlDemoImporter
 
         var routeMap = RouteMapLoader.Load(options.RouteMapPath);
 
-        var pages = HtmlDemoScanner.Scan(options.InputPath);
+        var pages = HtmlDemoScanner.Scan(options.InputPath, routeMap);
         var warnings = new List<string>();
         var layout = LayoutExtractor.Extract(pages, warnings);
         var diagnostics = ImportSafetyScanner.Scan(options, pages);
@@ -61,7 +61,7 @@ public static class HtmlDemoImporter
 
         var assetResult = AssetImporter.Import(options, pages);
 
-        var result = ThemeGenerator.Generate(options, pages, layout, warnings, assetResult.PathMappings);
+        var result = ThemeGenerator.Generate(options, pages, layout, warnings, assetResult.PathMappings, routeMap);
         result = result with { AssetsCopied = assetResult.Count };
         result.Warnings.AddRange(assetResult.Warnings);
 
