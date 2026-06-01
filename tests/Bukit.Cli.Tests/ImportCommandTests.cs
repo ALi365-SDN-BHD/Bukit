@@ -238,7 +238,7 @@ public sealed class ImportCommandTests : IDisposable
 
         var result = await ImportCommand.RunAsync(cmd);
 
-        Assert.Equal(1, result);
+        Assert.Equal(2, result);
     }
 
     [Fact]

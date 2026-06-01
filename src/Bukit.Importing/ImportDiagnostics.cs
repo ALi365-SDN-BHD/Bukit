@@ -13,3 +13,22 @@ public enum ImportDiagnosticSeverity
     Warning,
     Error
 }
+
+public sealed class ImportException : Exception
+{
+    public ImportErrorKind Kind { get; }
+    public ImportException(ImportErrorKind kind, string message) : base(message)
+    {
+        Kind = kind;
+    }
+    public ImportException(ImportErrorKind kind, string message, Exception inner) : base(message, inner)
+    {
+        Kind = kind;
+    }
+}
+
+public enum ImportErrorKind
+{
+    UserInput,
+    Internal
+}

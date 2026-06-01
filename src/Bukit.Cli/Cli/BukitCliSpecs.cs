@@ -255,8 +255,8 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--dry-run", "只分析不写入文件", CliOptionType.Flag),
                 new CliOptionSpec("--strict", "严格模式，硬编码残留/空slug/重复slug 直接失败", CliOptionType.Flag),
                 new CliOptionSpec("--overwrite", "覆盖已有组件文件", CliOptionType.Flag),
-                new CliOptionSpec("--preserve-html", "保留原始 HTML 快照 (默认启用)", CliOptionType.Flag),
-                new CliOptionSpec("--report", "生成 import-report.md 文件 (默认启用)", CliOptionType.Flag),
+                new CliOptionSpec("--no-preserve-html", "不保留原始 HTML 快照", CliOptionType.Flag),
+                new CliOptionSpec("--no-report", "不生成 import-report.md 文件", CliOptionType.Flag),
                 new CliOptionSpec("--base-url", "设置 site.baseUrl"),
                 new CliOptionSpec("--config", "配置文件路径"),
                 new CliOptionSpec("--site", "多站点名")
@@ -289,7 +289,7 @@ public static class BukitCliSpecs
             {
                 new CliCommandSpec(
                     Name: "push",
-                    Description: "从 notion-seed 生成 Notion 推送计划，非 dry-run 前校验 token",
+                    Description: "生成 Notion push 计划（不执行实际 Notion API 调用，仅输出计划/报告文件）",
                     Options: new[]
                     {
                         new CliOptionSpec("--input", "seed 输入目录", CliOptionType.String, ValueName: "dir", Required: true),

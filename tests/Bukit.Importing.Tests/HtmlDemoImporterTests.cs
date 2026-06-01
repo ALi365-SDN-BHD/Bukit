@@ -106,7 +106,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
             RootDir = _tempDir
         };
 
-        Assert.Throws<InvalidOperationException>(() => HtmlDemoImporter.Import(options));
+        Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
             RootDir = _tempDir
         };
 
-        Assert.Throws<InvalidOperationException>(() => HtmlDemoImporter.Import(options));
+        Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
             Force = false
         };
 
-        Assert.Throws<InvalidOperationException>(() => HtmlDemoImporter.Import(options));
+        Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
     }
 
     [Fact]
@@ -249,7 +249,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
             RootDir = _tempDir
         };
 
-        Assert.Throws<InvalidOperationException>(() => HtmlDemoImporter.Import(options));
+        Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
     }
 
     [Fact]
@@ -467,9 +467,37 @@ public sealed class HtmlDemoImporterTests : IDisposable
             Strict = true
         };
 
-        var ex = Assert.Throws<InvalidOperationException>(() => HtmlDemoImporter.Import(options));
-        Assert.Contains("INLINE_SCRIPT", ex.Message);
+        var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
         Assert.False(Directory.Exists(Path.Combine(_tempDir, "themes", "strict-script")));
+    }
+
+    [Fact]
+    public void Import_WithAssets_GeneratedTemplatesHaveCorrectPaths()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Test</title><link rel=\"stylesheet\" href=\"css/style.css\" /></head>" +
+            "<body><header>Nav</header><main><h1>Test</h1><img src=\"img/logo.png\" /></main><footer>End</footer></body></html>");
+        Directory.CreateDirectory(Path.Combine(_tempDir, "css"));
+        Directory.CreateDirectory(Path.Combine(_tempDir, "img"));
+        File.WriteAllText(Path.Combine(_tempDir, "css", "style.css"), "body{}");
+        File.WriteAllText(Path.Combine(_tempDir, "img", "logo.png"), "fake");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "asset-path-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        var result = HtmlDemoImporter.Import(options);
+
+        var pagesDir = Path.Combine(_tempDir, "themes", "asset-path-test", "layouts", "pages");
+        var indexContent = File.ReadAllText(Path.Combine(pagesDir, "index.html"));
+
+        Assert.DoesNotContain("\"img/logo.png\"", indexContent, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("\"../", indexContent, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

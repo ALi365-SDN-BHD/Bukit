@@ -109,10 +109,10 @@ public static class HtmlDemoImporter
         foreach (var page in pages)
         {
             if (string.IsNullOrWhiteSpace(page.Slug) && page.Type != PageType.Home)
-                throw new InvalidOperationException($"Strict 模式: 页面缺少 slug: {page.RelativePath}");
+                throw new ImportException(ImportErrorKind.UserInput, $"Strict 模式: 页面缺少 slug: {page.RelativePath}");
 
             if (!string.IsNullOrWhiteSpace(page.Slug) && !slugs.Add(page.Slug))
-                throw new InvalidOperationException($"Strict 模式: 重复 slug: {page.Slug} ({page.RelativePath})");
+                throw new ImportException(ImportErrorKind.UserInput, $"Strict 模式: 重复 slug: {page.Slug} ({page.RelativePath})");
         }
     }
 
@@ -124,7 +124,7 @@ public static class HtmlDemoImporter
         if (strictDiagnostics.Count == 0) return;
 
         var summary = string.Join(", ", strictDiagnostics.Select(d => d.Code).Distinct());
-        throw new InvalidOperationException($"Strict 模式: 导入诊断失败: {summary}");
+        throw new ImportException(ImportErrorKind.UserInput, $"Strict 模式: 导入诊断失败: {summary}");
     }
 
     internal static string GetSiteDir(HtmlDemoImportOptions options)
@@ -175,11 +175,11 @@ public static class HtmlDemoImporter
     private static void ValidateInput(HtmlDemoImportOptions options)
     {
         if (!Directory.Exists(options.InputPath))
-            throw new InvalidOperationException($"输入目录不存在: {options.InputPath}");
+            throw new ImportException(ImportErrorKind.UserInput, $"输入目录不存在: {options.InputPath}");
 
         var indexPath = Path.Combine(options.InputPath, "index.html");
         if (!File.Exists(indexPath))
-            throw new InvalidOperationException($"输入目录中缺少 index.html: {options.InputPath}");
+            throw new ImportException(ImportErrorKind.UserInput, $"输入目录中缺少 index.html: {options.InputPath}");
 
         ValidateThemeName(options.ThemeName);
 
@@ -187,7 +187,7 @@ public static class HtmlDemoImporter
         {
             var themeDir = Path.Combine(options.RootDir, "themes", options.ThemeName);
             if (Directory.Exists(themeDir) && !options.Force)
-                throw new InvalidOperationException($"主题已存在: {options.ThemeName}。使用 --force 覆盖。");
+                throw new ImportException(ImportErrorKind.UserInput, $"主题已存在: {options.ThemeName}。使用 --force 覆盖。");
         }
 
         ScanDangerousFiles(options.InputPath);
@@ -202,17 +202,13 @@ public static class HtmlDemoImporter
                 var ext = pattern[1..];
                 var matches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
                 if (matches.Length > 0)
-                    throw new InvalidOperationException($"输入目录包含敏感文件 (扩展名 {ext}): {Path.GetRelativePath(inputPath, matches[0])}");
+                    throw new ImportException(ImportErrorKind.UserInput, $"输入目录包含敏感文件 (扩展名 {ext}): {Path.GetRelativePath(inputPath, matches[0])}");
             }
             else
             {
-                var fileMatches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
-                if (fileMatches.Length > 0)
-                    throw new InvalidOperationException($"输入目录包含敏感项: {Path.GetRelativePath(inputPath, fileMatches[0])}");
-
-                var dirMatches = Directory.GetDirectories(inputPath, pattern, SearchOption.AllDirectories);
-                if (dirMatches.Length > 0)
-                    throw new InvalidOperationException($"输入目录包含敏感项: {Path.GetRelativePath(inputPath, dirMatches[0])}");
+                var fullPath = Path.Combine(inputPath, pattern);
+                if (File.Exists(fullPath) || Directory.Exists(fullPath))
+                    throw new ImportException(ImportErrorKind.UserInput, $"输入目录包含敏感项: {pattern}");
             }
         }
     }
@@ -220,15 +216,15 @@ public static class HtmlDemoImporter
     private static void ValidateThemeName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new InvalidOperationException("主题名不能为空");
+            throw new ImportException(ImportErrorKind.UserInput, "主题名不能为空");
 
         if (name is "." or "..")
-            throw new InvalidOperationException($"无效的主题名: {name}");
+            throw new ImportException(ImportErrorKind.UserInput, $"无效的主题名: {name}");
 
         if (Path.IsPathRooted(name))
-            throw new InvalidOperationException($"无效的主题名（绝对路径）: {name}");
+            throw new ImportException(ImportErrorKind.UserInput, $"无效的主题名（绝对路径）: {name}");
 
         if (name.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0)
-            throw new InvalidOperationException($"无效的主题名（包含路径分隔符）: {name}");
+            throw new ImportException(ImportErrorKind.UserInput, $"无效的主题名（包含路径分隔符）: {name}");
     }
 }

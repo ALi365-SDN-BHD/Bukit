@@ -85,8 +85,8 @@ public static class ImportCommand
         var dryRun = command.GetBool("--dry-run");
         var strict = command.GetBool("--strict");
         var overwrite = command.GetBool("--overwrite");
-        var preserveHtml = true;
-        var generateReport = true;
+        var preserveHtml = !command.GetBool("--no-preserve-html");
+        var generateReport = !command.GetBool("--no-report");
         var baseUrl = command.GetString("--base-url");
 
         var resolved = ConfigPathResolver.Resolve(
@@ -135,6 +135,16 @@ public static class ImportCommand
         try
         {
             result = HtmlDemoImporter.Import(options);
+        }
+        catch (ImportException ex) when (ex.Kind == ImportErrorKind.UserInput)
+        {
+            Console.Error.WriteLine($"导入失败: {ex.Message}");
+            return 2;
+        }
+        catch (ImportException ex)
+        {
+            Console.Error.WriteLine($"导入失败: {ex.Message}");
+            return 1;
         }
         catch (Exception ex)
         {

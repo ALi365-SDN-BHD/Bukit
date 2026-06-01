@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Bukit.Shared;
 
 namespace Bukit.Importing;
 
@@ -114,6 +115,7 @@ internal static partial class ContentExtractor
 
     private static void ExtractPosts(DiscoveredPage page, ExtractedContent content)
     {
+        var counter = 0;
         foreach (Match match in CardRegex.Matches(page.UniqueBody))
         {
             var cardHtml = match.Value;
@@ -126,12 +128,16 @@ internal static partial class ContentExtractor
 
             var slugFromLink = link.Success
                 ? Path.GetFileNameWithoutExtension(link.Groups[1].Value.TrimEnd('/'))
-                : Slugify(title);
+                : null;
+
+            var slug = !string.IsNullOrWhiteSpace(slugFromLink)
+                ? slugFromLink
+                : GetSlugWithFallback(title, "post", ref counter);
 
             content.Posts.Add(new PostRecord
             {
                 Title = title,
-                Slug = slugFromLink,
+                Slug = slug,
                 Summary = p.Success ? StripHtml(p.Groups[1].Value).Trim() : null,
                 SeoTitle = title
             });
@@ -145,10 +151,14 @@ internal static partial class ContentExtractor
         if (h1.Success)
         {
             var title = StripHtml(h1.Groups[1].Value).Trim();
+            var counter = 0;
+            var slug = string.IsNullOrWhiteSpace(page.Slug)
+                ? GetSlugWithFallback(title, "post", ref counter)
+                : page.Slug;
             content.Posts.Add(new PostRecord
             {
                 Title = title,
-                Slug = string.IsNullOrWhiteSpace(page.Slug) ? Slugify(title) : page.Slug,
+                Slug = slug,
                 Summary = ExtractSummary(page.UniqueBody),
                 Content = page.UniqueBody,
                 SeoTitle = title,
@@ -159,6 +169,7 @@ internal static partial class ContentExtractor
 
     private static void ExtractCompanies(DiscoveredPage page, ExtractedContent content)
     {
+        var counter = 0;
         foreach (Match match in CardRegex.Matches(page.UniqueBody))
         {
             var cardHtml = match.Value;
@@ -171,7 +182,7 @@ internal static partial class ContentExtractor
             content.Companies.Add(new CompanyRecord
             {
                 Title = title,
-                Slug = Slugify(title),
+                Slug = GetSlugWithFallback(title, "company", ref counter),
                 Summary = p.Success ? StripHtml(p.Groups[1].Value).Trim() : null,
                 SeoTitle = title
             });
@@ -184,10 +195,14 @@ internal static partial class ContentExtractor
         if (!h1.Success) return;
 
         var title = StripHtml(h1.Groups[1].Value).Trim();
+        var counter = 0;
+        var slug = string.IsNullOrWhiteSpace(page.Slug)
+            ? GetSlugWithFallback(title, "company", ref counter)
+            : page.Slug;
         content.Companies.Add(new CompanyRecord
         {
             Title = title,
-            Slug = string.IsNullOrWhiteSpace(page.Slug) ? Slugify(title) : page.Slug,
+            Slug = slug,
             Summary = ExtractSummary(page.UniqueBody),
             Content = page.UniqueBody,
             SeoTitle = title,
@@ -197,6 +212,7 @@ internal static partial class ContentExtractor
 
     private static void ExtractServices(DiscoveredPage page, ExtractedContent content)
     {
+        var counter = 0;
         foreach (Match match in CardRegex.Matches(page.UniqueBody))
         {
             var cardHtml = match.Value;
@@ -209,7 +225,7 @@ internal static partial class ContentExtractor
             content.Services.Add(new ServiceRecord
             {
                 Title = title,
-                Slug = Slugify(title),
+                Slug = GetSlugWithFallback(title, "service", ref counter),
                 Summary = p.Success ? StripHtml(p.Groups[1].Value).Trim() : null,
                 SeoTitle = title
             });
@@ -222,10 +238,14 @@ internal static partial class ContentExtractor
         if (!h1.Success) return;
 
         var title = StripHtml(h1.Groups[1].Value).Trim();
+        var counter = 0;
+        var slug = string.IsNullOrWhiteSpace(page.Slug)
+            ? GetSlugWithFallback(title, "service", ref counter)
+            : page.Slug;
         content.Services.Add(new ServiceRecord
         {
             Title = title,
-            Slug = string.IsNullOrWhiteSpace(page.Slug) ? Slugify(title) : page.Slug,
+            Slug = slug,
             Summary = ExtractSummary(page.UniqueBody),
             Content = page.UniqueBody,
             SeoTitle = title,
@@ -310,11 +330,17 @@ internal static partial class ContentExtractor
 
     private static string Slugify(string text)
     {
-        var slug = text.ToLowerInvariant();
-        slug = Regex.Replace(slug, @"[^a-z0-9\s-]", "");
-        slug = Regex.Replace(slug, @"\s+", "-");
-        slug = Regex.Replace(slug, @"-+", "-");
-        return slug.Trim('-');
+        return SlugHelper.Slugify(text);
+    }
+
+    private static string GetSlugWithFallback(string title, string prefix, ref int counter)
+    {
+        var slug = SlugHelper.Slugify(title);
+        if (!string.IsNullOrWhiteSpace(slug))
+            return slug;
+
+        counter++;
+        return $"{prefix}-{counter:D3}";
     }
 
     [GeneratedRegex(@"<h1[^>]*>(.*?)</h1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
