@@ -90,6 +90,10 @@ public static class ImportCommand
         var routeMapPath = command.GetString("--route-map");
         var pushNotion = command.GetBool("--push-notion");
         var notionDatabaseId = command.GetString("--notion-database-id");
+        var notionDatabaseMap = command.GetString("--notion-database-map");
+        var createMissingNotionDatabases = command.GetBool("--create-missing-notion-databases");
+        var notionParentPageId = command.GetString("--notion-parent-page-id");
+        var notionGeneratedDatabaseMap = command.GetString("--notion-generated-database-map");
         var notionTokenEnv = command.GetString("--notion-token-env") ?? "NOTION_TOKEN";
         var notionReport = command.GetString("--notion-report");
         var validateNotionSchema = !command.GetBool("--no-validate-notion-schema");
@@ -127,9 +131,16 @@ public static class ImportCommand
                 Console.Error.WriteLine("--push-notion 需要 seed 数据。请不要同时使用 --no-seed。");
                 return 2;
             }
-            if (string.IsNullOrWhiteSpace(notionDatabaseId))
+            if (string.IsNullOrWhiteSpace(notionDatabaseId) &&
+                string.IsNullOrWhiteSpace(notionDatabaseMap) &&
+                !createMissingNotionDatabases)
             {
-                Console.Error.WriteLine("缺少必填选项: --notion-database-id <id>");
+                Console.Error.WriteLine("缺少 Notion database 目标。请提供 --notion-database-id、--notion-database-map，或使用 --create-missing-notion-databases --notion-parent-page-id <id>。");
+                return 2;
+            }
+            if (createMissingNotionDatabases && string.IsNullOrWhiteSpace(notionParentPageId))
+            {
+                Console.Error.WriteLine("--create-missing-notion-databases 需要 --notion-parent-page-id <id>。");
                 return 2;
             }
         }
@@ -205,7 +216,11 @@ public static class ImportCommand
                 rootDir,
                 themeName,
                 contentSource,
-                notionDatabaseId!,
+                notionDatabaseId,
+                notionDatabaseMap,
+                createMissingNotionDatabases,
+                notionParentPageId,
+                notionGeneratedDatabaseMap,
                 notionTokenEnv,
                 notionReport,
                 validateNotionSchema);
@@ -226,7 +241,11 @@ public static class ImportCommand
         string rootDir,
         string themeName,
         string contentSource,
-        string databaseId,
+        string? databaseId,
+        string? databaseMap,
+        bool createMissingDatabases,
+        string? parentPageId,
+        string? generatedDatabaseMap,
         string tokenEnv,
         string? reportPath,
         bool validateSchema)
@@ -235,7 +254,7 @@ public static class ImportCommand
             ? Path.Combine(rootDir, "sites", themeName)
             : result.SitePath;
 
-        if (validateSchema)
+        if (validateSchema && string.IsNullOrWhiteSpace(databaseMap) && !string.IsNullOrWhiteSpace(databaseId))
         {
             Console.WriteLine("校验 Notion schema...");
             var token = Environment.GetEnvironmentVariable(tokenEnv);
@@ -265,12 +284,26 @@ public static class ImportCommand
         var options = new Dictionary<string, string?>
         {
             ["--input"] = seedDir,
-            ["--database-id"] = databaseId,
             ["--token-env"] = tokenEnv,
             ["--mode"] = "upsert",
             ["--unique-field"] = "Slug",
             ["--update-content"] = "replace"
         };
+        if (!string.IsNullOrWhiteSpace(databaseId))
+            options["--database-id"] = databaseId;
+        if (!string.IsNullOrWhiteSpace(databaseMap))
+            options["--database-map"] = Path.IsPathRooted(databaseMap)
+                ? databaseMap
+                : Path.Combine(siteDir, databaseMap);
+        if (createMissingDatabases)
+        {
+            options["--create-missing-databases"] = "true";
+            options["--parent-page-id"] = parentPageId;
+        }
+        if (!string.IsNullOrWhiteSpace(generatedDatabaseMap))
+            options["--generated-database-map"] = Path.IsPathRooted(generatedDatabaseMap)
+                ? generatedDatabaseMap
+                : Path.Combine(siteDir, generatedDatabaseMap);
         if (!string.IsNullOrWhiteSpace(reportPath))
             options["--report"] = Path.IsPathRooted(reportPath)
                 ? reportPath

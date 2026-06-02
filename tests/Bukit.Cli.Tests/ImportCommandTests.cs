@@ -221,6 +221,59 @@ public sealed class ImportCommandTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task Import_WithPushNotionDatabaseMap_DoesNotRequireSingleDatabaseId()
+    {
+        CreateDemoHtml("index.html", "Home");
+        var mapPath = Path.Combine(_tempDir, "notion-map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  pages:
+    databaseId: "pages-db"
+    seed: "pages.json"
+""");
+
+        var requests = new List<HttpRequestMessage>();
+        var handler = new RecordingHandler(req =>
+        {
+            requests.Add(CloneRequest(req));
+            if (req.RequestUri!.AbsolutePath.Contains("/databases/") && req.Method == HttpMethod.Get)
+                return OkDatabaseSchema();
+            if (req.RequestUri.AbsolutePath.Contains("/query"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"results":[],"has_more":false}""")
+                };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-1"}""")
+            };
+        });
+
+        var opts = BaseOptions();
+        opts["--theme"] = "push-notion-map-test";
+        opts["--push-notion"] = "true";
+        opts["--notion-database-map"] = mapPath;
+        opts["--notion-token-env"] = "BUKIT_TEST_IMPORT_NOTION_MAP_TOKEN";
+
+        var originalFactory = NotionCommand.CreateHttpClient;
+        var originalToken = Environment.GetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_MAP_TOKEN");
+        NotionCommand.CreateHttpClient = () => new HttpClient(handler);
+        Environment.SetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_MAP_TOKEN", "secret_import_map");
+        try
+        {
+            var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", _tempDir]));
+
+            Assert.Equal(0, result);
+            Assert.Contains(requests, r => r.RequestUri!.AbsoluteUri == "https://api.notion.com/v1/pages");
+        }
+        finally
+        {
+            NotionCommand.CreateHttpClient = originalFactory;
+            Environment.SetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_MAP_TOKEN", originalToken);
+        }
+    }
+
     private static int CountOccurrences(string haystack, string needle)
     {
         var count = 0;
@@ -242,6 +295,26 @@ public sealed class ImportCommandTests : IDisposable
             clone.Content = new StringContent(request.Content.ReadAsStringAsync().GetAwaiter().GetResult());
         return clone;
     }
+
+    private static HttpResponseMessage OkDatabaseSchema()
+        => new(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""
+{
+  "properties": {
+    "Title": { "type": "title" },
+    "Slug": { "type": "rich_text" },
+    "Type": { "type": "select" },
+    "Summary": { "type": "rich_text" },
+    "Content": { "type": "rich_text" },
+    "Language": { "type": "select" },
+    "Published": { "type": "checkbox" },
+    "SeoTitle": { "type": "rich_text" },
+    "SeoDescription": { "type": "rich_text" }
+  }
+}
+""")
+        };
 
     private sealed class RecordingHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {

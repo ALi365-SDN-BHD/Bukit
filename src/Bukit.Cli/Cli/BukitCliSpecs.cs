@@ -138,6 +138,10 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--base-url", "设置 site.baseUrl"),
                 new CliOptionSpec("--push-notion", "导入后直接将生成的 seed 写入 Notion（推送前默认校验 database schema）", CliOptionType.Flag),
                 new CliOptionSpec("--notion-database-id", "Notion database ID，用于 --push-notion", CliOptionType.String, ValueName: "id"),
+                new CliOptionSpec("--notion-database-map", "多 Notion database 映射 YAML 文件，用于 --push-notion", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--create-missing-notion-databases", "缺少 databaseId 时自动创建 Notion databases", CliOptionType.Flag),
+                new CliOptionSpec("--notion-parent-page-id", "自动创建 Notion database 的父页面 ID", CliOptionType.String, ValueName: "id"),
+                new CliOptionSpec("--notion-generated-database-map", "自动创建后写出的 Notion database map 路径", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--notion-token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),
                 new CliOptionSpec("--notion-report", "Notion push 报告输出路径", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--no-validate-notion-schema", "--push-notion 时跳过 schema 校验（用于本地 smoke test 或 mock 环境）", CliOptionType.Flag),
@@ -164,6 +168,10 @@ public static class BukitCliSpecs
             {
                 new CliOptionSpec("--input", "seed 输入目录", CliOptionType.String, ValueName: "dir"),
                 new CliOptionSpec("--database-id", "Notion database ID", CliOptionType.String, ValueName: "id"),
+                new CliOptionSpec("--database-map", "多 database 映射 YAML 文件", CliOptionType.String, ValueName: "file"),
+                new CliOptionSpec("--create-missing-databases", "缺少 databaseId 时按 seed collection 自动创建 Notion database", CliOptionType.Flag),
+                new CliOptionSpec("--parent-page-id", "自动创建 Notion database 的父页面 ID", CliOptionType.String, ValueName: "id"),
+                new CliOptionSpec("--generated-database-map", "自动创建后写出的 database map 路径", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--dry-run", "只生成推送计划，不调用 Notion API；不传则实际写入", CliOptionType.Flag),
                 new CliOptionSpec("--report", "推送计划/结果报告输出路径", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name")
@@ -176,7 +184,11 @@ public static class BukitCliSpecs
                     Options: new[]
                     {
                         new CliOptionSpec("--input", "seed 输入目录", CliOptionType.String, ValueName: "dir", Required: true),
-                        new CliOptionSpec("--database-id", "Notion database ID", CliOptionType.String, ValueName: "id", Required: true),
+                        new CliOptionSpec("--database-id", "Notion database ID；不传时进入多 database map/自动创建模式", CliOptionType.String, ValueName: "id"),
+                        new CliOptionSpec("--database-map", "多 database 映射 YAML 文件", CliOptionType.String, ValueName: "file"),
+                        new CliOptionSpec("--create-missing-databases", "缺少 databaseId 时按 seed collection 自动创建 Notion database", CliOptionType.Flag),
+                        new CliOptionSpec("--parent-page-id", "自动创建 Notion database 的父页面 ID", CliOptionType.String, ValueName: "id"),
+                        new CliOptionSpec("--generated-database-map", "自动创建后写出的 database map 路径", CliOptionType.String, ValueName: "file"),
                         new CliOptionSpec("--dry-run", "只生成推送计划，不调用 Notion API；不传则实际写入", CliOptionType.Flag),
                         new CliOptionSpec("--report", "推送计划/结果报告输出路径", CliOptionType.String, ValueName: "file"),
                         new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),

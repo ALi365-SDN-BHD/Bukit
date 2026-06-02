@@ -1419,7 +1419,28 @@ bukit notion push \
   --dry-run
 ```
 
-当前实现首先支持 `--dry-run` 生成本地推送计划 `notion-push-plan.json`。非 `--dry-run` 会校验 `NOTION_TOKEN`（或 `--token-env` 指定的环境变量），然后调用 Notion API 将 seed 记录写入目标 database，并生成 `notion-push-report.json`。默认字段映射为 `Title`、`Slug`、`Type`、`Summary`、`Content`、`Language`、`Published`、`SeoTitle`、`SeoDescription`，目标 Notion database 需要存在兼容字段。
+当前实现首先支持 `--dry-run` 生成本地推送计划 `notion-push-plan.json`。非 `--dry-run` 会校验 `NOTION_TOKEN`（或 `--token-env` 指定的环境变量），然后调用 Notion API 将 seed 记录写入目标 database，并生成 `notion-push-report.json`。默认字段映射为 `Title`、`Slug`、`Type`、`Summary`、`Content`、`Language`、`Published`、`SeoTitle`、`SeoDescription`。
+
+Notion 推送支持两种模式：
+
+- 单 database：传 `--database-id`，将 `pages/posts/companies/services` 合并推入同一个 database，并用 `Type` 区分 collection。
+- 多 database：传 `--database-map`，或传 `--create-missing-databases --parent-page-id <id>` 让 Bukit 按 seed collection 自动创建 `pages/posts/companies/services` 对应的 databases。已有 `databaseId` 时先校验 schema 再 upsert；缺少 `databaseId` 且未启用自动创建时直接报错，不隐式创建。
+
+多 database map 示例：
+
+```yaml
+databases:
+  pages:
+    title: Pages
+    seed: pages.json
+    databaseId: "<pages-db-id>"
+    uniqueField: Slug
+  posts:
+    title: Posts
+    seed: posts.json
+    databaseId: "<posts-db-id>"
+    uniqueField: Slug
+```
 
 原因：
 
@@ -1435,6 +1456,16 @@ bukit import html-demo ./demo \
   --content-source notion \
   --push-notion \
   --notion-database-id <notion-database-id>
+```
+
+也可以直接使用多 database map：
+
+```bash
+bukit import html-demo ./demo \
+  --theme silkroadbiz \
+  --content-source notion \
+  --push-notion \
+  --notion-database-map sites/silkroadbiz/notion-databases.yaml
 ```
 - 方便 dry-run 和版本控制
 
