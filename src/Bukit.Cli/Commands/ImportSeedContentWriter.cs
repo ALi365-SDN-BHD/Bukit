@@ -33,6 +33,7 @@ internal static class ImportSeedContentWriter
 
         return record.Collection switch
         {
+            "navigation" => Path.Combine(outputDir, "navigation", $"{slug}.md"),
             "post" => Path.Combine(outputDir, "posts", $"{slug}.md"),
             "company" => Path.Combine(outputDir, "companies", $"{slug}.md"),
             "service" => Path.Combine(outputDir, "services", $"{slug}.md"),
@@ -57,6 +58,19 @@ internal static class ImportSeedContentWriter
             sb.AppendLine($"seo_title: \"{EscapeYaml(record.SeoTitle)}\"");
         if (!string.IsNullOrWhiteSpace(record.SeoDescription))
             sb.AppendLine($"seo_description: \"{EscapeYaml(record.SeoDescription)}\"");
+        if (record.ExtraFields is not null)
+        {
+            foreach (var (key, value) in record.ExtraFields)
+            {
+                if (value is null) continue;
+                sb.AppendLine(value switch
+                {
+                    bool b => $"{key}: {b.ToString().ToLowerInvariant()}",
+                    int or long or float or double or decimal => $"{key}: {value}",
+                    _ => $"{key}: \"{EscapeYaml(value.ToString() ?? "")}\""
+                });
+            }
+        }
         sb.AppendLine($"published: {record.Published.ToString().ToLowerInvariant()}");
         sb.AppendLine("---");
         sb.AppendLine();

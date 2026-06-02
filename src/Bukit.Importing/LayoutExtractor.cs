@@ -11,7 +11,6 @@ internal static partial class LayoutExtractor
         string HeadExtras,
         bool HeaderContainsNav);
 
-    private static readonly Regex NavRegex = NavPattern();
     private static readonly Regex HeaderRegex = HeaderTagPattern();
     private static readonly Regex FooterRegex = FooterTagPattern();
     private static readonly Regex ClassAttrRegex = ClassAttrStripPattern();
@@ -98,20 +97,7 @@ internal static partial class LayoutExtractor
         if (string.IsNullOrWhiteSpace(header))
             return "";
 
-        var match = NavRegex.Match(header);
-        if (!match.Success)
-            return "";
-
-        var rest = header[match.Index..];
-        var closeIndex = FindClosingTagInString(rest, 0);
-        if (closeIndex < 0)
-            return match.Value;
-
-        var closeTagEnd = rest.IndexOf('>', closeIndex);
-        if (closeTagEnd < 0)
-            return match.Value;
-
-        return rest[..(closeTagEnd + 1)];
+        return NavigationMarkupExtractor.ExtractBest(header)?.Markup ?? "";
     }
 
     private static int FindClosingTagInString(string text, int openTagStart)
@@ -234,9 +220,6 @@ internal static partial class LayoutExtractor
         return string.Join('\n', lines.Select(l =>
             l.Length >= minIndent ? l[minIndent..] : l.TrimStart()));
     }
-
-    [GeneratedRegex(@"<nav[\s>]", RegexOptions.IgnoreCase)]
-    private static partial Regex NavPattern();
 
     [GeneratedRegex(@"<header[\s>]", RegexOptions.IgnoreCase)]
     private static partial Regex HeaderTagPattern();

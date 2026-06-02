@@ -246,7 +246,7 @@ internal static class ImportReportWriter
             sb.AppendLine("## Seed Push Scope");
             sb.AppendLine();
             sb.AppendLine("Default Notion push collections (synced to Notion databases):");
-            sb.AppendLine("- `pages` / `posts` / `companies` / `services`");
+            sb.AppendLine("- `pages` / `navigation` / `posts` / `companies` / `services`");
             sb.AppendLine();
             sb.AppendLine("Generated for review only (not included in default Notion push):");
             sb.AppendLine("- `sections` / `faqs` / `media` / `components`");
@@ -304,7 +304,7 @@ internal static class ImportReportWriter
     private static string NotionPushScope(string fileName)
     {
         var name = Path.GetFileNameWithoutExtension(fileName);
-        return name is "pages" or "posts" or "companies" or "services"
+        return name is "pages" or "navigation" or "posts" or "companies" or "services"
             ? "default push"
             : "review-only";
     }

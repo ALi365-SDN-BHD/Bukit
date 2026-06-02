@@ -98,7 +98,7 @@ internal static class SiteConfigGenerator
                 {
                     sb.AppendLine("    - type: notion");
                     sb.AppendLine($"      name: {target.Key}");
-                    sb.AppendLine("      mode: content");
+                    sb.AppendLine($"      mode: {target.Mode}");
                     sb.AppendLine($"      collection: {target.Collection}");
                     sb.AppendLine("      notion:");
                     sb.AppendLine($"        databaseId: {target.DatabaseId}");
@@ -196,7 +196,7 @@ internal static class SiteConfigGenerator
             if (string.IsNullOrWhiteSpace(databaseId))
                 databaseId = $"${{NOTION_{key.ToUpperInvariant()}_DATABASE_ID}}";
 
-            targets.Add(new NotionDatabaseTarget(key, collection, databaseId));
+            targets.Add(new NotionDatabaseTarget(key, collection, databaseId, IsBuildNotionDataCollectionKey(key) ? "data" : "content"));
         }
 
         return targets;
@@ -217,14 +217,19 @@ internal static class SiteConfigGenerator
 
     private static bool IsBuildNotionCollectionKey(string key)
         => key.Equals("pages", StringComparison.OrdinalIgnoreCase) ||
+           key.Equals("navigation", StringComparison.OrdinalIgnoreCase) ||
            key.Equals("posts", StringComparison.OrdinalIgnoreCase) ||
            key.Equals("companies", StringComparison.OrdinalIgnoreCase) ||
            key.Equals("services", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsBuildNotionDataCollectionKey(string key)
+        => key.Equals("navigation", StringComparison.OrdinalIgnoreCase);
 
     private static string InferCollection(string key)
         => key.ToLowerInvariant() switch
         {
             "pages" => "page",
+            "navigation" => "navigation",
             "posts" => "post",
             "companies" => "company",
             "services" => "service",
@@ -241,5 +246,5 @@ internal static class SiteConfigGenerator
             ? value.Value
             : null;
 
-    private sealed record NotionDatabaseTarget(string Key, string Collection, string DatabaseId);
+    private sealed record NotionDatabaseTarget(string Key, string Collection, string DatabaseId, string Mode);
 }

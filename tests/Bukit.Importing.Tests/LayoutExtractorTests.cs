@@ -86,6 +86,22 @@ public sealed class LayoutExtractorTests
     }
 
     [Fact]
+    public void Extract_MenuClassBlockDetectedWithoutNavTag()
+    {
+        var pages = new List<DiscoveredPage>
+        {
+            MakePage("<header><div class=\"main-menu\"><a href=\"/\">Home</a><a href=\"/about/\">About</a></div></header>\n", "<main>A</main>\n", "<footer>F</footer>\n", "a"),
+            MakePage("<header><div class=\"main-menu\"><a href=\"/\">Home</a><a href=\"/about/\">About</a></div></header>\n", "<main>B</main>\n", "<footer>F</footer>\n", "b"),
+        };
+
+        var result = LayoutExtractor.Extract(pages, []);
+
+        Assert.Contains("main-menu", result.Nav);
+        Assert.Contains("About", result.Nav);
+        Assert.True(result.HeaderContainsNav);
+    }
+
+    [Fact]
     public void Extract_ShortHeader_AddsWarning()
     {
         var warnings = new List<string>();

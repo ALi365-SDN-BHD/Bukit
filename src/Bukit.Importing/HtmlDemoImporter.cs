@@ -34,6 +34,7 @@ public static class HtmlDemoImporter
         {
             var dryComponents = options.ExtractContent ? ComponentExtractor.Extract(pages) : [];
             var dryContent = options.ExtractContent ? ContentExtractor.Extract(pages) : new ExtractedContent();
+            NavigationImportAdvisor.AddMissingNavigationWarnings(pages, dryContent, warnings);
             var dryResult = new ImportResult
             {
                 ThemePath = GetThemeDir(options),
@@ -71,6 +72,7 @@ public static class HtmlDemoImporter
         {
             var components = ComponentExtractor.Extract(pages);
             var content = ContentExtractor.Extract(pages);
+            NavigationImportAdvisor.AddMissingNavigationWarnings(pages, content, result.Warnings);
 
             if (!options.DryRun)
                 WriteComponentTemplates(options, components);
@@ -87,7 +89,8 @@ public static class HtmlDemoImporter
 
             if (options.GenerateSeed)
             {
-                var seedGenerated = SeedGenerator.Generate(options, content, components, pages);
+                var seedOptions = options with { Overwrite = options.Overwrite || options.Force };
+                var seedGenerated = SeedGenerator.Generate(seedOptions, content, components, pages);
                 result = result with { SeedGenerated = seedGenerated };
             }
         }
@@ -165,7 +168,7 @@ public static class HtmlDemoImporter
     }
 
     private static int CountRecords(ExtractedContent content)
-        => content.Pages.Count + content.Posts.Count + content.Companies.Count +
+        => content.Pages.Count + content.Navigation.Count + content.Posts.Count + content.Companies.Count +
            content.Services.Count + content.Faqs.Count + content.Sections.Count;
 
     private static List<ImportReportPage> BuildReportPages(List<DiscoveredPage> pages, RouteMapConfig? routeMap)
@@ -192,6 +195,7 @@ public static class HtmlDemoImporter
         return
         [
             new($"pages.{ext}", content.Pages.Count),
+            new($"navigation.{ext}", content.Navigation.Count),
             new($"sections.{ext}", content.Sections.Count),
             new($"posts.{ext}", content.Posts.Count),
             new($"companies.{ext}", content.Companies.Count),

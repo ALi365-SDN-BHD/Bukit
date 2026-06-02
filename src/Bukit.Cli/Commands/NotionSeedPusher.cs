@@ -350,8 +350,59 @@ internal static partial class NotionSeedPusher
         WriteCheckboxProperty(writer, "Published", record.Published);
         WriteRichTextProperty(writer, "SeoTitle", record.SeoTitle);
         WriteRichTextProperty(writer, "SeoDescription", record.SeoDescription);
+        WriteExtraProperties(writer, record);
         writer.WriteEndObject();
     }
+
+    private static void WriteExtraProperties(Utf8JsonWriter writer, ImportSeedRecord record)
+    {
+        if (record.ExtraFields is null)
+            return;
+
+        foreach (var (name, value) in record.ExtraFields)
+        {
+            var propertyName = ToNotionPropertyName(name);
+            if (string.IsNullOrWhiteSpace(propertyName) || IsCoreProperty(propertyName) || value is null)
+                continue;
+
+            if (value is bool b)
+            {
+                WriteCheckboxProperty(writer, propertyName, b);
+                continue;
+            }
+
+            if (value is int or long or float or double or decimal)
+            {
+                WriteNumberProperty(writer, propertyName, Convert.ToDouble(value));
+                continue;
+            }
+
+            var text = value.ToString();
+            if (string.IsNullOrWhiteSpace(text))
+                continue;
+
+            if (propertyName is "Link" or "Url" or "Href")
+                WriteUrlProperty(writer, propertyName, text);
+            else
+                WriteRichTextProperty(writer, propertyName, text);
+        }
+    }
+
+    private static string ToNotionPropertyName(string name)
+        => name.Trim().ToLowerInvariant() switch
+        {
+            "link" => "Link",
+            "url" => "Url",
+            "href" => "Href",
+            "order" or "sort_order" => "Order",
+            "enabled" => "Enabled",
+            _ => string.Concat(name.Trim().Split(['_', '-', ' '], StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => char.ToUpperInvariant(p[0]) + p[1..]))
+        };
+
+    private static bool IsCoreProperty(string name)
+        => name is "Title" or "Slug" or "Type" or "Summary" or "Content" or "Language" or
+           "Published" or "SeoTitle" or "SeoDescription";
 
     private static void WriteTitleProperty(Utf8JsonWriter writer, string name, string value)
     {
@@ -386,6 +437,20 @@ internal static partial class NotionSeedPusher
     {
         writer.WriteStartObject(name);
         writer.WriteBoolean("checkbox", value);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteNumberProperty(Utf8JsonWriter writer, string name, double value)
+    {
+        writer.WriteStartObject(name);
+        writer.WriteNumber("number", value);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteUrlProperty(Utf8JsonWriter writer, string name, string value)
+    {
+        writer.WriteStartObject(name);
+        writer.WriteString("url", value);
         writer.WriteEndObject();
     }
 

@@ -107,7 +107,7 @@ bukit notion push --input sites/mysite/notion-seed --database-map sites/mysite/n
 bukit import html-demo ./demo --theme mysite --push-notion --notion-database-id <id>
 ```
 
-Default Notion push scope is `pages`, `posts`, `companies`, and `services`. Generated `sections`, `faqs`, `media`, and `components` are review-only until collection-specific Notion schemas are added.
+Default Notion push scope is `pages`, `navigation`, `posts`, `companies`, and `services`. Generated `sections`, `faqs`, `media`, and `components` are review-only until collection-specific Notion schemas are added. Imported demo menus are modeled as `navigation` data modules; with `--build-source notion`, the generated `site.yaml` maps them as `mode: data` so templates can read `site.modules.navigation`.
 
 ## Verification Workflow
 

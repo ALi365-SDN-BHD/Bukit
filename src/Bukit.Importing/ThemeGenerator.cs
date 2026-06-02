@@ -178,10 +178,45 @@ internal static partial class ThemeGenerator
     {
         if (string.IsNullOrWhiteSpace(content)) return;
 
-        var rewritten = AssetImporter.RewritePaths(content, pathMappings);
+        var rewritten = MakeNavigationDataAware(AssetImporter.RewritePaths(content, pathMappings));
         var fullPath = Path.Combine(themeDir, "layouts", "partials", fileName);
         File.WriteAllText(fullPath, LayoutExtractor.NormalizeBlock(rewritten));
     }
+
+    private static string MakeNavigationDataAware(string html)
+    {
+        var candidate = NavigationMarkupExtractor.ExtractBest(html);
+        if (candidate is null ||
+            candidate.Kind == NavigationMarkupExtractor.CandidateKind.HeaderLinks)
+            return html;
+
+        var originalInner = candidate.InnerHtml.Trim();
+        var sb = new StringBuilder();
+        sb.AppendLine(candidate.OpeningTag);
+        sb.AppendLine("  {{ if site.modules && site.modules.navigation }}");
+        sb.AppendLine("    {{ for item in site.modules.navigation }}");
+        sb.AppendLine("      {{ nav_url = \"/\" }}");
+        sb.AppendLine("      {{ if item.fields && item.fields.link }}{{ nav_url = item.fields.link.value }}{{ end }}");
+        sb.AppendLine(NavigationItemTemplate(candidate.TagName));
+        sb.AppendLine("    {{ end }}");
+        sb.AppendLine("  {{ else }}");
+        sb.AppendLine(Indent(originalInner, "    "));
+        sb.AppendLine("  {{ end }}");
+        sb.AppendLine(candidate.ClosingTag);
+        var replacement = sb.ToString();
+
+        return html.Replace(candidate.Markup, replacement, StringComparison.Ordinal);
+    }
+
+    private static string NavigationItemTemplate(string tagName)
+        => tagName.Equals("ul", StringComparison.OrdinalIgnoreCase) ||
+           tagName.Equals("ol", StringComparison.OrdinalIgnoreCase)
+            ? "      <li><a href=\"{{ nav_url }}\">{{ item.title }}</a></li>"
+            : "      <a href=\"{{ nav_url }}\">{{ item.title }}</a>";
+
+    private static string Indent(string text, string prefix)
+        => string.Join(Environment.NewLine, text.Split(["\r\n", "\n"], StringSplitOptions.None)
+            .Select(line => string.IsNullOrWhiteSpace(line) ? line : prefix + line));
 
     private static void WriteBaseLayout(string themeDir, LayoutExtractor.LayoutInfo layout,
         List<string> cssLinks, List<string> scriptTags,
@@ -360,4 +395,5 @@ internal static partial class ThemeGenerator
 
     [GeneratedRegex(@"<style[^>]*>.*?</style>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex InlineStylePattern();
+
 }

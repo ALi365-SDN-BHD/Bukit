@@ -103,6 +103,7 @@ public sealed record DiscoveredComponent
 public sealed record ExtractedContent
 {
     public List<PageRecord> Pages { get; set; } = [];
+    public List<NavigationRecord> Navigation { get; set; } = [];
     public List<SectionRecord> Sections { get; set; } = [];
     public List<PostRecord> Posts { get; set; } = [];
     public List<CompanyRecord> Companies { get; set; } = [];
@@ -133,6 +134,17 @@ public sealed record SectionRecord
     public string? ButtonText { get; init; }
     public string? ButtonUrl { get; init; }
     public int SortOrder { get; init; }
+    public string Language { get; init; } = "zh";
+    public bool Published { get; init; } = true;
+}
+
+public sealed record NavigationRecord
+{
+    public required string Title { get; init; }
+    public required string Slug { get; init; }
+    public string Type { get; init; } = "navigation";
+    public string? Link { get; init; }
+    public int Order { get; init; }
     public string Language { get; init; } = "zh";
     public bool Published { get; init; } = true;
 }

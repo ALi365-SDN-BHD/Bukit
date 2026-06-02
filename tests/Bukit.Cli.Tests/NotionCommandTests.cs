@@ -552,6 +552,49 @@ databases:
     }
 
     [Fact]
+    public async Task Push_NavigationRecord_WritesLinkAndOrderProperties()
+    {
+        var seedDir = Path.Combine(_tempDir, "notion-seed");
+        Directory.CreateDirectory(seedDir);
+        var requests = new List<HttpRequestMessage>();
+        var records = new List<ImportSeedRecord>
+        {
+            new("navigation", "Home", "home", null, null, "zh", true, null, null,
+                new Dictionary<string, object?>
+                {
+                    ["link"] = "/",
+                    ["order"] = 10
+                })
+        };
+
+        var handler = new RecordingHandler(req =>
+        {
+            requests.Add(CloneRequest(req));
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-1"}""")
+            };
+        });
+
+        using var http = new HttpClient(handler);
+        var result = await NotionSeedPusher.PushAsync(http, records, new NotionPushOptions(
+            DatabaseId: "db-nav",
+            Token: "token",
+            ReportPath: Path.Combine(seedDir, "notion-push-report.json"),
+            DryRun: false));
+
+        Assert.Equal(1, result.Created);
+        var payload = await requests.Single(r => r.RequestUri!.AbsoluteUri == "https://api.notion.com/v1/pages")
+            .Content!.ReadAsStringAsync();
+        Assert.Contains("\"Type\"", payload);
+        Assert.Contains("\"name\": \"navigation\"", payload);
+        Assert.Contains("\"Link\"", payload);
+        Assert.Contains("\"url\": \"/\"", payload);
+        Assert.Contains("\"Order\"", payload);
+        Assert.Contains("\"number\": 10", payload);
+    }
+
+    [Fact]
     public async Task Push_ReplaceFailed_MarksReplaceFailed()
     {
         var seedDir = Path.Combine(_tempDir, "notion-seed");

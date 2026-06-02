@@ -24,6 +24,7 @@ internal static class NotionSchemaValidator
         string databaseId,
         string token,
         string? reportPath,
+        IReadOnlyList<(string Name, string ExpectedType)>? additionalRequiredFields = null,
         CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get,
@@ -52,7 +53,11 @@ internal static class NotionSchemaValidator
         var fieldResults = new List<SchemaFieldResult>();
         var errors = new List<string>();
 
-        foreach (var (name, expectedType) in RequiredFields)
+        var requiredFields = additionalRequiredFields is { Count: > 0 }
+            ? RequiredFields.Concat(additionalRequiredFields).ToArray()
+            : RequiredFields;
+
+        foreach (var (name, expectedType) in requiredFields)
         {
             if (properties.TryGetProperty(name, out var prop))
             {

@@ -124,7 +124,7 @@ public static class NotionCommand
                     continue;
                 }
 
-                var createdDatabaseId = await CreateDatabaseAsync(http, token, parentPageId!, activeTarget.Title);
+                var createdDatabaseId = await CreateDatabaseAsync(http, token, parentPageId!, activeTarget.Title, activeTarget.Collection);
                 if (string.IsNullOrWhiteSpace(createdDatabaseId))
                 {
                     failed = true;
@@ -134,7 +134,12 @@ public static class NotionCommand
                 activeTarget = activeTarget with { DatabaseId = createdDatabaseId };
                 if (validateSchema)
                 {
-                    var schemaReport = await NotionSchemaValidator.ValidateAsync(http, activeTarget.DatabaseId!, token, null);
+                    var schemaReport = await NotionSchemaValidator.ValidateAsync(
+                        http,
+                        activeTarget.DatabaseId!,
+                        token,
+                        null,
+                        GetAdditionalSchemaFields(activeTarget.Collection));
                     if (!schemaReport.Success)
                     {
                         failed = true;
@@ -149,7 +154,12 @@ public static class NotionCommand
             }
             else if (!dryRun && validateSchema)
             {
-                var schemaReport = await NotionSchemaValidator.ValidateAsync(http, activeTarget.DatabaseId!, token, null);
+                var schemaReport = await NotionSchemaValidator.ValidateAsync(
+                    http,
+                    activeTarget.DatabaseId!,
+                    token,
+                    null,
+                    GetAdditionalSchemaFields(activeTarget.Collection));
                 if (!schemaReport.Success)
                 {
                     failed = true;
@@ -306,13 +316,13 @@ public static class NotionCommand
         return targets.Where(t => File.Exists(Path.Combine(inputDir, t.SeedFile))).ToList();
     }
 
-    private static async Task<string?> CreateDatabaseAsync(HttpClient http, string token, string parentPageId, string title)
+    private static async Task<string?> CreateDatabaseAsync(HttpClient http, string token, string parentPageId, string title, string collection)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post,
             $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/databases");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.TryAddWithoutValidation("Notion-Version", NotionApiUrls.NotionVersion);
-        request.Content = new StringContent(BuildCreateDatabasePayload(parentPageId, title), Encoding.UTF8, "application/json");
+        request.Content = new StringContent(BuildCreateDatabasePayload(parentPageId, title, collection), Encoding.UTF8, "application/json");
 
         using var response = await http.SendAsync(request);
         var body = await response.Content.ReadAsStringAsync();
@@ -326,7 +336,7 @@ public static class NotionCommand
         return doc.RootElement.TryGetProperty("id", out var id) ? id.GetString() : null;
     }
 
-    private static string BuildCreateDatabasePayload(string parentPageId, string title)
+    private static string BuildCreateDatabasePayload(string parentPageId, string title, string collection)
     {
         using var stream = new MemoryStream();
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
@@ -353,6 +363,12 @@ public static class NotionCommand
         WriteDatabaseProperty(writer, "Published", "checkbox");
         WriteDatabaseProperty(writer, "SeoTitle", "rich_text");
         WriteDatabaseProperty(writer, "SeoDescription", "rich_text");
+        if (collection.Equals("navigation", StringComparison.OrdinalIgnoreCase))
+        {
+            WriteDatabaseProperty(writer, "Link", "url");
+            WriteDatabaseProperty(writer, "Order", "number");
+            WriteDatabaseProperty(writer, "Enabled", "checkbox");
+        }
         writer.WriteEndObject();
         writer.WriteEndObject();
         writer.Flush();
@@ -366,6 +382,11 @@ public static class NotionCommand
         writer.WriteEndObject();
         writer.WriteEndObject();
     }
+
+    private static IReadOnlyList<(string Name, string ExpectedType)>? GetAdditionalSchemaFields(string collection)
+        => collection.Equals("navigation", StringComparison.OrdinalIgnoreCase)
+            ? [("Link", "url"), ("Order", "number")]
+            : null;
 
     private static NotionPushResult BuildDryRunResult(string inputDir, NotionDatabaseTarget target)
     {

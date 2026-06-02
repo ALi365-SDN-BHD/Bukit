@@ -18,6 +18,7 @@ internal static class SeedGenerator
         if (isYaml)
         {
             WritePagesYaml(Path.Combine(seedDir, "pages.yaml"), content.Pages, options.Overwrite);
+            WriteNavigationYaml(Path.Combine(seedDir, "navigation.yaml"), content.Navigation, options.Overwrite);
             WriteSectionsYaml(Path.Combine(seedDir, "sections.yaml"), content.Sections, options.Overwrite);
             WritePostsYaml(Path.Combine(seedDir, "posts.yaml"), content.Posts, options.Overwrite);
             WriteCompaniesYaml(Path.Combine(seedDir, "companies.yaml"), content.Companies, options.Overwrite);
@@ -29,6 +30,7 @@ internal static class SeedGenerator
         else
         {
             WritePages(Path.Combine(seedDir, "pages.json"), content.Pages, options.Overwrite);
+            WriteNavigation(Path.Combine(seedDir, "navigation.json"), content.Navigation, options.Overwrite);
             WriteSections(Path.Combine(seedDir, "sections.json"), content.Sections, options.Overwrite);
             WritePosts(Path.Combine(seedDir, "posts.json"), content.Posts, options.Overwrite);
             WriteCompanies(Path.Combine(seedDir, "companies.json"), content.Companies, options.Overwrite);
@@ -42,6 +44,7 @@ internal static class SeedGenerator
 
         Console.WriteLine($"  种子数据生成完成: {seedDir}");
         Console.WriteLine($"    pages:     {content.Pages.Count}");
+        Console.WriteLine($"    navigation: {content.Navigation.Count}");
         Console.WriteLine($"    sections:  {content.Sections.Count}");
         Console.WriteLine($"    posts:     {content.Posts.Count}");
         Console.WriteLine($"    companies: {content.Companies.Count}");
@@ -67,6 +70,20 @@ internal static class SeedGenerator
             sb.AppendLine($"    \"published\": {JsonBool(r.Published)},");
             sb.AppendLine($"    \"seo_title\": {JsonVal(r.SeoTitle)},");
             sb.Append($"    \"seo_description\": {JsonVal(r.SeoDescription)}");
+        });
+    }
+
+    private static void WriteNavigation(string path, List<NavigationRecord> records, bool overwrite)
+    {
+        WriteArray(path, records, overwrite, (sb, r, i, last) =>
+        {
+            sb.AppendLine($"    \"title\": {JsonStr(r.Title)},");
+            sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
+            sb.AppendLine($"    \"type\": {JsonStr(r.Type)},");
+            sb.AppendLine($"    \"link\": {JsonVal(r.Link)},");
+            sb.AppendLine($"    \"order\": {r.Order},");
+            sb.AppendLine($"    \"language\": {JsonStr(r.Language)},");
+            sb.Append($"    \"published\": {JsonBool(r.Published)}");
         });
     }
 
@@ -212,6 +229,7 @@ internal static class SeedGenerator
         var sb = new StringBuilder();
         sb.AppendLine("databases:");
         WriteDatabaseMapEntry(sb, "pages", "Pages", "pages.json", "page");
+        WriteDatabaseMapEntry(sb, "navigation", "Navigation", "navigation.json", "navigation");
         WriteDatabaseMapEntry(sb, "posts", "Posts", "posts.json", "post");
         WriteDatabaseMapEntry(sb, "companies", "Companies", "companies.json", "company");
         WriteDatabaseMapEntry(sb, "services", "Services", "services.json", "service");
@@ -242,6 +260,20 @@ internal static class SeedGenerator
             YamlBool(sb, "published", r.Published);
             YamlField(sb, "seo_title", r.SeoTitle);
             YamlField(sb, "seo_description", r.SeoDescription);
+        });
+    }
+
+    private static void WriteNavigationYaml(string path, List<NavigationRecord> records, bool overwrite)
+    {
+        WriteYamlArray(path, records, overwrite, (sb, r) =>
+        {
+            YamlField(sb, "title", r.Title);
+            YamlField(sb, "slug", r.Slug);
+            YamlField(sb, "type", r.Type);
+            YamlField(sb, "link", r.Link);
+            YamlNumber(sb, "order", r.Order);
+            YamlField(sb, "language", r.Language);
+            YamlBool(sb, "published", r.Published);
         });
     }
 

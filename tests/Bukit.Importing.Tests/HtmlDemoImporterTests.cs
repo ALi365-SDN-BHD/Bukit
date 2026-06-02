@@ -507,8 +507,134 @@ public sealed class HtmlDemoImporterTests : IDisposable
         HtmlDemoImporter.Import(options);
 
         var layout = File.ReadAllText(Path.Combine(_tempDir, "themes", "nav-dedupe-test", "layouts", "layouts", "base.html"));
+        var header = File.ReadAllText(Path.Combine(_tempDir, "themes", "nav-dedupe-test", "layouts", "partials", "header.html"));
+        var navigationSeed = File.ReadAllText(Path.Combine(_tempDir, "sites", "nav-dedupe-test", "notion-seed", "navigation.json"));
+        var databaseMap = File.ReadAllText(Path.Combine(_tempDir, "sites", "nav-dedupe-test", "notion-seed", "notion-database-map.yaml"));
         Assert.Contains("{{ include 'partials/header.html' }}", layout);
         Assert.DoesNotContain("{{ include 'partials/nav.html' }}", layout);
+        Assert.Contains("site.modules.navigation", header);
+        Assert.Contains("<a href=\"/\">Home</a>", header);
+        Assert.Contains("\"title\": \"Home\"", navigationSeed);
+        Assert.Contains("\"link\": \"/\"", navigationSeed);
+        Assert.Contains("navigation:", databaseMap);
+        Assert.Contains("seed: navigation.json", databaseMap);
+    }
+
+    [Fact]
+    public void Import_ExtractsNavigationFromMenuClassWithoutNavTag()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            """
+            <html><head><title>Home</title></head><body>
+            <header>
+              <div class="navbar-menu">
+                <a href="/">Home</a>
+                <a href="/products.html">Products</a>
+                <a href="/contact.html">Contact</a>
+              </div>
+            </header>
+            <main><h1>Home</h1></main><footer>End</footer></body></html>
+            """);
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "menu-class-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var layout = File.ReadAllText(Path.Combine(_tempDir, "themes", "menu-class-test", "layouts", "layouts", "base.html"));
+        var header = File.ReadAllText(Path.Combine(_tempDir, "themes", "menu-class-test", "layouts", "partials", "header.html"));
+        var navigationSeed = File.ReadAllText(Path.Combine(_tempDir, "sites", "menu-class-test", "notion-seed", "navigation.json"));
+
+        Assert.Contains("{{ include 'partials/header.html' }}", layout);
+        Assert.DoesNotContain("{{ include 'partials/nav.html' }}", layout);
+        Assert.Contains("site.modules.navigation", header);
+        Assert.Contains("<div class=\"navbar-menu\">", header);
+        Assert.Contains("<a href=\"{{ nav_url }}\">{{ item.title }}</a>", header);
+        Assert.Contains("\"title\": \"Products\"", navigationSeed);
+        Assert.Contains("\"link\": \"/products.html\"", navigationSeed);
+    }
+
+    [Fact]
+    public void Import_DynamicMenuShellWithoutStaticAnchors_WarnsUserToProvideAnchors()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            """
+            <html><head><title>Home</title></head><body>
+            <header>
+              <button class="hamburger menu-toggle" aria-label="Open menu"></button>
+              <div id="mobile-menu" class="drawer-menu"></div>
+              <script>
+                document.getElementById('mobile-menu').innerHTML =
+                  '<a href="/">Home</a><a href="/contact/">Contact</a>';
+              </script>
+            </header>
+            <main><h1>Home</h1></main><footer>End</footer></body></html>
+            """);
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "dynamic-menu-warning-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        var result = HtmlDemoImporter.Import(options);
+
+        var navigationSeed = File.ReadAllText(Path.Combine(_tempDir, "sites", "dynamic-menu-warning-test", "notion-seed", "navigation.json"));
+        Assert.Contains(result.Warnings, w => w.Contains("不执行 JS 动态生成菜单", StringComparison.Ordinal));
+        Assert.DoesNotContain("\"title\":", navigationSeed);
+    }
+
+    [Fact]
+    public void Import_ForceWithDynamicMenu_ClearsStaleNavigationSeed()
+    {
+        var demoDir = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demoDir);
+        var indexPath = Path.Combine(demoDir, "index.html");
+        File.WriteAllText(indexPath,
+            """
+            <html><head><title>Home</title></head><body>
+            <header><nav><a href="/">Home</a><a href="/contact/">Contact</a></nav></header>
+            <main><h1>Home</h1></main></body></html>
+            """);
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = demoDir,
+            ThemeName = "dynamic-menu-stale-test",
+            RootDir = _tempDir,
+            Force = true
+        };
+
+        HtmlDemoImporter.Import(options);
+        var navigationPath = Path.Combine(_tempDir, "sites", "dynamic-menu-stale-test", "notion-seed", "navigation.json");
+        Assert.Contains("\"title\": \"Home\"", File.ReadAllText(navigationPath));
+
+        File.WriteAllText(indexPath,
+            """
+            <html><head><title>Home</title></head><body>
+            <header>
+              <button class="hamburger menu-toggle" aria-label="Open menu"></button>
+              <div id="mobile-menu" class="drawer-menu"></div>
+              <script>
+                document.getElementById('mobile-menu').innerHTML =
+                  '<a href="/">Home</a><a href="/contact/">Contact</a>';
+              </script>
+            </header>
+            <main><h1>Home</h1></main></body></html>
+            """);
+
+        var result = HtmlDemoImporter.Import(options);
+        var navigationSeed = File.ReadAllText(navigationPath);
+
+        Assert.Contains(result.Warnings, w => w.Contains("不执行 JS 动态生成菜单", StringComparison.Ordinal));
+        Assert.DoesNotContain("\"title\":", navigationSeed);
     }
 
     [Fact]
@@ -891,6 +1017,10 @@ pages:
         Assert.Contains("name: pages", siteYaml);
         Assert.Contains("collection: page", siteYaml);
         Assert.Contains("databaseId: ${NOTION_PAGES_DATABASE_ID}", siteYaml);
+        Assert.Contains("name: navigation", siteYaml);
+        Assert.Contains("mode: data", siteYaml);
+        Assert.Contains("collection: navigation", siteYaml);
+        Assert.Contains("databaseId: ${NOTION_NAVIGATION_DATABASE_ID}", siteYaml);
         Assert.DoesNotContain("provider: markdown", siteYaml);
     }
 

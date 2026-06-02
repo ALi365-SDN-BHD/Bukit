@@ -1427,12 +1427,12 @@ bukit notion push \
 
 Notion 推送支持两种模式：
 
-- 单 database：传 `--database-id`，将 `pages/posts/companies/services` 合并推入同一个 database，并用 `Type` 区分 collection。
-- 多 database：传 `--database-map`，或传 `--create-missing-databases --parent-page-id <id>` 让 Bukit 按 seed collection 自动创建 `pages/posts/companies/services` 对应的 databases。已有 `databaseId` 时先校验 schema 再 upsert；自动创建后也会立即校验 schema；缺少 `databaseId` 且未启用自动创建时直接报错，不隐式创建。`sections/faqs/media/components` 当前会生成为审核 seed，但不属于默认 Notion push 主链路。
+- 单 database：传 `--database-id`，将 `pages/navigation/posts/companies/services` 合并推入同一个 database，并用 `Type` 区分 collection。
+- 多 database：传 `--database-map`，或传 `--create-missing-databases --parent-page-id <id>` 让 Bukit 按 seed collection 自动创建 `pages/navigation/posts/companies/services` 对应的 databases。已有 `databaseId` 时先校验 schema 再 upsert；自动创建后也会立即校验 schema；缺少 `databaseId` 且未启用自动创建时直接报错，不隐式创建。`sections/faqs/media/components` 当前会生成为审核 seed，但不属于默认 Notion push 主链路。
 
 `import html-demo --content-source notion` 会默认生成可编辑的 `notion-seed/notion-database-map.yaml`，其中 `databaseId` 为空。填写已有 database ID 后，`bukit notion push --input sites/silkroadbiz/notion-seed` 会自动读取该默认 map；如果 map 放在其他路径，再显式传 `--database-map`。如果希望自动创建，则使用 `--create-missing-databases --parent-page-id <id>`。
 
-当同时使用 `--build-source notion` 且存在多 database map 时，生成的 `site.yaml` 会使用 Bukit 现有的 `content.sources[]` 多源 Notion 配置，把 `pages/posts/companies/services` 分别映射到对应 collection。没有填写 `databaseId` 的默认 map 会生成 `${NOTION_PAGES_DATABASE_ID}`、`${NOTION_POSTS_DATABASE_ID}` 等占位符，需要发布前替换或通过配置覆盖。
+当同时使用 `--build-source notion` 且存在多 database map 时，生成的 `site.yaml` 会使用 Bukit 现有的 `content.sources[]` 多源 Notion 配置，把 `pages/posts/companies/services` 映射为 `mode: content`，把 `navigation` 映射为 `mode: data` 并注入到 `site.modules.navigation`。没有填写 `databaseId` 的默认 map 会生成 `${NOTION_PAGES_DATABASE_ID}`、`${NOTION_NAVIGATION_DATABASE_ID}`、`${NOTION_POSTS_DATABASE_ID}` 等占位符，需要发布前替换或通过配置覆盖。
 
 多 database map 示例：
 

@@ -616,6 +616,9 @@ databases:
         Assert.Contains("name: pages", siteYaml);
         Assert.Contains("collection: page", siteYaml);
         Assert.Contains("databaseId: ${NOTION_PAGES_DATABASE_ID}", siteYaml);
+        Assert.Contains("name: navigation", siteYaml);
+        Assert.Contains("mode: data", siteYaml);
+        Assert.Contains("collection: navigation", siteYaml);
         Assert.DoesNotContain("provider: markdown", siteYaml);
     }
 

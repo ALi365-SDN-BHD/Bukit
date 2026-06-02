@@ -15,6 +15,7 @@ internal static partial class ContentExtractor
     internal static ExtractedContent Extract(List<DiscoveredPage> pages)
     {
         var content = new ExtractedContent();
+        ExtractNavigation(pages, content);
 
         foreach (var page in pages)
         {
@@ -45,6 +46,31 @@ internal static partial class ContentExtractor
             .ToList();
 
         return content;
+    }
+
+    private static void ExtractNavigation(List<DiscoveredPage> pages, ExtractedContent content)
+    {
+        var candidate = pages
+            .Select(page => NavigationMarkupExtractor.ExtractBest(page.BodyContent))
+            .Where(candidate => candidate is not null)
+            .OrderByDescending(candidate => candidate!.Score)
+            .FirstOrDefault();
+
+        if (candidate is null)
+            return;
+
+        var order = 10;
+        foreach (var link in candidate.Links)
+        {
+            content.Navigation.Add(new NavigationRecord
+            {
+                Title = link.Title,
+                Slug = link.Slug,
+                Link = link.Href,
+                Order = order
+            });
+            order += 10;
+        }
     }
 
     private static void ExtractPageContent(DiscoveredPage page, ExtractedContent content)
@@ -384,4 +410,5 @@ internal static partial class ContentExtractor
 
     [GeneratedRegex(@"<a[^>]*href=[""']([^""']*)[""'][^>]*>.*?</a>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex SectionLinkPattern();
+
 }
