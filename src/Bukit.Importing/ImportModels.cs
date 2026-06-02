@@ -19,7 +19,7 @@ public sealed record HtmlDemoImportOptions
     public bool PreserveHtml { get; init; } = true;
     public bool GenerateReport { get; init; } = true;
     public string? BaseUrl { get; init; }
-    public bool NoMarkdownDraft { get; init; }
+    public string BuildSource { get; init; } = "markdown";
     public string? RouteMapPath { get; init; }
     public string? NotionDatabaseId { get; init; }
     public string? NotionTokenEnv { get; init; }

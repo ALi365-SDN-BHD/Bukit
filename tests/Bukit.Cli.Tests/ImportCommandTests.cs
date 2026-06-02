@@ -491,6 +491,47 @@ databases:
     }
 
     [Fact]
+    public async Task BuildSourceNotion_UsesNotionProviderAndSkipsMarkdownDraft()
+    {
+        var demoDir = Path.Combine(_tempDir, "notion-build-source-demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1><p>Welcome.</p></main></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "notion-build-source-test";
+        opts["--force"] = "true";
+        opts["--content-source"] = "notion";
+        opts["--build-source"] = "notion";
+
+        var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+
+        Assert.Equal(0, result);
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "sites", "notion-build-source-test", "content")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "notion-build-source-test", "notion-seed", "pages.json")));
+        var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-build-source-test", "site.yaml"));
+        Assert.Contains("provider: notion", siteYaml);
+        Assert.DoesNotContain("provider: markdown", siteYaml);
+    }
+
+    [Fact]
+    public async Task BuildSourceInvalid_Returns2()
+    {
+        var demoDir = Path.Combine(_tempDir, "invalid-build-source-demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "invalid-build-source-test";
+        opts["--build-source"] = "json";
+
+        var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+
+        Assert.Equal(2, result);
+    }
+
+    [Fact]
     public async Task Verify_ListPages_DoNotConflictWithCollectionListRoutes()
     {
         var demoDir = Path.Combine(_tempDir, "list-demo");

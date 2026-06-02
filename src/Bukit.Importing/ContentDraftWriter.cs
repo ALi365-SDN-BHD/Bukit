@@ -6,9 +6,9 @@ internal static class ContentDraftWriter
 {
     internal static void Write(HtmlDemoImportOptions options, ExtractedContent content)
     {
-        if (options.NoMarkdownDraft)
+        if (IsNotionBuildSource(options))
         {
-            Console.WriteLine("  Content draft 已跳过（--no-markdown-draft / notion mode）");
+            Console.WriteLine("  Content draft 已跳过（--build-source notion）");
             return;
         }
 
@@ -28,6 +28,9 @@ internal static class ContentDraftWriter
         foreach (var service in content.Services)
             WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, options.Overwrite);
     }
+
+    private static bool IsNotionBuildSource(HtmlDemoImportOptions options)
+        => options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase);
 
     private static void WritePageDraft(string contentDir, PageRecord page, bool overwrite)
     {
