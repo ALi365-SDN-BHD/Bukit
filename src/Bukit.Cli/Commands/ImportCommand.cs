@@ -104,8 +104,7 @@ public static class ImportCommand
         var rootDir = resolved.RootDir;
         if (!contentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
             !contentSource.Equals("json", StringComparison.OrdinalIgnoreCase) &&
-            !contentSource.Equals("yaml", StringComparison.OrdinalIgnoreCase) &&
-            !contentSource.Equals("markdown", StringComparison.OrdinalIgnoreCase))
+            !contentSource.Equals("yaml", StringComparison.OrdinalIgnoreCase))
         {
             Console.Error.WriteLine($"不支持的内容源类型: {contentSource}");
             return 2;
@@ -133,13 +132,6 @@ public static class ImportCommand
             if (!generateSeed)
             {
                 Console.Error.WriteLine("--push-notion 需要 seed 数据。请不要同时使用 --no-seed。");
-                return 2;
-            }
-            if (string.IsNullOrWhiteSpace(notionDatabaseId) &&
-                string.IsNullOrWhiteSpace(notionDatabaseMap) &&
-                !createMissingNotionDatabases)
-            {
-                Console.Error.WriteLine("缺少 Notion database 目标。请提供 --notion-database-id、--notion-database-map，或使用 --create-missing-notion-databases --notion-parent-page-id <id>。");
                 return 2;
             }
             if (createMissingNotionDatabases && string.IsNullOrWhiteSpace(notionParentPageId))
@@ -258,32 +250,18 @@ public static class ImportCommand
             ? Path.Combine(rootDir, "sites", themeName)
             : result.SitePath;
 
-        if (validateSchema && string.IsNullOrWhiteSpace(databaseMap) && !string.IsNullOrWhiteSpace(databaseId))
-        {
-            Console.WriteLine("校验 Notion schema...");
-            var token = Environment.GetEnvironmentVariable(tokenEnv);
-            if (string.IsNullOrWhiteSpace(token))
-            {
-                Console.Error.WriteLine($"{tokenEnv} is required for schema validation.");
-                return 2;
-            }
-            using var http = NotionCommand.CreateHttpClient();
-            var validationReport = await NotionSchemaValidator.ValidateAsync(
-                http, databaseId, token, null);
-
-            if (!validationReport.Success)
-            {
-                Console.Error.WriteLine("Notion schema validation failed:");
-                foreach (var f in validationReport.FieldResults.Where(r => r.Result != "OK"))
-                    Console.Error.WriteLine($"  {f.Name}: {f.Result} - {f.Message}");
-                return 2;
-            }
-            Console.WriteLine("  Schema validation passed.");
-        }
-
         var seedDir = contentSource.Equals("notion", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(siteDir, "notion-seed")
             : Path.Combine(siteDir, "data");
+        var effectiveDatabaseMap = databaseMap;
+        if (string.IsNullOrWhiteSpace(databaseId) &&
+            string.IsNullOrWhiteSpace(effectiveDatabaseMap) &&
+            contentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
+        {
+            var defaultMap = Path.Combine(seedDir, "notion-database-map.yaml");
+            if (File.Exists(defaultMap))
+                effectiveDatabaseMap = defaultMap;
+        }
 
         var options = new Dictionary<string, string?>
         {
@@ -295,10 +273,10 @@ public static class ImportCommand
         };
         if (!string.IsNullOrWhiteSpace(databaseId))
             options["--database-id"] = databaseId;
-        if (!string.IsNullOrWhiteSpace(databaseMap))
-            options["--database-map"] = Path.IsPathRooted(databaseMap)
-                ? databaseMap
-                : Path.Combine(siteDir, databaseMap);
+        if (!string.IsNullOrWhiteSpace(effectiveDatabaseMap))
+            options["--database-map"] = Path.IsPathRooted(effectiveDatabaseMap)
+                ? effectiveDatabaseMap
+                : Path.Combine(siteDir, effectiveDatabaseMap);
         if (createMissingDatabases)
         {
             options["--create-missing-databases"] = "true";

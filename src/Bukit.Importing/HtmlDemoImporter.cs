@@ -106,6 +106,8 @@ public static class HtmlDemoImporter
 
         var hardcodedReport = TemplateResidueAnalyzer.Analyze(themeDir, null, routeMap);
         result = result with { HardcodedContentReport = hardcodedReport };
+        if (options.Strict)
+            ThrowIfStrictResidue(hardcodedReport);
 
         ImportReportWriter.Write(options, result, diagnostics);
 
@@ -258,6 +260,21 @@ public static class HtmlDemoImporter
 
         var summary = string.Join(", ", strictDiagnostics.Select(d => d.Code).Distinct());
         throw new ImportException(ImportErrorKind.UserInput, $"Strict 模式: 导入诊断失败: {summary}");
+    }
+
+    private static void ThrowIfStrictResidue(HardcodedContentReport hardcodedReport)
+    {
+        var residues = hardcodedReport.Residues
+            .Where(r => r.ResidualTextCount > 0)
+            .ToList();
+        if (residues.Count == 0) return;
+
+        var summary = string.Join(", ", residues
+            .OrderByDescending(r => r.ResidualTextCount)
+            .Take(3)
+            .Select(r => $"{Path.GetFileName(r.TemplatePath)}:{r.ResidualTextCount}"));
+        throw new ImportException(ImportErrorKind.UserInput,
+            $"Strict 模式: 硬编码内容残留: {summary}");
     }
 
     private static void ThrowIfErrorDiagnostics(List<ImportDiagnostic> diagnostics)

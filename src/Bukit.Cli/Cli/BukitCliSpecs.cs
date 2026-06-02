@@ -123,7 +123,7 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--no-extract-content", "跳过内容抽取", CliOptionType.Flag),
                 new CliOptionSpec("--generate-seed", "生成 seed 数据 (默认开启)", CliOptionType.Flag),
                 new CliOptionSpec("--no-seed", "跳过种子数据生成", CliOptionType.Flag),
-                new CliOptionSpec("--content-source", "seed 输出类型 (notion|json|yaml|markdown)，默认 notion", CliOptionType.String, ValueName: "type"),
+                new CliOptionSpec("--content-source", "seed 输出类型 (notion|json|yaml)，默认 notion", CliOptionType.String, ValueName: "type"),
                 new CliOptionSpec("--build-source", "构建内容源 (markdown|notion)，默认 markdown；notion 会跳过 content/*.md 草稿", CliOptionType.String, ValueName: "type"),
                 new CliOptionSpec("--route-map", "显式页面路由映射 YAML 文件路径", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--site-path", "目标站点目录路径 (默认 sites/<theme>)"),
