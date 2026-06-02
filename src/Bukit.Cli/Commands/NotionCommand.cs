@@ -70,9 +70,10 @@ public static class NotionCommand
         var createMissingDatabases = command.GetBool("--create-missing-databases");
         var parentPageId = command.GetString("--parent-page-id");
         var generatedMapPath = command.GetString("--generated-database-map");
+        var validateSchema = !command.GetBool("--no-validate-schema");
 
         if (string.IsNullOrWhiteSpace(databaseMapPath) && !string.IsNullOrWhiteSpace(databaseId))
-            return await PushSingleDatabaseAsync(inputDir, databaseId!, tokenEnv, mode, uniqueField, updateContent, dryRun, reportPath);
+            return await PushSingleDatabaseAsync(inputDir, databaseId!, tokenEnv, mode, uniqueField, updateContent, dryRun, reportPath, validateSchema);
 
         var targets = string.IsNullOrWhiteSpace(databaseMapPath)
             ? BuildDefaultDatabaseTargets(inputDir, uniqueField)
@@ -124,8 +125,22 @@ public static class NotionCommand
                     continue;
                 }
                 activeTarget = activeTarget with { DatabaseId = createdDatabaseId };
+                if (validateSchema)
+                {
+                    var schemaReport = await NotionSchemaValidator.ValidateAsync(http, activeTarget.DatabaseId!, token, null);
+                    if (!schemaReport.Success)
+                    {
+                        failed = true;
+                        Console.Error.WriteLine($"Notion schema validation failed for {activeTarget.Key} ({activeTarget.DatabaseId}):");
+                        foreach (var f in schemaReport.FieldResults.Where(r => r.Result != "OK"))
+                            Console.Error.WriteLine($"  {f.Name}: {f.Result} - {f.Message}");
+                        pushResults.Add((activeTarget, new NotionPushResult(0, 0, 0, 0, 1, [])));
+                        completedTargets.Add(activeTarget);
+                        continue;
+                    }
+                }
             }
-            else if (!dryRun)
+            else if (!dryRun && validateSchema)
             {
                 var schemaReport = await NotionSchemaValidator.ValidateAsync(http, activeTarget.DatabaseId!, token, null);
                 if (!schemaReport.Success)
@@ -184,13 +199,27 @@ public static class NotionCommand
         string uniqueField,
         string updateContent,
         bool dryRun,
-        string reportPath)
+        string reportPath,
+        bool validateSchema)
     {
         var records = ImportSeedRecordReader.ReadDirectory(inputDir);
         using var http = CreateHttpClient();
+        var token = Environment.GetEnvironmentVariable(tokenEnv) ?? "";
+        if (!dryRun && validateSchema)
+        {
+            var schemaReport = await NotionSchemaValidator.ValidateAsync(http, databaseId, token, null);
+            if (!schemaReport.Success)
+            {
+                Console.Error.WriteLine($"Notion schema validation failed for {databaseId}:");
+                foreach (var f in schemaReport.FieldResults.Where(r => r.Result != "OK"))
+                    Console.Error.WriteLine($"  {f.Name}: {f.Result} - {f.Message}");
+                return 2;
+            }
+        }
+
         var result = await NotionSeedPusher.PushAsync(http, records, new NotionPushOptions(
             DatabaseId: databaseId,
-            Token: Environment.GetEnvironmentVariable(tokenEnv) ?? "",
+            Token: token,
             ReportPath: reportPath,
             DryRun: dryRun,
             Mode: mode,

@@ -123,8 +123,8 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--no-extract-content", "跳过内容抽取", CliOptionType.Flag),
                 new CliOptionSpec("--generate-seed", "生成 seed 数据 (默认开启)", CliOptionType.Flag),
                 new CliOptionSpec("--no-seed", "跳过种子数据生成", CliOptionType.Flag),
-                new CliOptionSpec("--content-source", "seed 内容源类型 (notion|json|yaml|markdown)，使用 notion 时默认启用 --no-markdown-draft", CliOptionType.String, ValueName: "type"),
-                new CliOptionSpec("--no-markdown-draft", "跳过生成 content/*.md 草稿（使用 --content-source notion 时默认启用）", CliOptionType.Flag),
+                new CliOptionSpec("--content-source", "seed 输出类型 (notion|json|yaml|markdown)，默认 notion", CliOptionType.String, ValueName: "type"),
+                new CliOptionSpec("--build-source", "构建内容源 (markdown|notion)，默认 markdown；notion 会跳过 content/*.md 草稿", CliOptionType.String, ValueName: "type"),
                 new CliOptionSpec("--route-map", "显式页面路由映射 YAML 文件路径", CliOptionType.String, ValueName: "file"),
                 new CliOptionSpec("--site-path", "目标站点目录路径 (默认 sites/<theme>)"),
                 new CliOptionSpec("--language", "默认语言 (默认 zh)"),
@@ -194,7 +194,8 @@ public static class BukitCliSpecs
                         new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),
                         new CliOptionSpec("--mode", "推送模式: create (仅创建) | upsert (创建或更新，默认 create)", CliOptionType.String, ValueName: "mode"),
                         new CliOptionSpec("--unique-field", "判断记录是否已存在的唯一字段名 (默认 Slug)", CliOptionType.String, ValueName: "name"),
-                        new CliOptionSpec("--update-content", "upsert 时更新页面正文 blocks: append (追加) | replace (替换)", CliOptionType.String, ValueName: "strategy")
+                        new CliOptionSpec("--update-content", "upsert 时更新页面正文 blocks: append (追加) | replace (替换)", CliOptionType.String, ValueName: "strategy"),
+                        new CliOptionSpec("--no-validate-schema", "跳过推送前 Notion database schema 校验", CliOptionType.Flag)
                     }),
                 new CliCommandSpec(
                     Name: "validate-schema",

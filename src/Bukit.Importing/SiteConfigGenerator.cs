@@ -80,7 +80,7 @@ internal static class SiteConfigGenerator
         }
 
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
-            options.NoMarkdownDraft)
+            options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             var dbId = !string.IsNullOrWhiteSpace(options.NotionDatabaseId)
                 ? options.NotionDatabaseId

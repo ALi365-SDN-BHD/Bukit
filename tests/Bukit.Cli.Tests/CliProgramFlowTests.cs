@@ -54,5 +54,7 @@ public sealed class CliProgramFlowTests
         Assert.Contains("--report", options);
         Assert.Contains("--push-notion", options);
         Assert.Contains("--notion-database-id", options);
+        Assert.Contains("--build-source", options);
+        Assert.DoesNotContain("--no-markdown-draft", options);
     }
 }

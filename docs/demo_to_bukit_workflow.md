@@ -790,6 +790,7 @@ bukit import html-demo ./demo \
 | `--theme` | 目标主题名称 | 必填 |
 | `--site-path` | 目标站点目录 | `sites/{theme}` |
 | `--content-source` | seed 输出类型：`notion` / `json` / `yaml`，默认仍生成本地 markdown 草稿用于 build | `notion` |
+| `--build-source` | 生成站点的 build provider：`markdown` / `notion`；`notion` 会跳过本地 markdown 草稿 | `markdown` |
 | `--extract-content` | 是否抽取业务内容 | `true` |
 | `--generate-seed` | 是否生成 seed 数据 | `true` |
 | `--preserve-html` | 是否保留原始 HTML 快照 | `true` |
@@ -1377,9 +1378,11 @@ theme:
   name: "silkroadbiz"
 ```
 
+`--content-source` 只决定 seed 审核/推送产物，不决定 build provider。`--build-source markdown` 是默认值，生成本地 markdown draft 并让工程可离线 build/verify；`--build-source notion` 才会生成 `provider: notion` 并跳过 `content/*.md` 草稿。
+
 如果 `--content-source json` 或 `--content-source yaml`，该选项只影响 seed 审核文件的输出目录/格式意图；当前默认可构建工程仍由本地 markdown content 驱动。
 
-`--content-source notion` 生成 `sites/silkroadbiz/notion-seed/*.json`；`json` 生成 `sites/silkroadbiz/data/*.json`；`yaml` 生成 `sites/silkroadbiz/data/*.yaml`，供后续人工或外部命令导入。
+`--content-source notion` 生成 `sites/silkroadbiz/notion-seed/*.json` 和默认 `notion-database-map.yaml`；`json` 生成 `sites/silkroadbiz/data/*.json`；`yaml` 生成 `sites/silkroadbiz/data/*.yaml`，供后续人工或外部命令导入。
 
 JSON/YAML seed 如果需要回灌为本地 markdown content，可使用：
 
@@ -1405,6 +1408,7 @@ bukit import html-demo ./demo --theme silkroadbiz
 
 ```text
 notion-seed/*.json
+notion-seed/notion-database-map.yaml
 site.yaml
 theme files
 report
@@ -1419,12 +1423,14 @@ bukit notion push \
   --dry-run
 ```
 
-当前实现首先支持 `--dry-run` 生成本地推送计划 `notion-push-plan.json`。非 `--dry-run` 会校验 `NOTION_TOKEN`（或 `--token-env` 指定的环境变量），然后调用 Notion API 将 seed 记录写入目标 database，并生成 `notion-push-report.json`。默认字段映射为 `Title`、`Slug`、`Type`、`Summary`、`Content`、`Language`、`Published`、`SeoTitle`、`SeoDescription`。
+当前实现首先支持 `--dry-run` 生成本地推送计划 `notion-push-plan.json`。非 `--dry-run` 会校验 `NOTION_TOKEN`（或 `--token-env` 指定的环境变量），默认校验目标 database schema，然后调用 Notion API 将 seed 记录写入目标 database，并生成 `notion-push-report.json`。默认字段映射为 `Title`、`Slug`、`Type`、`Summary`、`Content`、`Language`、`Published`、`SeoTitle`、`SeoDescription`。如需跳过推送前 schema 校验，可显式传 `--no-validate-schema`。
 
 Notion 推送支持两种模式：
 
 - 单 database：传 `--database-id`，将 `pages/posts/companies/services` 合并推入同一个 database，并用 `Type` 区分 collection。
-- 多 database：传 `--database-map`，或传 `--create-missing-databases --parent-page-id <id>` 让 Bukit 按 seed collection 自动创建 `pages/posts/companies/services` 对应的 databases。已有 `databaseId` 时先校验 schema 再 upsert；缺少 `databaseId` 且未启用自动创建时直接报错，不隐式创建。
+- 多 database：传 `--database-map`，或传 `--create-missing-databases --parent-page-id <id>` 让 Bukit 按 seed collection 自动创建 `pages/posts/companies/services` 对应的 databases。已有 `databaseId` 时先校验 schema 再 upsert；自动创建后也会立即校验 schema；缺少 `databaseId` 且未启用自动创建时直接报错，不隐式创建。
+
+`import html-demo --content-source notion` 会默认生成可编辑的 `notion-seed/notion-database-map.yaml`，其中 `databaseId` 为空。填写已有 database ID 后可用 `--database-map` 推送；如果希望自动创建，则使用 `--create-missing-databases --parent-page-id <id>`。
 
 多 database map 示例：
 
@@ -1454,6 +1460,7 @@ databases:
 bukit import html-demo ./demo \
   --theme silkroadbiz \
   --content-source notion \
+  --build-source markdown \
   --push-notion \
   --notion-database-id <notion-database-id>
 ```
@@ -1464,6 +1471,7 @@ bukit import html-demo ./demo \
 bukit import html-demo ./demo \
   --theme silkroadbiz \
   --content-source notion \
+  --build-source markdown \
   --push-notion \
   --notion-database-map sites/silkroadbiz/notion-databases.yaml
 ```
@@ -1811,7 +1819,7 @@ public sealed record HtmlDemoImportResult
 ```text
 1. 生成 themes/{theme}
 2. 生成 sites/{site}/site.yaml
-3. 生成 notion-seed/*.json
+3. 生成 notion-seed/*.json 和 notion-database-map.yaml
 4. 生成 import-report.md
 5. Header / Footer 已组件化
 6. 列表页已改为数据循环

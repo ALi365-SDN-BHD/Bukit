@@ -79,6 +79,7 @@ public static class ImportCommand
         var extractContent = !command.GetBool("--no-extract-content");
         var generateSeed = !command.GetBool("--no-seed");
         var contentSource = command.GetString("--content-source") ?? "notion";
+        var buildSource = command.GetString("--build-source") ?? "markdown";
         var sitePath = command.GetString("--site-path");
         var language = command.GetString("--language") ?? "zh";
         var dryRun = command.GetBool("--dry-run");
@@ -98,9 +99,6 @@ public static class ImportCommand
         var notionReport = command.GetString("--notion-report");
         var validateNotionSchema = !command.GetBool("--no-validate-notion-schema");
 
-        var noMarkdownDraftExplicit = command.Options.ContainsKey("--no-markdown-draft");
-        var noMarkdownDraft = command.GetBool("--no-markdown-draft");
-
         var resolved = ConfigPathResolver.Resolve(
             command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
@@ -110,6 +108,12 @@ public static class ImportCommand
             !contentSource.Equals("markdown", StringComparison.OrdinalIgnoreCase))
         {
             Console.Error.WriteLine($"不支持的内容源类型: {contentSource}");
+            return 2;
+        }
+        if (!buildSource.Equals("markdown", StringComparison.OrdinalIgnoreCase) &&
+            !buildSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine($"不支持的构建内容源类型: {buildSource}");
             return 2;
         }
 
@@ -171,7 +175,7 @@ public static class ImportCommand
             PreserveHtml = preserveHtml,
             GenerateReport = generateReport,
             BaseUrl = baseUrl,
-            NoMarkdownDraft = noMarkdownDraft,
+            BuildSource = buildSource.ToLowerInvariant(),
             RouteMapPath = routeMapPath,
             NotionDatabaseId = notionDatabaseId,
             NotionTokenEnv = notionTokenEnv
@@ -304,6 +308,8 @@ public static class ImportCommand
             options["--generated-database-map"] = Path.IsPathRooted(generatedDatabaseMap)
                 ? generatedDatabaseMap
                 : Path.Combine(siteDir, generatedDatabaseMap);
+        if (!validateSchema)
+            options["--no-validate-schema"] = "true";
         if (!string.IsNullOrWhiteSpace(reportPath))
             options["--report"] = Path.IsPathRooted(reportPath)
                 ? reportPath

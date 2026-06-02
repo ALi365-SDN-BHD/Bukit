@@ -53,6 +53,37 @@ public sealed class SeedGeneratorTests : IDisposable
     }
 
     [Fact]
+    public void Generate_NotionSource_WritesDefaultDatabaseMap()
+    {
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "test-map",
+            RootDir = _tempDir,
+            ContentSource = "notion"
+        };
+
+        var result = SeedGenerator.Generate(options, new ExtractedContent(), [], []);
+
+        Assert.True(result);
+        var mapPath = Path.Combine(_tempDir, "sites", "test-map", "notion-seed", "notion-database-map.yaml");
+        Assert.True(File.Exists(mapPath), $"Expected default database map at {mapPath}");
+        var map = File.ReadAllText(mapPath);
+        Assert.Contains("databases:", map);
+        Assert.Contains("  pages:", map);
+        Assert.Contains("    seed: pages.json", map);
+        Assert.Contains("    collection: page", map);
+        Assert.Contains("    databaseId: \"\"", map);
+        Assert.Contains("  posts:", map);
+        Assert.Contains("    seed: posts.json", map);
+        Assert.Contains("  companies:", map);
+        Assert.Contains("    seed: companies.json", map);
+        Assert.Contains("  services:", map);
+        Assert.Contains("    seed: services.json", map);
+        Assert.Contains("    uniqueField: Slug", map);
+    }
+
+    [Fact]
     public void Generate_JsonSource_WritesToData()
     {
         var options = new HtmlDemoImportOptions
@@ -72,6 +103,7 @@ public sealed class SeedGeneratorTests : IDisposable
         Assert.True(result);
         Assert.True(Directory.Exists(Path.Combine(_tempDir, "sites", "test-json", "data")));
         Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "test-json", "data", "pages.json")));
+        Assert.False(File.Exists(Path.Combine(_tempDir, "sites", "test-json", "data", "notion-database-map.yaml")));
     }
 
     [Fact]

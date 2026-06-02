@@ -36,6 +36,8 @@ internal static class SeedGenerator
             WriteFaqs(Path.Combine(seedDir, "faqs.json"), content.Faqs, options.Overwrite);
             WriteMedia(Path.Combine(seedDir, "media.json"), pages, options.Overwrite);
             WriteComponents(Path.Combine(seedDir, "components.json"), components, options.Overwrite);
+            if (!isJson)
+                WriteDefaultNotionDatabaseMap(Path.Combine(seedDir, "notion-database-map.yaml"), options.Overwrite);
         }
 
         Console.WriteLine($"  种子数据生成完成: {seedDir}");
@@ -200,6 +202,30 @@ internal static class SeedGenerator
             sb.Append(string.Join(", ", pageNames.Select(JsonStr)));
             sb.Append("]");
         });
+    }
+
+    private static void WriteDefaultNotionDatabaseMap(string path, bool overwrite)
+    {
+        if (File.Exists(path) && !overwrite)
+            return;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("databases:");
+        WriteDatabaseMapEntry(sb, "pages", "Pages", "pages.json", "page");
+        WriteDatabaseMapEntry(sb, "posts", "Posts", "posts.json", "post");
+        WriteDatabaseMapEntry(sb, "companies", "Companies", "companies.json", "company");
+        WriteDatabaseMapEntry(sb, "services", "Services", "services.json", "service");
+        File.WriteAllText(path, sb.ToString());
+    }
+
+    private static void WriteDatabaseMapEntry(StringBuilder sb, string key, string title, string seed, string collection)
+    {
+        sb.AppendLine($"  {key}:");
+        sb.AppendLine($"    title: {title}");
+        sb.AppendLine($"    seed: {seed}");
+        sb.AppendLine($"    collection: {collection}");
+        sb.AppendLine("    databaseId: \"\"");
+        sb.AppendLine("    uniqueField: Slug");
     }
 
     private static void WritePagesYaml(string path, List<PageRecord> records, bool overwrite)

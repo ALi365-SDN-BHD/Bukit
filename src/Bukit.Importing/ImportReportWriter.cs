@@ -164,10 +164,11 @@ internal static class ImportReportWriter
         sb.AppendLine("## Build/Data Source Relationship");
         sb.AppendLine();
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
-            options.NoMarkdownDraft)
+            options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine("- Build uses the Notion API (`provider: notion`). Ensure `NOTION_TOKEN` is set before running `bukit build` or `--verify`.");
             sb.AppendLine("- Seed files in `notion-seed/` are for push only and do not serve as a build source.");
+            sb.AppendLine("- `notion-seed/notion-database-map.yaml` is generated as an editable multi-database push template.");
         }
         else
         {
@@ -242,19 +243,20 @@ internal static class ImportReportWriter
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine();
-            sb.AppendLine("- Notion push seed files are in `notion-seed/`. Run `bukit notion push --dry-run` then `bukit notion push --mode upsert` to sync.");
+            sb.AppendLine("- Notion push seed files are in `notion-seed/`, with `notion-database-map.yaml` as the editable multi-database mapping template. Run `bukit notion push --dry-run` then `bukit notion push --mode upsert` to sync.");
             sb.AppendLine();
             sb.AppendLine("## Notion Provider Status");
             sb.AppendLine();
             var dbStatus = string.IsNullOrWhiteSpace(options.NotionDatabaseId)
                 ? "${NOTION_DATABASE_ID} (environment variable)"
                 : options.NotionDatabaseId;
-            var providerStatus = options.NoMarkdownDraft
+            var notionBuildSource = options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase);
+            var providerStatus = notionBuildSource
                 ? "provider: notion"
                 : "provider: markdown (Notion seed review mode)";
             sb.AppendLine($"- {providerStatus}");
             sb.AppendLine($"- databaseId: {dbStatus}");
-            sb.AppendLine(options.NoMarkdownDraft
+            sb.AppendLine(notionBuildSource
                 ? "- bukit build requires valid NOTION_TOKEN environment variable"
                 : "- bukit build uses local Markdown and does not require NOTION_TOKEN until seed push");
         }

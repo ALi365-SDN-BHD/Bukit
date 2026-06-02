@@ -145,6 +145,7 @@ public sealed class NotionCommandTests : IDisposable
                 ["--input"] = seedDir,
                 ["--database-id"] = "db123",
                 ["--token-env"] = "BUKIT_TEST_NOTION_TOKEN",
+                ["--no-validate-schema"] = "true",
                 ["--report"] = reportPath
             }, ["push"]));
 
@@ -163,6 +164,56 @@ public sealed class NotionCommandTests : IDisposable
             var report = File.ReadAllText(reportPath);
             Assert.Contains("\"created\": 1", report);
             Assert.Contains("\"notionPageId\": \"page-1\"", report);
+        }
+        finally
+        {
+            NotionCommand.CreateHttpClient = originalFactory;
+            Environment.SetEnvironmentVariable("BUKIT_TEST_NOTION_TOKEN", originalToken);
+        }
+    }
+
+    [Fact]
+    public async Task Push_SingleDatabaseSchemaValidationFails_BlocksPush()
+    {
+        var seedDir = Path.Combine(_tempDir, "notion-seed");
+        Directory.CreateDirectory(seedDir);
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  { "title": "Home", "slug": "home", "published": true }
+]
+""");
+
+        var pageCreateAttempted = false;
+        var handler = new RecordingHandler(req =>
+        {
+            if (req.Method == HttpMethod.Get && req.RequestUri!.AbsolutePath.Contains("/databases/"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"properties":{}}""")
+                };
+            if (req.Method == HttpMethod.Post && req.RequestUri!.AbsoluteUri == "https://api.notion.com/v1/pages")
+                pageCreateAttempted = true;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-1"}""")
+            };
+        });
+
+        var originalFactory = NotionCommand.CreateHttpClient;
+        var originalToken = Environment.GetEnvironmentVariable("BUKIT_TEST_NOTION_TOKEN");
+        NotionCommand.CreateHttpClient = () => new HttpClient(handler);
+        Environment.SetEnvironmentVariable("BUKIT_TEST_NOTION_TOKEN", "secret_test");
+        try
+        {
+            var result = await NotionCommand.RunAsync(MakeCommand(new Dictionary<string, string?>
+            {
+                ["--input"] = seedDir,
+                ["--database-id"] = "db123",
+                ["--token-env"] = "BUKIT_TEST_NOTION_TOKEN"
+            }, ["push"]));
+
+            Assert.Equal(2, result);
+            Assert.False(pageCreateAttempted);
         }
         finally
         {
@@ -287,6 +338,8 @@ databases:
                 {
                     Content = new StringContent($$"""{"id":"{{createdDatabaseIds.Dequeue()}}"}""")
                 };
+            if (req.Method == HttpMethod.Get && req.RequestUri!.AbsolutePath.Contains("/databases/"))
+                return OkDatabaseSchema();
             if (req.Method == HttpMethod.Post && req.RequestUri!.AbsolutePath.Contains("/query"))
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
@@ -319,6 +372,63 @@ databases:
             var generatedMap = File.ReadAllText(generatedMapPath);
             Assert.Contains("databaseId: created-pages-db", generatedMap);
             Assert.Contains("databaseId: created-posts-db", generatedMap);
+        }
+        finally
+        {
+            NotionCommand.CreateHttpClient = originalFactory;
+            Environment.SetEnvironmentVariable("BUKIT_TEST_NOTION_TOKEN", originalToken);
+        }
+    }
+
+    [Fact]
+    public async Task Push_CreateMissingDatabaseSchemaValidationFails_BlocksPush()
+    {
+        var seedDir = Path.Combine(_tempDir, "notion-seed");
+        Directory.CreateDirectory(seedDir);
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  { "title": "Home", "slug": "home", "summary": "Welcome", "language": "zh", "published": true }
+]
+""");
+
+        var pageCreateAttempted = false;
+        var handler = new RecordingHandler(req =>
+        {
+            if (req.Method == HttpMethod.Post && req.RequestUri!.AbsoluteUri == "https://api.notion.com/v1/databases")
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"id":"created-pages-db"}""")
+                };
+            if (req.Method == HttpMethod.Get && req.RequestUri!.AbsolutePath.Contains("/databases/"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"properties":{}}""")
+                };
+            if (req.Method == HttpMethod.Post && req.RequestUri!.AbsoluteUri == "https://api.notion.com/v1/pages")
+                pageCreateAttempted = true;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-created"}""")
+            };
+        });
+
+        var originalFactory = NotionCommand.CreateHttpClient;
+        var originalToken = Environment.GetEnvironmentVariable("BUKIT_TEST_NOTION_TOKEN");
+        NotionCommand.CreateHttpClient = () => new HttpClient(handler);
+        Environment.SetEnvironmentVariable("BUKIT_TEST_NOTION_TOKEN", "secret_test");
+        try
+        {
+            var result = await NotionCommand.RunAsync(MakeCommand(new Dictionary<string, string?>
+            {
+                ["--input"] = seedDir,
+                ["--create-missing-databases"] = "true",
+                ["--parent-page-id"] = "parent-page",
+                ["--token-env"] = "BUKIT_TEST_NOTION_TOKEN",
+                ["--mode"] = "upsert"
+            }, ["push"]));
+
+            Assert.Equal(1, result);
+            Assert.False(pageCreateAttempted);
         }
         finally
         {
@@ -419,6 +529,61 @@ databases:
         Assert.True(blocksReadAttempted, "Expected GET /blocks/{id}/children for replace mode");
         Assert.True(File.Exists(reportPath));
         Assert.Contains("replace-failed", File.ReadAllText(reportPath));
+    }
+
+    [Fact]
+    public async Task Push_ReplaceDeleteFailed_MarksReplaceFailed()
+    {
+        var seedDir = Path.Combine(_tempDir, "notion-seed");
+        Directory.CreateDirectory(seedDir);
+        var records = new List<ImportSeedRecord>
+        {
+            new("page", "Home", "home", null, "<p>Content</p>", "zh", true, null, null)
+        };
+
+        var deleteAttempted = false;
+        var handler = new RecordingHandler(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/query"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"results":[{"id":"page-1"}],"has_more":false}""")
+                };
+            if (req.Method == HttpMethod.Patch && req.RequestUri.AbsolutePath.Contains("/pages/"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"id":"page-1"}""")
+                };
+            if (req.Method == HttpMethod.Get && req.RequestUri.AbsolutePath.Contains("/blocks/"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"results":[{"id":"block-1"}],"has_more":false}""")
+                };
+            if (req.Method == HttpMethod.Delete && req.RequestUri.AbsolutePath.Contains("/blocks/"))
+            {
+                deleteAttempted = true;
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-1"}""")
+            };
+        });
+
+        var reportPath = Path.Combine(seedDir, "notion-push-report.json");
+        using var http = new HttpClient(handler);
+        var result = await NotionSeedPusher.PushAsync(http, records, new NotionPushOptions(
+            DatabaseId: "db123",
+            Token: "token",
+            ReportPath: reportPath,
+            DryRun: false,
+            Mode: "upsert",
+            UpdateContent: "replace"));
+
+        Assert.True(deleteAttempted, "Expected DELETE /blocks/{id} for replace mode");
+        var report = File.ReadAllText(reportPath);
+        Assert.Contains("replace-failed", report);
+        Assert.Contains("Failed to delete one or more existing blocks.", report);
     }
 
     private static HttpRequestMessage CloneRequest(HttpRequestMessage request)

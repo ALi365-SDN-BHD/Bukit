@@ -783,7 +783,7 @@ pages:
     }
 
     [Fact]
-    public void Import_WithContentSourceNotion_SkipsMarkdownDraft()
+    public void Import_WithBuildSourceNotion_SkipsMarkdownDraft()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
             "<html><head><title>Notion Test</title></head><body><main><h1>Hello</h1></main></body></html>");
@@ -795,7 +795,7 @@ pages:
             RootDir = _tempDir,
             Force = true,
             ContentSource = "notion",
-            NoMarkdownDraft = true
+            BuildSource = "notion"
         };
 
         var result = HtmlDemoImporter.Import(options);
@@ -804,6 +804,8 @@ pages:
             "content/ directory must not exist when using --content-source notion");
         Assert.True(Directory.Exists(Path.Combine(_tempDir, "sites", "notion-md-skip-test", "notion-seed")),
             "notion-seed/ directory must exist when using --content-source notion");
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "notion-md-skip-test", "notion-seed", "notion-database-map.yaml")),
+            "default notion database map must be generated with notion seed files");
 
         var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-md-skip-test", "site.yaml"));
         Assert.Contains("provider: notion", siteYaml);
