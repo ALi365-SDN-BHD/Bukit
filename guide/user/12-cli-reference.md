@@ -177,6 +177,8 @@ bukit import seed sites/silkroadbiz/data --output sites/silkroadbiz/content --fo
 
 `import seed` reads `pages/posts/companies/services` from `.json`, `.yaml`, or `.yml` files and writes markdown under the matching content collection folders. It is intended as a local build adapter; it does not write to Notion.
 
+For the full workflow, review checklist, and Notion push decision tree, see [21 Import HTML Demo](./21-import-html-demo.md).
+
 Common parameters:
 
 - `--theme <name>`: required for `html-demo`
@@ -206,6 +208,11 @@ bukit notion push \
   --create-missing-databases \
   --parent-page-id <notion-parent-page-id> \
   --mode upsert
+
+# Validate one target database before pushing
+bukit notion validate-schema \
+  --database-id <notion-database-id> \
+  --report notion-schema-report.json
 ```
 
 `notion push` produces a local push plan report from `notion-seed/*.json` so records can be reviewed before any external side effect. With `--database-id`, all supported seed records go into one Notion database. With `--database-map`, each seed file can target its own database; when `--database-map` is omitted, `notion push` also auto-loads `notion-seed/notion-database-map.yaml` if that file exists in the input directory. Without a map or single database ID, Bukit can derive one database target per collection, but it only creates missing databases when `--create-missing-databases --parent-page-id <id>` is explicit. Missing database IDs without that flag are a hard error. The default push scope is `pages/posts/companies/services`; generated `sections/faqs/media/components` seed files are review-only until collection-specific Notion schemas are added. Without `--dry-run`, the command validates that the configured token environment variable exists (`NOTION_TOKEN` by default, override with `--token-env`), validates each target database schema by default, and writes a report for the push.
@@ -222,6 +229,8 @@ Common parameters:
 - `--dry-run`: generate plan only
 - `--report <file>`: output plan/report path
 - `--token-env <name>`: token environment variable, default `NOTION_TOKEN`
+
+`notion validate-schema` checks one Notion database for the properties expected by Bukit seed push. It requires `NOTION_TOKEN` by default and accepts `--token-env <name>` when you store the token in another environment variable.
 
 ## clean: Clean Output & Cache
 

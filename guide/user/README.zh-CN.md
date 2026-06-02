@@ -14,6 +14,7 @@
 | 用 Notion 做 CMS | [06 Notion 内容](./06-notion-content.zh-CN.md) | [13 GitHub Pages 部署](./13-deploy-github-pages.zh-CN.md) |
 | 做企业官网 / Landing Page | [07 多源内容](./07-multi-source.zh-CN.md) + [09 Modules](./09-modules-data.zh-CN.md) | [08 主题与模板](./08-themes-templates.zh-CN.md) |
 | 用 AI 辅助建站 | [ChatGPT Prompt Pack](../ai/chatgpt/README.zh-CN.md) | [Intent CLI](../dev/intent-cli.zh-CN.md) |
+| 导入本地 HTML demo | [21 导入 HTML Demo](./21-import-html-demo.zh-CN.md) | [12 CLI 参考](./12-cli-reference.zh-CN.md) |
 | 部署上线 | [13 GitHub Pages 部署](./13-deploy-github-pages.zh-CN.md) | [14 故障排查](./14-troubleshooting.zh-CN.md) |
 | 做 SEO/GEO 优化 | [11 多语言与SEO](./11-i18n-seo.zh-CN.md) + [17 GEO](./17-geo.zh-CN.md) | [12 CLI 参考](./12-cli-reference.zh-CN.md) |
 | 开发主题 | [08 主题与模板](./08-themes-templates.zh-CN.md) | [主题 (dev)](../dev/theme.zh-CN.md) |
@@ -62,6 +63,12 @@
 2. [08-主题与模板](./08-themes-templates.zh-CN.md)（主题自定义）
 3. [12-命令行参考](./12-cli-reference.zh-CN.md)（`bukit clone`）
 
+### 导入本地 HTML demo
+
+1. [21-导入-HTML-Demo](./21-import-html-demo.zh-CN.md)（本地 HTML 文件 → Bukit 主题/站点草稿）
+2. [08-主题与模板](./08-themes-templates.zh-CN.md)（审核生成模板）
+3. [12-命令行参考](./12-cli-reference.zh-CN.md)（`bukit import html-demo`、`import seed`、`notion push`）
+
 ### 多语言站点
 
 1. [11-I18n与SEO](./11-i18n-seo.zh-CN.md)（i18n 设置、语言标记、sitemap 合并）
@@ -81,6 +88,7 @@
 - Agent skills 总览：[`src/skills`](../../src/skills/README.zh-CN.md)
 - 统一入口：[`using-bukit`](../../src/skills/using-bukit/SKILL.md)
 - 命令执行：[`bukit-cli-reference`](../../src/skills/bukit-cli-reference/SKILL.md)
+- HTML demo 导入流程：[`bukit-import`](../../src/skills/bukit-import/SKILL.md)
 - 用户文档仍然负责：安装、配置、主题、内容组织、部署与排障的完整操作路径
 
 ## 仓库内"可运行示例"在哪里
@@ -138,3 +146,5 @@
 - [17-GEO](./17-geo.zh-CN.md)
 - [18-网站克隆](./18-clone-website.zh-CN.md)
 - [19-v3.0新增功能](./19-new-features-v3.zh-CN.md)
+- [20-外部插件](./20-external-plugins.zh-CN.md)
+- [21-导入-HTML-Demo](./21-import-html-demo.zh-CN.md)

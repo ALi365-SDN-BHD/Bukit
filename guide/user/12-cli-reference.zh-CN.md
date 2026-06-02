@@ -180,6 +180,32 @@ dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
 
 排障清单见：[14-故障排查](./14-troubleshooting.zh-CN.md)。
 
+## import：HTML Demo 与 Seed 导入
+
+```bash
+# 把本地 HTML demo 转成可构建的主题/站点草稿
+bukit import html-demo ./demo --theme silkroadbiz --force --verify
+
+# 把生成的 JSON/YAML seed 转成本地 Markdown 内容
+bukit import seed sites/silkroadbiz/data --output sites/silkroadbiz/content --force
+```
+
+`import html-demo` 会生成 `themes/<theme>/`、`sites/<theme>/site.yaml`、本地 Markdown 草稿、seed 审核文件、`original-demo/` 和 `import-report.md`。默认是 `--content-source notion --build-source markdown`：生成 Notion seed 供审核，但站点仍从本地 Markdown 构建，`--verify` 不需要外部凭据。只有当生成站点需要构建时直接读取 Notion，才使用 `--build-source notion`，且它只能和 `--content-source notion` 一起使用。
+
+`import seed` 只把 JSON/YAML seed 转成本地 Markdown，不会写入 Notion。
+
+Notion 写入必须显式执行：
+
+```bash
+bukit notion push --input sites/silkroadbiz/notion-seed --dry-run
+bukit notion push --input sites/silkroadbiz/notion-seed --database-id <notion-database-id>
+bukit notion validate-schema --database-id <notion-database-id> --report notion-schema-report.json
+```
+
+`notion validate-schema` 会校验目标 Notion database 是否包含 Bukit seed push 需要的字段。默认读取 `NOTION_TOKEN`，也可以用 `--token-env <name>` 指定其他环境变量。
+
+完整流程、审核清单和 Notion 推送决策见：[21-导入-HTML-Demo](./21-import-html-demo.zh-CN.md)。
+
 ## clean：清理输出与缓存
 
 ```bash

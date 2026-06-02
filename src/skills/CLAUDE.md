@@ -22,6 +22,7 @@ site.yaml files, or any related Bukit concepts:
    - `bukit-plugins-debug` — for plugin debugging, incremental builds, performance
    - `bukit-deploy` — for GitHub Pages deployment
    - `bukit-clone` — for website design cloning (requires Browser MCP)
+   - `bukit-import` — for local HTML demo import and seed workflow
    - `bukit-seo` — for traditional SEO, audit/diff, JSON-LD, sitemap
    - `bukit-geo` — for generative engine optimization, llms.txt, AI search
    - `bukit-preview` — for local preview server at localhost:4173
@@ -57,6 +58,7 @@ site.yaml files, or any related Bukit concepts:
 | Debug build failure | using-bukit → plugins-debug → config → cli-reference |
 | Deploy to GitHub Pages | using-bukit → deploy → config → cli-reference |
 | Clone website design | using-bukit → clone → theme → cli-reference |
+| Import local HTML demo | using-bukit → cli-reference → import → theme → templating |
 | Set up SEO | using-bukit → seo → config → cli-reference |
 | Set up GEO (AI search) | using-bukit → geo → config → cli-reference |
 | Create design system | using-bukit → design-tokens → theme → config |

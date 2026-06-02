@@ -15,6 +15,7 @@ dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
 dotnet run --project src/Bukit.Cli -c Release -- build --config site.yaml --clean --site-url https://example.com
 dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
 dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
+bukit import html-demo ./demo --theme mysite --dry-run
 ```
 
 ## Diagnostic Codes
@@ -78,6 +79,26 @@ Fix checklist:
 - A content page URL collides with a derived page (pagination/archive/taxonomy) → change `deriveConflictPolicy` to `warn` or `last-wins`, or adjust the conflicting URL
 
 Run `bukit doctor` first to detect conflicts without a full build.
+
+### E) Import generated site has warnings
+
+Symptom: after `bukit import html-demo`, `doctor` reports warnings such as `seo.site_url_missing`, or static HTML files are mentioned in theme `static/`.
+
+Fix checklist:
+
+- Replace the generated placeholder `site.url: https://example.com` before publishing.
+- Keep preserved source HTML under `sites/<theme>/original-demo/`; do not copy `.html` files into theme `static/`.
+- Read `sites/<theme>/import-report.md` before editing generated templates.
+- For the full import workflow, see [21 Import HTML Demo](./21-import-html-demo.md).
+
+### F) Import or Notion push command fails
+
+Common import-specific causes:
+
+- `主题已存在` / `Theme already exists` → add `--force` only after confirming overwrite is intended.
+- `--build-source notion requires --content-source notion` → either use `--content-source notion --build-source notion`, or keep the default Markdown build.
+- `--push-notion` with `--dry-run` → run import first, review seed files with `bukit notion push --dry-run`, then push without dry run.
+- Empty Notion database IDs in a generated map → fill the IDs, or use `--create-missing-databases --parent-page-id <id>`.
 
 ## Symptom 2: build Succeeds, but Pages Are Missing / URLs Are Wrong
 
@@ -236,4 +257,3 @@ Fix:
           - emit-outputs
   ```
 - Or remove the `capabilities` field entirely to allow all hooks (backward compatible).
-

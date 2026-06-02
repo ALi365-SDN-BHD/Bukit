@@ -19,7 +19,7 @@ PLANNED_COMMANDS = {
 # (they are covered by subcommand entries or are implementation details)
 SOURCE_PARENTS_WITH_SUBCOMMANDS = {
     'theme', 'template', 'seo', 'config', 'data', 'route', 'docs',
-    'intent', 'visual', 'geo', 'plugin',
+    'intent', 'visual', 'geo', 'plugin', 'import', 'notion',
 }
 
 # Reference entries that are aliases, not registered as separate commands
@@ -60,7 +60,8 @@ def is_command_name(name):
                 'skip-build', 'max-new-errors', 'max-new-warnings',
                 'max-new-issues', 'fail-on-new-code', 'fail-on-route-removed',
                 'fail-on-indexable-drop', 'fail-on-visual-diff',
-                'module', 'format', 'root-dir'):
+                'module', 'format', 'root-dir', 'id', 'mode', 'type',
+                'strategy'):
         return False
     return True
 
@@ -104,6 +105,20 @@ for line in lines:
         source_commands.add(f'{parent_name} {cmd_name}')
     elif not in_subcommands:
         source_commands.add(cmd_name)
+        parent_name = cmd_name
+
+# Theme subcommands live in BukitCliThemeSpecs.cs and are composed into the
+# root `theme` command elsewhere, so parse that metadata file explicitly.
+theme_specs_path = os.path.join(repo_root, 'src', 'Bukit.Cli', 'Cli', 'BukitCliThemeSpecs.cs')
+if os.path.exists(theme_specs_path):
+    with open(theme_specs_path) as f:
+        for line in f:
+            m = re.search(r'Name:\s*"([^"]+)"', line.strip())
+            if not m:
+                continue
+            cmd_name = m.group(1)
+            if is_command_name(cmd_name):
+                source_commands.add(f'theme {cmd_name}')
 
 print(f'  Source has {len(source_commands)} commands (full paths)')
 

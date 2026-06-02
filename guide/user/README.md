@@ -14,6 +14,7 @@ If you need internals, extension points, or contribution details, read the devel
 | Use Notion as CMS | [06 Notion Content](./06-notion-content.md) | [13 Deploy GitHub Pages](./13-deploy-github-pages.md) |
 | Build a company website | [07 Multi-Source](./07-multi-source.zh-CN.md) + [09 Modules](./09-modules-data.md) | [08 Themes & Templates](./08-themes-templates.md) |
 | Build with AI / ChatGPT | [ChatGPT Prompt Pack](../ai/chatgpt/README.md) | [Intent CLI](../dev/intent-cli.md) |
+| Import a local HTML demo | [21 Import HTML Demo](./21-import-html-demo.md) | [12 CLI Reference](./12-cli-reference.md) |
 | Deploy a site | [13 Deploy GitHub Pages](./13-deploy-github-pages.md) | [14 Troubleshooting](./14-troubleshooting.md) |
 | Optimize for SEO/GEO | [11 I18n & SEO](./11-i18n-seo.md) + [17 GEO](./17-geo.md) | [12 CLI Reference](./12-cli-reference.md) |
 | Develop a theme | [08 Themes & Templates](./08-themes-templates.md) | [Theme (dev)](../dev/theme.md) |
@@ -63,6 +64,12 @@ If you need internals, extension points, or contribution details, read the devel
 2. [08 Themes & Templates](./08-themes-templates.md) (theme customization)
 3. [12 CLI Reference](./12-cli-reference.md) (for `bukit clone`)
 
+### Import a local HTML demo
+
+1. [21 Import HTML Demo](./21-import-html-demo.md) (local HTML files → Bukit theme/site draft)
+2. [08 Themes & Templates](./08-themes-templates.md) (review generated templates)
+3. [12 CLI Reference](./12-cli-reference.md) (for `bukit import html-demo`, `import seed`, and `notion push`)
+
 ### Multilingual site
 
 1. [11 I18n & SEO](./11-i18n-seo.md) (i18n setup, language tagging, sitemap merging)
@@ -82,6 +89,7 @@ If you use Bukit in a skill-aware environment such as Trae, Claude Code, Copilot
 - Agent skills overview: [`src/skills`](../../src/skills/README.md)
 - Unified entry: [`using-bukit`](../../src/skills/using-bukit/SKILL.md)
 - Command execution reference: [`bukit-cli-reference`](../../src/skills/bukit-cli-reference/SKILL.md)
+- HTML demo import workflow: [`bukit-import`](../../src/skills/bukit-import/SKILL.md)
 - This user guide still covers the complete operational path for setup, configuration, theming, content organization, deployment, and troubleshooting
 
 ## Where to Find Runnable Examples

@@ -28,7 +28,7 @@ Recognize these keywords and activate Bukit skills:
 
 All skills: `src/skills/<skill-name>/SKILL.md`
 
-Available skills (19 total):
+Available skills (20 total):
 
 | Skill | Purpose |
 |-------|---------|
@@ -45,6 +45,7 @@ Available skills (19 total):
 | bukit-plugins-debug | Plugin system and build debugging |
 | bukit-deploy | GitHub Pages deployment |
 | bukit-clone | Website design cloning |
+| bukit-import | HTML demo import and seed workflow |
 | bukit-seo | Traditional search engine optimization |
 | bukit-geo | Generative engine optimization (AI search) |
 | bukit-preview | Local preview server |
@@ -72,6 +73,7 @@ Common task → skill chains:
 | Debug build | using-bukit → plugins-debug → config → cli-reference |
 | Deploy | using-bukit → deploy → config → cli-reference |
 | Clone website | using-bukit → clone → theme → cli-reference |
+| Import HTML demo | using-bukit → cli-reference → import → theme → templating |
 | SEO | using-bukit → seo → config → cli-reference |
 | GEO (AI search) | using-bukit → geo → config → cli-reference |
 | Design system | using-bukit → design-tokens → theme → config |

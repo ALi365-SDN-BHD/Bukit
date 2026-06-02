@@ -100,6 +100,7 @@ After downloading, place the binary in a PATH directory or the project root.
 | `import html-demo` | Convert an HTML demo directory into a buildable Bukit theme/site draft | `<demo-dir>` `--theme` `--force` `--verify` `--content-source`(notion\|json\|yaml) `--build-source`(markdown\|notion) `--site-path` `--strict` `--push-notion` `--notion-database-id` `--notion-database-map` `--create-missing-notion-databases` |
 | `import seed` | Convert generated JSON/YAML seed into local Markdown content | `<seed-dir>` `--output` `--force` |
 | `notion push` | Push generated seed records to one or more Notion databases; validates target schema by default; use `--dry-run` for a reviewable local plan | `--input` `--database-id` `--database-map` `--create-missing-databases` `--parent-page-id` `--no-validate-schema` `--dry-run` `--report` `--token-env` |
+| `notion validate-schema` | Validate that a Notion database has the fields required by Bukit seed push | `--database-id` `--token-env` `--report` |
 | `geo audit` | GEO audit on dist output | `--dir` |
 | `seo audit` | Audit SEO health from build report | `--dir` `--report` `--strict` `--external` |
 | `seo diff` | Compare SEO reports for regression budgets | `--baseline` `--current` `--max-new-errors N` `--max-new-warnings N` `--max-new-issues N` `--fail-on-new-code c1,c2` `--fail-on-route-removed` `--fail-on-indexable-drop` |

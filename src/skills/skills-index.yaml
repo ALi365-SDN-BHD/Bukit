@@ -6,8 +6,8 @@
 # skills-index.json is auto-generated from this file via generate-index-json.sh.
 
 version: "3.0.0"
-updated: "2026-05-31"
-skill_count: 19
+updated: "2026-06-02"
+skill_count: 20
 
 skills:
   # === GATEWAY ===
@@ -391,6 +391,40 @@ skills:
       gemini: "activate_skill + Browser MCP"
     user_invocable: true
 
+  # === OPERATION ===
+  - name: bukit-import
+    status: beta
+    since: v3.0.0
+    source_anchors:
+      - "src/Bukit.Cli/Commands/ImportCommand.cs"
+      - "src/Bukit.Importing/HtmlDemoImporter.cs"
+      - "src/Bukit.Importing/ImportReportWriter.cs"
+    verified_by:
+      - "src/Bukit.Cli/Commands/ImportCommand.cs"
+      - "src/Bukit.Importing/HtmlDemoImporter.cs"
+    guide_chapters:
+      - "guide/user/21-import-html-demo.md"
+      - "guide/user/12-cli-reference.md"
+    type: operation
+    priority: 14
+    path: src/skills/bukit-import/SKILL.md
+    description: >
+      HTML demo import — convert a local HTML demo directory into a Bukit theme/site draft,
+      generate seed files and import reports, verify the generated site, and optionally push
+      generated Notion seed records.
+    triggers:
+      - pattern: "import html-demo|HTML demo import|import seed|local HTML demo|导入 HTML demo|转换本地 demo|导入 seed|import demo HTML"
+        languages: [en, zh-CN, ms]
+    requires: [bukit-cli-reference, bukit-theme, bukit-templating]
+    guide_chapter: "21 Import HTML Demo, 12 CLI Reference"
+    platform_loading:
+      trae: "Skill tool"
+      claude_code: "Skill tool"
+      codex: "Native read"
+      copilot: "skill tool"
+      gemini: "activate_skill"
+    user_invocable: true
+
   # === TECHNIQUE ===
   - name: bukit-seo
     status: stable
@@ -404,7 +438,7 @@ skills:
     guide_chapters:
       - "guide/user/11-i18n-seo.md"
     type: technique
-    priority: 14
+    priority: 15
     path: src/skills/bukit-seo/SKILL.md
     description: >
       Traditional SEO — site.seo node, inject/theme render modes, front matter SEO fields,
@@ -434,7 +468,7 @@ skills:
     guide_chapters:
       - "guide/user/17-geo.md"
     type: technique
-    priority: 15
+    priority: 16
     path: src/skills/bukit-geo/SKILL.md
     description: >
       Generative Engine Optimization — llms.txt/llms-full.txt, AI crawler robots.txt rules,
@@ -462,7 +496,7 @@ skills:
     guide_chapters:
       - "guide/user/12-cli-reference.md"
     type: operation
-    priority: 16
+    priority: 17
     path: src/skills/bukit-preview/SKILL.md
     description: >
       Local preview server — serves dist/ at localhost:4173, MIME type handling,
@@ -490,7 +524,7 @@ skills:
     guide_chapters:
       - "guide/user/12-cli-reference.md"
     type: operation
-    priority: 17
+    priority: 18
     path: src/skills/bukit-dev/SKILL.md
     description: >
       HMR development server — file watching with 300ms debounce,
@@ -518,7 +552,7 @@ skills:
     guide_chapters:
       - "guide/user/14-troubleshooting.md"
     type: operation
-    priority: 18
+    priority: 19
     path: src/skills/bukit-webhook/SKILL.md
     description: >
       Webhook server — authenticated Notion-style trigger → GitHub repository_dispatch,
@@ -546,7 +580,7 @@ skills:
     guide_chapters:
       - "guide/user/08-themes-templates.md"
     type: pattern
-    priority: 19
+    priority: 20
     path: src/skills/theme-component-system/SKILL.md
     description: >
       Componentized theme system — theme.yaml V2 manifest, sections, components,
@@ -597,6 +631,10 @@ workflows:
   clone_website:
     description: "Clone a website's design"
     chain: [using-bukit, bukit-clone, bukit-theme, bukit-cli-reference]
+
+  import_html_demo:
+    description: "Import a local HTML demo into a Bukit theme/site draft"
+    chain: [using-bukit, bukit-cli-reference, bukit-import, bukit-theme, bukit-templating]
 
   create_theme:
     description: "Create a custom theme (interactive)"

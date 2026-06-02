@@ -25,6 +25,7 @@ src/skills/
   bukit-plugins-debug/    # 插件、增量构建与排障
   bukit-deploy/           # GitHub Pages 部署
   bukit-clone/            # 网站设计克隆 → Bukit 主题
+  bukit-import/           # 本地 HTML demo 导入 → Bukit 站点草稿
   bukit-seo/              # 传统搜索引擎优化 (SEO)
   bukit-geo/              # 生成式引擎优化 (GEO)
 ```
@@ -46,6 +47,7 @@ src/skills/
 | `bukit-plugins-debug` | 插件生命周期、增量构建、性能诊断与常见故障排查 | 插件不生效、构建结果异常、构建性能退化 |
 | `bukit-deploy` | GitHub Pages 部署，site.yaml deploy 配置、环境变量、CI/CD 集成 | 部署站点、推送 gh-pages、配置 CNAME、排查部署失败 |
 | `bukit-clone` | 浏览器 MCP 提取 → `bukit clone` CLI → 验证流水线，将任意网站视觉设计克隆为 Bukit 主题 | 克隆网站外观、复刻设计、从现有网站创建主题 |
+| `bukit-import` | 本地 HTML demo 导入、seed 审核、`import-report.md` 与可选 Notion seed 推送 | 把离线 HTML demo 目录转换成 Bukit 主题/站点草稿 |
 | `bukit-seo` | 传统 SEO 配置、inject/theme 渲染模式、front matter SEO 字段、6 种 JSON-LD 类型、构建诊断 (11 码)、构建后审计 (~40 码)、CLI seo audit/diff | 配置 SEO、运行 seo audit/diff、解读 SEO 诊断码、设置 OG/Twitter/JSON-LD/sitemap |
 | `bukit-geo` | 面向 AI 搜索引擎的优化：llms.txt/llms-full.txt 生成、AI 爬虫 robots.txt 规则、FAQ/HowTo 结构化数据、GEO Score (7 诊断码) | 优化 AI 搜索 (ChatGPT Search/Perplexity/Google AI Overviews)、生成 llms.txt、添加 FAQ/HowTo schema、运行 geo audit |
 
@@ -55,7 +57,7 @@ src/skills/
 
 1. 入口优先：当任务已经明确是 Bukit 任务时，先看 `using-bukit`
 2. 命令单一来源：凡是需要执行命令，都以 `bukit-cli-reference` 为准，其他 skill 不重复维护命令说明
-3. 配置作为背景知识：`bukit-theme`、`bukit-design-tokens`、`bukit-content-to-template`、`bukit-notion`、`bukit-routing`、`bukit-i18n`、`bukit-plugins-debug`、`bukit-seo`、`bukit-geo` 都建立在 `bukit-config` 的配置模型之上
+3. 配置作为背景知识：`bukit-theme`、`bukit-design-tokens`、`bukit-content-to-template`、`bukit-notion`、`bukit-routing`、`bukit-i18n`、`bukit-plugins-debug`、`bukit-import`、`bukit-seo`、`bukit-geo` 都建立在 `bukit-config` 的配置模型之上
 4. 主题先于模板：`bukit-templating` 默认依赖 `bukit-theme` 提供目录结构与资源约定
 5. 设计令牌：当目标涉及视觉一致性时加载 `bukit-design-tokens`——提供调色板、排版尺度和深色模式方案
 6. Schema 转模板：当需要根据集合 schema 生成模板时加载 `bukit-content-to-template`——桥接 schema 字段定义与 Scriban 代码
@@ -87,7 +89,7 @@ src/skills/
 ├── skills-index.json            ← JSON 版索引（从 YAML 自动生成）
 │
 ├── using-bukit/SKILL.md         ← 网关技能：总入口，路由到子技能
-├── bukit-*/SKILL.md             ← 18 个领域技能（CLI、配置、主题、模板……）
+├── bukit-*/SKILL.md             ← 19 个领域技能（CLI、配置、主题、模板、导入……）
 │
 └── scripts/
     ├── validate-skills.sh       ← CI：验证所有技能文件
@@ -121,7 +123,7 @@ claude plugins install src/skills
 claude plugins install github.com/ALi365-SDN-BHD/Bukit
 ```
 
-安装后，当你提到任何 Bukit 相关概念时，全部 18 个技能都会通过 `Skill` 工具自动可用。
+安装后，当你提到任何 Bukit 相关概念时，全部 20 个技能都会通过 `Skill` 工具自动可用。
 
 #### Codex CLI
 

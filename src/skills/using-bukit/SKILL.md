@@ -25,7 +25,7 @@ IF THE USER REQUESTS A BUKIT IMPLEMENTATION TASK, Bukit skills take priority ove
 
 ## Overview
 
-Bukit is a .NET static site generator that covers the complete workflow through 19 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
+Bukit is a .NET static site generator that covers the complete workflow through 20 dedicated skill files. This skill is the unified entry point for all bukit operations — load this skill when the user says "using bukit" / "使用 bukit" / "guna bukit" to route to the correct sub-skill.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
 
@@ -47,7 +47,7 @@ Bukit skills are organized into five layers. Load skills in layer order:
 | **Core Reference** | bukit-cli-reference, bukit-config | Foundation — load before any build/theme/routing work |
 | **Build Authoring** | bukit-theme, bukit-templating, bukit-design-tokens, bukit-content-to-template, theme-component-system (beta) | Visual layer — after config, before content |
 | **Data / Site Features** | bukit-notion, bukit-routing, bukit-i18n, bukit-seo, bukit-geo (beta) | Content and optimization — after config |
-| **Operations / Debug** | bukit-plugins-debug, bukit-preview, bukit-dev, bukit-deploy, bukit-webhook, bukit-clone (beta) | Runtime — after build setup |
+| **Operations / Debug** | bukit-plugins-debug, bukit-preview, bukit-dev, bukit-deploy, bukit-webhook, bukit-clone (beta), bukit-import (beta) | Runtime — after build setup |
 
 Skills marked **(beta)** have stable implementations but APIs may evolve. **(exp.)** skills (if any) are not production-ready. **Do NOT** treat pre-release capabilities as available.
 
@@ -73,6 +73,7 @@ Skills marked **(beta)** have stable implementations but APIs may evolve. **(exp
 | 16 | bukit-design-tokens | Theme design token systems | When defining CSS variables, palettes, typography, spacing, or dark mode |
 | 17 | bukit-content-to-template | Schema-driven template generation | When mapping collection schema fields to Scriban templates |
 | 18 | theme-component-system | Componentized theme system | When working with theme.yaml V2 sections, components, tokens, catalogs, or inheritance |
+| 19 | bukit-import | HTML demo import and seed workflow | When converting a local HTML demo into a Bukit theme/site draft |
 
 ## Skill ↔ User Guide Cross-Reference
 
@@ -92,6 +93,7 @@ Bukit's user guide (`guide/user/`) is the human-facing companion to these skills
 | bukit-plugins-debug | [10 Built-in Features](guide/user/10-built-in-features.md), [14 Troubleshooting](guide/user/14-troubleshooting.md) | Plugin behavior, incremental build, build debugging |
 | bukit-deploy | [13 Deploy GitHub Pages](guide/user/13-deploy-github-pages.md) | Build + push to gh-pages, CNAME, CI/CD |
 | bukit-clone | [18 Clone Website](guide/user/18-clone-website.md) | Browser extraction → CLI generation → verification |
+| bukit-import | [21 Import HTML Demo](guide/user/21-import-html-demo.md), [12 CLI Reference](guide/user/12-cli-reference.md) | Local HTML demo → theme/site draft → seed review/push |
 | bukit-preview | [12 CLI Reference](guide/user/12-cli-reference.md), [14 Troubleshooting](guide/user/14-troubleshooting.md) | Local preview server, port configuration |
 | bukit-dev | [08 Themes & Templates](guide/user/08-themes-templates.md), [12 CLI Reference](guide/user/12-cli-reference.md) | HMR dev server with live reload, file watching, incremental rebuild |
 | bukit-webhook | [14 Troubleshooting](guide/user/14-troubleshooting.md) | Webhook server, token verification, rate limiting |
@@ -112,6 +114,7 @@ Cross-reference chapters for common workflows:
 | Follow a recipe | [15 Recipes](guide/user/15-recipes.md) | varies by recipe |
 | Optimize for AI search | [17 GEO](guide/user/17-geo.md) | bukit-geo |
 | Clone a website design | [18 Clone Website](guide/user/18-clone-website.md) | bukit-clone |
+| Import a local HTML demo | [21 Import HTML Demo](guide/user/21-import-html-demo.md) | bukit-import, bukit-cli-reference |
 | Explore v3.0 features | [19 New Features in v3.0](guide/user/19-new-features-v3.md) | bukit-config, bukit-plugins-debug |
 
 ## Typical Workflow Routing
@@ -170,6 +173,16 @@ When creating a custom theme:
 2. Load bukit-clone → Design token extraction + CLI generation workflow
 3. Load bukit-cli-reference → Verify CLI commands
 4. May need bukit-theme → Theme directory structure reference
+```
+
+### User says "using bukit, import this HTML demo"
+
+```
+1. Load using-bukit → Identify as local HTML demo import task
+2. Load bukit-cli-reference → Check import/notion command flags
+3. Load bukit-import → Follow dry-run → generate → verify → report workflow
+4. May need bukit-theme / bukit-templating → Review generated theme and templates
+5. May need bukit-notion → Push generated seed records or build directly from Notion
 ```
 
 ### User says "using bukit, help me with GEO / llms.txt"
@@ -245,6 +258,7 @@ bukit template list              # List all templates
 bukit template snippets          # Browse snippet library
 bukit template sync              # Auto-generate bukit.templates.yaml
 bukit clone --tokens <file> --theme <name>  # Clone website → theme
+bukit import html-demo ./demo --theme <name> --verify  # Local HTML demo → site draft
 bukit geo audit [--dir <dir>]                # GEO audit on dist output
 bukit seo audit [--dir <dir>] [--strict] [--external]  # SEO audit
 bukit seo diff --baseline <old> --current <new> [--max-new-errors N]  # SEO regression
@@ -253,7 +267,7 @@ bukit seo diff --baseline <old> --current <new> [--max-new-errors N]  # SEO regr
 ## Subskill Loading Rules
 
 - **bukit-cli-reference** is ALWAYS the first subskill to load — before any other bukit skill, verify CLI availability
-- **bukit-config** is REQUIRED BACKGROUND for: bukit-theme, bukit-notion, bukit-routing, bukit-i18n, bukit-plugins-debug, bukit-deploy, bukit-clone, bukit-seo, bukit-geo
-- **bukit-theme** is REQUIRED BACKGROUND for: bukit-templating, bukit-clone
+- **bukit-config** is REQUIRED BACKGROUND for: bukit-theme, bukit-notion, bukit-routing, bukit-i18n, bukit-plugins-debug, bukit-deploy, bukit-clone, bukit-import, bukit-seo, bukit-geo
+- **bukit-theme** is REQUIRED BACKGROUND for: bukit-templating, bukit-clone, bukit-import template review
 - All subskills reference **bukit-cli-reference** for command execution
 - **bukit-dev**, **bukit-preview**, and **bukit-webhook** are standalone operational skills — load when the user explicitly needs HMR dev server, local preview, or webhook setup

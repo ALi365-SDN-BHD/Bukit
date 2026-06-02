@@ -1,7 +1,7 @@
 {
   "version": "3.0.0",
-  "updated": "2026-05-31",
-  "skill_count": 19,
+  "updated": "2026-06-02",
+  "skill_count": 20,
   "skills": [
     {
       "name": "using-bukit",
@@ -560,6 +560,52 @@
       "user_invocable": true
     },
     {
+      "name": "bukit-import",
+      "status": "beta",
+      "since": "v3.0.0",
+      "source_anchors": [
+        "src/Bukit.Cli/Commands/ImportCommand.cs",
+        "src/Bukit.Importing/HtmlDemoImporter.cs",
+        "src/Bukit.Importing/ImportReportWriter.cs"
+      ],
+      "verified_by": [
+        "src/Bukit.Cli/Commands/ImportCommand.cs",
+        "src/Bukit.Importing/HtmlDemoImporter.cs"
+      ],
+      "guide_chapters": [
+        "guide/user/21-import-html-demo.md",
+        "guide/user/12-cli-reference.md"
+      ],
+      "type": "operation",
+      "priority": 14,
+      "path": "src/skills/bukit-import/SKILL.md",
+      "description": "HTML demo import — convert a local HTML demo directory into a Bukit theme/site draft, generate seed files and import reports, verify the generated site, and optionally push generated Notion seed records.\n",
+      "triggers": [
+        {
+          "pattern": "import html-demo|HTML demo import|import seed|local HTML demo|导入 HTML demo|转换本地 demo|导入 seed|import demo HTML",
+          "languages": [
+            "en",
+            "zh-CN",
+            "ms"
+          ]
+        }
+      ],
+      "requires": [
+        "bukit-cli-reference",
+        "bukit-theme",
+        "bukit-templating"
+      ],
+      "guide_chapter": "21 Import HTML Demo, 12 CLI Reference",
+      "platform_loading": {
+        "trae": "Skill tool",
+        "claude_code": "Skill tool",
+        "codex": "Native read",
+        "copilot": "skill tool",
+        "gemini": "activate_skill"
+      },
+      "user_invocable": true
+    },
+    {
       "name": "bukit-seo",
       "status": "stable",
       "since": "v3.0.0",
@@ -575,7 +621,7 @@
         "guide/user/11-i18n-seo.md"
       ],
       "type": "technique",
-      "priority": 14,
+      "priority": 15,
       "path": "src/skills/bukit-seo/SKILL.md",
       "description": "Traditional SEO — site.seo node, inject/theme render modes, front matter SEO fields, 6 Schema.org JSON-LD types, 11 build-time diagnostics, ~40 audit codes, CLI audit/diff.\n",
       "triggers": [
@@ -617,7 +663,7 @@
         "guide/user/17-geo.md"
       ],
       "type": "technique",
-      "priority": 15,
+      "priority": 16,
       "path": "src/skills/bukit-geo/SKILL.md",
       "description": "Generative Engine Optimization — llms.txt/llms-full.txt, AI crawler robots.txt rules, FAQ/HowTo structured data, GEO Score (0-100, 10 diagnostic codes).\n",
       "triggers": [
@@ -657,7 +703,7 @@
         "guide/user/12-cli-reference.md"
       ],
       "type": "operation",
-      "priority": 16,
+      "priority": 17,
       "path": "src/skills/bukit-preview/SKILL.md",
       "description": "Local preview server — serves dist/ at localhost:4173, MIME type handling, analytics disabling in preview mode, port conflict resolution.\n",
       "triggers": [
@@ -696,7 +742,7 @@
         "guide/user/12-cli-reference.md"
       ],
       "type": "operation",
-      "priority": 17,
+      "priority": 18,
       "path": "src/skills/bukit-dev/SKILL.md",
       "description": "HMR development server — file watching with 300ms debounce, incremental rebuild, WebSocket live browser refresh at localhost:35729.\n",
       "triggers": [
@@ -735,7 +781,7 @@
         "guide/user/14-troubleshooting.md"
       ],
       "type": "operation",
-      "priority": 18,
+      "priority": 19,
       "path": "src/skills/bukit-webhook/SKILL.md",
       "description": "Webhook server — authenticated Notion-style trigger → GitHub repository_dispatch, token verification, rate limiting, IP allowlisting.\n",
       "triggers": [
@@ -775,7 +821,7 @@
         "guide/user/08-themes-templates.md"
       ],
       "type": "pattern",
-      "priority": 19,
+      "priority": 20,
       "path": "src/skills/theme-component-system/SKILL.md",
       "description": "Componentized theme system — theme.yaml V2 manifest, sections, components, pageTemplates, data bindings, tokens, theme-catalog.json, section schemas, page composer, and theme inheritance chains.\n",
       "triggers": [
@@ -874,6 +920,16 @@
         "bukit-clone",
         "bukit-theme",
         "bukit-cli-reference"
+      ]
+    },
+    "import_html_demo": {
+      "description": "Import a local HTML demo into a Bukit theme/site draft",
+      "chain": [
+        "using-bukit",
+        "bukit-cli-reference",
+        "bukit-import",
+        "bukit-theme",
+        "bukit-templating"
       ]
     },
     "create_theme": {

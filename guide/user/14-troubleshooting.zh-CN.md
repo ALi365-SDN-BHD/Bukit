@@ -15,6 +15,7 @@ dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
 dotnet run --project src/Bukit.Cli -c Release -- build --config site.yaml --clean --site-url https://example.com
 dotnet run --project src/Bukit.Cli -c Release -- clean --dir dist
 dotnet run --project src/Bukit.Cli -c Release -- preview --dir dist --port auto
+bukit import html-demo ./demo --theme mysite --dry-run
 ```
 
 ## 诊断码
@@ -78,6 +79,26 @@ Bukit 遇到错误时会输出稳定的 `BKT-XXXX` 诊断码。常见面向用�
 - 内容页 URL 与派生页（分页/归档/分类）冲突 → 改 `deriveConflictPolicy` 为 `warn` 或 `last-wins`，或调整冲突 URL
 
 先跑 `bukit doctor` 可以在不完整 build 的情况下提前发现冲突。
+
+### E）导入生成站点后有 warning
+
+现象：`bukit import html-demo` 后，`doctor` 报 `seo.site_url_missing`，或提示 theme `static/` 下有 HTML 文件。
+
+修复清单：
+
+- 发布前替换生成的占位 `site.url: https://example.com`。
+- 原始 HTML 应保留在 `sites/<theme>/original-demo/`，不要复制进主题 `static/`。
+- 修改生成模板前，先读 `sites/<theme>/import-report.md`。
+- 完整导入流程见：[21-导入-HTML-Demo](./21-import-html-demo.zh-CN.md)。
+
+### F）import 或 Notion push 命令失败
+
+常见 import 专属原因：
+
+- `主题已存在` → 确认要覆盖后再加 `--force`。
+- `--build-source notion requires --content-source notion` → 使用 `--content-source notion --build-source notion`，或保持默认 Markdown 构建。
+- `--push-notion` 和 `--dry-run` 同时使用 → 先 import，使用 `bukit notion push --dry-run` 审核 seed，再去掉 dry-run 推送。
+- 生成的 Notion map 里 `databaseId` 为空 → 填好 ID，或使用 `--create-missing-databases --parent-page-id <id>`。
 
 ## 现象 2：build 成功，但页面不见了 / URL 不对
 

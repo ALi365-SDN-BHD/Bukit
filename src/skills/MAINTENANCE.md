@@ -82,7 +82,7 @@ This file documents the maintenance procedures for the Bukit `src/skills/` agent
 
 ### Pre-Release Checklist
 
-- [ ] All 19 SKILL.md files have complete Front Matter (name, description, status, since, verified_by, source_anchors, guide_chapters)
+- [ ] All 20 SKILL.md files have complete Front Matter (name, description, status, since, verified_by, source_anchors, guide_chapters)
 - [ ] `skill_count` matches actual SKILL.md count
 - [ ] plugin.json skills list matches skills-index.yaml
 - [ ] All `requires` dependencies are valid

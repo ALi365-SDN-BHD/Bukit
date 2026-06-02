@@ -29,6 +29,7 @@ src/skills/
   bukit-plugins-debug/    # Plugins, incremental build, diagnostics
   bukit-deploy/           # GitHub Pages deployment
   bukit-clone/            # Website design cloning → Bukit theme
+  bukit-import/           # Local HTML demo import → Bukit site draft
   bukit-seo/              # Traditional search engine optimization (SEO)
   bukit-geo/              # Generative engine optimization (GEO)
   bukit-preview/          # Local preview server
@@ -54,6 +55,7 @@ src/skills/
 | `bukit-plugins-debug` | Plugin lifecycle, incremental build behavior, performance diagnostics, troubleshooting | Plugins do not run, build output looks wrong, or build performance regresses |
 | `bukit-deploy` | GitHub Pages deployment via `bukit deploy` command, site.yaml deploy config, environment variables, CI/CD integration | Deploying site, pushing to gh-pages, configuring CNAME, troubleshooting deploy failures |
 | `bukit-clone` | Browser MCP extraction → `bukit clone` CLI → verification pipeline for cloning any website's visual design into a Bukit theme | Cloning a website's appearance, replicating a design, creating a theme from an existing live site |
+| `bukit-import` | Local HTML demo import, seed review, `import-report.md`, and optional Notion seed push | Converting an offline HTML demo directory into a Bukit theme/site draft |
 | `bukit-seo` | Traditional SEO configuration (site.seo node), inject/theme render modes, front matter SEO fields, 6 Schema.org JSON-LD types, build-time diagnostics (11 codes), post-build audit (~40 codes), CLI seo audit/diff | Configuring SEO, running seo audit/diff, interpreting seo.* diagnostic codes, setting up OG/Twitter/JSON-LD/sitemap |
 | `bukit-geo` | Generative engine optimization for AI search engines: llms.txt/llms-full.txt generation, AI crawler robots.txt rules, FAQ/HowTo structured data, geo audit with GEO Score (10 diagnostic codes) | Optimizing for AI search (ChatGPT Search/Perplexity/Google AI Overviews), generating llms.txt, adding FAQ/HowTo schema, running geo audit |
 | `bukit-preview` | Local preview server — serves dist/ at localhost:4173, MIME type handling, analytics disabling, port conflict resolution | Previewing build output locally before deployment, troubleshooting port conflicts |
@@ -67,7 +69,7 @@ These skills are designed to be combined with clear boundaries:
 
 1. Start from `using-bukit` when the task is confirmed to be a Bukit task
 2. Use `bukit-cli-reference` for every command-related step instead of duplicating command guidance elsewhere
-3. Treat `bukit-config` as background knowledge for `bukit-theme`, `bukit-design-tokens`, `bukit-content-to-template`, `bukit-notion`, `bukit-routing`, `bukit-i18n`, `bukit-plugins-debug`, `bukit-seo`, and `bukit-geo`
+3. Treat `bukit-config` as background knowledge for `bukit-theme`, `bukit-design-tokens`, `bukit-content-to-template`, `bukit-notion`, `bukit-routing`, `bukit-i18n`, `bukit-plugins-debug`, `bukit-import`, `bukit-seo`, and `bukit-geo`
 4. Read `bukit-theme` before `bukit-templating` when template work depends on theme structure
 5. Load `bukit-design-tokens` when visual consistency is a goal — it provides palettes, scales, and dark mode patterns
 6. Load `bukit-content-to-template` when generating templates from collection schemas — it bridges schema field definitions to Scriban code
@@ -135,7 +137,7 @@ claude plugins install src/skills
 claude plugins install github.com/ALi365-SDN-BHD/Bukit
 ```
 
-After installation, all 19 Bukit skills become available via the `Skill` tool whenever you mention Bukit-related concepts.
+After installation, all 20 Bukit skills become available via the `Skill` tool whenever you mention Bukit-related concepts.
 
 #### Codex CLI
 
@@ -332,7 +334,7 @@ Bukit skills are organized in five layers for clear responsibility boundaries:
 | **Core Reference** | `bukit-cli-reference`, `bukit-config` | Foundation — CLI commands and configuration model |
 | **Build Authoring** | `bukit-theme`, `bukit-templating`, `bukit-design-tokens`, `bukit-content-to-template`, `theme-component-system` | Visual layer — themes, templates, design tokens, and componentized themes |
 | **Data / Site Features** | `bukit-notion`, `bukit-routing`, `bukit-i18n`, `bukit-seo`, `bukit-geo` | Content and optimization — content sources, URL routing, multilingual, search engine optimization |
-| **Operations / Debug** | `bukit-plugins-debug`, `bukit-preview`, `bukit-dev`, `bukit-deploy`, `bukit-webhook`, `bukit-clone` | Runtime — debugging, preview, development, deployment, webhooks, website cloning |
+| **Operations / Debug** | `bukit-plugins-debug`, `bukit-preview`, `bukit-dev`, `bukit-deploy`, `bukit-webhook`, `bukit-clone`, `bukit-import` | Runtime — debugging, preview, development, deployment, webhooks, website cloning, HTML demo import |
 
 ## Maintenance Notes
 

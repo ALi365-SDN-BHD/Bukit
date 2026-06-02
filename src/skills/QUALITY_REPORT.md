@@ -1,12 +1,12 @@
 # Bukit Skills Upgrade — Quality Report
 
-**Date**: 2026-05-31
+**Date**: 2026-06-02
 **Version**: skills-index v3.0.0
 **Audit Source**: Full codebase audit of CLI, Config, SEO/GEO, Plugins, Webhook, Deploy, Dev, Preview
 
 ## Summary
 
-Completed a systematic upgrade of Bukit's `src/skills/` agent knowledge system from 19 manually-maintained Markdown guides to a verifiable, maintainable, code-aligned knowledge base. All 19 skills now have consistent Front Matter with status metadata, source anchors, and guide chapter references.
+Completed a systematic upgrade of Bukit's `src/skills/` agent knowledge system from 19 manually-maintained Markdown guides to a verifiable, maintainable, code-aligned knowledge base. As of 2026-06-02, the catalog has 20 skills after adding `bukit-import` for local HTML demo import and seed workflows. All 20 skills now have consistent Front Matter with status metadata, source anchors, and guide chapter references.
 
 ## Files Changed
 
@@ -16,6 +16,9 @@ Completed a systematic upgrade of Bukit's `src/skills/` agent knowledge system f
 | `src/skills/GEMINI.md` | 18→19, added theme-component-system, Quick Reference |
 | `src/skills/copilot-instructions.md` | 18→19, added theme-component-system |
 | `src/skills/README.md` | Directory Layout, Skill Responsibilities table, 5-layer structure, 18→19 count |
+| `src/skills/bukit-import/SKILL.md` | **New** — local HTML demo import, seed review, import report, optional Notion push workflow |
+| `guide/user/21-import-html-demo.md` | **New** — user-facing import workflow |
+| `guide/user/21-import-html-demo.zh-CN.md` | **New** — Chinese user-facing import workflow |
 | `src/skills/skills-index.yaml` | GEO count 7→10 diagnostic codes |
 | `src/skills/skills-index.json` | Regenerated from YAML |
 | `src/skills/using-bukit/SKILL.md` | Added 5-layer structure reference, beta skill warnings |
@@ -24,7 +27,7 @@ Completed a systematic upgrade of Bukit's `src/skills/` agent knowledge system f
 | `src/skills/bukit-geo/SKILL.md` | GEO diagnostic count 7→10 |
 | `src/skills/bukit-dev/SKILL.md` | Added Bahasa Melayu multilingual triggers |
 | `src/skills/theme-component-system/SKILL.md` | Removed file:// links and local absolute paths |
-| `src/skills/*/SKILL.md` (19 files) | Added status, since, verified_by, source_anchors, guide_chapters |
+| `src/skills/*/SKILL.md` (20 files) | Added status, since, verified_by, source_anchors, guide_chapters |
 | `src/skills/scripts/validate-skills-strict.sh` | **New** — 17 strict validation checks (16 + 16b) |
 | `src/skills/scripts/add-status-metadata.py` | **New** — status metadata injection tool |
 | `src/skills/MAINTENANCE.md` | **New** — maintenance procedures, checklist, standards |
@@ -34,6 +37,7 @@ Completed a systematic upgrade of Bukit's `src/skills/` agent knowledge system f
 
 ### P0 — Critical (all fixed)
 - **Skill count 18→19**: GEMINI.md, copilot-instructions.md, README.md
+- **Skill count 19→20**: Added `bukit-import` and updated plugin.json, skills-index, gateway routing, platform entries, and guide links
 - **Missing skill theme-component-system**: CLAUDE.md, GEMINI.md, copilot-instructions.md
 - **README.md Directory Layout**: Added bukit-preview, bukit-dev, bukit-webhook, theme-component-system
 - **bukit-config top-level nodes**: Six→Seven (including deploy)
@@ -52,7 +56,7 @@ Completed a systematic upgrade of Bukit's `src/skills/` agent knowledge system f
 - **file:// links**: Removed from theme-component-system
 
 ### Status Metadata Added
-All 19 skills now have:
+All 20 skills now have:
 ```yaml
 status: stable|beta
 since: "v3.0.0"
@@ -61,7 +65,7 @@ source_anchors: ["path/to/source"]
 guide_chapters: ["guide/user/XX-chapter.md"]
 ```
 
-Status distribution: 15 stable, 4 beta (bukit-content-to-template, bukit-clone, bukit-geo, theme-component-system)
+Status distribution: 15 stable, 5 beta (bukit-content-to-template, bukit-clone, bukit-import, bukit-geo, theme-component-system)
 
 ### New Infrastructure
 - `validate-skills-strict.sh`: 17 checks (16 + 16b: skill count, plugin.json sync, Front Matter, source paths, guide paths, local paths, tool names, JSON deep sync, dependencies, workflows, Markdown tables, CLI commands, status consistency, YAML validation, keyword consistency, skills-index.yaml duplicates, SKILL.md front matter duplicates)
@@ -71,11 +75,11 @@ Status distribution: 15 stable, 4 beta (bukit-content-to-template, bukit-clone, 
 
 | Validator | Result |
 |-----------|--------|
-| `validate-skills.sh` | ✅ 19/19 skills passed, 0 errors |
+| `validate-skills.sh` | ✅ 20/20 skills passed, 0 errors |
 | `validate-skills-strict.sh` | ✅ 17/17 checks passed, 0 errors, 0 warnings |
 | `skills-index.json` sync | ✅ In sync with skills-index.yaml |
 | plugin.json sync | ✅ Consistent with skills-index.yaml |
-| Front Matter completeness | ✅ All 19 files have 7 required fields |
+| Front Matter completeness | ✅ All 20 files have 7 required fields |
 | requires dependencies | ✅ All valid |
 | workflow chains | ✅ All valid |
 

@@ -12,11 +12,11 @@ Bukit trigger signals — load Bukit skills when any of these are detected:
 - Notion-as-CMS conversations
 - Static site generation tasks with .NET context
 
-Available skills (19):
+Available skills (20):
 using-bukit, bukit-cli-reference, bukit-config, bukit-theme,
 bukit-templating, bukit-design-tokens, bukit-content-to-template,
 bukit-notion, bukit-routing, bukit-i18n, bukit-plugins-debug,
-bukit-deploy, bukit-clone, bukit-seo, bukit-geo, bukit-preview,
+bukit-deploy, bukit-clone, bukit-import, bukit-seo, bukit-geo, bukit-preview,
 bukit-dev, bukit-webhook, theme-component-system
 
 Platform notes:
