@@ -16,7 +16,7 @@ internal sealed record ImportSeedRecord(
 
 internal static class ImportSeedRecordReader
 {
-    private static readonly (string FileBase, string Collection)[] KnownFiles =
+    internal static readonly (string FileBase, string Collection)[] KnownFiles =
     [
         ("pages", "page"),
         ("posts", "post"),
@@ -43,6 +43,20 @@ internal static class ImportSeedRecordReader
         }
 
         return records;
+    }
+
+    internal static List<ImportSeedRecord> ReadSeedFile(string inputDir, string seedFile, string collection)
+    {
+        var path = Path.Combine(inputDir, seedFile);
+        if (!File.Exists(path)) return [];
+
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+        return extension switch
+        {
+            ".json" => ReadJson(path, collection).ToList(),
+            ".yaml" or ".yml" => ReadYaml(path, collection).ToList(),
+            _ => []
+        };
     }
 
     private static IEnumerable<ImportSeedRecord> ReadJson(string path, string collection)

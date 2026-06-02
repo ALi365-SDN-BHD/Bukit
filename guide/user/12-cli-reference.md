@@ -192,14 +192,31 @@ bukit notion push \
   --input sites/silkroadbiz/notion-seed \
   --database-id <notion-database-id> \
   --dry-run
+
+# Multi-database push using an explicit map
+bukit notion push \
+  --input sites/silkroadbiz/notion-seed \
+  --database-map sites/silkroadbiz/notion-databases.yaml \
+  --mode upsert
+
+# Multi-database push with automatic database creation
+bukit notion push \
+  --input sites/silkroadbiz/notion-seed \
+  --create-missing-databases \
+  --parent-page-id <notion-parent-page-id> \
+  --mode upsert
 ```
 
-`notion push` currently produces a local push plan report from `notion-seed/*.json` so records can be reviewed before any external side effect. Without `--dry-run`, the command validates that the configured token environment variable exists (`NOTION_TOKEN` by default, override with `--token-env`) and writes a report for the reviewed push stage.
+`notion push` produces a local push plan report from `notion-seed/*.json` so records can be reviewed before any external side effect. With `--database-id`, all supported seed records go into one Notion database. With `--database-map`, each seed file can target its own database. Without either option, Bukit can derive one database target per collection, but it only creates missing databases when `--create-missing-databases --parent-page-id <id>` is explicit. Missing database IDs without that flag are a hard error. Without `--dry-run`, the command validates that the configured token environment variable exists (`NOTION_TOKEN` by default, override with `--token-env`) and writes a report for the push.
 
 Common parameters:
 
 - `--input <dir>`: seed directory
-- `--database-id <id>`: target Notion database ID
+- `--database-id <id>`: legacy single target Notion database ID
+- `--database-map <file>`: YAML map from collection/seed file to Notion database
+- `--create-missing-databases`: create missing mapped/default databases before pushing
+- `--parent-page-id <id>`: Notion page under which missing databases are created
+- `--generated-database-map <file>`: output path for the map containing created database IDs
 - `--dry-run`: generate plan only
 - `--report <file>`: output plan/report path
 - `--token-env <name>`: token environment variable, default `NOTION_TOKEN`

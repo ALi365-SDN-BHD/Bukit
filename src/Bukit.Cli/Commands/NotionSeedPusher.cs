@@ -11,7 +11,8 @@ internal sealed record NotionPushOptions(
     bool DryRun,
     string Mode = "create",
     string UniqueField = "Slug",
-    string UpdateContent = "");
+    string UpdateContent = "",
+    bool WriteReport = true);
 
 internal sealed record NotionPushItemResult(
     ImportSeedRecord Record,
@@ -48,7 +49,8 @@ internal static partial class NotionSeedPusher
             items.AddRange(records.Select(record =>
                 new NotionPushItemResult(record, "review", true, null, null)));
             var dryResult = BuildResult(items);
-            WriteReport(options.ReportPath, options.DatabaseId, dryRun: true, dryResult);
+            if (options.WriteReport)
+                WriteReport(options.ReportPath, options.DatabaseId, dryRun: true, dryResult);
             return dryResult;
         }
 
@@ -116,7 +118,8 @@ internal static partial class NotionSeedPusher
         }
 
         var result = BuildResult(items);
-        WriteReport(options.ReportPath, options.DatabaseId, dryRun: false, result);
+        if (options.WriteReport)
+            WriteReport(options.ReportPath, options.DatabaseId, dryRun: false, result);
         return result;
     }
 
