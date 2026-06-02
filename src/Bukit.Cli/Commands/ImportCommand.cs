@@ -1,5 +1,6 @@
 using Bukit.Cli.Cli.Binding;
 using Bukit.Importing;
+using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Cli.Commands;
 
@@ -115,6 +116,12 @@ public static class ImportCommand
             Console.Error.WriteLine($"不支持的构建内容源类型: {buildSource}");
             return 2;
         }
+        if (buildSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
+            !contentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine("--build-source notion requires --content-source notion.");
+            return 2;
+        }
 
         if (!string.IsNullOrWhiteSpace(sitePath) && !Path.IsPathRooted(sitePath))
             sitePath = Path.GetFullPath(Path.Combine(rootDir, sitePath));
@@ -170,6 +177,7 @@ public static class ImportCommand
             BuildSource = buildSource.ToLowerInvariant(),
             RouteMapPath = routeMapPath,
             NotionDatabaseId = notionDatabaseId,
+            NotionDatabaseMap = notionDatabaseMap,
             NotionTokenEnv = notionTokenEnv
         };
 
@@ -274,9 +282,17 @@ public static class ImportCommand
         if (!string.IsNullOrWhiteSpace(databaseId))
             options["--database-id"] = databaseId;
         if (!string.IsNullOrWhiteSpace(effectiveDatabaseMap))
+        {
             options["--database-map"] = Path.IsPathRooted(effectiveDatabaseMap)
                 ? effectiveDatabaseMap
                 : Path.Combine(siteDir, effectiveDatabaseMap);
+            if (!createMissingDatabases && DatabaseMapHasMissingDatabaseIds(options["--database-map"]!, seedDir))
+            {
+                Console.Error.WriteLine("Notion database map exists but one or more databaseId values are empty.");
+                Console.Error.WriteLine("Use --create-missing-notion-databases --notion-parent-page-id <id>, or fill databaseId in the map.");
+                return 2;
+            }
+        }
         if (createMissingDatabases)
         {
             options["--create-missing-databases"] = "true";
@@ -294,6 +310,41 @@ public static class ImportCommand
                 : Path.Combine(siteDir, reportPath);
 
         return await NotionCommand.RunAsync(new CliBoundCommand(options, ["push"]));
+    }
+
+    private static bool DatabaseMapHasMissingDatabaseIds(string databaseMapPath, string seedDir)
+    {
+        if (!File.Exists(databaseMapPath))
+            return false;
+
+        var stream = new YamlStream();
+        using var reader = File.OpenText(databaseMapPath);
+        stream.Load(reader);
+        if (stream.Documents.Count == 0 ||
+            stream.Documents[0].RootNode is not YamlMappingNode root ||
+            root.Children.FirstOrDefault(kv =>
+                kv.Key is YamlScalarNode scalar && scalar.Value == "databases").Value is not YamlMappingNode databases)
+            return false;
+
+        foreach (var kv in databases.Children)
+        {
+            if (kv.Key is not YamlScalarNode key ||
+                string.IsNullOrWhiteSpace(key.Value) ||
+                kv.Value is not YamlMappingNode database)
+                continue;
+            var seed = database.Children.FirstOrDefault(entry =>
+                entry.Key is YamlScalarNode scalar && scalar.Value == "seed").Value is YamlScalarNode seedNode
+                ? seedNode.Value
+                : $"{key.Value.Trim()}.json";
+            if (string.IsNullOrWhiteSpace(seed) || !File.Exists(Path.Combine(seedDir, seed)))
+                continue;
+            var id = database.Children.FirstOrDefault(entry =>
+                entry.Key is YamlScalarNode scalar && scalar.Value == "databaseId").Value as YamlScalarNode;
+            if (string.IsNullOrWhiteSpace(id?.Value))
+                return true;
+        }
+
+        return false;
     }
 
     private static async Task<int> VerifyImportAsync(ImportResult result, string rootDir, string themeName)

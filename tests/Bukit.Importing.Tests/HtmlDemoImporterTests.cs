@@ -822,8 +822,36 @@ pages:
             "default notion database map must be generated with notion seed files");
 
         var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-md-skip-test", "site.yaml"));
-        Assert.Contains("provider: notion", siteYaml);
+        Assert.Contains("sources:", siteYaml);
+        Assert.Contains("name: pages", siteYaml);
+        Assert.Contains("collection: page", siteYaml);
+        Assert.Contains("databaseId: ${NOTION_PAGES_DATABASE_ID}", siteYaml);
         Assert.DoesNotContain("provider: markdown", siteYaml);
+    }
+
+    [Fact]
+    public void Import_WithBuildSourceNotionAndSingleDatabaseId_UsesSingleNotionProvider()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Notion Test</title></head><body><main><h1>Hello</h1></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "notion-single-db-test",
+            RootDir = _tempDir,
+            Force = true,
+            ContentSource = "notion",
+            BuildSource = "notion",
+            NotionDatabaseId = "single-db"
+        };
+
+        HtmlDemoImporter.Import(options);
+
+        var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-single-db-test", "site.yaml"));
+        Assert.Contains("provider: notion", siteYaml);
+        Assert.Contains("databaseId: single-db", siteYaml);
+        Assert.DoesNotContain("sources:", siteYaml);
     }
 
     [Fact]

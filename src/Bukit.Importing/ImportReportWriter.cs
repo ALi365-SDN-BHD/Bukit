@@ -154,10 +154,10 @@ internal static class ImportReportWriter
             sb.AppendLine();
             sb.AppendLine("## Content Seeds");
             sb.AppendLine();
-            sb.AppendLine("| Seed File | Count |");
-            sb.AppendLine("|---|---:|");
+            sb.AppendLine("| Seed File | Count | Notion Push Scope |");
+            sb.AppendLine("|---|---:|---|");
             foreach (var seed in result.ReportSeedFiles)
-                sb.AppendLine($"| {EscapeCell(seed.FileName)} | {seed.Count} |");
+                sb.AppendLine($"| {EscapeCell(seed.FileName)} | {seed.Count} | {NotionPushScope(seed.FileName)} |");
         }
 
         sb.AppendLine();
@@ -244,6 +244,7 @@ internal static class ImportReportWriter
         {
             sb.AppendLine();
             sb.AppendLine("- Notion push seed files are in `notion-seed/`, with `notion-database-map.yaml` as the editable multi-database mapping template. Run `bukit notion push --dry-run` then `bukit notion push --mode upsert` to sync.");
+            sb.AppendLine("- Current default Notion push syncs `pages`, `posts`, `companies`, and `services`. `sections`, `faqs`, `media`, and `components` are generated for review and future CMS mapping.");
             sb.AppendLine();
             sb.AppendLine("## Notion Provider Status");
             sb.AppendLine();
@@ -291,6 +292,14 @@ internal static class ImportReportWriter
         => options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase)
             ? "notion-seed:"
             : $"{options.ContentSource}-seed:";
+
+    private static string NotionPushScope(string fileName)
+    {
+        var name = Path.GetFileNameWithoutExtension(fileName);
+        return name is "pages" or "posts" or "companies" or "services"
+            ? "default push"
+            : "review-only";
+    }
 
     private static string EscapeCell(string value)
         => value.Replace("|", "\\|");

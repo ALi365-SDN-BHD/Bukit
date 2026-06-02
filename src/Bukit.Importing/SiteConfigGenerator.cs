@@ -1,4 +1,5 @@
 using System.Text;
+using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Importing;
 
@@ -82,22 +83,46 @@ internal static class SiteConfigGenerator
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
             options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
-            var dbId = !string.IsNullOrWhiteSpace(options.NotionDatabaseId)
-                ? options.NotionDatabaseId
-                : "${NOTION_DATABASE_ID}";
             var tokenEnv = !string.IsNullOrWhiteSpace(options.NotionTokenEnv)
                 ? options.NotionTokenEnv
                 : "NOTION_TOKEN";
+            var databaseTargets = string.IsNullOrWhiteSpace(options.NotionDatabaseId)
+                ? ReadNotionDatabaseTargets(options)
+                : [];
 
             sb.AppendLine("content:");
-            sb.AppendLine("  provider: notion");
-            sb.AppendLine("  notion:");
-            sb.AppendLine($"    databaseId: {dbId}");
-            sb.AppendLine($"    tokenEnv: {tokenEnv}");
-            sb.AppendLine("    filterProperty: Published");
-            sb.AppendLine("    filterType: checkbox_true");
-            sb.AppendLine("    sortProperty: Title");
-            sb.AppendLine("    sortDirection: ascending");
+            if (databaseTargets.Count > 0)
+            {
+                sb.AppendLine("  sources:");
+                foreach (var target in databaseTargets)
+                {
+                    sb.AppendLine("    - type: notion");
+                    sb.AppendLine($"      name: {target.Key}");
+                    sb.AppendLine("      mode: content");
+                    sb.AppendLine($"      collection: {target.Collection}");
+                    sb.AppendLine("      notion:");
+                    sb.AppendLine($"        databaseId: {target.DatabaseId}");
+                    sb.AppendLine($"        tokenEnv: {tokenEnv}");
+                    sb.AppendLine("        filterProperty: Published");
+                    sb.AppendLine("        filterType: checkbox_true");
+                    sb.AppendLine("        sortProperty: Title");
+                    sb.AppendLine("        sortDirection: ascending");
+                }
+            }
+            else
+            {
+                var dbId = !string.IsNullOrWhiteSpace(options.NotionDatabaseId)
+                    ? options.NotionDatabaseId
+                    : "${NOTION_DATABASE_ID}";
+                sb.AppendLine("  provider: notion");
+                sb.AppendLine("  notion:");
+                sb.AppendLine($"    databaseId: {dbId}");
+                sb.AppendLine($"    tokenEnv: {tokenEnv}");
+                sb.AppendLine("    filterProperty: Published");
+                sb.AppendLine("    filterType: checkbox_true");
+                sb.AppendLine("    sortProperty: Title");
+                sb.AppendLine("    sortDirection: ascending");
+            }
         }
         else
         {
@@ -139,4 +164,82 @@ internal static class SiteConfigGenerator
             result = result.Replace("--", "-");
         return result.Trim('-').ToLowerInvariant();
     }
+
+    private static List<NotionDatabaseTarget> ReadNotionDatabaseTargets(HtmlDemoImportOptions options)
+    {
+        var mapPath = ResolveNotionDatabaseMapPath(options);
+        if (mapPath is null || !File.Exists(mapPath))
+            return [];
+
+        var stream = new YamlStream();
+        using var reader = File.OpenText(mapPath);
+        stream.Load(reader);
+        if (stream.Documents.Count == 0 ||
+            stream.Documents[0].RootNode is not YamlMappingNode root ||
+            GetMap(root, "databases") is not { } databases)
+            return [];
+
+        var targets = new List<NotionDatabaseTarget>();
+        foreach (var kv in databases.Children)
+        {
+            if (kv.Key is not YamlScalarNode keyNode ||
+                string.IsNullOrWhiteSpace(keyNode.Value) ||
+                kv.Value is not YamlMappingNode map)
+                continue;
+
+            var key = keyNode.Value.Trim();
+            if (!IsBuildNotionCollectionKey(key))
+                continue;
+
+            var collection = GetScalar(map, "collection") ?? InferCollection(key);
+            var databaseId = GetScalar(map, "databaseId");
+            if (string.IsNullOrWhiteSpace(databaseId))
+                databaseId = $"${{NOTION_{key.ToUpperInvariant()}_DATABASE_ID}}";
+
+            targets.Add(new NotionDatabaseTarget(key, collection, databaseId));
+        }
+
+        return targets;
+    }
+
+    private static string? ResolveNotionDatabaseMapPath(HtmlDemoImportOptions options)
+    {
+        if (!string.IsNullOrWhiteSpace(options.NotionDatabaseMap))
+        {
+            return Path.IsPathRooted(options.NotionDatabaseMap)
+                ? options.NotionDatabaseMap
+                : Path.Combine(HtmlDemoImporter.GetSiteDir(options), options.NotionDatabaseMap);
+        }
+
+        var defaultMap = Path.Combine(HtmlDemoImporter.GetSiteDir(options), "notion-seed", "notion-database-map.yaml");
+        return File.Exists(defaultMap) ? defaultMap : null;
+    }
+
+    private static bool IsBuildNotionCollectionKey(string key)
+        => key.Equals("pages", StringComparison.OrdinalIgnoreCase) ||
+           key.Equals("posts", StringComparison.OrdinalIgnoreCase) ||
+           key.Equals("companies", StringComparison.OrdinalIgnoreCase) ||
+           key.Equals("services", StringComparison.OrdinalIgnoreCase);
+
+    private static string InferCollection(string key)
+        => key.ToLowerInvariant() switch
+        {
+            "pages" => "page",
+            "posts" => "post",
+            "companies" => "company",
+            "services" => "service",
+            _ => key.TrimEnd('s')
+        };
+
+    private static YamlMappingNode? GetMap(YamlMappingNode map, string key)
+        => map.Children.FirstOrDefault(kv =>
+            kv.Key is YamlScalarNode scalar && scalar.Value == key).Value as YamlMappingNode;
+
+    private static string? GetScalar(YamlMappingNode map, string key)
+        => map.Children.FirstOrDefault(kv =>
+            kv.Key is YamlScalarNode scalar && scalar.Value == key).Value is YamlScalarNode value
+            ? value.Value
+            : null;
+
+    private sealed record NotionDatabaseTarget(string Key, string Collection, string DatabaseId);
 }
