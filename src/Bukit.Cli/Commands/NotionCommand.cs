@@ -75,6 +75,13 @@ public static class NotionCommand
         if (string.IsNullOrWhiteSpace(databaseMapPath) && !string.IsNullOrWhiteSpace(databaseId))
             return await PushSingleDatabaseAsync(inputDir, databaseId!, tokenEnv, mode, uniqueField, updateContent, dryRun, reportPath, validateSchema);
 
+        if (string.IsNullOrWhiteSpace(databaseMapPath))
+        {
+            var defaultMapPath = Path.Combine(inputDir, "notion-database-map.yaml");
+            if (File.Exists(defaultMapPath))
+                databaseMapPath = defaultMapPath;
+        }
+
         var targets = string.IsNullOrWhiteSpace(databaseMapPath)
             ? BuildDefaultDatabaseTargets(inputDir, uniqueField)
             : ReadDatabaseMap(Path.GetFullPath(databaseMapPath), inputDir, uniqueField);

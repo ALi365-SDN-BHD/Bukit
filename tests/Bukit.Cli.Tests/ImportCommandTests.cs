@@ -274,6 +274,67 @@ databases:
         }
     }
 
+    [Fact]
+    public async Task Import_WithPushNotion_UsesGeneratedDefaultDatabaseMapWhenPresent()
+    {
+        CreateDemoHtml("index.html", "Home");
+        var siteSeedDir = Path.Combine(_tempDir, "sites", "push-notion-default-map-test", "notion-seed");
+        Directory.CreateDirectory(siteSeedDir);
+        File.WriteAllText(Path.Combine(siteSeedDir, "notion-database-map.yaml"), """
+databases:
+  pages:
+    title: Pages
+    databaseId: "pages-db"
+    seed: "pages.json"
+    collection: page
+    uniqueField: Slug
+""");
+
+        var requests = new List<HttpRequestMessage>();
+        var handler = new RecordingHandler(req =>
+        {
+            requests.Add(CloneRequest(req));
+            if (req.RequestUri!.AbsolutePath.Contains("/databases/") && req.Method == HttpMethod.Get)
+                return OkDatabaseSchema();
+            if (req.RequestUri.AbsolutePath.Contains("/query"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"results":[],"has_more":false}""")
+                };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-1"}""")
+            };
+        });
+
+        var opts = BaseOptions();
+        opts["--theme"] = "push-notion-default-map-test";
+        opts["--push-notion"] = "true";
+        opts["--notion-token-env"] = "BUKIT_TEST_IMPORT_NOTION_DEFAULT_MAP_TOKEN";
+
+        var originalFactory = NotionCommand.CreateHttpClient;
+        var originalToken = Environment.GetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_DEFAULT_MAP_TOKEN");
+        NotionCommand.CreateHttpClient = () => new HttpClient(handler);
+        Environment.SetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_DEFAULT_MAP_TOKEN", "secret_default_map");
+        try
+        {
+            var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", _tempDir]));
+
+            Assert.Equal(0, result);
+            Assert.DoesNotContain(requests, r => r.RequestUri!.AbsoluteUri == "https://api.notion.com/v1/databases");
+            var payloads = requests
+                .Where(r => r.RequestUri!.AbsoluteUri == "https://api.notion.com/v1/pages")
+                .Select(r => r.Content!.ReadAsStringAsync().GetAwaiter().GetResult())
+                .ToList();
+            Assert.Contains(payloads, p => p.Contains("\"database_id\": \"pages-db\""));
+        }
+        finally
+        {
+            NotionCommand.CreateHttpClient = originalFactory;
+            Environment.SetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_DEFAULT_MAP_TOKEN", originalToken);
+        }
+    }
+
     private static int CountOccurrences(string haystack, string needle)
     {
         var count = 0;
@@ -370,7 +431,6 @@ databases:
 
         var opts = BaseOptions();
         opts["--theme"] = "yaml-test";
-        opts["--content-source"] = "markdown";
         var cmd = MakeCommand(opts, ["html-demo", _tempDir]);
 
         var result = await ImportCommand.RunAsync(cmd);
@@ -428,7 +488,6 @@ databases:
         var opts = BaseOptions();
         opts["--theme"] = "build-test";
         opts["--force"] = "true";
-        opts["--content-source"] = "markdown";
         var importResult = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
 
         Assert.Equal(0, importResult);
@@ -457,7 +516,6 @@ databases:
         var opts = BaseOptions();
         opts["--theme"] = "verify-test";
         opts["--verify"] = "true";
-        opts["--content-source"] = "markdown";
         var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
 
         Assert.Equal(0, result);
@@ -532,6 +590,23 @@ databases:
     }
 
     [Fact]
+    public async Task ContentSourceMarkdown_Returns2()
+    {
+        var demoDir = Path.Combine(_tempDir, "invalid-content-source-demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "invalid-content-source-test";
+        opts["--content-source"] = "markdown";
+
+        var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+
+        Assert.Equal(2, result);
+    }
+
+    [Fact]
     public async Task Verify_ListPages_DoNotConflictWithCollectionListRoutes()
     {
         var demoDir = Path.Combine(_tempDir, "list-demo");
@@ -550,7 +625,6 @@ databases:
         var opts = BaseOptions();
         opts["--theme"] = "list-route-test";
         opts["--verify"] = "true";
-        opts["--content-source"] = "markdown";
         var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
 
         Assert.Equal(0, result);
@@ -572,7 +646,6 @@ databases:
         var opts = BaseOptions();
         opts["--theme"] = "doctor-import-test";
         opts["--force"] = "true";
-        opts["--content-source"] = "markdown";
         var importResult = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
 
         Assert.Equal(0, importResult);
@@ -630,7 +703,6 @@ databases:
         opts["--theme"] = "verify-warning-test";
         opts["--force"] = "true";
         opts["--verify"] = "true";
-        opts["--content-source"] = "markdown";
 
         var originalOut = Console.Out;
         using var writer = new StringWriter();
@@ -813,6 +885,8 @@ databases:
             var pushRequest = requests.FirstOrDefault(r =>
                 r.RequestUri!.AbsolutePath.Contains("/pages") && r.Method == HttpMethod.Post);
             Assert.Null(pushRequest);
+            Assert.Equal(1, requests.Count(r =>
+                r.RequestUri!.AbsolutePath.Contains("/databases/") && r.Method == HttpMethod.Get));
         }
         finally
         {

@@ -296,6 +296,71 @@ databases:
     }
 
     [Fact]
+    public async Task Push_UsesDefaultDatabaseMapInInputDirectory()
+    {
+        var seedDir = Path.Combine(_tempDir, "notion-seed-default-map");
+        Directory.CreateDirectory(seedDir);
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  { "title": "Home", "slug": "home", "summary": "Welcome", "content": "<p>Hello</p>", "language": "zh", "published": true }
+]
+""");
+        File.WriteAllText(Path.Combine(seedDir, "notion-database-map.yaml"), """
+databases:
+  pages:
+    title: Pages
+    databaseId: "pages-db"
+    seed: "pages.json"
+    collection: page
+    uniqueField: Slug
+""");
+
+        var requests = new List<HttpRequestMessage>();
+        var handler = new RecordingHandler(req =>
+        {
+            requests.Add(CloneRequest(req));
+            if (req.Method == HttpMethod.Get && req.RequestUri!.AbsolutePath.Contains("/databases/"))
+                return OkDatabaseSchema();
+            if (req.Method == HttpMethod.Post && req.RequestUri!.AbsolutePath.Contains("/query"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"results":[],"has_more":false}""")
+                };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-created"}""")
+            };
+        });
+
+        var originalFactory = NotionCommand.CreateHttpClient;
+        var originalToken = Environment.GetEnvironmentVariable("BUKIT_TEST_NOTION_TOKEN");
+        NotionCommand.CreateHttpClient = () => new HttpClient(handler);
+        Environment.SetEnvironmentVariable("BUKIT_TEST_NOTION_TOKEN", "secret_test");
+        try
+        {
+            var result = await NotionCommand.RunAsync(MakeCommand(new Dictionary<string, string?>
+            {
+                ["--input"] = seedDir,
+                ["--token-env"] = "BUKIT_TEST_NOTION_TOKEN",
+                ["--mode"] = "upsert",
+                ["--report"] = Path.Combine(_tempDir, "push-report.json")
+            }, ["push"]));
+
+            Assert.Equal(0, result);
+            var createPayloads = requests
+                .Where(r => r.Method == HttpMethod.Post && r.RequestUri!.AbsoluteUri == "https://api.notion.com/v1/pages")
+                .Select(r => r.Content!.ReadAsStringAsync().GetAwaiter().GetResult())
+                .ToList();
+            Assert.Contains(createPayloads, p => p.Contains("\"database_id\": \"pages-db\""));
+        }
+        finally
+        {
+            NotionCommand.CreateHttpClient = originalFactory;
+            Environment.SetEnvironmentVariable("BUKIT_TEST_NOTION_TOKEN", originalToken);
+        }
+    }
+
+    [Fact]
     public async Task Push_DefaultMultiDatabaseWithoutCreateMissingDatabases_Returns2()
     {
         var seedDir = Path.Combine(_tempDir, "notion-seed");

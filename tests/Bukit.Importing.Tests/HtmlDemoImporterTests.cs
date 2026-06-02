@@ -28,8 +28,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
         {
             InputPath = _tempDir,
             ThemeName = "test-theme",
-            RootDir = _tempDir,
-            ContentSource = "markdown"
+            RootDir = _tempDir
         };
 
         var result = HtmlDemoImporter.Import(options);
@@ -177,8 +176,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
         {
             InputPath = _tempDir,
             ThemeName = "test-theme",
-            RootDir = _tempDir,
-            ContentSource = "markdown"
+            RootDir = _tempDir
         };
 
         var result = HtmlDemoImporter.Import(options);
@@ -366,8 +364,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
             ThemeName = "report-test",
             RootDir = _tempDir,
             Force = true,
-            GenerateReport = true,
-            ContentSource = "markdown"
+            GenerateReport = true
         };
 
         var result = HtmlDemoImporter.Import(options);
@@ -571,6 +568,25 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_Strict_HardcodedResidue_Throws()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><p>High Value Business Proposition For Buyers</p></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "strict-residue",
+            RootDir = _tempDir,
+            Strict = true
+        };
+
+        var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("硬编码内容残留", ex.Message);
+    }
+
+    [Fact]
     public void Import_WithAssets_GeneratedTemplatesHaveCorrectPaths()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
@@ -661,8 +677,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
             ThemeName = "report-residual-test",
             RootDir = _tempDir,
             Force = true,
-            GenerateReport = true,
-            ContentSource = "markdown"
+            GenerateReport = true
         };
 
         HtmlDemoImporter.Import(options);
@@ -767,8 +782,7 @@ pages:
             ThemeName = "routemap-type-test",
             RootDir = _tempDir,
             Force = true,
-            RouteMapPath = routeMapPath,
-            ContentSource = "markdown"
+            RouteMapPath = routeMapPath
         };
 
         var result = HtmlDemoImporter.Import(options);
@@ -834,8 +848,7 @@ pages:
             ThemeName = "dynamic-slug-test",
             RootDir = _tempDir,
             Force = true,
-            RouteMapPath = routeMapPath,
-            ContentSource = "markdown"
+            RouteMapPath = routeMapPath
         };
 
         var result = HtmlDemoImporter.Import(options);

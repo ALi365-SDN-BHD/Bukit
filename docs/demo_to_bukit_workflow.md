@@ -1430,7 +1430,7 @@ Notion 推送支持两种模式：
 - 单 database：传 `--database-id`，将 `pages/posts/companies/services` 合并推入同一个 database，并用 `Type` 区分 collection。
 - 多 database：传 `--database-map`，或传 `--create-missing-databases --parent-page-id <id>` 让 Bukit 按 seed collection 自动创建 `pages/posts/companies/services` 对应的 databases。已有 `databaseId` 时先校验 schema 再 upsert；自动创建后也会立即校验 schema；缺少 `databaseId` 且未启用自动创建时直接报错，不隐式创建。
 
-`import html-demo --content-source notion` 会默认生成可编辑的 `notion-seed/notion-database-map.yaml`，其中 `databaseId` 为空。填写已有 database ID 后可用 `--database-map` 推送；如果希望自动创建，则使用 `--create-missing-databases --parent-page-id <id>`。
+`import html-demo --content-source notion` 会默认生成可编辑的 `notion-seed/notion-database-map.yaml`，其中 `databaseId` 为空。填写已有 database ID 后，`bukit notion push --input sites/silkroadbiz/notion-seed` 会自动读取该默认 map；如果 map 放在其他路径，再显式传 `--database-map`。如果希望自动创建，则使用 `--create-missing-databases --parent-page-id <id>`。
 
 多 database map 示例：
 
