@@ -1,9 +1,0 @@
-{% layout "layouts/base.html" %}
-<main>
-  <h1>{{ page.title }}</h1>
-  {{ for p in pages }}
-  <article>
-    <h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
-  </article>
-  {{ end }}
-</main>
