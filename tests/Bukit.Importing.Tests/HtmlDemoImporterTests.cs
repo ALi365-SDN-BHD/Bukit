@@ -587,6 +587,71 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_StrictWarn_HardcodedResidue_Succeeds()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><p>High Value Business Proposition For Buyers</p></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "strict-warn-residue",
+            RootDir = _tempDir,
+            Force = true,
+            StrictMode = "warn"
+        };
+
+        var result = HtmlDemoImporter.Import(options);
+        Assert.True(result.PagesFound > 0);
+        var reportPath = Path.Combine(_tempDir, "sites", "strict-warn-residue", "import-report.md");
+        Assert.True(File.Exists(reportPath));
+        var report = File.ReadAllText(reportPath);
+        Assert.Contains("Hardcoded Content Residue", report);
+    }
+
+    [Fact]
+    public void Import_StrictWarn_DiagnosticsReported_ButSucceeds()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><p>Some suspiciously long and specific business phrase</p></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "strict-warn-diag",
+            RootDir = _tempDir,
+            Force = true,
+            StrictMode = "warn"
+        };
+
+        var result = HtmlDemoImporter.Import(options);
+        Assert.True(result.PagesFound > 0);
+        var reportPath = Path.Combine(_tempDir, "sites", "strict-warn-diag", "import-report.md");
+        Assert.True(File.Exists(reportPath));
+        var report = File.ReadAllText(reportPath);
+        Assert.Contains("Hardcoded Content Residue", report);
+    }
+
+    [Fact]
+    public void Import_StrictFail_StillThrows()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><p>High Value Business Proposition For Buyers</p></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "strict-fail-backcompat",
+            RootDir = _tempDir,
+            StrictMode = "fail"
+        };
+
+        var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("硬编码内容残留", ex.Message);
+    }
+
+    [Fact]
     public void Import_WithAssets_GeneratedTemplatesHaveCorrectPaths()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
