@@ -22,6 +22,7 @@ public sealed record HtmlDemoImportOptions
     public string BuildSource { get; init; } = "markdown";
     public string? RouteMapPath { get; init; }
     public string? NotionDatabaseId { get; init; }
+    public string? NotionDatabaseMap { get; init; }
     public string? NotionTokenEnv { get; init; }
 }
 

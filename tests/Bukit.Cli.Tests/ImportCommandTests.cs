@@ -335,6 +335,50 @@ databases:
         }
     }
 
+    [Fact]
+    public async Task Import_WithPushNotion_DefaultDatabaseMapMissingDatabaseIds_Returns2()
+    {
+        CreateDemoHtml("index.html", "Home");
+
+        var requests = new List<HttpRequestMessage>();
+        var handler = new RecordingHandler(req =>
+        {
+            requests.Add(CloneRequest(req));
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"page-1"}""")
+            };
+        });
+
+        var opts = BaseOptions();
+        opts["--theme"] = "push-notion-empty-default-map-test";
+        opts["--push-notion"] = "true";
+        opts["--notion-token-env"] = "BUKIT_TEST_IMPORT_NOTION_EMPTY_MAP_TOKEN";
+
+        var originalFactory = NotionCommand.CreateHttpClient;
+        var originalToken = Environment.GetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_EMPTY_MAP_TOKEN");
+        var originalError = Console.Error;
+        using var error = new StringWriter();
+        NotionCommand.CreateHttpClient = () => new HttpClient(handler);
+        Environment.SetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_EMPTY_MAP_TOKEN", "secret_empty_map");
+        Console.SetError(error);
+        try
+        {
+            var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", _tempDir]));
+
+            Assert.Equal(2, result);
+            Assert.Empty(requests);
+            Assert.Contains("databaseId values are empty", error.ToString());
+            Assert.Contains("--create-missing-notion-databases --notion-parent-page-id <id>", error.ToString());
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            NotionCommand.CreateHttpClient = originalFactory;
+            Environment.SetEnvironmentVariable("BUKIT_TEST_IMPORT_NOTION_EMPTY_MAP_TOKEN", originalToken);
+        }
+    }
+
     private static int CountOccurrences(string haystack, string needle)
     {
         var count = 0;
@@ -568,7 +612,10 @@ databases:
         Assert.False(Directory.Exists(Path.Combine(_tempDir, "sites", "notion-build-source-test", "content")));
         Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "notion-build-source-test", "notion-seed", "pages.json")));
         var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-build-source-test", "site.yaml"));
-        Assert.Contains("provider: notion", siteYaml);
+        Assert.Contains("sources:", siteYaml);
+        Assert.Contains("name: pages", siteYaml);
+        Assert.Contains("collection: page", siteYaml);
+        Assert.Contains("databaseId: ${NOTION_PAGES_DATABASE_ID}", siteYaml);
         Assert.DoesNotContain("provider: markdown", siteYaml);
     }
 
@@ -587,6 +634,25 @@ databases:
         var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
 
         Assert.Equal(2, result);
+    }
+
+    [Fact]
+    public async Task BuildSourceNotion_WithJsonContentSource_Returns2()
+    {
+        var demoDir = Path.Combine(_tempDir, "invalid-build-content-source-demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+
+        var opts = BaseOptions();
+        opts["--theme"] = "invalid-build-content-source-test";
+        opts["--content-source"] = "json";
+        opts["--build-source"] = "notion";
+
+        var result = await ImportCommand.RunAsync(MakeCommand(opts, ["html-demo", demoDir]));
+
+        Assert.Equal(2, result);
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "sites", "invalid-build-content-source-test")));
     }
 
     [Fact]
