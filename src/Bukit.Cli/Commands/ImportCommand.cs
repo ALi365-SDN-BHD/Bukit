@@ -84,7 +84,10 @@ public static class ImportCommand
         var sitePath = command.GetString("--site-path");
         var language = command.GetString("--language") ?? "zh";
         var dryRun = command.GetBool("--dry-run");
-        var strict = command.GetBool("--strict");
+        var strictVal = command.GetString("--strict");
+        var strictMode = strictVal != null
+            ? (string.Equals(strictVal, "warn", StringComparison.OrdinalIgnoreCase) ? "warn" : "fail")
+            : null;
         var overwrite = command.GetBool("--overwrite");
         var preserveHtml = !command.GetBool("--no-preserve-html");
         var generateReport = !command.GetBool("--no-report");
@@ -169,7 +172,7 @@ public static class ImportCommand
             SitePath = sitePath,
             Language = language,
             DryRun = dryRun,
-            Strict = strict,
+            StrictMode = strictMode,
             Overwrite = overwrite,
             PreserveHtml = preserveHtml,
             GenerateReport = generateReport,

@@ -23,10 +23,11 @@ public static class HtmlDemoImporter
         var diagnostics = ImportSafetyScanner.Scan(options, pages);
         ThrowIfErrorDiagnostics(diagnostics);
 
-        if (options.Strict)
+        if (options.StrictMode != null)
         {
             RunStrictValidation(pages, warnings);
-            ThrowIfStrictDiagnostics(diagnostics);
+            if (options.StrictMode != "warn")
+                ThrowIfStrictDiagnostics(diagnostics);
         }
 
         if (options.DryRun)
@@ -106,7 +107,7 @@ public static class HtmlDemoImporter
 
         var hardcodedReport = TemplateResidueAnalyzer.Analyze(themeDir, null, routeMap);
         result = result with { HardcodedContentReport = hardcodedReport };
-        if (options.Strict)
+        if (options.StrictMode != null && hardcodedReport != null && options.StrictMode != "warn")
             ThrowIfStrictResidue(hardcodedReport);
 
         ImportReportWriter.Write(options, result, diagnostics);

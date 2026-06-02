@@ -14,7 +14,7 @@ public sealed record HtmlDemoImportOptions
     public string ContentSource { get; init; } = "notion";
     public string? SitePath { get; init; }
     public bool DryRun { get; init; }
-    public bool Strict { get; init; }
+    public string? StrictMode { get; init; }
     public bool Overwrite { get; init; }
     public bool PreserveHtml { get; init; } = true;
     public bool GenerateReport { get; init; } = true;

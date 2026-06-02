@@ -129,7 +129,7 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--site-path", "目标站点目录路径 (默认 sites/<theme>)"),
                 new CliOptionSpec("--language", "默认语言 (默认 zh)"),
                 new CliOptionSpec("--dry-run", "只分析不写入文件", CliOptionType.Flag),
-                new CliOptionSpec("--strict", "严格模式，硬编码残留/空slug/重复slug 直接失败", CliOptionType.Flag),
+                new CliOptionSpec("--strict", "严格模式: fail (检测到残留则失败) | warn (仅警告)。默认 fail", CliOptionType.String, ValueName: "mode"),
                 new CliOptionSpec("--overwrite", "覆盖已有组件文件", CliOptionType.Flag),
                 new CliOptionSpec("--preserve-html", "保留原始 HTML 快照 (默认开启)", CliOptionType.Flag),
                 new CliOptionSpec("--no-preserve-html", "不保留原始 HTML 快照", CliOptionType.Flag),

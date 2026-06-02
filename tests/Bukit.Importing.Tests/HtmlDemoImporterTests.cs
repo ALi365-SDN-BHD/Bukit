@@ -319,7 +319,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
             ThemeName = "strict-test",
             RootDir = _tempDir,
             Force = true,
-            Strict = true,
+            StrictMode = "fail",
             DryRun = true
         };
 
@@ -559,7 +559,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
             InputPath = _tempDir,
             ThemeName = "strict-script",
             RootDir = _tempDir,
-            Strict = true
+            StrictMode = "fail"
         };
 
         var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
@@ -578,7 +578,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
             InputPath = _tempDir,
             ThemeName = "strict-residue",
             RootDir = _tempDir,
-            Strict = true
+            StrictMode = "fail"
         };
 
         var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
@@ -1009,7 +1009,7 @@ pages:
             ThemeName = "bad-link-test",
             RootDir = _tempDir,
             Force = true,
-            Strict = true
+            StrictMode = "fail"
         };
 
         var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));

@@ -243,8 +243,16 @@ internal static class ImportReportWriter
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine();
-            sb.AppendLine("- Notion push seed files are in `notion-seed/`, with `notion-database-map.yaml` as the editable multi-database mapping template. Run `bukit notion push --dry-run` then `bukit notion push --mode upsert` to sync.");
-            sb.AppendLine("- Current default Notion push syncs `pages`, `posts`, `companies`, and `services`. `sections`, `faqs`, `media`, and `components` are generated for review and future CMS mapping.");
+            sb.AppendLine("## Seed Push Scope");
+            sb.AppendLine();
+            sb.AppendLine("Default Notion push collections (synced to Notion databases):");
+            sb.AppendLine("- `pages` / `posts` / `companies` / `services`");
+            sb.AppendLine();
+            sb.AppendLine("Generated for review only (not included in default Notion push):");
+            sb.AppendLine("- `sections` / `faqs` / `media` / `components`");
+            sb.AppendLine();
+            sb.AppendLine("- Notion push seed files are in `notion-seed/`. Run `bukit notion validate-schema` then `bukit notion push --mode upsert` to sync.");
+
             sb.AppendLine();
             sb.AppendLine("## Notion Provider Status");
             sb.AppendLine();
