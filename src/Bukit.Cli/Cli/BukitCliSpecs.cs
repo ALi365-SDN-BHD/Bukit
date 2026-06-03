@@ -116,7 +116,6 @@ public static class BukitCliSpecs
                     Arguments: new[] { new CliArgumentSpec("demo-dir", "HTML demo 目录路径", Required: true) },
                     Options: new[]
                     {
-                        new CliOptionSpec("--template", "模板范围 (full|bare|none)，默认 bare", CliOptionType.String, ValueName: "scope"),
                         new CliOptionSpec("--theme", "目标主题名", CliOptionType.String, ValueName: "name", Required: true),
                 new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
                 new CliOptionSpec("--use", "创建后切换到该主题", CliOptionType.Flag),

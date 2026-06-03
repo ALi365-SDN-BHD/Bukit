@@ -37,11 +37,14 @@ public static class InitCommand
 
         WriteFile(root, ".gitignore", "dist/\n.cache/\n.bukit/\n");
         WriteFile(root, "README.md", BuildReadme(Path.GetFileName(root), templateName));
-        WriteContentSkeleton(root, templateName);
-        WriteTheme(root, templateName);
-        WriteDefaultOgImage(root);
 
-        WriteFile(root, "site.yaml", BuildSiteYaml(provider, templateName));
+        if (!templateName.Equals("none", StringComparison.OrdinalIgnoreCase))
+        {
+            WriteContentSkeleton(root, templateName);
+            WriteTheme(root, templateName);
+            WriteDefaultOgImage(root);
+            WriteFile(root, "site.yaml", BuildSiteYaml(provider, templateName));
+        }
 
         Console.WriteLine($"Initialized: {root}");
         Console.WriteLine($"Template: {templateName}");

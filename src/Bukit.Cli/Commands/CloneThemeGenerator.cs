@@ -4,7 +4,7 @@ namespace Bukit.Cli.Commands;
 
 internal static class CloneThemeGenerator
 {
-    public static CloneGenerationSummary WriteTo(string rootDir, string themeName, CloneTokens tokens, CloneLayoutInfo layout, string? brand = null, CloneBehaviors? behaviors = null, List<CloneIcon>? icons = null, List<CloneAsset>? assets = null, TemplateScope templateScope = TemplateScope.Full)
+    public static CloneGenerationSummary WriteTo(string rootDir, string themeName, CloneTokens tokens, CloneLayoutInfo layout, string? brand = null, CloneBehaviors? behaviors = null, List<CloneIcon>? icons = null, List<CloneAsset>? assets = null, TemplateScope templateScope = TemplateScope.Full, bool includePageTemplate = true)
     {
         var fileCount = 0;
         var warnings = new List<string>();
@@ -31,17 +31,31 @@ internal static class CloneThemeGenerator
 
         WriteFile(rootDir, $"themes/{themeName}/layouts/pages/index.html", CloneIndexPageGenerator.GenerateIndex(tokens, layout, brand, warnings));
         fileCount++;
-        if (templateScope.ShouldWritePageTemplates())
+        if (includePageTemplate)
         {
             WriteFile(rootDir, $"themes/{themeName}/layouts/pages/page.html", ThemeTemplateResource.Get("PageTemplate"));
+            fileCount++;
+        }
+        if (templateScope.ShouldWritePageTemplates())
+        {
             WriteFile(rootDir, $"themes/{themeName}/layouts/pages/post.html", ThemeTemplateResource.Get("PostTemplate"));
+            fileCount++;
             WriteFile(rootDir, $"themes/{themeName}/layouts/pages/list.html", ThemeTemplateResource.Get("ListTemplate"));
-            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", ThemeTemplateResource.Get("PaginationTemplate"));
-            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", ThemeTemplateResource.Get("TaxonomyIndexTemplate"));
-            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", ThemeTemplateResource.Get("TaxonomyTermTemplate"));
-            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", ThemeTemplateResource.Get("SearchTemplate"));
-            WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml", ThemeTemplateResource.Get("TemplateCapabilities"));
-            fileCount += 8;
+            fileCount++;
+        }
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", ThemeTemplateResource.Get("PaginationTemplate"));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", ThemeTemplateResource.Get("TaxonomyIndexTemplate"));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", ThemeTemplateResource.Get("TaxonomyTermTemplate"));
+        fileCount++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", ThemeTemplateResource.Get("SearchTemplate"));
+        fileCount++;
+        if (includePageTemplate)
+        {
+            WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml",
+                templateScope == TemplateScope.Full ? ThemeTemplateResource.Get("TemplateCapabilities") : BareTemplateCapabilities);
+            fileCount++;
         }
 
         var themeYaml = GenerateThemeYaml(themeName, tokens, layout, brand, behaviors);
@@ -213,6 +227,34 @@ internal static class CloneThemeGenerator
   {{ end }}
 </div>
 {{ end }}
+""";
+
+    internal const string BareTemplateCapabilities = """
+templates:
+  pages/index.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/page.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/pagination.html:
+    capabilities:
+      supports_pagination: true
+  pages/taxonomy-index.html:
+    capabilities:
+      supports_taxonomy: true
+  pages/taxonomy-term.html:
+    capabilities:
+      supports_taxonomy: true
+  pages/search.html:
+    capabilities:
+      supports_search_snippets: true
 """;
 
     private static void WriteFile(string rootDir, string relativePath, string content)

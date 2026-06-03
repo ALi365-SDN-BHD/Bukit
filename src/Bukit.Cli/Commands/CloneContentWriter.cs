@@ -13,7 +13,8 @@ internal static class CloneContentWriter
         IReadOnlyList<CloneAsset> assets,
         CloneBehaviors? behaviors,
         string? brand,
-        TemplateScope templateScope = TemplateScope.Full)
+        TemplateScope templateScope = TemplateScope.Full,
+        bool includePageTemplate = true)
     {
         var warnings = new List<string>();
         var normalizedSections = CloneSectionDataWriter.NormalizeSections(sections).ToList();
@@ -67,17 +68,31 @@ internal static class CloneContentWriter
         themeFiles++;
         WriteFile(rootDir, $"themes/{themeName}/layouts/pages/index.html", CloneSectionDataWriter.GenerateStructuredIndex(normalizedSections));
         themeFiles++;
-        if (templateScope.ShouldWritePageTemplates())
+        if (includePageTemplate)
         {
             WriteFile(rootDir, $"themes/{themeName}/layouts/pages/page.html", StarterThemeResources.PageTemplate);
+            themeFiles++;
+        }
+        if (templateScope.ShouldWritePageTemplates())
+        {
             WriteFile(rootDir, $"themes/{themeName}/layouts/pages/post.html", StarterThemeResources.PostTemplate);
+            themeFiles++;
             WriteFile(rootDir, $"themes/{themeName}/layouts/pages/list.html", StarterThemeResources.ListTemplate);
-            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", StarterThemeResources.PaginationTemplate);
-            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", StarterThemeResources.TaxonomyIndexTemplate);
-            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", StarterThemeResources.TaxonomyTermTemplate);
-            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", StarterThemeResources.SearchTemplate);
-            WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml", StarterThemeResources.TemplateCapabilities);
-            themeFiles += 8;
+            themeFiles++;
+        }
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", StarterThemeResources.PaginationTemplate);
+        themeFiles++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", StarterThemeResources.TaxonomyIndexTemplate);
+        themeFiles++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", StarterThemeResources.TaxonomyTermTemplate);
+        themeFiles++;
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", StarterThemeResources.SearchTemplate);
+        themeFiles++;
+        if (includePageTemplate)
+        {
+            WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml",
+                templateScope == TemplateScope.Full ? StarterThemeResources.TemplateCapabilities : CloneThemeGenerator.BareTemplateCapabilities);
+            themeFiles++;
         }
         WriteFile(rootDir, $"themes/{themeName}/theme.yaml", GenerateThemeYaml(themeName, tokens, brand, behaviors));
         themeFiles++;
