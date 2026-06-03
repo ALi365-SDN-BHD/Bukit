@@ -20,6 +20,21 @@ public static class HtmlDemoImporter
         var pages = HtmlDemoScanner.Scan(options.InputPath, routeMap);
         var warnings = new List<string>();
         var layout = LayoutExtractor.Extract(pages, warnings);
+
+        // 空布局检测：提示用户布局提取失败的常见原因和解决方案
+        if (string.IsNullOrWhiteSpace(layout.Header) && string.IsNullOrWhiteSpace(layout.Footer))
+        {
+            Console.WriteLine();
+            Console.WriteLine("  ! 未提取到共享布局（header/footer）。可能原因：");
+            Console.WriteLine("    - HTML 文件格式不一致（压缩 vs 分行）");
+            Console.WriteLine("    - 页面结构差异过大");
+            Console.WriteLine("  建议：");
+            Console.WriteLine("    - 使用 --route-map route-map.yaml 精确指定页面结构");
+            Console.WriteLine("    - 导入后手动创建 themes/<name>/layouts/partials/header.html 和 footer.html");
+            Console.WriteLine("    - 原始文件已保留在 sites/<name>/original-demo/ 中供参考");
+            Console.WriteLine();
+        }
+
         var diagnostics = ImportSafetyScanner.Scan(options, pages);
         ThrowIfErrorDiagnostics(diagnostics);
 

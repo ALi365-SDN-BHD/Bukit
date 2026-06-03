@@ -23,6 +23,10 @@ internal static class PageClassifier
         ["services"] = PageType.ServiceList,
         ["service-detail"] = PageType.ServiceDetail,
         ["service"] = PageType.ServiceDetail,
+        // 中文/混合语义文件名映射
+        ["china-companies"] = PageType.CompanyList,
+        ["malaysia-companies"] = PageType.CompanyList,
+        ["join"] = PageType.Page,
     };
 
     internal static PageType Classify(string fileNameWithoutExtension, string html)

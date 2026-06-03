@@ -95,6 +95,7 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--visual-threshold", "视觉截图 diff 阈值 (0-1)", CliOptionType.String, ValueName: "ratio"),
                 new CliOptionSpec("--fail-on-visual-diff", "截图 diff 超过阈值时失败", CliOptionType.Flag),
                 new CliOptionSpec("--fidelity", "保真模式：直接迁移 HTML 目录为模板 (值为 HTML 目录路径)", CliOptionType.String, ValueName: "dir"),
+                new CliOptionSpec("--template", "模板范围 (full|bare|none)，默认 bare", CliOptionType.String, ValueName: "scope"),
                 new CliOptionSpec("--config", "配置文件路径"),
                 new CliOptionSpec("--site", "多站点名")
             });
@@ -115,6 +116,7 @@ public static class BukitCliSpecs
                     Arguments: new[] { new CliArgumentSpec("demo-dir", "HTML demo 目录路径", Required: true) },
                     Options: new[]
                     {
+                        new CliOptionSpec("--template", "模板范围 (full|bare|none)，默认 bare", CliOptionType.String, ValueName: "scope"),
                         new CliOptionSpec("--theme", "目标主题名", CliOptionType.String, ValueName: "name", Required: true),
                 new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
                 new CliOptionSpec("--use", "创建后切换到该主题", CliOptionType.Flag),
@@ -530,7 +532,7 @@ public static class BukitCliSpecs
             Options: new[]
             {
                 new CliOptionSpec("--provider", "内容源 (markdown|notion)"),
-                new CliOptionSpec("--template", "模板名 (minimal|blog|docs|landing|portfolio)")
+                new CliOptionSpec("--template", "模板名 (minimal|blog|docs|landing|portfolio|bare|none)")
             });
 
         var route = new CliCommandSpec(

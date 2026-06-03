@@ -52,6 +52,13 @@ site:
         rss: false
         sitemap: true
         archive: false
+    about:
+      permalink: /{slug}/
+      template: pages/about.html
+      output:
+        rss: false
+        sitemap: true
+        archive: false
 content:
   provider: markdown
   markdown:

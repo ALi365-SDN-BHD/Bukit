@@ -30,6 +30,7 @@ public static class ThemeWizardCommand
         var themeRoot = Path.Combine(themesDir, name!);
 
         var force = command.GetBool("--force");
+        var templateScope = TemplateScopeExtensions.Parse(command.GetString("--template"));
         if (Directory.Exists(themeRoot))
         {
             if (!force)
@@ -63,14 +64,14 @@ public static class ThemeWizardCommand
         {
             if (hasPreset && preset is not null)
             {
-                return await RunPresetFlowAsync(preset, name!, command, rootDir, force);
+                return await RunPresetFlowAsync(preset, name!, command, rootDir, force, templateScope);
             }
 
             Console.WriteLine();
             Console.WriteLine($"=== Bukit Theme Wizard: {name} ===");
             Console.WriteLine();
 
-            return await RunInteractiveFlowAsync(name!, command, rootDir);
+            return await RunInteractiveFlowAsync(name!, command, rootDir, templateScope);
         }
         catch (OperationCanceledException)
         {
@@ -80,7 +81,7 @@ public static class ThemeWizardCommand
         }
     }
 
-    private static Task<int> RunPresetFlowAsync(WizardPreset preset, string name, CliBoundCommand command, string rootDir, bool force)
+    private static Task<int> RunPresetFlowAsync(WizardPreset preset, string name, CliBoundCommand command, string rootDir, bool force, TemplateScope templateScope)
     {
         Console.WriteLine();
         Console.WriteLine("Presets provide sensible defaults. You can override them below.");
@@ -115,7 +116,7 @@ public static class ThemeWizardCommand
         Console.WriteLine();
         Console.WriteLine("Generating theme...");
 
-        CloneThemeGenerator.WriteTo(rootDir, finalThemeName, tokens, preset.Layout, brand, behaviors);
+        CloneThemeGenerator.WriteTo(rootDir, finalThemeName, tokens, preset.Layout, brand, behaviors, templateScope: templateScope);
 
         Console.WriteLine($"Theme created: themes/{finalThemeName}/");
         Console.WriteLine($"Use it:   bukit theme use {finalThemeName}");
@@ -131,7 +132,7 @@ public static class ThemeWizardCommand
         return Task.FromResult(0);
     }
 
-    private static Task<int> RunInteractiveFlowAsync(string name, CliBoundCommand command, string rootDir)
+    private static Task<int> RunInteractiveFlowAsync(string name, CliBoundCommand command, string rootDir, TemplateScope templateScope)
     {
         Console.WriteLine();
 
@@ -228,7 +229,7 @@ public static class ThemeWizardCommand
         Console.WriteLine();
         Console.WriteLine("Generating theme...");
 
-        CloneThemeGenerator.WriteTo(rootDir, finalThemeName, tokens, layout, brand, behaviors);
+        CloneThemeGenerator.WriteTo(rootDir, finalThemeName, tokens, layout, brand, behaviors, templateScope: templateScope);
 
         Console.WriteLine($"Theme created: themes/{finalThemeName}/");
         Console.WriteLine($"Use it:   bukit theme use {finalThemeName}");

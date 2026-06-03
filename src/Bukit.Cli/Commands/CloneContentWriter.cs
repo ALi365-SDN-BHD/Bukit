@@ -12,7 +12,8 @@ internal static class CloneContentWriter
         IReadOnlyList<CloneSectionInfo> sections,
         IReadOnlyList<CloneAsset> assets,
         CloneBehaviors? behaviors,
-        string? brand)
+        string? brand,
+        TemplateScope templateScope = TemplateScope.Full)
     {
         var warnings = new List<string>();
         var normalizedSections = CloneSectionDataWriter.NormalizeSections(sections).ToList();
@@ -66,22 +67,18 @@ internal static class CloneContentWriter
         themeFiles++;
         WriteFile(rootDir, $"themes/{themeName}/layouts/pages/index.html", CloneSectionDataWriter.GenerateStructuredIndex(normalizedSections));
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/page.html", StarterThemeResources.PageTemplate);
-        themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/post.html", StarterThemeResources.PostTemplate);
-        themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/list.html", StarterThemeResources.ListTemplate);
-        themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", StarterThemeResources.PaginationTemplate);
-        themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", StarterThemeResources.TaxonomyIndexTemplate);
-        themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", StarterThemeResources.TaxonomyTermTemplate);
-        themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", StarterThemeResources.SearchTemplate);
-        themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml", StarterThemeResources.TemplateCapabilities);
-        themeFiles++;
+        if (templateScope.ShouldWritePageTemplates())
+        {
+            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/page.html", StarterThemeResources.PageTemplate);
+            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/post.html", StarterThemeResources.PostTemplate);
+            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/list.html", StarterThemeResources.ListTemplate);
+            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", StarterThemeResources.PaginationTemplate);
+            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", StarterThemeResources.TaxonomyIndexTemplate);
+            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", StarterThemeResources.TaxonomyTermTemplate);
+            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", StarterThemeResources.SearchTemplate);
+            WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml", StarterThemeResources.TemplateCapabilities);
+            themeFiles += 8;
+        }
         WriteFile(rootDir, $"themes/{themeName}/theme.yaml", GenerateThemeYaml(themeName, tokens, brand, behaviors));
         themeFiles++;
 

@@ -49,10 +49,30 @@ internal static partial class LayoutExtractor
 
         var headerContent = string.Join("\n", headerLines);
 
+        // 退避：当公共 header 为空且有多页时，降级到单页面提取模式
+        if (string.IsNullOrWhiteSpace(headerContent) && pages.Count > 1)
+        {
+            warnings.Add("无法通过行级比对提取公共布局。已降级为单页面模式：使用第一个页面的布局结构。建议通过 route-map.yaml 精确指定。");
+            var first = pages[0];
+            var fallbackHeader = ExtractByTag(first.BodyOpening, "header") ?? "";
+            var fallbackFooter = ExtractByTag(first.BodyClosing, "footer") ?? "";
+            var fallbackNav = ExtractNavBlock(fallbackHeader);
+            return new LayoutInfo(
+                Header: fallbackHeader,
+                Nav: fallbackNav,
+                Footer: fallbackFooter,
+                HeadExtras: first.HeadContent ?? "",
+                HeaderContainsNav: !string.IsNullOrWhiteSpace(fallbackNav));
+        }
+
         if (headerContent.Length < 20 && headerContent.Length > 0)
             warnings.Add("检测到的 header 过短（< 20 字符），可能不准确");
 
         var footerContent = string.Join("\n", footerLines);
+
+        // 退避：如果 footer 为空但 header 有内容，发出警告
+        if (string.IsNullOrWhiteSpace(footerContent) && !string.IsNullOrWhiteSpace(headerContent))
+            warnings.Add("检测到的 footer 为空，可能不准确。建议添加 <footer> 标签或使用 route-map.yaml。");
 
         if (footerContent.Length < 20 && footerContent.Length > 0)
             warnings.Add("检测到的 footer 过短（< 20 字符），可能不准确");

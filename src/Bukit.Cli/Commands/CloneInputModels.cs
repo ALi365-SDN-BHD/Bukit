@@ -63,6 +63,8 @@ public sealed record CloneTokens
     public List<string>? ExternalCssUrls { get; init; }
     public List<string>? ExternalJsUrls { get; init; }
 
+    public static CloneTokens Default => new();
+
     public static (CloneTokens tokens, string? error) FromJson(string json)
     {
         if (string.IsNullOrWhiteSpace(json))

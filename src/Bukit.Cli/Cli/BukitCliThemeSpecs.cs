@@ -76,6 +76,7 @@ public static class BukitCliThemeSpecs
         Options: new[]
         {
             new CliOptionSpec("--preset", "预设风格 (blog|docs|landing|minimal|portfolio)"),
+            new CliOptionSpec("--template", "模板范围 (full|bare|none)，默认 full", CliOptionType.String, ValueName: "scope"),
             new CliOptionSpec("--use", "创建后切换", CliOptionType.Flag),
             new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
             new CliOptionSpec("--config", "配置文件路径"),

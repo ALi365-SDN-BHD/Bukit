@@ -137,6 +137,11 @@ internal static partial class AssetImporter
                     Directory.CreateDirectory(destDir);
                 File.Move(file, dest);
             }
+            else
+            {
+                // 目标已存在（Import 方法已写入 static/assets/...），删除源文件避免冗余
+                File.Delete(file);
+            }
         }
     }
 

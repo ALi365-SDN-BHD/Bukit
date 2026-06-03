@@ -55,6 +55,8 @@ public static class CloneCommand
             Directory.Delete(themeDir, recursive: true);
         }
 
+        var templateScope = TemplateScopeExtensions.Parse(command.GetString("--template") ?? "bare");
+
         var (tokens, tokensError) = await CloneInputLoader.LoadTokensAsync(options.Tokens);
         if (tokensError != 0) return tokensError;
 
@@ -85,7 +87,7 @@ public static class CloneCommand
                 ? Array.Empty<CloneSectionInfo>()
                 : await CloneInputLoader.LoadSectionsAsync(options.Sections);
 
-            var contentResult = CloneContentWriter.WriteTo(rootDir, options.Theme, tokens, page, sections, assets, behaviors, options.Brand);
+            var contentResult = CloneContentWriter.WriteTo(rootDir, options.Theme, tokens, page, sections, assets, behaviors, options.Brand, templateScope);
             CloneAssetDownloader.WriteIcons(rootDir, options.Theme, icons, out var iconCount);
             summary = new CloneGenerationSummary
             {
@@ -102,7 +104,7 @@ public static class CloneCommand
         }
         else
         {
-            summary = CloneThemeGenerator.WriteTo(rootDir, options.Theme, tokens, layout, options.Brand, behaviors, icons, assets);
+            summary = CloneThemeGenerator.WriteTo(rootDir, options.Theme, tokens, layout, options.Brand, behaviors, icons, assets, templateScope: templateScope);
         }
 
         Console.WriteLine($"Theme cloned: {options.Theme}");

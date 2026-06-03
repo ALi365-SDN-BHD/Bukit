@@ -24,6 +24,7 @@ public sealed record HtmlDemoImportOptions
     public string? NotionDatabaseId { get; init; }
     public string? NotionDatabaseMap { get; init; }
     public string? NotionTokenEnv { get; init; }
+    public string TemplateScope { get; init; } = "bare";
 }
 
 public sealed record DiscoveredPage

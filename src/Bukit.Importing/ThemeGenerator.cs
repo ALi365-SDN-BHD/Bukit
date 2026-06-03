@@ -83,15 +83,6 @@ internal static partial class ThemeGenerator
             templateCount++;
         }
 
-        templateCount += EnsureFallbackTemplate(themeDir, "article.html", WriteDetailTemplateBody());
-        templateCount += EnsureFallbackTemplate(themeDir, "post.html", WriteDetailTemplateBody());
-        templateCount += EnsureFallbackTemplate(themeDir, "company.html", WriteDetailTemplateBody());
-        templateCount += EnsureFallbackTemplate(themeDir, "service.html", WriteDetailTemplateBody());
-        templateCount += EnsureFallbackTemplate(themeDir, "page.html", WriteDetailTemplateBody());
-        templateCount += EnsureFallbackTemplate(themeDir, "insights.html", WriteListTemplateBody());
-        templateCount += EnsureFallbackTemplate(themeDir, "companies.html", WriteListTemplateBody());
-        templateCount += EnsureFallbackTemplate(themeDir, "services.html", WriteListTemplateBody());
-
         return new ImportResult
         {
             ThemePath = themeDir,
@@ -104,18 +95,6 @@ internal static partial class ThemeGenerator
             TemplatesSynced = false,
             Warnings = warnings
         };
-    }
-
-    private static int EnsureFallbackTemplate(string themeDir, string fileName, string body)
-    {
-        var path = Path.Combine(themeDir, "layouts", "pages", fileName);
-        if (File.Exists(path)) return 0;
-
-        var sb = new StringBuilder();
-        sb.AppendLine("{% layout \"layouts/base.html\" %}");
-        sb.AppendLine(body);
-        File.WriteAllText(path, sb.ToString());
-        return 1;
     }
 
     private static (List<string> CssLinks, List<string> ScriptTags) ExtractHeadAssets(
@@ -228,8 +207,6 @@ internal static partial class ThemeGenerator
         sb.AppendLine("<head>");
         sb.AppendLine("  <meta charset=\"UTF-8\" />");
         sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");
-        sb.AppendLine("  {{ base_url = site.base_url }}");
-        sb.AppendLine("  {{ if base_url == \"/\" }}{{ base_url = \"\" }}{{ end }}");
 
         foreach (var css in cssLinks)
             sb.AppendLine($"  {RewriteHeadAssetTag(css.Trim(), pathMappings)}");
@@ -275,7 +252,7 @@ internal static partial class ThemeGenerator
         return Regex.Replace(
             rewritten,
             @"\b(href|src)=[""'](/(?!/)[^""']*)[""']",
-            m => $"{m.Groups[1].Value}=\"{{{{ base_url }}}}{m.Groups[2].Value}\"",
+            m => $"{m.Groups[1].Value}=\"{{{{ site.base_url }}}}{m.Groups[2].Value}\"",
             RegexOptions.IgnoreCase);
     }
 
@@ -293,9 +270,27 @@ internal static partial class ThemeGenerator
         return pageType switch
         {
             PageType.Home => WriteHomeTemplateBody(),
-            PageType.PostList or PageType.CompanyList or PageType.ServiceList => WriteListTemplateBody(),
-            PageType.PostDetail or PageType.CompanyDetail or PageType.ServiceDetail => WriteDetailTemplateBody(),
-            _ => WriteDetailTemplateBody()
+            PageType.PostList or PageType.CompanyList or PageType.ServiceList => """
+<main>
+  <h1>{{ this.title }}</h1>
+  {{ if page.content }}<div class="content">{{ page.content }}</div>{{ end }}
+  {{ for p in pages }}
+  <article>
+    <h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
+    {{ if p.summary }}<p>{{ p.summary }}</p>{{ end }}
+  </article>
+  {{ end }}
+</main>
+""",
+            _ => """
+<main>
+  <article>
+    <h1>{{ page.title }}</h1>
+    {{ if page.summary }}<p>{{ page.summary }}</p>{{ end }}
+    <div class="content">{{ page.content }}</div>
+  </article>
+</main>
+"""
         };
     }
 
@@ -307,35 +302,6 @@ internal static partial class ThemeGenerator
   {{ if page.content }}
   <div class="content">{{ page.content }}</div>
   {{ end }}
-  {{ for p in pages }}
-  <article>
-    <h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
-    {{ if p.summary }}<p>{{ p.summary }}</p>{{ end }}
-  </article>
-  {{ end }}
-</main>
-""";
-    }
-
-    private static string WriteDetailTemplateBody()
-    {
-        return """
-<main>
-  <article>
-    <h1>{{ page.title }}</h1>
-    {{ if page.summary }}<p>{{ page.summary }}</p>{{ end }}
-    <div class="content">{{ page.content }}</div>
-  </article>
-</main>
-""";
-    }
-
-    private static string WriteListTemplateBody()
-    {
-        return """
-<main>
-  <h1>{{ this.title }}</h1>
-  {{ if page.content }}<div class="content">{{ page.content }}</div>{{ end }}
   {{ for p in pages }}
   <article>
     <h2><a href="{{ p.url }}">{{ p.title }}</a></h2>

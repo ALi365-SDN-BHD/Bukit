@@ -92,6 +92,7 @@ public static class ImportCommand
         var preserveHtml = !command.GetBool("--no-preserve-html");
         var generateReport = !command.GetBool("--no-report");
         var baseUrl = command.GetString("--base-url");
+        var templateScope = command.GetString("--template") ?? "bare";
         var routeMapPath = command.GetString("--route-map");
         var pushNotion = command.GetBool("--push-notion");
         var notionDatabaseId = command.GetString("--notion-database-id");
@@ -181,7 +182,8 @@ public static class ImportCommand
             RouteMapPath = routeMapPath,
             NotionDatabaseId = notionDatabaseId,
             NotionDatabaseMap = notionDatabaseMap,
-            NotionTokenEnv = notionTokenEnv
+            NotionTokenEnv = notionTokenEnv,
+            TemplateScope = templateScope
         };
 
         ImportResult result;

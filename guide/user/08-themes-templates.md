@@ -277,6 +277,97 @@ Usually done in the base layout:
 
 SEO-related advice: [11 Multilingual & SEO](./11-i18n-seo.md) and the `seo-best-practice` example theme.
 
+## Using Independent Templates for Different Content Types
+
+In Starter theme (`examples/starter/layouts/pages/`), `page.html` is shared by multiple pages (about/contact/join), `list.html` is shared by various list types, and so on. This is a design choice of the **Starter theme** — it's not a limitation of the Bukit engine. The engine simply resolves templates based on your `site.yaml` collections configuration: it looks up `template` for single pages and `listTemplate` for list routes, falling back to sensible defaults when absent.
+
+You can assign dedicated templates to different content types in three ways:
+
+### Method 1: Independent Collections (Recommended)
+
+Define a separate collection for each content type with its own template:
+
+```yaml
+collections:
+  about:
+    permalink: /about/
+    template: pages/about.html       # Dedicated template
+  contact:
+    permalink: /contact/
+    template: pages/contact.html     # Dedicated template
+  post:
+    permalink: /blog/{slug}/
+    template: pages/post.html
+    listRoute: /blog/
+```
+
+Then in each Markdown file's front matter, assign the page to the desired collection:
+
+```yaml
+---
+collection: about
+title: About Us
+---
+```
+
+```yaml
+---
+collection: contact
+title: Contact
+---
+```
+
+This is the cleanest approach: each content type gets its own URL structure, its own template, and its own front matter fields without interference.
+
+### Method 2: `route.template` Override in Front Matter
+
+Keep using a shared parent collection (e.g., `page`) but override the template per individual page via front matter:
+
+```yaml
+---
+collection: page
+route:
+  template: pages/about.html
+title: About Us
+---
+```
+
+```yaml
+---
+collection: page
+route:
+  template: pages/contact.html
+title: Contact
+---
+```
+
+This is useful when you have a handful of special pages that need custom templates but don't warrant separate collections.
+
+### Method 3: FilteredList for Different List Templates
+
+When you want different list views for subsets of a single collection (e.g., a "News" list and a "Blog" list from the same `post` collection), use `filteredLists`:
+
+```yaml
+collections:
+  post:
+    permalink: /blog/{slug}/
+    template: pages/post.html
+    listRoute: /blog/
+    filteredLists:
+      - field: category
+        value: news
+        listRoute: /news/
+        listTemplate: pages/news-list.html
+      - field: category
+        value: tutorial
+        listRoute: /tutorials/
+        listTemplate: pages/tutorial-list.html
+```
+
+Each filtered list gets its own route and its own list template, while all posts still use the same single-page template. You can define as many `filteredLists` entries as needed, each with a different `field`/`value` filter pair.
+
+> **Tip**: The Bukit engine associates templates through `collections.<key>.template` (single page) and `collections.<key>.listTemplate` (list page). For fine-grained overrides on individual pages, use `route.template` in front matter. See `src/Bukit.Routing/RouteGenerator.cs` for the full resolution logic.
+
 ## Common Errors and Fixes
 
 - Missing template file: build reports "cannot find template/layout" → check if `theme.name` exists and the directory structure is complete

@@ -4,7 +4,7 @@ namespace Bukit.Cli.Commands;
 
 public static class InitCommand
 {
-    private static readonly string[] SupportedTemplates = ["minimal", "blog", "docs", "landing", "portfolio"];
+    private static readonly string[] SupportedTemplates = ["minimal", "blog", "docs", "landing", "portfolio", "bare", "none"];
 
     public static Task<int> RunAsync(CliBoundCommand command)
     {
@@ -85,11 +85,27 @@ public static class InitCommand
 
     private static void WriteTheme(string rootDir, string templateName)
     {
+        // For "none", skip theme generation entirely.
+        if (templateName.Equals("none", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var templateScope = templateName.Equals("bare", StringComparison.OrdinalIgnoreCase)
+            ? TemplateScope.Bare
+            : TemplateScope.Full;
+
         var preset = WizardPreset.All.FirstOrDefault(p =>
             p.Name.Equals(templateName, StringComparison.OrdinalIgnoreCase));
 
         if (preset is null)
         {
+            if (templateScope == TemplateScope.Bare)
+            {
+                // Bare mode: use CloneThemeGenerator with bare scope (no StarterThemeScaffold)
+                CloneThemeGenerator.WriteTo(rootDir, "starter", CloneTokens.Default, CloneLayoutInfo.Default,
+                    brand: "My Site", templateScope: TemplateScope.Bare);
+                Directory.CreateDirectory(Path.Combine(rootDir, "themes", "starter", "static"));
+                return;
+            }
             StarterThemeScaffold.WriteTo(rootDir);
             return;
         }
@@ -106,7 +122,7 @@ public static class InitCommand
             HeroCtaText = profile.HeroCtaText ?? preset.Layout.HeroCtaText,
             HeroCtaUrl = profile.HeroCtaUrl ?? preset.Layout.HeroCtaUrl,
         };
-        CloneThemeGenerator.WriteTo(rootDir, "starter", preset.Tokens, layout, brand, preset.Behaviors);
+        CloneThemeGenerator.WriteTo(rootDir, "starter", preset.Tokens, layout, brand, preset.Behaviors, templateScope: templateScope);
         Directory.CreateDirectory(Path.Combine(rootDir, "themes", "starter", "static"));
     }
 
@@ -403,6 +419,11 @@ logging:
       permalink: /{slug}/
       template: pages/page.html
 """,
+            "bare" or "none" => """
+    page:
+      permalink: /{slug}/
+      template: pages/page.html
+""",
             _ => """
     post:
       permalink: /blog/{slug}/
@@ -499,6 +520,12 @@ logging:
       markdown:
         dir: data
         defaultType: module
+""",
+            "bare" or "none" => """
+  provider: markdown
+  markdown:
+    dir: content
+    defaultType: page
 """,
             _ => $$"""
   provider: markdown
