@@ -1,19 +1,19 @@
-# `notion-database-map.yaml` 规范
+# `notion-database-map.yaml` Specification
 
-## 1. 目标
+## 1. Purpose
 
-`notion-database-map.yaml` 用于描述 seed 文件与 Notion database 的对应关系。
+`notion-database-map.yaml` maps seed files to Notion databases.
 
-它服务于：
+It supports:
 
 ```text
 bukit notion push
-自动创建 Notion database
-多数据库 Notion CMS
-content.sources 生成
+automatic Notion database creation
+multi-database Notion CMS
+content.sources generation
 ```
 
-## 2. 基本结构
+## 2. Structure
 
 ```yaml
 databases:
@@ -25,18 +25,18 @@ databases:
     uniqueField: Slug
 ```
 
-## 3. 字段定义
+## 3. Fields
 
-| 字段 | 类型 | 必需 | 说明 |
+| Field | Type | Required | Description |
 |---|---|---:|---|
-| `databases` | object | 是 | 数据库映射集合 |
-| `<key>.title` | string | 是 | Notion database 名称 |
-| `<key>.databaseId` | string | 否 | Notion database ID，空表示可自动创建 |
-| `<key>.seed` | string | 是 | seed 文件名 |
-| `<key>.collection` | string | 是 | Bukit collection |
-| `<key>.uniqueField` | string | 否 | upsert 唯一字段，默认 `Slug` |
+| `databases` | object | yes | Database mappings |
+| `<key>.title` | string | yes | Notion database title |
+| `<key>.databaseId` | string | no | Empty means auto-create is allowed |
+| `<key>.seed` | string | yes | Seed file |
+| `<key>.collection` | string | yes | Bukit collection |
+| `<key>.uniqueField` | string | no | Upsert key, default `Slug` |
 
-## 4. 默认支持集合
+## 4. Default Collections
 
 ```yaml
 databases:
@@ -69,9 +69,9 @@ databases:
     uniqueField: Slug
 ```
 
-## 5. review-only seed
+## 5. Review-only Seed Files
 
-以下 seed 默认不进入 Notion push：
+The following seed files are not pushed by default:
 
 ```text
 sections.json
@@ -80,16 +80,18 @@ media.json
 components.json
 ```
 
-## 6. 规则
+If they need to be pushed, define a dedicated schema and update this map explicitly.
 
-- `seed` 文件必须存在。
-- `collection` 必须与 Bukit collection 一致。
-- `databaseId` 为空时必须配合 `--create-missing-databases` 和 `--parent-page-id`。
-- `uniqueField` 推荐使用 `Slug`。
-- 不要将 `posts` 写成 `articles`。
-- 不要将 `companies` 写成 `businesses`。
+## 6. Rules
 
-## 7. 推荐命令
+- `seed` must exist.
+- `collection` must match a Bukit collection.
+- Empty `databaseId` requires `--create-missing-databases` and `--parent-page-id`.
+- `uniqueField` should usually be `Slug`.
+- Do not rename `posts` to `articles`.
+- Do not rename `companies` to `businesses`.
+
+## 7. Recommended Command
 
 ```bash
 bukit notion push   --input sites/<site-name>/notion-seed   --database-map sites/<site-name>/notion-seed/notion-database-map.yaml   --create-missing-databases   --parent-page-id <notion-parent-page-id>   --mode upsert   --update-content replace

@@ -1,8 +1,8 @@
 # Bukit AI Demo-to-CMS Machine-readable Schemas
 
-用于校验 AI 生成的配置和数据文件。
+This directory provides JSON Schema files for validating AI-generated configuration and data files.
 
-## 文件
+## Files
 
 ```text
 site.schema.json
@@ -16,7 +16,7 @@ seed/
   services.schema.json
 ```
 
-推荐验证流程：
+Recommended validation flow:
 
 ```bash
 bukit config validate --config sites/<site-name>/site.yaml

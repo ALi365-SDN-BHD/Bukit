@@ -1,182 +1,126 @@
-# Bukit AI Demo-to-CMS 工程化规范
+# Bukit AI Demo-to-CMS Engineering Specification
 
-## 1. 目标
+## 1. Purpose
 
-本规范用于指导 AI 根据用户需求，先生成可视化 HTML Demo，待用户确认样式、页面结构、功能与文案方向后，再将最终 Demo 工程化转换为 Bukit 主题模板、内容数据、Notion seed、`site.yaml`、`notion-database-map.yaml` 等可构建文件。
+This specification defines a staged workflow for generating, validating, and converting AI-created website Demos into Bukit projects.
 
-标准流程：
-
-```text
-用户需求
-→ AI 生成网站规划
-→ AI 生成 HTML Demo
-→ 用户确认视觉与功能
-→ AI / Bukit 拆分为主题模板与数据
-→ 生成 Notion seed 与 database map
-→ Bukit build / doctor 验证
-→ Notion push
-→ build-source notion 正式 CMS 化
-→ 静态发布
-```
-
-## 2. 适用范围
-
-适用于：
-
-- 企业官网
-- 行业资讯站
-- 企业目录站
-- 产品展示站
-- 招商落地页
-- 本地服务站
-- 多语言内容站
-- SEO / GEO 内容站
-- Notion 作为 CMS 的静态网站
-
-不适用于：
-
-- 高度交互型 SaaS Web App
-- 依赖复杂前端状态管理的系统
-- 大量用户登录、后台权限、在线交易类系统
-- 主要依赖客户端 JavaScript 动态渲染的网站
-
-## 3. 核心原则
-
-### 3.1 先 Demo，后工程化
-
-AI 不应在用户尚未确认视觉和功能时直接生成最终 Bukit 工程。
-
-### 3.2 Demo 必须可迁移
-
-Demo 必须满足：
-
-- 页面文件独立
-- HTML 结构语义化
-- class 命名稳定
-- 列表页与详情页分离
-- 业务内容可抽取
-- 图片、CSS、JS 本地化
-- 必须生成 `demo.routes.yaml`
-- 不依赖复杂运行时框架
-- 不把业务文案写死在不可识别结构中
-
-### 3.3 内容必须数据化
-
-最终应拆分为：
+The target output is a maintainable Bukit site with:
 
 ```text
-pages.json
-posts.json
-companies.json
-services.json
-sections.json
-faqs.json
-media.json
-components.json
+Bukit theme
+site.yaml
+content seed
+Notion seed
 notion-database-map.yaml
+import-report.md
+validation commands
 ```
 
-默认 Notion push 范围：
+It applies to ChatGPT, Codex, Claude Code, Cursor, Trae, and other AI agents.
+
+## 2. Supported Use Cases
+
+This workflow is suitable for:
+
+- Corporate websites
+- Industry news sites
+- Company directories
+- Product showcase websites
+- Landing pages
+- Local service websites
+- SEO / GEO content websites
+- Notion-backed static sites
+- Multi-language content sites
+
+It is not suitable for:
+
+- Highly interactive SaaS applications
+- Complex authenticated dashboards
+- Transactional applications
+- Client-rendered apps that depend on runtime JavaScript for core content
+
+## 3. Standard Workflow
 
 ```text
-pages / posts / companies / services
+User requirements
+-> AI generates a site blueprint
+-> AI generates a migratable HTML Demo
+-> User confirms visual style and functionality
+-> AI / Bukit converts the Demo into a Bukit project
+-> Bukit validates with doctor and build
+-> Content is pushed to Notion when required
+-> Notion-only build can be enabled
+-> Site is deployed
 ```
 
-默认 review-only：
+## 4. Requirements Analysis
+
+Before generating a Demo, the AI should identify:
 
 ```text
-sections / faqs / media / components
+Site name
+Theme name
+Site purpose
+Target audience
+Core sections
+Page list
+Visual style
+Language
+Content collections
+Notion CMS requirement
+Multi-database Notion requirement
+Local preview requirement
 ```
 
-### 3.4 主题只负责结构与表现
-
-主题中应保留：
-
-- 页面布局
-- 组件结构
-- 样式 class
-- 模板变量
-- 循环逻辑
-- include 逻辑
-
-主题中不应长期保留：
-
-- 企业正文
-- 文章正文
-- SEO 文案
-- FAQ 内容
-- 服务详情
-- 大段业务介绍
-
-## 4. 目录结构规范
+Example:
 
 ```text
-project/
-  demo/
-    index.html
-    insights.html
-    article-detail.html
-    companies.html
-    china-companies.html
-    malaysia-companies.html
-    company-detail.html
-    about.html
-    contact.html
-    join.html
-    assets/
-      css/style.css
-      js/main.js
-      images/
-
-  demo.routes.yaml
-
-  themes/
-    <theme-name>/
-      layouts/
-        layouts/base.html
-        pages/
-        partials/
-        components/
-        bukit.templates.yaml
-      assets/
-
-  sites/
-    <site-name>/
-      site.yaml
-      content/
-      notion-seed/
-      import-report.md
+Site name: Silkroad Business
+Theme: silkroadbiz
+Purpose: China-Malaysia business news and company directory
+Core entries: Business insights, company directory
+Pages: Home, insights, post detail, companies, company detail, about, contact, join
+Content collections: pages, posts, companies, services, sections, faqs
+CMS: Notion multi-database
+Build strategy: Markdown preview first, Notion-only later
 ```
 
-## 5. 需求采集规范
+## 5. Demo Generation Requirements
 
-生成 Demo 前，AI 应明确：
+The Demo must be a previewable set of HTML files:
 
 ```text
-网站名称
-网站定位
-目标用户
-核心栏目
-页面列表
-视觉风格
-语言
-内容集合
-是否需要 Notion CMS
-是否需要多数据库 Notion
-是否需要本地 preview
+demo/
+  index.html
+  insights.html
+  article-detail.html
+  companies.html
+  china-companies.html
+  malaysia-companies.html
+  company-detail.html
+  about.html
+  contact.html
+  join.html
+  assets/
+    css/style.css
+    js/main.js
+    images/
+demo.routes.yaml
 ```
 
-## 6. HTML Demo 规范
+If a page is not needed, it may be omitted, but the omission must be explained.
 
-### 6.1 基础结构
+## 6. Semantic HTML Requirements
+
+Each page should include:
 
 ```html
 <!doctype html>
-<html lang="zh">
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>页面标题</title>
-  <meta name="description" content="页面 SEO 描述">
+  <title>Page Title</title>
+  <meta name="description" content="Page SEO description">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body data-page-type="Page">
@@ -189,9 +133,11 @@ project/
 </html>
 ```
 
-### 6.2 页面类型
+The AI should avoid deeply nested, unstructured, or decorative-only markup that makes content extraction difficult.
 
-允许类型：
+## 7. Page Type Requirements
+
+Allowed page types:
 
 ```text
 Home
@@ -206,55 +152,59 @@ Contact
 Join
 ```
 
-### 6.3 标准卡片 class
+Page type may be expressed in HTML with `data-page-type` and must also be represented in `demo.routes.yaml`.
 
-文章卡片：
+## 8. Stable Class and Field Rules
+
+Article card:
 
 ```html
 <article class="article-card" data-collection="posts">
-  <img data-field="cover" src="assets/images/news-1.jpg" alt="文章封面">
-  <span data-field="category">商务资讯</span>
-  <h3 data-field="title">文章标题</h3>
-  <p data-field="summary">文章摘要</p>
-  <a data-field="url" href="article-detail.html">阅读详情</a>
+  <img data-field="cover" src="assets/images/news-1.jpg" alt="Post cover">
+  <span data-field="category">Business Insight</span>
+  <h3 data-field="title">Post title</h3>
+  <p data-field="summary">Post summary</p>
+  <a data-field="url" href="article-detail.html">Read more</a>
 </article>
 ```
 
-企业卡片：
+Company card:
 
 ```html
 <article class="company-card" data-collection="companies">
-  <img data-field="logo" src="assets/images/company-1.png" alt="企业 Logo">
-  <h3 data-field="title">企业名称</h3>
-  <p data-field="summary">企业简介</p>
+  <img data-field="logo" src="assets/images/company-1.png" alt="Company logo">
+  <h3 data-field="title">Company Name</h3>
+  <p data-field="summary">Company summary</p>
   <span data-field="country">Malaysia</span>
   <span data-field="industry">Technology</span>
-  <a data-field="url" href="company-detail.html">查看企业</a>
+  <a data-field="url" href="company-detail.html">View company</a>
 </article>
 ```
 
-服务卡片：
+Service card:
 
 ```html
 <article class="service-card" data-collection="services">
-  <h3 data-field="title">服务名称</h3>
-  <p data-field="summary">服务简介</p>
-  <a data-field="url" href="service-detail.html">了解服务</a>
+  <h3 data-field="title">Service Name</h3>
+  <p data-field="summary">Service summary</p>
+  <a data-field="url" href="service-detail.html">Learn more</a>
 </article>
 ```
 
-FAQ：
+FAQ item:
 
 ```html
 <div class="faq-item" data-collection="faqs">
-  <h3 data-field="question">常见问题</h3>
-  <p data-field="answer">问题答案。</p>
+  <h3 data-field="question">Question</h3>
+  <p data-field="answer">Answer.</p>
 </div>
 ```
 
-## 7. route-map 规范
+## 9. Route Map Requirements
 
-AI 必须生成 `demo.routes.yaml`：
+Every HTML file must appear in `demo.routes.yaml`.
+
+Example:
 
 ```yaml
 pages:
@@ -284,57 +234,85 @@ pages:
     template: company
 ```
 
-要求：
+Rules:
 
-- 每个 HTML 文件必须出现在 route-map 中
-- route 必须以 `/` 开头
-- 动态详情页使用 `{slug}`
-- 列表页和详情页必须分开
-- template 名必须稳定
-- source 必须对应真实 HTML 文件
+- `source` must point to a real HTML file.
+- `route` must start with `/`.
+- Detail routes must use `{slug}`.
+- List and detail pages must be separate.
+- `template` should be stable and should not include `.html`.
 
-## 8. 用户确认规范
+## 10. User Confirmation Gate
 
-用户确认 Demo 时，应确认：
+The AI must not proceed to final Bukit engineering until the user confirms:
 
 ```text
-视觉风格
-页面完整性
-导航结构
-首页区块
-列表卡片
-详情页结构
-移动端体验
-核心 CTA
-文案方向
-图片风格
-URL 结构
-内容集合
+Visual style
+Page structure
+Navigation
+List cards
+Detail pages
+Mobile behavior
+CTA
+Copy direction
+Image style
+URL structure
+Content collections
 ```
 
-用户确认后，Demo 才进入工程化转换阶段。
+This confirmation gate prevents repeated changes at the template and configuration layer.
 
-## 9. Demo 转 Bukit 规则
+## 11. Bukit Project Output
 
-| Demo 部分 | Bukit 目标 |
+After the Demo is confirmed, conversion should produce:
+
+```text
+themes/<theme-name>/
+  layouts/
+    layouts/base.html
+    pages/*.html
+    partials/header.html
+    partials/nav.html
+    partials/footer.html
+    components/*.html
+    bukit.templates.yaml
+  assets/
+
+sites/<site-name>/
+  site.yaml
+  content/
+  notion-seed/
+    pages.json
+    posts.json
+    companies.json
+    services.json
+    sections.json
+    faqs.json
+    media.json
+    components.json
+    notion-database-map.yaml
+  import-report.md
+```
+
+## 12. Conversion Rules
+
+| Demo Element | Bukit Target |
 |---|---|
-| 公共 header | `layouts/partials/header.html` |
-| 公共 nav | `layouts/partials/nav.html` |
-| 公共 footer | `layouts/partials/footer.html` |
-| 首页 | `layouts/pages/index.html` |
-| 列表页 | `layouts/pages/*.html` |
-| 详情页 | `layouts/pages/*.html` |
-| 重复卡片 | `layouts/components/*.html` |
-| CSS / JS / 图片 | `themes/<theme>/assets/` |
-| 页面正文 | `notion-seed/pages.json` |
-| 文章数据 | `notion-seed/posts.json` |
-| 企业数据 | `notion-seed/companies.json` |
-| 服务数据 | `notion-seed/services.json` |
-| FAQ / section / media | review-only seed |
+| Shared header | `layouts/partials/header.html` |
+| Shared nav | `layouts/partials/nav.html` |
+| Shared footer | `layouts/partials/footer.html` |
+| Page body | `layouts/pages/*.html` |
+| Repeated cards | `layouts/components/*.html` |
+| CSS / JS / images | `themes/<theme>/assets/` |
+| Page content | `notion-seed/pages.json` |
+| Post content | `notion-seed/posts.json` |
+| Company content | `notion-seed/companies.json` |
+| Service content | `notion-seed/services.json` |
+| FAQ / sections / media / components | Review-only seed by default |
 
-## 10. 模板变量规范
+## 13. Template Rules
 
-详情页：
+Detail page:
 
 ```html
 <h1>{{ page.title }}</h1>
@@ -344,7 +322,7 @@ URL 结构
 </div>
 ```
 
-列表页：
+List page:
 
 ```html
 {{ for item in pages }}
@@ -352,89 +330,73 @@ URL 结构
 {{ end }}
 ```
 
-组件：
+Component:
 
 ```html
 <article class="company-card">
   <h3>{{ item.title }}</h3>
   <p>{{ item.summary }}</p>
-  <a href="{{ item.url }}">查看企业</a>
+  <span>{{ item.country }}</span>
+  <span>{{ item.industry }}</span>
+  <a href="{{ item.url }}">View company</a>
 </article>
 ```
 
-## 11. Notion database map 规范
+## 14. Content Scope
 
-```yaml
-databases:
-  pages:
-    title: Pages
-    databaseId: ""
-    seed: pages.json
-    collection: page
-    uniqueField: Slug
+Default Notion push collections:
 
-  posts:
-    title: Posts
-    databaseId: ""
-    seed: posts.json
-    collection: post
-    uniqueField: Slug
-
-  companies:
-    title: Companies
-    databaseId: ""
-    seed: companies.json
-    collection: company
-    uniqueField: Slug
-
-  services:
-    title: Services
-    databaseId: ""
-    seed: services.json
-    collection: service
-    uniqueField: Slug
+```text
+pages
+posts
+companies
+services
 ```
 
-## 12. 构建模式
+Default review-only collections:
 
-### 12.1 本地预览模式
-
-```bash
-bukit import html-demo ./demo   --theme <theme-name>   --content-source notion   --build-source markdown   --route-map demo.routes.yaml   --strict warn   --force   --verify
+```text
+sections
+faqs
+media
+components
 ```
 
-### 12.2 Notion-only 模式
+If review-only collections need to be CMS-managed, define dedicated schemas first.
 
-```bash
-bukit import html-demo ./demo   --theme <theme-name>   --content-source notion   --build-source notion   --route-map demo.routes.yaml   --force
+## 15. Configuration Contracts
+
+Configuration files must follow:
+
+```text
+docs/ai-demo-to-bukit/config/
 ```
 
-## 13. Notion 推送
+Machine-readable schemas are located in:
 
-```bash
-bukit notion push   --input sites/<site-name>/notion-seed   --database-map sites/<site-name>/notion-seed/notion-database-map.yaml   --create-missing-databases   --parent-page-id <notion-parent-page-id>   --mode upsert   --update-content replace
+```text
+schemas/
 ```
 
-## 14. 质量门禁
+## 16. Required Validation
 
-每次转换后必须执行：
+Every converted project must run:
 
 ```bash
 bukit doctor --config sites/<site-name>/site.yaml
 bukit build --config sites/<site-name>/site.yaml
 ```
 
-发布前建议执行：
+If supported:
 
 ```bash
-dotnet test
-bash scripts/test-all.sh
-bash scripts/quality-gate.sh
+bukit config validate --config sites/<site-name>/site.yaml
+bukit doctor --config sites/<site-name>/site.yaml --strict
 ```
 
-## 15. import-report 审查
+## 17. Import Report Review
 
-必须检查：
+Always review:
 
 ```text
 Pages
@@ -448,32 +410,30 @@ Visual Verification
 Manual Review Required
 ```
 
-## 20. 配置合同与机器可读 Schema
+If hardcoded content residue is high, return to the Demo or template extraction stage.
 
-AI 在生成 `site.yaml`、`demo.routes.yaml`、`notion-database-map.yaml`、`bukit.templates.yaml` 和 seed 数据时，必须参考：
+## 18. Notion Push
 
-```text
-docs/ai-demo-to-bukit/config/
-```
-
-机器可读 Schema 位于：
-
-```text
-schemas/
-```
-
-配置生成后必须验证：
+Recommended command:
 
 ```bash
-bukit doctor --config sites/<site-name>/site.yaml
-bukit build --config sites/<site-name>/site.yaml
+bukit notion push   --input sites/<site-name>/notion-seed   --database-map sites/<site-name>/notion-seed/notion-database-map.yaml   --create-missing-databases   --parent-page-id <notion-parent-page-id>   --mode upsert   --update-content replace
 ```
 
-如果支持：
+## 19. Notion-only Build
+
+After Notion content is ready:
 
 ```bash
-bukit config validate --config sites/<site-name>/site.yaml
-bukit doctor --config sites/<site-name>/site.yaml --strict
+bukit import html-demo ./demo   --theme <theme-name>   --content-source notion   --build-source notion   --route-map demo.routes.yaml   --force
 ```
 
-验证失败时，AI 必须修复配置，不得忽略错误。
+## 20. Failure Handling
+
+If any validation command fails, the AI must:
+
+1. Read the error.
+2. Identify whether it is a schema, path, template, data, or source problem.
+3. Fix the configuration or generated files.
+4. Re-run validation.
+5. Not mark the task complete until validation passes.

@@ -1,12 +1,12 @@
-# `bukit.templates.yaml` 模板清单规范
+# `bukit.templates.yaml` Template Manifest Specification
 
-## 1. 目标
+## 1. Purpose
 
-`bukit.templates.yaml` 用于描述主题中可用的布局、页面模板、局部模板和组件模板，帮助 AI 与 Bukit 保持模板命名一致。
+`bukit.templates.yaml` describes the layout, page, partial, and component templates available in a theme.
 
-AI 不得生成与真实模板文件不一致的清单。
+AI must keep the manifest consistent with actual template files.
 
-## 2. 推荐结构
+## 2. Recommended Structure
 
 ```yaml
 layouts:
@@ -33,38 +33,38 @@ components:
   faq: components/faq.html
 ```
 
-## 3. 命名规则
+## 3. Naming Rules
 
-- key 使用短横线或小写英文。
-- value 必须是相对 `layouts/` 的路径。
-- 页面模板路径推荐 `pages/*.html`。
-- partial 路径推荐 `partials/*.html`。
-- component 路径推荐 `components/*.html`。
-- 不允许 `..` 路径。
-- 不允许绝对路径。
-- 不允许重复 key。
+- Keys should use lowercase and hyphenated names.
+- Values must be relative to the theme `layouts/` directory.
+- Page templates should use `pages/*.html`.
+- Partials should use `partials/*.html`.
+- Components should use `components/*.html`.
+- Do not use `..`.
+- Do not use absolute paths.
+- Do not duplicate keys.
 
-## 4. 与 route-map 的关系
+## 4. Relationship to Route Map
 
-`demo.routes.yaml` 中：
+If `demo.routes.yaml` contains:
 
 ```yaml
 template: company
 ```
 
-应对应：
+then `bukit.templates.yaml` should contain:
 
 ```yaml
 pages:
   company: pages/company.html
 ```
 
-## 5. 生成后验证
+## 5. Validation
 
 ```text
-每个模板文件真实存在
-每个 route-map template 能在 pages 中找到
-partials/components include 路径正确
-不存在 .. 路径
-不存在绝对路径
+Every template file exists
+Every route-map template exists in pages
+All include paths are valid
+No absolute paths
+No .. paths
 ```

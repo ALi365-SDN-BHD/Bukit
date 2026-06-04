@@ -1,30 +1,30 @@
-# Bukit 环境变量规范
+# Bukit Environment Variables Specification
 
-## 1. 目标
+## 1. Purpose
 
-本规范统一 AI 在生成 Bukit Notion 配置、构建命令和部署说明时使用的环境变量名称。
+This document standardizes the environment variables used in Bukit Notion configuration, build commands, and deployment instructions.
 
-AI 不得自行发明 Notion 环境变量名。
+AI must not invent Notion environment variable names.
 
-## 2. 通用环境变量
+## 2. Standard Variables
 
-| 环境变量 | 必需 | 说明 |
+| Variable | Required | Description |
 |---|---:|---|
-| `NOTION_TOKEN` | 是 | Notion integration token |
-| `NOTION_DATABASE_ID` | 单库模式必需 | 单数据库 Notion provider |
-| `NOTION_PAGES_DATABASE_ID` | 多库模式必需 | Pages database |
-| `NOTION_POSTS_DATABASE_ID` | 多库模式必需 | Posts database |
-| `NOTION_COMPANIES_DATABASE_ID` | 多库模式必需 | Companies database |
-| `NOTION_SERVICES_DATABASE_ID` | 多库模式必需 | Services database |
+| `NOTION_TOKEN` | yes | Notion integration token |
+| `NOTION_DATABASE_ID` | single DB mode | Single Notion database |
+| `NOTION_PAGES_DATABASE_ID` | multi DB mode | Pages database |
+| `NOTION_POSTS_DATABASE_ID` | multi DB mode | Posts database |
+| `NOTION_COMPANIES_DATABASE_ID` | multi DB mode | Companies database |
+| `NOTION_SERVICES_DATABASE_ID` | multi DB mode | Services database |
 
-## 3. 单数据库模式
+## 3. Single-database Mode
 
 ```bash
 export NOTION_TOKEN="<notion-token>"
 export NOTION_DATABASE_ID="<database-id>"
 ```
 
-## 4. 多数据库模式
+## 4. Multi-database Mode
 
 ```bash
 export NOTION_TOKEN="<notion-token>"
@@ -34,9 +34,9 @@ export NOTION_COMPANIES_DATABASE_ID="<companies-db-id>"
 export NOTION_SERVICES_DATABASE_ID="<services-db-id>"
 ```
 
-## 5. 禁止命名
+## 5. Forbidden Names
 
-AI 不得使用：
+AI must not use:
 
 ```text
 PAGES_DB
@@ -47,12 +47,12 @@ NOTION_SECRET
 NOTION_TOKEN_ENV
 ```
 
-除非用户明确说明项目已有该变量并要求兼容。
+unless the user explicitly requires compatibility with an existing project.
 
-## 6. 安全规则
+## 6. Security Rules
 
-- 不要把真实 token 写入文件。
-- 不要把 token 写入 `site.yaml`。
-- 只写 `tokenEnv: NOTION_TOKEN`。
-- `.env` 不应进入 Demo、theme、site 或 import output。
-- 不要把密钥推送到 Git。
+- Do not write real tokens into files.
+- Do not write tokens into `site.yaml`.
+- Use `tokenEnv: NOTION_TOKEN`.
+- `.env` files must not be included in Demo, theme, site, or import output.
+- Never commit secrets.

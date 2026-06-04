@@ -1,12 +1,12 @@
-# `demo.routes.yaml` 路由映射规范
+# `demo.routes.yaml` Route Mapping Specification
 
-## 1. 目标
+## 1. Purpose
 
-`demo.routes.yaml` 用于明确 HTML Demo 页面与 Bukit 页面类型、URL、模板之间的映射关系。
+`demo.routes.yaml` maps HTML Demo pages to Bukit page types, URLs, and templates.
 
-AI 不得依赖文件名猜测页面类型。每个 HTML 文件必须出现在 route-map 中。
+AI must not rely on filename guessing. Every HTML file must appear in the route map.
 
-## 2. 基本结构
+## 2. Structure
 
 ```yaml
 pages:
@@ -16,18 +16,18 @@ pages:
     template: index
 ```
 
-## 3. 字段定义
+## 3. Fields
 
-| 字段 | 类型 | 必需 | 说明 |
+| Field | Type | Required | Description |
 |---|---|---:|---|
-| `source` | string | 是 | Demo 中的 HTML 文件 |
-| `route` | string | 是 | 目标 URL |
-| `type` | string | 是 | 页面类型 |
-| `template` | string | 是 | Bukit 模板名 |
-| `slug` | string | 否 | 显式 slug |
-| `description` | string | 否 | 页面说明 |
+| `source` | string | yes | HTML file in the Demo |
+| `route` | string | yes | Target URL |
+| `type` | string | yes | Page type |
+| `template` | string | yes | Bukit template name |
+| `slug` | string | no | Explicit slug |
+| `description` | string | no | Page description |
 
-## 4. 允许页面类型
+## 4. Allowed Page Types
 
 ```text
 Home
@@ -42,7 +42,7 @@ Contact
 Join
 ```
 
-## 5. 标准示例
+## 5. Standard Example
 
 ```yaml
 pages:
@@ -66,28 +66,43 @@ pages:
     type: CompanyList
     template: companies
 
+  - source: china-companies.html
+    route: /china-companies/
+    type: CompanyList
+    template: china-companies
+
+  - source: malaysia-companies.html
+    route: /malaysia-companies/
+    type: CompanyList
+    template: malaysia-companies
+
   - source: company-detail.html
     route: /companies/{slug}/
     type: CompanyDetail
     template: company
+
+  - source: about.html
+    route: /about/
+    type: Page
+    template: about
 ```
 
-## 6. 规则
+## 6. Rules
 
-- `source` 必须对应真实 HTML 文件。
-- `route` 必须以 `/` 开头。
-- 动态详情页必须使用 `{slug}`。
-- 列表页和详情页必须分开。
-- `template` 不要包含 `.html` 后缀。
-- `template` 名称必须与生成的页面模板一致。
-- 动态路由不能用 `{slug}` 反推具体内容 slug。
+- `source` must point to a real HTML file.
+- `route` must start with `/`.
+- Detail routes must use `{slug}`.
+- List and detail pages must be separate.
+- `template` must not include `.html`.
+- `template` must match the generated page template.
+- Dynamic `{slug}` routes must not be used to infer a concrete slug.
 
-## 7. 生成后验证
+## 7. Validation
 
 ```text
-每个 HTML 文件都在 pages 中
-每个 source 文件存在
-每个 route 唯一
-每个 template 唯一或有明确复用理由
-动态详情页 route 包含 {slug}
+Every HTML file appears in pages
+Every source file exists
+Every route is unique
+Every template is unique unless reuse is intentional
+Every detail route contains {slug}
 ```

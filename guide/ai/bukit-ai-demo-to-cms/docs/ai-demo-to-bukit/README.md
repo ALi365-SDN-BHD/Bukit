@@ -1,100 +1,89 @@
 # Bukit AI Demo-to-CMS Workflow
 
-## 简介
+## Overview
 
-本目录定义一套面向 ChatGPT、Codex、Cursor、Trae 与其他 AI Agent 的工程化网站生产流程。
+This directory defines the engineering workflow for AI-assisted Bukit site creation.
 
-核心目标不是生成一次性 HTML 页面，而是将用户需求转化为：
+The goal is not to generate disposable HTML. The goal is to guide AI tools through a stable, reviewable, and buildable pipeline:
 
 ```text
-用户需求
-→ AI 生成可视化 HTML Demo
-→ 用户确认样式、页面与功能
-→ AI / Bukit 将 Demo 转换为 Bukit 主题与内容数据
-→ Notion CMS 化
-→ Bukit 构建与发布
+User requirements
+-> AI-generated visual HTML Demo
+-> User confirmation
+-> Bukit theme + content seed + configuration
+-> Notion CMS when required
+-> Static build
+-> Deployment
 ```
 
-该流程适用于企业官网、行业资讯站、企业目录站、产品展示站、招商站、本地服务站、SEO/GEO 内容站等以内容为核心的网站。
+The workflow is designed for ChatGPT, Codex, Claude Code, Cursor, Trae, and any agent that can read repository instructions.
 
-## 文件说明
+## Files
 
-| 文件 | 作用 |
+| File | Purpose |
 |---|---|
-| `README.md` | 流程入口、适用范围与快速开始 |
-| `engineering-spec.md` | Demo、主题、数据、配置与构建的工程化规范 |
-| `prompt-template.md` | 可直接交给 ChatGPT / Codex 使用的标准提示词 |
-| `checklist.md` | Demo、工程化、Notion CMS 与发布阶段的检查清单 |
+| `README.md` | Workflow entry point |
+| `engineering-spec.md` | Full engineering specification |
+| `prompt-template.md` | Prompt template for AI tools |
+| `checklist.md` | Stage-by-stage validation checklist |
+| `config/` | Configuration contracts and schema references |
 
-## 核心原则
+## Core Principles
 
-1. **先 Demo，后工程化**  
-   用户先确认视觉效果、页面结构和功能，再生成最终 Bukit 工程。
+### 1. Demo First, Engineering Second
 
-2. **Demo 必须可迁移**  
-   Demo 不是一次性 HTML，必须具备语义化结构、标准 class、route-map 和可抽取内容。
+The AI should generate a visual HTML Demo before producing a final Bukit project. This gives the user a chance to review the style, content direction, page structure, and functionality.
 
-3. **内容必须数据化**  
-   页面正文、文章、企业资料、服务、SEO 等应进入内容文件或 Notion，而不是长期保留在模板中。
+### 2. The Demo Must Be Migratable
 
-4. **主题只负责结构与表现**  
-   主题中保留布局、组件、样式和模板变量，不保留大段业务文案。
+The Demo is not a throwaway artifact. It must be designed so Bukit or an AI agent can later convert it into:
 
-5. **Bukit 负责质量门禁**  
-   通过 `import-report.md`、`bukit doctor`、`bukit build`、Notion schema validate 等机制验证工程质量。
+- Theme templates
+- Partials
+- Components
+- Content seed
+- Notion seed
+- Route map
+- Site configuration
 
-## 推荐流程
+### 3. Content Must Be Structured
 
-### 1. 生成 Demo
+Business copy, page body content, posts, company data, services, SEO information, and metadata should eventually move into structured data files or Notion.
 
-AI 根据用户需求生成：
+### 4. Themes Should Hold Structure, Not Long-term Business Copy
 
-```text
-demo/
-  index.html
-  insights.html
-  article-detail.html
-  companies.html
-  company-detail.html
-  about.html
-  contact.html
-  assets/
-demo.routes.yaml
-```
+Theme files should contain layout, components, style hooks, loops, and variables. They should not permanently contain long business text, article bodies, company profiles, FAQ content, or SEO metadata.
 
-### 2. 用户确认
+### 5. Bukit Is the Quality Gate
 
-用户确认：
-
-- 视觉风格
-- 首页布局
-- 导航结构
-- 列表页与详情页
-- 移动端体验
-- CTA 与文案方向
-- URL 结构
-
-### 3. 转换为 Bukit 工程
+Every conversion must be validated with:
 
 ```bash
-bukit import html-demo ./demo   --theme silkroadbiz   --content-source notion   --build-source markdown   --route-map demo.routes.yaml   --strict warn   --force   --verify
+bukit doctor --config sites/<site-name>/site.yaml
+bukit build --config sites/<site-name>/site.yaml
 ```
 
-### 4. 推送到 Notion
+## Standard Import Command
 
 ```bash
-bukit notion push   --input sites/silkroadbiz/notion-seed   --database-map sites/silkroadbiz/notion-seed/notion-database-map.yaml   --create-missing-databases   --parent-page-id <notion-parent-page-id>   --mode upsert   --update-content replace
+bukit import html-demo ./demo   --theme <theme-name>   --content-source notion   --build-source markdown   --route-map demo.routes.yaml   --strict warn   --force   --verify
 ```
 
-### 5. 切换为 Notion-only 构建
+## Standard Notion Push Command
 
 ```bash
-bukit import html-demo ./demo   --theme silkroadbiz   --content-source notion   --build-source notion   --route-map demo.routes.yaml   --force
+bukit notion push   --input sites/<site-name>/notion-seed   --database-map sites/<site-name>/notion-seed/notion-database-map.yaml   --create-missing-databases   --parent-page-id <notion-parent-page-id>   --mode upsert   --update-content replace
 ```
 
-## 默认内容范围
+## Standard Notion-only Build Mode
 
-默认 Notion push 集合：
+```bash
+bukit import html-demo ./demo   --theme <theme-name>   --content-source notion   --build-source notion   --route-map demo.routes.yaml   --force
+```
+
+## Default Notion Push Scope
+
+By default, the following collections are pushed to Notion:
 
 ```text
 pages
@@ -103,7 +92,7 @@ companies
 services
 ```
 
-默认 review-only seed：
+The following seed files are review-only unless dedicated schemas are introduced:
 
 ```text
 sections
@@ -112,26 +101,18 @@ media
 components
 ```
 
-如需将 review-only seed 完整 CMS 化，应为其设计独立 Notion schema。
+## Configuration Contracts
 
-## 下一步
-
-- 阅读 [`engineering-spec.md`](./engineering-spec.md)
-- 使用 [`prompt-template.md`](./prompt-template.md)
-- 在每个阶段执行 [`checklist.md`](./checklist.md)
-
-## 配置合同与 Schema
-
-为了减少 AI 生成 `site.yaml`、route-map、Notion map 和 seed 数据时的小错误，本规范包新增：
+Configuration contracts are located in:
 
 ```text
 docs/ai-demo-to-bukit/config/
+```
+
+Machine-readable schemas are located in:
+
+```text
 schemas/
 ```
 
-生成任何 Bukit 配置前，AI 必须先选择标准 Profile，并在生成后执行：
-
-```bash
-bukit doctor --config sites/<site-name>/site.yaml
-bukit build --config sites/<site-name>/site.yaml
-```
+AI agents must consult these files before generating or modifying configuration.

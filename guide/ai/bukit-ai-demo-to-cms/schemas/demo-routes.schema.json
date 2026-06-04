@@ -42,8 +42,7 @@
             ]
           },
           "template": {
-            "type": "string",
-            "pattern": "^[a-z0-9-]+$"
+            "type": "string"
           },
           "slug": {
             "type": "string"

@@ -1,6 +1,6 @@
 # MANIFEST
 
-本文件列出 Bukit AI Demo-to-CMS 最终规范包 v1.2 中的全部文件。
+This file lists all files in the Bukit AI Demo-to-CMS final English full package v1.2.
 
 - `.agents/skills/bukit-demo-to-cms/SKILL.md`
 - `.claude/rules/bukit-demo-to-cms.md`
