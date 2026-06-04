@@ -23,3 +23,13 @@ Detailed rules are available in:
 ```text
 .claude/rules/bukit-demo-to-cms.md
 ```
+
+## Configuration Contract
+
+All generated Bukit configuration files must follow the configuration contracts under:
+
+```text
+docs/ai-demo-to-bukit/config/
+```
+
+Use the `bukit-demo-to-cms` skill and do not ignore validation failures.

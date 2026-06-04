@@ -119,3 +119,19 @@ components
 - 阅读 [`engineering-spec.md`](./engineering-spec.md)
 - 使用 [`prompt-template.md`](./prompt-template.md)
 - 在每个阶段执行 [`checklist.md`](./checklist.md)
+
+## 配置合同与 Schema
+
+为了减少 AI 生成 `site.yaml`、route-map、Notion map 和 seed 数据时的小错误，本规范包新增：
+
+```text
+docs/ai-demo-to-bukit/config/
+schemas/
+```
+
+生成任何 Bukit 配置前，AI 必须先选择标准 Profile，并在生成后执行：
+
+```bash
+bukit doctor --config sites/<site-name>/site.yaml
+bukit build --config sites/<site-name>/site.yaml
+```

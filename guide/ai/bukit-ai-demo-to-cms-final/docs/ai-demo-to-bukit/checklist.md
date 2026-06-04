@@ -216,3 +216,19 @@
 - [ ] Notion 内容更新可触发重新构建
 - [ ] 发布日志已记录
 - [ ] 回滚方案已准备
+
+# 12. 配置合同与 Schema 检查
+
+- [ ] 已选择标准 `site.yaml` Profile
+- [ ] 未自行发明 `site.yaml` 字段
+- [ ] 未同时生成 `content.provider` 与 `content.sources`
+- [ ] `build-source notion` 仅与 `content-source notion` 配合
+- [ ] Notion 多数据库模式使用 `content.sources`
+- [ ] `demo.routes.yaml` 符合 route-map 规范
+- [ ] `notion-database-map.yaml` 符合 database map 规范
+- [ ] `bukit.templates.yaml` 中的模板路径真实存在
+- [ ] 环境变量名称符合规范
+- [ ] 已执行 Schema 校验（如支持）
+- [ ] 已执行 `bukit doctor`
+- [ ] 已执行 `bukit build`
+- [ ] 验证失败时已修复配置

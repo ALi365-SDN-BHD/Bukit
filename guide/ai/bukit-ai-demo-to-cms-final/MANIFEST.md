@@ -1,6 +1,6 @@
 # MANIFEST
 
-本文件列出 Bukit AI Demo-to-CMS 最终规范包中的全部文件。
+本文件列出 Bukit AI Demo-to-CMS 最终规范包 v1.2 中的全部文件。
 
 - `.agents/skills/bukit-demo-to-cms/SKILL.md`
 - `.claude/rules/bukit-demo-to-cms.md`
@@ -12,6 +12,23 @@
 - `README.md`
 - `docs/ai-demo-to-bukit/README.md`
 - `docs/ai-demo-to-bukit/checklist.md`
+- `docs/ai-demo-to-bukit/config/README.md`
+- `docs/ai-demo-to-bukit/config/demo-routes-spec.md`
+- `docs/ai-demo-to-bukit/config/environment-variables-spec.md`
+- `docs/ai-demo-to-bukit/config/notion-database-map-spec.md`
+- `docs/ai-demo-to-bukit/config/seed-data-spec.md`
+- `docs/ai-demo-to-bukit/config/site-yaml-profiles.md`
+- `docs/ai-demo-to-bukit/config/site-yaml-spec.md`
+- `docs/ai-demo-to-bukit/config/template-manifest-spec.md`
 - `docs/ai-demo-to-bukit/engineering-spec.md`
 - `docs/ai-demo-to-bukit/prompt-template.md`
+- `schemas/README.md`
+- `schemas/demo-routes.schema.json`
+- `schemas/notion-database-map.schema.json`
+- `schemas/seed/companies.schema.json`
+- `schemas/seed/pages.schema.json`
+- `schemas/seed/posts.schema.json`
+- `schemas/seed/services.schema.json`
+- `schemas/site.schema.json`
+- `schemas/template-manifest.schema.json`
 - `skills/bukit-demo-to-cms/SKILL.md`

@@ -202,3 +202,14 @@ bukit import html-demo ./demo   --theme <THEME_NAME>   --content-source notion  
 6. 构建命令
 7. Notion 推送命令
 8. 人工检查清单
+
+## 配置生成附加规则
+
+在生成 `site.yaml` 和其他配置文件前：
+
+1. 先选择 `site-yaml-profiles.md` 中的标准 Profile。
+2. 不得自行发明字段。
+3. 不得同时生成 `content.provider` 和 `content.sources`。
+4. Notion 多数据库模式必须使用 `content.sources`。
+5. 生成后必须执行 Schema 校验、`bukit doctor` 和 `bukit build`。
+6. 如果验证失败，必须修复，不得忽略。

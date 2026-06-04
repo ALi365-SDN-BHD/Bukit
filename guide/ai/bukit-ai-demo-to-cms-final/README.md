@@ -1,13 +1,25 @@
-# Bukit AI Demo-to-CMS 最终规范包
+# Bukit AI Demo-to-CMS 最终规范包 v1.2
 
-本规范包用于让 ChatGPT、Codex、Claude Code、Cursor、Trae 与其他 AI Agent 理解并执行 Bukit 的两阶段网站生产流程：
+本包是可替代所有历史版本的完整最终版，合并了：
+
+```text
+v1.0：完整 Demo-to-CMS 流程规范与多 AI 工具规则
+v1.1：详细 site.yaml 与 seed 数据配置合同
+v1.2：新增 route/map/template/env 规范与机器可读 JSON Schema
+```
+
+## 核心流程
 
 ```text
 用户需求
 → AI 生成可迁移 HTML Demo
 → 用户确认样式、页面与功能
 → AI / Bukit 转换为主题模板、内容数据、Notion seed 与配置文件
-→ Bukit 验证、构建与发布
+→ Schema 校验
+→ Bukit doctor
+→ Bukit build
+→ Notion CMS
+→ 发布
 ```
 
 ## 目录结构
@@ -23,7 +35,27 @@
 │       ├── README.md
 │       ├── engineering-spec.md
 │       ├── prompt-template.md
-│       └── checklist.md
+│       ├── checklist.md
+│       └── config/
+│           ├── README.md
+│           ├── site-yaml-spec.md
+│           ├── site-yaml-profiles.md
+│           ├── seed-data-spec.md
+│           ├── demo-routes-spec.md
+│           ├── notion-database-map-spec.md
+│           ├── template-manifest-spec.md
+│           └── environment-variables-spec.md
+├── schemas/
+│   ├── README.md
+│   ├── site.schema.json
+│   ├── demo-routes.schema.json
+│   ├── notion-database-map.schema.json
+│   ├── template-manifest.schema.json
+│   └── seed/
+│       ├── pages.schema.json
+│       ├── posts.schema.json
+│       ├── companies.schema.json
+│       └── services.schema.json
 ├── skills/
 │   └── bukit-demo-to-cms/
 │       └── SKILL.md
@@ -45,54 +77,34 @@
         └── bukit-demo-to-cms.md
 ```
 
-## 文件用途
+## 配置生成核心规则
 
-| 文件 | 用途 |
-|---|---|
-| `AGENTS.md` | Codex 与支持 AGENTS.md 的 AI Agent 项目级入口规则 |
-| `CLAUDE.md` | Claude Code 项目级入口规则 |
-| `.agents/skills/.../SKILL.md` | Codex 可自动发现的项目级 Skill |
-| `.claude/skills/.../SKILL.md` | Claude Code 可自动发现的项目级 Skill |
-| `.claude/rules/...` | Claude Code 详细规则 |
-| `.cursor/rules/...` | Cursor 项目规则 |
-| `.trae/rules/...` | Trae 项目规则 |
-| `skills/.../SKILL.md` | 通用 Skill 源文件，便于其他工具或仓库复用 |
-| `docs/ai-demo-to-bukit/*` | 完整工程规范、提示词模板与检查清单 |
+1. 不得自行发明 `site.yaml` 字段。
+2. 生成 `site.yaml` 前必须选择标准 Profile。
+3. 必须参考 `site-yaml-spec.md`。
+4. 不得同时生成 `content.provider` 和 `content.sources`。
+5. `build-source notion` 只能与 `content-source notion` 配合。
+6. Notion 多数据库模式必须使用 `content.sources`。
+7. 配置生成后必须执行 schema validate、`bukit doctor` 和 `bukit build`。
+8. 如果验证失败，必须修复配置，不得忽略错误。
+
+## 必须执行的验证
+
+```bash
+bukit doctor --config sites/<site-name>/site.yaml
+bukit build --config sites/<site-name>/site.yaml
+```
+
+如果支持：
+
+```bash
+bukit config validate --config sites/<site-name>/site.yaml
+bukit doctor --config sites/<site-name>/site.yaml --strict
+```
 
 ## 安装方式
 
-将本目录中的文件复制到 Bukit 仓库根目录，并保留隐藏目录结构：
-
-```bash
-cp -R bukit-ai-demo-to-cms-final/* /path/to/Bukit/
-cp -R bukit-ai-demo-to-cms-final/.[!.]* /path/to/Bukit/
-```
-
-复制前请检查目标仓库中是否已存在 `AGENTS.md`、`CLAUDE.md` 或同名规则文件，避免覆盖已有内容。
-
-## 推荐使用方式
-
-在 AI 工具中提出类似需求：
-
-```text
-使用 bukit-demo-to-cms skill，先根据用户需求生成可迁移 HTML Demo。
-用户确认样式和功能后，再将最终 Demo 转换为 Bukit 主题模板、内容数据、Notion seed 和配置文件。
-```
-
-## 推荐 Bukit 命令
-
-```bash
-bukit import html-demo ./demo   --theme <theme-name>   --content-source notion   --build-source markdown   --route-map demo.routes.yaml   --strict warn   --force   --verify
-```
-
-```bash
-bukit notion push   --input sites/<site-name>/notion-seed   --database-map sites/<site-name>/notion-seed/notion-database-map.yaml   --create-missing-databases   --parent-page-id <notion-parent-page-id>   --mode upsert   --update-content replace
-```
-
-## 版本
-
-- 规范版本：v1.0
-- 生成日期：2026-06-04
+将本目录中的文件复制到 Bukit 仓库根目录，并保留隐藏目录结构。复制前请检查目标仓库中是否已存在同名文件，避免覆盖已有自定义规则。
 
 
 推荐的实际使用流程

@@ -447,3 +447,33 @@ Link Validation
 Visual Verification
 Manual Review Required
 ```
+
+## 20. 配置合同与机器可读 Schema
+
+AI 在生成 `site.yaml`、`demo.routes.yaml`、`notion-database-map.yaml`、`bukit.templates.yaml` 和 seed 数据时，必须参考：
+
+```text
+docs/ai-demo-to-bukit/config/
+```
+
+机器可读 Schema 位于：
+
+```text
+schemas/
+```
+
+配置生成后必须验证：
+
+```bash
+bukit doctor --config sites/<site-name>/site.yaml
+bukit build --config sites/<site-name>/site.yaml
+```
+
+如果支持：
+
+```bash
+bukit config validate --config sites/<site-name>/site.yaml
+bukit doctor --config sites/<site-name>/site.yaml --strict
+```
+
+验证失败时，AI 必须修复配置，不得忽略错误。
