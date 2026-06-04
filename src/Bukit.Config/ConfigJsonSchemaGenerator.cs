@@ -369,7 +369,7 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject CollectionItemSchema()
     {
         var schema = Obj(("type", "object"));
-        schema["required"] = Arr("permalink", "template");
+        schema["required"] = Arr("permalink");
         schema["properties"] = Obj(
             ("permalink", StringSchema()),
             ("template", StringSchema()),

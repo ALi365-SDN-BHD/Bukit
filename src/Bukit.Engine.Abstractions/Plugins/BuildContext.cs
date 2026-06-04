@@ -19,5 +19,16 @@ public sealed class BuildContext
     public List<(RouteInfo Route, DateTimeOffset LastModified)> DerivedRoutes { get; } = new();
     public List<PluginExecutionInfo> PluginExecutions { get; } = new();
     public Dictionary<string, object> Data { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Func<string, string>? TemplateResolver { get; init; }
     public required ILogger Logger { get; init; }
+
+    public string ResolveTemplateKind(string kind)
+    {
+        if (TemplateResolver is null)
+        {
+            throw new ConfigException($"No template resolver is available for plugin template kind '{kind}'.");
+        }
+
+        return TemplateResolver(kind);
+    }
 }

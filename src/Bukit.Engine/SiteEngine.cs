@@ -50,8 +50,10 @@ public sealed class SiteEngine
         return pipeline.ExecuteAsync(new BuildPipelineContext(config, rootDir, overrides), cancellationToken);
     }
 
-    public static IReadOnlyList<RouteInfo> GetListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)
-        => SeoAlternatesService.GetListRoutes(collections);
+    public static IReadOnlyList<RouteInfo> GetListRoutes(
+        IReadOnlyDictionary<string, CollectionConfig>? collections,
+        ThemeTemplateResolver? templateResolver = null)
+        => SeoAlternatesService.GetListRoutes(collections, templateResolver);
 
     public async Task BuildAsync(IContentProvider provider, BuildOptions options, CancellationToken cancellationToken = default)
     {
@@ -150,7 +152,8 @@ public sealed class SiteEngine
     {
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
         var rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl);
-        var seoAlternates = SeoAlternatesService.BuildSeoAlternates(config, items, languages, defaultLanguage, rootBaseUrl);
+        var templateResolver = new ThemeTemplateResolver(ThemeBootstrapper.Bootstrap(config, rootDir, _logger).Manifest);
+        var seoAlternates = SeoAlternatesService.BuildSeoAlternates(config, items, languages, defaultLanguage, rootBaseUrl, templateResolver);
         var results = new BuildVariantResult[languages.Count];
 
         var languageJobs = Math.Max(1, config.Build.LanguageJobs);

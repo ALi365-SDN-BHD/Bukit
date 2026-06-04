@@ -27,6 +27,7 @@ public sealed class ThemeManifestV2
     public string? Extends { get; set; }
     public ThemeCapabilities Capabilities { get; set; } = new();
     public Dictionary<string, string>? Layouts { get; set; }
+    public Dictionary<string, ThemeTemplateDefinition>? Templates { get; set; }
     public Dictionary<string, ThemePageTemplateDefinition>? PageTemplates { get; set; }
     public Dictionary<string, ThemeSectionDefinition>? Sections { get; set; }
     public Dictionary<string, ThemeComponentDefinition>? Components { get; set; }

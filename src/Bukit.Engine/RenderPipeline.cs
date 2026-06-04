@@ -33,7 +33,8 @@ internal sealed record RenderPipelineContext(
     Func<ContentItem, RouteInfo, PageInfo, string, string>? HtmlPostProcessor = null,
     Func<ContentItem, RouteInfo, SeoModel>? ListItemSeoBuilder = null,
     Func<RouteInfo, PageInfo, SeoModel>? ListSeoBuilder = null,
-    Func<RouteInfo, PageInfo, string, string>? ListHtmlPostProcessor = null);
+    Func<RouteInfo, PageInfo, string, string>? ListHtmlPostProcessor = null,
+    ThemeTemplateResolver? TemplateResolver = null);
 
 internal sealed record RenderPipelineResult(
     int RenderedCount,
@@ -54,7 +55,7 @@ internal sealed class RenderPipeline
             entries.Add(RenderEntry.ForPage(item, route));
         }
 
-        var specialLists = SpecialListRouteBuilder.Build(context.Routed, context.Collections, context.LayoutsDir, context.ListPageContentMode, context.OutputPathEncoding);
+        var specialLists = SpecialListRouteBuilder.Build(context.Routed, context.Collections, context.LayoutsDir, context.ListPageContentMode, context.OutputPathEncoding, context.TemplateResolver);
         foreach (var x in specialLists)
         {
             entries.Add(RenderEntry.ForList(x.Route, x.Items, x.IncludeContent));

@@ -25,6 +25,25 @@ public sealed class DoctorCommandTests : IDisposable
         File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "post.html"), "{{ page.title }}");
         File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "index.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
         File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "list.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
+                                                                           name: test
+                                                                           templates:
+                                                                             home:
+                                                                               template: pages/index.html
+                                                                               required: true
+                                                                             page:
+                                                                               template: pages/page.html
+                                                                               accepts:
+                                                                                 type: page
+                                                                             post:
+                                                                               template: pages/post.html
+                                                                               accepts:
+                                                                                 type: post
+                                                                             list:
+                                                                               template: pages/list.html
+                                                                               accepts:
+                                                                                 kind: list
+                                                                           """);
 
         _configPath = Path.Combine(_rootDir, "site.yaml");
         File.WriteAllText(_configPath, """

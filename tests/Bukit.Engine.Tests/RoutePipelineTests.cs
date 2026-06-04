@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
+using Bukit.Theme;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -27,7 +28,7 @@ public sealed class RoutePipelineTests
         });
         var pipeline = new RoutePipeline();
 
-        var result = pipeline.Execute(Config(), new[] { post, page, data });
+        var result = pipeline.Execute(Config(), new[] { post, page, data }, TemplateResolver());
 
         Assert.Equal(new[] { post, page }, result.ContentItems);
         Assert.Equal(2, result.Routed.Count);
@@ -57,11 +58,45 @@ public sealed class RoutePipelineTests
 
         var ex = Assert.Throws<ConfigException>(() => pipeline.Execute(new AppConfig
         {
-            Site = new SiteConfig { Name = "test", Title = "Test" },
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["post"] = new CollectionConfig
+                    {
+                        Permalink = "/blog/{slug}/",
+                        Template = "content/post.html"
+                    }
+                }
+            },
             Content = new ContentConfig { Provider = "markdown" }
         }, new[] { first, second }));
 
         Assert.Contains("Route conflict", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static ThemeTemplateResolver TemplateResolver()
+    {
+        var manifest = new ThemeManifestV2
+        {
+            Templates = new Dictionary<string, ThemeTemplateDefinition>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["page"] = new()
+                {
+                    Template = "content/page.html",
+                    Accepts = new ThemeTemplateAccept { Type = "page" }
+                },
+                ["list"] = new()
+                {
+                    Template = "indexes/list.html",
+                    Accepts = new ThemeTemplateAccept { Kind = "list" }
+                }
+            }
+        };
+
+        return new ThemeTemplateResolver(manifest);
     }
 
     private static AppConfig Config()

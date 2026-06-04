@@ -48,6 +48,6 @@ public sealed class IntentApplierTests : IDisposable
         Assert.True(config.Site.Collections!.ContainsKey("post"));
         Assert.True(config.Site.Collections.ContainsKey("page"));
         Assert.Equal("/blog/{slug}/", config.Site.Collections["post"].Permalink);
-        Assert.Equal("pages/page.html", config.Site.Collections["page"].Template);
+        Assert.Null(config.Site.Collections["page"].Template);
     }
 }

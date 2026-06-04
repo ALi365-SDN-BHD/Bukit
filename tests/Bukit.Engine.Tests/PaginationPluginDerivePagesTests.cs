@@ -51,6 +51,9 @@ public sealed class PaginationPluginDerivePagesTests
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
             Routed = routed,
+            TemplateResolver = kind => kind.Equals("pagination", StringComparison.OrdinalIgnoreCase)
+                ? "pages/pagination.html"
+                : throw new ConfigException($"Unexpected template kind: {kind}"),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
     }

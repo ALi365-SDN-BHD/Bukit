@@ -23,9 +23,9 @@ internal static class CollectionsValidator
                 throw new ConfigException($"site.collections.{name}.permalink must include {{slug}}.");
             }
 
-            if (string.IsNullOrWhiteSpace(collection.Template))
+            if (collection.Template is not null && string.IsNullOrWhiteSpace(collection.Template))
             {
-                throw new ConfigException($"site.collections.{name}.template is required.");
+                throw new ConfigException($"site.collections.{name}.template must be a non-empty string when set.");
             }
 
             if (collection.Pagination.PageSize <= 0)

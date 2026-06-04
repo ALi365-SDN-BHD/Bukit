@@ -16,9 +16,14 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin
     public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
     {
         var paginationCollection = ResolvePaginationCollection(context.Config);
-        var pageSize = paginationCollection?.Config.Pagination.PageSize ?? 10;
-        var collectionKey = paginationCollection?.Key ?? "post";
-        var listRoute = paginationCollection?.Config.ListRoute ?? "/blog/";
+        if (paginationCollection is null || string.IsNullOrWhiteSpace(paginationCollection.Value.Config.ListRoute))
+        {
+            return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+        }
+
+        var pageSize = paginationCollection.Value.Config.Pagination.PageSize;
+        var collectionKey = paginationCollection.Value.Key;
+        var listRoute = paginationCollection.Value.Config.ListRoute;
         var index = CollectionRouteIndex.GetOrBuild(context);
         var posts = index.GetByCollection(collectionKey);
 
@@ -29,9 +34,7 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin
 
         var prefix = context.BaseUrl == "/" ? string.Empty : context.BaseUrl;
         var totalPages = (int)Math.Ceiling(posts.Count / (double)pageSize);
-        var routeTemplate = TemplateCapabilitiesResolver.SupportsPagination(TemplateCapabilitiesResolver.PaginationTemplatePath, context.LayoutsDir)
-            ? TemplateCapabilitiesResolver.PaginationTemplatePath
-            : "pages/page.html";
+        var routeTemplate = context.ResolveTemplateKind("pagination");
 
         var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
         for (var page = 2; page <= totalPages; page++)
@@ -68,8 +71,8 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin
             };
 
             var item = new ContentItem(
-                Id: $"blog-page-{page}",
-                Title: $"Blog - Page {page}",
+                Id: $"{collectionKey}-page-{page}",
+                Title: $"{collectionKey} - Page {page}",
                 Slug: $"page-{page}",
                 PublishAt: publishAt,
                 ContentHtml: html,

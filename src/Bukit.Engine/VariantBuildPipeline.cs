@@ -48,9 +48,9 @@ internal sealed class VariantBuildPipeline
         return new DataModuleResult(dataItems, modules, sourceData);
     }
 
-    internal RoutePipelineResult GenerateRoutes(AppConfig config, IReadOnlyList<ContentItem> items)
+    internal RoutePipelineResult GenerateRoutes(AppConfig config, IReadOnlyList<ContentItem> items, ThemeTemplateResolver templateResolver)
     {
-        return new RoutePipeline().Execute(config, items);
+        return new RoutePipeline().Execute(config, items, templateResolver);
     }
 
     internal ITemplateRenderer CreateRenderer(
@@ -187,9 +187,11 @@ internal sealed class VariantBuildPipeline
         Directory.CreateDirectory(outputDir);
 
         var bootstrap = await BootstrapThemeAsync(config, rootDir, logger);
+        var templateResolver = new ThemeTemplateResolver(bootstrap.Manifest);
+        templateResolver.ValidateRequiredTemplates();
         var dataModules = await BuildDataModulesAsync(items, config.Site.Language, bodyStore, variantStageMetrics);
         var routePipelineResult = await BuildRoutePipelineAsync(
-            config, items, dataModules.DataItems, bodyStore, ctx, logger, variantStageMetrics, cancellationToken);
+            config, items, dataModules.DataItems, bodyStore, ctx, logger, variantStageMetrics, templateResolver, cancellationToken);
 
         await RunPluginDeriveStageAsync(routePipelineResult.PluginContext, variantStageMetrics, cancellationToken);
 
@@ -215,7 +217,7 @@ internal sealed class VariantBuildPipeline
         var renderPipelineResult = await RenderPagesStageAsync(
             renderQueue, routePipelineResult.RouteResult.Routed, bodyStore, renderer, siteModel,
             config, ctx, outputDir, manifestSetup, seoStage, routePipelineResult.StaticEntries,
-            variantStageMetrics, logger, cancellationToken);
+            variantStageMetrics, logger, templateResolver, cancellationToken);
 
         var hasStaticDir = Directory.Exists(ctx.StaticDir);
         var (themeRootForTokens, parentThemeRootForTokens) = GetThemeRootForTokens(
@@ -233,8 +235,8 @@ internal sealed class VariantBuildPipeline
         variantTotalStopwatch.Stop();
         variantStageMetrics.AddDuration("variantTotal", variantTotalStopwatch.ElapsedMilliseconds);
 
-        var searchSnippetsEnabled = TemplateCapabilitiesResolver.SupportsSearchSnippets(
-            TemplateCapabilitiesResolver.SearchTemplatePath, ctx.LayoutsDir);
+        var searchSnippetsEnabled = templateResolver.TryResolveKindTemplate("search", out var searchTemplate) &&
+            TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, ctx.LayoutsDir);
 
         return await GenerateReportStageAsync(
             config, baseUrl, outputDir, searchSnippetsEnabled, bodyStore,
@@ -266,10 +268,11 @@ internal sealed class VariantBuildPipeline
         BuildVariantContext ctx,
         ILogger logger,
         BuildStageMetricsCollector metrics,
+        ThemeTemplateResolver templateResolver,
         CancellationToken cancellationToken)
     {
         var routeGenerationStopwatch = Stopwatch.StartNew();
-        var routeResult = GenerateRoutes(config, items);
+        var routeResult = GenerateRoutes(config, items, templateResolver);
         var routed = routeResult.Routed;
         routeGenerationStopwatch.Stop();
         metrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
@@ -283,6 +286,7 @@ internal sealed class VariantBuildPipeline
             LayoutsDir = ctx.LayoutsDir,
             Routed = routed,
             BodyStore = bodyStore,
+            TemplateResolver = templateResolver.ResolveKindTemplate,
             Logger = logger
         };
 
@@ -370,6 +374,7 @@ internal sealed class VariantBuildPipeline
         IReadOnlyList<RenderEntry>? staticEntries,
         BuildStageMetricsCollector metrics,
         ILogger logger,
+        ThemeTemplateResolver templateResolver,
         CancellationToken cancellationToken)
     {
         var renderDependencyHashStopwatch = Stopwatch.StartNew();
@@ -396,7 +401,8 @@ internal sealed class VariantBuildPipeline
             HtmlPostProcessor: seoStage.SeoResult.HtmlPostProcessor,
             ListItemSeoBuilder: seoStage.SeoResult.ListItemSeoBuilder,
             ListSeoBuilder: seoStage.SeoResult.ListSeoBuilder,
-            ListHtmlPostProcessor: seoStage.SeoResult.ListHtmlPostProcessor),
+            ListHtmlPostProcessor: seoStage.SeoResult.ListHtmlPostProcessor,
+            TemplateResolver: templateResolver),
             cancellationToken);
 
         metrics.Merge(renderPipelineResult.StageMetrics);

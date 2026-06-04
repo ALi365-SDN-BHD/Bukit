@@ -1,39 +1,43 @@
 using Bukit.Config;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 using Bukit.Engine.Abstractions.Plugins;
 internal static class TaxonomyTemplateResolver
 {
-    internal static (string IndexTemplate, string TermTemplate) ResolveTemplates(TaxonomyConfig config, string layoutsDir, string kind, TaxonomyKindConfig? kindConfig = null)
+    internal static (string IndexTemplate, string TermTemplate) ResolveTemplates(
+        TaxonomyConfig config,
+        string layoutsDir,
+        string kind,
+        Func<string, string> resolveTemplateKind,
+        TaxonomyKindConfig? kindConfig = null)
     {
         var legacyKindConfig = kind.Equals("tags", StringComparison.OrdinalIgnoreCase)
             ? config.Templates.Tags
             : (kind.Equals("categories", StringComparison.OrdinalIgnoreCase) ? config.Templates.Categories : new TaxonomyKindTemplateConfig());
-        var conventionalIndexTemplate = TemplateCapabilitiesResolver.SupportsTaxonomy(TemplateCapabilitiesResolver.TaxonomyIndexTemplatePath, layoutsDir)
-            ? TemplateCapabilitiesResolver.TaxonomyIndexTemplatePath
-            : null;
-        var conventionalTermTemplate = TemplateCapabilitiesResolver.SupportsTaxonomy(TemplateCapabilitiesResolver.TaxonomyTermTemplatePath, layoutsDir)
-            ? TemplateCapabilitiesResolver.TaxonomyTermTemplatePath
-            : null;
+        var baseTemplate = string.IsNullOrWhiteSpace(config.Template) ? null : config.Template;
+        var kindBaseTemplate = FirstNonEmpty(kindConfig?.Template, legacyKindConfig.Template, baseTemplate);
+        var indexTemplate = FirstNonEmpty(kindConfig?.IndexTemplate, legacyKindConfig.IndexTemplate, config.IndexTemplate, kindBaseTemplate)
+            ?? resolveTemplateKind("taxonomy_index");
+        var termTemplate = FirstNonEmpty(kindConfig?.TermTemplate, legacyKindConfig.TermTemplate, config.TermTemplate, kindBaseTemplate)
+            ?? resolveTemplateKind("taxonomy_term");
 
-        var baseTemplate = string.IsNullOrWhiteSpace(config.Template) ? "pages/page.html" : config.Template;
-        var kindBaseTemplate = FirstNonEmpty(kindConfig?.Template, legacyKindConfig.Template, baseTemplate) ?? "pages/page.html";
-        var indexTemplate = FirstNonEmpty(kindConfig?.IndexTemplate, legacyKindConfig.IndexTemplate, config.IndexTemplate, conventionalIndexTemplate, kindBaseTemplate)
-            ?? kindBaseTemplate;
-        var termTemplate = FirstNonEmpty(kindConfig?.TermTemplate, legacyKindConfig.TermTemplate, config.TermTemplate, conventionalTermTemplate, kindBaseTemplate)
-            ?? kindBaseTemplate;
-
-        indexTemplate = EnsureTemplateExists(indexTemplate, layoutsDir, "pages/page.html");
-        termTemplate = EnsureTemplateExists(termTemplate, layoutsDir, "pages/page.html");
+        indexTemplate = EnsureTemplateExists(indexTemplate, layoutsDir);
+        termTemplate = EnsureTemplateExists(termTemplate, layoutsDir);
 
         return (indexTemplate, termTemplate);
     }
 
-    internal static string EnsureTemplateExists(string template, string layoutsDir, string fallback)
+    internal static string EnsureTemplateExists(string template, string layoutsDir)
     {
         var fullPath = Path.Combine(layoutsDir, template.Replace('/', Path.DirectorySeparatorChar));
-        return File.Exists(fullPath) ? template : fallback;
+        if (!File.Exists(fullPath))
+        {
+            throw new ConfigException($"Taxonomy template not found: {template}");
+        }
+
+        return template;
     }
 
     internal static string? FirstNonEmpty(params string?[] candidates)

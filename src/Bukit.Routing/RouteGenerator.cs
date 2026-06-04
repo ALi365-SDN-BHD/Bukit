@@ -107,20 +107,19 @@ public static class RouteGenerator
 
         if (permalinks is not null && permalinks.TryGetValue(type, out var pattern) && !string.IsNullOrWhiteSpace(pattern))
         {
-            var template = type.Equals("post", StringComparison.OrdinalIgnoreCase) ? "pages/post.html" : "pages/page.html";
-            return (BuildFromPattern(item, pattern, template, outputPathEncoding), RouteSource.Permalink);
+            return (BuildFromPattern(item, pattern, string.Empty, outputPathEncoding), RouteSource.Permalink);
         }
 
-        var (url, outputBase, templateName) = type switch
+        var (url, outputBase) = type switch
         {
-            "post" => ($"/blog/{item.Slug}/", "blog", "pages/post.html"),
-            _ => ($"/pages/{item.Slug}/", "pages", "pages/page.html")
+            "post" => ($"/blog/{item.Slug}/", "blog"),
+            _ => ($"/pages/{item.Slug}/", "pages")
         };
 
         var route = new RouteInfo(
             Url: url,
             OutputPath: Path.Combine(outputBase, item.Slug, "index.html"),
-            Template: templateName
+            Template: string.Empty
         );
 
         return (route with

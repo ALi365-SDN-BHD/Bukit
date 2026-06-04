@@ -415,10 +415,11 @@ internal static class PageRenderDispatcher
         CancellationToken cancellationToken,
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
-        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null)
+        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null,
+        ThemeTemplateResolver? templateResolver = null)
     {
         var stageMetrics = new BuildStageMetricsCollector();
-        var specialLists = SpecialListRouteBuilder.Build(routed, collections, layoutsDir, listPageContentMode, outputPathEncoding);
+        var specialLists = SpecialListRouteBuilder.Build(routed, collections, layoutsDir, listPageContentMode, outputPathEncoding, templateResolver);
         foreach (var x in specialLists)
         {
             currentKeys.TryAdd(BuildPathUtils.NormalizeRelPath(x.Route.OutputPath), 0);

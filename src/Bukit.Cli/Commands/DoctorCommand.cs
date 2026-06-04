@@ -55,7 +55,7 @@ public static class DoctorCommand
             Console.WriteLine("✖ Migration required: site.collections is not configured");
             Console.WriteLine("  - collection 驱动路由已成为主模型，请在 site.collections 中声明每个内容集合的 permalink/template/listRoute");
             Console.WriteLine("  - post/page 默认规则仍作为兼容层保留，但不再是新项目的推荐主路径");
-            Console.WriteLine("  - 示例：site.collections.article.permalink=/articles/{slug}/, template=pages/post.html, listRoute=/articles/");
+            Console.WriteLine("  - 示例：site.collections.article.permalink=/articles/{slug}/, listRoute=/articles/；模板由 theme.yaml templates 匹配");
             return 1;
         }
 
@@ -66,16 +66,27 @@ public static class DoctorCommand
             return 1;
         }
 
-        var requiredTemplates = new[]
+        var bootstrap = ThemeBootstrapper.Bootstrap(config, rootDir, new ConsoleLogger(LogLevel.Warn));
+        var templateResolver = new ThemeTemplateResolver(bootstrap.Manifest);
+        IReadOnlyList<string> requiredTemplates;
+        try
         {
-            Path.Combine(layoutsDir, "layouts", "base.html"),
-            Path.Combine(layoutsDir, "pages", "page.html"),
-            Path.Combine(layoutsDir, "pages", "post.html"),
-            Path.Combine(layoutsDir, "pages", "index.html"),
-            Path.Combine(layoutsDir, "pages", "list.html")
-        };
+            requiredTemplates = templateResolver.GetRequiredTemplatePaths();
+        }
+        catch (ConfigException ex)
+        {
+            Console.WriteLine("✖ Theme template config error");
+            Console.WriteLine(ex.Message);
+            return 1;
+        }
 
-        var missing = requiredTemplates.Where(p => !File.Exists(p)).ToList();
+        var explicitTemplates = CollectExplicitConfiguredTemplates(config);
+        var missing = requiredTemplates
+            .Concat(explicitTemplates)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(t => Path.Combine(layoutsDir, t.Replace('/', Path.DirectorySeparatorChar)))
+            .Where(p => !File.Exists(p))
+            .ToList();
         if (missing.Count > 0)
         {
             Console.WriteLine("✖ Missing templates:");
@@ -87,7 +98,7 @@ public static class DoctorCommand
             return 1;
         }
 
-        Console.WriteLine("✔ Templates present");
+        Console.WriteLine("✔ Required theme templates present");
 
         var allHtmlFiles = Directory.GetFiles(layoutsDir, "*.html", SearchOption.AllDirectories);
         foreach (var p in allHtmlFiles)
@@ -210,8 +221,10 @@ public static class DoctorCommand
         var listPageContentMode = (config.Build.ListPageContentMode ?? "auto").Trim().ToLowerInvariant();
         if (listPageContentMode == "auto")
         {
-            DoctorManifestChecker.WarnHeuristicFallback(layoutsDir, "pages/index.html");
-            DoctorManifestChecker.WarnHeuristicFallback(layoutsDir, "pages/list.html");
+            foreach (var template in requiredTemplates.Concat(explicitTemplates).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                DoctorManifestChecker.WarnHeuristicFallback(layoutsDir, template);
+            }
         }
 
         Console.WriteLine();
@@ -271,6 +284,7 @@ public static class DoctorCommand
             LayoutsDir = layoutsDir,
             Routed = Array.Empty<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route)>(),
             BodyStore = Bukit.Engine.Abstractions.Content.NullContentBodyStore.Instance,
+            TemplateResolver = templateResolver.ResolveKindTemplate,
             Logger = new ConsoleLogger(LogLevel.Info)
         };
 
@@ -345,7 +359,8 @@ public static class DoctorCommand
                 config,
                 rootDir,
                 isCi: false,
-                new ConsoleLogger(LogLevel.Error));
+                new ConsoleLogger(LogLevel.Error),
+                templateResolver);
             RouteInventoryValidator.ValidateContentRoutes(routed);
             Console.WriteLine("✔ Routes valid");
         }
@@ -356,7 +371,7 @@ public static class DoctorCommand
             return 1;
         }
 
-        var listRoutes = SiteEngine.GetListRoutes(config.Site.Collections);
+        var listRoutes = SiteEngine.GetListRoutes(config.Site.Collections, templateResolver);
         DoctorManifestChecker.CheckUnreferencedTemplates(layoutsDir, allHtmlFiles, config, listRoutes);
 
         Console.WriteLine();
@@ -384,6 +399,42 @@ public static class DoctorCommand
 
         Console.WriteLine("✔ Doctor passed");
         return 0;
+    }
+
+    private static IReadOnlyList<string> CollectExplicitConfiguredTemplates(AppConfig config)
+    {
+        var templates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (config.Site.Collections is not null)
+        {
+            foreach (var (_, collection) in config.Site.Collections)
+            {
+                Add(collection.Template);
+                Add(collection.ListTemplate);
+                if (collection.FilteredLists is not null)
+                {
+                    foreach (var filter in collection.FilteredLists)
+                    {
+                        Add(filter.ListTemplate);
+                    }
+                }
+            }
+        }
+
+        Add(config.Theme.StaticTemplate);
+        Add(config.Taxonomy.Template);
+        Add(config.Taxonomy.IndexTemplate);
+        Add(config.Taxonomy.TermTemplate);
+
+        return templates.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+
+        void Add(string? template)
+        {
+            if (!string.IsNullOrWhiteSpace(template))
+            {
+                templates.Add(template.Trim());
+            }
+        }
     }
 
     private static void AnalyzeTemplateChains(string layoutsDir, string[] allHtmlFiles)
@@ -525,4 +576,3 @@ public static class DoctorCommand
     }
 
 }
-

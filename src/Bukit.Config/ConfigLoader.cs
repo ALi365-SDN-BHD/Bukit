@@ -139,7 +139,7 @@ public static class ConfigLoader
 
         var taxonomy = new TaxonomyConfig
         {
-            Template = taxonomyNode is null ? "pages/taxonomy-term.html" : ConfigYamlHelpers.GetOptionalString(taxonomyNode, "template") ?? "pages/taxonomy-term.html",
+            Template = taxonomyNode is null ? null : ConfigYamlHelpers.GetOptionalString(taxonomyNode, "template"),
             IndexTemplate = taxonomyNode is null ? null : ConfigYamlHelpers.GetOptionalString(taxonomyNode, "indexTemplate"),
             TermTemplate = taxonomyNode is null ? null : ConfigYamlHelpers.GetOptionalString(taxonomyNode, "termTemplate"),
             Templates = SiteDefaultsApplier.ReadTaxonomyTemplates(taxonomyNode),

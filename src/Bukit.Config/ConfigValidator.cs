@@ -164,7 +164,7 @@ public static class ConfigValidator
             ProviderValidators.ValidateDeployConfig(config.Deploy);
         }
 
-        if (string.IsNullOrWhiteSpace(config.Taxonomy.Template))
+        if (config.Taxonomy.Template is not null && string.IsNullOrWhiteSpace(config.Taxonomy.Template))
         {
             throw new ConfigException("taxonomy.template must be a non-empty string when set.");
         }

@@ -159,9 +159,13 @@ public static class IntentApplier
             {
                 var node = new YamlMappingNode
                 {
-                    { "permalink", collection.Permalink },
-                    { "template", collection.Template }
+                    { "permalink", collection.Permalink }
                 };
+
+                if (!string.IsNullOrWhiteSpace(collection.Template))
+                {
+                    node.Add("template", collection.Template);
+                }
 
                 if (!string.IsNullOrWhiteSpace(collection.ListRoute))
                 {
@@ -267,13 +271,11 @@ public static class IntentApplier
             ["post"] = new()
             {
                 Permalink = "/blog/{slug}/",
-                Template = "pages/post.html",
                 ListRoute = "/blog/"
             },
             ["page"] = new()
             {
                 Permalink = "/pages/{slug}/",
-                Template = "pages/page.html",
                 ListRoute = "/pages/"
             }
         };
@@ -345,4 +347,3 @@ public static class IntentApplier
         return new YamlScalarNode(value.ToString() ?? string.Empty);
     }
 }
-

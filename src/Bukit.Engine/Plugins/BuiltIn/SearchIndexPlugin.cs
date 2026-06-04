@@ -4,6 +4,7 @@ using System.Text.Json;
 using Bukit.Engine;
 
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Shared;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
@@ -75,7 +76,8 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
     {
         var outPath = Path.Combine(context.OutputDir, "search.json");
         Directory.CreateDirectory(context.OutputDir);
-        var emitSnippet = TemplateCapabilitiesResolver.SupportsSearchSnippets(TemplateCapabilitiesResolver.SearchTemplatePath, context.LayoutsDir);
+        var emitSnippet = TryResolveTemplate(context, "search", out var searchTemplate) &&
+            TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, context.LayoutsDir);
 
         using var stream = File.Create(outPath);
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false });
@@ -126,6 +128,20 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
         }
 
         return false;
+    }
+
+    private static bool TryResolveTemplate(BuildContext context, string kind, out string template)
+    {
+        template = string.Empty;
+        try
+        {
+            template = context.ResolveTemplateKind(kind);
+            return true;
+        }
+        catch (ConfigException)
+        {
+            return false;
+        }
     }
 
     private static void WriteSearchUi(BuildContext context)

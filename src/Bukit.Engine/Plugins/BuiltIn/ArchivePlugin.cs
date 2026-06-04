@@ -16,8 +16,13 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
     public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
     {
         var archiveCollection = ResolveArchiveCollection(context.Config);
-        var collectionKey = archiveCollection?.Key ?? "post";
-        var listRoute = archiveCollection?.Config.ListRoute ?? "/blog/";
+        if (archiveCollection is null || string.IsNullOrWhiteSpace(archiveCollection.Value.Config.ListRoute))
+        {
+            return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+        }
+
+        var collectionKey = archiveCollection.Value.Key;
+        var listRoute = archiveCollection.Value.Config.ListRoute;
         var archiveBaseUrl = $"{RoutePathBuilder.NormalizeListRoute(listRoute)}archive/";
         var posts = CollectionRouteIndex.GetOrBuild(context).GetByCollection(collectionKey);
 
@@ -34,13 +39,14 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
             .ToList();
 
         var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
+        var template = context.ResolveTemplateKind("archive");
 
-        derived.Add(CreateArchiveIndex(prefix, archiveBaseUrl, collectionKey, context.Config.Site.OutputPathEncoding, byYear));
+        derived.Add(CreateArchiveIndex(prefix, archiveBaseUrl, collectionKey, context.Config.Site.OutputPathEncoding, byYear, template));
 
         foreach (var yearGroup in byYear)
         {
             var yearPosts = yearGroup.ToList();
-            derived.Add(CreateYearPage(prefix, archiveBaseUrl, yearGroup.Key, yearPosts, collectionKey, context.Config.Site.OutputPathEncoding));
+            derived.Add(CreateYearPage(prefix, archiveBaseUrl, yearGroup.Key, yearPosts, collectionKey, context.Config.Site.OutputPathEncoding, template));
 
             var byMonth = yearPosts
                 .GroupBy(x => x.Item.PublishAt.Month)
@@ -49,7 +55,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
 
             foreach (var monthGroup in byMonth)
             {
-                derived.Add(CreateMonthPage(prefix, archiveBaseUrl, yearGroup.Key, monthGroup.Key, monthGroup.ToList(), collectionKey, context.Config.Site.OutputPathEncoding));
+                derived.Add(CreateMonthPage(prefix, archiveBaseUrl, yearGroup.Key, monthGroup.Key, monthGroup.ToList(), collectionKey, context.Config.Site.OutputPathEncoding, template));
             }
         }
 
@@ -61,7 +67,8 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
         string archiveBaseUrl,
         string collectionKey,
         string outputPathEncoding,
-        IReadOnlyList<IGrouping<int, (ContentItem Item, RouteInfo Route)>> byYear)
+        IReadOnlyList<IGrouping<int, (ContentItem Item, RouteInfo Route)>> byYear,
+        string template)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<ul>");
@@ -73,14 +80,14 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
         sb.AppendLine("</ul>");
 
         var now = DateTimeOffset.UtcNow;
-        var route = new RouteInfo(archiveBaseUrl, RoutePathBuilder.BuildOutputPathFromUrl(archiveBaseUrl, outputPathEncoding), "pages/page.html");
+        var route = new RouteInfo(archiveBaseUrl, RoutePathBuilder.BuildOutputPathFromUrl(archiveBaseUrl, outputPathEncoding), template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "page",
             ["collection"] = collectionKey,
             ["summary"] = $"Browse archived {collectionKey} entries by year."
         };
-        var item = new ContentItem("blog-archive-index", "Archive", "archive", now, sb.ToString(), meta);
+        var item = new ContentItem($"{collectionKey}-archive-index", "Archive", "archive", now, sb.ToString(), meta);
         return (item, route, now);
     }
 
@@ -90,7 +97,8 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
         int year,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> yearPosts,
         string collectionKey,
-        string outputPathEncoding)
+        string outputPathEncoding,
+        string template)
     {
         var byMonth = yearPosts
             .GroupBy(x => x.Item.PublishAt.Month)
@@ -109,14 +117,14 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
         var publishAt = yearPosts.OrderByDescending(x => x.Item.PublishAt).First().Item.PublishAt;
         var url = $"{archiveBaseUrl}{year}/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
-        var route = new RouteInfo(url, outputPath, "pages/page.html");
+        var route = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "page",
             ["collection"] = collectionKey,
             ["summary"] = $"Browse {collectionKey} entries published in {year}."
         };
-        var item = new ContentItem($"blog-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), meta);
+        var item = new ContentItem($"{collectionKey}-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), meta);
         return (item, route, publishAt);
     }
 
@@ -127,7 +135,8 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
         int month,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> monthPosts,
         string collectionKey,
-        string outputPathEncoding)
+        string outputPathEncoding,
+        string template)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<ul>");
@@ -141,14 +150,14 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
         var publishAt = monthPosts.OrderByDescending(x => x.Item.PublishAt).First().Item.PublishAt;
         var url = $"{archiveBaseUrl}{year}/{month:D2}/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
-        var routeInfo = new RouteInfo(url, outputPath, "pages/page.html");
+        var routeInfo = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "page",
             ["collection"] = collectionKey,
             ["summary"] = $"Browse {collectionKey} entries published in {year}-{month:D2}."
         };
-        var itemInfo = new ContentItem($"blog-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), meta);
+        var itemInfo = new ContentItem($"{collectionKey}-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), meta);
         return (itemInfo, routeInfo, publishAt);
     }
 

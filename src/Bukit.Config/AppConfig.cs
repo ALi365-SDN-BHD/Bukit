@@ -118,7 +118,7 @@ public sealed record LlmsTxtOptionalLink
 public sealed record CollectionConfig
 {
     public required string Permalink { get; init; }
-    public required string Template { get; init; }
+    public string? Template { get; init; }
     public string? ListRoute { get; init; }
     public string? ListTemplate { get; init; }
     public string? SchemaFailMode { get; init; }
@@ -169,7 +169,7 @@ public sealed record CollectionOutputConfig
 public sealed record ArchiveDetailConfig
 {
     public string Depth { get; init; } = "monthly";
-    public string Template { get; init; } = "pages/page.html";
+    public string? Template { get; init; }
     public string? RoutePrefix { get; init; }
 }
 
@@ -350,7 +350,7 @@ public sealed record ImageOptimizationConfig
 
 public sealed record TaxonomyConfig
 {
-    public string Template { get; init; } = "pages/taxonomy-term.html";
+    public string? Template { get; init; }
     public string? IndexTemplate { get; init; }
     public string? TermTemplate { get; init; }
     public TaxonomyTemplatesConfig Templates { get; init; } = new();

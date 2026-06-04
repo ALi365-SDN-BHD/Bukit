@@ -106,13 +106,10 @@ internal static class DoctorManifestChecker
             }
         }
 
-        usedTemplates.Add("pages/index.html");
-        usedTemplates.Add("pages/list.html");
-        usedTemplates.Add("pages/post.html");
-        usedTemplates.Add("pages/page.html");
-
-        var taxonomyTemplate = config.Taxonomy.Template ?? "pages/taxonomy-term.html";
-        usedTemplates.Add(taxonomyTemplate);
+        if (config.Taxonomy.Template is not null)
+        {
+            usedTemplates.Add(config.Taxonomy.Template);
+        }
         if (config.Taxonomy.IndexTemplate is not null)
         {
             usedTemplates.Add(config.Taxonomy.IndexTemplate);

@@ -117,4 +117,33 @@ public sealed class ThemeManifestLoaderTests : IDisposable
         Assert.NotNull(result);
         Assert.Equal("parent-theme", result.Extends);
     }
+
+    [Fact]
+    public void Load_WithTemplates_ParsesRequiredDefaultFalseAndAccepts()
+    {
+        File.WriteAllText(Path.Combine(_testDir, "theme.yaml"), """
+            name: test-theme
+            templates:
+              home:
+                template: screens/home.html
+                required: true
+              article:
+                template: content/article.html
+                accepts:
+                  type: post
+                  collection: articles
+                  kind: detail
+            """);
+
+        var result = ThemeManifestLoader.Load(_testDir);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Templates);
+        Assert.True(result.Templates["home"].Required);
+        Assert.False(result.Templates["article"].Required);
+        Assert.Equal("content/article.html", result.Templates["article"].Template);
+        Assert.Equal("post", result.Templates["article"].Accepts?.Type);
+        Assert.Equal("articles", result.Templates["article"].Accepts?.Collection);
+        Assert.Equal("detail", result.Templates["article"].Accepts?.Kind);
+    }
 }

@@ -34,13 +34,21 @@ internal static class ThemeBootstrapper
 
         if ((string.IsNullOrWhiteSpace(config.Theme.Name) && string.IsNullOrWhiteSpace(config.Theme.Source)))
         {
-            return new ThemeBootstrapResult(themeName, null, null, null, null, null, null);
-        }
+            themeManifest = ThemeManifestLoader.Load(resolved.LayoutsDir);
+            if (themeManifest is null)
+            {
+                return new ThemeBootstrapResult(themeName, null, null, null, null, null, null);
+            }
 
-        themeManifest = ThemeManifestLoader.Load(themeRoot);
-        if (themeManifest is null)
+            themeRoot = resolved.LayoutsDir;
+        }
+        else
         {
-            return new ThemeBootstrapResult(themeName, themeRoot, null, null, null, null, null);
+            themeManifest = ThemeManifestLoader.Load(themeRoot);
+            if (themeManifest is null)
+            {
+                return new ThemeBootstrapResult(themeName, themeRoot, null, null, null, null, null);
+            }
         }
 
         ThemeComponentRegistry? parentRegistry = null;
