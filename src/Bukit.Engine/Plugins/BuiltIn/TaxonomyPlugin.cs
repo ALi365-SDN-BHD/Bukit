@@ -9,13 +9,65 @@ using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBuildPlugin
+public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBuildPlugin, ITemplateRequirementPlugin
 {
     internal const string IndexCacheKey = "__taxonomy_index_cache";
     internal static readonly AsyncLocal<int> BuildIndexCountForTestsScope = new();
 
     public string Name => "taxonomy";
     public string Version => "3.0.0";
+
+    public IReadOnlyList<string> GetTemplateRequirementKinds(BuildContext context)
+    {
+        var outputMode = NormalizeOutputMode(context.Config.Taxonomy.OutputMode);
+        if (outputMode == "data")
+        {
+            return Array.Empty<string>();
+        }
+
+        var itemFields = NormalizeItemFields(context.Config.Taxonomy.ItemFields);
+        var requirements = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (context.Config.Taxonomy.Kinds is { Count: > 0 } kinds)
+        {
+            foreach (var kindConfig in kinds)
+            {
+                var key = (kindConfig.Key ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(key))
+                {
+                    continue;
+                }
+
+                var kind = string.IsNullOrWhiteSpace(kindConfig.Kind) ? key : kindConfig.Kind.Trim();
+                var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields);
+                TaxonomyIndexBuilder.MergeEnsureTerms(context, kind, terms);
+                if (terms.Count == 0)
+                {
+                    continue;
+                }
+
+                AddTemplateRequirements(context.Config.Taxonomy, kind, kindConfig, requirements);
+            }
+
+            return requirements.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields);
+        TaxonomyIndexBuilder.MergeEnsureTerms(context, "tags", tags);
+        if (tags.Count > 0)
+        {
+            AddTemplateRequirements(context.Config.Taxonomy, "tags", null, requirements);
+        }
+
+        var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields);
+        TaxonomyIndexBuilder.MergeEnsureTerms(context, "categories", categories);
+        if (categories.Count > 0)
+        {
+            AddTemplateRequirements(context.Config.Taxonomy, "categories", null, requirements);
+        }
+
+        return requirements.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+    }
 
     public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
     {
@@ -51,7 +103,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
                     continue;
                 }
 
-                var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind, kindConfig);
+                var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind, context.ResolveTemplateKind, kindConfig);
                 var title = string.IsNullOrWhiteSpace(kindConfig.Title) ? kind : kindConfig.Title.Trim();
                 var singularTitlePrefix = string.IsNullOrWhiteSpace(kindConfig.SingularTitlePrefix)
                     ? title
@@ -80,13 +132,13 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
 
         if (tags.Count > 0)
         {
-            var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "tags");
+            var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "tags", context.ResolveTemplateKind);
             derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "tags", title: "Tags", singularTitlePrefix: "Tag", tags, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
         }
 
         if (categories.Count > 0)
         {
-            var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "categories");
+            var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "categories", context.ResolveTemplateKind);
             derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "categories", title: "Categories", singularTitlePrefix: "Category", categories, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
         }
 
@@ -216,6 +268,31 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         }
 
         return list;
+    }
+
+    private static void AddTemplateRequirements(
+        TaxonomyConfig config,
+        string kind,
+        TaxonomyKindConfig? kindConfig,
+        ISet<string> requirements)
+    {
+        var legacyKindConfig = kind.Equals("tags", StringComparison.OrdinalIgnoreCase)
+            ? config.Templates.Tags
+            : (kind.Equals("categories", StringComparison.OrdinalIgnoreCase) ? config.Templates.Categories : new TaxonomyKindTemplateConfig());
+        var baseTemplate = string.IsNullOrWhiteSpace(config.Template) ? null : config.Template;
+        var kindBaseTemplate = TaxonomyTemplateResolver.FirstNonEmpty(kindConfig?.Template, legacyKindConfig.Template, baseTemplate);
+        var indexTemplate = TaxonomyTemplateResolver.FirstNonEmpty(kindConfig?.IndexTemplate, legacyKindConfig.IndexTemplate, config.IndexTemplate, kindBaseTemplate);
+        var termTemplate = TaxonomyTemplateResolver.FirstNonEmpty(kindConfig?.TermTemplate, legacyKindConfig.TermTemplate, config.TermTemplate, kindBaseTemplate);
+
+        if (string.IsNullOrWhiteSpace(indexTemplate))
+        {
+            requirements.Add("taxonomy_index");
+        }
+
+        if (string.IsNullOrWhiteSpace(termTemplate))
+        {
+            requirements.Add("taxonomy_term");
+        }
     }
 
     internal static int BuildIndexCountForTests => BuildIndexCountForTestsScope.Value;

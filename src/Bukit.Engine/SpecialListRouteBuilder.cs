@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Shared;
 namespace Bukit.Engine;
 
 internal sealed record SpecialListDefinition(
@@ -18,11 +19,12 @@ public static class SpecialListRouteBuilder
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         string layoutsDir,
         string listPageContentMode,
-        string outputPathEncoding)
+        string outputPathEncoding,
+        ThemeTemplateResolver? templateResolver = null)
     {
         var index = CollectionRouteIndex.Create(routed);
         var list = new List<SpecialListDefinition>();
-        var homeRoute = new RouteInfo("/", "index.html", "pages/index.html");
+        var homeRoute = new RouteInfo("/", "index.html", templateResolver?.ResolveHomeTemplate() ?? ThemeTemplateResolver.DefaultHomeTemplate);
         list.Add(new SpecialListDefinition(
             homeRoute,
             index.AllOrdered,
@@ -30,8 +32,6 @@ public static class SpecialListRouteBuilder
 
         if (collections is null || collections.Count == 0)
         {
-            AddLegacyList(list, index, "/blog/", outputPathEncoding, layoutsDir, listPageContentMode);
-            AddLegacyList(list, index, "/pages/", outputPathEncoding, layoutsDir, listPageContentMode);
             return list;
         }
 
@@ -44,7 +44,7 @@ public static class SpecialListRouteBuilder
 
             var url = RoutePathBuilder.NormalizeListRoute(collection.ListRoute);
             var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
-            var template = string.IsNullOrWhiteSpace(collection.ListTemplate) ? "pages/list.html" : collection.ListTemplate.Trim();
+            var template = ResolveListTemplate(collection.ListTemplate, templateResolver);
             var route = new RouteInfo(url, outputPath, template);
             var items = index.GetByCollection(key);
             list.Add(new SpecialListDefinition(
@@ -85,19 +85,18 @@ public static class SpecialListRouteBuilder
         return string.Equals(cf.Value.ToString(), expectedValue, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void AddLegacyList(
-        List<SpecialListDefinition> list,
-        CollectionRouteIndex index,
-        string url,
-        string outputPathEncoding,
-        string layoutsDir,
-        string listPageContentMode)
+    private static string ResolveListTemplate(string? explicitTemplate, ThemeTemplateResolver? templateResolver)
     {
-        var route = new RouteInfo(url, RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding), "pages/list.html");
-        var items = index.GetByRoutePrefix(url);
-        list.Add(new SpecialListDefinition(
-            route,
-            items,
-            TemplateCapabilitiesResolver.ShouldIncludeListPageContent(route.Template, layoutsDir, listPageContentMode)));
+        if (!string.IsNullOrWhiteSpace(explicitTemplate))
+        {
+            return explicitTemplate.Trim();
+        }
+
+        if (templateResolver is null)
+        {
+            throw new ConfigException("No list template was configured. Add site.collections.*.listTemplate or a matching theme.yaml templates entry.");
+        }
+
+        return templateResolver.ResolveKindTemplate("list");
     }
 }

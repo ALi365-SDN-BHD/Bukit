@@ -77,12 +77,12 @@ public static class RouteCommand
         }
     }
 
-    private static Dictionary<string, (string Permalink, string Template)>? BuildCollectionRules(AppConfig config)
+    private static Dictionary<string, (string Permalink, string? Template)>? BuildCollectionRules(AppConfig config)
     {
         if (config.Site.Collections is null || config.Site.Collections.Count == 0)
             return null;
 
-        var rules = new Dictionary<string, (string Permalink, string Template)>(StringComparer.OrdinalIgnoreCase);
+        var rules = new Dictionary<string, (string Permalink, string? Template)>(StringComparer.OrdinalIgnoreCase);
         foreach (var kv in config.Site.Collections)
         {
             rules[kv.Key] = (kv.Value.Permalink, kv.Value.Template);
@@ -92,7 +92,7 @@ public static class RouteCommand
 
     private static (Engine.Abstractions.Routing.RouteInfo Route, string RouteSource) GenerateRouteForItem(
         ContentItem item,
-        Dictionary<string, (string Permalink, string Template)>? collections)
+        Dictionary<string, (string Permalink, string? Template)>? collections)
     {
         if (item.Meta.TryGetValue("route", out var routeObj) && routeObj is IReadOnlyDictionary<string, object> routeMap)
         {
@@ -125,7 +125,7 @@ public static class RouteCommand
 
     private static Engine.Abstractions.Routing.RouteInfo GenerateBaseRoute(
         ContentItem item,
-        Dictionary<string, (string Permalink, string Template)>? collections)
+        Dictionary<string, (string Permalink, string? Template)>? collections)
     {
         var collectionKey = item.Meta.TryGetValue("collection", out var c) && c is not null
             ? c.ToString() ?? string.Empty
@@ -135,7 +135,7 @@ public static class RouteCommand
         {
             var url = ExpandPattern(rule.Permalink, item);
             var outputPath = BuildOutputPathFromUrl(url);
-            return new Engine.Abstractions.Routing.RouteInfo(url, outputPath, rule.Template);
+            return new Engine.Abstractions.Routing.RouteInfo(url, outputPath, rule.Template ?? string.Empty);
         }
 
         var typeVal = item.Meta.TryGetValue("type", out var t) && t is not null
@@ -147,18 +147,18 @@ public static class RouteCommand
             return new Engine.Abstractions.Routing.RouteInfo(
                 Url: $"/blog/{item.Slug}/",
                 OutputPath: $"blog/{item.Slug}/index.html",
-                Template: "pages/post.html");
+                Template: string.Empty);
         }
 
         return new Engine.Abstractions.Routing.RouteInfo(
             Url: $"/pages/{item.Slug}/",
             OutputPath: $"pages/{item.Slug}/index.html",
-            Template: "pages/page.html");
+            Template: string.Empty);
     }
 
     private static string DetermineBaseSource(
         ContentItem item,
-        Dictionary<string, (string, string)>? collections)
+        Dictionary<string, (string Permalink, string? Template)>? collections)
     {
         var collectionKey = item.Meta.TryGetValue("collection", out var c) && c is not null
             ? c.ToString() ?? string.Empty

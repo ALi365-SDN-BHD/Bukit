@@ -254,10 +254,19 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject ExternalPluginItemSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("name", StringSchema()),
-            ("version", StringSchema()),
-            ("path", StringSchema()),
-            ("configuration", Obj(("type", "object"))))));
+            ("runtime", EnumSchema("process")),
+            ("entry", StringSchema()),
+            ("hooks", Obj(("type", "array"), ("items", EnumSchema("after-build", "derive-pages")))),
+            ("enabled", BoolSchema()),
+            ("timeoutMs", IntSchema(1)),
+            ("maxStdoutBytes", IntSchema(1)),
+            ("maxStderrBytes", IntSchema(1)),
+            ("allowEnvironment", StringArraySchema()),
+            ("capabilities", Obj(("type", "array"), ("items", EnumSchema("emit-outputs", "derive-pages")))),
+            ("templateRequirements", StringArraySchema()),
+            ("allowAbsoluteEntry", BoolSchema()),
+            ("sha256", StringSchema()),
+            ("options", Obj(("type", "object"))))));
 
     private static JsonObject BuildReportSchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -369,7 +378,7 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject CollectionItemSchema()
     {
         var schema = Obj(("type", "object"));
-        schema["required"] = Arr("permalink", "template");
+        schema["required"] = Arr("permalink");
         schema["properties"] = Obj(
             ("permalink", StringSchema()),
             ("template", StringSchema()),

@@ -28,7 +28,7 @@ public sealed class RouteGeneratorTests
 
         Assert.Equal("/blog/my-post/", route.Url);
         Assert.Equal("blog/my-post/index.html", route.OutputPath);
-        Assert.Equal("pages/post.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public sealed class RouteGeneratorTests
 
         Assert.Equal("/pages/about/", route.Url);
         Assert.Equal("pages/about/index.html", route.OutputPath);
-        Assert.Equal("pages/page.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class RouteGeneratorTests
 
         Assert.Equal("/pages/default/", route.Url);
         Assert.Contains("default", route.OutputPath);
-        Assert.Equal("pages/page.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class RouteGeneratorTests
 
         Assert.Equal("/pages/custom/", route.Url);
         Assert.Equal("pages/custom/index.html", route.OutputPath);
-        Assert.Equal("pages/page.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     [Fact]
@@ -316,7 +316,7 @@ public sealed class RouteGeneratorTests
 
         Assert.Equal("/pages/about/", route.Url);
         Assert.Equal("custom/about/index.html", route.OutputPath.Replace('\\', '/'));
-        Assert.Equal("pages/page.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     [Fact]
@@ -400,7 +400,7 @@ public sealed class RouteGeneratorTests
 
         Assert.Equal("/only-url/", route.Url);
         Assert.Equal("only-url/index.html", route.OutputPath);
-        Assert.Equal("pages/page.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     [Fact]
@@ -419,7 +419,7 @@ public sealed class RouteGeneratorTests
 
         Assert.Equal("/only-url/", route.Url);
         Assert.Equal("out/index.html", route.OutputPath);
-        Assert.Equal("pages/page.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     [Fact]
@@ -525,7 +525,7 @@ public sealed class RouteGeneratorTests
         Assert.StartsWith("/pages/", route.Url);
         Assert.EndsWith("/", route.Url);
         Assert.Contains("index.html", route.OutputPath);
-        Assert.Equal("pages/page.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     // ── Permalink pattern tests ──────────────────────────────────────────
@@ -545,7 +545,7 @@ public sealed class RouteGeneratorTests
         Assert.Equal("/2025/03/my-post/", route.Url);
         Assert.Contains("my-post", route.OutputPath);
         Assert.Contains("index.html", route.OutputPath);
-        Assert.Equal("pages/post.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     [Fact]
@@ -576,7 +576,7 @@ public sealed class RouteGeneratorTests
         var route = RouteGenerator.Generate(item, "none", permalinks);
 
         Assert.Equal("/docs/about/", route.Url);
-        Assert.Equal("pages/page.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     [Fact]

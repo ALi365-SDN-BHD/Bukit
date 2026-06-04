@@ -223,11 +223,7 @@ internal static class I18nOutputMerger
     {
         if (collections is null || collections.Count == 0)
         {
-            return new[]
-            {
-                new RouteInfo("/blog/", RoutePathBuilder.BuildOutputPathFromUrl("/blog/"), "pages/list.html"),
-                new RouteInfo("/pages/", RoutePathBuilder.BuildOutputPathFromUrl("/pages/"), "pages/list.html")
-            };
+            return Array.Empty<RouteInfo>();
         }
 
         var routes = new List<RouteInfo>();
@@ -238,8 +234,13 @@ internal static class I18nOutputMerger
                 continue;
             }
 
+            if (string.IsNullOrWhiteSpace(cfg.ListTemplate))
+            {
+                continue;
+            }
+
             var url = RoutePathBuilder.NormalizeListRoute(cfg.ListRoute);
-            var template = string.IsNullOrWhiteSpace(cfg.ListTemplate) ? "pages/list.html" : cfg.ListTemplate.Trim();
+            var template = cfg.ListTemplate.Trim();
             routes.Add(new RouteInfo(url, RoutePathBuilder.BuildOutputPathFromUrl(url), template));
         }
 

@@ -525,7 +525,7 @@ public sealed class RouteGeneratorCoverageTests
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("/pages/hello/", route.Url);
-        Assert.Equal("pages/page.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     [Fact]
@@ -536,7 +536,7 @@ public sealed class RouteGeneratorCoverageTests
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("/pages/hello/", route.Url);
-        Assert.Equal("pages/page.html", route.Template);
+        Assert.Equal(string.Empty, route.Template);
     }
 
     // ── ExpandPermalinkPattern without type meta ──────────────────────────

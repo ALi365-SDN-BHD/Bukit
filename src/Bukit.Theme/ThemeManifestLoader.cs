@@ -39,6 +39,7 @@ public static class ThemeManifestLoader
             Extends = GetString(root, "extends"),
             Capabilities = ParseCapabilities(GetMap(root, "capabilities")),
             Layouts = ParseStringMap(GetMap(root, "layouts")),
+            Templates = ParseTemplates(GetMap(root, "templates")),
             PageTemplates = ParsePageTemplates(GetMap(root, "page_templates")),
             Sections = ParseSections(GetMap(root, "sections")),
             Components = ParseComponents(GetMap(root, "components")),
@@ -87,6 +88,41 @@ public static class ThemeManifestLoader
 
         return result.Count == 0 ? null : result;
     }
+
+    private static Dictionary<string, ThemeTemplateDefinition>? ParseTemplates(YamlMappingNode? map)
+    {
+        if (map is null) return null;
+
+        var result = new Dictionary<string, ThemeTemplateDefinition>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in ThemeYaml.EnumerateMap(map))
+        {
+            if (value is not YamlMappingNode templateMap)
+            {
+                continue;
+            }
+
+            result[key] = new ThemeTemplateDefinition
+            {
+                Template = GetString(templateMap, "template") ?? "",
+                Required = GetBool(templateMap, "required"),
+                Label = GetString(templateMap, "label"),
+                Accepts = ParseTemplateAccepts(GetMap(templateMap, "accepts")),
+                RequiredFields = ParseStringList(ThemeYaml.GetNode(templateMap, "required_fields"))
+            };
+        }
+
+        return result.Count == 0 ? null : result;
+    }
+
+    private static ThemeTemplateAccept? ParseTemplateAccepts(YamlMappingNode? map)
+        => map is null
+            ? null
+            : new ThemeTemplateAccept
+            {
+                Type = GetString(map, "type"),
+                Collection = GetString(map, "collection"),
+                Kind = GetString(map, "kind")
+            };
 
     private static ThemePageTemplateAccept? ParseAccepts(YamlMappingNode? map)
         => map is null

@@ -25,6 +25,25 @@ public sealed class DoctorCommandTests : IDisposable
         File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "post.html"), "{{ page.title }}");
         File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "index.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
         File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "list.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
+                                                                           name: test
+                                                                           templates:
+                                                                             home:
+                                                                               template: pages/index.html
+                                                                               required: true
+                                                                             page:
+                                                                               template: pages/page.html
+                                                                               accepts:
+                                                                                 type: page
+                                                                             post:
+                                                                               template: pages/post.html
+                                                                               accepts:
+                                                                                 type: post
+                                                                             list:
+                                                                               template: pages/list.html
+                                                                               accepts:
+                                                                                 kind: list
+                                                                           """);
 
         _configPath = Path.Combine(_rootDir, "site.yaml");
         File.WriteAllText(_configPath, """
@@ -55,6 +74,160 @@ public sealed class DoctorCommandTests : IDisposable
         {
             Directory.Delete(_rootDir, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task RunAsync_UsesPagesIndexHtml_WhenHomeTemplateIsNotDeclared()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), "name: test\n");
+        WriteConfigWithExplicitCollectionTemplates();
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Doctor passed", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_ReturnsError_WhenDefaultHomePagesIndexHtmlIsMissing()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), "name: test\n");
+        WriteConfigWithExplicitCollectionTemplates();
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "index.html"), "legacy root index");
+        File.Delete(Path.Combine(_rootDir, "layouts", "pages", "index.html"));
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Missing templates", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pages/index.html", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_ReturnsError_WhenPluginTemplateRequirementHasNoThemeMatch()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
+                                                                           name: test
+                                                                           templates:
+                                                                             home:
+                                                                               template: pages/index.html
+                                                                               required: true
+                                                                             post:
+                                                                               template: pages/post.html
+                                                                               accepts:
+                                                                                 type: post
+                                                                           """);
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                         collections:
+                                           post:
+                                             permalink: /blog/{slug}/
+                                             template: pages/post.html
+                                             listRoute: /blog/
+                                             listTemplate: pages/list.html
+                                             pagination:
+                                               enabled: true
+                                               pageSize: 2
+                                       content:
+                                         provider: markdown
+                                         markdown:
+                                           dir: content
+                                       build:
+                                         listPageContentMode: auto
+                                       """);
+        for (var i = 1; i <= 3; i++)
+        {
+            File.WriteAllText(Path.Combine(_rootDir, "content", $"post-{i}.md"), $"""
+                ---
+                type: post
+                title: Post {i}
+                slug: post-{i}
+                ---
+                # Post {i}
+                """);
+        }
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Plugin template requirement error", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pagination", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_ChecksExternalPluginTemplateRequirementsFromConfig()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
+                                                                           name: test
+                                                                           templates:
+                                                                             home:
+                                                                               template: pages/index.html
+                                                                               required: true
+                                                                             widget:
+                                                                               template: pages/missing-widget.html
+                                                                               accepts:
+                                                                                 kind: widget
+                                                                           """);
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                         externalPluginPolicy: allow
+                                         externalPlugins:
+                                           sample:
+                                             runtime: process
+                                             entry: plugins/sample
+                                             hooks:
+                                               - after-build
+                                             templateRequirements:
+                                               - widget
+                                         collections:
+                                           post:
+                                             permalink: /blog/{slug}/
+                                             template: pages/post.html
+                                             listRoute: /blog/
+                                             listTemplate: pages/list.html
+                                       content:
+                                         provider: markdown
+                                         markdown:
+                                           dir: content
+                                       build:
+                                         listPageContentMode: auto
+                                       """);
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Missing used templates", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pages/missing-widget.html", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void WriteConfigWithExplicitCollectionTemplates()
+    {
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                         collections:
+                                           post:
+                                             permalink: /blog/{slug}/
+                                             template: pages/post.html
+                                             listRoute: /blog/
+                                             listTemplate: pages/list.html
+                                           page:
+                                             permalink: /pages/{slug}/
+                                             template: pages/page.html
+                                             listRoute: /pages/
+                                             listTemplate: pages/list.html
+                                       content:
+                                         provider: markdown
+                                         markdown:
+                                           dir: content
+                                       build:
+                                         listPageContentMode: auto
+                                       """);
     }
 
     [Fact]
@@ -199,7 +372,7 @@ public sealed class DoctorCommandTests : IDisposable
             var output = writer.ToString();
             Assert.Contains("Migration required", output, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("collection", output, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("兼容层", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("不会根据 post/page 等固定角色推断模板", output, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -249,6 +422,205 @@ public sealed class DoctorCommandTests : IDisposable
         {
             Console.SetOut(originalOut);
         }
+    }
+
+    [Fact]
+    public async Task RunAsync_Passes_WhenUnusedTemplateKeyIsNotDeclared()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
+                                                                           name: test
+                                                                           templates:
+                                                                             home:
+                                                                               template: pages/index.html
+                                                                               required: true
+                                                                             page:
+                                                                               template: pages/page.html
+                                                                               accepts:
+                                                                                 type: page
+                                                                             list:
+                                                                               template: pages/list.html
+                                                                               accepts:
+                                                                                 kind: list
+                                                                           """);
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                         collections:
+                                           page:
+                                             permalink: /pages/{slug}/
+                                             listRoute: /pages/
+                                       content:
+                                         provider: markdown
+                                         markdown:
+                                           dir: content
+                                       build:
+                                         listPageContentMode: auto
+                                       """);
+        File.WriteAllText(Path.Combine(_rootDir, "content", "about.md"), """
+            ---
+            type: page
+            title: About
+            slug: about
+            ---
+            # About
+            """);
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Doctor passed", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("No theme template matches", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_ReturnsError_WhenContentHasNoMatchingThemeTemplate()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
+                                                                           name: test
+                                                                           templates:
+                                                                             home:
+                                                                               template: pages/index.html
+                                                                               required: true
+                                                                             page:
+                                                                               template: pages/page.html
+                                                                               accepts:
+                                                                                 type: page
+                                                                             list:
+                                                                               template: pages/list.html
+                                                                               accepts:
+                                                                                 kind: list
+                                                                           """);
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                         collections:
+                                           post:
+                                             permalink: /blog/{slug}/
+                                             listRoute: /blog/
+                                       content:
+                                         provider: markdown
+                                         markdown:
+                                           dir: content
+                                       build:
+                                         listPageContentMode: auto
+                                       """);
+        File.WriteAllText(Path.Combine(_rootDir, "content", "one.md"), """
+            ---
+            type: post
+            title: One
+            slug: one
+            ---
+            # One
+            """);
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("No theme template matches content item", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_Passes_WhenOptionalUnreferencedTemplateIsMissing()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
+                                                                           name: test
+                                                                           templates:
+                                                                             home:
+                                                                               template: pages/index.html
+                                                                               required: true
+                                                                             page:
+                                                                               template: pages/page.html
+                                                                               accepts:
+                                                                                 type: page
+                                                                             article:
+                                                                               template: pages/missing-article.html
+                                                                               accepts:
+                                                                                 type: article
+                                                                             list:
+                                                                               template: pages/list.html
+                                                                               accepts:
+                                                                                 kind: list
+                                                                           """);
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                         collections:
+                                           page:
+                                             permalink: /pages/{slug}/
+                                             listRoute: /pages/
+                                       content:
+                                         provider: markdown
+                                         markdown:
+                                           dir: content
+                                       build:
+                                         listPageContentMode: auto
+                                       """);
+        File.WriteAllText(Path.Combine(_rootDir, "content", "about.md"), """
+            ---
+            type: page
+            title: About
+            slug: about
+            ---
+            # About
+            """);
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Doctor passed", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("missing-article.html", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_ReturnsError_WhenMatchedOptionalTemplateFileIsMissing()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
+                                                                           name: test
+                                                                           templates:
+                                                                             home:
+                                                                               template: pages/index.html
+                                                                               required: true
+                                                                             post:
+                                                                               template: pages/missing-post.html
+                                                                               accepts:
+                                                                                 type: post
+                                                                             list:
+                                                                               template: pages/list.html
+                                                                               accepts:
+                                                                                 kind: list
+                                                                           """);
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                         collections:
+                                           post:
+                                             permalink: /blog/{slug}/
+                                             listRoute: /blog/
+                                       content:
+                                         provider: markdown
+                                         markdown:
+                                           dir: content
+                                       build:
+                                         listPageContentMode: auto
+                                       """);
+        File.WriteAllText(Path.Combine(_rootDir, "content", "one.md"), """
+            ---
+            type: post
+            title: One
+            slug: one
+            ---
+            # One
+            """);
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Missing used templates", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pages/missing-post.html", output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -308,6 +680,28 @@ public sealed class DoctorCommandTests : IDisposable
             {
                 Directory.Delete(initRootDir, recursive: true);
             }
+        }
+    }
+
+    private async Task<(int ExitCode, string Output)> RunDoctorAsync()
+    {
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = _configPath
+                },
+                Array.Empty<string>()));
+
+            return (exitCode, writer.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
         }
     }
 

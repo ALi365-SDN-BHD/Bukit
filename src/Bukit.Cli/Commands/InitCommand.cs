@@ -382,7 +382,6 @@ logging:
             "blog" => """
     post:
       permalink: /blog/{year}/{month}/{slug}/
-      template: pages/post.html
       listRoute: /blog/
       pagination:
         enabled: true
@@ -395,46 +394,37 @@ logging:
           depth: monthly
     page:
       permalink: /pages/{slug}/
-      template: pages/page.html
       listRoute: /pages/
 """,
             "docs" => """
     doc:
       permalink: /docs/{slug}/
-      template: pages/page.html
       listRoute: /docs/
     page:
       permalink: /{slug}/
-      template: pages/page.html
 """,
             "landing" => """
     page:
       permalink: /{slug}/
-      template: pages/page.html
       listRoute: /pages/
 """,
             "portfolio" => """
     work:
       permalink: /work/{slug}/
-      template: pages/page.html
       listRoute: /work/
     page:
       permalink: /{slug}/
-      template: pages/page.html
 """,
             "bare" or "none" => """
     page:
       permalink: /{slug}/
-      template: pages/page.html
 """,
             _ => """
     post:
       permalink: /blog/{slug}/
-      template: pages/post.html
       listRoute: /blog/
     page:
       permalink: /pages/{slug}/
-      template: pages/page.html
       listRoute: /pages/
 """
         };

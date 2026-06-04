@@ -451,6 +451,8 @@ public sealed class ConfigLoaderTests : IDisposable
                   maxStderrBytes: 4096
                   allowEnvironment:
                     - PATH
+                  templateRequirements:
+                    - widget
                   options:
                     mode: full
                     pretty: true
@@ -487,6 +489,8 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal(4096, sitemap.MaxStderrBytes);
         Assert.NotNull(sitemap.AllowEnvironment);
         Assert.Contains("PATH", sitemap.AllowEnvironment);
+        Assert.NotNull(sitemap.TemplateRequirements);
+        Assert.Contains("widget", sitemap.TemplateRequirements);
         Assert.NotNull(sitemap.Options);
         Assert.Equal("full", sitemap.Options["mode"]);
         Assert.Equal("true", sitemap.Options["pretty"]);

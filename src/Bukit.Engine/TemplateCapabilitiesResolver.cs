@@ -9,11 +9,6 @@ internal static class TemplateCapabilitiesResolver
     private const string ManifestFileName = "bukit.templates.yaml";
     private static readonly ConcurrentDictionary<string, Task<TemplateCapabilitiesManifest?>> Cache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, bool> FallbackCache = new(StringComparer.OrdinalIgnoreCase);
-    internal const string PaginationTemplatePath = "pages/pagination.html";
-    internal const string TaxonomyIndexTemplatePath = "pages/taxonomy-index.html";
-    internal const string TaxonomyTermTemplatePath = "pages/taxonomy-term.html";
-    internal const string SearchTemplatePath = "pages/search.html";
-
     internal static void ValidateManifest(string layoutsDir)
     {
         var task = Cache.GetOrAdd(layoutsDir, static dir => LoadManifestAsync(dir));

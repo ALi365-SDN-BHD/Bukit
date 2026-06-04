@@ -14,6 +14,7 @@ public static class RouteInventoryValidator
         string rootDir,
         bool isCi,
         ILogger logger,
+        ThemeTemplateResolver? templateResolver = null,
         CancellationToken cancellationToken = default)
     {
         var provider = ContentProviderFactory.Create(config, rootDir, isCi, logger);
@@ -41,6 +42,7 @@ public static class RouteInventoryValidator
         var collectionRules = BuildCollectionRules(config.Site);
         return contentItems
             .Select(i => (Item: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
+            .Select(x => (x.Item, Route: ResolveRouteTemplate(x.Item, x.Route, templateResolver)))
             .ToList();
     }
 
@@ -81,10 +83,25 @@ public static class RouteInventoryValidator
         var rules = new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase);
         foreach (var (key, collection) in site.Collections)
         {
-            rules[key] = new RouteGenerator.CollectionRouteRule(collection.Permalink, collection.Template);
+            rules[key] = new RouteGenerator.CollectionRouteRule(collection.Permalink, collection.Template ?? string.Empty);
         }
 
         return rules;
+    }
+
+    private static RouteInfo ResolveRouteTemplate(ContentItem item, RouteInfo route, ThemeTemplateResolver? templateResolver)
+    {
+        if (!string.IsNullOrWhiteSpace(route.Template))
+        {
+            return route;
+        }
+
+        if (templateResolver is null)
+        {
+            return route;
+        }
+
+        return route with { Template = templateResolver.ResolveContentTemplate(item, "detail") };
     }
 
     private static void ValidateEntries(IReadOnlyList<RouteInventoryEntry> entries)

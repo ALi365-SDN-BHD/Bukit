@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Incremental;
@@ -140,6 +141,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
     {
         var layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"), "layouts");
         Directory.CreateDirectory(Path.Combine(layoutsDir, "pages"));
+        await File.WriteAllTextAsync(Path.Combine(layoutsDir, "index.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "index.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "list.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
 
@@ -153,7 +155,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             bodyStore,
             new CaptureRenderer(),
             CreateSiteModel(),
-            null,
+            CreateCollections(),
             layoutsDir,
             "auto",
             "none",
@@ -176,6 +178,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
     {
         var layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"), "layouts");
         Directory.CreateDirectory(Path.Combine(layoutsDir, "pages"));
+        await File.WriteAllTextAsync(Path.Combine(layoutsDir, "index.html"), "{{ page.url }}");
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "index.html"), "{{ page.url }}");
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "list.html"), "{{ page.url }}");
 
@@ -188,7 +191,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             new CountingBodyStore(),
             renderer,
             CreateSiteModel(),
-            null,
+            CreateCollections(),
             layoutsDir,
             "auto",
             "none",
@@ -212,6 +215,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
     {
         var layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"), "layouts");
         Directory.CreateDirectory(Path.Combine(layoutsDir, "pages"));
+        await File.WriteAllTextAsync(Path.Combine(layoutsDir, "index.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "index.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "list.html"), "{{ for p in pages }}{{ p.content }}{{ end }}");
 
@@ -225,7 +229,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             bodyStore,
             new CaptureRenderer(),
             CreateSiteModel(),
-            null,
+            CreateCollections(),
             layoutsDir,
             "auto",
             "none",
@@ -256,6 +260,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
                                                                                              capabilities:
                                                                                                needs_page_content: false
                                                                                          """);
+        await File.WriteAllTextAsync(Path.Combine(layoutsDir, "index.html"), "{{ for p in pages }}{{ include \"partials/card.html\" /}}{{ end }}");
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "index.html"), "{{ for p in pages }}{{ include \"partials/card.html\" /}}{{ end }}");
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "list.html"), "{{ for p in pages }}{{ include \"partials/card.html\" /}}{{ end }}");
         Directory.CreateDirectory(Path.Combine(layoutsDir, "partials"));
@@ -271,7 +276,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             bodyStore,
             new CaptureRenderer(),
             CreateSiteModel(),
-            null,
+            CreateCollections(),
             layoutsDir,
             "auto",
             "none",
@@ -302,6 +307,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
                                                                                              capabilities:
                                                                                                needs_page_content: true
                                                                                          """);
+        await File.WriteAllTextAsync(Path.Combine(layoutsDir, "index.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "index.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "list.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
 
@@ -315,7 +321,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             bodyStore,
             new CaptureRenderer(),
             CreateSiteModel(),
-            null,
+            CreateCollections(),
             layoutsDir,
             "auto",
             "none",
@@ -363,6 +369,23 @@ public sealed class PageRenderDispatcherLazyBodyTests
             Language = "zh-CN"
         };
     }
+
+    private static IReadOnlyDictionary<string, CollectionConfig> CreateCollections()
+        => new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post"] = new()
+            {
+                Permalink = "/blog/{slug}/",
+                ListRoute = "/blog/",
+                ListTemplate = "pages/list.html"
+            },
+            ["page"] = new()
+            {
+                Permalink = "/pages/{slug}/",
+                ListRoute = "/pages/",
+                ListTemplate = "pages/list.html"
+            }
+        };
 
     private sealed class CaptureRenderer : ITemplateRenderer
     {

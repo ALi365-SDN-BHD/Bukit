@@ -263,6 +263,8 @@ public sealed class SiteEngineIntegrationTests
             var logger = new TestLogger();
             var engine = new SiteEngine(logger);
 
+            WriteTestThemeTemplates(root);
+
             var result = await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             Assert.Equal("dist", result.Project.Output);
@@ -360,6 +362,8 @@ public sealed class SiteEngineIntegrationTests
             var logger = new TestLogger();
             var engine = new SiteEngine(logger, new StaticContentProviderFactory(loadResult), new DefaultSearchIndexBuilder());
 
+            WriteTestThemeTemplates(root);
+
             await engine.BuildAsync(config, root, new ConfigOverrides { Incremental = false }, CancellationToken.None);
 
             var page = Path.Combine(root, "dist", "pages", "about", "index.html");
@@ -430,6 +434,7 @@ public sealed class SiteEngineIntegrationTests
             };
 
             var engine = new SiteEngine(new TestLogger());
+            WriteTestThemeTemplates(root);
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             Assert.False(File.Exists(Path.Combine(root, "dist", ".bukit", "build-report.json")));
@@ -535,6 +540,7 @@ public sealed class SiteEngineIntegrationTests
 
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
             var engine = new SiteEngine(new TestLogger());
+            WriteTestThemeTemplates(root);
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             var html = File.ReadAllText(Path.Combine(root, "dist", "blog", "hello-world", "index.html"));
@@ -650,6 +656,7 @@ public sealed class SiteEngineIntegrationTests
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
             var logger = new TestLogger();
             var engine = new SiteEngine(logger);
+            WriteTestThemeTemplates(root);
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             var visibleHtml = File.ReadAllText(Path.Combine(root, "dist", "blog", "visible", "index.html"));
@@ -787,6 +794,7 @@ public sealed class SiteEngineIntegrationTests
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
             var logger = new TestLogger();
             var engine = new SiteEngine(logger);
+            WriteTestThemeTemplates(root);
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             var indexHtml = File.ReadAllText(Path.Combine(root, "dist", "index.html"));
@@ -874,6 +882,7 @@ public sealed class SiteEngineIntegrationTests
             var logger = new TestLogger();
             var engine = new SiteEngine(logger);
 
+            WriteTestThemeTemplates(root);
             var ex = await Assert.ThrowsAsync<ConfigException>(() => engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
             Assert.Contains("seo.canonical_missing", ex.Message, StringComparison.Ordinal);
             Assert.NotEmpty(logger.Errors);
@@ -919,7 +928,10 @@ public sealed class SiteEngineIntegrationTests
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
 
+            WriteTestThemeTemplates(root);
+
             var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+
                 new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
 
             Assert.Contains("marker", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -979,6 +991,8 @@ public sealed class SiteEngineIntegrationTests
                 Build = new BuildConfig { Output = "dist", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
+
+            WriteTestThemeTemplates(root);
 
             await engine.BuildAsync(config, root, new ConfigOverrides { Jobs = 2 }, CancellationToken.None);
 
@@ -1069,10 +1083,12 @@ public sealed class SiteEngineIntegrationTests
                 Build = new BuildConfig { Output = "dist", Clean = true, LanguageJobs = 1 },
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
+            WriteTestThemeTemplates(root1);
             await new SiteEngine(logger1).BuildAsync(config1, root1, new ConfigOverrides(), CancellationToken.None);
 
             var logger3 = new TestLogger();
             var config3 = config1 with { Build = config1.Build with { LanguageJobs = 3 } };
+            WriteTestThemeTemplates(root2);
             await new SiteEngine(logger3).BuildAsync(config3, root2, new ConfigOverrides(), CancellationToken.None);
 
             Assert.Empty(logger1.Errors);
@@ -1167,10 +1183,13 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-index.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-term.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
 
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
             var logger = new TestLogger();
             var engine = new SiteEngine(logger);
+            WriteTestThemeTemplates(root);
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             var enHtml = File.ReadAllText(Path.Combine(root, "dist", "en-US", "pages", "hello", "index.html"));
@@ -1260,6 +1279,7 @@ public sealed class SiteEngineIntegrationTests
 
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
             var engine = new SiteEngine(new TestLogger());
+            WriteTestThemeTemplates(root);
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             var reportPath = Path.Combine(root, "dist", ".bukit", "seo-report.json");
@@ -1362,11 +1382,13 @@ public sealed class SiteEngineIntegrationTests
 
             var logger1 = new TestLogger();
             var engine1 = new SiteEngine(logger1);
+            WriteTestThemeTemplates(root);
             await engine1.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
             Assert.Empty(logger1.Errors);
 
             var logger2 = new TestLogger();
             var engine2 = new SiteEngine(logger2);
+            WriteTestThemeTemplates(root);
             await engine2.BuildAsync(config, root, new ConfigOverrides { Clean = false }, CancellationToken.None);
             Assert.Empty(logger2.Errors);
 
@@ -1400,6 +1422,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
 
             var config = CreatePluginOutputConfig("success");
+            WriteTestThemeTemplates(root);
             await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides { AllowExternalPlugins = true }, CancellationToken.None);
             var pluginOutput = Path.Combine(root, "dist", "plugin-output.json");
             Assert.True(File.Exists(pluginOutput));
@@ -1452,6 +1475,8 @@ public sealed class SiteEngineIntegrationTests
                 Build = new BuildConfig { Output = "dist", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts", Static = "static" }
             };
+
+            WriteTestThemeTemplates(root);
 
             await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
             var removedOutput = Path.Combine(root, "dist", "removed.txt");
@@ -1509,6 +1534,8 @@ public sealed class SiteEngineIntegrationTests
                 Theme = new ThemeConfig { Layouts = "layouts", Assets = "assets" }
             };
 
+            WriteTestThemeTemplates(root);
+
             await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
             var removedOutput = Path.Combine(root, "dist", "assets", "removed.css");
             Assert.True(File.Exists(Path.Combine(root, "dist", "assets", "keep.css")));
@@ -1537,6 +1564,8 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "themes", "parent", "layouts", "pages", "page.html"), "Before {{ page.title }}");
             var config = CreateThemeInheritanceConfig();
 
+            WriteTestThemeTemplates(root);
+
             await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
             var outputPath = Path.Combine(root, "dist", "pages", "hello", "index.html");
             Assert.Contains("Before", File.ReadAllText(outputPath));
@@ -1563,6 +1592,8 @@ public sealed class SiteEngineIntegrationTests
             Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "Before {{ page.title }}");
             var config = CreateThemeInheritanceConfig();
+
+            WriteTestThemeTemplates(root);
 
             await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
             var outputPath = Path.Combine(root, "dist", "pages", "hello", "index.html");
@@ -1616,6 +1647,8 @@ public sealed class SiteEngineIntegrationTests
                 Build = new BuildConfig { Output = "dist", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
+
+            WriteTestThemeTemplates(root);
 
             await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
             var outputPath = Path.Combine(root, "dist", "pages", "a", "index.html");
@@ -1691,6 +1724,8 @@ public sealed class SiteEngineIntegrationTests
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
 
+            WriteTestThemeTemplates(root);
+
             await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
             var removedOutput = Path.Combine(root, "dist", "blog", "b", "index.html");
             Assert.True(File.Exists(removedOutput));
@@ -1744,6 +1779,8 @@ public sealed class SiteEngineIntegrationTests
                 Build = new BuildConfig { Output = "dist", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
+
+            WriteTestThemeTemplates(root);
 
             await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
             var removedOutput = Path.Combine(root, "dist", "assets", "uploads", "posts", "2026", "article-cover.png");
@@ -1833,6 +1870,8 @@ public sealed class SiteEngineIntegrationTests
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
 
+            WriteTestThemeTemplates(root);
+
             await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             Assert.True(File.Exists(Path.Combine(root, "dist", "companies", "company-one", "index.html")));
@@ -1895,6 +1934,8 @@ public sealed class SiteEngineIntegrationTests
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
 
+            WriteTestThemeTemplates(root);
+
             await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             var html = File.ReadAllText(Path.Combine(root, "dist", "index.html"));
@@ -1930,7 +1971,10 @@ public sealed class SiteEngineIntegrationTests
                 # Two
                 """);
 
+            WriteTestThemeTemplates(root);
+
             var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+
                 new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
 
             Assert.Contains("Route conflict on url", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -1973,7 +2017,10 @@ public sealed class SiteEngineIntegrationTests
                 # Two
                 """);
 
+            WriteTestThemeTemplates(root);
+
             var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+
                 new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
 
             Assert.Contains("Route conflict on outputPath", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -2006,7 +2053,10 @@ public sealed class SiteEngineIntegrationTests
                 """);
             File.WriteAllText(Path.Combine(root, "static", "about.html"), "<main>Static About</main>");
 
+            WriteTestThemeTemplates(root);
+
             var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+
                 new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
 
             Assert.Contains("Route conflict on url", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -2041,7 +2091,10 @@ public sealed class SiteEngineIntegrationTests
                 """);
             File.WriteAllText(Path.Combine(root, "static", "about.html"), "<main>Static About</main>");
 
+            WriteTestThemeTemplates(root);
+
             var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+
                 new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
 
             Assert.Contains("Route conflict on outputPath", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -2065,6 +2118,8 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "themes", "parent", "assets", "main.css"), "parent");
             File.WriteAllText(Path.Combine(root, "themes", "child", "assets", "main.css"), "child");
 
+            WriteTestThemeTemplates(root);
+
             await new SiteEngine(new TestLogger()).BuildAsync(CreateThemeInheritanceConfig(), root, new ConfigOverrides(), CancellationToken.None);
 
             Assert.Equal("child", File.ReadAllText(Path.Combine(root, "dist", "assets", "main.css")));
@@ -2084,6 +2139,8 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "themes", "parent", "static", "robots.txt"), "parent");
             File.WriteAllText(Path.Combine(root, "themes", "child", "static", "robots.txt"), "child");
 
+            WriteTestThemeTemplates(root);
+
             await new SiteEngine(new TestLogger()).BuildAsync(CreateThemeInheritanceConfig(), root, new ConfigOverrides(), CancellationToken.None);
 
             Assert.Equal("child", File.ReadAllText(Path.Combine(root, "dist", "robots.txt")));
@@ -2101,6 +2158,8 @@ public sealed class SiteEngineIntegrationTests
         try
         {
             File.WriteAllText(Path.Combine(root, "themes", "parent", "assets", "main.css"), "parent");
+
+            WriteTestThemeTemplates(root);
 
             await new SiteEngine(new TestLogger()).BuildAsync(CreateThemeInheritanceConfig(), root, new ConfigOverrides(), CancellationToken.None);
 
@@ -2176,7 +2235,10 @@ public sealed class SiteEngineIntegrationTests
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
 
+            WriteTestThemeTemplates(root);
+
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+
                 new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
 
             Assert.Contains("route conflict", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -2244,6 +2306,8 @@ public sealed class SiteEngineIntegrationTests
                 Build = new BuildConfig { Output = "dist", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
+
+            WriteTestThemeTemplates(root);
 
             await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
@@ -2345,6 +2409,7 @@ public sealed class SiteEngineIntegrationTests
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
             var logger = new TestLogger();
             var engine = new SiteEngine(logger);
+            WriteTestThemeTemplates(root);
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             // en output should contain about, solo — NOT orphan (zh-only)
@@ -2454,6 +2519,7 @@ public sealed class SiteEngineIntegrationTests
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
             var logger = new TestLogger();
             var engine = new SiteEngine(logger);
+            WriteTestThemeTemplates(root);
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             // Verify en output
@@ -2593,6 +2659,7 @@ public sealed class SiteEngineIntegrationTests
             };
 
             var engine = new SiteEngine(new TestLogger());
+            WriteTestThemeTemplates(root);
             await engine.BuildAsync(configWithPagination, root, new ConfigOverrides(), CancellationToken.None);
 
             // en pagination page 2 should exist (2 en posts with pageSize 1)
@@ -2774,6 +2841,104 @@ public sealed class SiteEngineIntegrationTests
         }
 
         return count;
+    }
+
+    private static void WriteTestThemeTemplates(string root)
+    {
+        var localLayouts = Path.Combine(root, "layouts");
+        if (Directory.Exists(localLayouts))
+        {
+            EnsureThemeYaml(localLayouts, "test");
+        }
+
+        foreach (var themesDir in new[] { Path.Combine(root, "themes"), Path.Combine(root, ".cache", "themes") })
+        {
+            if (!Directory.Exists(themesDir))
+            {
+                continue;
+            }
+
+            foreach (var themeRoot in Directory.GetDirectories(themesDir))
+            {
+                if (Directory.Exists(Path.Combine(themeRoot, "layouts")))
+                {
+                    EnsureThemeYaml(themeRoot, Path.GetFileName(themeRoot));
+                }
+            }
+        }
+
+        static void EnsureThemeYaml(string themeRoot, string name)
+        {
+            var pagesDir = Directory.Exists(Path.Combine(themeRoot, "layouts", "pages"))
+                ? Path.Combine(themeRoot, "layouts", "pages")
+                : Path.Combine(themeRoot, "pages");
+            if (Directory.Exists(pagesDir))
+            {
+                EnsureFile(Path.Combine(pagesDir, "taxonomy-index.html"), "{{ page.content }}");
+                EnsureFile(Path.Combine(pagesDir, "taxonomy-term.html"), "{{ page.content }}");
+                EnsureFile(Path.Combine(pagesDir, "pagination.html"), "{{ page.content }}");
+                EnsureFile(Path.Combine(pagesDir, "search.html"), "{{ page.title }}");
+            }
+
+            var path = Path.Combine(themeRoot, "theme.yaml");
+            var existing = File.Exists(path) ? File.ReadAllText(path) : $"name: {name}\nversion: 1.0\n";
+            if (existing.Contains("templates:", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            File.WriteAllText(path, existing.TrimEnd() + """
+
+templates:
+  home:
+    template: pages/index.html
+    required: true
+  post:
+    template: pages/post.html
+    accepts:
+      type: post
+  page:
+    template: pages/page.html
+    accepts:
+      type: page
+  detail:
+    template: pages/page.html
+    accepts:
+      kind: detail
+  list:
+    template: pages/list.html
+    accepts:
+      kind: list
+  pagination:
+    template: pages/pagination.html
+    accepts:
+      kind: pagination
+  archive:
+    template: pages/page.html
+    accepts:
+      kind: archive
+  taxonomy_index:
+    template: pages/taxonomy-index.html
+    accepts:
+      kind: taxonomy_index
+  taxonomy_term:
+    template: pages/taxonomy-term.html
+    accepts:
+      kind: taxonomy_term
+  search:
+    template: pages/search.html
+    accepts:
+      kind: search
+""" + Environment.NewLine);
+        }
+
+        static void EnsureFile(string path, string content)
+        {
+            if (!File.Exists(path))
+            {
+                File.WriteAllText(path, content);
+            }
+        }
     }
 
     private static bool DirectoriesMatch(string dir1, string dir2)

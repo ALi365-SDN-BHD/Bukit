@@ -118,7 +118,7 @@ public sealed record LlmsTxtOptionalLink
 public sealed record CollectionConfig
 {
     public required string Permalink { get; init; }
-    public required string Template { get; init; }
+    public string? Template { get; init; }
     public string? ListRoute { get; init; }
     public string? ListTemplate { get; init; }
     public string? SchemaFailMode { get; init; }
@@ -169,7 +169,7 @@ public sealed record CollectionOutputConfig
 public sealed record ArchiveDetailConfig
 {
     public string Depth { get; init; } = "monthly";
-    public string Template { get; init; } = "pages/page.html";
+    public string? Template { get; init; }
     public string? RoutePrefix { get; init; }
 }
 
@@ -192,6 +192,7 @@ public sealed record ExternalPluginConfig
     public int MaxStderrBytes { get; init; } = 1048576;
     public IReadOnlyList<string>? AllowEnvironment { get; init; }
     public IReadOnlyList<string>? Capabilities { get; init; }
+    public IReadOnlyList<string>? TemplateRequirements { get; init; }
     public bool AllowAbsoluteEntry { get; init; }
     public string? Sha256 { get; init; }
     // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
@@ -350,7 +351,7 @@ public sealed record ImageOptimizationConfig
 
 public sealed record TaxonomyConfig
 {
-    public string Template { get; init; } = "pages/taxonomy-term.html";
+    public string? Template { get; init; }
     public string? IndexTemplate { get; init; }
     public string? TermTemplate { get; init; }
     public TaxonomyTemplatesConfig Templates { get; init; } = new();

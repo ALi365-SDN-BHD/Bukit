@@ -15,7 +15,8 @@ public static class SeoAlternatesService
         IReadOnlyList<ContentItem> items,
         IReadOnlyList<string> languages,
         string defaultLanguage,
-        string rootBaseUrl)
+        string rootBaseUrl,
+        ThemeTemplateResolver? templateResolver = null)
     {
         if (string.IsNullOrWhiteSpace(config.Site.Url) || languages.Count == 0)
         {
@@ -40,7 +41,7 @@ public static class SeoAlternatesService
                 AddAlternate(grouped, SeoModelBuilder.BuildAlternateKey(item, route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url));
             }
 
-            foreach (var route in BuildListRoutesCore(config.Site.Collections, config.Site.OutputPathEncoding))
+            foreach (var route in BuildListRoutesCore(config.Site.Collections, config.Site.OutputPathEncoding, templateResolver))
             {
                 AddAlternate(grouped, SeoModelBuilder.BuildListAlternateKey(route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url));
             }
@@ -128,23 +129,21 @@ public static class SeoAlternatesService
         return result ?? existing;
     }
 
-    internal static IReadOnlyList<RouteInfo> GetListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)
-        => BuildListRoutesCore(collections, "none");
+    internal static IReadOnlyList<RouteInfo> GetListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections, ThemeTemplateResolver? templateResolver = null)
+        => BuildListRoutesCore(collections, "none", templateResolver);
 
-    internal static IReadOnlyList<RouteInfo> BuildListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)
-        => BuildListRoutesCore(collections, "none");
+    internal static IReadOnlyList<RouteInfo> BuildListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections, ThemeTemplateResolver? templateResolver = null)
+        => BuildListRoutesCore(collections, "none", templateResolver);
 
-    internal static IReadOnlyList<RouteInfo> BuildListRoutesCore(IReadOnlyDictionary<string, CollectionConfig>? collections, string outputPathEncoding)
+    internal static IReadOnlyList<RouteInfo> BuildListRoutesCore(IReadOnlyDictionary<string, CollectionConfig>? collections, string outputPathEncoding, ThemeTemplateResolver? templateResolver = null)
     {
         var routes = new List<RouteInfo>
         {
-            new("/", "index.html", "pages/index.html")
+            new("/", "index.html", templateResolver?.ResolveHomeTemplate() ?? ThemeTemplateResolver.DefaultHomeTemplate)
         };
 
         if (collections is null || collections.Count == 0)
         {
-            routes.Add(new RouteInfo("/blog/", RoutePathBuilder.BuildOutputPathFromUrl("/blog/", outputPathEncoding), "pages/list.html"));
-            routes.Add(new RouteInfo("/pages/", RoutePathBuilder.BuildOutputPathFromUrl("/pages/", outputPathEncoding), "pages/list.html"));
             return routes;
         }
 
@@ -156,7 +155,7 @@ public static class SeoAlternatesService
             }
 
             var url = RoutePathBuilder.NormalizeListRoute(collection.ListRoute);
-            var template = string.IsNullOrWhiteSpace(collection.ListTemplate) ? "pages/list.html" : collection.ListTemplate.Trim();
+            var template = ResolveListTemplate(collection.ListTemplate, templateResolver);
             routes.Add(new RouteInfo(url, RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding), template));
 
             if (collection.FilteredLists is { Count: > 0 })
@@ -171,6 +170,21 @@ public static class SeoAlternatesService
         }
 
         return routes;
+    }
+
+    private static string ResolveListTemplate(string? explicitTemplate, ThemeTemplateResolver? templateResolver)
+    {
+        if (!string.IsNullOrWhiteSpace(explicitTemplate))
+        {
+            return explicitTemplate.Trim();
+        }
+
+        if (templateResolver is null)
+        {
+            throw new ConfigException("No list template was configured. Add site.collections.*.listTemplate or a matching theme.yaml templates entry.");
+        }
+
+        return templateResolver.ResolveKindTemplate("list");
     }
 
     internal static IReadOnlyList<string> BuildTaxonomyRouteUrls(
@@ -355,7 +369,7 @@ public static class SeoAlternatesService
         var rules = new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase);
         foreach (var (key, collection) in site.Collections)
         {
-            rules[key] = new RouteGenerator.CollectionRouteRule(collection.Permalink, collection.Template);
+            rules[key] = new RouteGenerator.CollectionRouteRule(collection.Permalink, collection.Template ?? string.Empty);
         }
 
         return rules;

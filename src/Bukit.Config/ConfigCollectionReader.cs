@@ -31,7 +31,7 @@ internal static class ConfigCollectionReader
             collections[keyNode.Value.Trim()] = new CollectionConfig
             {
                 Permalink = ConfigYamlHelpers.GetRequiredString(collectionNode, "permalink"),
-                Template = ConfigYamlHelpers.GetRequiredString(collectionNode, "template"),
+                Template = ConfigYamlHelpers.GetOptionalString(collectionNode, "template"),
                 ListRoute = ConfigYamlHelpers.GetOptionalString(collectionNode, "listRoute"),
                 ListTemplate = ConfigYamlHelpers.GetOptionalString(collectionNode, "listTemplate"),
                 SchemaFailMode = ConfigYamlHelpers.GetOptionalString(collectionNode, "schemaFailMode"),
@@ -108,7 +108,7 @@ internal static class ConfigCollectionReader
             collections[keyNode.Value.Trim()] = new CollectionConfig
             {
                 Permalink = ConfigYamlHelpers.GetRequiredString(collectionNode, "permalink"),
-                Template = ConfigYamlHelpers.GetRequiredString(collectionNode, "template"),
+                Template = ConfigYamlHelpers.GetOptionalString(collectionNode, "template"),
                 ListRoute = ConfigYamlHelpers.GetOptionalString(collectionNode, "listRoute"),
                 ListTemplate = ConfigYamlHelpers.GetOptionalString(collectionNode, "listTemplate"),
                 SchemaFailMode = ConfigYamlHelpers.GetOptionalString(collectionNode, "schemaFailMode"),

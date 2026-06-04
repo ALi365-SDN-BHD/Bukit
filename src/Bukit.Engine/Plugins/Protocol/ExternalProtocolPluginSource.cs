@@ -76,7 +76,7 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
         return string.Equals(hex, expectedHash.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
-    private sealed class ExternalProtocolPlugin : IBukitPlugin, IAfterBuildAsyncPlugin, IDerivePagesAsyncPlugin, IHookFilterPlugin
+    private sealed class ExternalProtocolPlugin : IBukitPlugin, IAfterBuildAsyncPlugin, IDerivePagesAsyncPlugin, IHookFilterPlugin, ITemplateRequirementPlugin
     {
         private readonly ExternalPluginConfig _config;
         private readonly BuildContext _context;
@@ -94,6 +94,9 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
 
         public bool SupportsHook(string hook)
             => HasHook(_config, hook);
+
+        public IReadOnlyList<string> GetTemplateRequirementKinds(BuildContext context)
+            => _config.TemplateRequirements ?? Array.Empty<string>();
 
         public Task<IReadOnlyList<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route, DateTimeOffset LastModified)>> DerivePagesAsync(
             BuildContext context,

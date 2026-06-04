@@ -74,7 +74,20 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
         {
             Config = new AppConfig
             {
-                Site = new SiteConfig { Name = "test", Title = "test" },
+                Site = new SiteConfig
+                {
+                    Name = "test",
+                    Title = "test",
+                    Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/blog/{slug}/",
+                            ListRoute = "/blog/",
+                            Pagination = new CollectionPaginationConfig { Enabled = true, PageSize = 10 }
+                        }
+                    }
+                },
                 Content = new ContentConfig { Provider = "markdown" }
             },
             RootDir = _rootDir,
@@ -82,6 +95,9 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
             BaseUrl = "/",
             LayoutsDir = _layoutsDir,
             Routed = routed,
+            TemplateResolver = kind => kind.Equals("pagination", StringComparison.OrdinalIgnoreCase)
+                ? "pages/pagination.html"
+                : throw new ConfigException($"Unexpected template kind: {kind}"),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
     }

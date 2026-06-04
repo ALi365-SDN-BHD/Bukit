@@ -8,6 +8,8 @@ namespace Bukit.Theme;
 [YamlSerializable(typeof(ThemeAssetsConfig))]
 [YamlSerializable(typeof(ThemePageTemplateDefinition))]
 [YamlSerializable(typeof(ThemePageTemplateAccept))]
+[YamlSerializable(typeof(ThemeTemplateDefinition))]
+[YamlSerializable(typeof(ThemeTemplateAccept))]
 [YamlSerializable(typeof(ThemeSectionDefinition))]
 [YamlSerializable(typeof(ThemeComponentDefinition))]
 [YamlSerializable(typeof(ThemeVariantDefinition))]

@@ -194,6 +194,7 @@ internal static class SiteDefaultsApplier
                 MaxStderrBytes = ConfigYamlHelpers.GetOptionalIntStrict(pluginNode, "maxStderrBytes") ?? 1048576,
                 AllowEnvironment = ConfigYamlHelpers.ReadStringList(pluginNode, "allowEnvironment"),
                 Capabilities = ConfigYamlHelpers.ReadStringList(pluginNode, "capabilities"),
+                TemplateRequirements = ConfigYamlHelpers.ReadStringList(pluginNode, "templateRequirements"),
                 AllowAbsoluteEntry = ConfigYamlHelpers.GetOptionalBool(pluginNode, "allowAbsoluteEntry") ?? false,
                 Options = options
             };

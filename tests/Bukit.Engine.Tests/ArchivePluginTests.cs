@@ -34,7 +34,20 @@ public sealed class ArchivePluginTests
         {
             Config = new AppConfig
             {
-                Site = new SiteConfig { Name = "test", Title = "test" },
+                Site = new SiteConfig
+                {
+                    Name = "test",
+                    Title = "test",
+                    Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/blog/{slug}/",
+                            ListRoute = "/blog/",
+                            Output = new CollectionOutputConfig { Archive = true }
+                        }
+                    }
+                },
                 Content = new ContentConfig { Provider = "markdown" }
             },
             RootDir = "/test",
@@ -42,6 +55,9 @@ public sealed class ArchivePluginTests
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
             Routed = routed,
+            TemplateResolver = kind => kind.Equals("archive", StringComparison.OrdinalIgnoreCase)
+                ? "pages/archive.html"
+                : throw new ConfigException($"Unexpected template kind: {kind}"),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
     }
@@ -194,6 +210,9 @@ public sealed class ArchivePluginTests
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
             Routed = routed,
+            TemplateResolver = kind => kind.Equals("archive", StringComparison.OrdinalIgnoreCase)
+                ? "pages/archive.html"
+                : throw new ConfigException($"Unexpected template kind: {kind}"),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
