@@ -17,6 +17,7 @@ public sealed class TaxonomyEnsureTermsTests
     [Fact]
     public void DerivePages_WithEnsureTerms_GeneratesEmptyCategoryTermPage()
     {
+        var layoutsDir = CreateTaxonomyLayoutsDir();
         var ctx = new BuildContext
         {
             Config = new AppConfig
@@ -27,8 +28,9 @@ public sealed class TaxonomyEnsureTermsTests
             RootDir = "C:\\",
             OutputDir = "C:\\out",
             BaseUrl = "/",
-            LayoutsDir = "C:\\layouts",
+            LayoutsDir = layoutsDir,
             Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -104,6 +106,7 @@ public sealed class TaxonomyEnsureTermsTests
     public void TaxonomyPlugin_ReusesIndexCache_AcrossDeriveAndAfterBuild()
     {
         TaxonomyPlugin.ResetBuildIndexCountForTests();
+        var layoutsDir = CreateTaxonomyLayoutsDir();
         var ctx = new BuildContext
         {
             Config = new AppConfig
@@ -114,7 +117,7 @@ public sealed class TaxonomyEnsureTermsTests
             RootDir = "C:\\",
             OutputDir = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-tests", Guid.NewGuid().ToString("N")),
             BaseUrl = "/",
-            LayoutsDir = "C:\\layouts",
+            LayoutsDir = layoutsDir,
             Routed = new List<(ContentItem Item, RouteInfo Route)>
             {
                 (
@@ -132,6 +135,7 @@ public sealed class TaxonomyEnsureTermsTests
                     new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")
                 )
             },
+            TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -151,5 +155,22 @@ public sealed class TaxonomyEnsureTermsTests
         }
 
         Assert.Equal(2, TaxonomyPlugin.BuildIndexCountForTests);
+    }
+
+    private static string ResolveTemplateKind(string kind)
+        => kind.Trim().ToLowerInvariant() switch
+        {
+            "taxonomy_index" => "pages/taxonomy-index.html",
+            "taxonomy_term" => "pages/taxonomy-term.html",
+            _ => throw new ConfigException($"Unexpected template kind: {kind}")
+        };
+
+    private static string CreateTaxonomyLayoutsDir()
+    {
+        var layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-tests-" + Guid.NewGuid().ToString("N"), "layouts");
+        Directory.CreateDirectory(Path.Combine(layoutsDir, "pages"));
+        File.WriteAllText(Path.Combine(layoutsDir, "pages", "taxonomy-index.html"), "{{ page.content }}");
+        File.WriteAllText(Path.Combine(layoutsDir, "pages", "taxonomy-term.html"), "{{ page.content }}");
+        return layoutsDir;
     }
 }

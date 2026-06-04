@@ -192,6 +192,7 @@ public sealed record ExternalPluginConfig
     public int MaxStderrBytes { get; init; } = 1048576;
     public IReadOnlyList<string>? AllowEnvironment { get; init; }
     public IReadOnlyList<string>? Capabilities { get; init; }
+    public IReadOnlyList<string>? TemplateRequirements { get; init; }
     public bool AllowAbsoluteEntry { get; init; }
     public string? Sha256 { get; init; }
     // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).

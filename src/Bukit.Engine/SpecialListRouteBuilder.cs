@@ -24,7 +24,7 @@ public static class SpecialListRouteBuilder
     {
         var index = CollectionRouteIndex.Create(routed);
         var list = new List<SpecialListDefinition>();
-        var homeRoute = new RouteInfo("/", "index.html", templateResolver?.ResolveHomeTemplate() ?? "index.html");
+        var homeRoute = new RouteInfo("/", "index.html", templateResolver?.ResolveHomeTemplate() ?? ThemeTemplateResolver.DefaultHomeTemplate);
         list.Add(new SpecialListDefinition(
             homeRoute,
             index.AllOrdered,

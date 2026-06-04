@@ -139,7 +139,7 @@ public static class SeoAlternatesService
     {
         var routes = new List<RouteInfo>
         {
-            new("/", "index.html", templateResolver?.ResolveHomeTemplate() ?? "index.html")
+            new("/", "index.html", templateResolver?.ResolveHomeTemplate() ?? ThemeTemplateResolver.DefaultHomeTemplate)
         };
 
         if (collections is null || collections.Count == 0)

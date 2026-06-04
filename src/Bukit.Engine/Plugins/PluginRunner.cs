@@ -9,6 +9,33 @@ namespace Bukit.Engine.Plugins;
 
 public static class PluginRunner
 {
+    public static IReadOnlyList<string> CollectTemplateRequirementKinds(BuildContext context)
+    {
+        var kinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (plugin, _) in GetOrderedPlugins(context))
+        {
+            if (!IsPluginEnabled(context, plugin.Name))
+            {
+                continue;
+            }
+
+            if (plugin is not ITemplateRequirementPlugin templateRequirements)
+            {
+                continue;
+            }
+
+            foreach (var kind in templateRequirements.GetTemplateRequirementKinds(context))
+            {
+                if (!string.IsNullOrWhiteSpace(kind))
+                {
+                    kinds.Add(kind.Trim());
+                }
+            }
+        }
+
+        return kinds.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     public static IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> RunDerivePages(BuildContext context)
         => RunDerivePagesAsync(context).GetAwaiter().GetResult();
 

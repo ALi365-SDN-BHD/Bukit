@@ -8,7 +8,7 @@ namespace Bukit.Engine;
 public sealed class ThemeTemplateResolver
 {
     private const string HomeTemplateKey = "home";
-    private const string DefaultHomeTemplate = "index.html";
+    internal const string DefaultHomeTemplate = "pages/index.html";
 
     private readonly ThemeManifestV2? _manifest;
 
@@ -81,7 +81,7 @@ public sealed class ThemeTemplateResolver
                 continue;
             }
 
-            if (Matches(def.Accepts.Kind, kind))
+            if (!string.IsNullOrWhiteSpace(def.Accepts.Kind) && Matches(def.Accepts.Kind, kind))
             {
                 template = NormalizeTemplatePath(def.Template);
                 return true;

@@ -8,10 +8,22 @@ using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin
+public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateRequirementPlugin
 {
     public string Name => "archive";
     public string Version => "2.0.0";
+
+    public IReadOnlyList<string> GetTemplateRequirementKinds(BuildContext context)
+    {
+        var archiveCollection = ResolveArchiveCollection(context.Config);
+        if (archiveCollection is null || string.IsNullOrWhiteSpace(archiveCollection.Value.Config.ListRoute))
+        {
+            return Array.Empty<string>();
+        }
+
+        var posts = CollectionRouteIndex.GetOrBuild(context).GetByCollection(archiveCollection.Value.Key);
+        return posts.Count > 0 ? new[] { "archive" } : Array.Empty<string>();
+    }
 
     public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
     {

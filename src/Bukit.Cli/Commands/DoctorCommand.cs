@@ -54,8 +54,8 @@ public static class DoctorCommand
         {
             Console.WriteLine("✖ Migration required: site.collections is not configured");
             Console.WriteLine("  - collection 驱动路由已成为主模型，请在 site.collections 中声明每个内容集合的 permalink/template/listRoute");
-            Console.WriteLine("  - post/page 默认规则仍作为兼容层保留，但不再是新项目的推荐主路径");
-            Console.WriteLine("  - 示例：site.collections.article.permalink=/articles/{slug}/, listRoute=/articles/；模板由 theme.yaml templates 匹配");
+            Console.WriteLine("  - 核心不会根据 post/page 等固定角色推断模板；请通过 site.yaml 显式模板或 theme.yaml templates.accepts 匹配");
+            Console.WriteLine("  - 示例：site.collections.article.permalink=/articles/{slug}/, listRoute=/articles/；模板由 theme.yaml templates 匹配或 collection.template 覆盖");
             return 1;
         }
 
@@ -293,15 +293,15 @@ public static class DoctorCommand
 
         var issues = 0;
 
-        var knownPlugins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "feed", "taxonomy", "sitemap", "search", "related", "menus", "seo", "geo"
-        };
+        var discoveredPluginNames = plugins
+            .Select(p => p.Name)
+            .Concat(config.Site.ExternalPlugins?.Keys ?? Array.Empty<string>())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (config.Site.Plugins is { Count: > 0 })
         {
             foreach (var key in config.Site.Plugins.Keys)
             {
-                if (!knownPlugins.Contains(key))
+                if (!discoveredPluginNames.Contains(key))
                 {
                     Console.WriteLine($"⚠ Unknown plugin '{key}' in site.plugins configuration");
                     issues++;
@@ -372,6 +372,42 @@ public static class DoctorCommand
         }
 
         var listRoutes = SiteEngine.GetListRoutes(config.Site.Collections, templateResolver);
+        IReadOnlyList<string> pluginRequirementTemplates;
+        try
+        {
+            var routedPluginContext = new BuildContext
+            {
+                Config = config,
+                RootDir = rootDir,
+                OutputDir = Path.Combine(rootDir, config.Build.Output),
+                BaseUrl = config.Site.BaseUrl,
+                LayoutsDir = layoutsDir,
+                Routed = routed,
+                BodyStore = Bukit.Engine.Abstractions.Content.NullContentBodyStore.Instance,
+                TemplateResolver = templateResolver.ResolveKindTemplate,
+                Logger = new ConsoleLogger(LogLevel.Info)
+            };
+            pluginRequirementTemplates = CollectPluginRequirementTemplates(routedPluginContext, templateResolver);
+        }
+        catch (ConfigException ex)
+        {
+            Console.WriteLine("✖ Plugin template requirement error");
+            Console.WriteLine(ex.Message);
+            return 1;
+        }
+
+        var missingUsedTemplates = CollectMissingUsedTemplates(layoutsDir, routed, listRoutes, pluginRequirementTemplates);
+        if (missingUsedTemplates.Count > 0)
+        {
+            Console.WriteLine("✖ Missing used templates:");
+            foreach (var template in missingUsedTemplates)
+            {
+                Console.WriteLine($"  - {template}");
+            }
+
+            return 1;
+        }
+
         DoctorManifestChecker.CheckUnreferencedTemplates(layoutsDir, allHtmlFiles, config, listRoutes);
 
         Console.WriteLine();
@@ -435,6 +471,37 @@ public static class DoctorCommand
                 templates.Add(template.Trim());
             }
         }
+    }
+
+    private static IReadOnlyList<string> CollectMissingUsedTemplates(
+        string layoutsDir,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RouteInfo> listRoutes,
+        IReadOnlyList<string>? pluginRequirementTemplates = null)
+    {
+        return routed
+            .Select(x => x.Route.Template)
+            .Concat(listRoutes.Select(x => x.Template))
+            .Concat(pluginRequirementTemplates ?? Array.Empty<string>())
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim().Replace('\\', '/'))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(t => !File.Exists(Path.Combine(layoutsDir, t.Replace('/', Path.DirectorySeparatorChar))))
+            .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static IReadOnlyList<string> CollectPluginRequirementTemplates(
+        BuildContext context,
+        ThemeTemplateResolver templateResolver)
+    {
+        var templates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kind in PluginRunner.CollectTemplateRequirementKinds(context))
+        {
+            templates.Add(templateResolver.ResolveKindTemplate(kind));
+        }
+
+        return templates.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private static void AnalyzeTemplateChains(string layoutsDir, string[] allHtmlFiles)

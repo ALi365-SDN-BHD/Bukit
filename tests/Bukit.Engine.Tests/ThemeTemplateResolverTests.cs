@@ -10,11 +10,11 @@ namespace Bukit.Engine.Tests;
 public sealed class ThemeTemplateResolverTests
 {
     [Fact]
-    public void ResolveHomeTemplate_WithoutThemeDeclaration_DefaultsToIndexHtml()
+    public void ResolveHomeTemplate_WithoutThemeDeclaration_DefaultsToPagesIndexHtml()
     {
         var resolver = new ThemeTemplateResolver(null);
 
-        Assert.Equal("index.html", resolver.ResolveHomeTemplate());
+        Assert.Equal("pages/index.html", resolver.ResolveHomeTemplate());
     }
 
     [Fact]

@@ -341,8 +341,8 @@ public sealed class SiteEngineHelperTests
         var result = SeoAlternatesService.BuildListRoutes(null!);
 
         Assert.Contains(result, r => r.Url == "/");
-        Assert.Contains(result, r => r.Url == "/blog/");
-        Assert.Contains(result, r => r.Url == "/pages/");
+        Assert.DoesNotContain(result, r => r.Url == "/blog/");
+        Assert.DoesNotContain(result, r => r.Url == "/pages/");
     }
 
     [Fact]
@@ -350,8 +350,8 @@ public sealed class SiteEngineHelperTests
     {
         var collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
         {
-            ["post"] = new CollectionConfig { Permalink = "/articles/:slug/", Template = "pages/post.html", ListRoute = "/articles/" },
-            ["project"] = new CollectionConfig { Permalink = "/work/:slug/", Template = "pages/project.html", ListRoute = "/work/" }
+            ["post"] = new CollectionConfig { Permalink = "/articles/:slug/", Template = "pages/post.html", ListRoute = "/articles/", ListTemplate = "pages/list.html" },
+            ["project"] = new CollectionConfig { Permalink = "/work/:slug/", Template = "pages/project.html", ListRoute = "/work/", ListTemplate = "pages/list.html" }
         };
 
         var result = SeoAlternatesService.BuildListRoutes(collections);

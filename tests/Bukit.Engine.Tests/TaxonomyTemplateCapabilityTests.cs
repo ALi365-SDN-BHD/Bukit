@@ -84,6 +84,12 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
             {
                 (item, new RouteInfo("/blog/post/", Path.Combine("blog", "post", "index.html"), "pages/post.html"))
             },
+            TemplateResolver = kind => kind.Trim().ToLowerInvariant() switch
+            {
+                "taxonomy_index" => "pages/taxonomy-index.html",
+                "taxonomy_term" => "pages/taxonomy-term.html",
+                _ => throw new ConfigException($"Unexpected template kind: {kind}")
+            },
             Logger = new ConsoleLogger(LogLevel.Error)
         };
     }

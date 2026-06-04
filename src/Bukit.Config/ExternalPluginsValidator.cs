@@ -86,6 +86,17 @@ internal static class ExternalPluginsValidator
                 }
             }
 
+            if (plugin.TemplateRequirements is { Count: > 0 })
+            {
+                for (var i = 0; i < plugin.TemplateRequirements.Count; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(plugin.TemplateRequirements[i]))
+                    {
+                        throw new ConfigException($"site.externalPlugins.{name}.templateRequirements[{i}] must be a non-empty string.");
+                    }
+                }
+            }
+
             if (runtime == "process")
             {
                 ValidateProcessPluginOptions(name, plugin.Options);

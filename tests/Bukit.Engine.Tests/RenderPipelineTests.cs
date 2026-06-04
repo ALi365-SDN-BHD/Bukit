@@ -38,7 +38,7 @@ public sealed class RenderPipelineTests
             BodyStore: EmptyContentBodyStore.Instance,
             Renderer: renderer,
             SiteModel: new SiteModel { Name = "test", Title = "Test", BaseUrl = "/", Language = "en" },
-            Collections: null,
+            Collections: CreateCollections(),
             LayoutsDir: layoutsDir,
             ListPageContentMode: "auto",
             OutputPathEncoding: "pretty",
@@ -90,7 +90,7 @@ public sealed class RenderPipelineTests
             BodyStore: EmptyContentBodyStore.Instance,
             Renderer: new CaptureRenderer(),
             SiteModel: new SiteModel { Name = "test", Title = "Test", BaseUrl = "/", Language = "en" },
-            Collections: null,
+            Collections: CreateCollections(),
             LayoutsDir: layoutsDir,
             ListPageContentMode: "auto",
             OutputPathEncoding: "pretty",
@@ -106,6 +106,23 @@ public sealed class RenderPipelineTests
         Assert.True(manifest.Entries.ContainsKey("blog/hello/index.html"));
         Assert.True(manifest.Entries.ContainsKey("index.html"));
     }
+
+    private static IReadOnlyDictionary<string, CollectionConfig> CreateCollections()
+        => new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post"] = new()
+            {
+                Permalink = "/blog/{slug}/",
+                ListRoute = "/blog/",
+                ListTemplate = "pages/list.html"
+            },
+            ["page"] = new()
+            {
+                Permalink = "/pages/{slug}/",
+                ListRoute = "/pages/",
+                ListTemplate = "pages/list.html"
+            }
+        };
 
     private sealed class CaptureRenderer : ITemplateRenderer
     {

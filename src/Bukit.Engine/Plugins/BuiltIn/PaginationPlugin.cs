@@ -8,10 +8,23 @@ using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin
+public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateRequirementPlugin
 {
     public string Name => "pagination";
     public string Version => "2.0.0";
+
+    public IReadOnlyList<string> GetTemplateRequirementKinds(BuildContext context)
+    {
+        var paginationCollection = ResolvePaginationCollection(context.Config);
+        if (paginationCollection is null || string.IsNullOrWhiteSpace(paginationCollection.Value.Config.ListRoute))
+        {
+            return Array.Empty<string>();
+        }
+
+        var pageSize = paginationCollection.Value.Config.Pagination.PageSize;
+        var posts = CollectionRouteIndex.GetOrBuild(context).GetByCollection(paginationCollection.Value.Key);
+        return posts.Count > pageSize ? new[] { "pagination" } : Array.Empty<string>();
+    }
 
     public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
     {

@@ -17,6 +17,7 @@ public sealed class TaxonomyPinningTests
     public void DerivePages_WithPinnedItemAcrossSources_PinnedFirstInCategory()
     {
         var routed = new List<(ContentItem Item, RouteInfo Route)>();
+        var layoutsDir = CreateTaxonomyLayoutsDir();
         var ctx = new BuildContext
         {
             Config = new AppConfig
@@ -27,8 +28,9 @@ public sealed class TaxonomyPinningTests
             RootDir = "C:\\",
             OutputDir = "C:\\out",
             BaseUrl = "/",
-            LayoutsDir = "C:\\layouts",
+            LayoutsDir = layoutsDir,
             Routed = routed,
+            TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -79,6 +81,7 @@ public sealed class TaxonomyPinningTests
     public void DerivePages_WithPinFieldBySource_UsesSourceSpecificField()
     {
         var routed = new List<(ContentItem Item, RouteInfo Route)>();
+        var layoutsDir = CreateTaxonomyLayoutsDir();
         var ctx = new BuildContext
         {
             Config = new AppConfig
@@ -97,8 +100,9 @@ public sealed class TaxonomyPinningTests
             RootDir = "C:\\",
             OutputDir = "C:\\out",
             BaseUrl = "/",
-            LayoutsDir = "C:\\layouts",
+            LayoutsDir = layoutsDir,
             Routed = routed,
+            TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -149,6 +153,7 @@ public sealed class TaxonomyPinningTests
     public void DerivePages_WithPinOrderField_SortsPinnedByOrder()
     {
         var routed = new List<(ContentItem Item, RouteInfo Route)>();
+        var layoutsDir = CreateTaxonomyLayoutsDir();
         var ctx = new BuildContext
         {
             Config = new AppConfig
@@ -164,8 +169,9 @@ public sealed class TaxonomyPinningTests
             RootDir = "C:\\",
             OutputDir = "C:\\out",
             BaseUrl = "/",
-            LayoutsDir = "C:\\layouts",
+            LayoutsDir = layoutsDir,
             Routed = routed,
+            TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -217,5 +223,22 @@ public sealed class TaxonomyPinningTests
         var second = Assert.IsType<Dictionary<string, object>>(list[1]);
         Assert.Equal("Pinned 1", first["title"]);
         Assert.Equal("Pinned 2", second["title"]);
+    }
+
+    private static string ResolveTemplateKind(string kind)
+        => kind.Trim().ToLowerInvariant() switch
+        {
+            "taxonomy_index" => "pages/taxonomy-index.html",
+            "taxonomy_term" => "pages/taxonomy-term.html",
+            _ => throw new ConfigException($"Unexpected template kind: {kind}")
+        };
+
+    private static string CreateTaxonomyLayoutsDir()
+    {
+        var layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-pinning-tests-" + Guid.NewGuid().ToString("N"), "layouts");
+        Directory.CreateDirectory(Path.Combine(layoutsDir, "pages"));
+        File.WriteAllText(Path.Combine(layoutsDir, "pages", "taxonomy-index.html"), "{{ page.content }}");
+        File.WriteAllText(Path.Combine(layoutsDir, "pages", "taxonomy-term.html"), "{{ page.content }}");
+        return layoutsDir;
     }
 }

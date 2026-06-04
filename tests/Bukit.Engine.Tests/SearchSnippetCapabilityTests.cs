@@ -86,6 +86,9 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
             {
                 (item, route)
             },
+            TemplateResolver = kind => kind.Equals("search", StringComparison.OrdinalIgnoreCase)
+                ? "pages/search.html"
+                : throw new ConfigException($"Unexpected template kind: {kind}"),
             SeoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
             {
                 [BuildPathUtils.NormalizeRelPath(route.OutputPath)] = new(

@@ -19,6 +19,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         string outputMode = "pages",
         string outputPathEncoding = "none")
     {
+        var layoutsDir = CreateTaxonomyLayoutsDir();
         return new BuildContext
         {
             Config = new AppConfig
@@ -34,10 +35,28 @@ public sealed class TaxonomyPluginDerivePagesTests
             RootDir = "/test",
             OutputDir = "/test/out",
             BaseUrl = "/",
-            LayoutsDir = "/test/layouts",
+            LayoutsDir = layoutsDir,
             Routed = routed,
+            TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+    }
+
+    private static string ResolveTemplateKind(string kind)
+        => kind.Trim().ToLowerInvariant() switch
+        {
+            "taxonomy_index" => "pages/taxonomy-index.html",
+            "taxonomy_term" => "pages/taxonomy-term.html",
+            _ => throw new ConfigException($"Unexpected template kind: {kind}")
+        };
+
+    private static string CreateTaxonomyLayoutsDir()
+    {
+        var layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-tests-" + Guid.NewGuid().ToString("N"), "layouts");
+        Directory.CreateDirectory(Path.Combine(layoutsDir, "pages"));
+        File.WriteAllText(Path.Combine(layoutsDir, "pages", "taxonomy-index.html"), "{{ page.content }}");
+        File.WriteAllText(Path.Combine(layoutsDir, "pages", "taxonomy-term.html"), "{{ page.content }}");
+        return layoutsDir;
     }
 
     private static (ContentItem Item, RouteInfo Route) CreateItem(
@@ -318,8 +337,9 @@ public sealed class TaxonomyPluginDerivePagesTests
             RootDir = "/test",
             OutputDir = "/test/out",
             BaseUrl = "/my-site",
-            LayoutsDir = "/test/layouts",
+            LayoutsDir = CreateTaxonomyLayoutsDir(),
             Routed = routed,
+            TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 

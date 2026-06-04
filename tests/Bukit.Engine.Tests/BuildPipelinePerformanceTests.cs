@@ -103,10 +103,32 @@ public sealed class BuildPipelinePerformanceTests
                 {{ end }}
                 </ul>
                 """);
+            File.WriteAllText(Path.Combine(themeDir, "layouts", "pages", "taxonomy-index.html"), "{{ page.content }}");
+            File.WriteAllText(Path.Combine(themeDir, "layouts", "pages", "taxonomy-term.html"), "{{ page.content }}");
 
             File.WriteAllText(Path.Combine(themeDir, "theme.yaml"), $"""
                 name: {themeName}
                 version: 1.0
+                templates:
+                  home:
+                    template: pages/index.html
+                    required: true
+                  post:
+                    template: pages/post.html
+                    accepts:
+                      type: post
+                  list:
+                    template: pages/list.html
+                    accepts:
+                      kind: list
+                  taxonomy_index:
+                    template: pages/taxonomy-index.html
+                    accepts:
+                      kind: taxonomy_index
+                  taxonomy_term:
+                    template: pages/taxonomy-term.html
+                    accepts:
+                      kind: taxonomy_term
                 """);
 
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
@@ -199,6 +221,18 @@ public sealed class BuildPipelinePerformanceTests
             File.WriteAllText(Path.Combine(themeDir, "theme.yaml"), """
                 name: starter
                 version: 1.0
+                templates:
+                  home:
+                    template: pages/index.html
+                    required: true
+                  post:
+                    template: pages/post.html
+                    accepts:
+                      type: post
+                  list:
+                    template: pages/list.html
+                    accepts:
+                      kind: list
                 """);
 
             File.WriteAllText(Path.Combine(themeDir, "layouts", "layouts", "base.html"), """
