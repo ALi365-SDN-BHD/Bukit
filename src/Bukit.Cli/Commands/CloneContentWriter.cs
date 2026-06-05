@@ -175,7 +175,7 @@ internal static class CloneContentWriter
         var sb = new StringBuilder();
         sb.AppendLine("---");
         sb.AppendLine($"title: {CloneYamlWriter.YamlScalar(title)}");
-        sb.AppendLine("type: page");
+        sb.AppendLine("collection: page");
         sb.AppendLine("slug: index");
         sb.AppendLine("template: pages/index.html");
         if (!string.IsNullOrWhiteSpace(page.Url))

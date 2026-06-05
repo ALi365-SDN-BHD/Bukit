@@ -644,7 +644,7 @@ User says "help me build a Bukit blog":
 | Notion connection failed (401) | NOTION_TOKEN not set or invalid | Set env var `NOTION_TOKEN` |
 | Notion connection failed (404) | Wrong databaseId | Check content.notion.databaseId in site.yaml |
 | `Config error` (doctor) | site.collections not configured | Add collections config per doctor prompt |
-| `Missing templates` (doctor) | Template files missing | Ensure 5 required template files exist under themes/<name>/layouts/ |
+| `Missing templates` (doctor) | A required or referenced template file is missing | Check `theme.yaml templates`, `required: true`, collection templates, content route templates, and plugin template requirements |
 | `Route inventory error` (doctor) | Route URL or outputPath conflicts detected | Fix conflicting slugs, URLs, or permalink patterns |
 | `Route conflict on url` / `Route conflict on outputPath` (build) | Multiple content items generate identical URLs or output paths | Ensure unique slugs/outputPaths or adjust routing |
 

@@ -279,7 +279,7 @@ SEO-related advice: [11 Multilingual & SEO](./11-i18n-seo.md) and the `seo-best-
 
 ## Using Independent Templates for Different Content Types
 
-In Starter theme (`examples/starter/layouts/pages/`), `page.html` is shared by multiple pages (about/contact/join), `list.html` is shared by various list types, and so on. This is a design choice of the **Starter theme** — it's not a limitation of the Bukit engine. The engine simply resolves templates based on your `site.yaml` collections configuration: it looks up `template` for single pages and `listTemplate` for list routes, falling back to sensible defaults when absent.
+In Starter theme (`examples/starter/layouts/pages/`), `page.html` is shared by multiple pages (about/contact/join), `list.html` is shared by various list types, and so on. This is a design choice of the **Starter theme** — it's not a limitation of the Bukit engine. The engine resolves templates from explicit config: route/front matter, `site.collections`, and the active theme's `theme.yaml templates.accepts` rules. If no template rule matches, doctor/build fails and tells you what to configure.
 
 You can assign dedicated templates to different content types in three ways:
 

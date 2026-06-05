@@ -1,5 +1,6 @@
 ---
 title: Contact Us
+collection: page
 slug: contact
 ---
 

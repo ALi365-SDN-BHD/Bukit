@@ -1,5 +1,6 @@
 ---
 title: About Us
+collection: page
 slug: about
 ---
 

@@ -2,6 +2,15 @@ site:
   name: component-demo
   title: Bukit Component Theme Demo
   url: https://example.com
+  collections:
+    page:
+      permalink: /{slug}/
+      template: pages/home.html
+    posts:
+      permalink: /posts/{slug}/
+      template: pages/page.html
+      listRoute: /posts/
+      listTemplate: pages/list.html
 
 content:
   provider: markdown

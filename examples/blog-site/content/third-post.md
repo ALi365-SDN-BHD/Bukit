@@ -1,6 +1,6 @@
 ---
 title: Third Post
-type: post
+collection: post
 publishAt: 2025-03-10
 summary: Third post about performance optimization.
 categories:

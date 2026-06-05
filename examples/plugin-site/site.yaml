@@ -17,7 +17,6 @@ content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 build:
   output: dist
   clean: true

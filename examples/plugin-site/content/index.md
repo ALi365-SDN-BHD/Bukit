@@ -1,5 +1,6 @@
 ---
 title: Plugin Example
+collection: page
 slug: home
 ---
 

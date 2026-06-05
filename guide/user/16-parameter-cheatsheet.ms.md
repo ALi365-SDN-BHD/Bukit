@@ -71,7 +71,7 @@ Halaman ini adalah untuk carian pantas. Untuk rujukan medan berwibawa yang lebih
 | `content.sources[].type` | Jenis sumber | `markdown` / `notion` |
 | `content.sources[].name` | Nama sumber | `pages` / `posts` / `modules` |
 | `content.sources[].mode` | Mod tingkah laku | `content` / `data` |
-| `content.sources[].markdown` | Sub-konfigurasi Markdown | `{ dir: content, defaultType: page }` |
+| `content.sources[].markdown` | Sub-konfigurasi Markdown | `{ dir: content }` |
 | `content.sources[].notion` | Sub-konfigurasi Notion | `{ databaseId: "...", fieldPolicy: { mode: all } }` |
 
 ## build.* (Output Binaan)

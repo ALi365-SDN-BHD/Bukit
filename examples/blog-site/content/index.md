@@ -1,6 +1,6 @@
 ---
 title: Home
-type: page
+collection: page
 slug: home
 ---
 

@@ -21,11 +21,11 @@ start with a blog, docs, landing, or portfolio visual direction without running
 a separate theme command.
 
 Template content skeletons:
-- `minimal`: `content/hello-world.md`, `defaultType: page`
-- `blog`: `content/posts/welcome.md` plus `content/pages/about.md`, data modules for the homepage, `defaultType: post`, dated blog permalinks, pagination, RSS/archive output
-- `docs`: `content/docs/getting-started.md` plus `content/docs/configuration.md`, data modules for the homepage, `defaultType: doc`, `/docs/{slug}/` routes
-- `landing`: `content/pages/overview.md` plus `content/pages/contact.md`, homepage feature/CTA modules, `defaultType: page`, flat page routes
-- `portfolio`: `content/work/sample-project.md` plus `content/pages/about.md`, data modules for the homepage, `defaultType: work`, `/work/{slug}/` routes
+- `minimal`: `content/hello-world.md`, explicit `collection: page`
+- `blog`: `content/posts/welcome.md` plus `content/pages/about.md`, data modules for the homepage, explicit `collection: post/page`, dated blog permalinks, pagination, RSS/archive output
+- `docs`: `content/docs/getting-started.md` plus `content/docs/configuration.md`, data modules for the homepage, explicit `collection: doc`, `/docs/{slug}/` routes
+- `landing`: `content/pages/overview.md` plus `content/pages/contact.md`, homepage feature/CTA modules, explicit `collection: page`, flat page routes
+- `portfolio`: `content/work/sample-project.md` plus `content/pages/about.md`, data modules for the homepage, explicit `collection: work/page`, `/work/{slug}/` routes
 
 Non-minimal Markdown templates use `content.provider: sources`: content
 sources are assigned to their collection, while `data/` is loaded with

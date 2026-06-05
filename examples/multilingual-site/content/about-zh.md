@@ -1,5 +1,6 @@
 ---
 title: 关于
+collection: page
 slug: about
 language: zh-CN
 ---

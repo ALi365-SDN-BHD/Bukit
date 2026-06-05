@@ -1,5 +1,6 @@
 ---
 title: 首页
+collection: page
 slug: home
 language: zh-CN
 ---

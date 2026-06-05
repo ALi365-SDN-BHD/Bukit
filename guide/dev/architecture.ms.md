@@ -248,5 +248,5 @@ Pintu masuk utama:
 ## Perspektif Semakan Semasa (P1)
 
 - **Model bodi**: Saluran utama kini menggunakan pola bacaan bodi tertunda `BodyStore + BodyKey`; fokus patut beralih kepada pentakatan bacaan/penimbal untuk senario berskala besar.
-- **Model laluan**: `collections` telah dilaksanakan dan boleh memacu strategi laluan dan templat; peraturan lalai `post/page` adalah lapisan keserasian, bukan model tunggal.
+- **Model laluan**: Laluan utama kini ialah `collections`, route/template eksplisit, dan theme `templates.accepts`; teras tidak sepatutnya mengekalkan peraturan lalai `post/page`.
 - **Sempadan repositori**: Repositori semasa memberi tumpuan kepada barisan utama `Bukit`; penyelenggaraan dan semakan berdasarkan `bukit.slnx` dan `src/Bukit.*`.

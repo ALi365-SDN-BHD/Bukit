@@ -253,7 +253,7 @@ Scriban 中用 `{{ comp.render "PostCard" page.title page.url }}`。
 ## 开发工作流建议
 
 1. 从 `examples/starter/themes/alt` 复制一个新主题目录作为起点
-2. 确保四个必备模板存在（index/list/post/page）
+2. 在 `theme.yaml` 声明需要的 `templates`，确认 `home` 与 `required: true` 模板存在
 3. 把可配置项放进 `theme.params`，避免在模板里硬编码
 4. 本地开发时用 `bukit dev`（HMR 开发服务器）获得文件监控和实时刷新；快速验证构建产物时用 `bukit build` + `bukit preview`
 5. 发布前检查：

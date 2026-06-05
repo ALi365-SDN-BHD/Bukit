@@ -1,5 +1,5 @@
 ---
-type: page
+collection: page
 slug: hello-en
 language: en-US
 summary: English demo page

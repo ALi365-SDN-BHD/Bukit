@@ -159,11 +159,11 @@ internal static class CloneThemeGenerator
         sb.AppendLine("  page:");
         sb.AppendLine("    template: pages/page.html");
         sb.AppendLine("    accepts:");
-        sb.AppendLine("      type: page");
+        sb.AppendLine("      collection: page");
         sb.AppendLine("  post:");
         sb.AppendLine("    template: pages/post.html");
         sb.AppendLine("    accepts:");
-        sb.AppendLine("      type: post");
+        sb.AppendLine("      collection: post");
         sb.AppendLine("  detail:");
         sb.AppendLine("    template: pages/page.html");
         sb.AppendLine("    accepts:");

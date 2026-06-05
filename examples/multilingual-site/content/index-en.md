@@ -1,5 +1,6 @@
 ---
 title: Home
+collection: page
 slug: home
 language: en
 ---

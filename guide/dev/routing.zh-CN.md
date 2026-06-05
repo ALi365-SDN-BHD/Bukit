@@ -25,9 +25,9 @@ site:
 - `permalink`（必须包含 `{slug}`）
 - `template`
 
-## Permalink 模式（兼容层）
+## Permalink 模式
 
-`site.permalinks` 仍可作为兼容输入，但推荐迁移到 `site.collections`。
+`site.permalinks` 可作为显式路由输入；新项目推荐使用 `site.collections`。
 
 ```yaml
 site:
@@ -59,8 +59,8 @@ site:
 1. 全量路由覆盖（url + outputPath + template）← 最高
 2. 部分路由覆盖（仅 url 或 url + template）
 3. Collection 规则 — `site.collections`
-4. Permalink 模式 — `site.permalinks`（兼容层）
-5. 默认路由规则（post → `/blog/{slug}/`，page → `/pages/{slug}/`）
+4. Permalink 模式 — `site.permalinks`
+5. 无匹配规则时抛出配置错误，提示补充 collection、route 或模板配置
 
 实现参考：`RouteGenerator.ExpandPermalinkPattern` / `RouteGenerator.BuildFromPermalink`
 

@@ -16,7 +16,7 @@ guide_chapters:
 
 ## Overview
 
-`site.yaml` is Bukit's single configuration entry point, following the convention-over-configuration philosophy. Seven top-level nodes: `site`, `content`, `build`, `theme`, `taxonomy`, `logging`, `deploy`. Most fields have sensible defaults — a minimal working site.yaml needs only about 20 lines.
+`site.yaml` is Bukit's single configuration entry point. Seven top-level nodes: `site`, `content`, `build`, `theme`, `taxonomy`, `logging`, `deploy`. Routing and templates are explicit: content must match `site.collections`, `site.permalinks`, route front matter, or theme `templates.accepts`; otherwise doctor/build fails with an actionable config error.
 
 **REQUIRED SUB-SKILL:** Verify config changes with `bukit build`. CLI commands reference bukit-cli-reference.
 
@@ -97,7 +97,6 @@ content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: post
 
 build:
   output: dist
@@ -252,7 +251,7 @@ SEO-oriented configs should include both `site.url` and `site.description`. With
 | Field | Type | Default | Description |
 |------|------|--------|------|
 | `dir` | string | `content` | Markdown file directory (relative path) |
-| `defaultType` | string | `page` | Default content type (maps to collection) |
+| `defaultType` | string | — | Optional content type to inject when a Markdown file has neither `collection` nor `type`. Omit it for fully explicit front matter. |
 | `maxItems` | int | — | Max item count |
 | `includePaths` | string[] | — | Specific file paths to include |
 | `includeGlobs` | string[] | — | Glob pattern filtering |
@@ -322,7 +321,7 @@ content:
 
 | Field | Type | Default | Description |
 |------|------|--------|------|
-| `template` | string | `pages/page.html` | Default template for taxonomy term pages |
+| `template` | string | — | Optional taxonomy template. If omitted, the active theme must declare matching `templates.*.accepts.kind` entries such as `taxonomy_index` / `taxonomy_term`. |
 | `indexTemplate` | string | — | Taxonomy index page template |
 | `termTemplate` | string | — | Taxonomy term page template (overrides template) |
 | `pageSize` | int | 10 | Entries per page |
@@ -401,7 +400,7 @@ Collection routing is Bukit's core routing model. Each entry must declare:
 | `permalink` | string | **Yes** | URL pattern, **must include `{slug}`**. Supports `{slug}`/`{year}`/`{month}`/`{day}`/`{type}` |
 | `template` | string | **Yes** | Template file path (e.g., `pages/post.html`) |
 | `listRoute` | string | — | List page route, must start with `/` |
-| `listTemplate` | string | — | Template for list page rendering (e.g., `pages/blog-list.html`); defaults to `pages/list.html` |
+| `listTemplate` | string | — | Template for list page rendering (e.g., `pages/blog-list.html`). If omitted, the active theme must declare a template accepting `kind: list`. |
 | `pagination.enabled` | bool | — | Enable pagination |
 | `pagination.pageSize` | int | 10 | Entries per page (positive integer) |
 | `output.rss` | bool | true | Whether the collection generates RSS |
@@ -852,8 +851,8 @@ These stages can be extended or reordered via `IContentStage` (plugin developmen
 | Symptom | Likely Cause | Fix |
 |---|---|---|
 | Build succeeds but pages are generated under unexpected URLs | `baseUrl`, collection `permalink`, or CLI `--base-url` override differs from the intended deployment path | Keep `site.baseUrl` as `/` for root deployments, use `/subpath/` for subdirectory deployments, and check CLI overrides before changing `site.yaml` |
-| A collection has content files but no list page appears | `listRoute` is missing, points to the wrong path, or the list template is absent | Add `listRoute`, verify it starts with `/`, and ensure `listTemplate` or `pages/list.html` exists in the active theme |
-| Markdown pages render as the wrong type | `content.markdown.defaultType` does not match a key in `site.collections`, or front matter `type` is missing | Align `defaultType` and front matter `type` with the collection key used in `site.collections` |
+| A collection has content files but no list page appears | `listRoute` is missing, points to the wrong path, or no list template can be resolved | Add `listRoute`, verify it starts with `/`, and configure `listTemplate` or a theme `templates.*.accepts.kind: list` rule |
+| Markdown pages render with the wrong route or template | Front matter `collection` is missing/mismatched, or no route/template rule matches the item | Align front matter `collection` with `site.collections`, or add an explicit front matter `template` / theme `templates.*.accepts` rule |
 | Notion pages are fetched but fields are missing in templates | `fieldPolicy.mode: whitelist` excludes properties needed by templates | Add required properties to `fieldPolicy.allowed`, or use `fieldPolicy.mode: all` when exploring a new database schema |
 | Taxonomy pages are empty or terms are missing | `taxonomy.kinds[].key` does not match the content field name, or `taxonomy.outputMode` disables page output | Match `key` to the front matter or Notion property name and use `outputMode: both` or `pages` when term pages should be generated |
 | Pagination URLs duplicate or conflict with other routes | `pagination.urlPattern`, `listRoute`, or collection `permalink` overlap | Keep pagination paths under the list route, for example `listRoute: /blog/` with `urlPattern: page/:num/` |

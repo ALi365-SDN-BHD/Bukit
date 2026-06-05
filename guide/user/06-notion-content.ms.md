@@ -81,7 +81,8 @@ Nama medan di bawah adalah berdasarkan nama paparan UI Notion dan peka huruf bes
 | `Published` | checkbox | Sama ada untuk menerbitkan (disyorkan hanya hasilkan kandungan yang diterbitkan) |
 | `Title` | title | Tajuk kandungan |
 | `Slug` | rich_text atau formula(string) | Slug URL (lalai boleh dijana dari Title, tetapi eksplisit disyorkan untuk kestabilan) |
-| `Type` | select atau multi_select | `page`/`post` (untuk lapisan keserasian; disyorkan untuk tambahan mencipta medan `Collection` yang sepadan dengan kunci site.collections) |
+| `Collection` | select atau rich_text | Kunci collection yang sepadan dengan `site.collections`, seperti `page`, `post`, atau `docs` |
+| `Type` | select atau multi_select | Jenis kandungan pilihan atau kunci padanan templat tema; tidak mencipta laluan terbina dalam |
 | `PublishAt` | date | Tarikh terbit (lalai boleh menggunakan masa semasa, tetapi eksplisit disyorkan) |
 
 ### Medan Pelbagai Bahasa (pilihan, tetapi disyorkan)

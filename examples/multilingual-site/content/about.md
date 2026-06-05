@@ -1,5 +1,6 @@
 ---
 title: About
+collection: page
 slug: about
 language: en
 ---

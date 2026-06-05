@@ -1,5 +1,6 @@
 ---
 title: Templating
+collection: page
 slug: docs/templating
 ---
 

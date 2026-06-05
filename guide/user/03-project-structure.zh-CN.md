@@ -129,16 +129,13 @@ themes/
 - 推荐：slug 与文件名一致（例如 `hello-world.md` → slug `hello-world`）
 - 如果你要做多语言与 i18n 关联，建议同时维护一个稳定的 `i18n_key`（Notion 里尤其常见）
 
-### type（page / post）— 兼容层
+### collection / type（路由匹配字段）
 
 > 推荐优先使用 `site.collections` 定义内容集合与路由规则（见 [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)）。
 
-当未配置 collections 时，引擎使用 type 字段作为兼容回退：
+需要生成路由的内容应声明 `collection`，并匹配 `site.collections` 中的 key；也可以在 Front Matter 显式声明 `template` / `route`。`type` 仍可作为内容分类或主题 `templates.*.accepts.type` 的匹配键，但不会单独触发内置 `page` / `post` 路由。
 
-- `page`：页面（关于、帮助、产品介绍等）
-- `post`：文章（博客、新闻、更新日志等）
-
-主题一般会按 type 或 collection 区分模板和列表页；不建议随意增加太多自定义 type，除非你的主题已支持对应模板。
+主题一般会按 collection、type 或其它 `accepts` 条件区分模板和列表页；不建议随意增加太多自定义值，除非站点配置或主题已声明对应行为。
 
 ### language（多语言）
 

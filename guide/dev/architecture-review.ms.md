@@ -23,8 +23,8 @@ Saluran paip utama menggunakan corak bacaan tertunda `BodyStore + BodyKey`.
 ### 3.1 Bacaan/Cache Badan Skala Besar (Sederhana-Tinggi)
 Pemuatan badan telah ditangguhkan tetapi peringkat rendering/carian/RSS masih mencetuskan bacaan pada laluan berbeza.
 
-### 3.2 Tadbir Urus collections vs Lapisan Keserasian (Sederhana)
-`collections` adalah laluan utama; peraturan lalai `post/page` adalah lapisan keserasian.
+### 3.2 Tadbir Urus Laluan Dipacu Konfigurasi (Sederhana)
+`collections`, route/template eksplisit, dan theme `templates.accepts` ialah kontrak laluan/templat; teras tidak sepatutnya mengekalkan peranan tetap.
 
 ### 3.3 Kebolehlanjutan CLI (Sederhana)
 Penghuraian argumen ringan adalah mesra AOT tetapi keupayaan deklaratif perlu penambahbaikan.
@@ -38,5 +38,5 @@ Penghuraian argumen ringan adalah mesra AOT tetapi keupayaan deklaratif perlu pe
 
 ## 5. Syor Keutamaan
 1. Lengkapkan tadbir urus penanda aras bacaan/cache badan
-2. Tumpukan strategi koleksi dan lapisan keserasian
+2. Selaraskan keperluan laluan dan templat dipacu konfigurasi merentasi dokumen, contoh, dan starter
 3. Wujudkan semakan konsistensi dokumen-aset

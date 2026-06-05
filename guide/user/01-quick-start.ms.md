@@ -77,11 +77,14 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 build:
   output: dist
   clean: true
@@ -94,15 +97,11 @@ logging:
   level: info
 ```
 
-> **Disyorkan: Gunakan site.collections untuk mentakrifkan penghalaan dan templat** Konfigurasi di atas bergantung pada lapisan keserasian post/page untuk penghalaan (page →`/pages/`, post →`/blog/`). Untuk projek baharu, kami mengesyorkan mengisytiharkan collections secara eksplisit (lihat [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)). Contoh:
+> **Penghalaan dikonfigurasi secara eksplisit.** Kandungan Markdown perlu memadankan `collection` dengan `site.collections`, atau mengisytiharkan `template` / `route` secara eksplisit. Untuk menambah blog, perluas collections:
 >
 > ```yaml
 > site:
 >   collections:
->     page:
->       permalink: /pages/{slug}/
->       template: pages/page.html
->       listRoute: /pages/
 >     post:
 >       permalink: /blog/{slug}/
 >       template: pages/post.html
@@ -150,4 +149,3 @@ dotnet run --project ../src/Bukit.Cli -c Release -- preview --dir dist --port au
 - Modul tapak syarikat (Modules): [09 Modul Data Berstruktur](./09-modules-data.ms.md)
 - Pelbagai bahasa & SEO: [11 Pelbagai Bahasa & SEO](./11-i18n-seo.ms.md)
 - Menerapkan ke GitHub Pages: [13 Terap GitHub Pages](./13-deploy-github-pages.ms.md)
-

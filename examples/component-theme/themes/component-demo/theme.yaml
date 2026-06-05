@@ -16,6 +16,23 @@ capabilities:
 layouts:
   default: layouts/base.html
 
+templates:
+  home:
+    template: pages/index.html
+    required: true
+  componentHome:
+    template: pages/home.html
+    accepts:
+      collection: page
+  componentPage:
+    template: pages/page.html
+    accepts:
+      collection: posts
+  componentList:
+    template: pages/list.html
+    accepts:
+      kind: list
+
 page_templates:
   home:
     template: pages/home.html

@@ -21,8 +21,8 @@ ContentItem 是引擎的统一输入模型，包含：
 ### Meta（引擎决策）
 
 常见 Meta 键：
-- `collection`：对应 site.collections 中的 key（推荐；优先级高于 type）
-- `type`：`post` / `page`（兼容层；当未配置 collection 或 collection 未命中时用于默认路由与模板）
+- `collection`：对应 site.collections 中的 key（推荐，用于匹配路由与模板）
+- `type`：可选内容分类或主题模板匹配键；不触发核心默认路由
 - `draft`：草稿标记（见下方"草稿过滤"一节）
 - `language`：多语言过滤（内容项的语言归属）
 - `route` 或 `url/outputPath/template`：路由覆盖（见 [路由](./routing.zh-CN.md)）

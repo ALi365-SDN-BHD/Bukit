@@ -172,7 +172,7 @@ Notes:
 
 | Field | Type | Required | Default | Description |
 |---|---:|---:|---|---|
-| `taxonomy.template` | string | No | `pages/page.html` | Default template for taxonomy derived pages (used for index/term) |
+| `taxonomy.template` | string | No | null | Optional template for taxonomy derived pages (used for index/term). If omitted, the active theme must declare templates accepting `kind: taxonomy_index` / `kind: taxonomy_term`. |
 | `taxonomy.indexTemplate` | string | No | null | Taxonomy index page template (e.g., `/tags/`, `/categories/`); falls back to `taxonomy.template` when empty |
 | `taxonomy.termTemplate` | string | No | null | Taxonomy term page template (e.g., `/tags/<slug>/`); falls back to `taxonomy.template` when empty |
 | `taxonomy.kinds` | list | No | null | Generalized taxonomy definition list; generates arbitrary kinds (not just tags/categories). Each entry requires at least `key`, optional `kind/title/singularTitlePrefix/template/indexTemplate/termTemplate/indexEnabled/hierarchical` |
@@ -211,7 +211,7 @@ Notes:
 2. `taxonomy.indexTemplate` / `taxonomy.termTemplate`
 3. `taxonomy.templates.<kind>.template`
 4. `taxonomy.template`
-5. Fallback `pages/page.html`
+5. Theme template declaration via `theme.yaml templates.*.accepts.kind` (`taxonomy_index` / `taxonomy_term`)
 
 ### Complete Example
 

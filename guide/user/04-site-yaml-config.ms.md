@@ -23,11 +23,14 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 build:
   output: dist
   clean: true
@@ -215,7 +218,6 @@ content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 ```
 
 | Medan | Fungsi | Penerangan |
@@ -276,7 +278,6 @@ content:
       mode: content
       markdown:
         dir: content
-        defaultType: page
     - type: markdown
       name: modules
       mode: data
@@ -481,7 +482,7 @@ content:
     - type: markdown
       name: content
       mode: content
-      markdown: { dir: content, defaultType: page }
+      markdown: { dir: content }
     - type: markdown
       name: modules
       mode: data

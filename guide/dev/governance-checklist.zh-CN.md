@@ -3,7 +3,7 @@
 本清单把架构评审结论转为可执行动作，供维护者按周期执行。目标是持续降低以下风险：
 
 - 超大规模场景下正文读取与缓存失控
-- `collections` 主路径与 `post/page` 兼容路径口径漂移
+- 配置驱动路由/模板需求与核心实现口径漂移
 - 文档与仓库资产再次失真
 
 ## 1) 正文读取与缓存基线
@@ -34,17 +34,18 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter
 - 通过：incremental 相比 clean 有稳定收益，且无异常错误或明显读放大迹象
 - 告警：incremental 收益异常下降、日志出现重复重渲染异常、manifest 行为异常
 
-## 2) Collections 与兼容层治理
+## 2) 配置驱动路由治理
 
 ### 2.1 统一口径
 
 - 主路径：`site.collections`（集合级 permalink/template/list 策略）
-- 兼容路径：`post/page` 默认规则（仅兼容用途，不作为长期扩展主模型）
+- 模板路径：front matter `template`、collection `template` / `listTemplate`、或主题 `templates.*.accepts`
+- 核心不得重新引入 `post/page` 默认路由回退
 
 ### 2.2 变更前检查
 
-- 是否可以先通过 `collections` 配置达成目标
-- 是否会影响现有主题对 `post/page` 的兼容行为
+- 是否可以通过 `collections`、显式模板或主题 `accepts` 规则达成目标
+- 是否会影响 doctor 收集与校验模板需求的行为
 - 是否需要在 `RouteGeneratorTests` 增加对应场景
 
 ### 2.3 变更后验证
@@ -99,7 +100,7 @@ rg -n "\\.github/workflows/smoke\\.yml|\\.github/workflows/build\\.yaml" README*
 
 ### 每季度
 
-- 回顾 collections 与兼容层策略是否需要收敛
+- 回顾配置驱动路由/模板需求策略是否需要补充测试或文档
 - 复核 `architecture-review.md` 评分与优先级是否需更新
 
 ## 5) 变更触发器（必须执行清单）

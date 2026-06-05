@@ -23,11 +23,14 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 build:
   output: dist
   clean: true
@@ -170,7 +173,7 @@ site:
       listRoute: /pages/
 ```
 
-By default, articles of type `post` use URLs like `/blog/<slug>/`, and type `page` uses `/pages/<slug>/`. If you want to customize the URL structure (for example to include dates), you can use `site.permalinks`:
+There is no built-in `post` or `page` URL fallback. Content must match a collection, a global permalink rule, or an explicit `route` override. If you want date-based URLs, configure them explicitly:
 
 ```yaml
 site:
@@ -216,13 +219,22 @@ content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
+```
+
+Each routed Markdown file should declare `collection` (recommended) or `type`, and the site must declare a matching route/template rule:
+
+```yaml
+site:
+  collections:
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
 ```
 
 | Field | Purpose | Description |
 |---|---|---|
 | `content.markdown.dir` | Markdown root directory | Recursively reads `*.md` |
-| `content.markdown.defaultType` | Default type when `type` is not declared | Commonly `page` |
+| `content.markdown.defaultType` | Optional type injected when neither `collection` nor `type` is declared | Omit for explicit front matter; set only when all files in the source share one configured collection/type |
 | `content.markdown.maxItems` | Maximum number of items to read | Positive integer; used to limit large repositories |
 | `content.markdown.includePaths` | Only read specified paths | Relative to `content.markdown.dir`; `.md` may be omitted |
 | `content.markdown.includeGlobs` | Only read matching globs | Matches relative paths; separator uses `/` |
@@ -290,7 +302,6 @@ content:
       mode: content
       markdown:
         dir: content
-        defaultType: page
     - type: markdown
       name: modules
       mode: data
@@ -501,7 +512,7 @@ content:
     - type: markdown
       name: content
       mode: content
-      markdown: { dir: content, defaultType: page }
+      markdown: { dir: content }
     - type: markdown
       name: modules
       mode: data

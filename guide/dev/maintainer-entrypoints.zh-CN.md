@@ -113,7 +113,7 @@ dotnet run --project src/Bukit.Cli -c Release -- doctor --config <your-site.yaml
 
 ### 4.1 什么时候看这一章
 
-- 改 `post/page` 兼容 URL 规则
+- 改配置驱动路由/模板解析规则
 - 改 `site.collections` 的 permalink/template/list 策略
 - 改 `site.permalinks`
 - 改 `route/url/outputPath/template` override

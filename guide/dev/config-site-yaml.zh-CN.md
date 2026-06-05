@@ -194,7 +194,7 @@ content 支持两种模式：
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |---|---:|---:|---|---|
 | `dir` | string | 否 | `content` | Markdown 内容目录（相对 config 所在目录） |
-| `defaultType` | string | 否 | `page` | 未指定 type 时的默认类型（page/post 等） |
+| `defaultType` | string | 否 | null | 未指定 type 时注入的可选元数据；不作为核心默认路由依据 |
 | `maxItems` | int | 否 | null | 最多读取多少篇（正整数；按路径排序后截断） |
 | `includePaths` | string[] | 否 | null | 只读取指定路径（相对 dir；可省略 `.md`） |
 | `includeGlobs` | string[] | 否 | null | 只读取匹配的 glob（匹配相对路径，分隔符使用 `/`）；每项必须为非空字符串 |

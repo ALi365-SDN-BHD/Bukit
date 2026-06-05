@@ -1,5 +1,6 @@
 ---
 title: Deployment
+collection: page
 slug: docs/deployment
 ---
 

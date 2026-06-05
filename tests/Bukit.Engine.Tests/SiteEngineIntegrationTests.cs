@@ -470,6 +470,10 @@ public sealed class SiteEngineIntegrationTests
                   url: https://example.com/
                   baseUrl: /docs/
                   language: en
+                  collections:
+                    post:
+                      permalink: /blog/{slug}/
+                      template: pages/post.html
                   seo:
                     defaultImage: /assets/default-og.png
                     twitterSite: "@bukit"
@@ -498,6 +502,7 @@ public sealed class SiteEngineIntegrationTests
                 slug: hello-world
                 publishAt: 2024-06-01T00:00:00Z
                 update_time: 2024-06-02T00:00:00Z
+                schema_type: BlogPosting
                 summary: A hello world post
                 seo_title: Custom SEO Title
                 seo_desc: Custom SEO Description
@@ -587,6 +592,10 @@ public sealed class SiteEngineIntegrationTests
                   url: https://example.com/
                   baseUrl: /docs/
                   language: en-US
+                  collections:
+                    post:
+                      permalink: /blog/{slug}/
+                      template: pages/post.html
                   seo:
                     renderMode: inject
                     diagnostics: strict
@@ -851,6 +860,10 @@ public sealed class SiteEngineIntegrationTests
                   name: strict-seo
                   title: Strict SEO
                   url: https://example.com
+                  collections:
+                    post:
+                      permalink: /blog/{slug}/
+                      template: pages/post.html
                   seo:
                     renderMode: theme
                     diagnostics: strict
@@ -1136,6 +1149,10 @@ public sealed class SiteEngineIntegrationTests
                   languages: [en-US, ms-MY]
                   defaultLanguage: en-US
                   sitemapMode: merged
+                  collections:
+                    page:
+                      permalink: /pages/{slug}/
+                      template: pages/page.html
                   seo:
                     renderMode: inject
                     diagnostics: strict
@@ -1240,6 +1257,10 @@ public sealed class SiteEngineIntegrationTests
                   title: SEO Report
                   url: https://example.com
                   baseUrl: /docs/
+                  collections:
+                    post:
+                      permalink: /blog/{slug}/
+                      template: pages/post.html
                   seo:
                     renderMode: inject
                     diagnostics: warn
@@ -1261,6 +1282,7 @@ public sealed class SiteEngineIntegrationTests
                 slug: visible
                 summary: Visible post summary
                 publishAt: 2024-01-01T00:00:00Z
+                schema_type: BlogPosting
                 ---
                 # Visible
                 """);
@@ -2227,6 +2249,11 @@ public sealed class SiteEngineIntegrationTests
                             Template = "pages/post.html",
                             ListRoute = "/blog/",
                             Pagination = new CollectionPaginationConfig { Enabled = true, PageSize = 2 }
+                        },
+                        ["page"] = new()
+                        {
+                            Permalink = "/pages/{slug}/",
+                            Template = "pages/page.html"
                         }
                     }
                 },
@@ -2353,6 +2380,10 @@ public sealed class SiteEngineIntegrationTests
                   defaultLanguage: en
                   sitemapMode: merged
                   searchMode: merged
+                  collections:
+                    page:
+                      permalink: /pages/{slug}/
+                      template: pages/page.html
                 content:
                   provider: markdown
                   media:
@@ -2472,6 +2503,10 @@ public sealed class SiteEngineIntegrationTests
                   defaultLanguage: en
                   sitemapMode: merged
                   searchMode: merged
+                  collections:
+                    page:
+                      permalink: /pages/{slug}/
+                      template: pages/page.html
                 content:
                   provider: markdown
                   media:

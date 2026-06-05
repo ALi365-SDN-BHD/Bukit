@@ -104,6 +104,25 @@ public sealed class DoctorCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_ReturnsError_WhenHomeRequiredFalse()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
+                                                                           name: test
+                                                                           templates:
+                                                                             home:
+                                                                               template: pages/index.html
+                                                                               required: false
+                                                                           """);
+        WriteConfigWithExplicitCollectionTemplates();
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Theme template config error", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("home.required", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task RunAsync_ReturnsError_WhenPluginTemplateRequirementHasNoThemeMatch()
     {
         File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
@@ -344,7 +363,7 @@ public sealed class DoctorCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task RunAsync_ReturnsError_WhenCollectionsNotConfigured()
+    public async Task RunAsync_Passes_WhenCollectionsNotConfiguredAndNoContentUsesOnlyHome()
     {
         File.WriteAllText(_configPath, """
                                        site:
@@ -356,28 +375,44 @@ public sealed class DoctorCommandTests : IDisposable
                                            dir: content
                                        """);
 
-        using var writer = new StringWriter(new StringBuilder());
-        var originalOut = Console.Out;
-        Console.SetOut(writer);
-        try
-        {
-            var exitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
-                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["--config"] = _configPath
-                },
-                Array.Empty<string>()));
+        var (exitCode, output) = await RunDoctorAsync();
 
-            Assert.Equal(1, exitCode);
-            var output = writer.ToString();
-            Assert.Contains("Migration required", output, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("collection", output, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("不会根据 post/page 等固定角色推断模板", output, StringComparison.OrdinalIgnoreCase);
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-        }
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Doctor passed", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Migration required", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_Passes_WhenCollectionsNotConfiguredButContentHasFullRouteTemplate()
+    {
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                       content:
+                                         provider: markdown
+                                         markdown:
+                                           dir: content
+                                       build:
+                                         listPageContentMode: auto
+                                       """);
+        File.WriteAllText(Path.Combine(_rootDir, "content", "about.md"), """
+            ---
+            title: About
+            slug: about
+            route:
+              url: /about/
+              outputPath: about/index.html
+              template: pages/page.html
+            ---
+            # About
+            """);
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Doctor passed", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Migration required", output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

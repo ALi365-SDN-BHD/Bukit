@@ -81,7 +81,8 @@ content:
 | `Published` | checkbox | 是否发布（建议只渲染已发布内容） |
 | `Title` | title | 内容标题 |
 | `Slug` | rich_text 或 formula(string) | URL slug（缺省可由 Title 生成，但建议显式稳定） |
-| `Type` | select 或 multi_select | `page`/`post`（兼容层用途；推荐额外建 `Collection` 字段对应 site.collections key） |
+| `Collection` | select 或 rich_text | 对应 `site.collections` 的集合 key，例如 `page`、`post`、`docs` |
+| `Type` | select 或 multi_select | 可选内容分类或主题模板匹配键；不会单独创建内置路由 |
 | `PublishAt` | date | 发布时间（缺省可用当前时间，但建议显式） |
 
 ### 多语言相关字段（可选，但建议）
@@ -107,12 +108,12 @@ content:
 
 下面是一份“模拟数据”，帮助你理解一条 Notion 页面会如何变成站点内容（你可以在 Notion 里照着录入几条测试）。
 
-| Published | Title | Slug | Type | PublishAt | language | i18n_key | SEO Title | tags | categories |
+| Published | Title | Slug | Collection | Type | PublishAt | language | i18n_key | SEO Title | tags | categories |
 |---|---|---|---|---|---|---|---|---|---|
-| ✅ | 关于我们 | about | page | 2026-01-01 | zh-CN | about | 关于我们 - My Site | company,intro | docs |
-| ✅ | About | about | page | 2026-01-01 | en-US | about | About - My Site | company,intro | docs |
-| ✅ | 第一篇博客 | first-post | post | 2026-01-10 | zh-CN | blog_first | 第一篇博客 - My Site | release,roadmap | updates |
-| ⬜ | 未发布草稿 | draft-1 | post | 2026-01-20 | zh-CN | draft_1 | 草稿 - My Site | draft | draft |
+| ✅ | 关于我们 | about | page | page | 2026-01-01 | zh-CN | about | 关于我们 - My Site | company,intro | docs |
+| ✅ | About | about | page | page | 2026-01-01 | en-US | about | About - My Site | company,intro | docs |
+| ✅ | 第一篇博客 | first-post | post | article | 2026-01-10 | zh-CN | blog_first | 第一篇博客 - My Site | release,roadmap | updates |
+| ⬜ | 未发布草稿 | draft-1 | post | article | 2026-01-20 | zh-CN | draft_1 | 草稿 - My Site | draft | draft |
 
 说明：
 
@@ -120,7 +121,7 @@ content:
 - `language + i18n_key` 用于多语言站点内容关联（可选）
 - `SEO Title` 等自定义字段需要 `fieldPolicy` 允许进入模板（见下一节）
 
-> **推荐：使用 site.collections 替代 type 默认路由。** 如果你在 Notion 数据库中新增一个 `Collection` 字段（select 类型，值如 `blog`、`docs`），并在 site.yaml 的 site.collections 中声明对应的集合规则，引擎将优先使用 collection 驱动路由，而不是 type 兼容回退。
+> **推荐：使用 site.collections 定义路由。** 在 Notion 数据库中新增 `Collection` 字段（select 类型，值如 `page`、`post`、`docs`），并在 `site.yaml` 的 `site.collections` 中声明对应规则。`Type` 只是可选分类或主题匹配键，不是核心路由回退。
 
 ## 过滤与排序（filter / sort）
 

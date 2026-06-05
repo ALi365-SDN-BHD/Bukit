@@ -1,5 +1,6 @@
 ---
 title: About Theme Inheritance
+collection: page
 slug: about
 ---
 

@@ -11,11 +11,11 @@ templates:
   page:
     template: pages/page.html
     accepts:
-      type: page
+      collection: page
   post:
     template: pages/post.html
     accepts:
-      type: post
+      collection: post
   detail:
     template: pages/page.html
     accepts:

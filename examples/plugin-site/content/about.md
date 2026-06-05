@@ -1,5 +1,6 @@
 ---
 title: About Plugins
+collection: page
 slug: about
 ---
 

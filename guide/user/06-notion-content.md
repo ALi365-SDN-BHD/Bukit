@@ -81,7 +81,8 @@ Field names below are based on Notion UI display names and are case-sensitive (r
 | `Published` | checkbox | Whether to publish (recommend rendering only published content) |
 | `Title` | title | Content title |
 | `Slug` | rich_text or formula(string) | URL slug (default can be generated from Title, but explicit is recommended for stability) |
-| `Type` | select or multi_select | `page`/`post` (for compatibility layer; recommended to additionally create a `Collection` field corresponding to site.collections key) |
+| `Collection` | select or rich_text | Collection key matching `site.collections` (for example `page`, `post`, `docs`) |
+| `Type` | select or multi_select | Optional content kind or theme matching key; does not create built-in routes by itself |
 | `PublishAt` | date | Publish date (default can use current time, but explicit is recommended) |
 
 ### Multilingual Fields (optional, but recommended)
@@ -107,12 +108,12 @@ You can add arbitrary fields as "template fields", for example:
 
 Below is a "simulated data" table to help you understand how a Notion page becomes site content (you can replicate a few test entries in Notion).
 
-| Published | Title | Slug | Type | PublishAt | language | i18n_key | SEO Title | tags | categories |
+| Published | Title | Slug | Collection | Type | PublishAt | language | i18n_key | SEO Title | tags | categories |
 |---|---|---|---|---|---|---|---|---|---|
-| ✅ | About Us | about | page | 2026-01-01 | zh-CN | about | About Us - My Site | company,intro | docs |
-| ✅ | About | about | page | 2026-01-01 | en-US | about | About - My Site | company,intro | docs |
-| ✅ | First Blog Post | first-post | post | 2026-01-10 | zh-CN | blog_first | First Blog Post - My Site | release,roadmap | updates |
-| ⬜ | Unpublished Draft | draft-1 | post | 2026-01-20 | zh-CN | draft_1 | Draft - My Site | draft | draft |
+| ✅ | About Us | about | page | page | 2026-01-01 | zh-CN | about | About Us - My Site | company,intro | docs |
+| ✅ | About | about | page | page | 2026-01-01 | en-US | about | About - My Site | company,intro | docs |
+| ✅ | First Blog Post | first-post | post | article | 2026-01-10 | zh-CN | blog_first | First Blog Post - My Site | release,roadmap | updates |
+| ⬜ | Unpublished Draft | draft-1 | post | article | 2026-01-20 | zh-CN | draft_1 | Draft - My Site | draft | draft |
 
 Notes:
 
@@ -120,7 +121,7 @@ Notes:
 - `language + i18n_key` is used for multilingual site content linking (optional)
 - Custom fields like `SEO Title` require `fieldPolicy` to allow them into templates (see next section)
 
-> **Recommendation: Use site.collections instead of type default routing.** If you add a `Collection` field (select type, values like `blog`, `docs`) to your Notion database and declare the corresponding collection rules in site.yaml's site.collections, the engine will prefer collection-driven routing over type compatibility fallback.
+> **Recommendation: use site.collections for routing.** Add a `Collection` field (select type, values like `page`, `post`, `docs`) to your Notion database and declare the corresponding collection rules in `site.yaml`. `Type` is optional metadata or a theme template matching key; it is not a core routing fallback.
 
 ## Filtering & Sorting (filter / sort)
 

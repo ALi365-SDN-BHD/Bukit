@@ -71,7 +71,7 @@
 | `content.sources[].type` | 来源类型 | `markdown` / `notion` |
 | `content.sources[].name` | 来源名字 | `pages` / `posts` / `modules` |
 | `content.sources[].mode` | 行为模式 | `content` / `data` |
-| `content.sources[].markdown` | Markdown 子配置 | `{ dir: content, defaultType: page }` |
+| `content.sources[].markdown` | Markdown 子配置 | `{ dir: content }` |
 | `content.sources[].notion` | Notion 子配置 | `{ databaseId: "...", fieldPolicy: { mode: all } }` |
 
 ## build.*（构建输出）

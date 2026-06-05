@@ -24,7 +24,7 @@ public sealed class CloneContentWriterTests
         Assert.Contains("title: 'Test Page'", result);
         Assert.Contains("source_url: 'https://example.com/page'", result);
         Assert.Contains("summary: 'A summary of the page'", result);
-        Assert.Contains("type: page", result);
+        Assert.Contains("collection: page", result);
         Assert.Contains("slug: index", result);
         Assert.Contains("template: pages/index.html", result);
     }

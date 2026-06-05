@@ -1,6 +1,6 @@
 ---
 title: First Post
-type: post
+collection: post
 publishAt: 2025-01-15
 summary: This is the first blog post with taxonomy.
 categories:
