@@ -153,7 +153,7 @@ internal static class DoctorTemplateChecker
         foreach (var file in ctx.AllHtmlFiles)
         {
             var text = File.ReadAllText(file);
-            var includeRefs = DoctorCommand.ExtractDirectives(text, "include");
+            var includeRefs = DoctorTemplateAnalyzer.ExtractDirectives(text, "include");
             foreach (var includePath in includeRefs)
             {
                 var resolved = Path.Combine(ctx.LayoutsDir, includePath);
@@ -217,7 +217,7 @@ internal static class DoctorTemplateChecker
         var allContent = new StringBuilder();
         foreach (var file in ctx.AllHtmlFiles)
         {
-            DoctorCommand.AppendFileOrWarn(file, allContent);
+            DoctorTemplateAnalyzer.AppendFileOrWarn(file, allContent);
         }
 
         var combined = allContent.ToString();

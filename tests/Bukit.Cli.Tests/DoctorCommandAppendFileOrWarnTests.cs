@@ -15,7 +15,7 @@ public class DoctorCommandAppendFileOrWarnTests
         {
             File.WriteAllText(path, "hello");
             var sb = new StringBuilder();
-            DoctorCommand.AppendFileOrWarn(path, sb);
+            DoctorTemplateAnalyzer.AppendFileOrWarn(path, sb);
             Assert.Equal("hello", sb.ToString());
         }
         finally
@@ -46,7 +46,7 @@ public class DoctorCommandAppendFileOrWarnTests
             Console.SetOut(writer);
             try
             {
-                DoctorCommand.AppendFileOrWarn(path, sb);
+                DoctorTemplateAnalyzer.AppendFileOrWarn(path, sb);
                 var output = writer.ToString();
                 Assert.Contains("Failed to read", output);
                 Assert.Contains(path, output);
@@ -82,7 +82,7 @@ public class DoctorCommandAppendFileOrWarnTests
         Console.SetOut(writer);
         try
         {
-            DoctorCommand.AppendFileOrWarn(path, sb);
+            DoctorTemplateAnalyzer.AppendFileOrWarn(path, sb);
             var output = writer.ToString();
             Assert.Contains("Failed to read", output);
         }
