@@ -15,9 +15,10 @@ internal static partial class SeoReportValidator
         EnsureAllowedProperties(root, "$", "schema", "schemaVersion", "generatedAt", "siteName", "siteUrl", "baseUrl", "routes", "issues", "summary");
 
         var schema = ReadRequiredString(root, "$", "schema");
-        if (!string.Equals(schema, "https://bukit.dev/schemas/seo-report.v1.json", StringComparison.Ordinal))
+        if (!string.Equals(schema, "https://bukit.dev/schemas/seo-report.v1.json", StringComparison.Ordinal) &&
+            !string.Equals(schema, "https://bukit.dev/schemas/publish-audit-report.v1.json", StringComparison.Ordinal))
         {
-            throw new InvalidDataException($"unsupported schema '{schema}'. Expected 'https://bukit.dev/schemas/seo-report.v1.json'.");
+            throw new InvalidDataException($"unsupported schema '{schema}'. Expected 'https://bukit.dev/schemas/seo-report.v1.json' or 'https://bukit.dev/schemas/publish-audit-report.v1.json'.");
         }
 
         var schemaVersion = ReadRequiredString(root, "$", "schemaVersion");
@@ -34,7 +35,7 @@ internal static partial class SeoReportValidator
         ReadRequiredString(root, "$", "siteName");
         ReadRequiredString(root, "$", "baseUrl");
         ReadOptionalString(root, "$", "siteUrl");
-        EnsureAllowedProperties(summary, "summary", "routeCount", "indexableCount", "nonIndexableCount", "errorCount", "warningCount", "llmsTxtGenerated", "llmsFullTxtGenerated", "geoEnhancedCount", "geoScore");
+        EnsureAllowedProperties(summary, "summary", "routeCount", "indexableCount", "nonIndexableCount", "errorCount", "warningCount", "llmsTxtGenerated", "llmsFullTxtGenerated", "geoEnhancedCount", "geoScore", "publishIssueCount", "machineReadabilityIssueCount", "trustIssueCount", "representationGapCount");
         ReadRequiredInt(summary, "summary", "routeCount");
         ReadRequiredInt(summary, "summary", "indexableCount");
         ReadRequiredInt(summary, "summary", "nonIndexableCount");
@@ -44,13 +45,17 @@ internal static partial class SeoReportValidator
         ReadOptionalBool(summary, "summary", "llmsFullTxtGenerated");
         ReadOptionalInt(summary, "summary", "geoEnhancedCount");
         ReadOptionalInt(summary, "summary", "geoScore");
+        ReadOptionalInt(summary, "summary", "publishIssueCount");
+        ReadOptionalInt(summary, "summary", "machineReadabilityIssueCount");
+        ReadOptionalInt(summary, "summary", "trustIssueCount");
+        ReadOptionalInt(summary, "summary", "representationGapCount");
 
         var routeIndex = 0;
         foreach (var route in routes.EnumerateArray())
         {
             var path = $"routes[{routeIndex}]";
             EnsureObject(route, path);
-            EnsureAllowedProperties(route, path, "url", "outputPath", "title", "description", "canonical", "robots", "indexable", "lastModified", "contentType", "sourceItemId", "sitemapIncluded", "searchIncluded", "rssIncluded", "alternates", "schemaTypes");
+            EnsureAllowedProperties(route, path, "url", "outputPath", "title", "description", "canonical", "robots", "indexable", "lastModified", "contentType", "sourceItemId", "sitemapIncluded", "searchIncluded", "rssIncluded", "alternates", "schemaTypes", "language", "author", "organization", "source", "originalSource", "reviewStatus", "entityNames", "representationKinds");
             ReadRequiredString(route, path, "url");
             ReadRequiredString(route, path, "outputPath");
             ReadOptionalString(route, path, "title");
@@ -64,6 +69,12 @@ internal static partial class SeoReportValidator
             ReadRequiredBool(route, path, "sitemapIncluded");
             ReadRequiredBool(route, path, "searchIncluded");
             ReadRequiredBool(route, path, "rssIncluded");
+            ReadOptionalString(route, path, "language");
+            ReadOptionalString(route, path, "author");
+            ReadOptionalString(route, path, "organization");
+            ReadOptionalString(route, path, "source");
+            ReadOptionalString(route, path, "originalSource");
+            ReadOptionalString(route, path, "reviewStatus");
             var alternates = ReadRequiredArray(route, path, "alternates");
             var altIndex = 0;
             foreach (var alternate in alternates.EnumerateArray())
@@ -87,6 +98,9 @@ internal static partial class SeoReportValidator
 
                 schemaTypeIndex++;
             }
+
+            ReadOptionalStringArray(route, path, "entityNames");
+            ReadOptionalStringArray(route, path, "representationKinds");
 
             routeIndex++;
         }
@@ -192,6 +206,18 @@ internal static partial class SeoReportValidator
         }
     }
 
+    internal static int? TryReadOptionalInt(JsonElement element, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        return value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var result)
+            ? result
+            : null;
+    }
+
     internal static bool ReadRequiredBool(JsonElement element, string path, string property)
     {
         if (!element.TryGetProperty(property, out var value) ||
@@ -213,6 +239,30 @@ internal static partial class SeoReportValidator
         if (value.ValueKind != JsonValueKind.True && value.ValueKind != JsonValueKind.False)
         {
             throw new InvalidDataException($"{path}.{property} must be a boolean.");
+        }
+    }
+
+    internal static void ReadOptionalStringArray(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException($"{path}.{property} must be an array or null.");
+        }
+
+        var index = 0;
+        foreach (var item in value.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String)
+            {
+                throw new InvalidDataException($"{path}.{property}[{index}] must be a string.");
+            }
+
+            index++;
         }
     }
 

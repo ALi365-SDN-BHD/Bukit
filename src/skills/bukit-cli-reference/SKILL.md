@@ -104,6 +104,9 @@ After downloading, place the binary in a PATH directory or the project root.
 | `geo audit` | GEO audit on dist output | `--dir` |
 | `seo audit` | Audit SEO health from build report | `--dir` `--report` `--strict` `--external` |
 | `seo diff` | Compare SEO reports for regression budgets | `--baseline` `--current` `--max-new-errors N` `--max-new-warnings N` `--max-new-issues N` `--fail-on-new-code c1,c2` `--fail-on-route-removed` `--fail-on-indexable-drop` |
+| `publish` | Alias group for publish audit operations | `--dir` `--report` `--strict` |
+| `publish audit` | Audit publish readiness from publish-audit-report.json | `--dir` `--report` `--strict` |
+| `publish diff` | Compare publish audit reports for regression budgets | `--baseline` `--current` `--max-new-errors N` `--max-new-warnings N` `--max-new-issues N` `--fail-on-new-code c1,c2` `--fail-on-route-removed` `--fail-on-indexable-drop` |
 | `data inspect` | List all data modules (Markdown/Notion content + data sources) | `--config` `--site` `--module` |
 | `data dump` | Export data module content as JSON | `--config` `--site` `--format` |
 | `completion` | Generate shell auto-completion script | `<shell>` (bash\|zsh\|fish) |

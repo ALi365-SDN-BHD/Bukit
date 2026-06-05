@@ -61,11 +61,14 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
         }
 
         var canonicalBase = BuildBase(context);
+        var recordsById = context.ContentGraph.Records
+            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
         var routed = context.Routed
             .Concat(context.DerivedRouted)
             .ToList();
 
-        var keyed = new Dictionary<string, (ContentItem Item, SeoIndexEntry Entry, SeoModel? Model)>(StringComparer.OrdinalIgnoreCase);
+        var keyed = new Dictionary<string, (ContentItem Item, ContentRecord? Record, SeoIndexEntry Entry, SeoModel? Model)>(StringComparer.OrdinalIgnoreCase);
         foreach (var (item, route) in routed)
         {
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
@@ -80,19 +83,20 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
                     && dict.TryGetValue(key, out var seoModel)
                     ? seoModel
                     : null;
-                keyed[key] = (item, entry, model);
+                recordsById.TryGetValue(item.Id, out var record);
+                keyed[key] = (item, record, entry, model);
             }
         }
 
         var pages = new List<(string Url, string Title, string? Description)>();
         var groups = new Dictionary<string, List<(string Url, string Title, string? Description, DateTimeOffset Published)>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (key, (item, entry, model)) in keyed)
+        foreach (var (_, (item, record, entry, model)) in keyed)
         {
             var url = ResolveFullUrl(entry.Route.Url, canonicalBase);
-            var pageTitle = model?.Title ?? item.Title;
-            var desc = model?.Description ?? description;
-            var collection = MetaHelpers.GetString(item.Meta, "collection");
+            var pageTitle = record?.Presentation.Title ?? model?.Title ?? item.Title;
+            var desc = record?.Presentation.Summary ?? model?.Description ?? description;
+            var collection = record?.Classification.Collection ?? item.GetCollection();
 
             if (!string.IsNullOrWhiteSpace(collection))
             {
@@ -190,6 +194,9 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
         var title = context.Config.Site.Title;
         var description = context.Config.Site.Description;
         var canonicalBase = BuildBase(context);
+        var recordsById = context.ContentGraph.Records
+            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 
         sb.AppendLine($"# {title}");
         if (!string.IsNullOrWhiteSpace(description))
@@ -214,16 +221,46 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
                 continue;
             }
 
+            recordsById.TryGetValue(item.Id, out var record);
+
             var url = ResolveFullUrl(entry.Route.Url, canonicalBase);
-            sb.AppendLine($"# {item.Title}");
+            sb.AppendLine($"# {record?.Presentation.Title ?? item.Title}");
             sb.AppendLine();
             sb.AppendLine($"URL: {url}");
             sb.AppendLine();
 
-            var itemDescription = ResolveDescription(item, context.Config.Site.Description);
+            var itemDescription = ResolveDescription(item, record, context.Config.Site.Description);
             if (!string.IsNullOrWhiteSpace(itemDescription))
             {
                 sb.AppendLine(itemDescription);
+                sb.AppendLine();
+            }
+
+            if (!string.IsNullOrWhiteSpace(record?.Ownership.Author))
+            {
+                sb.AppendLine($"Author: {record.Ownership.Author}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(record?.Provenance.Source))
+            {
+                sb.AppendLine($"Source: {record.Provenance.Source}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(record?.Trust.ReviewStatus))
+            {
+                sb.AppendLine($"Review Status: {record.Trust.ReviewStatus}");
+            }
+
+            if (record?.Entities.Count > 0)
+            {
+                sb.AppendLine($"Entities: {string.Join(", ", record.Entities.Select(x => x.Name))}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(record?.Ownership.Author) ||
+                !string.IsNullOrWhiteSpace(record?.Provenance.Source) ||
+                !string.IsNullOrWhiteSpace(record?.Trust.ReviewStatus) ||
+                record?.Entities.Count > 0)
+            {
                 sb.AppendLine();
             }
 
@@ -260,11 +297,17 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             char.ToUpperInvariant(part[0]) + (part.Length == 1 ? string.Empty : part[1..])));
     }
 
-    private static string? ResolveDescription(ContentItem item, string? siteDescription)
+    private static string? ResolveDescription(ContentItem item, ContentRecord? record, string? siteDescription)
     {
-        if (item.Meta.TryGetValue("summary", out var summary) && summary is string s1 && !string.IsNullOrWhiteSpace(s1))
+        if (!string.IsNullOrWhiteSpace(record?.Presentation.Summary))
         {
-            return s1.Trim();
+            return record.Presentation.Summary.Trim();
+        }
+
+        var summary = item.GetSummary();
+        if (!string.IsNullOrWhiteSpace(summary))
+        {
+            return summary.Trim();
         }
 
         if (item.Meta.TryGetValue("seo_desc", out var seoDesc) && seoDesc is string s2 && !string.IsNullOrWhiteSpace(s2))

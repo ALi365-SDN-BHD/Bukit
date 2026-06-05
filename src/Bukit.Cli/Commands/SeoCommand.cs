@@ -5,11 +5,14 @@ namespace Bukit.Cli.Commands;
 
 public static class SeoCommand
 {
-    private const string ExpectedSchema = "https://bukit.dev/schemas/seo-report.v1.json";
-    private const string ExpectedSchemaVersion = "1.0";
-
-    private static string? ResolveSeoReportPath(string outputDir)
+    internal static string? ResolveAuditReportPath(string outputDir)
     {
+        var publish = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
+        if (File.Exists(publish))
+        {
+            return publish;
+        }
+
         var preferred = Path.Combine(outputDir, ".bukit", "seo-report.json");
         if (File.Exists(preferred))
         {
@@ -21,6 +24,9 @@ public static class SeoCommand
     }
 
     public static async Task<int> RunAsync(CliBoundCommand command)
+        => await RunAsync(command, "SEO", "seo");
+
+    internal static async Task<int> RunAsync(CliBoundCommand command, string label, string commandName)
     {
         var subcommand = command.GetArgument(0);
         if (string.Equals(subcommand, "audit", StringComparison.OrdinalIgnoreCase))
@@ -29,15 +35,15 @@ public static class SeoCommand
             var dir = command.GetString("--dir") ?? "dist";
             if (string.IsNullOrWhiteSpace(reportPath))
             {
-                reportPath = ResolveSeoReportPath(dir);
+                reportPath = ResolveAuditReportPath(dir);
                 if (reportPath is null)
                 {
-                    Console.Error.WriteLine($"SEO report not found under {Path.GetFullPath(dir)} (looked for .bukit/seo-report.json and seo-report.json). Run a full build first.");
+                    Console.Error.WriteLine($"{label} report not found under {Path.GetFullPath(dir)} (looked for .bukit/publish-audit-report.json, .bukit/seo-report.json and seo-report.json). Run a full build first.");
                     return 1;
                 }
             }
 
-            return await AuditAsync(reportPath, dir, strict: command.GetBool("--strict"), external: command.GetBool("--external"));
+            return await AuditAsync(reportPath, dir, strict: command.GetBool("--strict"), external: command.GetBool("--external"), label: label);
         }
 
         if (string.Equals(subcommand, "diff", StringComparison.OrdinalIgnoreCase))
@@ -54,29 +60,31 @@ public static class SeoCommand
                     maxNewIssues: command.GetInt("--max-new-issues"),
                     failOnNewCodes: SeoReportValidator.SplitCsv(command.GetString("--fail-on-new-code")),
                     failOnRouteRemoved: command.GetBool("--fail-on-route-removed"),
-                    failOnIndexableDrop: command.GetBool("--fail-on-indexable-drop"));
+                    failOnIndexableDrop: command.GetBool("--fail-on-indexable-drop"),
+                    label: label,
+                    commandName: commandName);
             }
             catch (InvalidDataException ex)
             {
-                Console.Error.WriteLine($"Invalid SEO diff option: {ex.Message}");
+                Console.Error.WriteLine($"Invalid {label} diff option: {ex.Message}");
                 return 2;
             }
         }
 
-        Console.Error.WriteLine("Usage: bukit seo audit [--dir dist] [--report seo-report.json] [--strict] [--external]");
-        Console.Error.WriteLine("       bukit seo diff --baseline old-report.json --current new-report.json [--max-new-errors n] [--max-new-warnings n] [--max-new-issues n] [--fail-on-new-code code1,code2] [--fail-on-route-removed] [--fail-on-indexable-drop]");
+        Console.Error.WriteLine($"Usage: bukit {commandName} audit [--dir dist] [--report seo-report.json] [--strict] [--external]");
+        Console.Error.WriteLine($"       bukit {commandName} diff --baseline old-report.json --current new-report.json [--max-new-errors n] [--max-new-warnings n] [--max-new-issues n] [--fail-on-new-code code1,code2] [--fail-on-route-removed] [--fail-on-indexable-drop]");
         return 2;
     }
 
     internal static int Audit(string reportPath, bool strict)
-        => AuditAsync(reportPath, Path.GetDirectoryName(Path.GetFullPath(reportPath)) ?? ".", strict, external: false).GetAwaiter().GetResult();
+        => AuditAsync(reportPath, Path.GetDirectoryName(Path.GetFullPath(reportPath)) ?? ".", strict, external: false, label: "SEO").GetAwaiter().GetResult();
 
-    internal static async Task<int> AuditAsync(string reportPath, string outputDir, bool strict, bool external)
+    internal static async Task<int> AuditAsync(string reportPath, string outputDir, bool strict, bool external, string label)
     {
         var fullPath = Path.GetFullPath(reportPath);
         if (!File.Exists(fullPath))
         {
-            Console.Error.WriteLine($"SEO report not found: {fullPath}");
+            Console.Error.WriteLine($"{label} report not found: {fullPath}");
             return 2;
         }
 
@@ -90,7 +98,8 @@ public static class SeoCommand
             var warningCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "warningCount");
             var routeCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "routeCount");
 
-            Console.WriteLine($"SEO audit: routes={routeCount} errors={errorCount} warnings={warningCount}");
+            Console.WriteLine($"{label} audit: routes={routeCount} errors={errorCount} warnings={warningCount}");
+            WriteSummaryBuckets(summary, label);
             if (doc.RootElement.TryGetProperty("issues", out var issues))
             {
                 foreach (var issue in issues.EnumerateArray())
@@ -114,17 +123,17 @@ public static class SeoCommand
         }
         catch (JsonException ex)
         {
-            Console.Error.WriteLine($"Invalid SEO report JSON: {ex.Message}");
+            Console.Error.WriteLine($"Invalid {label} report JSON: {ex.Message}");
             return 2;
         }
         catch (KeyNotFoundException)
         {
-            Console.Error.WriteLine("Invalid SEO report: missing summary.");
+            Console.Error.WriteLine($"Invalid {label} report: missing summary.");
             return 2;
         }
         catch (InvalidDataException ex)
         {
-            Console.Error.WriteLine($"Invalid SEO report: {ex.Message}");
+            Console.Error.WriteLine($"Invalid {label} report: {ex.Message}");
             return 2;
         }
     }
@@ -137,11 +146,13 @@ public static class SeoCommand
         int? maxNewIssues,
         IReadOnlySet<string> failOnNewCodes,
         bool failOnRouteRemoved,
-        bool failOnIndexableDrop)
+        bool failOnIndexableDrop,
+        string label,
+        string commandName)
     {
         if (string.IsNullOrWhiteSpace(baselinePath) || string.IsNullOrWhiteSpace(currentPath))
         {
-            Console.Error.WriteLine("Usage: bukit seo diff --baseline old-report.json --current new-report.json");
+            Console.Error.WriteLine($"Usage: bukit {commandName} diff --baseline old-report.json --current new-report.json");
             return 2;
         }
 
@@ -172,7 +183,7 @@ public static class SeoCommand
                 .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
-            Console.WriteLine($"SEO diff: newIssues={newIssues.Length} newErrors={newErrors} newWarnings={newWarnings} resolvedIssues={resolvedIssues.Length} addedRoutes={addedRoutes.Length} removedRoutes={removedRoutes.Length} indexableDrops={indexableDrops.Length}");
+            Console.WriteLine($"{label} diff: newIssues={newIssues.Length} newErrors={newErrors} newWarnings={newWarnings} resolvedIssues={resolvedIssues.Length} addedRoutes={addedRoutes.Length} removedRoutes={removedRoutes.Length} indexableDrops={indexableDrops.Length}");
             foreach (var issue in newIssues)
             {
                 Console.WriteLine($"+ {issue.Severity} {issue.Code} {issue.Route ?? "-"} {issue.Message}");
@@ -191,19 +202,19 @@ public static class SeoCommand
             var failed = false;
             if (maxNewErrors is not null && newErrors > maxNewErrors.Value)
             {
-                Console.Error.WriteLine($"SEO diff budget exceeded: new errors {newErrors} > {maxNewErrors.Value}.");
+                Console.Error.WriteLine($"{label} diff budget exceeded: new errors {newErrors} > {maxNewErrors.Value}.");
                 failed = true;
             }
 
             if (maxNewWarnings is not null && newWarnings > maxNewWarnings.Value)
             {
-                Console.Error.WriteLine($"SEO diff budget exceeded: new warnings {newWarnings} > {maxNewWarnings.Value}.");
+                Console.Error.WriteLine($"{label} diff budget exceeded: new warnings {newWarnings} > {maxNewWarnings.Value}.");
                 failed = true;
             }
 
             if (maxNewIssues is not null && newIssues.Length > maxNewIssues.Value)
             {
-                Console.Error.WriteLine($"SEO diff budget exceeded: new issues {newIssues.Length} > {maxNewIssues.Value}.");
+                Console.Error.WriteLine($"{label} diff budget exceeded: new issues {newIssues.Length} > {maxNewIssues.Value}.");
                 failed = true;
             }
 
@@ -211,20 +222,20 @@ public static class SeoCommand
             {
                 if (newIssues.Any(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase)))
                 {
-                    Console.Error.WriteLine($"SEO diff budget exceeded: new issue code {code}.");
+                    Console.Error.WriteLine($"{label} diff budget exceeded: new issue code {code}.");
                     failed = true;
                 }
             }
 
             if (failOnRouteRemoved && removedRoutes.Length > 0)
             {
-                Console.Error.WriteLine("SEO diff budget exceeded: routes were removed.");
+                Console.Error.WriteLine($"{label} diff budget exceeded: routes were removed.");
                 failed = true;
             }
 
             if (failOnIndexableDrop && indexableDrops.Length > 0)
             {
-                Console.Error.WriteLine("SEO diff budget exceeded: indexable routes became non-indexable.");
+                Console.Error.WriteLine($"{label} diff budget exceeded: indexable routes became non-indexable.");
                 failed = true;
             }
 
@@ -232,18 +243,32 @@ public static class SeoCommand
         }
         catch (JsonException ex)
         {
-            Console.Error.WriteLine($"Invalid SEO report JSON: {ex.Message}");
+            Console.Error.WriteLine($"Invalid {label} report JSON: {ex.Message}");
             return 2;
         }
         catch (IOException ex)
         {
-            Console.Error.WriteLine($"Failed to read SEO report: {ex.Message}");
+            Console.Error.WriteLine($"Failed to read {label} report: {ex.Message}");
             return 2;
         }
         catch (InvalidDataException ex)
         {
-            Console.Error.WriteLine($"Invalid SEO report: {ex.Message}");
+            Console.Error.WriteLine($"Invalid {label} report: {ex.Message}");
             return 2;
         }
+    }
+
+    private static void WriteSummaryBuckets(JsonElement summary, string label)
+    {
+        var publishIssues = SeoReportValidator.TryReadOptionalInt(summary, "publishIssueCount");
+        var machineReadability = SeoReportValidator.TryReadOptionalInt(summary, "machineReadabilityIssueCount");
+        var trustIssues = SeoReportValidator.TryReadOptionalInt(summary, "trustIssueCount");
+        var representationGaps = SeoReportValidator.TryReadOptionalInt(summary, "representationGapCount");
+        if (publishIssues is null && machineReadability is null && trustIssues is null && representationGaps is null)
+        {
+            return;
+        }
+
+        Console.WriteLine($"{label} summary: publishIssues={publishIssues ?? 0} machineReadability={machineReadability ?? 0} trust={trustIssues ?? 0} representationGaps={representationGaps ?? 0}");
     }
 }

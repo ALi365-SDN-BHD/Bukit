@@ -23,9 +23,7 @@ public static class DataCommand
         {
             if (!MetaHelpers.IsDataItem(item)) continue;
 
-            var type = "module";
-            if (item.Meta.TryGetValue("type", out var t) && t is not null && !string.IsNullOrWhiteSpace(t.ToString()))
-                type = t.ToString()!;
+            var type = item.GetContentType("module");
 
             if (!byType.ContainsKey(type))
                 byType[type] = new List<ContentItem>();
@@ -52,8 +50,9 @@ public static class DataCommand
             var languages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var m in moduleItems)
             {
-                if (m.Meta.TryGetValue("language", out var l) && l is not null && !string.IsNullOrWhiteSpace(l.ToString()))
-                    languages.Add(l.ToString()!);
+                var language = m.GetTextValue("language");
+                if (!string.IsNullOrWhiteSpace(language))
+                    languages.Add(language);
             }
             var languageStr = languages.Count == 0 ? "-" : languages.Count == 1 ? languages.First() : "mixed";
 
@@ -83,9 +82,7 @@ public static class DataCommand
         foreach (var item in items)
         {
             if (!MetaHelpers.IsDataItem(item)) continue;
-            var type = "module";
-            if (item.Meta.TryGetValue("type", out var t) && t is not null && !string.IsNullOrWhiteSpace(t.ToString()))
-                type = t.ToString()!;
+            var type = item.GetContentType("module");
             if (string.Equals(type, moduleName, StringComparison.OrdinalIgnoreCase))
                 matching.Add(item);
         }
@@ -125,9 +122,7 @@ public static class DataCommand
         foreach (var item in items)
         {
             if (!MetaHelpers.IsDataItem(item)) continue;
-            var type = "module";
-            if (item.Meta.TryGetValue("type", out var t) && t is not null && !string.IsNullOrWhiteSpace(t.ToString()))
-                type = t.ToString()!;
+            var type = item.GetContentType("module");
 
             if (!byType.ContainsKey(type))
                 byType[type] = new List<ContentItem>();

@@ -249,16 +249,7 @@ internal static class BuildReporter
 
     private static string GetKind(ContentItem item)
     {
-        if (item.Meta.TryGetValue("collection", out var value) && value is not null)
-        {
-            var text = Convert.ToString(value, CultureInfo.InvariantCulture);
-            if (!string.IsNullOrWhiteSpace(text))
-            {
-                return text;
-            }
-        }
-
-        return string.Empty;
+        return item.GetCollection();
     }
 
     private static string ComputeSha256(string path)

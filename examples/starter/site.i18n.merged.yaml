@@ -10,6 +10,15 @@ site:
   sitemapMode: merged
   rssMode: merged
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
+      listRoute: /pages/
+      output:
+        rss: false
+        sitemap: true
+        archive: false
 
 content:
   provider: markdown

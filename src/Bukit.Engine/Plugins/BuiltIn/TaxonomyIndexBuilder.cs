@@ -30,7 +30,7 @@ internal static class TaxonomyIndexBuilder
         var indexKey = $"{key}|{string.Join(",", itemFields)}";
         if (!cache.TryGetValue(indexKey, out var terms))
         {
-            terms = BuildIndexCore(context.Routed, key, itemFields, context.Config.Taxonomy);
+            terms = BuildIndexCore(context.Routed, context.ContentGraph, key, itemFields, context.Config.Taxonomy);
             cache[indexKey] = terms;
         }
 
@@ -39,22 +39,27 @@ internal static class TaxonomyIndexBuilder
 
     internal static Dictionary<string, TaxonomyTerm> BuildIndexCore(
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        CanonicalContentGraph contentGraph,
         string key,
         IReadOnlyList<string> itemFields,
         TaxonomyConfig config)
     {
         TaxonomyPlugin.BuildIndexCountForTestsScope.Value++;
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase);
+        var recordsById = contentGraph.Records
+            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 
         foreach (var (item, route) in routed)
         {
-            var values = GetStringList(item.Meta, key);
+            recordsById.TryGetValue(item.Id, out var record);
+            var values = ResolveTaxonomyValues(item, record, key);
             if (values is null || values.Count == 0)
             {
                 continue;
             }
 
-            var summary = item.Meta.TryGetValue("summary", out var summaryObj) ? summaryObj?.ToString() : null;
+            var summary = record?.Presentation.Summary ?? item.GetSummary();
             var extra = ExtractExtraFields(item, itemFields);
             var sourceKey = GetSourceKey(item.Meta);
             var pinField = ResolvePinField(config, sourceKey);
@@ -97,9 +102,47 @@ internal static class TaxonomyIndexBuilder
         return terms;
     }
 
-    internal static IReadOnlyList<string>? GetStringList(IReadOnlyDictionary<string, object> meta, string key)
+    private static IReadOnlyList<string>? ResolveTaxonomyValues(ContentItem item, ContentRecord? record, string key)
     {
-        if (!meta.TryGetValue(key, out var v) || v is null)
+        if (key.Equals("tags", StringComparison.OrdinalIgnoreCase) &&
+            record?.Classification.Tags is { Count: > 0 } tags)
+        {
+            return tags;
+        }
+
+        if (key.Equals("categories", StringComparison.OrdinalIgnoreCase) &&
+            record?.Classification.Sections is { Count: > 0 } categories)
+        {
+            return categories;
+        }
+
+        return GetStringList(item, key);
+    }
+
+    internal static IReadOnlyList<string>? GetStringList(ContentItem item, string key)
+    {
+        if (item.Fields is not null)
+        {
+            if (item.Fields.TryGetValue(key, out var field) && field.Value is not null)
+            {
+                if (field.Value is string fieldText)
+                {
+                    var fieldParts = fieldText.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                    return fieldParts.Length == 0 ? null : fieldParts;
+                }
+
+                if (field.Value is IEnumerable<object> fieldSeq)
+                {
+                    var fieldList = fieldSeq.Select(x => x?.ToString() ?? string.Empty)
+                        .Select(x => x.Trim())
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .ToList();
+                    return fieldList.Count == 0 ? null : fieldList;
+                }
+            }
+        }
+
+        if (!item.Meta.TryGetValue(key, out var v) || v is null)
         {
             return null;
         }
@@ -152,6 +195,12 @@ internal static class TaxonomyIndexBuilder
     {
         value = null;
 
+        if (item.Fields is not null && item.Fields.TryGetValue(key, out var field) && field.Value is not null)
+        {
+            value = field.Value;
+            return true;
+        }
+
         if (item.Meta.TryGetValue(key, out var metaValue) && metaValue is not null)
         {
             if (metaValue is string s)
@@ -167,12 +216,6 @@ internal static class TaxonomyIndexBuilder
             }
 
             value = metaValue;
-            return true;
-        }
-
-        if (item.Fields is not null && item.Fields.TryGetValue(key, out var field) && field.Value is not null)
-        {
-            value = field.Value;
             return true;
         }
 

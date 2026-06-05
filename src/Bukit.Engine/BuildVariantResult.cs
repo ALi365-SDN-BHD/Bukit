@@ -20,4 +20,5 @@ internal sealed record BuildVariantResult(
     int RenderedCount,
     int SkippedCount,
     IReadOnlyDictionary<string, int> RenderReasons,
-    BuildStageMetrics StageMetrics);
+    BuildStageMetrics StageMetrics,
+    CanonicalContentGraph? ContentGraph = null);

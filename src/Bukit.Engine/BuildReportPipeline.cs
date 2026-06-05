@@ -27,7 +27,8 @@ internal sealed record BuildReportPipelineContext(
     IReadOnlyDictionary<string, int> RenderReasons,
     BuildStageMetrics StageMetrics,
     ILogger Logger,
-    string? DefaultLanguage);
+    string? DefaultLanguage,
+    CanonicalContentGraph? ContentGraph = null);
 
 internal sealed class BuildReportPipeline
 {
@@ -57,8 +58,11 @@ internal sealed class BuildReportPipeline
             ctx.RenderedCount,
             ctx.SkippedCount,
             ctx.RenderReasons,
-            ctx.StageMetrics);
-        SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, ctx.Logger);
+            ctx.StageMetrics,
+            ctx.ContentGraph);
+        var contentGraph = ctx.ContentGraph ?? CanonicalContentGraph.Empty;
+        SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger);
+        ContentProjectionWriter.Write(ctx.OutputDir, contentGraph, ctx.Routed, ctx.DerivedRouted, ctx.SeoIndex, ctx.SeoModels);
         return result;
     }
 }

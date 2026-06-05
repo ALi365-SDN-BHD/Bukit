@@ -40,11 +40,11 @@ internal static class IncrementalBuildEngine
         AppendUtf8(hasher, item.PublishAt.ToString("O"));
         hasher.AppendData(newline);
 
-        var type = item.Meta.TryGetValue("type", out var typeObj) && typeObj is not null ? typeObj.ToString() : string.Empty;
+        var type = item.GetContentType();
         AppendUtf8(hasher, type);
         hasher.AppendData(newline);
 
-        var summary = item.Meta.TryGetValue("summary", out var summaryObj) && summaryObj is not null ? summaryObj.ToString() : string.Empty;
+        var summary = CanonicalContentGraphBuilder.ToRecord(item).Presentation.Summary ?? string.Empty;
         AppendUtf8(hasher, summary);
         hasher.AppendData(newline);
 

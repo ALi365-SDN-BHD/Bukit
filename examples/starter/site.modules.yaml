@@ -24,6 +24,13 @@ site:
         rss: false
         sitemap: true
         archive: false
+    about:
+      permalink: /{slug}/
+      template: pages/page.html
+      output:
+        rss: false
+        sitemap: true
+        archive: false
 content:
   provider: sources
   sources:

@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Markdown;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
+using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
@@ -66,6 +67,20 @@ public sealed class PagesByIdDataPluginTests
             BaseUrl = "/",
             LayoutsDir = "C:\\layouts",
             Routed = routed,
+            ContentGraph = new CanonicalContentGraph(
+            [
+                new ContentRecord(
+                    new ContentIdentity("page-1", "hello", "hello", "post", "published"),
+                    new ContentPresentation("Hello", "Canonical summary", "<p>hi</p>", "en", []),
+                    new ContentClassification("post", "post", [], ["a", "b"]),
+                    new ContentOwnership(null, null, null, null),
+                    new ContentLifecycle(item.PublishAt, null, null, null),
+                    new ProvenanceRecord(null, null, [], [], null),
+                    new TrustMetadata(null, "published", []),
+                    [],
+                    [],
+                    [])
+            ], []),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -78,6 +93,46 @@ public sealed class PagesByIdDataPluginTests
         var page = Assert.IsType<Dictionary<string, object>>(pageObj);
         Assert.Equal("Hello", page["title"]);
         Assert.Equal("/blog/hello/", page["url"]);
+        Assert.Equal("Canonical summary", page["summary"]);
+    }
+
+    [Fact]
+    public void DerivePages_ShouldUseFirstCanonicalRecord_WhenGraphContainsDuplicateI18nIds()
+    {
+        var item = new ContentItem(
+            Id: "greeting",
+            Title: "你好",
+            Slug: "greeting",
+            PublishAt: new DateTimeOffset(2026, 06, 05, 0, 0, 0, TimeSpan.Zero),
+            ContentHtml: "<p>hi</p>",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase));
+        var ctx = new BuildContext
+        {
+            Config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "t" },
+                Content = new ContentConfig { Provider = "markdown" }
+            },
+            RootDir = "C:\\",
+            OutputDir = "C:\\out",
+            BaseUrl = "/",
+            LayoutsDir = "C:\\layouts",
+            Routed = [(item, new RouteInfo("/zh-CN/pages/greeting/", "zh-CN/pages/greeting/index.html", "pages/page.html"))],
+            ContentGraph = new CanonicalContentGraph(
+            [
+                CreateRecord("greeting", "zh-CN", "中文摘要"),
+                CreateRecord("greeting", "en-US", "English summary")
+            ], []),
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        var plugin = new PagesIndexPlugin();
+        plugin.DerivePages(ctx);
+
+        var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
+        var page = Assert.IsType<Dictionary<string, object>>(index["greeting"]);
+        Assert.Equal("中文摘要", page["summary"]);
     }
 
     [Fact]
@@ -140,6 +195,19 @@ public sealed class PagesByIdDataPluginTests
         Assert.Equal("/blog/hello/", page["url"]);
         Assert.Equal("Hello", page["title"]);
     }
+
+    private static ContentRecord CreateRecord(string id, string language, string summary)
+        => new(
+            new ContentIdentity(id, id, id, "page", "published"),
+            new ContentPresentation("Greeting", summary, "<p>body</p>", language, []),
+            new ContentClassification("page", "page", [], []),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(new DateTimeOffset(2026, 06, 05, 0, 0, 0, TimeSpan.Zero), null, null, null),
+            new ProvenanceRecord(null, null, [], [], null),
+            new TrustMetadata(null, "published", []),
+            [],
+            [],
+            []);
 
     [Fact]
     public void DerivePages_WhenConfigured_ResolvesNotionRelationIdsIntoIndex()

@@ -1,5 +1,6 @@
 using System.Linq;
 using Bukit.Config;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
 using Bukit.Rendering;
@@ -214,6 +215,171 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_ReportsMissingSemanticMainAndArticle()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body><div><p>Body</p></div></body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x => x.Code == "publish.semantic_main_missing" && x.Route == "/post/");
+        Assert.Contains(report.Issues, x => x.Code == "publish.semantic_article_missing" && x.Route == "/post/");
+    }
+
+    [Fact]
+    public void Build_ReportsImagesMissingAltText()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body>
+              <main>
+                <article>
+                  <img src="/a.png">
+                  <img src="/b.png" alt="Described">
+                  <img src="/c.png" alt=''>
+                </article>
+              </main>
+            </body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x => x.Code == "publish.image_alt_missing" && x.Route == "/post/");
+    }
+
+    [Fact]
+    public void Build_ReportsMissingH1AndHeadingLevelSkips()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body>
+              <main>
+                <article>
+                  <h2>Section</h2>
+                  <h4>Skipped</h4>
+                  <p>Body</p>
+                </article>
+              </main>
+            </body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x => x.Code == "publish.heading_h1_missing" && x.Route == "/post/");
+        Assert.Contains(report.Issues, x => x.Code == "publish.heading_level_skip" && x.Route == "/post/");
+    }
+
+    [Fact]
+    public void Build_ReportsMissingTimeElementForDatedContent()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body>
+              <main>
+                <article>
+                  <h1>Post</h1>
+                  <p>Body</p>
+                </article>
+              </main>
+            </body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+        var graph = new CanonicalContentGraph(
+        [
+            new ContentRecord(
+                new ContentIdentity("post-1", "post", "post", "post", "published"),
+                new ContentPresentation("Post", "Post description", "<article><p>body</p></article>", "en", []),
+                new ContentClassification("post", "post", [], []),
+                new ContentOwnership("Ali", null, null, null),
+                new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), DateTimeOffset.Parse("2026-06-06T00:00:00Z"), null, null),
+                new ProvenanceRecord("notion", null, [], [], null),
+                new TrustMetadata(null, "approved", []),
+                [new EntityRecord("company", "Bukit")],
+                [],
+                [])
+        ], [new EntityRecord("company", "Bukit")]);
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, graph);
+
+        Assert.Contains(report.Issues, x => x.Code == "publish.time_missing" && x.Route == "/post/");
+    }
+
+    [Fact]
+    public void Build_ReportsInitialHtmlUnreadableWhenMainContentIsScriptShell()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body>
+              <main>
+                <article>
+                  <script type="application/json">{}</script>
+                </article>
+              </main>
+            </body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x => x.Code == "publish.initial_html_unreadable" && x.Route == "/post/");
+    }
+
+    [Fact]
     public void Write_WritesReportUnderBukitDirectory()
     {
         WriteOutput("a/index.html");
@@ -249,6 +415,163 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_outputDir, "seo-report.json")));
     }
 
+    [Fact]
+    public void Write_WritesPublishAuditReportAndAgentManifest()
+    {
+        WriteOutput("a/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = new()
+            {
+                Title = "A",
+                Description = "A description",
+                Canonical = "https://example.com/a/",
+                Article = new SeoArticleModel
+                {
+                    Author = "Ali"
+                }
+            }
+        };
+
+        SeoAuditReportWriter.Write(Config(), _outputDir, index, models, new ConsoleLogger(LogLevel.Error));
+
+        Assert.True(File.Exists(Path.Combine(_outputDir, ".bukit", "publish-audit-report.json")));
+        Assert.True(File.Exists(Path.Combine(_outputDir, "agent-manifest.json")));
+    }
+
+    [Fact]
+    public void Build_ReportsMachineReadabilityAndTrustGaps()
+    {
+        WriteOutput("post/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new()
+            {
+                Title = "Post",
+                Description = "Post description",
+                Canonical = "https://example.com/post/"
+            }
+        };
+        var graph = new CanonicalContentGraph(
+        [
+            new ContentRecord(
+                new ContentIdentity("post-1", "post", "post", "post", "published"),
+                new ContentPresentation("Post", "Post description", "<article><p>body</p></article>", "en", []),
+                new ContentClassification("post", "post", [], []),
+                new ContentOwnership(null, null, null, null),
+                new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), null, null, null),
+                new ProvenanceRecord(null, null, [], [], null),
+                new TrustMetadata(null, "", []),
+                [],
+                [],
+                [])
+        ], []);
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, graph);
+
+        Assert.Contains(report.Issues, x => x.Code == "publish.author_missing" && x.Route == "/post/");
+        Assert.Contains(report.Issues, x => x.Code == "publish.source_missing" && x.Route == "/post/");
+        Assert.Contains(report.Issues, x => x.Code == "publish.review_status_missing" && x.Route == "/post/");
+        Assert.Contains(report.Issues, x => x.Code == "publish.entity_missing" && x.Route == "/post/");
+    }
+
+    [Fact]
+    public void Build_EnrichesRouteWithCanonicalContentMetadata()
+    {
+        WriteOutput("post/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new()
+            {
+                Title = "Post",
+                Description = "Post description",
+                Canonical = "https://example.com/post/"
+            }
+        };
+        var graph = new CanonicalContentGraph(
+        [
+            new ContentRecord(
+                new ContentIdentity("post-1", "post", "post", "post", "published"),
+                new ContentPresentation("Post", "Post description", "<article><p>body</p></article>", "ms", []),
+                new ContentClassification("post", "post", [], ["bukit"]),
+                new ContentOwnership("Ali", "Bukit", null, null),
+                new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), null, null, null),
+                new ProvenanceRecord("notion", "https://example.com/original", [], [], "synced"),
+                new TrustMetadata(0.9, "approved", []),
+                [new EntityRecord("company", "Bukit")],
+                [],
+                [])
+        ], [new EntityRecord("company", "Bukit")]);
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, graph);
+        var route = Assert.Single(report.Routes);
+
+        Assert.Equal("ms", route.Language);
+        Assert.Equal("Ali", route.Author);
+        Assert.Equal("Bukit", route.Organization);
+        Assert.Equal("notion", route.Source);
+        Assert.Equal("approved", route.ReviewStatus);
+        Assert.Contains("Bukit", route.EntityNames!);
+        Assert.Contains("json", route.RepresentationKinds!);
+    }
+
+    [Fact]
+    public void Build_ComputesPublishAuditSummaryBuckets()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body>
+              <article>
+                <img src="/a.png">
+              </article>
+            </body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+        var graph = new CanonicalContentGraph(
+        [
+            new ContentRecord(
+                new ContentIdentity("post-1", "post", "post", "post", "published"),
+                new ContentPresentation("Post", "Post description", "<article><p>body</p></article>", "en", []),
+                new ContentClassification("post", "post", [], []),
+                new ContentOwnership(null, null, null, null),
+                new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), null, null, null),
+                new ProvenanceRecord(null, null, [], [], null),
+                new TrustMetadata(null, "", []),
+                [],
+                [],
+                [])
+        ], []);
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, graph);
+
+        Assert.True(report.Summary.PublishIssueCount > 0);
+        Assert.True(report.Summary.MachineReadabilityIssueCount > 0);
+        Assert.True(report.Summary.TrustIssueCount > 0);
+        Assert.True(report.Summary.RepresentationGapCount >= 0);
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(_outputDir, recursive: true); } catch { }
@@ -259,6 +582,13 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         var fullPath = Path.Combine(_outputDir, path);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
         File.WriteAllText(fullPath, "<!doctype html><html><head></head><body></body></html>");
+    }
+
+    private void WriteOutput(string path, string html)
+    {
+        var fullPath = Path.Combine(_outputDir, path);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        File.WriteAllText(fullPath, html);
     }
 
     private static SeoIndexEntry Entry(string url, string outputPath, string canonical)

@@ -121,15 +121,21 @@ internal static class PageRenderDispatcher
                         }
 
                         var content = await ContentBodyResolver.GetHtmlAsync(item, bodyStore, ct);
+                        var contentRecord = CanonicalContentGraphBuilder.ToRecord(item);
                         var pageInfo = new PageInfo
                         {
                             Title = item.Title,
                             Url = route.Url,
                             Content = content,
-                            Summary = item.Meta.TryGetValue("summary", out var s) ? s?.ToString() : null,
+                            Summary = contentRecord.Presentation.Summary ?? item.GetSummary(),
                             TableOfContents = SpecialListRenderer.GetTableOfContents(item),
                             PublishDate = item.PublishAt,
                             Fields = item.Fields,
+                            ContentRecord = contentRecord,
+                            Entities = contentRecord.Entities,
+                            Provenance = contentRecord.Provenance,
+                            Trust = contentRecord.Trust,
+                            Representations = new[] { "html", "json", "markdown" },
                             Seo = seoBuilder?.Invoke(item, route)
                         };
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
@@ -194,7 +200,8 @@ internal static class PageRenderDispatcher
                             Title = entry.Title,
                             Url = route.Url,
                             Content = entry.RawContent ?? string.Empty,
-                            Summary = siteModel.Description
+                            Summary = siteModel.Description,
+                            Representations = new[] { "html" }
                         };
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
                         var staticHtml = renderer.RenderPage(route.Template, pageModel);
@@ -342,15 +349,21 @@ internal static class PageRenderDispatcher
             stageMetrics.Increment("bodyLoad");
             stageMetrics.AddDuration("bodyLoad", bodyLoadStopwatch.ElapsedMilliseconds);
 
+            var contentRecord = CanonicalContentGraphBuilder.ToRecord(item);
             var pageInfo = new PageInfo
             {
                 Title = item.Title,
                 Url = route.Url,
                 Content = content,
-                Summary = item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
+                Summary = contentRecord.Presentation.Summary ?? item.GetSummary(),
                 TableOfContents = SpecialListRenderer.GetTableOfContents(item),
                 PublishDate = item.PublishAt,
                 Fields = item.Fields,
+                ContentRecord = contentRecord,
+                Entities = contentRecord.Entities,
+                Provenance = contentRecord.Provenance,
+                Trust = contentRecord.Trust,
+                Representations = new[] { "html", "json", "markdown" },
                 Seo = seoBuilder?.Invoke(item, route)
             };
 

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
+
 namespace Bukit.Engine;
 
 internal static class SeoJsonLdBuilder
@@ -19,7 +20,8 @@ internal static class SeoJsonLdBuilder
         bool isPost,
         bool isCollectionPage,
         SeoGeoMetaParser.ParsedGeoMeta geo,
-        string? schemaType)
+        string? schemaType,
+        ContentRecord? record)
     {
         var result = new List<string>();
         var siteHome = SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/");
@@ -117,7 +119,7 @@ internal static class SeoJsonLdBuilder
             }
             else
             {
-                BuildArticleJsonLd(result, effectiveType, title, description, canonical, image, item, geo, config.Site.Language);
+                BuildArticleJsonLd(result, effectiveType, title, description, canonical, image, item, geo, record, config.Site.Language);
             }
         }
 
@@ -154,6 +156,7 @@ internal static class SeoJsonLdBuilder
         string? image,
         ContentItem item,
         SeoGeoMetaParser.ParsedGeoMeta geo,
+        ContentRecord? record,
         string? language)
     {
         var article = new Dictionary<string, object?>
@@ -185,12 +188,16 @@ internal static class SeoJsonLdBuilder
             article["about"] = geo.About;
         }
 
-        if (!string.IsNullOrWhiteSpace(language))
+        var contentLanguage = string.IsNullOrWhiteSpace(record?.Presentation.Language) ||
+                              string.Equals(record?.Presentation.Language, "und", StringComparison.OrdinalIgnoreCase)
+            ? language
+            : record!.Presentation.Language;
+        if (!string.IsNullOrWhiteSpace(contentLanguage))
         {
-            article["inLanguage"] = language;
+            article["inLanguage"] = contentLanguage;
         }
 
-        var author = geo.GeoAuthor?.Name ?? SeoModelBuilder.FirstTextOrMeta(item, "author");
+        var author = geo.GeoAuthor?.Name ?? record?.Ownership.Author ?? SeoModelBuilder.FirstTextOrMeta(item, "author");
         if (!string.IsNullOrWhiteSpace(author))
         {
             var person = new Dictionary<string, object?>
@@ -216,7 +223,9 @@ internal static class SeoJsonLdBuilder
             article["sameAs"] = geo.SameAs;
         }
 
-        var tags = SeoModelBuilder.GetStringList(item.Meta, "tags");
+        var tags = record?.Classification.Tags.Count > 0
+            ? record.Classification.Tags
+            : SeoModelBuilder.GetStringList(item.Meta, "tags");
         if (tags is { Count: > 0 })
         {
             article["keywords"] = tags;

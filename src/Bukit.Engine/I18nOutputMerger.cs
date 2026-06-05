@@ -78,9 +78,10 @@ internal static class I18nOutputMerger
                 return string.IsNullOrWhiteSpace(locale) || string.Equals(locale, language, StringComparison.OrdinalIgnoreCase);
             }
 
-            if (item.Meta.TryGetValue("language", out var v) && v is not null && !string.IsNullOrWhiteSpace(v.ToString()))
+            var itemLanguage = item.GetTextValue("language");
+            if (!string.IsNullOrWhiteSpace(itemLanguage))
             {
-                return string.Equals(v.ToString(), language, StringComparison.OrdinalIgnoreCase);
+                return string.Equals(itemLanguage, language, StringComparison.OrdinalIgnoreCase);
             }
 
             return string.Equals(language, defaultLanguage, StringComparison.OrdinalIgnoreCase);
@@ -188,7 +189,9 @@ internal static class I18nOutputMerger
                     continue;
                 }
 
-                posts.Add(RssGenerator.ToPost(item, seo.Canonical, r.BodyStore));
+                var record = (r.ContentGraph ?? CanonicalContentGraph.Empty).Records
+                    .FirstOrDefault(x => string.Equals(x.Identity.Id, item.Id, StringComparison.OrdinalIgnoreCase));
+                posts.Add(RssGenerator.ToPost(item, seo.Canonical, r.BodyStore, record));
             }
         }
 

@@ -96,12 +96,25 @@ public static partial class PreviewCommand
 
         if (port == 0)
         {
-            var chosen = PickFreeTcpPort();
-            var prefix = $"http://{baseHost}:{chosen}/";
-            var listener = new HttpListener();
-            listener.Prefixes.Add(prefix);
-            listener.Start();
-            return (listener, prefix);
+            for (var attempt = 0; attempt < 20; attempt++)
+            {
+                var chosen = PickFreeTcpPort();
+                var prefix = $"http://{baseHost}:{chosen}/";
+                var listener = new HttpListener();
+                listener.Prefixes.Add(prefix);
+
+                try
+                {
+                    listener.Start();
+                    return (listener, prefix);
+                }
+                catch (HttpListenerException ex) when (IsPortConflict(ex))
+                {
+                    listener.Close();
+                }
+            }
+
+            throw new InvalidOperationException($"Failed to listen on http://{baseHost}:auto/ (port conflict). Try a different --host or explicit --port.");
         }
 
         var maxAttempts = strictPort ? 1 : 20;

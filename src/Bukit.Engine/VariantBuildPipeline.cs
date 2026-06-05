@@ -240,6 +240,7 @@ internal sealed class VariantBuildPipeline
 
         return await GenerateReportStageAsync(
             config, baseUrl, outputDir, searchSnippetsEnabled, bodyStore,
+            ctx.ContentGraph,
             routePipelineResult.RouteResult.Routed, routePipelineResult.PluginContext,
             seoStage.SeoResult, renderPipelineResult, variantStageMetrics, logger, ctx.DefaultLanguage);
     }
@@ -285,6 +286,7 @@ internal sealed class VariantBuildPipeline
             BaseUrl = ctx.BaseUrl,
             LayoutsDir = ctx.LayoutsDir,
             Routed = routed,
+            ContentGraph = ctx.ContentGraph,
             BodyStore = bodyStore,
             TemplateResolver = templateResolver.ResolveKindTemplate,
             Logger = logger
@@ -473,6 +475,7 @@ internal sealed class VariantBuildPipeline
         string outputDir,
         bool searchSnippetsEnabled,
         IContentBodyStore bodyStore,
+        CanonicalContentGraph contentGraph,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         BuildContext pluginContext,
         SeoPipelineResult seoResult,
@@ -499,7 +502,8 @@ internal sealed class VariantBuildPipeline
             RenderReasons: renderReasons,
             StageMetrics: variantStageMetrics.Snapshot(),
             Logger: logger,
-            DefaultLanguage: defaultLanguage)));
+            DefaultLanguage: defaultLanguage,
+            ContentGraph: contentGraph)));
     }
 
     private static IReadOnlyDictionary<string, object>? MergeSiteData(

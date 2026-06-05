@@ -203,6 +203,11 @@ public sealed class NotionContentProvider : IContentProvider
                     {
                         mutableMeta["summary"] = extracted;
                     }
+
+                    if (item.Fields is Dictionary<string, ContentField> mutableFields)
+                    {
+                        mutableFields["summary"] = new ContentField("text", extracted);
+                    }
                 }
             }
 

@@ -46,7 +46,7 @@ internal static class SeoIndexBuilder
                 SeoModelBuilder.IsIndexable(model.Robots),
                 SitemapPolicy.ResolveLastModified(item),
                 item.Id,
-                MetaHelpers.GetString(item.Meta, "collection"));
+                ResolveExplicitCollection(item));
         }
 
         foreach (var route in listRoutes)
@@ -65,7 +65,7 @@ internal static class SeoIndexBuilder
                 model.Canonical,
                 model.Robots,
                 SeoModelBuilder.IsIndexable(model.Robots),
-                DateTimeOffset.UtcNow,
+                ResolveListLastModified(config, route, routed),
                 SourceItemId: null,
                 ContentType: "list");
         }
@@ -128,13 +128,14 @@ internal static class SeoIndexBuilder
         var values = new List<object>(items.Count);
         foreach (var (item, route) in items)
         {
+            var record = CanonicalContentGraphBuilder.ToRecord(item);
             var entry = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["title"] = item.Title,
                 ["url"] = route.Url,
                 ["publish_date"] = item.PublishAt.DateTime
             };
-            var summary = MetaHelpers.GetString(item.Meta, "summary");
+            var summary = record.Presentation.Summary ?? item.GetSummary();
             if (!string.IsNullOrWhiteSpace(summary))
             {
                 entry["summary"] = summary!;
@@ -171,7 +172,11 @@ internal static class SeoIndexBuilder
                 if (string.Equals(NormalizeListUrl(collection.ListRoute), listRoute.Url, StringComparison.OrdinalIgnoreCase))
                 {
                     return routed
-                        .Where(x => string.Equals(MetaHelpers.GetString(x.Item.Meta, "collection"), key, StringComparison.OrdinalIgnoreCase))
+                        .Where(x =>
+                        {
+                            var record = CanonicalContentGraphBuilder.ToRecord(x.Item);
+                            return string.Equals(record.Classification.Collection, key, StringComparison.OrdinalIgnoreCase);
+                        })
                         .ToList();
                 }
             }
@@ -199,6 +204,17 @@ internal static class SeoIndexBuilder
         return char.ToUpperInvariant(lastSegment[0]) + lastSegment[1..].Replace('-', ' ');
     }
 
+    private static DateTimeOffset ResolveListLastModified(
+        AppConfig config,
+        RouteInfo route,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
+    {
+        var items = ResolveListItems(config, route, routed);
+        return items.Count == 0
+            ? DateTimeOffset.UnixEpoch
+            : items.Max(x => SitemapPolicy.ResolveLastModified(x.Item));
+    }
+
     private static string NormalizeListUrl(string url)
     {
         var trimmed = (url ?? string.Empty).Trim();
@@ -219,4 +235,7 @@ internal static class SeoIndexBuilder
 
         return trimmed;
     }
+
+    private static string? ResolveExplicitCollection(ContentItem item)
+        => string.IsNullOrWhiteSpace(item.GetCollection()) ? null : item.GetCollection();
 }

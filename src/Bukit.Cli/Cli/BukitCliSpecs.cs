@@ -2,7 +2,7 @@ using Bukit.Cli.Cli.Metadata;
 
 namespace Bukit.Cli;
 
-public static class BukitCliSpecs
+public static partial class BukitCliSpecs
 {
     public static CliCommandRegistry CreateRegistry()
     {
@@ -381,6 +381,52 @@ public static class BukitCliSpecs
                     })
             });
 
+        var publish = new CliCommandSpec(
+            Name: "publish",
+            Description: "机器可读与可信发布审计命令",
+            Options: new[]
+            {
+                new CliOptionSpec("--dir", "构建输出目录"),
+                new CliOptionSpec("--report", "publish-audit-report.json 路径"),
+                new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag),
+                new CliOptionSpec("--external", "联网检查 canonical、链接和图片", CliOptionType.Flag),
+                new CliOptionSpec("--baseline", "基线报告路径"),
+                new CliOptionSpec("--current", "当前报告路径"),
+                new CliOptionSpec("--max-new-errors", "允许新增 error 数量", CliOptionType.Integer, ValueName: "n"),
+                new CliOptionSpec("--max-new-warnings", "允许新增 warning 数量", CliOptionType.Integer, ValueName: "n"),
+                new CliOptionSpec("--max-new-issues", "允许新增 issue 总数", CliOptionType.Integer, ValueName: "n"),
+                new CliOptionSpec("--fail-on-new-code", "逗号分隔的新增 issue code 黑名单"),
+                new CliOptionSpec("--fail-on-route-removed", "route 删除时失败", CliOptionType.Flag),
+                new CliOptionSpec("--fail-on-indexable-drop", "indexable route 变成 noindex 时失败", CliOptionType.Flag)
+            },
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "audit",
+                    Description: "读取 publish-audit-report.json 并返回 CI 状态",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--dir", "构建输出目录"),
+                        new CliOptionSpec("--report", "publish-audit-report.json 路径"),
+                        new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag),
+                        new CliOptionSpec("--external", "联网检查 canonical、链接和图片", CliOptionType.Flag)
+                    }),
+                new CliCommandSpec(
+                    Name: "diff",
+                    Description: "比较两个 publish audit 报告并执行回归预算",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--baseline", "基线报告路径"),
+                        new CliOptionSpec("--current", "当前报告路径"),
+                        new CliOptionSpec("--max-new-errors", "允许新增 error 数量", CliOptionType.Integer, ValueName: "n"),
+                        new CliOptionSpec("--max-new-warnings", "允许新增 warning 数量", CliOptionType.Integer, ValueName: "n"),
+                        new CliOptionSpec("--max-new-issues", "允许新增 issue 总数", CliOptionType.Integer, ValueName: "n"),
+                        new CliOptionSpec("--fail-on-new-code", "逗号分隔的新增 issue code 黑名单"),
+                        new CliOptionSpec("--fail-on-route-removed", "route 删除时失败", CliOptionType.Flag),
+                        new CliOptionSpec("--fail-on-indexable-drop", "indexable route 变成 noindex 时失败", CliOptionType.Flag)
+                    })
+            });
+
         var visual = new CliCommandSpec(
             Name: "visual",
             Description: "视觉回归测试",
@@ -520,77 +566,12 @@ public static class BukitCliSpecs
                 new CliOptionSpec("--site-url", "覆盖 site.url")
             });
 
-        var init = new CliCommandSpec(
-            Name: "init",
-            Description: "初始化新站点",
-            Aliases: new[] { "create" },
-            Arguments: new[]
-            {
-                new CliArgumentSpec("dir", "目标目录")
-            },
-            Options: new[]
-            {
-                new CliOptionSpec("--provider", "内容源 (markdown|notion)"),
-                new CliOptionSpec("--template", "模板名 (minimal|blog|docs|landing|portfolio|bare|none)")
-            });
+        var init = CreateInitSpec();
+        var route = CreateRouteSpec();
+        var data = CreateDataSpec();
+        var docs = CreateDocsSpec();
 
-        var route = new CliCommandSpec(
-            Name: "route",
-            Description: "查看路由信息",
-            Options: new[]
-            {
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名"),
-                new CliOptionSpec("--json", "JSON 格式输出", CliOptionType.Flag),
-                new CliOptionSpec("--collection", "按 collection 过滤")
-            },
-            Subcommands: new[]
-            {
-                new CliCommandSpec(
-                    Name: "inspect",
-                    Description: "列出所有路由",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--json", "JSON 格式输出", CliOptionType.Flag),
-                        new CliOptionSpec("--collection", "按 collection 过滤")
-                    })
-            });
-
-        var data = new CliCommandSpec(
-            Name: "data",
-            Description: "查看数据模块信息",
-            Options: new[]
-            {
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名"),
-                new CliOptionSpec("--module", "模块名"),
-                new CliOptionSpec("--format", "输出格式 (json)")
-            },
-            Subcommands: new[]
-            {
-                new CliCommandSpec(Name: "inspect", Description: "列出所有数据模块", Options: new[] { new CliOptionSpec("--module", "模块名") }),
-                new CliCommandSpec(Name: "dump", Description: "导出数据模块", Options: new[] { new CliOptionSpec("--format", "输出格式 (json)") })
-            });
-
-        var docs = new CliCommandSpec(
-            Name: "docs",
-            Description: "文档一致性检查",
-            Subcommands: new[]
-            {
-                new CliCommandSpec(
-                    Name: "check",
-                    Description: "检查 README/guide/skills 之间的一致性",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--cli", "检查 CLI 命令覆盖率", CliOptionType.Flag),
-                        new CliOptionSpec("--config-fields", "检查 site.yaml 字段引用", CliOptionType.Flag),
-                        new CliOptionSpec("--file-refs", "检查文件路径引用", CliOptionType.Flag),
-                        new CliOptionSpec("--examples", "检查 README 示例可解析性", CliOptionType.Flag),
-                        new CliOptionSpec("--skills", "检查 Skill-CLI 一致性", CliOptionType.Flag)
-                    })
-            });
-
-        return new CliCommandRegistry(new[] { build, clone, importCmd, notion, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, version, intent, visual, webhook, clean, config, doctor, lint, init, route, data });
+        return new CliCommandRegistry(new[] { build, clone, importCmd, notion, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, publish, version, intent, visual, webhook, clean, config, doctor, lint, init, route, data });
     }
 
 }

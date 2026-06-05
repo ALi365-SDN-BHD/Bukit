@@ -50,6 +50,28 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
+    public void Generate_FieldOnlyTypeAndCollection_ProducesCollectionRoute()
+    {
+        var item = new ContentItem(
+            Id: "id-2",
+            Title: "Title",
+            Slug: "field-post",
+            PublishAt: DateTimeOffset.MinValue,
+            ContentHtml: "",
+            Meta: new Dictionary<string, object>(),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "post"),
+                ["collection"] = new("text", "post")
+            });
+
+        var route = RouteGenerator.Generate(item, collections: DefaultCollections);
+
+        Assert.Equal("/blog/field-post/", route.Url);
+        Assert.Equal("blog/field-post/index.html", route.OutputPath);
+    }
+
+    [Fact]
     public void Generate_NoRouteRule_Throws()
     {
         var item = Item("default");

@@ -318,7 +318,8 @@ internal sealed class SectionRenderHelper
         obj.SetValue("publish_date", item.PublishAt.DateTime, readOnly: true);
         obj.SetValue("publish_date_formatted", item.PublishAt.ToString("yyyy-MM-dd"), readOnly: true);
 
-        if (item.Meta.TryGetValue("summary", out var s) && s is string summary)
+        var summary = item.GetSummary();
+        if (!string.IsNullOrWhiteSpace(summary))
         {
             obj.SetValue("summary", summary, readOnly: true);
         }

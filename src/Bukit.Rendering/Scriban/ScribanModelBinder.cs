@@ -102,6 +102,37 @@ public static class ScribanModelBinder
         obj.SetValue("tableOfContents", ToTableOfContentsScriptArray(model.TableOfContents), readOnly: true);
         obj.SetValue("publish_date", model.PublishDate?.DateTime, readOnly: true);
         obj.SetValue("fields", ToFieldsScriptObject(model.Fields), readOnly: true);
+        if (model.ContentRecord is not null)
+        {
+            obj.SetValue("content_model", ToScriptObject(model.ContentRecord), readOnly: true);
+        }
+
+        if (model.Entities is not null)
+        {
+            obj.SetValue("entities", ToScriptArray(model.Entities), readOnly: true);
+        }
+
+        if (model.Provenance is not null)
+        {
+            obj.SetValue("provenance", ToScriptObject(model.Provenance), readOnly: true);
+        }
+
+        if (model.Trust is not null)
+        {
+            obj.SetValue("trust", ToScriptObject(model.Trust), readOnly: true);
+        }
+
+        if (model.Representations is not null)
+        {
+            var representations = new ScriptArray();
+            foreach (var representation in model.Representations)
+            {
+                representations.Add(representation);
+            }
+
+            obj.SetValue("representations", representations, readOnly: true);
+        }
+
         if (model.Seo is not null)
         {
             obj.SetValue("seo", ToScriptObject(model.Seo), readOnly: true);
@@ -216,6 +247,52 @@ public static class ScribanModelBinder
         obj.SetValue("hreflang", model.Hreflang, readOnly: true);
         obj.SetValue("href", model.Href, readOnly: true);
         return obj;
+    }
+
+    private static ScriptObject ToScriptObject(ContentRecord model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("id", model.Identity.Id, readOnly: true);
+        obj.SetValue("slug", model.Identity.Slug, readOnly: true);
+        obj.SetValue("canonical_url_key", model.Identity.CanonicalUrlKey, readOnly: true);
+        obj.SetValue("content_type", model.Identity.ContentType, readOnly: true);
+        obj.SetValue("status", model.Identity.Status, readOnly: true);
+        obj.SetValue("title", model.Presentation.Title, readOnly: true);
+        obj.SetValue("summary", model.Presentation.Summary, readOnly: true);
+        obj.SetValue("language", model.Presentation.Language, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(ProvenanceRecord model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("source", model.Source, readOnly: true);
+        obj.SetValue("original_source", model.OriginalSource, readOnly: true);
+        obj.SetValue("sync_status", model.SyncStatus, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(TrustMetadata model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("credibility_score", model.CredibilityScore, readOnly: true);
+        obj.SetValue("review_status", model.ReviewStatus, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptArray ToScriptArray(IReadOnlyList<EntityRecord> entities)
+    {
+        var arr = new ScriptArray();
+        foreach (var entity in entities)
+        {
+            var obj = new ScriptObject();
+            obj.SetValue("type", entity.Type, readOnly: true);
+            obj.SetValue("name", entity.Name, readOnly: true);
+            obj.SetValue("description", entity.Description, readOnly: true);
+            arr.Add(obj);
+        }
+
+        return arr;
     }
 
     private static ScriptObject ToScriptObject(IReadOnlyDictionary<string, object> dict)

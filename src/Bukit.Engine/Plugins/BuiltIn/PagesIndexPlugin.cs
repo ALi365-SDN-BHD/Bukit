@@ -63,6 +63,9 @@ public sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
 
     private static void AddRoutedToIndex(BuildContext context, Dictionary<string, object> index)
     {
+        var recordsById = context.ContentGraph.Records
+            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
         foreach (var (item, route) in context.Routed)
         {
             if (string.IsNullOrWhiteSpace(item.Id))
@@ -70,26 +73,27 @@ public sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
                 continue;
             }
 
-            index[item.Id] = BuildPageObject(item, route);
+            recordsById.TryGetValue(item.Id, out var record);
+            index[item.Id] = BuildPageObject(item, route, record);
         }
     }
 
-    private static Dictionary<string, object> BuildPageObject(ContentItem item, RouteInfo route)
+    private static Dictionary<string, object> BuildPageObject(ContentItem item, RouteInfo route, ContentRecord? record)
     {
-        var type = item.Meta.TryGetValue("type", out var t) ? t?.ToString() : null;
+        var type = record?.Identity.ContentType ?? item.GetContentType();
         type = string.IsNullOrWhiteSpace(type) ? null : type.Trim();
 
-        var summary = item.Meta.TryGetValue("summary", out var s) ? s?.ToString() : null;
+        var summary = record?.Presentation.Summary ?? item.GetSummary();
         summary = string.IsNullOrWhiteSpace(summary) ? null : summary.Trim();
 
         return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["id"] = item.Id,
-            ["title"] = item.Title,
+            ["title"] = record?.Presentation.Title ?? item.Title,
             ["url"] = route.Url,
             ["slug"] = item.Slug,
             ["type"] = type ?? string.Empty,
-            ["publish_date"] = item.PublishAt.DateTime,
+            ["publish_date"] = (record?.Lifecycle.PublishedAt ?? item.PublishAt).DateTime,
             ["summary"] = summary ?? string.Empty,
             ["fields"] = BuildFieldsObject(item.Fields)
         };

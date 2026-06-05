@@ -13,33 +13,26 @@ internal sealed class CollectionWarningStage : IContentStage
 
         foreach (var item in input.Items)
         {
-            var hasCollection = item.Meta.TryGetValue("collection", out var c) &&
-                                c is not null &&
-                                !string.IsNullOrWhiteSpace(c.ToString());
+            var collection = item.GetCollection();
+            var hasCollection = !string.IsNullOrWhiteSpace(collection);
+            var type = item.GetContentType();
 
             if (hasCollection)
             {
-                if (item.Meta.TryGetValue("type", out var typeObj) &&
-                    typeObj is not null &&
-                    !string.IsNullOrWhiteSpace(typeObj.ToString()))
+                if (!string.IsNullOrWhiteSpace(type))
                 {
-                    var typeVal = typeObj.ToString()!;
-                    var collectionVal = c?.ToString() ?? "(unknown)";
                     input.Logger.Warn(
-                        $"[WARN] Content \"{item.Id}\" defines both type={typeVal} and collection={collectionVal}. " +
+                        $"[WARN] Content \"{item.Id}\" defines both type={type} and collection={collection}. " +
                         "Collection routing uses collection; type remains content metadata.");
                     warned++;
                 }
                 continue;
             }
 
-            if (item.Meta.TryGetValue("type", out var t) &&
-                t is not null &&
-                !string.IsNullOrWhiteSpace(t.ToString()))
+            if (!string.IsNullOrWhiteSpace(type))
             {
-                var typeVal = t.ToString()!;
                 input.Logger.Warn(
-                    $"[WARN] Content \"{item.Id}\" uses type={typeVal} without collection. " +
+                    $"[WARN] Content \"{item.Id}\" uses type={type} without collection. " +
                     "Routing must be provided by site.collections, site.permalinks, or route front matter.");
                 warned++;
             }

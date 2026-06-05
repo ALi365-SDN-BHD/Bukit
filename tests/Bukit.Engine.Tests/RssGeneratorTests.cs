@@ -3,6 +3,7 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using System.Text.Json;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -209,6 +210,60 @@ public sealed class RssGeneratorTests
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<category>tech</category>", rss, StringComparison.Ordinal);
         Assert.Contains("<category>dotnet</category>", rss, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ToPost_PrefersCanonicalContentMetadata()
+    {
+        var item = Item("post-1", "post", "Meta summary", tags: new[] { "tech" });
+        var record = new ContentRecord(
+            new ContentIdentity("post-1", "post-1", "post-1", "post", "published"),
+            new ContentPresentation("Canonical Title", "Canonical summary", "<p>Body</p>", "en", []),
+            new ContentClassification("post", "post", ["guides"], ["canonical-tag"]),
+            new ContentOwnership("Ali", null, null, null),
+            new ContentLifecycle(item.PublishAt, null, null, null),
+            new ProvenanceRecord("notion", null, [], [], null),
+            new TrustMetadata(null, "approved", []),
+            [new EntityRecord("company", "Bukit")],
+            [],
+            []);
+
+        var post = RssGenerator.ToPost(item, "https://example.com/blog/post-1/", new InMemoryBodyStore(), record);
+
+        Assert.Equal("Canonical Title", post.Title);
+        Assert.Equal("Canonical summary", post.Description);
+        Assert.Equal("Ali", post.Author);
+        Assert.Equal("en", post.Language);
+        Assert.Equal("approved", post.ReviewStatus);
+        Assert.Contains("canonical-tag", post.Categories!);
+        Assert.Contains("guides", post.Categories!);
+        Assert.Contains("Bukit", post.Entities!);
+    }
+
+    [Fact]
+    public void GenerateJsonFeed_ShouldIncludeCanonicalSummaryAndSource_WhenSourceHasNoEntities()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var outDir = Path.Combine(root, "dist");
+        Directory.CreateDirectory(outDir);
+        var posts = new List<RssGenerator.Post>
+        {
+            new(
+                "Canonical Post",
+                "https://example.com/blog/post-1/",
+                new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero),
+                "Canonical feed summary",
+                new[] { "tag" },
+                "<p>Body</p>",
+                Source: "notion")
+        };
+
+        JsonFeedGenerator.Generate(outDir, "https://example.com", "/", "Site", posts, "feed.json");
+
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(outDir, "feed.json")));
+        var item = doc.RootElement.GetProperty("items")[0];
+        Assert.Equal("Canonical feed summary", item.GetProperty("summary").GetString());
+        Assert.Equal("notion", item.GetProperty("_bukit").GetProperty("source").GetString());
     }
 
     [Fact]

@@ -160,9 +160,10 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
                 ["url"] = route.Url,
                 ["publish_date"] = item.PublishAt.DateTime
             };
-            if (item.Meta.TryGetValue("summary", out var summary) && summary is not null)
+            var summary = item.GetSummary();
+            if (!string.IsNullOrWhiteSpace(summary))
             {
-                entry["summary"] = summary.ToString()!;
+                entry["summary"] = summary;
             }
 
             items.Add(entry);

@@ -30,6 +30,21 @@ public sealed class RelatedContentPluginTests
             Fields: null);
     }
 
+    private static ContentItem CreateFieldItem(string id, string title, string slug, IReadOnlyList<string> tags)
+    {
+        return new ContentItem(
+            Id: id,
+            Title: title,
+            Slug: slug,
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: "<p>content</p>",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["tags"] = new("list", tags)
+            });
+    }
+
     private static RouteInfo Route(string url) => new(url, $"out{url}index.html", "pages/post.html");
 
     [Fact]
@@ -85,6 +100,49 @@ public sealed class RelatedContentPluginTests
             BaseUrl = "/",
             LayoutsDir = "/t/l",
             Routed = routed,
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        new RelatedContentPlugin().DerivePages(ctx);
+
+        Assert.True(ctx.Data.TryGetValue("__related_pages", out var val));
+        var dict = Assert.IsType<Dictionary<string, List<object>>>(val);
+        Assert.Contains("1", dict);
+        Assert.Contains("3", dict);
+    }
+
+    [Fact]
+    public void DerivePages_ShouldCreateRelatedLinks_WhenTagsExistOnlyInStructuredFields()
+    {
+        var routed = new List<(ContentItem, RouteInfo)>
+        {
+            (CreateFieldItem("1", "Go Post", "go-post", new[] { "go", "runtime" }), Route("/go-post/")),
+            (CreateFieldItem("2", "Rust Post", "rust-post", new[] { "rust", "cargo" }), Route("/rust-post/")),
+            (CreateFieldItem("3", "Go Tips", "go-tips", new[] { "go", "tips" }), Route("/go-tips/")),
+        };
+        var ctx = new BuildContext
+        {
+            Config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "t",
+                    Related = new RelatedConfig
+                    {
+                        Enabled = true,
+                        Threshold = 80,
+                        Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } }
+                    }
+                },
+                Content = new ContentConfig { Provider = "markdown" }
+            },
+            RootDir = "/t",
+            OutputDir = "/t/out",
+            BaseUrl = "/",
+            LayoutsDir = "/t/l",
+            Routed = routed,
+            ContentGraph = CanonicalContentGraphBuilder.Build(routed.Select(x => x.Item1).ToList()),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 

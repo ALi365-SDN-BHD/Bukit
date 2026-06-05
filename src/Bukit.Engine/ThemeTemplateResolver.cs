@@ -158,9 +158,7 @@ public sealed class ThemeTemplateResolver
     }
 
     private static string GetContentType(ContentItem item)
-        => item.Meta.TryGetValue("type", out var value) && value is not null
-            ? value.ToString() ?? string.Empty
-            : string.Empty;
+        => item.GetContentType();
 
     private static bool Matches(string? expected, string? actual)
         => string.IsNullOrWhiteSpace(expected) ||

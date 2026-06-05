@@ -63,6 +63,61 @@ public sealed class PageRenderDispatcherLazyBodyTests
     }
 
     [Fact]
+    public async Task RenderPages_PopulatesCanonicalSummaryTrustAndProvenance()
+    {
+        var item = new ContentItem(
+            Id: "id-canonical",
+            Title: "Hello",
+            Slug: "hello",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: null,
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["summary"] = new("text", "Canonical summary"),
+                ["source"] = new("text", "notion"),
+                ["review_status"] = new("text", "approved")
+            },
+            BodyKey: "body-canonical");
+
+        var route = new RouteInfo("/pages/hello/", "pages/hello/index.html", "pages/page.html");
+        var renderer = new CaptureRenderer();
+        var siteModel = new SiteModel
+        {
+            Name = "site",
+            Title = "site",
+            BaseUrl = "/",
+            Language = "zh-CN"
+        };
+
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+
+        await PageRenderDispatcher.RenderPagesAsync(
+            new List<(ContentItem Item, RouteInfo Route)> { (item, route) },
+            new DictionaryContentBodyStore(new Dictionary<string, ContentBody>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["body-canonical"] = new("<p>lazy body</p>")
+            }),
+            renderer,
+            siteModel,
+            outputDir,
+            templateHash: "template-hash",
+            renderDependencyHash: string.Empty,
+            incrementalEnabled: false,
+            manifest: new BuildManifest(),
+            manifestEntries: null,
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
+            maxDegreeOfParallelism: 1,
+            logger: new ConsoleLogger(LogLevel.Error),
+            cancellationToken: CancellationToken.None);
+
+        Assert.Equal("Canonical summary", renderer.LastPageSummary);
+        Assert.Equal("notion", renderer.LastPageSource);
+        Assert.Equal("approved", renderer.LastPageReviewStatus);
+    }
+
+    [Fact]
     public async Task RenderPages_SkipsWithoutHydratingBody_WhenStableFingerprintMatchesManifest()
     {
         var item = new ContentItem(
@@ -391,11 +446,17 @@ public sealed class PageRenderDispatcherLazyBodyTests
     private sealed class CaptureRenderer : ITemplateRenderer
     {
         public string? LastPageContent { get; private set; }
+        public string? LastPageSummary { get; private set; }
+        public string? LastPageSource { get; private set; }
+        public string? LastPageReviewStatus { get; private set; }
         public List<string> ListPageUrls { get; } = new();
 
         public string RenderPage(string templateRelativePath, PageModel model)
         {
             LastPageContent = model.Page.Content;
+            LastPageSummary = model.Page.Summary;
+            LastPageSource = model.Page.Provenance?.Source;
+            LastPageReviewStatus = model.Page.Trust?.ReviewStatus;
             return model.Page.Content;
         }
 

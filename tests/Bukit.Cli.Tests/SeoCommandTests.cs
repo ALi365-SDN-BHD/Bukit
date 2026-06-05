@@ -56,6 +56,45 @@ public sealed class SeoCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_AuditReadsPublishAuditReportWhenPresent()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, ".bukit"));
+        WriteReportFile(Path.Combine(_root, ".bukit", "publish-audit-report.json"), 0, 0, "[]", schema: "https://bukit.dev/schemas/publish-audit-report.v1.json");
+
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "audit", "--dir", _root }));
+
+        Assert.Equal(0, exitCode);
+    }
+
+    [Fact]
+    public async Task PublishCommand_AuditUsesSameReportContract()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, ".bukit"));
+        WriteReportFile(Path.Combine(_root, ".bukit", "publish-audit-report.json"), 0, 0, "[]", schema: "https://bukit.dev/schemas/publish-audit-report.v1.json");
+
+        var exitCode = await PublishCommand.RunAsync(CliTestHelper.CreateCommand("publish", new[] { "publish", "audit", "--dir", _root }));
+
+        Assert.Equal(0, exitCode);
+    }
+
+    [Fact]
+    public async Task PublishCommand_DiffUsesSameBudgetContract()
+    {
+        var baseline = Path.Combine(_root, "baseline.json");
+        var current = Path.Combine(_root, "current.json");
+        WriteReportFile(baseline, 0, 0, "[]", schema: "https://bukit.dev/schemas/publish-audit-report.v1.json");
+        WriteReportFile(current, 0, 1, """
+            [
+              { "severity": "warning", "code": "publish.source_missing", "route": "/", "message": "missing source" }
+            ]
+            """, schema: "https://bukit.dev/schemas/publish-audit-report.v1.json");
+
+        var exitCode = await PublishCommand.RunAsync(CliTestHelper.CreateCommand("publish", new[] { "publish", "diff", "--baseline", baseline, "--current", current, "--fail-on-new-code", "publish.source_missing" }));
+
+        Assert.Equal(1, exitCode);
+    }
+
+    [Fact]
     public async Task RunAsync_AuditAcceptsGeoSummaryFields()
     {
         WriteReport(0, 0, "[]", summaryExtraProperties: """
@@ -157,12 +196,12 @@ public sealed class SeoCommandTests : IDisposable
     private void WriteReport(int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0", string extraRootProperty = "", string summaryExtraProperties = "")
         => WriteReportFile(Path.Combine(_root, "seo-report.json"), errorCount, warningCount, issuesJson, schemaVersion, extraRootProperty, summaryExtraProperties);
 
-    private static void WriteReportFile(string path, int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0", string extraRootProperty = "", string summaryExtraProperties = "")
+    private static void WriteReportFile(string path, int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0", string extraRootProperty = "", string summaryExtraProperties = "", string schema = "https://bukit.dev/schemas/seo-report.v1.json")
     {
         File.WriteAllText(path, $$"""
             {
               {{extraRootProperty}}
-              "schema": "https://bukit.dev/schemas/seo-report.v1.json",
+              "schema": "{{schema}}",
               "schemaVersion": "{{schemaVersion}}",
               "generatedAt": "2026-05-14T00:00:00+00:00",
               "siteName": "Test",
@@ -194,7 +233,11 @@ public sealed class SeoCommandTests : IDisposable
                 "nonIndexableCount": 0,
                 {{summaryExtraProperties}}
                 "errorCount": {{errorCount}},
-                "warningCount": {{warningCount}}
+                "warningCount": {{warningCount}},
+                "publishIssueCount": {{warningCount + errorCount}},
+                "machineReadabilityIssueCount": {{warningCount}},
+                "trustIssueCount": {{errorCount}},
+                "representationGapCount": 0
               }
             }
             """);

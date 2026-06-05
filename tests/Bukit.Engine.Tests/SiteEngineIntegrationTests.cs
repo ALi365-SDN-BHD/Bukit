@@ -311,6 +311,136 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_WritesPublishRepresentationsAndAuditArtifacts()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-publish-projection-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "content", "hello.md"), """
+                ---
+                type: post
+                collection: post
+                title: Hello World
+                slug: hello-world
+                publishAt: 2024-06-01T00:00:00Z
+                updatedAt: 2024-06-02T00:00:00Z
+                summary: A hello world post
+                author: Ali
+                source: notion
+                review_status: approved
+                entities:
+                  - Bukit
+                ---
+                # Hello World
+
+                This is a test post.
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta charset="utf-8">
+                  <title>{{ page.title }}</title>
+                  <link rel="canonical" href="{{ page.url }}">
+                </head>
+                <body>{{ content }}</body>
+                </html>
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), """
+                <main>
+                  <article>
+                    <h1>{{ page.title }}</h1>
+                    <p>{{ page.summary }}</p>
+                    <time datetime="{{ page.publish_date | date.to_string "%Y-%m-%d" }}">{{ page.publish_date | date.to_string "%Y-%m-%d" }}</time>
+                    {{ page.content }}
+                  </article>
+                </main>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "<main><article><h1>{{ page.title }}</h1>{{ page.content }}</article></main>");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "<main><h1>{{ site.title }}</h1></main>");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "<main><h1>{{ page.title }}</h1></main>");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test-site",
+                    Title = "Test Site",
+                    Url = "https://example.com",
+                    BaseUrl = "/",
+                    Language = "en",
+                    Collections = TestCollections()
+                },
+                Content = new ContentConfig
+                {
+                    Provider = "markdown",
+                    Markdown = new MarkdownConfig { Dir = "content" },
+                },
+                Build = new BuildConfig
+                {
+                    Output = "dist",
+                    Clean = true,
+                    Report = new BuildReportConfig { Enabled = true }
+                },
+            };
+
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+
+            WriteTestThemeTemplates(root);
+
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var distDir = Path.Combine(root, "dist");
+            var jsonProjectionPath = Path.Combine(distDir, "content", "hello-world.json");
+            var markdownProjectionPath = Path.Combine(distDir, "content", "hello-world.md");
+            var agentManifestPath = Path.Combine(distDir, "agent-manifest.json");
+            var publishAuditPath = Path.Combine(distDir, ".bukit", "publish-audit-report.json");
+
+            Assert.True(File.Exists(jsonProjectionPath), $"Expected {jsonProjectionPath}");
+            Assert.True(File.Exists(markdownProjectionPath), $"Expected {markdownProjectionPath}");
+            Assert.True(File.Exists(agentManifestPath), $"Expected {agentManifestPath}");
+            Assert.True(File.Exists(publishAuditPath), $"Expected {publishAuditPath}");
+
+            using var projectionDoc = JsonDocument.Parse(File.ReadAllText(jsonProjectionPath));
+            Assert.Equal("Hello World", projectionDoc.RootElement.GetProperty("title").GetString());
+            Assert.Equal("Ali", projectionDoc.RootElement.GetProperty("author").GetString());
+            Assert.Equal("approved", projectionDoc.RootElement.GetProperty("reviewStatus").GetString());
+            Assert.Equal("notion", projectionDoc.RootElement.GetProperty("source").GetString());
+
+            var markdownProjection = File.ReadAllText(markdownProjectionPath);
+            Assert.Contains("# Hello World", markdownProjection, StringComparison.Ordinal);
+            Assert.Contains("Review Status: approved", markdownProjection, StringComparison.Ordinal);
+
+            using var manifestDoc = JsonDocument.Parse(File.ReadAllText(agentManifestPath));
+            var manifestDocuments = manifestDoc.RootElement.GetProperty("documents").EnumerateArray().ToArray();
+            Assert.Contains(manifestDocuments, x =>
+                (x.TryGetProperty("route", out var route) && route.GetString() == "/blog/hello-world/") ||
+                (x.TryGetProperty("Route", out var routeUpper) && routeUpper.GetString() == "/blog/hello-world/"));
+
+            using var publishAuditDoc = JsonDocument.Parse(File.ReadAllText(publishAuditPath));
+            Assert.Equal("https://bukit.dev/schemas/publish-audit-report.v1.json", publishAuditDoc.RootElement.GetProperty("schema").GetString());
+            var summary = publishAuditDoc.RootElement.GetProperty("summary");
+            Assert.True(summary.GetProperty("publishIssueCount").GetInt32() >= 0);
+            Assert.True(summary.GetProperty("machineReadabilityIssueCount").GetInt32() >= 0);
+            Assert.True(summary.GetProperty("trustIssueCount").GetInt32() >= 0);
+            Assert.True(summary.GetProperty("representationGapCount").GetInt32() >= 0);
+        }
+        finally
+        {
+            try { CleanupDir(root); } catch { }
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_ThemeSource_UsesResolvedThemeLayoutsAndAssets()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-theme-source-build-test", Guid.NewGuid().ToString("N"));

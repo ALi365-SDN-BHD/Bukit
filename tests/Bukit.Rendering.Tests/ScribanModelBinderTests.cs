@@ -201,6 +201,45 @@ public sealed class ScribanModelBinderTests
     }
 
     [Fact]
+    public void ToScriptObject_PageModel_BindsCanonicalContentHelpers()
+    {
+        var model = new PageModel
+        {
+            Site = CreateMinimalSite(),
+            Page = CreateMinimalPage() with
+            {
+                ContentRecord = new ContentRecord(
+                    new ContentIdentity("page-1", "minimal", "minimal", "page", "published"),
+                    new ContentPresentation("Minimal Page", "summary", "<p>minimal</p>", "zh-CN", []),
+                    new ContentClassification("page", "page", [], ["docs"]),
+                    new ContentOwnership("Ali", "Bukit", null, null),
+                    new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), null, null, null),
+                    new ProvenanceRecord("markdown", "https://example.com/original", [], [], "synced"),
+                    new TrustMetadata(0.9, "approved", []),
+                    [new EntityRecord("company", "Bukit")],
+                    [],
+                    []),
+                Entities = [new EntityRecord("company", "Bukit")],
+                Provenance = new ProvenanceRecord("markdown", "https://example.com/original", [], [], "synced"),
+                Trust = new TrustMetadata(0.9, "approved", []),
+                Representations = ["html", "json"]
+            }
+        };
+
+        var obj = ScribanModelBinder.ToScriptObject(model);
+        var page = Assert.IsType<ScriptObject>(obj["page"]);
+        var content = Assert.IsType<ScriptObject>(page["content_model"]);
+        var provenance = Assert.IsType<ScriptObject>(page["provenance"]);
+        var trust = Assert.IsType<ScriptObject>(page["trust"]);
+        var entities = Assert.IsType<ScriptArray>(page["entities"]);
+
+        Assert.Equal("page", content["content_type"]);
+        Assert.Equal("markdown", provenance["source"]);
+        Assert.Equal("approved", trust["review_status"]);
+        Assert.Equal("Bukit", Assert.IsType<ScriptObject>(entities[0])["name"]);
+    }
+
+    [Fact]
     public void ToScriptObject_PageModel_AnalyticsDefaultValues()
     {
         var model = new PageModel

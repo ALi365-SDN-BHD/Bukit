@@ -68,6 +68,21 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
+    public void AfterBuild_WithLlmsTxtEnabled_ShouldUseCanonicalSummaryForLinkDescription()
+    {
+        var outputDir = Path.Combine(_root, "dist-llmstxt-summary");
+        Directory.CreateDirectory(outputDir);
+        var context = CreateContext(outputDir, geoEnabled: true, llmsTxt: true,
+            itemSummary: "Canonical llms summary");
+
+        var plugin = new LlmsTxtPlugin();
+        plugin.AfterBuild(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        Assert.Contains("- [Test Page](https://example.com/page-1/): Canonical llms summary", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AfterBuild_WithLlmsFullTxtEnabled_GeneratesLlmsFullTxt()
     {
         var outputDir = Path.Combine(_root, "dist-full");
@@ -133,6 +148,24 @@ public sealed class LlmsTxtPluginTests : IDisposable
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
         Assert.Contains("Item-specific description", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AfterBuild_WithCanonicalTrustMetadataInFullTxt_IncludesCanonicalFields()
+    {
+        var outputDir = Path.Combine(_root, "dist-canonical");
+        Directory.CreateDirectory(outputDir);
+        var context = CreateContext(outputDir, geoEnabled: true, llmsFullTxt: true,
+            itemSummary: "Canonical summary");
+
+        var plugin = new LlmsTxtPlugin();
+        plugin.AfterBuild(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
+        Assert.Contains("Author: Ali", content, StringComparison.Ordinal);
+        Assert.Contains("Source: notion", content, StringComparison.Ordinal);
+        Assert.Contains("Review Status: approved", content, StringComparison.Ordinal);
+        Assert.Contains("Entities: Bukit", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -223,6 +256,20 @@ public sealed class LlmsTxtPluginTests : IDisposable
             BaseUrl = "/",
             LayoutsDir = Path.Combine(_root, "layouts"),
             Routed = new[] { (item, route) },
+            ContentGraph = new CanonicalContentGraph(
+            [
+                new ContentRecord(
+                    new ContentIdentity("page-1", "test-page", "test-page", "page", "published"),
+                    new ContentPresentation("Test Page", itemSummary ?? itemDescription ?? "Summary", "<p>Hello world</p>", "en", []),
+                    new ContentClassification("page", "page", [], []),
+                    new ContentOwnership("Ali", null, null, null),
+                    new ContentLifecycle(item.PublishAt, null, null, null),
+                    new ProvenanceRecord("notion", null, [], [], null),
+                    new TrustMetadata(null, "approved", []),
+                    [new EntityRecord("company", "Bukit")],
+                    [],
+                    [])
+            ], [new EntityRecord("company", "Bukit")]),
             BodyStore = NullContentBodyStore.Instance,
             SeoIndex = seoIndex,
             Logger = new TestLogger()

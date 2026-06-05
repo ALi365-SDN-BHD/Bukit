@@ -23,8 +23,7 @@ internal static class DataModuleBuilder
                 continue;
             }
 
-            var type = item.Meta.TryGetValue("type", out var v) && v is not null ? (v.ToString() ?? string.Empty) : string.Empty;
-            type = type.Trim();
+            var type = item.GetContentType().Trim();
             if (string.IsNullOrWhiteSpace(type))
             {
                 type = "module";
