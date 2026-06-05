@@ -243,6 +243,7 @@ public sealed class SiteEngineIntegrationTests
                     Title = "Test Site",
                     BaseUrl = "/",
                     Language = "en",
+                    Collections = TestCollections()
                 },
                 Content = new ContentConfig
                 {
@@ -352,7 +353,8 @@ public sealed class SiteEngineIntegrationTests
                     Name = "test-site",
                     Title = "Test Site",
                     BaseUrl = "/",
-                    Language = "en"
+                    Language = "en",
+                    Collections = TestCollections()
                 },
                 Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } },
                 Build = new BuildConfig { Output = "dist", Clean = true },
@@ -424,6 +426,7 @@ public sealed class SiteEngineIntegrationTests
                     Title = "Test Site",
                     BaseUrl = "/",
                     Language = "en",
+                    Collections = TestCollections()
                 },
                 Content = new ContentConfig
                 {
@@ -917,7 +920,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/" },
+                Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/", Collections = TestCollections() },
                 Content = new ContentConfig
                 {
                     Provider = "markdown",
@@ -980,7 +983,8 @@ public sealed class SiteEngineIntegrationTests
                     Language = "en",
                     DefaultLanguage = "en",
                     Languages = new[] { "en", "fr", "de" },
-                    BaseUrl = "/"
+                    BaseUrl = "/",
+                    Collections = TestCollections()
                 },
                 Content = new ContentConfig
                 {
@@ -1072,7 +1076,8 @@ public sealed class SiteEngineIntegrationTests
                     Language = "en",
                     Languages = new[] { "en", "fr", "de" },
                     DefaultLanguage = "en",
-                    BaseUrl = "/"
+                    BaseUrl = "/",
+                    Collections = TestCollections()
                 },
                 Content = new ContentConfig
                 {
@@ -1375,7 +1380,7 @@ public sealed class SiteEngineIntegrationTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en" },
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
                 Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } },
                 Build = new BuildConfig { Output = "dist", Clean = true },
             };
@@ -1465,7 +1470,7 @@ public sealed class SiteEngineIntegrationTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en" },
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
                 Content = new ContentConfig
                 {
                     Provider = "markdown",
@@ -1523,7 +1528,7 @@ public sealed class SiteEngineIntegrationTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en" },
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
                 Content = new ContentConfig
                 {
                     Provider = "markdown",
@@ -1637,7 +1642,7 @@ public sealed class SiteEngineIntegrationTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en" },
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
                 Content = new ContentConfig
                 {
                     Provider = "markdown",
@@ -1769,7 +1774,7 @@ public sealed class SiteEngineIntegrationTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en" },
+                Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
                 Content = new ContentConfig
                 {
                     Provider = "markdown",
@@ -1914,7 +1919,7 @@ public sealed class SiteEngineIntegrationTests
 
             var config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "T" },
+                Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
                 Content = new ContentConfig
                 {
                     Provider = "sources",
@@ -2759,6 +2764,7 @@ public sealed class SiteEngineIntegrationTests
                 Title = "T",
                 BaseUrl = "/",
                 Language = "en",
+                Collections = TestCollections(),
                 PluginFailMode = "strict",
                 ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -2792,7 +2798,7 @@ public sealed class SiteEngineIntegrationTests
     private static AppConfig CreateThemeInheritanceConfig()
         => new()
         {
-            Site = new SiteConfig { Name = "t", Title = "T" },
+            Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
             Content = new ContentConfig
             {
                 Provider = "markdown",
@@ -2819,7 +2825,7 @@ public sealed class SiteEngineIntegrationTests
     private static AppConfig CreateRouteConflictConfig()
         => new()
         {
-            Site = new SiteConfig { Name = "t", Title = "T" },
+            Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
             Content = new ContentConfig
             {
                 Provider = "markdown",
@@ -2842,6 +2848,23 @@ public sealed class SiteEngineIntegrationTests
 
         return count;
     }
+
+    private static IReadOnlyDictionary<string, CollectionConfig> TestCollections()
+        => new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post"] = new()
+            {
+                Permalink = "/blog/{slug}/",
+                Template = "pages/post.html",
+                ListRoute = "/blog/",
+                ListTemplate = "pages/list.html"
+            },
+            ["page"] = new()
+            {
+                Permalink = "/pages/{slug}/",
+                Template = "pages/page.html"
+            }
+        };
 
     private static void WriteTestThemeTemplates(string root)
     {

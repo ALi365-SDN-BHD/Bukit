@@ -24,15 +24,11 @@ internal sealed class CollectionWarningStage : IContentStage
                     !string.IsNullOrWhiteSpace(typeObj.ToString()))
                 {
                     var typeVal = typeObj.ToString()!;
-                    if (typeVal.Equals("post", StringComparison.OrdinalIgnoreCase) ||
-                        typeVal.Equals("page", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var collectionVal = c?.ToString() ?? "(unknown)";
-                        input.Logger.Warn(
-                            $"[WARN] Content \"{item.Id}\" defines both type={typeVal} and collection={collectionVal}. " +
-                            "Collection routing takes precedence; type is treated as legacy metadata.");
-                        warned++;
-                    }
+                    var collectionVal = c?.ToString() ?? "(unknown)";
+                    input.Logger.Warn(
+                        $"[WARN] Content \"{item.Id}\" defines both type={typeVal} and collection={collectionVal}. " +
+                        "Collection routing uses collection; type remains content metadata.");
+                    warned++;
                 }
                 continue;
             }
@@ -42,14 +38,10 @@ internal sealed class CollectionWarningStage : IContentStage
                 !string.IsNullOrWhiteSpace(t.ToString()))
             {
                 var typeVal = t.ToString()!;
-                if (typeVal.Equals("post", StringComparison.OrdinalIgnoreCase) ||
-                    typeVal.Equals("page", StringComparison.OrdinalIgnoreCase))
-                {
-                    input.Logger.Warn(
-                        $"[DEPRECATED] Content \"{item.Id}\" uses type={typeVal} without collection. " +
-                        "Legacy routing is enabled. Please migrate to content.collection and site.collections.");
-                    warned++;
-                }
+                input.Logger.Warn(
+                    $"[WARN] Content \"{item.Id}\" uses type={typeVal} without collection. " +
+                    "Routing must be provided by site.collections, site.permalinks, or route front matter.");
+                warned++;
             }
         }
 

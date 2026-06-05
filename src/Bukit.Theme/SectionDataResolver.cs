@@ -41,7 +41,7 @@ public static class SectionDataResolver
     {
         if (sourceSet.Contains("*") || sourceSet.Contains("all")) return true;
 
-        var itemType = GetMetaString(item.Meta, "type") ?? "page";
+        var itemType = GetMetaString(item.Meta, "type");
         var itemCollections = GetMetaStringList(item.Meta, "collections");
 
         foreach (var source in sourceSet)
@@ -51,7 +51,8 @@ public static class SectionDataResolver
             if (source.StartsWith("type:", StringComparison.OrdinalIgnoreCase))
             {
                 var typeValue = source[5..];
-                if (string.Equals(itemType, typeValue, StringComparison.OrdinalIgnoreCase)) return true;
+                if (!string.IsNullOrWhiteSpace(itemType) &&
+                    string.Equals(itemType, typeValue, StringComparison.OrdinalIgnoreCase)) return true;
             }
             else if (source.StartsWith("collection:", StringComparison.OrdinalIgnoreCase))
             {
@@ -64,7 +65,8 @@ public static class SectionDataResolver
             }
             else
             {
-                if (string.Equals(itemType, source, StringComparison.OrdinalIgnoreCase)) return true;
+                if (!string.IsNullOrWhiteSpace(itemType) &&
+                    string.Equals(itemType, source, StringComparison.OrdinalIgnoreCase)) return true;
                 if (itemCollections is not null &&
                     itemCollections.Contains(source, StringComparer.OrdinalIgnoreCase))
                 {

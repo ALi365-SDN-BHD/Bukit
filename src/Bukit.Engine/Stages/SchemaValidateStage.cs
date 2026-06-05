@@ -23,7 +23,7 @@ internal sealed class SchemaValidateStage : IContentStage
         {
             foreach (var item in input.Items)
             {
-                var collectionName = MetaHelpers.GetEffectiveCollection(item, "page");
+                var collectionName = MetaHelpers.GetEffectiveCollection(item);
                 if (string.IsNullOrWhiteSpace(collectionName) ||
                     !collections.TryGetValue(collectionName, out var collection) ||
                     collection.Schema is null || collection.Schema.Count == 0)
@@ -50,7 +50,7 @@ internal sealed class SchemaValidateStage : IContentStage
 
         foreach (var item in input.Items)
         {
-            var collectionName = MetaHelpers.GetEffectiveCollection(item, "page");
+            var collectionName = MetaHelpers.GetEffectiveCollection(item);
             if (string.IsNullOrWhiteSpace(collectionName) ||
                 !collections.TryGetValue(collectionName, out var collection) ||
                 collection.Schema is null || collection.Schema.Count == 0)

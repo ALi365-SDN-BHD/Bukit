@@ -17,7 +17,7 @@ guide_chapters:
 
 ## Overview
 
-Bukit generates URLs and output paths for each content item through **permalink patterns** and **collection route rules**. Route priority: content metadata override > collection config > global permalinks > built-in defaults (post→`/blog/{slug}/`, page→`/pages/{slug}/`).
+Bukit generates URLs and output paths for each content item through **permalink patterns** and **collection route rules**. Route priority: content metadata override > collection config > global permalinks. If none match, build/doctor fails and the site must add explicit routing config.
 
 **REQUIRED BACKGROUND:** Routing config depends on `site.collections` and `site.permalinks` in site.yaml — you must understand the collection config model in bukit-config first.
 **REQUIRED SUB-SKILL:** Verify route output with `bukit build`. CLI commands reference bukit-cli-reference.
@@ -37,10 +37,9 @@ Bukit generates URLs and output paths for each content item through **permalink 
 2. Content metadata partial override (url only or url + template)
 3. site.collections match (by collection field or type field)
 4. site.permalinks global rules
-5. Built-in defaults: post → /blog/{slug}/, page → /pages/{slug}/
 ```
 
-When only `url` is provided in metadata, Bukit enters **partial override**: `outputPath` is auto-derived from the URL, and `template` falls back to the collection/permalink/default rule. See Route Override below for details.
+When only `url` is provided in metadata, Bukit enters **partial override**: `outputPath` is auto-derived from the URL, and `template` falls back to the matching collection/permalink rule. See Route Override below for details.
 
 ## Permalink Patterns
 
@@ -81,7 +80,7 @@ site:
 
 - Content `collection` metadata field → matches `site.collections.<key>`
 - If collection is empty, fallback to `type` field → matches `site.collections.<type>`
-- If neither matches → use global permalinks or built-in defaults when no rules exist
+- If neither matches → use global permalinks; if no rule matches, build/doctor fails with a missing route rule error
 
 ### List Route (listRoute)
 

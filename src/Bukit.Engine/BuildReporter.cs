@@ -261,7 +261,7 @@ internal static class BuildReporter
             }
         }
 
-        return "page";
+        return string.Empty;
     }
 
     private static string ComputeSha256(string path)

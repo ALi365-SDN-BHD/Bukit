@@ -285,7 +285,7 @@ public sealed record NotionFieldPolicyConfig
 public sealed record MarkdownConfig
 {
     public string Dir { get; init; } = "content";
-    public string DefaultType { get; init; } = "page";
+    public string DefaultType { get; init; } = string.Empty;
     public int? MaxItems { get; init; }
     public IReadOnlyList<string>? IncludePaths { get; init; }
     public IReadOnlyList<string>? IncludeGlobs { get; init; }

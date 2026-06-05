@@ -199,7 +199,7 @@ internal static class I18nOutputMerger
     {
         if (collections is null || collections.Count == 0)
         {
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "post" };
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -211,7 +211,7 @@ internal static class I18nOutputMerger
             }
         }
 
-        return set.Count == 0 ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "post" } : set;
+        return set;
     }
 
     private static string GetCollection(ContentItem item)
