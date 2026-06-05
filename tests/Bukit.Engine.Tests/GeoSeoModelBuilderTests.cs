@@ -242,6 +242,7 @@ public sealed class GeoSeoModelBuilderTests
                 ["collection"] = "post",
                 ["geo"] = new Dictionary<string, object>
                 {
+                    ["schema_type"] = "BlogPosting",
                     ["same_as"] = new List<object> { "https://github.com/repo" }
                 }
             });
@@ -296,6 +297,7 @@ public sealed class GeoSeoModelBuilderTests
                 ["collection"] = "post",
                 ["geo"] = new Dictionary<string, object>
                 {
+                    ["schema_type"] = "BlogPosting",
                     ["about"] = "Static site generators",
                     ["date_reviewed"] = "2026-03-01T00:00:00+00:00"
                 }
@@ -322,7 +324,8 @@ public sealed class GeoSeoModelBuilderTests
             Meta: new Dictionary<string, object>
             {
                 ["type"] = "post",
-                ["collection"] = "post"
+                ["collection"] = "post",
+                ["schema_type"] = "BlogPosting"
             });
         var route = new RouteInfo("/lang-post/", "lang-post/index.html", "pages/post.html");
 

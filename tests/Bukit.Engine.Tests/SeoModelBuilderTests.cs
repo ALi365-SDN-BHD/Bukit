@@ -54,6 +54,7 @@ public sealed class SeoModelBuilderTests
             {
                 ["type"] = "post",
                 ["collection"] = "post",
+                ["schema_type"] = "BlogPosting",
                 ["author"] = "Alice",
                 ["tags"] = "dotnet,aspire",
                 ["summary"] = "A test post"
@@ -503,6 +504,7 @@ public sealed class SeoModelBuilderTests
             {
                 ["type"] = "post",
                 ["collection"] = "post",
+                ["schema_type"] = "BlogPosting",
                 ["author"] = "Bob",
                 ["tags"] = "tech,code"
             });

@@ -82,7 +82,7 @@ internal static class NotionRelationResolver
                 var props = page.TryGetProperty("properties", out var p) && p.ValueKind == JsonValueKind.Object ? p : default;
                 var title = NotionPropertyParser.ExtractTitle(props) ?? pageId;
                 var slug = NotionPropertyParser.ExtractSlug(props) ?? NotionContentProvider.Slugify(title) ?? pageId.Replace("-", string.Empty, StringComparison.Ordinal);
-                var type = NotionPropertyParser.ExtractType(props) ?? "page";
+                var type = NotionPropertyParser.ExtractType(props) ?? string.Empty;
 
                 var url = NotionContentProvider.GetString(page, "url");
                 url = string.IsNullOrWhiteSpace(url) ? null : url.Trim();

@@ -230,22 +230,20 @@ public static class SeoAlternatesService
             return Array.Empty<string>();
         }
 
-        var collectionKey = "post";
-        var listRoute = "/blog/";
-        var pageSize = 10;
-        if (config.Site.Collections is { Count: > 0 })
+        if (config.Site.Collections is not { Count: > 0 })
         {
-            var paginationCollection = config.Site.Collections.FirstOrDefault(x => x.Value.Pagination.Enabled);
-            if (paginationCollection.Value is null)
-            {
-                return Array.Empty<string>();
-            }
-
-            collectionKey = paginationCollection.Key;
-            listRoute = paginationCollection.Value.ListRoute ?? listRoute;
-            pageSize = paginationCollection.Value.Pagination.PageSize;
+            return Array.Empty<string>();
         }
 
+        var paginationCollection = config.Site.Collections.FirstOrDefault(x => x.Value.Pagination.Enabled);
+        if (paginationCollection.Value is null || string.IsNullOrWhiteSpace(paginationCollection.Value.ListRoute))
+        {
+            return Array.Empty<string>();
+        }
+
+        var collectionKey = paginationCollection.Key;
+        var listRoute = paginationCollection.Value.ListRoute;
+        var pageSize = paginationCollection.Value.Pagination.PageSize;
         pageSize = NormalizePageSize(pageSize);
         var count = routed.Count(x => string.Equals(GetCollection(x.Item), collectionKey, StringComparison.OrdinalIgnoreCase));
         if (count <= pageSize)

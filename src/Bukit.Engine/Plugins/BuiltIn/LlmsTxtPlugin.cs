@@ -85,7 +85,7 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
         }
 
         var pages = new List<(string Url, string Title, string? Description)>();
-        var articles = new List<(string Url, string Title, string? Description, DateTimeOffset Published)>();
+        var groups = new Dictionary<string, List<(string Url, string Title, string? Description, DateTimeOffset Published)>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var (key, (item, entry, model)) in keyed)
         {
@@ -94,9 +94,15 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             var desc = model?.Description ?? description;
             var collection = MetaHelpers.GetString(item.Meta, "collection") ?? MetaHelpers.GetString(item.Meta, "type");
 
-            if (string.Equals(collection, "post", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(collection))
             {
-                articles.Add((url, pageTitle, desc, item.PublishAt));
+                if (!groups.TryGetValue(collection, out var group))
+                {
+                    group = new List<(string Url, string Title, string? Description, DateTimeOffset Published)>();
+                    groups[collection] = group;
+                }
+
+                group.Add((url, pageTitle, desc, item.PublishAt));
             }
             else
             {
@@ -130,17 +136,17 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             sb.AppendLine();
         }
 
-        if (articles.Count > 0)
+        foreach (var (groupKey, items) in groups.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var sorted = articles.OrderByDescending(a => a.Published).Take(geo.LlmsTxtMaxArticles).ToList();
-            sb.AppendLine("## Articles");
+            var sorted = items.OrderByDescending(a => a.Published).Take(geo.LlmsTxtMaxArticles).ToList();
+            sb.AppendLine($"## {ToTitle(groupKey)}");
             sb.AppendLine();
-            foreach (var article in sorted)
+            foreach (var item in sorted)
             {
-                sb.Append(MarkdownLink(article.Title, article.Url));
-                if (!string.IsNullOrWhiteSpace(article.Description))
+                sb.Append(MarkdownLink(item.Title, item.Url));
+                if (!string.IsNullOrWhiteSpace(item.Description))
                 {
-                    sb.Append($": {article.Description}");
+                    sb.Append($": {item.Description}");
                 }
 
                 sb.AppendLine();
@@ -239,6 +245,19 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
     private static string MarkdownLink(string text, string url)
     {
         return $"- [{text}]({url})";
+    }
+
+    private static string ToTitle(string value)
+    {
+        var parts = value.Replace('-', ' ').Replace('_', ' ')
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+        {
+            return "Content";
+        }
+
+        return string.Join(" ", parts.Select(part =>
+            char.ToUpperInvariant(part[0]) + (part.Length == 1 ? string.Empty : part[1..])));
     }
 
     private static string? ResolveDescription(ContentItem item, string? siteDescription)

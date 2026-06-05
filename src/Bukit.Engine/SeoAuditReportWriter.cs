@@ -139,7 +139,7 @@ internal static class SeoAuditReportWriter
 
             var sitemapIncluded = entry.Indexable && ContainsInvariant(sitemapText, entry.Canonical);
             var searchIncluded = entry.Indexable && ContainsInvariant(searchText, entry.Route.Url);
-            var rssIncluded = entry.Indexable && IsRssContent(entry) && ContainsInvariant(rssText, entry.Canonical);
+            var rssIncluded = entry.Indexable && IsRssContent(config, entry) && ContainsInvariant(rssText, entry.Canonical);
 
             if (entry.Indexable && sitemapText is not null && !sitemapIncluded)
             {
@@ -552,8 +552,11 @@ internal static class SeoAuditReportWriter
         return secondLooksLikeScript && third.Length == 2 && third.All(char.IsLetter);
     }
 
-    private static bool IsRssContent(SeoIndexEntry entry)
-        => string.Equals(entry.ContentType, "post", StringComparison.OrdinalIgnoreCase);
+    private static bool IsRssContent(AppConfig config, SeoIndexEntry entry)
+        => !string.IsNullOrWhiteSpace(entry.ContentType) &&
+           config.Site.Collections is not null &&
+           config.Site.Collections.TryGetValue(entry.ContentType, out var collection) &&
+           collection.Output?.Rss == true;
 
     internal static bool IsAbsoluteHttpUrl(string value)
         => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
