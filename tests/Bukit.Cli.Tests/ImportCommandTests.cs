@@ -556,6 +556,8 @@ databases:
         Directory.CreateDirectory(demoDir);
         File.WriteAllText(Path.Combine(demoDir, "index.html"),
             "<html><head><title>Home</title></head><body><main><h1>Home</h1><p>Welcome.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1><p>About us.</p></main></body></html>");
 
         var opts = BaseOptions();
         opts["--theme"] = "verify-test";
@@ -574,6 +576,8 @@ databases:
         Directory.CreateDirectory(demoDir);
         File.WriteAllText(Path.Combine(demoDir, "index.html"),
             "<html><head><title>Home</title></head><body><main><h1>Home</h1><p>Welcome.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1><p>About us.</p></main></body></html>");
 
         var opts = BaseOptions();
         opts["--theme"] = "notion-default-test";
@@ -682,6 +686,8 @@ databases:
         Directory.CreateDirectory(demoDir);
         File.WriteAllText(Path.Combine(demoDir, "index.html"),
             "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1></main></body></html>");
         File.WriteAllText(Path.Combine(demoDir, "insights.html"),
             "<html><head><title>Insights</title></head><body><main><h1>Insights</h1></main></body></html>");
         File.WriteAllText(Path.Combine(demoDir, "companies.html"),
@@ -711,6 +717,8 @@ databases:
         File.WriteAllText(Path.Combine(demoDir, "assets", "css", "style.css"), "body{}");
         File.WriteAllText(Path.Combine(demoDir, "index.html"),
             "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"assets/css/style.css\"></head><body><main><h1>Home</h1><p>Welcome.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1><p>About us.</p></main></body></html>");
 
         var opts = BaseOptions();
         opts["--theme"] = "doctor-import-test";

@@ -102,13 +102,24 @@ public sealed class PagesByIdDataPluginTests
         Assert.Single(items);
 
         var item = items[0];
-        var route = RouteGenerator.Generate(item);
+        var route = RouteGenerator.Generate(item, collections: new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post"] = new RouteGenerator.CollectionRouteRule("/blog/{slug}/", string.Empty)
+        });
 
         var ctx = new BuildContext
         {
             Config = new AppConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "t" },
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "t",
+                    Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["post"] = new CollectionConfig { Permalink = "/blog/{slug}/" }
+                    }
+                },
                 Content = new ContentConfig { Provider = "markdown" }
             },
             RootDir = root,

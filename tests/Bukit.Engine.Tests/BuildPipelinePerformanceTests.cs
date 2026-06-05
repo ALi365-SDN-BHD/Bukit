@@ -24,7 +24,7 @@ public sealed class BuildPipelinePerformanceTests
             Directory.CreateDirectory(Path.Combine(themeDir, "layouts", "layouts"));
             Directory.CreateDirectory(Path.Combine(themeDir, "layouts", "pages"));
 
-            File.WriteAllText(Path.Combine(root, "site.yaml"), $"""
+            File.WriteAllText(Path.Combine(root, "site.yaml"), $$"""
                 site:
                   name: perf-test
                   title: Performance Test
@@ -32,6 +32,10 @@ public sealed class BuildPipelinePerformanceTests
                   language: en
                   seo:
                     enabled: false
+                  collections:
+                    post:
+                      permalink: /blog/{slug}/
+                      template: pages/post.html
                 content:
                   provider: markdown
                   markdown:
@@ -39,7 +43,7 @@ public sealed class BuildPipelinePerformanceTests
                 build:
                   output: dist
                 theme:
-                  name: {themeName}
+                  name: {{themeName}}
                 """);
 
             for (var i = 1; i <= 10; i++)
@@ -191,6 +195,10 @@ public sealed class BuildPipelinePerformanceTests
                   language: en
                   seo:
                     enabled: false
+                  collections:
+                    post:
+                      permalink: /blog/{slug}/
+                      template: pages/post.html
                 content:
                   provider: markdown
                   markdown:

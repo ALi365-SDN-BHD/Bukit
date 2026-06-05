@@ -261,7 +261,7 @@ public sealed class SiteEngineHelperTests
 
         var result = SeoAlternatesService.GetCollection(item);
 
-        Assert.Equal("page", result);
+        Assert.Equal("", result);
     }
 
     [Fact]

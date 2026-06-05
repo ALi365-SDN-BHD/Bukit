@@ -68,7 +68,7 @@ public sealed class CollectionWarningStageTests
         await stage.ExecuteAsync(input, CancellationToken.None);
 
         Assert.Single(logger.Warnings);
-        Assert.Contains("[DEPRECATED]", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("[WARN]", logger.Warnings[0], StringComparison.Ordinal);
         Assert.Contains("my-post", logger.Warnings[0], StringComparison.Ordinal);
         Assert.Contains("post", logger.Warnings[0], StringComparison.Ordinal);
     }
@@ -87,7 +87,7 @@ public sealed class CollectionWarningStageTests
         await stage.ExecuteAsync(input, CancellationToken.None);
 
         Assert.Single(logger.Warnings);
-        Assert.Contains("[DEPRECATED]", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("[WARN]", logger.Warnings[0], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class CollectionWarningStageTests
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
-        Assert.Empty(logger.Warnings);
+        Assert.NotEmpty(logger.Warnings);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public sealed class CollectionWarningStageTests
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
-        Assert.Empty(logger.Warnings);
+        Assert.Single(logger.Warnings);
     }
 
     [Fact]
@@ -140,9 +140,8 @@ public sealed class CollectionWarningStageTests
 
         Assert.Equal(3, logger.Warnings.Count);
         Assert.Contains(logger.Warnings, w => w.Contains("\"a\"", StringComparison.Ordinal));
-        Assert.Contains(logger.Warnings, w => w.Contains("[DEPRECATED]", StringComparison.Ordinal));
-        Assert.Contains(logger.Warnings, w => w.Contains("\"b\"", StringComparison.Ordinal));
         Assert.Contains(logger.Warnings, w => w.Contains("[WARN]", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, w => w.Contains("\"b\"", StringComparison.Ordinal));
         Assert.Contains(logger.Warnings, w => w.Contains("\"c\"", StringComparison.Ordinal));
     }
 
@@ -164,7 +163,7 @@ public sealed class CollectionWarningStageTests
         Assert.Contains("[WARN]", logger.Warnings[0], StringComparison.Ordinal);
         Assert.Contains("type=post", logger.Warnings[0], StringComparison.Ordinal);
         Assert.Contains("collection=companies", logger.Warnings[0], StringComparison.Ordinal);
-        Assert.Contains("Collection routing takes precedence", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("Collection routing uses collection", logger.Warnings[0], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -181,6 +180,6 @@ public sealed class CollectionWarningStageTests
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
-        Assert.Empty(logger.Warnings);
+        Assert.NotEmpty(logger.Warnings);
     }
 }

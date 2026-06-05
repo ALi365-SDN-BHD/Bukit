@@ -348,6 +348,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
             ContentHtml: null,
             Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
+                ["collection"] = "post",
                 ["summary"] = "summary"
             },
             Fields: null,

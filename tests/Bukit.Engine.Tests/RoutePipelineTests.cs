@@ -125,6 +125,10 @@ public sealed class RoutePipelineTests
                                 ListTemplate = "pages/featured.html"
                             }
                         }
+                    },
+                    ["page"] = new CollectionConfig
+                    {
+                        Permalink = "/pages/{slug}/"
                     }
                 }
             },
