@@ -198,6 +198,59 @@ public sealed class SeoCommandTests : IDisposable
 
     private static void WriteReportFile(string path, int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0", string extraRootProperty = "", string summaryExtraProperties = "", string schema = "https://bukit.dev/schemas/seo-report.v1.json")
     {
+        if (schema == "https://bukit.dev/schemas/publish-audit-report.v1.json")
+        {
+            File.WriteAllText(path, $$"""
+                {
+                  {{extraRootProperty}}
+                  "schema": "{{schema}}",
+                  "schemaVersion": "{{schemaVersion}}",
+                  "generatedAt": "2026-05-14T00:00:00+00:00",
+                  "siteName": "Test",
+                  "siteUrl": "https://example.com",
+                  "baseUrl": "/",
+                  "documents": [
+                    {
+                      "routeUrl": "/",
+                      "outputPath": "index.html",
+                      "canonical": "https://example.com/",
+                      "indexable": true,
+                      "lastModified": "2026-05-14T00:00:00+00:00",
+                      "contentType": "page",
+                      "sourceItemId": null,
+                      "title": "Home",
+                      "description": "Home description",
+                      "language": "en",
+                      "author": "Ali",
+                      "organization": "Bukit",
+                      "source": "markdown",
+                      "originalSource": null,
+                      "reviewStatus": "approved",
+                      "entityNames": [ "Bukit" ],
+                      "representationKinds": [ "html", "json", "markdown" ],
+                      "schemaTypes": [ "WebPage" ],
+                      "sitemapIncluded": true,
+                      "searchIncluded": true,
+                      "rssIncluded": false
+                    }
+                  ],
+                  "issues": {{issuesJson}},
+                  "summary": {
+                    "documentCount": 1,
+                    "indexableCount": 1,
+                    "nonIndexableCount": 0,
+                    "errorCount": {{errorCount}},
+                    "warningCount": {{warningCount}},
+                    "publishIssueCount": {{warningCount + errorCount}},
+                    "machineReadabilityIssueCount": {{warningCount}},
+                    "trustIssueCount": {{errorCount}},
+                    "representationGapCount": 0
+                  }
+                }
+                """);
+            return;
+        }
+
         File.WriteAllText(path, $$"""
             {
               {{extraRootProperty}}

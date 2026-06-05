@@ -7,12 +7,6 @@ public static class SeoCommand
 {
     internal static string? ResolveAuditReportPath(string outputDir)
     {
-        var publish = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
-        if (File.Exists(publish))
-        {
-            return publish;
-        }
-
         var preferred = Path.Combine(outputDir, ".bukit", "seo-report.json");
         if (File.Exists(preferred))
         {
@@ -20,7 +14,13 @@ public static class SeoCommand
         }
 
         var legacy = Path.Combine(outputDir, "seo-report.json");
-        return File.Exists(legacy) ? legacy : null;
+        if (File.Exists(legacy))
+        {
+            return legacy;
+        }
+
+        var publish = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
+        return File.Exists(publish) ? publish : null;
     }
 
     public static async Task<int> RunAsync(CliBoundCommand command)
@@ -96,7 +96,10 @@ public static class SeoCommand
             var summary = doc.RootElement.GetProperty("summary");
             var errorCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "errorCount");
             var warningCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "warningCount");
-            var routeCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "routeCount");
+            var routeCount = SeoReportValidator.ReadRequiredInt(
+                summary,
+                "summary",
+                doc.RootElement.TryGetProperty("documents", out _) ? "documentCount" : "routeCount");
 
             Console.WriteLine($"{label} audit: routes={routeCount} errors={errorCount} warnings={warningCount}");
             WriteSummaryBuckets(summary, label);

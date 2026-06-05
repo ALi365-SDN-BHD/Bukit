@@ -22,6 +22,7 @@
 | `template` | 创建、列出、查看、校验、同步和浏览模板文件 |
 | `clone` | 将任意网站的视觉设计克隆为 Bukit 主题 |
 | `seo` | SEO 审计与 diff（验证 seo-report.json） |
+| `publish` | 机器可读与可信发布审计（验证 publish-audit-report.json） |
 | `visual` | 生成 Playwright 视觉测试脚本 |
 | `webhook` | Notion 变更触发 GitHub Actions（可选） |
 | `intent` | AI Intent 相关（可选） |
@@ -412,6 +413,21 @@ bukit seo diff --fail-on-indexable-drop
 ```
 
 `seo audit` 校验 `build` 生成的 `seo-report.json` — 检查 schema 结构、统计错误/警告数，可选验证外部链接。`seo diff` 与上一份报告对比，检测回归。
+
+## publish：校验机器可读与可信发布
+
+```bash
+# 审计当前 publish-audit-report.json
+bukit publish audit --dir dist
+
+# warning 也按失败处理
+bukit publish audit --dir dist --strict
+
+# 对比两份发布审计报告
+bukit publish diff --baseline previous/.bukit/publish-audit-report.json --current dist/.bukit/publish-audit-report.json
+```
+
+`publish audit` 校验 `.bukit/publish-audit-report.json`，这是语义 HTML、来源/审核可信度、representation 覆盖率和聚合输出一致性的主报告。`seo audit` 仍用于兼容 SEO 报告。
 
 ## visual: 生成视觉测试脚本
 

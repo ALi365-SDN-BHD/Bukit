@@ -1,9 +1,9 @@
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.PublishAuditRules;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
@@ -15,14 +15,6 @@ internal static partial class SeoAuditReportWriter
 {
     private const int TitleMaxLength = 60;
     private const int DescriptionMaxLength = 160;
-    private static readonly Regex ImgTagRegex = new("<img\\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex AltAttributeRegex = new("\\balt\\s*=\\s*(?:\"[^\"]*\"|'[^']*')", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex HeadingTagRegex = new("<h(?<level>[1-6])\\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex TimeDatetimeRegex = new("<time\\b[^>]*\\bdatetime\\s*=\\s*(?:\"[^\"]+\"|'[^']+')", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex MainOrArticleRegex = new("<(main|article)\\b[^>]*>(?<content>[\\s\\S]*?)</\\1>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex StripScriptStyleRegex = new("<(script|style|template)\\b[^>]*>[\\s\\S]*?</\\1>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex StripTagRegex = new("<[^>]+>", RegexOptions.Compiled);
-    private static readonly Regex CollapseWhitespaceRegex = new("\\s+", RegexOptions.Compiled);
 
     internal static SeoAuditReport Write(
         AppConfig config,
@@ -87,15 +79,14 @@ internal static partial class SeoAuditReportWriter
     {
         var json = JsonSerializer.Serialize(report, SeoAuditReportJsonContext.Default.SeoAuditReport);
         FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReporter.ReportDirectoryName, "seo-report.json"), json + Environment.NewLine);
-        var publishJson = json.Replace(SeoAuditModels.ReportSchema, SeoAuditModels.PublishAuditSchema, StringComparison.Ordinal);
-        FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReporter.ReportDirectoryName, "publish-audit-report.json"), publishJson + Environment.NewLine);
+        PublishAuditReportWriter.Write(config, outputDir, report);
 
         WriteGeoReport(outputDir, report, logger);
         WriteAgentManifest(outputDir, report);
 
         foreach (var issue in report.Issues)
         {
-            var message = $"seo.audit severity={issue.Severity} code={issue.Code} route={issue.Route ?? "-"} message={issue.Message}";
+            var message = $"{LogPrefix(issue.Code)} severity={issue.Severity} code={issue.Code} route={issue.Route ?? "-"} message={issue.Message}";
             if (string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase))
             {
                 logger.Error(message);
@@ -105,6 +96,21 @@ internal static partial class SeoAuditReportWriter
                 logger.Warn(message);
             }
         }
+    }
+
+    private static string LogPrefix(string code)
+    {
+        if (code.StartsWith("publish.", StringComparison.OrdinalIgnoreCase))
+        {
+            return "publish.audit";
+        }
+
+        if (code.StartsWith("geo.", StringComparison.OrdinalIgnoreCase))
+        {
+            return "geo.audit";
+        }
+
+        return "seo.audit";
     }
 
     private static void WriteGeoReport(string outputDir, SeoAuditReport report, ILogger logger)
@@ -193,9 +199,10 @@ internal static partial class SeoAuditReportWriter
                 AnalyzeHtmlOutput(config, entry, document, outputPath, issues);
             }
 
+            var rssExpected = IsRssContent(config, entry);
             var sitemapIncluded = entry.Indexable && ContainsInvariant(sitemapText, entry.Canonical);
             var searchIncluded = entry.Indexable && ContainsInvariant(searchText, entry.Route.Url);
-            var rssIncluded = entry.Indexable && IsRssContent(config, entry) && ContainsInvariant(rssText, entry.Canonical);
+            var rssIncluded = entry.Indexable && rssExpected && ContainsInvariant(rssText, entry.Canonical);
 
             if (entry.Indexable && sitemapText is not null && !sitemapIncluded)
             {
@@ -219,6 +226,7 @@ internal static partial class SeoAuditReportWriter
             }
 
             AnalyzePublishDocument(document, issues);
+            SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, searchIncluded, rssIncluded, rssExpected, robotsText, issues);
 
             routes.Add(new SeoAuditRoute(
                 Url: entry.Route.Url,
@@ -255,13 +263,6 @@ internal static partial class SeoAuditReportWriter
             .OrderBy(x => x.Url, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.OutputPath, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var sortedIssues = issues
-            .OrderBy(x => SeverityRank(x.Severity))
-            .ThenBy(x => x.Route ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.Code, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.Message, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
         var geoEnhancedRoutes = sortedRoutes
             .Where(x => x.SchemaTypes.Any(t =>
                 t is "FAQPage" or "HowTo" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification"))
@@ -280,6 +281,13 @@ internal static partial class SeoAuditReportWriter
             issues.Add(new SeoAuditIssue("warning", "geo.llms_full_txt_missing", null,
                 "llms-full.txt was not generated. Check that llmsFullTxt is enabled and content is indexable."));
         }
+
+        var sortedIssues = issues
+            .OrderBy(x => SeverityRank(x.Severity))
+            .ThenBy(x => x.Route ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Code, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Message, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         var geoScore = ComputeGeoScore(llmsTxtGenerated, llmsFullTxtGenerated, geoEnhancedRoutes, sortedRoutes);
         var publishIssueCount = sortedIssues.Count(x => x.Code.StartsWith("publish.", StringComparison.OrdinalIgnoreCase));
@@ -436,7 +444,7 @@ internal static partial class SeoAuditReportWriter
 
         if (entry.Indexable)
         {
-            AnalyzeSemanticHtml(entry, document, html, issues);
+            SemanticHtmlAuditRules.Analyze(entry, document, html, issues);
         }
     }
 

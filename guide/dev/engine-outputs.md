@@ -64,16 +64,17 @@ When `build.report.enabled` is `true`, the engine writes these files:
 
 ---
 
-## SEO & GEO Reports (dist/.bukit/)
+## Publish, SEO & GEO Reports (dist/.bukit/)
 
 Always generated (not gated by `build.report.enabled`):
 
 | File | Content |
 |------|---------|
-| `seo-report.json` | ~40 SEO audit checks per route: metadata completeness, canonical correctness, sitemap/rss inclusion, schema types, GEO indicators |
-| `geo-report.json` | Standalone GEO report: GEO Score (0-100), llms.txt/llms-full.txt status, geo-enhanced route list with schema types |
+| `publish-audit-report.json` | Primary machine-readability and trust audit: semantic HTML, provenance, review status, entity metadata, representation coverage, and aggregate output consistency |
+| `seo-report.json` | Compatibility SEO audit checks per route: metadata completeness, canonical correctness, sitemap/rss inclusion, schema types, GEO indicators |
+| `geo-report.json` | Derived GEO report: GEO Score (0-100), llms.txt/llms-full.txt status, geo-enhanced route list with schema types |
 
-**Legacy path compatibility:** `seo-report.json` was previously written to the output root (`dist/seo-report.json`). CLI commands (`bukit seo audit`, `bukit geo audit`) resolve the new `.bukit/seo-report.json` path first, then fall back to the legacy root path.
+**Legacy path compatibility:** `seo-report.json` was previously written to the output root (`dist/seo-report.json`). `bukit seo audit` resolves `.bukit/seo-report.json` first, then falls back to the legacy root path. `bukit publish audit` resolves `.bukit/publish-audit-report.json` only unless `--report` is provided.
 
 ---
 
@@ -111,6 +112,7 @@ dist/
 │   ├── incremental-manifest.json
 │   ├── security-report.json
 │   ├── seo-report.json
+│   ├── publish-audit-report.json
 │   ├── geo-report.json
 │   ├── visual-report.json        (if visual-feedback plugin enabled)
 │   └── screenshots/

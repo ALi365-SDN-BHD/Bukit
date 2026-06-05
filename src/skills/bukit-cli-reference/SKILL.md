@@ -400,7 +400,7 @@ bukit intent apply <intent.yaml> [--out <path>]  # Apply intent to generate site
 
 ### seo
 
-Audit and regression-detect traditional SEO health. Reads `seo-report.json` from the output directory.
+Audit and regression-detect traditional SEO health. Reads `.bukit/seo-report.json` from the output directory by default; pass `--report` explicitly to validate another compatible report.
 
 ```
 bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]
@@ -411,8 +411,8 @@ bukit seo diff --baseline <old> --current <new> [--max-new-errors N] [--max-new-
 
 | Option | Default | Description |
 |------|--------|------|
-| `--dir` | `dist` | Output directory containing `seo-report.json` |
-| `--report` | `<dir>/seo-report.json` | Explicit report path |
+| `--dir` | `dist` | Output directory containing `.bukit/seo-report.json` |
+| `--report` | `<dir>/.bukit/seo-report.json` | Explicit report path |
 | `--strict` | off | Treat warnings as errors (exit code 1) |
 | `--external` | off | Live HTTP validation of canonical URLs, links, and images (HEAD first, fallback to GET) |
 
@@ -446,7 +446,7 @@ bukit geo audit [--dir <dir>]
 | `audit` | — | Subcommand (required) |
 | `--dir` | `dist` | Output directory to audit |
 
-Reads `seo-report.json` from the output directory and reports llms.txt/llms-full.txt status, GEO-enhanced routes, schema types, GEO Score, and geo.* diagnostic issues. Requires a full `bukit build` first.
+Reads generated audit reports from the output directory and reports llms.txt/llms-full.txt status, GEO-enhanced routes, schema types, GEO Score, and geo.* diagnostic issues. Requires a full `bukit build` first. Use `bukit publish audit` for the broader machine-readability and trust gate.
 
 Exit codes: 0 = success, 1 = report or directory not found, 1 = invalid report JSON.
 

@@ -60,7 +60,7 @@ public static class GeoCommand
 
         if (reportPath is null)
         {
-            Console.Error.WriteLine($"SEO report not found under {fullDir} (looked for .bukit/publish-audit-report.json, .bukit/seo-report.json and seo-report.json). Run a full build first.");
+            Console.Error.WriteLine($"Audit report not found under {fullDir} (looked for .bukit/publish-audit-report.json, .bukit/seo-report.json and seo-report.json). Run a full build first.");
             return 1;
         }
 
@@ -68,26 +68,28 @@ public static class GeoCommand
         {
             using var doc = await JsonDocument.ParseAsync(File.OpenRead(reportPath));
 
-            if (doc.RootElement.TryGetProperty("routes", out var routes))
+            foreach (var document in EnumerateAuditDocuments(doc.RootElement))
             {
-                foreach (var route in routes.EnumerateArray())
+                if (document.TryGetProperty("schemaTypes", out var types))
                 {
-                    if (route.TryGetProperty("schemaTypes", out var types))
+                    var routeHasGeoType = false;
+                    foreach (var type in types.EnumerateArray())
                     {
-                        foreach (var type in types.EnumerateArray())
+                        if (type.GetString() is not { } t)
                         {
-                            if (type.GetString() is { } t)
-                            {
-                                geoTypes.Add(t);
-                            }
+                            continue;
                         }
 
-                        var hasGeoType = types.EnumerateArray().Any(t =>
-                            t.GetString() is { } s && s is "FAQPage" or "HowTo" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification");
-                        if (hasGeoType)
+                        geoTypes.Add(t);
+                        if (IsGeoSchemaType(t))
                         {
-                            geoEnhanced++;
+                            routeHasGeoType = true;
                         }
+                    }
+
+                    if (routeHasGeoType)
+                    {
+                        geoEnhanced++;
                     }
                 }
             }
@@ -149,10 +151,34 @@ public static class GeoCommand
         }
         catch (JsonException ex)
         {
-            Console.Error.WriteLine($"Invalid SEO report JSON: {ex.Message}");
+            Console.Error.WriteLine($"Invalid audit report JSON: {ex.Message}");
             return 1;
         }
 
         return 0;
     }
+
+    private static IEnumerable<JsonElement> EnumerateAuditDocuments(JsonElement root)
+    {
+        if (root.TryGetProperty("documents", out var documents))
+        {
+            foreach (var document in documents.EnumerateArray())
+            {
+                yield return document;
+            }
+
+            yield break;
+        }
+
+        if (root.TryGetProperty("routes", out var routes))
+        {
+            foreach (var route in routes.EnumerateArray())
+            {
+                yield return route;
+            }
+        }
+    }
+
+    private static bool IsGeoSchemaType(string value)
+        => value is "FAQPage" or "HowTo" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification";
 }

@@ -280,7 +280,7 @@ Jalankan `bukit geo audit` untuk memeriksa kesediaan GEO laman anda:
 - Penanda Speakable (5 mata)
 - Liputan GEO berbilang laluan (5 mata)
 
-Kod diagnostik (`geo.*`) muncul dalam log binaan dan `seo-report.json`:
+Kod diagnostik (`geo.*`) muncul dalam log binaan, laporan audit publish, dan laporan keserasian SEO/GEO:
 - `geo.faq_empty_question` / `geo.faq_empty_answer`
 - `geo.howto_step_empty_name` / `geo.howto_step_empty_text`
 - `geo.citation_url_invalid`
@@ -289,9 +289,19 @@ Kod diagnostik (`geo.*`) muncul dalam log binaan dan `seo-report.json`:
 - `geo.schema_type_missing`
 - `geo.llms_txt_missing`
 
+### Laporan Audit Publish (`publish-audit-report.json`)
+
+Selepas setiap binaan, Bukit menulis `.bukit/publish-audit-report.json`. Ini ialah laporan utama untuk HTML semantik, kandungan kelihatan, metadata asal, status semakan, metadata entiti, dan liputan representation.
+
+```bash
+bukit publish audit --dir dist
+bukit publish audit --dir dist --strict
+bukit publish diff --baseline previous/.bukit/publish-audit-report.json --current dist/.bukit/publish-audit-report.json
+```
+
 ### Laporan Audit SEO (`seo-report.json`)
 
-Selepas setiap binaan, Bukit menulis `seo-report.json` ke direktori output. Laporan JSON berstruktur ini mengandungi:
+Bukit juga menulis `.bukit/seo-report.json` untuk keserasian SEO tradisional. Laporan JSON berstruktur ini mengandungi:
 
 - **Inventori laluan** — setiap laluan dengan tajuk, perihalan, URL kanonikal, status robots, penyertaan sitemap/search/RSS, jenis schema, dan alternatif hreflang
 - **Senarai isu** — setiap isu mempunyai keterukan (`error`/`warning`), kod ralat, laluan terjejas, dan perihalan

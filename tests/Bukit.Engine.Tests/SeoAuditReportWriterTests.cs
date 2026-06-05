@@ -527,51 +527,6 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         Assert.Contains("json", route.RepresentationKinds!);
     }
 
-    [Fact]
-    public void Build_ComputesPublishAuditSummaryBuckets()
-    {
-        WriteOutput("post/index.html", """
-            <!doctype html>
-            <html>
-            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
-            <body>
-              <article>
-                <img src="/a.png">
-              </article>
-            </body>
-            </html>
-            """);
-        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
-        };
-        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["post/index.html"] = Model("Post", "https://example.com/post/")
-        };
-        var graph = new CanonicalContentGraph(
-        [
-            new ContentRecord(
-                new ContentIdentity("post-1", "post", "post", "post", "published"),
-                new ContentPresentation("Post", "Post description", "<article><p>body</p></article>", "en", []),
-                new ContentClassification("post", "post", [], []),
-                new ContentOwnership(null, null, null, null),
-                new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), null, null, null),
-                new ProvenanceRecord(null, null, [], [], null),
-                new TrustMetadata(null, "", []),
-                [],
-                [],
-                [])
-        ], []);
-
-        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, graph);
-
-        Assert.True(report.Summary.PublishIssueCount > 0);
-        Assert.True(report.Summary.MachineReadabilityIssueCount > 0);
-        Assert.True(report.Summary.TrustIssueCount > 0);
-        Assert.True(report.Summary.RepresentationGapCount >= 0);
-    }
-
     public void Dispose()
     {
         try { Directory.Delete(_outputDir, recursive: true); } catch { }
@@ -614,4 +569,5 @@ public sealed class SeoAuditReportWriterTests : IDisposable
             },
             Content = new ContentConfig { Provider = "markdown" }
         };
+
 }

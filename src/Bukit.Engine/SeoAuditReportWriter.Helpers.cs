@@ -1,5 +1,6 @@
 using System.Xml.Linq;
 using Bukit.Config;
+using Bukit.Engine.PublishAuditRules;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Rendering;
 using Bukit.Shared;
@@ -8,55 +9,6 @@ namespace Bukit.Engine;
 
 internal static partial class SeoAuditReportWriter
 {
-    private static void AnalyzeSemanticHtml(SeoIndexEntry entry, PublishDocument document, string html, List<SeoAuditIssue> issues)
-    {
-        if (!html.Contains("<main", StringComparison.OrdinalIgnoreCase))
-        {
-            issues.Add(Warning("publish.semantic_main_missing", entry.Route.Url, "HTML output is missing a <main> landmark for primary page content."));
-        }
-
-        if (!string.Equals(entry.ContentType, "list", StringComparison.OrdinalIgnoreCase) &&
-            !html.Contains("<article", StringComparison.OrdinalIgnoreCase))
-        {
-            issues.Add(Warning("publish.semantic_article_missing", entry.Route.Url, "HTML output is missing an <article> wrapper for page content."));
-        }
-
-        var missingAltCount = ImgTagRegex.Matches(html)
-            .Select(match => match.Value)
-            .Count(tag => !AltAttributeRegex.IsMatch(tag));
-        if (missingAltCount > 0)
-        {
-            issues.Add(Warning("publish.image_alt_missing", entry.Route.Url, $"HTML output contains {missingAltCount} image element(s) without an alt attribute."));
-        }
-
-        var headingLevels = HeadingTagRegex.Matches(html)
-            .Select(match => int.Parse(match.Groups["level"].Value))
-            .ToArray();
-        if (!headingLevels.Contains(1))
-        {
-            issues.Add(Warning("publish.heading_h1_missing", entry.Route.Url, "HTML output is missing an <h1> for the primary page heading."));
-        }
-
-        for (var i = 1; i < headingLevels.Length; i++)
-        {
-            if (headingLevels[i] - headingLevels[i - 1] > 1)
-            {
-                issues.Add(Warning("publish.heading_level_skip", entry.Route.Url, $"Heading structure skips from h{headingLevels[i - 1]} to h{headingLevels[i]}."));
-                break;
-            }
-        }
-
-        if (RequiresVisibleTime(document) && !TimeDatetimeRegex.IsMatch(html))
-        {
-            issues.Add(Warning("publish.time_missing", entry.Route.Url, "Dated content is missing a visible <time datetime=\"...\"> element."));
-        }
-
-        if (ContainsScriptShellWithoutReadableContent(html))
-        {
-            issues.Add(Warning("publish.initial_html_unreadable", entry.Route.Url, "Initial HTML does not expose enough readable main content without executing JavaScript."));
-        }
-    }
-
     private static void AnalyzeDuplicates(IReadOnlyList<SeoAuditRoute> routes, List<SeoAuditIssue> issues)
     {
         foreach (var group in routes.Where(x => !string.IsNullOrWhiteSpace(x.Title))
@@ -256,40 +208,8 @@ internal static partial class SeoAuditReportWriter
 
     private static void AnalyzePublishDocument(PublishDocument document, List<SeoAuditIssue> issues)
     {
-        if (!document.Indexable)
-        {
-            return;
-        }
-
-        if (!string.Equals(document.ContentType, "list", StringComparison.OrdinalIgnoreCase))
-        {
-            if (string.IsNullOrWhiteSpace(document.Author))
-            {
-                issues.Add(Warning("publish.author_missing", document.RouteUrl, "Published content is missing author metadata."));
-            }
-
-            if (string.IsNullOrWhiteSpace(document.Source))
-            {
-                issues.Add(Warning("publish.source_missing", document.RouteUrl, "Published content is missing source/provenance metadata."));
-            }
-
-            if (string.IsNullOrWhiteSpace(document.ReviewStatus))
-            {
-                issues.Add(Warning("publish.review_status_missing", document.RouteUrl, "Published content is missing review status metadata."));
-            }
-
-            if (document.EntityNames.Count == 0)
-            {
-                issues.Add(Warning("publish.entity_missing", document.RouteUrl, "Published content does not declare any entities."));
-            }
-        }
-
-        if (!document.RepresentationKinds.Contains("html", StringComparer.OrdinalIgnoreCase) ||
-            !document.RepresentationKinds.Contains("json", StringComparer.OrdinalIgnoreCase) ||
-            !document.RepresentationKinds.Contains("markdown", StringComparer.OrdinalIgnoreCase))
-        {
-            issues.Add(Error("publish.representation_missing", document.RouteUrl, "Published content is missing one or more required representations (html/json/markdown)."));
-        }
+        TrustAuditRules.Analyze(document, issues);
+        RepresentationAuditRules.Analyze(document, issues);
     }
 
     internal static bool IsAbsoluteHttpUrl(string value)
@@ -306,53 +226,38 @@ internal static partial class SeoAuditReportWriter
         return value.Contains('#', StringComparison.Ordinal);
     }
 
-    private static bool RequiresVisibleTime(PublishDocument document)
-    {
-        if (string.Equals(document.ContentType, "list", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var lifecycle = document.ContentRecord?.Lifecycle;
-        return lifecycle is not null && (lifecycle.PublishedAt != default || lifecycle.UpdatedAt is not null);
-    }
-
-    private static bool ContainsScriptShellWithoutReadableContent(string html)
-    {
-        if (!html.Contains("<script", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var primaryContent = MainOrArticleRegex.Matches(html)
-            .Select(match => match.Groups["content"].Value)
-            .FirstOrDefault(content => !string.IsNullOrWhiteSpace(content));
-        if (string.IsNullOrWhiteSpace(primaryContent))
-        {
-            return false;
-        }
-
-        var withoutScripts = StripScriptStyleRegex.Replace(primaryContent, " ");
-        var text = CollapseWhitespaceRegex.Replace(StripTagRegex.Replace(withoutScripts, " "), " ").Trim();
-        return text.Length < 24;
-    }
-
     private static int SeverityRank(string severity)
         => string.Equals(severity, "error", StringComparison.OrdinalIgnoreCase) ? 0 : 1;
 
     private static bool IsMachineReadabilityIssue(string code)
         => code is "publish.semantic_main_missing"
             or "publish.semantic_article_missing"
+            or "publish.semantic_header_missing"
+            or "publish.semantic_nav_missing"
+            or "publish.semantic_footer_missing"
             or "publish.image_alt_missing"
+            or "publish.figure_caption_missing"
             or "publish.heading_h1_missing"
             or "publish.heading_level_skip"
             or "publish.time_missing"
-            or "publish.initial_html_unreadable";
+            or "publish.initial_html_unreadable"
+            or "publish.jsonld_title_mismatch"
+            or "publish.jsonld_description_mismatch"
+            or "publish.jsonld_author_mismatch"
+            or "publish.jsonld_date_mismatch"
+            or "publish.summary_missing"
+            or "publish.entity_summary_missing"
+            or "publish.sitemap_missing_route"
+            or "publish.search_missing_route"
+            or "publish.rss_missing_route"
+            or "publish.ai_crawler_policy_conflict";
 
     private static bool IsTrustIssue(string code)
         => code is "publish.author_missing"
             or "publish.source_missing"
+            or "publish.source_references_missing"
             or "publish.review_status_missing"
+            or "publish.updated_at_missing"
             or "publish.entity_missing";
 
     private static string? ReadOptional(string path) => File.Exists(path) ? File.ReadAllText(path) : null;

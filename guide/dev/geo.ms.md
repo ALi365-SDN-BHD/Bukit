@@ -88,7 +88,7 @@ Dihuraikan daripada Front Matter kandungan di bawah kunci `geo:`. Pelaksanaan da
 
 Pelaksanaan: `src/Bukit.Cli/Commands/GeoCommand.cs`
 
-Membaca `seo-report.json` (dihasilkan oleh `bukit build`) dan mengira:
+Membaca artifak audit binaan (terutamanya `.bukit/publish-audit-report.json`, dengan `.bukit/seo-report.json` sebagai paparan keserasian SEO) dan mengira:
 
 ### Skor GEO (0–100)
 
@@ -152,7 +152,7 @@ Logik penjanaan peraturan robots.txt:
 | `bukit build` | Bina dengan penjanaan artifak GEO | (membaca konfigurasi site.seo.geo) |
 | `bukit geo audit` | Audit kesediaan GEO dist sedia ada | `--dir <path>` |
 
-Audit GEO membaca `seo-report.json` dari direktori output binaan. Ia tidak memerlukan binaan semula.
+Audit GEO membaca laporan audit yang dijana dari direktori output binaan. Ia tidak memerlukan binaan semula; gunakan `bukit publish audit` untuk pagar kebolehbacaan mesin dan kepercayaan yang lebih luas.
 
 ## Output Fail
 

@@ -21,6 +21,7 @@ Nota:
 | `template` | Cipta, senarai, lihat, sahkan, segerak, dan semak imbas fail templat |
 | `clone` | Klon reka bentuk visual mana-mana laman web ke dalam tema Bukit |
 | `seo` | Audit SEO dan diff (sahkan seo-report.json) |
+| `publish` | Audit kebolehbacaan mesin dan kepercayaan (sahkan publish-audit-report.json) |
 | `visual` | Jana skrip ujian visual Playwright |
 | `webhook` | Perubahan Notion mencetuskan GitHub Actions (pilihan) |
 | `intent` | Berkaitan AI Intent (pilihan) |
@@ -360,6 +361,21 @@ bukit seo diff --fail-on-indexable-drop
 ```
 
 `seo audit` mengesahkan `seo-report.json` (dijana oleh `build`) — semak struktur schema, kira ralat/amaran, pilihan sahkan pautan luaran. `seo diff` banding dengan laporan sebelumnya untuk mengesan regresi.
+
+## publish: Sahkan Kebolehbacaan Mesin & Kepercayaan
+
+```bash
+# Audit publish-audit-report.json semasa
+bukit publish audit --dir dist
+
+# Amaran juga gagal
+bukit publish audit --dir dist --strict
+
+# Bandingkan laporan audit publish
+bukit publish diff --baseline previous/.bukit/publish-audit-report.json --current dist/.bukit/publish-audit-report.json
+```
+
+`publish audit` mengesahkan `.bukit/publish-audit-report.json`, laporan utama untuk HTML semantik, metadata asal/semakan, liputan representation, dan konsistensi output agregat. `seo audit` kekal untuk laporan SEO keserasian.
 
 ## visual: Jana Skrip Ujian Visual
 

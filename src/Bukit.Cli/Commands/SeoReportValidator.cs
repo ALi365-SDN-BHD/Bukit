@@ -12,14 +12,19 @@ internal static partial class SeoReportValidator
             throw new InvalidDataException("root must be a JSON object.");
         }
 
-        EnsureAllowedProperties(root, "$", "schema", "schemaVersion", "generatedAt", "siteName", "siteUrl", "baseUrl", "routes", "issues", "summary");
-
         var schema = ReadRequiredString(root, "$", "schema");
-        if (!string.Equals(schema, "https://bukit.dev/schemas/seo-report.v1.json", StringComparison.Ordinal) &&
-            !string.Equals(schema, "https://bukit.dev/schemas/publish-audit-report.v1.json", StringComparison.Ordinal))
+        if (string.Equals(schema, "https://bukit.dev/schemas/publish-audit-report.v1.json", StringComparison.Ordinal))
+        {
+            ValidatePublishReportContract(root);
+            return;
+        }
+
+        if (!string.Equals(schema, "https://bukit.dev/schemas/seo-report.v1.json", StringComparison.Ordinal))
         {
             throw new InvalidDataException($"unsupported schema '{schema}'. Expected 'https://bukit.dev/schemas/seo-report.v1.json' or 'https://bukit.dev/schemas/publish-audit-report.v1.json'.");
         }
+
+        EnsureAllowedProperties(root, "$", "schema", "schemaVersion", "generatedAt", "siteName", "siteUrl", "baseUrl", "routes", "issues", "summary");
 
         var schemaVersion = ReadRequiredString(root, "$", "schemaVersion");
         if (!string.Equals(schemaVersion, "1.0", StringComparison.Ordinal))
@@ -105,6 +110,73 @@ internal static partial class SeoReportValidator
             routeIndex++;
         }
 
+        ValidateIssues(issues);
+    }
+
+    private static void ValidatePublishReportContract(JsonElement root)
+    {
+        EnsureAllowedProperties(root, "$", "schema", "schemaVersion", "generatedAt", "siteName", "siteUrl", "baseUrl", "documents", "issues", "summary");
+
+        var schemaVersion = ReadRequiredString(root, "$", "schemaVersion");
+        if (!string.Equals(schemaVersion, "1.0", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException($"unsupported schemaVersion '{schemaVersion}'. Expected '1.0'.");
+        }
+
+        var documents = ReadRequiredArray(root, "$", "documents");
+        var issues = ReadRequiredArray(root, "$", "issues");
+        var summary = ReadRequiredObject(root, "$", "summary");
+
+        ReadRequiredString(root, "$", "generatedAt");
+        ReadRequiredString(root, "$", "siteName");
+        ReadRequiredString(root, "$", "baseUrl");
+        ReadOptionalString(root, "$", "siteUrl");
+        EnsureAllowedProperties(summary, "summary", "documentCount", "indexableCount", "nonIndexableCount", "errorCount", "warningCount", "publishIssueCount", "machineReadabilityIssueCount", "trustIssueCount", "representationGapCount");
+        ReadRequiredInt(summary, "summary", "documentCount");
+        ReadRequiredInt(summary, "summary", "indexableCount");
+        ReadRequiredInt(summary, "summary", "nonIndexableCount");
+        ReadRequiredInt(summary, "summary", "errorCount");
+        ReadRequiredInt(summary, "summary", "warningCount");
+        ReadOptionalInt(summary, "summary", "publishIssueCount");
+        ReadOptionalInt(summary, "summary", "machineReadabilityIssueCount");
+        ReadOptionalInt(summary, "summary", "trustIssueCount");
+        ReadOptionalInt(summary, "summary", "representationGapCount");
+
+        var documentIndex = 0;
+        foreach (var document in documents.EnumerateArray())
+        {
+            var path = $"documents[{documentIndex}]";
+            EnsureObject(document, path);
+            EnsureAllowedProperties(document, path, "routeUrl", "outputPath", "canonical", "indexable", "lastModified", "contentType", "sourceItemId", "title", "description", "language", "author", "organization", "source", "originalSource", "reviewStatus", "entityNames", "representationKinds", "schemaTypes", "sitemapIncluded", "searchIncluded", "rssIncluded");
+            ReadRequiredString(document, path, "routeUrl");
+            ReadRequiredString(document, path, "outputPath");
+            ReadRequiredString(document, path, "canonical");
+            ReadRequiredBool(document, path, "indexable");
+            ReadRequiredString(document, path, "lastModified");
+            ReadOptionalString(document, path, "contentType");
+            ReadOptionalString(document, path, "sourceItemId");
+            ReadOptionalString(document, path, "title");
+            ReadOptionalString(document, path, "description");
+            ReadOptionalString(document, path, "language");
+            ReadOptionalString(document, path, "author");
+            ReadOptionalString(document, path, "organization");
+            ReadOptionalString(document, path, "source");
+            ReadOptionalString(document, path, "originalSource");
+            ReadOptionalString(document, path, "reviewStatus");
+            ReadOptionalStringArray(document, path, "entityNames");
+            ReadOptionalStringArray(document, path, "representationKinds");
+            ReadOptionalStringArray(document, path, "schemaTypes");
+            ReadRequiredBool(document, path, "sitemapIncluded");
+            ReadRequiredBool(document, path, "searchIncluded");
+            ReadRequiredBool(document, path, "rssIncluded");
+            documentIndex++;
+        }
+
+        ValidateIssues(issues);
+    }
+
+    private static void ValidateIssues(JsonElement issues)
+    {
         var issueIndex = 0;
         foreach (var issue in issues.EnumerateArray())
         {
@@ -317,10 +389,21 @@ internal static partial class SeoReportValidator
         public static SeoReportSnapshot From(JsonElement root)
         {
             var routes = new Dictionary<string, SeoRouteSnapshot>(StringComparer.OrdinalIgnoreCase);
-            foreach (var route in root.GetProperty("routes").EnumerateArray())
+            if (root.TryGetProperty("documents", out var documents))
             {
-                var url = ReadRequiredString(route, "route", "url");
-                routes[url] = new SeoRouteSnapshot(url, ReadRequiredBool(route, "route", "indexable"));
+                foreach (var document in documents.EnumerateArray())
+                {
+                    var url = ReadRequiredString(document, "document", "routeUrl");
+                    routes[url] = new SeoRouteSnapshot(url, ReadRequiredBool(document, "document", "indexable"));
+                }
+            }
+            else
+            {
+                foreach (var route in root.GetProperty("routes").EnumerateArray())
+                {
+                    var url = ReadRequiredString(route, "route", "url");
+                    routes[url] = new SeoRouteSnapshot(url, ReadRequiredBool(route, "route", "indexable"));
+                }
             }
 
             var issues = root.GetProperty("issues").EnumerateArray()

@@ -406,7 +406,7 @@ geo:
 - 使用了 Speakable 标记（5 分）
 - 多路由 GEO 覆盖（5 分）
 
-诊断码（`geo.*`）会出现在构建日志和 `seo-report.json` 中：
+诊断码（`geo.*`）会出现在构建日志、发布审计报告以及 SEO/GEO 兼容报告中：
 - `geo.faq_empty_question` / `geo.faq_empty_answer`
 - `geo.howto_step_empty_name` / `geo.howto_step_empty_text`
 - `geo.citation_url_invalid`
@@ -415,9 +415,19 @@ geo:
 - `geo.schema_type_missing`
 - `geo.llms_txt_missing`
 
+### 发布审计报告（`publish-audit-report.json`）
+
+每次构建后，Bukit 会写入 `.bukit/publish-audit-report.json`。这是语义 HTML、可见正文、来源、审核状态、实体元数据和 representation 覆盖率的主机器可读与可信发布报告。
+
+```bash
+bukit publish audit --dir dist
+bukit publish audit --dir dist --strict
+bukit publish diff --baseline previous/.bukit/publish-audit-report.json --current dist/.bukit/publish-audit-report.json
+```
+
 ### SEO 审计报告（`seo-report.json`）
 
-每次构建后，Bukit 会在输出目录写入 `seo-report.json`。该结构化 JSON 报告包含：
+Bukit 也会写入 `.bukit/seo-report.json`，用于传统 SEO 兼容检查。该结构化 JSON 报告包含：
 
 - **路由清单** — 每条路由的标题、描述、canonical URL、robots 状态、sitemap/search/RSS 收录情况、schema 类型、hreflang 交替链接
 - **问题列表** — 每个问题包含严重级别（`error`/`warning`）、错误码、关联路由、描述

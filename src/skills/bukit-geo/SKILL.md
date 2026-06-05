@@ -188,7 +188,7 @@ When `schema_type` is set:
 
 ## GEO Audit
 
-Run `bukit geo audit` (reference bukit-cli-reference) to check GEO readiness. It reads the `seo-report.json` file from a full build (checks `dist/.bukit/seo-report.json` first, then falls back to `dist/seo-report.json` for backward compatibility).
+Run `bukit geo audit` (reference bukit-cli-reference) to check GEO readiness from generated audit artifacts. Use `bukit publish audit` for the broader machine-readability and trust gate.
 
 ```
 === GEO Audit ===
@@ -216,7 +216,7 @@ Run `bukit geo audit` (reference bukit-cli-reference) to check GEO readiness. It
 
 ### Diagnostic Codes
 
-GEO diagnostics run during `bukit build` (when `site.seo.diagnostics` is `warn` or `strict`) and appear in build logs and `seo-report.json`:
+GEO diagnostics run during `bukit build` (when `site.seo.diagnostics` is `warn` or `strict`) and appear in build logs plus publish/SEO audit reports:
 
 | Code | Severity | Trigger |
 |------|---------|---------|
@@ -233,7 +233,8 @@ GEO diagnostics run during `bukit build` (when `site.seo.diagnostics` is `warn` 
 
 ### GEO Audit Output Files
 
-- `dist/.bukit/seo-report.json` — full SEO audit report consumed by `bukit geo audit` (also checks legacy `dist/seo-report.json` as fallback)
+- `dist/.bukit/publish-audit-report.json` — primary machine-readability and trust audit report consumed by `bukit publish audit`
+- `dist/.bukit/seo-report.json` — compatibility SEO audit report
 - `dist/.bukit/geo-report.json` — standalone GEO report (GEO Score, llms.txt status, geo-enhanced route details)
 
 ## Common Issues
@@ -259,4 +260,3 @@ GEO-related diagnostic codes use the expanded range `BKT-0810` – `BKT-081F` (1
 |---|---|
 | `BKT-0810` | GeoAuditFailed — GEO readiness audit failure |
 |
-
