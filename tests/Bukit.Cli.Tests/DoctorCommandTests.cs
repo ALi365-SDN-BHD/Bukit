@@ -161,6 +161,7 @@ public sealed class DoctorCommandTests : IDisposable
             File.WriteAllText(Path.Combine(_rootDir, "content", $"post-{i}.md"), $"""
                 ---
                 type: post
+                collection: post
                 title: Post {i}
                 slug: post-{i}
                 ---
@@ -421,6 +422,7 @@ public sealed class DoctorCommandTests : IDisposable
         File.WriteAllText(Path.Combine(_rootDir, "content", "one.md"), """
             ---
             type: post
+            collection: post
             title: One
             slug: same
             ---
@@ -429,6 +431,7 @@ public sealed class DoctorCommandTests : IDisposable
         File.WriteAllText(Path.Combine(_rootDir, "content", "two.md"), """
             ---
             type: post
+            collection: post
             title: Two
             slug: same
             ---
@@ -495,6 +498,7 @@ public sealed class DoctorCommandTests : IDisposable
         File.WriteAllText(Path.Combine(_rootDir, "content", "about.md"), """
             ---
             type: page
+            collection: page
             title: About
             slug: about
             ---
@@ -544,6 +548,7 @@ public sealed class DoctorCommandTests : IDisposable
         File.WriteAllText(Path.Combine(_rootDir, "content", "one.md"), """
             ---
             type: post
+            collection: post
             title: One
             slug: one
             ---
@@ -596,6 +601,7 @@ public sealed class DoctorCommandTests : IDisposable
         File.WriteAllText(Path.Combine(_rootDir, "content", "about.md"), """
             ---
             type: page
+            collection: page
             title: About
             slug: about
             ---
@@ -645,6 +651,7 @@ public sealed class DoctorCommandTests : IDisposable
         File.WriteAllText(Path.Combine(_rootDir, "content", "one.md"), """
             ---
             type: post
+            collection: post
             title: One
             slug: one
             ---

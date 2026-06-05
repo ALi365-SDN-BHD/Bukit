@@ -108,10 +108,18 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
                     total += idx.Weight * CountShared(MetaHelpers.GetStringList(a.Meta, "keywords"), MetaHelpers.GetStringList(b.Meta, "keywords"));
                     break;
                 case "collection":
-                case "type":
-                    var ta = MetaHelpers.GetString(a.Meta, "collection") ?? MetaHelpers.GetString(a.Meta, "type");
-                    var tb = MetaHelpers.GetString(b.Meta, "collection") ?? MetaHelpers.GetString(b.Meta, "type");
+                    var ta = MetaHelpers.GetString(a.Meta, "collection");
+                    var tb = MetaHelpers.GetString(b.Meta, "collection");
                     if (string.Equals(ta, tb, StringComparison.OrdinalIgnoreCase))
+                    {
+                        total += idx.Weight;
+                    }
+
+                    break;
+                case "type":
+                    var taType = MetaHelpers.GetString(a.Meta, "type");
+                    var tbType = MetaHelpers.GetString(b.Meta, "type");
+                    if (string.Equals(taType, tbType, StringComparison.OrdinalIgnoreCase))
                     {
                         total += idx.Weight;
                     }

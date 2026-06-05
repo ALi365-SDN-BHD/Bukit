@@ -20,7 +20,8 @@ public sealed class RoutePipelineTests
         });
         var page = Item("about", "about", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "page"
+            ["type"] = "page",
+            ["collection"] = "page"
         });
         var data = Item("settings", "settings", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -48,11 +49,13 @@ public sealed class RoutePipelineTests
     {
         var first = Item("first", "same", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "post"
+            ["type"] = "post",
+            ["collection"] = "post"
         });
         var second = Item("second", "same", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "post"
+            ["type"] = "post",
+            ["collection"] = "post"
         });
         var pipeline = new RoutePipeline();
 

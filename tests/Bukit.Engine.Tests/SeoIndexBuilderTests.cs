@@ -106,7 +106,7 @@ public sealed class SeoIndexBuilderTests
         Assert.True(result.Entries.ContainsKey("pages/about/index.html"));
         var pageEntry = result.Entries["pages/about/index.html"];
         Assert.True(pageEntry.Indexable);
-        Assert.Equal("page", pageEntry.ContentType);
+        Assert.Null(pageEntry.ContentType);
 
         Assert.True(result.Models.ContainsKey("blog/first-post/index.html"));
         Assert.True(result.Models.ContainsKey("pages/about/index.html"));

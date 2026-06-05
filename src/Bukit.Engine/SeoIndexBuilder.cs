@@ -46,7 +46,7 @@ internal static class SeoIndexBuilder
                 SeoModelBuilder.IsIndexable(model.Robots),
                 SitemapPolicy.ResolveLastModified(item),
                 item.Id,
-                MetaHelpers.GetString(item.Meta, "collection") ?? MetaHelpers.GetString(item.Meta, "type"));
+                MetaHelpers.GetString(item.Meta, "collection"));
         }
 
         foreach (var route in listRoutes)
@@ -171,7 +171,7 @@ internal static class SeoIndexBuilder
                 if (string.Equals(NormalizeListUrl(collection.ListRoute), listRoute.Url, StringComparison.OrdinalIgnoreCase))
                 {
                     return routed
-                        .Where(x => string.Equals(MetaHelpers.GetString(x.Item.Meta, "collection") ?? MetaHelpers.GetString(x.Item.Meta, "type"), key, StringComparison.OrdinalIgnoreCase))
+                        .Where(x => string.Equals(MetaHelpers.GetString(x.Item.Meta, "collection"), key, StringComparison.OrdinalIgnoreCase))
                         .ToList();
                 }
             }

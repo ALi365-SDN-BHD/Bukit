@@ -51,6 +51,7 @@ public sealed class BuildPipelinePerformanceTests
                 File.WriteAllText(Path.Combine(root, "content", $"page-{i}.md"), $"""
                     ---
                     type: post
+                    collection: post
                     title: Page {i}
                     slug: page-{i}
                     publishAt: 2024-01-{i:D2}T00:00:00Z
@@ -212,6 +213,7 @@ public sealed class BuildPipelinePerformanceTests
             File.WriteAllText(Path.Combine(root, "content", "hello.md"), """
                 ---
                 type: post
+                collection: post
                 title: Hello World
                 slug: hello-world
                 publishAt: 2024-01-01T00:00:00Z

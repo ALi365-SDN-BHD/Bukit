@@ -92,7 +92,7 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             var url = ResolveFullUrl(entry.Route.Url, canonicalBase);
             var pageTitle = model?.Title ?? item.Title;
             var desc = model?.Description ?? description;
-            var collection = MetaHelpers.GetString(item.Meta, "collection") ?? MetaHelpers.GetString(item.Meta, "type");
+            var collection = MetaHelpers.GetString(item.Meta, "collection");
 
             if (!string.IsNullOrWhiteSpace(collection))
             {

@@ -152,6 +152,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "hello.md"), """
                 ---
                 type: post
+                collection: post
                 title: Hello World
                 slug: hello-world
                 publishAt: 2024-06-01T00:00:00Z
@@ -168,6 +169,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "about.md"), """
                 ---
                 type: page
+                collection: page
                 title: About
                 slug: about
                 publishAt: 2024-06-02T00:00:00Z
@@ -338,7 +340,7 @@ public sealed class SiteEngineIntegrationTests
                     "about",
                     DateTimeOffset.Parse("2024-06-01T00:00:00Z"),
                     null,
-                    new Dictionary<string, object> { ["type"] = "page", ["bodyFingerprint"] = "about-v1" },
+                    new Dictionary<string, object> { ["type"] = "page", ["collection"] = "page", ["bodyFingerprint"] = "about-v1" },
                     BodyKey: "about")
             };
             var loadResult = new ContentLoadResult(items, new DictionaryContentBodyStore(new Dictionary<string, string>
@@ -395,6 +397,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "hello.md"), """
                 ---
                 type: post
+                collection: post
                 title: Hello World
                 slug: hello-world
                 publishAt: 2024-06-01T00:00:00Z
@@ -498,6 +501,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "hello.md"), """
                 ---
                 type: post
+                collection: post
                 title: Hello World
                 slug: hello-world
                 publishAt: 2024-06-01T00:00:00Z
@@ -619,6 +623,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "visible.md"), """
                 ---
                 type: post
+                collection: post
                 title: Visible "Post" & News
                 slug: visible
                 publishAt: 2024-06-01T00:00:00Z
@@ -630,6 +635,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "hidden.md"), """
                 ---
                 type: post
+                collection: post
                 title: Hidden Post
                 slug: hidden
                 publishAt: 2024-06-02T00:00:00Z
@@ -881,6 +887,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "one.md"), """
                 ---
                 type: post
+                collection: post
                 title: One
                 slug: one
                 ---
@@ -923,6 +930,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "a.md"), """
                 ---
                 type: page
+                collection: page
                 title: A
                 slug: a
                 ---
@@ -978,7 +986,7 @@ public sealed class SiteEngineIntegrationTests
                     $"item-{i}",
                     DateTimeOffset.UtcNow,
                     $"<p>Item {i}</p>",
-                    new Dictionary<string, object> { ["type"] = "page" }))
+                new Dictionary<string, object> { ["type"] = "page", ["collection"] = "page" }))
                 .ToList();
             var bodyStore = new DictionaryContentBodyStore(items.ToDictionary(x => x.Id, x => x.ContentHtml ?? string.Empty, StringComparer.Ordinal));
             var concurrency = new RenderConcurrencyProbe();
@@ -1038,6 +1046,7 @@ public sealed class SiteEngineIntegrationTests
                 File.WriteAllText(Path.Combine(root, "content", "page.en.md"), """
                     ---
                     type: page
+                    collection: page
                     title: Hello
                     slug: hello
                     language: en
@@ -1050,6 +1059,7 @@ public sealed class SiteEngineIntegrationTests
                 File.WriteAllText(Path.Combine(root, "content", "page.fr.md"), """
                     ---
                     type: page
+                    collection: page
                     title: Bonjour
                     slug: bonjour
                     language: fr
@@ -1061,6 +1071,7 @@ public sealed class SiteEngineIntegrationTests
                 File.WriteAllText(Path.Combine(root, "content", "page.de.md"), """
                     ---
                     type: page
+                    collection: page
                     title: Hallo
                     slug: hallo
                     language: de
@@ -1170,6 +1181,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "hello.en.md"), """
                 ---
                 type: page
+                collection: page
                 title: Hello
                 slug: hello
                 language: en-US
@@ -1181,6 +1193,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "hello.ms.md"), """
                 ---
                 type: page
+                collection: page
                 title: Helo
                 slug: helo
                 language: ms-MY
@@ -1192,6 +1205,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "solo.en.md"), """
                 ---
                 type: page
+                collection: page
                 title: Solo
                 slug: solo
                 language: en-US
@@ -1278,6 +1292,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "visible.md"), """
                 ---
                 type: post
+                collection: post
                 title: This is a deliberately long SEO title that should be reported because it is over the normal search result length
                 slug: visible
                 summary: Visible post summary
@@ -1289,6 +1304,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "hidden.md"), """
                 ---
                 type: post
+                collection: post
                 title: Hidden
                 slug: hidden
                 robots: noindex
@@ -1357,6 +1373,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "home.md"), """
                 ---
                 type: page
+                collection: page
                 title: Home
                 slug: home
                 ---
@@ -1439,6 +1456,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "a.md"), """
                 ---
                 type: page
+                collection: page
                 title: A
                 slug: a
                 ---
@@ -1479,6 +1497,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "a.md"), """
                 ---
                 type: page
+                collection: page
                 title: A
                 slug: a
                 ---
@@ -1537,6 +1556,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "a.md"), """
                 ---
                 type: page
+                collection: page
                 title: A
                 slug: a
                 ---
@@ -1652,6 +1672,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "a.md"), """
                 ---
                 type: page
+                collection: page
                 title: A
                 slug: a
                 ---
@@ -1706,6 +1727,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "a.md"), """
                 ---
                 type: post
+                collection: post
                 title: A
                 slug: a
                 ---
@@ -1714,6 +1736,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "b.md"), """
                 ---
                 type: post
+                collection: post
                 title: B
                 slug: b
                 ---
@@ -1783,6 +1806,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "a.md"), """
                 ---
                 type: page
+                collection: page
                 title: A
                 slug: a
                 ---
@@ -1984,6 +2008,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "one.md"), """
                 ---
                 type: post
+                collection: post
                 title: One
                 slug: same
                 ---
@@ -1992,6 +2017,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "two.md"), """
                 ---
                 type: post
+                collection: post
                 title: Two
                 slug: same
                 ---
@@ -2022,6 +2048,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "one.md"), """
                 ---
                 type: page
+                collection: page
                 title: One
                 slug: one
                 route:
@@ -2034,6 +2061,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "two.md"), """
                 ---
                 type: page
+                collection: page
                 title: Two
                 slug: two
                 route:
@@ -2069,6 +2097,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "about.md"), """
                 ---
                 type: page
+                collection: page
                 title: About Content
                 slug: about-content
                 route:
@@ -2107,6 +2136,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "about.md"), """
                 ---
                 type: page
+                collection: page
                 title: About Content
                 slug: about-content
                 route:
@@ -2217,6 +2247,7 @@ public sealed class SiteEngineIntegrationTests
                 File.WriteAllText(Path.Combine(root, "content", $"post{i}.md"), $$"""
                     ---
                     type: post
+                    collection: post
                     title: Post {{i}}
                     slug: post-{{i}}
                     publishAt: 2024-06-0{{i}}:00:00:00Z
@@ -2228,6 +2259,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "conflict.md"), """
                 ---
                 type: page
+                collection: page
                 title: Conflict Page
                 slug: conflict-page
                 url: /blog/page/2/
@@ -2303,6 +2335,7 @@ public sealed class SiteEngineIntegrationTests
                 File.WriteAllText(Path.Combine(root, "content", $"post{i}.md"), $$"""
                     ---
                     type: post
+                    collection: post
                     title: Post {{i}}
                     slug: post-{{i}}
                     publishAt: 2024-06-0{{i}}:00:00:00Z
@@ -2398,6 +2431,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "about.en.md"), """
                 ---
                 type: page
+                collection: page
                 title: About
                 slug: about
                 language: en
@@ -2408,6 +2442,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "about.zh.md"), """
                 ---
                 type: page
+                collection: page
                 title: 关于
                 slug: guanyu
                 language: zh
@@ -2418,6 +2453,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "solo.en.md"), """
                 ---
                 type: page
+                collection: page
                 title: Solo
                 slug: solo
                 language: en
@@ -2428,6 +2464,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "orphan.zh.md"), """
                 ---
                 type: page
+                collection: page
                 title: 孤儿
                 slug: orphan
                 language: zh
@@ -2521,6 +2558,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "alpha.en.md"), """
                 ---
                 type: page
+                collection: page
                 title: Alpha
                 slug: alpha
                 language: en
@@ -2531,6 +2569,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "alpha.zh.md"), """
                 ---
                 type: page
+                collection: page
                 title: 阿尔法
                 slug: a-er-fa
                 language: zh
@@ -2542,6 +2581,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "beta.zh.md"), """
                 ---
                 type: page
+                collection: page
                 title: 贝塔
                 slug: beta
                 language: zh
@@ -2631,6 +2671,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "a.en.md"), """
                 ---
                 type: post
+                collection: post
                 title: Alpha
                 slug: a
                 language: en
@@ -2641,6 +2682,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "b.en.md"), """
                 ---
                 type: post
+                collection: post
                 title: Beta
                 slug: b
                 language: en
@@ -2651,6 +2693,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "c.zh.md"), """
                 ---
                 type: post
+                collection: post
                 title: 查理
                 slug: c
                 language: zh
@@ -2661,6 +2704,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "d.zh.md"), """
                 ---
                 type: post
+                collection: post
                 title: 德尔塔
                 slug: d
                 language: zh
@@ -2775,6 +2819,7 @@ public sealed class SiteEngineIntegrationTests
         File.WriteAllText(Path.Combine(root, "content", "hello.md"), """
             ---
             type: page
+            collection: page
             title: Hello
             slug: hello
             ---
@@ -2955,10 +3000,12 @@ templates:
     template: pages/post.html
     accepts:
       type: post
+      collection: post
   page:
     template: pages/page.html
     accepts:
       type: page
+      collection: page
   detail:
     template: pages/page.html
     accepts:

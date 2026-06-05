@@ -96,13 +96,12 @@ public static class RouteGenerator
         IReadOnlyDictionary<string, CollectionRouteRule>? collections)
     {
         var collectionKey = GetCollection(item);
+        var type = GetType(item);
 
         if (collections is not null && collections.TryGetValue(collectionKey, out var rule))
         {
             return (BuildFromPattern(item, rule.Permalink, rule.Template, outputPathEncoding), RouteSource.Collection);
         }
-
-        var type = GetType(item);
 
         if (permalinks is not null && permalinks.TryGetValue(type, out var pattern) && !string.IsNullOrWhiteSpace(pattern))
         {
@@ -110,8 +109,8 @@ public static class RouteGenerator
         }
 
         throw new ConfigException(
-            $"No route rule matches content item '{item.Id}' (type='{type}', collection='{collectionKey}'). " +
-            "Add route.url/route.outputPath/route.template, site.collections.*.permalink, or site.permalinks.");
+            $"No route rule matches content item '{item.Id}' (collection='{collectionKey}', type='{type}'). " +
+            "Add an explicit collection rule, site.permalinks.<type>, or route front matter.");
     }
 
     private static bool TryReadFullRouteOverride(ContentItem item, string outputPathEncoding, out RouteInfo route)
@@ -229,6 +228,6 @@ public static class RouteGenerator
 
     private static string GetCollection(ContentItem item)
     {
-        return item.GetCollection(defaultCollection: GetType(item));
+        return item.GetCollection();
     }
 }

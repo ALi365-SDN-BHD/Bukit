@@ -57,7 +57,8 @@ public sealed class CollectionRouteIndexTests
             ContentHtml: $"<p>{id}</p>",
             Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = collection
+                ["type"] = collection,
+                ["collection"] = collection
             },
             Fields: null);
     }

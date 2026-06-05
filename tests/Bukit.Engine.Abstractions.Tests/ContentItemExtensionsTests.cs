@@ -32,7 +32,7 @@ public sealed class ContentItemExtensionsTests
     }
 
     [Fact]
-    public void GetCollection_NoCollection_FallsBackToType()
+    public void GetCollection_NoCollection_IgnoresType()
     {
         var item = CreateItem(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -41,7 +41,7 @@ public sealed class ContentItemExtensionsTests
 
         var result = item.GetCollection();
 
-        Assert.Equal("post", result);
+        Assert.Equal("", result);
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class ContentItemExtensionsTests
     }
 
     [Fact]
-    public void GetCollection_CollectionEmpty_FallsBackToType()
+    public void GetCollection_CollectionEmpty_ReturnsDefault()
     {
         var item = CreateItem(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -75,11 +75,11 @@ public sealed class ContentItemExtensionsTests
 
         var result = item.GetCollection();
 
-        Assert.Equal("post", result);
+        Assert.Equal("", result);
     }
 
     [Fact]
-    public void GetCollection_CollectionWhitespace_FallsBackToType()
+    public void GetCollection_CollectionWhitespace_ReturnsDefault()
     {
         var item = CreateItem(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -89,6 +89,6 @@ public sealed class ContentItemExtensionsTests
 
         var result = item.GetCollection();
 
-        Assert.Equal("page", result);
+        Assert.Equal("", result);
     }
 }

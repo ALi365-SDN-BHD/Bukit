@@ -249,15 +249,12 @@ internal static class BuildReporter
 
     private static string GetKind(ContentItem item)
     {
-        foreach (var key in new[] { "collection", "type" })
+        if (item.Meta.TryGetValue("collection", out var value) && value is not null)
         {
-            if (item.Meta.TryGetValue(key, out var value) && value is not null)
+            var text = Convert.ToString(value, CultureInfo.InvariantCulture);
+            if (!string.IsNullOrWhiteSpace(text))
             {
-                var text = Convert.ToString(value, CultureInfo.InvariantCulture);
-                if (!string.IsNullOrWhiteSpace(text))
-                {
-                    return text;
-                }
+                return text;
             }
         }
 

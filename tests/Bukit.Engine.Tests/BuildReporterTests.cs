@@ -215,7 +215,8 @@ public sealed class BuildReporterTests
             "<p>Alpha</p>",
             new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = "post"
+                ["type"] = "post",
+                ["collection"] = "post"
             });
         var zeta = new ContentItem(
             "zeta",
@@ -225,7 +226,8 @@ public sealed class BuildReporterTests
             "<p>Zeta</p>",
             new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = "post"
+                ["type"] = "post",
+                ["collection"] = "post"
             });
 
         return new BuildVariantResult(

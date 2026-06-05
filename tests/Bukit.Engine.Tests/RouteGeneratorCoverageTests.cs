@@ -446,20 +446,19 @@ public sealed class RouteGeneratorCoverageTests
         Assert.Equal("path/hello%20world%20here/index.html", route.OutputPath);
     }
 
-    // ── GetCollection fallback to GetType tests ───────────────────────────
+    // ── Explicit collection tests ────────────────────────────────────────
 
     [Fact]
-    public void Generate_GetCollection_NoCollectionField_FallsBackToType()
+    public void Generate_GetCollection_NoCollectionField_NoLongerMatchesType()
     {
         var item = Item("hello", meta: new Dictionary<string, object> { ["type"] = "article" });
         var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
         {
             ["article"] = new("/articles/{slug}/", "pages/article.html")
         };
-        var route = RouteGenerator.Generate(item, collections: collections);
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, collections: collections));
 
-        Assert.Equal("/articles/hello/", route.Url);
-        Assert.Equal("pages/article.html", route.Template);
+        Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -482,7 +481,7 @@ public sealed class RouteGeneratorCoverageTests
     }
 
     [Fact]
-    public void Generate_GetCollection_EmptyCollectionField_FallsBackToType()
+    public void Generate_GetCollection_EmptyCollectionField_NoLongerMatchesType()
     {
         var item = Item("hello", meta: new Dictionary<string, object>
         {
@@ -493,14 +492,13 @@ public sealed class RouteGeneratorCoverageTests
         {
             ["guide"] = new("/guides/{slug}/", "pages/guide.html")
         };
-        var route = RouteGenerator.Generate(item, collections: collections);
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, collections: collections));
 
-        Assert.Equal("/guides/hello/", route.Url);
-        Assert.Equal("pages/guide.html", route.Template);
+        Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Generate_GetCollection_WhitespaceCollectionField_FallsBackToType()
+    public void Generate_GetCollection_WhitespaceCollectionField_NoLongerMatchesType()
     {
         var item = Item("hello", meta: new Dictionary<string, object>
         {
@@ -511,10 +509,9 @@ public sealed class RouteGeneratorCoverageTests
         {
             ["doc"] = new("/docs/{slug}/", "pages/doc.html")
         };
-        var route = RouteGenerator.Generate(item, collections: collections);
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, collections: collections));
 
-        Assert.Equal("/docs/hello/", route.Url);
-        Assert.Equal("pages/doc.html", route.Template);
+        Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── GetType with non-string meta value tests ──────────────────────────

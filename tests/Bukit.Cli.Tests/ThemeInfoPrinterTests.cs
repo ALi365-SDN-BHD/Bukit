@@ -5,6 +5,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests;
 
+[Collection("Console")]
 public sealed class ThemeInfoPrinterTests : IDisposable
 {
     private readonly string _themeRoot;

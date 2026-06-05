@@ -69,7 +69,8 @@ public sealed class PaginationPluginDerivePagesTests
             ContentHtml: $"<p>content {index}</p>",
             Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = "post"
+                ["type"] = "post",
+                ["collection"] = "post"
             },
             Fields: null);
         var route = new RouteInfo($"/blog/post-{index}/", $"blog/post-{index}/index.html", "pages/post.html");

@@ -25,6 +25,7 @@ public sealed class PagesByIdDataPluginTests
             Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
+                ["collection"] = "post",
                 ["summary"] = "S"
             },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
@@ -92,6 +93,7 @@ public sealed class PagesByIdDataPluginTests
                                              title: Hello
                                              slug: hello
                                              type: post
+                                             collection: post
                                              ---
                                              Hi
                                              """);
@@ -152,7 +154,7 @@ public sealed class PagesByIdDataPluginTests
                 Slug: "hello",
                 PublishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
                 ContentHtml: "<p>hi</p>",
-                Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post" },
+                Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post", ["collection"] = "post" },
                 Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["related_posts"] = new ContentField("list", new List<string> { "missing-1" })
@@ -253,7 +255,7 @@ public sealed class PagesByIdDataPluginTests
             Slug: "hello",
             PublishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>hi</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post" },
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post", ["collection"] = "post" },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["related_posts"] = new ContentField("list", new List<string> { "missing-1" })

@@ -64,7 +64,8 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
                     ContentHtml: $"<p>{i}</p>",
                     Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["type"] = "post"
+                        ["type"] = "post",
+                        ["collection"] = "post"
                     },
                     Fields: null),
                 new RouteInfo($"/blog/post-{i}/", Path.Combine("blog", $"post-{i}", "index.html"), "pages/post.html")));

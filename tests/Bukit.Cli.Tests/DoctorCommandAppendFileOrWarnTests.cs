@@ -5,6 +5,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests;
 
+[Collection("Console")]
 public class DoctorCommandAppendFileOrWarnTests
 {
     [Fact]

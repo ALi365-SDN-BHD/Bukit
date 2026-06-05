@@ -17,6 +17,7 @@ public sealed class ArchivePluginTests
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         meta["type"] = collection ?? "post";
+        meta["collection"] = collection ?? "post";
 
         return new ContentItem(
             Id: id,

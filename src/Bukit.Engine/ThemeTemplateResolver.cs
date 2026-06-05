@@ -61,7 +61,7 @@ public sealed class ThemeTemplateResolver
         }
 
         var type = GetContentType(item);
-        var collection = item.GetCollection(defaultCollection: type);
+        var collection = item.GetCollection();
         throw new ConfigException(
             $"No theme template matches content item '{item.Id}' (type='{type}', collection='{collection}', kind='{kind ?? "detail"}'). " +
             "Add a matching theme.yaml templates entry or set route.template/site.collections.*.template.");
@@ -136,7 +136,7 @@ public sealed class ThemeTemplateResolver
         }
 
         var type = GetContentType(item);
-        var collection = item.GetCollection(defaultCollection: type);
+        var collection = item.GetCollection();
         foreach (var (_, def) in _manifest.Templates)
         {
             if (def.Accepts is null || string.IsNullOrWhiteSpace(def.Template))
