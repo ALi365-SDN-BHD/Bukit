@@ -39,13 +39,22 @@ public sealed class SiteEngineHelperExtendedTests
                 Name = "test",
                 Title = "Test",
                 BaseUrl = "/",
-                Url = "https://example.com"
+                Url = "https://example.com",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["article"] = new()
+                    {
+                        Permalink = "/articles/{slug}/",
+                        Template = "pages/article.html"
+                    }
+                }
             },
             Content = new ContentConfig { Provider = "markdown" }
         };
         var items = new List<ContentItem>
         {
-            CreateItem("1", "Post One", "post-one"),
+            new("1", "Post One", "post-one", DateTimeOffset.UtcNow, null,
+                new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["collection"] = "article" }, null, null),
         };
         var languages = new List<string> { "en", "zh" };
         var defaultLanguage = "en";

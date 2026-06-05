@@ -25,14 +25,16 @@ internal static class SeoModelBuilder
             ?? config.Site.Seo.DefaultImage;
         image = BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, image);
 
-        var isPost = IsPost(item);
-        var isCollectionPage = !isPost && IsCollectionLikePage(item);
+        var geo = SeoGeoMetaParser.ParseGeoMeta(item);
+        var schemaType = ResolveSchemaType(item, geo);
+        var isArticle = IsArticleSchemaType(schemaType) || IsTruthyMeta(item, "seo_article");
+        schemaType = isArticle && string.IsNullOrWhiteSpace(schemaType) ? "BlogPosting" : schemaType;
+        var isStructuredContent = isArticle || IsStructuredContentSchemaType(schemaType);
+        var isCollectionPage = !isStructuredContent && IsCollectionLikePage(item);
         TryGetUpdateTime(item, out var updated);
         var author = FirstTextOrMeta(item, "author");
         var tags = GetStringList(item.Meta, "tags") ?? Array.Empty<string>();
-        var geo = SeoGeoMetaParser.ParseGeoMeta(item);
-        var schemaType = geo.SchemaType ?? (isPost ? "BlogPosting" : null);
-        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, route.Url, item, item.Fields, isPost, isCollectionPage, geo, schemaType);
+        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, route.Url, item, item.Fields, isStructuredContent, isCollectionPage, geo, schemaType);
 
         return new SeoModel
         {
@@ -46,7 +48,7 @@ internal static class SeoModelBuilder
                 Description = description,
                 Url = canonical,
                 Image = image,
-                Type = isPost ? "article" : "website",
+                Type = isArticle ? "article" : "website",
                 SiteName = config.Site.Title,
                 Locale = config.Site.Language
             },
@@ -61,10 +63,10 @@ internal static class SeoModelBuilder
             },
             Article = new SeoArticleModel
             {
-                PublishedTime = isPost ? item.PublishAt : null,
-                ModifiedTime = isPost && updated != default ? updated : null,
-                Author = isPost ? author : null,
-                Tags = isPost ? tags : Array.Empty<string>()
+                PublishedTime = isArticle ? item.PublishAt : null,
+                ModifiedTime = isArticle && updated != default ? updated : null,
+                Author = isArticle ? author : null,
+                Tags = isArticle ? tags : Array.Empty<string>()
             },
             Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
             JsonLd = jsonLd,
@@ -167,16 +169,36 @@ internal static class SeoModelBuilder
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    internal static bool IsPost(ContentItem item)
+    internal static string? ResolveSchemaType(ContentItem item, SeoGeoMetaParser.ParsedGeoMeta geo)
+        => CleanText(geo.SchemaType)
+           ?? FirstTextOrMeta(item, "schema_type")
+           ?? FirstTextOrMeta(item, "seo_schema_type");
+
+    internal static bool IsArticleSchemaType(string? schemaType)
+        => schemaType is not null &&
+           (schemaType.EndsWith("Article", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(schemaType, "BlogPosting", StringComparison.OrdinalIgnoreCase));
+
+    internal static bool IsStructuredContentSchemaType(string? schemaType)
+        => schemaType is not null &&
+           (string.Equals(schemaType, "FAQPage", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(schemaType, "HowTo", StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsTruthyMeta(ContentItem item, string key)
     {
-        var type = MetaHelpers.GetString(item.Meta, "type");
-        if (!string.IsNullOrWhiteSpace(type))
+        if (!item.Meta.TryGetValue(key, out var value) || value is null)
         {
-            return string.Equals(type, "post", StringComparison.OrdinalIgnoreCase);
+            return false;
         }
 
-        var collection = MetaHelpers.GetString(item.Meta, "collection");
-        return string.Equals(collection, "post", StringComparison.OrdinalIgnoreCase);
+        return value switch
+        {
+            bool b => b,
+            string s => s.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                        s.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+                        s.Equals("1", StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
     }
 
     internal static bool IsCollectionLikePage(ContentItem item)

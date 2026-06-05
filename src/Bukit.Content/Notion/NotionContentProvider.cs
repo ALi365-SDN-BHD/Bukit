@@ -87,18 +87,21 @@ public sealed class NotionContentProvider : IContentProvider
                     var pm = _options.PropertyMap;
                     var title = NotionPropertyParser.ExtractTitle(props, pm) ?? pageId;
                     var slug = NotionPropertyParser.ExtractSlug(props, pm) ?? Slugify(title) ?? pageId.Replace("-", string.Empty, StringComparison.Ordinal);
-                    var type = NotionPropertyParser.ExtractType(props, pm) ?? "post";
+                    var type = NotionPropertyParser.ExtractType(props, pm);
                     var publishAt = NotionPropertyParser.ExtractPublishAt(props, pm) ?? DateTimeOffset.UtcNow;
 
                     var lastEditedTime = GetString(page, "last_edited_time");
 
                     var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["type"] = type,
                         ["source"] = "notion",
                         ["notionPageId"] = pageId,
                         ["bodyFingerprint"] = string.IsNullOrWhiteSpace(lastEditedTime) ? pageId : lastEditedTime
                     };
+                    if (!string.IsNullOrWhiteSpace(type))
+                    {
+                        meta["type"] = type;
+                    }
 
                     var fields = NotionPropertyParser.ExtractFields(props, policyMode, allowed, out var relationKeys);
                     fields = NotionMetaHelper.InjectPageCoverAndIcon(fields, page);
@@ -114,7 +117,7 @@ public sealed class NotionContentProvider : IContentProvider
                     NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "categories");
                     NotionPropertyParser.ExtractSeoMeta(meta, props, pm);
 
-                    drafts.Add(new PageDraft(pageId, title, slug, type, publishAt, lastEditedTime, meta, fields, relationKeys));
+                    drafts.Add(new PageDraft(pageId, title, slug, type ?? string.Empty, publishAt, lastEditedTime, meta, fields, relationKeys));
                 }
 
                 if (hitMax)

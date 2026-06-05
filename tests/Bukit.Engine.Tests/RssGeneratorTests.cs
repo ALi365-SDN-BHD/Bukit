@@ -39,6 +39,12 @@ public sealed class RssGeneratorTests
         }
     }
 
+    private static readonly IReadOnlyDictionary<string, CollectionConfig> RssCollections =
+        new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post"] = new() { Permalink = "/blog/{slug}/", Template = "pages/post.html", Output = new() { Rss = true } }
+        };
+
     [Fact]
     public void Generate_BasicRss_HasCorrectStructure()
     {
@@ -52,7 +58,7 @@ public sealed class RssGeneratorTests
              new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
 
-        RssGenerator.Generate(outDir, "https://example.com", "/", "My Site", null, items, new InMemoryBodyStore());
+        RssGenerator.Generate(outDir, "https://example.com", "/", "My Site", RssCollections, items, new InMemoryBodyStore());
 
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", rss, StringComparison.Ordinal);
@@ -103,7 +109,7 @@ public sealed class RssGeneratorTests
                        new RouteInfo($"/blog/post-{i}/", $"blog/post-{i}/index.html", "pages/post.html")));
         }
 
-        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", null, items, new InMemoryBodyStore(), maxItems: 3);
+        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", RssCollections, items, new InMemoryBodyStore(), maxItems: 3);
 
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<title>Title post-10</title>", rss, StringComparison.Ordinal);
@@ -194,7 +200,7 @@ public sealed class RssGeneratorTests
              new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
 
-        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", null, items, new InMemoryBodyStore());
+        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", RssCollections, items, new InMemoryBodyStore());
 
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<category>tech</category>", rss, StringComparison.Ordinal);
@@ -214,7 +220,7 @@ public sealed class RssGeneratorTests
              new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
 
-        RssGenerator.Generate(outDir, "https://example.com", "/my-repo", "Site", null, items, new InMemoryBodyStore());
+        RssGenerator.Generate(outDir, "https://example.com", "/my-repo", "Site", RssCollections, items, new InMemoryBodyStore());
 
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<link>https://example.com/my-repo/blog/post-1/</link>", rss, StringComparison.Ordinal);

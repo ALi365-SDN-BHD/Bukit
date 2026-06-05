@@ -2,6 +2,7 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -367,12 +368,12 @@ public sealed class RouteGeneratorCoverageTests
     // ── ExpandPermalinkPattern {type} tests ───────────────────────────────
 
     [Fact]
-    public void ExpandPermalinkPattern_TypePlaceholder_MissingTypeDefaultsToPage()
+    public void ExpandPermalinkPattern_TypePlaceholder_MissingTypeExpandsEmpty()
     {
         var item = ItemWithDate("my-slug", "T", 2025, 6, 15, meta: new Dictionary<string, object>());
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 
-        Assert.Equal("/page/my-slug/", result);
+        Assert.Equal("//my-slug/", result);
     }
 
     [Fact]
@@ -519,44 +520,42 @@ public sealed class RouteGeneratorCoverageTests
     // ── GetType with non-string meta value tests ──────────────────────────
 
     [Fact]
-    public void Generate_GetType_IntMetaValue_UsesToString()
+    public void Generate_GetType_IntMetaValueWithoutRule_Throws()
     {
         var item = Item("hello", meta: new Dictionary<string, object> { ["type"] = 99 });
-        var route = RouteGenerator.Generate(item);
 
-        Assert.Equal("/pages/hello/", route.Url);
-        Assert.Equal(string.Empty, route.Template);
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
+        Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Generate_GetType_NullMetaType_DefaultsToPage()
+    public void Generate_GetType_NullMetaTypeWithoutRule_Throws()
     {
         var meta = new Dictionary<string, object> { ["type"] = (object?)null! };
         var item = Item("hello", meta: meta);
-        var route = RouteGenerator.Generate(item);
 
-        Assert.Equal("/pages/hello/", route.Url);
-        Assert.Equal(string.Empty, route.Template);
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
+        Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── ExpandPermalinkPattern without type meta ──────────────────────────
 
     [Fact]
-    public void ExpandPermalinkPattern_NoTypeMeta_DefaultsToPage()
+    public void ExpandPermalinkPattern_NoTypeMeta_ExpandsEmpty()
     {
         var item = ItemWithDate("slug", "T", 2025, 1, 1);
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 
-        Assert.Equal("/page/slug/", result);
+        Assert.Equal("//slug/", result);
     }
 
     [Fact]
-    public void ExpandPermalinkPattern_NullTypeValue_DefaultsToPage()
+    public void ExpandPermalinkPattern_NullTypeValue_ExpandsEmpty()
     {
         var meta = new Dictionary<string, object> { ["type"] = (object?)null! };
         var item = ItemWithDate("slug", "T", 2025, 1, 1, meta: meta);
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 
-        Assert.Equal("/page/slug/", result);
+        Assert.Equal("//slug/", result);
     }
 }

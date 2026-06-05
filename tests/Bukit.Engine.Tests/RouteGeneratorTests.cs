@@ -20,11 +20,18 @@ public sealed class RouteGeneratorTests
             ContentHtml: "",
             Meta: meta ?? new Dictionary<string, object>());
 
+    private static readonly IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule> DefaultCollections =
+        new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post"] = new("/blog/{slug}/", string.Empty),
+            ["page"] = new("/pages/{slug}/", string.Empty)
+        };
+
     [Fact]
     public void Generate_PostType_ProducesBlogRouteAndPostTemplate()
     {
         var item = Item("my-post", new Dictionary<string, object> { ["type"] = "post" });
-        var route = RouteGenerator.Generate(item);
+        var route = RouteGenerator.Generate(item, collections: DefaultCollections);
 
         Assert.Equal("/blog/my-post/", route.Url);
         Assert.Equal("blog/my-post/index.html", route.OutputPath);
@@ -35,7 +42,7 @@ public sealed class RouteGeneratorTests
     public void Generate_PageType_ProducesPagesRouteAndPageTemplate()
     {
         var item = Item("about", new Dictionary<string, object> { ["type"] = "page" });
-        var route = RouteGenerator.Generate(item);
+        var route = RouteGenerator.Generate(item, collections: DefaultCollections);
 
         Assert.Equal("/pages/about/", route.Url);
         Assert.Equal("pages/about/index.html", route.OutputPath);
@@ -43,25 +50,21 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
-    public void Generate_NoType_DefaultsToPage()
+    public void Generate_NoRouteRule_Throws()
     {
         var item = Item("default");
-        var route = RouteGenerator.Generate(item);
 
-        Assert.Equal("/pages/default/", route.Url);
-        Assert.Contains("default", route.OutputPath);
-        Assert.Equal(string.Empty, route.Template);
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
+        Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Generate_UnknownType_DefaultsToPage()
+    public void Generate_UnknownTypeWithoutRule_Throws()
     {
         var item = Item("custom", new Dictionary<string, object> { ["type"] = "custom" });
-        var route = RouteGenerator.Generate(item);
 
-        Assert.Equal("/pages/custom/", route.Url);
-        Assert.Equal("pages/custom/index.html", route.OutputPath);
-        Assert.Equal(string.Empty, route.Template);
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
+        Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -230,8 +233,8 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_OutputPathEncoding_DefaultNone_WhenOmitted()
     {
-        var item = Item("slug-with-dash");
-        var route = RouteGenerator.Generate(item);
+        var item = Item("slug-with-dash", new Dictionary<string, object> { ["collection"] = "page" });
+        var route = RouteGenerator.Generate(item, collections: DefaultCollections);
 
         Assert.Equal("pages/slug-with-dash/index.html", route.OutputPath);
     }
@@ -240,7 +243,7 @@ public sealed class RouteGeneratorTests
     public void Generate_OutputPathEncoding_Slug_OnDefaultPostPath()
     {
         var item = Item("My Post Title!", new Dictionary<string, object> { ["type"] = "post" });
-        var route = RouteGenerator.Generate(item, "slug");
+        var route = RouteGenerator.Generate(item, "slug", collections: DefaultCollections);
 
         Assert.Equal("/blog/My Post Title!/", route.Url);
         Assert.Equal("blog/my-post-title/index.html", route.OutputPath);
@@ -310,9 +313,10 @@ public sealed class RouteGeneratorTests
                 ["outputPath"] = "custom/about/index.html"
             }
         };
+        meta["collection"] = "page";
         var item = Item("about", meta);
 
-        var route = RouteGenerator.Generate(item);
+        var route = RouteGenerator.Generate(item, collections: DefaultCollections);
 
         Assert.Equal("/pages/about/", route.Url);
         Assert.Equal("custom/about/index.html", route.OutputPath.Replace('\\', '/'));
@@ -395,8 +399,9 @@ public sealed class RouteGeneratorTests
                 ["template"] = ""
             }
         };
+        meta["collection"] = "page";
         var item = Item("fallback", meta);
-        var route = RouteGenerator.Generate(item);
+        var route = RouteGenerator.Generate(item, collections: DefaultCollections);
 
         Assert.Equal("/only-url/", route.Url);
         Assert.Equal("only-url/index.html", route.OutputPath);
@@ -414,8 +419,9 @@ public sealed class RouteGeneratorTests
                 ["outputPath"] = "out/index.html"
             }
         };
+        meta["collection"] = "page";
         var item = Item("fallback", meta);
-        var route = RouteGenerator.Generate(item);
+        var route = RouteGenerator.Generate(item, collections: DefaultCollections);
 
         Assert.Equal("/only-url/", route.Url);
         Assert.Equal("out/index.html", route.OutputPath);
@@ -452,10 +458,10 @@ public sealed class RouteGeneratorTests
                 ["url"] = "/custom/hello/",
                 ["template"] = "pages/custom.html"
             },
-            ["type"] = "post"
+            ["collection"] = "post"
         });
 
-        var route = RouteGenerator.Generate(item);
+        var route = RouteGenerator.Generate(item, collections: DefaultCollections);
 
         Assert.Equal("/custom/hello/", route.Url);
         Assert.Equal("custom/hello/index.html", route.OutputPath);
@@ -517,15 +523,12 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
-    public void Generate_EmptySlug_ProducesRoute()
+    public void Generate_EmptySlug_WithCollectionRuleThrows()
     {
-        var item = Item("");
-        var route = RouteGenerator.Generate(item);
+        var item = Item("", new Dictionary<string, object> { ["collection"] = "page" });
 
-        Assert.StartsWith("/pages/", route.Url);
-        Assert.EndsWith("/", route.Url);
-        Assert.Contains("index.html", route.OutputPath);
-        Assert.Equal(string.Empty, route.Template);
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, collections: DefaultCollections));
+        Assert.Contains("route.outputPath", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── Permalink pattern tests ──────────────────────────────────────────
@@ -580,13 +583,12 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
-    public void Generate_PermalinkPattern_NoMatchFallsToDefault()
+    public void Generate_PermalinkPattern_NoMatchThrows()
     {
         var item = Item("test-slug", new Dictionary<string, object> { ["type"] = "post" });
         var permalinks = new Dictionary<string, string> { ["page"] = "/p/{slug}/" };
-        var route = RouteGenerator.Generate(item, "none", permalinks);
-
-        Assert.Equal("/blog/test-slug/", route.Url);
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, "none", permalinks));
+        Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -144,7 +144,7 @@ internal static class SiteDefaultsApplier
         return new MarkdownConfig
         {
             Dir = ConfigYamlHelpers.GetOptionalString(mdNode, "dir") ?? "content",
-            DefaultType = ConfigYamlHelpers.GetOptionalString(mdNode, "defaultType") ?? "page",
+            DefaultType = ConfigYamlHelpers.GetOptionalString(mdNode, "defaultType") ?? string.Empty,
             MaxItems = ConfigYamlHelpers.GetOptionalInt(mdNode, "maxItems"),
             IncludePaths = ConfigYamlHelpers.ReadStringList(mdNode, "includePaths"),
             IncludeGlobs = ConfigYamlHelpers.ReadStringList(mdNode, "includeGlobs")

@@ -8,7 +8,7 @@ namespace Bukit.Content.Markdown;
 
 public sealed record MarkdownFolderProviderOptions(
     string ContentDir,
-    string DefaultType = "page",
+    string DefaultType = "",
     int? MaxItems = null,
     IReadOnlyList<string>? IncludePaths = null,
     IReadOnlyList<string>? IncludeGlobs = null,
@@ -110,7 +110,9 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 }
             }
 
-            if (!meta.ContainsKey("collection") && !meta.ContainsKey("type"))
+            if (!meta.ContainsKey("collection") &&
+                !meta.ContainsKey("type") &&
+                !string.IsNullOrWhiteSpace(_options.DefaultType))
             {
                 meta["type"] = _options.DefaultType;
             }

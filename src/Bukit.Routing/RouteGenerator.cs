@@ -13,8 +13,7 @@ public static class RouteGenerator
         FullOverride,
         PartialOverride,
         Collection,
-        Permalink,
-        BuiltinFallback
+        Permalink
     }
 
     public sealed record RouteGenerationResult(RouteInfo Route, RouteSource Source);
@@ -81,7 +80,7 @@ public static class RouteGenerator
         result = result.Replace("{month}", item.PublishAt.Month.ToString("D2"), StringComparison.OrdinalIgnoreCase);
         result = result.Replace("{day}", item.PublishAt.Day.ToString("D2"), StringComparison.OrdinalIgnoreCase);
 
-        var typeVal = item.Meta.TryGetValue("type", out var t) && t is not null ? (t.ToString() ?? "page") : "page";
+        var typeVal = item.Meta.TryGetValue("type", out var t) && t is not null ? (t.ToString() ?? string.Empty) : string.Empty;
         result = result.Replace("{type}", typeVal, StringComparison.OrdinalIgnoreCase);
 
         var collectionVal = item.GetCollection();
@@ -110,22 +109,9 @@ public static class RouteGenerator
             return (BuildFromPattern(item, pattern, string.Empty, outputPathEncoding), RouteSource.Permalink);
         }
 
-        var (url, outputBase) = type switch
-        {
-            "post" => ($"/blog/{item.Slug}/", "blog"),
-            _ => ($"/pages/{item.Slug}/", "pages")
-        };
-
-        var route = new RouteInfo(
-            Url: url,
-            OutputPath: Path.Combine(outputBase, item.Slug, "index.html"),
-            Template: string.Empty
-        );
-
-        return (route with
-        {
-            OutputPath = RoutePathBuilder.NormalizeOutputPath(route.OutputPath, outputPathEncoding)
-        }, RouteSource.BuiltinFallback);
+        throw new ConfigException(
+            $"No route rule matches content item '{item.Id}' (type='{type}', collection='{collectionKey}'). " +
+            "Add route.url/route.outputPath/route.template, site.collections.*.permalink, or site.permalinks.");
     }
 
     private static bool TryReadFullRouteOverride(ContentItem item, string outputPathEncoding, out RouteInfo route)
@@ -235,10 +221,10 @@ public static class RouteGenerator
     {
         if (item.Meta.TryGetValue("type", out var v) && v is not null)
         {
-            return v.ToString() ?? "page";
+            return v.ToString() ?? string.Empty;
         }
 
-        return "page";
+        return string.Empty;
     }
 
     private static string GetCollection(ContentItem item)
