@@ -38,7 +38,7 @@ internal static class ThemeTemplateResource
         if (Templates.TryGetValue(name, out var content))
             return content;
 
-        return FallbackTemplates.GetValueOrDefault(name, "");
+        return "";
     }
 
     public static string ProcessPlaceholders(string content, Dictionary<string, string> replacements)
@@ -64,26 +64,4 @@ internal static class ThemeTemplateResource
 
         return styleCss;
     }
-
-    private static readonly Dictionary<string, string> FallbackTemplates = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["StyleCss"] = StarterThemeResources.StyleCss,
-        ["BaseLayout"] = StarterThemeResources.BaseLayout,
-        ["SeoPartial"] = StarterThemeResources.SeoPartial,
-        ["AnalyticsPartial"] = StarterThemeResources.AnalyticsPartial,
-        ["HeaderPartial"] = StarterThemeResources.HeaderPartial,
-        ["FooterPartial"] = StarterThemeResources.FooterPartial,
-        ["ListCardPartial"] = StarterThemeResources.ListCardPartial,
-        ["PaginationNavPartial"] = StarterThemeResources.PaginationNavPartial,
-        ["PageTemplate"] = StarterThemeResources.PageTemplate,
-        ["PostTemplate"] = StarterThemeResources.PostTemplate,
-        ["IndexTemplate"] = StarterThemeResources.IndexTemplate,
-        ["ListTemplate"] = StarterThemeResources.ListTemplate,
-        ["PaginationTemplate"] = StarterThemeResources.PaginationTemplate,
-        ["TaxonomyIndexTemplate"] = StarterThemeResources.TaxonomyIndexTemplate,
-        ["TaxonomyTermTemplate"] = StarterThemeResources.TaxonomyTermTemplate,
-        ["SearchTemplate"] = StarterThemeResources.SearchTemplate,
-        ["TemplateCapabilities"] = StarterThemeResources.TemplateCapabilities,
-        ["ThemeYaml"] = StarterThemeResources.ThemeYaml,
-    };
 }

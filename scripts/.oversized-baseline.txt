@@ -8,6 +8,3 @@
 # 3. Each entry should include a brief justification.
 #
 # Format: one path per line (relative to repo root). Lines starting with # are ignored.
-
-# special exception: string constants only, no logic
-src/Bukit.Cli/Commands/StarterThemeResources.cs

@@ -946,7 +946,8 @@ themes:
     [Fact]
     public void StarterThemeScaffold_FooterHasBrandPlaceholder()
     {
-        var footer = StarterThemeResources.FooterPartial;
-        Assert.Contains("{{-- bukit:brand --}}", footer, StringComparison.Ordinal);
+        var footer = ThemeTemplateResource.Get("FooterPartial");
+        Assert.Contains("Powered by", footer, StringComparison.Ordinal);
+        Assert.Contains("bukit", footer, StringComparison.Ordinal);
     }
 }

@@ -62,36 +62,36 @@ internal static class CloneContentWriter
             themeFiles++;
         }
 
-        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/list-card.html", StarterThemeResources.ListCardPartial);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/list-card.html", ThemeTemplateResource.Get("ListCardPartial"));
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/pagination-nav.html", StarterThemeResources.PaginationNavPartial);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/partials/pagination-nav.html", ThemeTemplateResource.Get("PaginationNavPartial"));
         themeFiles++;
         WriteFile(rootDir, $"themes/{themeName}/layouts/pages/index.html", CloneSectionDataWriter.GenerateStructuredIndex(normalizedSections));
         themeFiles++;
         if (includePageTemplate)
         {
-            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/page.html", StarterThemeResources.PageTemplate);
+            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/page.html", ThemeTemplateResource.Get("PageTemplate"));
             themeFiles++;
         }
         if (templateScope.ShouldWritePageTemplates())
         {
-            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/post.html", StarterThemeResources.PostTemplate);
+            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/post.html", ThemeTemplateResource.Get("PostTemplate"));
             themeFiles++;
-            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/list.html", StarterThemeResources.ListTemplate);
+            WriteFile(rootDir, $"themes/{themeName}/layouts/pages/list.html", ThemeTemplateResource.Get("ListTemplate"));
             themeFiles++;
         }
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", StarterThemeResources.PaginationTemplate);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/pagination.html", ThemeTemplateResource.Get("PaginationTemplate"));
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", StarterThemeResources.TaxonomyIndexTemplate);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-index.html", ThemeTemplateResource.Get("TaxonomyIndexTemplate"));
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", StarterThemeResources.TaxonomyTermTemplate);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/taxonomy-term.html", ThemeTemplateResource.Get("TaxonomyTermTemplate"));
         themeFiles++;
-        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", StarterThemeResources.SearchTemplate);
+        WriteFile(rootDir, $"themes/{themeName}/layouts/pages/search.html", ThemeTemplateResource.Get("SearchTemplate"));
         themeFiles++;
         if (includePageTemplate)
         {
             WriteFile(rootDir, $"themes/{themeName}/layouts/bukit.templates.yaml",
-                templateScope == TemplateScope.Full ? StarterThemeResources.TemplateCapabilities : CloneThemeGenerator.BareTemplateCapabilities);
+                templateScope == TemplateScope.Full ? ThemeTemplateResource.Get("TemplateCapabilities") : CloneThemeGenerator.BareTemplateCapabilities);
             themeFiles++;
         }
         WriteFile(rootDir, $"themes/{themeName}/theme.yaml", GenerateThemeYaml(themeName, tokens, brand, behaviors));

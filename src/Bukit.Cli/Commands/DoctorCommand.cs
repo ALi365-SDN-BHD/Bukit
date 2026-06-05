@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using System.Text.Json;
 using Scriban;
 using Bukit.Cli.Cli.Binding;
@@ -137,24 +136,24 @@ public static class DoctorCommand
         foreach (var p in allTemplates)
         {
             var text = await File.ReadAllTextAsync(p);
-            var openDouble = CountOpenings(text, "{{");
-            var closeDouble = CountOpenings(text, "}}");
+            var openDouble = DoctorTemplateAnalyzer.CountOpenings(text, "{{");
+            var closeDouble = DoctorTemplateAnalyzer.CountOpenings(text, "}}");
             if (openDouble != closeDouble)
             {
                 var relative = Path.GetRelativePath(layoutsDir, p);
                 Console.WriteLine($"⚠ Unmatched {{{{/}}}} in {relative}: {openDouble} opens, {closeDouble} closes");
             }
 
-            var openPercent = CountOpenings(text, "{%");
-            var closePercent = CountOpenings(text, "%}");
+            var openPercent = DoctorTemplateAnalyzer.CountOpenings(text, "{%");
+            var closePercent = DoctorTemplateAnalyzer.CountOpenings(text, "%}");
             if (openPercent != closePercent)
             {
                 var relative = Path.GetRelativePath(layoutsDir, p);
                 Console.WriteLine($"⚠ Unmatched {{%/ %}} in {relative}: {openPercent} opens, {closePercent} closes");
             }
 
-            var openHash = CountOpenings(text, "{#");
-            var closeHash = CountOpenings(text, "#}");
+            var openHash = DoctorTemplateAnalyzer.CountOpenings(text, "{#");
+            var closeHash = DoctorTemplateAnalyzer.CountOpenings(text, "#}");
             if (openHash != closeHash)
             {
                 var relative = Path.GetRelativePath(layoutsDir, p);
@@ -178,11 +177,11 @@ public static class DoctorCommand
 
         Console.WriteLine();
         Console.WriteLine("--- Template chain analysis ---");
-        AnalyzeTemplateChains(layoutsDir, allHtmlFiles);
+        DoctorTemplateAnalyzer.AnalyzeTemplateChains(layoutsDir, allHtmlFiles);
 
         Console.WriteLine();
         Console.WriteLine("--- Template variable spell check ---");
-        CheckTemplateVariables(layoutsDir);
+        DoctorTemplateAnalyzer.CheckTemplateVariables(layoutsDir);
 
         Console.WriteLine();
         DoctorTemplateChecker.CheckIncludeExistence(new DoctorContext(rootDir, config, layoutsDir, allHtmlFiles));
@@ -376,7 +375,7 @@ public static class DoctorCommand
                 TemplateResolver = templateResolver.ResolveKindTemplate,
                 Logger = new ConsoleLogger(LogLevel.Info)
             };
-            pluginRequirementTemplates = CollectPluginRequirementTemplates(routedPluginContext, templateResolver);
+            pluginRequirementTemplates = DoctorTemplateAnalyzer.CollectPluginRequirementTemplates(routedPluginContext, templateResolver);
         }
         catch (ConfigException ex)
         {
@@ -385,7 +384,7 @@ public static class DoctorCommand
             return 1;
         }
 
-        var missingUsedTemplates = CollectMissingUsedTemplates(layoutsDir, routed, listRoutes, pluginRequirementTemplates);
+        var missingUsedTemplates = DoctorTemplateAnalyzer.CollectMissingUsedTemplates(layoutsDir, routed, listRoutes, pluginRequirementTemplates);
         if (missingUsedTemplates.Count > 0)
         {
             Console.WriteLine("✖ Missing used templates:");
@@ -426,128 +425,11 @@ public static class DoctorCommand
         return 0;
     }
 
-    private static IReadOnlyList<string> CollectMissingUsedTemplates(
-        string layoutsDir,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
-        IReadOnlyList<RouteInfo> listRoutes,
-        IReadOnlyList<string>? pluginRequirementTemplates = null)
-    {
-        return routed
-            .Select(x => x.Route.Template)
-            .Concat(listRoutes.Select(x => x.Template))
-            .Concat(pluginRequirementTemplates ?? Array.Empty<string>())
-            .Where(t => !string.IsNullOrWhiteSpace(t))
-            .Select(t => t.Trim().Replace('\\', '/'))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Where(t => !File.Exists(Path.Combine(layoutsDir, t.Replace('/', Path.DirectorySeparatorChar))))
-            .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
-
-    private static IReadOnlyList<string> CollectPluginRequirementTemplates(
-        BuildContext context,
-        ThemeTemplateResolver templateResolver)
-    {
-        var templates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kind in PluginRunner.CollectTemplateRequirementKinds(context))
-        {
-            templates.Add(templateResolver.ResolveKindTemplate(kind));
-        }
-
-        return templates.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
-    }
-
-    private static void AnalyzeTemplateChains(string layoutsDir, string[] allHtmlFiles)
-    {
-        foreach (var file in allHtmlFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
-        {
-            var relative = Path.GetRelativePath(layoutsDir, file).Replace('\\', '/');
-            var text = File.ReadAllText(file);
-
-            var layoutRefs = ExtractDirectives(text, "layout");
-            var includeRefs = ExtractDirectives(text, "include");
-
-            if (layoutRefs.Count > 0 || includeRefs.Count > 0)
-            {
-                Console.Write($"  {relative}");
-
-                if (layoutRefs.Count > 0)
-                {
-                    Console.Write($"  layout → [{string.Join(", ", layoutRefs)}]");
-                }
-
-                if (includeRefs.Count > 0)
-                {
-                    Console.Write($"  include → [{string.Join(", ", includeRefs)}]");
-                }
-
-                Console.WriteLine();
-            }
-        }
-    }
-
-    internal static List<string> ExtractDirectives(string text, string directiveType)
-    {
-        var results = new List<string>();
-        var patterns = new[]
-        {
-            $@"\{{% ?{directiveType} ?""([^""]+)"" ?%}}",
-            $@"\{{% ?{directiveType} ?'([^']+)' ?%}}",
-            $@"\{{{{\s*{directiveType}\s+""([^""]+)""\s*}}}}",
-            $@"\{{{{\s*{directiveType}\s+'([^']+)'\s*}}}}"
-        };
-
-        foreach (var pattern in patterns)
-        {
-            foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(text, pattern))
-            {
-                results.Add(match.Groups[1].Value);
-            }
-        }
-
-        return results;
-    }
-
     private static void CheckFollowSymlinksSafety(AppConfig config)
     {
         if (config.Build.FollowSymlinks)
         {
             Console.WriteLine("⚠ build.followSymlinks is enabled. Ensure all symlinks are within the project directory and trusted. Consider disabling in CI environments.");
-        }
-    }
-
-    internal static void AppendFileOrWarn(string file, System.Text.StringBuilder dst)
-    {
-        try { dst.Append(File.ReadAllText(file)); }
-        catch (Exception ex) { Console.WriteLine($"⚠ Failed to read {file}: {ex.Message}"); }
-    }
-
-    private static int CountOpenings(string text, string pattern)
-    {
-        var count = 0;
-        var index = 0;
-        while ((index = text.IndexOf(pattern, index, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            index += pattern.Length;
-        }
-
-        return count;
-    }
-
-    private static void CheckTemplateVariables(string layoutsDir)
-    {
-        var warnings = Bukit.Engine.ScribanTemplateLinter.LintDirectory(layoutsDir, "");
-
-        if (warnings.Count == 0)
-        {
-            Console.WriteLine("✔ No unknown template variables detected");
-            return;
-        }
-
-        foreach (var w in warnings)
-        {
-            Console.WriteLine($"⚠ {w.Template}: {w.Message}");
         }
     }
 

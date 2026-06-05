@@ -142,8 +142,8 @@ internal static class DoctorManifestChecker
         {
             var relative = Path.GetRelativePath(layoutsDir, file).Replace('\\', '/');
             var text = File.ReadAllText(file);
-            var layoutRefs = DoctorCommand.ExtractDirectives(text, "layout");
-            var includeRefs = DoctorCommand.ExtractDirectives(text, "include");
+            var layoutRefs = DoctorTemplateAnalyzer.ExtractDirectives(text, "layout");
+            var includeRefs = DoctorTemplateAnalyzer.ExtractDirectives(text, "include");
 
             if (includeRefs.Count > 0 || layoutRefs.Count > 0)
             {

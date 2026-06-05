@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Bukit notion-database-map.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "databases"
+  ],
+  "properties": {
+    "databases": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "seed",
+          "collection"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "databaseId": {
+            "type": "string"
+          },
+          "seed": {
+            "type": "string"
+          },
+          "collection": {
+            "enum": [
+              "page",
+              "post",
+              "company",
+              "service",
+              "faq",
+              "section",
+              "media",
+              "component"
+            ]
+          },
+          "uniqueField": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
