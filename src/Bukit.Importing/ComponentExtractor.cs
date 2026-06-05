@@ -131,11 +131,11 @@ internal static partial class ComponentExtractor
         if (componentName.Equals("pagination", StringComparison.OrdinalIgnoreCase))
         {
             return """
-{{ if page_list.has_prev }}
+{{ if pagination.has_prev }}
 <nav class="pagination" aria-label="Pagination">
-  {{ if page_list.has_prev }}<a href="{{ page_list.prev_page_url }}" rel="prev">‹</a>{{ end }}
-  <span>{{ page_list.current_page }} / {{ page_list.total_pages }}</span>
-  {{ if page_list.has_next }}<a href="{{ page_list.next_page_url }}" rel="next">›</a>{{ end }}
+  {{ if pagination.has_prev }}<a href="{{ pagination.prev_page }}" rel="prev">‹</a>{{ end }}
+  <span>{{ pagination.page }} / {{ pagination.total_pages }}</span>
+  {{ if pagination.has_next }}<a href="{{ pagination.next_page }}" rel="next">›</a>{{ end }}
 </nav>
 {{ end }}
 """;

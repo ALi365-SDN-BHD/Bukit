@@ -87,7 +87,7 @@ internal static class ScribanTemplateLinter
             return root;
         }
 
-        if (root is "p" or "item" or "post" or "page_item")
+        if (root is "p" or "item")
         {
             return root;
         }

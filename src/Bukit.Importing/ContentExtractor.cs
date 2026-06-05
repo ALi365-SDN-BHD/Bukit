@@ -86,13 +86,13 @@ internal static partial class ContentExtractor
         {
             Title = title,
             Slug = page.Slug,
-            Type = page.Type == PageType.Home ? "Home" : "Page",
+            Type = page.Type == PageType.Home ? "Home" : "",
             Template = page.Type switch
             {
                 PageType.Home => "index",
-                PageType.PostDetail => "article",
-                PageType.CompanyDetail => "company",
-                _ => "page"
+                PageType.PostDetail => "post",
+                PageType.Page => "page",
+                _ => "generic"
             },
             Summary = summary,
             Content = ExtractContentBody(page.UniqueBody),

@@ -396,7 +396,7 @@ public static class DoctorCommand
             return 1;
         }
 
-        DoctorManifestChecker.CheckUnreferencedTemplates(layoutsDir, allHtmlFiles, config, listRoutes);
+        DoctorManifestChecker.CheckUnreferencedTemplates(layoutsDir, allHtmlFiles, config, listRoutes, templateResolver);
 
         Console.WriteLine();
         var hasSchemaErrors = DoctorSchemaChecker.CheckSchemaFieldCompleteness(ctx, routed);

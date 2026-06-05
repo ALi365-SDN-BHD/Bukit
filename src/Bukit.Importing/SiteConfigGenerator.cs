@@ -5,7 +5,7 @@ namespace Bukit.Importing;
 
 internal static class SiteConfigGenerator
 {
-    internal static bool Generate(HtmlDemoImportOptions options, RouteMapConfig? routeMap = null)
+    internal static bool Generate(HtmlDemoImportOptions options, RouteMapConfig? routeMap = null, HashSet<PageType>? pageTypes = null, string? postListSlug = null)
     {
         var siteDir = HtmlDemoImporter.GetSiteDir(options);
         Directory.CreateDirectory(siteDir);
@@ -25,6 +25,9 @@ internal static class SiteConfigGenerator
             contentDir = "content";
         }
 
+        // Default to all types if no page type info provided (backward compat)
+        pageTypes ??= [PageType.Home, PageType.Page, PageType.PostDetail, PageType.PostList, PageType.CompanyDetail, PageType.CompanyList, PageType.ServiceDetail, PageType.ServiceList];
+
         var sb = new StringBuilder();
         sb.AppendLine("site:");
         sb.AppendLine($"  name: {options.ThemeName}");
@@ -37,24 +40,52 @@ internal static class SiteConfigGenerator
         sb.AppendLine("  seo:");
         sb.AppendLine("    renderMode: inject");
         sb.AppendLine("  collections:");
-        sb.AppendLine("    page:");
-        sb.AppendLine("      permalink: '/{slug}/'");
-        sb.AppendLine("      template: 'pages/page.html'");
-        sb.AppendLine("    post:");
-        sb.AppendLine("      permalink: '/insights/{slug}/'");
-        sb.AppendLine("      template: 'pages/article.html'");
-        sb.AppendLine("      listRoute: '/insights/'");
-        sb.AppendLine("      listTemplate: 'pages/insights.html'");
-        sb.AppendLine("    company:");
-        sb.AppendLine("      permalink: '/companies/{slug}/'");
-        sb.AppendLine("      template: 'pages/company.html'");
-        sb.AppendLine("      listRoute: '/companies/'");
-        sb.AppendLine("      listTemplate: 'pages/companies.html'");
-        sb.AppendLine("    service:");
-        sb.AppendLine("      permalink: '/services/{slug}/'");
-        sb.AppendLine("      template: 'pages/service.html'");
-        sb.AppendLine("      listRoute: '/services/'");
-        sb.AppendLine("      listTemplate: 'pages/services.html'");
+
+        if (pageTypes.Contains(PageType.Page) || pageTypes.Contains(PageType.Home))
+        {
+            sb.AppendLine("    page:");
+            sb.AppendLine("      permalink: '/{slug}/'");
+            sb.AppendLine("      template: 'pages/page.html'");
+        }
+
+        if (pageTypes.Contains(PageType.PostDetail))
+        {
+            sb.AppendLine("    post:");
+            sb.AppendLine("      permalink: '/insights/{slug}/'");
+            sb.AppendLine("      template: 'pages/post.html'");
+            if (pageTypes.Contains(PageType.PostList))
+            {
+                var listName = !string.IsNullOrWhiteSpace(postListSlug)
+                    ? ThemeGenerator.SanitizeTemplateName(postListSlug)
+                    : "insights";
+                sb.AppendLine("      listRoute: '/insights/'");
+                sb.AppendLine($"      listTemplate: 'pages/{listName}.html'");
+            }
+        }
+
+        if (pageTypes.Contains(PageType.CompanyDetail))
+        {
+            sb.AppendLine("    company:");
+            sb.AppendLine("      permalink: '/companies/{slug}/'");
+            sb.AppendLine("      template: 'pages/company.html'");
+            if (pageTypes.Contains(PageType.CompanyList))
+            {
+                sb.AppendLine("      listRoute: '/companies/'");
+                sb.AppendLine("      listTemplate: 'pages/companies.html'");
+            }
+        }
+
+        if (pageTypes.Contains(PageType.ServiceDetail))
+        {
+            sb.AppendLine("    service:");
+            sb.AppendLine("      permalink: '/services/{slug}/'");
+            sb.AppendLine("      template: 'pages/service.html'");
+            if (pageTypes.Contains(PageType.ServiceList))
+            {
+                sb.AppendLine("      listRoute: '/services/'");
+                sb.AppendLine("      listTemplate: 'pages/services.html'");
+            }
+        }
 
         if (routeMap != null)
         {

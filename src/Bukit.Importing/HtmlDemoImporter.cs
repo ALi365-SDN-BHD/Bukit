@@ -110,7 +110,7 @@ public static class HtmlDemoImporter
             }
         }
 
-        var siteYamlCreated = SiteConfigGenerator.Generate(options, routeMap);
+        var siteYamlCreated = SiteConfigGenerator.Generate(options, routeMap, result.PageTypes, result.PostListSlug);
         var templatesSynced = SyncTemplates(options, options.Force);
         result = result with
         {
@@ -254,7 +254,7 @@ public static class HtmlDemoImporter
             PageType.CompanyDetail => "company",
             PageType.ServiceList => "services",
             PageType.ServiceDetail => "service",
-            _ => "page"
+            _ => "generic"
         };
     }
 

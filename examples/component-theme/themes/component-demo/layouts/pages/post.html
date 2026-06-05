@@ -1,0 +1,9 @@
+{% layout "base.html" %}
+
+<div class="page-content">
+  <article>
+    <h1>{{ page.title }}</h1>
+    {{ if page.summary }}<p class="summary">{{ page.summary }}</p>{{ end }}
+    <div>{{ page.content }}</div>
+  </article>
+</div>

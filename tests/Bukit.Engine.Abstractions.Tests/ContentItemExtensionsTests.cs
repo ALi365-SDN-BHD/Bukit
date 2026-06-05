@@ -51,7 +51,7 @@ public sealed class ContentItemExtensionsTests
 
         var result = item.GetCollection();
 
-        Assert.Equal("page", result);
+        Assert.Equal("", result);
     }
 
     [Fact]

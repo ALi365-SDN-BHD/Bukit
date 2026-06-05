@@ -9,6 +9,13 @@ namespace Bukit.Engine;
 
 public static class RouteInventoryValidator
 {
+    /// <summary>
+    /// The default kind used when resolving content item templates.
+    /// Theme manifests must declare <c>accepts.kind: detail</c> for their template
+    /// definitions to be considered by <see cref="ResolveRouteTemplate"/>.
+    /// </summary>
+    private const string DefaultDetailKind = "detail";
+
     public static async Task<IReadOnlyList<(ContentItem Item, RouteInfo Route)>> BuildContentRoutesAsync(
         AppConfig config,
         string rootDir,
@@ -73,6 +80,13 @@ public static class RouteInventoryValidator
         ValidateEntries(entries);
     }
 
+    public static (RouteInfo Route, string Source) GenerateRouteWithSource(ContentItem item, SiteConfig site)
+    {
+        var collections = BuildCollectionRules(site);
+        var result = RouteGenerator.GenerateWithSource(item, site.OutputPathEncoding, site.Permalinks, collections);
+        return (result.Route, result.Source.ToString());
+    }
+
     internal static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)
     {
         if (site.Collections is null || site.Collections.Count == 0)
@@ -101,7 +115,7 @@ public static class RouteInventoryValidator
             return route;
         }
 
-        return route with { Template = templateResolver.ResolveContentTemplate(item, "detail") };
+        return route with { Template = templateResolver.ResolveContentTemplate(item, DefaultDetailKind) };
     }
 
     private static void ValidateEntries(IReadOnlyList<RouteInventoryEntry> entries)

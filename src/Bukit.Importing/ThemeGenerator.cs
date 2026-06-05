@@ -83,6 +83,12 @@ internal static partial class ThemeGenerator
             templateCount++;
         }
 
+        var pageTypes = new HashSet<PageType>();
+        foreach (var page in pages)
+            pageTypes.Add(page.Type);
+
+        WriteThemeYaml(themeDir, pageTypes, pages.FirstOrDefault(p => p.Type == PageType.PostList)?.Slug);
+
         return new ImportResult
         {
             ThemePath = themeDir,
@@ -93,7 +99,9 @@ internal static partial class ThemeGenerator
             AssetsCopied = 0,
             SiteYamlCreated = false,
             TemplatesSynced = false,
-            Warnings = warnings
+            Warnings = warnings,
+            PageTypes = pageTypes,
+            PostListSlug = pages.FirstOrDefault(p => p.Type == PageType.PostList)?.Slug
         };
     }
 
@@ -134,7 +142,7 @@ internal static partial class ThemeGenerator
             PageType.Home => "index.html",
             PageType.Page => "page.html",
             PageType.PostList => SanitizeTemplateName(page.Slug) + ".html",
-            PageType.PostDetail => "article.html",
+            PageType.PostDetail => "post.html",
             PageType.CompanyList => "companies.html",
             PageType.CompanyDetail => "company.html",
             PageType.ServiceList => "services.html",
@@ -143,7 +151,7 @@ internal static partial class ThemeGenerator
         };
     }
 
-    private static string SanitizeTemplateName(string name)
+    internal static string SanitizeTemplateName(string name)
     {
         var chars = name.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' ? c : '-').ToArray();
         var result = new string(chars);
@@ -207,6 +215,7 @@ internal static partial class ThemeGenerator
         sb.AppendLine("<head>");
         sb.AppendLine("  <meta charset=\"UTF-8\" />");
         sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");
+        sb.AppendLine("  {{ base_url = site.base_url }}{{ if base_url == \"/\" }}{{ base_url = \"\" }}{{ end }}");
 
         foreach (var css in cssLinks)
             sb.AppendLine($"  {RewriteHeadAssetTag(css.Trim(), pathMappings)}");
@@ -252,7 +261,7 @@ internal static partial class ThemeGenerator
         return Regex.Replace(
             rewritten,
             @"\b(href|src)=[""'](/(?!/)[^""']*)[""']",
-            m => $"{m.Groups[1].Value}=\"{{{{ site.base_url }}}}{m.Groups[2].Value}\"",
+            m => $"{m.Groups[1].Value}=\"{{{{ base_url }}}}{m.Groups[2].Value}\"",
             RegexOptions.IgnoreCase);
     }
 
@@ -362,4 +371,74 @@ internal static partial class ThemeGenerator
     [GeneratedRegex(@"<style[^>]*>.*?</style>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex InlineStylePattern();
 
+    private static void WriteThemeYaml(string themeDir, HashSet<PageType> pageTypes, string? postListSlug)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("name: generated-import");
+        sb.AppendLine("version: 1.0.0");
+        sb.AppendLine("description: Theme generated from HTML import");
+        sb.AppendLine("templates:");
+        sb.AppendLine("  home:");
+        sb.AppendLine("    template: pages/index.html");
+        sb.AppendLine("    required: true");
+
+        if (pageTypes.Contains(PageType.Page))
+        {
+            sb.AppendLine("  page:");
+            sb.AppendLine("    template: pages/page.html");
+            sb.AppendLine("    accepts:");
+            sb.AppendLine("      collection: page");
+        }
+
+        if (pageTypes.Contains(PageType.PostDetail))
+        {
+            sb.AppendLine("  post:");
+            sb.AppendLine("    template: pages/post.html");
+            sb.AppendLine("    accepts:");
+            sb.AppendLine("      collection: post");
+        }
+
+        if (pageTypes.Contains(PageType.PostList))
+        {
+            var listName = !string.IsNullOrWhiteSpace(postListSlug)
+                ? SanitizeTemplateName(postListSlug)
+                : "insights";
+            sb.AppendLine("  list:");
+            sb.AppendLine($"    template: pages/{listName}.html");
+            sb.AppendLine("    accepts:");
+            sb.AppendLine("      kind: list");
+        }
+
+        if (pageTypes.Contains(PageType.CompanyDetail) || pageTypes.Contains(PageType.CompanyList))
+        {
+            sb.AppendLine("  company:");
+            sb.AppendLine("    template: pages/company.html");
+            sb.AppendLine("    accepts:");
+            sb.AppendLine("      collection: company");
+            if (pageTypes.Contains(PageType.CompanyList))
+            {
+                sb.AppendLine("  company-list:");
+                sb.AppendLine("    template: pages/companies.html");
+                sb.AppendLine("    accepts:");
+                sb.AppendLine("      kind: list");
+            }
+        }
+
+        if (pageTypes.Contains(PageType.ServiceDetail) || pageTypes.Contains(PageType.ServiceList))
+        {
+            sb.AppendLine("  service:");
+            sb.AppendLine("    template: pages/service.html");
+            sb.AppendLine("    accepts:");
+            sb.AppendLine("      collection: service");
+            if (pageTypes.Contains(PageType.ServiceList))
+            {
+                sb.AppendLine("  service-list:");
+                sb.AppendLine("    template: pages/services.html");
+                sb.AppendLine("    accepts:");
+                sb.AppendLine("      kind: list");
+            }
+        }
+
+        File.WriteAllText(Path.Combine(themeDir, "theme.yaml"), sb.ToString());
+    }
 }

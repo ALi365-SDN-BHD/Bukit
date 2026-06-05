@@ -159,7 +159,7 @@ internal static class ScribanModelKnownFields
             "page" => IsKnownPageField(parts, 0),
             "site" => IsKnownSiteField(parts, 0),
             "list" => true,
-            "p" or "item" or "post" or "page_item" => IsKnownLoopVarField(parts, 0),
+            "p" or "item" => IsKnownLoopVarField(parts, 0),
             "section" => true,
             "items" => true,
             _ => IsKnownLoopVarField(parts, 0)

@@ -116,7 +116,8 @@ internal static class TaxonomyPageCreator
         var route = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "page",
+            ["type"] = "derived",
+            ["collection"] = "page",
             ["summary"] = $"Browse all {kind}."
         };
 
@@ -220,7 +221,8 @@ internal static class TaxonomyPageCreator
         var route = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "page",
+            ["type"] = "derived",
+            ["collection"] = "page",
             ["summary"] = BuildTermSummary(kind, term, page, totalPages, items.Count)
         };
 

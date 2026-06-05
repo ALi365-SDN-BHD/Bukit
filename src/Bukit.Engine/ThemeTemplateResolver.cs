@@ -7,7 +7,15 @@ namespace Bukit.Engine;
 
 public sealed class ThemeTemplateResolver
 {
+    /// <summary>
+    /// The only template key that is hardcoded as a fixed role in the engine.
+    /// Every site requires a home page, so the home template is always resolved.
+    /// </summary>
     private const string HomeTemplateKey = "home";
+
+    /// <summary>
+    /// The fallback template path used when the theme manifest does not declare a home template.
+    /// </summary>
     internal const string DefaultHomeTemplate = "pages/index.html";
 
     private readonly ThemeManifestV2? _manifest;
@@ -30,6 +38,10 @@ public sealed class ThemeTemplateResolver
         return DefaultHomeTemplate;
     }
 
+    /// <summary>
+    /// Ensures the home template's <c>required</c> field is not explicitly set to <c>false</c>.
+    /// The home template is always required and cannot be opted out.
+    /// </summary>
     internal void ValidateRequiredTemplates()
     {
         if (_manifest?.Templates is not null &&

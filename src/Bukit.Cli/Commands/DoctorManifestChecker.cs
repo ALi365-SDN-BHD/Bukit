@@ -84,7 +84,8 @@ internal static class DoctorManifestChecker
         string layoutsDir,
         string[] allHtmlFiles,
         AppConfig config,
-        IReadOnlyList<RouteInfo> listRoutes)
+        IReadOnlyList<RouteInfo> listRoutes,
+        ThemeTemplateResolver? templateResolver = null)
     {
         var usedTemplates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -135,6 +136,17 @@ internal static class DoctorManifestChecker
             if (!string.IsNullOrWhiteSpace(listRoute.Template))
             {
                 usedTemplates.Add(listRoute.Template);
+            }
+        }
+
+        if (templateResolver is not null)
+        {
+            foreach (var (_, def) in templateResolver.DeclaredTemplates)
+            {
+                if (def.Accepts is not null && !string.IsNullOrWhiteSpace(def.Template))
+                {
+                    usedTemplates.Add(def.Template.Trim().Replace('\\', '/'));
+                }
             }
         }
 

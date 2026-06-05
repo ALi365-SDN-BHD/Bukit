@@ -74,6 +74,8 @@ public sealed record ImportResult
     public List<ImportReportComponent> ReportComponents { get; init; } = [];
     public List<ImportReportSeedFile> ReportSeedFiles { get; init; } = [];
     public HardcodedContentReport? HardcodedContentReport { get; init; }
+    public HashSet<PageType>? PageTypes { get; init; }
+    public string? PostListSlug { get; init; }
 }
 
 public sealed record ImportReportPage(
@@ -115,8 +117,8 @@ public sealed record PageRecord
 {
     public required string Title { get; init; }
     public required string Slug { get; init; }
-    public string Type { get; init; } = "Page";
-    public string Template { get; init; } = "page";
+    public string Type { get; init; } = "";
+    public string Template { get; init; } = "";
     public string? Summary { get; init; }
     public string? Content { get; init; }
     public string Language { get; init; } = "zh";

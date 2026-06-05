@@ -1,0 +1,11 @@
+name: docs-site
+version: 1.0.0
+description: Documentation example theme
+templates:
+  home:
+    template: pages/index.html
+    required: true
+  page:
+    template: pages/page.html
+    accepts:
+      collection: page

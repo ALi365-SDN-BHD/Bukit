@@ -93,7 +93,7 @@ for line in lines:
         in_subcommands = 0
         continue
 
-    m = re.search(r'Name:\s*"([^"]+)"', stripped)
+    m = re.search(r'(?<!Value)Name:\s*"([^"]+)"', stripped)
     if not m:
         continue
     cmd_name = m.group(1)
@@ -113,7 +113,7 @@ theme_specs_path = os.path.join(repo_root, 'src', 'Bukit.Cli', 'Cli', 'BukitCliT
 if os.path.exists(theme_specs_path):
     with open(theme_specs_path) as f:
         for line in f:
-            m = re.search(r'Name:\s*"([^"]+)"', line.strip())
+            m = re.search(r'(?<!Value)Name:\s*"([^"]+)"', line.strip())
             if not m:
                 continue
             cmd_name = m.group(1)

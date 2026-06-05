@@ -67,7 +67,7 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
             var route = new RouteInfo(url, outputPath, routeTemplate);
             var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = "page",
+                ["type"] = "derived",
                 ["collection"] = collectionKey
             };
             var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)

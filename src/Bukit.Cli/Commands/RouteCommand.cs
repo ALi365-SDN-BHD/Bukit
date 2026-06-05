@@ -2,10 +2,8 @@ using System.Text;
 using System.Text.Json;
 using Bukit.Cli.Cli.Binding;
 using Bukit.Config;
-using Bukit.Content;
 using Bukit.Engine;
 using Bukit.Engine.Abstractions.Content;
-using Bukit.Routing;
 using Bukit.Shared;
 
 namespace Bukit.Cli.Commands;
@@ -32,14 +30,12 @@ public static class RouteCommand
         var contentPipeline = new ContentPipeline(factory, new ConsoleLogger(LogLevel.Warn));
         var contentResult = await contentPipeline.ExecuteAsync(config, rootDir, new ConfigOverrides(), Path.Combine(rootDir, ".cache", "media"));
 
-        var collections = RouteInventoryValidator.BuildCollectionRules(config.Site);
-
         var entries = new List<RouteInspectEntry>();
         foreach (var item in contentResult.Items)
         {
             if (MetaHelpers.IsDataItem(item)) continue;
 
-            var (route, routeSource) = GenerateRouteForItem(item, collections);
+            var (route, routeSource) = RouteInventoryValidator.GenerateRouteWithSource(item, config.Site);
 
             var collection = item.Meta.TryGetValue("collection", out var c) && c is not null
                 ? c.ToString() : null;
@@ -76,14 +72,6 @@ public static class RouteCommand
                 Console.Error.WriteLine($"Unknown subcommand: {sub}. Use inspect.");
                 return 1;
         }
-    }
-
-    private static (Engine.Abstractions.Routing.RouteInfo Route, string RouteSource) GenerateRouteForItem(
-        ContentItem item,
-        IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? collections)
-    {
-        var result = RouteGenerator.GenerateWithSource(item, collections: collections);
-        return (result.Route, result.Source.ToString());
     }
 
     private static void PrintInspectTable(List<RouteInspectEntry> entries)

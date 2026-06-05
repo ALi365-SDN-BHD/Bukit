@@ -95,7 +95,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
         var route = new RouteInfo(archiveBaseUrl, RoutePathBuilder.BuildOutputPathFromUrl(archiveBaseUrl, outputPathEncoding), template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "page",
+            ["type"] = "derived",
             ["collection"] = collectionKey,
             ["summary"] = $"Browse archived {collectionKey} entries by year."
         };
@@ -132,7 +132,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
         var route = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "page",
+            ["type"] = "derived",
             ["collection"] = collectionKey,
             ["summary"] = $"Browse {collectionKey} entries published in {year}."
         };
@@ -165,7 +165,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
         var routeInfo = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "page",
+            ["type"] = "derived",
             ["collection"] = collectionKey,
             ["summary"] = $"Browse {collectionKey} entries published in {year}-{month:D2}."
         };

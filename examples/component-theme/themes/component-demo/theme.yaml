@@ -14,7 +14,7 @@ capabilities:
   taxonomy: false
 
 layouts:
-  default: layouts/base.html
+  default: base.html
 
 templates:
   home:

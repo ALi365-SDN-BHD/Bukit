@@ -77,7 +77,7 @@ public sealed class ContentExtractorTests
         var content = ContentExtractor.Extract(pages);
 
         Assert.Single(content.Pages);
-        Assert.Equal("article", content.Pages[0].Template);
+        Assert.Equal("post", content.Pages[0].Template);
     }
 
     [Fact]
