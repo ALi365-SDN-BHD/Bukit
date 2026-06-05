@@ -1,5 +1,6 @@
 ---
 title: Configuration
+collection: page
 slug: docs/configuration
 ---
 

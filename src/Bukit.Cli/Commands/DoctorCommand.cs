@@ -50,15 +50,6 @@ public static class DoctorCommand
 
         CheckFollowSymlinksSafety(config);
 
-        if (config.Site.Collections is null || config.Site.Collections.Count == 0)
-        {
-            Console.WriteLine("✖ Migration required: site.collections is not configured");
-            Console.WriteLine("  - collection 驱动路由已成为主模型，请在 site.collections 中声明每个内容集合的 permalink/template/listRoute");
-            Console.WriteLine("  - 核心不会根据 post/page 等固定角色推断模板；请通过 site.yaml 显式模板或 theme.yaml templates.accepts 匹配");
-            Console.WriteLine("  - 示例：site.collections.article.permalink=/articles/{slug}/, listRoute=/articles/；模板由 theme.yaml templates 匹配或 collection.template 覆盖");
-            return 1;
-        }
-
         var (layoutsDir, assetsDir, staticDir, _, _, _, _) = Bukit.Engine.BuildPathUtils.ResolveThemeDirectories(rootDir, config.Theme);
         if (!Directory.Exists(layoutsDir))
         {
@@ -80,9 +71,7 @@ public static class DoctorCommand
             return 1;
         }
 
-        var explicitTemplates = CollectExplicitConfiguredTemplates(config);
         var missing = requiredTemplates
-            .Concat(explicitTemplates)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(t => Path.Combine(layoutsDir, t.Replace('/', Path.DirectorySeparatorChar)))
             .Where(p => !File.Exists(p))
@@ -221,7 +210,7 @@ public static class DoctorCommand
         var listPageContentMode = (config.Build.ListPageContentMode ?? "auto").Trim().ToLowerInvariant();
         if (listPageContentMode == "auto")
         {
-            foreach (var template in requiredTemplates.Concat(explicitTemplates).Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (var template in requiredTemplates.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 DoctorManifestChecker.WarnHeuristicFallback(layoutsDir, template);
             }
@@ -435,42 +424,6 @@ public static class DoctorCommand
 
         Console.WriteLine("✔ Doctor passed");
         return 0;
-    }
-
-    private static IReadOnlyList<string> CollectExplicitConfiguredTemplates(AppConfig config)
-    {
-        var templates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        if (config.Site.Collections is not null)
-        {
-            foreach (var (_, collection) in config.Site.Collections)
-            {
-                Add(collection.Template);
-                Add(collection.ListTemplate);
-                if (collection.FilteredLists is not null)
-                {
-                    foreach (var filter in collection.FilteredLists)
-                    {
-                        Add(filter.ListTemplate);
-                    }
-                }
-            }
-        }
-
-        Add(config.Theme.StaticTemplate);
-        Add(config.Taxonomy.Template);
-        Add(config.Taxonomy.IndexTemplate);
-        Add(config.Taxonomy.TermTemplate);
-
-        return templates.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
-
-        void Add(string? template)
-        {
-            if (!string.IsNullOrWhiteSpace(template))
-            {
-                templates.Add(template.Trim());
-            }
-        }
     }
 
     private static IReadOnlyList<string> CollectMissingUsedTemplates(

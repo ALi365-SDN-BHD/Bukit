@@ -23,11 +23,14 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 build:
   output: dist
   clean: true
@@ -216,13 +219,12 @@ content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 ```
 
 | 字段 | 作用 | 说明 |
 |---|---|---|
 | `content.markdown.dir` | Markdown 根目录 | 递归读取 `*.md` |
-| `content.markdown.defaultType` | 未声明 type 时默认类型 | 常用 `page` |
+| `content.markdown.defaultType` | 未声明 type 时注入的可选元数据 | 不建议依赖它做路由；优先用 Front Matter `collection` 匹配 `site.collections` |
 | `content.markdown.maxItems` | 最多读取多少篇 | 正整数；用于大仓库限额 |
 | `content.markdown.includePaths` | 只读取指定路径 | 相对 `content.markdown.dir`；可省略 `.md` |
 | `content.markdown.includeGlobs` | 只读取匹配的 glob | 匹配相对路径，分隔符使用 `/` |
@@ -290,7 +292,6 @@ content:
       mode: content
       markdown:
         dir: content
-        defaultType: page
     - type: markdown
       name: modules
       mode: data
@@ -501,7 +502,7 @@ content:
     - type: markdown
       name: content
       mode: content
-      markdown: { dir: content, defaultType: page }
+      markdown: { dir: content }
     - type: markdown
       name: modules
       mode: data

@@ -37,9 +37,9 @@ This skill also covers theme eco-system operations: **theme creation** (`create`
 
 ```
 themes/<name>/
-  layouts/                  ← Scriban templates
+  layouts/                  ← Scriban templates declared by theme.yaml / site config
     layouts/                ← Layout templates (base.html)
-    pages/                  ← Page templates (page, post, index, list)
+    pages/                  ← Starter's example template names (home/page/post/list/etc.)
     partials/               ← Partial templates (header, footer)
   assets/                   ← Processable assets (e.g., SCSS → CSS)
     style.css               ← Default stylesheet
@@ -55,10 +55,10 @@ Starter is inject-first for SEO. Its base layout should provide a normal `<head>
 | File | Responsibility | Required |
 |------|------|---------|
 | `layouts/base.html` | Base layout (HTML skeleton) | **Yes** |
-| `pages/page.html` | Generic page template | **Yes** |
-| `pages/post.html` | Post template | **Yes** |
-| `pages/index.html` | Homepage template | **Yes** |
-| `pages/list.html` | List page template | **Yes** |
+| `pages/index.html` | Starter homepage template; default `home` template path | **Yes by default** (`home.required: true`) |
+| `pages/page.html` | Starter generic page template | Only if declared `required: true` or referenced/matched |
+| `pages/post.html` | Starter post/article template | Only if declared `required: true` or referenced/matched |
+| `pages/list.html` | Starter list page template | Only if declared `required: true` or referenced/matched |
 | `partials/header.html` | Navigation partial | No |
 | `partials/footer.html` | Footer with Powered by bukit | **Strongly recommended** |
 | `partials/list-card.html` | Reusable list item/card partial | Recommended |
@@ -155,13 +155,9 @@ theme:
 4. Change visual identity through CSS variables in `assets/style.css` before editing templates.
 5. Keep SEO engine-owned unless the user explicitly asks for theme-owned head output. For starter-derived themes, prefer `site.seo.renderMode: inject` and do not add SEO/Analytics partial includes to `layouts/base.html`. If switching to `renderMode: theme`, use the generated partials and keep HTML attributes escaped.
 6. Change shared chrome through `layouts/partials/header.html` and `layouts/partials/footer.html`.
-7. Edit page templates only when structure changes:
-   - `layouts/pages/index.html` for the homepage
-   - `layouts/pages/list.html` for collection lists
-   - `layouts/pages/post.html` for articles
-   - `layouts/pages/page.html` for pages
-7. Keep `layouts/bukit.templates.yaml` in sync when adding/removing optional templates or changing list page content requirements.
-8. Verify with `bukit doctor`, then `bukit build`, then preview the output.
+7. Edit page templates only when structure changes. Starter uses `layouts/pages/index.html` for `home`, `layouts/pages/list.html` for `kind: list`, `layouts/pages/post.html` for `type: post`, and `layouts/pages/page.html` for `type: page`, but these are theme declarations, not engine-required names.
+8. Keep `theme.yaml templates` in sync when adding/removing template roles or changing `accepts` rules; keep `layouts/bukit.templates.yaml` in sync when changing template capabilities.
+9. Verify with `bukit doctor`, then `bukit build`, then preview the output.
 
 ### CLI Theme Creation
 
@@ -472,17 +468,31 @@ theme:
   name: my-theme
 ```
 
-### Required Template Checklist
+### Template Requirement Checklist
+
+Theme requirements are declared by `theme.yaml`:
+
+```yaml
+templates:
+  home:
+    template: pages/index.html
+    required: true
+  article:
+    template: pages/article.html
+    accepts:
+      collection: posts
+```
+
+`required` defaults to `false`. The special `home` entry is the only built-in default: when omitted it resolves to `pages/index.html` and is treated as required. `home.required: false` is invalid.
 
 | Template Path | Minimum Requirement |
 |---------|---------|
 | `layouts/base.html` | Must contain `{{ content }}` placeholder |
-| `pages/page.html` | Must start with `{% layout "layouts/base.html" %}` |
-| `pages/post.html` | Like page, typically displays date |
-| `pages/index.html` | Iterates over `pages` list |
-| `pages/list.html` | Iterates over `pages` list |
+| Home template, default `pages/index.html` | Must exist unless `templates.home.template` overrides it |
+| Any `required: true` template | Must exist and parse |
+| Any referenced/matched template | Must exist and parse |
 
-Verify: `bukit doctor` checks that these files exist and parse correctly.
+Verify: `bukit doctor` checks the home template, every `required: true` template, and templates that are referenced by site config, content front matter, or plugin/template requirements.
 
 ## Default Theme Anatomy
 

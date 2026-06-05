@@ -1,22 +1,21 @@
-# Bukit Engine Fixed Outputs
+# Bukit Engine Outputs
 
-This page documents every file the Bukit engine generates during a build, including fixed pages, static artifacts, and report files.
+This page documents files Bukit generates during a build, including configured pages, plugin artifacts, and report files.
 
 ---
 
-## Fixed Page Outputs
+## Configured Page Outputs
 
-Regardless of content volume, the engine always generates:
+The only built-in page default is the site home route `/`, rendered with the theme's `home` template. `home` defaults to `pages/index.html` and is required unless `templates.home.template` overrides it.
 
 | Page | Output Path | Template | Model |
 |------|-------------|----------|-------|
-| `/` | `index.html` | `pages/index.html` | `ListPageModel` (site, pages sorted by publish_date descending) |
-| `/blog/` | `blog/index.html` | `pages/list.html` | `ListPageModel` (only items with URL starting `/blog/`) |
-| `/pages/` | `pages/index.html` | `pages/list.html` | `ListPageModel` (only items with URL starting `/pages/`) |
+| `/` | `index.html` | `templates.home.template` (default `pages/index.html`) | `ListPageModel` |
+| collection `listRoute` | derived from `listRoute` | `collection.listTemplate` or theme `kind: list` match | `ListPageModel` |
 
 Notes:
-- These pages are parallel to `RouteGenerator` per-page routing; custom routes won't affect whether fixed pages are generated
-- Fixed aggregate pages only use routed content, not derived pages
+- `/blog/` and `/pages/` are not engine-fixed outputs. They appear only when site config declares collection list routes or equivalent derived pages.
+- List pages only use routed content, not derived pages.
 
 ## Plugin-Generated Outputs
 

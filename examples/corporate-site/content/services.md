@@ -1,5 +1,6 @@
 ---
 title: Our Services
+collection: page
 slug: services
 ---
 

@@ -77,11 +77,14 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 build:
   output: dist
   clean: true
@@ -94,15 +97,11 @@ logging:
   level: info
 ```
 
-> **推荐：使用 site.collections 定义路由与模板** 以上配置依赖 post/page 兼容层路由（page → `/pages/`，post → `/blog/`）。新项目建议显式声明 collections（见 [04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)），示例：
+> **路由是显式配置的。** Markdown 内容需要通过 front matter 的 `collection` 匹配 `site.collections`，或显式声明 `template` / `route`。如果要增加博客文章，再扩展 collections：
 >
 > ```yaml
 > site:
 >   collections:
->     page:
->       permalink: /pages/{slug}/
->       template: pages/page.html
->       listRoute: /pages/
 >     post:
 >       permalink: /blog/{slug}/
 >       template: pages/post.html
@@ -115,7 +114,7 @@ logging:
 
 ```markdown
 ---
-type: page
+collection: page
 title: Hello World
 slug: hello-world
 tags: [demo, first]

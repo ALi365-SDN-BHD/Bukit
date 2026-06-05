@@ -130,7 +130,6 @@ internal static class SiteConfigGenerator
             sb.AppendLine("  provider: markdown");
             sb.AppendLine("  markdown:");
             sb.AppendLine($"    dir: {contentDir}");
-            sb.AppendLine("    defaultType: page");
         }
         sb.AppendLine("build:");
         sb.AppendLine("  output: dist");

@@ -20,11 +20,16 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    post:
+      permalink: /blog/{slug}/
+      template: pages/post.html
+      listRoute: /blog/
+      listTemplate: pages/list.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: post
 build:
   output: dist
   clean: true
@@ -34,23 +39,13 @@ logging:
   level: info
 ```
 
-> **Disyorkan: isytihar site.collections secara eksplisit.** Konfigurasi di atas bergantung pada penghalaan keserasian post/page. Pendekatan yang lebih standard adalah menambah:
-> ```yaml
-> site:
->   collections:
->     post:
->       permalink: /blog/{slug}/
->       template: pages/post.html
->       listRoute: /blog/
-> ```
-
 ### Data Contoh (content/)
 
 `content/2026-01-first.md`
 
 ```markdown
 ---
-type: post
+collection: post
 title: Artikel Pertama
 slug: first
 publishAt: 2026-01-01T10:00:00+08:00
@@ -93,11 +88,14 @@ site:
   languages: [zh-CN, en-US]
   defaultLanguage: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /{slug}/
+      template: pages/page.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 build:
   output: dist
   clean: true
@@ -105,15 +103,13 @@ theme:
   name: alt
 ```
 
-> **Disyorkan: isytihar collections secara eksplisit untuk laman pelbagai bahasa.** Menambah `site.collections.page` dan `site.collections.post` menjadikan penghalaan lebih terkawal, terutamanya apabila menggabungkan pelbagai bahasa + collections.
-
 ### Data Contoh
 
 `content/greeting-zh.md`
 
 ```markdown
 ---
-type: page
+collection: page
 title: 你好
 slug: greeting
 language: zh-CN
@@ -126,7 +122,7 @@ language: zh-CN
 
 ```markdown
 ---
-type: page
+collection: page
 title: Hello
 slug: greeting
 language: en-US

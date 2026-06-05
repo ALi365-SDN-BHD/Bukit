@@ -20,11 +20,16 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    post:
+      permalink: /blog/{slug}/
+      template: pages/post.html
+      listRoute: /blog/
+      listTemplate: pages/list.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: post
 build:
   output: dist
   clean: true
@@ -34,23 +39,13 @@ logging:
   level: info
 ```
 
-> **推荐：显式声明 site.collections。** 以上配置依赖 post/page 兼容路由。更规范的做法是添加：
-> ```yaml
-> site:
->   collections:
->     post:
->       permalink: /blog/{slug}/
->       template: pages/post.html
->       listRoute: /blog/
-> ```
-
 ### 模拟数据（content/）
 
 `content/2026-01-first.md`
 
 ```markdown
 ---
-type: post
+collection: post
 title: 第一篇文章
 slug: first
 publishAt: 2026-01-01T10:00:00+08:00
@@ -93,11 +88,14 @@ site:
   languages: [zh-CN, en-US]
   defaultLanguage: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /{slug}/
+      template: pages/page.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 build:
   output: dist
   clean: true
@@ -105,15 +103,13 @@ theme:
   name: alt
 ```
 
-> **推荐：为多语言站点显式声明 collections。** 新增 `site.collections.page` 和 `site.collections.post` 可以让路由更可控，尤其是在多语言 + collection 组合时。
-
 ### 模拟数据
 
 `content/greeting-zh.md`
 
 ```markdown
 ---
-type: page
+collection: page
 title: 你好
 slug: greeting
 language: zh-CN
@@ -126,7 +122,7 @@ language: zh-CN
 
 ```markdown
 ---
-type: page
+collection: page
 title: Hello
 slug: greeting
 language: en-US

@@ -24,8 +24,8 @@ Main pipeline now uses `BodyStore + BodyKey` deferred body reading pattern, no l
 ### 3.1 Large-Scale Body Read/Cache Needs Benchmarking (Medium-High)
 Body loading has been deferred, but rendering/search/RSS/pagination stages still trigger reads on different paths; read amplification needs quantification.
 
-### 3.2 collections vs Compatibility Layer Governance (Medium)
-`collections` is the primary path; `post/page` default rules are the compatibility layer. Strategy needs convergence.
+### 3.2 Configuration-Driven Routing Governance (Medium)
+`collections`, explicit route/front matter templates, and theme `templates.accepts` are the routing/template contract. Governance needs to keep docs, examples, and starter themes aligned with that explicit model.
 
 ### 3.3 CLI Extensibility (Medium)
 Lightweight argument parsing is AOT-friendly but declarative capabilities and unified error experience need improvement.
@@ -47,5 +47,5 @@ AOT eliminates external DLL loading; protocol-based (external-protocol) extensio
 ## 5. Priority Recommendations
 
 1. Complete body read/cache benchmark governance
-2. Converge collections and compatibility layer strategy
+2. Keep configuration-driven routing and template requirements aligned across docs, examples, and starters
 3. Establish doc-asset consistency checks

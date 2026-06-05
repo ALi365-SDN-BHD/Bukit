@@ -1,6 +1,6 @@
 ---
 title: Second Post
-type: post
+collection: post
 publishAt: 2025-02-01
 summary: The second post about design systems.
 categories:

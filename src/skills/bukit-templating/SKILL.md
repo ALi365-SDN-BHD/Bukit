@@ -438,7 +438,7 @@ Bukit's Scriban context has `EnableRelaxedMemberAccess`, `EnableRelaxedTargetAcc
 ```
 layouts/
   layouts/      ← Layout templates (base.html, can add more custom layouts)
-  pages/        ← Page templates (page.html, post.html, index.html, list.html)
+  pages/        ← Starter's template names; actual requirements come from theme.yaml templates and site config
   partials/     ← Partial templates (header.html, footer.html, ...)
 ```
 

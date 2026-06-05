@@ -1,4 +1,4 @@
-# Routing System (Collection Primary Paths and Compatibility Rules)
+# Routing System (Configuration-Driven Paths)
 
 Maps `ContentItem` to `RouteInfo(url, outputPath, template)`.
 
@@ -21,7 +21,7 @@ site:
 
 Each collection requires `permalink` (must contain `{slug}`) and `template`.
 
-## Permalink Patterns (Compatibility)
+## Permalink Patterns
 
 ```yaml
 site:
@@ -36,7 +36,8 @@ Priority (high to low):
 2. Partial route override (url only or url + template)
 3. Collection Rules (`site.collections`)
 4. Permalink Patterns (`site.permalinks`)
-5. Default routing (post→`/blog/{slug}/`, page→`/pages/{slug}/`)
+
+There is no built-in `post`/`page` route fallback. If none of these rules match, route generation throws a `ConfigException` and doctor/build asks the site to add explicit routing config.
 
 ## Route Override
 
@@ -55,7 +56,7 @@ Or top-level fields: `url:`, `outputPath:`, `template:`.
 
 ### Partial Override (url-only)
 
-When only `url` is provided, Bukit auto-derives `outputPath` from the URL using `RoutePathBuilder.BuildOutputPathFromUrl`. The `template` inherits from collection/permalinks/default rules.
+When only `url` is provided, Bukit auto-derives `outputPath` from the URL using `RoutePathBuilder.BuildOutputPathFromUrl`. The `template` inherits from collection/permalink/theme template resolution rules.
 
 ```yaml
 url: /my-slug/
@@ -66,7 +67,7 @@ url: /my-slug/
 Rules:
 - `url` must be present (normalized with leading/trailing slashes)
 - `outputPath` is auto-derived; any manually-supplied value is ignored
-- `template` if omitted, inherits from collection/permalinks/default
+- `template` if omitted, inherits from collection/permalink/theme template resolution rules
 - `outputPath`-only override is **not supported**
 
 ## outputPath Encoding: `none`/`slug`/`urlencode`/`sanitize`

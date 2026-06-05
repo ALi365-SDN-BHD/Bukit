@@ -19,11 +19,9 @@ content:
   sources:
     - type: markdown
       dir: content
-      defaultType: page
       collection: page
     - type: markdown
       dir: content_extra
-      defaultType: page
       collection: page
 
 build:
@@ -37,4 +35,3 @@ theme:
 
 logging:
   level: info
-

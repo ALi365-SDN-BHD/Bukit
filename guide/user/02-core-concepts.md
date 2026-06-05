@@ -10,7 +10,7 @@ site.yaml
   ├─ content (Markdown / Notion / sources)
   │     └─ reads content → normalizes into ContentItem
   │
-  ├─ routing (priority via site.collections to determine URL; falls back to type/permalinks compatibility layer)
+  ├─ routing (explicit route overrides, site.collections, or site.permalinks)
   │
   ├─ rendering (renders content into HTML using templates)
   │
@@ -22,8 +22,8 @@ site.yaml
 There are only three things to remember:
 
 1. **Where content comes from** (content.provider / sources)
-2. **Where each piece of content is output** (prefer configuring via site.collections; compatible via slug/type + route override fields)
-3. **What template is used for rendering** (collection specifies template; can also be overridden by template)
+2. **Where each piece of content is output** (configure via route overrides, site.collections, or site.permalinks)
+3. **What template is used for rendering** (route/front matter, collection config, or theme template matching)
 
 ## Site Config (site.yaml)
 
@@ -44,11 +44,11 @@ Regardless of whether your content comes from Markdown or Notion, the engine nor
 Common Meta keys (you provide them in Markdown Front Matter or Notion fields):
 
 - `collection`: The collection the content belongs to (recommended), corresponds to a key in site.collections, determines routing and template
-- `type`: `page` or `post` (compatibility layer; used to decide default routing and template when no collection is configured)
+- `type`: Optional metadata and matching key. It only affects routing/templates when config declares how to use it.
 - `slug`: Core component of the URL (generally recommended to keep stable)
 - `language`: Language affiliation of the content (used for filtering and linking in multilingual setups)
 - `tags` / `categories`: Tags/categories (used to derive list pages)
-- `route` / `url` / `outputPath` / `template`: Advanced usage for "overriding default routing/template" (use with caution)
+- `route` / `url` / `outputPath` / `template`: Advanced usage for explicit routing/template overrides (use with caution)
 
 ### 2) Fields: Custom fields intended for template consumption (add whatever you want)
 
@@ -74,19 +74,14 @@ In Notion mode, whether a field enters `page.fields` is controlled by `fieldPoli
 
 ## Routing: What URL Will a Piece of Content Become?
 
-Recommended approach: Define permalink, template, and listRoute for each collection via `site.collections` (see: [04 Site YAML Config](./04-site-yaml-config.md)).
-
-Compatibility layer explanation (takes effect when site.collections is not configured or a content item lacks a collection):
-
-- `type: page`: Default output to `/pages/<slug>/`
-- `type: post`: Default output to `/blog/<slug>/`
+Recommended approach: Define permalink, template, and listRoute for each collection via `site.collections` (see: [04 Site YAML Config](./04-site-yaml-config.md)). There is no built-in `post`/`page` route fallback; missing routing config causes doctor/build to fail with a configuration error.
 
 You can control the result through the following methods:
 
 - Declare collection rules in site.collections (recommended)
 - Specify `collection` in content meta matching a collection key (recommended)
 - Change `slug`: alters one segment of the path
-- Change `type`: alters the type classification for the compatibility layer's behavior
+- Set `type`: can match `site.collections.<type>`, `site.permalinks.<type>`, or theme `templates.accepts.type`
 - Use `route/url/outputPath` override: stronger, but easier to misconfigure (see: [03 Project Structure](./03-project-structure.md) and [14 Troubleshooting](./14-troubleshooting.md))
 
 ## Themes & Templates: What Pages Look Like

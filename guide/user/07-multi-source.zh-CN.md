@@ -23,10 +23,9 @@ content:
       mode: content
       markdown:
         dir: content
-        defaultType: page
 ```
 
-> **推荐：搭配 site.collections 使用。** 当使用 sources 模式时，建议同时在 site.yaml 顶层声明 `site.collections`，让每个 source 的内容通过 collection key 精确匹配路由规则（而不是依赖 type 兼容层）。
+> **推荐：搭配 site.collections 使用。** 当使用 sources 模式时，建议同时在 site.yaml 顶层声明 `site.collections`，让每个 source 的内容通过 front matter / Notion 字段中的 collection key 精确匹配路由规则。
 
 ### 字段说明
 
@@ -59,7 +58,6 @@ content:
       mode: content
       markdown:
         dir: content
-        defaultType: page
     - type: markdown
       name: modules
       mode: data
@@ -156,7 +154,6 @@ content:
       mode: content
       markdown:
         dir: content/pages
-        defaultType: page
     - type: notion
       name: posts
       mode: content

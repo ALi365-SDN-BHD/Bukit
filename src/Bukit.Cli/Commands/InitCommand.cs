@@ -154,7 +154,7 @@ bukit preview --dir dist --port auto
                 WriteModuleData(rootDir, "features", "Start writing", "Draft posts in Markdown and publish them with clean archive, feed, and taxonomy pages.");
                 WriteFile(rootDir, Path.Combine("content", "posts", "welcome.md"), """
 ---
-type: post
+collection: post
 title: Welcome to Your Blog
 slug: welcome
 date: 2026-01-01
@@ -170,7 +170,7 @@ Use this post as the first entry in your new Bukit blog.
 """);
                 WriteFile(rootDir, Path.Combine("content", "pages", "about.md"), """
 ---
-type: page
+collection: page
 title: About
 slug: about
 summary: A short page about this site.
@@ -186,7 +186,7 @@ Replace this page with your story, profile, or project background.
                 WriteModuleData(rootDir, "features", "Start reading", "Use the generated docs index as the entry point for setup, configuration, and reference material.");
                 WriteFile(rootDir, Path.Combine("content", "docs", "getting-started.md"), """
 ---
-type: doc
+collection: doc
 title: Getting Started
 slug: getting-started
 summary: Start here to learn how this documentation site is organized.
@@ -199,7 +199,7 @@ This page is the first documentation article in your Bukit docs site.
 """);
                 WriteFile(rootDir, Path.Combine("content", "docs", "configuration.md"), """
 ---
-type: doc
+collection: doc
 title: Configuration
 slug: configuration
 summary: Document the most important settings for your project.
@@ -218,7 +218,7 @@ Use this page to describe setup, options, and common workflows.
                 WriteModuleData(rootDir, "call_to_action", "Start building today", "Replace this call to action with your signup, booking, or contact link.");
                 WriteFile(rootDir, Path.Combine("content", "pages", "overview.md"), """
 ---
-type: page
+collection: page
 title: Product Overview
 slug: overview
 summary: Explain your offer, audience, and value proposition.
@@ -230,7 +230,7 @@ Use this page to describe what you are launching and who it helps.
 """);
                 WriteFile(rootDir, Path.Combine("content", "pages", "contact.md"), """
 ---
-type: page
+collection: page
 title: Contact
 slug: contact
 summary: Tell visitors how to reach you.
@@ -246,7 +246,7 @@ Add your email, booking link, or contact form instructions here.
                 WriteModuleData(rootDir, "features", "Selected work", "Highlight case studies, visual projects, and project notes from one content model.");
                 WriteFile(rootDir, Path.Combine("content", "work", "sample-project.md"), """
 ---
-type: work
+collection: work
 title: Sample Project
 slug: sample-project
 summary: A starter portfolio item for your selected work.
@@ -259,7 +259,7 @@ Describe the project, your role, the outcome, and any relevant links.
 """);
                 WriteFile(rootDir, Path.Combine("content", "pages", "about.md"), """
 ---
-type: page
+collection: page
 title: About
 slug: about
 summary: Introduce the person or studio behind the portfolio.
@@ -272,7 +272,14 @@ Share your background, services, and contact details here.
                 break;
 
             default:
-                WriteFile(rootDir, Path.Combine("content", "hello-world.md"), "# Hello World\n\n这是一个示例页面。\n");
+                WriteFile(rootDir, Path.Combine("content", "hello-world.md"), """
+---
+collection: page
+---
+# Hello World
+
+这是一个示例页面。
+""");
                 break;
         }
     }
@@ -293,14 +300,6 @@ desc: {{desc}}
     {
         var collections = BuildCollectionsYaml(templateName);
         var profile = GetTemplateProfile(templateName);
-        var defaultType = templateName switch
-        {
-            "blog" => "post",
-            "docs" => "doc",
-            "portfolio" => "work",
-            _ => "page"
-        };
-
         if (provider == "notion")
         {
             return $$"""
@@ -340,7 +339,7 @@ logging:
 """;
         }
 
-        var contentYaml = BuildMarkdownContentYaml(templateName, defaultType);
+        var contentYaml = BuildMarkdownContentYaml(templateName);
         return $$"""
 site:
   name: my-site
@@ -429,7 +428,7 @@ logging:
 """
         };
 
-    private static string BuildMarkdownContentYaml(string templateName, string defaultType)
+    private static string BuildMarkdownContentYaml(string templateName)
         => templateName switch
         {
             "blog" => """
@@ -441,14 +440,12 @@ logging:
       collection: post
       markdown:
         dir: content/posts
-        defaultType: post
     - type: markdown
       name: pages
       mode: content
       collection: page
       markdown:
         dir: content/pages
-        defaultType: page
     - type: markdown
       name: modules
       mode: data
@@ -465,7 +462,6 @@ logging:
       collection: doc
       markdown:
         dir: content/docs
-        defaultType: doc
     - type: markdown
       name: modules
       mode: data
@@ -482,7 +478,6 @@ logging:
       collection: page
       markdown:
         dir: content/pages
-        defaultType: page
     - type: markdown
       name: modules
       mode: data
@@ -499,14 +494,12 @@ logging:
       collection: work
       markdown:
         dir: content/work
-        defaultType: work
     - type: markdown
       name: pages
       mode: content
       collection: page
       markdown:
         dir: content/pages
-        defaultType: page
     - type: markdown
       name: modules
       mode: data
@@ -518,13 +511,11 @@ logging:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 """,
             _ => $$"""
   provider: markdown
   markdown:
     dir: content
-    defaultType: {{defaultType}}
 """
         };
 

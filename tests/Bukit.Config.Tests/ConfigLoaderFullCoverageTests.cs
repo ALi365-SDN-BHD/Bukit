@@ -604,7 +604,7 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
                   mode: content
                   markdown:
                     dir: docs
-                    defaultType: page
+                    defaultType: docs
                 - type: notion
                   name: archive-db
                   mode: data
@@ -632,7 +632,7 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         Assert.Equal("content", s1.Mode);
         Assert.NotNull(s1.Markdown);
         Assert.Equal("docs", s1.Markdown.Dir);
-        Assert.Equal("page", s1.Markdown.DefaultType);
+        Assert.Equal("docs", s1.Markdown.DefaultType);
 
         var s2 = config.Content.Sources[2];
         Assert.Equal("notion", s2.Type);

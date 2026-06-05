@@ -129,16 +129,13 @@ Runnable examples:
 - Recommendation: keep the slug consistent with the filename (e.g., `hello-world.md` → slug `hello-world`)
 - If you need multilingual and i18n linking, it is also recommended to maintain a stable `i18n_key` (especially common in Notion)
 
-### type (page / post) — Compatibility Layer
+### collection / type (Routing Match Fields)
 
 > It is recommended to prioritize using `site.collections` to define content collections and routing rules (see [04 Site YAML Config](./04-site-yaml-config.md)).
 
-When collections are not configured, the engine uses the type field as a compatibility fallback:
+For routed content, declare a `collection` value that matches a key under `site.collections`, or provide an explicit `template` / `route` in front matter. The `type` field can still be used as metadata or as a theme `templates.*.accepts.type` matching key, but it does not create built-in `page` / `post` routes by itself.
 
-- `page`: Pages (about, help, product intro, etc.)
-- `post`: Posts (blog, news, changelog, etc.)
-
-Themes generally distinguish templates and list pages by type or collection; it is not recommended to casually add too many custom types unless your theme already supports the corresponding templates.
+Themes generally distinguish templates and list pages by collection, type, or other `accepts` rules. Add custom values only when your site config or theme declares the corresponding route/template behavior.
 
 ### language (Multilingual)
 

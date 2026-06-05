@@ -9,7 +9,6 @@ content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 
 build:
   output: dist_blog
@@ -22,4 +21,3 @@ theme:
 
 logging:
   level: info
-

@@ -10,7 +10,7 @@ site.yaml
   ├─ content（Markdown / Notion / sources）
   │     └─ 读取内容 → 统一为 ContentItem
   │
-  ├─ routing（优先按 site.collections 决定 URL；兼容层回退 type/permalinks）
+  ├─ routing（按 route/front matter、site.collections、主题 templates.accepts 决定 URL 与模板）
   │
   ├─ rendering（按模板把内容渲染成 HTML）
   │
@@ -22,8 +22,8 @@ site.yaml
 你要记住的只有三句话：
 
 1. **内容来自哪里**（content.provider / sources）
-2. **每条内容输出到哪里**（推荐通过 site.collections 配置；兼容通过 slug/type + 路由覆盖字段）
-3. **用什么模板渲染**（collection 指定 template；也可被 template 覆盖）
+2. **每条内容输出到哪里**（通过 route/front matter 或 site.collections 显式配置）
+3. **用什么模板渲染**（显式 template、collection template/listTemplate，或主题 templates.accepts 匹配）
 
 ## 站点配置（site.yaml）
 
@@ -44,11 +44,11 @@ site.yaml
 常见 Meta 键（你在 Markdown Front Matter 或 Notion 字段里提供）：
 
 - `collection`：内容所属集合（推荐），对应 site.collections 中的 key，决定路由与模板
-- `type`：`page` 或 `post`（兼容层，当未配置 collection 时用于决定默认路由与模板）
+- `type`：可选内容分类或主题模板匹配键；不会单独创建内置路由
 - `slug`：URL 的核心部分（一般推荐稳定不变）
 - `language`：内容语言归属（多语言时用于过滤与关联）
 - `tags` / `categories`：标签/分类（用于派生列表页）
-- `route` / `url` / `outputPath` / `template`：用于"覆盖默认路由/模板"的高级用法（谨慎使用）
+- `route` / `url` / `outputPath` / `template`：显式指定路由/模板的高级用法（谨慎使用）
 
 ### 2）Fields：面向模板消费的自定义字段（你想加什么都可以）
 
@@ -74,19 +74,14 @@ Notion 模式下字段是否进入 `page.fields` 由 `fieldPolicy` 控制（见�
 
 ## 路由：一条内容会变成哪个 URL？
 
-推荐方式：通过 `site.collections` 为每个集合定义 permalink、template 和 listRoute（详见：[04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)）。
-
-兼容层说明（当未配置 site.collections 或内容项缺少 collection 时生效）：
-
-- `type: page`：默认输出到 `/pages/<slug>/`
-- `type: post`：默认输出到 `/blog/<slug>/`
+推荐方式：通过 `site.collections` 为每个集合定义 permalink、template 和 listRoute（详见：[04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)）。核心不会因为 `type: page` 或 `type: post` 自动生成内置路由。
 
 你可以通过以下方式控制结果：
 
 - 在 site.collections 中声明集合规则（推荐）
 - 在内容的 meta 中指定 `collection` 对应集合 key（推荐）
 - 改 `slug`：改变路径的一段
-- 改 `type`：改变兼容层行为的类型归属
+- 改 `type`：仅影响你在配置或主题 `templates.accepts.type` 中声明的匹配逻辑
 - 用 `route/url/outputPath` 覆盖：更强，但更容易配错（详见：[03-项目目录与约定](./03-project-structure.zh-CN.md) 与 [14-故障排查](./14-troubleshooting.zh-CN.md)）
 
 ## 主题与模板：页面长什么样

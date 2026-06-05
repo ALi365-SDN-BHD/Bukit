@@ -21,10 +21,9 @@ content:
       mode: content
       markdown:
         dir: content
-        defaultType: page
 ```
 
-> **Disyorkan: pasangkan dengan site.collections.** Apabila menggunakan mod sources, adalah disyorkan untuk juga mengisytiharkan `site.collections` di peringkat atas site.yaml, supaya kandungan setiap source dipadankan dengan peraturan penghalaan melalui kunci collection (dan bukannya bergantung pada lapisan keserasian type).
+> **Disyorkan: pasangkan dengan site.collections.** Apabila menggunakan mod sources, isytiharkan `site.collections` di peringkat atas site.yaml supaya kandungan setiap source dipadankan dengan peraturan penghalaan melalui kunci collection.
 
 ### Penerangan Medan
 
@@ -57,7 +56,6 @@ content:
       mode: content
       markdown:
         dir: content
-        defaultType: page
     - type: markdown
       name: modules
       mode: data
@@ -154,7 +152,6 @@ content:
       mode: content
       markdown:
         dir: content/pages
-        defaultType: page
     - type: notion
       name: posts
       mode: content

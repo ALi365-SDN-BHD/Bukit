@@ -1,5 +1,6 @@
 ---
 title: Getting Started
+collection: page
 slug: docs/getting-started
 ---
 

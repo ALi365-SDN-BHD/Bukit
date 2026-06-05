@@ -20,11 +20,16 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    post:
+      permalink: /blog/{slug}/
+      template: pages/post.html
+      listRoute: /blog/
+      listTemplate: pages/list.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: post
 build:
   output: dist
   clean: true
@@ -34,23 +39,13 @@ logging:
   level: info
 ```
 
-> **Recommended: explicitly declare site.collections.** The above config relies on post/page compatibility routing. A more standard approach is to add:
-> ```yaml
-> site:
->   collections:
->     post:
->       permalink: /blog/{slug}/
->       template: pages/post.html
->       listRoute: /blog/
-> ```
-
 ### Sample Data (content/)
 
 `content/2026-01-first.md`
 
 ```markdown
 ---
-type: post
+collection: post
 title: First Article
 slug: first
 publishAt: 2026-01-01T10:00:00+08:00
@@ -93,11 +88,14 @@ site:
   languages: [zh-CN, en-US]
   defaultLanguage: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /{slug}/
+      template: pages/page.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 build:
   output: dist
   clean: true
@@ -105,15 +103,13 @@ theme:
   name: alt
 ```
 
-> **Recommended: explicitly declare collections for multilingual sites.** Adding `site.collections.page` and `site.collections.post` makes routing more controllable, especially when combining multilingual + collections.
-
 ### Sample Data
 
 `content/greeting-zh.md`
 
 ```markdown
 ---
-type: page
+collection: page
 title: Hello
 slug: greeting
 language: zh-CN
@@ -126,7 +122,7 @@ language: zh-CN
 
 ```markdown
 ---
-type: page
+collection: page
 title: Hello
 slug: greeting
 language: en-US

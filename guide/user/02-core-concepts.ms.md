@@ -10,7 +10,7 @@ site.yaml
   ├─ content (Markdown / Notion / sources)
   │     └─ membaca kandungan → menormalkan ke dalam ContentItem
   │
-  ├─ routing (keutamaan melalui site.collections untuk menentukan URL; sandar kepada lapisan keserasian type/permalinks)
+  ├─ routing (ditentukan oleh route/template eksplisit, site.collections, dan theme templates.accepts)
   │
   ├─ rendering (menghasilkan kandungan ke dalam HTML menggunakan templat)
   │
@@ -22,8 +22,8 @@ site.yaml
 Hanya tiga perkara yang perlu diingat:
 
 1. **Dari mana kandungan datang** (content.provider / sources)
-2. **Ke mana setiap kandungan dioutputkan** (disyorkan melalui site.collections; serasi melalui slug/type + medan penggantian laluan)
-3. **Templat apa yang digunakan untuk rendering** (collection menentukan templat; juga boleh digantikan oleh template)
+2. **Ke mana setiap kandungan dioutputkan** (melalui route/front matter atau site.collections secara eksplisit)
+3. **Templat apa yang digunakan untuk rendering** (template eksplisit, collection template/listTemplate, atau theme templates.accepts)
 
 ## Konfigurasi Tapak (site.yaml)
 
@@ -44,11 +44,11 @@ Tidak kira sama ada kandungan anda berasal dari Markdown atau Notion, enjin meno
 Kunci Meta lazim (anda menyediakannya dalam Markdown Front Matter atau medan Notion):
 
 - `collection`: Koleksi kandungan itu dimiliki (disyorkan), sepadan dengan kunci dalam site.collections, menentukan penghalaan dan templat
-- `type`: `page` atau `post` (lapisan keserasian; digunakan untuk menentukan penghalaan lalai dan templat apabila tiada collection dikonfigurasikan)
+- `type`: jenis kandungan pilihan atau kunci padanan templat tema; tidak mencipta laluan terbina dalam
 - `slug`: Komponen teras URL (secara amnya disyorkan untuk kekal stabil)
 - `language`: Gabungan bahasa kandungan (digunakan untuk penapisan dan pautan dalam persediaan pelbagai bahasa)
 - `tags` / `categories`: Teg/kategori (digunakan untuk menghasilkan halaman senarai)
-- `route` / `url` / `outputPath` / `template`: Penggunaan lanjutan untuk "menggantikan penghalaan/templat lalai" (gunakan dengan berhati-hati)
+- `route` / `url` / `outputPath` / `template`: Penggunaan lanjutan untuk menentukan laluan/templat secara eksplisit (gunakan dengan berhati-hati)
 
 ### 2) Fields: Medan tersuai yang dimaksudkan untuk penggunaan templat (tambah apa sahaja yang anda mahu)
 
@@ -69,19 +69,14 @@ Dalam mod Notion, sama ada sesuatu medan memasuki `page.fields` dikawal oleh `fi
 
 ## Penghalaan: URL Apa yang Akan Dihasilkan oleh Sesuatu Kandungan?
 
-Pendekatan yang disyorkan: Takrifkan permalink, templat, dan listRoute untuk setiap collection melalui `site.collections` (lihat: [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)).
-
-Penjelasan lapisan keserasian (berkuat kuasa apabila site.collections tidak dikonfigurasikan atau item kandungan tidak mempunyai collection):
-
-- `type: page`: Output lalai ke `/pages/<slug>/`
-- `type: post`: Output lalai ke `/blog/<slug>/`
+Pendekatan yang disyorkan: Takrifkan permalink, templat, dan listRoute untuk setiap collection melalui `site.collections` (lihat: [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)). Enjin teras tidak menjana laluan terbina dalam hanya kerana `type: page` atau `type: post`.
 
 Anda boleh mengawal hasil melalui kaedah berikut:
 
 - Isytiharkan peraturan collection dalam site.collections (disyorkan)
 - Tentukan `collection` dalam meta kandungan yang sepadan dengan kunci collection (disyorkan)
 - Ubah `slug`: mengubah satu segmen laluan
-- Ubah `type`: mengubah klasifikasi jenis untuk tingkah laku lapisan keserasian
+- Ubah `type`: hanya mempengaruhi logik padanan yang anda isytiharkan dalam konfigurasi atau theme `templates.accepts.type`
 - Gunakan penggantian `route/url/outputPath`: lebih kuat, tetapi lebih mudah tersalah konfigurasi (lihat: [03 Struktur Projek](./03-project-structure.ms.md) dan [14 Penyelesaian Masalah](./14-troubleshooting.ms.md))
 
 ## Tema & Templat: Bagaimana Rupa Halaman

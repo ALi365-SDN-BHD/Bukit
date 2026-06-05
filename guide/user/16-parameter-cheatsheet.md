@@ -71,7 +71,7 @@ This page is for quick lookup. For more complete authoritative field references 
 | `content.sources[].type` | Source type | `markdown` / `notion` |
 | `content.sources[].name` | Source name | `pages` / `posts` / `modules` |
 | `content.sources[].mode` | Behavior mode | `content` / `data` |
-| `content.sources[].markdown` | Markdown sub-config | `{ dir: content, defaultType: page }` |
+| `content.sources[].markdown` | Markdown sub-config | `{ dir: content }` |
 | `content.sources[].notion` | Notion sub-config | `{ databaseId: "...", fieldPolicy: { mode: all } }` |
 
 ## build.* (Build Output)

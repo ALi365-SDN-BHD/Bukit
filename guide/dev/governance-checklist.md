@@ -15,12 +15,13 @@ dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter
 
 Record: total build time (clean + incremental), `rendered/skipped` in logs, manifest behavior.
 
-## 2) Collections and Compatibility Layer Governance
+## 2) Configuration-Driven Routing Governance
 
 - Primary path: `site.collections`
-- Compatibility path: `post/page` default rules (compatibility only, not the long-term extension model)
+- Template path: route/front matter `template`, collection `template` / `listTemplate`, or theme `templates.*.accepts`
+- No core `post/page` default route fallback should be introduced
 
-Pre-change checks: Can goal be achieved via `collections`? Will it affect existing post/page theme behavior?
+Pre-change checks: Can goal be achieved via `collections`, explicit templates, or theme `accepts` rules? Will it affect template requirements collected by doctor?
 Post-change validation: `dotnet test ... --filter RouteGenerator`
 
 ## 3) Documentation–Asset Consistency Check

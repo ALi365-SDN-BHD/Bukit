@@ -225,7 +225,7 @@ public sealed class ConfigLoaderTests : IDisposable
               provider: markdown
               markdown:
                 dir: docs
-                defaultType: post
+                defaultType: article
                 maxItems: 200
                 includePaths:
                   - posts
@@ -241,7 +241,7 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("markdown", config.Content.Provider);
         Assert.NotNull(config.Content.Markdown);
         Assert.Equal("docs", config.Content.Markdown.Dir);
-        Assert.Equal("post", config.Content.Markdown.DefaultType);
+        Assert.Equal("article", config.Content.Markdown.DefaultType);
         Assert.Equal(200, config.Content.Markdown.MaxItems);
         Assert.NotNull(config.Content.Markdown.IncludePaths);
         Assert.Equal(2, config.Content.Markdown.IncludePaths.Count);

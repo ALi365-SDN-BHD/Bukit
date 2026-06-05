@@ -77,11 +77,14 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
 content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 build:
   output: dist
   clean: true
@@ -94,7 +97,7 @@ logging:
   level: info
 ```
 
-> **Recommended: Use site.collections to define routing and templates** The config above relies on the post/page compatibility layer for routing (page →`/pages/`, post →`/blog/`). For new projects, we recommend explicitly declaring collections (see [04 Site YAML Config](./04-site-yaml-config.md)). Example:
+> **Routing is explicit.** Each routed content item must match `site.collections`, `site.permalinks`, or a `route` override. Add more collections as your content model grows:
 >
 > ```yaml
 > site:
@@ -150,4 +153,3 @@ dotnet run --project ../src/Bukit.Cli -c Release -- preview --dir dist --port au
 - Company site modules (Modules): [09 Modules Structured Data](./09-modules-data.md)
 - Multilingual & SEO: [11 Multilingual & SEO](./11-i18n-seo.md)
 - Deploying to GitHub Pages: [13 Deploy GitHub Pages](./13-deploy-github-pages.md)
-

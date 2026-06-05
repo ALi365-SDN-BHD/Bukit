@@ -15,7 +15,6 @@ content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 
 build:
   output: dist_i18n_index
@@ -28,4 +27,3 @@ theme:
 
 logging:
   level: info
-

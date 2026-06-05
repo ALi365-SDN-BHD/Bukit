@@ -1,5 +1,5 @@
 ---
-type: page
+collection: page
 summary: 示例站点说明
 seo_title: 关于 - Bukit 示例站点
 cover: /assets/images/noneimg-news.jpg

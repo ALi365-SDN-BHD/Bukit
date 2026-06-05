@@ -19,10 +19,9 @@ content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
 ```
 
-引擎会递归读取 `content/` 下的所有 `*.md`。
+引擎会递归读取 `content/` 下的所有 `*.md`。需要生成路由的内容应在 Front Matter 中声明 `collection`，并与 `site.collections` 中的路由/模板规则匹配。
 
 ## 限额与指定读取（大仓库/单篇调试）
 
@@ -33,7 +32,6 @@ content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: page
     maxItems: 5000
     includePaths:
       - hello-world.md
@@ -65,7 +63,7 @@ Bukit 使用 Markdig 渲染 Markdown，支持常用 GFM 能力：
 
 ```yaml
 ---
-type: page
+collection: page
 title: 关于我们
 slug: about
 publishAt: 2026-01-01T00:00:00Z
@@ -85,7 +83,7 @@ seo_desc: 自定义 SEO 描述（模板可用）
 | 字段 | 常见值 | 作用 |
 |---|---|---|
 | `collection` | 字符串 | 对应 site.collections 中的集合 key，决定路由与模板（推荐优先使用） |
-| `type` | `page` / `post` | 兼容层：当未使用 collection 时决定默认路由与模板 |
+| `type` | 字符串 | 可选内容分类或主题模板匹配键；不会单独创建内置路由 |
 | `title` | 文本 | 页面标题（缺省可从正文第一个 `#` 提取） |
 | `slug` | `hello-world` | URL 核心片段（缺省为文件名） |
 | `publishAt` | ISO 时间字符串 | 发布时间（缺省可能使用文件修改时间） |
@@ -96,13 +94,13 @@ seo_desc: 自定义 SEO 描述（模板可用）
 
 你可以自定义更多字段（例如 `cover`, `reading_time`, `seo_*`），它们会进入 `page.fields.*` 供模板读取。
 
-## 示例 1：页面（page）— 兼容层默认路由
+## 示例 1：页面（collection 驱动路由）
 
 文件：`content/about.md`
 
 ```markdown
 ---
-type: page
+collection: page
 title: 关于我们
 slug: about
 language: zh-CN
@@ -119,13 +117,13 @@ seo_desc: 这是一个用 Bukit 构建的示例站点
 
 - 关于、联系、帮助中心、产品介绍、隐私政策
 
-## 示例 2：文章（post）— 兼容层默认路由
+## 示例 2：文章（collection 驱动路由）
 
 文件：`content/2026-01-hello.md`
 
 ```markdown
 ---
-type: post
+collection: post
 title: 2026 年 1 月更新
 slug: 2026-01-update
 publishAt: 2026-01-15T10:00:00+08:00
@@ -164,7 +162,7 @@ site:
 
 ```markdown
 ---
-type: page
+collection: page
 title: 你好
 slug: greeting
 language: zh-CN
@@ -177,7 +175,7 @@ language: zh-CN
 
 ```markdown
 ---
-type: page
+collection: page
 title: Hello
 slug: greeting
 language: en-US

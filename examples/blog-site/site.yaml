@@ -28,7 +28,6 @@ content:
   provider: markdown
   markdown:
     dir: content
-    defaultType: post
 build:
   output: dist
   clean: true

@@ -170,12 +170,12 @@ public sealed class InitCommandTests : IDisposable
         Assert.Equal(0, code);
         var yaml = await File.ReadAllTextAsync(Path.Combine(target, "site.yaml"));
         var post = await File.ReadAllTextAsync(Path.Combine(target, "content", "posts", "welcome.md"));
-        Assert.Contains("defaultType: post", yaml, StringComparison.Ordinal);
+        Assert.Contains("collection: post", yaml, StringComparison.Ordinal);
         Assert.Contains("url: https://example.com", yaml, StringComparison.Ordinal);
         Assert.Contains("defaultImage: /assets/og-default.gif", yaml, StringComparison.Ordinal);
         Assert.Contains("permalink: /blog/{year}/{month}/{slug}/", yaml, StringComparison.Ordinal);
         Assert.Contains("pagination:", yaml, StringComparison.Ordinal);
-        Assert.Contains("type: post", post, StringComparison.Ordinal);
+        Assert.Contains("collection: post", post, StringComparison.Ordinal);
         Assert.Contains("author: Bukit Team", post, StringComparison.Ordinal);
         Assert.Contains("categories: [news]", post, StringComparison.Ordinal);
     }
@@ -192,8 +192,8 @@ public sealed class InitCommandTests : IDisposable
         var doc = await File.ReadAllTextAsync(Path.Combine(target, "content", "docs", "getting-started.md"));
         Assert.Contains("doc:", yaml, StringComparison.Ordinal);
         Assert.Contains("permalink: /docs/{slug}/", yaml, StringComparison.Ordinal);
-        Assert.Contains("defaultType: doc", yaml, StringComparison.Ordinal);
-        Assert.Contains("type: doc", doc, StringComparison.Ordinal);
+        Assert.Contains("collection: doc", yaml, StringComparison.Ordinal);
+        Assert.Contains("collection: doc", doc, StringComparison.Ordinal);
         Assert.Contains("Getting Started", doc, StringComparison.Ordinal);
     }
 
@@ -208,8 +208,8 @@ public sealed class InitCommandTests : IDisposable
         var yaml = await File.ReadAllTextAsync(Path.Combine(target, "site.yaml"));
         var overview = await File.ReadAllTextAsync(Path.Combine(target, "content", "pages", "overview.md"));
         Assert.Contains("permalink: /{slug}/", yaml, StringComparison.Ordinal);
-        Assert.Contains("defaultType: page", yaml, StringComparison.Ordinal);
-        Assert.Contains("type: page", overview, StringComparison.Ordinal);
+        Assert.Contains("collection: page", yaml, StringComparison.Ordinal);
+        Assert.Contains("collection: page", overview, StringComparison.Ordinal);
         Assert.Contains("Product Overview", overview, StringComparison.Ordinal);
     }
 
@@ -225,8 +225,8 @@ public sealed class InitCommandTests : IDisposable
         var work = await File.ReadAllTextAsync(Path.Combine(target, "content", "work", "sample-project.md"));
         Assert.Contains("work:", yaml, StringComparison.Ordinal);
         Assert.Contains("permalink: /work/{slug}/", yaml, StringComparison.Ordinal);
-        Assert.Contains("defaultType: work", yaml, StringComparison.Ordinal);
-        Assert.Contains("type: work", work, StringComparison.Ordinal);
+        Assert.Contains("collection: work", yaml, StringComparison.Ordinal);
+        Assert.Contains("collection: work", work, StringComparison.Ordinal);
         Assert.Contains("Sample Project", work, StringComparison.Ordinal);
     }
 

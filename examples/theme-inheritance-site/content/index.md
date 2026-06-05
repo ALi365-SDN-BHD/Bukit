@@ -1,5 +1,6 @@
 ---
 title: Theme Inheritance Example
+collection: page
 slug: home
 ---
 

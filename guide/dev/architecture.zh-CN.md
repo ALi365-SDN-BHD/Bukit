@@ -253,5 +253,5 @@ SiteEngine (orchestrator)
 ## 当前评审口径（P1）
 
 - 正文模型：当前主链已采用 `BodyStore + BodyKey` 的延迟正文读取模式，重点应转向超大规模场景的读取/缓存基准治理。
-- 路由模型：`collections` 已落地并可驱动路由与模板策略，`post/page` 默认规则属于兼容层而非唯一模型。
+- 路由模型：当前主路径是 `collections`、显式 route/template 与主题 `templates.accepts`；核心不应维护 `post/page` 默认路由规则。
 - 仓库边界：当前仓库聚焦 `Bukit` 主线，维护与评审以 `bukit.slnx` 和 `src/Bukit.*` 为准。
