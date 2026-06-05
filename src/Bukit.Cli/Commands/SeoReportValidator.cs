@@ -147,7 +147,7 @@ internal static partial class SeoReportValidator
         {
             var path = $"documents[{documentIndex}]";
             EnsureObject(document, path);
-            EnsureAllowedProperties(document, path, "routeUrl", "outputPath", "canonical", "indexable", "lastModified", "contentType", "sourceItemId", "title", "description", "language", "author", "organization", "source", "originalSource", "reviewStatus", "entityNames", "representationKinds", "schemaTypes", "sitemapIncluded", "searchIncluded", "rssIncluded");
+            EnsureAllowedProperties(document, path, "routeUrl", "outputPath", "canonical", "indexable", "lastModified", "contentType", "sourceItemId", "title", "description", "language", "author", "organization", "source", "originalSource", "reviewStatus", "summary", "updatedAt", "sourceReferences", "entityNames", "entitySummaries", "representationKinds", "schemaTypes", "structuredDataTypes", "semanticOutline", "sitemapIncluded", "searchIncluded", "rssIncluded", "jsonFeedIncluded", "manifestIncluded");
             ReadRequiredString(document, path, "routeUrl");
             ReadRequiredString(document, path, "outputPath");
             ReadRequiredString(document, path, "canonical");
@@ -163,12 +163,20 @@ internal static partial class SeoReportValidator
             ReadOptionalString(document, path, "source");
             ReadOptionalString(document, path, "originalSource");
             ReadOptionalString(document, path, "reviewStatus");
+            ReadOptionalString(document, path, "summary");
+            ReadOptionalString(document, path, "updatedAt");
+            ReadOptionalStringArray(document, path, "sourceReferences");
             ReadOptionalStringArray(document, path, "entityNames");
+            ReadOptionalEntitySummaries(document, path, "entitySummaries");
             ReadOptionalStringArray(document, path, "representationKinds");
             ReadOptionalStringArray(document, path, "schemaTypes");
+            ReadOptionalStringArray(document, path, "structuredDataTypes");
+            ReadOptionalSemanticOutline(document, path, "semanticOutline");
             ReadRequiredBool(document, path, "sitemapIncluded");
             ReadRequiredBool(document, path, "searchIncluded");
             ReadRequiredBool(document, path, "rssIncluded");
+            ReadOptionalBool(document, path, "jsonFeedIncluded");
+            ReadOptionalBool(document, path, "manifestIncluded");
             documentIndex++;
         }
 
@@ -334,6 +342,55 @@ internal static partial class SeoReportValidator
                 throw new InvalidDataException($"{path}.{property}[{index}] must be a string.");
             }
 
+            index++;
+        }
+    }
+
+    private static void ReadOptionalEntitySummaries(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException($"{path}.{property} must be an array.");
+        }
+
+        var index = 0;
+        foreach (var item in value.EnumerateArray())
+        {
+            var itemPath = $"{path}.{property}[{index}]";
+            EnsureObject(item, itemPath);
+            EnsureAllowedProperties(item, itemPath, "type", "name", "description");
+            ReadRequiredString(item, itemPath, "type");
+            ReadRequiredString(item, itemPath, "name");
+            ReadOptionalString(item, itemPath, "description");
+            index++;
+        }
+    }
+
+    private static void ReadOptionalSemanticOutline(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException($"{path}.{property} must be an array.");
+        }
+
+        var index = 0;
+        foreach (var item in value.EnumerateArray())
+        {
+            var itemPath = $"{path}.{property}[{index}]";
+            EnsureObject(item, itemPath);
+            EnsureAllowedProperties(item, itemPath, "level", "text");
+            ReadRequiredInt(item, itemPath, "level");
+            ReadRequiredString(item, itemPath, "text");
             index++;
         }
     }

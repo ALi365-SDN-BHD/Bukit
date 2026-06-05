@@ -35,9 +35,9 @@ Current schema:
 Each document represents one final published route:
 
 - `routeUrl`, `outputPath`, `canonical`, `indexable`, and `lastModified` identify the route.
-- `title`, `description`, `language`, `author`, `organization`, `source`, `originalSource`, and `reviewStatus` expose trust and provenance metadata.
-- `entityNames`, `representationKinds`, and `schemaTypes` expose machine-readable discovery data.
-- `sitemapIncluded`, `searchIncluded`, and `rssIncluded` show whether aggregate outputs include the route.
+- `title`, `description`, `summary`, `language`, `author`, `organization`, `source`, `originalSource`, `sourceReferences`, `reviewStatus`, and `updatedAt` expose trust and provenance metadata.
+- `entityNames`, `entitySummaries`, `representationKinds`, `schemaTypes`, `structuredDataTypes`, and `semanticOutline` expose machine-readable discovery data.
+- `sitemapIncluded`, `searchIncluded`, `rssIncluded`, `jsonFeedIncluded`, and `manifestIncluded` show whether aggregate outputs include the route.
 
 ## Issue Codes
 
@@ -48,7 +48,8 @@ Publish audit issue codes use the `publish.*` prefix. Current checks include:
 - Trust metadata: `publish.author_missing`, `publish.source_missing`, `publish.source_references_missing`, `publish.review_status_missing`, `publish.updated_at_missing`, and `publish.entity_missing`.
 - Publish document completeness: `publish.summary_missing` and `publish.entity_summary_missing`.
 - Representation coverage: `publish.representation_missing`.
-- Aggregate output compatibility: `publish.sitemap_missing_route`, `publish.search_missing_route`, `publish.rss_missing_route`, and `publish.ai_crawler_policy_conflict`.
+- Aggregate output compatibility: `publish.sitemap_missing_route`, `publish.search_missing_route`, `publish.rss_missing_route`, `publish.json_feed_missing_route`, `publish.manifest_missing_route`, and `publish.ai_crawler_policy_conflict`.
+- Content uniqueness and value: `publish.content_duplicate` and `publish.unique_value_missing`.
 
 ## CLI
 

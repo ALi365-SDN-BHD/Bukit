@@ -8,6 +8,9 @@ internal static class SeoCompatibilityAuditRules
         bool searchIncluded,
         bool rssIncluded,
         bool rssExpected,
+        bool jsonFeedIncluded,
+        bool jsonFeedExpected,
+        bool manifestIncluded,
         string? robotsText,
         List<SeoAuditIssue> issues)
     {
@@ -29,6 +32,16 @@ internal static class SeoCompatibilityAuditRules
         if (rssExpected && !rssIncluded)
         {
             issues.Add(Warning("publish.rss_missing_route", document.RouteUrl, "RSS-enabled published content is missing from RSS output."));
+        }
+
+        if (jsonFeedExpected && !jsonFeedIncluded)
+        {
+            issues.Add(Warning("publish.json_feed_missing_route", document.RouteUrl, "JSON Feed-enabled published content is missing from JSON Feed output."));
+        }
+
+        if (!manifestIncluded)
+        {
+            issues.Add(Warning("publish.manifest_missing_route", document.RouteUrl, "Published content is missing from agent manifest output."));
         }
 
         if (BlocksAiCrawler(robotsText, document.RouteUrl))

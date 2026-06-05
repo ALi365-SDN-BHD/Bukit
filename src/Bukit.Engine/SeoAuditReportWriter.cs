@@ -32,9 +32,9 @@ internal static partial class SeoAuditReportWriter
         CanonicalContentGraph? contentGraph,
         ILogger logger)
     {
-        var report = Build(config, outputDir, seoIndex, seoModels, contentGraph, requireHreflangTargets: false);
-        WriteReport(config, outputDir, report, logger);
-        return report;
+        var result = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, contentGraph, requireHreflangTargets: false);
+        WriteReport(outputDir, result, logger);
+        return result.SeoReport;
     }
 
     internal static SeoAuditReport WriteMerged(
@@ -70,16 +70,17 @@ internal static partial class SeoAuditReportWriter
             entities.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Entities);
         }
 
-        var report = Build(config, outputDir, seoIndex, seoModels, new CanonicalContentGraph(records, entities), requireHreflangTargets: true);
-        WriteReport(config, outputDir, report, logger);
-        return report;
+        var auditResult = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, new CanonicalContentGraph(records, entities), requireHreflangTargets: true);
+        WriteReport(outputDir, auditResult, logger);
+        return auditResult.SeoReport;
     }
 
-    private static void WriteReport(AppConfig config, string outputDir, SeoAuditReport report, ILogger logger)
+    private static void WriteReport(string outputDir, MachineReadabilityTrustAuditResult result, ILogger logger)
     {
+        var report = result.SeoReport;
         var json = JsonSerializer.Serialize(report, SeoAuditReportJsonContext.Default.SeoAuditReport);
         FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReporter.ReportDirectoryName, "seo-report.json"), json + Environment.NewLine);
-        PublishAuditReportWriter.Write(config, outputDir, report);
+        PublishAuditReportWriter.Write(outputDir, result.PublishReport);
 
         WriteGeoReport(outputDir, report, logger);
         WriteAgentManifest(outputDir, report);
@@ -167,16 +168,29 @@ internal static partial class SeoAuditReportWriter
         IReadOnlyDictionary<string, SeoModel> seoModels,
         CanonicalContentGraph? contentGraph = null,
         bool requireHreflangTargets = true)
+        => MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, contentGraph, requireHreflangTargets).SeoReport;
+
+    internal static MachineReadabilityTrustAuditResult BuildMachineReadabilityTrustAudit(
+        AppConfig config,
+        string outputDir,
+        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
+        IReadOnlyDictionary<string, SeoModel> seoModels,
+        CanonicalContentGraph? contentGraph = null,
+        bool requireHreflangTargets = true)
     {
         contentGraph ??= CanonicalContentGraph.Empty;
         var sitemapText = ReadOptional(Path.Combine(outputDir, "sitemap.xml"));
         var searchText = ReadOptional(Path.Combine(outputDir, "search.json"));
         var rssText = ReadOptional(Path.Combine(outputDir, "rss.xml"));
+        var jsonFeedText = ReadOptional(Path.Combine(outputDir, config.Site.Feed.Path, "feed.json")) ??
+                           ReadOptional(Path.Combine(outputDir, "feed.json"));
+        var agentManifestText = ReadOptional(Path.Combine(outputDir, "agent-manifest.json"));
         var robotsText = ReadOptional(Path.Combine(outputDir, "robots.txt"));
 
         var issues = new List<SeoAuditIssue>();
         AnalyzeSitemapXml(sitemapText, issues);
         var routes = new List<SeoAuditRoute>();
+        var publishDocuments = new List<PublishDocument>();
         var modelByCanonical = new Dictionary<string, (SeoIndexEntry Entry, SeoModel Model)>(StringComparer.OrdinalIgnoreCase);
         var recordsById = contentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
@@ -196,13 +210,29 @@ internal static partial class SeoAuditReportWriter
             }
             else
             {
-                AnalyzeHtmlOutput(config, entry, document, outputPath, issues);
+                var html = File.ReadAllText(outputPath);
+                document = document with { SemanticOutline = SemanticHtmlAuditRules.ExtractSemanticOutline(html) };
+                AnalyzeHtmlOutput(config, entry, document, html, issues);
             }
 
             var rssExpected = IsRssContent(config, entry);
             var sitemapIncluded = entry.Indexable && ContainsInvariant(sitemapText, entry.Canonical);
             var searchIncluded = entry.Indexable && ContainsInvariant(searchText, entry.Route.Url);
             var rssIncluded = entry.Indexable && rssExpected && ContainsInvariant(rssText, entry.Canonical);
+            var jsonFeedExpected = IsJsonFeedContent(config, entry);
+            var jsonFeedIncluded = entry.Indexable && jsonFeedExpected && ContainsInvariant(jsonFeedText, entry.Canonical);
+            var manifestIncluded = !entry.Indexable ||
+                                   agentManifestText is null ||
+                                   ContainsInvariant(agentManifestText, entry.Route.Url) ||
+                                   ContainsInvariant(agentManifestText, entry.Canonical);
+            document = document with
+            {
+                SitemapIncluded = sitemapIncluded,
+                SearchIncluded = searchIncluded,
+                RssIncluded = rssIncluded,
+                JsonFeedIncluded = jsonFeedIncluded,
+                ManifestIncluded = manifestIncluded
+            };
 
             if (entry.Indexable && sitemapText is not null && !sitemapIncluded)
             {
@@ -226,7 +256,8 @@ internal static partial class SeoAuditReportWriter
             }
 
             AnalyzePublishDocument(document, issues);
-            SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, searchIncluded, rssIncluded, rssExpected, robotsText, issues);
+            SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, searchIncluded, rssIncluded, rssExpected, jsonFeedIncluded, jsonFeedExpected, manifestIncluded, robotsText, issues);
+            publishDocuments.Add(document);
 
             routes.Add(new SeoAuditRoute(
                 Url: entry.Route.Url,
@@ -254,6 +285,7 @@ internal static partial class SeoAuditReportWriter
                 RepresentationKinds: document.RepresentationKinds));
         }
 
+        AnalyzePublishDocumentDuplicates(publishDocuments, issues);
         AnalyzeDuplicates(routes, issues);
         AnalyzeCanonicalTargets(routes, issues);
         AnalyzeHreflang(routes, modelByCanonical, issues, requireHreflangTargets);
@@ -310,7 +342,7 @@ internal static partial class SeoAuditReportWriter
             TrustIssueCount: trustIssueCount,
             RepresentationGapCount: representationGapCount);
 
-        return new SeoAuditReport(
+        var seoReport = new SeoAuditReport(
             Schema: SeoAuditModels.ReportSchema,
             SchemaVersion: SeoAuditModels.ReportSchemaVersion,
             GeneratedAt: DateTimeOffset.UtcNow,
@@ -320,6 +352,9 @@ internal static partial class SeoAuditReportWriter
             Routes: sortedRoutes,
             Issues: sortedIssues,
             Summary: summary);
+        return new MachineReadabilityTrustAuditResult(
+            seoReport,
+            PublishAuditBuilder.Build(seoReport, publishDocuments));
     }
 
     private static int ComputeGeoScore(bool llmsTxtGenerated, bool llmsFullTxtGenerated, SeoAuditRoute[] geoRoutes, List<SeoAuditRoute> allRoutes)
@@ -424,9 +459,8 @@ internal static partial class SeoAuditReportWriter
         }
     }
 
-    private static void AnalyzeHtmlOutput(AppConfig config, SeoIndexEntry entry, PublishDocument document, string outputPath, List<SeoAuditIssue> issues)
+    private static void AnalyzeHtmlOutput(AppConfig config, SeoIndexEntry entry, PublishDocument document, string html, List<SeoAuditIssue> issues)
     {
-        var html = File.ReadAllText(outputPath);
         if (!html.Contains("<head", StringComparison.OrdinalIgnoreCase) ||
             !html.Contains("</head>", StringComparison.OrdinalIgnoreCase))
         {

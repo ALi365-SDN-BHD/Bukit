@@ -206,11 +206,48 @@ internal static partial class SeoAuditReportWriter
            config.Site.Collections.TryGetValue(entry.ContentType, out var collection) &&
            collection.Output?.Rss == true;
 
+    private static bool IsJsonFeedContent(AppConfig config, SeoIndexEntry entry)
+        => entry.Indexable &&
+           config.Site.Feed.Formats.Any(format => string.Equals(format, "json", StringComparison.OrdinalIgnoreCase)) &&
+           !string.IsNullOrWhiteSpace(entry.ContentType) &&
+           !string.Equals(entry.ContentType, "list", StringComparison.OrdinalIgnoreCase);
+
     private static void AnalyzePublishDocument(PublishDocument document, List<SeoAuditIssue> issues)
     {
         TrustAuditRules.Analyze(document, issues);
         RepresentationAuditRules.Analyze(document, issues);
     }
+
+    private static void AnalyzePublishDocumentDuplicates(IReadOnlyList<PublishDocument> documents, List<SeoAuditIssue> issues)
+    {
+        foreach (var group in documents
+                     .Where(x => x.Indexable && !string.IsNullOrWhiteSpace(x.ContentRecord?.Presentation.Body))
+                     .GroupBy(x => NormalizeBodyForComparison(x.ContentRecord!.Presentation.Body!), StringComparer.OrdinalIgnoreCase)
+                     .Where(x => !string.IsNullOrWhiteSpace(x.Key) && x.Count() > 1))
+        {
+            foreach (var document in group)
+            {
+                issues.Add(Warning("publish.content_duplicate", document.RouteUrl, $"Published content body is duplicated by {group.Count()} routes."));
+            }
+        }
+
+        foreach (var document in documents.Where(x => x.Indexable))
+        {
+            var summary = document.Summary ?? document.Description;
+            if (string.IsNullOrWhiteSpace(summary) ||
+                summary.Length < 24 ||
+                string.Equals(summary, document.Title, StringComparison.OrdinalIgnoreCase))
+            {
+                issues.Add(Warning("publish.unique_value_missing", document.RouteUrl, "Published content summary is too thin to communicate unique value to machine consumers."));
+            }
+        }
+    }
+
+    private static string NormalizeBodyForComparison(string value)
+        => string.Join(' ', value
+            .Replace("<", " < ", StringComparison.Ordinal)
+            .Replace(">", " > ", StringComparison.Ordinal)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     internal static bool IsAbsoluteHttpUrl(string value)
         => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
@@ -250,6 +287,10 @@ internal static partial class SeoAuditReportWriter
             or "publish.sitemap_missing_route"
             or "publish.search_missing_route"
             or "publish.rss_missing_route"
+            or "publish.json_feed_missing_route"
+            or "publish.manifest_missing_route"
+            or "publish.content_duplicate"
+            or "publish.unique_value_missing"
             or "publish.ai_crawler_policy_conflict";
 
     private static bool IsTrustIssue(string code)

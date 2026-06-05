@@ -83,6 +83,24 @@
 - [x] Run closure targeted tests, SiteEngine integration, Release build, and
       format verification.
 
+## Phase 8: Strict Architecture Closure
+
+- [x] Add failing tests that `seo audit` no longer defaults to
+      `.bukit/publish-audit-report.json` while explicit `--report` remains
+      compatible.
+- [x] Add failing tests for rich publish document facts: summary, updated-at,
+      source references, entity summaries, semantic outline, and structured data
+      types.
+- [x] Add failing tests for JSON Feed and agent manifest route-set consistency.
+- [x] Add failing tests for publish-first duplicate content and unique value
+      hints.
+- [x] Introduce a Machine Readability & Trust audit result/facade so publish
+      report writing uses a first-class audit result instead of writer-local SEO
+      conversion.
+- [x] Update publish audit schema and docs for the richer document contract.
+- [x] Run strict closure targeted tests, integration, Release build, and format
+      verification.
+
 ## Remaining Blocker
 
 - [ ] `bash scripts/quality-gate.sh` runs build, tests, docs, smoke, and coverage,

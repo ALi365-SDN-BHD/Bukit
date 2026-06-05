@@ -19,8 +19,7 @@ public static class SeoCommand
             return legacy;
         }
 
-        var publish = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
-        return File.Exists(publish) ? publish : null;
+        return null;
     }
 
     public static async Task<int> RunAsync(CliBoundCommand command)
@@ -38,7 +37,7 @@ public static class SeoCommand
                 reportPath = ResolveAuditReportPath(dir);
                 if (reportPath is null)
                 {
-                    Console.Error.WriteLine($"{label} report not found under {Path.GetFullPath(dir)} (looked for .bukit/publish-audit-report.json, .bukit/seo-report.json and seo-report.json). Run a full build first.");
+                    Console.Error.WriteLine($"{label} report not found under {Path.GetFullPath(dir)} (looked for .bukit/seo-report.json and seo-report.json). Run a full build first.");
                     return 1;
                 }
             }

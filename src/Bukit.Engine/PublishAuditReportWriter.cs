@@ -11,6 +11,11 @@ internal static class PublishAuditReportWriter
     {
         _ = config;
         var publishReport = PublishAuditBuilder.Build(report);
+        Write(outputDir, publishReport);
+    }
+
+    internal static void Write(string outputDir, PublishAuditReport publishReport)
+    {
         var json = JsonSerializer.Serialize(publishReport, PublishAuditReportJsonContext.Default.PublishAuditReport);
         FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReporter.ReportDirectoryName, "publish-audit-report.json"), json + Environment.NewLine);
     }

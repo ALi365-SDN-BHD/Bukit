@@ -96,6 +96,14 @@ internal static class SemanticHtmlAuditRules
         AnalyzeJsonLdConsistency(document, headings.FirstOrDefault(x => x.Level == 1)?.Text, NormalizeText(html), issues);
     }
 
+    internal static IReadOnlyList<PublishSemanticOutlineItem> ExtractSemanticOutline(string html)
+        => HeadingTagRegex.Matches(html)
+            .Select(match => new PublishSemanticOutlineItem(
+                int.Parse(match.Groups["level"].Value),
+                NormalizeText(match.Groups["text"].Value)))
+            .Where(item => !string.IsNullOrWhiteSpace(item.Text))
+            .ToArray();
+
     private static void AnalyzeJsonLdConsistency(PublishDocument document, string? visibleHeading, string visibleText, List<SeoAuditIssue> issues)
     {
         if (document.SeoModel is null || string.IsNullOrWhiteSpace(visibleHeading))

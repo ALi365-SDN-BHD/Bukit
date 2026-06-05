@@ -51,11 +51,17 @@
         "indexable",
         "lastModified",
         "entityNames",
+        "sourceReferences",
+        "entitySummaries",
         "representationKinds",
         "schemaTypes",
+        "structuredDataTypes",
+        "semanticOutline",
         "sitemapIncluded",
         "searchIncluded",
-        "rssIncluded"
+        "rssIncluded",
+        "jsonFeedIncluded",
+        "manifestIncluded"
       ],
       "properties": {
         "routeUrl": {
@@ -104,10 +110,29 @@
         "reviewStatus": {
           "type": ["string", "null"]
         },
+        "summary": {
+          "type": ["string", "null"]
+        },
+        "updatedAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "sourceReferences": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "entityNames": {
           "type": "array",
           "items": {
             "type": "string"
+          }
+        },
+        "entitySummaries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entitySummary"
           }
         },
         "representationKinds": {
@@ -122,6 +147,18 @@
             "type": "string"
           }
         },
+        "structuredDataTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "semanticOutline": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semanticOutlineItem"
+          }
+        },
         "sitemapIncluded": {
           "type": "boolean"
         },
@@ -130,6 +167,43 @@
         },
         "rssIncluded": {
           "type": "boolean"
+        },
+        "jsonFeedIncluded": {
+          "type": "boolean"
+        },
+        "manifestIncluded": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "entitySummary": {
+      "type": "object",
+      "required": ["type", "name"],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "semanticOutlineItem": {
+      "type": "object",
+      "required": ["level", "text"],
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "text": {
+          "type": "string"
         }
       },
       "additionalProperties": false

@@ -57,6 +57,44 @@ public sealed class PublishAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Write_WritesPublishDocumentFactsFromContentTrustGraph()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body><header></header><nav></nav><main><article><h1>Post</h1><h2>Details</h2><time datetime="2026-06-05">June 5</time><p>Body content for people and machines.</p></article></main><footer></footer></body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Entry("/post/", "post/index.html", "https://example.com/post/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/", """
+                { "@context": "https://schema.org", "@type": "Article", "headline": "Post" }
+                """)
+        };
+
+        SeoAuditReportWriter.Write(Config(), _outputDir, index, models, ContentGraph(), new ConsoleLogger(LogLevel.Error));
+
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(_outputDir, ".bukit", "publish-audit-report.json")));
+        var document = doc.RootElement.GetProperty("documents").EnumerateArray().Single();
+        Assert.Equal("Post description", document.GetProperty("summary").GetString());
+        Assert.Equal("2026-06-05T01:00:00+00:00", document.GetProperty("updatedAt").GetString());
+        Assert.Contains("https://example.com/original", document.GetProperty("sourceReferences").EnumerateArray().Select(x => x.GetString()));
+        var entity = document.GetProperty("entitySummaries").EnumerateArray().Single();
+        Assert.Equal("Bukit", entity.GetProperty("name").GetString());
+        Assert.Equal("company", entity.GetProperty("type").GetString());
+        Assert.True(entity.TryGetProperty("description", out _));
+        var outline = document.GetProperty("semanticOutline").EnumerateArray().ToArray();
+        Assert.Contains(outline, x => x.GetProperty("level").GetInt32() == 1 && x.GetProperty("text").GetString() == "Post");
+        Assert.Contains(outline, x => x.GetProperty("level").GetInt32() == 2 && x.GetProperty("text").GetString() == "Details");
+        Assert.Contains("Article", document.GetProperty("structuredDataTypes").EnumerateArray().Select(x => x.GetString()));
+    }
+
+    [Fact]
     public void Build_ReportsPublishJsonLdMismatchSearchGapAndAiCrawlerConflict()
     {
         WriteOutput("post/index.html", """
@@ -268,6 +306,48 @@ public sealed class PublishAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_ReportsJsonFeedManifestAndContentValueGaps()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body><header></header><nav></nav><main><article><h1>Post</h1><time datetime="2026-06-05">June 5</time><p>Repeated body.</p></article></main><footer></footer></body>
+            </html>
+            """);
+        WriteOutput("other/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Other</title><link rel="canonical" href="https://example.com/other/" /></head>
+            <body><header></header><nav></nav><main><article><h1>Other</h1><time datetime="2026-06-05">June 5</time><p>Repeated body.</p></article></main><footer></footer></body>
+            </html>
+            """);
+        File.WriteAllText(Path.Combine(_outputDir, "feed.json"), """
+            { "version": "https://jsonfeed.org/version/1.1", "items": [] }
+            """);
+        File.WriteAllText(Path.Combine(_outputDir, "agent-manifest.json"), """
+            { "schema": "https://bukit.dev/schemas/agent-manifest.v1.json", "documents": [] }
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Entry("/post/", "post/index.html", "https://example.com/post/"),
+            ["other/index.html"] = Entry("/other/", "other/index.html", "https://example.com/other/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/"),
+            ["other/index.html"] = Model("Other", "https://example.com/other/")
+        };
+
+        var report = SeoAuditReportWriter.Build(ConfigWithJsonFeed(), _outputDir, index, models, DuplicateContentGraph());
+
+        Assert.Contains(report.Issues, x => x.Code == "publish.json_feed_missing_route" && x.Route == "/post/");
+        Assert.Contains(report.Issues, x => x.Code == "publish.manifest_missing_route" && x.Route == "/post/");
+        Assert.Contains(report.Issues, x => x.Code == "publish.content_duplicate" && x.Route == "/post/");
+        Assert.Contains(report.Issues, x => x.Code == "publish.unique_value_missing" && x.Route == "/post/");
+    }
+
+    [Fact]
     public void Build_ReportsAiCrawlerConflictForWildcardDisallow()
     {
         WriteOutput("post/index.html", """
@@ -361,7 +441,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
                 new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), DateTimeOffset.Parse("2026-06-05T01:00:00Z"), null, null),
                 new ProvenanceRecord("markdown", "https://example.com/original", [], [], "synced"),
                 new TrustMetadata(0.9, "approved", []),
-                [new EntityRecord("company", "Bukit")],
+                [new EntityRecord("company", "Bukit", "Bukit product")],
                 [],
                 [])
         ], [new EntityRecord("company", "Bukit")]);
@@ -381,6 +461,33 @@ public sealed class PublishAuditReportWriterTests : IDisposable
                 [],
                 [])
         ], [new EntityRecord("company", "Bukit")]);
+
+    private static CanonicalContentGraph DuplicateContentGraph()
+        => new(
+        [
+            new ContentRecord(
+                new ContentIdentity("post-1", "post", "post", "post", "published"),
+                new ContentPresentation("Post", "Same", "<article><p>Repeated body.</p></article>", "en", []),
+                new ContentClassification("post", "post", [], []),
+                new ContentOwnership("Ali", "Bukit", null, null),
+                new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), DateTimeOffset.Parse("2026-06-05T01:00:00Z"), null, null),
+                new ProvenanceRecord("markdown", "https://example.com/a", [], [], "synced"),
+                new TrustMetadata(0.9, "approved", []),
+                [new EntityRecord("company", "Bukit", "Bukit product")],
+                [],
+                []),
+            new ContentRecord(
+                new ContentIdentity("post-1", "other", "other", "post", "published"),
+                new ContentPresentation("Other", "Same", "<article><p>Repeated body.</p></article>", "en", []),
+                new ContentClassification("post", "post", [], []),
+                new ContentOwnership("Ali", "Bukit", null, null),
+                new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), DateTimeOffset.Parse("2026-06-05T01:00:00Z"), null, null),
+                new ProvenanceRecord("markdown", "https://example.com/b", [], [], "synced"),
+                new TrustMetadata(0.9, "approved", []),
+                [new EntityRecord("company", "Bukit", "Bukit product")],
+                [],
+                [])
+        ], [new EntityRecord("company", "Bukit", "Bukit product")]);
 
     private static AppConfig Config()
         => new()
@@ -406,6 +513,19 @@ public sealed class PublishAuditReportWriterTests : IDisposable
                 {
                     ["post"] = new() { Permalink = "/post/{slug}/", Output = new CollectionOutputConfig { Rss = true } }
                 }
+            },
+            Content = new ContentConfig { Provider = "markdown" }
+        };
+
+    private static AppConfig ConfigWithJsonFeed()
+        => new()
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Url = "https://example.com",
+                Feed = new FeedConfig { Formats = ["json"] }
             },
             Content = new ContentConfig { Provider = "markdown" }
         };

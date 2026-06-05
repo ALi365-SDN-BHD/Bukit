@@ -33,12 +33,20 @@ internal sealed record PublishAuditDocument(
     string? Source,
     string? OriginalSource,
     string? ReviewStatus,
+    string? Summary,
+    DateTimeOffset? UpdatedAt,
+    IReadOnlyList<string> SourceReferences,
     IReadOnlyList<string> EntityNames,
+    IReadOnlyList<PublishEntitySummary> EntitySummaries,
     IReadOnlyList<string> RepresentationKinds,
     IReadOnlyList<string> SchemaTypes,
+    IReadOnlyList<string> StructuredDataTypes,
+    IReadOnlyList<PublishSemanticOutlineItem> SemanticOutline,
     bool SitemapIncluded,
     bool SearchIncluded,
-    bool RssIncluded);
+    bool RssIncluded,
+    bool JsonFeedIncluded,
+    bool ManifestIncluded);
 
 internal sealed record PublishAuditSummary(
     int DocumentCount,

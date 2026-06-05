@@ -23,5 +23,9 @@
       tests before implementation.
 - [x] Machine Readability & Trust Audit closure verification commands were run
       and their output was reviewed.
+- [x] Strict architecture closure changes started from failing tests before
+      implementation.
+- [x] Strict architecture closure verification commands were run and their
+      output was reviewed.
 - [ ] Full quality gate passed. Current blocker: aggregate coverage is 69.83%,
       below the required 80% threshold.
