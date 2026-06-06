@@ -34,10 +34,16 @@ public sealed class ContentNormalizer : IContentNormalizer
         "expires",
         "reviewedAt",
         "originalSource",
+        "source",
+        "sourceKey",
+        "sourceId",
+        "sourceMode",
+        "source_provider",
         "original_url",
         "source_url",
         "citations",
         "references",
+        "sync_status",
         "credibilityScore",
         "credibility_score",
         "trust_score",
@@ -68,7 +74,12 @@ public sealed class ContentNormalizer : IContentNormalizer
         "route.outputPath",
         "route.template",
         "route.permalinkPattern",
-        "route.listGroup"
+        "route.listGroup",
+        "url",
+        "outputPath",
+        "template",
+        "permalinkPattern",
+        "listGroup"
     };
 
     public ContentDocument Normalize(RawContentDocument raw, ContentModelSchema schema)
@@ -81,6 +92,7 @@ public sealed class ContentNormalizer : IContentNormalizer
         var collection = GetText(raw, schema, "collection") ?? type;
         var language = GetText(raw, schema, "language") ?? "und";
         var draft = GetBool(raw, schema, "draft");
+        var isDataModule = IsDataModule(raw, schema);
         var entities = BuildEntities(raw);
         var relations = BuildRelations(raw);
         var media = BuildMedia(raw);
@@ -114,11 +126,11 @@ public sealed class ContentNormalizer : IContentNormalizer
                 GetDate(raw, schema, "expiresAt", "expires_at", "expires"),
                 GetDate(raw, schema, "reviewedAt")),
             Provenance: new ProvenanceRecord(
-                raw.Source.Provider,
+                GetText(raw, schema, "source", "source_provider") ?? raw.Source.Provider,
                 GetText(raw, schema, "originalSource", "original_url", "source_url") ?? raw.Source.ExternalUrl?.ToString(),
                 GetTextList(raw, schema, "citations"),
                 GetTextList(raw, schema, "references"),
-                raw.Source.SyncStatus),
+                GetText(raw, schema, "sync_status") ?? raw.Source.SyncStatus),
             Trust: new TrustMetadata(
                 GetDouble(raw, schema, "credibilityScore", "credibility_score", "trust_score"),
                 GetText(raw, schema, "reviewStatus", "review_status") ?? "unreviewed",
@@ -131,11 +143,11 @@ public sealed class ContentNormalizer : IContentNormalizer
             record,
             new ContentBodyRef(raw.Body.InlineHtml, raw.Body.BodyKey, raw.Body.Markdown, raw.Body.PlainText),
             new ContentRoutePolicy(
-                GetText(raw, "route.url"),
-                GetText(raw, "route.outputPath"),
-                GetText(raw, "route.template"),
-                GetText(raw, "route.permalinkPattern"),
-                GetText(raw, "route.listGroup")),
+                GetText(raw, "route.url") ?? GetText(raw, "url"),
+                GetText(raw, "route.outputPath") ?? GetText(raw, "outputPath"),
+                GetText(raw, "route.template") ?? GetText(raw, "template"),
+                GetText(raw, "route.permalinkPattern") ?? GetText(raw, "permalinkPattern"),
+                GetText(raw, "route.listGroup") ?? GetText(raw, "listGroup")),
             new ContentPublishPolicy(
                 draft,
                 GetBool(raw, schema, "noindex"),
@@ -143,9 +155,29 @@ public sealed class ContentNormalizer : IContentNormalizer
                 GetBool(raw, schema, "excludeFromFeed"),
                 GetBool(raw, schema, "excludeFromSearch"),
                 GetBool(raw, schema, "excludeFromSitemap"),
-                GetBool(raw, schema, "isDataModule")),
+                isDataModule),
             raw.CustomFields,
             diagnostics);
+    }
+
+    private static bool IsDataModule(RawContentDocument raw, ContentModelSchema schema)
+    {
+        if (GetBool(raw, schema, "isDataModule"))
+        {
+            return true;
+        }
+
+        var sourceMode = GetText(raw, schema, "sourceMode");
+        if (string.Equals(sourceMode, "data", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var type = GetText(raw, schema, "type");
+        var collection = GetText(raw, schema, "collection");
+        return string.Equals(type, "data", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(type, "module", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(collection, "data", StringComparison.OrdinalIgnoreCase);
     }
 
     private static IReadOnlyList<EntityRecord> BuildEntities(RawContentDocument raw)
@@ -225,13 +257,66 @@ public sealed class ContentNormalizer : IContentNormalizer
 
     private static string? GetText(RawContentDocument raw, string key)
     {
-        if (!raw.Properties.TryGetValue(key, out var value) || value.Value is null)
+        if (!raw.Properties.TryGetValue(key, out var value))
+        {
+            value = TryGetNestedValue(raw, key);
+        }
+
+        if (value.Value is null)
         {
             return null;
         }
 
         var text = value.Value.ToString()?.Trim();
         return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+
+    private static RawContentValue TryGetNestedValue(RawContentDocument raw, string key)
+    {
+        var dot = key.IndexOf('.');
+        if (dot <= 0 || dot == key.Length - 1)
+        {
+            return new RawContentValue("missing", null);
+        }
+
+        var parentKey = key[..dot];
+        var childKey = key[(dot + 1)..];
+        if (!raw.Properties.TryGetValue(parentKey, out var parent) || parent.Value is null)
+        {
+            return new RawContentValue("missing", null);
+        }
+
+        if (parent.Value is IReadOnlyDictionary<string, object> readOnly &&
+            TryGetDictionaryValue(readOnly, childKey, out var readOnlyValue))
+        {
+            return new RawContentValue("text", readOnlyValue);
+        }
+
+        if (parent.Value is IDictionary<string, object> dictionary &&
+            TryGetDictionaryValue(dictionary, childKey, out var value))
+        {
+            return new RawContentValue("text", value);
+        }
+
+        return new RawContentValue("missing", null);
+    }
+
+    private static bool TryGetDictionaryValue(
+        IEnumerable<KeyValuePair<string, object>> values,
+        string key,
+        out object? value)
+    {
+        foreach (var (candidateKey, candidateValue) in values)
+        {
+            if (string.Equals(candidateKey, key, StringComparison.OrdinalIgnoreCase))
+            {
+                value = candidateValue;
+                return true;
+            }
+        }
+
+        value = null;
+        return false;
     }
 
     private static IReadOnlyList<string> GetTextList(RawContentDocument raw, string key)

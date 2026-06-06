@@ -21,14 +21,19 @@ public sealed class CollectionWarningStageTests
 
     private static ContentItem CreateItem(string id, IReadOnlyDictionary<string, object> meta)
     {
+        var fields = meta.ToDictionary(
+            kv => kv.Key,
+            kv => new ContentField("test", kv.Value),
+            StringComparer.OrdinalIgnoreCase);
+
         return new ContentItem(
             Id: id,
             Title: $"Item {id}",
             Slug: $"item-{id}",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>hi</p>",
-            Meta: meta,
-            Fields: null);
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: fields);
     }
 
     private static ContentStageInput CreateInput(IReadOnlyList<ContentItem> items, ILogger logger)

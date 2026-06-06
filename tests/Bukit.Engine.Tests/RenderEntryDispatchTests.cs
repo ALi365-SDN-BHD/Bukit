@@ -45,6 +45,86 @@ public sealed class RenderEntryDispatchTests
     }
 
     [Fact]
+    public async Task DispatchAsync_RendersPageEntryWithCanonicalDocumentContext()
+    {
+        var item = Item("hello", "hello", null);
+        var route = new RouteInfo("/hello/", "hello/index.html", "pages/page.html");
+        var document = Document("hello");
+        var entries = new[] { RenderEntry.ForPage(item, route) };
+        var outputDir = CreateOutputDir();
+        var renderer = new CaptureRenderer();
+
+        await PageRenderDispatcher.DispatchAsync(
+            entries,
+            EmptyContentBodyStore.Instance,
+            renderer,
+            new SiteModel { Name = "s", Title = "s", BaseUrl = "/", Language = "en" },
+            outputDir,
+            string.Empty,
+            string.Empty,
+            false,
+            new BuildManifest(),
+            null,
+            new ConcurrentDictionary<string, byte>(),
+            1,
+            new ConsoleLogger(LogLevel.Error),
+            CancellationToken.None,
+            documentsById: new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["hello"] = document
+            });
+
+        Assert.NotNull(renderer.LastPage);
+        Assert.Same(document.Record, renderer.LastPage!.ContentRecord);
+        Assert.Equal("post", renderer.LastPage.Route!.ListGroup);
+        Assert.True(renderer.LastPage.Publish!.ExcludeFromSearch);
+    }
+
+    [Fact]
+    public async Task DispatchAsync_PrefersDocumentSeoCallbacksWhenCanonicalDocumentExists()
+    {
+        var item = Item("hello", "hello", null);
+        var route = new RouteInfo("/hello/", "hello/index.html", "pages/page.html");
+        var document = Document("hello");
+        var entries = new[] { RenderEntry.ForPage(item, route) };
+        var outputDir = CreateOutputDir();
+        var renderer = new CaptureRenderer();
+        ContentDocument? postProcessedDocument = null;
+
+        await PageRenderDispatcher.DispatchAsync(
+            entries,
+            EmptyContentBodyStore.Instance,
+            renderer,
+            new SiteModel { Name = "s", Title = "s", BaseUrl = "/", Language = "en" },
+            outputDir,
+            string.Empty,
+            string.Empty,
+            false,
+            new BuildManifest(),
+            null,
+            new ConcurrentDictionary<string, byte>(),
+            1,
+            new ConsoleLogger(LogLevel.Error),
+            CancellationToken.None,
+            seoBuilder: (_, _) => new SeoModel { Title = "legacy", Canonical = "/legacy/" },
+            htmlPostProcessor: (_, _, _, html) => html + " legacy",
+            documentSeoBuilder: (_, _) => new SeoModel { Title = "typed", Canonical = "/typed/" },
+            documentHtmlPostProcessor: (doc, _, _, html) =>
+            {
+                postProcessedDocument = doc;
+                return html + " typed";
+            },
+            documentsById: new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["hello"] = document
+            });
+
+        Assert.Equal("typed", renderer.LastPage!.Seo!.Title);
+        Assert.Same(document, postProcessedDocument);
+        Assert.Equal("<p>hello</p> typed", File.ReadAllText(Path.Combine(outputDir, "hello", "index.html")));
+    }
+
+    [Fact]
     public async Task DispatchAsync_RendersListEntry()
     {
         var item = Item("a", "a", null);
@@ -214,6 +294,29 @@ public sealed class RenderEntryDispatchTests
     private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object>? meta) =>
         new(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase));
 
+    private static ContentDocument Document(string id)
+    {
+        var record = new ContentRecord(
+            new ContentIdentity(id, id, id, "post", "published"),
+            new ContentPresentation("Canonical " + id, null, $"<p>{id}</p>", "en", []),
+            new ContentClassification("post", "post", [], []),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(DateTimeOffset.UnixEpoch, null, null, null),
+            new ProvenanceRecord("markdown", null, [], [], null),
+            new TrustMetadata(null, "approved", []),
+            [],
+            [],
+            []);
+
+        return new ContentDocument(
+            record,
+            new ContentBodyRef($"<p>{id}</p>", null, null, null),
+            new ContentRoutePolicy(null, null, null, null, "post"),
+            new ContentPublishPolicy(false, false, false, false, true, false, false),
+            new Dictionary<string, ContentField>(),
+            Array.Empty<ContentDiagnostic>());
+    }
+
     private static string CreateOutputDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), "bukit-render-entry-tests", Guid.NewGuid().ToString("N"));
@@ -235,9 +338,11 @@ public sealed class RenderEntryDispatchTests
     {
         public Dictionary<string, string> PageRenderedTemplates { get; } = new();
         public Dictionary<string, string> ListRenderedTemplates { get; } = new();
+        public PageInfo? LastPage { get; private set; }
 
         public string RenderPage(string templateRelativePath, PageModel model)
         {
+            LastPage = model.Page;
             PageRenderedTemplates[templateRelativePath] = model.Page.Content;
             return model.Page.Content;
         }

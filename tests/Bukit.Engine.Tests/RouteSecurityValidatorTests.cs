@@ -44,7 +44,7 @@ public sealed class RouteSecurityValidatorTests
 
         Assert.Throws<ConfigException>(() =>
             RouteInventoryValidator.ValidateFinalRoutes(
-                Array.Empty<(ContentItem Item, RouteInfo Route)>(),
+                Array.Empty<(ContentDocument Document, RouteInfo Route)>(),
                 Array.Empty<(ContentItem Item, RouteInfo Route)>(),
                 staticHtmlRoutes: new[] { route }));
     }
@@ -63,7 +63,7 @@ public sealed class RouteSecurityValidatorTests
 
         Assert.Throws<ConfigException>(() =>
             RouteInventoryValidator.ValidateFinalRoutes(
-                Array.Empty<(ContentItem Item, RouteInfo Route)>(),
+                Array.Empty<(ContentDocument Document, RouteInfo Route)>(),
                 new[] { (item, route) }));
     }
 

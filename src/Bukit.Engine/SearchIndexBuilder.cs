@@ -65,7 +65,7 @@ internal static class SearchIndexBuilder
                      .Where(x => x.Value.Indexable)
                      .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
-            if (itemsByPath.TryGetValue(key, out var item) && !IsSearchExcluded(item))
+            if (itemsByPath.TryGetValue(key, out var item))
             {
                 WriteSearchItem(writer, item, seo.Route, baseUrl, bodyStore, emitSnippet);
             }
@@ -102,24 +102,6 @@ internal static class SearchIndexBuilder
 
         writer.WriteEndArray();
         writer.Flush();
-    }
-
-    private static bool IsSearchExcluded(ContentItem item)
-    {
-        if (item.Meta.TryGetValue("searchExclude", out var value) && value is not null)
-        {
-            if (value is bool b)
-            {
-                return b;
-            }
-
-            if (value is string s && bool.TryParse(s, out var parsed))
-            {
-                return parsed;
-            }
-        }
-
-        return false;
     }
 
     internal static void WriteSearchItem(

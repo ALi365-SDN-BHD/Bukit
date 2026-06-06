@@ -18,7 +18,35 @@ public sealed class RouteGeneratorTests
             Slug: slug,
             PublishAt: DateTimeOffset.MinValue,
             ContentHtml: "",
-            Meta: meta ?? new Dictionary<string, object>());
+            Meta: new Dictionary<string, object>(),
+            Fields: ToFields(meta));
+
+    private static IReadOnlyDictionary<string, ContentField> ToFields(IReadOnlyDictionary<string, object>? values)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (values is null)
+        {
+            return fields;
+        }
+
+        foreach (var (key, value) in values)
+        {
+            if (string.Equals(key, "route", StringComparison.OrdinalIgnoreCase) &&
+                value is IReadOnlyDictionary<string, object> route)
+            {
+                foreach (var (routeKey, routeValue) in route)
+                {
+                    fields[routeKey] = new ContentField("test", routeValue);
+                }
+
+                continue;
+            }
+
+            fields[key] = new ContentField("test", value);
+        }
+
+        return fields;
+    }
 
     private static ContentDocument Document(string id, string slug, string type, string collection)
     {
@@ -623,7 +651,8 @@ public sealed class RouteGeneratorTests
             Id: "id-1", Title: "My Post", Slug: "my-post",
             PublishAt: new DateTimeOffset(2025, 3, 15, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: new Dictionary<string, object> { ["type"] = "post" });
+            Meta: new Dictionary<string, object>(),
+            Fields: ToFields(new Dictionary<string, object> { ["type"] = "post" }));
 
         var permalinks = new Dictionary<string, string> { ["post"] = "/{year}/{month}/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -641,7 +670,8 @@ public sealed class RouteGeneratorTests
             Id: "id-1", Title: "T", Slug: "hello",
             PublishAt: new DateTimeOffset(2024, 12, 5, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: new Dictionary<string, object> { ["type"] = "post" });
+            Meta: new Dictionary<string, object>(),
+            Fields: ToFields(new Dictionary<string, object> { ["type"] = "post" }));
 
         var permalinks = new Dictionary<string, string> { ["post"] = "/{year}/{month}/{day}/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -652,11 +682,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_PermalinkPattern_PageType()
     {
-        var item = new ContentItem(
-            Id: "id-1", Title: "T", Slug: "about",
-            PublishAt: DateTimeOffset.MinValue,
-            ContentHtml: "",
-            Meta: new Dictionary<string, object> { ["type"] = "page" });
+        var item = Item("about", new Dictionary<string, object> { ["type"] = "page" });
 
         var permalinks = new Dictionary<string, string> { ["page"] = "/docs/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -702,7 +728,8 @@ public sealed class RouteGeneratorTests
             Id: "id-1", Title: "T", Slug: "my-slug",
             PublishAt: new DateTimeOffset(2025, 1, 9, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: new Dictionary<string, object> { ["type"] = "post" });
+            Meta: new Dictionary<string, object>(),
+            Fields: ToFields(new Dictionary<string, object> { ["type"] = "post" }));
 
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{year}/{month}/{day}/{slug}/", item);
 

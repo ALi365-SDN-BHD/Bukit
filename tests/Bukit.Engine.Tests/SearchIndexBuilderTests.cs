@@ -11,6 +11,44 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SearchIndexBuilderTests
 {
+    private static ContentItem TestItem(
+        string Id,
+        string Title,
+        string Slug,
+        DateTimeOffset PublishAt,
+        string? ContentHtml,
+        IReadOnlyDictionary<string, object>? Meta,
+        IReadOnlyDictionary<string, ContentField>? Fields = null,
+        string? BodyKey = null)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (Meta is not null)
+        {
+            foreach (var (key, value) in Meta)
+            {
+                fields[key] = new ContentField("test", value);
+            }
+        }
+
+        if (Fields is not null)
+        {
+            foreach (var (key, value) in Fields)
+            {
+                fields[key] = value;
+            }
+        }
+
+        return new ContentItem(
+            Id,
+            Title,
+            Slug,
+            PublishAt,
+            ContentHtml,
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            fields,
+            BodyKey);
+    }
+
     [Fact]
     public void StripHtmlToText_BasicHtml_StripsTagsAndJoinsWithSpace()
     {
@@ -191,7 +229,7 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void BuildItemMap_SingleItem_MapsByOutputPath()
     {
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "post-1",
             Title: "Test Post",
             Slug: "test-post",
@@ -211,21 +249,21 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void BuildItemMap_MultipleItems_MapsByNormalizedOutputPath()
     {
-        var item1 = new ContentItem(
+        var item1 = TestItem(
             Id: "a",
             Title: "Alpha",
             Slug: "alpha",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
             Meta: new Dictionary<string, object>());
-        var item2 = new ContentItem(
+        var item2 = TestItem(
             Id: "b",
             Title: "Beta",
             Slug: "beta",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
             Meta: new Dictionary<string, object>());
-        var item3 = new ContentItem(
+        var item3 = TestItem(
             Id: "c",
             Title: "Gamma",
             Slug: "gamma",
@@ -250,7 +288,7 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void BuildItemMap_OutputPathWithBackslashes_NormalizesToForwardSlashes()
     {
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "x",
             Title: "X",
             Slug: "x",
@@ -267,7 +305,7 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void WriteSearchItem_EmitsCanonicalContentMetadata()
     {
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "search-1",
             Title: "Search Post",
             Slug: "search-post",
@@ -311,7 +349,7 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void WriteSearchItem_PrefersCanonicalSummaryClassificationAndLanguage()
     {
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "search-2",
             Title: "Structured Post",
             Slug: "structured-post",

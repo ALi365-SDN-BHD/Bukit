@@ -21,6 +21,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         CanonicalContentGraph? contentGraph = null)
     {
         var layoutsDir = CreateTaxonomyLayoutsDir();
+        var graph = contentGraph ?? CanonicalContentGraph.Empty;
         return new BuildContext
         {
             Config = new AppConfig
@@ -38,7 +39,8 @@ public sealed class TaxonomyPluginDerivePagesTests
             BaseUrl = "/",
             LayoutsDir = layoutsDir,
             Routed = routed,
-            ContentGraph = contentGraph ?? CanonicalContentGraph.Empty,
+            RoutedDocuments = routed.Select(x => (Document: ToDocument(x.Item, graph), x.Route)).ToList(),
+            ContentGraph = graph,
             TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
@@ -69,20 +71,20 @@ public sealed class TaxonomyPluginDerivePagesTests
         string[]? categories = null,
         bool? pinned = null)
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
         if (tags is { Length: > 0 })
         {
-            meta["tags"] = tags;
+            fields["tags"] = new ContentField("list", tags);
         }
 
         if (categories is { Length: > 0 })
         {
-            meta["categories"] = categories;
+            fields["categories"] = new ContentField("list", categories);
         }
 
         if (pinned.HasValue)
         {
-            meta["pinned"] = pinned.Value;
+            fields["pinned"] = new ContentField("bool", pinned.Value);
         }
 
         var item = new ContentItem(
@@ -91,10 +93,70 @@ public sealed class TaxonomyPluginDerivePagesTests
             Slug: id,
             PublishAt: publishAt,
             ContentHtml: $"<p>{title}</p>",
-            Meta: meta,
-            Fields: null);
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: fields);
         var route = new RouteInfo($"/blog/{id}/", $"blog/{id}/index.html", "pages/post.html");
         return (item, route);
+    }
+
+    private static ContentDocument ToDocument(ContentItem item, CanonicalContentGraph? graph = null)
+    {
+        var graphRecord = graph?.Records.FirstOrDefault(x => x.Identity.Id.Equals(item.Id, StringComparison.OrdinalIgnoreCase));
+        var fields = item.Fields is null
+            ? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, ContentField>(item.Fields, StringComparer.OrdinalIgnoreCase);
+        var tags = GetStringList(fields, "tags");
+        var categories = GetStringList(fields, "categories");
+
+        var record = graphRecord ?? new ContentRecord(
+            new ContentIdentity(item.Id, item.Slug, item.Id, GetString(fields, "type") ?? "post", "published"),
+            new ContentPresentation(item.Title, GetString(fields, "summary"), item.ContentHtml, "en", []),
+            new ContentClassification(GetString(fields, "type") ?? "post", GetString(fields, "collection") ?? "post", categories, tags),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(item.PublishAt, null, null, null),
+            new ProvenanceRecord(GetString(fields, "sourceKey"), null, [], [], null),
+            new TrustMetadata(null, "published", []),
+            [],
+            [],
+            []);
+
+        return new ContentDocument(
+            record,
+            new ContentBodyRef(item.ContentHtml, null, null, null),
+            new ContentRoutePolicy(null, null, null, null, record.Classification.Collection),
+            new ContentPublishPolicy(false, false, false, false, false, false, false),
+            fields,
+            []);
+    }
+
+    private static string? GetString(IReadOnlyDictionary<string, ContentField> fields, string key)
+    {
+        if (!fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static IReadOnlyList<string> GetStringList(
+        IReadOnlyDictionary<string, ContentField> fields,
+        string key)
+    {
+        object? raw = null;
+        if (fields.TryGetValue(key, out var field))
+        {
+            raw = field.Value;
+        }
+
+        return raw switch
+        {
+            string text => text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
+            IEnumerable<string> list => list.Where(x => !string.IsNullOrWhiteSpace(x)).ToList(),
+            IEnumerable<object> list => list.Select(x => x?.ToString() ?? string.Empty).Where(x => !string.IsNullOrWhiteSpace(x)).ToList(),
+            _ => []
+        };
     }
 
     [Fact]
@@ -197,9 +259,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha" }),
         };
-        var meta = routed[0].Item.Meta as Dictionary<string, object>;
-        meta!["series"] = new[] { "My Series" };
-        meta["authors"] = new[] { "Alice" };
+        var fields = routed[0].Item.Fields as Dictionary<string, ContentField>;
+        fields!["series"] = new ContentField("list", new[] { "My Series" });
+        fields["authors"] = new ContentField("list", new[] { "Alice" });
         var ctx = CreateContext(routed, taxonomyConfig: config);
 
         var plugin = new TaxonomyPlugin();
@@ -360,18 +422,17 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_CommaSeparatedTags_AreParsedCorrectly()
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["tags"] = "alpha, beta, gamma"
-        };
         var item = new ContentItem(
             Id: "p1",
             Title: "Post 1",
             Slug: "post-1",
             PublishAt: new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>content</p>",
-            Meta: meta,
-            Fields: null);
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["tags"] = new ContentField("text", "alpha, beta, gamma")
+            });
         var routed = new List<(ContentItem Item, RouteInfo Route)>
         {
             (item, new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html")),
@@ -406,6 +467,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             BaseUrl = "/my-site",
             LayoutsDir = CreateTaxonomyLayoutsDir(),
             Routed = routed,
+            RoutedDocuments = routed.Select(x => (Document: ToDocument(x.Item), x.Route)).ToList(),
             TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };

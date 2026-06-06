@@ -15,13 +15,13 @@ public sealed class ProtocolModelsTests
             Id = "page-1",
             Url = "/test/",
             OutputPath = "test/index.html",
-            Meta = new Dictionary<string, object> { ["tags"] = new[] { "a", "b" } }
+            Fields = new Dictionary<string, object> { ["tags"] = new[] { "a", "b" } }
         };
 
         Assert.Equal("page-1", page.Id);
         Assert.Equal("/test/", page.Url);
         Assert.Equal("test/index.html", page.OutputPath);
-        Assert.NotNull(page.Meta);
+        Assert.NotNull(page.Fields);
     }
 
     [Fact]

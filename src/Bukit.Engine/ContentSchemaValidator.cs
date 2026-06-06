@@ -21,7 +21,7 @@ public static class ContentSchemaValidator
         for (var i = 0; i < items.Count; i++)
         {
             var item = items[i];
-            var collectionName = MetaHelpers.GetEffectiveCollection(item);
+            var collectionName = GetFieldText(item.Fields, "collection") ?? GetFieldText(item.Fields, "type") ?? "post";
             if (string.IsNullOrWhiteSpace(collectionName) ||
                 !collections.TryGetValue(collectionName, out var collection) ||
                 collection.Schema is null ||
@@ -31,32 +31,42 @@ public static class ContentSchemaValidator
                 continue;
             }
 
-            Dictionary<string, object>? meta = null;
             Dictionary<string, ContentField>? fields = null;
             foreach (var field in collection.Schema)
             {
                 if (string.IsNullOrWhiteSpace(field.Name) ||
                     field.Default is null ||
-                    item.Meta.ContainsKey(field.Name))
+                    item.Fields is not null && item.Fields.ContainsKey(field.Name))
                 {
                     continue;
                 }
 
-                meta ??= new Dictionary<string, object>(item.Meta, StringComparer.OrdinalIgnoreCase);
                 fields ??= item.Fields is null
                     ? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                     : new Dictionary<string, ContentField>(item.Fields, StringComparer.OrdinalIgnoreCase);
 
-                meta[field.Name] = field.Default;
                 fields[field.Name] = ToContentField(field.Type, field.Default);
             }
 
-            result[i] = meta is null
+            result[i] = fields is null
                 ? item
-                : item with { Meta = meta, Fields = fields };
+                : item with { Fields = fields };
         }
 
         return result;
+    }
+
+    public static List<SchemaValidationError> Validate(
+        IReadOnlyDictionary<string, ContentField>? fields,
+        IReadOnlyList<SchemaFieldDefinition>? schema,
+        string sourcePath,
+        string failMode = "warn")
+    {
+        var values = fields?.ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value.Value ?? string.Empty,
+            StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        return Validate(values, schema, sourcePath, failMode);
     }
 
     public static List<SchemaValidationError> Validate(
@@ -206,6 +216,17 @@ public static class ContentSchemaValidator
             "string" => new ContentField("text", value.ToString() ?? string.Empty),
             _ => new ContentField("text", value.ToString() ?? string.Empty)
         };
+    }
+
+    private static string? GetFieldText(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private static bool MatchesEnum(object value, IReadOnlyList<string> allowed)

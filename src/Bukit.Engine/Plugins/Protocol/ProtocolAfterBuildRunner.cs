@@ -252,9 +252,10 @@ internal sealed class ProtocolAfterBuildRunner
             .Select(x => (JsonNode)new JsonObject
             {
                 ["id"] = x.Item.Id,
+                ["title"] = x.Item.Title,
+                ["slug"] = x.Item.Slug,
                 ["url"] = x.Route.Url,
-                ["outputPath"] = x.Route.OutputPath,
-                ["meta"] = ProtocolJsonHelper.ToJsonNode(x.Item.Meta)
+                ["outputPath"] = x.Route.OutputPath
             })
             .ToArray());
     }

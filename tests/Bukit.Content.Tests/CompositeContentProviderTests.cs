@@ -97,11 +97,9 @@ public sealed class CompositeContentProviderTests
         Assert.Equal("notion:item-1", result.Items[0].Id);
         Assert.Equal("markdown:item-2", result.Items[1].Id);
 
-        Assert.True(result.Items[0].Meta.TryGetValue("sourceKey", out var srcKey1));
-        Assert.Equal("notion", srcKey1);
+        Assert.Equal("notion", result.Items[0].Fields!["sourceKey"].Value);
 
-        Assert.True(result.Items[1].Meta.TryGetValue("sourceKey", out var srcKey2));
-        Assert.Equal("markdown", srcKey2);
+        Assert.Equal("markdown", result.Items[1].Fields!["sourceKey"].Value);
     }
 
     [Fact]
@@ -131,11 +129,11 @@ public sealed class CompositeContentProviderTests
 
         Assert.Equal(3, result.Items.Count);
         Assert.Equal("companies-db:company-1", result.Items[0].Id);
-        Assert.Equal("companies", result.Items[0].Meta["collection"]);
+        Assert.Equal("companies", result.Items[0].Fields!["collection"].Value);
         Assert.Equal("companies-db:company-1:china_companies", result.Items[1].Id);
-        Assert.Equal("china_companies", result.Items[1].Meta["collection"]);
+        Assert.Equal("china_companies", result.Items[1].Fields!["collection"].Value);
         Assert.Equal("companies-db:company-1:malaysia_companies", result.Items[2].Id);
-        Assert.Equal("malaysia_companies", result.Items[2].Meta["collection"]);
+        Assert.Equal("malaysia_companies", result.Items[2].Fields!["collection"].Value);
     }
 
     [Fact]

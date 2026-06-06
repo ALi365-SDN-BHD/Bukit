@@ -129,12 +129,10 @@ public sealed class I18nOutputMergerTests
             Slug: "data",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["sourceMode"] = "data"
-            },
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["sourceMode"] = new ContentField("text", "data"),
                 ["locale"] = new ContentField("text", "zh")
             });
 
@@ -270,10 +268,10 @@ public sealed class I18nOutputMergerTests
 
     private static ContentItem CreateItem(string id, string? language)
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
         if (language is not null)
         {
-            meta["language"] = language;
+            fields["language"] = new ContentField("text", language);
         }
 
         return new ContentItem(
@@ -282,21 +280,21 @@ public sealed class I18nOutputMergerTests
             Slug: $"item-{id}",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>hi</p>",
-            Meta: meta,
-            Fields: null);
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: fields);
     }
 
     private static ContentItem CreateItemWithMeta(string id, string? language, Dictionary<string, object> extraMeta)
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
         if (language is not null)
         {
-            meta["language"] = language;
+            fields["language"] = new ContentField("text", language);
         }
 
         foreach (var (key, value) in extraMeta)
         {
-            meta[key] = value;
+            fields[key] = new ContentField("test", value);
         }
 
         return new ContentItem(
@@ -305,7 +303,7 @@ public sealed class I18nOutputMergerTests
             Slug: $"item-{id}",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>hi</p>",
-            Meta: meta,
-            Fields: null);
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: fields);
     }
 }

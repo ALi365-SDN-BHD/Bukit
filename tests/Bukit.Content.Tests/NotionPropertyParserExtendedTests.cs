@@ -599,33 +599,33 @@ public sealed class NotionPropertyParserExtendedTests
     }
 
     [Fact]
-    public void ExtractSeoMeta_WithPropertyMap_SetsSeoFields()
+    public void ExtractSeoFields_WithPropertyMap_SetsSeoFields()
     {
         var json = @"{
             ""SEO Title"": { ""type"": ""rich_text"", ""rich_text"": [{ ""plain_text"": ""Custom SEO Title"" }] },
             ""SEO Desc"": { ""type"": ""rich_text"", ""rich_text"": [{ ""plain_text"": ""Custom Description"" }] }
         }";
         var properties = JsonDocument.Parse(json).RootElement;
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
         var propertyMap = new NotionPropertyMapConfig
         {
             SeoTitle = "SEO Title",
             SeoDescription = "SEO Desc"
         };
 
-        NotionPropertyParser.ExtractSeoMeta(meta, properties, propertyMap);
+        NotionPropertyParser.ExtractSeoFields(fields, properties, propertyMap);
 
-        Assert.Equal("Custom SEO Title", meta["seo_title"]);
-        Assert.Equal("Custom Description", meta["seo_desc"]);
+        Assert.Equal("Custom SEO Title", fields["seo_title"].Value);
+        Assert.Equal("Custom Description", fields["seo_desc"].Value);
     }
 
     [Fact]
-    public void ExtractSeoMeta_NullPropertyMap_DoesNotThrow()
+    public void ExtractSeoFields_NullPropertyMap_DoesNotThrow()
     {
         var properties = JsonDocument.Parse(@"{}").RootElement;
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        NotionPropertyParser.ExtractSeoMeta(meta, properties, null);
-        Assert.Empty(meta);
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        NotionPropertyParser.ExtractSeoFields(fields, properties, null);
+        Assert.Empty(fields);
     }
 
     [Fact]

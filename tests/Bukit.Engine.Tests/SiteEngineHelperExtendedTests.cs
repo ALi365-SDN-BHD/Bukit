@@ -54,7 +54,12 @@ public sealed class SiteEngineHelperExtendedTests
         var items = new List<ContentItem>
         {
             new("1", "Post One", "post-one", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["collection"] = "article" }, null, null),
+                new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+                new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["type"] = new("text", "article"),
+                    ["collection"] = new("text", "article")
+                }, null),
         };
         var languages = new List<string> { "en", "zh" };
         var defaultLanguage = "en";

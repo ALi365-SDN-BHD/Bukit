@@ -4,17 +4,17 @@ namespace Bukit.Content.Notion;
 
 internal static class NotionTaxonomyPromoter
 {
-    public static void PromoteRelationTaxonomyTerms(Dictionary<string, object> meta, IReadOnlyDictionary<string, ContentField> fields, string key)
+    public static IReadOnlyDictionary<string, ContentField> PromoteRelationTaxonomyTerms(IReadOnlyDictionary<string, ContentField> fields, string key)
     {
         var linkKey = $"{key}_links";
         if (!fields.TryGetValue(linkKey, out var linksField) || linksField.Value is null)
         {
-            return;
+            return fields;
         }
 
         if (linksField.Value is not IEnumerable<Dictionary<string, object?>> links)
         {
-            return;
+            return fields;
         }
 
         var terms = new List<string>();
@@ -51,10 +51,14 @@ internal static class NotionTaxonomyPromoter
 
         if (terms.Count == 0)
         {
-            return;
+            return fields;
         }
 
-        meta[key] = terms;
+        var mutable = new Dictionary<string, ContentField>(fields, StringComparer.OrdinalIgnoreCase)
+        {
+            [key] = new("list", terms)
+        };
+        return mutable;
     }
 
     private static string? FirstNonEmpty(string? a, string? b, string? c)
@@ -77,4 +81,3 @@ internal static class NotionTaxonomyPromoter
         return null;
     }
 }
-

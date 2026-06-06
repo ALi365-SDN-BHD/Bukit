@@ -17,13 +17,13 @@ internal static class DataModuleBuilder
 
         foreach (var item in dataItems)
         {
-            var enabled = MetaHelpers.TryGetBoolField(item.Fields, "enabled");
+            var enabled = TryGetBoolField(item.Fields, "enabled");
             if (enabled is false)
             {
                 continue;
             }
 
-            var type = item.GetContentType().Trim();
+            var type = (TryGetTextField(item.Fields, "type") ?? "module").Trim();
             if (string.IsNullOrWhiteSpace(type))
             {
                 type = "module";
@@ -51,7 +51,7 @@ internal static class DataModuleBuilder
         foreach (var kv in map)
         {
             var ordered = kv.Value
-                .OrderBy(x => MetaHelpers.TryGetNumberField(x.Fields, "order") ?? 0d)
+                .OrderBy(x => TryGetNumberField(x.Fields, "order") ?? 0d)
                 .ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -71,13 +71,13 @@ internal static class DataModuleBuilder
         var map = new Dictionary<string, List<ModuleInfo>>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in dataItems)
         {
-            var sourceKey = item.Meta.TryGetValue("sourceKey", out var v) && v is not null ? (v.ToString() ?? string.Empty).Trim() : string.Empty;
+            var sourceKey = TryGetTextField(item.Fields, "sourceKey") ?? string.Empty;
             if (string.IsNullOrWhiteSpace(sourceKey))
             {
                 continue;
             }
 
-            var enabled = MetaHelpers.TryGetBoolField(item.Fields, "enabled");
+            var enabled = TryGetBoolField(item.Fields, "enabled");
             if (enabled is false)
             {
                 continue;
@@ -105,11 +105,56 @@ internal static class DataModuleBuilder
         foreach (var kv in map)
         {
             result[kv.Key] = kv.Value
-                .OrderBy(x => MetaHelpers.TryGetNumberField(x.Fields, "order") ?? 0d)
+                .OrderBy(x => TryGetNumberField(x.Fields, "order") ?? 0d)
                 .ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
 
         return result.Count == 0 ? null : result;
+    }
+
+    private static string? TryGetTextField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static bool? TryGetBoolField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        var value = TryGetTextField(fields, key);
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (bool.TryParse(value, out var parsed))
+        {
+            return parsed;
+        }
+
+        if (string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(value, "0", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "no", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return null;
+    }
+
+    private static double? TryGetNumberField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        var value = TryGetTextField(fields, key);
+        return double.TryParse(value, out var parsed) ? parsed : null;
     }
 }

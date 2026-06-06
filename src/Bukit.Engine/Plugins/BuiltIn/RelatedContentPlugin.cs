@@ -25,43 +25,37 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
             return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
         }
 
-        var items = context.Routed
-            .Where(x => !x.Item.Id.StartsWith("blog-archive-", StringComparison.OrdinalIgnoreCase)
-                        && !x.Item.Id.StartsWith("blog-page-", StringComparison.OrdinalIgnoreCase))
+        var documents = GetDocuments(context)
+            .Where(x => !x.Document.Record.Identity.Id.StartsWith("blog-archive-", StringComparison.OrdinalIgnoreCase)
+                        && !x.Document.Record.Identity.Id.StartsWith("blog-page-", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        if (items.Count < 2)
+        if (documents.Count < 2)
         {
             return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
         }
 
         var threshold = relatedConfig.Threshold;
         var limit = relatedConfig.Limit > 0 ? relatedConfig.Limit : 5;
-        var recordsById = context.ContentGraph.Records
-            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
-
-        for (var i = 0; i < items.Count; i++)
+        for (var i = 0; i < documents.Count; i++)
         {
-            var (currentItem, currentRoute) = items[i];
+            var (currentDocument, _) = documents[i];
             var related = new List<object>();
-            recordsById.TryGetValue(currentItem.Id, out var currentRecord);
 
-            for (var j = 0; j < items.Count; j++)
+            for (var j = 0; j < documents.Count; j++)
             {
                 if (i == j)
                 {
                     continue;
                 }
 
-                var (otherItem, otherRoute) = items[j];
-                recordsById.TryGetValue(otherItem.Id, out var otherRecord);
-                var score = CalculateScore(currentItem, otherItem, currentRecord, otherRecord, indices);
+                var (otherDocument, otherRoute) = documents[j];
+                var score = CalculateScore(currentDocument, otherDocument, indices);
                 if (score >= threshold)
                 {
                     related.Add(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["title"] = otherItem.Title,
+                        ["title"] = otherDocument.Record.Presentation.Title,
                         ["url"] = otherRoute.Url,
                         ["score"] = score
                     });
@@ -87,7 +81,7 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
                         context.Data["__related_pages"] = dict;
                     }
 
-                    dict[currentItem.Id] = topN;
+                    dict[currentDocument.Record.Identity.Id] = topN;
                 }
             }
         }
@@ -95,12 +89,7 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
         return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
     }
 
-    private static int CalculateScore(
-        ContentItem a,
-        ContentItem b,
-        ContentRecord? aRecord,
-        ContentRecord? bRecord,
-        IReadOnlyList<RelatedIndexConfig> indices)
+    private static int CalculateScore(ContentDocument a, ContentDocument b, IReadOnlyList<RelatedIndexConfig> indices)
     {
         var total = 0;
 
@@ -109,17 +98,17 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
             switch (idx.Name.ToLowerInvariant())
             {
                 case "tags":
-                    total += idx.Weight * CountShared(ResolveTags(a, aRecord), ResolveTags(b, bRecord));
+                    total += idx.Weight * CountShared(ResolveTags(a), ResolveTags(b));
                     break;
                 case "categories":
-                    total += idx.Weight * CountShared(ResolveCategories(a, aRecord), ResolveCategories(b, bRecord));
+                    total += idx.Weight * CountShared(ResolveCategories(a), ResolveCategories(b));
                     break;
                 case "keywords":
-                    total += idx.Weight * CountShared(MetaHelpers.GetStringList(a.Meta, "keywords"), MetaHelpers.GetStringList(b.Meta, "keywords"));
+                    total += idx.Weight * CountShared(GetStringList(a.CustomFields, "keywords"), GetStringList(b.CustomFields, "keywords"));
                     break;
                 case "collection":
-                    var ta = ResolveCollection(a, aRecord);
-                    var tb = ResolveCollection(b, bRecord);
+                    var ta = a.Record.Classification.Collection;
+                    var tb = b.Record.Classification.Collection;
                     if (string.Equals(ta, tb, StringComparison.OrdinalIgnoreCase))
                     {
                         total += idx.Weight;
@@ -127,8 +116,8 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
 
                     break;
                 case "type":
-                    var taType = ResolveType(a, aRecord);
-                    var tbType = ResolveType(b, bRecord);
+                    var taType = a.Record.Classification.Type;
+                    var tbType = b.Record.Classification.Type;
                     if (string.Equals(taType, tbType, StringComparison.OrdinalIgnoreCase))
                     {
                         total += idx.Weight;
@@ -136,7 +125,7 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
 
                     break;
                 case "date":
-                    var dayDiff = Math.Abs((a.PublishAt - b.PublishAt).Days);
+                    var dayDiff = Math.Abs((a.Record.Lifecycle.PublishedAt - b.Record.Lifecycle.PublishedAt).Days);
                     if (dayDiff <= 90)
                     {
                         total += idx.Weight * (90 - dayDiff) / 90;
@@ -149,25 +138,59 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
         return total;
     }
 
-    private static IReadOnlyList<string>? ResolveTags(ContentItem item, ContentRecord? record)
-        => record?.Classification.Tags is { Count: > 0 } tags
+    private static IReadOnlyList<string>? ResolveTags(ContentDocument document)
+        => document.Record.Classification.Tags is { Count: > 0 } tags
             ? tags
-            : MetaHelpers.GetStringList(item.Meta, "tags");
+            : GetStringList(document.CustomFields, "tags");
 
-    private static IReadOnlyList<string>? ResolveCategories(ContentItem item, ContentRecord? record)
-        => record?.Classification.Sections is { Count: > 0 } categories
+    private static IReadOnlyList<string>? ResolveCategories(ContentDocument document)
+        => document.Record.Classification.Sections is { Count: > 0 } categories
             ? categories
-            : MetaHelpers.GetStringList(item.Meta, "categories");
+            : GetStringList(document.CustomFields, "categories");
 
-    private static string? ResolveCollection(ContentItem item, ContentRecord? record)
-        => string.IsNullOrWhiteSpace(record?.Classification.Collection)
-            ? MetaHelpers.GetString(item.Meta, "collection")
-            : record.Classification.Collection;
+    private static IReadOnlyList<(ContentDocument Document, RouteInfo Route)> GetDocuments(BuildContext context)
+    {
+        if (context.RoutedDocuments.Count > 0)
+        {
+            return context.RoutedDocuments;
+        }
 
-    private static string? ResolveType(ContentItem item, ContentRecord? record)
-        => string.IsNullOrWhiteSpace(record?.Classification.Type)
-            ? MetaHelpers.GetString(item.Meta, "type")
-            : record.Classification.Type;
+        var recordsById = context.ContentGraph.Records
+            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+        return context.Routed
+            .Select(x =>
+            {
+                var record = recordsById.TryGetValue(x.Item.Id, out var existing)
+                    ? existing
+                    : CanonicalContentGraphBuilder.ToRecord(x.Item);
+                var document = new ContentDocument(
+                    record,
+                    new ContentBodyRef(x.Item.ContentHtml, x.Item.BodyKey, null, null),
+                    new ContentRoutePolicy(null, null, null, null, record.Classification.Collection),
+                    new ContentPublishPolicy(false, false, false, false, false, false, false),
+                    x.Item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+                    []);
+                return (document, x.Route);
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<string>? GetStringList(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        return field.Value switch
+        {
+            string text => text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
+            IEnumerable<string> strings => strings.Where(x => !string.IsNullOrWhiteSpace(x)).ToArray(),
+            IEnumerable<object> objects => objects.Select(x => x?.ToString() ?? string.Empty).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray(),
+            _ => null
+        };
+    }
 
     private static int CountShared(IReadOnlyList<string>? a, IReadOnlyList<string>? b)
     {

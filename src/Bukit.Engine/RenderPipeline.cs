@@ -34,7 +34,10 @@ internal sealed record RenderPipelineContext(
     Func<ContentItem, RouteInfo, SeoModel>? ListItemSeoBuilder = null,
     Func<RouteInfo, PageInfo, SeoModel>? ListSeoBuilder = null,
     Func<RouteInfo, PageInfo, string, string>? ListHtmlPostProcessor = null,
-    ThemeTemplateResolver? TemplateResolver = null);
+    Func<ContentDocument, RouteInfo, SeoModel>? DocumentSeoBuilder = null,
+    Func<ContentDocument, RouteInfo, PageInfo, string, string>? DocumentHtmlPostProcessor = null,
+    ThemeTemplateResolver? TemplateResolver = null,
+    CanonicalContentGraph? ContentGraph = null);
 
 internal sealed record RenderPipelineResult(
     int RenderedCount,
@@ -84,7 +87,10 @@ internal sealed class RenderPipeline
             context.SeoBuilder,
             context.HtmlPostProcessor,
             context.ListSeoBuilder,
-            context.ListHtmlPostProcessor);
+            context.ListHtmlPostProcessor,
+            context.DocumentSeoBuilder,
+            context.DocumentHtmlPostProcessor,
+            BuildDocumentsById(context.ContentGraph));
 
         if (context.IncrementalEnabled && context.ManifestEntries is not null)
         {
@@ -100,5 +106,17 @@ internal sealed class RenderPipeline
             dispatchResult.RenderReasons,
             currentKeys,
             dispatchResult.StageMetrics);
+    }
+
+    private static IReadOnlyDictionary<string, ContentDocument>? BuildDocumentsById(CanonicalContentGraph? contentGraph)
+    {
+        if (contentGraph is null || contentGraph.Documents.Count == 0)
+        {
+            return null;
+        }
+
+        return contentGraph.Documents
+            .GroupBy(document => document.Record.Identity.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
     }
 }

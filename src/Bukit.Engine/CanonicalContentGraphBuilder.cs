@@ -111,7 +111,7 @@ internal static class CanonicalContentGraphBuilder
 
     private static string ResolveStatus(ContentItem item)
     {
-        if (item.Meta.TryGetValue("draft", out var draft) && draft is bool isDraft && isDraft)
+        if (TryGetBoolField(item.Fields, "draft"))
         {
             return "draft";
         }
@@ -127,19 +127,12 @@ internal static class CanonicalContentGraphBuilder
             return translations;
         }
 
-        return MetaHelpers.TryGetI18nKey(item.Meta, out var key)
-            ? new[] { key }
-            : Array.Empty<string>();
+        var i18nKey = FirstText(item, "i18nKey") ?? FirstText(item, "i18n_key") ?? FirstText(item, "translation_key");
+        return string.IsNullOrWhiteSpace(i18nKey) ? Array.Empty<string>() : [i18nKey];
     }
 
     private static IReadOnlyList<string> ExtractCitationUrls(ContentItem item)
     {
-        var geo = SeoGeoMetaParser.ParseGeoMeta(item);
-        if (geo.Citations is { Count: > 0 })
-        {
-            return geo.Citations.Select(x => x.Url).ToArray();
-        }
-
         return FirstList(item, "citations") ?? Array.Empty<string>();
     }
 
@@ -147,7 +140,9 @@ internal static class CanonicalContentGraphBuilder
     {
         var entities = new List<EntityRecord>();
 
-        if (item.Meta.TryGetValue("entities", out var rawEntities) && rawEntities is IEnumerable<object> entityItems)
+        if (item.Fields is not null &&
+            item.Fields.TryGetValue("entities", out var rawEntitiesField) &&
+            rawEntitiesField.Value is IEnumerable<object> entityItems)
         {
             foreach (var raw in entityItems)
             {
@@ -168,11 +163,6 @@ internal static class CanonicalContentGraphBuilder
             }
         }
 
-        AppendNamedEntities(entities, "product", MetaHelpers.GetStringList(item.Meta, "products"));
-        AppendNamedEntities(entities, "service", MetaHelpers.GetStringList(item.Meta, "services"));
-        AppendNamedEntities(entities, "place", MetaHelpers.GetStringList(item.Meta, "places"));
-        AppendNamedEntities(entities, "person", MetaHelpers.GetStringList(item.Meta, "people"));
-        AppendNamedEntities(entities, "company", MetaHelpers.GetStringList(item.Meta, "companies"));
         AppendNamedEntities(entities, "product", FirstList(item, "products"));
         AppendNamedEntities(entities, "service", FirstList(item, "services"));
         AppendNamedEntities(entities, "place", FirstList(item, "places"));
@@ -263,10 +253,10 @@ internal static class CanonicalContentGraphBuilder
     private static IReadOnlyList<MediaAsset> ExtractMedia(ContentItem item)
     {
         var media = new List<MediaAsset>();
-        AddMedia(media, "image", MetaHelpers.GetString(item.Meta, "image"), MetaHelpers.GetString(item.Meta, "image_alt"));
-        AddMedia(media, "image", MetaHelpers.GetString(item.Meta, "cover"), MetaHelpers.GetString(item.Meta, "cover_alt"));
-        AddMedia(media, "video", MetaHelpers.GetString(item.Meta, "video"), MetaHelpers.GetString(item.Meta, "video_alt"));
-        AddMedia(media, "file", MetaHelpers.GetString(item.Meta, "attachment"), MetaHelpers.GetString(item.Meta, "attachment_alt"));
+        AddMedia(media, "image", FirstText(item, "image"), FirstText(item, "image_alt"));
+        AddMedia(media, "image", FirstText(item, "cover"), FirstText(item, "cover_alt"));
+        AddMedia(media, "video", FirstText(item, "video"), FirstText(item, "video_alt"));
+        AddMedia(media, "file", FirstText(item, "attachment"), FirstText(item, "attachment_alt"));
         if (item.Fields is not null)
         {
             foreach (var (key, field) in item.Fields)
@@ -345,18 +335,6 @@ internal static class CanonicalContentGraphBuilder
         return result;
     }
 
-    private static DateTimeOffset? TryGetDate(IReadOnlyDictionary<string, object> meta, string key)
-    {
-        var value = MetaHelpers.GetString(meta, key);
-        return DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
-    }
-
-    private static double? TryGetDouble(IReadOnlyDictionary<string, object> meta, string key)
-    {
-        var value = MetaHelpers.GetString(meta, key);
-        return double.TryParse(value, out var parsed) ? parsed : null;
-    }
-
     private static string? ReadMapString(IReadOnlyDictionary<string, object> map, string key)
     {
         return map.TryGetValue(key, out var value) && value is not null
@@ -365,7 +343,7 @@ internal static class CanonicalContentGraphBuilder
     }
 
     private static string? FirstText(ContentItem item, string key)
-        => MetaHelpers.TryGetTextField(item.Fields, key) ?? MetaHelpers.GetString(item.Meta, key);
+        => GetTextField(item.Fields, key);
 
     private static IReadOnlyList<string>? FirstList(ContentItem item, string key)
     {
@@ -392,7 +370,7 @@ internal static class CanonicalContentGraphBuilder
             }
         }
 
-        return MetaHelpers.GetStringList(item.Meta, key);
+        return null;
     }
 
     private static DateTimeOffset? FirstDate(ContentItem item, string key)
@@ -404,7 +382,8 @@ internal static class CanonicalContentGraphBuilder
             return dto;
         }
 
-        return TryGetDate(item.Meta, key);
+        var value = FirstText(item, key);
+        return DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
     }
 
     private static double? FirstDouble(ContentItem item, string key)
@@ -417,7 +396,26 @@ internal static class CanonicalContentGraphBuilder
             return parsed;
         }
 
-        return TryGetDouble(item.Meta, key);
+        return null;
+    }
+
+    private static string? GetTextField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static bool TryGetBoolField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        var value = GetTextField(fields, key);
+        return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(value, "1", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string InferEntityTypeFromKey(string key)

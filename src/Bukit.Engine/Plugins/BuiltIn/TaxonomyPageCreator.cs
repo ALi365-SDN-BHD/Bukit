@@ -114,13 +114,6 @@ internal static class TaxonomyPageCreator
         var url = "/" + kind + "/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var route = new RouteInfo(url, outputPath, template);
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = "derived",
-            ["collection"] = "page",
-            ["summary"] = $"Browse all {kind}."
-        };
-
         var termsValue = new List<object>(terms.Count);
         foreach (var term in terms)
         {
@@ -167,6 +160,9 @@ internal static class TaxonomyPageCreator
 
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
+            ["type"] = new ContentField("text", "derived"),
+            ["collection"] = new ContentField("text", "page"),
+            ["summary"] = new ContentField("text", $"Browse all {kind}."),
             ["terms"] = new ContentField("list", termsValue)
         };
 
@@ -176,7 +172,7 @@ internal static class TaxonomyPageCreator
             Slug: kind,
             PublishAt: publishAt,
             ContentHtml: html,
-            Meta: meta,
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: fields);
 
         return (item, route, publishAt);
@@ -219,13 +215,6 @@ internal static class TaxonomyPageCreator
             : "/" + kind + "/" + term.Slug + "/page/" + page + "/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var route = new RouteInfo(url, outputPath, template);
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = "derived",
-            ["collection"] = "page",
-            ["summary"] = BuildTermSummary(kind, term, page, totalPages, items.Count)
-        };
-
         var itemsValue = new List<object>(items.Count);
         foreach (var pageItem in items)
         {
@@ -305,6 +294,9 @@ internal static class TaxonomyPageCreator
 
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
+            ["type"] = new ContentField("text", "derived"),
+            ["collection"] = new ContentField("text", "page"),
+            ["summary"] = new ContentField("text", BuildTermSummary(kind, term, page, totalPages, items.Count)),
             ["items"] = new ContentField("list", itemsValue),
             ["taxonomy"] = new ContentField("object", taxonomyValue),
             ["pagination"] = new ContentField("object", paginationValue)
@@ -316,7 +308,7 @@ internal static class TaxonomyPageCreator
             Slug: term.Slug,
             PublishAt: publishAt,
             ContentHtml: html,
-            Meta: meta,
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: fields);
 
         return (item, route, publishAt);

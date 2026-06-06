@@ -166,7 +166,7 @@ internal static class SpecialListRenderer
                     Title = source[i].Item.Title,
                     Url = source[i].Route.Url,
                     Content = string.Empty,
-                    Summary = contentRecord.Presentation.Summary ?? source[i].Item.GetSummary(),
+                    Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(source[i].Item.Fields),
                     TableOfContents = GetTableOfContents(source[i].Item),
                     PublishDate = source[i].Item.PublishAt,
                     Fields = source[i].Item.Fields,
@@ -206,7 +206,7 @@ internal static class SpecialListRenderer
                     Title = source[i].Item.Title,
                     Url = source[i].Route.Url,
                     Content = content,
-                    Summary = contentRecord.Presentation.Summary ?? source[i].Item.GetSummary(),
+                    Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(source[i].Item.Fields),
                     TableOfContents = GetTableOfContents(source[i].Item),
                     PublishDate = source[i].Item.PublishAt,
                     Fields = source[i].Item.Fields,
@@ -223,7 +223,9 @@ internal static class SpecialListRenderer
     }
 
     internal static IReadOnlyList<TableOfContentsEntry>? GetTableOfContents(ContentItem item)
-        => item.Meta.TryGetValue("tableOfContents", out var toc) && toc is IReadOnlyList<TableOfContentsEntry> entries
+        => item.Fields is not null &&
+           item.Fields.TryGetValue("tableOfContents", out var toc) &&
+           toc.Value is IReadOnlyList<TableOfContentsEntry> entries
             ? entries
             : null;
 

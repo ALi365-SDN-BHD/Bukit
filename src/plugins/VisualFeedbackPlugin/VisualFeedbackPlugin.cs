@@ -56,7 +56,7 @@ internal sealed class VisualFeedbackPlugin : ProcessPluginHost
                     ?.OutputPath ?? "",
                 Title = payload.RoutedPages
                     .FirstOrDefault(p => string.Equals(p.Url, url, StringComparison.OrdinalIgnoreCase))
-                    ?.Meta?.TryGetValue("title", out var titleObj) == true
+                    ?.Fields?.TryGetValue("title", out var titleObj) == true
                     ? titleObj?.ToString()
                     : null
             };

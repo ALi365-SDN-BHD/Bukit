@@ -9,16 +9,17 @@ public sealed class SectionDataResolverTests
 {
     private static ContentItem MakeItem(string id, string title, string type, DateTimeOffset publishAt, List<string>? collections = null, IReadOnlyDictionary<string, ContentField>? fields = null)
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = type
-        };
+        var contentFields = fields is null
+            ? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, ContentField>(fields, StringComparer.OrdinalIgnoreCase);
+
+        contentFields["type"] = new ContentField("text", type);
         if (collections is not null)
         {
-            meta["collections"] = collections;
+            contentFields["collections"] = new ContentField("list", collections);
         }
 
-        return new ContentItem(id, title, id, publishAt, null, meta, fields);
+        return new ContentItem(id, title, id, publishAt, null, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), contentFields);
     }
 
     private static RouteInfo MakeRoute(string url)
@@ -180,7 +181,7 @@ public sealed class SectionDataResolverTests
 
         var result = SectionDataResolver.Resolve(sectionDef, items);
         Assert.Equal(2, result.Count);
-        Assert.All(result, r => Assert.Equal("post", r.Item.Meta["type"]));
+        Assert.All(result, r => Assert.Equal("post", r.Item.Fields!["type"].Value));
     }
 
     [Fact]

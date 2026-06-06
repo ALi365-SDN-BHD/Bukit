@@ -22,12 +22,13 @@ internal static class TaxonomyTermsInjector
 
         foreach (var item in dataItems)
         {
-            if (!item.Meta.TryGetValue("sourceKey", out var sourceKeyObj) || sourceKeyObj is null)
+            var sourceKey = GetTextField(item.Fields, "sourceKey");
+            if (string.IsNullOrWhiteSpace(sourceKey))
             {
                 continue;
             }
 
-            var kind = (sourceKeyObj.ToString() ?? string.Empty).Trim();
+            var kind = sourceKey.Trim();
             if (!kind.Equals("categories", StringComparison.OrdinalIgnoreCase) &&
                 !kind.Equals("tags", StringComparison.OrdinalIgnoreCase))
             {
@@ -68,6 +69,17 @@ internal static class TaxonomyTermsInjector
                 ["slug"] = slug
             });
         }
+    }
+
+    private static string? GetTextField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     internal static async Task InjectFromNotionDatabaseOptionsAsync(BuildContext context, CancellationToken cancellationToken)

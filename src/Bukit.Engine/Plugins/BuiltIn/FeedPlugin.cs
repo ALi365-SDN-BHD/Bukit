@@ -1,8 +1,10 @@
 using Bukit.Config;
+using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Abstractions.Routing;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-using Bukit.Engine.Abstractions.Plugins;
 public sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
 {
     public string Name => "feed";
@@ -29,8 +31,10 @@ public sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
             return;
         }
 
-        var allPosts = RssGenerator.CollectAllPosts(
-            collections, context.Routed, context.BodyStore, context.ContentGraph, context.SeoIndex, siteUrl, context.BaseUrl);
+        var allPosts = context.RoutedDocuments.Count > 0
+            ? CollectDocumentPosts(context, collections, siteUrl, null)
+            : RssGenerator.CollectAllPosts(
+                collections, context.Routed, context.BodyStore, context.ContentGraph, context.SeoIndex, siteUrl, context.BaseUrl);
 
         GenerateGlobalFeeds(context.OutputDir, siteUrl, context.BaseUrl, context.Config.Site.Title,
             allPosts, formats, limit, feedConfig.Path, context.Config.Site.Description);
@@ -93,8 +97,10 @@ public sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
             var title = cfg.Output.FeedTitle ?? context.Config.Site.Title;
             var description = cfg.Output.FeedDescription ?? context.Config.Site.Description;
 
-            var collectionPosts = RssGenerator.CollectPosts(
-                collections, context.Routed, context.BodyStore, context.ContentGraph, context.SeoIndex, siteUrl, context.BaseUrl, key);
+            var collectionPosts = context.RoutedDocuments.Count > 0
+                ? CollectDocumentPosts(context, collections, siteUrl, key)
+                : RssGenerator.CollectPosts(
+                    collections, context.Routed, context.BodyStore, context.ContentGraph, context.SeoIndex, siteUrl, context.BaseUrl, key);
 
             foreach (var format in formats)
             {
@@ -138,4 +144,59 @@ public sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
             ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "rss" }
             : set;
     }
+
+    private static List<RssGenerator.Post> CollectDocumentPosts(
+        BuildContext context,
+        IReadOnlyDictionary<string, CollectionConfig>? collections,
+        string siteUrl,
+        string? collectionKey)
+    {
+        var rssCollections = ResolveRssCollections(collections);
+        if (collectionKey is not null)
+        {
+            rssCollections = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { collectionKey };
+        }
+
+        return context.RoutedDocuments
+            .Where(x => !x.Document.Publish.ExcludeFromFeed)
+            .Where(x => rssCollections.Count == 0 || rssCollections.Contains(GetCollection(x.Document)))
+            .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase)
+            .Select(x => RssGenerator.ToPost(x.Document, ResolveAbsoluteUrl(context, siteUrl, x.Route)))
+            .ToList();
+    }
+
+    private static string ResolveAbsoluteUrl(BuildContext context, string siteUrl, RouteInfo route)
+    {
+        var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+        if (context.SeoIndex.TryGetValue(key, out var entry) && !string.IsNullOrWhiteSpace(entry.Canonical))
+        {
+            return entry.Canonical;
+        }
+
+        return RssGenerator.BuildAbsoluteUrl(siteUrl, context.BaseUrl, route.Url);
+    }
+
+    private static HashSet<string> ResolveRssCollections(IReadOnlyDictionary<string, CollectionConfig>? collections)
+    {
+        if (collections is null || collections.Count == 0)
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, cfg) in collections)
+        {
+            if (cfg.Output.Rss)
+            {
+                set.Add(key);
+            }
+        }
+
+        return set;
+    }
+
+    private static string GetCollection(ContentDocument document)
+        => !string.IsNullOrWhiteSpace(document.Route.ListGroup)
+            ? document.Route.ListGroup
+            : document.Record.Classification.Collection;
 }

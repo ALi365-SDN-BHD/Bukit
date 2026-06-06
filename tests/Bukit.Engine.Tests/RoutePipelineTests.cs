@@ -12,54 +12,13 @@ namespace Bukit.Engine.Tests;
 public sealed class RoutePipelineTests
 {
     [Fact]
-    public void Execute_GeneratesContentRoutesWithCollectionRulesAndListRoutes()
-    {
-        var post = Item("hello", "hello", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["collection"] = "article"
-        });
-        var page = Item("about", "about", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = "page",
-            ["collection"] = "page"
-        });
-        var data = Item("settings", "settings", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["sourceMode"] = "data"
-        });
-        var pipeline = new RoutePipeline();
-
-        var result = pipeline.Execute(Config(), new[] { post, page, data }, TemplateResolver());
-
-        Assert.Equal(new[] { post, page }, result.ContentItems);
-        Assert.Equal(2, result.Routed.Count);
-        Assert.Same(post, result.Routed[0].Item);
-        Assert.Equal("/articles/hello/", result.Routed[0].Route.Url);
-        Assert.Equal("articles/hello/index.html", Normalize(result.Routed[0].Route.OutputPath));
-        Assert.Equal("pages/article.html", result.Routed[0].Route.Template);
-        Assert.Same(page, result.Routed[1].Item);
-        Assert.Equal("/pages/about/", result.Routed[1].Route.Url);
-        Assert.Contains(result.ListRoutes, route => route.Url == "/" && route.OutputPath == "index.html");
-        Assert.Contains(result.ListRoutes, route => route.Url == "/articles/" && Normalize(route.OutputPath) == "articles/index.html" && route.Template == "pages/article-list.html");
-        Assert.Contains(result.ListRoutes, route => route.Url == "/articles/featured/" && Normalize(route.OutputPath) == "articles/featured/index.html" && route.Template == "pages/featured.html");
-    }
-
-    [Fact]
     public void Execute_WhenContentRoutesConflict_ThrowsConfigException()
     {
-        var first = Item("first", "same", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = "post",
-            ["collection"] = "post"
-        });
-        var second = Item("second", "same", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = "post",
-            ["collection"] = "post"
-        });
+        var first = Document("first", "same", "post", "post", isDataModule: false);
+        var second = Document("second", "same", "post", "post", isDataModule: false);
         var pipeline = new RoutePipeline();
 
-        var ex = Assert.Throws<ConfigException>(() => pipeline.Execute(new AppConfig
+        var ex = Assert.Throws<ConfigException>(() => pipeline.ExecuteDocuments(new AppConfig
         {
             Site = new SiteConfig
             {

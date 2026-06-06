@@ -2,77 +2,8 @@ using Bukit.Engine.Abstractions.Content;
 using System.Text.Json;
 namespace Bukit.Content.Notion;
 
-internal static class NotionMetaHelper
+internal static class NotionFieldHelper
 {
-    internal static void PromoteFieldToMeta(IReadOnlyDictionary<string, ContentField> fields, Dictionary<string, object> meta, string fieldKey, string metaKey)
-    {
-        if (!fields.TryGetValue(fieldKey, out var field))
-        {
-            return;
-        }
-
-        if (field.Value is null)
-        {
-            return;
-        }
-
-        var text = field.Value.ToString();
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return;
-        }
-
-        meta[metaKey] = text.Trim();
-    }
-
-    internal static void PromoteTaxonomyFieldToMeta(IReadOnlyDictionary<string, ContentField> fields, Dictionary<string, object> meta, string fieldKey)
-    {
-        if (!fields.TryGetValue(fieldKey, out var field) || field.Value is null)
-        {
-            return;
-        }
-
-        if (field.Value is string s)
-        {
-            var text = s.Trim();
-            if (!string.IsNullOrWhiteSpace(text))
-            {
-                meta[fieldKey] = text;
-            }
-            return;
-        }
-
-        if (field.Value is IEnumerable<string> stringSeq)
-        {
-            var list = stringSeq
-                .Select(x => x?.Trim() ?? string.Empty)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Cast<object>()
-                .ToList();
-
-            if (list.Count > 0)
-            {
-                meta[fieldKey] = list;
-            }
-            return;
-        }
-
-        if (field.Value is IEnumerable<object> objSeq)
-        {
-            var list = objSeq
-                .Select(x => x?.ToString() ?? string.Empty)
-                .Select(x => x.Trim())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Cast<object>()
-                .ToList();
-
-            if (list.Count > 0)
-            {
-                meta[fieldKey] = list;
-            }
-        }
-    }
-
     internal static string NormalizePolicyMode(string? mode)
     {
         var m = (mode ?? "whitelist").Trim().ToLowerInvariant();

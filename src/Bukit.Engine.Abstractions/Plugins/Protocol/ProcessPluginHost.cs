@@ -74,7 +74,6 @@ public abstract class ProcessPluginHost
             {
                 var payload = request.AfterBuild ?? new AfterBuildRequestPayload { OutputDir = "." };
                 var pluginOptions = JsonElementMaterializer.Materialize(request.Config?.PluginOptions);
-                payload = MaterializeRoutedPagesMeta(payload);
                 await AfterBuildAsync(payload, pluginOptions, ct);
             }
 
@@ -85,33 +84,6 @@ public abstract class ProcessPluginHost
         {
             WriteError($"Hook execution failed: {ex.Message}");
         }
-    }
-
-    private static AfterBuildRequestPayload MaterializeRoutedPagesMeta(AfterBuildRequestPayload payload)
-    {
-        var pages = payload.RoutedPages;
-        if (pages is null || pages.Count == 0)
-        {
-            return payload;
-        }
-
-        var materialized = false;
-        var list = new AfterBuildRoutedPage[pages.Count];
-        for (var i = 0; i < pages.Count; i++)
-        {
-            var page = pages[i];
-            if (page.Meta is not null)
-            {
-                materialized = true;
-                list[i] = page with { Meta = JsonElementMaterializer.Materialize(page.Meta) };
-            }
-            else
-            {
-                list[i] = page;
-            }
-        }
-
-        return materialized ? payload with { RoutedPages = list } : payload;
     }
 
     protected void WriteResponse(ProtocolPluginInvocationResponse response)

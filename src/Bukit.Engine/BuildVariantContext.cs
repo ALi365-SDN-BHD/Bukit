@@ -10,6 +10,7 @@ internal sealed record BuildVariantContext(
     string RootDir,
     ConfigOverrides Overrides,
     IReadOnlyList<ContentItem> Items,
+    IReadOnlyList<ContentDocument> Documents,
     CanonicalContentGraph ContentGraph,
     IContentBodyStore BodyStore,
     string OutputDir,

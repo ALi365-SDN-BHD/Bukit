@@ -74,13 +74,13 @@ internal static class I18nOutputMerger
     {
         return items.Where(item =>
         {
-            if (MetaHelpers.IsDataItem(item))
+            if (IsDataItem(item))
             {
-                var locale = MetaHelpers.TryGetTextField(item.Fields, "locale");
+                var locale = GetTextField(item.Fields, "locale");
                 return string.IsNullOrWhiteSpace(locale) || string.Equals(locale, language, StringComparison.OrdinalIgnoreCase);
             }
 
-            var itemLanguage = item.GetTextValue("language");
+            var itemLanguage = GetTextField(item.Fields, "language");
             if (!string.IsNullOrWhiteSpace(itemLanguage))
             {
                 return string.Equals(itemLanguage, language, StringComparison.OrdinalIgnoreCase);
@@ -302,7 +302,7 @@ internal static class I18nOutputMerger
 
     private static string GetCollection(ContentItem item)
     {
-        return item.GetCollection();
+        return GetTextField(item.Fields, "collection") ?? GetTextField(item.Fields, "type") ?? "post";
     }
 
     private static void GenerateRootAgentManifest(string outputDir, IReadOnlyList<BuildVariantResult> results)
@@ -456,8 +456,25 @@ internal static class I18nOutputMerger
 
     private static string BuildBodyStoreKey(ContentItem item)
     {
-        var language = MetaHelpers.GetString(item.Meta, "language") ?? string.Empty;
+        var language = GetTextField(item.Fields, "language") ?? string.Empty;
         return item.Id + "\n" + language;
+    }
+
+    private static bool IsDataItem(ContentItem item)
+    {
+        var sourceMode = GetTextField(item.Fields, "sourceMode");
+        return string.Equals(sourceMode, "data", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetTextField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private sealed class MergedVariantContentBodyStore : IContentBodyStore

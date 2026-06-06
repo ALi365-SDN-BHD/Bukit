@@ -149,7 +149,7 @@ CLI (bukit build/doctor/...)
 | `BuildVariantContext` | 单次变体构建的输入参数聚合（config/dirs/items/outputDir 等） |
 | `BuildVariantResult` | 单次变体构建的结果聚合（routed/derived/renderCount 等） |
 | `ContentProviderFactory` | 根据配置创建 IContentProvider 实例，处理媒体本地化 |
-| `MetaHelpers` | ContentItem meta/fields 的静态访问辅助（GetString/IsDataItem 等） |
+| `ContentFieldReader` | canonical `ContentField` 值的静态访问辅助 |
 | `BuildPathUtils` | 路径操作、URL 归一化、HTML 转义、主题目录解析、Windows 路径检查 |
 | `TaxonomyTermsInjector` | 从数据项和 Notion 数据库选项注入 taxonomy 术语到 BuildContext |
 | `DataModuleBuilder` | 从数据项构建 `site.modules`（按 type 分组、按 order 排序） |

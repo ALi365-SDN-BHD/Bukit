@@ -267,10 +267,20 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
         }
 
         var logger = context.Logger ?? new ConsoleLogger(LogLevel.Error);
+        var pluginContext = BuildPluginContext(context);
+        var typedExclusions = pluginContext.RoutedDocuments
+            .Where(x => x.Document.Publish.ExcludeFromSitemap)
+            .Select(x => BuildPathUtils.NormalizeRelPath(x.Route.OutputPath))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>();
         foreach (var seo in context.SeoIndex.Values.OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             if (!seo.Indexable)
+            {
+                continue;
+            }
+
+            if (typedExclusions.Contains(BuildPathUtils.NormalizeRelPath(seo.Route.OutputPath)))
             {
                 continue;
             }
@@ -288,16 +298,30 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
 
     private static void GenerateSearch(PublishProjectionContext context)
     {
-        SearchIndexBuilder.GenerateSingleSearchIndex(
-            context.OutputDir,
-            context.BaseUrl,
-            context.Config.Site.SearchIncludeDerived,
-            context.SearchSnippetsEnabled,
-            context.Routed,
-            context.DerivedRouted,
-            context.SeoIndex,
-            context.BodyStore ?? NullContentBodyStore.Instance);
-        SearchIndexPlugin.WriteSearchUi(BuildPluginContext(context));
+        var pluginContext = BuildPluginContext(context);
+        if (pluginContext.RoutedDocuments.Count > 0)
+        {
+            SearchIndexBuilder.GenerateSingleSearchIndex(
+                context.OutputDir,
+                context.BaseUrl,
+                context.SearchSnippetsEnabled,
+                pluginContext.RoutedDocuments,
+                context.SeoIndex);
+        }
+        else
+        {
+            SearchIndexBuilder.GenerateSingleSearchIndex(
+                context.OutputDir,
+                context.BaseUrl,
+                context.Config.Site.SearchIncludeDerived,
+                context.SearchSnippetsEnabled,
+                context.Routed,
+                context.DerivedRouted,
+                context.SeoIndex,
+                context.BodyStore ?? NullContentBodyStore.Instance);
+        }
+
+        SearchIndexPlugin.WriteSearchUi(pluginContext);
     }
 
     private static void GenerateLlms(PublishProjectionContext context)

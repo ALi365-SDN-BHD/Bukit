@@ -1,4 +1,5 @@
 using Bukit.Engine;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 using Xunit;
 
@@ -71,6 +72,53 @@ public sealed class ScribanTemplateRendererAdapterTests
 
             Assert.NotNull(output);
             Assert.Contains("Hello World", output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void RenderPage_WithCanonicalPageContext_ExposesRoutePublishAndContentRecord()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_test_layouts_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(tempDir, "post.scriban"),
+                "{{ page.content_record.title }}|{{ page.route.list_group }}|{{ page.publish.exclude_from_search }}");
+
+            var adapter = new ScribanTemplateRendererAdapter(tempDir);
+            var pageModel = new PageModel
+            {
+                Site = CreateSite(),
+                Page = CreatePage("Hello World", "/posts/hello", "<p>Content</p>") with
+                {
+                    ContentRecord = new ContentRecord(
+                        new ContentIdentity("post-1", "hello", "post-1", "post", "published"),
+                        new ContentPresentation("Canonical Hello", null, "<p>Content</p>", "en", []),
+                        new ContentClassification("post", "post", [], []),
+                        new ContentOwnership(null, null, null, null),
+                        new ContentLifecycle(DateTimeOffset.UnixEpoch, null, null, null),
+                        new ProvenanceRecord("markdown", null, [], [], null),
+                        new TrustMetadata(null, "approved", []),
+                        [],
+                        [],
+                        []),
+                    Route = new ContentRoutePolicy(null, null, null, null, "post"),
+                    Publish = new ContentPublishPolicy(false, false, false, false, true, false, false)
+                }
+            };
+
+            var output = adapter.RenderPage("post.scriban", pageModel);
+
+            Assert.Equal("Canonical Hello|post|true", output.Trim());
         }
         finally
         {

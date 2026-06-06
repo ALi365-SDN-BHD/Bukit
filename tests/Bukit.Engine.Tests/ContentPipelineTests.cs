@@ -34,7 +34,7 @@ public sealed class ContentPipelineTests
         Assert.Equal("/tmp/site", factory.RootDirObserved);
         var item = Assert.Single(result.Items);
         Assert.Equal("published", item.Id);
-        Assert.Equal("published", item.Meta["status"]);
+        Assert.Equal("published", item.Fields!["status"].Value);
         var record = Assert.Single(result.ContentGraph!.Records);
         Assert.Equal("published", record.Identity.Id);
         Assert.Equal("published", record.Trust.ReviewStatus);
@@ -126,6 +126,48 @@ public sealed class ContentPipelineTests
         Assert.Equal("Document summary", document.Record.Presentation.Summary);
         Assert.Equal("<p>doc-post</p>", document.Body.Html);
         Assert.False(document.Publish.Draft);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenProviderSupportsRawContent_NormalizesDocumentsBeforeLegacyItems()
+    {
+        var raw = new RawContentDocument(
+            SourceId: "raw-post",
+            SourceKind: "post",
+            Title: "Raw Post",
+            Slug: "raw-post",
+            PublishedAt: DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
+            Body: new RawBody("<p>Raw</p>", null, "# Raw", "Raw"),
+            Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["summary"] = new("text", "Raw summary"),
+                ["author"] = new("text", "Ali"),
+                ["language"] = new("text", "en"),
+                ["review_status"] = new("text", "approved"),
+                ["noindex"] = new("boolean", true)
+            },
+            Source: new ContentSourceInfo("markdown", "content", "content/raw.md", "raw-post", null, DateTimeOffset.Parse("2026-06-02T00:00:00Z"), "synced"),
+            CustomFields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["seo_title"] = new("text", "Raw SEO Title")
+            });
+        var provider = new RawOnlyContentProvider(new RawContentLoadResult(new[] { raw }, EmptyContentBodyStore.Instance));
+        var factory = new RawContentProviderFactory(provider);
+        var pipeline = new ContentPipeline(factory, new RecordingLogger());
+
+        var result = await pipeline.ExecuteAsync(Config(draft: true, schemaFailMode: "warn"), "/tmp/site", new ConfigOverrides(), "/tmp/site/.cache/media", CancellationToken.None);
+
+        Assert.True(provider.LoadRawCalled);
+        Assert.False(provider.LoadCalled);
+        var document = Assert.Single(result.Documents);
+        Assert.Equal("raw-post", document.Record.Identity.Id);
+        Assert.Equal("Raw summary", document.Record.Presentation.Summary);
+        Assert.Equal("Ali", document.Record.Ownership.Author);
+        Assert.Equal("en", document.Record.Presentation.Language);
+        Assert.Equal("approved", document.Record.Trust.ReviewStatus);
+        Assert.True(document.Publish.NoIndex);
+        Assert.Equal("Raw SEO Title", document.CustomFields["seo_title"].Value);
+        Assert.Equal(new[] { document.Record }, result.ContentGraph!.Records);
     }
 
     [Fact]
@@ -242,9 +284,16 @@ public sealed class ContentPipelineTests
             error.SourcePath == "image-post");
     }
 
-    private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object> meta)
+    private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object> fields)
     {
-        return new ContentItem(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", meta);
+        return new ContentItem(
+            id,
+            id,
+            slug,
+            DateTimeOffset.UnixEpoch,
+            $"<p>{id}</p>",
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            fields.ToDictionary(kv => kv.Key, kv => new ContentField("test", kv.Value), StringComparer.OrdinalIgnoreCase));
     }
 
     private static AppConfig Config(bool draft, string schemaFailMode, bool requiredStatus = false)
@@ -328,6 +377,46 @@ public sealed class ContentPipelineTests
         public Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_loadResult);
+        }
+    }
+
+    private sealed class RawContentProviderFactory : IContentProviderFactory
+    {
+        private readonly RawOnlyContentProvider _provider;
+
+        public RawContentProviderFactory(RawOnlyContentProvider provider)
+        {
+            _provider = provider;
+        }
+
+        public IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger) => _provider;
+
+        public Task<ContentLoadResult> LocalizeContentImagesAsync(ContentLoadResult result, MediaConfig media, string rootDir, string cacheDir, ILogger logger, CancellationToken cancellationToken)
+            => Task.FromResult(result);
+    }
+
+    private sealed class RawOnlyContentProvider : IContentProvider, IRawContentProvider
+    {
+        private readonly RawContentLoadResult _rawResult;
+
+        public RawOnlyContentProvider(RawContentLoadResult rawResult)
+        {
+            _rawResult = rawResult;
+        }
+
+        public bool LoadRawCalled { get; private set; }
+        public bool LoadCalled { get; private set; }
+
+        public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
+        {
+            LoadRawCalled = true;
+            return Task.FromResult(_rawResult);
+        }
+
+        public Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+        {
+            LoadCalled = true;
+            throw new InvalidOperationException("Raw-first pipeline should not call legacy LoadAsync.");
         }
     }
 

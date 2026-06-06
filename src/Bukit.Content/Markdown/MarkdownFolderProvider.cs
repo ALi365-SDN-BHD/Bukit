@@ -153,7 +153,11 @@ public sealed class MarkdownFolderProvider : IContentProvider, IRawContentProvid
                 publishAt = dto.UtcDateTime;
             }
 
-            var fields = MarkdownFieldBuilder.BuildFields(meta);
+            var fields = new Dictionary<string, ContentField>(MarkdownFieldBuilder.BuildFields(meta), StringComparer.OrdinalIgnoreCase);
+            if (tableOfContents.Count > 0)
+            {
+                fields["tableOfContents"] = new ContentField("toc", tableOfContents);
+            }
 
             items.Add(new ContentItem(
                 Id: slug,
@@ -161,7 +165,7 @@ public sealed class MarkdownFolderProvider : IContentProvider, IRawContentProvid
                 Slug: slug,
                 PublishAt: publishAt,
                 ContentHtml: null,
-                Meta: meta,
+                Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
                 Fields: fields,
                 BodyKey: file
             ));

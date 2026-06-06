@@ -340,16 +340,16 @@ public static class DoctorCommand
             }
         }
 
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed;
+        IReadOnlyList<(ContentDocument Document, RouteInfo Route)> routedDocuments;
         try
         {
-            routed = await RouteInventoryValidator.BuildContentRoutesAsync(
+            routedDocuments = await RouteInventoryValidator.BuildContentDocumentRoutesAsync(
                 config,
                 rootDir,
                 isCi: false,
                 new ConsoleLogger(LogLevel.Error),
                 templateResolver);
-            RouteInventoryValidator.ValidateContentRoutes(routed);
+            RouteInventoryValidator.ValidateContentDocumentRoutes(routedDocuments);
             Console.WriteLine("✔ Routes valid");
         }
         catch (Exception ex) when (ex is ConfigException or ContentException)
@@ -359,7 +359,23 @@ public static class DoctorCommand
             return 1;
         }
 
+        var missingRouteTemplate = routedDocuments.FirstOrDefault(x => string.IsNullOrWhiteSpace(x.Route.Template));
+        if (missingRouteTemplate.Document is not null)
+        {
+            var record = missingRouteTemplate.Document.Record;
+            Console.WriteLine("✖ Route inventory error");
+            Console.WriteLine(
+                $"No theme template matches content item '{record.Identity.Id}' " +
+                $"(type='{record.Identity.ContentType}', collection='{record.Classification.Collection}', kind='detail'). " +
+                "Add a matching theme.yaml templates entry or set route.template/site.collections.*.template.");
+            return 1;
+        }
+
         var listRoutes = SiteEngine.GetListRoutes(config.Site.Collections, templateResolver);
+        var routed = routedDocuments
+            .Select(x => (Item: ToLegacyContentItem(x.Document), x.Route))
+            .ToArray();
+
         IReadOnlyList<string> pluginRequirementTemplates;
         try
         {
@@ -371,6 +387,7 @@ public static class DoctorCommand
                 BaseUrl = config.Site.BaseUrl,
                 LayoutsDir = layoutsDir,
                 Routed = routed,
+                RoutedDocuments = routedDocuments,
                 BodyStore = Bukit.Engine.Abstractions.Content.NullContentBodyStore.Instance,
                 TemplateResolver = templateResolver.ResolveKindTemplate,
                 Logger = new ConsoleLogger(LogLevel.Info)
@@ -399,7 +416,7 @@ public static class DoctorCommand
         DoctorManifestChecker.CheckUnreferencedTemplates(layoutsDir, allHtmlFiles, config, listRoutes, templateResolver);
 
         Console.WriteLine();
-        var hasSchemaErrors = DoctorSchemaChecker.CheckSchemaFieldCompleteness(ctx, routed);
+        var hasSchemaErrors = DoctorSchemaChecker.CheckSchemaFieldCompleteness(ctx, routedDocuments);
         DoctorSchemaChecker.CheckTemplateFieldsVsSchema(ctx);
         DoctorSchemaChecker.CheckExtraContentFields(ctx, routed);
 
@@ -414,7 +431,7 @@ public static class DoctorCommand
             var factory = new DefaultContentProviderFactory();
             var contentPipeline = new ContentPipeline(factory, new ConsoleLogger(LogLevel.Error));
             var contentResult = await contentPipeline.ExecuteAsync(config, rootDir, new ConfigOverrides(), Path.Combine(rootDir, ".cache", "media"));
-            DataCommand.PrintModuleSummary(contentResult.Items);
+            DataCommand.PrintModuleSummary(contentResult.Documents);
         }
         catch (Exception ex)
         {
@@ -477,4 +494,30 @@ public static class DoctorCommand
         }
     }
 
+    private static ContentItem ToLegacyContentItem(ContentDocument document)
+    {
+        var record = document.Record;
+        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = record.Identity.ContentType,
+            ["collection"] = record.Classification.Collection,
+            ["status"] = record.Identity.Status,
+            ["language"] = record.Presentation.Language
+        };
+
+        if (!string.IsNullOrWhiteSpace(record.Presentation.Summary))
+        {
+            meta["summary"] = record.Presentation.Summary!;
+        }
+
+        return new ContentItem(
+            record.Identity.Id,
+            record.Presentation.Title,
+            record.Identity.Slug,
+            record.Lifecycle.PublishedAt,
+            document.Body.Html,
+            meta,
+            document.CustomFields,
+            document.Body.BodyKey);
+    }
 }

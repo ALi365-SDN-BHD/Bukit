@@ -132,11 +132,6 @@ public sealed class NotionRelationLinkBuilderTests
     [Fact]
     public void PromoteRelationTaxonomyTerms_UsesTitleThenSlugThenId()
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["tags"] = new List<string> { "id1", "id2" }
-        };
-
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags_links"] = new ContentField("list", new List<Dictionary<string, object?>>
@@ -162,9 +157,9 @@ public sealed class NotionRelationLinkBuilderTests
             })
         };
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "tags");
+        var result = NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(fields, "tags");
 
-        var terms = Assert.IsType<List<string>>(meta["tags"]);
+        var terms = Assert.IsType<List<string>>(result["tags"].Value);
         Assert.Equal(new[] { "Visa", "mastercard", "id3" }, terms);
     }
 }

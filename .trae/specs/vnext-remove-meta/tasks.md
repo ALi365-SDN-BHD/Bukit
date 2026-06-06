@@ -50,20 +50,23 @@
 - [x] Build `CanonicalContentGraph` from normalized documents.
 - [x] Add typed routing, route source, route inventory, and route pipeline entry
       points for `ContentDocument`.
-- [ ] Convert SEO, JSON-LD, sitemap, audit, projections, and
+- [ ] Convert SEO, JSON-LD, audit, and
       build reports.
 - [x] Add typed search index writer and per-site search index generation for
       `ContentDocument`.
 - [x] Add typed feed post projection for `ContentDocument`.
+- [x] Connect built-in search, feed, sitemap, and publish projection paths to
+      typed `ContentDocument` publish policies where available.
 - [ ] Delete runtime `ContentItemExtensions` fallback methods.
 - [ ] Delete or quarantine `MetaHelpers`.
 
 ## Phase 5: Rendering, Templates, Plugins, CLI
 
 - [ ] Remove `page.meta` from template models.
-- [ ] Add `page.content`, `page.route`, `page.publish`, `page.fields`,
-      `page.source`, `page.provenance`, `page.trust`, and
-      `page.representations`.
+- [x] Add non-conflicting canonical template fields: `page.content_record`,
+      `page.route`, `page.publish`, `page.fields`, `page.provenance`,
+      `page.trust`, and `page.representations`.
+- [ ] Rename legacy `page.content` HTML string to a vNext content object.
 - [ ] Update starter theme and fixtures.
 - [x] Add plugin protocol v2 DTO tests.
 - [x] Add `BuildContext.RoutedDocuments` and after-build protocol v2 routed

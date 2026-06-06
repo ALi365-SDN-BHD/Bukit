@@ -16,9 +16,28 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
         var derived = new List<(ContentItem, RouteInfo, DateTimeOffset)>();
         var baseUrl = context.BaseUrl == "/" ? "" : context.BaseUrl;
 
+        if (context.RoutedDocuments.Count > 0)
+        {
+            foreach (var (document, route) in context.RoutedDocuments)
+            {
+                var aliases = GetAliases(document.CustomFields);
+                if (aliases is null)
+                {
+                    continue;
+                }
+
+                foreach (var alias in aliases)
+                {
+                    AddAlias(derived, baseUrl, context.Config.Site.OutputPathEncoding, document, route, alias);
+                }
+            }
+
+            return derived;
+        }
+
         foreach (var (item, route) in context.Routed)
         {
-            var aliases = GetAliases(item.Meta);
+            var aliases = GetAliases(item.Fields);
             if (aliases is null)
             {
                 continue;
@@ -60,14 +79,53 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
         return derived;
     }
 
-    private static IReadOnlyList<string>? GetAliases(IReadOnlyDictionary<string, object> meta)
+    private static void AddAlias(
+        List<(ContentItem, RouteInfo, DateTimeOffset)> derived,
+        string baseUrl,
+        string outputPathEncoding,
+        ContentDocument document,
+        RouteInfo route,
+        string alias)
     {
-        if (!meta.TryGetValue("aliases", out var value) || value is null)
+        var record = document.Record;
+        var aliasUrl = alias.StartsWith('/') ? alias : "/" + alias;
+        if (!aliasUrl.EndsWith('/'))
+        {
+            aliasUrl += "/";
+        }
+
+        var targetUrl = route.Url.StartsWith('/') ? route.Url : "/" + route.Url;
+
+        var html = BuildRedirectHtml($"{baseUrl}{targetUrl}");
+        var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(aliasUrl, outputPathEncoding);
+        var aliasRoute = new RouteInfo(aliasUrl, outputPath, null!);
+
+        var aliasItem = new ContentItem(
+            Id: $"alias-{record.Identity.Id}-{EscapePath(alias)}",
+            Title: $"[Redirect] {record.Presentation.Title}",
+            Slug: $"alias-{record.Identity.Slug}",
+            PublishAt: record.Lifecycle.PublishedAt,
+            ContentHtml: html,
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "redirect",
+                ["sitemap"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["exclude"] = true
+                }
+            });
+
+        derived.Add((aliasItem, aliasRoute, record.Lifecycle.PublishedAt));
+    }
+
+    private static IReadOnlyList<string>? GetAliases(IReadOnlyDictionary<string, ContentField>? fields)
+    {
+        if (fields is null || !fields.TryGetValue("aliases", out var field) || field.Value is null)
         {
             return null;
         }
 
-        if (value is IEnumerable<object> seq)
+        if (field.Value is IEnumerable<object> seq)
         {
             var list = seq.Select(x => x?.ToString() ?? string.Empty)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -76,7 +134,7 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
             return list.Count == 0 ? null : list;
         }
 
-        if (value is string s && !string.IsNullOrWhiteSpace(s))
+        if (field.Value is string s && !string.IsNullOrWhiteSpace(s))
         {
             return new[] { s };
         }

@@ -10,6 +10,50 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SeoIndexBuilderTests
 {
+    private static ContentItem TestItem(
+        string Id,
+        string Title,
+        string Slug,
+        DateTimeOffset PublishAt,
+        string? ContentHtml,
+        IReadOnlyDictionary<string, object>? Meta,
+        IReadOnlyDictionary<string, ContentField>? Fields = null)
+    {
+        var fields = ToFields(Meta);
+        if (Fields is not null)
+        {
+            foreach (var (key, value) in Fields)
+            {
+                fields[key] = value;
+            }
+        }
+
+        return new ContentItem(
+            Id,
+            Title,
+            Slug,
+            PublishAt,
+            ContentHtml,
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            fields);
+    }
+
+    private static Dictionary<string, ContentField> ToFields(IReadOnlyDictionary<string, object>? values)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (values is null)
+        {
+            return fields;
+        }
+
+        foreach (var (key, value) in values)
+        {
+            fields[key] = new ContentField("test", value);
+        }
+
+        return fields;
+    }
+
     private static AppConfig CreateConfig(bool seoEnabled = true)
     {
         return new AppConfig
@@ -41,7 +85,7 @@ public sealed class SeoIndexBuilderTests
         var config = CreateConfig(seoEnabled: false);
         var routed = new (ContentItem, RouteInfo)[]
         {
-            (new ContentItem(
+            (TestItem(
                 Id: "p1",
                 Title: "Page",
                 Slug: "page",
@@ -64,7 +108,7 @@ public sealed class SeoIndexBuilderTests
         var publishAt = new DateTimeOffset(2025, 6, 1, 10, 0, 0, TimeSpan.Zero);
         var routed = new (ContentItem, RouteInfo)[]
         {
-            (new ContentItem(
+            (TestItem(
                 Id: "post-1",
                 Title: "First Post",
                 Slug: "first-post",
@@ -77,7 +121,7 @@ public sealed class SeoIndexBuilderTests
                     ["summary"] = "First summary"
                 }),
              new RouteInfo("/blog/first-post/", "blog/first-post/index.html", "pages/post.html")),
-            (new ContentItem(
+            (TestItem(
                 Id: "page-1",
                 Title: "About",
                 Slug: "about",
@@ -118,7 +162,7 @@ public sealed class SeoIndexBuilderTests
         var config = CreateConfig();
         var routed = new (ContentItem, RouteInfo)[]
         {
-            (new ContentItem(
+            (TestItem(
                 Id: "post-1",
                 Title: "Post",
                 Slug: "post",
@@ -153,7 +197,7 @@ public sealed class SeoIndexBuilderTests
         var config = CreateConfig();
         var routed = new (ContentItem, RouteInfo)[]
         {
-            (new ContentItem(
+            (TestItem(
                 Id: "post-1",
                 Title: "Post",
                 Slug: "post",
@@ -181,7 +225,7 @@ public sealed class SeoIndexBuilderTests
         var publishAt = new DateTimeOffset(2025, 3, 15, 0, 0, 0, TimeSpan.Zero);
         var routed = new (ContentItem, RouteInfo)[]
         {
-            (new ContentItem(
+            (TestItem(
                 Id: "post-1",
                 Title: "Post",
                 Slug: "post",
@@ -203,7 +247,7 @@ public sealed class SeoIndexBuilderTests
         var config = CreateConfig();
         var routed = new (ContentItem, RouteInfo)[]
         {
-            (new ContentItem(
+            (TestItem(
                 Id: "p1",
                 Title: "Hidden",
                 Slug: "hidden",
@@ -228,7 +272,7 @@ public sealed class SeoIndexBuilderTests
     public void Build_WithAlternates_PassesToModels()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Translated",
             Slug: "translated",
@@ -262,7 +306,7 @@ public sealed class SeoIndexBuilderTests
         var config = CreateConfig();
         var routed = new (ContentItem, RouteInfo)[]
         {
-            (new ContentItem(
+            (TestItem(
                 Id: "p1",
                 Title: "Page",
                 Slug: "page",

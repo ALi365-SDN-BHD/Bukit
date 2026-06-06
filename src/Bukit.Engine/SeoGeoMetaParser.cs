@@ -19,8 +19,13 @@ internal static class SeoGeoMetaParser
     }
 
     internal static ParsedGeoMeta ParseGeoMeta(ContentItem item)
+        => ParseGeoMeta(item.Fields);
+
+    internal static ParsedGeoMeta ParseGeoMeta(IReadOnlyDictionary<string, ContentField>? fields)
     {
-        if (!item.Meta.TryGetValue("geo", out var geoValue) || geoValue is not IReadOnlyDictionary<string, object> geo)
+        if (fields is null ||
+            !fields.TryGetValue("geo", out var geoField) ||
+            geoField.Value is not IReadOnlyDictionary<string, object> geo)
         {
             return ParsedGeoMeta.Empty;
         }

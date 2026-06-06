@@ -42,18 +42,15 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-                foreach (var kv in item.Meta)
+                var fields = new Dictionary<string, ContentField>(item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase), StringComparer.OrdinalIgnoreCase)
                 {
-                    meta[kv.Key] = kv.Value;
-                }
-
-                meta["sourceKey"] = sourceKey;
-                meta["sourceMode"] = sourceMode;
-                meta["sourceId"] = item.Id;
+                    ["sourceKey"] = new("text", sourceKey),
+                    ["sourceMode"] = new("text", sourceMode),
+                    ["sourceId"] = new("text", item.Id)
+                };
                 if (!string.IsNullOrWhiteSpace(collection))
                 {
-                    meta["collection"] = collection.Trim();
+                    fields["collection"] = new ContentField("text", collection.Trim());
                 }
 
                 all.Add(item with
@@ -62,7 +59,8 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
                     BodyKey = item.BodyKey is null
                         ? $"{sourceKey}:{item.Id}"
                         : $"{sourceKey}:{item.BodyKey}",
-                    Meta = meta
+                    Meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+                    Fields = fields
                 });
 
                 if (addToCollections is null)
@@ -77,9 +75,9 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
                         continue;
                     }
 
-                    var extraMeta = new Dictionary<string, object>(meta, StringComparer.OrdinalIgnoreCase)
+                    var extraFields = new Dictionary<string, ContentField>(fields, StringComparer.OrdinalIgnoreCase)
                     {
-                        ["collection"] = extraCollection.Trim()
+                        ["collection"] = new("text", extraCollection.Trim())
                     };
 
                     all.Add(item with
@@ -88,7 +86,8 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
                         BodyKey = item.BodyKey is null
                             ? $"{sourceKey}:{item.Id}"
                             : $"{sourceKey}:{item.BodyKey}",
-                        Meta = extraMeta
+                        Meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+                        Fields = extraFields
                     });
                 }
             }
@@ -134,7 +133,7 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
                 {
                     if (!string.IsNullOrWhiteSpace(extraCollection))
                     {
-                        all.Add(WithCompositeSource(document, sourceKey, sourceMode, extraCollection.Trim()));
+                        all.Add(WithCompositeSource(document, sourceKey, sourceMode, extraCollection.Trim(), includeCollectionInId: true));
                     }
                 }
             }
@@ -153,7 +152,8 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
             item.Slug,
             item.PublishAt,
             new RawBody(item.ContentHtml, item.BodyKey, null, null),
-            item.Meta.ToDictionary(kv => kv.Key, kv => ToRawContentValue(kv.Value), StringComparer.OrdinalIgnoreCase),
+            (item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))
+                .ToDictionary(kv => kv.Key, kv => ToRawContentValue(kv.Value.Value), StringComparer.OrdinalIgnoreCase),
             new ContentSourceInfo("legacy", null, null, item.Id, null, null, "loaded"),
             item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))).ToArray();
 
@@ -164,10 +164,13 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
         RawContentDocument document,
         string sourceKey,
         string sourceMode,
-        string? collection)
+        string? collection,
+        bool includeCollectionInId = false)
     {
         var properties = new Dictionary<string, RawContentValue>(document.Properties, StringComparer.OrdinalIgnoreCase)
         {
+            ["sourceKey"] = new("text", sourceKey),
+            ["sourceId"] = new("text", document.SourceId),
             ["sourceMode"] = new("text", sourceMode)
         };
         if (!string.IsNullOrWhiteSpace(collection))
@@ -175,15 +178,31 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
             properties["collection"] = new RawContentValue("text", collection.Trim());
         }
 
+        var fields = new Dictionary<string, ContentField>(document.CustomFields, StringComparer.OrdinalIgnoreCase)
+        {
+            ["sourceKey"] = new("text", sourceKey),
+            ["sourceId"] = new("text", document.SourceId),
+            ["sourceMode"] = new("text", sourceMode)
+        };
+        if (!string.IsNullOrWhiteSpace(collection))
+        {
+            fields["collection"] = new ContentField("text", collection.Trim());
+        }
+
+        var sourceId = includeCollectionInId && !string.IsNullOrWhiteSpace(collection)
+            ? $"{sourceKey}:{document.SourceId}:{collection.Trim()}"
+            : $"{sourceKey}:{document.SourceId}";
+
         return document with
         {
-            SourceId = $"{sourceKey}:{document.SourceId}",
+            SourceId = sourceId,
             Body = document.Body with
             {
                 BodyKey = document.Body.BodyKey is null ? $"{sourceKey}:{document.SourceId}" : $"{sourceKey}:{document.Body.BodyKey}"
             },
             Properties = properties,
-            Source = document.Source with { SourceKey = sourceKey }
+            Source = document.Source with { SourceKey = sourceKey },
+            CustomFields = fields
         };
     }
 

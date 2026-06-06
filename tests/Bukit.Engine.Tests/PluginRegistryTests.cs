@@ -142,13 +142,25 @@ public sealed class PluginRegistryTests
         var plugins = PluginRegistry.GetAllPlugins(ctx).ToList();
         var names = plugins.Select(x => x.Plugin.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        Assert.Equal(
+            new[]
+            {
+                "data-files",
+                "pages-index",
+                "taxonomy",
+                "pagination",
+                "archive",
+                "related-content",
+                "alias",
+                "menu",
+                "image-processing"
+            }.Order(StringComparer.OrdinalIgnoreCase),
+            names.Order(StringComparer.OrdinalIgnoreCase));
+
         Assert.Contains("pages-index", names);
         Assert.Contains("taxonomy", names);
-        Assert.Contains("sitemap", names);
-        Assert.Contains("search-index", names);
         Assert.Contains("pagination", names);
         Assert.Contains("archive", names);
-        Assert.Contains("feed", names);
         Assert.Contains("related-content", names);
         Assert.Contains("alias", names);
         Assert.Contains("data-files", names);

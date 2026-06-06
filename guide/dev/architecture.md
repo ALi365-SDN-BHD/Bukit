@@ -88,7 +88,7 @@ Additional components: `ThemeBootstrapper`, `BuildOptionsMapper`, `FixedContentP
 | `BuildVariantContext` | Input parameter aggregation for single variant |
 | `BuildVariantResult` | Result aggregation for single variant |
 | `ContentProviderFactory` | Create content providers, handle media localization |
-| `MetaHelpers` | Static access helpers for ContentItem meta/fields |
+| `ContentFieldReader` | Static access helpers for canonical `ContentField` values |
 | `BuildPathUtils` | Path operations, URL normalization, theme resolution. **`MakeAbsolute` 已添加 `enforceWithinRoot` 重载**（[P2-6](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/BuildPathUtils.cs)），主题路径（layouts/assets/static）均启用边界校验，越界抛 `ConfigException(DiagnosticCode.ConfigPathTraversal)` |
 | `BodyCacheDecorator` | **构建级 body 缓存**（[P0-3](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Content/BodyCacheDecorator.cs)）。使用 `LinkedList` + `ConcurrentDictionary` + `lock` 实现真实 LRU 淘汰（[P3-8](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Content/BodyCacheDecorator.cs)）。`_inlineBypasses` 独立计数器保持指标恒等式 `totalRequests = cacheHits + cacheMisses + inlineBypasses` |
 | `TaxonomyTermsInjector` | Inject taxonomy terms from data items |

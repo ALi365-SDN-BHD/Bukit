@@ -38,12 +38,12 @@ public sealed class NotionContentProviderEndToEndTests
         Assert.Equal("Hello Notion", item.Title);
         Assert.Equal("hello-notion", item.Slug);
         Assert.Equal(new DateTimeOffset(2026, 5, 15, 10, 30, 0, TimeSpan.Zero), item.PublishAt);
-        Assert.Equal("post", item.Meta["type"]);
-        Assert.Equal("notion", item.Meta["source"]);
-        Assert.Equal("page-1", item.Meta["notionPageId"]);
-        Assert.Equal("en", item.Meta["language"]);
-        var tags = Assert.IsAssignableFrom<IEnumerable<object>>(item.Meta["tags"]);
-        Assert.Equal(new[] { "docs", "release" }, tags.Select(x => x.ToString()).ToArray());
+        Assert.Equal("post", item.Fields!["type"].Value);
+        Assert.Equal("notion", item.Fields!["source"].Value);
+        Assert.Equal("page-1", item.Fields!["notionPageId"].Value);
+        Assert.Equal("en", item.Fields!["language"].Value);
+        var tags = Assert.IsAssignableFrom<IEnumerable<string>>(item.Fields!["tags"].Value);
+        Assert.Equal(new[] { "docs", "release" }, tags.ToArray());
         Assert.Null(item.ContentHtml);
         Assert.Equal("page-1", item.BodyKey);
 
@@ -139,8 +139,8 @@ public sealed class NotionContentProviderEndToEndTests
         Assert.True(item.Fields.ContainsKey("tags"));
         Assert.False(item.Fields.ContainsKey("summary"));
         Assert.False(item.Fields.ContainsKey("secret"));
-        Assert.Equal("en", item.Meta["language"]);
-        Assert.False(item.Meta.ContainsKey("summary"));
+        Assert.Equal("en", item.Fields!["language"].Value);
+        Assert.False(item.Fields!.ContainsKey("summary"));
     }
 
     [Fact]
@@ -220,7 +220,7 @@ public sealed class NotionContentProviderEndToEndTests
         Assert.Equal("page", link["type"]);
         Assert.Equal("https://example.test/tags/resolved-tag", link["url"]);
 
-        var tags = Assert.IsAssignableFrom<IEnumerable<string>>(item.Meta["tags"]);
+        var tags = Assert.IsAssignableFrom<IEnumerable<string>>(item.Fields!["tags"].Value);
         Assert.Equal(new[] { "Resolved Tag" }, tags.ToArray());
         Assert.Equal(1, handler.Count(HttpMethod.Get, "https://api.notion.com/v1/pages/tag-1"));
     }
@@ -514,12 +514,12 @@ public sealed class NotionContentProviderEndToEndTests
         var result = await provider.LoadAsync();
         var item = Assert.Single(result.Items);
 
-        Assert.False(item.Meta.ContainsKey("summary"));
+        Assert.False(item.Fields!.ContainsKey("summary"));
 
         var body = await result.BodyStore.GetAsync(item);
 
         Assert.Contains("<p>Alpha", body.Html);
-        var summary = Assert.IsType<string>(item.Meta["summary"]);
+        var summary = Assert.IsType<string>(item.Fields!["summary"].Value);
         Assert.NotNull(item.Fields);
         Assert.StartsWith("Alpha beta & gamma text that should stop", summary);
         Assert.True(summary.Length <= 42);
@@ -548,11 +548,11 @@ public sealed class NotionContentProviderEndToEndTests
 
         var item = Assert.Single(result.Items);
         Assert.Equal("formula-slug", item.Slug);
-        Assert.Equal("page", item.Meta["type"]);
-        Assert.Equal("ms-MY", item.Meta["language"]);
-        Assert.Equal("article-template", item.Meta["template"]);
-        Assert.Equal("/custom/output.html", item.Meta["outputPath"]);
-        Assert.Equal("https://example.test/page", item.Meta["url"]);
+        Assert.Equal("page", item.Fields!["type"].Value);
+        Assert.Equal("ms-MY", item.Fields!["language"].Value);
+        Assert.Equal("article-template", item.Fields!["template"].Value);
+        Assert.Equal("/custom/output.html", item.Fields!["outputPath"].Value);
+        Assert.Equal("https://example.test/page", item.Fields!["url"].Value);
         Assert.Equal(new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero), item.PublishAt);
 
         var fields = Assert.IsAssignableFrom<IReadOnlyDictionary<string, ContentField>>(item.Fields);
