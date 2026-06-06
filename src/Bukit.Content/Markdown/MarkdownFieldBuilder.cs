@@ -70,6 +70,12 @@ internal static class MarkdownFieldBuilder
             return true;
         }
 
+        if (value is System.Collections.IEnumerable and not string)
+        {
+            field = new ContentField("list", value);
+            return true;
+        }
+
         if (value is bool b)
         {
             field = new ContentField("bool", b);
@@ -125,7 +131,7 @@ internal static class MarkdownFieldBuilder
 
     private static bool TryConvertToList(object value, out IReadOnlyList<string> list)
     {
-        if (value is IEnumerable<object> seq)
+        if (value is IEnumerable<object> seq && seq.All(IsScalarValue))
         {
             var items = seq.Select(x => x?.ToString() ?? string.Empty)
                 .Select(x => x.Trim())
@@ -139,6 +145,9 @@ internal static class MarkdownFieldBuilder
         list = Array.Empty<string>();
         return false;
     }
+
+    private static bool IsScalarValue(object? value)
+        => value is null or string or bool or int or long or double or float or decimal or DateTime or DateTimeOffset;
 
     internal static bool TryParseDateTimeOffset(string text, out DateTimeOffset value)
     {

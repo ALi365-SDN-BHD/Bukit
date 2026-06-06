@@ -216,11 +216,10 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = "blog"
-            },
-            Fields: null);
+            }));
 
         var result = SeoAlternatesService.GetCollection(item);
 
@@ -236,11 +235,10 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "article"
-            },
-            Fields: null);
+            }));
 
         var result = SeoAlternatesService.GetCollection(item);
 
@@ -255,9 +253,7 @@ public sealed class SiteEngineHelperTests
             Title: "Post",
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
-            Fields: null);
+            ContentHtml: "<p>content</p>");
 
         var result = SeoAlternatesService.GetCollection(item);
 
@@ -273,12 +269,11 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = "blog",
                 ["type"] = "article"
-            },
-            Fields: null);
+            }));
 
         var result = SeoAlternatesService.GetCollection(item);
 
@@ -294,7 +289,6 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = new("text", "knowledge")

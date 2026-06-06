@@ -105,7 +105,7 @@ public sealed class BuildPathUtilsTests
             Slug: "post-1",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var route = new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html");
         var routed = new List<(ContentItem, RouteInfo)> { (item, route) };
 

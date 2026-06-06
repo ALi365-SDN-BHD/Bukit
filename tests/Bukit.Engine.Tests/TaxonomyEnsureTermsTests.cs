@@ -85,12 +85,11 @@ public sealed class TaxonomyEnsureTermsTests
             Slug: "cat-one",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = "categories",
                 ["sourceMode"] = "data"
-            },
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase));
+            }));
 
         TaxonomyTermsInjector.InjectFromDataItems(ctx, new List<ContentItem> { dataItem });
 
@@ -127,11 +126,11 @@ public sealed class TaxonomyEnsureTermsTests
                         Slug: "post-1",
                         PublishAt: DateTimeOffset.UtcNow,
                         ContentHtml: "<p>hello</p>",
-                        Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["tags"] = new[] { "alpha" },
                             ["categories"] = new[] { "news" }
-                        }),
+                        })),
                     new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")
                 )
             },

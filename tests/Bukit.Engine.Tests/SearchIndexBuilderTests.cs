@@ -196,7 +196,7 @@ public sealed class SearchIndexBuilderTests
             Slug: "test-post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var route = new RouteInfo("/blog/test-post/", "blog/test-post/index.html", "pages/post.html");
         var input = new[] { (item, route) };
 
@@ -216,21 +216,21 @@ public sealed class SearchIndexBuilderTests
             Slug: "alpha",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var item2 = new ContentItem(
             Id: "b",
             Title: "Beta",
             Slug: "beta",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var item3 = new ContentItem(
             Id: "c",
             Title: "Gamma",
             Slug: "gamma",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
 
         var route1 = new RouteInfo("/blog/alpha/", "blog/alpha/index.html", "pages/post.html");
         var route2 = new RouteInfo("/pages/beta/", "pages/beta/index.html", "pages/page.html");
@@ -255,7 +255,7 @@ public sealed class SearchIndexBuilderTests
             Slug: "x",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var route = new RouteInfo("/pages/x/", "pages\\x\\index.html", "pages/page.html");
 
         var result = SearchIndexBuilder.BuildItemMap([(item, route)]);
@@ -272,7 +272,7 @@ public sealed class SearchIndexBuilderTests
             Slug: "search-post",
             PublishAt: DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
             ContentHtml: "<p>Body</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["summary"] = "Search summary",
@@ -288,7 +288,7 @@ public sealed class SearchIndexBuilderTests
                         ["name"] = "Bukit"
                     }
                 }
-            });
+            }));
         var route = new RouteInfo("/search-post/", "search-post/index.html", "pages/post.html");
 
         using var stream = new MemoryStream();
@@ -316,13 +316,7 @@ public sealed class SearchIndexBuilderTests
             Slug: "structured-post",
             PublishAt: DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
             ContentHtml: "<p>Structured body</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["summary"] = "Legacy summary",
-                ["language"] = "en",
-                ["sourceKey"] = "legacy-source"
-            },
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "guide"),
                 ["summary"] = new("text", "Canonical summary"),
@@ -330,7 +324,10 @@ public sealed class SearchIndexBuilderTests
                 ["source"] = new("text", "notion"),
                 ["tags"] = new("list", new object[] { "bukit", "canonical" }),
                 ["categories"] = new("list", new object[] { "docs" })
-            });
+            }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sourceKey"] = "legacy-source"
+            }));
         var route = new RouteInfo("/structured-post/", "structured-post/index.html", "pages/post.html");
 
         using var stream = new MemoryStream();

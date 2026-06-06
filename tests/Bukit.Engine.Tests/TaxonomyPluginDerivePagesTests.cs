@@ -91,8 +91,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             Slug: id,
             PublishAt: publishAt,
             ContentHtml: $"<p>{title}</p>",
-            Meta: meta,
-            Fields: null);
+            Fields: ContentFieldReader.ToFieldMap(meta));
         var route = new RouteInfo($"/blog/{id}/", $"blog/{id}/index.html", "pages/post.html");
         return (item, route);
     }
@@ -197,9 +196,17 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha" }),
         };
-        var meta = routed[0].Item.Meta as Dictionary<string, object>;
-        meta!["series"] = new[] { "My Series" };
-        meta["authors"] = new[] { "Alice" };
+        routed[0] = routed[0] with
+        {
+            Item = routed[0].Item with
+            {
+                Fields = ContentFieldReader.WithValues(routed[0].Item.Fields, new Dictionary<string, object>
+                {
+                    ["series"] = new[] { "My Series" },
+                    ["authors"] = new[] { "Alice" }
+                })
+            }
+        };
         var ctx = CreateContext(routed, taxonomyConfig: config);
 
         var plugin = new TaxonomyPlugin();
@@ -265,7 +272,6 @@ public sealed class TaxonomyPluginDerivePagesTests
             Slug: "p1",
             PublishAt: publishAt,
             ContentHtml: "<p>Post 1</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["tags"] = new("list", new object[] { "alpha" }),
@@ -291,9 +297,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             Title: "Post 1",
             Slug: "p1",
             PublishAt: publishAt,
-            ContentHtml: "<p>Post 1</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
-            Fields: null);
+            ContentHtml: "<p>Post 1</p>");
         var route = new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html");
         var graph = new CanonicalContentGraph(
         [
@@ -370,8 +374,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             Slug: "post-1",
             PublishAt: new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>content</p>",
-            Meta: meta,
-            Fields: null);
+            Fields: ContentFieldReader.ToFieldMap(meta));
         var routed = new List<(ContentItem Item, RouteInfo Route)>
         {
             (item, new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html")),

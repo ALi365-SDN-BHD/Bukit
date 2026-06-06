@@ -72,6 +72,8 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
             };
             var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["type"] = new ContentField("text", "derived"),
+                ["collection"] = new ContentField("text", collectionKey),
                 ["items"] = new ContentField("list", BuildItems(slice)),
                 ["pagination"] = new ContentField("object", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -89,7 +91,6 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
                 Slug: $"page-{page}",
                 PublishAt: publishAt,
                 ContentHtml: html,
-                Meta: meta,
                 Fields: fields);
 
             derived.Add((item, route, publishAt));
@@ -160,7 +161,7 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
                 ["url"] = route.Url,
                 ["publish_date"] = item.PublishAt.DateTime
             };
-            var summary = item.GetSummary();
+            var summary = ContentFieldReader.GetSummary(item);
             if (!string.IsNullOrWhiteSpace(summary))
             {
                 entry["summary"] = summary;

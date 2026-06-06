@@ -27,8 +27,7 @@ public sealed class CollectionWarningStageTests
             Slug: $"item-{id}",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>hi</p>",
-            Meta: meta,
-            Fields: null);
+            Fields: ContentFieldReader.ToFieldMap(meta));
     }
 
     private static ContentStageInput CreateInput(IReadOnlyList<ContentItem> items, ILogger logger)
@@ -193,7 +192,6 @@ public sealed class CollectionWarningStageTests
             Slug: "field-post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>hi</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post")

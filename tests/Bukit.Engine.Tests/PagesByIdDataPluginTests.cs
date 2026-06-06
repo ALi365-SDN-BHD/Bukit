@@ -23,16 +23,15 @@ public sealed class PagesByIdDataPluginTests
             Slug: "hello",
             PublishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>hi</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["tags"] = new ContentField("list", new List<string> { "a", "b" })
+            }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["collection"] = "post",
                 ["summary"] = "S"
-            },
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["tags"] = new ContentField("list", new List<string> { "a", "b" })
-            });
+            }));
 
         var routed = new List<(ContentItem Item, RouteInfo Route)>
         {
@@ -105,7 +104,6 @@ public sealed class PagesByIdDataPluginTests
             Slug: "greeting",
             PublishAt: new DateTimeOffset(2026, 06, 05, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>hi</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase));
         var ctx = new BuildContext
         {
@@ -222,11 +220,10 @@ public sealed class PagesByIdDataPluginTests
                 Slug: "hello",
                 PublishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
                 ContentHtml: "<p>hi</p>",
-                Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post", ["collection"] = "post" },
-                Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["related_posts"] = new ContentField("list", new List<string> { "missing-1" })
-                });
+                }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post", ["collection"] = "post" }));
 
             var routed = new List<(ContentItem Item, RouteInfo Route)>
             {
@@ -323,11 +320,10 @@ public sealed class PagesByIdDataPluginTests
             Slug: "hello",
             PublishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>hi</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post", ["collection"] = "post" },
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["related_posts"] = new ContentField("list", new List<string> { "missing-1" })
-            });
+            }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post", ["collection"] = "post" }));
 
         var ctx = new BuildContext
         {

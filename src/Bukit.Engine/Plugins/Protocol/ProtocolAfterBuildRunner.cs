@@ -191,7 +191,7 @@ internal sealed class ProtocolAfterBuildRunner
                     ["id"] = x.Item.Id,
                     ["url"] = x.Route.Url,
                     ["outputPath"] = x.Route.OutputPath,
-                    ["meta"] = ProtocolJsonHelper.ToJsonNode(x.Item.Meta)
+                    ["fields"] = ProtocolJsonHelper.ToJsonNode(x.Item.Fields)
                 })
                 .ToArray())
             : new JsonArray();

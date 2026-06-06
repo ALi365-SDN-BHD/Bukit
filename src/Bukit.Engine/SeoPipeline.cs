@@ -43,7 +43,7 @@ internal sealed class SeoPipeline
         Func<ContentItem, RouteInfo, PageInfo, string, string>? htmlPostProcessor = shouldProvideSeoModel
             ? (item, route, page, html) =>
             {
-                var skipSeo = SeoInjectionPolicy.ShouldSkip(item.Meta);
+                var skipSeo = SeoInjectionPolicy.ShouldSkip(item.Fields);
                 if (shouldInjectSeo && !skipSeo)
                 {
                     html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, analytics);

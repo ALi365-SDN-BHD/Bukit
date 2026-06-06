@@ -22,7 +22,7 @@ public sealed class RssGeneratorTests
             Slug: slug,
             PublishAt: publishAt ?? new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: null,
-            Meta: BuildMeta(type, summary, tags));
+            Fields: ContentFieldReader.ToFieldMap(BuildMeta(type, summary, tags)));
 
     private static IReadOnlyDictionary<string, object> BuildMeta(string type, string? summary, IReadOnlyList<string>? tags)
     {

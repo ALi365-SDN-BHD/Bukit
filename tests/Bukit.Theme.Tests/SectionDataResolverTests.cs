@@ -18,7 +18,7 @@ public sealed class SectionDataResolverTests
             meta["collections"] = collections;
         }
 
-        return new ContentItem(id, title, id, publishAt, null, meta, fields);
+        return new ContentItem(id, title, id, publishAt, null, ContentFieldReader.WithValues(fields, meta));
     }
 
     private static RouteInfo MakeRoute(string url)
@@ -180,7 +180,7 @@ public sealed class SectionDataResolverTests
 
         var result = SectionDataResolver.Resolve(sectionDef, items);
         Assert.Equal(2, result.Count);
-        Assert.All(result, r => Assert.Equal("post", r.Item.Meta["type"]));
+        Assert.All(result, r => Assert.Equal("post", ContentFieldReader.GetText(r.Item.Fields, "type")));
     }
 
     [Fact]
@@ -192,7 +192,6 @@ public sealed class SectionDataResolverTests
             "a",
             new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
             null,
-            new Dictionary<string, object>(),
             new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post")

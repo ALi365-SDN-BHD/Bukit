@@ -18,7 +18,7 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
 
         foreach (var (item, route) in context.Routed)
         {
-            var aliases = GetAliases(item.Meta);
+            var aliases = ContentFieldReader.GetTextList(item.Fields, "aliases");
             if (aliases is null)
             {
                 continue;
@@ -44,44 +44,20 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
                     Slug: $"alias-{item.Slug}",
                     PublishAt: item.PublishAt,
                     ContentHtml: html,
-                    Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["type"] = "redirect",
                         ["sitemap"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["exclude"] = true
                         }
-                    });
+                    }));
 
                 derived.Add((aliasItem, aliasRoute, item.PublishAt));
             }
         }
 
         return derived;
-    }
-
-    private static IReadOnlyList<string>? GetAliases(IReadOnlyDictionary<string, object> meta)
-    {
-        if (!meta.TryGetValue("aliases", out var value) || value is null)
-        {
-            return null;
-        }
-
-        if (value is IEnumerable<object> seq)
-        {
-            var list = seq.Select(x => x?.ToString() ?? string.Empty)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToList();
-
-            return list.Count == 0 ? null : list;
-        }
-
-        if (value is string s && !string.IsNullOrWhiteSpace(s))
-        {
-            return new[] { s };
-        }
-
-        return null;
     }
 
     private static string BuildRedirectHtml(string targetUrl)

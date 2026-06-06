@@ -21,8 +21,6 @@ public sealed class FeedPluginTests
             slug,
             DateTimeOffset.UtcNow,
             contentHtml,
-            new Dictionary<string, object>(),
-            null,
             null);
     }
 

@@ -172,7 +172,8 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
 
             Assert.NotNull(item.Fields);
             Assert.Contains("tags_links", item.Fields);
-            var tags = Assert.IsAssignableFrom<IEnumerable<string>>(item.Meta["tags"]);
+            Assert.True(ContentFieldReader.TryGetField(item.Fields, "tags", out var tagsField));
+            var tags = Assert.IsAssignableFrom<IEnumerable<string>>(tagsField.Value);
             Assert.Equal(new[] { "Cached Tag" }, tags.ToArray());
             Assert.Equal(0, handler.Count(HttpMethod.Get, "https://api.notion.com/v1/pages/tag-1"));
         }

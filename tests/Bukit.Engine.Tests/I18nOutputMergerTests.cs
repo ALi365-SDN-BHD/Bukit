@@ -129,14 +129,13 @@ public sealed class I18nOutputMergerTests
             Slug: "data",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["sourceMode"] = "data"
-            },
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["locale"] = new ContentField("text", "zh")
-            });
+            }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sourceMode"] = "data"
+            }));
 
         var items = new[] { dataItem };
 
@@ -207,7 +206,6 @@ public sealed class I18nOutputMergerTests
             Slug: "structured",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>hi</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["language"] = new("text", "ms-MY")
@@ -282,8 +280,7 @@ public sealed class I18nOutputMergerTests
             Slug: $"item-{id}",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>hi</p>",
-            Meta: meta,
-            Fields: null);
+            Fields: ContentFieldReader.ToFieldMap(meta));
     }
 
     private static ContentItem CreateItemWithMeta(string id, string? language, Dictionary<string, object> extraMeta)
@@ -305,7 +302,6 @@ public sealed class I18nOutputMergerTests
             Slug: $"item-{id}",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>hi</p>",
-            Meta: meta,
-            Fields: null);
+            Fields: ContentFieldReader.ToFieldMap(meta));
     }
 }

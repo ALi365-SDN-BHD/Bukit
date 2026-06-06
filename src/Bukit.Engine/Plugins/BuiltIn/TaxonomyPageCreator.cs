@@ -167,6 +167,9 @@ internal static class TaxonomyPageCreator
 
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
+            ["type"] = new ContentField("text", "derived"),
+            ["collection"] = new ContentField("text", "page"),
+            ["summary"] = new ContentField("text", meta["summary"]),
             ["terms"] = new ContentField("list", termsValue)
         };
 
@@ -176,7 +179,6 @@ internal static class TaxonomyPageCreator
             Slug: kind,
             PublishAt: publishAt,
             ContentHtml: html,
-            Meta: meta,
             Fields: fields);
 
         return (item, route, publishAt);
@@ -305,6 +307,9 @@ internal static class TaxonomyPageCreator
 
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
+            ["type"] = new ContentField("text", "derived"),
+            ["collection"] = new ContentField("text", "page"),
+            ["summary"] = new ContentField("text", meta["summary"]),
             ["items"] = new ContentField("list", itemsValue),
             ["taxonomy"] = new ContentField("object", taxonomyValue),
             ["pagination"] = new ContentField("object", paginationValue)
@@ -316,7 +321,6 @@ internal static class TaxonomyPageCreator
             Slug: term.Slug,
             PublishAt: publishAt,
             ContentHtml: html,
-            Meta: meta,
             Fields: fields);
 
         return (item, route, publishAt);

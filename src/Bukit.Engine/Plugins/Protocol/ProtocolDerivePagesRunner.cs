@@ -73,16 +73,16 @@ internal sealed class ProtocolDerivePagesRunner
         var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
         foreach (var page in response.DerivedPages ?? Array.Empty<ProtocolDerivedPage>())
         {
-            var meta = page.Meta is null
+            var fields = page.Fields is null
                 ? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                : new Dictionary<string, object>(JsonElementMaterializer.Materialize(page.Meta)!, StringComparer.OrdinalIgnoreCase);
+                : new Dictionary<string, object>(JsonElementMaterializer.Materialize(page.Fields)!, StringComparer.OrdinalIgnoreCase);
             var item = new ContentItem(
                 page.Id,
                 page.Title,
                 page.Slug,
                 page.PublishAt,
                 page.ContentHtml,
-                meta);
+                ContentFieldReader.ToFieldMap(fields));
             var route = new RouteInfo(page.Url, page.OutputPath, page.Template);
             var lastModified = page.LastModified ?? page.PublishAt;
             derived.Add((item, route, lastModified));
@@ -122,7 +122,7 @@ internal sealed class ProtocolDerivePagesRunner
                         ["id"] = x.Item.Id,
                         ["url"] = x.Route.Url,
                         ["outputPath"] = x.Route.OutputPath,
-                        ["meta"] = ProtocolJsonHelper.ToJsonNode(x.Item.Meta)
+                        ["fields"] = ProtocolJsonHelper.ToJsonNode(x.Item.Fields)
                     })
                     .ToArray())
             }

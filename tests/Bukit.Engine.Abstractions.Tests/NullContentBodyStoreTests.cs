@@ -21,7 +21,7 @@ public class NullContentBodyStoreTests
             "test-slug",
             DateTimeOffset.UtcNow,
             "<p>hello</p>",
-            new Dictionary<string, object>());
+            null);
 
         var body = await store.GetAsync(item);
 
@@ -39,7 +39,7 @@ public class NullContentBodyStoreTests
             "test-slug",
             DateTimeOffset.UtcNow,
             null,
-            new Dictionary<string, object>());
+            null);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item));
 
@@ -56,7 +56,7 @@ public class NullContentBodyStoreTests
             "test-slug",
             DateTimeOffset.UtcNow,
             "<p>hello</p>",
-            new Dictionary<string, object>());
+            null);
 
         var cts = new CancellationTokenSource();
         cts.Cancel();

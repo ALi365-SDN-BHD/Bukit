@@ -19,7 +19,7 @@ public sealed class RouteGeneratorCoverageTests
             Slug: slug,
             PublishAt: DateTimeOffset.MinValue,
             ContentHtml: "",
-            Meta: meta ?? new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(meta ?? new Dictionary<string, object>()));
 
     private static ContentItem ItemWithDate(
         string slug,
@@ -32,7 +32,7 @@ public sealed class RouteGeneratorCoverageTests
             Slug: slug,
             PublishAt: new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: meta ?? new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(meta ?? new Dictionary<string, object>()));
 
     // ── Slugify tests (via Generate with "slug" encoding) ────────────────
 

@@ -42,18 +42,16 @@ public sealed class CompositeContentProvider : IContentProvider
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-                foreach (var kv in item.Meta)
-                {
-                    meta[kv.Key] = kv.Value;
-                }
+                var fields = item.Fields is null
+                    ? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, ContentField>(item.Fields, StringComparer.OrdinalIgnoreCase);
 
-                meta["sourceKey"] = sourceKey;
-                meta["sourceMode"] = sourceMode;
-                meta["sourceId"] = item.Id;
+                fields["sourceKey"] = new ContentField("text", sourceKey);
+                fields["sourceMode"] = new ContentField("text", sourceMode);
+                fields["sourceId"] = new ContentField("text", item.Id);
                 if (!string.IsNullOrWhiteSpace(collection))
                 {
-                    meta["collection"] = collection.Trim();
+                    fields["collection"] = new ContentField("text", collection.Trim());
                 }
 
                 all.Add(item with
@@ -62,7 +60,7 @@ public sealed class CompositeContentProvider : IContentProvider
                     BodyKey = item.BodyKey is null
                         ? $"{sourceKey}:{item.Id}"
                         : $"{sourceKey}:{item.BodyKey}",
-                    Meta = meta
+                    Fields = fields
                 });
 
                 if (addToCollections is null)
@@ -77,9 +75,9 @@ public sealed class CompositeContentProvider : IContentProvider
                         continue;
                     }
 
-                    var extraMeta = new Dictionary<string, object>(meta, StringComparer.OrdinalIgnoreCase)
+                    var extraFields = new Dictionary<string, ContentField>(fields, StringComparer.OrdinalIgnoreCase)
                     {
-                        ["collection"] = extraCollection.Trim()
+                        ["collection"] = new ContentField("text", extraCollection.Trim())
                     };
 
                     all.Add(item with
@@ -88,7 +86,7 @@ public sealed class CompositeContentProvider : IContentProvider
                         BodyKey = item.BodyKey is null
                             ? $"{sourceKey}:{item.Id}"
                             : $"{sourceKey}:{item.BodyKey}",
-                        Meta = extraMeta
+                        Fields = extraFields
                     });
                 }
             }

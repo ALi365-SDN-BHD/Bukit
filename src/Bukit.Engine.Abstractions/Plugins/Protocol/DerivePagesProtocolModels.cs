@@ -32,8 +32,8 @@ public sealed record ProtocolDerivedPage
     public DateTimeOffset PublishAt { get; init; }
     [JsonPropertyName("contentHtml")]
     public string? ContentHtml { get; init; }
-    [JsonPropertyName("meta")]
-    public IReadOnlyDictionary<string, object>? Meta { get; init; }
+    [JsonPropertyName("fields")]
+    public IReadOnlyDictionary<string, object>? Fields { get; init; }
     [JsonPropertyName("url")]
     public required string Url { get; init; }
     [JsonPropertyName("outputPath")]

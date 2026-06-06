@@ -1,8 +1,7 @@
 using BenchmarkDotNet.Attributes;
-using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
-using Bukit.Routing;
-using Bukit.Engine.Abstractions.Routing;using Bukit.Theme;
+using Bukit.Engine.Abstractions.Routing;
+using Bukit.Theme;
 
 namespace Bukit.Theme.Benchmarks;
 
@@ -31,15 +30,16 @@ public class SectionDataResolverBenchmarks
                 $"post-title-{i}",
                 DateTimeOffset.UtcNow.AddDays(-i),
                 null,
-                new Dictionary<string, object>
-                {
-                    ["type"] = "posts",
-                    ["collections"] = new List<object> { "posts", "blog" }
-                },
-                new Dictionary<string, ContentField>
-                {
-                    ["featured"] = new("boolean", isFeature)
-                }
+                ContentFieldReader.WithValues(
+                    new Dictionary<string, ContentField>
+                    {
+                        ["featured"] = new("boolean", isFeature)
+                    },
+                    new Dictionary<string, object>
+                    {
+                        ["type"] = "posts",
+                        ["collections"] = new List<object> { "posts", "blog" }
+                    })
             );
             items.Add((item, (RouteInfo?)null));
         }

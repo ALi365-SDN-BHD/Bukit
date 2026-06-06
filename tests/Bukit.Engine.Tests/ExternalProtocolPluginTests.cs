@@ -673,7 +673,7 @@ public sealed class ExternalProtocolPluginTests
             Routed = new List<(ContentItem, RouteInfo)>
             {
                 (new ContentItem("post-1", "Post 1", "post-1", DateTimeOffset.UtcNow, "<p>Body</p>",
-                    new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post" }),
+                    ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post" })),
                     new RouteInfo("/blog/post-1/", Path.Combine("blog", "post-1", "index.html"), "pages/post.html"))
             },
             Logger = new ConsoleLogger(LogLevel.Error)
@@ -784,10 +784,10 @@ public sealed class ExternalProtocolPluginTests
             {
                 (
                     new ContentItem("post-1", "Post 1", "post-1", DateTimeOffset.UtcNow, "<p>Body</p>",
-                        new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["type"] = "post"
-                        }),
+                        })),
                     new RouteInfo("/blog/post-1/", Path.Combine("blog", "post-1", "index.html"), "pages/post.html")
                 )
             },
@@ -837,7 +837,7 @@ public sealed class ExternalProtocolPluginTests
         {
             "empty" => "{}",
             "success" => "{\"ok\":true,\"outputs\":[{\"path\":\"plugin-output.json\",\"contentType\":\"text/plain\",\"text\":\"{\\\"ok\\\":true}\"}]}",
-            "derive-success" => "{\"ok\":true,\"derivedPages\":[{\"id\":\"derived-1\",\"title\":\"Derived 1\",\"slug\":\"derived-1\",\"url\":\"/derived/derived-1/\",\"outputPath\":\"derived/derived-1/index.html\",\"template\":\"pages/page.html\",\"meta\":{\"type\":\"page\"}}]}",
+            "derive-success" => "{\"ok\":true,\"derivedPages\":[{\"id\":\"derived-1\",\"title\":\"Derived 1\",\"slug\":\"derived-1\",\"url\":\"/derived/derived-1/\",\"outputPath\":\"derived/derived-1/index.html\",\"template\":\"pages/page.html\",\"fields\":{\"type\":\"page\"}}]}",
             "handshake-v2" => "{\"ok\":true,\"outputs\":[{\"path\":\"plugin-output.json\",\"contentType\":\"text/plain\",\"text\":\"{\\\"version\\\":\\\"2\\\"}\"}]}",
             "handshake-v1only" => "{\"ok\":true,\"outputs\":[{\"path\":\"plugin-output.json\",\"contentType\":\"text/plain\",\"text\":\"{\\\"ok\\\":true}\"}]}",
             _ => "{\"ok\":true}"

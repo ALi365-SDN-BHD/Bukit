@@ -17,13 +17,18 @@ internal static class DataModuleBuilder
 
         foreach (var item in dataItems)
         {
-            var enabled = MetaHelpers.TryGetBoolField(item.Fields, "enabled");
+            var enabled = ContentFieldReader.GetBool(item.Fields, "enabled");
             if (enabled is false)
             {
                 continue;
             }
 
-            var type = item.GetContentType().Trim();
+            var type = ContentFieldReader.GetContentType(item).Trim();
+            if (string.IsNullOrWhiteSpace(type))
+            {
+                type = ContentFieldReader.GetText(item.Fields, "sourceKey") ?? string.Empty;
+            }
+
             if (string.IsNullOrWhiteSpace(type))
             {
                 type = "module";
@@ -51,7 +56,7 @@ internal static class DataModuleBuilder
         foreach (var kv in map)
         {
             var ordered = kv.Value
-                .OrderBy(x => MetaHelpers.TryGetNumberField(x.Fields, "order") ?? 0d)
+                .OrderBy(x => ContentFieldReader.GetNumber(x.Fields, "order") ?? 0d)
                 .ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -71,13 +76,13 @@ internal static class DataModuleBuilder
         var map = new Dictionary<string, List<ModuleInfo>>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in dataItems)
         {
-            var sourceKey = item.Meta.TryGetValue("sourceKey", out var v) && v is not null ? (v.ToString() ?? string.Empty).Trim() : string.Empty;
+            var sourceKey = ContentFieldReader.GetText(item.Fields, "sourceKey") ?? string.Empty;
             if (string.IsNullOrWhiteSpace(sourceKey))
             {
                 continue;
             }
 
-            var enabled = MetaHelpers.TryGetBoolField(item.Fields, "enabled");
+            var enabled = ContentFieldReader.GetBool(item.Fields, "enabled");
             if (enabled is false)
             {
                 continue;
@@ -105,7 +110,7 @@ internal static class DataModuleBuilder
         foreach (var kv in map)
         {
             result[kv.Key] = kv.Value
-                .OrderBy(x => MetaHelpers.TryGetNumberField(x.Fields, "order") ?? 0d)
+                .OrderBy(x => ContentFieldReader.GetNumber(x.Fields, "order") ?? 0d)
                 .ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }

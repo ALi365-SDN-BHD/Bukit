@@ -53,7 +53,13 @@ internal static class NotionRelationLinkBuilder
                 continue;
             }
 
-            if (field.Value is not IEnumerable<string> ids)
+            if (field.Type is not ("list" or "multi_select" or "relation"))
+            {
+                continue;
+            }
+
+            var ids = ContentFieldReader.ToTextList(field.Value);
+            if (ids is null || ids.Count == 0)
             {
                 continue;
             }
@@ -110,4 +116,3 @@ internal static class NotionRelationLinkBuilder
         return mutated ? dict! : fields;
     }
 }
-

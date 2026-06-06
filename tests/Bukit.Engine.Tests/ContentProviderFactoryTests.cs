@@ -146,8 +146,6 @@ public sealed class ContentProviderFactoryTests
                 "test",
                 DateTimeOffset.UtcNow,
                 "<p>Hello world</p>",
-                new Dictionary<string, object>(),
-                null,
                 null)
         };
 

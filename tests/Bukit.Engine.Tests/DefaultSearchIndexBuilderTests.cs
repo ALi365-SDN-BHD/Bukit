@@ -20,8 +20,6 @@ public sealed class DefaultSearchIndexBuilderTests
             slug,
             DateTimeOffset.UtcNow,
             null,
-            new Dictionary<string, object>(),
-            null,
             null);
     }
 

@@ -42,7 +42,7 @@ internal sealed class VariantBuildPipeline
     internal DataModuleResult PrepareDataModules(
         IReadOnlyList<ContentItem> items, string language, IContentBodyStore bodyStore)
     {
-        var dataItems = items.Where(MetaHelpers.IsDataItem).ToList();
+        var dataItems = items.Where(ContentFieldReader.IsDataItem).ToList();
         var modules = DataModuleBuilder.BuildModules(dataItems, language, bodyStore);
         var sourceData = DataModuleBuilder.BuildDataBySource(dataItems, bodyStore);
         return new DataModuleResult(dataItems, modules, sourceData);

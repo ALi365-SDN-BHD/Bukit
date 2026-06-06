@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Bukit.Engine.Tests;
 
-public sealed class MetaHelpersTests
+public sealed class ContentFieldReaderTests
 {
     private static ContentItem CreateItem(Dictionary<string, object> meta)
     {
@@ -14,7 +14,7 @@ public sealed class MetaHelpersTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: meta);
+            Fields: ContentFieldReader.ToFieldMap(meta));
     }
 
     [Fact]
@@ -22,7 +22,7 @@ public sealed class MetaHelpersTests
     {
         var meta = new Dictionary<string, object> { ["sourceMode"] = "data" };
 
-        Assert.True(MetaHelpers.IsDataItem(CreateItem(meta)));
+        Assert.True(ContentFieldReader.IsDataItem(CreateItem(meta)));
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public sealed class MetaHelpersTests
     {
         var meta = new Dictionary<string, object> { ["type"] = "post" };
 
-        Assert.False(MetaHelpers.IsDataItem(CreateItem(meta)));
+        Assert.False(ContentFieldReader.IsDataItem(CreateItem(meta)));
     }
 
     [Fact]
@@ -38,15 +38,15 @@ public sealed class MetaHelpersTests
     {
         var meta = new Dictionary<string, object> { ["title"] = "hello" };
 
-        Assert.False(MetaHelpers.IsDataItem(CreateItem(meta)));
+        Assert.False(ContentFieldReader.IsDataItem(CreateItem(meta)));
     }
 
     [Fact]
     public void GetString_KeyExists_ReturnsValue()
     {
-        var meta = new Dictionary<string, object> { ["author"] = "Alice" };
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["author"] = "Alice" });
 
-        var result = MetaHelpers.GetString(meta, "author");
+        var result = ContentFieldReader.GetText(fields, "author");
 
         Assert.Equal("Alice", result);
     }
@@ -54,9 +54,9 @@ public sealed class MetaHelpersTests
     [Fact]
     public void GetString_KeyMissing_ReturnsFallback()
     {
-        var meta = new Dictionary<string, object>();
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>());
 
-        var result = MetaHelpers.GetString(meta, "author") ?? "Unknown";
+        var result = ContentFieldReader.GetText(fields, "author") ?? "Unknown";
 
         Assert.Equal("Unknown", result);
     }
@@ -64,9 +64,9 @@ public sealed class MetaHelpersTests
     [Fact]
     public void GetString_KeyMissing_ReturnsNullWhenNoFallback()
     {
-        var meta = new Dictionary<string, object>();
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>());
 
-        var result = MetaHelpers.GetString(meta, "author");
+        var result = ContentFieldReader.GetText(fields, "author");
 
         Assert.Null(result);
     }
@@ -74,9 +74,9 @@ public sealed class MetaHelpersTests
     [Fact]
     public void GetStringList_CommaSeparated_ReturnsTrimmedList()
     {
-        var meta = new Dictionary<string, object> { ["tags"] = "dotnet, aspire , cloud " };
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["tags"] = "dotnet, aspire , cloud " });
 
-        var result = MetaHelpers.GetStringList(meta, "tags");
+        var result = ContentFieldReader.GetTextList(fields, "tags");
 
         Assert.NotNull(result);
         Assert.Equal(3, result!.Count);
@@ -88,9 +88,9 @@ public sealed class MetaHelpersTests
     [Fact]
     public void GetStringList_SingleValue_ReturnsSingleItemList()
     {
-        var meta = new Dictionary<string, object> { ["tag"] = "tech" };
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["tag"] = "tech" });
 
-        var result = MetaHelpers.GetStringList(meta, "tag");
+        var result = ContentFieldReader.GetTextList(fields, "tag");
 
         Assert.NotNull(result);
         Assert.Single(result!);
@@ -100,9 +100,9 @@ public sealed class MetaHelpersTests
     [Fact]
     public void GetStringList_KeyMissing_ReturnsEmptyList()
     {
-        var meta = new Dictionary<string, object>();
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>());
 
-        var result = MetaHelpers.GetStringList(meta, "tags");
+        var result = ContentFieldReader.GetTextList(fields, "tags");
 
         Assert.Null(result);
     }
@@ -110,9 +110,9 @@ public sealed class MetaHelpersTests
     [Fact]
     public void GetStringList_EmptyString_ReturnsEmptyList()
     {
-        var meta = new Dictionary<string, object> { ["tags"] = "" };
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["tags"] = "" });
 
-        var result = MetaHelpers.GetStringList(meta, "tags");
+        var result = ContentFieldReader.GetTextList(fields, "tags");
 
         Assert.Null(result);
     }
@@ -120,9 +120,9 @@ public sealed class MetaHelpersTests
     [Fact]
     public void TryGetI18nKey_KeyExists_ReturnsTrue()
     {
-        var meta = new Dictionary<string, object> { ["i18nKey"] = "page.about" };
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["i18nKey"] = "page.about" });
 
-        var result = MetaHelpers.TryGetI18nKey(meta, out var key);
+        var result = ContentFieldReader.TryGetI18nKey(fields, out var key);
 
         Assert.True(result);
         Assert.Equal("page.about", key);
@@ -131,9 +131,9 @@ public sealed class MetaHelpersTests
     [Fact]
     public void TryGetI18nKey_KeyMissing_ReturnsFalse()
     {
-        var meta = new Dictionary<string, object>();
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>());
 
-        var result = MetaHelpers.TryGetI18nKey(meta, out var key);
+        var result = ContentFieldReader.TryGetI18nKey(fields, out var key);
 
         Assert.False(result);
         Assert.Equal("", key);
@@ -147,7 +147,7 @@ public sealed class MetaHelpersTests
             ["enabled"] = new("bool", true)
         };
 
-        var result = MetaHelpers.TryGetBoolField(fields, "enabled");
+        var result = ContentFieldReader.GetBool(fields, "enabled");
 
         Assert.True(result);
     }
@@ -157,7 +157,7 @@ public sealed class MetaHelpersTests
     {
         var fields = new Dictionary<string, ContentField>();
 
-        var result = MetaHelpers.TryGetBoolField(fields, "enabled");
+        var result = ContentFieldReader.GetBool(fields, "enabled");
 
         Assert.Null(result);
     }
@@ -170,7 +170,7 @@ public sealed class MetaHelpersTests
             ["disabled"] = new("bool", false)
         };
 
-        var result = MetaHelpers.TryGetBoolField(fields, "disabled");
+        var result = ContentFieldReader.GetBool(fields, "disabled");
 
         Assert.False(result);
     }
@@ -183,7 +183,7 @@ public sealed class MetaHelpersTests
             ["color"] = new("text", "blue")
         };
 
-        var result = MetaHelpers.TryGetTextField(fields, "color");
+        var result = ContentFieldReader.GetText(fields, "color");
 
         Assert.Equal("blue", result);
     }
@@ -193,7 +193,7 @@ public sealed class MetaHelpersTests
     {
         var fields = new Dictionary<string, ContentField>();
 
-        var result = MetaHelpers.TryGetTextField(fields, "color");
+        var result = ContentFieldReader.GetText(fields, "color");
 
         Assert.Null(result);
     }
@@ -206,7 +206,7 @@ public sealed class MetaHelpersTests
             ["value"] = new("number", 42d)
         };
 
-        var result = MetaHelpers.TryGetTextField(fields, "value");
+        var result = ContentFieldReader.GetText(fields, "value");
 
         Assert.Equal("42", result);
     }
@@ -219,7 +219,7 @@ public sealed class MetaHelpersTests
             ["order"] = new("number", 5d)
         };
 
-        var result = MetaHelpers.TryGetNumberField(fields, "order");
+        var result = ContentFieldReader.GetNumber(fields, "order");
 
         Assert.Equal(5d, result);
     }
@@ -229,7 +229,7 @@ public sealed class MetaHelpersTests
     {
         var fields = new Dictionary<string, ContentField>();
 
-        var result = MetaHelpers.TryGetNumberField(fields, "order");
+        var result = ContentFieldReader.GetNumber(fields, "order");
 
         Assert.Null(result);
     }
@@ -242,28 +242,28 @@ public sealed class MetaHelpersTests
             ["value"] = new("text", "not a number")
         };
 
-        var result = MetaHelpers.TryGetNumberField(fields, "value");
+        var result = ContentFieldReader.GetNumber(fields, "value");
 
         Assert.Null(result);
     }
 
     [Fact]
-    public void GetString_WhitespaceValue_ReturnsWhitespace()
+    public void GetString_WhitespaceValue_ReturnsNull()
     {
-        var meta = new Dictionary<string, object> { ["summary"] = "   " };
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["summary"] = "   " });
 
-        var result = MetaHelpers.GetString(meta, "summary");
+        var result = ContentFieldReader.GetText(fields, "summary");
 
-        Assert.Equal("   ", result);
+        Assert.Null(result);
     }
 
     [Fact]
     public void GetString_WhitespaceValue_ReturnsFallbackWhenProvided()
     {
-        var meta = new Dictionary<string, object> { ["summary"] = "   " };
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["summary"] = "   " });
 
-        var result = MetaHelpers.GetString(meta, "summary") ?? "Default description";
+        var result = ContentFieldReader.GetText(fields, "summary") ?? "Default description";
 
-        Assert.Equal("   ", result);
+        Assert.Equal("Default description", result);
     }
 }

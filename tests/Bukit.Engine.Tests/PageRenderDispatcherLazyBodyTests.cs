@@ -22,8 +22,6 @@ public sealed class PageRenderDispatcherLazyBodyTests
             Slug: "hello",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
-            Fields: null,
             BodyKey: "body-1");
 
         var route = new RouteInfo("/pages/hello/", "pages/hello/index.html", "pages/page.html");
@@ -71,7 +69,6 @@ public sealed class PageRenderDispatcherLazyBodyTests
             Slug: "hello",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["summary"] = new("text", "Canonical summary"),
@@ -126,11 +123,10 @@ public sealed class PageRenderDispatcherLazyBodyTests
             Slug: "hello",
             PublishAt: DateTimeOffset.Parse("2026-05-04T00:00:00Z"),
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["bodyFingerprint"] = "body-v1"
-            },
-            Fields: null,
+            }),
             BodyKey: "body-1");
 
         var route = new RouteInfo("/pages/hello/", "pages/hello/index.html", "pages/page.html");
@@ -401,12 +397,11 @@ public sealed class PageRenderDispatcherLazyBodyTests
             Slug: "blog-post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = "post",
                 ["summary"] = "summary"
-            },
-            Fields: null,
+            }),
             BodyKey: "body-2");
 
         return new List<(ContentItem Item, RouteInfo Route)>

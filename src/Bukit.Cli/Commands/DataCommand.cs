@@ -21,9 +21,9 @@ public static class DataCommand
         var byType = new Dictionary<string, List<ContentItem>>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in items)
         {
-            if (!MetaHelpers.IsDataItem(item)) continue;
+            if (!ContentFieldReader.IsDataItem(item)) continue;
 
-            var type = item.GetContentType("module");
+            var type = ContentFieldReader.GetContentType(item, "module");
 
             if (!byType.ContainsKey(type))
                 byType[type] = new List<ContentItem>();
@@ -40,17 +40,15 @@ public static class DataCommand
         foreach (var (type, moduleItems) in byType.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
         {
             var source = "unknown";
-            if (moduleItems.First().Meta.TryGetValue("sourceKey", out var sk) && sk is not null)
-                source = sk.ToString()!;
+            source = ContentFieldReader.GetText(moduleItems.First().Fields, "sourceKey") ?? source;
 
             var sourceMode = "unknown";
-            if (moduleItems.First().Meta.TryGetValue("sourceMode", out var sm) && sm is not null)
-                sourceMode = sm.ToString()!;
+            sourceMode = ContentFieldReader.GetText(moduleItems.First().Fields, "sourceMode") ?? sourceMode;
 
             var languages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var m in moduleItems)
             {
-                var language = m.GetTextValue("language");
+                var language = ContentFieldReader.GetText(m, "language");
                 if (!string.IsNullOrWhiteSpace(language))
                     languages.Add(language);
             }
@@ -81,8 +79,8 @@ public static class DataCommand
         var matching = new List<ContentItem>();
         foreach (var item in items)
         {
-            if (!MetaHelpers.IsDataItem(item)) continue;
-            var type = item.GetContentType("module");
+            if (!ContentFieldReader.IsDataItem(item)) continue;
+            var type = ContentFieldReader.GetContentType(item, "module");
             if (string.Equals(type, moduleName, StringComparison.OrdinalIgnoreCase))
                 matching.Add(item);
         }
@@ -121,8 +119,8 @@ public static class DataCommand
         var byType = new SortedDictionary<string, List<ContentItem>>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in items)
         {
-            if (!MetaHelpers.IsDataItem(item)) continue;
-            var type = item.GetContentType("module");
+            if (!ContentFieldReader.IsDataItem(item)) continue;
+            var type = ContentFieldReader.GetContentType(item, "module");
 
             if (!byType.ContainsKey(type))
                 byType[type] = new List<ContentItem>();

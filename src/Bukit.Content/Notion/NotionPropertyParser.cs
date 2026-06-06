@@ -84,11 +84,6 @@ public static class NotionPropertyParser
                 continue;
             }
 
-            if (IsReservedNotionField(key))
-            {
-                continue;
-            }
-
             if (policyMode == "whitelist" && allowed is not null && !allowed.Contains(key))
             {
                 continue;
@@ -96,6 +91,11 @@ public static class NotionPropertyParser
 
             if (NotionPropertyTypeParser.TryParseNotionPropertyToField(prop.Value, out var field, out var notionType))
             {
+                if (IsReservedNotionField(key) && !string.Equals(notionType, "relation", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 fields[key] = field;
                 if (string.Equals(notionType, "relation", StringComparison.OrdinalIgnoreCase))
                 {

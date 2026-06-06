@@ -38,12 +38,10 @@ public static class RouteGenerator
             return new RouteGenerationResult(ValidateRoute(overridden, item), RouteSource.FullOverride);
         }
 
-        if (!HasNestedRouteMap(item.Meta) &&
-            item.Meta.TryGetValue("outputPath", out var topOutputPath) &&
-            topOutputPath is string ops &&
-            !string.IsNullOrWhiteSpace(ops))
+        var topOutputPath = ContentFieldReader.GetText(item.Fields, "outputPath");
+        if (!HasNestedRouteMap(item.Fields) && !string.IsNullOrWhiteSpace(topOutputPath))
         {
-            throw new ConfigException($"Top-level outputPath is deprecated. Use route.outputPath instead. Found in front matter: outputPath: '{ops}'");
+            throw new ConfigException($"Top-level outputPath is deprecated. Use route.outputPath instead. Found in front matter: outputPath: '{topOutputPath}'");
         }
 
         var (baseRoute, baseSource) = GenerateBaseRouteWithSource(item, outputPathEncoding, permalinks, collections);
@@ -80,10 +78,10 @@ public static class RouteGenerator
         result = result.Replace("{month}", item.PublishAt.Month.ToString("D2"), StringComparison.OrdinalIgnoreCase);
         result = result.Replace("{day}", item.PublishAt.Day.ToString("D2"), StringComparison.OrdinalIgnoreCase);
 
-        var typeVal = item.GetContentType();
+        var typeVal = ContentFieldReader.GetContentType(item);
         result = result.Replace("{type}", typeVal, StringComparison.OrdinalIgnoreCase);
 
-        var collectionVal = item.GetCollection();
+        var collectionVal = ContentFieldReader.GetCollection(item);
         result = result.Replace("{collection}", collectionVal, StringComparison.OrdinalIgnoreCase);
 
         return result;
@@ -115,7 +113,7 @@ public static class RouteGenerator
 
     private static bool TryReadFullRouteOverride(ContentItem item, string outputPathEncoding, out RouteInfo route)
     {
-        if (TryGetRouteFields(item.Meta, out var url, out var outputPath, out var template))
+        if (TryGetRouteFields(item.Fields, out var url, out var outputPath, out var template))
         {
             if (!string.IsNullOrWhiteSpace(url) &&
                 !string.IsNullOrWhiteSpace(outputPath) &&
@@ -139,12 +137,12 @@ public static class RouteGenerator
     private static bool TryApplyPartialRouteOverride(ContentItem item, string outputPathEncoding, RouteInfo baseRoute, out RouteInfo route)
     {
         route = default!;
-        if (!TryGetPartialRouteFields(item.Meta, out var url, out var outputPathOverride, out var template))
+        if (!TryGetPartialRouteFields(item.Fields, out var url, out var outputPathOverride, out var template))
         {
             return false;
         }
 
-        var useOutputPathOverride = !string.IsNullOrWhiteSpace(outputPathOverride) && HasNestedRouteMap(item.Meta);
+        var useOutputPathOverride = !string.IsNullOrWhiteSpace(outputPathOverride) && HasNestedRouteMap(item.Fields);
         var normalizedUrl = string.IsNullOrWhiteSpace(url)
             ? baseRoute.Url
             : RoutePathBuilder.NormalizeUrl(url);
@@ -159,7 +157,7 @@ public static class RouteGenerator
     }
 
     private static bool TryGetRouteFields(
-        IReadOnlyDictionary<string, object> meta,
+        IReadOnlyDictionary<string, ContentField>? fields,
         out string url,
         out string outputPath,
         out string template)
@@ -168,7 +166,7 @@ public static class RouteGenerator
         outputPath = string.Empty;
         template = string.Empty;
 
-        if (meta.TryGetValue("route", out var routeObj) && routeObj is IReadOnlyDictionary<string, object> routeMap)
+        if (TryGetRouteMap(fields, out var routeMap))
         {
             url = GetOptionalString(routeMap, "url");
             outputPath = GetOptionalString(routeMap, "outputPath");
@@ -176,15 +174,15 @@ public static class RouteGenerator
             return !(string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(outputPath) || string.IsNullOrWhiteSpace(template));
         }
 
-        if (meta.TryGetValue("url", out var u) && u is string us) url = us;
-        if (meta.TryGetValue("outputPath", out var o) && o is string os) outputPath = os;
-        if (meta.TryGetValue("template", out var t) && t is string ts) template = ts;
+        url = ContentFieldReader.GetText(fields, "url") ?? string.Empty;
+        outputPath = ContentFieldReader.GetText(fields, "outputPath") ?? string.Empty;
+        template = ContentFieldReader.GetText(fields, "template") ?? string.Empty;
 
         return !(string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(outputPath) || string.IsNullOrWhiteSpace(template));
     }
 
     private static bool TryGetPartialRouteFields(
-        IReadOnlyDictionary<string, object> meta,
+        IReadOnlyDictionary<string, ContentField>? fields,
         out string url,
         out string outputPath,
         out string template)
@@ -193,7 +191,7 @@ public static class RouteGenerator
         outputPath = string.Empty;
         template = string.Empty;
 
-        if (meta.TryGetValue("route", out var routeObj) && routeObj is IReadOnlyDictionary<string, object> routeMap)
+        if (TryGetRouteMap(fields, out var routeMap))
         {
             url = GetOptionalString(routeMap, "url");
             outputPath = GetOptionalString(routeMap, "outputPath");
@@ -201,9 +199,9 @@ public static class RouteGenerator
             return !(string.IsNullOrWhiteSpace(url) && string.IsNullOrWhiteSpace(outputPath) && string.IsNullOrWhiteSpace(template));
         }
 
-        if (meta.TryGetValue("url", out var u) && u is string us) url = us;
-        if (meta.TryGetValue("outputPath", out var o) && o is string os) outputPath = os;
-        if (meta.TryGetValue("template", out var t) && t is string ts) template = ts;
+        url = ContentFieldReader.GetText(fields, "url") ?? string.Empty;
+        outputPath = ContentFieldReader.GetText(fields, "outputPath") ?? string.Empty;
+        template = ContentFieldReader.GetText(fields, "template") ?? string.Empty;
 
         return !(string.IsNullOrWhiteSpace(url) && string.IsNullOrWhiteSpace(outputPath) && string.IsNullOrWhiteSpace(template));
     }
@@ -213,16 +211,26 @@ public static class RouteGenerator
         return map.TryGetValue(key, out var v) && v is string s ? s : string.Empty;
     }
 
-    private static bool HasNestedRouteMap(IReadOnlyDictionary<string, object> meta)
-        => meta.TryGetValue("route", out var routeObj) && routeObj is IReadOnlyDictionary<string, object>;
+    private static bool HasNestedRouteMap(IReadOnlyDictionary<string, ContentField>? fields)
+        => TryGetRouteMap(fields, out _);
+
+    private static bool TryGetRouteMap(
+        IReadOnlyDictionary<string, ContentField>? fields,
+        out IReadOnlyDictionary<string, object> routeMap)
+    {
+        routeMap = default!;
+        return ContentFieldReader.TryGetField(fields, "route", out var routeField) &&
+               routeField.Value is IReadOnlyDictionary<string, object> map &&
+               (routeMap = map) is not null;
+    }
 
     private static string GetType(ContentItem item)
     {
-        return item.GetContentType();
+        return ContentFieldReader.GetContentType(item);
     }
 
     private static string GetCollection(ContentItem item)
     {
-        return item.GetCollection();
+        return ContentFieldReader.GetCollection(item);
     }
 }

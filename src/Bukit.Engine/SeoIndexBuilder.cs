@@ -151,7 +151,7 @@ internal static class SeoIndexBuilder
                 ["url"] = route.Url,
                 ["publish_date"] = item.PublishAt.DateTime
             };
-            var summary = record.Presentation.Summary ?? item.GetSummary();
+            var summary = record.Presentation.Summary ?? ContentFieldReader.GetSummary(item);
             if (!string.IsNullOrWhiteSpace(summary))
             {
                 entry["summary"] = summary!;
@@ -253,5 +253,5 @@ internal static class SeoIndexBuilder
     }
 
     private static string? ResolveExplicitCollection(ContentItem item)
-        => string.IsNullOrWhiteSpace(item.GetCollection()) ? null : item.GetCollection();
+        => string.IsNullOrWhiteSpace(ContentFieldReader.GetCollection(item)) ? null : ContentFieldReader.GetCollection(item);
 }

@@ -18,8 +18,8 @@ public sealed record AfterBuildRoutedPage
     public required string Url { get; init; }
     [JsonPropertyName("outputPath")]
     public required string OutputPath { get; init; }
-    [JsonPropertyName("meta")]
-    public IReadOnlyDictionary<string, object>? Meta { get; init; }
+    [JsonPropertyName("fields")]
+    public IReadOnlyDictionary<string, object>? Fields { get; init; }
 }
 
 public sealed record AfterBuildOutputFile

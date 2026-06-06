@@ -124,7 +124,6 @@ public sealed class LocalizedContentBodyStoreTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: "test-1");
     }

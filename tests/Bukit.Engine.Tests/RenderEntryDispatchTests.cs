@@ -212,7 +212,7 @@ public sealed class RenderEntryDispatchTests
     }
 
     private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object>? meta) =>
-        new(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase));
+        new(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)));
 
     private static string CreateOutputDir()
     {

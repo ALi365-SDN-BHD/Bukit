@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Stages;
@@ -14,8 +15,7 @@ internal sealed class DraftFilterStage : IContentStage
         }
 
         var before = input.Items.Count;
-        var filtered = input.Items.Where(i =>
-            !(i.Meta.TryGetValue("draft", out var d) && ValueCoercion.IsTruthy(d))).ToList();
+        var filtered = input.Items.Where(i => ContentFieldReader.GetBool(i.Fields, "draft") is not true).ToList();
 
         if (filtered.Count < before)
         {

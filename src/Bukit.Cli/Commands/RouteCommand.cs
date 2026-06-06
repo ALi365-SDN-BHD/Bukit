@@ -33,13 +33,13 @@ public static class RouteCommand
         var entries = new List<RouteInspectEntry>();
         foreach (var item in contentResult.Items)
         {
-            if (MetaHelpers.IsDataItem(item)) continue;
+            if (ContentFieldReader.IsDataItem(item)) continue;
 
             var (route, routeSource) = RouteInventoryValidator.GenerateRouteWithSource(item, config.Site);
 
-            var collection = NullIfEmpty(item.GetCollection());
-            var type = NullIfEmpty(item.GetContentType());
-            var language = item.GetTextValue("language");
+            var collection = NullIfEmpty(ContentFieldReader.GetCollection(item));
+            var type = NullIfEmpty(ContentFieldReader.GetContentType(item));
+            var language = ContentFieldReader.GetText(item, "language");
 
             entries.Add(new RouteInspectEntry(
                 route.Url,

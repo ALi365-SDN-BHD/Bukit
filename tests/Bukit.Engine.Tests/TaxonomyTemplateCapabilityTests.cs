@@ -62,12 +62,11 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
             Slug: "post",
             PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>Body</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["tags"] = new[] { "News" }
-            },
-            Fields: null);
+            }));
 
         return new BuildContext
         {

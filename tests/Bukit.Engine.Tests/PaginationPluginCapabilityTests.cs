@@ -62,12 +62,11 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
                     Slug: $"post-{i}",
                     PublishAt: new DateTimeOffset(2024, 01, i, 0, 0, 0, TimeSpan.Zero),
                     ContentHtml: $"<p>{i}</p>",
-                    Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["type"] = "post",
                         ["collection"] = "post"
-                    },
-                    Fields: null),
+                    })),
                 new RouteInfo($"/blog/post-{i}/", Path.Combine("blog", $"post-{i}", "index.html"), "pages/post.html")));
         }
 

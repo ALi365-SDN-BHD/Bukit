@@ -7,13 +7,13 @@ public sealed class CompositeContentBodyStoreTests
 {
     private static ContentItem MakeItem(string id, string? contentHtml = null, string? sourceId = null, string? bodyKey = null)
     {
-        var meta = new Dictionary<string, object>();
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
         if (sourceId != null)
-            meta["sourceId"] = sourceId;
+            fields["sourceId"] = new ContentField("text", sourceId);
         return new ContentItem(
             Id: id, Title: "", Slug: "",
             PublishAt: default, ContentHtml: contentHtml,
-            Meta: meta, BodyKey: bodyKey);
+            Fields: fields, BodyKey: bodyKey);
     }
 
     [Fact]

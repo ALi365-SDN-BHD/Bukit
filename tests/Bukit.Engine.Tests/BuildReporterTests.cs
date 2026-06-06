@@ -213,22 +213,22 @@ public sealed class BuildReporterTests
             "alpha",
             DateTimeOffset.UtcNow,
             "<p>Alpha</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["collection"] = "post"
-            });
+            }));
         var zeta = new ContentItem(
             "zeta",
             "Zeta",
             "zeta",
             DateTimeOffset.UtcNow,
             "<p>Zeta</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["collection"] = "post"
-            });
+            }));
 
         return new BuildVariantResult(
             Language: "zh-CN",

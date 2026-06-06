@@ -67,12 +67,11 @@ public sealed class PaginationPluginDerivePagesTests
             Slug: $"post-{index}",
             PublishAt: publish,
             ContentHtml: $"<p>content {index}</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["collection"] = "post"
-            },
-            Fields: null);
+            }));
         var route = new RouteInfo($"/blog/post-{index}/", $"blog/post-{index}/index.html", "pages/post.html");
         return (item, route);
     }
@@ -221,15 +220,14 @@ public sealed class PaginationPluginDerivePagesTests
                     Slug: $"post-{i}",
                     PublishAt: publish.AddDays(i),
                     ContentHtml: $"<p>content {i}</p>",
-                    Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["type"] = "post"
-                    },
-                    Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                    Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["collection"] = new("text", "post"),
                         ["summary"] = new("text", $"Canonical summary {i}")
-                    });
+                    }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["type"] = "post"
+                    }));
                 var route = new RouteInfo($"/blog/post-{i}/", $"blog/post-{i}/index.html", "pages/post.html");
                 return (item, route);
             })

@@ -176,31 +176,31 @@ if (mode == "handshake-invalid")
 
 if (mode == "derive-success")
 {
-    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"derived-1","title":"Derived 1","slug":"derived-1","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Derived</p>","meta":{"type":"page"},"url":"/derived/derived-1/","outputPath":"derived/derived-1/index.html","template":"pages/page.html"}]}""");
+    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"derived-1","title":"Derived 1","slug":"derived-1","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Derived</p>","fields":{"type":"page"},"url":"/derived/derived-1/","outputPath":"derived/derived-1/index.html","template":"pages/page.html"}]}""");
     return;
 }
 
 if (mode == "derive-conflict")
 {
-    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"derived-conflict","title":"Derived Conflict","slug":"derived-conflict","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Derived Conflict</p>","meta":{"type":"page"},"url":"/blog/post-1/","outputPath":"blog/post-1/index.html","template":"pages/page.html"}]}""");
+    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"derived-conflict","title":"Derived Conflict","slug":"derived-conflict","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Derived Conflict</p>","fields":{"type":"page"},"url":"/blog/post-1/","outputPath":"blog/post-1/index.html","template":"pages/page.html"}]}""");
     return;
 }
 
 if (mode == "derive-lastwins")
 {
-    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"derived-conflict","title":"Derived Conflict","slug":"derived-conflict","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Derived Conflict</p>","meta":{"type":"page"},"url":"/derived/conflict/","outputPath":"derived/conflict/index.html","template":"pages/page.html"}]}""");
+    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"derived-conflict","title":"Derived Conflict","slug":"derived-conflict","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Derived Conflict</p>","fields":{"type":"page"},"url":"/derived/conflict/","outputPath":"derived/conflict/index.html","template":"pages/page.html"}]}""");
     return;
 }
 
 if (mode == "derive-plugin-a")
 {
-    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"plugin-a","title":"Plugin A Page","slug":"plugin-a","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Plugin A</p>","meta":{"type":"page"},"url":"/plugin-conflict/page/","outputPath":"plugin-conflict/page/index.html","template":"pages/page.html"}]}""");
+    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"plugin-a","title":"Plugin A Page","slug":"plugin-a","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Plugin A</p>","fields":{"type":"page"},"url":"/plugin-conflict/page/","outputPath":"plugin-conflict/page/index.html","template":"pages/page.html"}]}""");
     return;
 }
 
 if (mode == "derive-plugin-b")
 {
-    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"plugin-b","title":"Plugin B Page","slug":"plugin-b","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Plugin B</p>","meta":{"type":"page"},"url":"/plugin-conflict/page/","outputPath":"plugin-conflict/page/index.html","template":"pages/page.html"}]}""");
+    Console.Out.Write("""{"ok":true,"derivedPages":[{"id":"plugin-b","title":"Plugin B Page","slug":"plugin-b","publishAt":"2026-01-01T00:00:00+00:00","contentHtml":"<p>Plugin B</p>","fields":{"type":"page"},"url":"/plugin-conflict/page/","outputPath":"plugin-conflict/page/index.html","template":"pages/page.html"}]}""");
     return;
 }
 

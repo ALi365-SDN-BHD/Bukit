@@ -51,7 +51,7 @@ public sealed class SeoModelBuilderTests
             Slug: "hello-world",
             PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>hello</p>",
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -59,7 +59,7 @@ public sealed class SeoModelBuilderTests
                 ["author"] = "Alice",
                 ["tags"] = "dotnet,aspire",
                 ["summary"] = "A test post"
-            });
+            }));
         var route = new RouteInfo("/blog/hello-world/", "blog/hello-world/index.html", "pages/post.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/zh", item, route);
@@ -93,11 +93,11 @@ public sealed class SeoModelBuilderTests
             Slug: "original",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["seo_title"] = "SEO Title"
-            });
+            }));
         var route = new RouteInfo("/pages/original/", "pages/original/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -116,12 +116,12 @@ public sealed class SeoModelBuilderTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["seo_desc"] = "Custom desc",
                 ["summary"] = "Summary"
-            });
+            }));
         var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -139,16 +139,9 @@ public sealed class SeoModelBuilderTests
             Slug: "canonical",
             PublishAt: DateTimeOffset.Parse("2026-06-05T10:00:00Z"),
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
-            {
-                ["type"] = "post",
-                ["summary"] = "Legacy summary",
-                ["author"] = "Legacy Author",
-                ["tags"] = new[] { "legacy-tag" },
-                ["language"] = "zh-CN"
-            },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["type"] = new("text", "post"),
                 ["summary"] = new("text", "Canonical summary"),
                 ["author"] = new("text", "Canonical Author"),
                 ["tags"] = new("list", new object[] { "canonical-tag", "canonical-second" }),
@@ -180,13 +173,13 @@ public sealed class SeoModelBuilderTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["seotitle"] = "Legacy SEO Title",
                 ["seodesc"] = "Legacy SEO Desc",
                 ["summary"] = "Summary"
-            });
+            }));
         var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -205,7 +198,7 @@ public sealed class SeoModelBuilderTests
             Slug: "about",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object> { ["type"] = "page" });
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
         var route = new RouteInfo("/pages/about/", "pages/about/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -226,11 +219,11 @@ public sealed class SeoModelBuilderTests
             Slug: "noindex",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["robots"] = "noindex"
-            });
+            }));
         var route = new RouteInfo("/pages/noindex/", "pages/noindex/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -248,11 +241,11 @@ public sealed class SeoModelBuilderTests
             Slug: "translated",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["i18n_key"] = "page.translated"
-            });
+            }));
         var route = new RouteInfo("/pages/translated/", "pages/translated/index.html", "pages/page.html");
         var alternates = new[]
         {
@@ -349,7 +342,7 @@ public sealed class SeoModelBuilderTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object> { ["i18nKey"] = "page.about" });
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["i18nKey"] = "page.about" }));
         var route = new RouteInfo("/pages/about/", "pages/about/index.html", "pages/page.html");
 
         var key = SeoModelBuilder.BuildAlternateKey(item, route);
@@ -366,7 +359,7 @@ public sealed class SeoModelBuilderTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var route = new RouteInfo("/pages/about/", "pages/about/index.html", "pages/page.html");
 
         var key = SeoModelBuilder.BuildAlternateKey(item, route);
@@ -424,7 +417,7 @@ public sealed class SeoModelBuilderTests
             Slug: "no-image",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object> { ["type"] = "page" });
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
         var route = new RouteInfo("/pages/no-image/", "pages/no-image/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -458,11 +451,11 @@ public sealed class SeoModelBuilderTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["og_image"] = "/images/custom.jpg"
-            });
+            }));
         var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -481,11 +474,11 @@ public sealed class SeoModelBuilderTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["cover"] = "/covers/main.jpg"
-            });
+            }));
         var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -503,7 +496,7 @@ public sealed class SeoModelBuilderTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object> { ["type"] = "page" });
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
         var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -522,7 +515,7 @@ public sealed class SeoModelBuilderTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object> { ["type"] = "page" });
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
         var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -542,14 +535,14 @@ public sealed class SeoModelBuilderTests
             Slug: "my-post",
             PublishAt: new DateTimeOffset(2025, 3, 10, 8, 0, 0, TimeSpan.Zero),
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
                 ["schema_type"] = "BlogPosting",
                 ["author"] = "Bob",
                 ["tags"] = "tech,code"
-            });
+            }));
         var route = new RouteInfo("/blog/my-post/", "blog/my-post/index.html", "pages/post.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -572,11 +565,11 @@ public sealed class SeoModelBuilderTests
             Slug: "archive-2026",
             PublishAt: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["collection"] = "post"
-            });
+            }));
         var route = new RouteInfo("/blog/archive/2026/", "blog/archive/2026/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -594,11 +587,11 @@ public sealed class SeoModelBuilderTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["canonical"] = "https://other.com/custom"
-            });
+            }));
         var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);

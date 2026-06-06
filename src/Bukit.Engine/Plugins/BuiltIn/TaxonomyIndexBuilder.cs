@@ -59,9 +59,9 @@ internal static class TaxonomyIndexBuilder
                 continue;
             }
 
-            var summary = record?.Presentation.Summary ?? item.GetSummary();
+            var summary = record?.Presentation.Summary ?? ContentFieldReader.GetSummary(item);
             var extra = ExtractExtraFields(item, itemFields);
-            var sourceKey = GetSourceKey(item.Meta);
+            var sourceKey = GetSourceKey(item);
             var pinField = ResolvePinField(config, sourceKey);
             var pinOrderField = ResolvePinOrderField(config, sourceKey);
             var isPinned = TaxonomySortHelper.TryGetPinned(item, pinField);
@@ -121,49 +121,7 @@ internal static class TaxonomyIndexBuilder
 
     internal static IReadOnlyList<string>? GetStringList(ContentItem item, string key)
     {
-        if (item.Fields is not null)
-        {
-            if (item.Fields.TryGetValue(key, out var field) && field.Value is not null)
-            {
-                if (field.Value is string fieldText)
-                {
-                    var fieldParts = fieldText.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-                    return fieldParts.Length == 0 ? null : fieldParts;
-                }
-
-                if (field.Value is IEnumerable<object> fieldSeq)
-                {
-                    var fieldList = fieldSeq.Select(x => x?.ToString() ?? string.Empty)
-                        .Select(x => x.Trim())
-                        .Where(x => !string.IsNullOrWhiteSpace(x))
-                        .ToList();
-                    return fieldList.Count == 0 ? null : fieldList;
-                }
-            }
-        }
-
-        if (!item.Meta.TryGetValue(key, out var v) || v is null)
-        {
-            return null;
-        }
-
-        if (v is string s)
-        {
-            var parts = s.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            return parts.Length == 0 ? null : parts;
-        }
-
-        if (v is IEnumerable<object> seq)
-        {
-            var list = seq.Select(x => x?.ToString() ?? string.Empty)
-                .Select(x => x.Trim())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToList();
-
-            return list.Count == 0 ? null : list;
-        }
-
-        return null;
+        return ContentFieldReader.GetTextList(item.Fields, key);
     }
 
     internal static IReadOnlyDictionary<string, object>? ExtractExtraFields(ContentItem item, IReadOnlyList<string> itemFields)
@@ -195,42 +153,18 @@ internal static class TaxonomyIndexBuilder
     {
         value = null;
 
-        if (item.Fields is not null && item.Fields.TryGetValue(key, out var field) && field.Value is not null)
+        if (ContentFieldReader.TryGetField(item.Fields, key, out var field) && field.Value is not null)
         {
             value = field.Value;
-            return true;
-        }
-
-        if (item.Meta.TryGetValue(key, out var metaValue) && metaValue is not null)
-        {
-            if (metaValue is string s)
-            {
-                var trimmed = s.Trim();
-                if (trimmed.Length == 0)
-                {
-                    return false;
-                }
-
-                value = trimmed;
-                return true;
-            }
-
-            value = metaValue;
             return true;
         }
 
         return false;
     }
 
-    internal static string? GetSourceKey(IReadOnlyDictionary<string, object> meta)
+    internal static string? GetSourceKey(ContentItem item)
     {
-        if (!meta.TryGetValue("sourceKey", out var obj) || obj is null)
-        {
-            return null;
-        }
-
-        var text = obj.ToString();
-        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        return ContentFieldReader.GetText(item.Fields, "sourceKey");
     }
 
     internal static string ResolvePinField(TaxonomyConfig config, string? sourceKey)

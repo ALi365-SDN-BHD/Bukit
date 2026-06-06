@@ -115,7 +115,7 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
                     total += idx.Weight * CountShared(ResolveCategories(a, aRecord), ResolveCategories(b, bRecord));
                     break;
                 case "keywords":
-                    total += idx.Weight * CountShared(MetaHelpers.GetStringList(a.Meta, "keywords"), MetaHelpers.GetStringList(b.Meta, "keywords"));
+                    total += idx.Weight * CountShared(ContentFieldReader.GetTextList(a.Fields, "keywords"), ContentFieldReader.GetTextList(b.Fields, "keywords"));
                     break;
                 case "collection":
                     var ta = ResolveCollection(a, aRecord);
@@ -152,21 +152,21 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
     private static IReadOnlyList<string>? ResolveTags(ContentItem item, ContentRecord? record)
         => record?.Classification.Tags is { Count: > 0 } tags
             ? tags
-            : MetaHelpers.GetStringList(item.Meta, "tags");
+            : ContentFieldReader.GetTextList(item.Fields, "tags");
 
     private static IReadOnlyList<string>? ResolveCategories(ContentItem item, ContentRecord? record)
         => record?.Classification.Sections is { Count: > 0 } categories
             ? categories
-            : MetaHelpers.GetStringList(item.Meta, "categories");
+            : ContentFieldReader.GetTextList(item.Fields, "categories");
 
     private static string? ResolveCollection(ContentItem item, ContentRecord? record)
         => string.IsNullOrWhiteSpace(record?.Classification.Collection)
-            ? MetaHelpers.GetString(item.Meta, "collection")
+            ? ContentFieldReader.GetText(item.Fields, "collection")
             : record.Classification.Collection;
 
     private static string? ResolveType(ContentItem item, ContentRecord? record)
         => string.IsNullOrWhiteSpace(record?.Classification.Type)
-            ? MetaHelpers.GetString(item.Meta, "type")
+            ? ContentFieldReader.GetText(item.Fields, "type")
             : record.Classification.Type;
 
     private static int CountShared(IReadOnlyList<string>? a, IReadOnlyList<string>? b)

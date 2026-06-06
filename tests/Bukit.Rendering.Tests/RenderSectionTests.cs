@@ -276,11 +276,11 @@ public sealed class RenderSectionTests : IDisposable
         var allPages = new List<(ContentItem, RouteInfo?)>
         {
             (new ContentItem("post1", "First Post", "first-post", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object> { ["type"] = "posts" }), null),
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "posts" })), null),
             (new ContentItem("post2", "Second Post", "second-post", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object> { ["type"] = "posts" }), null),
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "posts" })), null),
             (new ContentItem("other", "Other Page", "other", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object> { ["type"] = "page" }), null)
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" })), null)
         };
 
         var registry = new ThemeComponentRegistry(_themeDir, manifest, null);
@@ -331,10 +331,8 @@ public sealed class RenderSectionTests : IDisposable
         var allPages = new List<(ContentItem, RouteInfo?)>
         {
             (new ContentItem("a", "A", "a", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object>(),
                 new Dictionary<string, ContentField> { ["featured"] = new("boolean", true) }), null),
             (new ContentItem("b", "B", "b", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object>(),
                 new Dictionary<string, ContentField> { ["featured"] = new("boolean", false) }), null)
         };
 
@@ -385,8 +383,9 @@ public sealed class RenderSectionTests : IDisposable
         var allPages = new List<(ContentItem, RouteInfo?)>
         {
             (new ContentItem("post1", "First Post", "first-post", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object> { ["type"] = "posts" },
-                new Dictionary<string, ContentField> { ["summary"] = new("text", "Canonical section summary") }), null)
+                ContentFieldReader.WithValues(
+                    new Dictionary<string, ContentField> { ["summary"] = new("text", "Canonical section summary") },
+                    new Dictionary<string, object> { ["type"] = "posts" })), null)
         };
 
         var registry = new ThemeComponentRegistry(_themeDir, manifest, null);
@@ -429,7 +428,7 @@ public sealed class RenderSectionTests : IDisposable
         var allPages = new List<(ContentItem, RouteInfo?)>
         {
             (new ContentItem("p1", "Post", "post", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object> { ["type"] = "posts" }), null)
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "posts" })), null)
         };
 
         var registry = new ThemeComponentRegistry(_themeDir, manifest, null);

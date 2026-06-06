@@ -144,7 +144,7 @@ public sealed class RoutePipelineTests
 
     private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object> meta)
     {
-        return new ContentItem(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", meta);
+        return new ContentItem(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(meta));
     }
 
     private static string Normalize(string path)

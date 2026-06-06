@@ -41,7 +41,7 @@ public static class SectionDataResolver
     {
         if (sourceSet.Contains("*") || sourceSet.Contains("all")) return true;
 
-        var itemType = item.GetContentType();
+        var itemType = ContentFieldReader.GetContentType(item);
         var itemCollections = GetCollections(item);
 
         foreach (var source in sourceSet)
@@ -80,13 +80,13 @@ public static class SectionDataResolver
 
     private static IReadOnlyList<string> GetCollections(ContentItem item)
     {
-        var collections = item.GetTextValues("collections");
+        var collections = ContentFieldReader.GetTextValues(item, "collections");
         if (collections.Count > 0)
         {
             return collections;
         }
 
-        var collection = item.GetCollection();
+        var collection = ContentFieldReader.GetCollection(item);
         return string.IsNullOrWhiteSpace(collection) ? Array.Empty<string>() : [collection];
     }
 

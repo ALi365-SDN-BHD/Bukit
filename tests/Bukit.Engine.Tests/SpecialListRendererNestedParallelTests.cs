@@ -121,7 +121,6 @@ public sealed class SpecialListRendererNestedParallelTests
             Slug: "item-1",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["summary"] = new("text", "Canonical list summary")
@@ -152,8 +151,6 @@ public sealed class SpecialListRendererNestedParallelTests
                 Slug: $"item-{i}",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
-                Fields: null,
                 BodyKey: $"body-{i}");
             var route = new RouteInfo($"/posts/item-{i}/", $"posts/item-{i}/index.html", "pages/post.html");
             list.Add((item, route));

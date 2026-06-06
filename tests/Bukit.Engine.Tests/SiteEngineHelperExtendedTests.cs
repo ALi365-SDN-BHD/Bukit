@@ -15,8 +15,7 @@ public sealed class SiteEngineHelperExtendedTests
 {
     private static ContentItem CreateItem(string id, string title, string slug)
     {
-        return new ContentItem(id, title, slug, DateTimeOffset.UtcNow, null,
-            new Dictionary<string, object>(), null, null);
+        return new ContentItem(id, title, slug, DateTimeOffset.UtcNow, null, null);
     }
 
     private static AppConfig CreateTestConfig()
@@ -54,7 +53,7 @@ public sealed class SiteEngineHelperExtendedTests
         var items = new List<ContentItem>
         {
             new("1", "Post One", "post-one", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["collection"] = "article" }, null, null),
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["collection"] = "article" })),
         };
         var languages = new List<string> { "en", "zh" };
         var defaultLanguage = "en";

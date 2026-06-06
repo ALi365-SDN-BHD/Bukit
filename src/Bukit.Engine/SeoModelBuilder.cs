@@ -16,13 +16,13 @@ internal static class SeoModelBuilder
         IReadOnlyList<SeoAlternateModel>? alternates = null)
     {
         var record = CanonicalContentGraphBuilder.ToRecord(item);
-        var title = FirstTextOrMeta(item, "seo_title") ?? FirstTextOrMeta(item, "seotitle") ?? item.Title;
-        var description = FirstTextOrMeta(item, "seo_desc") ?? FirstTextOrMeta(item, "seodesc") ?? record.Presentation.Summary ?? config.Site.Description;
-        var canonical = FirstTextOrMeta(item, "canonical") ?? BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url);
-        var robots = FirstTextOrMeta(item, "robots");
-        var image = FirstTextOrMeta(item, "og_image")
-            ?? FirstTextOrMeta(item, "cover")
-            ?? FirstTextOrMeta(item, "image")
+        var title = FirstTextField(item, "seo_title") ?? FirstTextField(item, "seotitle") ?? item.Title;
+        var description = FirstTextField(item, "seo_desc") ?? FirstTextField(item, "seodesc") ?? record.Presentation.Summary ?? config.Site.Description;
+        var canonical = FirstTextField(item, "canonical") ?? BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url);
+        var robots = FirstTextField(item, "robots");
+        var image = FirstTextField(item, "og_image")
+            ?? FirstTextField(item, "cover")
+            ?? FirstTextField(item, "image")
             ?? record.Media.FirstOrDefault(media => string.Equals(media.Kind, "image", StringComparison.OrdinalIgnoreCase))?.Url
             ?? config.Site.Seo.DefaultImage;
         image = BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, image);
@@ -30,15 +30,15 @@ internal static class SeoModelBuilder
         var geo = SeoGeoMetaParser.ParseGeoMeta(item);
         var schemaType = ResolveSchemaType(item, geo);
         var isArticle = IsArticleSchemaType(schemaType)
-                        || IsTruthyMeta(item, "seo_article")
+                        || IsTruthyField(item, "seo_article")
                         || string.Equals(record.Identity.ContentType, "post", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(record.Classification.Type, "post", StringComparison.OrdinalIgnoreCase);
         schemaType = isArticle && string.IsNullOrWhiteSpace(schemaType) ? "BlogPosting" : schemaType;
         var isStructuredContent = isArticle || IsStructuredContentSchemaType(schemaType);
         var isCollectionPage = !isStructuredContent && IsCollectionLikePage(item);
         var updated = record.Lifecycle.UpdatedAt;
-        var author = record.Ownership.Author ?? FirstTextOrMeta(item, "author");
-        var tags = record.Classification.Tags.Count > 0 ? record.Classification.Tags : GetStringList(item.Meta, "tags") ?? Array.Empty<string>();
+        var author = record.Ownership.Author ?? FirstTextField(item, "author");
+        var tags = record.Classification.Tags.Count > 0 ? record.Classification.Tags : ContentFieldReader.GetTextList(item.Fields, "tags") ?? Array.Empty<string>();
         var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, route.Url, item, item.Fields, isStructuredContent, isCollectionPage, geo, schemaType, record);
 
         return new SeoModel
@@ -64,7 +64,7 @@ internal static class SeoModelBuilder
                 Description = description,
                 Image = image,
                 Site = config.Site.Seo.TwitterSite,
-                Creator = FirstTextOrMeta(item, "twitter_creator")
+                Creator = FirstTextField(item, "twitter_creator")
             },
             Article = new SeoArticleModel
             {
@@ -140,7 +140,7 @@ internal static class SeoModelBuilder
 
     internal static string BuildAlternateKey(ContentItem item, RouteInfo route)
     {
-        return MetaHelpers.TryGetI18nKey(item.Meta, out var key) ? $"i18n:{key}" : $"route:{route.Url}";
+        return ContentFieldReader.TryGetI18nKey(item.Fields, out var key) ? $"i18n:{key}" : $"route:{route.Url}";
     }
 
     internal static string BuildListAlternateKey(RouteInfo route) => $"route:{route.Url}";
@@ -160,13 +160,13 @@ internal static class SeoModelBuilder
 
     internal static string? FirstTextField(IReadOnlyDictionary<string, ContentField>? fields, string key)
     {
-        var value = MetaHelpers.TryGetTextField(fields, key);
+        var value = ContentFieldReader.GetText(fields, key);
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    internal static string? FirstTextOrMeta(ContentItem item, string key)
+    internal static string? FirstTextField(ContentItem item, string key)
     {
-        return FirstTextField(item.Fields, key) ?? CleanText(MetaHelpers.GetString(item.Meta, key));
+        return FirstTextField(item.Fields, key);
     }
 
     internal static string? CleanText(string? value)
@@ -176,8 +176,8 @@ internal static class SeoModelBuilder
 
     internal static string? ResolveSchemaType(ContentItem item, SeoGeoMetaParser.ParsedGeoMeta geo)
         => CleanText(geo.SchemaType)
-           ?? FirstTextOrMeta(item, "schema_type")
-           ?? FirstTextOrMeta(item, "seo_schema_type");
+           ?? FirstTextField(item, "schema_type")
+           ?? FirstTextField(item, "seo_schema_type");
 
     internal static bool IsArticleSchemaType(string? schemaType)
         => schemaType is not null &&
@@ -189,22 +189,8 @@ internal static class SeoModelBuilder
            (string.Equals(schemaType, "FAQPage", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(schemaType, "HowTo", StringComparison.OrdinalIgnoreCase));
 
-    private static bool IsTruthyMeta(ContentItem item, string key)
-    {
-        if (!item.Meta.TryGetValue(key, out var value) || value is null)
-        {
-            return false;
-        }
-
-        return value switch
-        {
-            bool b => b,
-            string s => s.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-                        s.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
-                        s.Equals("1", StringComparison.OrdinalIgnoreCase),
-            _ => false
-        };
-    }
+    private static bool IsTruthyField(ContentItem item, string key)
+        => ContentFieldReader.GetBool(item.Fields, key) is true;
 
     internal static bool IsCollectionLikePage(ContentItem item)
         => item.Fields is not null &&
@@ -256,7 +242,7 @@ internal static class SeoModelBuilder
     internal static bool TryGetUpdateTime(ContentItem item, out DateTimeOffset updated)
     {
         updated = default;
-        var value = FirstTextOrMeta(item, "update_time");
+        var value = FirstTextField(item, "update_time");
         if (string.IsNullOrWhiteSpace(value))
         {
             return false;

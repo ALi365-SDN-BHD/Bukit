@@ -26,8 +26,7 @@ public sealed class RelatedContentPluginTests
             Slug: slug,
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: meta,
-            Fields: null);
+            Fields: ContentFieldReader.ToFieldMap(meta));
     }
 
     private static ContentItem CreateFieldItem(string id, string title, string slug, IReadOnlyList<string> tags)
@@ -38,7 +37,6 @@ public sealed class RelatedContentPluginTests
             Slug: slug,
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["tags"] = new("list", tags)
@@ -214,8 +212,8 @@ public sealed class RelatedContentPluginTests
     public void DerivePages_SkipsArchiveAndPaginationItems()
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        var archiveItem = new ContentItem("blog-archive-2024", "Archive", "a", DateTimeOffset.UtcNow, "<p>x</p>", meta);
-        var pageItem = new ContentItem("blog-page-2", "Page 2", "p2", DateTimeOffset.UtcNow, "<p>x</p>", meta);
+        var archiveItem = new ContentItem("blog-archive-2024", "Archive", "a", DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
+        var pageItem = new ContentItem("blog-page-2", "Page 2", "p2", DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
         var normalItem = CreateItem("1", "Normal", "n", tags: "tag1");
         var routed = new List<(ContentItem, RouteInfo)>
         {

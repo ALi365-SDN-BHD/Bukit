@@ -33,13 +33,10 @@ public sealed class DataCommandTests : IDisposable
             Slug: "hero-block",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["sourceMode"] = "data",
-                ["sourceKey"] = "homepage"
-            },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["sourceMode"] = new("text", "data"),
+                ["sourceKey"] = new("text", "homepage"),
                 ["type"] = new("text", "hero"),
                 ["language"] = new("text", "ms-MY")
             });
@@ -61,12 +58,9 @@ public sealed class DataCommandTests : IDisposable
             Slug: "hero-block",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["sourceMode"] = "data"
-            },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["sourceMode"] = new("text", "data"),
                 ["type"] = new("text", "hero"),
                 ["headline"] = new("text", "Welcome")
             });

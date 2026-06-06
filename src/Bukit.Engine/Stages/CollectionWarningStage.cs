@@ -13,9 +13,9 @@ internal sealed class CollectionWarningStage : IContentStage
 
         foreach (var item in input.Items)
         {
-            var collection = item.GetCollection();
+            var collection = ContentFieldReader.GetCollection(item);
             var hasCollection = !string.IsNullOrWhiteSpace(collection);
-            var type = item.GetContentType();
+            var type = ContentFieldReader.GetContentType(item);
 
             if (hasCollection)
             {

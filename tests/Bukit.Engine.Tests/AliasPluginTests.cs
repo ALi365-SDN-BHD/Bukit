@@ -16,7 +16,7 @@ public sealed class AliasPluginTests
     private static ContentItem Item(string id, string title, string slug, Dictionary<string, object>? meta = null)
     {
         meta ??= new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        return new ContentItem(id, title, slug, DateTimeOffset.UtcNow, "<p>x</p>", meta);
+        return new ContentItem(id, title, slug, DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
     }
 
     private static RouteInfo Route(string url) => new(url, $"out{url}index.html", "pages/post.html");
@@ -121,7 +121,7 @@ public sealed class AliasPluginTests
 
         var derived = new AliasPlugin().DerivePages(ctx);
 
-        Assert.Equal("redirect", derived[0].Item.Meta["type"]);
+        Assert.Equal("redirect", ContentFieldReader.GetText(derived[0].Item.Fields, "type"));
     }
 
     private static BuildContext CreateContext(List<(ContentItem, RouteInfo)> routed)

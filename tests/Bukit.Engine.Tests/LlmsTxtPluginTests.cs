@@ -220,7 +220,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
             Slug: "test-page",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>Hello world</p>",
-            Meta: meta);
+            Fields: ContentFieldReader.ToFieldMap(meta));
         var route = new RouteInfo("/page-1/", "page-1/index.html", "pages/page.html");
 
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)

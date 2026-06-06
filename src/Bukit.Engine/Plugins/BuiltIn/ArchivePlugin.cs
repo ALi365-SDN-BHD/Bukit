@@ -99,7 +99,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = collectionKey,
             ["summary"] = $"Browse archived {collectionKey} entries by year."
         };
-        var item = new ContentItem($"{collectionKey}-archive-index", "Archive", "archive", now, sb.ToString(), meta);
+        var item = new ContentItem($"{collectionKey}-archive-index", "Archive", "archive", now, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
         return (item, route, now);
     }
 
@@ -136,7 +136,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = collectionKey,
             ["summary"] = $"Browse {collectionKey} entries published in {year}."
         };
-        var item = new ContentItem($"{collectionKey}-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), meta);
+        var item = new ContentItem($"{collectionKey}-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
         return (item, route, publishAt);
     }
 
@@ -169,7 +169,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = collectionKey,
             ["summary"] = $"Browse {collectionKey} entries published in {year}-{month:D2}."
         };
-        var itemInfo = new ContentItem($"{collectionKey}-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), meta);
+        var itemInfo = new ContentItem($"{collectionKey}-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
         return (itemInfo, routeInfo, publishAt);
     }
 

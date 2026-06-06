@@ -154,6 +154,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
             }
 
             var fields = MarkdownFieldBuilder.BuildFields(meta);
+            fields = ContentFieldReader.WithValues(fields, BuildCanonicalFields(meta, title, slug, publishAt));
 
             items.Add(new ContentItem(
                 Id: slug,
@@ -161,7 +162,6 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 Slug: slug,
                 PublishAt: publishAt,
                 ContentHtml: null,
-                Meta: meta,
                 Fields: fields,
                 BodyKey: file
             ));
@@ -174,6 +174,51 @@ public sealed class MarkdownFolderProvider : IContentProvider
     {
         var bytes = Encoding.UTF8.GetBytes(markdown ?? string.Empty);
         return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+    }
+
+    private static IReadOnlyDictionary<string, object> BuildCanonicalFields(
+        IReadOnlyDictionary<string, object> meta,
+        string title,
+        string slug,
+        DateTimeOffset publishAt)
+    {
+        var values = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["title"] = title,
+            ["slug"] = slug,
+            ["publishAt"] = publishAt
+        };
+
+        AddIfPresent(meta, values, "type");
+        AddIfPresent(meta, values, "collection");
+        AddIfPresent(meta, values, "language");
+        AddIfPresent(meta, values, "i18nKey");
+        AddIfPresent(meta, values, "i18n_key");
+        AddIfPresent(meta, values, "summary");
+        AddIfPresent(meta, values, "description");
+        AddIfPresent(meta, values, "excerpt");
+        AddIfPresent(meta, values, "draft");
+        AddIfPresent(meta, values, "route");
+        AddIfPresent(meta, values, "url");
+        AddIfPresent(meta, values, "outputPath");
+        AddIfPresent(meta, values, "template");
+        AddIfPresent(meta, values, "source");
+        AddIfPresent(meta, values, "sourcePath");
+        AddIfPresent(meta, values, "bodyFingerprint");
+        AddIfPresent(meta, values, "tableOfContents");
+
+        return values;
+    }
+
+    private static void AddIfPresent(
+        IReadOnlyDictionary<string, object> source,
+        IDictionary<string, object> target,
+        string key)
+    {
+        if (source.TryGetValue(key, out var value) && value is not null)
+        {
+            target[key] = value;
+        }
     }
 
     private static Regex BuildGlobRegex(string glob)

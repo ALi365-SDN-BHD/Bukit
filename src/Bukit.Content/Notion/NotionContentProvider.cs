@@ -117,7 +117,8 @@ public sealed class NotionContentProvider : IContentProvider
                     NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "categories");
                     NotionPropertyParser.ExtractSeoMeta(meta, props, pm);
 
-                    drafts.Add(new PageDraft(pageId, title, slug, type ?? string.Empty, publishAt, lastEditedTime, meta, fields, relationKeys));
+                    fields = ContentFieldReader.WithValues(fields, meta);
+                    drafts.Add(new PageDraft(pageId, title, slug, type ?? string.Empty, publishAt, lastEditedTime, fields, relationKeys));
                 }
 
                 if (hitMax)
@@ -147,7 +148,7 @@ public sealed class NotionContentProvider : IContentProvider
 
         var targets = drafts.Select(d =>
         {
-            var url = d.Meta.TryGetValue("url", out var u) ? u?.ToString() : null;
+            var url = ContentFieldReader.GetText(d.Fields, "url");
             url = string.IsNullOrWhiteSpace(url) ? null : url.Trim();
             return new RelationTargetInfo(d.PageId, d.Title, d.Slug, d.Type, url);
         });
@@ -164,8 +165,10 @@ public sealed class NotionContentProvider : IContentProvider
                 fields = NotionRelationLinkBuilder.EnrichFields(fields, d.RelationKeys, pageIndex);
             }
 
-            NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(d.Meta, fields, "tags");
-            NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(d.Meta, fields, "categories");
+            var taxonomyValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(taxonomyValues, fields, "tags");
+            NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(taxonomyValues, fields, "categories");
+            fields = ContentFieldReader.WithValues(fields, taxonomyValues);
 
             items.Add(new ContentItem(
                 Id: d.PageId,
@@ -173,7 +176,6 @@ public sealed class NotionContentProvider : IContentProvider
                 Slug: d.Slug,
                 PublishAt: d.PublishAt,
                 ContentHtml: null,
-                Meta: d.Meta,
                 Fields: fields,
                 BodyKey: d.PageId
             ));
@@ -192,18 +194,13 @@ public sealed class NotionContentProvider : IContentProvider
             var renderer = new NotionBlocksRenderer(bodyClient);
             var html = await NotionCacheManager.GetOrRenderPageHtmlAsync(renderer, pageHtmlCache, draft.PageId, draft.LastEditedTime, ct, _logger);
 
-            if ((!item.Meta.TryGetValue("summary", out var summaryObj) || string.IsNullOrWhiteSpace(summaryObj?.ToString())) &&
+            if (string.IsNullOrWhiteSpace(ContentFieldReader.GetText(item.Fields, "summary")) &&
                 _options.AutoSummary &&
                 !string.IsNullOrWhiteSpace(html))
             {
                 var extracted = NotionAutoSummary.ExtractFromHtml(html, _options.AutoSummaryMaxLength);
                 if (!string.IsNullOrWhiteSpace(extracted))
                 {
-                    if (item.Meta is Dictionary<string, object> mutableMeta)
-                    {
-                        mutableMeta["summary"] = extracted;
-                    }
-
                     if (item.Fields is Dictionary<string, ContentField> mutableFields)
                     {
                         mutableFields["summary"] = new ContentField("text", extracted);
@@ -222,7 +219,6 @@ public sealed class NotionContentProvider : IContentProvider
         string Type,
         DateTimeOffset PublishAt,
         string? LastEditedTime,
-        Dictionary<string, object> Meta,
         IReadOnlyDictionary<string, ContentField> Fields,
         IReadOnlyList<string> RelationKeys);
 

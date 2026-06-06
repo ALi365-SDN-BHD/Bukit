@@ -53,11 +53,11 @@ public sealed class ThemeTemplateResolverTests
             "hello",
             DateTimeOffset.UnixEpoch,
             "<p>Hello</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["collection"] = "articles"
-            });
+            }));
 
         var template = new ThemeTemplateResolver(manifest).ResolveContentTemplate(item);
 
@@ -80,11 +80,11 @@ public sealed class ThemeTemplateResolverTests
             "hello",
             DateTimeOffset.UnixEpoch,
             "<p>Hello</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["collection"] = "articles"
-            });
+            }));
 
         var ex = Assert.Throws<ConfigException>(() => new ThemeTemplateResolver(manifest).ResolveContentTemplate(item));
 
@@ -112,7 +112,6 @@ public sealed class ThemeTemplateResolverTests
             "hello",
             DateTimeOffset.UnixEpoch,
             "<p>Hello</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post"),

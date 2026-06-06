@@ -34,7 +34,7 @@ internal static class DoctorSchemaChecker
 
             foreach (var (item, _) in collectionItems)
             {
-                var errors = ContentSchemaValidator.Validate(item.Meta, schema, item.Id);
+                var errors = ContentSchemaValidator.ValidateFields(item.Fields, schema, item.Id);
                 foreach (var err in errors)
                 {
                     var detail = $"{err.SourcePath ?? item.Id} (collection: {collectionName}): {err.Message}";
@@ -175,7 +175,7 @@ internal static class DoctorSchemaChecker
             foreach (var (item, _) in collectionItems)
             {
                 var fileExtras = new List<string>();
-                foreach (var kv in item.Meta)
+                foreach (var kv in item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))
                 {
                     if (reservedKeys.Contains(kv.Key))
                     {
@@ -192,7 +192,7 @@ internal static class DoctorSchemaChecker
                 {
                     filesWithExtras++;
                     totalExtras += fileExtras.Count;
-                    var fileId = item.Meta.TryGetValue("sourcePath", out var sp) && sp is string s ? s : item.Id;
+                    var fileId = ContentFieldReader.GetText(item.Fields, "sourcePath") ?? item.Id;
                     extraFields.Add($"{fileId}: field(s) [{string.Join(", ", fileExtras)}] not in collection schema");
                 }
             }

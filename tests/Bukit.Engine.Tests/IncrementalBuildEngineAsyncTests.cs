@@ -28,8 +28,7 @@ public sealed class IncrementalBuildEngineAsyncTests
             Slug: slug,
             PublishAt: publishAt ?? s_testPublishAt,
             ContentHtml: contentHtml,
-            Meta: meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
-            Fields: fields
+            Fields: ContentFieldReader.WithValues(fields, meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase))
         );
     }
 

@@ -482,7 +482,7 @@ public sealed class SiteEngineIntegrationTests
                     "about",
                     DateTimeOffset.Parse("2024-06-01T00:00:00Z"),
                     null,
-                    new Dictionary<string, object> { ["type"] = "page", ["collection"] = "page", ["bodyFingerprint"] = "about-v1" },
+                    ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page", ["collection"] = "page", ["bodyFingerprint"] = "about-v1" }),
                     BodyKey: "about")
             };
             var loadResult = new ContentLoadResult(items, new DictionaryContentBodyStore(new Dictionary<string, string>
@@ -1155,7 +1155,7 @@ public sealed class SiteEngineIntegrationTests
                     $"item-{i}",
                     DateTimeOffset.UtcNow,
                     $"<p>Item {i}</p>",
-                new Dictionary<string, object> { ["type"] = "page", ["collection"] = "page" }))
+                    ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page", ["collection"] = "page" })))
                 .ToList();
             var bodyStore = new DictionaryContentBodyStore(items.ToDictionary(x => x.Id, x => x.ContentHtml ?? string.Empty, StringComparer.Ordinal));
             var concurrency = new RenderConcurrencyProbe();

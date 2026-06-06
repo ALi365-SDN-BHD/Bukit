@@ -21,8 +21,6 @@ public sealed class SearchIndexPluginExtendedTests
             slug,
             DateTimeOffset.UtcNow,
             contentHtml,
-            new Dictionary<string, object>(),
-            null,
             null);
     }
 

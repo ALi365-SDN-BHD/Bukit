@@ -25,8 +25,7 @@ public sealed class ArchivePluginTests
             Slug: slug,
             PublishAt: publishAt,
             ContentHtml: "<p>content</p>",
-            Meta: meta,
-            Fields: null);
+            Fields: ContentFieldReader.ToFieldMap(meta));
     }
 
     private static BuildContext CreateContext(List<(ContentItem Item, RouteInfo Route)> routed)
@@ -92,9 +91,7 @@ public sealed class ArchivePluginTests
             Title: "No Date",
             Slug: "no-date",
             PublishAt: DateTimeOffset.MinValue,
-            ContentHtml: "<p>no date</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
-            Fields: null);
+            ContentHtml: "<p>no date</p>");
         var routed = new List<(ContentItem Item, RouteInfo Route)>
         {
             (itemNoDate, new RouteInfo("/blog/no-date/", "blog/no-date/index.html", "pages/post.html")),

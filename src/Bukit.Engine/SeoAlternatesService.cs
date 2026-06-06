@@ -30,7 +30,7 @@ public static class SeoAlternatesService
             var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, language);
             var variantItems = I18nOutputMerger
                 .FilterItemsByLanguage(items, language, defaultLanguage)
-                .Where(i => !MetaHelpers.IsDataItem(i))
+                .Where(i => !ContentFieldReader.IsDataItem(i))
                 .ToList();
             var variantRouted = variantItems
                 .Select(i => (Item: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
@@ -303,7 +303,7 @@ public static class SeoAlternatesService
         var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var (item, _) in routed)
         {
-            var values = GetSeoStringList(item.Meta, key);
+            var values = ContentFieldReader.GetTextList(item.Fields, key);
             if (values is null)
             {
                 continue;
@@ -352,7 +352,7 @@ public static class SeoAlternatesService
 
     internal static string GetCollection(ContentItem item)
     {
-        return item.GetCollection();
+        return ContentFieldReader.GetCollection(item);
     }
 
     internal static int NormalizePageSize(int pageSize) => pageSize <= 0 ? 10 : pageSize;

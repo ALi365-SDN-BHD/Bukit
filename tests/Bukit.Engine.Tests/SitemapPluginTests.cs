@@ -34,9 +34,7 @@ public sealed class SitemapPluginTests
             Title: "t",
             Slug: "a",
             PublishAt: new DateTimeOffset(2024, 01, 02, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "",
-            Meta: new Dictionary<string, object>(),
-            Fields: null);
+            ContentHtml: "");
 
         var config = new AppConfig
         {
@@ -92,7 +90,6 @@ public sealed class SitemapPluginTests
             Slug: "b",
             PublishAt: new DateTimeOffset(2024, 01, 02, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["update_time"] = new("date", new DateTimeOffset(2024, 02, 03, 4, 5, 6, TimeSpan.Zero))

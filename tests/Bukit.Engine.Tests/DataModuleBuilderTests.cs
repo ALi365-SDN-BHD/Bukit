@@ -26,21 +26,21 @@ public sealed class DataModuleBuilderTests
                 Slug: "hero-banner",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>hero</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "hero" }),
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "hero" })),
             new ContentItem(
                 Id: "m2",
                 Title: "Footer",
                 Slug: "footer",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>footer</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "footer" }),
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "footer" })),
             new ContentItem(
                 Id: "m3",
                 Title: "Hero Secondary",
                 Slug: "hero-secondary",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>hero2</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "hero" }),
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "hero" })),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -64,7 +64,7 @@ public sealed class DataModuleBuilderTests
                 Slug: "no-type",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>module</p>",
-                Meta: new Dictionary<string, object>()),
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>())),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -84,32 +84,36 @@ public sealed class DataModuleBuilderTests
                 Slug: "charlie",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>c</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" },
-                Fields: new Dictionary<string, ContentField> { ["order"] = new("number", 3d) }),
+                Fields: ContentFieldReader.WithValues(
+                    new Dictionary<string, ContentField> { ["order"] = new("number", 3d) },
+                    new Dictionary<string, object> { ["type"] = "widget" })),
             new ContentItem(
                 Id: "a",
                 Title: "Alpha",
                 Slug: "alpha",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>a</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" },
-                Fields: new Dictionary<string, ContentField> { ["order"] = new("number", 1d) }),
+                Fields: ContentFieldReader.WithValues(
+                    new Dictionary<string, ContentField> { ["order"] = new("number", 1d) },
+                    new Dictionary<string, object> { ["type"] = "widget" })),
             new ContentItem(
                 Id: "b1",
                 Title: "Beta",
                 Slug: "beta",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>b1</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" },
-                Fields: new Dictionary<string, ContentField> { ["order"] = new("number", 2d) }),
+                Fields: ContentFieldReader.WithValues(
+                    new Dictionary<string, ContentField> { ["order"] = new("number", 2d) },
+                    new Dictionary<string, object> { ["type"] = "widget" })),
             new ContentItem(
                 Id: "b2",
                 Title: "Beta A",
                 Slug: "beta-a",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>b2</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" },
-                Fields: new Dictionary<string, ContentField> { ["order"] = new("number", 2d) }),
+                Fields: ContentFieldReader.WithValues(
+                    new Dictionary<string, ContentField> { ["order"] = new("number", 2d) },
+                    new Dictionary<string, object> { ["type"] = "widget" })),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -134,15 +138,16 @@ public sealed class DataModuleBuilderTests
                 Slug: "enabled",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>enabled</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" }),
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "widget" })),
             new ContentItem(
                 Id: "m2",
                 Title: "Disabled",
                 Slug: "disabled",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>disabled</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" },
-                Fields: new Dictionary<string, ContentField> { ["enabled"] = new("bool", false) }),
+                Fields: ContentFieldReader.WithValues(
+                    new Dictionary<string, ContentField> { ["enabled"] = new("bool", false) },
+                    new Dictionary<string, object> { ["type"] = "widget" })),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -167,8 +172,7 @@ public sealed class DataModuleBuilderTests
                 Slug: "test-module",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>content</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "banner" },
-                Fields: fields),
+                Fields: ContentFieldReader.WithValues(fields, new Dictionary<string, object> { ["type"] = "banner" })),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -194,7 +198,7 @@ public sealed class DataModuleBuilderTests
                 Slug: "from-store",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object> { ["type"] = "widget" }),
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "widget" })),
         };
         var bodyStore = new StubBodyStore(html: "<p>stored content</p>");
 

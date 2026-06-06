@@ -47,7 +47,7 @@ public sealed class SeoIndexBuilderTests
                 Slug: "page",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object> { ["type"] = "page" }),
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" })),
              new RouteInfo("/pages/page/", "pages/page/index.html", "pages/page.html"))
         };
 
@@ -70,12 +70,12 @@ public sealed class SeoIndexBuilderTests
                 Slug: "first-post",
                 PublishAt: publishAt,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object>
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
                 {
                     ["type"] = "post",
                     ["collection"] = "post",
                     ["summary"] = "First summary"
-                }),
+                })),
              new RouteInfo("/blog/first-post/", "blog/first-post/index.html", "pages/post.html")),
             (new ContentItem(
                 Id: "page-1",
@@ -83,11 +83,11 @@ public sealed class SeoIndexBuilderTests
                 Slug: "about",
                 PublishAt: publishAt,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object>
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
                 {
                     ["type"] = "page",
                     ["summary"] = "About us"
-                }),
+                })),
              new RouteInfo("/pages/about/", "pages/about/index.html", "pages/page.html"))
         };
 
@@ -124,7 +124,7 @@ public sealed class SeoIndexBuilderTests
                 Slug: "post",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post" }),
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post" })),
              new RouteInfo("/blog/post/", "blog/post/index.html", "pages/post.html"))
         };
         var listRoutes = new[]
@@ -159,8 +159,7 @@ public sealed class SeoIndexBuilderTests
                 Slug: "post",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object>(),
-                Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["type"] = new("text", "post"),
                     ["collection"] = new("text", "knowledge")
@@ -187,7 +186,7 @@ public sealed class SeoIndexBuilderTests
                 Slug: "post",
                 PublishAt: publishAt,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post" }),
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post" })),
              new RouteInfo("/blog/post/", "blog/post/index.html", "pages/post.html"))
         };
 
@@ -209,11 +208,11 @@ public sealed class SeoIndexBuilderTests
                 Slug: "hidden",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object>
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
                 {
                     ["type"] = "page",
                     ["robots"] = "noindex"
-                }),
+                })),
              new RouteInfo("/pages/hidden/", "pages/hidden/index.html", "pages/page.html"))
         };
 
@@ -234,11 +233,11 @@ public sealed class SeoIndexBuilderTests
             Slug: "translated",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["i18n_key"] = "page.translated"
-            });
+            }));
         var route = new RouteInfo("/pages/translated/", "pages/translated/index.html", "pages/page.html");
         var routed = new (ContentItem, RouteInfo)[] { (item, route) };
         var alternates = new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.OrdinalIgnoreCase)
@@ -268,7 +267,7 @@ public sealed class SeoIndexBuilderTests
                 Slug: "page",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object> { ["type"] = "page" }),
+                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" })),
              new RouteInfo("/pages/page/", "pages/page/index.html", "pages/page.html"))
         };
 

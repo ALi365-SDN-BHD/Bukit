@@ -29,8 +29,7 @@ public static class RouteInventoryValidator
         var items = loadResult.Items;
         if (!config.Build.Draft)
         {
-            items = items.Where(i =>
-                !(i.Meta.TryGetValue("draft", out var d) && ValueCoercion.IsTruthy(d))).ToList();
+            items = items.Where(i => ContentFieldReader.GetBool(i.Fields, "draft") is not true).ToList();
         }
 
         var siteLanguages = config.Site.Languages;
@@ -45,7 +44,7 @@ public static class RouteInventoryValidator
             items = I18nOutputMerger.FilterItemsByLanguage(items, defaultLang, defaultLang);
         }
 
-        var contentItems = items.Where(i => !MetaHelpers.IsDataItem(i)).ToList();
+        var contentItems = items.Where(i => !ContentFieldReader.IsDataItem(i)).ToList();
         var collectionRules = BuildCollectionRules(config.Site);
         return contentItems
             .Select(i => (Item: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))

@@ -34,7 +34,7 @@ public sealed class ContentPipelineTests
         Assert.Equal("/tmp/site", factory.RootDirObserved);
         var item = Assert.Single(result.Items);
         Assert.Equal("published", item.Id);
-        Assert.Equal("published", item.Meta["status"]);
+        Assert.Equal("published", ContentFieldReader.GetText(item.Fields, "status"));
         var record = Assert.Single(result.ContentGraph!.Records);
         Assert.Equal("published", record.Identity.Id);
         Assert.Equal("published", record.Trust.ReviewStatus);
@@ -115,13 +115,10 @@ public sealed class ContentPipelineTests
             "notion-post",
             DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
             "<p>Body</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["type"] = "post",
-                ["collection"] = "post"
-            },
             new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["type"] = new("text", "post"),
+                ["collection"] = new("text", "post"),
                 ["summary"] = new("text", "Field summary"),
                 ["authors"] = new("list", new List<string> { "Ali" }),
                 ["language"] = new("text", "en"),
@@ -166,14 +163,11 @@ public sealed class ContentPipelineTests
             "image-post",
             DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
             "<p>Body</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["type"] = "post",
-                ["collection"] = "post",
-                ["source"] = "markdown"
-            },
             new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["type"] = new("text", "post"),
+                ["collection"] = new("text", "post"),
+                ["source"] = new("text", "markdown"),
                 ["image"] = new("file", "https://img.example/cover.jpg")
             });
 
@@ -190,7 +184,7 @@ public sealed class ContentPipelineTests
 
     private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object> meta)
     {
-        return new ContentItem(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", meta);
+        return new ContentItem(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(meta));
     }
 
     private static AppConfig Config(bool draft, string schemaFailMode, bool requiredStatus = false)

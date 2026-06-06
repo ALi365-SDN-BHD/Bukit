@@ -18,8 +18,7 @@ public sealed class CompositeContentProviderTests
                     Slug: "good",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
-                    Fields: null)
+            Fields: null)
             },
             new NullBodyStore()));
 
@@ -66,8 +65,7 @@ public sealed class CompositeContentProviderTests
                     Slug: "item-1",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
-                    Fields: null)
+            Fields: null)
             },
             new NullBodyStore()));
 
@@ -80,8 +78,7 @@ public sealed class CompositeContentProviderTests
                     Slug: "item-2",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
-                    Fields: null)
+            Fields: null)
             },
             new NullBodyStore()));
 
@@ -97,11 +94,9 @@ public sealed class CompositeContentProviderTests
         Assert.Equal("notion:item-1", result.Items[0].Id);
         Assert.Equal("markdown:item-2", result.Items[1].Id);
 
-        Assert.True(result.Items[0].Meta.TryGetValue("sourceKey", out var srcKey1));
-        Assert.Equal("notion", srcKey1);
+        Assert.Equal("notion", ContentFieldReader.GetText(result.Items[0].Fields, "sourceKey"));
 
-        Assert.True(result.Items[1].Meta.TryGetValue("sourceKey", out var srcKey2));
-        Assert.Equal("markdown", srcKey2);
+        Assert.Equal("markdown", ContentFieldReader.GetText(result.Items[1].Fields, "sourceKey"));
     }
 
     [Fact]
@@ -116,8 +111,7 @@ public sealed class CompositeContentProviderTests
                     Slug: "company-1",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
-                    Fields: null)
+            Fields: null)
             },
             new NullBodyStore()));
 
@@ -131,11 +125,11 @@ public sealed class CompositeContentProviderTests
 
         Assert.Equal(3, result.Items.Count);
         Assert.Equal("companies-db:company-1", result.Items[0].Id);
-        Assert.Equal("companies", result.Items[0].Meta["collection"]);
+        Assert.Equal("companies", ContentFieldReader.GetText(result.Items[0].Fields, "collection"));
         Assert.Equal("companies-db:company-1:china_companies", result.Items[1].Id);
-        Assert.Equal("china_companies", result.Items[1].Meta["collection"]);
+        Assert.Equal("china_companies", ContentFieldReader.GetText(result.Items[1].Fields, "collection"));
         Assert.Equal("companies-db:company-1:malaysia_companies", result.Items[2].Id);
-        Assert.Equal("malaysia_companies", result.Items[2].Meta["collection"]);
+        Assert.Equal("malaysia_companies", ContentFieldReader.GetText(result.Items[2].Fields, "collection"));
     }
 
     [Fact]
@@ -150,8 +144,7 @@ public sealed class CompositeContentProviderTests
                     Slug: "a",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
-                    Fields: null)
+            Fields: null)
             },
             new NullBodyStore()));
 
@@ -164,8 +157,7 @@ public sealed class CompositeContentProviderTests
                     Slug: "b",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
-                    Fields: null)
+            Fields: null)
             },
             new NullBodyStore()));
 

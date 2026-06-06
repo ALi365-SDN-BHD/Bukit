@@ -50,11 +50,11 @@ public sealed class ContentSchemaValidatorExtendedTests
             "hello",
             DateTimeOffset.UtcNow,
             null,
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "posts" });
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "posts" }));
 
         var result = ContentSchemaValidator.ApplyDefaults(collections, new[] { item });
 
-        Assert.Equal("draft", result[0].Meta["status"]);
+        Assert.Equal("draft", ContentFieldReader.GetText(result[0].Fields, "status"));
         Assert.Equal("text", result[0].Fields!["status"].Type);
         Assert.Equal("draft", result[0].Fields!["status"].Value);
     }

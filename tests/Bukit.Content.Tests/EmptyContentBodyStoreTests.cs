@@ -11,7 +11,7 @@ public sealed class EmptyContentBodyStoreTests
         var item = new ContentItem(
             Id: "inline", Title: "Inline", Slug: "inline",
             PublishAt: default, ContentHtml: "<p>inline</p>",
-            Meta: new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
 
         var body = await EmptyContentBodyStore.Instance.GetAsync(item);
 
@@ -24,7 +24,7 @@ public sealed class EmptyContentBodyStoreTests
         var item = new ContentItem(
             Id: "empty", Title: "Empty", Slug: "empty",
             PublishAt: default, ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => EmptyContentBodyStore.Instance.GetAsync(item));
 
@@ -37,7 +37,7 @@ public sealed class EmptyContentBodyStoreTests
         var item = new ContentItem(
             Id: "cancelled", Title: "Cancelled", Slug: "cancelled",
             PublishAt: default, ContentHtml: "<p>ok</p>",
-            Meta: new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 

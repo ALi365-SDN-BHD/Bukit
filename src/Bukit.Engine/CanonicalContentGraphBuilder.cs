@@ -89,7 +89,7 @@ internal static class CanonicalContentGraphBuilder
 
     private static string ResolveStatus(ContentItem item)
     {
-        if (item.Meta.TryGetValue("draft", out var draft) && draft is bool isDraft && isDraft)
+        if (ContentFieldReader.GetBool(item.Fields, "draft") is true)
         {
             return "draft";
         }
@@ -105,7 +105,7 @@ internal static class CanonicalContentGraphBuilder
             return translations;
         }
 
-        return MetaHelpers.TryGetI18nKey(item.Meta, out var key)
+        return ContentFieldReader.TryGetI18nKey(item.Fields, out var key)
             ? new[] { key }
             : Array.Empty<string>();
     }
@@ -125,7 +125,8 @@ internal static class CanonicalContentGraphBuilder
     {
         var entities = new List<EntityRecord>();
 
-        if (item.Meta.TryGetValue("entities", out var rawEntities) && rawEntities is IEnumerable<object> entityItems)
+        if (ContentFieldReader.TryGetField(item.Fields, "entities", out var entitiesField) &&
+            entitiesField.Value is IEnumerable<object> entityItems)
         {
             foreach (var raw in entityItems)
             {
@@ -146,11 +147,6 @@ internal static class CanonicalContentGraphBuilder
             }
         }
 
-        AppendNamedEntities(entities, "product", MetaHelpers.GetStringList(item.Meta, "products"));
-        AppendNamedEntities(entities, "service", MetaHelpers.GetStringList(item.Meta, "services"));
-        AppendNamedEntities(entities, "place", MetaHelpers.GetStringList(item.Meta, "places"));
-        AppendNamedEntities(entities, "person", MetaHelpers.GetStringList(item.Meta, "people"));
-        AppendNamedEntities(entities, "company", MetaHelpers.GetStringList(item.Meta, "companies"));
         AppendNamedEntities(entities, "product", FirstList(item, "products"));
         AppendNamedEntities(entities, "service", FirstList(item, "services"));
         AppendNamedEntities(entities, "place", FirstList(item, "places"));
@@ -241,10 +237,10 @@ internal static class CanonicalContentGraphBuilder
     private static IReadOnlyList<MediaAsset> ExtractMedia(ContentItem item)
     {
         var media = new List<MediaAsset>();
-        AddMedia(media, "image", MetaHelpers.GetString(item.Meta, "image"), MetaHelpers.GetString(item.Meta, "image_alt"));
-        AddMedia(media, "image", MetaHelpers.GetString(item.Meta, "cover"), MetaHelpers.GetString(item.Meta, "cover_alt"));
-        AddMedia(media, "video", MetaHelpers.GetString(item.Meta, "video"), MetaHelpers.GetString(item.Meta, "video_alt"));
-        AddMedia(media, "file", MetaHelpers.GetString(item.Meta, "attachment"), MetaHelpers.GetString(item.Meta, "attachment_alt"));
+        AddMedia(media, "image", FirstText(item, "image"), FirstText(item, "image_alt"));
+        AddMedia(media, "image", FirstText(item, "cover"), FirstText(item, "cover_alt"));
+        AddMedia(media, "video", FirstText(item, "video"), FirstText(item, "video_alt"));
+        AddMedia(media, "file", FirstText(item, "attachment"), FirstText(item, "attachment_alt"));
         if (item.Fields is not null)
         {
             foreach (var (key, field) in item.Fields)
@@ -323,18 +319,6 @@ internal static class CanonicalContentGraphBuilder
         return result;
     }
 
-    private static DateTimeOffset? TryGetDate(IReadOnlyDictionary<string, object> meta, string key)
-    {
-        var value = MetaHelpers.GetString(meta, key);
-        return DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
-    }
-
-    private static double? TryGetDouble(IReadOnlyDictionary<string, object> meta, string key)
-    {
-        var value = MetaHelpers.GetString(meta, key);
-        return double.TryParse(value, out var parsed) ? parsed : null;
-    }
-
     private static string? ReadMapString(IReadOnlyDictionary<string, object> map, string key)
     {
         return map.TryGetValue(key, out var value) && value is not null
@@ -343,60 +327,16 @@ internal static class CanonicalContentGraphBuilder
     }
 
     private static string? FirstText(ContentItem item, string key)
-        => MetaHelpers.TryGetTextField(item.Fields, key) ?? MetaHelpers.GetString(item.Meta, key);
+        => ContentFieldReader.GetText(item.Fields, key);
 
     private static IReadOnlyList<string>? FirstList(ContentItem item, string key)
-    {
-        if (item.Fields is not null &&
-            item.Fields.TryGetValue(key, out var field) &&
-            field.Value is not null)
-        {
-            if (field.Value is IEnumerable<string> strings)
-            {
-                var list = strings.Select(x => (x ?? string.Empty).Trim()).Where(x => x.Length > 0).ToArray();
-                if (list.Length > 0)
-                {
-                    return list;
-                }
-            }
-
-            if (field.Value is IEnumerable<object> objects)
-            {
-                var list = objects.Select(x => x?.ToString() ?? string.Empty).Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
-                if (list.Length > 0)
-                {
-                    return list;
-                }
-            }
-        }
-
-        return MetaHelpers.GetStringList(item.Meta, key);
-    }
+        => ContentFieldReader.GetTextList(item.Fields, key);
 
     private static DateTimeOffset? FirstDate(ContentItem item, string key)
-    {
-        if (item.Fields is not null &&
-            item.Fields.TryGetValue(key, out var field) &&
-            field.Value is DateTimeOffset dto)
-        {
-            return dto;
-        }
-
-        return TryGetDate(item.Meta, key);
-    }
+        => ContentFieldReader.GetDate(item.Fields, key);
 
     private static double? FirstDouble(ContentItem item, string key)
-    {
-        if (item.Fields is not null &&
-            item.Fields.TryGetValue(key, out var field) &&
-            field.Value is not null &&
-            double.TryParse(field.Value.ToString(), out var parsed))
-        {
-            return parsed;
-        }
-
-        return TryGetDouble(item.Meta, key);
-    }
+        => ContentFieldReader.GetNumber(item.Fields, key);
 
     private static string InferEntityTypeFromKey(string key)
     {

@@ -16,7 +16,7 @@ public sealed class DictionaryContentBodyStoreTests
         var item = new ContentItem(
             Id: "post-1", Title: "Post", Slug: "post",
             PublishAt: default, ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
             BodyKey: "post-1");
 
         var result = await store.GetAsync(item);
@@ -31,7 +31,7 @@ public sealed class DictionaryContentBodyStoreTests
         var item = new ContentItem(
             Id: "inline", Title: "Inline", Slug: "inline",
             PublishAt: default, ContentHtml: "<p>inline</p>",
-            Meta: new Dictionary<string, object>());
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
 
         var body = await store.GetAsync(item);
 
@@ -45,7 +45,7 @@ public sealed class DictionaryContentBodyStoreTests
         var item = new ContentItem(
             Id: "missing", Title: "Missing", Slug: "missing",
             PublishAt: default, ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
             BodyKey: "");
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item));
@@ -59,7 +59,7 @@ public sealed class DictionaryContentBodyStoreTests
         var item = new ContentItem(
             Id: "missing", Title: "Missing", Slug: "missing",
             PublishAt: default, ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
             BodyKey: null);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item));
@@ -73,7 +73,7 @@ public sealed class DictionaryContentBodyStoreTests
         var item = new ContentItem(
             Id: "missing", Title: "Missing", Slug: "missing",
             PublishAt: default, ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
             BodyKey: "nonexistent");
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item));
@@ -87,7 +87,7 @@ public sealed class DictionaryContentBodyStoreTests
         var item = new ContentItem(
             Id: "test", Title: "Test", Slug: "test",
             PublishAt: default, ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
             BodyKey: "test");
         using var cts = new CancellationTokenSource();
         cts.Cancel();

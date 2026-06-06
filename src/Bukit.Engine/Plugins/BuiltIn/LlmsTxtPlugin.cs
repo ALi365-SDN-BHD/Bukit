@@ -96,7 +96,7 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             var url = ResolveFullUrl(entry.Route.Url, canonicalBase);
             var pageTitle = record?.Presentation.Title ?? model?.Title ?? item.Title;
             var desc = record?.Presentation.Summary ?? model?.Description ?? description;
-            var collection = record?.Classification.Collection ?? item.GetCollection();
+            var collection = record?.Classification.Collection ?? ContentFieldReader.GetCollection(item);
 
             if (!string.IsNullOrWhiteSpace(collection))
             {
@@ -304,25 +304,28 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             return record.Presentation.Summary.Trim();
         }
 
-        var summary = item.GetSummary();
+        var summary = ContentFieldReader.GetSummary(item);
         if (!string.IsNullOrWhiteSpace(summary))
         {
             return summary.Trim();
         }
 
-        if (item.Meta.TryGetValue("seo_desc", out var seoDesc) && seoDesc is string s2 && !string.IsNullOrWhiteSpace(s2))
+        var seoDesc = ContentFieldReader.GetText(item.Fields, "seo_desc");
+        if (!string.IsNullOrWhiteSpace(seoDesc))
         {
-            return s2.Trim();
+            return seoDesc.Trim();
         }
 
-        if (item.Meta.TryGetValue("seodesc", out var legacySeoDesc) && legacySeoDesc is string s4 && !string.IsNullOrWhiteSpace(s4))
+        var compactSeoDesc = ContentFieldReader.GetText(item.Fields, "seodesc");
+        if (!string.IsNullOrWhiteSpace(compactSeoDesc))
         {
-            return s4.Trim();
+            return compactSeoDesc.Trim();
         }
 
-        if (item.Meta.TryGetValue("description", out var desc) && desc is string s3 && !string.IsNullOrWhiteSpace(s3))
+        var desc = ContentFieldReader.GetText(item.Fields, "description");
+        if (!string.IsNullOrWhiteSpace(desc))
         {
-            return s3.Trim();
+            return desc.Trim();
         }
 
         if (!string.IsNullOrWhiteSpace(siteDescription))

@@ -197,7 +197,7 @@ internal static class SeoJsonLdBuilder
             article["inLanguage"] = contentLanguage;
         }
 
-        var author = geo.GeoAuthor?.Name ?? record?.Ownership.Author ?? SeoModelBuilder.FirstTextOrMeta(item, "author");
+        var author = geo.GeoAuthor?.Name ?? record?.Ownership.Author ?? SeoModelBuilder.FirstTextField(item, "author");
         if (!string.IsNullOrWhiteSpace(author))
         {
             var person = new Dictionary<string, object?>
@@ -225,7 +225,7 @@ internal static class SeoJsonLdBuilder
 
         var tags = record?.Classification.Tags.Count > 0
             ? record.Classification.Tags
-            : SeoModelBuilder.GetStringList(item.Meta, "tags");
+            : ContentFieldReader.GetTextList(item.Fields, "tags");
         if (tags is { Count: > 0 })
         {
             article["keywords"] = tags;

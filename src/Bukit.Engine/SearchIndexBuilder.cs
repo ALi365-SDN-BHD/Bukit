@@ -77,20 +77,7 @@ internal static class SearchIndexBuilder
 
     private static bool IsSearchExcluded(ContentItem item)
     {
-        if (item.Meta.TryGetValue("searchExclude", out var value) && value is not null)
-        {
-            if (value is bool b)
-            {
-                return b;
-            }
-
-            if (value is string s && bool.TryParse(s, out var parsed))
-            {
-                return parsed;
-            }
-        }
-
-        return false;
+        return ContentFieldReader.GetBool(item.Fields, "searchExclude") is true;
     }
 
     internal static void WriteSearchItem(
@@ -154,7 +141,7 @@ internal static class SearchIndexBuilder
         }
 
         writer.WriteString("language", record.Presentation.Language);
-        writer.WriteString("sourceKey", record.Provenance.Source ?? MetaHelpers.GetString(item.Meta, "sourceKey") ?? MetaHelpers.GetString(item.Meta, "source"));
+        writer.WriteString("sourceKey", record.Provenance.Source ?? ContentFieldReader.GetText(item.Fields, "sourceKey") ?? ContentFieldReader.GetText(item.Fields, "source"));
         writer.WriteString("publishAt", record.Lifecycle.PublishedAt.ToString("O"));
 
         writer.WriteStartArray("entities");

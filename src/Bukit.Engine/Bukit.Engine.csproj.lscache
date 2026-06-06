@@ -75,7 +75,6 @@ Incremental/
 InternalsVisibleTo.cs
 ISearchIndexBuilder.cs
 ITemplateRenderer.cs
-MetaHelpers.cs
 MetricsWriter.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs

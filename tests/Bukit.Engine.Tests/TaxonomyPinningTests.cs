@@ -40,13 +40,10 @@ public sealed class TaxonomyPinningTests
             Slug: "pinned",
             PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["sourceKey"] = "s1",
-                ["categories"] = new List<object> { "Cat One" }
-            },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["sourceKey"] = new ContentField("text", "s1"),
+                ["categories"] = new ContentField("list", new List<object> { "Cat One" }),
                 ["pinned"] = new ContentField("boolean", true)
             });
 
@@ -56,12 +53,11 @@ public sealed class TaxonomyPinningTests
             Slug: "normal-newer",
             PublishAt: new DateTimeOffset(2025, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = "s2",
                 ["categories"] = new List<object> { "Cat One" }
-            },
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase));
+            }));
 
         routed.Add((pinned, new RouteInfo("/pinned/", "pinned/index.html", "pages/page.html")));
         routed.Add((normal, new RouteInfo("/normal-newer/", "normal-newer/index.html", "pages/page.html")));
@@ -112,13 +108,10 @@ public sealed class TaxonomyPinningTests
             Slug: "pinned",
             PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["sourceKey"] = "s1",
-                ["categories"] = new List<object> { "Cat One" }
-            },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["sourceKey"] = new ContentField("text", "s1"),
+                ["categories"] = new ContentField("list", new List<object> { "Cat One" }),
                 ["sticky"] = new ContentField("boolean", true)
             });
 
@@ -128,12 +121,11 @@ public sealed class TaxonomyPinningTests
             Slug: "normal-newer",
             PublishAt: new DateTimeOffset(2025, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = "s2",
                 ["categories"] = new List<object> { "Cat One" }
-            },
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase));
+            }));
 
         routed.Add((pinned, new RouteInfo("/pinned/", "pinned/index.html", "pages/page.html")));
         routed.Add((normal, new RouteInfo("/normal-newer/", "normal-newer/index.html", "pages/page.html")));
@@ -181,13 +173,10 @@ public sealed class TaxonomyPinningTests
             Slug: "pinned-2",
             PublishAt: new DateTimeOffset(2025, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["sourceKey"] = "s1",
-                ["categories"] = new List<object> { "Cat One" }
-            },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["sourceKey"] = new ContentField("text", "s1"),
+                ["categories"] = new ContentField("list", new List<object> { "Cat One" }),
                 ["pinned"] = new ContentField("boolean", true),
                 ["pinOrder"] = new ContentField("number", 2)
             });
@@ -198,13 +187,10 @@ public sealed class TaxonomyPinningTests
             Slug: "pinned-1",
             PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["sourceKey"] = "s1",
-                ["categories"] = new List<object> { "Cat One" }
-            },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["sourceKey"] = new ContentField("text", "s1"),
+                ["categories"] = new ContentField("list", new List<object> { "Cat One" }),
                 ["pinned"] = new ContentField("boolean", true),
                 ["pinOrder"] = new ContentField("number", 1)
             });

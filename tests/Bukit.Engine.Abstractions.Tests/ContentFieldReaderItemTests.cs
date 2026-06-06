@@ -3,9 +3,9 @@ using Xunit;
 
 namespace Bukit.Engine.Abstractions.Tests;
 
-public sealed class ContentItemExtensionsTests
+public sealed class ContentFieldReaderItemTests
 {
-    private static ContentItem CreateItem(IReadOnlyDictionary<string, object>? meta = null)
+    private static ContentItem CreateItem(IReadOnlyDictionary<string, object>? values = null)
     {
         return new ContentItem(
             Id: "test-id",
@@ -13,8 +13,7 @@ public sealed class ContentItemExtensionsTests
             Slug: "test-slug",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
-            Fields: null);
+            Fields: ContentFieldReader.ToFieldMap(values ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)));
     }
 
     [Fact]
@@ -26,7 +25,7 @@ public sealed class ContentItemExtensionsTests
             ["type"] = "post"
         });
 
-        var result = item.GetCollection();
+        var result = ContentFieldReader.GetCollection(item);
 
         Assert.Equal("news", result);
     }
@@ -39,7 +38,7 @@ public sealed class ContentItemExtensionsTests
             ["type"] = "post"
         });
 
-        var result = item.GetCollection();
+        var result = ContentFieldReader.GetCollection(item);
 
         Assert.Equal("", result);
     }
@@ -49,7 +48,7 @@ public sealed class ContentItemExtensionsTests
     {
         var item = CreateItem();
 
-        var result = item.GetCollection();
+        var result = ContentFieldReader.GetCollection(item);
 
         Assert.Equal("", result);
     }
@@ -59,7 +58,7 @@ public sealed class ContentItemExtensionsTests
     {
         var item = CreateItem();
 
-        var result = item.GetCollection("fallback");
+        var result = ContentFieldReader.GetCollection(item, "fallback");
 
         Assert.Equal("fallback", result);
     }
@@ -73,7 +72,7 @@ public sealed class ContentItemExtensionsTests
             ["type"] = "post"
         });
 
-        var result = item.GetCollection();
+        var result = ContentFieldReader.GetCollection(item);
 
         Assert.Equal("", result);
     }
@@ -87,7 +86,7 @@ public sealed class ContentItemExtensionsTests
             ["type"] = "page"
         });
 
-        var result = item.GetCollection();
+        var result = ContentFieldReader.GetCollection(item);
 
         Assert.Equal("", result);
     }
@@ -101,13 +100,12 @@ public sealed class ContentItemExtensionsTests
             Slug: "test-slug",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collections"] = new("list", new[] { "news", "featured" })
             });
 
-        var result = item.GetTextValues("collections");
+        var result = ContentFieldReader.GetTextValues(item, "collections");
 
         Assert.Equal(["news", "featured"], result);
     }

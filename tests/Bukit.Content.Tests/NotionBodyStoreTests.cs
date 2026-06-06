@@ -24,7 +24,6 @@ public sealed class NotionBodyStoreTests
             Slug: "page",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: "page-1");
 
@@ -54,7 +53,6 @@ public sealed class NotionBodyStoreTests
             Slug: "page",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>inline content</p>",
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: "page-1");
 

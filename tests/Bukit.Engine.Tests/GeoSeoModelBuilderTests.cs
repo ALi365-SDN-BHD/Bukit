@@ -46,7 +46,7 @@ public sealed class GeoSeoModelBuilderTests
             Slug: "faq-guide",
             PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>faq content</p>",
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -67,7 +67,7 @@ public sealed class GeoSeoModelBuilderTests
                         }
                     }
                 }
-            });
+            }));
         var route = new RouteInfo("/faq-guide/", "faq-guide/index.html", "pages/post.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -90,7 +90,7 @@ public sealed class GeoSeoModelBuilderTests
             Slug: "how-to-setup",
             PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>guide</p>",
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -113,7 +113,7 @@ public sealed class GeoSeoModelBuilderTests
                         }
                     }
                 }
-            });
+            }));
         var route = new RouteInfo("/how-to-setup/", "how-to-setup/index.html", "pages/post.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -136,7 +136,7 @@ public sealed class GeoSeoModelBuilderTests
             Slug: "post-author",
             PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>post</p>",
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -149,7 +149,7 @@ public sealed class GeoSeoModelBuilderTests
                         ["same_as"] = new List<object> { "https://github.com/alice", "https://twitter.com/alice" }
                     }
                 }
-            });
+            }));
         var route = new RouteInfo("/post-author/", "post-author/index.html", "pages/post.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -171,7 +171,7 @@ public sealed class GeoSeoModelBuilderTests
             Slug: "about-us",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>about</p>",
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["geo"] = new Dictionary<string, object>
@@ -182,7 +182,7 @@ public sealed class GeoSeoModelBuilderTests
                         ["url"] = "https://bob.dev"
                     }
                 }
-            });
+            }));
         var route = new RouteInfo("/about-us/", "about-us/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -201,7 +201,7 @@ public sealed class GeoSeoModelBuilderTests
             Slug: "research",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>research</p>",
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["geo"] = new Dictionary<string, object>
@@ -212,10 +212,10 @@ public sealed class GeoSeoModelBuilderTests
                         {
                             ["title"] = "Schema.org Docs",
                             ["url"] = "https://schema.org/HowTo"
-                        }
+                        },
                     }
                 }
-            });
+            }));
         var route = new RouteInfo("/research/", "research/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -236,7 +236,7 @@ public sealed class GeoSeoModelBuilderTests
             Slug: "sameas-post",
             PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>post</p>",
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -245,7 +245,7 @@ public sealed class GeoSeoModelBuilderTests
                     ["schema_type"] = "BlogPosting",
                     ["same_as"] = new List<object> { "https://github.com/repo" }
                 }
-            });
+            }));
         var route = new RouteInfo("/sameas-post/", "sameas-post/index.html", "pages/post.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -264,7 +264,7 @@ public sealed class GeoSeoModelBuilderTests
             Slug: "speakable-post",
             PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>post</p>",
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -272,7 +272,7 @@ public sealed class GeoSeoModelBuilderTests
                 {
                     ["speakable_xpath"] = "/html/body/article"
                 }
-            });
+            }));
         var route = new RouteInfo("/speakable-post/", "speakable-post/index.html", "pages/post.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -291,7 +291,7 @@ public sealed class GeoSeoModelBuilderTests
             Slug: "reviewed-post",
             PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>post</p>",
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -301,7 +301,7 @@ public sealed class GeoSeoModelBuilderTests
                     ["about"] = "Static site generators",
                     ["date_reviewed"] = "2026-03-01T00:00:00+00:00"
                 }
-            });
+            }));
         var route = new RouteInfo("/reviewed-post/", "reviewed-post/index.html", "pages/post.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -321,12 +321,12 @@ public sealed class GeoSeoModelBuilderTests
             Slug: "lang-post",
             PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>post</p>",
-            Meta: new Dictionary<string, object>
+            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
                 ["schema_type"] = "BlogPosting"
-            });
+            }));
         var route = new RouteInfo("/lang-post/", "lang-post/index.html", "pages/post.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);

@@ -22,12 +22,7 @@ internal static class TaxonomyTermsInjector
 
         foreach (var item in dataItems)
         {
-            if (!item.Meta.TryGetValue("sourceKey", out var sourceKeyObj) || sourceKeyObj is null)
-            {
-                continue;
-            }
-
-            var kind = (sourceKeyObj.ToString() ?? string.Empty).Trim();
+            var kind = ContentFieldReader.GetText(item.Fields, "sourceKey") ?? string.Empty;
             if (!kind.Equals("categories", StringComparison.OrdinalIgnoreCase) &&
                 !kind.Equals("tags", StringComparison.OrdinalIgnoreCase))
             {

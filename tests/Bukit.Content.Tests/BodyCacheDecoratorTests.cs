@@ -28,7 +28,6 @@ public sealed class BodyCacheDecoratorTests
             Slug: $"item-{id}",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: contentHtml,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null,
             BodyKey: bodyKey);
     }

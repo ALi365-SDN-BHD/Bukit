@@ -1,14 +1,14 @@
+using Bukit.Engine.Abstractions.Content;
+
 namespace Bukit.Engine;
 
 public static class SeoInjectionPolicy
 {
-    public static bool ShouldSkip(IReadOnlyDictionary<string, object> meta)
+    public static bool ShouldSkip(IReadOnlyDictionary<string, ContentField>? fields)
     {
-        if (!meta.TryGetValue("seo_inject", out var value) || value is null)
-        {
-            return false;
-        }
-
-        return value is false or "false" or "off";
+        var value = ContentFieldReader.GetText(fields, "seo_inject");
+        return string.Equals(value, "false", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(value, "off", StringComparison.OrdinalIgnoreCase) ||
+               ContentFieldReader.GetBool(fields, "seo_inject") is false;
     }
 }

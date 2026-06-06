@@ -100,10 +100,10 @@ public abstract class ProcessPluginHost
         for (var i = 0; i < pages.Count; i++)
         {
             var page = pages[i];
-            if (page.Meta is not null)
+            if (page.Fields is not null)
             {
                 materialized = true;
-                list[i] = page with { Meta = JsonElementMaterializer.Materialize(page.Meta) };
+                list[i] = page with { Fields = JsonElementMaterializer.Materialize(page.Fields) };
             }
             else
             {

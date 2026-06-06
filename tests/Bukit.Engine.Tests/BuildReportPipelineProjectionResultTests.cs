@@ -91,8 +91,7 @@ public sealed class BuildReportPipelineProjectionResultTests
             "post",
             DateTimeOffset.Parse("2026-06-05T00:00:00Z"),
             "<p>Post body</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
-            Fields: null);
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)));
 
     private static CanonicalContentGraph ContentGraph()
         => new(

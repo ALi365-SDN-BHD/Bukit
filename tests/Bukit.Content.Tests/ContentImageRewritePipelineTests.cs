@@ -16,7 +16,6 @@ public sealed class ContentImageRewritePipelineTests
             Slug: "s",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>x</p><img src=\"https://img.example/a.jpg\" alt=\"\" />",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["cover"] = new ContentField("text", "https://img.example/cover.jpg"),
@@ -47,7 +46,6 @@ public sealed class ContentImageRewritePipelineTests
             Slug: "s",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<img src=\"\" alt=\"\" />",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null);
 
         var cfg = new MediaConfig
@@ -71,7 +69,6 @@ public sealed class ContentImageRewritePipelineTests
             Slug: "s",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<img src=\"https://s3.example/image.png?X-Amz-Algorithm=AWS4&amp;X-Amz-Date=20260212\" alt=\"\" />",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null);
 
         var cfg = new MediaConfig
@@ -99,7 +96,6 @@ public sealed class ContentImageRewritePipelineTests
             Slug: "s",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: $"<img src=\"{repeatedUrl}\" /><img src=\"{repeatedUrl}\" />",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["cover"] = new ContentField("text", repeatedUrl),
@@ -135,7 +131,6 @@ public sealed class ContentImageRewritePipelineTests
             Slug: "s",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["gallery"] = new ContentField("files", new[]
@@ -173,7 +168,6 @@ public sealed class ContentImageRewritePipelineTests
                          <img src="https://img.example/b.jpg" />
                          <img src="https://img.example/c.jpg" />
                          """,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null);
 
         var cfg = new MediaConfig
@@ -202,7 +196,6 @@ public sealed class ContentImageRewritePipelineTests
                          <video poster="https://img.example/b.jpg"></video>
                          <a href="https://img.example/c.jpg">download</a>
                          """,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null);
 
         var cfg = new MediaConfig

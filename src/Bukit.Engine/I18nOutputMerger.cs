@@ -74,13 +74,13 @@ internal static class I18nOutputMerger
     {
         return items.Where(item =>
         {
-            if (MetaHelpers.IsDataItem(item))
+            if (ContentFieldReader.IsDataItem(item))
             {
-                var locale = MetaHelpers.TryGetTextField(item.Fields, "locale");
+                var locale = ContentFieldReader.GetText(item.Fields, "locale");
                 return string.IsNullOrWhiteSpace(locale) || string.Equals(locale, language, StringComparison.OrdinalIgnoreCase);
             }
 
-            var itemLanguage = item.GetTextValue("language");
+            var itemLanguage = ContentFieldReader.GetText(item, "language");
             if (!string.IsNullOrWhiteSpace(itemLanguage))
             {
                 return string.Equals(itemLanguage, language, StringComparison.OrdinalIgnoreCase);
@@ -302,7 +302,7 @@ internal static class I18nOutputMerger
 
     private static string GetCollection(ContentItem item)
     {
-        return item.GetCollection();
+        return ContentFieldReader.GetCollection(item);
     }
 
     private static void GenerateRootAgentManifest(string outputDir, IReadOnlyList<BuildVariantResult> results)
@@ -446,7 +446,7 @@ internal static class I18nOutputMerger
 
     private static string BuildBodyStoreKey(ContentItem item)
     {
-        var language = MetaHelpers.GetString(item.Meta, "language") ?? string.Empty;
+        var language = ContentFieldReader.GetText(item.Fields, "language") ?? string.Empty;
         return item.Id + "\n" + language;
     }
 

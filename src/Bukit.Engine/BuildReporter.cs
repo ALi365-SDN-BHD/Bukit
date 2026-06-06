@@ -238,9 +238,10 @@ internal static class BuildReporter
     {
         foreach (var key in new[] { "source", "sourcePath", "path", "file" })
         {
-            if (item.Meta.TryGetValue(key, out var value) && value is not null)
+            var value = ContentFieldReader.GetText(item.Fields, key);
+            if (!string.IsNullOrWhiteSpace(value))
             {
-                return Convert.ToString(value, CultureInfo.InvariantCulture);
+                return value;
             }
         }
 
@@ -249,7 +250,7 @@ internal static class BuildReporter
 
     private static string GetKind(ContentItem item)
     {
-        return item.GetCollection();
+        return ContentFieldReader.GetCollection(item);
     }
 
     private static string ComputeSha256(string path)

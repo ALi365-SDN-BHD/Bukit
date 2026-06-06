@@ -41,7 +41,13 @@ internal static class NotionRelationResolvePlan
                 return;
             }
 
-            if (field.Value is not IEnumerable<string> ids)
+            if (!IsRelationListField(field))
+            {
+                return;
+            }
+
+            var ids = ContentFieldReader.ToTextList(field.Value);
+            if (ids is null || ids.Count == 0)
             {
                 return;
             }
@@ -62,6 +68,9 @@ internal static class NotionRelationResolvePlan
             }
         }
     }
+
+    private static bool IsRelationListField(ContentField field)
+        => field.Type is "list" or "multi_select" or "relation";
 
     private static bool HasRelationKey(IReadOnlyList<string> relationKeys, string key)
     {

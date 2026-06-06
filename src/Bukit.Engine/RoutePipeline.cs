@@ -15,7 +15,20 @@ public sealed class RoutePipeline
 {
     public RoutePipelineResult Execute(AppConfig config, IReadOnlyList<ContentItem> items, ThemeTemplateResolver? templateResolver = null)
     {
-        var contentItems = items.Where(i => !MetaHelpers.IsDataItem(i)).ToList();
+        var siteLanguages = config.Site.Languages;
+        if (siteLanguages is null or { Count: 0 })
+        {
+            var siteLanguage = config.Site.Language;
+            items = I18nOutputMerger.FilterItemsByLanguage(items, siteLanguage, siteLanguage);
+        }
+        else
+        {
+            var defaultLang = I18nOutputMerger.GetDefaultLanguage(config.Site, siteLanguages);
+            var currentLang = string.IsNullOrWhiteSpace(config.Site.Language) ? defaultLang : config.Site.Language;
+            items = I18nOutputMerger.FilterItemsByLanguage(items, currentLang, defaultLang);
+        }
+
+        var contentItems = items.Where(i => !ContentFieldReader.IsDataItem(i)).ToList();
         var collectionRules = RouteInventoryValidator.BuildCollectionRules(config.Site);
         var routed = contentItems
             .Select(i => (Item: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))

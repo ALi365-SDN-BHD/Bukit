@@ -21,7 +21,7 @@ public static class ContentSchemaValidator
         for (var i = 0; i < items.Count; i++)
         {
             var item = items[i];
-            var collectionName = MetaHelpers.GetEffectiveCollection(item);
+            var collectionName = ContentFieldReader.GetEffectiveCollection(item);
             if (string.IsNullOrWhiteSpace(collectionName) ||
                 !collections.TryGetValue(collectionName, out var collection) ||
                 collection.Schema is null ||
@@ -31,32 +31,50 @@ public static class ContentSchemaValidator
                 continue;
             }
 
-            Dictionary<string, object>? meta = null;
             Dictionary<string, ContentField>? fields = null;
             foreach (var field in collection.Schema)
             {
                 if (string.IsNullOrWhiteSpace(field.Name) ||
                     field.Default is null ||
-                    item.Meta.ContainsKey(field.Name))
+                    ContentFieldReader.TryGetField(item.Fields, field.Name, out _))
                 {
                     continue;
                 }
 
-                meta ??= new Dictionary<string, object>(item.Meta, StringComparer.OrdinalIgnoreCase);
                 fields ??= item.Fields is null
                     ? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                     : new Dictionary<string, ContentField>(item.Fields, StringComparer.OrdinalIgnoreCase);
 
-                meta[field.Name] = field.Default;
                 fields[field.Name] = ToContentField(field.Type, field.Default);
             }
 
-            result[i] = meta is null
+            result[i] = fields is null
                 ? item
-                : item with { Meta = meta, Fields = fields };
+                : item with { Fields = fields };
         }
 
         return result;
+    }
+
+    public static List<SchemaValidationError> ValidateFields(
+        IReadOnlyDictionary<string, ContentField>? fields,
+        IReadOnlyList<SchemaFieldDefinition>? schema,
+        string sourcePath,
+        string failMode = "warn")
+    {
+        var values = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        if (fields is not null)
+        {
+            foreach (var (key, field) in fields)
+            {
+                if (field.Value is not null)
+                {
+                    values[key] = field.Value;
+                }
+            }
+        }
+
+        return Validate(values, schema, sourcePath, failMode);
     }
 
     public static List<SchemaValidationError> Validate(

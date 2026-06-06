@@ -56,14 +56,13 @@ public sealed class PublishRepresentationRegistryTests
                 "projection-post",
                 DateTimeOffset.Parse("2026-06-05T00:00:00Z"),
                 "<p>Hello projection.</p>",
-                new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["language"] = "en",
                     ["status"] = "published",
                     ["review_status"] = "reviewed",
                     ["source"] = "editorial"
-                },
-                Fields: null);
+                }));
             var route = new RouteInfo("/projection-post/", "projection-post/index.html", "post.html");
             var graph = new CanonicalContentGraph([CanonicalContentGraphBuilder.ToRecord(item)], Array.Empty<EntityRecord>());
             var context = new PublishProjectionContext(
@@ -319,14 +318,13 @@ public sealed class PublishRepresentationRegistryTests
             id,
             DateTimeOffset.Parse("2026-06-05T00:00:00Z"),
             "<p>Body</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["language"] = "en",
                 ["status"] = "published",
                 ["type"] = "post",
                 ["collection"] = "post"
-            },
-            Fields: null);
+            }));
 
     private sealed class InlineBodyStore : IContentBodyStore
     {
