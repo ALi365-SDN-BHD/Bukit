@@ -17,7 +17,6 @@ public sealed class MarkdownBodyStoreTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>inlined content</p>",
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: null);
 
@@ -36,7 +35,6 @@ public sealed class MarkdownBodyStoreTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: null);
 
@@ -54,7 +52,6 @@ public sealed class MarkdownBodyStoreTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: "   ");
 
@@ -72,7 +69,6 @@ public sealed class MarkdownBodyStoreTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: Path.Combine(Path.GetTempPath(), "nonexistent_markdown_file_test.md"));
 
@@ -93,7 +89,6 @@ public sealed class MarkdownBodyStoreTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: "some-file");
 

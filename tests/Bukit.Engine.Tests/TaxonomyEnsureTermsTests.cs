@@ -85,7 +85,6 @@ public sealed class TaxonomyEnsureTermsTests
             Slug: "cat-one",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = new("text", "categories"),
@@ -127,10 +126,10 @@ public sealed class TaxonomyEnsureTermsTests
                         Slug: "post-1",
                         PublishAt: DateTimeOffset.UtcNow,
                         ContentHtml: "<p>hello</p>",
-                        Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                         {
-                            ["tags"] = new[] { "alpha" },
-                            ["categories"] = new[] { "news" }
+                            ["tags"] = new("test", new[] { "alpha" }),
+                            ["categories"] = new("test", new[] { "news" })
                         }),
                     new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")
                 )

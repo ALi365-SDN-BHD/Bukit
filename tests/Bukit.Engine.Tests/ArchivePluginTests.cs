@@ -23,7 +23,6 @@ public sealed class ArchivePluginTests
             Slug: slug,
             PublishAt: publishAt,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", collectionValue),
@@ -95,7 +94,6 @@ public sealed class ArchivePluginTests
             Slug: "no-date",
             PublishAt: DateTimeOffset.MinValue,
             ContentHtml: "<p>no date</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post"),

@@ -93,7 +93,6 @@ public sealed class TaxonomyPluginDerivePagesTests
             Slug: id,
             PublishAt: publishAt,
             ContentHtml: $"<p>{title}</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: fields);
         var route = new RouteInfo($"/blog/{id}/", $"blog/{id}/index.html", "pages/post.html");
         return (item, route);
@@ -327,7 +326,6 @@ public sealed class TaxonomyPluginDerivePagesTests
             Slug: "p1",
             PublishAt: publishAt,
             ContentHtml: "<p>Post 1</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["tags"] = new("list", new object[] { "alpha" }),
@@ -354,7 +352,6 @@ public sealed class TaxonomyPluginDerivePagesTests
             Slug: "p1",
             PublishAt: publishAt,
             ContentHtml: "<p>Post 1</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null);
         var route = new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html");
         var graph = new CanonicalContentGraph(
@@ -428,7 +425,6 @@ public sealed class TaxonomyPluginDerivePagesTests
             Slug: "post-1",
             PublishAt: new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["tags"] = new ContentField("text", "alpha, beta, gamma")

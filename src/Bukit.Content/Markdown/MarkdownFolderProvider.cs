@@ -165,7 +165,6 @@ public sealed class MarkdownFolderProvider : IContentProvider, IRawContentProvid
                 Slug: slug,
                 PublishAt: publishAt,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
                 Fields: fields,
                 BodyKey: file
             ));

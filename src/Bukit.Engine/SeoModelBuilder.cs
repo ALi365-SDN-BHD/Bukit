@@ -212,7 +212,7 @@ internal static class SeoModelBuilder
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    internal static string? FirstTextOrMeta(ContentItem item, string key)
+    internal static string? FirstTextField(ContentItem item, string key)
     {
         return FirstTextField(item.Fields, key);
     }
@@ -236,23 +236,6 @@ internal static class SeoModelBuilder
         => schemaType is not null &&
            (string.Equals(schemaType, "FAQPage", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(schemaType, "HowTo", StringComparison.OrdinalIgnoreCase));
-
-    private static bool IsTruthyMeta(ContentItem item, string key)
-    {
-        if (item.Fields is null || !item.Fields.TryGetValue(key, out var field) || field.Value is null)
-        {
-            return false;
-        }
-
-        return field.Value switch
-        {
-            bool b => b,
-            string s => s.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-                        s.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
-                        s.Equals("1", StringComparison.OrdinalIgnoreCase),
-            _ => false
-        };
-    }
 
     internal static bool IsCollectionLikePage(ContentItem item)
         => item.Fields is not null &&

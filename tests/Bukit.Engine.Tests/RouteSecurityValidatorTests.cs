@@ -57,8 +57,7 @@ public sealed class RouteSecurityValidatorTests
             Title: "Plugin Page",
             Slug: "plugin-page",
             PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "",
-            Meta: new Dictionary<string, object>());
+            ContentHtml: "");
         var route = new RouteInfo("/plugin-page/", "../evil/index.html", "pages/page.html");
 
         Assert.Throws<ConfigException>(() =>

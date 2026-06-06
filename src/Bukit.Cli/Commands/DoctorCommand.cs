@@ -497,17 +497,17 @@ public static class DoctorCommand
     private static ContentItem ToLegacyContentItem(ContentDocument document)
     {
         var record = document.Record;
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var fields = new Dictionary<string, ContentField>(document.CustomFields, StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = record.Identity.ContentType,
-            ["collection"] = record.Classification.Collection,
-            ["status"] = record.Identity.Status,
-            ["language"] = record.Presentation.Language
+            ["type"] = new("text", record.Identity.ContentType),
+            ["collection"] = new("text", record.Classification.Collection),
+            ["status"] = new("text", record.Identity.Status),
+            ["language"] = new("text", record.Presentation.Language)
         };
 
         if (!string.IsNullOrWhiteSpace(record.Presentation.Summary))
         {
-            meta["summary"] = record.Presentation.Summary!;
+            fields["summary"] = new ContentField("text", record.Presentation.Summary!);
         }
 
         return new ContentItem(
@@ -516,8 +516,7 @@ public static class DoctorCommand
             record.Identity.Slug,
             record.Lifecycle.PublishedAt,
             document.Body.Html,
-            meta,
-            document.CustomFields,
+            fields,
             document.Body.BodyKey);
     }
 }

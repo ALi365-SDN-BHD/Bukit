@@ -26,7 +26,6 @@ public sealed class DataModuleBuilderTests
                 Slug: "hero-banner",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>hero</p>",
-                Meta: new Dictionary<string, object>(),
                 Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "hero") }),
             new ContentItem(
                 Id: "m2",
@@ -34,7 +33,6 @@ public sealed class DataModuleBuilderTests
                 Slug: "footer",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>footer</p>",
-                Meta: new Dictionary<string, object>(),
                 Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "footer") }),
             new ContentItem(
                 Id: "m3",
@@ -42,7 +40,6 @@ public sealed class DataModuleBuilderTests
                 Slug: "hero-secondary",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>hero2</p>",
-                Meta: new Dictionary<string, object>(),
                 Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "hero") }),
         };
 
@@ -66,8 +63,7 @@ public sealed class DataModuleBuilderTests
                 Title: "No Type",
                 Slug: "no-type",
                 PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>module</p>",
-                Meta: new Dictionary<string, object>()),
+                ContentHtml: "<p>module</p>"),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -87,7 +83,6 @@ public sealed class DataModuleBuilderTests
                 Slug: "charlie",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>c</p>",
-                Meta: new Dictionary<string, object>(),
                 Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget"), ["order"] = new("number", 3d) }),
             new ContentItem(
                 Id: "a",
@@ -95,7 +90,6 @@ public sealed class DataModuleBuilderTests
                 Slug: "alpha",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>a</p>",
-                Meta: new Dictionary<string, object>(),
                 Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget"), ["order"] = new("number", 1d) }),
             new ContentItem(
                 Id: "b1",
@@ -103,7 +97,6 @@ public sealed class DataModuleBuilderTests
                 Slug: "beta",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>b1</p>",
-                Meta: new Dictionary<string, object>(),
                 Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget"), ["order"] = new("number", 2d) }),
             new ContentItem(
                 Id: "b2",
@@ -111,7 +104,6 @@ public sealed class DataModuleBuilderTests
                 Slug: "beta-a",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>b2</p>",
-                Meta: new Dictionary<string, object>(),
                 Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget"), ["order"] = new("number", 2d) }),
         };
 
@@ -137,7 +129,6 @@ public sealed class DataModuleBuilderTests
                 Slug: "enabled",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>enabled</p>",
-                Meta: new Dictionary<string, object>(),
                 Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget") }),
             new ContentItem(
                 Id: "m2",
@@ -145,7 +136,6 @@ public sealed class DataModuleBuilderTests
                 Slug: "disabled",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>disabled</p>",
-                Meta: new Dictionary<string, object>(),
                 Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget"), ["enabled"] = new("bool", false) }),
         };
 
@@ -172,7 +162,6 @@ public sealed class DataModuleBuilderTests
                 Slug: "test-module",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>content</p>",
-                Meta: new Dictionary<string, object>(),
                 Fields: fields),
         };
 
@@ -199,7 +188,6 @@ public sealed class DataModuleBuilderTests
                 Slug: "from-store",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object>(),
                 Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget") }),
         };
         var bodyStore = new StubBodyStore(html: "<p>stored content</p>");

@@ -99,7 +99,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = new("text", collectionKey),
             ["summary"] = new("text", $"Browse archived {collectionKey} entries by year.")
         };
-        var item = new ContentItem($"{collectionKey}-archive-index", "Archive", "archive", now, sb.ToString(), new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), fields);
+        var item = new ContentItem($"{collectionKey}-archive-index", "Archive", "archive", now, sb.ToString(), fields);
         return (item, route, now);
     }
 
@@ -136,7 +136,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = new("text", collectionKey),
             ["summary"] = new("text", $"Browse {collectionKey} entries published in {year}.")
         };
-        var item = new ContentItem($"{collectionKey}-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), fields);
+        var item = new ContentItem($"{collectionKey}-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), fields);
         return (item, route, publishAt);
     }
 
@@ -169,7 +169,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = new("text", collectionKey),
             ["summary"] = new("text", $"Browse {collectionKey} entries published in {year}-{month:D2}.")
         };
-        var itemInfo = new ContentItem($"{collectionKey}-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), fields);
+        var itemInfo = new ContentItem($"{collectionKey}-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), fields);
         return (itemInfo, routeInfo, publishAt);
     }
 

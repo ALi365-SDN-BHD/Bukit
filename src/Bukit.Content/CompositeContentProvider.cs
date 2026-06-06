@@ -59,7 +59,6 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
                     BodyKey = item.BodyKey is null
                         ? $"{sourceKey}:{item.Id}"
                         : $"{sourceKey}:{item.BodyKey}",
-                    Meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
                     Fields = fields
                 });
 
@@ -86,7 +85,6 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
                         BodyKey = item.BodyKey is null
                             ? $"{sourceKey}:{item.Id}"
                             : $"{sourceKey}:{item.BodyKey}",
-                        Meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
                         Fields = extraFields
                     });
                 }
@@ -102,9 +100,12 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
         for (var i = 0; i < _providers.Count; i++)
         {
             var provider = _providers[i].Provider;
-            tasks[i] = provider is IRawContentProvider rawProvider
-                ? rawProvider.LoadRawAsync(cancellationToken)
-                : LoadLegacyRawAsync(provider, cancellationToken);
+            if (provider is not IRawContentProvider rawProvider)
+            {
+                throw new ContentException($"Composite content source '{_providers[i].SourceKey}' must implement vNext raw content loading.");
+            }
+
+            tasks[i] = rawProvider.LoadRawAsync(cancellationToken);
         }
 
         await Task.WhenAll(tasks);
@@ -140,24 +141,6 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
         }
 
         return new RawContentLoadResult(all, new CompositeContentBodyStore(stores));
-    }
-
-    private static async Task<RawContentLoadResult> LoadLegacyRawAsync(IContentProvider provider, CancellationToken cancellationToken)
-    {
-        var result = await provider.LoadAsync(cancellationToken);
-        var documents = result.Items.Select(item => new RawContentDocument(
-            item.Id,
-            "legacy",
-            item.Title,
-            item.Slug,
-            item.PublishAt,
-            new RawBody(item.ContentHtml, item.BodyKey, null, null),
-            (item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))
-                .ToDictionary(kv => kv.Key, kv => ToRawContentValue(kv.Value.Value), StringComparer.OrdinalIgnoreCase),
-            new ContentSourceInfo("legacy", null, null, item.Id, null, null, "loaded"),
-            item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))).ToArray();
-
-        return new RawContentLoadResult(documents, result.BodyStore);
     }
 
     private static RawContentDocument WithCompositeSource(
@@ -206,15 +189,4 @@ public sealed class CompositeContentProvider : IContentProvider, IRawContentProv
         };
     }
 
-    private static RawContentValue ToRawContentValue(object? value)
-    {
-        return value switch
-        {
-            bool => new RawContentValue("bool", value),
-            int or long or double or float => new RawContentValue("number", value),
-            IEnumerable<string> => new RawContentValue("list", value),
-            IEnumerable<object> => new RawContentValue("list", value),
-            _ => new RawContentValue("text", value)
-        };
-    }
 }

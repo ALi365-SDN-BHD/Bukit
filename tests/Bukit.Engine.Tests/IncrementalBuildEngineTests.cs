@@ -46,7 +46,6 @@ public sealed class IncrementalBuildEngineTests
             Slug: slug,
             PublishAt: publishAt ?? s_testPublishAt,
             ContentHtml: contentHtml,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: mergedFields
         );
     }

@@ -211,13 +211,10 @@ public sealed class ContentPipelineTests
             "notion-post",
             DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
             "<p>Body</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["type"] = "post",
-                ["collection"] = "post"
-            },
             new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["type"] = new("text", "post"),
+                ["collection"] = new("text", "post"),
                 ["summary"] = new("text", "Field summary"),
                 ["authors"] = new("list", new List<string> { "Ali" }),
                 ["language"] = new("text", "en"),
@@ -262,14 +259,11 @@ public sealed class ContentPipelineTests
             "image-post",
             DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
             "<p>Body</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["type"] = "post",
-                ["collection"] = "post",
-                ["source"] = "markdown"
-            },
             new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["type"] = new("text", "post"),
+                ["collection"] = new("text", "post"),
+                ["source"] = new("text", "markdown"),
                 ["image"] = new("file", "https://img.example/cover.jpg")
             });
 
@@ -292,7 +286,6 @@ public sealed class ContentPipelineTests
             slug,
             DateTimeOffset.UnixEpoch,
             $"<p>{id}</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             fields.ToDictionary(kv => kv.Key, kv => new ContentField("test", kv.Value), StringComparer.OrdinalIgnoreCase));
     }
 

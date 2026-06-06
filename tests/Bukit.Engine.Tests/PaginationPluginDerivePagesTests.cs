@@ -67,7 +67,6 @@ public sealed class PaginationPluginDerivePagesTests
             Slug: $"post-{index}",
             PublishAt: publish,
             ContentHtml: $"<p>content {index}</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post"),
@@ -221,12 +220,9 @@ public sealed class PaginationPluginDerivePagesTests
                     Slug: $"post-{i}",
                     PublishAt: publish.AddDays(i),
                     ContentHtml: $"<p>content {i}</p>",
-                    Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["type"] = "post"
-                    },
                     Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                     {
+                        ["type"] = new("text", "post"),
                         ["collection"] = new("text", "post"),
                         ["summary"] = new("text", $"Canonical summary {i}")
                     });

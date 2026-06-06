@@ -145,10 +145,7 @@ public sealed class ContentProviderFactoryTests
                 "Test",
                 "test",
                 DateTimeOffset.UtcNow,
-                "<p>Hello world</p>",
-                new Dictionary<string, object>(),
-                null,
-                null)
+                "<p>Hello world</p>")
         };
 
         var result = new ContentLoadResult(items.AsReadOnly(), NullContentBodyStore.Instance);

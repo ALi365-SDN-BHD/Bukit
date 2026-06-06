@@ -19,7 +19,6 @@ public sealed class RouteGeneratorCoverageTests
             Slug: slug,
             PublishAt: DateTimeOffset.MinValue,
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(),
             Fields: ToFields(meta));
 
     private static ContentItem ItemWithDate(
@@ -33,7 +32,6 @@ public sealed class RouteGeneratorCoverageTests
             Slug: slug,
             PublishAt: new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(),
             Fields: ToFields(meta));
 
     private static IReadOnlyDictionary<string, ContentField> ToFields(IReadOnlyDictionary<string, object>? values)

@@ -216,7 +216,6 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = new("text", "blog")
@@ -236,7 +235,6 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "article")
@@ -256,7 +254,6 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null);
 
         var result = SeoAlternatesService.GetCollection(item);
@@ -273,7 +270,6 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = new("text", "blog"),
@@ -294,7 +290,6 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = new("text", "knowledge")

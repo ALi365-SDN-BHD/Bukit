@@ -17,7 +17,7 @@ public sealed class SearchIndexBuilderTests
         string Slug,
         DateTimeOffset PublishAt,
         string? ContentHtml,
-        IReadOnlyDictionary<string, object>? Meta,
+        IReadOnlyDictionary<string, object>? Meta = null,
         IReadOnlyDictionary<string, ContentField>? Fields = null,
         string? BodyKey = null)
     {
@@ -44,9 +44,24 @@ public sealed class SearchIndexBuilderTests
             Slug,
             PublishAt,
             ContentHtml,
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             fields,
             BodyKey);
+    }
+
+    private static Dictionary<string, ContentField> ToFields(IReadOnlyDictionary<string, object>? values)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (values is null)
+        {
+            return fields;
+        }
+
+        foreach (var (key, value) in values)
+        {
+            fields[key] = new ContentField("test", value);
+        }
+
+        return fields;
     }
 
     [Fact]
@@ -234,8 +249,7 @@ public sealed class SearchIndexBuilderTests
             Title: "Test Post",
             Slug: "test-post",
             PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            ContentHtml: null);
         var route = new RouteInfo("/blog/test-post/", "blog/test-post/index.html", "pages/post.html");
         var input = new[] { (item, route) };
 
@@ -254,22 +268,19 @@ public sealed class SearchIndexBuilderTests
             Title: "Alpha",
             Slug: "alpha",
             PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            ContentHtml: null);
         var item2 = TestItem(
             Id: "b",
             Title: "Beta",
             Slug: "beta",
             PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            ContentHtml: null);
         var item3 = TestItem(
             Id: "c",
             Title: "Gamma",
             Slug: "gamma",
             PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            ContentHtml: null);
 
         var route1 = new RouteInfo("/blog/alpha/", "blog/alpha/index.html", "pages/post.html");
         var route2 = new RouteInfo("/pages/beta/", "pages/beta/index.html", "pages/page.html");
@@ -293,8 +304,7 @@ public sealed class SearchIndexBuilderTests
             Title: "X",
             Slug: "x",
             PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            ContentHtml: null);
         var route = new RouteInfo("/pages/x/", "pages\\x\\index.html", "pages/page.html");
 
         var result = SearchIndexBuilder.BuildItemMap([(item, route)]);
@@ -311,7 +321,7 @@ public sealed class SearchIndexBuilderTests
             Slug: "search-post",
             PublishAt: DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
             ContentHtml: "<p>Body</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: ToFields(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["summary"] = "Search summary",
@@ -327,7 +337,7 @@ public sealed class SearchIndexBuilderTests
                         ["name"] = "Bukit"
                     }
                 }
-            });
+            }));
         var route = new RouteInfo("/search-post/", "search-post/index.html", "pages/post.html");
 
         using var stream = new MemoryStream();
@@ -355,12 +365,6 @@ public sealed class SearchIndexBuilderTests
             Slug: "structured-post",
             PublishAt: DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
             ContentHtml: "<p>Structured body</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["summary"] = "Legacy summary",
-                ["language"] = "en",
-                ["sourceKey"] = "legacy-source"
-            },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "guide"),

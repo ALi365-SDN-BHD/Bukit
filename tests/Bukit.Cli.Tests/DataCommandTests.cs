@@ -33,7 +33,6 @@ public sealed class DataCommandTests : IDisposable
             Slug: "hero-block",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceMode"] = new("text", "data"),
@@ -59,7 +58,6 @@ public sealed class DataCommandTests : IDisposable
             Slug: "hero-block",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceMode"] = new("text", "data"),

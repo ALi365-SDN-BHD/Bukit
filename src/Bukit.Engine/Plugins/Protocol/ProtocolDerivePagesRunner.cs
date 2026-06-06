@@ -80,7 +80,6 @@ internal sealed class ProtocolDerivePagesRunner
                 page.Slug,
                 page.PublishAt,
                 page.ContentHtml,
-                new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
                 fields);
             var route = new RouteInfo(page.Url, page.OutputPath, page.Template);
             var lastModified = page.LastModified ?? page.PublishAt;

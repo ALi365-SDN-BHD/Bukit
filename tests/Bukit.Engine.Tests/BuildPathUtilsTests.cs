@@ -104,8 +104,7 @@ public sealed class BuildPathUtilsTests
             Title: "Post 1",
             Slug: "post-1",
             PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            ContentHtml: null);
         var route = new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html");
         var routed = new List<(ContentItem, RouteInfo)> { (item, route) };
 

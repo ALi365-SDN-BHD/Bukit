@@ -43,7 +43,6 @@ public sealed class GeoSeoModelBuilderTests
             Slug,
             PublishAt,
             ContentHtml,
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             fields);
     }
 

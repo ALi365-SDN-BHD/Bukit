@@ -264,7 +264,6 @@ public sealed class ContentPipeline
                 record.Identity.Slug,
                 record.Lifecycle.PublishedAt,
                 document.Body.Html,
-                new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
                 fields,
                 document.Body.BodyKey);
         }).ToArray();

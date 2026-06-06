@@ -673,7 +673,7 @@ public sealed class ExternalProtocolPluginTests
             Routed = new List<(ContentItem, RouteInfo)>
             {
                 (new ContentItem("post-1", "Post 1", "post-1", DateTimeOffset.UtcNow, "<p>Body</p>",
-                    new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post" }),
+                    new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase) { ["type"] = new("text", "post") }),
                     new RouteInfo("/blog/post-1/", Path.Combine("blog", "post-1", "index.html"), "pages/post.html"))
             },
             Logger = new ConsoleLogger(LogLevel.Error)
@@ -784,9 +784,9 @@ public sealed class ExternalProtocolPluginTests
             {
                 (
                     new ContentItem("post-1", "Post 1", "post-1", DateTimeOffset.UtcNow, "<p>Body</p>",
-                        new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                         {
-                            ["type"] = "post"
+                            ["type"] = new("text", "post")
                         }),
                     new RouteInfo("/blog/post-1/", Path.Combine("blog", "post-1", "index.html"), "pages/post.html")
                 )

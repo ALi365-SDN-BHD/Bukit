@@ -201,7 +201,7 @@ internal static class SeoJsonLdBuilder
             article["inLanguage"] = contentLanguage;
         }
 
-        var author = geo.GeoAuthor?.Name ?? record?.Ownership.Author ?? SeoModelBuilder.FirstTextOrMeta(item, "author");
+        var author = geo.GeoAuthor?.Name ?? record?.Ownership.Author ?? (item is null ? null : SeoModelBuilder.FirstTextField(item, "author"));
         if (!string.IsNullOrWhiteSpace(author))
         {
             var person = new Dictionary<string, object?>

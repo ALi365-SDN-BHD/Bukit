@@ -50,7 +50,6 @@ public sealed class ContentSchemaValidatorExtendedTests
             "hello",
             DateTimeOffset.UtcNow,
             null,
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase) { ["type"] = new("text", "posts") });
 
         var result = ContentSchemaValidator.ApplyDefaults(collections, new[] { item });

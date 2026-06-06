@@ -22,7 +22,6 @@ public sealed class RssGeneratorTests
             Slug: slug,
             PublishAt: publishAt ?? new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: BuildFields(type, summary, tags));
 
     private static IReadOnlyDictionary<string, ContentField> BuildFields(string type, string? summary, IReadOnlyList<string>? tags)

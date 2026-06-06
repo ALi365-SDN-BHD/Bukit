@@ -173,7 +173,6 @@ public sealed class NotionContentProvider : IContentProvider, IRawContentProvide
                 Slug: d.Slug,
                 PublishAt: d.PublishAt,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
                 Fields: fields,
                 BodyKey: d.PageId
             ));

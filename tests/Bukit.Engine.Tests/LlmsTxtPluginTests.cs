@@ -220,7 +220,10 @@ public sealed class LlmsTxtPluginTests : IDisposable
             Slug: "test-page",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>Hello world</p>",
-            Meta: meta);
+            Fields: meta.ToDictionary(
+                kv => kv.Key,
+                kv => new ContentField("test", kv.Value),
+                StringComparer.OrdinalIgnoreCase));
         var route = new RouteInfo("/page-1/", "page-1/index.html", "pages/page.html");
 
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)

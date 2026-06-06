@@ -22,7 +22,6 @@ public sealed class PageRenderDispatcherLazyBodyTests
             Slug: "hello",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null,
             BodyKey: "body-1");
 
@@ -71,7 +70,6 @@ public sealed class PageRenderDispatcherLazyBodyTests
             Slug: "hello",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["summary"] = new("text", "Canonical summary"),
@@ -126,7 +124,6 @@ public sealed class PageRenderDispatcherLazyBodyTests
             Slug: "hello",
             PublishAt: DateTimeOffset.Parse("2026-05-04T00:00:00Z"),
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["bodyFingerprint"] = new("text", "body-v1")
@@ -401,7 +398,6 @@ public sealed class PageRenderDispatcherLazyBodyTests
             Slug: "blog-post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = new("text", "post"),

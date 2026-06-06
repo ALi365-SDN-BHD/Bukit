@@ -123,7 +123,11 @@ public sealed class RoutePipelineTests
 
     private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object> meta)
     {
-        return new ContentItem(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", meta);
+        var fields = meta.ToDictionary(
+            kv => kv.Key,
+            kv => new ContentField("test", kv.Value),
+            StringComparer.OrdinalIgnoreCase);
+        return new ContentItem(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", fields);
     }
 
     private static ContentDocument Document(

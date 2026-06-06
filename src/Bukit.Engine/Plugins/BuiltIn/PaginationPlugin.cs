@@ -86,7 +86,6 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
                 Slug: $"page-{page}",
                 PublishAt: publishAt,
                 ContentHtml: html,
-                Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
                 Fields: fields);
 
             derived.Add((item, route, publishAt));

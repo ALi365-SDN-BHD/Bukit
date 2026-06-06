@@ -17,7 +17,7 @@ public sealed class SeoModelBuilderTests
         string Slug,
         DateTimeOffset PublishAt,
         string? ContentHtml,
-        IReadOnlyDictionary<string, object>? Meta,
+        IReadOnlyDictionary<string, object>? Meta = null,
         IReadOnlyDictionary<string, ContentField>? Fields = null)
     {
         var fields = ToFields(Meta);
@@ -35,7 +35,6 @@ public sealed class SeoModelBuilderTests
             Slug,
             PublishAt,
             ContentHtml,
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             fields);
     }
 
@@ -459,8 +458,7 @@ public sealed class SeoModelBuilderTests
             Title: "Test",
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Meta: new Dictionary<string, object>());
+            ContentHtml: null);
         var route = new RouteInfo("/pages/about/", "pages/about/index.html", "pages/page.html");
 
         var key = SeoModelBuilder.BuildAlternateKey(item, route);

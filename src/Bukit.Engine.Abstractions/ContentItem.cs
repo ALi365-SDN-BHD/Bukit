@@ -6,7 +6,6 @@ public sealed record ContentItem(
     string Slug,
     DateTimeOffset PublishAt,
     string? ContentHtml,
-    IReadOnlyDictionary<string, object> Meta,
     IReadOnlyDictionary<string, ContentField>? Fields = null,
     string? BodyKey = null
 );

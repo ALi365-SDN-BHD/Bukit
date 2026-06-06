@@ -28,7 +28,6 @@ public sealed class AliasPluginTests
             slug,
             DateTimeOffset.UtcNow,
             "<p>x</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             fields);
     }
 

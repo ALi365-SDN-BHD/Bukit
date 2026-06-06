@@ -16,7 +16,7 @@ public sealed class SeoIndexBuilderTests
         string Slug,
         DateTimeOffset PublishAt,
         string? ContentHtml,
-        IReadOnlyDictionary<string, object>? Meta,
+        IReadOnlyDictionary<string, object>? Meta = null,
         IReadOnlyDictionary<string, ContentField>? Fields = null)
     {
         var fields = ToFields(Meta);
@@ -34,7 +34,6 @@ public sealed class SeoIndexBuilderTests
             Slug,
             PublishAt,
             ContentHtml,
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             fields);
     }
 
@@ -203,7 +202,6 @@ public sealed class SeoIndexBuilderTests
                 Slug: "post",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object>(),
                 Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["type"] = new("text", "post"),

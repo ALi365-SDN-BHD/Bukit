@@ -18,7 +18,6 @@ public sealed class SitemapPolicyTests
             Slug: "s",
             PublishAt: publishAt,
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["update_time"] = new("date", update)
@@ -38,7 +37,6 @@ public sealed class SitemapPolicyTests
             Slug: "s",
             PublishAt: publishAt,
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["update_time"] = new("text", "2024-05-06T07:08:09Z")
