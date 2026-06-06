@@ -213,10 +213,10 @@ public sealed class BuildReporterTests
             "alpha",
             DateTimeOffset.UtcNow,
             "<p>Alpha</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = "post",
-                ["collection"] = "post"
+                ["type"] = new("text", "post"),
+                ["collection"] = new("text", "post")
             });
         var zeta = new ContentItem(
             "zeta",
@@ -224,10 +224,10 @@ public sealed class BuildReporterTests
             "zeta",
             DateTimeOffset.UtcNow,
             "<p>Zeta</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = "post",
-                ["collection"] = "post"
+                ["type"] = new("text", "post"),
+                ["collection"] = new("text", "post")
             });
 
         return new BuildVariantResult(

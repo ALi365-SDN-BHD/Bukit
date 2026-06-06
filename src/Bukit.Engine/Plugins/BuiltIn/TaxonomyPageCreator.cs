@@ -172,7 +172,6 @@ internal static class TaxonomyPageCreator
             Slug: kind,
             PublishAt: publishAt,
             ContentHtml: html,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: fields);
 
         return (item, route, publishAt);
@@ -308,7 +307,6 @@ internal static class TaxonomyPageCreator
             Slug: term.Slug,
             PublishAt: publishAt,
             ContentHtml: html,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: fields);
 
         return (item, route, publishAt);

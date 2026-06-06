@@ -53,7 +53,6 @@ public sealed class ThemeTemplateResolverTests
             "hello",
             DateTimeOffset.UnixEpoch,
             "<p>Hello</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post"),
@@ -81,7 +80,6 @@ public sealed class ThemeTemplateResolverTests
             "hello",
             DateTimeOffset.UnixEpoch,
             "<p>Hello</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post"),
@@ -114,7 +112,6 @@ public sealed class ThemeTemplateResolverTests
             "hello",
             DateTimeOffset.UnixEpoch,
             "<p>Hello</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post"),

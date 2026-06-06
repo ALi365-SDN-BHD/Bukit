@@ -21,7 +21,6 @@ public sealed class PageRenderDispatcherMetricsTests
             Slug: "hello",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null,
             BodyKey: "body-1");
 

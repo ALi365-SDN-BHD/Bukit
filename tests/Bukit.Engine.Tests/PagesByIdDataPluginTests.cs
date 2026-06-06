@@ -23,14 +23,11 @@ public sealed class PagesByIdDataPluginTests
             Slug: "hello",
             PublishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>hi</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["type"] = "post",
-                ["collection"] = "post",
-                ["summary"] = "S"
-            },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["type"] = new ContentField("text", "post"),
+                ["collection"] = new ContentField("text", "post"),
+                ["summary"] = new ContentField("text", "S"),
                 ["tags"] = new ContentField("list", new List<string> { "a", "b" })
             });
 
@@ -105,7 +102,6 @@ public sealed class PagesByIdDataPluginTests
             Slug: "greeting",
             PublishAt: new DateTimeOffset(2026, 06, 05, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>hi</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase));
         var ctx = new BuildContext
         {
@@ -222,9 +218,10 @@ public sealed class PagesByIdDataPluginTests
                 Slug: "hello",
                 PublishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
                 ContentHtml: "<p>hi</p>",
-                Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post", ["collection"] = "post" },
                 Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                 {
+                    ["type"] = new ContentField("text", "post"),
+                    ["collection"] = new ContentField("text", "post"),
                     ["related_posts"] = new ContentField("list", new List<string> { "missing-1" })
                 });
 
@@ -323,9 +320,10 @@ public sealed class PagesByIdDataPluginTests
             Slug: "hello",
             PublishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>hi</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post", ["collection"] = "post" },
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
+                ["type"] = new ContentField("text", "post"),
+                ["collection"] = new ContentField("text", "post"),
                 ["related_posts"] = new ContentField("list", new List<string> { "missing-1" })
             });
 

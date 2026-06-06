@@ -20,10 +20,7 @@ public sealed class FeedPluginTests
             title,
             slug,
             DateTimeOffset.UtcNow,
-            contentHtml,
-            new Dictionary<string, object>(),
-            null,
-            null);
+            contentHtml);
     }
 
     private static RouteInfo CreateRoute(string url, string outputPath)

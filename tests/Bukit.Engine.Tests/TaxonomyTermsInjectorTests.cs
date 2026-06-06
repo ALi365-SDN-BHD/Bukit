@@ -14,8 +14,7 @@ public sealed class TaxonomyTermsInjectorTests
 {
     private static ContentItem CreateItem(string id, string title, string slug, IReadOnlyDictionary<string, ContentField>? fields = null)
     {
-        return new ContentItem(id, title, slug, DateTimeOffset.UtcNow, null,
-            new Dictionary<string, object>(), fields, null);
+        return new ContentItem(id, title, slug, DateTimeOffset.UtcNow, null, fields);
     }
 
     [Fact]

@@ -97,7 +97,6 @@ public sealed class PageRenderDispatcherNestedParallelTests
                 Slug: $"post-{i}",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
                 Fields: null,
                 BodyKey: $"body-{i}");
             var route = new RouteInfo($"/blog/post-{i}/", $"blog/post-{i}/index.html", "pages/post.html");

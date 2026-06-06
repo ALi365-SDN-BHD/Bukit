@@ -18,7 +18,6 @@ public sealed class CompositeContentProviderTests
                     Slug: "good",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
                     Fields: null)
             },
             new NullBodyStore()));
@@ -66,7 +65,6 @@ public sealed class CompositeContentProviderTests
                     Slug: "item-1",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
                     Fields: null)
             },
             new NullBodyStore()));
@@ -80,7 +78,6 @@ public sealed class CompositeContentProviderTests
                     Slug: "item-2",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
                     Fields: null)
             },
             new NullBodyStore()));
@@ -114,7 +111,6 @@ public sealed class CompositeContentProviderTests
                     Slug: "company-1",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
                     Fields: null)
             },
             new NullBodyStore()));
@@ -148,7 +144,6 @@ public sealed class CompositeContentProviderTests
                     Slug: "a",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
                     Fields: null)
             },
             new NullBodyStore()));
@@ -162,7 +157,6 @@ public sealed class CompositeContentProviderTests
                     Slug: "b",
                     PublishAt: DateTimeOffset.UtcNow,
                     ContentHtml: null,
-                    Meta: new Dictionary<string, object>(),
                     Fields: null)
             },
             new NullBodyStore()));

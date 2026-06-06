@@ -22,14 +22,30 @@ public sealed class IncrementalBuildEngineAsyncTests
         IReadOnlyDictionary<string, object>? meta = null,
         IReadOnlyDictionary<string, ContentField>? fields = null)
     {
+        var mergedFields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (meta is not null)
+        {
+            foreach (var (key, value) in meta)
+            {
+                mergedFields[key] = new ContentField("test", value);
+            }
+        }
+
+        if (fields is not null)
+        {
+            foreach (var (key, value) in fields)
+            {
+                mergedFields[key] = value;
+            }
+        }
+
         return new ContentItem(
             Id: id,
             Title: title,
             Slug: slug,
             PublishAt: publishAt ?? s_testPublishAt,
             ContentHtml: contentHtml,
-            Meta: meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
-            Fields: fields
+            Fields: mergedFields
         );
     }
 

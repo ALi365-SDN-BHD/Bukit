@@ -63,7 +63,6 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
             Slug: "post",
             PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>Body text</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post"),

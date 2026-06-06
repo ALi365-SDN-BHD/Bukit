@@ -55,7 +55,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
     [Fact]
     public void BuildRoutedDocuments_MapsRoutesByCanonicalDocumentIdentity()
     {
-        var item = new ContentItem("post-1", "Post 1", "post-1", DateTimeOffset.UnixEpoch, "<p>Post</p>", new Dictionary<string, object>());
+        var item = new ContentItem("post-1", "Post 1", "post-1", DateTimeOffset.UnixEpoch, "<p>Post</p>");
         var route = new RouteInfo("/post-1/", "post-1/index.html", "pages/post.html");
         var document = Document("post-1");
         var graph = new CanonicalContentGraph(new[] { document.Record }, document.Record.Entities, new[] { document }, document.Record.Relations);

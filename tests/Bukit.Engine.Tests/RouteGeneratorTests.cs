@@ -18,7 +18,6 @@ public sealed class RouteGeneratorTests
             Slug: slug,
             PublishAt: DateTimeOffset.MinValue,
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(),
             Fields: ToFields(meta));
 
     private static IReadOnlyDictionary<string, ContentField> ToFields(IReadOnlyDictionary<string, object>? values)
@@ -109,7 +108,6 @@ public sealed class RouteGeneratorTests
             Slug: "field-post",
             PublishAt: DateTimeOffset.MinValue,
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post"),
@@ -651,7 +649,6 @@ public sealed class RouteGeneratorTests
             Id: "id-1", Title: "My Post", Slug: "my-post",
             PublishAt: new DateTimeOffset(2025, 3, 15, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(),
             Fields: ToFields(new Dictionary<string, object> { ["type"] = "post" }));
 
         var permalinks = new Dictionary<string, string> { ["post"] = "/{year}/{month}/{slug}/" };
@@ -670,7 +667,6 @@ public sealed class RouteGeneratorTests
             Id: "id-1", Title: "T", Slug: "hello",
             PublishAt: new DateTimeOffset(2024, 12, 5, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(),
             Fields: ToFields(new Dictionary<string, object> { ["type"] = "post" }));
 
         var permalinks = new Dictionary<string, string> { ["post"] = "/{year}/{month}/{day}/{slug}/" };
@@ -728,7 +724,6 @@ public sealed class RouteGeneratorTests
             Id: "id-1", Title: "T", Slug: "my-slug",
             PublishAt: new DateTimeOffset(2025, 1, 9, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: new Dictionary<string, object>(),
             Fields: ToFields(new Dictionary<string, object> { ["type"] = "post" }));
 
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{year}/{month}/{day}/{slug}/", item);

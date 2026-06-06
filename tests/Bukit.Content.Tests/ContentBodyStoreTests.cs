@@ -117,7 +117,6 @@ public sealed class ContentBodyStoreTests
             Slug: id,
             PublishAt: DateTimeOffset.UnixEpoch,
             ContentHtml: contentHtml,
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: bodyKey);
     }

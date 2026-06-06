@@ -20,7 +20,6 @@ public sealed class SeoPipelineTests
             Slug: "hello",
             PublishAt: DateTimeOffset.UnixEpoch,
             ContentHtml: "<p>Hello</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: null,
             BodyKey: null);
         var route = new RouteInfo("/blog/hello/", "blog/hello/index.html", "pages/post.html");

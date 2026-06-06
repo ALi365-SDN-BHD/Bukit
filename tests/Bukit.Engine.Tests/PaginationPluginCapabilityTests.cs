@@ -62,7 +62,6 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
                     Slug: $"post-{i}",
                     PublishAt: new DateTimeOffset(2024, 01, i, 0, 0, 0, TimeSpan.Zero),
                     ContentHtml: $"<p>{i}</p>",
-                    Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
                     Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["type"] = new("text", "post"),

@@ -62,12 +62,11 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
             Slug: "post",
             PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>Body</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = "post",
-                ["tags"] = new[] { "News" }
-            },
-            Fields: null);
+                ["type"] = new("text", "post"),
+                ["tags"] = new("test", new[] { "News" })
+            });
         var route = new RouteInfo("/blog/post/", Path.Combine("blog", "post", "index.html"), "pages/post.html");
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {

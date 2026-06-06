@@ -15,7 +15,6 @@ public sealed class ContentBodyResolverTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: "test");
 
@@ -36,7 +35,6 @@ public sealed class ContentBodyResolverTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>inlined content</p>",
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: null);
 
@@ -57,7 +55,6 @@ public sealed class ContentBodyResolverTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>async inline</p>",
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: null);
 
@@ -76,7 +73,6 @@ public sealed class ContentBodyResolverTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: "resolved");
 
@@ -98,7 +94,6 @@ public sealed class ContentBodyResolverTests
             Slug: "test",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(),
             Fields: null,
             BodyKey: null);
 

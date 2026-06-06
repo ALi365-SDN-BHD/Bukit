@@ -16,7 +16,6 @@ public sealed class ContentStagesTests
             slug,
             DateTimeOffset.UnixEpoch,
             $"<p>{id}</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             fields.ToDictionary(kv => kv.Key, kv => new ContentField("test", kv.Value), StringComparer.OrdinalIgnoreCase));
 
     private static AppConfig Config(bool draft = false) => new()

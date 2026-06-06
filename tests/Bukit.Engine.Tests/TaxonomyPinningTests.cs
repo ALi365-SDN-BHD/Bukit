@@ -25,7 +25,6 @@ public sealed class TaxonomyPinningTests
             Slug: "pinned",
             PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = new ContentField("text", "s1"),
@@ -39,7 +38,6 @@ public sealed class TaxonomyPinningTests
             Slug: "normal-newer",
             PublishAt: new DateTimeOffset(2025, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = new ContentField("text", "s2"),
@@ -73,7 +71,6 @@ public sealed class TaxonomyPinningTests
             Slug: "pinned",
             PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = new ContentField("text", "s1"),
@@ -87,7 +84,6 @@ public sealed class TaxonomyPinningTests
             Slug: "normal-newer",
             PublishAt: new DateTimeOffset(2025, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = new ContentField("text", "s2"),
@@ -131,7 +127,6 @@ public sealed class TaxonomyPinningTests
             Slug: "pinned-2",
             PublishAt: new DateTimeOffset(2025, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = new ContentField("text", "s1"),
@@ -146,7 +141,6 @@ public sealed class TaxonomyPinningTests
             Slug: "pinned-1",
             PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
             Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = new ContentField("text", "s1"),

@@ -56,6 +56,12 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
                 var html = BuildRedirectHtml($"{baseUrl}{targetUrl}");
                 var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(aliasUrl, context.Config.Site.OutputPathEncoding);
                 var aliasRoute = new RouteInfo(aliasUrl, outputPath, null!);
+                var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["type"] = new("text", "redirect"),
+                    ["collection"] = new("text", "redirect"),
+                    ["excludeFromSitemap"] = new("bool", true)
+                };
 
                 var aliasItem = new ContentItem(
                     Id: $"alias-{item.Id}-{EscapePath(alias)}",
@@ -63,14 +69,7 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
                     Slug: $"alias-{item.Slug}",
                     PublishAt: item.PublishAt,
                     ContentHtml: html,
-                    Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["type"] = "redirect",
-                        ["sitemap"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                        {
-                            ["exclude"] = true
-                        }
-                    });
+                    Fields: fields);
 
                 derived.Add((aliasItem, aliasRoute, item.PublishAt));
             }
@@ -99,6 +98,12 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
         var html = BuildRedirectHtml($"{baseUrl}{targetUrl}");
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(aliasUrl, outputPathEncoding);
         var aliasRoute = new RouteInfo(aliasUrl, outputPath, null!);
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = new("text", "redirect"),
+            ["collection"] = new("text", "redirect"),
+            ["excludeFromSitemap"] = new("bool", true)
+        };
 
         var aliasItem = new ContentItem(
             Id: $"alias-{record.Identity.Id}-{EscapePath(alias)}",
@@ -106,14 +111,7 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
             Slug: $"alias-{record.Identity.Slug}",
             PublishAt: record.Lifecycle.PublishedAt,
             ContentHtml: html,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["type"] = "redirect",
-                ["sitemap"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["exclude"] = true
-                }
-            });
+            Fields: fields);
 
         derived.Add((aliasItem, aliasRoute, record.Lifecycle.PublishedAt));
     }
