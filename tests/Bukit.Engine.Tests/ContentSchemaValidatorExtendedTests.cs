@@ -30,32 +30,24 @@ public sealed class ContentSchemaValidatorExtendedTests
     }
 
     [Fact]
-    public void ApplyDefaults_AddsMissingSchemaDefaultsToMetaAndFields()
+    public void ContentModelSchemaValidator_ReportsCanonicalStatusErrors()
     {
-        var collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["posts"] = new CollectionConfig
-            {
-                Permalink = "/posts/{slug}/",
-                Template = "pages/post.html",
-                Schema = new[]
-                {
-                    new SchemaFieldDefinition { Name = "status", Type = "string", Default = "draft" }
-                }
-            }
-        };
-        var item = new ContentItem(
+        var document = ContentDocument.Create(
             "hello",
             "Hello",
             "hello",
             DateTimeOffset.UtcNow,
             null,
-            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "posts" }));
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["status"] = "unknown",
+                ["review_status"] = "unreviewable"
+            }));
+        var graph = CanonicalContentGraphBuilder.BuildFromDocuments(new[] { document });
 
-        var result = ContentSchemaValidator.ApplyDefaults(collections, new[] { item });
+        var errors = ContentModelSchemaValidator.Validate(graph);
 
-        Assert.Equal("draft", ContentFieldReader.GetText(result[0].Fields, "status"));
-        Assert.Equal("text", result[0].Fields!["status"].Type);
-        Assert.Equal("draft", result[0].Fields!["status"].Value);
+        Assert.Contains(errors, e => e.Code == "canonical_status_invalid" && e.SourcePath == "hello");
+        Assert.Contains(errors, e => e.Code == "canonical_review_status_invalid" && e.SourcePath == "hello");
     }
 }

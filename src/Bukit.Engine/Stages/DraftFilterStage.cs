@@ -11,17 +11,21 @@ internal sealed class DraftFilterStage : IContentStage
     {
         if (input.Config.Build.Draft)
         {
-            return Task.FromResult(new ContentStageOutput(input.Items, input.BodyStore, Name, 0, null));
+            return Task.FromResult(new ContentStageOutput(input.Documents, input.BodyStore, Name, 0, null));
         }
 
-        var before = input.Items.Count;
-        var filtered = input.Items.Where(i => ContentFieldReader.GetBool(i.Fields, "draft") is not true).ToList();
+        var documents = input.Documents.ToArray();
+        var documentCount = documents.Length;
+        var before = documentCount;
+        var filteredDocuments = documents
+            .Where(document => ContentFieldReader.GetBool(document.Fields, "draft") is not true)
+            .ToArray();
 
-        if (filtered.Count < before)
+        if (filteredDocuments.Length < before)
         {
-            input.Logger.Info($"event=content.draft_filtered removed={before - filtered.Count}");
+            input.Logger.Info($"event=content.draft_filtered removed={before - filteredDocuments.Length}");
         }
 
-        return Task.FromResult(new ContentStageOutput(filtered, input.BodyStore, Name, 0, null));
+        return Task.FromResult(new ContentStageOutput(filteredDocuments, input.BodyStore, Name, 0, null));
     }
 }

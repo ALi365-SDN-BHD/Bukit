@@ -25,17 +25,17 @@ internal static class SearchIndexBuilder
 
         foreach (var r in results)
         {
-            var itemsByPath = BuildItemMap(includeDerived ? r.Routed.Concat(r.DerivedRouted) : r.Routed);
+            var documentsByPath = BuildDocumentMap(includeDerived ? r.RoutedDocuments.Concat(r.DerivedDocuments) : r.RoutedDocuments);
             foreach (var (key, seo) in r.SeoIndex
                          .Where(x => x.Value.Indexable)
                          .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
             {
-                if (!itemsByPath.TryGetValue(key, out var item))
+                if (!documentsByPath.TryGetValue(key, out var document))
                 {
                     continue;
                 }
 
-                WriteSearchItem(writer, item, seo.Route, r.BaseUrl, r.BodyStore, r.SearchSnippetsEnabled);
+                WriteSearchItem(writer, document, seo.Route, r.BaseUrl, r.BodyStore, r.SearchSnippetsEnabled);
             }
         }
 
@@ -48,8 +48,8 @@ internal static class SearchIndexBuilder
         string baseUrl,
         bool includeDerived,
         bool emitSnippet,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> derivedRouted,
+        IReadOnlyList<RoutedContentDocument> routed,
+        IReadOnlyList<RoutedContentDocument> derivedRouted,
         IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
         IContentBodyStore bodyStore)
     {
@@ -60,14 +60,14 @@ internal static class SearchIndexBuilder
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false });
         writer.WriteStartArray();
 
-        var itemsByPath = BuildItemMap(includeDerived ? routed.Concat(derivedRouted) : routed);
+        var documentsByPath = BuildDocumentMap(includeDerived ? routed.Concat(derivedRouted) : routed);
         foreach (var (key, seo) in seoIndex
                      .Where(x => x.Value.Indexable)
                      .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
-            if (itemsByPath.TryGetValue(key, out var item) && !IsSearchExcluded(item))
+            if (documentsByPath.TryGetValue(key, out var document) && !IsSearchExcluded(document))
             {
-                WriteSearchItem(writer, item, seo.Route, baseUrl, bodyStore, emitSnippet);
+                WriteSearchItem(writer, document, seo.Route, baseUrl, bodyStore, emitSnippet);
             }
         }
 
@@ -75,23 +75,23 @@ internal static class SearchIndexBuilder
         writer.Flush();
     }
 
-    private static bool IsSearchExcluded(ContentItem item)
+    private static bool IsSearchExcluded(ContentDocument document)
     {
-        return ContentFieldReader.GetBool(item.Fields, "searchExclude") is true;
+        return ContentFieldReader.GetBool(document.Fields, "searchExclude") is true;
     }
 
     internal static void WriteSearchItem(
         Utf8JsonWriter writer,
-        ContentItem item,
+        ContentDocument document,
         RouteInfo route,
         string baseUrl,
         IContentBodyStore bodyStore,
         bool emitSnippet)
     {
-        var record = CanonicalContentGraphBuilder.ToRecord(item);
+        var record = document.Record;
 
         writer.WriteStartObject();
-        writer.WriteString("id", item.Id);
+        writer.WriteString("id", document.Id);
         writer.WriteString("title", record.Presentation.Title);
         writer.WriteString("url", NormalizeSearchUrl(baseUrl, route.Url));
 
@@ -101,7 +101,7 @@ internal static class SearchIndexBuilder
         }
 
 #pragma warning disable CS0618
-        var text = StripHtmlToText(ContentBodyResolver.GetHtml(item, bodyStore));
+        var text = StripHtmlToText(ContentBodyResolver.GetHtml(document, bodyStore));
 #pragma warning restore CS0618
         if (text.Length > 8000)
         {
@@ -111,7 +111,7 @@ internal static class SearchIndexBuilder
         writer.WriteString("content", text);
         if (emitSnippet)
         {
-            writer.WriteString("snippet", BuildSnippet(item, record, text));
+            writer.WriteString("snippet", BuildSnippet(document, record, text));
         }
         writer.WriteString("type", record.Classification.Type);
         writer.WriteString("contentType", record.Identity.ContentType);
@@ -121,9 +121,9 @@ internal static class SearchIndexBuilder
         if (record.Classification.Tags.Count > 0)
         {
             writer.WriteStartArray("tags");
-            foreach (var t in record.Classification.Tags)
+            foreach (var tag in record.Classification.Tags)
             {
-                writer.WriteStringValue(t);
+                writer.WriteStringValue(tag);
             }
 
             writer.WriteEndArray();
@@ -132,33 +132,38 @@ internal static class SearchIndexBuilder
         if (record.Classification.Sections.Count > 0)
         {
             writer.WriteStartArray("categories");
-            foreach (var c in record.Classification.Sections)
+            foreach (var section in record.Classification.Sections)
             {
-                writer.WriteStringValue(c);
+                writer.WriteStringValue(section);
             }
 
             writer.WriteEndArray();
         }
 
         writer.WriteString("language", record.Presentation.Language);
-        writer.WriteString("sourceKey", record.Provenance.Source ?? ContentFieldReader.GetText(item.Fields, "sourceKey") ?? ContentFieldReader.GetText(item.Fields, "source"));
+        writer.WriteString("sourceKey", record.Provenance.Source ?? ContentFieldReader.GetText(document.Fields, "sourceKey") ?? ContentFieldReader.GetText(document.Fields, "source"));
         writer.WriteString("publishAt", record.Lifecycle.PublishedAt.ToString("O"));
 
-        writer.WriteStartArray("entities");
-        foreach (var entity in record.Entities)
+        if (record.Entities.Count > 0)
         {
-            writer.WriteStringValue(entity.Name);
+            writer.WritePropertyName("entities");
+            writer.WriteStartArray();
+            foreach (var entity in record.Entities.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                writer.WriteStringValue(entity);
+            }
+            writer.WriteEndArray();
         }
-        writer.WriteEndArray();
+
         writer.WriteEndObject();
     }
 
-    internal static Dictionary<string, ContentItem> BuildItemMap(IEnumerable<(ContentItem Item, RouteInfo Route)> routed)
+    internal static Dictionary<string, ContentDocument> BuildDocumentMap(IEnumerable<RoutedContentDocument> routed)
     {
-        var result = new Dictionary<string, ContentItem>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (item, route) in routed)
+        var result = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
+        foreach (var routedDocument in routed)
         {
-            result[BuildPathUtils.NormalizeRelPath(route.OutputPath)] = item;
+            result[BuildPathUtils.NormalizeRelPath(routedDocument.Route.OutputPath)] = routedDocument.Document;
         }
 
         return result;
@@ -205,7 +210,7 @@ internal static class SearchIndexBuilder
         return b + u;
     }
 
-    private static string BuildSnippet(ContentItem item, ContentRecord record, string text)
+    private static string BuildSnippet(ContentDocument document, ContentRecord record, string text)
     {
         if (!string.IsNullOrWhiteSpace(record.Presentation.Summary))
         {

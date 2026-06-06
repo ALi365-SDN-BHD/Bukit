@@ -10,18 +10,18 @@ public sealed class DictionaryContentBodyStore : IContentBodyStore
         _bodies = bodies;
     }
 
-    public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+    public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrEmpty(item.ContentHtml))
+        if (!string.IsNullOrEmpty(document.ContentHtml))
         {
-            return Task.FromResult(new ContentBody(item.ContentHtml));
+            return Task.FromResult(new ContentBody(document.ContentHtml));
         }
 
-        if (string.IsNullOrEmpty(item.BodyKey) || !_bodies.TryGetValue(item.BodyKey, out var body))
+        if (string.IsNullOrEmpty(document.BodyKey) || !_bodies.TryGetValue(document.BodyKey, out var body))
         {
-            throw new InvalidOperationException($"No content body found for item '{item.Id}'.");
+            throw new InvalidOperationException($"No content body found for document '{document.Id}'.");
         }
 
         return Task.FromResult(body);

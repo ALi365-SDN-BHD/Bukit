@@ -65,7 +65,7 @@ internal static class BuildResultFactory
         IReadOnlyList<string>? generatedFiles = null)
     {
         var pageCount = variants.Sum(v => v.RenderedCount + v.SkippedCount);
-        var routeCount = variants.Sum(v => v.Routed.Count + v.DerivedRouted.Count);
+        var routeCount = variants.Sum(v => v.RoutedDocuments.Count + v.DerivedDocuments.Count);
         var pluginCount = variants.Sum(v => v.PluginExecutions.Count);
         var cacheHitCount = variants.Sum(v => v.SkippedCount);
         var cacheMissCount = variants.Sum(v => v.RenderedCount);
@@ -102,7 +102,7 @@ internal static class BuildResultFactory
                 v.Language,
                 Path.GetFullPath(v.OutputDir),
                 v.BaseUrl,
-                v.Routed.Count + v.DerivedRouted.Count,
+                v.RoutedDocuments.Count + v.DerivedDocuments.Count,
                 v.RenderedCount,
                 v.SkippedCount)).ToList(),
             GeneratedFiles: generatedFiles ?? Array.Empty<string>());

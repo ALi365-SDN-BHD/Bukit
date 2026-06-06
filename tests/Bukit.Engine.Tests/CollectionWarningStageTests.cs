@@ -19,21 +19,21 @@ public sealed class CollectionWarningStageTests
         public void Error(string message) { }
     }
 
-    private static ContentItem CreateItem(string id, IReadOnlyDictionary<string, object> meta)
+    private static ContentDocument CreateDocument(string id, IReadOnlyDictionary<string, object> fields)
     {
-        return new ContentItem(
-            Id: id,
-            Title: $"Item {id}",
-            Slug: $"item-{id}",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>hi</p>",
-            Fields: ContentFieldReader.ToFieldMap(meta));
+        return ContentDocumentNormalizer.ToDocument(new RawContentDocument(
+            id,
+            $"Item {id}",
+            $"item-{id}",
+            DateTimeOffset.UtcNow,
+            "<p>hi</p>",
+            ContentFieldReader.ToFieldMap(fields)));
     }
 
-    private static ContentStageInput CreateInput(IReadOnlyList<ContentItem> items, ILogger logger)
+    private static ContentStageInput CreateInput(IReadOnlyList<ContentDocument> documents, ILogger logger)
     {
         return new ContentStageInput(
-            items,
+            documents,
             EmptyContentBodyStore.Instance,
             new AppConfig
             {
@@ -57,12 +57,12 @@ public sealed class CollectionWarningStageTests
     public async Task ExecuteAsync_TypePostWithoutCollection_EmitsWarning()
     {
         var logger = new TestLogger();
-        var item = CreateItem("my-post", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = CreateDocument("my-post", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "post"
         });
         var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { item }, logger);
+        var input = CreateInput(new[] { document }, logger);
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
@@ -76,12 +76,12 @@ public sealed class CollectionWarningStageTests
     public async Task ExecuteAsync_TypePageWithoutCollection_EmitsWarning()
     {
         var logger = new TestLogger();
-        var item = CreateItem("my-page", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = CreateDocument("my-page", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "page"
         });
         var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { item }, logger);
+        var input = CreateInput(new[] { document }, logger);
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
@@ -93,13 +93,13 @@ public sealed class CollectionWarningStageTests
     public async Task ExecuteAsync_HasCollection_NoWarning()
     {
         var logger = new TestLogger();
-        var item = CreateItem("with-col", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = CreateDocument("with-col", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["collection"] = "blog",
             ["type"] = "custom"
         });
         var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { item }, logger);
+        var input = CreateInput(new[] { document }, logger);
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
@@ -110,12 +110,12 @@ public sealed class CollectionWarningStageTests
     public async Task ExecuteAsync_CustomTypeWithoutCollection_NoWarning()
     {
         var logger = new TestLogger();
-        var item = CreateItem("custom", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = CreateDocument("custom", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "custom"
         });
         var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { item }, logger);
+        var input = CreateInput(new[] { document }, logger);
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
@@ -128,9 +128,9 @@ public sealed class CollectionWarningStageTests
         var logger = new TestLogger();
         var items = new[]
         {
-            CreateItem("a", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post" }),
-            CreateItem("b", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["collection"] = "news", ["type"] = "post" }),
-            CreateItem("c", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page" }),
+            CreateDocument("a", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post" }),
+            CreateDocument("b", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["collection"] = "news", ["type"] = "post" }),
+            CreateDocument("c", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page" }),
         };
         var stage = new CollectionWarningStage();
         var input = CreateInput(items, logger);
@@ -148,13 +148,13 @@ public sealed class CollectionWarningStageTests
     public async Task ExecuteAsync_TypePostWithCollection_EmitsConflictWarning()
     {
         var logger = new TestLogger();
-        var item = CreateItem("my-conflict", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = CreateDocument("my-conflict", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "post",
             ["collection"] = "companies"
         });
         var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { item }, logger);
+        var input = CreateInput(new[] { document }, logger);
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
@@ -169,13 +169,13 @@ public sealed class CollectionWarningStageTests
     public async Task ExecuteAsync_TypeWithNonPostPageCollection_NoWarning()
     {
         var logger = new TestLogger();
-        var item = CreateItem("my-custom", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = CreateDocument("my-custom", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "custom",
             ["collection"] = "companies"
         });
         var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { item }, logger);
+        var input = CreateInput(new[] { document }, logger);
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
@@ -186,18 +186,18 @@ public sealed class CollectionWarningStageTests
     public async Task ExecuteAsync_FieldOnlyTypeWithoutCollection_EmitsWarning()
     {
         var logger = new TestLogger();
-        var item = new ContentItem(
-            Id: "field-post",
-            Title: "Field Post",
-            Slug: "field-post",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>hi</p>",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var document = ContentDocumentNormalizer.ToDocument(new RawContentDocument(
+            "field-post",
+            "Field Post",
+            "field-post",
+            DateTimeOffset.UtcNow,
+            "<p>hi</p>",
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post")
-            });
+            }));
         var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { item }, logger);
+        var input = CreateInput(new[] { document }, logger);
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 

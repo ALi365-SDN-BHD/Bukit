@@ -6,15 +6,15 @@ namespace Bukit.Engine.Tests;
 
 public sealed class ContentFieldReaderTests
 {
-    private static ContentItem CreateItem(Dictionary<string, object> meta)
+    private static ContentDocument CreateDocument(Dictionary<string, object> meta)
     {
-        return new ContentItem(
-            Id: "test",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(meta));
+        return ContentDocument.Create(
+            id: "test",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(meta));
     }
 
     [Fact]
@@ -22,7 +22,7 @@ public sealed class ContentFieldReaderTests
     {
         var meta = new Dictionary<string, object> { ["sourceMode"] = "data" };
 
-        Assert.True(ContentFieldReader.IsDataItem(CreateItem(meta)));
+        Assert.True(ContentFieldReader.IsDataItem(CreateDocument(meta)));
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public sealed class ContentFieldReaderTests
     {
         var meta = new Dictionary<string, object> { ["type"] = "post" };
 
-        Assert.False(ContentFieldReader.IsDataItem(CreateItem(meta)));
+        Assert.False(ContentFieldReader.IsDataItem(CreateDocument(meta)));
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class ContentFieldReaderTests
     {
         var meta = new Dictionary<string, object> { ["title"] = "hello" };
 
-        Assert.False(ContentFieldReader.IsDataItem(CreateItem(meta)));
+        Assert.False(ContentFieldReader.IsDataItem(CreateDocument(meta)));
     }
 
     [Fact]

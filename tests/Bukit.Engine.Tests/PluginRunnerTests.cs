@@ -204,7 +204,7 @@ public sealed class PluginRunnerTests
             OutputDir = outputDir,
             BaseUrl = "/",
             LayoutsDir = Path.Combine(root, "layouts"),
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
     }

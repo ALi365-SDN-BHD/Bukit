@@ -207,7 +207,7 @@ public sealed class BuildReporterTests
 
     private static BuildVariantResult CreateVariant(string tempDir)
     {
-        var alpha = new ContentItem(
+        var alpha = ContentDocument.Create(
             "alpha",
             "Alpha",
             "alpha",
@@ -218,7 +218,7 @@ public sealed class BuildReporterTests
                 ["type"] = "post",
                 ["collection"] = "post"
             }));
-        var zeta = new ContentItem(
+        var zeta = ContentDocument.Create(
             "zeta",
             "Zeta",
             "zeta",
@@ -230,18 +230,30 @@ public sealed class BuildReporterTests
                 ["collection"] = "post"
             }));
 
+        var routed = new[]
+        {
+            (zeta, new RouteInfo("/blog/zeta/", "blog/zeta/index.html", "pages/post.html")),
+            (alpha, new RouteInfo("/blog/alpha/", "blog/alpha/index.html", "pages/post.html"))
+        };
+        var archive = ContentDocument.Create(
+            "archive-2024",
+            "Archive 2024",
+            "archive-2024",
+            DateTimeOffset.Parse("2024-01-01T00:00:00Z", CultureInfo.InvariantCulture),
+            null,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "derived",
+                ["collection"] = "derived"
+            }));
+
         return new BuildVariantResult(
             Language: "zh-CN",
             OutputDir: tempDir,
             BaseUrl: "/",
             SearchSnippetsEnabled: false,
             BodyStore: EmptyContentBodyStore.Instance,
-            Routed: new[]
-            {
-                (zeta, new RouteInfo("/blog/zeta/", "blog/zeta/index.html", "pages/post.html")),
-                (alpha, new RouteInfo("/blog/alpha/", "blog/alpha/index.html", "pages/post.html"))
-            },
-            DerivedRouted: Array.Empty<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments: routed.ToRoutedDocuments(),
             DerivedRoutes: new[]
             {
                 (new RouteInfo("/archive/2024/", "archive/2024/index.html", "pages/archive.html"), DateTimeOffset.Parse("2024-01-01T00:00:00Z", CultureInfo.InvariantCulture))
@@ -257,6 +269,13 @@ public sealed class BuildReporterTests
             },
             StageMetrics: new BuildStageMetrics(
                 new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase),
-                new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)));
+                new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)),
+            DerivedDocuments: new[]
+            {
+                new RoutedContentDocument(
+                    archive,
+                    new RouteInfo("/archive/2024/", "archive/2024/index.html", "pages/archive.html"),
+                    DateTimeOffset.Parse("2024-01-01T00:00:00Z", CultureInfo.InvariantCulture))
+            });
     }
 }

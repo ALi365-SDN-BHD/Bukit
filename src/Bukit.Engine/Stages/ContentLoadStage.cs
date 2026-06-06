@@ -22,11 +22,12 @@ internal sealed class ContentLoadStage : IContentStage
         var sw = Stopwatch.StartNew();
 
         var provider = _factory.Create(input.Config, input.RootDir, input.Overrides.IsCI, input.Logger);
-        var loadResult = await provider.LoadAsync(cancellationToken);
+        var rawResult = await provider.LoadRawAsync(cancellationToken);
+        var documents = ContentDocumentNormalizer.ToDocuments(rawResult.Documents);
 
         sw.Stop();
-        input.Logger.Info($"event=content.loaded count={loadResult.Items.Count}");
+        input.Logger.Info($"event=content.loaded mode=raw count={documents.Count}");
 
-        return new ContentStageOutput(loadResult.Items, loadResult.BodyStore, Name, sw.ElapsedMilliseconds, null);
+        return new ContentStageOutput(documents, rawResult.BodyStore, Name, sw.ElapsedMilliseconds, null);
     }
 }

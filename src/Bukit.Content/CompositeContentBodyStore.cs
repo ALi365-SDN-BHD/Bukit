@@ -10,37 +10,41 @@ public sealed class CompositeContentBodyStore : IContentBodyStore
         _stores = stores;
     }
 
-    public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+    public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrEmpty(item.ContentHtml))
+        if (!string.IsNullOrEmpty(document.ContentHtml))
         {
-            return Task.FromResult(new ContentBody(item.ContentHtml));
+            return Task.FromResult(new ContentBody(document.ContentHtml));
         }
 
-        var separatorIndex = item.Id.IndexOf(':');
+        var separatorIndex = document.Id.IndexOf(':');
         if (separatorIndex <= 0)
         {
-            throw new InvalidOperationException($"Unable to resolve content body store for item '{item.Id}'.");
+            throw new InvalidOperationException($"Unable to resolve content body store for document '{document.Id}'.");
         }
 
-        var sourceKey = item.Id[..separatorIndex];
+        var sourceKey = document.Id[..separatorIndex];
         if (!_stores.TryGetValue(sourceKey, out var store))
         {
             throw new InvalidOperationException($"No content body store registered for source '{sourceKey}'.");
         }
 
-        var sourceId = ContentFieldReader.GetText(item.Fields, "sourceId");
+        var sourceId = ContentFieldReader.GetText(document.Fields, "sourceId");
         if (!string.IsNullOrWhiteSpace(sourceId))
         {
-            var originalBodyKey = item.BodyKey is not null && item.BodyKey.StartsWith(sourceKey + ":", StringComparison.Ordinal)
-                ? item.BodyKey.Substring(sourceKey.Length + 1)
-                : item.BodyKey;
-            var sourceItem = item with { Id = sourceId, BodyKey = originalBodyKey };
-            return store.GetAsync(sourceItem, cancellationToken);
+            var originalBodyKey = document.BodyKey is not null && document.BodyKey.StartsWith(sourceKey + ":", StringComparison.Ordinal)
+                ? document.BodyKey.Substring(sourceKey.Length + 1)
+                : document.BodyKey;
+            var sourceDocument = document with
+            {
+                Record = document.Record with { Identity = document.Record.Identity with { Id = sourceId } },
+                BodyKey = originalBodyKey
+            };
+            return store.GetAsync(sourceDocument, cancellationToken);
         }
 
-        return store.GetAsync(item, cancellationToken);
+        return store.GetAsync(document, cancellationToken);
     }
 }

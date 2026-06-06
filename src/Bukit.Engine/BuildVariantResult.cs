@@ -1,7 +1,6 @@
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
-using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 namespace Bukit.Engine;
 
@@ -11,8 +10,6 @@ internal sealed record BuildVariantResult(
     string BaseUrl,
     bool SearchSnippetsEnabled,
     IContentBodyStore BodyStore,
-    IReadOnlyList<(ContentItem Item, RouteInfo Route)> Routed,
-    IReadOnlyList<(ContentItem Item, RouteInfo Route)> DerivedRouted,
     IReadOnlyList<(RouteInfo Route, DateTimeOffset LastModified)> DerivedRoutes,
     IReadOnlyDictionary<string, SeoIndexEntry> SeoIndex,
     IReadOnlyDictionary<string, Bukit.Rendering.SeoModel> SeoModels,
@@ -21,4 +18,11 @@ internal sealed record BuildVariantResult(
     int SkippedCount,
     IReadOnlyDictionary<string, int> RenderReasons,
     BuildStageMetrics StageMetrics,
-    CanonicalContentGraph? ContentGraph = null);
+    IReadOnlyList<RoutedContentDocument> RoutedDocuments,
+    CanonicalContentGraph? ContentGraph = null,
+    IReadOnlyList<RoutedContentDocument>? DerivedDocuments = null,
+    IReadOnlyList<PublishProjectionResult>? ProjectionResults = null)
+{
+    public IReadOnlyList<RoutedContentDocument> DerivedDocuments { get; init; } = DerivedDocuments ?? Array.Empty<RoutedContentDocument>();
+    public IReadOnlyList<PublishProjectionResult> ProjectionResults { get; init; } = ProjectionResults ?? Array.Empty<PublishProjectionResult>();
+}

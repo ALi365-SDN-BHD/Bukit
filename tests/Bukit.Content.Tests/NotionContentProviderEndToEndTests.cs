@@ -31,9 +31,9 @@ public sealed class NotionContentProviderEndToEndTests
 
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var result = await provider.LoadAsync();
+        var result = await provider.LoadRawAsync();
 
-        var item = Assert.Single(result.Items);
+        var item = Assert.Single(result.Documents);
         Assert.Equal("page-1", item.Id);
         Assert.Equal("Hello Notion", item.Title);
         Assert.Equal("hello-notion", item.Slug);
@@ -97,9 +97,9 @@ public sealed class NotionContentProviderEndToEndTests
 
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var result = await provider.LoadAsync();
+        var result = await provider.LoadRawAsync();
 
-        var item = Assert.Single(result.Items);
+        var item = Assert.Single(result.Documents);
         Assert.NotNull(item.Fields);
         Assert.True(item.Fields.ContainsKey("language"));
         Assert.True(item.Fields.ContainsKey("tags"));
@@ -130,13 +130,13 @@ public sealed class NotionContentProviderEndToEndTests
                 new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
 
             var firstProvider = new NotionContentProvider(options, logger: null, CreateClient);
-            var firstResult = await firstProvider.LoadAsync();
-            var firstItem = Assert.Single(firstResult.Items);
+            var firstResult = await firstProvider.LoadRawAsync();
+            var firstItem = Assert.Single(firstResult.Documents);
             var firstBody = await firstResult.BodyStore.GetAsync(firstItem);
 
             var secondProvider = new NotionContentProvider(options, logger: null, CreateClient);
-            var secondResult = await secondProvider.LoadAsync();
-            var secondItem = Assert.Single(secondResult.Items);
+            var secondResult = await secondProvider.LoadRawAsync();
+            var secondItem = Assert.Single(secondResult.Documents);
             var secondBody = await secondResult.BodyStore.GetAsync(secondItem);
 
             Assert.Equal("<p>Cached body</p>", firstBody.Html.Trim());
@@ -173,9 +173,9 @@ public sealed class NotionContentProviderEndToEndTests
 
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var result = await provider.LoadAsync();
+        var result = await provider.LoadRawAsync();
 
-        var item = Assert.Single(result.Items);
+        var item = Assert.Single(result.Documents);
         Assert.NotNull(item.Fields);
         var linksField = Assert.Contains("tags_links", item.Fields);
         var links = Assert.IsAssignableFrom<IEnumerable<Dictionary<string, object?>>>(linksField.Value);
@@ -206,8 +206,8 @@ public sealed class NotionContentProviderEndToEndTests
             Token = ""
         });
 
-        var dbEx = await Assert.ThrowsAsync<ContentException>(() => missingDatabase.LoadAsync());
-        var tokenEx = await Assert.ThrowsAsync<ContentException>(() => missingToken.LoadAsync());
+        var dbEx = await Assert.ThrowsAsync<ContentException>(() => missingDatabase.LoadRawAsync());
+        var tokenEx = await Assert.ThrowsAsync<ContentException>(() => missingToken.LoadRawAsync());
 
         Assert.Contains("DatabaseId is required", dbEx.Message);
         Assert.Contains("Token is required", tokenEx.Message);
@@ -228,7 +228,7 @@ public sealed class NotionContentProviderEndToEndTests
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadAsync());
+        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
 
         Assert.Contains("missing results", ex.Message);
     }
@@ -250,9 +250,9 @@ public sealed class NotionContentProviderEndToEndTests
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var result = await provider.LoadAsync();
+        var result = await provider.LoadRawAsync();
 
-        Assert.Equal(new[] { "page-1", "page-2" }, result.Items.Select(x => x.Id).ToArray());
+        Assert.Equal(new[] { "page-1", "page-2" }, result.Documents.Select(x => x.Id).ToArray());
         Assert.Equal(2, handler.Count(HttpMethod.Post, "https://api.notion.com/v1/databases/db-123/query"));
         Assert.Contains(handler.QueryBodies, body => body.Contains("\"start_cursor\":\"cursor-1\"", StringComparison.Ordinal));
     }
@@ -276,8 +276,8 @@ public sealed class NotionContentProviderEndToEndTests
             NotionApiClient CreateClient() =>
                 new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
             var provider = new NotionContentProvider(options, logger: null, CreateClient);
-            var result = await provider.LoadAsync();
-            var item = Assert.Single(result.Items);
+            var result = await provider.LoadRawAsync();
+            var item = Assert.Single(result.Documents);
 
             var ex = await Assert.ThrowsAsync<ContentException>(() => result.BodyStore.GetAsync(item));
 
@@ -317,8 +317,8 @@ public sealed class NotionContentProviderEndToEndTests
             NotionApiClient CreateClient() =>
                 new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
             var provider = new NotionContentProvider(options, logger: null, CreateClient);
-            var result = await provider.LoadAsync();
-            var item = Assert.Single(result.Items);
+            var result = await provider.LoadRawAsync();
+            var item = Assert.Single(result.Documents);
 
             var body = await result.BodyStore.GetAsync(item);
 
@@ -351,7 +351,7 @@ public sealed class NotionContentProviderEndToEndTests
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadAsync());
+        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
 
         Assert.Contains("database schema missing properties", ex.Message);
     }
@@ -379,7 +379,7 @@ public sealed class NotionContentProviderEndToEndTests
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadAsync());
+        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
 
         Assert.Contains("conflicting property names", ex.Message);
         Assert.Contains("Published", ex.Message);
@@ -409,7 +409,7 @@ public sealed class NotionContentProviderEndToEndTests
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadAsync());
+        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
 
         Assert.Contains("property 'Missing' not found", ex.Message);
         Assert.Contains("Published", ex.Message);
@@ -431,7 +431,7 @@ public sealed class NotionContentProviderEndToEndTests
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadAsync());
+        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
 
         Assert.Contains("conflicting names ignoring case", ex.Message);
         Assert.Contains("Title", ex.Message);
@@ -455,9 +455,9 @@ public sealed class NotionContentProviderEndToEndTests
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var result = await provider.LoadAsync();
+        var result = await provider.LoadRawAsync();
 
-        var item = Assert.Single(result.Items);
+        var item = Assert.Single(result.Documents);
         Assert.Equal("page-1", item.Id);
         Assert.Equal(1, handler.RequestCount);
     }
@@ -478,8 +478,8 @@ public sealed class NotionContentProviderEndToEndTests
         NotionApiClient CreateClient() =>
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
-        var result = await provider.LoadAsync();
-        var item = Assert.Single(result.Items);
+        var result = await provider.LoadRawAsync();
+        var item = Assert.Single(result.Documents);
 
         Assert.False(ContentFieldReader.TryGetField(item.Fields, "summary", out _));
 
@@ -512,9 +512,9 @@ public sealed class NotionContentProviderEndToEndTests
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var result = await provider.LoadAsync();
+        var result = await provider.LoadRawAsync();
 
-        var item = Assert.Single(result.Items);
+        var item = Assert.Single(result.Documents);
         Assert.Equal("formula-slug", item.Slug);
         Assert.Equal("page", ContentFieldReader.GetText(item.Fields, "type"));
         Assert.Equal("ms-MY", ContentFieldReader.GetText(item.Fields, "language"));
@@ -557,9 +557,9 @@ public sealed class NotionContentProviderEndToEndTests
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var result = await provider.LoadAsync();
+        var result = await provider.LoadRawAsync();
 
-        var item = Assert.Single(result.Items);
+        var item = Assert.Single(result.Documents);
         var fields = Assert.IsAssignableFrom<IReadOnlyDictionary<string, ContentField>>(item.Fields);
         Assert.Equal("invalid-field-page", item.Slug);
         Assert.Equal("not-a-date", fields["created_time_text"].Value);

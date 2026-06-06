@@ -5,6 +5,5 @@ namespace Bukit.Engine.Abstractions.Plugins;
 
 public interface IDerivePagesPlugin
 {
-    IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context);
+    IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context);
 }
-

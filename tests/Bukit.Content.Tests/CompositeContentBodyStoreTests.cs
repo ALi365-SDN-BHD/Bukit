@@ -5,15 +5,15 @@ namespace Bukit.Content.Tests;
 
 public sealed class CompositeContentBodyStoreTests
 {
-    private static ContentItem MakeItem(string id, string? contentHtml = null, string? sourceId = null, string? bodyKey = null)
+    private static ContentDocument MakeItem(string id, string? contentHtml = null, string? sourceId = null, string? bodyKey = null)
     {
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
         if (sourceId != null)
             fields["sourceId"] = new ContentField("text", sourceId);
-        return new ContentItem(
-            Id: id, Title: "", Slug: "",
-            PublishAt: default, ContentHtml: contentHtml,
-            Fields: fields, BodyKey: bodyKey);
+        return ContentDocument.Create(
+            id: id, title: "", slug: "",
+            publishAt: default, contentHtml: contentHtml,
+            fields: fields, bodyKey: bodyKey);
     }
 
     [Fact]
@@ -23,7 +23,7 @@ public sealed class CompositeContentBodyStoreTests
         var store = new CompositeContentBodyStore(new Dictionary<string, IContentBodyStore> { ["md"] = inner });
         var item = MakeItem("md:test", "<p>inline</p>");
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(item.ToDocument());
 
         Assert.Equal("<p>inline</p>", body.Html);
     }
@@ -43,7 +43,7 @@ public sealed class CompositeContentBodyStoreTests
         });
         var item = MakeItem("md:123", sourceId: "actual-id", bodyKey: "actual-id");
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(item.ToDocument());
 
         Assert.Same(bodyContent, body);
     }
@@ -62,7 +62,7 @@ public sealed class CompositeContentBodyStoreTests
         });
         var item = MakeItem("md:my-page", bodyKey: "my-page");
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(item.ToDocument());
 
         Assert.Same(bodyContent, body);
     }
@@ -73,7 +73,7 @@ public sealed class CompositeContentBodyStoreTests
         var store = new CompositeContentBodyStore(new Dictionary<string, IContentBodyStore>());
         var item = MakeItem("no-separator");
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item.ToDocument()));
 
         Assert.Contains("Unable to resolve", ex.Message);
     }
@@ -84,7 +84,7 @@ public sealed class CompositeContentBodyStoreTests
         var store = new CompositeContentBodyStore(new Dictionary<string, IContentBodyStore>());
         var item = MakeItem("unknown:test");
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item.ToDocument()));
 
         Assert.Contains("No content body store registered", ex.Message);
     }

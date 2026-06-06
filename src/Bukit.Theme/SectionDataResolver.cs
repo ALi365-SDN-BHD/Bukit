@@ -5,23 +5,23 @@ namespace Bukit.Theme;
 
 public static class SectionDataResolver
 {
-    public static IReadOnlyList<(ContentItem Item, string? Url)> Resolve(
+    public static IReadOnlyList<(ContentDocument Document, string? Url)> Resolve(
         PageSectionDefinition section,
-        IReadOnlyList<(ContentItem Item, RouteInfo? Route)> allPages)
+        IReadOnlyList<(ContentDocument Document, RouteInfo? Route)> allPages)
     {
-        var items = new List<(ContentItem, string?)>();
+        var items = new List<(ContentDocument, string?)>();
 
         if (string.IsNullOrWhiteSpace(section.Source)) return items;
 
         var source = section.Source.Trim();
         var sourceSet = new HashSet<string>(source.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (item, route) in allPages)
+        foreach (var (document, route) in allPages)
         {
-            if (!MatchesSource(item, sourceSet)) continue;
-            if (!MatchesFilters(item, section.Filter)) continue;
+            if (!MatchesSource(document, sourceSet)) continue;
+            if (!MatchesFilters(document, section.Filter)) continue;
 
-            items.Add((item, route?.Url));
+            items.Add((document, route?.Url));
         }
 
         if (!string.IsNullOrWhiteSpace(section.Sort))
@@ -37,12 +37,12 @@ public static class SectionDataResolver
         return items;
     }
 
-    private static bool MatchesSource(ContentItem item, HashSet<string> sourceSet)
+    private static bool MatchesSource(ContentDocument document, HashSet<string> sourceSet)
     {
         if (sourceSet.Contains("*") || sourceSet.Contains("all")) return true;
 
-        var itemType = ContentFieldReader.GetContentType(item);
-        var itemCollections = GetCollections(item);
+        var itemType = ContentFieldReader.GetContentType(document);
+        var itemCollections = GetCollections(document);
 
         foreach (var source in sourceSet)
         {
@@ -78,19 +78,19 @@ public static class SectionDataResolver
         return false;
     }
 
-    private static IReadOnlyList<string> GetCollections(ContentItem item)
+    private static IReadOnlyList<string> GetCollections(ContentDocument document)
     {
-        var collections = ContentFieldReader.GetTextValues(item, "collections");
+        var collections = ContentFieldReader.GetTextValues(document, "collections");
         if (collections.Count > 0)
         {
             return collections;
         }
 
-        var collection = ContentFieldReader.GetCollection(item);
+        var collection = ContentFieldReader.GetCollection(document);
         return string.IsNullOrWhiteSpace(collection) ? Array.Empty<string>() : [collection];
     }
 
-    private static bool MatchesFilters(ContentItem item, IReadOnlyDictionary<string, object?>? filters)
+    private static bool MatchesFilters(ContentDocument document, IReadOnlyDictionary<string, object?>? filters)
     {
         if (filters is null || filters.Count == 0) return true;
 
@@ -98,7 +98,7 @@ public static class SectionDataResolver
         {
             if (value is null) continue;
 
-            var itemValue = GetFieldValue(item.Fields, key);
+            var itemValue = GetFieldValue(document.Fields, key);
             if (itemValue is null) return false;
 
             if (value is bool boolVal)
@@ -121,7 +121,7 @@ public static class SectionDataResolver
         return fields.TryGetValue(key, out var field) ? field.Value : null;
     }
 
-    private static List<(ContentItem, string?)> ApplySort(List<(ContentItem, string?)> items, string sort)
+    private static List<(ContentDocument, string?)> ApplySort(List<(ContentDocument, string?)> items, string sort)
     {
         var parts = sort.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var desc = parts.Length > 1 && string.Equals(parts[1], "desc", StringComparison.OrdinalIgnoreCase);

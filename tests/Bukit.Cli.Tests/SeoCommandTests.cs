@@ -56,14 +56,14 @@ public sealed class SeoCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task RunAsync_AuditDoesNotReadPublishAuditReportByDefault()
+    public async Task RunAsync_AuditReadsPublishAuditReportByDefault()
     {
         Directory.CreateDirectory(Path.Combine(_root, ".bukit"));
         WriteReportFile(Path.Combine(_root, ".bukit", "publish-audit-report.json"), 0, 0, "[]", schema: "https://bukit.dev/schemas/publish-audit-report.v1.json");
 
         var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "audit", "--dir", _root }));
 
-        Assert.Equal(1, exitCode);
+        Assert.Equal(0, exitCode);
     }
 
     [Fact]

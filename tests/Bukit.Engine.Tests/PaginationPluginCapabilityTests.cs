@@ -52,17 +52,17 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
 
     private BuildContext CreateContext()
     {
-        var routed = new List<(ContentItem Item, RouteInfo Route)>();
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>();
         for (var i = 1; i <= 12; i++)
         {
             routed.Add((
-                new ContentItem(
-                    Id: $"post-{i}",
-                    Title: $"Post {i}",
-                    Slug: $"post-{i}",
-                    PublishAt: new DateTimeOffset(2024, 01, i, 0, 0, 0, TimeSpan.Zero),
-                    ContentHtml: $"<p>{i}</p>",
-                    Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                ContentDocument.Create(
+                    id: $"post-{i}",
+                    title: $"Post {i}",
+                    slug: $"post-{i}",
+                    publishAt: new DateTimeOffset(2024, 01, i, 0, 0, 0, TimeSpan.Zero),
+                    contentHtml: $"<p>{i}</p>",
+                    fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["type"] = "post",
                         ["collection"] = "post"
@@ -94,7 +94,7 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
             OutputDir = Path.Combine(_rootDir, "dist"),
             BaseUrl = "/",
             LayoutsDir = _layoutsDir,
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             TemplateResolver = kind => kind.Equals("pagination", StringComparison.OrdinalIgnoreCase)
                 ? "pages/pagination.html"
                 : throw new ConfigException($"Unexpected template kind: {kind}"),

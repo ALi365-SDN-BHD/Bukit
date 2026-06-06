@@ -13,7 +13,7 @@ public interface IContentStage
 }
 
 public sealed record ContentStageInput(
-    IReadOnlyList<ContentItem> Items,
+    IReadOnlyList<ContentDocument> Documents,
     IContentBodyStore BodyStore,
     AppConfig Config,
     ConfigOverrides Overrides,
@@ -22,7 +22,7 @@ public sealed record ContentStageInput(
     ILogger Logger);
 
 public sealed record ContentStageOutput(
-    IReadOnlyList<ContentItem> Items,
+    IReadOnlyList<ContentDocument> Documents,
     IContentBodyStore BodyStore,
     string StageName,
     long DurationMs,

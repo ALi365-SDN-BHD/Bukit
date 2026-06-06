@@ -84,8 +84,8 @@ internal static class MetricsWriter
             writer.WriteString("language", v.Language);
             writer.WriteString("baseUrl", v.BaseUrl);
             writer.WriteString("outputDir", Path.GetFullPath(v.OutputDir));
-            writer.WriteNumber("routed", v.Routed.Count);
-            writer.WriteNumber("derived", v.DerivedRouted.Count);
+            writer.WriteNumber("routed", v.RoutedDocuments.Count);
+            writer.WriteNumber("derived", v.DerivedDocuments.Count);
             writer.WriteNumber("rendered", v.RenderedCount);
             writer.WriteNumber("skipped", v.SkippedCount);
 
@@ -170,7 +170,7 @@ internal static class MetricsWriter
         IReadOnlyList<BuildVariantResult> variants)
     {
         var rows = string.Join(Environment.NewLine, variants.Select(v =>
-            $"<tr><td>{Escape(v.Language)}</td><td>{v.Routed.Count}</td><td>{v.DerivedRouted.Count}</td><td>{v.RenderedCount}</td><td>{v.SkippedCount}</td><td>{Escape(string.Join(", ", v.RenderReasons.Select(r => $"{r.Key}: {r.Value}")))}</td></tr>"));
+            $"<tr><td>{Escape(v.Language)}</td><td>{v.RoutedDocuments.Count}</td><td>{v.DerivedDocuments.Count}</td><td>{v.RenderedCount}</td><td>{v.SkippedCount}</td><td>{Escape(string.Join(", ", v.RenderReasons.Select(r => $"{r.Key}: {r.Value}")))}</td></tr>"));
 
         var html = $$"""
             <!doctype html>

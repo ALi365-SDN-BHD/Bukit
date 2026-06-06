@@ -25,12 +25,12 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
         return posts.Count > 0 ? new[] { "archive" } : Array.Empty<string>();
     }
 
-    public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
+    public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
     {
         var archiveCollection = ResolveArchiveCollection(context.Config);
         if (archiveCollection is null || string.IsNullOrWhiteSpace(archiveCollection.Value.Config.ListRoute))
         {
-            return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+            return Array.Empty<RoutedContentDocument>();
         }
 
         var collectionKey = archiveCollection.Value.Key;
@@ -40,17 +40,17 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
 
         if (posts.Count == 0)
         {
-            return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+            return Array.Empty<RoutedContentDocument>();
         }
 
         var prefix = context.BaseUrl == "/" ? string.Empty : context.BaseUrl;
 
         var byYear = posts
-            .GroupBy(x => x.Item.PublishAt.Year)
+            .GroupBy(x => x.Document.PublishAt.Year)
             .OrderByDescending(g => g.Key)
             .ToList();
 
-        var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
+        var derived = new List<RoutedContentDocument>();
         var template = context.ResolveTemplateKind("archive");
 
         derived.Add(CreateArchiveIndex(prefix, archiveBaseUrl, collectionKey, context.Config.Site.OutputPathEncoding, byYear, template));
@@ -61,7 +61,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             derived.Add(CreateYearPage(prefix, archiveBaseUrl, yearGroup.Key, yearPosts, collectionKey, context.Config.Site.OutputPathEncoding, template));
 
             var byMonth = yearPosts
-                .GroupBy(x => x.Item.PublishAt.Month)
+                .GroupBy(x => x.Document.PublishAt.Month)
                 .OrderByDescending(g => g.Key)
                 .ToList();
 
@@ -74,12 +74,12 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
         return derived;
     }
 
-    private static (ContentItem Item, RouteInfo Route, DateTimeOffset LastModified) CreateArchiveIndex(
+    private static RoutedContentDocument CreateArchiveIndex(
         string baseUrlPrefix,
         string archiveBaseUrl,
         string collectionKey,
         string outputPathEncoding,
-        IReadOnlyList<IGrouping<int, (ContentItem Item, RouteInfo Route)>> byYear,
+        IReadOnlyList<IGrouping<int, RoutedContentDocument>> byYear,
         string template)
     {
         var sb = new StringBuilder();
@@ -99,21 +99,21 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = collectionKey,
             ["summary"] = $"Browse archived {collectionKey} entries by year."
         };
-        var item = new ContentItem($"{collectionKey}-archive-index", "Archive", "archive", now, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
-        return (item, route, now);
+        var document = ContentDocument.Create($"{collectionKey}-archive-index", "Archive", "archive", now, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
+        return new RoutedContentDocument(document, route, now);
     }
 
-    private static (ContentItem Item, RouteInfo Route, DateTimeOffset LastModified) CreateYearPage(
+    private static RoutedContentDocument CreateYearPage(
         string baseUrlPrefix,
         string archiveBaseUrl,
         int year,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> yearPosts,
+        IReadOnlyList<RoutedContentDocument> yearPosts,
         string collectionKey,
         string outputPathEncoding,
         string template)
     {
         var byMonth = yearPosts
-            .GroupBy(x => x.Item.PublishAt.Month)
+            .GroupBy(x => x.Document.PublishAt.Month)
             .OrderByDescending(g => g.Key)
             .ToList();
 
@@ -126,7 +126,7 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
         }
         sb.AppendLine("</ul>");
 
-        var publishAt = yearPosts.OrderByDescending(x => x.Item.PublishAt).First().Item.PublishAt;
+        var publishAt = yearPosts.OrderByDescending(x => x.Document.PublishAt).First().Document.PublishAt;
         var url = $"{archiveBaseUrl}{year}/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var route = new RouteInfo(url, outputPath, template);
@@ -136,30 +136,32 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = collectionKey,
             ["summary"] = $"Browse {collectionKey} entries published in {year}."
         };
-        var item = new ContentItem($"{collectionKey}-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
-        return (item, route, publishAt);
+        var document = ContentDocument.Create($"{collectionKey}-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
+        return new RoutedContentDocument(document, route, publishAt);
     }
 
-    private static (ContentItem Item, RouteInfo Route, DateTimeOffset LastModified) CreateMonthPage(
+    private static RoutedContentDocument CreateMonthPage(
         string baseUrlPrefix,
         string archiveBaseUrl,
         int year,
         int month,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> monthPosts,
+        IReadOnlyList<RoutedContentDocument> monthPosts,
         string collectionKey,
         string outputPathEncoding,
         string template)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<ul>");
-        foreach (var (item, route) in monthPosts.OrderByDescending(x => x.Item.PublishAt))
+        foreach (var routedDocument in monthPosts.OrderByDescending(x => x.Document.PublishAt))
         {
+            var item = routedDocument.Document;
+            var route = routedDocument.Route;
             var href = $"{baseUrlPrefix}{route.Url}";
             sb.AppendLine($"  <li><a href=\"{EscapeAttr(href)}\">{EscapeHtml(item.Title)}</a></li>");
         }
         sb.AppendLine("</ul>");
 
-        var publishAt = monthPosts.OrderByDescending(x => x.Item.PublishAt).First().Item.PublishAt;
+        var publishAt = monthPosts.OrderByDescending(x => x.Document.PublishAt).First().Document.PublishAt;
         var url = $"{archiveBaseUrl}{year}/{month:D2}/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var routeInfo = new RouteInfo(url, outputPath, template);
@@ -169,8 +171,8 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = collectionKey,
             ["summary"] = $"Browse {collectionKey} entries published in {year}-{month:D2}."
         };
-        var itemInfo = new ContentItem($"{collectionKey}-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
-        return (itemInfo, routeInfo, publishAt);
+        var document = ContentDocument.Create($"{collectionKey}-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
+        return new RoutedContentDocument(document, routeInfo, publishAt);
     }
 
     private static (string Key, CollectionConfig Config)? ResolveArchiveCollection(AppConfig config)

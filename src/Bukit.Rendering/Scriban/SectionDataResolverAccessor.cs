@@ -5,10 +5,10 @@ namespace Bukit.Rendering.Scriban;
 
 public sealed class SectionDataResolverAccessor
 {
-    internal IReadOnlyList<ContentItem>? AllItems { get; set; }
+    internal IReadOnlyList<ContentDocument>? AllDocuments { get; set; }
     internal ThemeComponentRegistry? Registry { get; set; }
 
-    public IReadOnlyList<ContentItem>? ResolveData(PageSectionDefinition sectionDef)
+    public IReadOnlyList<ContentDocument>? ResolveData(PageSectionDefinition sectionDef)
     {
         return null;
     }

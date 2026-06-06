@@ -210,13 +210,13 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void GetCollection_WithCollectionMeta_ReturnsCollectionValue()
     {
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Post",
-            Slug: "post",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>content</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            "p1",
+            "Post",
+            "post",
+            DateTimeOffset.UtcNow,
+            "<p>content</p>",
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = "blog"
             }));
@@ -229,47 +229,47 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void GetCollection_WithTypeMeta_ReturnsTypeValue()
     {
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Post",
-            Slug: "post",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>content</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            "p1",
+            "Post",
+            "post",
+            DateTimeOffset.UtcNow,
+            "<p>content</p>",
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "article"
             }));
 
         var result = SeoAlternatesService.GetCollection(item);
 
-        Assert.Equal("", result);
+        Assert.Equal("article", result);
     }
 
     [Fact]
     public void GetCollection_WithNeither_ReturnsPage()
     {
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Post",
-            Slug: "post",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>content</p>");
+        var item = ContentDocument.Create(
+            "p1",
+            "Post",
+            "post",
+            DateTimeOffset.UtcNow,
+            "<p>content</p>");
 
         var result = SeoAlternatesService.GetCollection(item);
 
-        Assert.Equal("", result);
+        Assert.Equal("page", result);
     }
 
     [Fact]
     public void GetCollection_CollectionOverridesType()
     {
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Post",
-            Slug: "post",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>content</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            "p1",
+            "Post",
+            "post",
+            DateTimeOffset.UtcNow,
+            "<p>content</p>",
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = "blog",
                 ["type"] = "article"
@@ -283,13 +283,13 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void GetCollection_WithCollectionField_ReturnsCollectionValue()
     {
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Post",
-            Slug: "post",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>content</p>",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            "p1",
+            "Post",
+            "post",
+            DateTimeOffset.UtcNow,
+            "<p>content</p>",
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = new("text", "knowledge")
             });

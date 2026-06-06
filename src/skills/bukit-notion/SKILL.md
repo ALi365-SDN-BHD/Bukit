@@ -18,7 +18,7 @@ guide_chapters:
 
 ## Overview
 
-Bukit converts Notion database pages into `ContentItem` objects via the Notion API, supporting HTML rendering for 26 block types and field mapping for 18 property types.
+Bukit converts Notion database pages into raw content documents and then normalizes them into canonical `ContentDocument` records, supporting HTML rendering for 26 block types and field mapping for 18 property types.
 
 **REQUIRED BACKGROUND:** Notion-related config is in site.yaml's `content.notion` and `content.media` nodes — you must understand bukit-config first.
 **REQUIRED SUB-SKILL:** Verify Notion connectivity with `bukit doctor`, build with `bukit build`. CLI commands reference bukit-cli-reference.

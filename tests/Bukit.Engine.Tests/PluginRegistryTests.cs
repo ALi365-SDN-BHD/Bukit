@@ -27,7 +27,7 @@ public sealed class PluginRegistryTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -53,7 +53,7 @@ public sealed class PluginRegistryTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -79,7 +79,7 @@ public sealed class PluginRegistryTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -104,7 +104,7 @@ public sealed class PluginRegistryTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -135,7 +135,7 @@ public sealed class PluginRegistryTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -172,7 +172,7 @@ public sealed class PluginRegistryTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
         var ctx2 = new BuildContext
@@ -186,7 +186,7 @@ public sealed class PluginRegistryTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -216,7 +216,7 @@ public sealed class PluginRegistryTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -246,7 +246,7 @@ public sealed class PluginRegistryTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 

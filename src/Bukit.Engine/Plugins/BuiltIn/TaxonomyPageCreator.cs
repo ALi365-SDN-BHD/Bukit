@@ -8,7 +8,7 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal static class TaxonomyPageCreator
 {
-    internal static IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> CreateKind(
+    internal static IReadOnlyList<RoutedContentDocument> CreateKind(
         string baseUrlPrefix,
         string kind,
         string title,
@@ -25,7 +25,7 @@ internal static class TaxonomyPageCreator
         var hierarchy = hierarchical
             ? TaxonomyHierarchyBuilder.BuildHierarchy(terms)
             : new Dictionary<string, TaxonomyHierarchyBuilder.HierarchyInfo>(StringComparer.OrdinalIgnoreCase);
-        var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
+        var derived = new List<RoutedContentDocument>();
         var items = terms.Values
             .OrderByDescending(x => x.Weight)
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -86,7 +86,7 @@ internal static class TaxonomyPageCreator
         return derived;
     }
 
-    internal static (ContentItem Item, RouteInfo Route, DateTimeOffset LastModified) CreateIndexPage(
+    internal static RoutedContentDocument CreateIndexPage(
         string baseUrlPrefix,
         string kind,
         string title,
@@ -173,18 +173,18 @@ internal static class TaxonomyPageCreator
             ["terms"] = new ContentField("list", termsValue)
         };
 
-        var item = new ContentItem(
-            Id: $"{kind}-index",
-            Title: title,
-            Slug: kind,
-            PublishAt: publishAt,
-            ContentHtml: html,
-            Fields: fields);
+        var document = ContentDocument.Create(
+            id: $"{kind}-index",
+            title: title,
+            slug: kind,
+            publishAt: publishAt,
+            contentHtml: html,
+            fields: fields);
 
-        return (item, route, publishAt);
+        return new RoutedContentDocument(document, route, publishAt);
     }
 
-    internal static (ContentItem Item, RouteInfo Route, DateTimeOffset LastModified) CreateTermPage(
+    internal static RoutedContentDocument CreateTermPage(
         string baseUrlPrefix,
         string kind,
         string singularTitlePrefix,
@@ -315,15 +315,15 @@ internal static class TaxonomyPageCreator
             ["pagination"] = new ContentField("object", paginationValue)
         };
 
-        var item = new ContentItem(
-            Id: page <= 1 ? $"{kind}-{term.Slug}" : $"{kind}-{term.Slug}-page-{page}",
-            Title: page <= 1 ? $"{singularTitlePrefix}: {term.DisplayName}" : $"{singularTitlePrefix}: {term.DisplayName} (Page {page})",
-            Slug: term.Slug,
-            PublishAt: publishAt,
-            ContentHtml: html,
-            Fields: fields);
+        var document = ContentDocument.Create(
+            id: page <= 1 ? $"{kind}-{term.Slug}" : $"{kind}-{term.Slug}-page-{page}",
+            title: page <= 1 ? $"{singularTitlePrefix}: {term.DisplayName}" : $"{singularTitlePrefix}: {term.DisplayName} (Page {page})",
+            slug: term.Slug,
+            publishAt: publishAt,
+            contentHtml: html,
+            fields: fields);
 
-        return (item, route, publishAt);
+        return new RoutedContentDocument(document, route, publishAt);
     }
 
     internal static string EscapeHtml(string value)

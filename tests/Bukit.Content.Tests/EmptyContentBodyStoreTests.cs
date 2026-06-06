@@ -8,12 +8,12 @@ public sealed class EmptyContentBodyStoreTests
     [Fact]
     public async Task GetAsync_HasContentHtml_ReturnsInline()
     {
-        var item = new ContentItem(
-            Id: "inline", Title: "Inline", Slug: "inline",
-            PublishAt: default, ContentHtml: "<p>inline</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var item = ContentDocument.Create(
+            id: "inline", title: "Inline", slug: "inline",
+            publishAt: default, contentHtml: "<p>inline</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
 
-        var body = await EmptyContentBodyStore.Instance.GetAsync(item);
+        var body = await EmptyContentBodyStore.Instance.GetAsync(item.ToDocument());
 
         Assert.Equal("<p>inline</p>", body.Html);
     }
@@ -21,12 +21,12 @@ public sealed class EmptyContentBodyStoreTests
     [Fact]
     public async Task GetAsync_NoContentHtml_Throws()
     {
-        var item = new ContentItem(
-            Id: "empty", Title: "Empty", Slug: "empty",
-            PublishAt: default, ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var item = ContentDocument.Create(
+            id: "empty", title: "Empty", slug: "empty",
+            publishAt: default, contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => EmptyContentBodyStore.Instance.GetAsync(item));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => EmptyContentBodyStore.Instance.GetAsync(item.ToDocument()));
 
         Assert.Contains("No content body available", ex.Message);
     }
@@ -34,13 +34,13 @@ public sealed class EmptyContentBodyStoreTests
     [Fact]
     public async Task GetAsync_Cancellation_Throws()
     {
-        var item = new ContentItem(
-            Id: "cancelled", Title: "Cancelled", Slug: "cancelled",
-            PublishAt: default, ContentHtml: "<p>ok</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var item = ContentDocument.Create(
+            id: "cancelled", title: "Cancelled", slug: "cancelled",
+            publishAt: default, contentHtml: "<p>ok</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => EmptyContentBodyStore.Instance.GetAsync(item, cts.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => EmptyContentBodyStore.Instance.GetAsync(item.ToDocument(), cts.Token));
     }
 }

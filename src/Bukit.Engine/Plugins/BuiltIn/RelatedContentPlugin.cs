@@ -11,28 +11,28 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
     public string Name => "related-content";
     public string Version => "1.0.0";
 
-    public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
+    public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
     {
         var relatedConfig = context.Config.Site.Related;
         if (!relatedConfig.Enabled)
         {
-            return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+            return Array.Empty<RoutedContentDocument>();
         }
 
         var indices = relatedConfig.Indices;
         if (indices is null || indices.Count == 0)
         {
-            return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+            return Array.Empty<RoutedContentDocument>();
         }
 
-        var items = context.Routed
-            .Where(x => !x.Item.Id.StartsWith("blog-archive-", StringComparison.OrdinalIgnoreCase)
-                        && !x.Item.Id.StartsWith("blog-page-", StringComparison.OrdinalIgnoreCase))
+        var items = context.RoutedDocuments
+            .Where(x => !x.Document.Id.StartsWith("blog-archive-", StringComparison.OrdinalIgnoreCase)
+                        && !x.Document.Id.StartsWith("blog-page-", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         if (items.Count < 2)
         {
-            return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+            return Array.Empty<RoutedContentDocument>();
         }
 
         var threshold = relatedConfig.Threshold;
@@ -43,7 +43,7 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
 
         for (var i = 0; i < items.Count; i++)
         {
-            var (currentItem, currentRoute) = items[i];
+            var currentItem = items[i].Document;
             var related = new List<object>();
             recordsById.TryGetValue(currentItem.Id, out var currentRecord);
 
@@ -54,7 +54,8 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
                     continue;
                 }
 
-                var (otherItem, otherRoute) = items[j];
+                var otherItem = items[j].Document;
+                var otherRoute = items[j].Route;
                 recordsById.TryGetValue(otherItem.Id, out var otherRecord);
                 var score = CalculateScore(currentItem, otherItem, currentRecord, otherRecord, indices);
                 if (score >= threshold)
@@ -92,12 +93,12 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
             }
         }
 
-        return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+        return Array.Empty<RoutedContentDocument>();
     }
 
     private static int CalculateScore(
-        ContentItem a,
-        ContentItem b,
+        ContentDocument a,
+        ContentDocument b,
         ContentRecord? aRecord,
         ContentRecord? bRecord,
         IReadOnlyList<RelatedIndexConfig> indices)
@@ -149,22 +150,22 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
         return total;
     }
 
-    private static IReadOnlyList<string>? ResolveTags(ContentItem item, ContentRecord? record)
+    private static IReadOnlyList<string>? ResolveTags(ContentDocument item, ContentRecord? record)
         => record?.Classification.Tags is { Count: > 0 } tags
             ? tags
             : ContentFieldReader.GetTextList(item.Fields, "tags");
 
-    private static IReadOnlyList<string>? ResolveCategories(ContentItem item, ContentRecord? record)
+    private static IReadOnlyList<string>? ResolveCategories(ContentDocument item, ContentRecord? record)
         => record?.Classification.Sections is { Count: > 0 } categories
             ? categories
             : ContentFieldReader.GetTextList(item.Fields, "categories");
 
-    private static string? ResolveCollection(ContentItem item, ContentRecord? record)
+    private static string? ResolveCollection(ContentDocument item, ContentRecord? record)
         => string.IsNullOrWhiteSpace(record?.Classification.Collection)
             ? ContentFieldReader.GetText(item.Fields, "collection")
             : record.Classification.Collection;
 
-    private static string? ResolveType(ContentItem item, ContentRecord? record)
+    private static string? ResolveType(ContentDocument item, ContentRecord? record)
         => string.IsNullOrWhiteSpace(record?.Classification.Type)
             ? ContentFieldReader.GetText(item.Fields, "type")
             : record.Classification.Type;

@@ -31,14 +31,14 @@ public sealed class RoutePipelineTests
 
         var result = pipeline.Execute(Config(), new[] { post, page, data }, TemplateResolver());
 
-        Assert.Equal(new[] { post, page }, result.ContentItems);
-        Assert.Equal(2, result.Routed.Count);
-        Assert.Same(post, result.Routed[0].Item);
-        Assert.Equal("/articles/hello/", result.Routed[0].Route.Url);
-        Assert.Equal("articles/hello/index.html", Normalize(result.Routed[0].Route.OutputPath));
-        Assert.Equal("pages/article.html", result.Routed[0].Route.Template);
-        Assert.Same(page, result.Routed[1].Item);
-        Assert.Equal("/pages/about/", result.Routed[1].Route.Url);
+        Assert.Equal(new[] { post.Id, page.Id }, result.ContentDocuments.Select(x => x.Id));
+        Assert.Equal(2, result.RoutedDocuments.Count);
+        Assert.Equal(post.Id, result.RoutedDocuments[0].Document.Id);
+        Assert.Equal("/articles/hello/", result.RoutedDocuments[0].Route.Url);
+        Assert.Equal("articles/hello/index.html", Normalize(result.RoutedDocuments[0].Route.OutputPath));
+        Assert.Equal("pages/article.html", result.RoutedDocuments[0].Route.Template);
+        Assert.Equal(page.Id, result.RoutedDocuments[1].Document.Id);
+        Assert.Equal("/pages/about/", result.RoutedDocuments[1].Route.Url);
         Assert.Contains(result.ListRoutes, route => route.Url == "/" && route.OutputPath == "index.html");
         Assert.Contains(result.ListRoutes, route => route.Url == "/articles/" && Normalize(route.OutputPath) == "articles/index.html" && route.Template == "pages/article-list.html");
         Assert.Contains(result.ListRoutes, route => route.Url == "/articles/featured/" && Normalize(route.OutputPath) == "articles/featured/index.html" && route.Template == "pages/featured.html");
@@ -142,9 +142,9 @@ public sealed class RoutePipelineTests
         };
     }
 
-    private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object> meta)
+    private static ContentDocument Item(string id, string slug, IReadOnlyDictionary<string, object> meta)
     {
-        return new ContentItem(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(meta));
+        return ContentDocument.Create(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(meta));
     }
 
     private static string Normalize(string path)

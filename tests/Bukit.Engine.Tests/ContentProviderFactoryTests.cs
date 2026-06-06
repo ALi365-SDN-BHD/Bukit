@@ -120,9 +120,9 @@ public sealed class ContentProviderFactoryTests
     [Fact]
     public async Task LocalizeContentImagesAsync_WithEmptyItems_ReturnsEmptyResult()
     {
-        var items = Array.Empty<ContentItem>();
-        var result = new ContentLoadResult(
-            items,
+        var items = Array.Empty<ContentDocument>();
+        var result = new RawContentLoadResult(
+            Array.Empty<RawContentDocument>(),
             NullContentBodyStore.Instance);
 
         var media = new MediaConfig();
@@ -132,15 +132,15 @@ public sealed class ContentProviderFactoryTests
             result, media, "/tmp", "/tmp/cache", logger, CancellationToken.None);
 
         Assert.NotNull(localized);
-        Assert.Empty(localized.Items);
+        Assert.Empty(localized.Documents);
     }
 
     [Fact]
     public async Task LocalizeContentImagesAsync_WithNoImages_ReturnsSameItems()
     {
-        var items = new List<ContentItem>
+        var items = new List<ContentDocument>
         {
-            new ContentItem(
+            ContentDocument.Create(
                 "test",
                 "Test",
                 "test",
@@ -149,7 +149,7 @@ public sealed class ContentProviderFactoryTests
                 null)
         };
 
-        var result = new ContentLoadResult(items.AsReadOnly(), NullContentBodyStore.Instance);
+        var result = new RawContentLoadResult(ToRawDocuments(items), NullContentBodyStore.Instance);
         var media = new MediaConfig();
         var logger = new ConsoleLogger(LogLevel.Debug);
 
@@ -157,8 +157,20 @@ public sealed class ContentProviderFactoryTests
             result, media, "/tmp", "/tmp/cache", logger, CancellationToken.None);
 
         Assert.NotNull(localized);
-        Assert.Single(localized.Items);
+        Assert.Single(localized.Documents);
     }
+
+    private static IReadOnlyList<RawContentDocument> ToRawDocuments(IEnumerable<ContentDocument> items)
+        => items
+            .Select(item => new RawContentDocument(
+                item.Id,
+                item.Title,
+                item.Slug,
+                item.PublishAt,
+                item.ContentHtml,
+                item.Fields,
+                item.BodyKey))
+            .ToArray();
 
     [Fact]
     public void CreateNotionProvider_WithNotionConfig_ReturnsNotionProvider()

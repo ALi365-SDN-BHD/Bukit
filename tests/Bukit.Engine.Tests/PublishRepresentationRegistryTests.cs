@@ -50,7 +50,7 @@ public sealed class PublishRepresentationRegistryTests
         Directory.CreateDirectory(outputDir);
         try
         {
-            var item = new ContentItem(
+            var document = ContentDocument.Create(
                 "post-1",
                 "Projection Post",
                 "projection-post",
@@ -64,18 +64,16 @@ public sealed class PublishRepresentationRegistryTests
                     ["source"] = "editorial"
                 }));
             var route = new RouteInfo("/projection-post/", "projection-post/index.html", "post.html");
-            var graph = new CanonicalContentGraph([CanonicalContentGraphBuilder.ToRecord(item)], Array.Empty<EntityRecord>());
+            var graph = CanonicalContentGraphBuilder.BuildFromDocuments(new[] { document });
             var context = new PublishProjectionContext(
-                new AppConfig
+                Config: new AppConfig
                 {
                     Site = new SiteConfig { Name = "test", Title = "Test", Url = "https://example.com" },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                outputDir,
-                graph,
-                [(item, route)],
-                Array.Empty<(ContentItem Item, RouteInfo Route)>(),
-                new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+                OutputDir: outputDir,
+                ContentGraph: graph,
+                SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["projection-post/index.html"] = new SeoIndexEntry(
                         route,
@@ -83,17 +81,18 @@ public sealed class PublishRepresentationRegistryTests
                         Robots: null,
                         Indexable: true,
                         DateTimeOffset.Parse("2026-06-05T00:00:00Z"),
-                        SourceItemId: item.Id,
+                        SourceItemId: document.Id,
                         ContentType: "post")
                 },
-                new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+                SeoModels: new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["projection-post/index.html"] = new SeoModel
                     {
                         Title = "Projection Post",
                         Canonical = "https://example.com/projection-post/"
                     }
-                });
+                },
+                RoutedDocuments: new[] { new RoutedContentDocument(document, route) });
 
             var jsonResult = new JsonContentDocumentProjection().Project(context);
             var markdownResult = new MarkdownContentDocumentProjection().Project(context);
@@ -115,7 +114,7 @@ public sealed class PublishRepresentationRegistryTests
     [Fact]
     public void AgentManifestProjection_OnlyDeclaresJsonLdWhenSeoModelContainsJsonLd()
     {
-        var record = CanonicalContentGraphBuilder.ToRecord(Item("post", "Post"));
+        var record = Document("post", "Post").Record;
         var route = new RouteInfo("/post/", "post/index.html", "post.html");
         var entry = new SeoIndexEntry(route, "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post", "post");
 
@@ -144,24 +143,27 @@ public sealed class PublishRepresentationRegistryTests
             File.WriteAllText(Path.Combine(outputDir, "llms.txt"), "https://example.com/visible/");
             var visibleRoute = new RouteInfo("/visible/", "visible/index.html", "post.html");
             var hiddenRoute = new RouteInfo("/hidden/", "hidden/index.html", "post.html");
-            var visible = Item("visible", "Visible");
-            var hidden = Item("hidden", "Hidden");
+            var visible = Document("visible", "Visible");
+            var hidden = Document("hidden", "Hidden");
             var context = new PublishProjectionContext(
-                new AppConfig
+                Config: new AppConfig
                 {
                     Site = new SiteConfig { Name = "test", Title = "Test", Url = "https://example.com" },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                outputDir,
-                CanonicalContentGraph.Empty,
-                [(visible, visibleRoute), (hidden, hiddenRoute)],
-                Array.Empty<(ContentItem Item, RouteInfo Route)>(),
-                new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+                OutputDir: outputDir,
+                ContentGraph: CanonicalContentGraph.Empty,
+                SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["visible/index.html"] = new SeoIndexEntry(visibleRoute, "https://example.com/visible/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), visible.Id, "post"),
                     ["hidden/index.html"] = new SeoIndexEntry(hiddenRoute, "https://example.com/hidden/", "noindex", false, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), hidden.Id, "post")
                 },
-                new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase));
+                SeoModels: new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
+                RoutedDocuments: new[]
+                {
+                    new RoutedContentDocument(visible, visibleRoute),
+                    new RoutedContentDocument(hidden, hiddenRoute)
+                });
 
             var projection = PublishRepresentationRegistry.AggregateProjectionAdapters()
                 .Single(x => x.Representation.Kind == "llms");
@@ -189,9 +191,9 @@ public sealed class PublishRepresentationRegistryTests
         try
         {
             var route = new RouteInfo("/post/", "post/index.html", "post.html");
-            var item = Item("post", "Post");
+            var document = Document("post", "Post");
             var context = new PublishProjectionContext(
-                new AppConfig
+                Config: new AppConfig
                 {
                     Site = new SiteConfig
                     {
@@ -205,17 +207,16 @@ public sealed class PublishRepresentationRegistryTests
                     },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                outputDir,
-                CanonicalContentGraph.Empty,
-                [(item, route)],
-                Array.Empty<(ContentItem Item, RouteInfo Route)>(),
-                new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+                OutputDir: outputDir,
+                ContentGraph: CanonicalContentGraph.Empty,
+                SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["post/index.html"] = new SeoIndexEntry(route, "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), item.Id, "post")
+                    ["post/index.html"] = new SeoIndexEntry(route, "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), document.Id, "post")
                 },
-                new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
+                SeoModels: new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
                 BodyStore: new InlineBodyStore("<p>Post body</p>"),
-                BaseUrl: "/");
+                BaseUrl: "/",
+                RoutedDocuments: new[] { new RoutedContentDocument(document, route) });
 
             var projection = PublishRepresentationRegistry.AggregateProjectionAdapters()
                 .Single(x => x.Representation.Kind == "feed");
@@ -242,9 +243,9 @@ public sealed class PublishRepresentationRegistryTests
         try
         {
             var route = new RouteInfo("/post/", "post/index.html", "post.html");
-            var item = Item("post", "Post");
+            var document = Document("post", "Post");
             var context = new PublishProjectionContext(
-                new AppConfig
+                Config: new AppConfig
                 {
                     Site = new SiteConfig
                     {
@@ -255,17 +256,16 @@ public sealed class PublishRepresentationRegistryTests
                     },
                     Content = new ContentConfig { Provider = "markdown" }
                 },
-                outputDir,
-                CanonicalContentGraph.Empty,
-                [(item, route)],
-                Array.Empty<(ContentItem Item, RouteInfo Route)>(),
-                new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+                OutputDir: outputDir,
+                ContentGraph: CanonicalContentGraph.Empty,
+                SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["post/index.html"] = new SeoIndexEntry(route, "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), item.Id, "post")
+                    ["post/index.html"] = new SeoIndexEntry(route, "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), document.Id, "post")
                 },
-                new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
+                SeoModels: new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
                 BodyStore: new InlineBodyStore("<p>Post body</p>"),
-                BaseUrl: "/");
+                BaseUrl: "/",
+                RoutedDocuments: new[] { new RoutedContentDocument(document, route) });
 
             var projection = PublishRepresentationRegistry.AggregateProjectionAdapters()
                 .Single(x => x.Representation.Kind == "search");
@@ -311,8 +311,8 @@ public sealed class PublishRepresentationRegistryTests
         Assert.Contains("sitemap", kinds);
     }
 
-    private static ContentItem Item(string id, string title)
-        => new(
+    private static ContentDocument Document(string id, string title)
+        => ContentDocument.Create(
             id,
             title,
             id,
@@ -335,7 +335,7 @@ public sealed class PublishRepresentationRegistryTests
             _html = html;
         }
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
             => Task.FromResult(new ContentBody(_html));
     }
 }

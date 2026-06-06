@@ -13,13 +13,13 @@ public sealed class DictionaryContentBodyStoreTests
         {
             ["post-1"] = body
         });
-        var item = new ContentItem(
-            Id: "post-1", Title: "Post", Slug: "post",
-            PublishAt: default, ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
-            BodyKey: "post-1");
+        var item = ContentDocument.Create(
+            id: "post-1", title: "Post", slug: "post",
+            publishAt: default, contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
+            bodyKey: "post-1");
 
-        var result = await store.GetAsync(item);
+        var result = await store.GetAsync(item.ToDocument());
 
         Assert.Same(body, result);
     }
@@ -28,12 +28,12 @@ public sealed class DictionaryContentBodyStoreTests
     public async Task GetAsync_HasContentHtml_ReturnsInline()
     {
         var store = new DictionaryContentBodyStore(new Dictionary<string, ContentBody>());
-        var item = new ContentItem(
-            Id: "inline", Title: "Inline", Slug: "inline",
-            PublishAt: default, ContentHtml: "<p>inline</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var item = ContentDocument.Create(
+            id: "inline", title: "Inline", slug: "inline",
+            publishAt: default, contentHtml: "<p>inline</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(item.ToDocument());
 
         Assert.Equal("<p>inline</p>", body.Html);
     }
@@ -42,13 +42,13 @@ public sealed class DictionaryContentBodyStoreTests
     public async Task GetAsync_EmptyBodyKey_Throws()
     {
         var store = new DictionaryContentBodyStore(new Dictionary<string, ContentBody>());
-        var item = new ContentItem(
-            Id: "missing", Title: "Missing", Slug: "missing",
-            PublishAt: default, ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
-            BodyKey: "");
+        var item = ContentDocument.Create(
+            id: "missing", title: "Missing", slug: "missing",
+            publishAt: default, contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
+            bodyKey: "");
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item.ToDocument()));
         Assert.Contains("No content body found", ex.Message);
     }
 
@@ -56,13 +56,13 @@ public sealed class DictionaryContentBodyStoreTests
     public async Task GetAsync_NullBodyKey_Throws()
     {
         var store = new DictionaryContentBodyStore(new Dictionary<string, ContentBody>());
-        var item = new ContentItem(
-            Id: "missing", Title: "Missing", Slug: "missing",
-            PublishAt: default, ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
-            BodyKey: null);
+        var item = ContentDocument.Create(
+            id: "missing", title: "Missing", slug: "missing",
+            publishAt: default, contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
+            bodyKey: null);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item.ToDocument()));
         Assert.Contains("No content body found", ex.Message);
     }
 
@@ -70,13 +70,13 @@ public sealed class DictionaryContentBodyStoreTests
     public async Task GetAsync_MissingBodyKey_Throws()
     {
         var store = new DictionaryContentBodyStore(new Dictionary<string, ContentBody>());
-        var item = new ContentItem(
-            Id: "missing", Title: "Missing", Slug: "missing",
-            PublishAt: default, ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
-            BodyKey: "nonexistent");
+        var item = ContentDocument.Create(
+            id: "missing", title: "Missing", slug: "missing",
+            publishAt: default, contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
+            bodyKey: "nonexistent");
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item.ToDocument()));
         Assert.Contains("No content body found", ex.Message);
     }
 
@@ -84,14 +84,14 @@ public sealed class DictionaryContentBodyStoreTests
     public async Task GetAsync_Cancellation_Throws()
     {
         var store = new DictionaryContentBodyStore(new Dictionary<string, ContentBody>());
-        var item = new ContentItem(
-            Id: "test", Title: "Test", Slug: "test",
-            PublishAt: default, ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
-            BodyKey: "test");
+        var item = ContentDocument.Create(
+            id: "test", title: "Test", slug: "test",
+            publishAt: default, contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()),
+            bodyKey: "test");
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => store.GetAsync(item, cts.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => store.GetAsync(item.ToDocument(), cts.Token));
     }
 }

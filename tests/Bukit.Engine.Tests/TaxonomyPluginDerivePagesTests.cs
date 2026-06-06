@@ -14,7 +14,7 @@ namespace Bukit.Engine.Tests;
 public sealed class TaxonomyPluginDerivePagesTests
 {
     private static BuildContext CreateContext(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<(ContentDocument Item, RouteInfo Route)> routed,
         TaxonomyConfig? taxonomyConfig = null,
         string outputMode = "pages",
         string outputPathEncoding = "none",
@@ -37,7 +37,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = layoutsDir,
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             ContentGraph = contentGraph ?? CanonicalContentGraph.Empty,
             TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
@@ -61,7 +61,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         return layoutsDir;
     }
 
-    private static (ContentItem Item, RouteInfo Route) CreateItem(
+    private static (ContentDocument Item, RouteInfo Route) CreateItem(
         string id,
         string title,
         DateTimeOffset publishAt,
@@ -85,13 +85,13 @@ public sealed class TaxonomyPluginDerivePagesTests
             meta["pinned"] = pinned.Value;
         }
 
-        var item = new ContentItem(
-            Id: id,
-            Title: title,
-            Slug: id,
-            PublishAt: publishAt,
-            ContentHtml: $"<p>{title}</p>",
-            Fields: ContentFieldReader.ToFieldMap(meta));
+        var item = ContentDocument.Create(
+            id: id,
+            title: title,
+            slug: id,
+            publishAt: publishAt,
+            contentHtml: $"<p>{title}</p>",
+            fields: ContentFieldReader.ToFieldMap(meta));
         var route = new RouteInfo($"/blog/{id}/", $"blog/{id}/index.html", "pages/post.html");
         return (item, route);
     }
@@ -99,7 +99,7 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_GeneratesTermPagesForTags()
     {
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha", "beta" }),
         };
@@ -115,7 +115,7 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_GeneratesTermPagesForCategories()
     {
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: new[] { "News", "Tech" }),
         };
@@ -131,7 +131,7 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_GeneratesIndexPages()
     {
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha" }),
         };
@@ -147,7 +147,7 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_OutputPathEncodingSanitize_AppliesToTermOutputPath()
     {
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "hello world" }),
         };
@@ -164,16 +164,16 @@ public sealed class TaxonomyPluginDerivePagesTests
     {
         var unpinned = CreateItem("p1", "Not Pinned", new DateTimeOffset(2024, 3, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "topic" }, pinned: false);
         var pinned = CreateItem("p2", "Pinned", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "topic" }, pinned: true);
-        var routed = new List<(ContentItem Item, RouteInfo Route)> { unpinned, pinned };
+        var routed = new List<(ContentDocument Item, RouteInfo Route)> { unpinned, pinned };
         var ctx = CreateContext(routed);
 
         var plugin = new TaxonomyPlugin();
         var derived = plugin.DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/topic/");
-        Assert.NotNull(termPage.Item.Fields);
-        Assert.True(termPage.Item.Fields!.ContainsKey("items"));
-        var items = Assert.IsType<List<object>>(termPage.Item.Fields["items"].Value);
+        Assert.NotNull(termPage.Document.Fields);
+        Assert.True(termPage.Document.Fields!.ContainsKey("items"));
+        var items = Assert.IsType<List<object>>(termPage.Document.Fields["items"].Value);
         Assert.Equal(2, items.Count);
         var first = Assert.IsType<Dictionary<string, object>>(items[0]);
         Assert.Equal("Pinned", first["title"]);
@@ -192,7 +192,7 @@ public sealed class TaxonomyPluginDerivePagesTests
                 new() { Key = "authors", Kind = "authors", Title = "Authors", SingularTitlePrefix = "Author" }
             }
         };
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha" }),
         };
@@ -222,7 +222,7 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_EmptyItems_ReturnsEmpty()
     {
-        var ctx = CreateContext(new List<(ContentItem Item, RouteInfo Route)>());
+        var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>());
 
         var plugin = new TaxonomyPlugin();
         var derived = plugin.DerivePages(ctx);
@@ -233,7 +233,7 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_ItemsWithoutTaxonomy_ReturnsEmpty()
     {
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero)),
         };
@@ -248,7 +248,7 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_ItemsWithCategoriesOnly_NoTagsPages()
     {
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: new[] { "News" }),
         };
@@ -266,24 +266,24 @@ public sealed class TaxonomyPluginDerivePagesTests
     public void DerivePages_UsesStructuredTaxonomyAndSummary()
     {
         var publishAt = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Post 1",
-            Slug: "p1",
-            PublishAt: publishAt,
-            ContentHtml: "<p>Post 1</p>",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Post 1",
+            slug: "p1",
+            publishAt: publishAt,
+            contentHtml: "<p>Post 1</p>",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["tags"] = new("list", new object[] { "alpha" }),
                 ["summary"] = new("text", "Canonical taxonomy summary")
             });
         var route = new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html");
-        var ctx = CreateContext(new List<(ContentItem Item, RouteInfo Route)> { (item, route) });
+        var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) });
 
         var derived = new TaxonomyPlugin().DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alpha/");
-        var items = Assert.IsType<List<object>>(termPage.Item.Fields!["items"].Value);
+        var items = Assert.IsType<List<object>>(termPage.Document.Fields!["items"].Value);
         var first = Assert.IsType<Dictionary<string, object>>(items[0]);
         Assert.Equal("Canonical taxonomy summary", first["summary"]);
     }
@@ -292,12 +292,12 @@ public sealed class TaxonomyPluginDerivePagesTests
     public void DerivePages_ShouldUseCanonicalGraphTaxonomy_WhenItemHasNoTaxonomyFields()
     {
         var publishAt = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Post 1",
-            Slug: "p1",
-            PublishAt: publishAt,
-            ContentHtml: "<p>Post 1</p>");
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Post 1",
+            slug: "p1",
+            publishAt: publishAt,
+            contentHtml: "<p>Post 1</p>");
         var route = new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html");
         var graph = new CanonicalContentGraph(
         [
@@ -313,13 +313,13 @@ public sealed class TaxonomyPluginDerivePagesTests
                 [],
                 [])
         ], []);
-        var ctx = CreateContext(new List<(ContentItem Item, RouteInfo Route)> { (item, route) }, contentGraph: graph);
+        var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) }, contentGraph: graph);
 
         var derived = new TaxonomyPlugin().DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/canonical-tag/");
         var categoryPage = Assert.Single(derived, x => x.Route.Url == "/categories/canonical-category/");
-        var items = Assert.IsType<List<object>>(categoryPage.Item.Fields!["items"].Value);
+        var items = Assert.IsType<List<object>>(categoryPage.Document.Fields!["items"].Value);
         var first = Assert.IsType<Dictionary<string, object>>(items[0]);
         Assert.Equal("Canonical taxonomy summary", first["summary"]);
     }
@@ -332,7 +332,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             OutputMode = "pages",
             IndexEnabled = false
         };
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha" }),
         };
@@ -348,7 +348,7 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_TermPageTitleContainsPrefix()
     {
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "AlphaTag" }),
         };
@@ -358,7 +358,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         var derived = plugin.DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alphatag/");
-        Assert.Equal("Tag: AlphaTag", termPage.Item.Title);
+        Assert.Equal("Tag: AlphaTag", termPage.Document.Title);
     }
 
     [Fact]
@@ -368,14 +368,14 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             ["tags"] = "alpha, beta, gamma"
         };
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Post 1",
-            Slug: "post-1",
-            PublishAt: new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>content</p>",
-            Fields: ContentFieldReader.ToFieldMap(meta));
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Post 1",
+            slug: "post-1",
+            publishAt: new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>content</p>",
+            fields: ContentFieldReader.ToFieldMap(meta));
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             (item, new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html")),
         };
@@ -392,7 +392,7 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_WithBaseUrl_PrefixIsApplied()
     {
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha" }),
         };
@@ -408,7 +408,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             OutputDir = "/test/out",
             BaseUrl = "/my-site",
             LayoutsDir = CreateTaxonomyLayoutsDir(),
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
@@ -423,7 +423,7 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_OutputModeData_ReturnsEmpty()
     {
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha" }),
         };

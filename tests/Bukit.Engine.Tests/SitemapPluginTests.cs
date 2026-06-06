@@ -29,12 +29,12 @@ public sealed class SitemapPluginTests
         Directory.CreateDirectory(pageDir);
         File.WriteAllText(Path.Combine(pageDir, "index.html"), "<html><head><meta name=\"robots\" content=\"noindex\" /></head></html>");
 
-        var item = new ContentItem(
-            Id: "1",
-            Title: "t",
-            Slug: "a",
-            PublishAt: new DateTimeOffset(2024, 01, 02, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "");
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "a",
+            publishAt: new DateTimeOffset(2024, 01, 02, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "");
 
         var config = new AppConfig
         {
@@ -49,10 +49,10 @@ public sealed class SitemapPluginTests
             OutputDir = outDir,
             BaseUrl = "/",
             LayoutsDir = root,
-            Routed = new List<(ContentItem Item, RouteInfo Route)>
+            RoutedDocuments = new List<(ContentDocument Item, RouteInfo Route)>
             {
                 (item, new RouteInfo("/pages/a/", "pages/a/index.html", "pages/page.html"))
-            },
+            }.ToRoutedDocuments(),
             SeoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
             {
                 ["pages/a/index.html"] = new(
@@ -84,13 +84,13 @@ public sealed class SitemapPluginTests
         Directory.CreateDirectory(pageDir);
         File.WriteAllText(Path.Combine(pageDir, "index.html"), "<html><head></head></html>");
 
-        var item = new ContentItem(
-            Id: "1",
-            Title: "t",
-            Slug: "b",
-            PublishAt: new DateTimeOffset(2024, 01, 02, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "b",
+            publishAt: new DateTimeOffset(2024, 01, 02, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["update_time"] = new("date", new DateTimeOffset(2024, 02, 03, 4, 5, 6, TimeSpan.Zero))
             });
@@ -108,10 +108,10 @@ public sealed class SitemapPluginTests
             OutputDir = outDir,
             BaseUrl = "/",
             LayoutsDir = root,
-            Routed = new List<(ContentItem Item, RouteInfo Route)>
+            RoutedDocuments = new List<(ContentDocument Item, RouteInfo Route)>
             {
                 (item, new RouteInfo("/pages/b/", "pages/b/index.html", "pages/page.html"))
-            },
+            }.ToRoutedDocuments(),
             SeoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
             {
                 ["pages/b/index.html"] = new(

@@ -38,7 +38,7 @@ public sealed class SpecialListRendererNestedParallelTests
         var bodyStore = new ConcurrencyProbeBodyStore(holdDurationMs: 30);
 
         var infos = await SpecialListRenderer.BuildPageInfosAsync(
-            source,
+            source.ToRoutedDocuments(),
             bodyStore,
             includeContent: true,
             maxDegreeOfParallelism: 4,
@@ -57,7 +57,7 @@ public sealed class SpecialListRendererNestedParallelTests
         var bodyStore = new ConcurrencyProbeBodyStore(holdDurationMs: 50);
 
         var infos = await SpecialListRenderer.BuildPageInfosAsync(
-            source,
+            source.ToRoutedDocuments(),
             bodyStore,
             includeContent: true,
             maxDegreeOfParallelism: 4,
@@ -78,7 +78,7 @@ public sealed class SpecialListRendererNestedParallelTests
         var bodyStore = new ConcurrencyProbeBodyStore(holdDurationMs: 1);
 
         var infos = await SpecialListRenderer.BuildPageInfosAsync(
-            source,
+            source.ToRoutedDocuments(),
             bodyStore,
             includeContent: true,
             maxDegreeOfParallelism: 4,
@@ -100,7 +100,7 @@ public sealed class SpecialListRendererNestedParallelTests
         var bodyStore = new ConcurrencyProbeBodyStore();
 
         var infos = await SpecialListRenderer.BuildPageInfosAsync(
-            source,
+            source.ToRoutedDocuments(),
             bodyStore,
             includeContent: false,
             maxDegreeOfParallelism: 4,
@@ -115,21 +115,21 @@ public sealed class SpecialListRendererNestedParallelTests
     [Fact]
     public async Task BuildPageInfosAsync_PrefersCanonicalSummaryWhenMetaMissing()
     {
-        var item = new ContentItem(
-            Id: "id-1",
-            Title: "Item 1",
-            Slug: "item-1",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "id-1",
+            title: "Item 1",
+            slug: "item-1",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["summary"] = new("text", "Canonical list summary")
             },
-            BodyKey: "body-1");
+            bodyKey: "body-1");
         var route = new RouteInfo("/posts/item-1/", "posts/item-1/index.html", "pages/post.html");
 
         var infos = await SpecialListRenderer.BuildPageInfosAsync(
-            new List<(ContentItem Item, RouteInfo Route)> { (item, route) },
+            new List<(ContentDocument Item, RouteInfo Route)> { (item, route) }.ToRoutedDocuments(),
             new ConcurrencyProbeBodyStore(),
             includeContent: false,
             maxDegreeOfParallelism: 1,
@@ -140,18 +140,18 @@ public sealed class SpecialListRendererNestedParallelTests
         Assert.Equal("Canonical list summary", infos[0].Summary);
     }
 
-    private static IReadOnlyList<(ContentItem Item, RouteInfo Route)> CreateSource(int count)
+    private static IReadOnlyList<(ContentDocument Item, RouteInfo Route)> CreateSource(int count)
     {
-        var list = new List<(ContentItem Item, RouteInfo Route)>(count);
+        var list = new List<(ContentDocument Item, RouteInfo Route)>(count);
         for (var i = 0; i < count; i++)
         {
-            var item = new ContentItem(
-                Id: $"id-{i}",
-                Title: $"Item {i}",
-                Slug: $"item-{i}",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: null,
-                BodyKey: $"body-{i}");
+            var item = ContentDocument.Create(
+                id: $"id-{i}",
+                title: $"Item {i}",
+                slug: $"item-{i}",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+                bodyKey: $"body-{i}");
             var route = new RouteInfo($"/posts/item-{i}/", $"posts/item-{i}/index.html", "pages/post.html");
             list.Add((item, route));
         }
@@ -173,7 +173,7 @@ public sealed class SpecialListRendererNestedParallelTests
         public int PeakConcurrency => Volatile.Read(ref _peak);
         public int TotalCalls => Volatile.Read(ref _total);
 
-        public async Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public async Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _total);
             var entered = Interlocked.Increment(ref _current);

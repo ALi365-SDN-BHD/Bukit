@@ -10,24 +10,24 @@ namespace Bukit.Cli.Commands;
 
 public static class DataCommand
 {
-    internal static void PrintModuleSummary(IReadOnlyList<ContentItem> items)
+    internal static void PrintModuleSummary(IReadOnlyList<ContentDocument> documents)
     {
-        if (items.Count == 0)
+        if (documents.Count == 0)
         {
             Console.WriteLine("Data modules: (none)");
             return;
         }
 
-        var byType = new Dictionary<string, List<ContentItem>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in items)
+        var byType = new Dictionary<string, List<ContentDocument>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var document in documents)
         {
-            if (!ContentFieldReader.IsDataItem(item)) continue;
+            if (!ContentFieldReader.IsDataItem(document)) continue;
 
-            var type = ContentFieldReader.GetContentType(item, "module");
+            var type = ContentFieldReader.GetContentType(document, "module");
 
             if (!byType.ContainsKey(type))
-                byType[type] = new List<ContentItem>();
-            byType[type].Add(item);
+                byType[type] = new List<ContentDocument>();
+            byType[type].Add(document);
         }
 
         if (byType.Count == 0)
@@ -74,15 +74,15 @@ public static class DataCommand
         }
     }
 
-    internal static void PrintModuleDetail(IReadOnlyList<ContentItem> items, string moduleName)
+    internal static void PrintModuleDetail(IReadOnlyList<ContentDocument> documents, string moduleName)
     {
-        var matching = new List<ContentItem>();
-        foreach (var item in items)
+        var matching = new List<ContentDocument>();
+        foreach (var document in documents)
         {
-            if (!ContentFieldReader.IsDataItem(item)) continue;
-            var type = ContentFieldReader.GetContentType(item, "module");
+            if (!ContentFieldReader.IsDataItem(document)) continue;
+            var type = ContentFieldReader.GetContentType(document, "module");
             if (string.Equals(type, moduleName, StringComparison.OrdinalIgnoreCase))
-                matching.Add(item);
+                matching.Add(document);
         }
 
         if (matching.Count == 0)
@@ -93,15 +93,15 @@ public static class DataCommand
 
         Console.WriteLine($"Module: {moduleName} ({matching.Count} items)");
         Console.WriteLine();
-        foreach (var item in matching)
+        foreach (var document in matching)
         {
-            Console.WriteLine($"  {item.Id}");
-            Console.WriteLine($"    Title: {item.Title}");
-            Console.WriteLine($"    Slug:  {item.Slug}");
-            if (item.Fields is { Count: > 0 })
+            Console.WriteLine($"  {document.Id}");
+            Console.WriteLine($"    Title: {document.Title}");
+            Console.WriteLine($"    Slug:  {document.Slug}");
+            if (document.Fields is { Count: > 0 })
             {
                 Console.WriteLine($"    Fields:");
-                foreach (var f in item.Fields.OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase))
+                foreach (var f in document.Fields.OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase))
                     Console.WriteLine($"      {f.Key}: {f.Value.Value}");
             }
 
@@ -109,37 +109,37 @@ public static class DataCommand
         }
     }
 
-    internal static string DumpModulesJson(IReadOnlyList<ContentItem> items)
+    internal static string DumpModulesJson(IReadOnlyList<ContentDocument> documents)
     {
         using var stream = new MemoryStream();
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();
         writer.WriteStartObject("modules");
 
-        var byType = new SortedDictionary<string, List<ContentItem>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in items)
+        var byType = new SortedDictionary<string, List<ContentDocument>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var document in documents)
         {
-            if (!ContentFieldReader.IsDataItem(item)) continue;
-            var type = ContentFieldReader.GetContentType(item, "module");
+            if (!ContentFieldReader.IsDataItem(document)) continue;
+            var type = ContentFieldReader.GetContentType(document, "module");
 
             if (!byType.ContainsKey(type))
-                byType[type] = new List<ContentItem>();
-            byType[type].Add(item);
+                byType[type] = new List<ContentDocument>();
+            byType[type].Add(document);
         }
 
         foreach (var (type, moduleItems) in byType)
         {
             writer.WriteStartArray(type);
-            foreach (var item in moduleItems)
+            foreach (var document in moduleItems)
             {
                 writer.WriteStartObject();
-                writer.WriteString("id", item.Id);
-                writer.WriteString("title", item.Title);
-                writer.WriteString("slug", item.Slug);
-                if (item.Fields is { Count: > 0 })
+                writer.WriteString("id", document.Id);
+                writer.WriteString("title", document.Title);
+                writer.WriteString("slug", document.Slug);
+                if (document.Fields is { Count: > 0 })
                 {
                     writer.WriteStartObject("fields");
-                    foreach (var f in item.Fields.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+                    foreach (var f in document.Fields.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
                     {
                         var val = f.Value.Value;
                         if (val is string s)
@@ -177,7 +177,7 @@ public static class DataCommand
         var contentPipeline = new ContentPipeline(factory, new ConsoleLogger(LogLevel.Info));
         var contentResult = await contentPipeline.ExecuteAsync(config, rootDir, new ConfigOverrides(), Path.Combine(rootDir, ".cache", "media"));
 
-        var items = contentResult.Items;
+        var documents = contentResult.Documents;
         var sub = command.GetArgument(0) ?? "inspect";
 
         switch (sub)
@@ -185,9 +185,9 @@ public static class DataCommand
             case "inspect":
                 var moduleName = command.GetString("--module");
                 if (moduleName is not null)
-                    PrintModuleDetail(items, moduleName);
+                    PrintModuleDetail(documents, moduleName);
                 else
-                    PrintModuleSummary(items);
+                    PrintModuleSummary(documents);
                 return 0;
             case "dump":
                 var format = command.GetString("--format");
@@ -196,7 +196,7 @@ public static class DataCommand
                     Console.Error.WriteLine("Unsupported format. Only json is supported.");
                     return 1;
                 }
-                Console.WriteLine(DumpModulesJson(items));
+                Console.WriteLine(DumpModulesJson(documents));
                 return 0;
             default:
                 Console.Error.WriteLine($"Unknown subcommand: {sub}. Use inspect or dump.");

@@ -11,16 +11,16 @@ public sealed class MarkdownBodyStoreTests
     public async Task GetAsync_WithContentHtml_ReturnsContentHtmlDirectly()
     {
         var store = new MarkdownBodyStore();
-        var item = new ContentItem(
-            Id: "test",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>inlined content</p>",
-            Fields: null,
-            BodyKey: null);
+        var item = ContentDocument.Create(
+            id: "test",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>inlined content</p>",
+            fields: null,
+            bodyKey: null);
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(item.ToDocument());
 
         Assert.Equal("<p>inlined content</p>", body.Html);
     }
@@ -29,51 +29,51 @@ public sealed class MarkdownBodyStoreTests
     public async Task GetAsync_WithoutBodyKey_ThrowsInvalidOperationException()
     {
         var store = new MarkdownBodyStore();
-        var item = new ContentItem(
-            Id: "test",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: null,
-            BodyKey: null);
+        var item = ContentDocument.Create(
+            id: "test",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: null,
+            bodyKey: null);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            store.GetAsync(item));
+            store.GetAsync(item.ToDocument()));
     }
 
     [Fact]
     public async Task GetAsync_WithEmptyBodyKey_ThrowsInvalidOperationException()
     {
         var store = new MarkdownBodyStore();
-        var item = new ContentItem(
-            Id: "test",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: null,
-            BodyKey: "   ");
+        var item = ContentDocument.Create(
+            id: "test",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: null,
+            bodyKey: "   ");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            store.GetAsync(item));
+            store.GetAsync(item.ToDocument()));
     }
 
     [Fact]
     public async Task GetAsync_FileNotFound_Throws()
     {
         var store = new MarkdownBodyStore();
-        var item = new ContentItem(
-            Id: "test",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: null,
-            BodyKey: Path.Combine(Path.GetTempPath(), "nonexistent_markdown_file_test.md"));
+        var item = ContentDocument.Create(
+            id: "test",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: null,
+            bodyKey: Path.Combine(Path.GetTempPath(), "nonexistent_markdown_file_test.md"));
 
         await Assert.ThrowsAsync<FileNotFoundException>(() =>
-            store.GetAsync(item));
+            store.GetAsync(item.ToDocument()));
     }
 
     [Fact]
@@ -83,16 +83,16 @@ public sealed class MarkdownBodyStoreTests
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        var item = new ContentItem(
-            Id: "test",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: null,
-            BodyKey: "some-file");
+        var item = ContentDocument.Create(
+            id: "test",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: null,
+            bodyKey: "some-file");
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
-            store.GetAsync(item, cts.Token));
+            store.GetAsync(item.ToDocument(), cts.Token));
     }
 }

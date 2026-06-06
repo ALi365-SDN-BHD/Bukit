@@ -67,11 +67,15 @@ public sealed record EntityRecord(
     string Type,
     string Name,
     string? Description = null,
-    string? Id = null);
+    string? Id = null,
+    string? Url = null,
+    IReadOnlyList<string>? SameAs = null);
 
 public sealed record ContentRelation(
     string Type,
-    string Target);
+    string Target,
+    string? TargetType = null,
+    string? TargetId = null);
 
 public sealed record MediaAsset(
     string Kind,

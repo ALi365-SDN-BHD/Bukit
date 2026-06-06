@@ -15,7 +15,7 @@ using Bukit.Theme;
 namespace Bukit.Engine;
 
 internal sealed record DataModuleResult(
-    IReadOnlyList<ContentItem> DataItems,
+    IReadOnlyList<ContentDocument> DataDocuments,
     IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? Modules,
     IReadOnlyDictionary<string, object>? SourceData);
 
@@ -40,24 +40,24 @@ internal sealed record SeoStageResult(
 internal sealed class VariantBuildPipeline
 {
     internal DataModuleResult PrepareDataModules(
-        IReadOnlyList<ContentItem> items, string language, IContentBodyStore bodyStore)
+        IReadOnlyList<ContentDocument> documents, string language, IContentBodyStore bodyStore)
     {
-        var dataItems = items.Where(ContentFieldReader.IsDataItem).ToList();
-        var modules = DataModuleBuilder.BuildModules(dataItems, language, bodyStore);
-        var sourceData = DataModuleBuilder.BuildDataBySource(dataItems, bodyStore);
-        return new DataModuleResult(dataItems, modules, sourceData);
+        var dataDocuments = documents.Where(ContentFieldReader.IsDataItem).ToList();
+        var modules = DataModuleBuilder.BuildModules(dataDocuments, language, bodyStore);
+        var sourceData = DataModuleBuilder.BuildDataBySource(dataDocuments, bodyStore);
+        return new DataModuleResult(dataDocuments, modules, sourceData);
     }
 
-    internal RoutePipelineResult GenerateRoutes(AppConfig config, IReadOnlyList<ContentItem> items, ThemeTemplateResolver templateResolver)
+    internal RoutePipelineResult GenerateRoutes(AppConfig config, IReadOnlyList<ContentDocument> documents, ThemeTemplateResolver templateResolver)
     {
-        return new RoutePipeline().Execute(config, items, templateResolver);
+        return new RoutePipeline().Execute(config, documents, templateResolver);
     }
 
     internal ITemplateRenderer CreateRenderer(
         BuildVariantContext ctx, ThemeComponentRegistry? themeRegistry,
         SectionSchemaValidator? schemaValidator,
         IReadOnlyDictionary<string, ISectionPlugin>? resolvedSectionPlugins,
-        IReadOnlyList<(ContentItem, RouteInfo?)>? allPagesForSections)
+        IReadOnlyList<(ContentDocument, RouteInfo?)>? allPagesForSections)
     {
         var config = ctx.Config;
         return themeRegistry is not null
@@ -179,7 +179,7 @@ internal sealed class VariantBuildPipeline
         var config = ctx.Config;
         var rootDir = ctx.RootDir;
         var overrides = ctx.Overrides;
-        var items = ctx.Items;
+        var documents = ctx.Documents;
         var bodyStore = ctx.BodyStore;
         var outputDir = ctx.OutputDir;
         var baseUrl = ctx.BaseUrl;
@@ -189,15 +189,15 @@ internal sealed class VariantBuildPipeline
         var bootstrap = await BootstrapThemeAsync(config, rootDir, logger);
         var templateResolver = new ThemeTemplateResolver(bootstrap.Manifest);
         templateResolver.ValidateRequiredTemplates();
-        var dataModules = await BuildDataModulesAsync(items, config.Site.Language, bodyStore, variantStageMetrics);
+        var dataModules = await BuildDataModulesAsync(documents, config.Site.Language, bodyStore, variantStageMetrics);
         var routePipelineResult = await BuildRoutePipelineAsync(
-            config, items, dataModules.DataItems, bodyStore, ctx, logger, variantStageMetrics, templateResolver, cancellationToken);
+            config, documents, dataModules.DataDocuments, bodyStore, ctx, logger, variantStageMetrics, templateResolver, cancellationToken);
 
         await RunPluginDeriveStageAsync(routePipelineResult.PluginContext, variantStageMetrics, cancellationToken);
 
         var allPagesForSections = bootstrap.Registry is not null
-            ? routePipelineResult.RouteResult.Routed.Select(x => ((ContentItem)x.Item, (RouteInfo?)x.Route)).ToList()
-            : (IReadOnlyList<(ContentItem, RouteInfo?)>?)null;
+            ? routePipelineResult.RouteResult.RoutedDocuments.Select(x => (x.Document, (RouteInfo?)x.Route)).ToList()
+            : (IReadOnlyList<(ContentDocument, RouteInfo?)>?)null;
 
         ITemplateRenderer renderer = rendererFactory is not null
             ? rendererFactory(ctx.LayoutsDir)
@@ -206,16 +206,18 @@ internal sealed class VariantBuildPipeline
         var siteModel = BuildSiteModel(config, baseUrl, dataModules.Modules, dataModules.SourceData, routePipelineResult.PluginContext.Data);
         var manifestSetup = SetupManifest(ctx, overrides, templateHashCache);
 
-        var renderQueue = routePipelineResult.RouteResult.Routed.Concat(routePipelineResult.PluginContext.DerivedRouted).ToList();
+        var renderDocuments = routePipelineResult.RouteResult.RoutedDocuments
+            .Concat(routePipelineResult.PluginContext.DerivedDocuments)
+            .ToList();
         var listRoutes = routePipelineResult.RouteResult.ListRoutes;
 
         var seoStage = await BuildSeoStageAsync(
-            config, baseUrl, renderQueue, listRoutes, siteModel.Analytics, logger,
+            config, baseUrl, renderDocuments, listRoutes, siteModel.Analytics, logger,
             ctx.SeoAlternates, ctx.RootBaseUrl, ctx.DefaultLanguage, overrides,
             routePipelineResult.PluginContext);
 
         var renderPipelineResult = await RenderPagesStageAsync(
-            renderQueue, routePipelineResult.RouteResult.Routed, bodyStore, renderer, siteModel,
+            renderDocuments, routePipelineResult.RouteResult.RoutedDocuments, bodyStore, renderer, siteModel,
             config, ctx, outputDir, manifestSetup, seoStage, routePipelineResult.StaticEntries,
             variantStageMetrics, logger, templateResolver, cancellationToken);
 
@@ -241,7 +243,7 @@ internal sealed class VariantBuildPipeline
         return await GenerateReportStageAsync(
             config, baseUrl, outputDir, searchSnippetsEnabled, bodyStore,
             ctx.ContentGraph,
-            routePipelineResult.RouteResult.Routed, routePipelineResult.PluginContext,
+            routePipelineResult.PluginContext,
             seoStage.SeoResult, renderPipelineResult, variantStageMetrics, logger, ctx.DefaultLanguage);
     }
 
@@ -251,11 +253,11 @@ internal sealed class VariantBuildPipeline
     }
 
     private Task<DataModuleResult> BuildDataModulesAsync(
-        IReadOnlyList<ContentItem> items, string language, IContentBodyStore bodyStore,
+        IReadOnlyList<ContentDocument> documents, string language, IContentBodyStore bodyStore,
         BuildStageMetricsCollector metrics)
     {
         var splitItemsStopwatch = Stopwatch.StartNew();
-        var dataModules = PrepareDataModules(items, language, bodyStore);
+        var dataModules = PrepareDataModules(documents, language, bodyStore);
         splitItemsStopwatch.Stop();
         metrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
         return Task.FromResult(dataModules);
@@ -263,8 +265,8 @@ internal sealed class VariantBuildPipeline
 
     private async Task<BuildRoutePipelineResult> BuildRoutePipelineAsync(
         AppConfig config,
-        IReadOnlyList<ContentItem> items,
-        IReadOnlyList<ContentItem> dataItems,
+        IReadOnlyList<ContentDocument> documents,
+        IReadOnlyList<ContentDocument> dataDocuments,
         IContentBodyStore bodyStore,
         BuildVariantContext ctx,
         ILogger logger,
@@ -273,8 +275,7 @@ internal sealed class VariantBuildPipeline
         CancellationToken cancellationToken)
     {
         var routeGenerationStopwatch = Stopwatch.StartNew();
-        var routeResult = GenerateRoutes(config, items, templateResolver);
-        var routed = routeResult.Routed;
+        var routeResult = GenerateRoutes(config, documents, templateResolver);
         routeGenerationStopwatch.Stop();
         metrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
 
@@ -285,7 +286,7 @@ internal sealed class VariantBuildPipeline
             OutputDir = ctx.OutputDir,
             BaseUrl = ctx.BaseUrl,
             LayoutsDir = ctx.LayoutsDir,
-            Routed = routed,
+            RoutedDocuments = routeResult.RoutedDocuments,
             ContentGraph = ctx.ContentGraph,
             BodyStore = bodyStore,
             TemplateResolver = templateResolver.ResolveKindTemplate,
@@ -293,7 +294,7 @@ internal sealed class VariantBuildPipeline
         };
 
         var taxonomyStopwatch = Stopwatch.StartNew();
-        TaxonomyTermsInjector.InjectFromDataItems(pluginContext, dataItems);
+        TaxonomyTermsInjector.InjectFromDataDocuments(pluginContext, dataDocuments);
         await TaxonomyTermsInjector.InjectFromNotionDatabaseOptionsAsync(pluginContext, cancellationToken);
         taxonomyStopwatch.Stop();
         metrics.AddDuration("taxonomySetup", taxonomyStopwatch.ElapsedMilliseconds);
@@ -314,7 +315,7 @@ internal sealed class VariantBuildPipeline
             logger.Warn("Static HTML files in static dir are skipped because no static template is configured (theme.staticTemplate).");
         }
 
-        RouteInventoryValidator.ValidateFinalRoutes(routed, pluginContext.DerivedRouted, routeResult.ListRoutes, staticHtmlRoutes);
+        RouteInventoryValidator.ValidateFinalRoutes(routeResult.RoutedDocuments, pluginContext.DerivedDocuments, routeResult.ListRoutes, staticHtmlRoutes);
 
         return new BuildRoutePipelineResult(routeResult, staticHtmlRoutes, staticEntries, pluginContext);
     }
@@ -328,17 +329,17 @@ internal sealed class VariantBuildPipeline
         var derived = await PluginRunner.RunDerivePagesAsync(pluginContext, cancellationToken);
         derivePagesStopwatch.Stop();
         metrics.AddDuration("derivePages", derivePagesStopwatch.ElapsedMilliseconds);
-        foreach (var (item, route, lastModified) in derived)
+        foreach (var page in derived)
         {
-            pluginContext.DerivedRouted.Add((item, route));
-            pluginContext.DerivedRoutes.Add((route, lastModified));
+            pluginContext.DerivedDocuments.Add(page);
+            pluginContext.DerivedRoutes.Add((page.Route, page.LastModified ?? page.Document.PublishAt));
         }
     }
 
     private static Task<SeoStageResult> BuildSeoStageAsync(
         AppConfig config,
         string baseUrl,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> renderQueue,
+        IReadOnlyList<RoutedContentDocument> renderQueue,
         IReadOnlyList<RouteInfo> listRoutes,
         AnalyticsModel analytics,
         ILogger logger,
@@ -363,8 +364,8 @@ internal sealed class VariantBuildPipeline
     }
 
     private async Task<RenderPipelineResult> RenderPagesStageAsync(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> renderQueue,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> renderDocuments,
+        IReadOnlyList<RoutedContentDocument> routedDocuments,
         IContentBodyStore bodyStore,
         ITemplateRenderer renderer,
         SiteModel siteModel,
@@ -387,7 +388,7 @@ internal sealed class VariantBuildPipeline
         metrics.AddDuration("renderDependencyHash", renderDependencyHashStopwatch.ElapsedMilliseconds);
 
         var renderPipelineResult = await new RenderPipeline().ExecuteAsync(new RenderPipelineContext(
-            RenderQueue: renderQueue, Routed: routed, BodyStore: bodyStore,
+            BodyStore: bodyStore,
             Renderer: renderer, SiteModel: siteModel,
             Collections: config.Site.Collections, LayoutsDir: ctx.LayoutsDir,
             ListPageContentMode: config.Build.ListPageContentMode,
@@ -404,7 +405,9 @@ internal sealed class VariantBuildPipeline
             ListItemSeoBuilder: seoStage.SeoResult.ListItemSeoBuilder,
             ListSeoBuilder: seoStage.SeoResult.ListSeoBuilder,
             ListHtmlPostProcessor: seoStage.SeoResult.ListHtmlPostProcessor,
-            TemplateResolver: templateResolver),
+            TemplateResolver: templateResolver,
+            RenderDocuments: renderDocuments,
+            RoutedDocuments: routedDocuments),
             cancellationToken);
 
         metrics.Merge(renderPipelineResult.StageMetrics);
@@ -476,7 +479,6 @@ internal sealed class VariantBuildPipeline
         bool searchSnippetsEnabled,
         IContentBodyStore bodyStore,
         CanonicalContentGraph contentGraph,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         BuildContext pluginContext,
         SeoPipelineResult seoResult,
         RenderPipelineResult renderPipelineResult,
@@ -492,8 +494,9 @@ internal sealed class VariantBuildPipeline
         return Task.FromResult(new BuildReportPipeline().Execute(new BuildReportPipelineContext(
             Config: config, Language: config.Site.Language, OutputDir: outputDir,
             BaseUrl: baseUrl, SearchSnippetsEnabled: searchSnippetsEnabled,
-            BodyStore: bodyStore, Routed: routed,
-            DerivedRouted: pluginContext.DerivedRouted,
+            BodyStore: bodyStore,
+            RoutedDocuments: pluginContext.RoutedDocuments,
+            DerivedDocuments: pluginContext.DerivedDocuments,
             DerivedRoutes: pluginContext.DerivedRoutes,
             SeoIndex: seoResult.SeoIndex.Entries,
             SeoModels: seoResult.SeoIndex.Models,

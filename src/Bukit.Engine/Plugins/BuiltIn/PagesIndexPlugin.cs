@@ -38,7 +38,7 @@ public sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
         _notionFetcher = notionFetcher;
     }
 
-    public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
+    public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
     {
         var index = GetOrCreateIndex(context);
         AddRoutedToIndex(context, index);
@@ -47,7 +47,7 @@ public sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
         {
             context.Data["pages_by_id"] = index;
         }
-        return Array.Empty<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
+        return Array.Empty<RoutedContentDocument>();
     }
 
     private static Dictionary<string, object> GetOrCreateIndex(BuildContext context)
@@ -66,36 +66,37 @@ public sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
         var recordsById = context.ContentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
-        foreach (var (item, route) in context.Routed)
+        foreach (var routedDocument in context.RoutedDocuments)
         {
-            if (string.IsNullOrWhiteSpace(item.Id))
+            var document = routedDocument.Document;
+            if (string.IsNullOrWhiteSpace(document.Id))
             {
                 continue;
             }
 
-            recordsById.TryGetValue(item.Id, out var record);
-            index[item.Id] = BuildPageObject(item, route, record);
+            recordsById.TryGetValue(document.Id, out var record);
+            index[document.Id] = BuildPageObject(document, routedDocument.Route, record);
         }
     }
 
-    private static Dictionary<string, object> BuildPageObject(ContentItem item, RouteInfo route, ContentRecord? record)
+    private static Dictionary<string, object> BuildPageObject(ContentDocument document, RouteInfo route, ContentRecord? record)
     {
-        var type = record?.Identity.ContentType ?? ContentFieldReader.GetContentType(item);
+        var type = record?.Identity.ContentType ?? ContentFieldReader.GetContentType(document);
         type = string.IsNullOrWhiteSpace(type) ? null : type.Trim();
 
-        var summary = record?.Presentation.Summary ?? ContentFieldReader.GetSummary(item);
+        var summary = record?.Presentation.Summary ?? ContentFieldReader.GetSummary(document);
         summary = string.IsNullOrWhiteSpace(summary) ? null : summary.Trim();
 
         return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["id"] = item.Id,
-            ["title"] = record?.Presentation.Title ?? item.Title,
+            ["id"] = document.Id,
+            ["title"] = record?.Presentation.Title ?? document.Title,
             ["url"] = route.Url,
-            ["slug"] = item.Slug,
+            ["slug"] = document.Slug,
             ["type"] = type ?? string.Empty,
-            ["publish_date"] = (record?.Lifecycle.PublishedAt ?? item.PublishAt).DateTime,
+            ["publish_date"] = (record?.Lifecycle.PublishedAt ?? document.PublishAt).DateTime,
             ["summary"] = summary ?? string.Empty,
-            ["fields"] = BuildFieldsObject(item.Fields)
+            ["fields"] = BuildFieldsObject(document.Fields)
         };
     }
 
@@ -164,7 +165,7 @@ public sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
             return;
         }
 
-        var ids = PagesIndexConfigHelper.CollectRelationIds(context.Routed, fieldKeys, index, maxItems);
+        var ids = PagesIndexConfigHelper.CollectRelationIds(context.RoutedDocuments, fieldKeys, index, maxItems);
         if (ids.Count == 0)
         {
             return;

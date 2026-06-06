@@ -15,20 +15,20 @@ public sealed class PageRenderDispatcherMetricsTests
     [Fact]
     public async Task RenderPagesAsync_CollectsContentHashBodyLoadAndRenderMetrics()
     {
-        var item = new ContentItem(
-            Id: "id-1",
-            Title: "Hello",
-            Slug: "hello",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            BodyKey: "body-1");
+        var item = ContentDocument.Create(
+            id: "id-1",
+            title: "Hello",
+            slug: "hello",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            bodyKey: "body-1");
 
         var route = new RouteInfo("/pages/hello/", "pages/hello/index.html", "pages/page.html");
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outputDir);
 
-        var result = await PageRenderDispatcher.RenderPagesAsync(
-            new List<(ContentItem Item, RouteInfo Route)> { (item, route) },
+        var result = await PageRenderDispatcher.DispatchAsync(
+            new[] { RenderEntry.ForPage(item.ToDocument(), route) },
             new DictionaryContentBodyStore(new Dictionary<string, ContentBody>(StringComparer.OrdinalIgnoreCase)
             {
                 ["body-1"] = new("<p>lazy body</p>")

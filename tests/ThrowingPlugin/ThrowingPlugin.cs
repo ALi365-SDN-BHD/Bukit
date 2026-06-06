@@ -13,7 +13,7 @@ public sealed class ThrowingPlugin : IBukitPlugin, IAfterBuildPlugin, IDerivePag
         throw new InvalidOperationException("throwing-test plugin intentionally fails");
     }
 
-    public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
+    public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
     {
         throw new InvalidOperationException("throwing-test DerivePages intentionally fails");
     }

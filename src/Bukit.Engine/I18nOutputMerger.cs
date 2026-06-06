@@ -70,20 +70,26 @@ internal static class I18nOutputMerger
         return b.TrimEnd('/') + "/" + l;
     }
 
-    internal static IReadOnlyList<ContentItem> FilterItemsByLanguage(IReadOnlyList<ContentItem> items, string language, string defaultLanguage)
+    internal static IReadOnlyList<ContentDocument> FilterDocumentsByLanguage(IReadOnlyList<ContentDocument> documents, string language, string defaultLanguage)
     {
-        return items.Where(item =>
+        return documents.Where(document =>
         {
-            if (ContentFieldReader.IsDataItem(item))
+            if (ContentFieldReader.IsDataItem(document))
             {
-                var locale = ContentFieldReader.GetText(item.Fields, "locale");
+                var locale = ContentFieldReader.GetText(document.Fields, "locale");
                 return string.IsNullOrWhiteSpace(locale) || string.Equals(locale, language, StringComparison.OrdinalIgnoreCase);
             }
 
-            var itemLanguage = ContentFieldReader.GetText(item, "language");
-            if (!string.IsNullOrWhiteSpace(itemLanguage))
+            var documentLanguage = document.Record.Presentation.Language;
+            if (!string.IsNullOrWhiteSpace(documentLanguage) && !string.Equals(documentLanguage, "und", StringComparison.OrdinalIgnoreCase))
             {
-                return string.Equals(itemLanguage, language, StringComparison.OrdinalIgnoreCase);
+                return string.Equals(documentLanguage, language, StringComparison.OrdinalIgnoreCase);
+            }
+
+            documentLanguage = ContentFieldReader.GetText(document, "language");
+            if (!string.IsNullOrWhiteSpace(documentLanguage))
+            {
+                return string.Equals(documentLanguage, language, StringComparison.OrdinalIgnoreCase);
             }
 
             return string.Equals(language, defaultLanguage, StringComparison.OrdinalIgnoreCase);
@@ -94,16 +100,16 @@ internal static class I18nOutputMerger
     {
         _ = searchIndexBuilder;
         var context = new PublishProjectionContext(
-            config,
-            outputDir,
-            CanonicalContentGraph.Empty,
-            Array.Empty<(ContentItem Item, RouteInfo Route)>(),
-            Array.Empty<(ContentItem Item, RouteInfo Route)>(),
-            new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase),
-            new Dictionary<string, Bukit.Rendering.SeoModel>(StringComparer.OrdinalIgnoreCase),
+            Config: config,
+            OutputDir: outputDir,
+            ContentGraph: CanonicalContentGraph.Empty,
+            SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase),
+            SeoModels: new Dictionary<string, Bukit.Rendering.SeoModel>(StringComparer.OrdinalIgnoreCase),
+            RoutedDocuments: Array.Empty<RoutedContentDocument>(),
             BaseUrl: rootBaseUrl,
             Logger: logger,
-            VariantResults: results);
+            VariantResults: results,
+            DerivedDocuments: Array.Empty<RoutedContentDocument>());
         return PublishRepresentationRegistry.RootAggregateProjectionAdapters()
             .Select(projection => projection.Project(context))
             .ToArray();
@@ -225,20 +231,18 @@ internal static class I18nOutputMerger
         var rssCollections = ResolveRssCollections(config.Site.Collections);
         foreach (var r in results)
         {
-            var itemsByPath = SearchIndexBuilder.BuildItemMap(r.Routed);
+            var documentsByPath = SearchIndexBuilder.BuildDocumentMap(r.RoutedDocuments);
             foreach (var (key, seo) in r.SeoIndex
                          .Where(x => x.Value.Indexable)
                          .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
             {
-                if (!itemsByPath.TryGetValue(key, out var item) ||
-                    !rssCollections.Contains(GetCollection(item)))
+                if (!documentsByPath.TryGetValue(key, out var document) ||
+                    !rssCollections.Contains(ContentFieldReader.GetCollection(document)))
                 {
                     continue;
                 }
 
-                var record = (r.ContentGraph ?? CanonicalContentGraph.Empty).Records
-                    .FirstOrDefault(x => string.Equals(x.Identity.Id, item.Id, StringComparison.OrdinalIgnoreCase));
-                posts.Add(RssGenerator.ToPost(item, seo.Canonical, r.BodyStore, record));
+                posts.Add(RssGenerator.ToPost(document, seo.Canonical, r.BodyStore));
             }
         }
 
@@ -300,11 +304,6 @@ internal static class I18nOutputMerger
         return set;
     }
 
-    private static string GetCollection(ContentItem item)
-    {
-        return ContentFieldReader.GetCollection(item);
-    }
-
     private static void GenerateRootAgentManifest(string outputDir, IReadOnlyList<BuildVariantResult> results)
     {
         var entries = new List<DefaultContentProjectionWriter.AgentManifestEntry>();
@@ -312,9 +311,11 @@ internal static class I18nOutputMerger
         {
             var recordsById = (result.ContentGraph ?? CanonicalContentGraph.Empty).Records
                 .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
-            foreach (var (item, route) in result.Routed.Concat(result.DerivedRouted))
+                .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.OrdinalIgnoreCase);
+            foreach (var routedDocument in result.RoutedDocuments.Concat(result.DerivedDocuments))
             {
+                var document = routedDocument.Document;
+                var route = routedDocument.Route;
                 var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
                 result.SeoIndex.TryGetValue(key, out var seoEntry);
                 if (seoEntry?.Indexable == false)
@@ -322,10 +323,13 @@ internal static class I18nOutputMerger
                     continue;
                 }
 
-                if (!recordsById.TryGetValue(item.Id, out var record))
+                if (!recordsById.TryGetValue(document.Id, out var records))
                 {
-                    record = CanonicalContentGraphBuilder.ToRecord(item);
+                    records = [document.Record];
                 }
+
+                var record = records.FirstOrDefault(candidate =>
+                    string.Equals(candidate.Presentation.Language, result.Language, StringComparison.OrdinalIgnoreCase)) ?? records[0];
 
                 result.SeoModels.TryGetValue(key, out var model);
                 var mergedRoute = CombineBaseUrl(result.BaseUrl, route.Url);
@@ -380,19 +384,19 @@ internal static class I18nOutputMerger
         IReadOnlyList<BuildVariantResult> results,
         ILogger logger)
     {
-        var routed = new List<(ContentItem Item, RouteInfo Route)>();
-        var derivedRouted = new List<(ContentItem Item, RouteInfo Route)>();
+        var routedDocuments = new List<RoutedContentDocument>();
+        var derivedDocuments = new List<RoutedContentDocument>();
         var records = new List<ContentRecord>();
         var entities = new List<EntityRecord>();
         var seoModels = new Dictionary<string, Bukit.Rendering.SeoModel>(StringComparer.OrdinalIgnoreCase);
-        var bodySources = new Dictionary<string, (ContentItem Item, IContentBodyStore Store)>(StringComparer.OrdinalIgnoreCase);
+        var bodySources = new Dictionary<string, (ContentDocument Document, IContentBodyStore Store)>(StringComparer.OrdinalIgnoreCase);
         foreach (var result in results)
         {
-            routed.AddRange(result.Routed.Select(x => (x.Item, MergeRoute(result, x.Route))));
-            derivedRouted.AddRange(result.DerivedRouted.Select(x => (x.Item, MergeRoute(result, x.Route))));
-            foreach (var (item, _) in result.Routed.Concat(result.DerivedRouted))
+            routedDocuments.AddRange(result.RoutedDocuments.Select(x => x with { Route = MergeRoute(result, x.Route) }));
+            derivedDocuments.AddRange(result.DerivedDocuments.Select(x => x with { Route = MergeRoute(result, x.Route) }));
+            foreach (var routedDocument in result.RoutedDocuments.Concat(result.DerivedDocuments))
             {
-                bodySources[BuildBodyStoreKey(item)] = (item, result.BodyStore);
+                bodySources[BuildBodyStoreKey(routedDocument.Document)] = (routedDocument.Document, result.BodyStore);
             }
 
             records.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Records);
@@ -410,13 +414,13 @@ internal static class I18nOutputMerger
             OutputDir = outputDir,
             BaseUrl = rootBaseUrl,
             LayoutsDir = string.Empty,
-            Routed = routed,
+            RoutedDocuments = routedDocuments,
             ContentGraph = new CanonicalContentGraph(records, entities),
             BodyStore = new MergedVariantContentBodyStore(bodySources),
             SeoIndex = BuildRootSeoIndex(results),
             Logger = logger
         };
-        context.DerivedRouted.AddRange(derivedRouted);
+        context.DerivedDocuments.AddRange(derivedDocuments);
         context.Data["__seo_models"] = seoModels;
         return context;
     }
@@ -444,29 +448,34 @@ internal static class I18nOutputMerger
             Path.Combine(result.Language, route.OutputPath),
             route.Template);
 
-    private static string BuildBodyStoreKey(ContentItem item)
+    private static string BuildBodyStoreKey(ContentDocument document)
     {
-        var language = ContentFieldReader.GetText(item.Fields, "language") ?? string.Empty;
-        return item.Id + "\n" + language;
+        var language = document.Record.Presentation.Language;
+        if (string.IsNullOrWhiteSpace(language) || string.Equals(language, "und", StringComparison.OrdinalIgnoreCase))
+        {
+            language = ContentFieldReader.GetText(document.Fields, "language") ?? string.Empty;
+        }
+
+        return document.Id + "\n" + language;
     }
 
     private sealed class MergedVariantContentBodyStore : IContentBodyStore
     {
-        private readonly IReadOnlyDictionary<string, (ContentItem Item, IContentBodyStore Store)> _sources;
+        private readonly IReadOnlyDictionary<string, (ContentDocument Document, IContentBodyStore Store)> _sources;
 
-        public MergedVariantContentBodyStore(IReadOnlyDictionary<string, (ContentItem Item, IContentBodyStore Store)> sources)
+        public MergedVariantContentBodyStore(IReadOnlyDictionary<string, (ContentDocument Document, IContentBodyStore Store)> sources)
         {
             _sources = sources;
         }
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
         {
-            if (_sources.TryGetValue(BuildBodyStoreKey(item), out var source))
+            if (_sources.TryGetValue(BuildBodyStoreKey(document), out var source))
             {
-                return source.Store.GetAsync(source.Item, cancellationToken);
+                return source.Store.GetAsync(source.Document, cancellationToken);
             }
 
-            return NullContentBodyStore.Instance.GetAsync(item, cancellationToken);
+            return NullContentBodyStore.Instance.GetAsync(document, cancellationToken);
         }
     }
 

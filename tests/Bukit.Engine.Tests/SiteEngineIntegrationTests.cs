@@ -28,30 +28,42 @@ public sealed class SiteEngineIntegrationTests
 
     private sealed class StaticContentProviderFactory : IContentProviderFactory
     {
-        private readonly ContentLoadResult _result;
+        private readonly RawContentLoadResult _result;
 
-        public StaticContentProviderFactory(ContentLoadResult result)
+        public StaticContentProviderFactory(RawContentLoadResult result)
         {
             _result = result;
         }
 
         public IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger) => new StaticContentProvider(_result);
 
-        public Task<ContentLoadResult> LocalizeContentImagesAsync(ContentLoadResult result, MediaConfig media, string rootDir, string cacheDir, ILogger logger, CancellationToken cancellationToken)
+        public Task<RawContentLoadResult> LocalizeContentImagesAsync(RawContentLoadResult result, MediaConfig media, string rootDir, string cacheDir, ILogger logger, CancellationToken cancellationToken)
             => Task.FromResult(result);
     }
 
     private sealed class StaticContentProvider : IContentProvider
     {
-        private readonly ContentLoadResult _result;
+        private readonly RawContentLoadResult _result;
 
-        public StaticContentProvider(ContentLoadResult result)
+        public StaticContentProvider(RawContentLoadResult result)
         {
             _result = result;
         }
 
-        public Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default) => Task.FromResult(_result);
+        public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default) => Task.FromResult(ToRawResult(_result));
     }
+
+    private static RawContentLoadResult ToRawResult(RawContentLoadResult result) => result;
+
+    private static IReadOnlyList<RawContentDocument> ToRawDocuments(IEnumerable<ContentDocument> items)
+        => items.Select(item => new RawContentDocument(
+            item.Id,
+            item.Title,
+            item.Slug,
+            item.PublishAt,
+            item.ContentHtml,
+            item.Fields,
+            item.BodyKey)).ToArray();
 
     private sealed class DictionaryContentBodyStore : IContentBodyStore
     {
@@ -62,7 +74,7 @@ public sealed class SiteEngineIntegrationTests
             _bodies = bodies;
         }
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
             => Task.FromResult(new ContentBody(_bodies[item.Id]));
     }
 
@@ -476,16 +488,16 @@ public sealed class SiteEngineIntegrationTests
 
             var items = new[]
             {
-                new ContentItem(
+                ContentDocument.Create(
                     "about",
                     "About Remote Theme",
                     "about",
                     DateTimeOffset.Parse("2024-06-01T00:00:00Z"),
                     null,
                     ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page", ["collection"] = "page", ["bodyFingerprint"] = "about-v1" }),
-                    BodyKey: "about")
+                    bodyKey: "about")
             };
-            var loadResult = new ContentLoadResult(items, new DictionaryContentBodyStore(new Dictionary<string, string>
+            var loadResult = new RawContentLoadResult(ToRawDocuments(items), new DictionaryContentBodyStore(new Dictionary<string, string>
             {
                 ["about"] = "<p>Body</p>"
             }));
@@ -1149,7 +1161,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
 
             var items = Enumerable.Range(1, 6)
-                .Select(i => new ContentItem(
+                .Select(i => ContentDocument.Create(
                     $"item-{i}",
                     $"Item {i}",
                     $"item-{i}",
@@ -1161,7 +1173,7 @@ public sealed class SiteEngineIntegrationTests
             var concurrency = new RenderConcurrencyProbe();
             var engine = new SiteEngine(
                 new TestLogger(),
-                new StaticContentProviderFactory(new ContentLoadResult(items, bodyStore)),
+                new StaticContentProviderFactory(new RawContentLoadResult(ToRawDocuments(items), bodyStore)),
                 new DefaultSearchIndexBuilder(),
                 _ => new ProbeTemplateRenderer(concurrency));
             var config = new AppConfig

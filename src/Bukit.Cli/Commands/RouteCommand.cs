@@ -31,15 +31,15 @@ public static class RouteCommand
         var contentResult = await contentPipeline.ExecuteAsync(config, rootDir, new ConfigOverrides(), Path.Combine(rootDir, ".cache", "media"));
 
         var entries = new List<RouteInspectEntry>();
-        foreach (var item in contentResult.Items)
+        foreach (var document in contentResult.Documents)
         {
-            if (ContentFieldReader.IsDataItem(item)) continue;
+            if (ContentFieldReader.IsDataItem(document)) continue;
 
-            var (route, routeSource) = RouteInventoryValidator.GenerateRouteWithSource(item, config.Site);
+            var (route, routeSource) = RouteInventoryValidator.GenerateRouteWithSource(document, config.Site);
 
-            var collection = NullIfEmpty(ContentFieldReader.GetCollection(item));
-            var type = NullIfEmpty(ContentFieldReader.GetContentType(item));
-            var language = ContentFieldReader.GetText(item, "language");
+            var collection = NullIfEmpty(ContentFieldReader.GetCollection(document));
+            var type = NullIfEmpty(ContentFieldReader.GetContentType(document));
+            var language = ContentFieldReader.GetText(document, "language");
 
             entries.Add(new RouteInspectEntry(
                 route.Url,

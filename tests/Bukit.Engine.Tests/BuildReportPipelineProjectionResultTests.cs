@@ -44,8 +44,7 @@ public sealed class BuildReportPipelineProjectionResultTests
                 BaseUrl: "/",
                 SearchSnippetsEnabled: false,
                 BodyStore: NullContentBodyStore.Instance,
-                Routed: [(item, route)],
-                DerivedRouted: Array.Empty<(ContentItem Item, RouteInfo Route)>(),
+                RoutedDocuments: new[] { (item, route) }.ToRoutedDocuments(),
                 DerivedRoutes: Array.Empty<(RouteInfo Route, DateTimeOffset LastModified)>(),
                 SeoIndex: seoIndex,
                 SeoModels: seoModels,
@@ -84,8 +83,8 @@ public sealed class BuildReportPipelineProjectionResultTests
         public IReadOnlyList<PublishProjectionResult> Write(PublishProjectionContext context) => [_result];
     }
 
-    private static ContentItem Item()
-        => new(
+    private static ContentDocument Item()
+        => ContentDocument.Create(
             "post-1",
             "Post",
             "post",

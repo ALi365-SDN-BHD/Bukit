@@ -26,12 +26,12 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
         return posts.Count > pageSize ? new[] { "pagination" } : Array.Empty<string>();
     }
 
-    public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
+    public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
     {
         var paginationCollection = ResolvePaginationCollection(context.Config);
         if (paginationCollection is null || string.IsNullOrWhiteSpace(paginationCollection.Value.Config.ListRoute))
         {
-            return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+            return Array.Empty<RoutedContentDocument>();
         }
 
         var pageSize = paginationCollection.Value.Config.Pagination.PageSize;
@@ -42,14 +42,14 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
 
         if (posts.Count <= pageSize)
         {
-            return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+            return Array.Empty<RoutedContentDocument>();
         }
 
         var prefix = context.BaseUrl == "/" ? string.Empty : context.BaseUrl;
         var totalPages = (int)Math.Ceiling(posts.Count / (double)pageSize);
         var routeTemplate = context.ResolveTemplateKind("pagination");
 
-        var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
+        var derived = new List<RoutedContentDocument>();
         for (var page = 2; page <= totalPages; page++)
         {
             var start = (page - 1) * pageSize;
@@ -59,17 +59,12 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
                 continue;
             }
 
-            var publishAt = slice[0].Item.PublishAt;
+            var publishAt = slice[0].Document.PublishAt;
             var listUrl = RoutePathBuilder.NormalizeListRoute(listRoute);
             var html = BuildPageHtml(prefix, listUrl, slice, page, totalPages);
             var url = $"{listUrl}page/{page}/";
             var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, context.Config.Site.OutputPathEncoding);
             var route = new RouteInfo(url, outputPath, routeTemplate);
-            var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["type"] = "derived",
-                ["collection"] = collectionKey
-            };
             var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new ContentField("text", "derived"),
@@ -85,15 +80,15 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
                 })
             };
 
-            var item = new ContentItem(
-                Id: $"{collectionKey}-page-{page}",
-                Title: $"{collectionKey} - Page {page}",
-                Slug: $"page-{page}",
-                PublishAt: publishAt,
-                ContentHtml: html,
-                Fields: fields);
+            var document = ContentDocument.Create(
+                id: $"{collectionKey}-page-{page}",
+                title: $"{collectionKey} - Page {page}",
+                slug: $"page-{page}",
+                publishAt: publishAt,
+                contentHtml: html,
+                fields: fields);
 
-            derived.Add((item, route, publishAt));
+            derived.Add(new RoutedContentDocument(document, route, publishAt));
         }
 
         return derived;
@@ -102,14 +97,16 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
     private static string BuildPageHtml(
         string baseUrlPrefix,
         string listRoute,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> posts,
+        IReadOnlyList<RoutedContentDocument> posts,
         int page,
         int totalPages)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<ul>");
-        foreach (var (item, route) in posts)
+        foreach (var routedDocument in posts)
         {
+            var item = routedDocument.Document;
+            var route = routedDocument.Route;
             var href = $"{baseUrlPrefix}{route.Url}";
             sb.AppendLine($"  <li><a href=\"{EscapeAttr(href)}\">{EscapeHtml(item.Title)}</a></li>");
         }
@@ -150,11 +147,13 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
         return null;
     }
 
-    private static List<object> BuildItems(IReadOnlyList<(ContentItem Item, RouteInfo Route)> posts)
+    private static List<object> BuildItems(IReadOnlyList<RoutedContentDocument> posts)
     {
         var items = new List<object>(posts.Count);
-        foreach (var (item, route) in posts)
+        foreach (var routedDocument in posts)
         {
+            var item = routedDocument.Document;
+            var route = routedDocument.Route;
             var entry = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["title"] = item.Title,

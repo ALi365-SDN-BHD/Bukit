@@ -18,7 +18,7 @@ internal sealed class ImageLocalizeStage : IContentStage
 
     public async Task<ContentStageOutput> ExecuteAsync(ContentStageInput input, CancellationToken cancellationToken)
     {
-        var loadResult = new ContentLoadResult(input.Items, input.BodyStore);
+        var loadResult = new RawContentLoadResult(ToRawDocuments(input.Documents), input.BodyStore);
 
         var sw = Stopwatch.StartNew();
         loadResult = await _factory.LocalizeContentImagesAsync(
@@ -26,6 +26,20 @@ internal sealed class ImageLocalizeStage : IContentStage
             input.MediaCacheDir, input.Logger, cancellationToken);
         sw.Stop();
 
-        return new ContentStageOutput(loadResult.Items, loadResult.BodyStore, Name, sw.ElapsedMilliseconds, null);
+        var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents);
+
+        return new ContentStageOutput(documents, loadResult.BodyStore, Name, sw.ElapsedMilliseconds, null);
     }
+
+    private static IReadOnlyList<RawContentDocument> ToRawDocuments(IReadOnlyList<ContentDocument> documents)
+        => documents
+            .Select(document => new RawContentDocument(
+                document.Id,
+                document.Title,
+                document.Slug,
+                document.PublishAt,
+                document.ContentHtml,
+                document.Fields,
+                document.BodyKey))
+            .ToArray();
 }

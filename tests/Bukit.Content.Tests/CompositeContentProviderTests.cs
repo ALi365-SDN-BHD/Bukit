@@ -9,16 +9,10 @@ public sealed class CompositeContentProviderTests
     [Fact]
     public async Task LoadAsync_ErrorFromOneProvider_DoesNotBreakOthers()
     {
-        var goodProvider = new TestProvider(new ContentLoadResult(
+        var goodProvider = new TestProvider(new RawContentLoadResult(
             new[]
             {
-                new ContentItem(
-                    Id: "good-1",
-                    Title: "Good",
-                    Slug: "good",
-                    PublishAt: DateTimeOffset.UtcNow,
-                    ContentHtml: null,
-            Fields: null)
+                Document("good-1", "Good", "good")
             },
             new NullBodyStore()));
 
@@ -31,14 +25,14 @@ public sealed class CompositeContentProviderTests
         });
 
         await Assert.ThrowsAsync<ContentException>(() =>
-            composite.LoadAsync());
+            composite.LoadRawAsync());
     }
 
     [Fact]
     public async Task LoadAsync_WithCancellationToken_Propagates()
     {
-        var provider = new TestProvider(new ContentLoadResult(
-            Array.Empty<ContentItem>(),
+        var provider = new TestProvider(new RawContentLoadResult(
+            Array.Empty<RawContentDocument>(),
             new NullBodyStore()));
 
         using var cts = new CancellationTokenSource();
@@ -50,35 +44,23 @@ public sealed class CompositeContentProviderTests
         });
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
-            composite.LoadAsync(cts.Token));
+            composite.LoadRawAsync(cts.Token));
     }
 
     [Fact]
     public async Task LoadAsync_MultipleProviders_AssignsSourceKeys()
     {
-        var p1 = new TestProvider(new ContentLoadResult(
+        var p1 = new TestProvider(new RawContentLoadResult(
             new[]
             {
-                new ContentItem(
-                    Id: "item-1",
-                    Title: "Item 1",
-                    Slug: "item-1",
-                    PublishAt: DateTimeOffset.UtcNow,
-                    ContentHtml: null,
-            Fields: null)
+                Document("item-1", "Item 1", "item-1")
             },
             new NullBodyStore()));
 
-        var p2 = new TestProvider(new ContentLoadResult(
+        var p2 = new TestProvider(new RawContentLoadResult(
             new[]
             {
-                new ContentItem(
-                    Id: "item-2",
-                    Title: "Item 2",
-                    Slug: "item-2",
-                    PublishAt: DateTimeOffset.UtcNow,
-                    ContentHtml: null,
-            Fields: null)
+                Document("item-2", "Item 2", "item-2")
             },
             new NullBodyStore()));
 
@@ -88,30 +70,24 @@ public sealed class CompositeContentProviderTests
             ("markdown", "content", (IContentProvider)p2)
         });
 
-        var result = await composite.LoadAsync();
+        var result = await composite.LoadRawAsync();
 
-        Assert.Equal(2, result.Items.Count);
-        Assert.Equal("notion:item-1", result.Items[0].Id);
-        Assert.Equal("markdown:item-2", result.Items[1].Id);
+        Assert.Equal(2, result.Documents.Count);
+        Assert.Equal("notion:item-1", result.Documents[0].Id);
+        Assert.Equal("markdown:item-2", result.Documents[1].Id);
 
-        Assert.Equal("notion", ContentFieldReader.GetText(result.Items[0].Fields, "sourceKey"));
+        Assert.Equal("notion", ContentFieldReader.GetText(result.Documents[0].Fields, "sourceKey"));
 
-        Assert.Equal("markdown", ContentFieldReader.GetText(result.Items[1].Fields, "sourceKey"));
+        Assert.Equal("markdown", ContentFieldReader.GetText(result.Documents[1].Fields, "sourceKey"));
     }
 
     [Fact]
     public async Task LoadAsync_SourceCollectionMapping_SetsCollectionAndDuplicatesAdditionalCollections()
     {
-        var provider = new TestProvider(new ContentLoadResult(
+        var provider = new TestProvider(new RawContentLoadResult(
             new[]
             {
-                new ContentItem(
-                    Id: "company-1",
-                    Title: "Company 1",
-                    Slug: "company-1",
-                    PublishAt: DateTimeOffset.UtcNow,
-                    ContentHtml: null,
-            Fields: null)
+                Document("company-1", "Company 1", "company-1")
             },
             new NullBodyStore()));
 
@@ -121,43 +97,31 @@ public sealed class CompositeContentProviderTests
         };
         var composite = new CompositeContentProvider(providers);
 
-        var result = await composite.LoadAsync();
+        var result = await composite.LoadRawAsync();
 
-        Assert.Equal(3, result.Items.Count);
-        Assert.Equal("companies-db:company-1", result.Items[0].Id);
-        Assert.Equal("companies", ContentFieldReader.GetText(result.Items[0].Fields, "collection"));
-        Assert.Equal("companies-db:company-1:china_companies", result.Items[1].Id);
-        Assert.Equal("china_companies", ContentFieldReader.GetText(result.Items[1].Fields, "collection"));
-        Assert.Equal("companies-db:company-1:malaysia_companies", result.Items[2].Id);
-        Assert.Equal("malaysia_companies", ContentFieldReader.GetText(result.Items[2].Fields, "collection"));
+        Assert.Equal(3, result.Documents.Count);
+        Assert.Equal("companies-db:company-1", result.Documents[0].Id);
+        Assert.Equal("companies", ContentFieldReader.GetText(result.Documents[0].Fields, "collection"));
+        Assert.Equal("companies-db:company-1:china_companies", result.Documents[1].Id);
+        Assert.Equal("china_companies", ContentFieldReader.GetText(result.Documents[1].Fields, "collection"));
+        Assert.Equal("companies-db:company-1:malaysia_companies", result.Documents[2].Id);
+        Assert.Equal("malaysia_companies", ContentFieldReader.GetText(result.Documents[2].Fields, "collection"));
     }
 
     [Fact]
     public async Task LoadAsync_MultipleProvidersWithSameSource_MergeItems()
     {
-        var p1 = new TestProvider(new ContentLoadResult(
+        var p1 = new TestProvider(new RawContentLoadResult(
             new[]
             {
-                new ContentItem(
-                    Id: "a",
-                    Title: "A",
-                    Slug: "a",
-                    PublishAt: DateTimeOffset.UtcNow,
-                    ContentHtml: null,
-            Fields: null)
+                Document("a", "A", "a")
             },
             new NullBodyStore()));
 
-        var p2 = new TestProvider(new ContentLoadResult(
+        var p2 = new TestProvider(new RawContentLoadResult(
             new[]
             {
-                new ContentItem(
-                    Id: "b",
-                    Title: "B",
-                    Slug: "b",
-                    PublishAt: DateTimeOffset.UtcNow,
-                    ContentHtml: null,
-            Fields: null)
+                Document("b", "B", "b")
             },
             new NullBodyStore()));
 
@@ -167,11 +131,11 @@ public sealed class CompositeContentProviderTests
             ("notion", "content", (IContentProvider)p2)
         });
 
-        var result = await composite.LoadAsync();
+        var result = await composite.LoadRawAsync();
 
-        Assert.Equal(2, result.Items.Count);
-        Assert.Equal("notion:a", result.Items[0].Id);
-        Assert.Equal("notion:b", result.Items[1].Id);
+        Assert.Equal(2, result.Documents.Count);
+        Assert.Equal("notion:a", result.Documents[0].Id);
+        Assert.Equal("notion:b", result.Documents[1].Id);
     }
 
     [Fact]
@@ -179,26 +143,26 @@ public sealed class CompositeContentProviderTests
     {
         var composite = new CompositeContentProvider(Array.Empty<(string, string, IContentProvider)>());
 
-        var result = await composite.LoadAsync();
+        var result = await composite.LoadRawAsync();
 
         Assert.NotNull(result);
-        Assert.Empty(result.Items);
+        Assert.Empty(result.Documents);
         Assert.NotNull(result.BodyStore);
     }
 
     private sealed class TestProvider : IContentProvider
     {
-        private readonly ContentLoadResult _result;
+        private readonly RawContentLoadResult _result;
 
-        public TestProvider(ContentLoadResult result)
+        public TestProvider(RawContentLoadResult result)
         {
             _result = result;
         }
 
-        public Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+        public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(_result);
+            return Task.FromResult(ToRawResult(_result));
         }
     }
 
@@ -211,15 +175,26 @@ public sealed class CompositeContentProviderTests
             _exception = exception;
         }
 
-        public Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+        public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
         {
-            return Task.FromException<ContentLoadResult>(_exception);
+            return Task.FromException<RawContentLoadResult>(_exception);
         }
     }
 
+    private static RawContentLoadResult ToRawResult(RawContentLoadResult result) => result;
+
+    private static RawContentDocument Document(string id, string title, string slug)
+        => new(
+            Id: id,
+            Title: title,
+            Slug: slug,
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: null,
+            Fields: null);
+
     private sealed class NullBodyStore : IContentBodyStore
     {
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new ContentBody(string.Empty));
         }

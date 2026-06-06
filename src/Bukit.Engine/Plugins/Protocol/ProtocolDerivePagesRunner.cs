@@ -19,7 +19,7 @@ internal sealed class ProtocolDerivePagesRunner
         _invoker = invoker;
     }
 
-    public async Task<IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>> RunAsync(
+    public async Task<IReadOnlyList<RoutedContentDocument>> RunAsync(
         BuildContext context,
         ExternalPluginConfig config,
         string pluginName,
@@ -70,13 +70,13 @@ internal sealed class ProtocolDerivePagesRunner
             context.Logger.Info($"plugin {pluginName} {log.Level}: {log.Message}");
         }
 
-        var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
+        var derived = new List<RoutedContentDocument>();
         foreach (var page in response.DerivedPages ?? Array.Empty<ProtocolDerivedPage>())
         {
             var fields = page.Fields is null
                 ? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                 : new Dictionary<string, object>(JsonElementMaterializer.Materialize(page.Fields)!, StringComparer.OrdinalIgnoreCase);
-            var item = new ContentItem(
+            var document = ContentDocument.Create(
                 page.Id,
                 page.Title,
                 page.Slug,
@@ -85,7 +85,7 @@ internal sealed class ProtocolDerivePagesRunner
                 ContentFieldReader.ToFieldMap(fields));
             var route = new RouteInfo(page.Url, page.OutputPath, page.Template);
             var lastModified = page.LastModified ?? page.PublishAt;
-            derived.Add((item, route, lastModified));
+            derived.Add(new RoutedContentDocument(document, route, lastModified));
         }
 
         return derived;
@@ -116,18 +116,30 @@ internal sealed class ProtocolDerivePagesRunner
             {
                 ["projectRoot"] = context.RootDir,
                 ["outputDir"] = context.OutputDir,
-                ["routedPages"] = new JsonArray(context.Routed
-                    .Select(x => (JsonNode)new JsonObject
-                    {
-                        ["id"] = x.Item.Id,
-                        ["url"] = x.Route.Url,
-                        ["outputPath"] = x.Route.OutputPath,
-                        ["fields"] = ProtocolJsonHelper.ToJsonNode(x.Item.Fields)
-                    })
-                    .ToArray())
+                ["routedPages"] = new JsonArray(BuildRoutedPages(context).ToArray())
             }
         };
 
         return request.ToJsonString();
+    }
+
+    private static IEnumerable<JsonNode> BuildRoutedPages(BuildContext context)
+    {
+        if (context.RoutedDocuments.Count > 0)
+        {
+            foreach (var document in context.RoutedDocuments)
+            {
+                yield return new JsonObject
+                {
+                    ["id"] = document.Document.Id,
+                    ["url"] = document.Route.Url,
+                    ["outputPath"] = document.Route.OutputPath,
+                    ["fields"] = ProtocolJsonHelper.ToJsonNode(document.Document.Fields),
+                    ["content"] = ProtocolContentJsonBuilder.Build(document.Document.Record)
+                };
+            }
+
+            yield break;
+        }
     }
 }

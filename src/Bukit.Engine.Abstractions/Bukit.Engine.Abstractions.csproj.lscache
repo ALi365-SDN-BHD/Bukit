@@ -57,10 +57,11 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 ContentBody.cs
 ContentBodyResolver.cs
 ContentField.cs
-ContentItem.cs
-ContentLoadResult.cs
+ContentDocument.cs
+ContentModelSchema.cs
 IContentBodyStore.cs
 NullContentBodyStore.cs
+RawContentDocument.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
  Bukit.Engine.Abstractions.AssemblyInfo.cs

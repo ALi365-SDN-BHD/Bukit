@@ -15,7 +15,7 @@ internal static class SeoJsonLdBuilder
         string canonical,
         string? image,
         string routeUrl,
-        ContentItem? item,
+        ContentDocument? document,
         IReadOnlyDictionary<string, ContentField>? itemListFields,
         bool isPost,
         bool isCollectionPage,
@@ -106,20 +106,20 @@ internal static class SeoJsonLdBuilder
             }));
         }
 
-        if (isPost && item is not null)
+        if (isPost && document is not null)
         {
             var effectiveType = schemaType ?? "BlogPosting";
             if (string.Equals(effectiveType, "FAQPage", StringComparison.OrdinalIgnoreCase) && geo.FaqItems is { Count: > 0 })
             {
-                BuildFaqPageJsonLd(result, title, description, canonical, image, item, geo.FaqItems);
+                BuildFaqPageJsonLd(result, title, description, canonical, image, document, geo.FaqItems);
             }
             else if (string.Equals(effectiveType, "HowTo", StringComparison.OrdinalIgnoreCase) && geo.HowToSteps is { Count: > 0 })
             {
-                BuildHowToJsonLd(result, title, description, canonical, image, item, geo.HowToSteps);
+                BuildHowToJsonLd(result, title, description, canonical, image, document, geo.HowToSteps);
             }
             else
             {
-                BuildArticleJsonLd(result, effectiveType, title, description, canonical, image, item, geo, record, config.Site.Language);
+                BuildArticleJsonLd(result, effectiveType, title, description, canonical, image, document, geo, record, config.Site.Language);
             }
         }
 
@@ -154,7 +154,7 @@ internal static class SeoJsonLdBuilder
         string? description,
         string canonical,
         string? image,
-        ContentItem item,
+        ContentDocument document,
         SeoGeoMetaParser.ParsedGeoMeta geo,
         ContentRecord? record,
         string? language)
@@ -166,14 +166,15 @@ internal static class SeoJsonLdBuilder
             ["headline"] = title,
             ["description"] = description,
             ["url"] = canonical,
-            ["datePublished"] = item.PublishAt.ToString("O")
+            ["datePublished"] = document.Record.Lifecycle.PublishedAt.ToString("O")
         };
         if (!string.IsNullOrWhiteSpace(image))
         {
             article["image"] = image;
         }
 
-        if (SeoModelBuilder.TryGetUpdateTime(item, out var updated))
+        if (document.Record.Lifecycle.UpdatedAt is { } updated ||
+            SeoModelBuilder.TryGetUpdateTime(document, out updated))
         {
             article["dateModified"] = updated.ToString("O");
         }
@@ -197,7 +198,7 @@ internal static class SeoJsonLdBuilder
             article["inLanguage"] = contentLanguage;
         }
 
-        var author = geo.GeoAuthor?.Name ?? record?.Ownership.Author ?? SeoModelBuilder.FirstTextField(item, "author");
+        var author = geo.GeoAuthor?.Name ?? record?.Ownership.Author ?? SeoModelBuilder.FirstTextField(document.Fields, "author");
         if (!string.IsNullOrWhiteSpace(author))
         {
             var person = new Dictionary<string, object?>
@@ -225,7 +226,7 @@ internal static class SeoJsonLdBuilder
 
         var tags = record?.Classification.Tags.Count > 0
             ? record.Classification.Tags
-            : ContentFieldReader.GetTextList(item.Fields, "tags");
+            : ContentFieldReader.GetTextList(document.Fields, "tags");
         if (tags is { Count: > 0 })
         {
             article["keywords"] = tags;
@@ -240,7 +241,7 @@ internal static class SeoJsonLdBuilder
         string? description,
         string canonical,
         string? image,
-        ContentItem item,
+        ContentDocument document,
         IReadOnlyList<GeoFaqModel> faqItems)
     {
         var mainEntity = new List<Dictionary<string, object?>>();
@@ -265,7 +266,7 @@ internal static class SeoJsonLdBuilder
             ["headline"] = title,
             ["description"] = description,
             ["url"] = canonical,
-            ["datePublished"] = item.PublishAt.ToString("O"),
+            ["datePublished"] = document.Record.Lifecycle.PublishedAt.ToString("O"),
             ["mainEntity"] = mainEntity
         };
 
@@ -283,7 +284,7 @@ internal static class SeoJsonLdBuilder
         string? description,
         string canonical,
         string? image,
-        ContentItem item,
+        ContentDocument document,
         IReadOnlyList<GeoHowToStepModel> steps)
     {
         var stepList = new List<Dictionary<string, object?>>();
@@ -318,7 +319,7 @@ internal static class SeoJsonLdBuilder
             ["name"] = title,
             ["description"] = description ?? title,
             ["url"] = canonical,
-            ["datePublished"] = item.PublishAt.ToString("O"),
+            ["datePublished"] = document.Record.Lifecycle.PublishedAt.ToString("O"),
             ["step"] = stepList
         };
 

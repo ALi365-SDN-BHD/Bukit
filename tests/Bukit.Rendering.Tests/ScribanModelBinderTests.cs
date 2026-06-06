@@ -229,6 +229,7 @@ public sealed class ScribanModelBinderTests
         var obj = ScribanModelBinder.ToScriptObject(model);
         var page = Assert.IsType<ScriptObject>(obj["page"]);
         var content = Assert.IsType<ScriptObject>(page["content_model"]);
+        Assert.Same(content, page["content_record"]);
         var provenance = Assert.IsType<ScriptObject>(page["provenance"]);
         var trust = Assert.IsType<ScriptObject>(page["trust"]);
         var entities = Assert.IsType<ScriptArray>(page["entities"]);

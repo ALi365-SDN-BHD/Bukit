@@ -36,7 +36,7 @@ public sealed class PublishCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task SeoCommand_AuditPrefersSeoReportWhenBothReportsExist()
+    public async Task SeoCommand_AuditPrefersPublishReportWhenBothReportsExist()
     {
         Directory.CreateDirectory(Path.Combine(_root, ".bukit"));
         WriteSeoReport(Path.Combine(_root, ".bukit", "seo-report.json"), 0, 0, "[]");
@@ -48,7 +48,7 @@ public sealed class PublishCommandTests : IDisposable
 
         var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "audit", "--dir", _root }));
 
-        Assert.Equal(0, exitCode);
+        Assert.Equal(1, exitCode);
     }
 
     [Fact]

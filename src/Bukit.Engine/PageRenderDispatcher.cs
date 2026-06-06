@@ -45,8 +45,8 @@ internal static class PageRenderDispatcher
         int maxDegreeOfParallelism,
         ILogger logger,
         CancellationToken cancellationToken,
-        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null,
-        Func<ContentItem, RouteInfo, PageInfo, string, string>? htmlPostProcessor = null,
+        Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder = null,
+        Func<ContentDocument, RouteInfo, PageInfo, string, string>? htmlPostProcessor = null,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
         Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null)
     {
@@ -73,10 +73,14 @@ internal static class PageRenderDispatcher
             {
                 case RenderEntryKind.Page:
                     {
-                        var item = entry.Item!;
+                        var document = entry.Document!;
                         var route = entry.Route;
                         var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
-                        var mh = IncrementalBuildEngine.ComputeMetadataHash(item);
+                        var metadataHashSw = Stopwatch.StartNew();
+                        var mh = IncrementalBuildEngine.ComputeMetadataHash(document);
+                        metadataHashSw.Stop();
+                        stageMetrics.Increment("metadataHash");
+                        stageMetrics.AddDuration("metadataHash", metadataHashSw.ElapsedMilliseconds);
                         var rh = IncrementalBuildEngine.ComputeRouteHash(route);
                         var outputPath = Path.Combine(outputDir, route.OutputPath);
                         var outputExists = File.Exists(outputPath);
@@ -91,10 +95,10 @@ internal static class PageRenderDispatcher
                         string? contentHash = null;
                         if (canEvaluateSkip)
                         {
-                            if (IncrementalBuildEngine.TryComputeStableContentHash(item, bodyStore, mh, out var sch))
+                            if (IncrementalBuildEngine.TryComputeStableContentHash(document, bodyStore, mh, out var sch))
                                 contentHash = sch;
                             else
-                                contentHash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
+                                contentHash = IncrementalBuildEngine.ComputeContentHash(document, bodyStore);
                         }
 
                         var canSkip = canEvaluateSkip && existing!.ContentHash == contentHash;
@@ -120,39 +124,43 @@ internal static class PageRenderDispatcher
                             renderReasons.AddOrUpdate("full_render", 1, (_, v) => v + 1);
                         }
 
-                        var content = await ContentBodyResolver.GetHtmlAsync(item, bodyStore, ct);
-                        var contentRecord = CanonicalContentGraphBuilder.ToRecord(item);
+                        var contentRecord = document.Record;
+                        var bodyLoadSw = Stopwatch.StartNew();
+                        var content = await ContentBodyResolver.GetHtmlAsync(document, bodyStore, ct);
+                        bodyLoadSw.Stop();
+                        stageMetrics.Increment("bodyLoad");
+                        stageMetrics.AddDuration("bodyLoad", bodyLoadSw.ElapsedMilliseconds);
                         var pageInfo = new PageInfo
                         {
-                            Title = item.Title,
+                            Title = document.Title,
                             Url = route.Url,
                             Content = content,
-                            Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(item),
-                            TableOfContents = SpecialListRenderer.GetTableOfContents(item),
-                            PublishDate = item.PublishAt,
-                            Fields = item.Fields,
+                            Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
+                            TableOfContents = SpecialListRenderer.GetTableOfContents(document),
+                            PublishDate = document.PublishAt,
+                            Fields = document.Fields,
                             ContentRecord = contentRecord,
                             Entities = contentRecord.Entities,
                             Provenance = contentRecord.Provenance,
                             Trust = contentRecord.Trust,
                             Representations = PublishRepresentationRegistry.DocumentKinds(),
-                            Seo = seoBuilder?.Invoke(item, route)
+                            Seo = seoBuilder?.Invoke(document, route)
                         };
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
                         var html = renderer.RenderPage(route.Template, pageModel);
-                        if (htmlPostProcessor is not null) html = htmlPostProcessor(item, route, pageInfo, html);
+                        if (htmlPostProcessor is not null) html = htmlPostProcessor(document, route, pageInfo, html);
                         await WriteUtf8LockedAsync(outputDir, route.OutputPath, html, writeLocks, ct);
                         Interlocked.Increment(ref renderedCount);
                         stageMetrics.Increment("pageRender");
                         stageMetrics.AddDuration("pageRender", 0);
-                        if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(item, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = renderDependencyHash };
+                        if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(document, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = renderDependencyHash };
                         break;
                     }
 
                 case RenderEntryKind.List:
                     {
                         var listRoute = entry.Route;
-                        var source = entry.SourceItems!;
+                        var source = entry.SourceDocuments!;
                         var includeContent = entry.IncludeContent;
                         var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
                         var rh = IncrementalBuildEngine.ComputeRouteHash(listRoute);
@@ -219,197 +227,8 @@ internal static class PageRenderDispatcher
             stageMetrics.Snapshot());
     }
 
-    internal static async Task<RenderResult> RenderPagesAsync(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> renderQueue,
-        IContentBodyStore bodyStore,
-        ITemplateRenderer renderer,
-        SiteModel siteModel,
-        string outputDir,
-        string templateHash,
-        string renderDependencyHash,
-        bool incrementalEnabled,
-        BuildManifest manifest,
-        ConcurrentDictionary<string, BuildManifestEntry>? manifestEntries,
-        ConcurrentDictionary<string, byte> currentKeys,
-        int maxDegreeOfParallelism,
-        ILogger logger,
-        CancellationToken cancellationToken,
-        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null,
-        Func<ContentItem, RouteInfo, PageInfo, string, string>? htmlPostProcessor = null)
-    {
-        var workItems = new List<(ContentItem Item, RouteInfo Route, string Key)>(renderQueue.Count);
-        var warnedOutputPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var (item, route) in renderQueue)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
-            BuildPathUtils.WarnIfWindowsIncompatible(route.OutputPath, warnedOutputPaths, logger);
-            currentKeys.TryAdd(key, 0);
-            workItems.Add((item, route, key));
-        }
-
-        var renderedCount = 0;
-        var skippedCount = 0;
-        var renderReasons = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        var stageMetrics = new BuildStageMetricsCollector();
-
-        if (maxDegreeOfParallelism <= 0)
-        {
-            maxDegreeOfParallelism = Environment.ProcessorCount;
-        }
-
-        maxDegreeOfParallelism = Math.Clamp(maxDegreeOfParallelism, 1, Math.Max(1, Environment.ProcessorCount * 2));
-
-        var parallelOptions = new ParallelOptions
-        {
-            MaxDegreeOfParallelism = maxDegreeOfParallelism,
-            CancellationToken = cancellationToken
-        };
-        var writeLocks = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
-
-        await Parallel.ForEachAsync(workItems, parallelOptions, async (work, ct) =>
-        {
-            var item = work.Item;
-            var route = work.Route;
-            var key = work.Key;
-            var metadataHashStopwatch = Stopwatch.StartNew();
-            var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(item);
-            metadataHashStopwatch.Stop();
-            stageMetrics.Increment("metadataHash");
-            stageMetrics.AddDuration("metadataHash", metadataHashStopwatch.ElapsedMilliseconds);
-            var routeHash = IncrementalBuildEngine.ComputeRouteHash(route);
-            var outputPath = Path.Combine(outputDir, route.OutputPath);
-            var outputExists = File.Exists(outputPath);
-
-            BuildManifestEntry? existing = null;
-            var hasExisting = incrementalEnabled && manifestEntries is not null && manifestEntries.TryGetValue(key, out existing) && existing is not null;
-
-            var canEvaluateSkip = incrementalEnabled &&
-                hasExisting &&
-                outputExists &&
-                existing!.TemplateHash == templateHash &&
-                existing.MetadataHash == metadataHash &&
-                existing.RouteHash == routeHash &&
-                existing.RenderDependencyHash == renderDependencyHash;
-
-            string? contentHash = null;
-            if (canEvaluateSkip)
-            {
-                var stableFingerprintStopwatch = Stopwatch.StartNew();
-                if (IncrementalBuildEngine.TryComputeStableContentHash(item, bodyStore, metadataHash, out var stableContentHash))
-                {
-                    stableFingerprintStopwatch.Stop();
-                    stageMetrics.Increment("stableContentHash");
-                    stageMetrics.AddDuration("stableContentHash", stableFingerprintStopwatch.ElapsedMilliseconds);
-                    contentHash = stableContentHash;
-                }
-                else
-                {
-                    stableFingerprintStopwatch.Stop();
-
-                    var contentHashStopwatch = Stopwatch.StartNew();
-                    contentHash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
-                    contentHashStopwatch.Stop();
-                    stageMetrics.Increment("contentHash");
-                    stageMetrics.AddDuration("contentHash", contentHashStopwatch.ElapsedMilliseconds);
-                }
-            }
-
-            var canSkip = canEvaluateSkip &&
-                existing!.ContentHash == contentHash;
-
-            if (canSkip)
-            {
-                Interlocked.Increment(ref skippedCount);
-                renderReasons.AddOrUpdate("unchanged", 1, (_, v) => v + 1);
-                return;
-            }
-
-            if (incrementalEnabled)
-            {
-                var reason = !hasExisting ? "new_page"
-                    : !outputExists ? "output_missing"
-                    : existing!.TemplateHash != templateHash ? "template_changed"
-                    : existing.MetadataHash != metadataHash ? "content_changed"
-                    : existing.ContentHash != contentHash ? "content_changed"
-                    : existing.RouteHash != routeHash ? "route_changed"
-                    : existing.RenderDependencyHash != renderDependencyHash ? "render_dependency_changed"
-                    : "render";
-                renderReasons.AddOrUpdate(reason, 1, (_, v) => v + 1);
-            }
-            else
-            {
-                renderReasons.AddOrUpdate("full_render", 1, (_, v) => v + 1);
-            }
-
-            var bodyLoadStopwatch = Stopwatch.StartNew();
-            var content = await ContentBodyResolver.GetHtmlAsync(item, bodyStore, ct);
-            bodyLoadStopwatch.Stop();
-            stageMetrics.Increment("bodyLoad");
-            stageMetrics.AddDuration("bodyLoad", bodyLoadStopwatch.ElapsedMilliseconds);
-
-            var contentRecord = CanonicalContentGraphBuilder.ToRecord(item);
-            var pageInfo = new PageInfo
-            {
-                Title = item.Title,
-                Url = route.Url,
-                Content = content,
-                Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(item),
-                TableOfContents = SpecialListRenderer.GetTableOfContents(item),
-                PublishDate = item.PublishAt,
-                Fields = item.Fields,
-                ContentRecord = contentRecord,
-                Entities = contentRecord.Entities,
-                Provenance = contentRecord.Provenance,
-                Trust = contentRecord.Trust,
-                Representations = PublishRepresentationRegistry.DocumentKinds(),
-                Seo = seoBuilder?.Invoke(item, route)
-            };
-
-            var pageModel = new PageModel
-            {
-                Site = siteModel,
-                Page = pageInfo
-            };
-
-            var pageRenderStopwatch = Stopwatch.StartNew();
-            var html = renderer.RenderPage(route.Template, pageModel);
-            if (htmlPostProcessor is not null)
-            {
-                html = htmlPostProcessor(item, route, pageInfo, html);
-            }
-            pageRenderStopwatch.Stop();
-            stageMetrics.Increment("pageRender");
-            stageMetrics.AddDuration("pageRender", pageRenderStopwatch.ElapsedMilliseconds);
-            await WriteUtf8LockedAsync(outputDir, route.OutputPath, html, writeLocks, ct);
-            Interlocked.Increment(ref renderedCount);
-
-            if (incrementalEnabled && manifestEntries is not null)
-            {
-                manifestEntries[key] = new BuildManifestEntry
-                {
-                    OutputPath = key,
-                    Url = route.Url,
-                    Template = route.Template,
-                    MetadataHash = metadataHash,
-                    ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(item, metadataHash, content),
-                    RouteHash = routeHash,
-                    TemplateHash = templateHash,
-                    RenderDependencyHash = renderDependencyHash
-                };
-            }
-        });
-
-        return new RenderResult(
-            renderedCount,
-            skippedCount,
-            new Dictionary<string, int>(renderReasons, StringComparer.OrdinalIgnoreCase),
-            stageMetrics.Snapshot());
-    }
-
     internal static async Task<SpecialListRenderResult> RenderSpecialListsAsync(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> routed,
         IContentBodyStore bodyStore,
         ITemplateRenderer renderer,
         SiteModel siteModel,
@@ -426,7 +245,7 @@ internal static class PageRenderDispatcher
         ConcurrentDictionary<string, int> renderReasons,
         int maxDegreeOfParallelism,
         CancellationToken cancellationToken,
-        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null,
+        Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder = null,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
         Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null,
         ThemeTemplateResolver? templateResolver = null)

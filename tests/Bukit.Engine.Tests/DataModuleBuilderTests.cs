@@ -10,7 +10,7 @@ public sealed class DataModuleBuilderTests
     public void BuildModules_WithEmptyItems_ReturnsNull()
     {
         var result = DataModuleBuilder.BuildModules(
-            Array.Empty<ContentItem>(), "zh-CN", new StubBodyStore());
+            Array.Empty<ContentDocument>(), "zh-CN", new StubBodyStore());
 
         Assert.Null(result);
     }
@@ -20,27 +20,12 @@ public sealed class DataModuleBuilderTests
     {
         var items = new[]
         {
-            new ContentItem(
-                Id: "m1",
-                Title: "Hero Banner",
-                Slug: "hero-banner",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>hero</p>",
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "hero" })),
-            new ContentItem(
-                Id: "m2",
-                Title: "Footer",
-                Slug: "footer",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>footer</p>",
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "footer" })),
-            new ContentItem(
-                Id: "m3",
-                Title: "Hero Secondary",
-                Slug: "hero-secondary",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>hero2</p>",
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "hero" })),
+            CreateDocument("m1", "Hero Banner", "hero-banner", "<p>hero</p>",
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "hero" })),
+            CreateDocument("m2", "Footer", "footer", "<p>footer</p>",
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "footer" })),
+            CreateDocument("m3", "Hero Secondary", "hero-secondary", "<p>hero2</p>",
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "hero" })),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -58,13 +43,11 @@ public sealed class DataModuleBuilderTests
     {
         var items = new[]
         {
-            new ContentItem(
-                Id: "m1",
-                Title: "No Type",
-                Slug: "no-type",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>module</p>",
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>())),
+            CreateDocument("m1", "No Type", "no-type", "<p>module</p>",
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+                {
+                    ["sourceMode"] = "data"
+                })),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -78,40 +61,20 @@ public sealed class DataModuleBuilderTests
     {
         var items = new[]
         {
-            new ContentItem(
-                Id: "c",
-                Title: "Charlie",
-                Slug: "charlie",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>c</p>",
-                Fields: ContentFieldReader.WithValues(
+            CreateDocument("c", "Charlie", "charlie", "<p>c</p>",
+                ContentFieldReader.WithValues(
                     new Dictionary<string, ContentField> { ["order"] = new("number", 3d) },
                     new Dictionary<string, object> { ["type"] = "widget" })),
-            new ContentItem(
-                Id: "a",
-                Title: "Alpha",
-                Slug: "alpha",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>a</p>",
-                Fields: ContentFieldReader.WithValues(
+            CreateDocument("a", "Alpha", "alpha", "<p>a</p>",
+                ContentFieldReader.WithValues(
                     new Dictionary<string, ContentField> { ["order"] = new("number", 1d) },
                     new Dictionary<string, object> { ["type"] = "widget" })),
-            new ContentItem(
-                Id: "b1",
-                Title: "Beta",
-                Slug: "beta",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>b1</p>",
-                Fields: ContentFieldReader.WithValues(
+            CreateDocument("b1", "Beta", "beta", "<p>b1</p>",
+                ContentFieldReader.WithValues(
                     new Dictionary<string, ContentField> { ["order"] = new("number", 2d) },
                     new Dictionary<string, object> { ["type"] = "widget" })),
-            new ContentItem(
-                Id: "b2",
-                Title: "Beta A",
-                Slug: "beta-a",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>b2</p>",
-                Fields: ContentFieldReader.WithValues(
+            CreateDocument("b2", "Beta A", "beta-a", "<p>b2</p>",
+                ContentFieldReader.WithValues(
                     new Dictionary<string, ContentField> { ["order"] = new("number", 2d) },
                     new Dictionary<string, object> { ["type"] = "widget" })),
         };
@@ -132,20 +95,10 @@ public sealed class DataModuleBuilderTests
     {
         var items = new[]
         {
-            new ContentItem(
-                Id: "m1",
-                Title: "Enabled",
-                Slug: "enabled",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>enabled</p>",
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "widget" })),
-            new ContentItem(
-                Id: "m2",
-                Title: "Disabled",
-                Slug: "disabled",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>disabled</p>",
-                Fields: ContentFieldReader.WithValues(
+            CreateDocument("m1", "Enabled", "enabled", "<p>enabled</p>",
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "widget" })),
+            CreateDocument("m2", "Disabled", "disabled", "<p>disabled</p>",
+                ContentFieldReader.WithValues(
                     new Dictionary<string, ContentField> { ["enabled"] = new("bool", false) },
                     new Dictionary<string, object> { ["type"] = "widget" })),
         };
@@ -166,13 +119,8 @@ public sealed class DataModuleBuilderTests
         };
         var items = new[]
         {
-            new ContentItem(
-                Id: "mod-1",
-                Title: "Test Module",
-                Slug: "test-module",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: "<p>content</p>",
-                Fields: ContentFieldReader.WithValues(fields, new Dictionary<string, object> { ["type"] = "banner" })),
+            CreateDocument("mod-1", "Test Module", "test-module", "<p>content</p>",
+                ContentFieldReader.WithValues(fields, new Dictionary<string, object> { ["type"] = "banner" })),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -192,13 +140,8 @@ public sealed class DataModuleBuilderTests
     {
         var items = new[]
         {
-            new ContentItem(
-                Id: "m1",
-                Title: "From Store",
-                Slug: "from-store",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: null,
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "widget" })),
+            CreateDocument("m1", "From Store", "from-store", null,
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "widget" })),
         };
         var bodyStore = new StubBodyStore(html: "<p>stored content</p>");
 
@@ -207,6 +150,14 @@ public sealed class DataModuleBuilderTests
         Assert.NotNull(result);
         Assert.Equal("<p>stored content</p>", result!["widget"][0].Content);
     }
+
+    private static ContentDocument CreateDocument(
+        string id,
+        string title,
+        string slug,
+        string? contentHtml,
+        IReadOnlyDictionary<string, ContentField>? fields)
+        => ContentDocument.Create(id, title, slug, DateTimeOffset.UtcNow, contentHtml, fields);
 
     private sealed class StubBodyStore : IContentBodyStore
     {
@@ -217,7 +168,7 @@ public sealed class DataModuleBuilderTests
             _html = html;
         }
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new ContentBody(_html));
         }

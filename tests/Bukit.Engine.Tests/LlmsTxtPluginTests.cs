@@ -214,13 +214,13 @@ public sealed class LlmsTxtPluginTests : IDisposable
             meta["description"] = itemDescription;
         }
 
-        var item = new ContentItem(
-            Id: "page-1",
-            Title: "Test Page",
-            Slug: "test-page",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>Hello world</p>",
-            Fields: ContentFieldReader.ToFieldMap(meta));
+        var item = ContentDocument.Create(
+            id: "page-1",
+            title: "Test Page",
+            slug: "test-page",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>Hello world</p>",
+            fields: ContentFieldReader.ToFieldMap(meta));
         var route = new RouteInfo("/page-1/", "page-1/index.html", "pages/page.html");
 
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
@@ -255,7 +255,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
             OutputDir = outputDir,
             BaseUrl = "/",
             LayoutsDir = Path.Combine(_root, "layouts"),
-            Routed = new[] { (item, route) },
+            RoutedDocuments = new[] { (item, route) }.ToRoutedDocuments(),
             ContentGraph = new CanonicalContentGraph(
             [
                 new ContentRecord(

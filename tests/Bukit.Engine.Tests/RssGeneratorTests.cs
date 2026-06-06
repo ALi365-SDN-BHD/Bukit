@@ -10,19 +10,19 @@ namespace Bukit.Engine.Tests;
 
 public sealed class RssGeneratorTests
 {
-    private static ContentItem Item(
+    private static ContentDocument Document(
         string slug = "my-slug",
         string type = "post",
         string? summary = null,
         IReadOnlyList<string>? tags = null,
         DateTimeOffset? publishAt = null) =>
-        new(
-            Id: slug,
-            Title: "Title " + slug,
-            Slug: slug,
-            PublishAt: publishAt ?? new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(BuildMeta(type, summary, tags)));
+        ContentDocument.Create(
+            slug,
+            "Title " + slug,
+            slug,
+            publishAt ?? new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            null,
+            ContentFieldReader.ToFieldMap(BuildMeta(type, summary, tags)));
 
     private static IReadOnlyDictionary<string, object> BuildMeta(string type, string? summary, IReadOnlyList<string>? tags)
     {
@@ -38,7 +38,7 @@ public sealed class RssGeneratorTests
 
     private sealed class InMemoryBodyStore : IContentBodyStore
     {
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new ContentBody($"<p>Body for {item.Slug}</p>"));
         }
@@ -57,13 +57,14 @@ public sealed class RssGeneratorTests
         var outDir = Path.Combine(root, "dist");
         Directory.CreateDirectory(outDir);
 
-        var items = new List<(ContentItem Item, RouteInfo Route)>
+        var documents = new List<RoutedContentDocument>
         {
-            (Item("post-1", "post", "Summary one", publishAt: new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero)),
-             new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
+            new(
+                Document("post-1", "post", "Summary one", publishAt: new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero)),
+                new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
 
-        RssGenerator.Generate(outDir, "https://example.com", "/", "My Site", RssCollections, items, new InMemoryBodyStore());
+        RssGenerator.Generate(outDir, "https://example.com", "/", "My Site", RssCollections, documents, new InMemoryBodyStore());
 
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", rss, StringComparison.Ordinal);
@@ -91,7 +92,7 @@ public sealed class RssGeneratorTests
             "/",
             "My Site",
             null,
-            Array.Empty<(ContentItem Item, RouteInfo Route)>(),
+            Array.Empty<RoutedContentDocument>(),
             new InMemoryBodyStore(),
             siteDescription: "Useful site summary");
 
@@ -106,15 +107,16 @@ public sealed class RssGeneratorTests
         var outDir = Path.Combine(root, "dist");
         Directory.CreateDirectory(outDir);
 
-        var items = new List<(ContentItem Item, RouteInfo Route)>();
+        var documents = new List<RoutedContentDocument>();
         for (var i = 1; i <= 10; i++)
         {
-            items.Add((Item($"post-{i}", "post",
-                         publishAt: new DateTimeOffset(2024, 6, i, 0, 0, 0, TimeSpan.Zero)),
-                       new RouteInfo($"/blog/post-{i}/", $"blog/post-{i}/index.html", "pages/post.html")));
+            documents.Add(new RoutedContentDocument(
+                Document($"post-{i}", "post",
+                    publishAt: new DateTimeOffset(2024, 6, i, 0, 0, 0, TimeSpan.Zero)),
+                new RouteInfo($"/blog/post-{i}/", $"blog/post-{i}/index.html", "pages/post.html")));
         }
 
-        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", RssCollections, items, new InMemoryBodyStore(), maxItems: 3);
+        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", RssCollections, documents, new InMemoryBodyStore(), maxItems: 3);
 
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<title>Title post-10</title>", rss, StringComparison.Ordinal);
@@ -130,12 +132,14 @@ public sealed class RssGeneratorTests
         var outDir = Path.Combine(root, "dist");
         Directory.CreateDirectory(outDir);
 
-        var items = new List<(ContentItem Item, RouteInfo Route)>
+        var documents = new List<RoutedContentDocument>
         {
-            (Item("post-1", "post", publishAt: new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero)),
-             new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
-            (Item("page-1", "page", publishAt: new DateTimeOffset(2024, 6, 2, 0, 0, 0, TimeSpan.Zero)),
-             new RouteInfo("/pages/page-1/", "pages/page-1/index.html", "pages/page.html")),
+            new(
+                Document("post-1", "post", publishAt: new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero)),
+                new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
+            new(
+                Document("page-1", "page", publishAt: new DateTimeOffset(2024, 6, 2, 0, 0, 0, TimeSpan.Zero)),
+                new RouteInfo("/pages/page-1/", "pages/page-1/index.html", "pages/page.html")),
         };
 
         var collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
@@ -144,7 +148,7 @@ public sealed class RssGeneratorTests
             ["page"] = new() { Permalink = "/pages/{slug}/", Template = "pages/page.html", Output = new() { Rss = false } },
         };
 
-        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", collections, items, new InMemoryBodyStore());
+        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", collections, documents, new InMemoryBodyStore());
 
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<title>Title post-1</title>", rss, StringComparison.Ordinal);
@@ -199,13 +203,14 @@ public sealed class RssGeneratorTests
         var outDir = Path.Combine(root, "dist");
         Directory.CreateDirectory(outDir);
 
-        var items = new List<(ContentItem Item, RouteInfo Route)>
+        var documents = new List<RoutedContentDocument>
         {
-            (Item("post-1", "post", "Summary", tags: new[] { "tech", "dotnet" }),
-             new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
+            new(
+                Document("post-1", "post", "Summary", tags: new[] { "tech", "dotnet" }),
+                new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
 
-        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", RssCollections, items, new InMemoryBodyStore());
+        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", RssCollections, documents, new InMemoryBodyStore());
 
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<category>tech</category>", rss, StringComparison.Ordinal);
@@ -215,20 +220,21 @@ public sealed class RssGeneratorTests
     [Fact]
     public void ToPost_PrefersCanonicalContentMetadata()
     {
-        var item = Item("post-1", "post", "Meta summary", tags: new[] { "tech" });
+        var sourceDocument = Document("post-1", "post", "Meta summary", tags: new[] { "tech" });
         var record = new ContentRecord(
             new ContentIdentity("post-1", "post-1", "post-1", "post", "published"),
             new ContentPresentation("Canonical Title", "Canonical summary", "<p>Body</p>", "en", []),
             new ContentClassification("post", "post", ["guides"], ["canonical-tag"]),
             new ContentOwnership("Ali", null, null, null),
-            new ContentLifecycle(item.PublishAt, null, null, null),
+            new ContentLifecycle(sourceDocument.PublishAt, null, null, null),
             new ProvenanceRecord("notion", null, [], [], null),
             new TrustMetadata(null, "approved", []),
             [new EntityRecord("company", "Bukit")],
             [],
             []);
+        var document = new ContentDocument(record, sourceDocument.ContentHtml, sourceDocument.Fields, sourceDocument.BodyKey);
 
-        var post = RssGenerator.ToPost(item, "https://example.com/blog/post-1/", new InMemoryBodyStore(), record);
+        var post = RssGenerator.ToPost(document, "https://example.com/blog/post-1/", new InMemoryBodyStore());
 
         Assert.Equal("Canonical Title", post.Title);
         Assert.Equal("Canonical summary", post.Description);
@@ -273,13 +279,14 @@ public sealed class RssGeneratorTests
         var outDir = Path.Combine(root, "dist");
         Directory.CreateDirectory(outDir);
 
-        var items = new List<(ContentItem Item, RouteInfo Route)>
+        var documents = new List<RoutedContentDocument>
         {
-            (Item("post-1", "post", publishAt: new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero)),
-             new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
+            new(
+                Document("post-1", "post", publishAt: new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero)),
+                new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
 
-        RssGenerator.Generate(outDir, "https://example.com", "/my-repo", "Site", RssCollections, items, new InMemoryBodyStore());
+        RssGenerator.Generate(outDir, "https://example.com", "/my-repo", "Site", RssCollections, documents, new InMemoryBodyStore());
 
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<link>https://example.com/my-repo/blog/post-1/</link>", rss, StringComparison.Ordinal);

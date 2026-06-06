@@ -12,9 +12,9 @@ namespace Bukit.Engine.Tests;
 
 public sealed class DefaultSearchIndexBuilderTests
 {
-    private static ContentItem CreateItem(string id, string title, string slug)
+    private static ContentDocument CreateItem(string id, string title, string slug)
     {
-        return new ContentItem(
+        return ContentDocument.Create(
             id,
             title,
             slug,
@@ -28,24 +28,23 @@ public sealed class DefaultSearchIndexBuilderTests
         return new RouteInfo(url, outputPath, "post");
     }
 
-    private static BuildVariantResult CreateVariantResult(string language, string baseUrl, List<(ContentItem, RouteInfo)> routed)
+    private static BuildVariantResult CreateVariantResult(string language, string baseUrl, List<(ContentDocument, RouteInfo)> routed)
     {
         return new BuildVariantResult(
-            language,
-            "/tmp/output",
-            baseUrl,
-            false,
-            NullContentBodyStore.Instance,
-            routed,
-            Array.Empty<(ContentItem, RouteInfo)>(),
-            Array.Empty<(RouteInfo, DateTimeOffset)>(),
-            new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase),
-            new Dictionary<string, Bukit.Rendering.SeoModel>(),
-            Array.Empty<PluginExecutionInfo>(),
-            0,
-            0,
-            new Dictionary<string, int>(),
-            Bukit.Engine.BuildStageMetrics.Empty);
+            Language: language,
+            OutputDir: "/tmp/output",
+            BaseUrl: baseUrl,
+            SearchSnippetsEnabled: false,
+            BodyStore: NullContentBodyStore.Instance,
+            DerivedRoutes: Array.Empty<(RouteInfo, DateTimeOffset)>(),
+            SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase),
+            SeoModels: new Dictionary<string, Bukit.Rendering.SeoModel>(),
+            PluginExecutions: Array.Empty<PluginExecutionInfo>(),
+            RenderedCount: 0,
+            SkippedCount: 0,
+            RenderReasons: new Dictionary<string, int>(),
+            StageMetrics: Bukit.Engine.BuildStageMetrics.Empty,
+            RoutedDocuments: routed.ToRoutedDocuments());
     }
 
     [Fact]
@@ -56,7 +55,7 @@ public sealed class DefaultSearchIndexBuilderTests
 
         try
         {
-            var result = CreateVariantResult("en", "https://example.com", new List<(ContentItem, RouteInfo)>
+            var result = CreateVariantResult("en", "https://example.com", new List<(ContentDocument, RouteInfo)>
             {
                 (CreateItem("1", "Hello", "hello"), CreateRoute("/hello", "hello/index.html")),
                 (CreateItem("2", "World", "world"), CreateRoute("/world", "world/index.html")),
@@ -84,7 +83,7 @@ public sealed class DefaultSearchIndexBuilderTests
 
         try
         {
-            var result = CreateVariantResult("en", "https://example.com", new List<(ContentItem, RouteInfo)>());
+            var result = CreateVariantResult("en", "https://example.com", new List<(ContentDocument, RouteInfo)>());
 
             builder.GenerateMergedSearchIndex(tempDir, new[] { result }, false);
         }
@@ -105,7 +104,7 @@ public sealed class DefaultSearchIndexBuilderTests
 
         try
         {
-            var result = CreateVariantResult("en", "https://example.com", new List<(ContentItem, RouteInfo)>
+            var result = CreateVariantResult("en", "https://example.com", new List<(ContentDocument, RouteInfo)>
             {
                 (CreateItem("1", "Hello", "hello"), CreateRoute("/hello", "hello/index.html")),
             });

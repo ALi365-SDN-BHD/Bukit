@@ -17,7 +17,7 @@ public sealed class RenderEntryDispatchTests
     {
         var item = Item("hello", "hello", null);
         var route = new RouteInfo("/hello/", "hello/index.html", "pages/page.html");
-        var entries = new[] { RenderEntry.ForPage(item, route) };
+        var entries = new[] { RenderEntry.ForPage(item.ToDocument(), route) };
         var outputDir = CreateOutputDir();
         var renderer = new CaptureRenderer();
         var manifest = new BuildManifest();
@@ -51,7 +51,7 @@ public sealed class RenderEntryDispatchTests
         var pageRoute = new RouteInfo("/a/", "a/index.html", "pages/page.html");
         var source = new[] { (item, pageRoute) };
         var listRoute = new RouteInfo("/", "index.html", "pages/index.html");
-        var entries = new[] { RenderEntry.ForList(listRoute, source, includeContent: false) };
+        var entries = new[] { RenderEntry.ForList(listRoute, source.ToRoutedDocuments(), includeContent: false) };
         var outputDir = CreateOutputDir();
         var renderer = new CaptureRenderer();
         var manifest = new BuildManifest();
@@ -116,8 +116,8 @@ public sealed class RenderEntryDispatchTests
         var listRoute = new RouteInfo("/", "index.html", "pages/index.html");
         var entries = new[]
         {
-            RenderEntry.ForPage(item, pageRoute),
-            RenderEntry.ForList(listRoute, source, includeContent: false)
+            RenderEntry.ForPage(item.ToDocument(), pageRoute),
+            RenderEntry.ForList(listRoute, source.ToRoutedDocuments(), includeContent: false)
         };
         var outputDir = CreateOutputDir();
         var renderer = new CaptureRenderer();
@@ -149,7 +149,7 @@ public sealed class RenderEntryDispatchTests
     {
         var item = Item("m", "m", null);
         var pageRoute = new RouteInfo("/m/", "m/index.html", "pages/page.html");
-        var entries = new[] { RenderEntry.ForPage(item, pageRoute) };
+        var entries = new[] { RenderEntry.ForPage(item.ToDocument(), pageRoute) };
         var outputDir = CreateOutputDir();
         var renderer = new CaptureRenderer();
         var manifest = new BuildManifest();
@@ -186,13 +186,14 @@ public sealed class RenderEntryDispatchTests
     {
         var item = Item("x", "x", null);
         var route = new RouteInfo("/x/", "x/index.html", "pages/page.html");
-        var entry = RenderEntry.ForPage(item, route);
+        var document = item.ToDocument();
+        var entry = RenderEntry.ForPage(document, route);
 
         Assert.Equal(RenderEntryKind.Page, entry.Kind);
-        Assert.Same(item, entry.Item);
+        Assert.Same(document, entry.Document);
         Assert.Same(route, entry.Route);
         Assert.Null(entry.RawContent);
-        Assert.Null(entry.SourceItems);
+        Assert.Null(entry.SourceDocuments);
     }
 
     [Fact]
@@ -202,17 +203,17 @@ public sealed class RenderEntryDispatchTests
         var route = new RouteInfo("/x/", "x/index.html", "pages/page.html");
         var source = new[] { (item, route) };
         var listRoute = new RouteInfo("/", "index.html", "pages/index.html");
-        var entry = RenderEntry.ForList(listRoute, source, includeContent: true);
+        var entry = RenderEntry.ForList(listRoute, source.ToRoutedDocuments(), includeContent: true);
 
         Assert.Equal(RenderEntryKind.List, entry.Kind);
         Assert.Equal(listRoute, entry.Route);
         Assert.True(entry.IncludeContent);
-        Assert.NotNull(entry.SourceItems);
-        Assert.NotEmpty(entry.SourceItems);
+        Assert.NotNull(entry.SourceDocuments);
+        Assert.NotEmpty(entry.SourceDocuments);
     }
 
-    private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object>? meta) =>
-        new(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)));
+    private static ContentDocument Item(string id, string slug, IReadOnlyDictionary<string, object>? meta) =>
+        ContentDocument.Create(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)));
 
     private static string CreateOutputDir()
     {

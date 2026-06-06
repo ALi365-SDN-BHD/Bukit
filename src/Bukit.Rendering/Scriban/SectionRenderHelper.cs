@@ -17,7 +17,7 @@ internal sealed class SectionRenderHelper
     private readonly string _componentValidation;
     private readonly FileTemplateLoader _templateLoader;
     private readonly ScriptObject _parentGlobals;
-    private readonly IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? _allPages;
+    private readonly IReadOnlyList<(ContentDocument Document, RouteInfo? Route)>? _allPages;
     private readonly IReadOnlyDictionary<string, ISectionPlugin>? _sectionPlugins;
     private readonly GetCachedSectionTemplate _getCachedTemplate;
 
@@ -31,7 +31,7 @@ internal sealed class SectionRenderHelper
         string componentValidation,
         FileTemplateLoader templateLoader,
         ScriptObject parentGlobals,
-        IReadOnlyList<(ContentItem, RouteInfo?)>? allPages,
+        IReadOnlyList<(ContentDocument, RouteInfo?)>? allPages,
         IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null,
         GetCachedSectionTemplate? getCachedTemplate = null)
     {
@@ -246,7 +246,7 @@ internal sealed class SectionRenderHelper
                 var itemsArray = new ScriptArray();
                 foreach (var (item, url) in resolved)
                 {
-                    itemsArray.Add(ContentItemToScriptObject(item, url));
+                    itemsArray.Add(ContentDocumentToScriptObject(item, url));
                 }
                 sectionGlobals.SetValue("items", itemsArray, readOnly: true);
             }
@@ -309,7 +309,7 @@ internal sealed class SectionRenderHelper
         return $"<!-- {diagnostic} -->";
     }
 
-    private static ScriptObject ContentItemToScriptObject(ContentItem item, string? url)
+    private static ScriptObject ContentDocumentToScriptObject(ContentDocument item, string? url)
     {
         var obj = new ScriptObject();
         obj.SetValue("title", item.Title, readOnly: true);

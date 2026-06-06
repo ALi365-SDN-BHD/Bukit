@@ -61,7 +61,7 @@ internal static class TaxonomySortHelper
         return 0;
     }
 
-    internal static bool TryGetPinned(ContentItem item, string field)
+    internal static bool TryGetPinned(ContentDocument item, string field)
     {
         if (string.IsNullOrWhiteSpace(field))
         {
@@ -85,7 +85,7 @@ internal static class TaxonomySortHelper
         };
     }
 
-    internal static int? TryGetPinOrder(ContentItem item, string? field)
+    internal static int? TryGetPinOrder(ContentDocument item, string? field)
     {
         if (string.IsNullOrWhiteSpace(field))
         {

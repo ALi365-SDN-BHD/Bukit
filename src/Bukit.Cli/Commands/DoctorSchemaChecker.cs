@@ -7,7 +7,7 @@ namespace Bukit.Cli.Commands;
 
 internal static class DoctorSchemaChecker
 {
-    public static bool CheckSchemaFieldCompleteness(DoctorCommand.DoctorContext ctx, IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
+    public static bool CheckSchemaFieldCompleteness(DoctorCommand.DoctorContext ctx, IReadOnlyList<RoutedContentDocument> routed)
     {
         var collections = ctx.Config.Site.Collections;
         if (collections is null || collections.Count == 0)
@@ -32,12 +32,13 @@ internal static class DoctorSchemaChecker
                 ? routed
                 : routed.Where(r => r.Route.Template?.Trim() == template).ToList();
 
-            foreach (var (item, _) in collectionItems)
+            foreach (var routedDocument in collectionItems)
             {
-                var errors = ContentSchemaValidator.ValidateFields(item.Fields, schema, item.Id);
+                var document = routedDocument.Document;
+                var errors = ContentSchemaValidator.ValidateFields(document.Fields, schema, document.Id);
                 foreach (var err in errors)
                 {
-                    var detail = $"{err.SourcePath ?? item.Id} (collection: {collectionName}): {err.Message}";
+                    var detail = $"{err.SourcePath ?? document.Id} (collection: {collectionName}): {err.Message}";
                     if (err.Code == "required")
                     {
                         hasErrors = true;
@@ -134,7 +135,7 @@ internal static class DoctorSchemaChecker
         }
     }
 
-    public static void CheckExtraContentFields(DoctorCommand.DoctorContext ctx, IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
+    public static void CheckExtraContentFields(DoctorCommand.DoctorContext ctx, IReadOnlyList<RoutedContentDocument> routed)
     {
         var collections = ctx.Config.Site.Collections;
         if (collections is null || collections.Count == 0)
@@ -172,10 +173,11 @@ internal static class DoctorSchemaChecker
                 ? routed
                 : routed.Where(r => r.Route.Template?.Trim() == template).ToList();
 
-            foreach (var (item, _) in collectionItems)
+            foreach (var routedDocument in collectionItems)
             {
+                var document = routedDocument.Document;
                 var fileExtras = new List<string>();
-                foreach (var kv in item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))
+                foreach (var kv in document.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))
                 {
                     if (reservedKeys.Contains(kv.Key))
                     {
@@ -192,7 +194,7 @@ internal static class DoctorSchemaChecker
                 {
                     filesWithExtras++;
                     totalExtras += fileExtras.Count;
-                    var fileId = ContentFieldReader.GetText(item.Fields, "sourcePath") ?? item.Id;
+                    var fileId = ContentFieldReader.GetText(document.Fields, "sourcePath") ?? document.Id;
                     extraFields.Add($"{fileId}: field(s) [{string.Join(", ", fileExtras)}] not in collection schema");
                 }
             }

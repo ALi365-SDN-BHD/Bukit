@@ -28,9 +28,8 @@ public static class RssGenerator
         string baseUrl,
         string siteTitle,
         IReadOnlyDictionary<string, CollectionConfig>? collections,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> routed,
         IContentBodyStore bodyStore,
-        CanonicalContentGraph? contentGraph = null,
         IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex = null,
         int maxItems = 20,
         string? siteDescription = null)
@@ -39,11 +38,11 @@ public static class RssGenerator
         var normalizedBaseUrl = InternalNormalizeBaseUrl(baseUrl);
 
         var rssCollections = ResolveRssCollections(collections);
-        var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore, contentGraph)
+        var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore)
             ?? routed
-                .Where(x => rssCollections.Contains(GetCollection(x.Item)))
+                .Where(x => rssCollections.Contains(GetCollection(x.Document)))
                 .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase)
-                .Select(x => ToPost(x.Item, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore, ResolveRecord(contentGraph, x.Item)))
+                .Select(x => ToPost(x.Document, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore))
                 .ToList();
 
         posts = posts
@@ -58,7 +57,7 @@ public static class RssGenerator
 
     internal static List<Post> CollectPosts(
         IReadOnlyDictionary<string, CollectionConfig>? collections,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> routed,
         IContentBodyStore bodyStore,
         CanonicalContentGraph? contentGraph,
         IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex,
@@ -75,11 +74,11 @@ public static class RssGenerator
             rssCollections = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { collectionKey };
         }
 
-        var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore, contentGraph)
+        var posts = BuildPostsFromSeoIndex(seoIndex, routed, rssCollections, bodyStore)
             ?? routed
-                .Where(x => rssCollections.Contains(GetCollection(x.Item)))
+                .Where(x => rssCollections.Contains(GetCollection(x.Document)))
                 .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase)
-                .Select(x => ToPost(x.Item, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore, ResolveRecord(contentGraph, x.Item)))
+                .Select(x => ToPost(x.Document, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore))
                 .ToList();
 
         return posts;
@@ -87,7 +86,7 @@ public static class RssGenerator
 
     internal static List<Post> CollectAllPosts(
         IReadOnlyDictionary<string, CollectionConfig>? collections,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> routed,
         IContentBodyStore bodyStore,
         CanonicalContentGraph? contentGraph,
         IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex,
@@ -187,49 +186,53 @@ public static class RssGenerator
 
     internal static List<Post>? BuildPostsFromSeoIndex(
         IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlySet<string> rssCollections,
-        IContentBodyStore bodyStore,
-        CanonicalContentGraph? contentGraph)
+        IContentBodyStore bodyStore)
     {
         if (seoIndex is null || seoIndex.Count == 0)
         {
             return null;
         }
 
-        var itemsByPath = SearchIndexBuilder.BuildItemMap(routed);
+        var documentsByPath = routed
+            .GroupBy(x => BuildPathUtils.NormalizeRelPath(x.Route.OutputPath), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First().Document, StringComparer.OrdinalIgnoreCase);
         var posts = new List<Post>();
         foreach (var (key, entry) in seoIndex
                      .Where(x => x.Value.Indexable)
                      .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
-            if (!itemsByPath.TryGetValue(key, out var item) ||
-                !rssCollections.Contains(GetCollection(item)))
+            if (!documentsByPath.TryGetValue(key, out var document) ||
+                !rssCollections.Contains(GetCollection(document)))
             {
                 continue;
             }
 
-            posts.Add(ToPost(item, entry.Canonical, bodyStore, ResolveRecord(contentGraph, item)));
+            posts.Add(ToPost(document, entry.Canonical, bodyStore));
         }
 
         return posts;
     }
 
-    internal static Post ToPost(ContentItem item, string absoluteUrl, IContentBodyStore bodyStore, ContentRecord? record = null)
-        => new(
-            Title: record?.Presentation.Title ?? item.Title,
-            AbsoluteUrl: absoluteUrl,
-            PublishAt: record?.Lifecycle.PublishedAt ?? item.PublishAt,
-            Description: record?.Presentation.Summary ?? ContentFieldReader.GetText(item.Fields, "summary"),
-            Categories: MergeCategories(record?.Classification.Tags, record?.Classification.Sections, ContentFieldReader.GetTextList(item.Fields, "tags"), ContentFieldReader.GetTextList(item.Fields, "categories")),
+    internal static Post ToPost(ContentDocument document, string absoluteUrl, IContentBodyStore bodyStore)
+    {
 #pragma warning disable CS0618
-            ContentHtml: ContentBodyResolver.GetHtml(item, bodyStore),
+        var html = ContentBodyResolver.GetHtml(document, bodyStore);
 #pragma warning restore CS0618
-            Author: record?.Ownership.Author,
-            Language: record?.Presentation.Language,
-            Source: record?.Provenance.Source,
-            ReviewStatus: string.IsNullOrWhiteSpace(record?.Trust.ReviewStatus) ? null : record.Trust.ReviewStatus,
-            Entities: record?.Entities.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+        return new Post(
+            Title: document.Record.Presentation.Title,
+            AbsoluteUrl: absoluteUrl,
+            PublishAt: document.Record.Lifecycle.PublishedAt,
+            Description: document.Record.Presentation.Summary ?? ContentFieldReader.GetText(document.Fields, "summary"),
+            Categories: MergeCategories(document.Record.Classification.Tags, document.Record.Classification.Sections, ContentFieldReader.GetTextList(document.Fields, "tags"), ContentFieldReader.GetTextList(document.Fields, "categories")),
+            ContentHtml: html,
+            Author: document.Record.Ownership.Author,
+            Language: document.Record.Presentation.Language,
+            Source: document.Record.Provenance.Source,
+            ReviewStatus: string.IsNullOrWhiteSpace(document.Record.Trust.ReviewStatus) ? null : document.Record.Trust.ReviewStatus,
+            Entities: document.Record.Entities.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+    }
 
     private static IReadOnlyList<string>? MergeCategories(IReadOnlyList<string>? tags, IReadOnlyList<string>? categories, IReadOnlyList<string>? fallbackTags = null, IReadOnlyList<string>? fallbackCategories = null)
     {
@@ -265,16 +268,6 @@ public static class RssGenerator
         return list.Count == 0 ? null : list;
     }
 
-    private static ContentRecord? ResolveRecord(CanonicalContentGraph? graph, ContentItem item)
-    {
-        if (graph is null || graph.Records.Count == 0)
-        {
-            return null;
-        }
-
-        return graph.Records.FirstOrDefault(x => string.Equals(x.Identity.Id, item.Id, StringComparison.OrdinalIgnoreCase));
-    }
-
     private static HashSet<string> ResolveRssCollections(IReadOnlyDictionary<string, CollectionConfig>? collections)
     {
         if (collections is null || collections.Count == 0)
@@ -294,9 +287,9 @@ public static class RssGenerator
         return set;
     }
 
-    private static string GetCollection(ContentItem item)
+    private static string GetCollection(ContentDocument document)
     {
-        return ContentFieldReader.GetCollection(item);
+        return ContentFieldReader.GetCollection(document);
     }
 
     public static string BuildAbsoluteUrl(string siteUrl, string baseUrl, string url)

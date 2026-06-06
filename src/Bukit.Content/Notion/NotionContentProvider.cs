@@ -24,7 +24,7 @@ public sealed class NotionContentProvider : IContentProvider
         _clientFactory = clientFactory;
     }
 
-    public async Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+    public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_options.DatabaseId))
         {
@@ -155,7 +155,7 @@ public sealed class NotionContentProvider : IContentProvider
         var draftIndex = NotionDraftIndex<PageDraft>.From(drafts, static d => d.PageId);
         var pageIndex = NotionRelationLinkBuilder.BuildIndex(targets);
         pageIndex = await NotionRelationResolver.ResolveMissingTaxonomyRelationTargetsAsync(client, drafts, pageIndex, relationTargetCache, _options.RenderConcurrency ?? 0, _logger, cancellationToken);
-        var items = new List<ContentItem>(drafts.Count);
+        var items = new List<RawContentDocument>(drafts.Count);
         for (var i = 0; i < drafts.Count; i++)
         {
             var d = drafts[i];
@@ -170,18 +170,20 @@ public sealed class NotionContentProvider : IContentProvider
             NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(taxonomyValues, fields, "categories");
             fields = ContentFieldReader.WithValues(fields, taxonomyValues);
 
-            items.Add(new ContentItem(
+            items.Add(new RawContentDocument(
                 Id: d.PageId,
                 Title: d.Title,
                 Slug: d.Slug,
                 PublishAt: d.PublishAt,
                 ContentHtml: null,
                 Fields: fields,
-                BodyKey: d.PageId
+                BodyKey: d.PageId,
+                SourceKind: "notion",
+                SourcePath: d.PageId
             ));
         }
 
-        return new ContentLoadResult(items, new NotionBodyStore(async (item, ct) =>
+        return new RawContentLoadResult(items, new NotionBodyStore(async (item, ct) =>
         {
             if (!_options.RenderContent)
             {

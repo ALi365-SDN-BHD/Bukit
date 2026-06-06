@@ -19,16 +19,19 @@ internal sealed record PublishProjectionContext(
     AppConfig Config,
     string OutputDir,
     CanonicalContentGraph ContentGraph,
-    IReadOnlyList<(ContentItem Item, RouteInfo Route)> Routed,
-    IReadOnlyList<(ContentItem Item, RouteInfo Route)> DerivedRouted,
     IReadOnlyDictionary<string, SeoIndexEntry> SeoIndex,
     IReadOnlyDictionary<string, SeoModel> SeoModels,
+    IReadOnlyList<RoutedContentDocument> RoutedDocuments,
     IContentBodyStore? BodyStore = null,
     string BaseUrl = "/",
     bool SearchSnippetsEnabled = false,
     ILogger? Logger = null,
     BuildContext? PluginContext = null,
-    IReadOnlyList<BuildVariantResult>? VariantResults = null);
+    IReadOnlyList<BuildVariantResult>? VariantResults = null,
+    IReadOnlyList<RoutedContentDocument>? DerivedDocuments = null)
+{
+    public IReadOnlyList<RoutedContentDocument> DerivedDocuments { get; init; } = DerivedDocuments ?? Array.Empty<RoutedContentDocument>();
+}
 
 internal sealed record PublishProjectionResult(
     PublishRepresentation Representation,
@@ -223,7 +226,7 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
 
         var posts = RssGenerator.CollectAllPosts(
             context.Config.Site.Collections,
-            context.Routed,
+            context.RoutedDocuments,
             context.BodyStore ?? NullContentBodyStore.Instance,
             context.ContentGraph,
             context.SeoIndex,
@@ -241,7 +244,7 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
             return;
         }
 
-        var posts = RssGenerator.CollectAllPosts(context.Config.Site.Collections, context.Routed, context.BodyStore ?? NullContentBodyStore.Instance, context.ContentGraph, context.SeoIndex, context.Config.Site.Url, context.BaseUrl);
+        var posts = RssGenerator.CollectAllPosts(context.Config.Site.Collections, context.RoutedDocuments, context.BodyStore ?? NullContentBodyStore.Instance, context.ContentGraph, context.SeoIndex, context.Config.Site.Url, context.BaseUrl);
         var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
         AtomFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url, context.BaseUrl, context.Config.Site.Title, posts, $"{context.Config.Site.Feed.Path}/atom.xml", limit, context.Config.Site.Description);
     }
@@ -254,7 +257,7 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
             return;
         }
 
-        var posts = RssGenerator.CollectAllPosts(context.Config.Site.Collections, context.Routed, context.BodyStore ?? NullContentBodyStore.Instance, context.ContentGraph, context.SeoIndex, context.Config.Site.Url, context.BaseUrl);
+        var posts = RssGenerator.CollectAllPosts(context.Config.Site.Collections, context.RoutedDocuments, context.BodyStore ?? NullContentBodyStore.Instance, context.ContentGraph, context.SeoIndex, context.Config.Site.Url, context.BaseUrl);
         var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
         JsonFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url, context.BaseUrl, context.Config.Site.Title, posts, $"{context.Config.Site.Feed.Path}/feed.json", limit, context.Config.Site.Description);
     }
@@ -293,8 +296,8 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
             context.BaseUrl,
             context.Config.Site.SearchIncludeDerived,
             context.SearchSnippetsEnabled,
-            context.Routed,
-            context.DerivedRouted,
+            context.RoutedDocuments,
+            context.DerivedDocuments,
             context.SeoIndex,
             context.BodyStore ?? NullContentBodyStore.Instance);
         SearchIndexPlugin.WriteSearchUi(BuildPluginContext(context));
@@ -339,13 +342,13 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
             OutputDir = context.OutputDir,
             BaseUrl = context.BaseUrl,
             LayoutsDir = string.Empty,
-            Routed = context.Routed,
+            RoutedDocuments = context.RoutedDocuments,
             ContentGraph = context.ContentGraph,
             BodyStore = context.BodyStore ?? NullContentBodyStore.Instance,
             SeoIndex = context.SeoIndex,
             Logger = context.Logger ?? new ConsoleLogger(LogLevel.Error)
         };
-        buildContext.DerivedRouted.AddRange(context.DerivedRouted);
+        buildContext.DerivedDocuments.AddRange(context.DerivedDocuments);
         buildContext.Data["__seo_models"] = context.SeoModels;
         return buildContext;
     }
@@ -356,9 +359,10 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
         bool fileExists)
     {
         var outputs = new List<PublishRepresentationOutput>();
-        foreach (var (item, route) in context.Routed.Concat(context.DerivedRouted)
+        foreach (var routedDocument in context.RoutedDocuments.Concat(context.DerivedDocuments)
                      .OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
+            var route = routedDocument.Route;
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
             context.SeoIndex.TryGetValue(key, out var entry);
             var indexable = entry?.Indexable != false;

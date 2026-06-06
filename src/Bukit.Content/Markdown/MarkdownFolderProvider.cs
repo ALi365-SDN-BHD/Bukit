@@ -25,7 +25,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
         _options = options;
     }
 
-    public async Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+    public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_options.ContentDir))
         {
@@ -85,7 +85,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
             files = files.Take(_options.MaxItems.Value).ToArray();
         }
 
-        var items = new List<ContentItem>(capacity: files.Length);
+        var items = new List<RawContentDocument>(capacity: files.Length);
         foreach (var file in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -156,18 +156,20 @@ public sealed class MarkdownFolderProvider : IContentProvider
             var fields = MarkdownFieldBuilder.BuildFields(meta);
             fields = ContentFieldReader.WithValues(fields, BuildCanonicalFields(meta, title, slug, publishAt));
 
-            items.Add(new ContentItem(
+            items.Add(new RawContentDocument(
                 Id: slug,
                 Title: title,
                 Slug: slug,
                 PublishAt: publishAt,
                 ContentHtml: null,
                 Fields: fields,
-                BodyKey: file
+                BodyKey: file,
+                SourceKind: "markdown",
+                SourcePath: file
             ));
         }
 
-        return new ContentLoadResult(items, new MarkdownBodyStore());
+        return new RawContentLoadResult(items, new MarkdownBodyStore());
     }
 
     private static string ComputeBodyFingerprint(string markdown)

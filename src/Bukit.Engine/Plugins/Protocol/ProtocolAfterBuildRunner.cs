@@ -185,15 +185,7 @@ internal sealed class ProtocolAfterBuildRunner
     {
         var includeRoutedPages = context.Config.Site.ExternalProtocolIncludeRoutedPages;
         var routedPages = includeRoutedPages
-            ? new JsonArray(context.Routed
-                .Select(x => (JsonNode)new JsonObject
-                {
-                    ["id"] = x.Item.Id,
-                    ["url"] = x.Route.Url,
-                    ["outputPath"] = x.Route.OutputPath,
-                    ["fields"] = ProtocolJsonHelper.ToJsonNode(x.Item.Fields)
-                })
-                .ToArray())
+            ? new JsonArray(BuildRoutedPages(context).ToArray())
             : new JsonArray();
 
         var request = new JsonObject
@@ -224,6 +216,26 @@ internal sealed class ProtocolAfterBuildRunner
         };
 
         return request.ToJsonString();
+    }
+
+    private static IEnumerable<JsonNode> BuildRoutedPages(BuildContext context)
+    {
+        if (context.RoutedDocuments.Count > 0)
+        {
+            foreach (var document in context.RoutedDocuments)
+            {
+                yield return new JsonObject
+                {
+                    ["id"] = document.Document.Id,
+                    ["url"] = document.Route.Url,
+                    ["outputPath"] = document.Route.OutputPath,
+                    ["fields"] = ProtocolJsonHelper.ToJsonNode(document.Document.Fields),
+                    ["content"] = ProtocolContentJsonBuilder.Build(document.Document.Record)
+                };
+            }
+
+            yield break;
+        }
     }
 
 }

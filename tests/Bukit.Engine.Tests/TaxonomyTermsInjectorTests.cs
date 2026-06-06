@@ -12,18 +12,18 @@ namespace Bukit.Engine.Tests;
 
 public sealed class TaxonomyTermsInjectorTests
 {
-    private static ContentItem CreateItem(string id, string title, string slug, IReadOnlyDictionary<string, ContentField>? fields = null)
+    private static ContentDocument CreateDocument(string id, string title, string slug, IReadOnlyDictionary<string, ContentField>? fields = null)
     {
-        return new ContentItem(id, title, slug, DateTimeOffset.UtcNow, null, fields);
+        return ContentDocument.Create(id, title, slug, DateTimeOffset.UtcNow, null, fields);
     }
 
     [Fact]
-    public void InjectFromDataItems_WithTaxonomyConfig_InjectsTerms()
+    public void InjectFromDataDocuments_WithTaxonomyConfig_InjectsTerms()
     {
-        var items = new List<ContentItem>
+        var documents = new List<ContentDocument>
         {
-            CreateItem("1", "Tech Post", "tech-post"),
-            CreateItem("2", "Programming 101", "programming-101"),
+            CreateDocument("1", "Tech Post", "tech-post"),
+            CreateDocument("2", "Programming 101", "programming-101"),
         };
 
         var config = new AppConfig
@@ -47,18 +47,18 @@ public sealed class TaxonomyTermsInjectorTests
             OutputDir = "/tmp/test",
             BaseUrl = "/",
             LayoutsDir = "/tmp/test",
-            Routed = Array.Empty<(ContentItem, RouteInfo)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             BodyStore = NullContentBodyStore.Instance,
             Logger = new ConsoleLogger(LogLevel.Debug),
         };
 
-        TaxonomyTermsInjector.InjectFromDataItems(context, items);
+        TaxonomyTermsInjector.InjectFromDataDocuments(context, documents);
     }
 
     [Fact]
-    public void InjectFromDataItems_WithEmptyItems_DoesNotThrow()
+    public void InjectFromDataDocuments_WithEmptyItems_DoesNotThrow()
     {
-        var items = Array.Empty<ContentItem>();
+        var documents = Array.Empty<ContentDocument>();
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
@@ -73,12 +73,12 @@ public sealed class TaxonomyTermsInjectorTests
             OutputDir = "/tmp/test",
             BaseUrl = "/",
             LayoutsDir = "/tmp/test",
-            Routed = Array.Empty<(ContentItem, RouteInfo)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             BodyStore = NullContentBodyStore.Instance,
             Logger = new ConsoleLogger(LogLevel.Debug),
         };
 
-        TaxonomyTermsInjector.InjectFromDataItems(context, items);
+        TaxonomyTermsInjector.InjectFromDataDocuments(context, documents);
 
         Assert.Empty(context.Data);
     }

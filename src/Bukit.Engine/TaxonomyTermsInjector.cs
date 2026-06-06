@@ -11,31 +11,31 @@ namespace Bukit.Engine;
 
 internal static class TaxonomyTermsInjector
 {
-    internal static void InjectFromDataItems(BuildContext context, IReadOnlyList<ContentItem> dataItems)
+    internal static void InjectFromDataDocuments(BuildContext context, IReadOnlyList<ContentDocument> dataDocuments)
     {
-        if (dataItems.Count == 0)
+        if (dataDocuments.Count == 0)
         {
             return;
         }
 
         var ensure = GetOrCreateEnsureTermsMap(context.Data);
 
-        foreach (var item in dataItems)
+        foreach (var document in dataDocuments)
         {
-            var kind = ContentFieldReader.GetText(item.Fields, "sourceKey") ?? string.Empty;
+            var kind = ContentFieldReader.GetText(document.Fields, "sourceKey") ?? string.Empty;
             if (!kind.Equals("categories", StringComparison.OrdinalIgnoreCase) &&
                 !kind.Equals("tags", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            var title = (item.Title ?? string.Empty).Trim();
+            var title = (document.Title ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(title))
             {
                 continue;
             }
 
-            var slug = (item.Slug ?? string.Empty).Trim();
+            var slug = (document.Slug ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(slug))
             {
                 slug = SlugHelper.Slugify(title);

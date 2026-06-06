@@ -12,7 +12,7 @@ public sealed class BodyCacheDecoratorTests
 
         public int CallCount => _callCount;
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _callCount);
             var html = item.ContentHtml ?? $"<p>body-{item.Id}</p>";
@@ -20,16 +20,16 @@ public sealed class BodyCacheDecoratorTests
         }
     }
 
-    private static ContentItem CreateItem(string id, string? bodyKey = null, string? contentHtml = null)
+    private static ContentDocument CreateItem(string id, string? bodyKey = null, string? contentHtml = null)
     {
-        return new ContentItem(
-            Id: id,
-            Title: $"Item {id}",
-            Slug: $"item-{id}",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: contentHtml,
-            Fields: null,
-            BodyKey: bodyKey);
+        return ContentDocument.Create(
+            id: id,
+            title: $"Item {id}",
+            slug: $"item-{id}",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: contentHtml,
+            fields: null,
+            bodyKey: bodyKey);
     }
 
     [Fact]
@@ -39,9 +39,9 @@ public sealed class BodyCacheDecoratorTests
         var decorator = new BodyCacheDecorator(inner);
         var item = CreateItem("same-key");
 
-        await decorator.GetAsync(item);
-        await decorator.GetAsync(item);
-        await decorator.GetAsync(item);
+        await decorator.GetAsync(item.ToDocument());
+        await decorator.GetAsync(item.ToDocument());
+        await decorator.GetAsync(item.ToDocument());
 
         Assert.Equal(1, inner.CallCount);
     }
@@ -53,9 +53,9 @@ public sealed class BodyCacheDecoratorTests
         var decorator = new BodyCacheDecorator(inner);
         var item = CreateItem("metrics-test");
 
-        await decorator.GetAsync(item);
-        await decorator.GetAsync(item);
-        await decorator.GetAsync(item);
+        await decorator.GetAsync(item.ToDocument());
+        await decorator.GetAsync(item.ToDocument());
+        await decorator.GetAsync(item.ToDocument());
 
         var metrics = decorator.Metrics;
         Assert.Equal(3, metrics.TotalRequests);
@@ -72,9 +72,9 @@ public sealed class BodyCacheDecoratorTests
         var inner = new CountingBodyStore();
         var decorator = new BodyCacheDecorator(inner);
 
-        await decorator.GetAsync(CreateItem("a"));
-        await decorator.GetAsync(CreateItem("b"));
-        await decorator.GetAsync(CreateItem("c"));
+        await decorator.GetAsync(CreateItem("a").ToDocument());
+        await decorator.GetAsync(CreateItem("b").ToDocument());
+        await decorator.GetAsync(CreateItem("c").ToDocument());
 
         Assert.Equal(3, inner.CallCount);
         var metrics = decorator.Metrics;
@@ -93,8 +93,8 @@ public sealed class BodyCacheDecoratorTests
         var item1 = CreateItem("id-1", bodyKey: "shared-key");
         var item2 = CreateItem("id-2", bodyKey: "shared-key");
 
-        await decorator.GetAsync(item1);
-        await decorator.GetAsync(item2);
+        await decorator.GetAsync(item1.ToDocument());
+        await decorator.GetAsync(item2.ToDocument());
 
         Assert.Equal(1, inner.CallCount);
     }
@@ -106,7 +106,7 @@ public sealed class BodyCacheDecoratorTests
         var decorator = new BodyCacheDecorator(inner);
         var item = CreateItem("inline", contentHtml: "<p>inline content</p>");
 
-        await decorator.GetAsync(item);
+        await decorator.GetAsync(item.ToDocument());
 
         Assert.Equal(0, inner.CallCount);
         var metrics = decorator.Metrics;
@@ -122,7 +122,7 @@ public sealed class BodyCacheDecoratorTests
         var decorator = new BodyCacheDecorator(inner);
         var item = CreateItem("concurrent");
 
-        var tasks = Enumerable.Range(0, 10).Select(_ => decorator.GetAsync(item));
+        var tasks = Enumerable.Range(0, 10).Select(_ => decorator.GetAsync(item.ToDocument()));
         await Task.WhenAll(tasks);
 
         Assert.Equal(1, inner.CallCount);
@@ -134,7 +134,7 @@ public sealed class BodyCacheDecoratorTests
         var inner = new CountingBodyStore();
         var decorator = new BodyCacheDecorator(inner);
 
-        await Task.WhenAll(decorator.GetAsync(CreateItem("x")), decorator.GetAsync(CreateItem("y")));
+        await Task.WhenAll(decorator.GetAsync(CreateItem("x").ToDocument()), decorator.GetAsync(CreateItem("y").ToDocument()));
 
         Assert.Equal(2, decorator.Metrics.UniqueBodies);
     }
@@ -147,7 +147,7 @@ public sealed class BodyCacheDecoratorTests
 
         for (var i = 1; i <= 5; i++)
         {
-            await decorator.GetAsync(CreateItem($"item-{i}"));
+            await decorator.GetAsync(CreateItem($"item-{i}").ToDocument());
         }
 
         Assert.True(decorator.Metrics.UniqueBodies <= 3);
@@ -161,7 +161,7 @@ public sealed class BodyCacheDecoratorTests
 
         for (var i = 1; i <= 5; i++)
         {
-            await decorator.GetAsync(CreateItem($"item-{i}"));
+            await decorator.GetAsync(CreateItem($"item-{i}").ToDocument());
         }
 
         var metrics = decorator.Metrics;
@@ -179,10 +179,10 @@ public sealed class BodyCacheDecoratorTests
         var inner = new CountingBodyStore();
         var decorator = new BodyCacheDecorator(inner);
 
-        await decorator.GetAsync(CreateItem("inline", contentHtml: "<p>inline</p>"));
+        await decorator.GetAsync(CreateItem("inline", contentHtml: "<p>inline</p>").ToDocument());
         var item = CreateItem("key-1");
-        await decorator.GetAsync(item);
-        await decorator.GetAsync(item);
+        await decorator.GetAsync(item.ToDocument());
+        await decorator.GetAsync(item.ToDocument());
 
         var m = decorator.Metrics;
         Assert.Equal(m.CacheHits + m.CacheMisses + m.InlineBypasses, m.TotalRequests);
@@ -196,10 +196,10 @@ public sealed class BodyCacheDecoratorTests
 
         for (var i = 0; i < 5; i++)
         {
-            await decorator.GetAsync(CreateItem($"item-{i}"));
+            await decorator.GetAsync(CreateItem($"item-{i}").ToDocument());
         }
 
-        await decorator.GetAsync(CreateItem("item-0"));
+        await decorator.GetAsync(CreateItem("item-0").ToDocument());
 
         var metrics = decorator.Metrics;
         Assert.Equal(0, metrics.InlineBypasses);
@@ -216,10 +216,10 @@ public sealed class BodyCacheDecoratorTests
         var itemB = CreateItem("b");
         var itemC = CreateItem("c");
 
-        await decorator.GetAsync(itemA);
-        await decorator.GetAsync(itemB);
-        await decorator.GetAsync(itemA);
-        await decorator.GetAsync(itemC);
+        await decorator.GetAsync(itemA.ToDocument());
+        await decorator.GetAsync(itemB.ToDocument());
+        await decorator.GetAsync(itemA.ToDocument());
+        await decorator.GetAsync(itemC.ToDocument());
 
         Assert.Equal(3, inner.CallCount);
         Assert.Equal(2, decorator.Metrics.UniqueBodies);
@@ -230,11 +230,11 @@ public sealed class BodyCacheDecoratorTests
         var hitsBefore = decorator.Metrics.CacheHits;
         var missesBefore = decorator.Metrics.CacheMisses;
 
-        await decorator.GetAsync(itemA);
+        await decorator.GetAsync(itemA.ToDocument());
         Assert.Equal(hitsBefore + 1, decorator.Metrics.CacheHits);
         Assert.Equal(missesBefore, decorator.Metrics.CacheMisses);
 
-        await decorator.GetAsync(itemB);
+        await decorator.GetAsync(itemB.ToDocument());
         Assert.Equal(missesBefore + 1, decorator.Metrics.CacheMisses);
     }
 
@@ -248,9 +248,9 @@ public sealed class BodyCacheDecoratorTests
         var itemB = CreateItem("b");
         var itemC = CreateItem("c");
 
-        await decorator.GetAsync(itemA);
-        await decorator.GetAsync(itemB);
-        await decorator.GetAsync(itemC);
+        await decorator.GetAsync(itemA.ToDocument());
+        await decorator.GetAsync(itemB.ToDocument());
+        await decorator.GetAsync(itemC.ToDocument());
 
         Assert.Equal(3, inner.CallCount);
         Assert.Equal(2, decorator.Metrics.UniqueBodies);
@@ -261,14 +261,14 @@ public sealed class BodyCacheDecoratorTests
         var hitsBefore = decorator.Metrics.CacheHits;
         var missesBefore = decorator.Metrics.CacheMisses;
 
-        await decorator.GetAsync(itemB);
+        await decorator.GetAsync(itemB.ToDocument());
         Assert.Equal(hitsBefore + 1, decorator.Metrics.CacheHits);
         Assert.Equal(missesBefore, decorator.Metrics.CacheMisses);
 
-        await decorator.GetAsync(itemC);
+        await decorator.GetAsync(itemC.ToDocument());
         Assert.Equal(hitsBefore + 2, decorator.Metrics.CacheHits);
 
-        await decorator.GetAsync(itemA);
+        await decorator.GetAsync(itemA.ToDocument());
         Assert.Equal(missesBefore + 1, decorator.Metrics.CacheMisses);
     }
 
@@ -284,8 +284,8 @@ public sealed class BodyCacheDecoratorTests
         var decoratorA = new BodyCacheDecorator(bodyStoreA);
         var decoratorB = new BodyCacheDecorator(bodyStoreB);
 
-        var bodyA = await decoratorA.GetAsync(itemFromA);
-        var bodyB = await decoratorB.GetAsync(itemFromB);
+        var bodyA = await decoratorA.GetAsync(itemFromA.ToDocument());
+        var bodyB = await decoratorB.GetAsync(itemFromB.ToDocument());
 
         Assert.Equal(1, bodyStoreA.CallCount);
         Assert.Equal(1, bodyStoreB.CallCount);
@@ -301,8 +301,8 @@ public sealed class BodyCacheDecoratorTests
         var mainItem = CreateItem("blog:my-post", bodyKey: "blog:my-post");
         var copyItem = CreateItem("blog:my-post:companies", bodyKey: "blog:my-post");
 
-        var mainBody = await decorator.GetAsync(mainItem);
-        var copyBody = await decorator.GetAsync(copyItem);
+        var mainBody = await decorator.GetAsync(mainItem.ToDocument());
+        var copyBody = await decorator.GetAsync(copyItem.ToDocument());
 
         Assert.Equal(1, inner.CallCount);
         Assert.Equal(mainBody.Html, copyBody.Html);

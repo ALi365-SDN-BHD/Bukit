@@ -3,6 +3,5 @@ namespace Bukit.Content;
 
 public interface IContentProvider
 {
-    Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default);
+    Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default);
 }
-

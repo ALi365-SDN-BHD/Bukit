@@ -47,7 +47,7 @@ public sealed class ThemeTemplateResolverTests
                 }
             }
         };
-        var item = new ContentItem(
+        var item = ContentDocument.Create(
             "1",
             "Hello",
             "hello",
@@ -74,7 +74,7 @@ public sealed class ThemeTemplateResolverTests
                 ["home"] = new() { Template = "index.html", Required = true }
             }
         };
-        var item = new ContentItem(
+        var item = ContentDocument.Create(
             "1",
             "Hello",
             "hello",
@@ -106,7 +106,7 @@ public sealed class ThemeTemplateResolverTests
                 }
             }
         };
-        var item = new ContentItem(
+        var item = ContentDocument.Create(
             "1",
             "Hello",
             "hello",

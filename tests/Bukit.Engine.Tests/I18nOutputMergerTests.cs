@@ -83,53 +83,53 @@ public sealed class I18nOutputMergerTests
     }
 
     [Fact]
-    public void FilterItemsByLanguage_FiltersRegularItems()
+    public void FilterDocumentsByLanguage_FiltersRegularItems()
     {
         var enItem = CreateItem("1", "en");
         var zhItem = CreateItem("2", "zh");
         var items = new[] { enItem, zhItem };
 
-        var result = I18nOutputMerger.FilterItemsByLanguage(items, "zh", "en");
+        var result = I18nOutputMerger.FilterDocumentsByLanguage(items, "zh", "en");
 
         Assert.Single(result);
         Assert.Equal("2", result[0].Id);
     }
 
     [Fact]
-    public void FilterItemsByLanguage_IncludesItemsWithoutLanguage_WhenMatchingDefault()
+    public void FilterDocumentsByLanguage_IncludesItemsWithoutLanguage_WhenMatchingDefault()
     {
         var enItem = CreateItem("1", "en");
         var noLangItem = CreateItem("3", null);
         var items = new[] { enItem, noLangItem };
 
-        var result = I18nOutputMerger.FilterItemsByLanguage(items, "en", "en");
+        var result = I18nOutputMerger.FilterDocumentsByLanguage(items, "en", "en");
 
         Assert.Equal(2, result.Count);
     }
 
     [Fact]
-    public void FilterItemsByLanguage_ExcludesItemsWithoutLanguage_WhenNotMatchingDefault()
+    public void FilterDocumentsByLanguage_ExcludesItemsWithoutLanguage_WhenNotMatchingDefault()
     {
         var zhItem = CreateItem("2", "zh");
         var noLangItem = CreateItem("3", null);
         var items = new[] { zhItem, noLangItem };
 
-        var result = I18nOutputMerger.FilterItemsByLanguage(items, "zh", "en");
+        var result = I18nOutputMerger.FilterDocumentsByLanguage(items, "zh", "en");
 
         Assert.Single(result);
         Assert.Equal("2", result[0].Id);
     }
 
     [Fact]
-    public void FilterItemsByLanguage_FiltersDataItemsByLocale()
+    public void FilterDocumentsByLanguage_FiltersDataItemsByLocale()
     {
-        var dataItem = new ContentItem(
-            Id: "data-1",
-            Title: "Data",
-            Slug: "data",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "",
-            Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var dataItem = ContentDocument.Create(
+            id: "data-1",
+            title: "Data",
+            slug: "data",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "",
+            fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["locale"] = new ContentField("text", "zh")
             }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -139,45 +139,45 @@ public sealed class I18nOutputMergerTests
 
         var items = new[] { dataItem };
 
-        var matched = I18nOutputMerger.FilterItemsByLanguage(items, "zh", "en");
+        var matched = I18nOutputMerger.FilterDocumentsByLanguage(items, "zh", "en");
         Assert.Single(matched);
 
-        var unmatched = I18nOutputMerger.FilterItemsByLanguage(items, "en", "en");
+        var unmatched = I18nOutputMerger.FilterDocumentsByLanguage(items, "en", "en");
         Assert.Empty(unmatched);
     }
 
     [Fact]
-    public void FilterItemsByLanguage_OrphanContentExcluded_WhenNotDefaultLanguage()
+    public void FilterDocumentsByLanguage_OrphanContentExcluded_WhenNotDefaultLanguage()
     {
         var zhItem = CreateItem("1", "zh");
         var items = new[] { zhItem };
 
-        var result = I18nOutputMerger.FilterItemsByLanguage(items, "en", "en");
+        var result = I18nOutputMerger.FilterDocumentsByLanguage(items, "en", "en");
 
         Assert.Empty(result);
     }
 
     [Fact]
-    public void FilterItemsByLanguage_OrphanContentIncluded_WhenMatchingLanguage()
+    public void FilterDocumentsByLanguage_OrphanContentIncluded_WhenMatchingLanguage()
     {
         var zhItem = CreateItem("1", "zh");
         var items = new[] { zhItem };
 
-        var result = I18nOutputMerger.FilterItemsByLanguage(items, "zh", "en");
+        var result = I18nOutputMerger.FilterDocumentsByLanguage(items, "zh", "en");
 
         Assert.Single(result);
         Assert.Equal("1", result[0].Id);
     }
 
     [Fact]
-    public void FilterItemsByLanguage_DefaultIsZh_FiltersCorrectly()
+    public void FilterDocumentsByLanguage_DefaultIsZh_FiltersCorrectly()
     {
         var enItem = CreateItem("1", "en");
         var zhItem = CreateItem("2", "zh");
         var items = new[] { enItem, zhItem };
 
-        var enResult = I18nOutputMerger.FilterItemsByLanguage(items, "en", "zh");
-        var zhResult = I18nOutputMerger.FilterItemsByLanguage(items, "zh", "zh");
+        var enResult = I18nOutputMerger.FilterDocumentsByLanguage(items, "en", "zh");
+        var zhResult = I18nOutputMerger.FilterDocumentsByLanguage(items, "zh", "zh");
 
         Assert.Single(enResult);
         Assert.Equal("1", enResult[0].Id);
@@ -186,57 +186,57 @@ public sealed class I18nOutputMergerTests
     }
 
     [Fact]
-    public void FilterItemsByLanguage_LanguageCaseInsensitive()
+    public void FilterDocumentsByLanguage_LanguageCaseInsensitive()
     {
         var item1 = CreateItem("1", "zh-CN");
         var item2 = CreateItem("2", "ZH-CN");
         var items = new[] { item1, item2 };
 
-        var result = I18nOutputMerger.FilterItemsByLanguage(items, "zh-cn", "en");
+        var result = I18nOutputMerger.FilterDocumentsByLanguage(items, "zh-cn", "en");
 
         Assert.Equal(2, result.Count);
     }
 
     [Fact]
-    public void FilterItemsByLanguage_UsesStructuredLanguageField()
+    public void FilterDocumentsByLanguage_UsesStructuredLanguageField()
     {
-        var item = new ContentItem(
-            Id: "1",
-            Title: "Structured",
-            Slug: "structured",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>hi</p>",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "Structured",
+            slug: "structured",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>hi</p>",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["language"] = new("text", "ms-MY")
             });
 
-        var result = I18nOutputMerger.FilterItemsByLanguage(new[] { item }, "ms-my", "en");
+        var result = I18nOutputMerger.FilterDocumentsByLanguage(new[] { item }, "ms-my", "en");
 
         Assert.Single(result);
         Assert.Equal("1", result[0].Id);
     }
 
     [Fact]
-    public void FilterItemsByLanguage_LanguageMismatch_Excludes()
+    public void FilterDocumentsByLanguage_LanguageMismatch_Excludes()
     {
         var item = CreateItem("1", "zh-CN");
         var items = new[] { item };
 
-        var result = I18nOutputMerger.FilterItemsByLanguage(items, "zh", "en");
+        var result = I18nOutputMerger.FilterDocumentsByLanguage(items, "zh", "en");
 
         Assert.Empty(result);
     }
 
     [Fact]
-    public void FilterItemsByLanguage_I18nKeyPair_FiltersByLanguage()
+    public void FilterDocumentsByLanguage_I18nKeyPair_FiltersByLanguage()
     {
         var enItem = CreateItemWithMeta("1", "en", new Dictionary<string, object> { ["language"] = "en", ["i18nKey"] = "about" });
         var zhItem = CreateItemWithMeta("2", "zh", new Dictionary<string, object> { ["language"] = "zh", ["i18nKey"] = "about" });
         var items = new[] { enItem, zhItem };
 
-        var enResult = I18nOutputMerger.FilterItemsByLanguage(items, "en", "en");
-        var zhResult = I18nOutputMerger.FilterItemsByLanguage(items, "zh", "en");
+        var enResult = I18nOutputMerger.FilterDocumentsByLanguage(items, "en", "en");
+        var zhResult = I18nOutputMerger.FilterDocumentsByLanguage(items, "zh", "en");
 
         Assert.Single(enResult);
         Assert.Equal("1", enResult[0].Id);
@@ -266,7 +266,7 @@ public sealed class I18nOutputMergerTests
         Assert.Equal(expected, result);
     }
 
-    private static ContentItem CreateItem(string id, string? language)
+    private static ContentDocument CreateItem(string id, string? language)
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         if (language is not null)
@@ -274,16 +274,16 @@ public sealed class I18nOutputMergerTests
             meta["language"] = language;
         }
 
-        return new ContentItem(
-            Id: id,
-            Title: $"Item {id}",
-            Slug: $"item-{id}",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>hi</p>",
-            Fields: ContentFieldReader.ToFieldMap(meta));
+        return ContentDocument.Create(
+            id: id,
+            title: $"Item {id}",
+            slug: $"item-{id}",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>hi</p>",
+            fields: ContentFieldReader.ToFieldMap(meta));
     }
 
-    private static ContentItem CreateItemWithMeta(string id, string? language, Dictionary<string, object> extraMeta)
+    private static ContentDocument CreateItemWithMeta(string id, string? language, Dictionary<string, object> extraMeta)
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         if (language is not null)
@@ -296,12 +296,12 @@ public sealed class I18nOutputMergerTests
             meta[key] = value;
         }
 
-        return new ContentItem(
-            Id: id,
-            Title: $"Item {id}",
-            Slug: $"item-{id}",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>hi</p>",
-            Fields: ContentFieldReader.ToFieldMap(meta));
+        return ContentDocument.Create(
+            id: id,
+            title: $"Item {id}",
+            slug: $"item-{id}",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>hi</p>",
+            fields: ContentFieldReader.ToFieldMap(meta));
     }
 }

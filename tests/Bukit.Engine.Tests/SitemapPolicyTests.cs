@@ -12,13 +12,13 @@ public sealed class SitemapPolicyTests
         var publishAt = new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero);
         var update = new DateTimeOffset(2024, 02, 03, 4, 5, 6, TimeSpan.Zero);
 
-        var item = new ContentItem(
-            Id: "1",
-            Title: "t",
-            Slug: "s",
-            PublishAt: publishAt,
-            ContentHtml: "",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: publishAt,
+            contentHtml: "",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["update_time"] = new("date", update)
             });
@@ -31,13 +31,13 @@ public sealed class SitemapPolicyTests
     public void ResolveLastModified_PrefersUpdateTime_ParsesText()
     {
         var publishAt = new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero);
-        var item = new ContentItem(
-            Id: "1",
-            Title: "t",
-            Slug: "s",
-            PublishAt: publishAt,
-            ContentHtml: "",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: publishAt,
+            contentHtml: "",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["update_time"] = new("text", "2024-05-06T07:08:09Z")
             });

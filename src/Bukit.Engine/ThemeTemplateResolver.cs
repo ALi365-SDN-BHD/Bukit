@@ -52,18 +52,18 @@ public sealed class ThemeTemplateResolver
         }
     }
 
-    internal string ResolveContentTemplate(ContentItem item, string? kind = null)
+    internal string ResolveContentTemplate(ContentDocument document, string? kind = null)
     {
-        var matched = TryResolveContentTemplate(item, kind);
+        var matched = TryResolveContentTemplate(document, kind);
         if (!string.IsNullOrWhiteSpace(matched))
         {
             return matched!;
         }
 
-        var type = GetContentType(item);
-        var collection = ContentFieldReader.GetCollection(item);
+        var type = GetContentType(document);
+        var collection = ContentFieldReader.GetCollection(document);
         throw new ConfigException(
-            $"No theme template matches content item '{item.Id}' (type='{type}', collection='{collection}', kind='{kind ?? "detail"}'). " +
+            $"No theme template matches content document '{document.Id}' (type='{type}', collection='{collection}', kind='{kind ?? "detail"}'). " +
             "Add a matching theme.yaml templates entry or set route.template/site.collections.*.template.");
     }
 
@@ -128,15 +128,15 @@ public sealed class ThemeTemplateResolver
         return paths.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private string? TryResolveContentTemplate(ContentItem item, string? kind)
+    private string? TryResolveContentTemplate(ContentDocument document, string? kind)
     {
         if (_manifest?.Templates is null)
         {
             return null;
         }
 
-        var type = GetContentType(item);
-        var collection = ContentFieldReader.GetCollection(item);
+        var type = GetContentType(document);
+        var collection = ContentFieldReader.GetCollection(document);
         foreach (var (_, def) in _manifest.Templates)
         {
             if (def.Accepts is null || string.IsNullOrWhiteSpace(def.Template))
@@ -157,8 +157,8 @@ public sealed class ThemeTemplateResolver
         return null;
     }
 
-    private static string GetContentType(ContentItem item)
-        => ContentFieldReader.GetContentType(item);
+    private static string GetContentType(ContentDocument document)
+        => ContentFieldReader.GetContentType(document);
 
     private static bool Matches(string? expected, string? actual)
         => string.IsNullOrWhiteSpace(expected) ||

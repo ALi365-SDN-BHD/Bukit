@@ -244,7 +244,7 @@ internal static class BuildPathUtils
         return sb.ToString();
     }
 
-    internal static string RenderSimpleIndex(string baseUrl, IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed, string title = "Bukit")
+    internal static string RenderSimpleIndex(string baseUrl, IReadOnlyList<RoutedContentDocument> routed, string title = "Bukit")
     {
         var cssHref = baseUrl == "/" ? "/assets/style.css" : $"{baseUrl}/assets/style.css";
 
@@ -262,10 +262,11 @@ internal static class BuildPathUtils
         sb.AppendLine($"    <h1>{EscapeHtml(title)}</h1>");
         sb.AppendLine("    <ul>");
 
-        foreach (var (item, route) in routed)
+        foreach (var routedDocument in routed)
         {
+            var route = routedDocument.Route;
             var href = baseUrl == "/" ? route.Url : $"{baseUrl}{route.Url}";
-            sb.AppendLine($"      <li><a href=\"{href}\">{EscapeHtml(item.Title)}</a></li>");
+            sb.AppendLine($"      <li><a href=\"{href}\">{EscapeHtml(routedDocument.Document.Title)}</a></li>");
         }
 
         sb.AppendLine("    </ul>");

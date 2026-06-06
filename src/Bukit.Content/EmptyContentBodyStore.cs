@@ -9,15 +9,15 @@ public sealed class EmptyContentBodyStore : IContentBodyStore
     {
     }
 
-    public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+    public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrEmpty(item.ContentHtml))
+        if (!string.IsNullOrEmpty(document.ContentHtml))
         {
-            return Task.FromResult(new ContentBody(item.ContentHtml));
+            return Task.FromResult(new ContentBody(document.ContentHtml));
         }
 
-        throw new InvalidOperationException($"No content body available for item '{item.Id}'.");
+        throw new InvalidOperationException($"No content body available for document '{document.Id}'.");
     }
 }

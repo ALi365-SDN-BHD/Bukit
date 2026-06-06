@@ -530,7 +530,7 @@ SectionDataResolver.Resolve(sectionDef, allPages)
 
 ### Filtering
 
-Filters match against `ContentItem.Fields` values:
+Filters match against `ContentDocument.Fields` values:
 
 ```yaml
 data:
@@ -563,7 +563,7 @@ The V2 componentized theme system coexists with V1 themes:
 | Variant is ignored and default section appears | Variant key is not declared under `sections.<name>.variants`, or its template path is missing | Add the variant definition with a valid template path and verify it with `bukit theme doctor` |
 | Component cannot be rendered by name | Component key in `theme.yaml` differs from the name passed to `render_component` or `comp.render` | Use the manifest component key exactly and keep naming conventions consistent, including case |
 | Data-bound section has no items | `data.source` does not match content `type`, collection name, or the source pattern expected by `SectionDataResolver` | Use supported patterns such as `type:post`, `collection:blog`, `posts`, `*`, or comma-separated sources |
-| Data-bound section returns too many or wrong items | Filter keys do not match content field names, or boolean/string values differ | Match `filters` keys to `ContentItem.Fields` and normalize boolean values in content or config |
+| Data-bound section returns too many or wrong items | Filter keys do not match content field names, or boolean/string values differ | Match `filters` keys to `ContentDocument.Fields` and normalize boolean values in content or config |
 | Child theme does not override a parent section | Child manifest defines a different section key or only overrides tokens, not the section/template definition | Reuse the exact parent section key and define the child template or variant intended to override the parent |
 | Tokens appear inherited incorrectly | `tokens.yaml` mixes nested and dot-separated keys in a way that hides the intended leaf override | Normalize token shape and remember that inheritance merges by leaf key with child priority |
 | `theme-catalog.json` is stale or missing new props | Catalog was not regenerated after editing schema, manifest, or component props | Export the catalog again after manifest/schema changes and inspect required/optional props before agent consumption |
@@ -694,7 +694,7 @@ Scriban templates expose utility functions via the `util` global object.
 {{ page.title | util.slugify }}
 ```
 
-Note: `format_date` accepts string inputs only. Pre-format dates in C# layer if using DateTime/DateTimeOffset objects. The `ContentItemToScriptObject` method already adds `publish_date_formatted` (yyyy-MM-dd) for auto-resolved items.
+Note: `format_date` accepts string inputs only. Pre-format dates in C# layer if using DateTime/DateTimeOffset objects. The content document model binder already adds `publish_date_formatted` (yyyy-MM-dd) for auto-resolved items.
 
 ## Performance Benchmarks
 

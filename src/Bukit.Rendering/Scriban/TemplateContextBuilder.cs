@@ -17,7 +17,7 @@ internal sealed class TemplateContextBuilder
     private readonly ThemeComponentRegistry? _themeRegistry;
     private readonly SectionSchemaValidator? _schemaValidator;
     private readonly string _componentValidation;
-    private readonly IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? _allPages;
+    private readonly IReadOnlyList<(ContentDocument Document, RouteInfo? Route)>? _allPages;
     private readonly IReadOnlyDictionary<string, ISectionPlugin>? _sectionPlugins;
     private readonly SectionRenderHelper.GetCachedSectionTemplate _getCachedSectionTemplate;
 
@@ -28,7 +28,7 @@ internal sealed class TemplateContextBuilder
         ThemeComponentRegistry? themeRegistry,
         SectionSchemaValidator? schemaValidator,
         string componentValidation,
-        IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? allPages,
+        IReadOnlyList<(ContentDocument Document, RouteInfo? Route)>? allPages,
         IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins,
         SectionRenderHelper.GetCachedSectionTemplate getCachedSectionTemplate)
     {

@@ -24,7 +24,7 @@ public sealed class ScribanTemplateRenderer
     private readonly SectionSchemaValidator? _schemaValidator;
     private readonly SectionDataResolverAccessor? _dataResolver;
     private readonly string _componentValidation;
-    private readonly IReadOnlyList<(ContentItem Item, RouteInfo? Route)>? _allPages;
+    private readonly IReadOnlyList<(ContentDocument Document, RouteInfo? Route)>? _allPages;
     private readonly IReadOnlyDictionary<string, ISectionPlugin>? _sectionPlugins;
     private readonly ConcurrentDictionary<string, CachedSectionTemplate> _sectionTemplateCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly TemplateContextBuilder _contextBuilder;
@@ -34,7 +34,7 @@ public sealed class ScribanTemplateRenderer
     {
     }
 
-    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentItem, RouteInfo?)>? allPages = null, IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null)
+    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentDocument, RouteInfo?)>? allPages = null, IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null)
     {
         _layoutsDir = layoutsDir;
         _templateLoader = new FileTemplateLoader(_layoutsDir, parentLayoutsDir, userLayoutsDir);

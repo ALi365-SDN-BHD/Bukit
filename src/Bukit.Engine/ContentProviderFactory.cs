@@ -99,8 +99,8 @@ internal static class ContentProviderFactory
         throw new ContentException($"Unknown content provider: {config.Content.Provider}");
     }
 
-    internal static async Task<ContentLoadResult> LocalizeContentImagesAsync(
-        ContentLoadResult result,
+    internal static async Task<RawContentLoadResult> LocalizeContentImagesAsync(
+        RawContentLoadResult result,
         MediaConfig media,
         string rootDir,
         string cacheDir,
@@ -110,7 +110,8 @@ internal static class ContentProviderFactory
         var effective = BuildEffectiveMediaConfig(media, rootDir, cacheDir);
         using var localizer = new ImageAssetLocalizer(effective, logger);
         var pipeline = new ContentImageRewritePipeline(effective, localizer);
-        var localizedItems = await pipeline.RewriteAsync(result.Items, cancellationToken);
+        var documents = ContentDocumentNormalizer.ToDocuments(result.Documents);
+        var localizedDocuments = await pipeline.RewriteAsync(documents, cancellationToken);
 
         var failures = localizer.Failures;
         if (failures.Count > 0)
@@ -122,7 +123,18 @@ internal static class ContentProviderFactory
             }
         }
 
-        return new ContentLoadResult(localizedItems, new LocalizedContentBodyStore(result.BodyStore, pipeline));
+        var localizedRaw = localizedDocuments
+            .Select(document => new RawContentDocument(
+                document.Id,
+                document.Title,
+                document.Slug,
+                document.PublishAt,
+                document.ContentHtml,
+                document.Fields,
+                document.BodyKey))
+            .ToArray();
+
+        return new RawContentLoadResult(localizedRaw, new LocalizedContentBodyStore(result.BodyStore, pipeline));
     }
 
     private static NotionContentProvider CreateNotionProvider(string rootDir, NotionConfig notion, bool isCi, bool renderContent, ILogger logger, bool autoSummary = false, int autoSummaryMaxLength = 200)

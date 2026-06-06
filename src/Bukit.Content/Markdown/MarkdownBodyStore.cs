@@ -3,21 +3,21 @@ namespace Bukit.Content.Markdown;
 
 public sealed class MarkdownBodyStore : IContentBodyStore
 {
-    public async Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+    public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrWhiteSpace(item.ContentHtml))
+        if (!string.IsNullOrWhiteSpace(document.ContentHtml))
         {
-            return new ContentBody(item.ContentHtml);
+            return new ContentBody(document.ContentHtml);
         }
 
-        if (string.IsNullOrWhiteSpace(item.BodyKey))
+        if (string.IsNullOrWhiteSpace(document.BodyKey))
         {
-            throw new InvalidOperationException($"Markdown item '{item.Id}' is missing BodyKey.");
+            throw new InvalidOperationException($"Markdown document '{document.Id}' is missing BodyKey.");
         }
 
-        var html = await MarkdownFolderProvider.RenderHtmlFromFileAsync(item.BodyKey, cancellationToken);
+        var html = await MarkdownFolderProvider.RenderHtmlFromFileAsync(document.BodyKey, cancellationToken);
         return new ContentBody(html);
     }
 }

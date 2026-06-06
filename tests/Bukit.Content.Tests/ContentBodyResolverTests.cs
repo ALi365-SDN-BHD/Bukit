@@ -9,17 +9,10 @@ public sealed class ContentBodyResolverTests
     public void GetHtml_WithBodyStoreReturningContentBody_ReturnsHtml()
     {
         var store = new TestBodyStore(item => new ContentBody("<p>resolved body</p>"));
-        var item = new ContentItem(
-            Id: "test",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: null,
-            BodyKey: "test");
+        var document = ContentDocument.Create("test", "Test", "test", DateTimeOffset.UtcNow, null, null, "test");
 
 #pragma warning disable CS0618
-        var html = ContentBodyResolver.GetHtml(item, store);
+        var html = ContentBodyResolver.GetHtml(document, store);
 #pragma warning restore CS0618
 
         Assert.Equal("<p>resolved body</p>", html);
@@ -29,17 +22,10 @@ public sealed class ContentBodyResolverTests
     public void GetHtml_WithContentHtml_ReturnsContentHtmlDirectly()
     {
         var store = new TestBodyStore(_ => new ContentBody("<p>should not be used</p>"));
-        var item = new ContentItem(
-            Id: "test",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>inlined content</p>",
-            Fields: null,
-            BodyKey: null);
+        var document = ContentDocument.Create("test", "Test", "test", DateTimeOffset.UtcNow, "<p>inlined content</p>");
 
 #pragma warning disable CS0618
-        var html = ContentBodyResolver.GetHtml(item, store);
+        var html = ContentBodyResolver.GetHtml(document, store);
 #pragma warning restore CS0618
 
         Assert.Equal("<p>inlined content</p>", html);
@@ -49,16 +35,9 @@ public sealed class ContentBodyResolverTests
     public async Task GetHtmlAsync_WithContentHtml_ReturnsContentHtmlDirectly()
     {
         var store = new TestBodyStore(_ => new ContentBody("<p>should not be used</p>"));
-        var item = new ContentItem(
-            Id: "test",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>async inline</p>",
-            Fields: null,
-            BodyKey: null);
+        var document = ContentDocument.Create("test", "Test", "test", DateTimeOffset.UtcNow, "<p>async inline</p>");
 
-        var html = await ContentBodyResolver.GetHtmlAsync(item, store);
+        var html = await ContentBodyResolver.GetHtmlAsync(document, store);
 
         Assert.Equal("<p>async inline</p>", html);
     }
@@ -67,16 +46,9 @@ public sealed class ContentBodyResolverTests
     public async Task GetHtmlAsync_DelegatesToBodyStore()
     {
         var store = new TestBodyStore(item => new ContentBody($"<p>{item.Id}</p>"));
-        var item = new ContentItem(
-            Id: "resolved",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: null,
-            BodyKey: "resolved");
+        var document = ContentDocument.Create("resolved", "Test", "test", DateTimeOffset.UtcNow, null, null, "resolved");
 
-        var html = await ContentBodyResolver.GetHtmlAsync(item, store);
+        var html = await ContentBodyResolver.GetHtmlAsync(document, store);
 
         Assert.Equal("<p>resolved</p>", html);
     }
@@ -88,29 +60,22 @@ public sealed class ContentBodyResolverTests
         cts.Cancel();
 
         var store = new TestBodyStore(_ => new ContentBody("<p>body</p>"));
-        var item = new ContentItem(
-            Id: "test",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: null,
-            BodyKey: null);
+        var document = ContentDocument.Create("test", "Test", "test", DateTimeOffset.UtcNow, null);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
-            ContentBodyResolver.GetHtmlAsync(item, store, cts.Token));
+            ContentBodyResolver.GetHtmlAsync(document, store, cts.Token));
     }
 
     private sealed class TestBodyStore : IContentBodyStore
     {
-        private readonly Func<ContentItem, ContentBody> _factory;
+        private readonly Func<ContentDocument, ContentBody> _factory;
 
-        public TestBodyStore(Func<ContentItem, ContentBody> factory)
+        public TestBodyStore(Func<ContentDocument, ContentBody> factory)
         {
             _factory = factory;
         }
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(_factory(item));

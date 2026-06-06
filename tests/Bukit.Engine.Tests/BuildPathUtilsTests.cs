@@ -99,15 +99,15 @@ public sealed class BuildPathUtilsTests
     [Fact]
     public void RenderSimpleIndex_ReturnsHtmlWithListContent()
     {
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Post 1",
-            Slug: "post-1",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var document = ContentDocument.Create(
+            id: "p1",
+            title: "Post 1",
+            slug: "post-1",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var route = new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html");
-        var routed = new List<(ContentItem, RouteInfo)> { (item, route) };
+        var routed = new[] { new RoutedContentDocument(document, route) };
 
         var result = BuildPathUtils.RenderSimpleIndex("/", routed, "Blog");
 

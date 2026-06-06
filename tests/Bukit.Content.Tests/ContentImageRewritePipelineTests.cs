@@ -10,13 +10,13 @@ public sealed class ContentImageRewritePipelineTests
     [Fact]
     public async Task RewriteAsync_RewritesHtmlAndFieldUrls()
     {
-        var item = new ContentItem(
-            Id: "1",
-            Title: "t",
-            Slug: "s",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>x</p><img src=\"https://img.example/a.jpg\" alt=\"\" />",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>x</p><img src=\"https://img.example/a.jpg\" alt=\"\" />",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["cover"] = new ContentField("text", "https://img.example/cover.jpg"),
                 ["title_image"] = new ContentField("text", "https://img.example/keep.jpg")
@@ -40,13 +40,13 @@ public sealed class ContentImageRewritePipelineTests
     [Fact]
     public async Task RewriteAsync_WhenHtmlImgSrcMissing_UsesDefaultImage()
     {
-        var item = new ContentItem(
-            Id: "1",
-            Title: "t",
-            Slug: "s",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<img src=\"\" alt=\"\" />",
-            Fields: null);
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<img src=\"\" alt=\"\" />",
+            fields: null);
 
         var cfg = new MediaConfig
         {
@@ -63,13 +63,13 @@ public sealed class ContentImageRewritePipelineTests
     public async Task RewriteAsync_HtmlDecodesAmpersandInImgSrc()
     {
         // Simulates Notion-rendered HTML where & in URLs becomes &amp;
-        var item = new ContentItem(
-            Id: "1",
-            Title: "t",
-            Slug: "s",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<img src=\"https://s3.example/image.png?X-Amz-Algorithm=AWS4&amp;X-Amz-Date=20260212\" alt=\"\" />",
-            Fields: null);
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<img src=\"https://s3.example/image.png?X-Amz-Algorithm=AWS4&amp;X-Amz-Date=20260212\" alt=\"\" />",
+            fields: null);
 
         var cfg = new MediaConfig
         {
@@ -90,13 +90,13 @@ public sealed class ContentImageRewritePipelineTests
     public async Task RewriteAsync_DeduplicatesRepeatedUrlsWithinSingleItem()
     {
         var repeatedUrl = "https://img.example/repeat.jpg";
-        var item = new ContentItem(
-            Id: "1",
-            Title: "t",
-            Slug: "s",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: $"<img src=\"{repeatedUrl}\" /><img src=\"{repeatedUrl}\" />",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: $"<img src=\"{repeatedUrl}\" /><img src=\"{repeatedUrl}\" />",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["cover"] = new ContentField("text", repeatedUrl),
                 ["gallery"] = new ContentField("files", new[] { repeatedUrl, repeatedUrl })
@@ -125,13 +125,13 @@ public sealed class ContentImageRewritePipelineTests
     [Fact]
     public async Task RewriteAsync_LocalizesDistinctFieldListUrlsConcurrently()
     {
-        var item = new ContentItem(
-            Id: "1",
-            Title: "t",
-            Slug: "s",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["gallery"] = new ContentField("files", new[]
                 {
@@ -158,17 +158,17 @@ public sealed class ContentImageRewritePipelineTests
     [Fact]
     public async Task RewriteAsync_LocalizesDistinctHtmlUrlsConcurrentlyWithinSamePass()
     {
-        var item = new ContentItem(
-            Id: "1",
-            Title: "t",
-            Slug: "s",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: """
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: """
                          <img src="https://img.example/a.jpg" />
                          <img src="https://img.example/b.jpg" />
                          <img src="https://img.example/c.jpg" />
                          """,
-            Fields: null);
+            fields: null);
 
         var cfg = new MediaConfig
         {
@@ -186,17 +186,17 @@ public sealed class ContentImageRewritePipelineTests
     [Fact]
     public async Task RewriteAsync_LocalizesDistinctHtmlUrlsConcurrentlyAcrossDifferentPasses()
     {
-        var item = new ContentItem(
-            Id: "1",
-            Title: "t",
-            Slug: "s",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: """
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: """
                          <img src="https://img.example/a.jpg" />
                          <video poster="https://img.example/b.jpg"></video>
                          <a href="https://img.example/c.jpg">download</a>
                          """,
-            Fields: null);
+            fields: null);
 
         var cfg = new MediaConfig
         {

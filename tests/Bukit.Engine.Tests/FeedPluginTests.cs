@@ -13,9 +13,9 @@ namespace Bukit.Engine.Tests;
 
 public sealed class FeedPluginTests
 {
-    private static ContentItem CreateItem(string id, string title, string slug, string? contentHtml = null)
+    private static ContentDocument CreateItem(string id, string title, string slug, string? contentHtml = null)
     {
-        return new ContentItem(
+        return ContentDocument.Create(
             id,
             title,
             slug,
@@ -56,11 +56,11 @@ public sealed class FeedPluginTests
                 OutputDir = tempDir,
                 BaseUrl = "/",
                 LayoutsDir = tempDir,
-                Routed = new List<(ContentItem, RouteInfo)>
+                RoutedDocuments = new List<(ContentDocument, RouteInfo)>
                 {
                     (CreateItem("1", "Hello World", "hello-world", "<p>Hello world!</p>"), CreateRoute("/hello-world", "hello-world/index.html")),
                     (CreateItem("2", "Second Post", "second-post", "<p>Another post</p>"), CreateRoute("/second-post", "second-post/index.html")),
-                },
+                }.ToRoutedDocuments(),
                 BodyStore = NullContentBodyStore.Instance,
                 Logger = new ConsoleLogger(LogLevel.Debug),
             };
@@ -107,7 +107,7 @@ public sealed class FeedPluginTests
                 OutputDir = tempDir,
                 BaseUrl = "/",
                 LayoutsDir = tempDir,
-                Routed = Array.Empty<(ContentItem, RouteInfo)>(),
+                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
                 BodyStore = NullContentBodyStore.Instance,
                 Logger = new ConsoleLogger(LogLevel.Debug),
             };
@@ -154,10 +154,10 @@ public sealed class FeedPluginTests
                 OutputDir = tempDir,
                 BaseUrl = "/",
                 LayoutsDir = tempDir,
-                Routed = new List<(ContentItem, RouteInfo)>
+                RoutedDocuments = new List<(ContentDocument, RouteInfo)>
                 {
                     (CreateItem("1", "English Post", "english-post", "<p>Content</p>"), CreateRoute("/en/english-post", "en/english-post/index.html")),
-                },
+                }.ToRoutedDocuments(),
                 BodyStore = NullContentBodyStore.Instance,
                 Logger = new ConsoleLogger(LogLevel.Debug),
             };
@@ -204,10 +204,10 @@ public sealed class FeedPluginTests
                 OutputDir = tempDir,
                 BaseUrl = "/",
                 LayoutsDir = tempDir,
-                Routed = new List<(ContentItem, RouteInfo)>
+                RoutedDocuments = new List<(ContentDocument, RouteInfo)>
                 {
                     (CreateItem("1", "Rich Post", "rich-post", "<p>Rich content here</p>"), CreateRoute("/rich-post", "rich-post/index.html")),
-                },
+                }.ToRoutedDocuments(),
                 BodyStore = NullContentBodyStore.Instance,
                 Logger = new ConsoleLogger(LogLevel.Debug),
             };

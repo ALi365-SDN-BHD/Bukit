@@ -45,13 +45,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_WithFullItem_SetsAllProperties()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "post-1",
-            Title: "Hello World",
-            Slug: "hello-world",
-            PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>hello</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "post-1",
+            title: "Hello World",
+            slug: "hello-world",
+            publishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>hello</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -87,13 +87,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_SeoTitleOverridesTitle()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Original",
-            Slug: "original",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Original",
+            slug: "original",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["seo_title"] = "SEO Title"
@@ -110,13 +110,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_SeoDescriptionOverridesSummary()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["seo_desc"] = "Custom desc",
@@ -133,13 +133,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_PrefersCanonicalFieldsForSummaryTagsAndLanguage()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Canonical",
-            Slug: "canonical",
-            PublishAt: DateTimeOffset.Parse("2026-06-05T10:00:00Z"),
-            ContentHtml: null,
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Canonical",
+            slug: "canonical",
+            publishAt: DateTimeOffset.Parse("2026-06-05T10:00:00Z"),
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post"),
                 ["summary"] = new("text", "Canonical summary"),
@@ -167,13 +167,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_LegacySeoFieldsFallbackToStandardSeo()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Original",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Original",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["seotitle"] = "Legacy SEO Title",
@@ -192,13 +192,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_NonPost_UsesWebsiteOgType()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "About",
-            Slug: "about",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "About",
+            slug: "about",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
         var route = new RouteInfo("/pages/about/", "pages/about/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -213,13 +213,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_RobotsFromMeta()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Noindex",
-            Slug: "noindex",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Noindex",
+            slug: "noindex",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["robots"] = "noindex"
@@ -235,13 +235,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_WithAlternates()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Translated",
-            Slug: "translated",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Translated",
+            slug: "translated",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["i18n_key"] = "page.translated"
@@ -336,13 +336,13 @@ public sealed class SeoModelBuilderTests
     [Fact]
     public void BuildAlternateKey_WithI18nKey()
     {
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["i18nKey"] = "page.about" }));
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["i18nKey"] = "page.about" }));
         var route = new RouteInfo("/pages/about/", "pages/about/index.html", "pages/page.html");
 
         var key = SeoModelBuilder.BuildAlternateKey(item, route);
@@ -353,13 +353,13 @@ public sealed class SeoModelBuilderTests
     [Fact]
     public void BuildAlternateKey_WithoutI18nKey_UsesRoute()
     {
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var route = new RouteInfo("/pages/about/", "pages/about/index.html", "pages/page.html");
 
         var key = SeoModelBuilder.BuildAlternateKey(item, route);
@@ -411,13 +411,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_WithoutImage_UsesSummaryTwitterCard()
     {
         var config = CreateConfig(defaultImage: null);
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "No Image",
-            Slug: "no-image",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "No Image",
+            slug: "no-image",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
         var route = new RouteInfo("/pages/no-image/", "pages/no-image/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -445,13 +445,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_ImageFromOgImageField()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["og_image"] = "/images/custom.jpg"
@@ -468,13 +468,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_ImageFromCoverField()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["cover"] = "/covers/main.jpg"
@@ -490,13 +490,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_JsonLdContainsWebSite()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
         var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -509,13 +509,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_JsonLdContainsWebPage()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
         var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
@@ -529,13 +529,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_PostHasBlogPostingJsonLd()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "post-1",
-            Title: "My Post",
-            Slug: "my-post",
-            PublishAt: new DateTimeOffset(2025, 3, 10, 8, 0, 0, TimeSpan.Zero),
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "post-1",
+            title: "My Post",
+            slug: "my-post",
+            publishAt: new DateTimeOffset(2025, 3, 10, 8, 0, 0, TimeSpan.Zero),
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -559,13 +559,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_PageTypeWithPostCollectionDoesNotEmitBlogPostingJsonLd()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "blog-archive-2026",
-            Title: "Archive: 2026",
-            Slug: "archive-2026",
-            PublishAt: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "blog-archive-2026",
+            title: "Archive: 2026",
+            slug: "archive-2026",
+            publishAt: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["collection"] = "post"
@@ -581,13 +581,13 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_CustomCanonicalOverrides()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["canonical"] = "https://other.com/custom"

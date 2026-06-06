@@ -7,9 +7,14 @@ namespace Bukit.Engine;
 
 internal static partial class SitemapPolicy
 {
-    internal static DateTimeOffset ResolveLastModified(ContentItem item)
+    internal static DateTimeOffset ResolveLastModified(ContentDocument document)
     {
-        if (item.Fields is not null && item.Fields.TryGetValue("update_time", out var field) && field is not null)
+        if (document.Record.Lifecycle.UpdatedAt is { } updatedAt)
+        {
+            return updatedAt;
+        }
+
+        if (document.Fields is not null && document.Fields.TryGetValue("update_time", out var field) && field is not null)
         {
             if (TryReadDate(field.Value, out var dt))
             {
@@ -17,7 +22,7 @@ internal static partial class SitemapPolicy
             }
         }
 
-        return item.PublishAt;
+        return document.PublishAt;
     }
 
     internal static bool ShouldExcludeFromSitemap(string html)

@@ -270,7 +270,7 @@ public static class DoctorCommand
             OutputDir = Path.Combine(rootDir, config.Build.Output),
             BaseUrl = config.Site.BaseUrl,
             LayoutsDir = layoutsDir,
-            Routed = Array.Empty<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<Bukit.Engine.Abstractions.Content.RoutedContentDocument>(),
             BodyStore = Bukit.Engine.Abstractions.Content.NullContentBodyStore.Instance,
             TemplateResolver = templateResolver.ResolveKindTemplate,
             Logger = new ConsoleLogger(LogLevel.Info)
@@ -340,16 +340,16 @@ public static class DoctorCommand
             }
         }
 
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed;
+        IReadOnlyList<Bukit.Engine.Abstractions.Content.RoutedContentDocument> routedDocuments;
         try
         {
-            routed = await RouteInventoryValidator.BuildContentRoutesAsync(
+            routedDocuments = await RouteInventoryValidator.BuildContentRoutesAsync(
                 config,
                 rootDir,
                 isCi: false,
                 new ConsoleLogger(LogLevel.Error),
                 templateResolver);
-            RouteInventoryValidator.ValidateContentRoutes(routed);
+            RouteInventoryValidator.ValidateContentRoutes(routedDocuments);
             Console.WriteLine("✔ Routes valid");
         }
         catch (Exception ex) when (ex is ConfigException or ContentException)
@@ -370,7 +370,7 @@ public static class DoctorCommand
                 OutputDir = Path.Combine(rootDir, config.Build.Output),
                 BaseUrl = config.Site.BaseUrl,
                 LayoutsDir = layoutsDir,
-                Routed = routed,
+                RoutedDocuments = routedDocuments,
                 BodyStore = Bukit.Engine.Abstractions.Content.NullContentBodyStore.Instance,
                 TemplateResolver = templateResolver.ResolveKindTemplate,
                 Logger = new ConsoleLogger(LogLevel.Info)
@@ -384,7 +384,7 @@ public static class DoctorCommand
             return 1;
         }
 
-        var missingUsedTemplates = DoctorTemplateAnalyzer.CollectMissingUsedTemplates(layoutsDir, routed, listRoutes, pluginRequirementTemplates);
+        var missingUsedTemplates = DoctorTemplateAnalyzer.CollectMissingUsedTemplates(layoutsDir, routedDocuments, listRoutes, pluginRequirementTemplates);
         if (missingUsedTemplates.Count > 0)
         {
             Console.WriteLine("✖ Missing used templates:");
@@ -399,9 +399,9 @@ public static class DoctorCommand
         DoctorManifestChecker.CheckUnreferencedTemplates(layoutsDir, allHtmlFiles, config, listRoutes, templateResolver);
 
         Console.WriteLine();
-        var hasSchemaErrors = DoctorSchemaChecker.CheckSchemaFieldCompleteness(ctx, routed);
+        var hasSchemaErrors = DoctorSchemaChecker.CheckSchemaFieldCompleteness(ctx, routedDocuments);
         DoctorSchemaChecker.CheckTemplateFieldsVsSchema(ctx);
-        DoctorSchemaChecker.CheckExtraContentFields(ctx, routed);
+        DoctorSchemaChecker.CheckExtraContentFields(ctx, routedDocuments);
 
         if (hasSchemaErrors)
         {
@@ -414,7 +414,7 @@ public static class DoctorCommand
             var factory = new DefaultContentProviderFactory();
             var contentPipeline = new ContentPipeline(factory, new ConsoleLogger(LogLevel.Error));
             var contentResult = await contentPipeline.ExecuteAsync(config, rootDir, new ConfigOverrides(), Path.Combine(rootDir, ".cache", "media"));
-            DataCommand.PrintModuleSummary(contentResult.Items);
+            DataCommand.PrintModuleSummary(contentResult.Documents);
         }
         catch (Exception ex)
         {

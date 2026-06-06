@@ -11,14 +11,16 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
     public string Name => "alias";
     public string Version => "1.0.0";
 
-    public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
+    public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
     {
-        var derived = new List<(ContentItem, RouteInfo, DateTimeOffset)>();
+        var derived = new List<RoutedContentDocument>();
         var baseUrl = context.BaseUrl == "/" ? "" : context.BaseUrl;
 
-        foreach (var (item, route) in context.Routed)
+        foreach (var routedDocument in context.RoutedDocuments)
         {
-            var aliases = ContentFieldReader.GetTextList(item.Fields, "aliases");
+            var document = routedDocument.Document;
+            var route = routedDocument.Route;
+            var aliases = ContentFieldReader.GetTextList(document.Fields, "aliases");
             if (aliases is null)
             {
                 continue;
@@ -38,13 +40,13 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
                 var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(aliasUrl, context.Config.Site.OutputPathEncoding);
                 var aliasRoute = new RouteInfo(aliasUrl, outputPath, null!);
 
-                var aliasItem = new ContentItem(
-                    Id: $"alias-{item.Id}-{EscapePath(alias)}",
-                    Title: $"[Redirect] {item.Title}",
-                    Slug: $"alias-{item.Slug}",
-                    PublishAt: item.PublishAt,
-                    ContentHtml: html,
-                    Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                var aliasDocument = ContentDocument.Create(
+                    id: $"alias-{document.Id}-{EscapePath(alias)}",
+                    title: $"[Redirect] {document.Title}",
+                    slug: $"alias-{document.Slug}",
+                    publishAt: document.PublishAt,
+                    contentHtml: html,
+                    fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["type"] = "redirect",
                         ["sitemap"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -53,7 +55,7 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
                         }
                     }));
 
-                derived.Add((aliasItem, aliasRoute, item.PublishAt));
+                derived.Add(new RoutedContentDocument(aliasDocument, aliasRoute, document.PublishAt));
             }
         }
 

@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Bukit.Content.Tests;
 
-public sealed class MarkdownContentLoadResultTests
+public sealed class MarkdownRawContentLoadResultTests
 {
     [Fact]
     public async Task LoadAsync_ReturnsMetadataFirstItemsAndHydratesBodyOnDemand()
@@ -26,9 +26,9 @@ public sealed class MarkdownContentLoadResultTests
 
         var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
 
-        var result = await provider.LoadAsync();
+        var result = await provider.LoadRawAsync();
 
-        var item = Assert.Single(result.Items);
+        var item = Assert.Single(result.Documents);
         Assert.Null(item.ContentHtml);
         Assert.False(string.IsNullOrWhiteSpace(item.BodyKey));
 

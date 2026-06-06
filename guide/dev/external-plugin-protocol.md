@@ -142,6 +142,60 @@ Every file written by external plugins is tracked in the build manifest. During 
 - Failed negotiation falls back to v1
 - Handshake results are cached within the same BuildContext
 
+## Routed Page Payload (vNext)
+
+When `site.externalProtocolIncludeRoutedPages: true`, routed page entries now include both `fields` and canonical `content`.
+
+```json
+{
+  "id": "post-1",
+  "url": "/blog/post-1/",
+  "outputPath": "blog/post-1/index.html",
+  "fields": {
+    "tags": { "type": "multi_select", "value": ["news"] }
+  },
+  "content": {
+    "id": "post-1",
+    "slug": "post-1",
+    "canonicalUrlKey": "post-1",
+    "type": "post",
+    "collection": "post",
+    "status": "published",
+    "title": "Post 1",
+    "summary": "Short summary",
+    "language": "en",
+    "translations": [],
+    "author": "Author",
+    "organization": "Bukit",
+    "publishedAt": "2026-06-06T00:00:00+00:00",
+    "updatedAt": "2026-06-06T00:00:00+00:00",
+    "source": "markdown",
+    "originalSource": "https://example.com/source",
+    "citations": [],
+    "references": [],
+    "syncStatus": "synced",
+    "reviewStatus": "published",
+    "credibilityScore": null,
+    "qualityFlags": [],
+    "entities": [
+      { "type": "company", "name": "Bukit", "description": null, "id": null, "url": null, "sameAs": null }
+    ],
+    "relations": [
+      { "type": "mentions", "target": "Bukit", "targetType": "company", "targetId": null }
+    ],
+    "media": [
+      { "kind": "image", "url": "/img/cover.jpg", "alt": "Cover", "caption": null, "description": null, "license": null }
+    ]
+  }
+}
+```
+
+Compatibility notes:
+
+- `fields` is the dynamic custom field surface.
+- `content` is the canonical semantic content model and should be preferred for publishing, audit, feed, search, and agent workflows.
+- `meta` is not emitted in vNext protocol payloads.
+
 ## WASM Support
 - `runtime: wasm`, `wasmProfile: wasi-preview1`
 - `wasmFsMode`: `none|output-only`

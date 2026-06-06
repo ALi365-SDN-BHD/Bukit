@@ -9,7 +9,7 @@ public class DependencyMatrixTests
 {
     private static readonly Assembly SharedAssembly = typeof(Bukit.Shared.ILogger).Assembly;
     private static readonly Assembly ConfigAssembly = typeof(Bukit.Config.AppConfig).Assembly;
-    private static readonly Assembly AbstractionsAssembly = typeof(Bukit.Engine.Abstractions.Content.ContentItem).Assembly;
+    private static readonly Assembly AbstractionsAssembly = typeof(Bukit.Engine.Abstractions.Content.ContentDocument).Assembly;
     private static readonly Assembly RoutingAssembly = typeof(Bukit.Routing.RouteGenerator).Assembly;
     private static readonly Assembly ContentAssembly = typeof(Bukit.Content.IContentProvider).Assembly;
     private static readonly Assembly RenderingAssembly = typeof(Bukit.Rendering.SiteModel).Assembly;

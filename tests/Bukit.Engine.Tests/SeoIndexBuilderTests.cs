@@ -39,19 +39,19 @@ public sealed class SeoIndexBuilderTests
     public void Build_SeoDisabled_ReturnsEmpty()
     {
         var config = CreateConfig(seoEnabled: false);
-        var routed = new (ContentItem, RouteInfo)[]
+        var routed = new (ContentDocument, RouteInfo)[]
         {
-            (new ContentItem(
-                Id: "p1",
-                Title: "Page",
-                Slug: "page",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: null,
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" })),
+            (ContentDocument.Create(
+                id: "p1",
+                title: "Page",
+                slug: "page",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+                fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" })),
              new RouteInfo("/pages/page/", "pages/page/index.html", "pages/page.html"))
         };
 
-        var result = SeoIndexBuilder.Build(config, "/", routed, Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+        var result = SeoIndexBuilder.Build(config, "/", routed.ToRoutedDocuments(), Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
 
         Assert.Empty(result.Entries);
         Assert.Empty(result.Models);
@@ -62,28 +62,28 @@ public sealed class SeoIndexBuilderTests
     {
         var config = CreateConfig();
         var publishAt = new DateTimeOffset(2025, 6, 1, 10, 0, 0, TimeSpan.Zero);
-        var routed = new (ContentItem, RouteInfo)[]
+        var routed = new (ContentDocument, RouteInfo)[]
         {
-            (new ContentItem(
-                Id: "post-1",
-                Title: "First Post",
-                Slug: "first-post",
-                PublishAt: publishAt,
-                ContentHtml: null,
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            (ContentDocument.Create(
+                id: "post-1",
+                title: "First Post",
+                slug: "first-post",
+                publishAt: publishAt,
+                contentHtml: null,
+                fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
                 {
                     ["type"] = "post",
                     ["collection"] = "post",
                     ["summary"] = "First summary"
                 })),
              new RouteInfo("/blog/first-post/", "blog/first-post/index.html", "pages/post.html")),
-            (new ContentItem(
-                Id: "page-1",
-                Title: "About",
-                Slug: "about",
-                PublishAt: publishAt,
-                ContentHtml: null,
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            (ContentDocument.Create(
+                id: "page-1",
+                title: "About",
+                slug: "about",
+                publishAt: publishAt,
+                contentHtml: null,
+                fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
                 {
                     ["type"] = "page",
                     ["summary"] = "About us"
@@ -91,7 +91,7 @@ public sealed class SeoIndexBuilderTests
              new RouteInfo("/pages/about/", "pages/about/index.html", "pages/page.html"))
         };
 
-        var result = SeoIndexBuilder.Build(config, "/", routed, Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+        var result = SeoIndexBuilder.Build(config, "/", routed.ToRoutedDocuments(), Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
 
         Assert.Equal(2, result.Entries.Count);
         Assert.Equal(2, result.Models.Count);
@@ -106,7 +106,7 @@ public sealed class SeoIndexBuilderTests
         Assert.True(result.Entries.ContainsKey("pages/about/index.html"));
         var pageEntry = result.Entries["pages/about/index.html"];
         Assert.True(pageEntry.Indexable);
-        Assert.Null(pageEntry.ContentType);
+        Assert.Equal("page", pageEntry.ContentType);
 
         Assert.True(result.Models.ContainsKey("blog/first-post/index.html"));
         Assert.True(result.Models.ContainsKey("pages/about/index.html"));
@@ -116,15 +116,15 @@ public sealed class SeoIndexBuilderTests
     public void Build_WithListRoutes_CreatesListEntries()
     {
         var config = CreateConfig();
-        var routed = new (ContentItem, RouteInfo)[]
+        var routed = new (ContentDocument, RouteInfo)[]
         {
-            (new ContentItem(
-                Id: "post-1",
-                Title: "Post",
-                Slug: "post",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: null,
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post" })),
+            (ContentDocument.Create(
+                id: "post-1",
+                title: "Post",
+                slug: "post",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+                fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post" })),
              new RouteInfo("/blog/post/", "blog/post/index.html", "pages/post.html"))
         };
         var listRoutes = new[]
@@ -133,7 +133,7 @@ public sealed class SeoIndexBuilderTests
             new RouteInfo("/blog/", "blog/index.html", "pages/list.html")
         };
 
-        var result = SeoIndexBuilder.Build(config, "/", routed, listRoutes, new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+        var result = SeoIndexBuilder.Build(config, "/", routed.ToRoutedDocuments(), listRoutes, new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
 
         Assert.True(result.Entries.ContainsKey("index.html"));
         Assert.True(result.Entries.ContainsKey("blog/index.html"));
@@ -151,15 +151,15 @@ public sealed class SeoIndexBuilderTests
     public void Build_PrefersCanonicalCollectionFromFields()
     {
         var config = CreateConfig();
-        var routed = new (ContentItem, RouteInfo)[]
+        var routed = new (ContentDocument, RouteInfo)[]
         {
-            (new ContentItem(
-                Id: "post-1",
-                Title: "Post",
-                Slug: "post",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: null,
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            (ContentDocument.Create(
+                id: "post-1",
+                title: "Post",
+                slug: "post",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["type"] = new("text", "post"),
                     ["collection"] = new("text", "knowledge")
@@ -167,7 +167,7 @@ public sealed class SeoIndexBuilderTests
              new RouteInfo("/knowledge/post/", "knowledge/post/index.html", "pages/post.html"))
         };
 
-        var result = SeoIndexBuilder.Build(config, "/", routed, Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+        var result = SeoIndexBuilder.Build(config, "/", routed.ToRoutedDocuments(), Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
 
         var entry = result.Entries["knowledge/post/index.html"];
         Assert.Equal("knowledge", entry.ContentType);
@@ -178,19 +178,19 @@ public sealed class SeoIndexBuilderTests
     {
         var config = CreateConfig();
         var publishAt = new DateTimeOffset(2025, 3, 15, 0, 0, 0, TimeSpan.Zero);
-        var routed = new (ContentItem, RouteInfo)[]
+        var routed = new (ContentDocument, RouteInfo)[]
         {
-            (new ContentItem(
-                Id: "post-1",
-                Title: "Post",
-                Slug: "post",
-                PublishAt: publishAt,
-                ContentHtml: null,
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post" })),
+            (ContentDocument.Create(
+                id: "post-1",
+                title: "Post",
+                slug: "post",
+                publishAt: publishAt,
+                contentHtml: null,
+                fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post" })),
              new RouteInfo("/blog/post/", "blog/post/index.html", "pages/post.html"))
         };
 
-        var result = SeoIndexBuilder.Build(config, "/", routed, Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+        var result = SeoIndexBuilder.Build(config, "/", routed.ToRoutedDocuments(), Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
 
         var entry = result.Entries["blog/post/index.html"];
         Assert.True(entry.LastModified > DateTimeOffset.MinValue);
@@ -200,15 +200,15 @@ public sealed class SeoIndexBuilderTests
     public void Build_NonIndexableContent()
     {
         var config = CreateConfig();
-        var routed = new (ContentItem, RouteInfo)[]
+        var routed = new (ContentDocument, RouteInfo)[]
         {
-            (new ContentItem(
-                Id: "p1",
-                Title: "Hidden",
-                Slug: "hidden",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: null,
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            (ContentDocument.Create(
+                id: "p1",
+                title: "Hidden",
+                slug: "hidden",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+                fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
                 {
                     ["type"] = "page",
                     ["robots"] = "noindex"
@@ -216,7 +216,7 @@ public sealed class SeoIndexBuilderTests
              new RouteInfo("/pages/hidden/", "pages/hidden/index.html", "pages/page.html"))
         };
 
-        var result = SeoIndexBuilder.Build(config, "/", routed, Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+        var result = SeoIndexBuilder.Build(config, "/", routed.ToRoutedDocuments(), Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
 
         var entry = result.Entries["pages/hidden/index.html"];
         Assert.False(entry.Indexable);
@@ -227,19 +227,19 @@ public sealed class SeoIndexBuilderTests
     public void Build_WithAlternates_PassesToModels()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
-            Id: "p1",
-            Title: "Translated",
-            Slug: "translated",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Translated",
+            slug: "translated",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["i18n_key"] = "page.translated"
             }));
         var route = new RouteInfo("/pages/translated/", "pages/translated/index.html", "pages/page.html");
-        var routed = new (ContentItem, RouteInfo)[] { (item, route) };
+        var routed = new (ContentDocument, RouteInfo)[] { (item, route) };
         var alternates = new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.OrdinalIgnoreCase)
         {
             ["i18n:page.translated"] = new[]
@@ -249,7 +249,7 @@ public sealed class SeoIndexBuilderTests
             }
         };
 
-        var result = SeoIndexBuilder.Build(config, "/", routed, Array.Empty<RouteInfo>(), alternates);
+        var result = SeoIndexBuilder.Build(config, "/", routed.ToRoutedDocuments(), Array.Empty<RouteInfo>(), alternates);
 
         var model = result.Models["pages/translated/index.html"];
         Assert.Equal(2, model.Alternates.Count);
@@ -259,19 +259,19 @@ public sealed class SeoIndexBuilderTests
     public void Build_BaseUrlIsPrependedToCanonical()
     {
         var config = CreateConfig();
-        var routed = new (ContentItem, RouteInfo)[]
+        var routed = new (ContentDocument, RouteInfo)[]
         {
-            (new ContentItem(
-                Id: "p1",
-                Title: "Page",
-                Slug: "page",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: null,
-                Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" })),
+            (ContentDocument.Create(
+                id: "p1",
+                title: "Page",
+                slug: "page",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+                fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" })),
              new RouteInfo("/pages/page/", "pages/page/index.html", "pages/page.html"))
         };
 
-        var result = SeoIndexBuilder.Build(config, "/zh", routed, Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+        var result = SeoIndexBuilder.Build(config, "/zh", routed.ToRoutedDocuments(), Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
 
         var entry = result.Entries["pages/page/index.html"];
         Assert.Equal("https://example.com/zh/pages/page/", entry.Canonical);
@@ -286,7 +286,7 @@ public sealed class SeoIndexBuilderTests
             new RouteInfo("/blog/", "blog/index.html", "pages/list.html")
         };
 
-        var result = SeoIndexBuilder.Build(config, "/", Array.Empty<(ContentItem, RouteInfo)>(), listRoutes, new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+        var result = SeoIndexBuilder.Build(config, "/", Array.Empty<RoutedContentDocument>(), listRoutes, new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
 
         Assert.True(result.Entries.ContainsKey("blog/index.html"));
         Assert.Equal("list", result.Entries["blog/index.html"].ContentType);

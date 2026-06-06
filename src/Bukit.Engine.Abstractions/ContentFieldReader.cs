@@ -2,24 +2,33 @@ namespace Bukit.Engine.Abstractions.Content;
 
 public static class ContentFieldReader
 {
-    public static string? GetText(ContentItem item, string key)
-        => GetText(item.Fields, key);
+    public static string? GetText(RawContentDocument document, string key)
+        => GetText(document.Fields, key);
 
-    public static string GetContentType(ContentItem item, string defaultType = "")
-        => GetText(item.Fields, "type") ?? defaultType;
+    public static string? GetText(ContentDocument document, string key)
+        => GetText(document.Fields, key);
 
-    public static string GetCollection(ContentItem item, string defaultCollection = "")
-        => GetText(item.Fields, "collection") ?? defaultCollection;
+    public static string GetContentType(RawContentDocument document, string defaultType = "")
+        => GetText(document.Fields, "type") ?? defaultType;
 
-    public static string? GetEffectiveCollection(ContentItem item, string? defaultCollection = null)
+    public static string GetContentType(ContentDocument document, string defaultType = "")
+        => document.Record.Identity.ContentType ?? GetText(document.Fields, "type") ?? defaultType;
+
+    public static string GetCollection(RawContentDocument document, string defaultCollection = "")
+        => GetText(document.Fields, "collection") ?? defaultCollection;
+
+    public static string GetCollection(ContentDocument document, string defaultCollection = "")
+        => document.Record.Classification.Collection ?? GetText(document.Fields, "collection") ?? defaultCollection;
+
+    public static string? GetEffectiveCollection(ContentDocument document, string? defaultCollection = null)
     {
-        var collection = GetCollection(item);
+        var collection = GetCollection(document);
         if (!string.IsNullOrWhiteSpace(collection))
         {
             return collection;
         }
 
-        var type = GetContentType(item);
+        var type = GetContentType(document);
         if (!string.IsNullOrWhiteSpace(type))
         {
             return type;
@@ -28,16 +37,17 @@ public static class ContentFieldReader
         return defaultCollection;
     }
 
-    public static IReadOnlyList<string> GetTextValues(ContentItem item, string key)
-        => GetTextList(item.Fields, key) ?? Array.Empty<string>();
+    public static IReadOnlyList<string> GetTextValues(ContentDocument document, string key)
+        => GetTextList(document.Fields, key) ?? Array.Empty<string>();
 
-    public static string? GetSummary(ContentItem item)
-        => GetText(item.Fields, "summary")
-           ?? GetText(item.Fields, "description")
-           ?? GetText(item.Fields, "excerpt");
+    public static string? GetSummary(ContentDocument document)
+        => document.Record.Presentation.Summary
+           ?? GetText(document.Fields, "summary")
+           ?? GetText(document.Fields, "description")
+           ?? GetText(document.Fields, "excerpt");
 
-    public static bool IsDataItem(ContentItem item)
-        => string.Equals(GetText(item.Fields, "sourceMode"), "data", StringComparison.OrdinalIgnoreCase);
+    public static bool IsDataItem(ContentDocument document)
+        => string.Equals(GetText(document.Fields, "sourceMode"), "data", StringComparison.OrdinalIgnoreCase);
 
     public static bool TryGetI18nKey(IReadOnlyDictionary<string, ContentField>? fields, out string key)
     {

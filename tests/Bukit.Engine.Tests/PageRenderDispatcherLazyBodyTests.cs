@@ -16,13 +16,13 @@ public sealed class PageRenderDispatcherLazyBodyTests
     [Fact]
     public async Task RenderPages_HydratesBodyFromStore_WhenContentHtmlIsNull()
     {
-        var item = new ContentItem(
-            Id: "id-1",
-            Title: "Hello",
-            Slug: "hello",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            BodyKey: "body-1");
+        var item = ContentDocument.Create(
+            id: "id-1",
+            title: "Hello",
+            slug: "hello",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            bodyKey: "body-1");
 
         var route = new RouteInfo("/pages/hello/", "pages/hello/index.html", "pages/page.html");
         var renderer = new CaptureRenderer();
@@ -37,8 +37,8 @@ public sealed class PageRenderDispatcherLazyBodyTests
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outputDir);
 
-        var result = await PageRenderDispatcher.RenderPagesAsync(
-            new List<(ContentItem Item, RouteInfo Route)> { (item, route) },
+        var result = await PageRenderDispatcher.DispatchAsync(
+            new[] { RenderEntry.ForPage(item.ToDocument(), route) },
             new DictionaryContentBodyStore(new Dictionary<string, ContentBody>(StringComparer.OrdinalIgnoreCase)
             {
                 ["body-1"] = new("<p>lazy body</p>")
@@ -63,19 +63,19 @@ public sealed class PageRenderDispatcherLazyBodyTests
     [Fact]
     public async Task RenderPages_PopulatesCanonicalSummaryTrustAndProvenance()
     {
-        var item = new ContentItem(
-            Id: "id-canonical",
-            Title: "Hello",
-            Slug: "hello",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "id-canonical",
+            title: "Hello",
+            slug: "hello",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["summary"] = new("text", "Canonical summary"),
                 ["source"] = new("text", "notion"),
                 ["review_status"] = new("text", "approved")
             },
-            BodyKey: "body-canonical");
+            bodyKey: "body-canonical");
 
         var route = new RouteInfo("/pages/hello/", "pages/hello/index.html", "pages/page.html");
         var renderer = new CaptureRenderer();
@@ -90,8 +90,8 @@ public sealed class PageRenderDispatcherLazyBodyTests
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outputDir);
 
-        await PageRenderDispatcher.RenderPagesAsync(
-            new List<(ContentItem Item, RouteInfo Route)> { (item, route) },
+        await PageRenderDispatcher.DispatchAsync(
+            new[] { RenderEntry.ForPage(item.ToDocument(), route) },
             new DictionaryContentBodyStore(new Dictionary<string, ContentBody>(StringComparer.OrdinalIgnoreCase)
             {
                 ["body-canonical"] = new("<p>lazy body</p>")
@@ -117,17 +117,17 @@ public sealed class PageRenderDispatcherLazyBodyTests
     [Fact]
     public async Task RenderPages_SkipsWithoutHydratingBody_WhenStableFingerprintMatchesManifest()
     {
-        var item = new ContentItem(
-            Id: "id-1",
-            Title: "Hello",
-            Slug: "hello",
-            PublishAt: DateTimeOffset.Parse("2026-05-04T00:00:00Z"),
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "id-1",
+            title: "Hello",
+            slug: "hello",
+            publishAt: DateTimeOffset.Parse("2026-05-04T00:00:00Z"),
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["bodyFingerprint"] = "body-v1"
             }),
-            BodyKey: "body-1");
+            bodyKey: "body-1");
 
         var route = new RouteInfo("/pages/hello/", "pages/hello/index.html", "pages/page.html");
         var renderer = new CaptureRenderer();
@@ -144,8 +144,9 @@ public sealed class PageRenderDispatcherLazyBodyTests
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
         await File.WriteAllTextAsync(outputPath, "<p>cached</p>");
 
-        var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(item);
-        var contentHash = IncrementalBuildEngine.ComputeStableContentHash(item, metadataHash);
+        var document = item.ToDocument();
+        var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(document);
+        var contentHash = IncrementalBuildEngine.ComputeStableContentHash(document, metadataHash);
         var manifest = new BuildManifest
         {
             Entries = new Dictionary<string, BuildManifestEntry>(StringComparer.Ordinal)
@@ -166,8 +167,8 @@ public sealed class PageRenderDispatcherLazyBodyTests
         var manifestEntries = new ConcurrentDictionary<string, BuildManifestEntry>(manifest.Entries, StringComparer.Ordinal);
         var bodyStore = new ThrowingBodyStore();
 
-        var result = await PageRenderDispatcher.RenderPagesAsync(
-            new List<(ContentItem Item, RouteInfo Route)> { (item, route) },
+        var result = await PageRenderDispatcher.DispatchAsync(
+            new[] { RenderEntry.ForPage(document, route) },
             bodyStore,
             renderer,
             siteModel,
@@ -202,7 +203,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
         Directory.CreateDirectory(outputDir);
 
         var result = await PageRenderDispatcher.RenderSpecialListsAsync(
-            routed,
+            routed.ToRoutedDocuments(),
             bodyStore,
             new CaptureRenderer(),
             CreateSiteModel(),
@@ -238,7 +239,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
         Directory.CreateDirectory(outputDir);
 
         await PageRenderDispatcher.RenderSpecialListsAsync(
-            CreateRoutedItems(),
+            CreateRoutedItems().ToRoutedDocuments(),
             new CountingBodyStore(),
             renderer,
             CreateSiteModel(),
@@ -276,7 +277,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
         Directory.CreateDirectory(outputDir);
 
         await PageRenderDispatcher.RenderSpecialListsAsync(
-            routed,
+            routed.ToRoutedDocuments(),
             bodyStore,
             new CaptureRenderer(),
             CreateSiteModel(),
@@ -323,7 +324,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
         Directory.CreateDirectory(outputDir);
 
         await PageRenderDispatcher.RenderSpecialListsAsync(
-            routed,
+            routed.ToRoutedDocuments(),
             bodyStore,
             new CaptureRenderer(),
             CreateSiteModel(),
@@ -368,7 +369,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
         Directory.CreateDirectory(outputDir);
 
         await PageRenderDispatcher.RenderSpecialListsAsync(
-            routed,
+            routed.ToRoutedDocuments(),
             bodyStore,
             new CaptureRenderer(),
             CreateSiteModel(),
@@ -389,22 +390,22 @@ public sealed class PageRenderDispatcherLazyBodyTests
         Assert.True(bodyStore.Count > 0);
     }
 
-    private static List<(ContentItem Item, RouteInfo Route)> CreateRoutedItems()
+    private static List<(ContentDocument Item, RouteInfo Route)> CreateRoutedItems()
     {
-        var item = new ContentItem(
-            Id: "id-2",
-            Title: "Blog Post",
-            Slug: "blog-post",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "id-2",
+            title: "Blog Post",
+            slug: "blog-post",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collection"] = "post",
                 ["summary"] = "summary"
             }),
-            BodyKey: "body-2");
+            bodyKey: "body-2");
 
-        return new List<(ContentItem Item, RouteInfo Route)>
+        return new List<(ContentDocument Item, RouteInfo Route)>
         {
             (item, new RouteInfo("/blog/blog-post/", "blog/blog-post/index.html", "pages/post.html"))
         };
@@ -466,7 +467,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
     {
         public int Count { get; private set; }
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             Count++;
             return Task.FromResult(new ContentBody($"<p>{item.Id}</p>"));
@@ -477,7 +478,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
     {
         public int Count { get; private set; }
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             Count++;
             throw new InvalidOperationException("Body store should not be used.");

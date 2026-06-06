@@ -6,27 +6,27 @@ namespace Bukit.Engine;
 
 internal static class DataModuleBuilder
 {
-    internal static IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? BuildModules(IReadOnlyList<ContentItem> dataItems, string language, IContentBodyStore bodyStore)
+    internal static IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? BuildModules(IReadOnlyList<ContentDocument> dataDocuments, string language, IContentBodyStore bodyStore)
     {
-        if (dataItems.Count == 0)
+        if (dataDocuments.Count == 0)
         {
             return null;
         }
 
         var map = new Dictionary<string, List<ModuleInfo>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var item in dataItems)
+        foreach (var document in dataDocuments)
         {
-            var enabled = ContentFieldReader.GetBool(item.Fields, "enabled");
+            var enabled = ContentFieldReader.GetBool(document.Fields, "enabled");
             if (enabled is false)
             {
                 continue;
             }
 
-            var type = ContentFieldReader.GetContentType(item).Trim();
+            var type = ContentFieldReader.GetContentType(document).Trim();
             if (string.IsNullOrWhiteSpace(type))
             {
-                type = ContentFieldReader.GetText(item.Fields, "sourceKey") ?? string.Empty;
+                type = ContentFieldReader.GetText(document.Fields, "sourceKey") ?? string.Empty;
             }
 
             if (string.IsNullOrWhiteSpace(type))
@@ -42,13 +42,13 @@ internal static class DataModuleBuilder
 
             list.Add(new ModuleInfo
             {
-                Id = item.Id,
-                Title = item.Title,
-                Slug = item.Slug,
+                Id = document.Id,
+                Title = document.Title,
+                Slug = document.Slug,
 #pragma warning disable CS0618
-                Content = ContentBodyResolver.GetHtml(item, bodyStore),
+                Content = ContentBodyResolver.GetHtml(document, bodyStore),
 #pragma warning restore CS0618
-                Fields = item.Fields
+                Fields = document.Fields
             });
         }
 
@@ -66,23 +66,23 @@ internal static class DataModuleBuilder
         return result;
     }
 
-    internal static IReadOnlyDictionary<string, object>? BuildDataBySource(IReadOnlyList<ContentItem> dataItems, IContentBodyStore bodyStore)
+    internal static IReadOnlyDictionary<string, object>? BuildDataBySource(IReadOnlyList<ContentDocument> dataDocuments, IContentBodyStore bodyStore)
     {
-        if (dataItems.Count == 0)
+        if (dataDocuments.Count == 0)
         {
             return null;
         }
 
         var map = new Dictionary<string, List<ModuleInfo>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in dataItems)
+        foreach (var document in dataDocuments)
         {
-            var sourceKey = ContentFieldReader.GetText(item.Fields, "sourceKey") ?? string.Empty;
+            var sourceKey = ContentFieldReader.GetText(document.Fields, "sourceKey") ?? string.Empty;
             if (string.IsNullOrWhiteSpace(sourceKey))
             {
                 continue;
             }
 
-            var enabled = ContentFieldReader.GetBool(item.Fields, "enabled");
+            var enabled = ContentFieldReader.GetBool(document.Fields, "enabled");
             if (enabled is false)
             {
                 continue;
@@ -96,13 +96,13 @@ internal static class DataModuleBuilder
 
             list.Add(new ModuleInfo
             {
-                Id = item.Id,
-                Title = item.Title,
-                Slug = item.Slug,
+                Id = document.Id,
+                Title = document.Title,
+                Slug = document.Slug,
 #pragma warning disable CS0618
-                Content = ContentBodyResolver.GetHtml(item, bodyStore),
+                Content = ContentBodyResolver.GetHtml(document, bodyStore),
 #pragma warning restore CS0618
-                Fields = item.Fields
+                Fields = document.Fields
             });
         }
 

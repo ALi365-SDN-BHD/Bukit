@@ -10,17 +10,17 @@ public sealed class SectionDataResolverAccessorTests
     public void Constructor_DefaultPropertiesAreNull()
     {
         var accessor = new SectionDataResolverAccessor();
-        Assert.Null(accessor.AllItems);
+        Assert.Null(accessor.AllDocuments);
         Assert.Null(accessor.Registry);
     }
 
     [Fact]
-    public void AllItems_CanBeSetAndRead()
+    public void AllDocuments_CanBeSetAndRead()
     {
         var accessor = new SectionDataResolverAccessor();
-        var items = new List<Bukit.Engine.Abstractions.Content.ContentItem>();
-        accessor.AllItems = items;
-        Assert.NotNull(accessor.AllItems);
+        var documents = new List<Bukit.Engine.Abstractions.Content.ContentDocument>();
+        accessor.AllDocuments = documents;
+        Assert.NotNull(accessor.AllDocuments);
     }
 
     [Fact]

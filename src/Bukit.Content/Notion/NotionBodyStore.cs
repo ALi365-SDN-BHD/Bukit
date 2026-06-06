@@ -5,28 +5,28 @@ namespace Bukit.Content.Notion;
 
 internal sealed class NotionBodyStore : IContentBodyStore
 {
-    private readonly Func<ContentItem, CancellationToken, Task<string>> _htmlFactory;
+    private readonly Func<ContentDocument, CancellationToken, Task<string>> _htmlFactory;
     private readonly ConcurrentDictionary<string, Lazy<Task<ContentBody>>> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    internal NotionBodyStore(Func<ContentItem, CancellationToken, Task<string>> htmlFactory)
+    internal NotionBodyStore(Func<ContentDocument, CancellationToken, Task<string>> htmlFactory)
     {
         _htmlFactory = htmlFactory;
     }
 
-    public async Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+    public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrWhiteSpace(item.ContentHtml))
+        if (!string.IsNullOrWhiteSpace(document.ContentHtml))
         {
-            return new ContentBody(item.ContentHtml);
+            return new ContentBody(document.ContentHtml);
         }
 
-        var key = item.BodyKey ?? item.Id;
+        var key = document.BodyKey ?? document.Id;
         var lazy = _cache.GetOrAdd(
             key,
             _ => new Lazy<Task<ContentBody>>(
-                async () => new ContentBody(await _htmlFactory(item, cancellationToken)),
+                async () => new ContentBody(await _htmlFactory(document, cancellationToken)),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
         return await lazy.Value;

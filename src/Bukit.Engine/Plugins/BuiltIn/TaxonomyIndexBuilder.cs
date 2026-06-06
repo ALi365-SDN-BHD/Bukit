@@ -30,7 +30,7 @@ internal static class TaxonomyIndexBuilder
         var indexKey = $"{key}|{string.Join(",", itemFields)}";
         if (!cache.TryGetValue(indexKey, out var terms))
         {
-            terms = BuildIndexCore(context.Routed, context.ContentGraph, key, itemFields, context.Config.Taxonomy);
+            terms = BuildIndexCore(context.RoutedDocuments, context.ContentGraph, key, itemFields, context.Config.Taxonomy);
             cache[indexKey] = terms;
         }
 
@@ -38,7 +38,7 @@ internal static class TaxonomyIndexBuilder
     }
 
     internal static Dictionary<string, TaxonomyTerm> BuildIndexCore(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> routed,
         CanonicalContentGraph contentGraph,
         string key,
         IReadOnlyList<string> itemFields,
@@ -50,8 +50,10 @@ internal static class TaxonomyIndexBuilder
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (item, route) in routed)
+        foreach (var routedDocument in routed)
         {
+            var item = routedDocument.Document;
+            var route = routedDocument.Route;
             recordsById.TryGetValue(item.Id, out var record);
             var values = ResolveTaxonomyValues(item, record, key);
             if (values is null || values.Count == 0)
@@ -102,7 +104,7 @@ internal static class TaxonomyIndexBuilder
         return terms;
     }
 
-    private static IReadOnlyList<string>? ResolveTaxonomyValues(ContentItem item, ContentRecord? record, string key)
+    private static IReadOnlyList<string>? ResolveTaxonomyValues(ContentDocument item, ContentRecord? record, string key)
     {
         if (key.Equals("tags", StringComparison.OrdinalIgnoreCase) &&
             record?.Classification.Tags is { Count: > 0 } tags)
@@ -119,12 +121,12 @@ internal static class TaxonomyIndexBuilder
         return GetStringList(item, key);
     }
 
-    internal static IReadOnlyList<string>? GetStringList(ContentItem item, string key)
+    internal static IReadOnlyList<string>? GetStringList(ContentDocument item, string key)
     {
         return ContentFieldReader.GetTextList(item.Fields, key);
     }
 
-    internal static IReadOnlyDictionary<string, object>? ExtractExtraFields(ContentItem item, IReadOnlyList<string> itemFields)
+    internal static IReadOnlyDictionary<string, object>? ExtractExtraFields(ContentDocument item, IReadOnlyList<string> itemFields)
     {
         if (itemFields.Count == 0)
         {
@@ -149,7 +151,7 @@ internal static class TaxonomyIndexBuilder
         return dict.Count == 0 ? null : dict;
     }
 
-    internal static bool TryGetItemValue(ContentItem item, string key, out object? value)
+    internal static bool TryGetItemValue(ContentDocument item, string key, out object? value)
     {
         value = null;
 
@@ -162,7 +164,7 @@ internal static class TaxonomyIndexBuilder
         return false;
     }
 
-    internal static string? GetSourceKey(ContentItem item)
+    internal static string? GetSourceKey(ContentDocument item)
     {
         return ContentFieldReader.GetText(item.Fields, "sourceKey");
     }

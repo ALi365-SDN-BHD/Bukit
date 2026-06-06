@@ -12,7 +12,7 @@ public static class SeoAlternatesService
 {
     internal static IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> BuildSeoAlternates(
         AppConfig config,
-        IReadOnlyList<ContentItem> items,
+        IReadOnlyList<ContentDocument> documents,
         IReadOnlyList<string> languages,
         string defaultLanguage,
         string rootBaseUrl,
@@ -28,17 +28,17 @@ public static class SeoAlternatesService
         foreach (var language in languages)
         {
             var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, language);
-            var variantItems = I18nOutputMerger
-                .FilterItemsByLanguage(items, language, defaultLanguage)
+            var variantDocuments = I18nOutputMerger
+                .FilterDocumentsByLanguage(documents, language, defaultLanguage)
                 .Where(i => !ContentFieldReader.IsDataItem(i))
                 .ToList();
-            var variantRouted = variantItems
-                .Select(i => (Item: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
+            var variantRouted = variantDocuments
+                .Select(i => new RoutedContentDocument(i, RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
                 .ToList();
 
-            foreach (var (item, route) in variantRouted)
+            foreach (var routed in variantRouted)
             {
-                AddAlternate(grouped, SeoModelBuilder.BuildAlternateKey(item, route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url));
+                AddAlternate(grouped, SeoModelBuilder.BuildAlternateKey(routed.Document, routed.Route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, routed.Route.Url));
             }
 
             foreach (var route in BuildListRoutesCore(config.Site.Collections, config.Site.OutputPathEncoding, templateResolver))
@@ -189,7 +189,7 @@ public static class SeoAlternatesService
 
     internal static IReadOnlyList<string> BuildTaxonomyRouteUrls(
         AppConfig config,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
+        IReadOnlyList<RoutedContentDocument> routed)
     {
         if (string.Equals((config.Taxonomy.OutputMode ?? string.Empty).Trim(), "data", StringComparison.OrdinalIgnoreCase) ||
             routed.Count == 0)
@@ -223,7 +223,7 @@ public static class SeoAlternatesService
 
     internal static IReadOnlyList<string> BuildPaginationRouteUrls(
         AppConfig config,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
+        IReadOnlyList<RoutedContentDocument> routed)
     {
         if (routed.Count == 0)
         {
@@ -245,7 +245,7 @@ public static class SeoAlternatesService
         var listRoute = paginationCollection.Value.ListRoute;
         var pageSize = paginationCollection.Value.Pagination.PageSize;
         pageSize = NormalizePageSize(pageSize);
-        var count = routed.Count(x => string.Equals(GetCollection(x.Item), collectionKey, StringComparison.OrdinalIgnoreCase));
+        var count = routed.Count(x => string.Equals(GetCollection(x.Document), collectionKey, StringComparison.OrdinalIgnoreCase));
         if (count <= pageSize)
         {
             return Array.Empty<string>();
@@ -297,13 +297,13 @@ public static class SeoAlternatesService
     }
 
     internal static IReadOnlyDictionary<string, int> BuildTaxonomyTermCounts(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> routed,
         string key)
     {
         var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (item, _) in routed)
+        foreach (var routedDocument in routed)
         {
-            var values = ContentFieldReader.GetTextList(item.Fields, key);
+            var values = ContentFieldReader.GetTextList(routedDocument.Document.Fields, key);
             if (values is null)
             {
                 continue;
@@ -350,9 +350,9 @@ public static class SeoAlternatesService
         return null;
     }
 
-    internal static string GetCollection(ContentItem item)
+    internal static string GetCollection(ContentDocument document)
     {
-        return ContentFieldReader.GetCollection(item);
+        return ContentFieldReader.GetCollection(document);
     }
 
     internal static int NormalizePageSize(int pageSize) => pageSize <= 0 ? 10 : pageSize;

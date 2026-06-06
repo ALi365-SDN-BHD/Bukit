@@ -153,13 +153,16 @@ internal static class RepresentationAuditRules
             {
                 foreach (var item in documents.EnumerateArray())
                 {
-                    if (StringEquals(ReadString(item, "id"), document.SourceItemId) ||
-                        StringEquals(ReadString(item, "canonicalId"), document.ContentRecord?.Identity.CanonicalUrlKey))
+                if (StringEquals(ReadString(item, "id"), document.SourceItemId) ||
+                    StringEquals(ReadString(item, "canonicalId"), document.ContentRecord?.Identity.CanonicalUrlKey))
+                {
+                    if (ManifestLanguageMatches(item, document))
                     {
                         manifestDocument = item;
                         break;
                     }
                 }
+            }
             }
 
             if (manifestDocument is null)
@@ -175,7 +178,7 @@ internal static class RepresentationAuditRules
                            !ContainsManifestEntities(value, document.EntityNames);
             if (mismatch)
             {
-                issues.Add(new SeoAuditIssue("error", "publish.manifest_mismatch", document.RouteUrl, "Agent manifest document does not match the publish document identity, language, trust, provenance, or entities."));
+                issues.Add(new SeoAuditIssue("error", "publish.manifest_mismatch", document.RouteUrl, BuildManifestMismatchMessage(value, document)));
             }
         }
         catch (JsonException ex)
@@ -201,6 +204,22 @@ internal static class RepresentationAuditRules
 
         return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool ManifestLanguageMatches(JsonElement element, PublishDocument document)
+    {
+        var language = ReadString(element, "language");
+        if (string.IsNullOrWhiteSpace(document.Language))
+        {
+            return true;
+        }
+
+        return string.Equals(language, document.Language, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildManifestMismatchMessage(JsonElement value, PublishDocument document)
+        => "Agent manifest document does not match the publish document identity, language, trust, provenance, or entities. " +
+           $"Expected route={document.RouteUrl}, language={document.Language ?? "-"}, reviewStatus={document.ReviewStatus ?? "-"}, source={document.Source ?? "-"}; " +
+           $"actual route={ReadString(value, "route") ?? "-"}, language={ReadString(value, "language") ?? "-"}, reviewStatus={ReadString(value, "reviewStatus") ?? "-"}, source={ReadString(value, "source") ?? "-"}.";
 
     private static bool RouteEquals(string? actual, PublishDocument document)
     {

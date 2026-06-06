@@ -79,7 +79,7 @@ public sealed class SiteEngine
 
         var contentPipeline = new ContentPipeline(_contentProviderFactory, _logger);
         var contentResult = await contentPipeline.ExecuteAsync(effectiveConfig, rootDir, overrides, plan.MediaCacheDir, cancellationToken);
-        var items = contentResult.Items;
+        var documents = contentResult.Documents;
         var contentGraph = contentResult.ContentGraph ?? CanonicalContentGraph.Empty;
         var bodyStore = contentResult.BodyStore;
         var bodyCacheMetrics = contentResult.BodyCacheMetrics;
@@ -91,13 +91,13 @@ public sealed class SiteEngine
         {
             var siteLanguage = effectiveConfig.Site.Language;
             var result = await BuildSingleLanguageVariantAsync(
-                effectiveConfig, rootDir, overrides, items, contentGraph, bodyStore, plan.OutputDir,
+                effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
                 plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
                 plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
                 templateHashCache, cancellationToken);
 
             _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
-            MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, items.Count, new[] { result }, contentResult.BodyCacheMetrics);
+            MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, contentResult.BodyCacheMetrics);
             plan.Stopwatch.Stop();
             var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, plan.OutputDir, overrides, plan.StartedAt, DateTimeOffset.UtcNow, plan.Stopwatch.ElapsedMilliseconds, new[] { result }, contentResult.SchemaErrors);
             BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger);
@@ -107,7 +107,7 @@ public sealed class SiteEngine
         }
 
         return await BuildMultiLanguageAsync(
-            effectiveConfig, rootDir, overrides, items, contentGraph, bodyStore, plan.OutputDir,
+            effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
             plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
             plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
             templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
@@ -117,7 +117,7 @@ public sealed class SiteEngine
 
     private async Task<BuildVariantResult> BuildSingleLanguageVariantAsync(
         AppConfig config, string rootDir, ConfigOverrides overrides,
-        IReadOnlyList<ContentItem> items, CanonicalContentGraph contentGraph, IContentBodyStore bodyStore,
+        IReadOnlyList<ContentDocument> documents, CanonicalContentGraph contentGraph, IContentBodyStore bodyStore,
         string outputDir, string layoutsDir, string assetsDir, string staticDir,
         string mediaCacheDir,
         string? parentLayoutsDir, string? parentAssetsDir, string? parentStaticDir,
@@ -128,7 +128,7 @@ public sealed class SiteEngine
         var baseUrl = BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl);
         _logger.Info($"event=build.variant.start language={config.Site.Language} baseUrl={baseUrl}");
         var variantCtx = new BuildVariantContext(
-            config, rootDir, overrides, items, contentGraph, bodyStore, outputDir, baseUrl,
+            config, rootDir, overrides, documents, contentGraph, bodyStore, outputDir, baseUrl,
             layoutsDir, assetsDir, staticDir, mediaCacheDir,
             SeoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal),
             RootBaseUrl: null, ManifestSuffix: null, DefaultLanguage: null,
@@ -139,7 +139,7 @@ public sealed class SiteEngine
 
     private async Task<BuildResult> BuildMultiLanguageAsync(
         AppConfig config, string rootDir, ConfigOverrides overrides,
-        IReadOnlyList<ContentItem> items, CanonicalContentGraph contentGraph, IContentBodyStore bodyStore,
+        IReadOnlyList<ContentDocument> documents, CanonicalContentGraph contentGraph, IContentBodyStore bodyStore,
         string outputDir, string layoutsDir, string assetsDir, string staticDir,
         string mediaCacheDir,
         string? parentLayoutsDir, string? parentAssetsDir, string? parentStaticDir,
@@ -154,7 +154,7 @@ public sealed class SiteEngine
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
         var rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl);
         var templateResolver = new ThemeTemplateResolver(ThemeBootstrapper.Bootstrap(config, rootDir, _logger).Manifest);
-        var seoAlternates = SeoAlternatesService.BuildSeoAlternates(config, items, languages, defaultLanguage, rootBaseUrl, templateResolver);
+        var seoAlternates = SeoAlternatesService.BuildSeoAlternates(config, documents, languages, defaultLanguage, rootBaseUrl, templateResolver);
         var results = new BuildVariantResult[languages.Count];
 
         var languageJobs = Math.Max(1, config.Build.LanguageJobs);
@@ -182,11 +182,11 @@ public sealed class SiteEngine
                     }
                 };
 
-                var variantItems = I18nOutputMerger.FilterItemsByLanguage(items, lang, defaultLanguage);
+                var variantDocuments = I18nOutputMerger.FilterDocumentsByLanguage(documents, lang, defaultLanguage);
                 var variantOutputDir = Path.Combine(outputDir, lang);
                 variantLogger.Info($"event=build.variant.start language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
                 var variantCtx = new BuildVariantContext(
-                    variantConfig, rootDir, overrides, variantItems, contentGraph, bodyStore, variantOutputDir, baseUrl,
+                    variantConfig, rootDir, overrides, variantDocuments, contentGraph, bodyStore, variantOutputDir, baseUrl,
                     layoutsDir, assetsDir, staticDir, mediaCacheDir,
                     SeoAlternates: seoAlternates,
                     RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage,
@@ -201,7 +201,7 @@ public sealed class SiteEngine
         var projectionResults = I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, _logger, _searchIndexBuilder);
         SeoAuditReportWriter.WriteMerged(config, outputDir, variantResults, _logger, projectionResults);
         _logger.Info("event=build.done");
-        MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, items.Count, variantResults, bodyCacheMetrics);
+        MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, documents.Count, variantResults, bodyCacheMetrics);
         buildStopwatch.Stop();
         var buildResult = BuildResultFactory.Create(config, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, variantResults, schemaErrors);
         BuildReporter.WriteIfEnabled(config, rootDir, outputDir, buildResult, variantResults, _logger);

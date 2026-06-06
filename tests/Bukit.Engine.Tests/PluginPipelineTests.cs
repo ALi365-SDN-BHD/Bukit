@@ -43,7 +43,7 @@ public sealed class PluginPipelineTests
             BaseUrl = "/",
             LayoutsDir = rootDir,
             BodyStore = EmptyContentBodyStore.Instance,
-            Routed = new List<(ContentItem, RouteInfo)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = logger
         };
 

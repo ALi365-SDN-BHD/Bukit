@@ -37,7 +37,7 @@ public static class PluginCommand
             OutputDir = "",
             BaseUrl = config.Site.BaseUrl,
             LayoutsDir = "",
-            Routed = new List<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<Bukit.Engine.Abstractions.Content.RoutedContentDocument>(),
             BodyStore = Bukit.Engine.Abstractions.Content.NullContentBodyStore.Instance,
             Logger = new ConsoleLogger(LogLevel.Info)
         };

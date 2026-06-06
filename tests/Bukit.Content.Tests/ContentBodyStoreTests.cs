@@ -10,7 +10,7 @@ public sealed class ContentBodyStoreTests
     {
         var item = Item("page-1", contentHtml: "<p>inline</p>");
 
-        var body = await EmptyContentBodyStore.Instance.GetAsync(item);
+        var body = await EmptyContentBodyStore.Instance.GetAsync(item.ToDocument());
 
         Assert.Equal("<p>inline</p>", body.Html);
     }
@@ -21,7 +21,7 @@ public sealed class ContentBodyStoreTests
         var item = Item("page-1");
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            EmptyContentBodyStore.Instance.GetAsync(item));
+            EmptyContentBodyStore.Instance.GetAsync(item.ToDocument()));
 
         Assert.Contains("No content body available", ex.Message);
         Assert.Contains("page-1", ex.Message);
@@ -35,8 +35,8 @@ public sealed class ContentBodyStoreTests
             ["body-1"] = new("<p>stored</p>")
         });
 
-        var stored = await store.GetAsync(Item("page-1", bodyKey: "body-1"));
-        var inline = await store.GetAsync(Item("page-2", contentHtml: "<p>inline</p>", bodyKey: "missing"));
+        var stored = await store.GetAsync(Item("page-1", bodyKey: "body-1").ToDocument());
+        var inline = await store.GetAsync(Item("page-2", contentHtml: "<p>inline</p>", bodyKey: "missing").ToDocument());
 
         Assert.Equal("<p>stored</p>", stored.Html);
         Assert.Equal("<p>inline</p>", inline.Html);
@@ -48,7 +48,7 @@ public sealed class ContentBodyStoreTests
         var store = new DictionaryContentBodyStore(new Dictionary<string, ContentBody>());
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            store.GetAsync(Item("page-1", bodyKey: "missing")));
+            store.GetAsync(Item("page-1", bodyKey: "missing").ToDocument()));
 
         Assert.Contains("No content body found", ex.Message);
         Assert.Contains("page-1", ex.Message);
@@ -64,10 +64,10 @@ public sealed class ContentBodyStoreTests
         });
         var item = Item("markdown:page-1");
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(item.ToDocument());
 
         Assert.Equal("<p>from markdown</p>", body.Html);
-        Assert.Same(item, inner.LastItem);
+        Assert.Equal(item.Id, inner.LastDocument?.Id);
     }
 
     [Fact]
@@ -79,10 +79,10 @@ public sealed class ContentBodyStoreTests
             ["markdown"] = inner
         });
 
-        var body = await store.GetAsync(Item("markdown:page-1", contentHtml: "<p>inline</p>"));
+        var body = await store.GetAsync(Item("markdown:page-1", contentHtml: "<p>inline</p>").ToDocument());
 
         Assert.Equal("<p>inline</p>", body.Html);
-        Assert.Null(inner.LastItem);
+        Assert.Null(inner.LastDocument);
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class ContentBodyStoreTests
         var store = new CompositeContentBodyStore(new Dictionary<string, IContentBodyStore>());
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            store.GetAsync(Item("notion:page-1")));
+            store.GetAsync(Item("notion:page-1").ToDocument()));
 
         Assert.Contains("No content body store registered", ex.Message);
         Assert.Contains("notion", ex.Message);
@@ -103,22 +103,22 @@ public sealed class ContentBodyStoreTests
         var store = new CompositeContentBodyStore(new Dictionary<string, IContentBodyStore>());
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            store.GetAsync(Item("page-1")));
+            store.GetAsync(Item("page-1").ToDocument()));
 
         Assert.Contains("Unable to resolve content body store", ex.Message);
         Assert.Contains("page-1", ex.Message);
     }
 
-    private static ContentItem Item(string id, string? contentHtml = null, string? bodyKey = null)
+    private static ContentDocument Item(string id, string? contentHtml = null, string? bodyKey = null)
     {
-        return new ContentItem(
-            Id: id,
-            Title: id,
-            Slug: id,
-            PublishAt: DateTimeOffset.UnixEpoch,
-            ContentHtml: contentHtml,
-            Fields: null,
-            BodyKey: bodyKey);
+        return ContentDocument.Create(
+            id: id,
+            title: id,
+            slug: id,
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: contentHtml,
+            fields: null,
+            bodyKey: bodyKey);
     }
 
     private sealed class RecordingBodyStore : IContentBodyStore
@@ -130,11 +130,11 @@ public sealed class ContentBodyStoreTests
             _body = body;
         }
 
-        public ContentItem? LastItem { get; private set; }
+        public ContentDocument? LastDocument { get; private set; }
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
-            LastItem = item;
+            LastDocument = item;
             return Task.FromResult(_body);
         }
     }

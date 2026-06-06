@@ -21,35 +21,35 @@ public sealed class ContentImageRewritePipeline
         _fieldKeys = BuildFieldKeySet(config.FieldKeys);
     }
 
-    public async Task<IReadOnlyList<ContentItem>> RewriteAsync(IReadOnlyList<ContentItem> items, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ContentDocument>> RewriteAsync(IReadOnlyList<ContentDocument> documents, CancellationToken cancellationToken)
     {
-        if (items.Count == 0)
+        if (documents.Count == 0)
         {
-            return items;
+            return documents;
         }
 
-        var results = new ContentItem[items.Count];
+        var results = new ContentDocument[documents.Count];
         var concurrency = _config.MaxConcurrency is > 0 ? _config.MaxConcurrency.Value : 4;
         using var sem = new SemaphoreSlim(concurrency, concurrency);
-        var tasks = new Task[items.Count];
-        for (var i = 0; i < items.Count; i++)
+        var tasks = new Task[documents.Count];
+        for (var i = 0; i < documents.Count; i++)
         {
             var idx = i;
-            tasks[idx] = RewriteOneAsync(items[idx], idx);
+            tasks[idx] = RewriteOneAsync(documents[idx], idx);
         }
 
         await Task.WhenAll(tasks);
         return results;
 
-        async Task RewriteOneAsync(ContentItem item, int idx)
+        async Task RewriteOneAsync(ContentDocument document, int idx)
         {
             await sem.WaitAsync(cancellationToken);
             try
             {
                 var localizeMemo = new Dictionary<string, string>(StringComparer.Ordinal);
-                var html = await RewriteHtmlAsync(item.ContentHtml, localizeMemo, cancellationToken);
-                var fields = await RewriteFieldsAsync(item.Fields, localizeMemo, cancellationToken);
-                results[idx] = item with
+                var html = await RewriteHtmlAsync(document.ContentHtml, localizeMemo, cancellationToken);
+                var fields = await RewriteFieldsAsync(document.Fields, localizeMemo, cancellationToken);
+                results[idx] = document with
                 {
                     ContentHtml = html,
                     Fields = fields

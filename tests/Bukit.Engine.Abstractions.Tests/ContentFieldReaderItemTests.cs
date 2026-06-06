@@ -5,107 +5,107 @@ namespace Bukit.Engine.Abstractions.Tests;
 
 public sealed class ContentFieldReaderItemTests
 {
-    private static ContentItem CreateItem(IReadOnlyDictionary<string, object>? values = null)
+    private static ContentDocument CreateDocument(IReadOnlyDictionary<string, object>? values = null)
     {
-        return new ContentItem(
-            Id: "test-id",
-            Title: "Test",
-            Slug: "test-slug",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>content</p>",
-            Fields: ContentFieldReader.ToFieldMap(values ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)));
+        return ContentDocument.Create(
+            id: "test-id",
+            title: "Test",
+            slug: "test-slug",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>content</p>",
+            fields: ContentFieldReader.ToFieldMap(values ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)));
     }
 
     [Fact]
     public void GetCollection_CollectionPresent_ReturnsCollection()
     {
-        var item = CreateItem(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = CreateDocument(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["collection"] = "news",
             ["type"] = "post"
         });
 
-        var result = ContentFieldReader.GetCollection(item);
+        var result = ContentFieldReader.GetCollection(document);
 
         Assert.Equal("news", result);
     }
 
     [Fact]
-    public void GetCollection_NoCollection_IgnoresType()
+    public void GetCollection_NoCollection_UsesCanonicalType()
     {
-        var item = CreateItem(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = CreateDocument(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "post"
         });
 
-        var result = ContentFieldReader.GetCollection(item);
+        var result = ContentFieldReader.GetCollection(document);
 
-        Assert.Equal("", result);
+        Assert.Equal("post", result);
     }
 
     [Fact]
     public void GetCollection_NoCollectionNoType_ReturnsDefault()
     {
-        var item = CreateItem();
+        var document = CreateDocument();
 
-        var result = ContentFieldReader.GetCollection(item);
+        var result = ContentFieldReader.GetCollection(document);
 
-        Assert.Equal("", result);
+        Assert.Equal("page", result);
     }
 
     [Fact]
     public void GetCollection_CustomDefault_ReturnsCustomDefault()
     {
-        var item = CreateItem();
+        var document = CreateDocument();
 
-        var result = ContentFieldReader.GetCollection(item, "fallback");
+        var result = ContentFieldReader.GetCollection(document, "fallback");
 
-        Assert.Equal("fallback", result);
+        Assert.Equal("page", result);
     }
 
     [Fact]
     public void GetCollection_CollectionEmpty_ReturnsDefault()
     {
-        var item = CreateItem(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = CreateDocument(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["collection"] = "",
             ["type"] = "post"
         });
 
-        var result = ContentFieldReader.GetCollection(item);
+        var result = ContentFieldReader.GetCollection(document);
 
-        Assert.Equal("", result);
+        Assert.Equal("post", result);
     }
 
     [Fact]
     public void GetCollection_CollectionWhitespace_ReturnsDefault()
     {
-        var item = CreateItem(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = CreateDocument(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["collection"] = "   ",
             ["type"] = "page"
         });
 
-        var result = ContentFieldReader.GetCollection(item);
+        var result = ContentFieldReader.GetCollection(document);
 
-        Assert.Equal("", result);
+        Assert.Equal("page", result);
     }
 
     [Fact]
     public void GetTextValues_FieldStringList_ReturnsStructuredValues()
     {
-        var item = new ContentItem(
-            Id: "test-id",
-            Title: "Test",
-            Slug: "test-slug",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>content</p>",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var document = ContentDocument.Create(
+            id: "test-id",
+            title: "Test",
+            slug: "test-slug",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>content</p>",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["collections"] = new("list", new[] { "news", "featured" })
             });
 
-        var result = ContentFieldReader.GetTextValues(item, "collections");
+        var result = ContentFieldReader.GetTextValues(document, "collections");
 
         Assert.Equal(["news", "featured"], result);
     }

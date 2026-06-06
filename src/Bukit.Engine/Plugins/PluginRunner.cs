@@ -36,16 +36,16 @@ public static class PluginRunner
         return kinds.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    public static IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> RunDerivePages(BuildContext context)
+    public static IReadOnlyList<RoutedContentDocument> RunDerivePages(BuildContext context)
         => RunDerivePagesAsync(context).GetAwaiter().GetResult();
 
-    public static async Task<IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>> RunDerivePagesAsync(
+    public static async Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
         BuildContext context,
         CancellationToken cancellationToken = default)
     {
-        var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
-        var contentRouteUrls = new HashSet<string>(context.Routed.Select(x => NormalizeUrl(x.Route.Url)), StringComparer.OrdinalIgnoreCase);
-        var contentOutputPaths = new HashSet<string>(context.Routed.Select(x => NormalizeOutputPath(x.Route.OutputPath)), StringComparer.OrdinalIgnoreCase);
+        var derived = new List<RoutedContentDocument>();
+        var contentRouteUrls = new HashSet<string>(context.RoutedDocuments.Select(x => NormalizeUrl(x.Route.Url)), StringComparer.OrdinalIgnoreCase);
+        var contentOutputPaths = new HashSet<string>(context.RoutedDocuments.Select(x => NormalizeOutputPath(x.Route.OutputPath)), StringComparer.OrdinalIgnoreCase);
         var usedRouteUrls = new HashSet<string>(contentRouteUrls, StringComparer.OrdinalIgnoreCase);
         var usedOutputPaths = new HashSet<string>(contentOutputPaths, StringComparer.OrdinalIgnoreCase);
         var deriveConflictPolicy = (context.Config.Site.DeriveConflictPolicy ?? "fail").Trim().ToLowerInvariant();
@@ -75,7 +75,7 @@ public static class PluginRunner
                 {
                     IDerivePagesAsyncPlugin deriveAsync => await deriveAsync.DerivePagesAsync(context, cancellationToken),
                     IDerivePagesPlugin derive => derive.DerivePages(context),
-                    _ => Array.Empty<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>()
+                    _ => Array.Empty<RoutedContentDocument>()
                 };
 
                 if (pages.Count > 0)
@@ -115,18 +115,18 @@ public static class PluginRunner
         return derived;
     }
 
-    private static IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> ApplyDeriveConflictPolicy(
+    private static IReadOnlyList<RoutedContentDocument> ApplyDeriveConflictPolicy(
         BuildContext context,
         string pluginName,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> pages,
-        List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> derived,
+        IReadOnlyList<RoutedContentDocument> pages,
+        List<RoutedContentDocument> derived,
         HashSet<string> usedRouteUrls,
         HashSet<string> usedOutputPaths,
         HashSet<string> contentRouteUrls,
         HashSet<string> contentOutputPaths,
         string deriveConflictPolicy)
     {
-        var acceptedPages = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
+        var acceptedPages = new List<RoutedContentDocument>();
         foreach (var page in pages)
         {
             var normalizedUrl = NormalizeUrl(page.Route.Url);

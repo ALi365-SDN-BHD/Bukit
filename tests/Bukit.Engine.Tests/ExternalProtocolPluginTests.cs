@@ -522,7 +522,7 @@ public sealed class ExternalProtocolPluginTests
         var derived = PluginRunner.RunDerivePages(context);
 
         Assert.Contains(derived, x =>
-            x.Item.Id == "derived-1" &&
+            x.Document.Id == "derived-1" &&
             x.Route.Url == "/derived/derived-1/" &&
             string.Equals(
                 x.Route.OutputPath.Replace('\\', '/'),
@@ -541,7 +541,7 @@ public sealed class ExternalProtocolPluginTests
         var derived = PluginRunner.RunDerivePages(context);
 
         Assert.Contains(derived, x =>
-            x.Item.Id == "derived-1" &&
+            x.Document.Id == "derived-1" &&
             x.Route.Url == "/derived/derived-1/");
     }
 #endif
@@ -557,7 +557,7 @@ public sealed class ExternalProtocolPluginTests
 
         var derived = PluginRunner.RunDerivePages(context);
 
-        Assert.Contains(derived, x => x.Item.Id == "derived-1");
+        Assert.Contains(derived, x => x.Document.Id == "derived-1");
     }
 
     [Fact]
@@ -568,7 +568,7 @@ public sealed class ExternalProtocolPluginTests
 
         var derived = await PluginRunner.RunDerivePagesAsync(context);
 
-        Assert.Contains(derived, x => x.Item.Id == "derived-1");
+        Assert.Contains(derived, x => x.Document.Id == "derived-1");
     }
 
     [Fact]
@@ -579,7 +579,7 @@ public sealed class ExternalProtocolPluginTests
 
         var derived = PluginRunner.RunDerivePages(context);
 
-        Assert.DoesNotContain(derived, x => x.Item.Id == "derived-1");
+        Assert.DoesNotContain(derived, x => x.Document.Id == "derived-1");
         Assert.DoesNotContain(context.PluginExecutions, x => x.Name == "sample" && x.Hook == "derive-pages");
     }
 
@@ -601,7 +601,7 @@ public sealed class ExternalProtocolPluginTests
 
         var derived = PluginRunner.RunDerivePages(context);
 
-        Assert.DoesNotContain(derived, x => x.Item.Id == "derived-conflict");
+        Assert.DoesNotContain(derived, x => x.Document.Id == "derived-conflict");
         Assert.Contains(context.PluginExecutions, x => x.Name == "sample" && x.Hook == "derive-pages" && !x.Success);
     }
 
@@ -618,7 +618,7 @@ public sealed class ExternalProtocolPluginTests
 
         var derived = PluginRunner.RunDerivePages(context);
 
-        Assert.Contains(derived, x => x.Item.Id == "derived-conflict");
+        Assert.Contains(derived, x => x.Document.Id == "derived-conflict");
         Assert.Contains(context.PluginExecutions, x => x.Name == "sample" && x.Hook == "derive-pages" && x.Success);
     }
 
@@ -670,19 +670,19 @@ public sealed class ExternalProtocolPluginTests
             OutputDir = outputDir,
             BaseUrl = "/",
             LayoutsDir = Path.Combine(temp.Path, "layouts"),
-            Routed = new List<(ContentItem, RouteInfo)>
+            RoutedDocuments = new List<(ContentDocument, RouteInfo)>
             {
-                (new ContentItem("post-1", "Post 1", "post-1", DateTimeOffset.UtcNow, "<p>Body</p>",
+                (ContentDocument.Create("post-1", "Post 1", "post-1", DateTimeOffset.UtcNow, "<p>Body</p>",
                     ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post" })),
                     new RouteInfo("/blog/post-1/", Path.Combine("blog", "post-1", "index.html"), "pages/post.html"))
-            },
+            }.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
         var derived = PluginRunner.RunDerivePages(context);
 
-        Assert.Contains(derived, x => x.Item.Id == "plugin-b");
-        Assert.DoesNotContain(derived, x => x.Item.Id == "plugin-a");
+        Assert.Contains(derived, x => x.Document.Id == "plugin-b");
+        Assert.DoesNotContain(derived, x => x.Document.Id == "plugin-a");
         Assert.Contains(context.PluginExecutions, x => x.Name == "sample-b" && x.Hook == "derive-pages" && x.Success);
     }
 
@@ -699,7 +699,7 @@ public sealed class ExternalProtocolPluginTests
 
         var derived = PluginRunner.RunDerivePages(context);
 
-        Assert.DoesNotContain(derived, x => x.Item.Id == "derived-conflict");
+        Assert.DoesNotContain(derived, x => x.Document.Id == "derived-conflict");
         Assert.Contains(context.PluginExecutions, x => x.Name == "sample" && x.Hook == "derive-pages" && x.Success);
     }
 
@@ -721,9 +721,9 @@ public sealed class ExternalProtocolPluginTests
 
         var derived = PluginRunner.RunDerivePages(context);
 
-        Assert.Contains(derived, x => x.Item.Id == "derived-1");
-        var derivePage = derived.First(x => x.Item.Id == "derived-1");
-        Assert.Equal("Derived 1", derivePage.Item.Title);
+        Assert.Contains(derived, x => x.Document.Id == "derived-1");
+        var derivePage = derived.First(x => x.Document.Id == "derived-1");
+        Assert.Equal("Derived 1", derivePage.Document.Title);
     }
 
     private static BuildContext CreateContext(
@@ -780,17 +780,17 @@ public sealed class ExternalProtocolPluginTests
             OutputDir = outputDir,
             BaseUrl = "/",
             LayoutsDir = Path.Combine(rootDir, "layouts"),
-            Routed = new List<(ContentItem Item, RouteInfo Route)>
+            RoutedDocuments = new List<(ContentDocument Item, RouteInfo Route)>
             {
                 (
-                    new ContentItem("post-1", "Post 1", "post-1", DateTimeOffset.UtcNow, "<p>Body</p>",
+                    ContentDocument.Create("post-1", "Post 1", "post-1", DateTimeOffset.UtcNow, "<p>Body</p>",
                         ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["type"] = "post"
                         })),
                     new RouteInfo("/blog/post-1/", Path.Combine("blog", "post-1", "index.html"), "pages/post.html")
                 )
-            },
+            }.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
     }
@@ -963,6 +963,6 @@ public sealed class ExternalProtocolPluginTests
 
         var derived = PluginRunner.RunDerivePages(context);
 
-        Assert.Contains(derived, x => x.Item.Id == "derived-conflict");
+        Assert.Contains(derived, x => x.Document.Id == "derived-conflict");
     }
 }

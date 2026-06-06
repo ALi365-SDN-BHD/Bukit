@@ -59,18 +59,31 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
 
     internal static IReadOnlyList<ContentProjectionDocumentContext> BuildDocumentContexts(PublishProjectionContext context)
     {
-        var recordsById = context.ContentGraph.Records
-            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
-        var routedAll = context.Routed.Concat(context.DerivedRouted).ToList();
-        var documentContexts = new List<ContentProjectionDocumentContext>(routedAll.Count);
-
-        foreach (var (item, route) in routedAll)
+        var routedDocuments = context.RoutedDocuments.Concat(context.DerivedDocuments).ToList();
+        if (routedDocuments.Count > 0)
         {
-            if (!recordsById.TryGetValue(item.Id, out var record))
-            {
-                record = CanonicalContentGraphBuilder.ToRecord(item);
-            }
+            return routedDocuments
+                .Select(document =>
+                {
+                    var key = BuildPathUtils.NormalizeRelPath(document.Route.OutputPath);
+                    context.SeoIndex.TryGetValue(key, out var entry);
+                    context.SeoModels.TryGetValue(key, out var model);
+                    return new ContentProjectionDocumentContext(
+                        context.OutputDir,
+                        document.Document.Record,
+                        document.Route,
+                        entry,
+                        model);
+                })
+                .ToArray();
+        }
+
+        var routedAll = context.RoutedDocuments.Concat(context.DerivedDocuments).ToList();
+        var documentContexts = new List<ContentProjectionDocumentContext>(routedAll.Count);
+        foreach (var routedDocument in routedAll)
+        {
+            var record = routedDocument.Document.Record;
+            var route = routedDocument.Route;
 
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
             context.SeoIndex.TryGetValue(key, out var entry);

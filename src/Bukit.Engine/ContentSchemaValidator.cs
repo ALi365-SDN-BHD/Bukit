@@ -8,54 +8,6 @@ namespace Bukit.Engine;
 
 public static class ContentSchemaValidator
 {
-    public static IReadOnlyList<ContentItem> ApplyDefaults(
-        IReadOnlyDictionary<string, CollectionConfig>? collections,
-        IReadOnlyList<ContentItem> items)
-    {
-        if (collections is null || collections.Count == 0 || items.Count == 0)
-        {
-            return items;
-        }
-
-        var result = new ContentItem[items.Count];
-        for (var i = 0; i < items.Count; i++)
-        {
-            var item = items[i];
-            var collectionName = ContentFieldReader.GetEffectiveCollection(item);
-            if (string.IsNullOrWhiteSpace(collectionName) ||
-                !collections.TryGetValue(collectionName, out var collection) ||
-                collection.Schema is null ||
-                collection.Schema.Count == 0)
-            {
-                result[i] = item;
-                continue;
-            }
-
-            Dictionary<string, ContentField>? fields = null;
-            foreach (var field in collection.Schema)
-            {
-                if (string.IsNullOrWhiteSpace(field.Name) ||
-                    field.Default is null ||
-                    ContentFieldReader.TryGetField(item.Fields, field.Name, out _))
-                {
-                    continue;
-                }
-
-                fields ??= item.Fields is null
-                    ? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
-                    : new Dictionary<string, ContentField>(item.Fields, StringComparer.OrdinalIgnoreCase);
-
-                fields[field.Name] = ToContentField(field.Type, field.Default);
-            }
-
-            result[i] = fields is null
-                ? item
-                : item with { Fields = fields };
-        }
-
-        return result;
-    }
-
     public static List<SchemaValidationError> ValidateFields(
         IReadOnlyDictionary<string, ContentField>? fields,
         IReadOnlyList<SchemaFieldDefinition>? schema,

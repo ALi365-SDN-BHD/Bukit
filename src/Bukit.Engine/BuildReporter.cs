@@ -199,20 +199,13 @@ internal static class BuildReporter
     private static IReadOnlyList<RouteReportEntry> BuildRouteEntries(IReadOnlyList<BuildVariantResult> variants)
     {
         return variants
-            .SelectMany(variant => variant.Routed.Concat(variant.DerivedRouted).Select(route => new RouteReportEntry(
+            .SelectMany(variant => variant.RoutedDocuments.Concat(variant.DerivedDocuments).Select(route => new RouteReportEntry(
                 route.Route.Url,
                 route.Route.OutputPath,
                 route.Route.Template,
-                GetSource(route.Item),
-                GetKind(route.Item),
-                variant.Language))
-                .Concat(variant.DerivedRoutes.Select(route => new RouteReportEntry(
-                    route.Route.Url,
-                    route.Route.OutputPath,
-                    route.Route.Template,
-                    null,
-                    "derived",
-                    variant.Language))))
+                GetSource(route.Document),
+                GetKind(route.Document),
+                variant.Language)))
             .OrderBy(entry => entry.Url, StringComparer.OrdinalIgnoreCase)
             .ThenBy(entry => entry.Language, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -234,11 +227,11 @@ internal static class BuildReporter
         }
     }
 
-    private static string? GetSource(ContentItem item)
+    private static string? GetSource(ContentDocument document)
     {
         foreach (var key in new[] { "source", "sourcePath", "path", "file" })
         {
-            var value = ContentFieldReader.GetText(item.Fields, key);
+            var value = ContentFieldReader.GetText(document.Fields, key);
             if (!string.IsNullOrWhiteSpace(value))
             {
                 return value;
@@ -248,9 +241,9 @@ internal static class BuildReporter
         return null;
     }
 
-    private static string GetKind(ContentItem item)
+    private static string GetKind(ContentDocument document)
     {
-        return ContentFieldReader.GetCollection(item);
+        return ContentFieldReader.GetCollection(document);
     }
 
     private static string ComputeSha256(string path)

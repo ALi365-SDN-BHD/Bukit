@@ -17,13 +17,13 @@ public sealed class PagesByIdDataPluginTests
     [Fact]
     public void DerivePages_PopulatesSiteDataPagesById()
     {
-        var item = new ContentItem(
-            Id: "page-1",
-            Title: "Hello",
-            Slug: "hello",
-            PublishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>hi</p>",
-            Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "page-1",
+            title: "Hello",
+            slug: "hello",
+            publishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>hi</p>",
+            fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["tags"] = new ContentField("list", new List<string> { "a", "b" })
             }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -33,7 +33,7 @@ public sealed class PagesByIdDataPluginTests
                 ["summary"] = "S"
             }));
 
-        var routed = new List<(ContentItem Item, RouteInfo Route)>
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
             (item, new RouteInfo("/blog/hello/", "blog/hello/index.html", "pages/post.html"))
         };
@@ -65,7 +65,7 @@ public sealed class PagesByIdDataPluginTests
             OutputDir = "C:\\out",
             BaseUrl = "/",
             LayoutsDir = "C:\\layouts",
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             ContentGraph = new CanonicalContentGraph(
             [
                 new ContentRecord(
@@ -98,13 +98,13 @@ public sealed class PagesByIdDataPluginTests
     [Fact]
     public void DerivePages_ShouldUseFirstCanonicalRecord_WhenGraphContainsDuplicateI18nIds()
     {
-        var item = new ContentItem(
-            Id: "greeting",
-            Title: "你好",
-            Slug: "greeting",
-            PublishAt: new DateTimeOffset(2026, 06, 05, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>hi</p>",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase));
+        var item = ContentDocument.Create(
+            id: "greeting",
+            title: "你好",
+            slug: "greeting",
+            publishAt: new DateTimeOffset(2026, 06, 05, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>hi</p>",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase));
         var ctx = new BuildContext
         {
             Config = new AppConfig
@@ -116,7 +116,7 @@ public sealed class PagesByIdDataPluginTests
             OutputDir = "C:\\out",
             BaseUrl = "/",
             LayoutsDir = "C:\\layouts",
-            Routed = [(item, new RouteInfo("/zh-CN/pages/greeting/", "zh-CN/pages/greeting/index.html", "pages/page.html"))],
+            RoutedDocuments = new[] { (item, new RouteInfo("/zh-CN/pages/greeting/", "zh-CN/pages/greeting/index.html", "pages/page.html")) }.ToRoutedDocuments(),
             ContentGraph = new CanonicalContentGraph(
             [
                 CreateRecord("greeting", "zh-CN", "中文摘要"),
@@ -152,12 +152,12 @@ public sealed class PagesByIdDataPluginTests
                                              """);
 
         var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir));
-        var loadResult = await provider.LoadAsync();
-        var items = loadResult.Items;
-        Assert.Single(items);
+        var loadResult = await provider.LoadRawAsync();
+        var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents);
+        Assert.Single(documents);
 
-        var item = items[0];
-        var route = RouteGenerator.Generate(item, collections: new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
+        var document = documents[0];
+        var route = RouteGenerator.Generate(document, collections: new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
         {
             ["post"] = new RouteGenerator.CollectionRouteRule("/blog/{slug}/", string.Empty)
         });
@@ -181,7 +181,7 @@ public sealed class PagesByIdDataPluginTests
             OutputDir = Path.Combine(root, "out"),
             BaseUrl = "/",
             LayoutsDir = Path.Combine(root, "layouts"),
-            Routed = new List<(ContentItem Item, RouteInfo Route)> { (item, route) },
+            RoutedDocuments = new[] { new RoutedContentDocument(document, route) },
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -214,18 +214,18 @@ public sealed class PagesByIdDataPluginTests
         Environment.SetEnvironmentVariable("NOTION_TOKEN", "secret_dummy");
         try
         {
-            var item = new ContentItem(
-                Id: "page-1",
-                Title: "Hello",
-                Slug: "hello",
-                PublishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
-                ContentHtml: "<p>hi</p>",
-                Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            var item = ContentDocument.Create(
+                id: "page-1",
+                title: "Hello",
+                slug: "hello",
+                publishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
+                contentHtml: "<p>hi</p>",
+                fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["related_posts"] = new ContentField("list", new List<string> { "missing-1" })
                 }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post", ["collection"] = "post" }));
 
-            var routed = new List<(ContentItem Item, RouteInfo Route)>
+            var routed = new List<(ContentDocument Item, RouteInfo Route)>
             {
                 (item, new RouteInfo("/blog/hello/", "blog/hello/index.html", "pages/post.html"))
             };
@@ -267,7 +267,7 @@ public sealed class PagesByIdDataPluginTests
                 OutputDir = "C:\\out",
                 BaseUrl = "/",
                 LayoutsDir = "C:\\layouts",
-                Routed = routed,
+                RoutedDocuments = routed.ToRoutedDocuments(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
@@ -314,13 +314,13 @@ public sealed class PagesByIdDataPluginTests
                                      }
                                      """);
 
-        var item = new ContentItem(
-            Id: "page-1",
-            Title: "Hello",
-            Slug: "hello",
-            PublishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>hi</p>",
-            Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "page-1",
+            title: "Hello",
+            slug: "hello",
+            publishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>hi</p>",
+            fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["related_posts"] = new ContentField("list", new List<string> { "missing-1" })
             }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post", ["collection"] = "post" }));
@@ -352,10 +352,10 @@ public sealed class PagesByIdDataPluginTests
             OutputDir = Path.Combine(root, "out"),
             BaseUrl = "/",
             LayoutsDir = Path.Combine(root, "layouts"),
-            Routed = new List<(ContentItem Item, RouteInfo Route)>
+            RoutedDocuments = new List<(ContentDocument Item, RouteInfo Route)>
             {
                 (item, new RouteInfo("/blog/hello/", "blog/hello/index.html", "pages/post.html"))
-            },
+            }.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 

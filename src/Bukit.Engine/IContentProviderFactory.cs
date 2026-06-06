@@ -8,8 +8,8 @@ namespace Bukit.Engine;
 public interface IContentProviderFactory
 {
     IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger);
-    Task<ContentLoadResult> LocalizeContentImagesAsync(
-        ContentLoadResult result,
+    Task<RawContentLoadResult> LocalizeContentImagesAsync(
+        RawContentLoadResult result,
         MediaConfig media,
         string rootDir,
         string cacheDir,

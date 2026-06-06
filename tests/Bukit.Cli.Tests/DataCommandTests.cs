@@ -27,13 +27,13 @@ public sealed class DataCommandTests : IDisposable
     [Fact]
     public void PrintModuleSummary_UsesStructuredTypeAndLanguage()
     {
-        var item = new ContentItem(
-            Id: "module-1",
-            Title: "Hero Block",
-            Slug: "hero-block",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var document = ContentDocument.Create(
+            "module-1",
+            "Hero Block",
+            "hero-block",
+            DateTimeOffset.UtcNow,
+            null,
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceMode"] = new("text", "data"),
                 ["sourceKey"] = new("text", "homepage"),
@@ -41,7 +41,7 @@ public sealed class DataCommandTests : IDisposable
                 ["language"] = new("text", "ms-MY")
             });
 
-        DataCommand.PrintModuleSummary(new[] { item });
+        DataCommand.PrintModuleSummary(new[] { document });
 
         var output = _stdout.ToString();
         Assert.Contains("hero", output, StringComparison.Ordinal);
@@ -52,20 +52,20 @@ public sealed class DataCommandTests : IDisposable
     [Fact]
     public void DumpModulesJson_UsesStructuredTypeAsModuleKey()
     {
-        var item = new ContentItem(
-            Id: "module-1",
-            Title: "Hero Block",
-            Slug: "hero-block",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var document = ContentDocument.Create(
+            "module-1",
+            "Hero Block",
+            "hero-block",
+            DateTimeOffset.UtcNow,
+            null,
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceMode"] = new("text", "data"),
                 ["type"] = new("text", "hero"),
                 ["headline"] = new("text", "Welcome")
             });
 
-        var json = DataCommand.DumpModulesJson(new[] { item });
+        var json = DataCommand.DumpModulesJson(new[] { document });
         using var doc = JsonDocument.Parse(json);
 
         var hero = doc.RootElement.GetProperty("modules").GetProperty("hero");

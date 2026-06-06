@@ -48,7 +48,7 @@ internal static class DoctorTemplateAnalyzer
 
     internal static IReadOnlyList<string> CollectMissingUsedTemplates(
         string layoutsDir,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyList<RouteInfo> listRoutes,
         IReadOnlyList<string>? pluginRequirementTemplates = null)
     {

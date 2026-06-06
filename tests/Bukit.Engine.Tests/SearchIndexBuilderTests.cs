@@ -180,85 +180,66 @@ public sealed class SearchIndexBuilderTests
     }
 
     [Fact]
-    public void BuildItemMap_EmptyInput_ReturnsEmptyDictionary()
+    public void BuildDocumentMap_EmptyInput_ReturnsEmptyDictionary()
     {
-        var result = SearchIndexBuilder.BuildItemMap([]);
+        var result = SearchIndexBuilder.BuildDocumentMap([]);
 
         Assert.Empty(result);
     }
 
     [Fact]
-    public void BuildItemMap_SingleItem_MapsByOutputPath()
+    public void BuildDocumentMap_SingleDocument_MapsByOutputPath()
     {
-        var item = new ContentItem(
-            Id: "post-1",
-            Title: "Test Post",
-            Slug: "test-post",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var document = ContentDocument.Create(
+            "post-1",
+            "Test Post",
+            "test-post",
+            DateTimeOffset.UtcNow,
+            null,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var route = new RouteInfo("/blog/test-post/", "blog/test-post/index.html", "pages/post.html");
-        var input = new[] { (item, route) };
+        var input = new[] { new RoutedContentDocument(document, route) };
 
-        var result = SearchIndexBuilder.BuildItemMap(input);
+        var result = SearchIndexBuilder.BuildDocumentMap(input);
 
         Assert.Single(result);
         Assert.True(result.ContainsKey("blog/test-post/index.html"));
-        Assert.Equal(item, result["blog/test-post/index.html"]);
+        Assert.Equal(document, result["blog/test-post/index.html"]);
     }
 
     [Fact]
-    public void BuildItemMap_MultipleItems_MapsByNormalizedOutputPath()
+    public void BuildDocumentMap_MultipleDocuments_MapsByNormalizedOutputPath()
     {
-        var item1 = new ContentItem(
-            Id: "a",
-            Title: "Alpha",
-            Slug: "alpha",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
-        var item2 = new ContentItem(
-            Id: "b",
-            Title: "Beta",
-            Slug: "beta",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
-        var item3 = new ContentItem(
-            Id: "c",
-            Title: "Gamma",
-            Slug: "gamma",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var document1 = ContentDocument.Create("a", "Alpha", "alpha", DateTimeOffset.UtcNow, null, ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var document2 = ContentDocument.Create("b", "Beta", "beta", DateTimeOffset.UtcNow, null, ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var document3 = ContentDocument.Create("c", "Gamma", "gamma", DateTimeOffset.UtcNow, null, ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
 
         var route1 = new RouteInfo("/blog/alpha/", "blog/alpha/index.html", "pages/post.html");
         var route2 = new RouteInfo("/pages/beta/", "pages/beta/index.html", "pages/page.html");
         var route3 = new RouteInfo("/en/gamma/", "en/gamma/index.html", "pages/post.html");
 
-        var input = new[] { (item1, route1), (item2, route2), (item3, route3) };
+        var input = new[]
+        {
+            new RoutedContentDocument(document1, route1),
+            new RoutedContentDocument(document2, route2),
+            new RoutedContentDocument(document3, route3)
+        };
 
-        var result = SearchIndexBuilder.BuildItemMap(input);
+        var result = SearchIndexBuilder.BuildDocumentMap(input);
 
         Assert.Equal(3, result.Count);
-        Assert.Equal(item1, result["blog/alpha/index.html"]);
-        Assert.Equal(item2, result["pages/beta/index.html"]);
-        Assert.Equal(item3, result["en/gamma/index.html"]);
+        Assert.Equal(document1, result["blog/alpha/index.html"]);
+        Assert.Equal(document2, result["pages/beta/index.html"]);
+        Assert.Equal(document3, result["en/gamma/index.html"]);
     }
 
     [Fact]
-    public void BuildItemMap_OutputPathWithBackslashes_NormalizesToForwardSlashes()
+    public void BuildDocumentMap_OutputPathWithBackslashes_NormalizesToForwardSlashes()
     {
-        var item = new ContentItem(
-            Id: "x",
-            Title: "X",
-            Slug: "x",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var document = ContentDocument.Create("x", "X", "x", DateTimeOffset.UtcNow, null, ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var route = new RouteInfo("/pages/x/", "pages\\x\\index.html", "pages/page.html");
 
-        var result = SearchIndexBuilder.BuildItemMap([(item, route)]);
+        var result = SearchIndexBuilder.BuildDocumentMap([new RoutedContentDocument(document, route)]);
 
         Assert.True(result.ContainsKey("pages/x/index.html"));
     }
@@ -266,13 +247,13 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void WriteSearchItem_EmitsCanonicalContentMetadata()
     {
-        var item = new ContentItem(
-            Id: "search-1",
-            Title: "Search Post",
-            Slug: "search-post",
-            PublishAt: DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
-            ContentHtml: "<p>Body</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = ContentDocumentNormalizer.ToDocument(new RawContentDocument(
+            "search-1",
+            "Search Post",
+            "search-post",
+            DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
+            "<p>Body</p>",
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["summary"] = "Search summary",
@@ -288,13 +269,13 @@ public sealed class SearchIndexBuilderTests
                         ["name"] = "Bukit"
                     }
                 }
-            }));
+            })));
         var route = new RouteInfo("/search-post/", "search-post/index.html", "pages/post.html");
 
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {
-            SearchIndexBuilder.WriteSearchItem(writer, item, route, "/", new DictionaryContentBodyStore(new Dictionary<string, ContentBody>
+            SearchIndexBuilder.WriteSearchItem(writer, document, route, "/", new DictionaryContentBodyStore(new Dictionary<string, ContentBody>
             {
                 ["search-1"] = new("<p>Body</p>")
             }), emitSnippet: true);
@@ -310,13 +291,13 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void WriteSearchItem_PrefersCanonicalSummaryClassificationAndLanguage()
     {
-        var item = new ContentItem(
-            Id: "search-2",
-            Title: "Structured Post",
-            Slug: "structured-post",
-            PublishAt: DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
-            ContentHtml: "<p>Structured body</p>",
-            Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var document = ContentDocumentNormalizer.ToDocument(new RawContentDocument(
+            "search-2",
+            "Structured Post",
+            "structured-post",
+            DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
+            "<p>Structured body</p>",
+            ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "guide"),
                 ["summary"] = new("text", "Canonical summary"),
@@ -327,13 +308,13 @@ public sealed class SearchIndexBuilderTests
             }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = "legacy-source"
-            }));
+            })));
         var route = new RouteInfo("/structured-post/", "structured-post/index.html", "pages/post.html");
 
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {
-            SearchIndexBuilder.WriteSearchItem(writer, item, route, "/", new DictionaryContentBodyStore(new Dictionary<string, ContentBody>
+            SearchIndexBuilder.WriteSearchItem(writer, document, route, "/", new DictionaryContentBodyStore(new Dictionary<string, ContentBody>
             {
                 ["search-2"] = new("<p>Structured body</p>")
             }), emitSnippet: true);

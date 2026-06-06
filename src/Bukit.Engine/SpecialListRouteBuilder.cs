@@ -9,13 +9,13 @@ namespace Bukit.Engine;
 
 internal sealed record SpecialListDefinition(
     RouteInfo Route,
-    IReadOnlyList<(ContentItem Item, RouteInfo Route)> Items,
+    IReadOnlyList<RoutedContentDocument> Items,
     bool IncludeContent);
 
 public static class SpecialListRouteBuilder
 {
     internal static List<SpecialListDefinition> Build(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         string layoutsDir,
         string listPageContentMode,
@@ -57,7 +57,7 @@ public static class SpecialListRouteBuilder
                 foreach (var filter in collection.FilteredLists)
                 {
                     var filtered = items
-                        .Where(x => TryMatchFieldValue(x.Item.Fields, filter.Field, filter.Value))
+                        .Where(x => TryMatchFieldValue(x.Document.Fields, filter.Field, filter.Value))
                         .ToList();
 
                     var filterUrl = RoutePathBuilder.NormalizeListRoute(filter.ListRoute);

@@ -14,7 +14,7 @@ namespace Bukit.Engine.Tests;
 public sealed class PaginationPluginDerivePagesTests
 {
     private static BuildContext CreateContext(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<(ContentDocument Item, RouteInfo Route)> routed,
         int pageSize = 10,
         string collectionKey = "post",
         string listRoute = "/blog/",
@@ -50,7 +50,7 @@ public sealed class PaginationPluginDerivePagesTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             TemplateResolver = kind => kind.Equals("pagination", StringComparison.OrdinalIgnoreCase)
                 ? "pages/pagination.html"
                 : throw new ConfigException($"Unexpected template kind: {kind}"),
@@ -58,16 +58,16 @@ public sealed class PaginationPluginDerivePagesTests
         };
     }
 
-    private static (ContentItem Item, RouteInfo Route) CreateRoutedItem(int index, DateTimeOffset? publishAt = null)
+    private static (ContentDocument Item, RouteInfo Route) CreateRoutedItem(int index, DateTimeOffset? publishAt = null)
     {
         var publish = publishAt ?? new DateTimeOffset(2024, 1, (index % 28) + 1, 0, 0, 0, TimeSpan.Zero);
-        var item = new ContentItem(
-            Id: $"post-{index}",
-            Title: $"Post {index}",
-            Slug: $"post-{index}",
-            PublishAt: publish,
-            ContentHtml: $"<p>content {index}</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: $"post-{index}",
+            title: $"Post {index}",
+            slug: $"post-{index}",
+            publishAt: publish,
+            contentHtml: $"<p>content {index}</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["collection"] = "post"
@@ -151,7 +151,7 @@ public sealed class PaginationPluginDerivePagesTests
     [Fact]
     public void DerivePages_EmptyInput_ReturnsEmpty()
     {
-        var ctx = CreateContext(new List<(ContentItem Item, RouteInfo Route)>(), pageSize: 10);
+        var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>(), pageSize: 10);
 
         var plugin = new PaginationPlugin();
         var derived = plugin.DerivePages(ctx);
@@ -201,9 +201,9 @@ public sealed class PaginationPluginDerivePagesTests
         var derived = plugin.DerivePages(ctx);
 
         var page2 = Assert.Single(derived, x => x.Route.Url == "/blog/page/2/");
-        Assert.NotNull(page2.Item.Fields);
-        Assert.True(page2.Item.Fields!.ContainsKey("items"));
-        var itemsField = page2.Item.Fields["items"];
+        Assert.NotNull(page2.Document.Fields);
+        Assert.True(page2.Document.Fields!.ContainsKey("items"));
+        var itemsField = page2.Document.Fields["items"];
         Assert.Equal("list", itemsField.Type);
     }
 
@@ -214,13 +214,13 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 12)
             .Select(i =>
             {
-                var item = new ContentItem(
-                    Id: $"post-{i}",
-                    Title: $"Post {i}",
-                    Slug: $"post-{i}",
-                    PublishAt: publish.AddDays(i),
-                    ContentHtml: $"<p>content {i}</p>",
-                    Fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                var item = ContentDocument.Create(
+                    id: $"post-{i}",
+                    title: $"Post {i}",
+                    slug: $"post-{i}",
+                    publishAt: publish.AddDays(i),
+                    contentHtml: $"<p>content {i}</p>",
+                    fields: ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["collection"] = new("text", "post"),
                         ["summary"] = new("text", $"Canonical summary {i}")
@@ -237,7 +237,7 @@ public sealed class PaginationPluginDerivePagesTests
         var derived = new PaginationPlugin().DerivePages(ctx);
 
         var page2 = Assert.Single(derived, x => x.Route.Url == "/blog/page/2/");
-        var items = Assert.IsType<List<object>>(page2.Item.Fields!["items"].Value);
+        var items = Assert.IsType<List<object>>(page2.Document.Fields!["items"].Value);
         var first = Assert.IsType<Dictionary<string, object>>(items[0]);
         Assert.Equal("Canonical summary 6", first["summary"]);
     }
@@ -273,7 +273,7 @@ public sealed class PaginationPluginDerivePagesTests
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 

@@ -8,7 +8,7 @@ using Bukit.Shared;
 namespace Bukit.Engine;
 
 public sealed record ContentPipelineResult(
-    IReadOnlyList<ContentItem> Items,
+    IReadOnlyList<ContentDocument> Documents,
     IContentBodyStore BodyStore,
     IReadOnlyList<ContentSchemaValidator.SchemaValidationError> SchemaErrors,
     BodyCacheMetrics? BodyCacheMetrics = null,
@@ -33,8 +33,7 @@ public sealed class ContentPipeline
             new ContentLoadStage(contentProviderFactory),
             new ImageLocalizeStage(contentProviderFactory),
             new DraftFilterStage(),
-            new SchemaDefaultsStage(),
-            new SchemaValidateStage(),
+            new ContentGraphValidateStage(),
             new CollectionWarningStage()
         }, logger)
     {
@@ -48,7 +47,7 @@ public sealed class ContentPipeline
         CancellationToken cancellationToken = default)
     {
         var input = new ContentStageInput(
-            Array.Empty<ContentItem>(),
+            Array.Empty<ContentDocument>(),
             EmptyContentBodyStore.Instance,
             config,
             overrides,
@@ -63,14 +62,14 @@ public sealed class ContentPipeline
         ContentStageInput input,
         CancellationToken cancellationToken)
     {
-        var currentItems = input.Items;
+        var currentDocuments = input.Documents;
         var currentBodyStore = input.BodyStore;
         BodyCacheDecorator? bodyCache = null;
         List<ContentSchemaValidator.SchemaValidationError>? allSchemaErrors = null;
 
         foreach (var stage in _stages)
         {
-            var stageInput = input with { Items = currentItems, BodyStore = currentBodyStore };
+            var stageInput = input with { Documents = currentDocuments, BodyStore = currentBodyStore };
             var sw = Stopwatch.StartNew();
 
             var output = await stage.ExecuteAsync(stageInput, cancellationToken);
@@ -79,7 +78,7 @@ public sealed class ContentPipeline
             var actualDuration = output.DurationMs > 0 ? output.DurationMs : sw.ElapsedMilliseconds;
             _logger.Info($"event=content.stage stage={stage.Name} duration_ms={actualDuration}");
 
-            currentItems = output.Items;
+            currentDocuments = output.Documents;
             currentBodyStore = output.BodyStore;
 
             if (stage.Name == "ImageLocalize")
@@ -95,20 +94,10 @@ public sealed class ContentPipeline
             }
         }
 
-        var contentGraph = CanonicalContentGraphBuilder.Build(currentItems);
-        var canonicalErrors = CanonicalContentValidator.Validate(contentGraph);
-        if (canonicalErrors.Count > 0)
-        {
-            allSchemaErrors ??= new List<ContentSchemaValidator.SchemaValidationError>();
-            allSchemaErrors.AddRange(canonicalErrors);
-            foreach (var error in canonicalErrors)
-            {
-                _logger.Warn($"event=canonical.validation code={error.Code} field={error.Field} source={error.SourcePath} message={error.Message}");
-            }
-        }
+        var contentGraph = CanonicalContentGraphBuilder.BuildFromDocuments(currentDocuments);
 
         return new ContentPipelineResult(
-            currentItems,
+            currentDocuments,
             currentBodyStore,
             (IReadOnlyList<ContentSchemaValidator.SchemaValidationError>?)allSchemaErrors ?? Array.Empty<ContentSchemaValidator.SchemaValidationError>(),
             bodyCache?.Metrics,

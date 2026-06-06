@@ -15,7 +15,7 @@ public class NullContentBodyStoreTests
     public async Task GetAsync_WithContent_ReturnsContentBody()
     {
         var store = NullContentBodyStore.Instance;
-        var item = new ContentItem(
+        var document = Document(
             "test-id",
             "Test Title",
             "test-slug",
@@ -23,7 +23,7 @@ public class NullContentBodyStoreTests
             "<p>hello</p>",
             null);
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(document);
 
         Assert.NotNull(body);
         Assert.Equal("<p>hello</p>", body.Html);
@@ -33,7 +33,7 @@ public class NullContentBodyStoreTests
     public async Task GetAsync_WithoutContent_Throws()
     {
         var store = NullContentBodyStore.Instance;
-        var item = new ContentItem(
+        var document = Document(
             "test-id",
             "Test Title",
             "test-slug",
@@ -41,7 +41,7 @@ public class NullContentBodyStoreTests
             null,
             null);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(item));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => store.GetAsync(document));
 
         Assert.Contains("test-id", ex.Message);
     }
@@ -50,7 +50,7 @@ public class NullContentBodyStoreTests
     public async Task GetAsync_Cancelled_Throws()
     {
         var store = NullContentBodyStore.Instance;
-        var item = new ContentItem(
+        var document = Document(
             "test-id",
             "Test Title",
             "test-slug",
@@ -61,6 +61,29 @@ public class NullContentBodyStoreTests
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => store.GetAsync(item, cts.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => store.GetAsync(document, cts.Token));
+    }
+
+    private static ContentDocument Document(
+        string id,
+        string title,
+        string slug,
+        DateTimeOffset publishAt,
+        string? contentHtml,
+        IReadOnlyDictionary<string, ContentField>? fields)
+    {
+        var record = new ContentRecord(
+            new ContentIdentity(id, slug, slug, "page", "published"),
+            new ContentPresentation(title, null, contentHtml, "und", Array.Empty<string>()),
+            new ContentClassification("page", "page", Array.Empty<string>(), Array.Empty<string>()),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(publishAt, null, null, null),
+            new ProvenanceRecord(null, null, Array.Empty<string>(), Array.Empty<string>(), null),
+            new TrustMetadata(null, "published", Array.Empty<string>()),
+            Array.Empty<EntityRecord>(),
+            Array.Empty<ContentRelation>(),
+            Array.Empty<MediaAsset>());
+
+        return new ContentDocument(record, contentHtml, fields, null);
     }
 }

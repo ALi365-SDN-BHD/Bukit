@@ -29,7 +29,7 @@ public sealed class TaxonomyEnsureTermsTests
             OutputDir = "C:\\out",
             BaseUrl = "/",
             LayoutsDir = layoutsDir,
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
@@ -52,7 +52,7 @@ public sealed class TaxonomyEnsureTermsTests
         Assert.Contains(derived, x => x.Route.Url == "/categories/");
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
 
-        var fields = term.Item.Fields;
+        var fields = term.Document.Fields;
         Assert.NotNull(fields);
         Assert.True(fields!.ContainsKey("items"));
         var itemsField = fields["items"];
@@ -75,23 +75,23 @@ public sealed class TaxonomyEnsureTermsTests
             OutputDir = "C:\\out",
             BaseUrl = "/",
             LayoutsDir = "C:\\layouts",
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var dataItem = new ContentItem(
-            Id: "c1",
-            Title: "Cat One",
-            Slug: "cat-one",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: string.Empty,
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var dataDocument = ContentDocument.Create(
+            "c1",
+            "Cat One",
+            "cat-one",
+            DateTimeOffset.UtcNow,
+            string.Empty,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["sourceKey"] = "categories",
                 ["sourceMode"] = "data"
             }));
 
-        TaxonomyTermsInjector.InjectFromDataItems(ctx, new List<ContentItem> { dataItem });
+        TaxonomyTermsInjector.InjectFromDataDocuments(ctx, new List<ContentDocument> { dataDocument });
 
         Assert.True(ctx.Data.TryGetValue("taxonomy_ensure_terms", out var obj));
         var map = Assert.IsType<Dictionary<string, List<Dictionary<string, object>>>>(obj);
@@ -117,23 +117,23 @@ public sealed class TaxonomyEnsureTermsTests
             OutputDir = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-tests", Guid.NewGuid().ToString("N")),
             BaseUrl = "/",
             LayoutsDir = layoutsDir,
-            Routed = new List<(ContentItem Item, RouteInfo Route)>
+            RoutedDocuments = new List<(ContentDocument Item, RouteInfo Route)>
             {
                 (
-                    new ContentItem(
-                        Id: "p1",
-                        Title: "Post 1",
-                        Slug: "post-1",
-                        PublishAt: DateTimeOffset.UtcNow,
-                        ContentHtml: "<p>hello</p>",
-                        Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    ContentDocument.Create(
+                        id: "p1",
+                        title: "Post 1",
+                        slug: "post-1",
+                        publishAt: DateTimeOffset.UtcNow,
+                        contentHtml: "<p>hello</p>",
+                        fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["tags"] = new[] { "alpha" },
                             ["categories"] = new[] { "news" }
                         })),
                     new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")
                 )
-            },
+            }.ToRoutedDocuments(),
             TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };

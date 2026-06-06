@@ -56,13 +56,13 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
 
     private BuildContext CreateContext()
     {
-        var item = new ContentItem(
-            Id: "post-1",
-            Title: "Post",
-            Slug: "post",
-            PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>Body</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "post-1",
+            title: "Post",
+            slug: "post",
+            publishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>Body</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["tags"] = new[] { "News" }
@@ -79,10 +79,10 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
             OutputDir = Path.Combine(_rootDir, "dist"),
             BaseUrl = "/",
             LayoutsDir = _layoutsDir,
-            Routed = new List<(ContentItem Item, RouteInfo Route)>
+            RoutedDocuments = new List<(ContentDocument Item, RouteInfo Route)>
             {
                 (item, new RouteInfo("/blog/post/", Path.Combine("blog", "post", "index.html"), "pages/post.html"))
-            },
+            }.ToRoutedDocuments(),
             TemplateResolver = kind => kind.Trim().ToLowerInvariant() switch
             {
                 "taxonomy_index" => "pages/taxonomy-index.html",

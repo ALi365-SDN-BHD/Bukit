@@ -26,8 +26,8 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var result = await provider.LoadAsync();
-        var item = Assert.Single(result.Items);
+        var result = await provider.LoadRawAsync();
+        var item = Assert.Single(result.Documents);
         var body = await result.BodyStore.GetAsync(item);
 
         Assert.Equal(string.Empty, body.Html);
@@ -59,8 +59,8 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
                 new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
             var provider = new NotionContentProvider(options, logger, CreateClient);
 
-            var result = await provider.LoadAsync();
-            var item = Assert.Single(result.Items);
+            var result = await provider.LoadRawAsync();
+            var item = Assert.Single(result.Documents);
             var body = await result.BodyStore.GetAsync(item);
 
             Assert.Equal("<p>Rendered body</p>", body.Html.Trim());
@@ -96,8 +96,8 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
                 new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
             var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-            var result = await provider.LoadAsync();
-            var item = Assert.Single(result.Items);
+            var result = await provider.LoadRawAsync();
+            var item = Assert.Single(result.Documents);
             var body = await result.BodyStore.GetAsync(item);
 
             Assert.Equal("<p>No edit time</p>", body.Html.Trim());
@@ -132,8 +132,8 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
             new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger, CreateClient);
 
-        var result = await provider.LoadAsync();
-        var item = Assert.Single(result.Items);
+        var result = await provider.LoadRawAsync();
+        var item = Assert.Single(result.Documents);
 
         Assert.Contains(logMessages, m => m.Contains("event=notion.relation.resolve_failed") && m.Contains("pageId=tag-missing"));
         Assert.NotNull(item.Fields);
@@ -167,8 +167,8 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
                 new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
             var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-            var result = await provider.LoadAsync();
-            var item = Assert.Single(result.Items);
+            var result = await provider.LoadRawAsync();
+            var item = Assert.Single(result.Documents);
 
             Assert.NotNull(item.Fields);
             Assert.Contains("tags_links", item.Fields);

@@ -7,6 +7,12 @@ public static class SeoCommand
 {
     internal static string? ResolveAuditReportPath(string outputDir)
     {
+        var publish = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
+        if (File.Exists(publish))
+        {
+            return publish;
+        }
+
         var preferred = Path.Combine(outputDir, ".bukit", "seo-report.json");
         if (File.Exists(preferred))
         {
@@ -37,7 +43,7 @@ public static class SeoCommand
                 reportPath = ResolveAuditReportPath(dir);
                 if (reportPath is null)
                 {
-                    Console.Error.WriteLine($"{label} report not found under {Path.GetFullPath(dir)} (looked for .bukit/seo-report.json and seo-report.json). Run a full build first.");
+                    Console.Error.WriteLine($"{label} report not found under {Path.GetFullPath(dir)} (looked for .bukit/publish-audit-report.json, .bukit/seo-report.json and seo-report.json). Run a full build first.");
                     return 1;
                 }
             }

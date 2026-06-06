@@ -13,7 +13,7 @@ public sealed class IncrementalBuildEngineAsyncTests
 {
     private static readonly DateTimeOffset s_testPublishAt = new(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
 
-    private static ContentItem CreateItem(
+    private static ContentDocument CreateItem(
         string id = "test-id",
         string title = "Test Title",
         string slug = "test-slug",
@@ -22,13 +22,13 @@ public sealed class IncrementalBuildEngineAsyncTests
         IReadOnlyDictionary<string, object>? meta = null,
         IReadOnlyDictionary<string, ContentField>? fields = null)
     {
-        return new ContentItem(
-            Id: id,
-            Title: title,
-            Slug: slug,
-            PublishAt: publishAt ?? s_testPublishAt,
-            ContentHtml: contentHtml,
-            Fields: ContentFieldReader.WithValues(fields, meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase))
+        return ContentDocument.Create(
+            id,
+            title,
+            slug,
+            publishAt ?? s_testPublishAt,
+            contentHtml,
+            ContentFieldReader.WithValues(fields, meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase))
         );
     }
 
@@ -46,7 +46,7 @@ public sealed class IncrementalBuildEngineAsyncTests
 
         public StubBodyStore(string html) => _html = html;
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
             => Task.FromResult(new ContentBody(_html));
     }
 
@@ -55,7 +55,7 @@ public sealed class IncrementalBuildEngineAsyncTests
     {
         var item = CreateItem(id: "a", slug: "a");
         var route = CreateRoute(url: "/a/", outputPath: "a/index.html");
-        var source = new[] { (item, route) };
+        var source = new[] { new RoutedContentDocument(item, route) };
         var manifest = new BuildManifest();
         var bodyStore = new StubBodyStore("<p>hello</p>");
 
@@ -75,7 +75,7 @@ public sealed class IncrementalBuildEngineAsyncTests
         var html = "<p>Body content</p>";
         var item = CreateItem(id: "x", slug: "x", contentHtml: html);
         var route = CreateRoute(url: "/x/", outputPath: "x/index.html");
-        var source = new[] { (item, route) };
+        var source = new[] { new RoutedContentDocument(item, route) };
         var manifest = new BuildManifest();
         var bodyStore = NullContentBodyStore.Instance;
 
@@ -94,7 +94,7 @@ public sealed class IncrementalBuildEngineAsyncTests
     {
         var item = CreateItem(id: "y", slug: "y");
         var route = CreateRoute(url: "/y/", outputPath: "y/index.html");
-        var source = new[] { (item, route) };
+        var source = new[] { new RoutedContentDocument(item, route) };
         var manifest = new BuildManifest();
         var bodyStore = NullContentBodyStore.Instance;
 
@@ -113,7 +113,7 @@ public sealed class IncrementalBuildEngineAsyncTests
     {
         var item = CreateItem(id: "z", title: "Post Z");
         var route = CreateRoute(url: "/z/", outputPath: "z/index.html");
-        var source = new[] { (item, route) };
+        var source = new[] { new RoutedContentDocument(item, route) };
 
         var manifest = new BuildManifest
         {
@@ -142,7 +142,7 @@ public sealed class IncrementalBuildEngineAsyncTests
     [Fact]
     public async Task ComputeListContentHashAsync_DifferentTemplateHash_ProducesDifferentHash()
     {
-        var source = Array.Empty<(ContentItem Item, RouteInfo Route)>();
+        var source = Array.Empty<RoutedContentDocument>();
         var manifest = new BuildManifest();
         var bodyStore = NullContentBodyStore.Instance;
 
@@ -162,7 +162,7 @@ public sealed class IncrementalBuildEngineAsyncTests
 
         var item = CreateItem(id: "track", slug: "track");
         var route = CreateRoute(url: "/track/", outputPath: "track/index.html");
-        var source = new[] { (item, route) };
+        var source = new[] { new RoutedContentDocument(item, route) };
         var manifest = new BuildManifest();
 
         await IncrementalBuildEngine.ComputeListContentHashAsync(
@@ -182,7 +182,7 @@ public sealed class IncrementalBuildEngineAsyncTests
             _onGet = onGet;
         }
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             _onGet();
             return Task.FromResult(new ContentBody(_html));

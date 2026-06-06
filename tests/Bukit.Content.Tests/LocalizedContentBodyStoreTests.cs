@@ -24,7 +24,7 @@ public sealed class LocalizedContentBodyStoreTests
         var store = new LocalizedContentBodyStore(inner, pipeline);
         var item = CreateItem();
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(item.ToDocument());
 
         Assert.True(innerCalled);
         Assert.NotNull(body);
@@ -50,7 +50,7 @@ public sealed class LocalizedContentBodyStoreTests
         var store = new LocalizedContentBodyStore(inner, pipeline);
         var item = CreateItem();
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(item.ToDocument());
 
         Assert.Contains("/localized/img.png", body.Html);
         Assert.NotEmpty(localizeCalls);
@@ -70,7 +70,7 @@ public sealed class LocalizedContentBodyStoreTests
         var store = new LocalizedContentBodyStore(inner, pipeline);
         var item = CreateItem();
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(item.ToDocument());
 
         Assert.Equal("<p>No images here</p>", body.Html);
     }
@@ -90,7 +90,7 @@ public sealed class LocalizedContentBodyStoreTests
         var store = new LocalizedContentBodyStore(inner, pipeline);
         var item = CreateItem();
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(item.ToDocument());
 
         Assert.NotNull(body);
         Assert.NotNull(body.Html);
@@ -111,33 +111,33 @@ public sealed class LocalizedContentBodyStoreTests
         var item = CreateItem();
 
         using var cts = new CancellationTokenSource();
-        var body = await store.GetAsync(item, cts.Token);
+        var body = await store.GetAsync(item.ToDocument(), cts.Token);
 
         Assert.NotNull(body);
     }
 
-    private static ContentItem CreateItem()
+    private static ContentDocument CreateItem()
     {
-        return new ContentItem(
-            Id: "test-1",
-            Title: "Test",
-            Slug: "test",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: null,
-            BodyKey: "test-1");
+        return ContentDocument.Create(
+            id: "test-1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: null,
+            bodyKey: "test-1");
     }
 
     private sealed class TestBodyStore : IContentBodyStore
     {
-        private readonly Func<ContentItem, ContentBody> _factory;
+        private readonly Func<ContentDocument, ContentBody> _factory;
 
-        public TestBodyStore(Func<ContentItem, ContentBody> factory)
+        public TestBodyStore(Func<ContentDocument, ContentBody> factory)
         {
             _factory = factory;
         }
 
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(_factory(item));

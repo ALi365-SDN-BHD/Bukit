@@ -11,8 +11,6 @@ using Bukit.Shared;
 namespace Bukit.Engine;
 
 internal sealed record RenderPipelineContext(
-    IReadOnlyList<(ContentItem Item, RouteInfo Route)> RenderQueue,
-    IReadOnlyList<(ContentItem Item, RouteInfo Route)> Routed,
     IContentBodyStore BodyStore,
     ITemplateRenderer Renderer,
     SiteModel SiteModel,
@@ -28,13 +26,17 @@ internal sealed record RenderPipelineContext(
     ConcurrentDictionary<string, BuildManifestEntry>? ManifestEntries,
     int MaxDegreeOfParallelism,
     ILogger Logger,
+    IReadOnlyList<RoutedContentDocument> RenderDocuments,
+    IReadOnlyList<RoutedContentDocument> RoutedDocuments,
     IReadOnlyList<RenderEntry>? StaticEntries = null,
-    Func<ContentItem, RouteInfo, SeoModel>? SeoBuilder = null,
-    Func<ContentItem, RouteInfo, PageInfo, string, string>? HtmlPostProcessor = null,
-    Func<ContentItem, RouteInfo, SeoModel>? ListItemSeoBuilder = null,
+    Func<ContentDocument, RouteInfo, SeoModel>? SeoBuilder = null,
+    Func<ContentDocument, RouteInfo, PageInfo, string, string>? HtmlPostProcessor = null,
+    Func<ContentDocument, RouteInfo, SeoModel>? ListItemSeoBuilder = null,
     Func<RouteInfo, PageInfo, SeoModel>? ListSeoBuilder = null,
     Func<RouteInfo, PageInfo, string, string>? ListHtmlPostProcessor = null,
-    ThemeTemplateResolver? TemplateResolver = null);
+    ThemeTemplateResolver? TemplateResolver = null)
+{
+}
 
 internal sealed record RenderPipelineResult(
     int RenderedCount,
@@ -50,12 +52,12 @@ internal sealed class RenderPipeline
         var currentKeys = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
         var entries = new List<RenderEntry>();
 
-        foreach (var (item, route) in context.RenderQueue)
+        foreach (var document in context.RenderDocuments)
         {
-            entries.Add(RenderEntry.ForPage(item, route));
+            entries.Add(RenderEntry.ForPage(document.Document, document.Route));
         }
 
-        var specialLists = SpecialListRouteBuilder.Build(context.Routed, context.Collections, context.LayoutsDir, context.ListPageContentMode, context.OutputPathEncoding, context.TemplateResolver);
+        var specialLists = SpecialListRouteBuilder.Build(context.RoutedDocuments, context.Collections, context.LayoutsDir, context.ListPageContentMode, context.OutputPathEncoding, context.TemplateResolver);
         foreach (var x in specialLists)
         {
             entries.Add(RenderEntry.ForList(x.Route, x.Items, x.IncludeContent));

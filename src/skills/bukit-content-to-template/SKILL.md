@@ -200,8 +200,8 @@ ContentPipeline.ExecuteAsync()     ContentPipeline.ExecuteAsync()
   (single method)                    ├─ ContentLoadStage
                                      ├─ ImageLocalizeStage
                                      ├─ DraftFilterStage
-                                     ├─ SchemaDefaultsStage
-                                     └─ SchemaValidateStage
+                                     ├─ ContentGraphValidateStage
+                                     └─ CollectionWarningStage
                                    (custom stages — engine internal)
 ```
 

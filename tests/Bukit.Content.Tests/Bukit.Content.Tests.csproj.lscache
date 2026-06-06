@@ -66,7 +66,7 @@ ContentImageRewritePipelineTests.cs
 ImageAssetLocalizerTests.cs
 LocalizedContentBodyStoreTests.cs
 MarkdownBodyStoreTests.cs
-MarkdownContentLoadResultTests.cs
+MarkdownRawContentLoadResultTests.cs
 MarkdownFolderProviderTests.cs
 NotionApiClientExtendedTests.cs
 NotionApiClientTests.cs

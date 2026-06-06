@@ -1,10 +1,10 @@
 using Bukit.Config;
-using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Abstractions.Routing;
 using Bukit.Rendering;
 using Bukit.Routing;
-using Bukit.Engine.Abstractions.Routing;
+
 namespace Bukit.Engine;
 
 internal sealed record SeoIndexBuildResult(
@@ -16,7 +16,7 @@ internal static class SeoIndexBuilder
     internal static SeoIndexBuildResult Build(
         AppConfig config,
         string baseUrl,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyList<RouteInfo> listRoutes,
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> alternates)
     {
@@ -28,13 +28,15 @@ internal static class SeoIndexBuilder
             return new SeoIndexBuildResult(entries, models);
         }
 
-        foreach (var (item, route) in routed)
+        foreach (var routedDocument in routed)
         {
-            var alternateKey = SeoModelBuilder.BuildAlternateKey(item, route);
+            var document = routedDocument.Document;
+            var route = routedDocument.Route;
+            var alternateKey = SeoModelBuilder.BuildAlternateKey(document, route);
             var model = SeoModelBuilder.BuildForContent(
                 config,
                 baseUrl,
-                item,
+                document,
                 route,
                 alternates.TryGetValue(alternateKey, out var alts) ? alts : null);
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
@@ -43,10 +45,10 @@ internal static class SeoIndexBuilder
                 route,
                 model.Canonical,
                 model.Robots,
-                IsIndexableContent(item, model.Robots),
-                SitemapPolicy.ResolveLastModified(item),
-                item.Id,
-                ResolveExplicitCollection(item));
+                IsIndexableContent(document, model.Robots),
+                SitemapPolicy.ResolveLastModified(document),
+                document.Id,
+                ResolveExplicitCollection(document));
         }
 
         foreach (var route in listRoutes)
@@ -76,7 +78,7 @@ internal static class SeoIndexBuilder
     internal static PageInfo BuildListPageInfo(
         AppConfig config,
         RouteInfo route,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)>? routed = null)
+        IReadOnlyList<RoutedContentDocument>? routed = null)
     {
         return new PageInfo
         {
@@ -91,7 +93,7 @@ internal static class SeoIndexBuilder
     private static string BuildListSummary(
         AppConfig config,
         RouteInfo route,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)>? routed)
+        IReadOnlyList<RoutedContentDocument>? routed)
     {
         if (!string.IsNullOrWhiteSpace(config.Site.Description) && route.Url == "/")
         {
@@ -114,14 +116,14 @@ internal static class SeoIndexBuilder
             : $"Browse {title} from {siteTitle}.";
     }
 
-    private static bool IsIndexableContent(ContentItem item, string? robots)
+    private static bool IsIndexableContent(ContentDocument document, string? robots)
     {
         if (!SeoModelBuilder.IsIndexable(robots))
         {
             return false;
         }
 
-        var record = CanonicalContentGraphBuilder.ToRecord(item);
+        var record = document.Record;
         if (!string.Equals(record.Identity.Status, "published", StringComparison.OrdinalIgnoreCase))
         {
             return false;
@@ -133,7 +135,7 @@ internal static class SeoIndexBuilder
     private static IReadOnlyDictionary<string, ContentField>? BuildListFields(
         AppConfig config,
         RouteInfo listRoute,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
+        IReadOnlyList<RoutedContentDocument> routed)
     {
         var items = ResolveListItems(config, listRoute, routed);
         if (items.Count == 0)
@@ -142,16 +144,18 @@ internal static class SeoIndexBuilder
         }
 
         var values = new List<object>(items.Count);
-        foreach (var (item, route) in items)
+        foreach (var routedDocument in items)
         {
-            var record = CanonicalContentGraphBuilder.ToRecord(item);
+            var document = routedDocument.Document;
+            var route = routedDocument.Route;
+            var record = document.Record;
             var entry = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
-                ["title"] = item.Title,
+                ["title"] = document.Title,
                 ["url"] = route.Url,
-                ["publish_date"] = item.PublishAt.DateTime
+                ["publish_date"] = document.PublishAt.DateTime
             };
-            var summary = record.Presentation.Summary ?? ContentFieldReader.GetSummary(item);
+            var summary = record.Presentation.Summary ?? ContentFieldReader.GetSummary(document);
             if (!string.IsNullOrWhiteSpace(summary))
             {
                 entry["summary"] = summary!;
@@ -166,10 +170,10 @@ internal static class SeoIndexBuilder
         };
     }
 
-    private static IReadOnlyList<(ContentItem Item, RouteInfo Route)> ResolveListItems(
+    private static IReadOnlyList<RoutedContentDocument> ResolveListItems(
         AppConfig config,
         RouteInfo listRoute,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
+        IReadOnlyList<RoutedContentDocument> routed)
     {
         if (listRoute.Url == "/")
         {
@@ -188,16 +192,12 @@ internal static class SeoIndexBuilder
                 if (string.Equals(NormalizeListUrl(collection.ListRoute), listRoute.Url, StringComparison.OrdinalIgnoreCase))
                 {
                     return routed
-                        .Where(x =>
-                        {
-                            var record = CanonicalContentGraphBuilder.ToRecord(x.Item);
-                            return string.Equals(record.Classification.Collection, key, StringComparison.OrdinalIgnoreCase);
-                        })
+                        .Where(x => string.Equals(x.Document.Record.Classification.Collection, key, StringComparison.OrdinalIgnoreCase))
                         .ToList();
                 }
             }
 
-            return Array.Empty<(ContentItem Item, RouteInfo Route)>();
+            return Array.Empty<RoutedContentDocument>();
         }
 
         return routed
@@ -223,12 +223,12 @@ internal static class SeoIndexBuilder
     private static DateTimeOffset ResolveListLastModified(
         AppConfig config,
         RouteInfo route,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
+        IReadOnlyList<RoutedContentDocument> routed)
     {
         var items = ResolveListItems(config, route, routed);
         return items.Count == 0
             ? DateTimeOffset.UnixEpoch
-            : items.Max(x => SitemapPolicy.ResolveLastModified(x.Item));
+            : items.Max(x => SitemapPolicy.ResolveLastModified(x.Document));
     }
 
     private static string NormalizeListUrl(string url)
@@ -252,6 +252,14 @@ internal static class SeoIndexBuilder
         return trimmed;
     }
 
-    private static string? ResolveExplicitCollection(ContentItem item)
-        => string.IsNullOrWhiteSpace(ContentFieldReader.GetCollection(item)) ? null : ContentFieldReader.GetCollection(item);
+    private static string? ResolveExplicitCollection(ContentDocument document)
+    {
+        var collection = document.Record.Classification.Collection;
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            collection = ContentFieldReader.GetCollection(document);
+        }
+
+        return string.IsNullOrWhiteSpace(collection) ? null : collection;
+    }
 }

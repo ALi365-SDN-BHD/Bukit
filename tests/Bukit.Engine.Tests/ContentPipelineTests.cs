@@ -9,7 +9,7 @@ namespace Bukit.Engine.Tests;
 public sealed class ContentPipelineTests
 {
     [Fact]
-    public async Task ExecuteAsync_LoadsLocalizesFiltersDraftsAndAppliesSchemaDefaults()
+    public async Task ExecuteAsync_LoadsLocalizesFiltersDraftsAndBuildsCanonicalContent()
     {
         var published = Item("published", "published", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -20,7 +20,7 @@ public sealed class ContentPipelineTests
             ["type"] = "post",
             ["draft"] = true
         });
-        var loadResult = new ContentLoadResult(new[] { published, draft }, EmptyContentBodyStore.Instance);
+        var loadResult = RawResult(published, draft);
         var factory = new RecordingContentProviderFactory(loadResult);
         var logger = new RecordingLogger();
         var config = Config(draft: false, schemaFailMode: "warn");
@@ -32,9 +32,9 @@ public sealed class ContentPipelineTests
         Assert.True(factory.LocalizeCalled);
         Assert.True(factory.IsCiObserved);
         Assert.Equal("/tmp/site", factory.RootDirObserved);
-        var item = Assert.Single(result.Items);
-        Assert.Equal("published", item.Id);
-        Assert.Equal("published", ContentFieldReader.GetText(item.Fields, "status"));
+        var document = Assert.Single(result.Documents);
+        Assert.Equal("published", document.Id);
+        Assert.Null(ContentFieldReader.GetText(document.Fields, "status"));
         var record = Assert.Single(result.ContentGraph!.Records);
         Assert.Equal("published", record.Identity.Id);
         Assert.Equal("published", record.Trust.ReviewStatus);
@@ -42,26 +42,29 @@ public sealed class ContentPipelineTests
         Assert.NotNull(result.BodyStore);
         Assert.NotNull(result.BodyCacheMetrics);
         Assert.Empty(result.SchemaErrors);
-        Assert.Contains(logger.Infos, message => message.StartsWith("event=content.loaded count=", StringComparison.Ordinal));
+        Assert.Contains(logger.Infos, message => message.StartsWith("event=content.loaded", StringComparison.Ordinal) && message.Contains("count=", StringComparison.Ordinal));
         Assert.Contains(logger.Infos, message => message == "event=content.draft_filtered removed=1");
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenSchemaStrict_ThrowsConfigException()
+    public async Task ExecuteAsync_WhenCanonicalSchemaStrict_ThrowsConfigException()
     {
-        var item = Item("missing-status", "missing-status", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = Item("invalid-status", "invalid-status", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "post"
+            ["type"] = "post",
+            ["status"] = "invalid"
         });
-        var factory = new RecordingContentProviderFactory(new ContentLoadResult(new[] { item }, EmptyContentBodyStore.Instance));
+        var factory = new RecordingContentProviderFactory(RawResult(item));
         var logger = new RecordingLogger();
-        var config = Config(draft: true, schemaFailMode: "strict", requiredStatus: true);
+        var config = Config(draft: true, schemaFailMode: "strict");
         var pipeline = new ContentPipeline(factory, logger);
 
         var ex = await Assert.ThrowsAsync<ConfigException>(() => pipeline.ExecuteAsync(config, "/tmp/site", new ConfigOverrides(), "/tmp/site/.cache/media", CancellationToken.None));
 
-        Assert.Equal("Schema validation failed with 1 error(s).", ex.Message);
-        Assert.Contains(logger.Warnings, message => message.Contains("event=schema.validation", StringComparison.Ordinal));
+        Assert.Equal("Canonical content validation failed with 2 error(s).", ex.Message);
+        Assert.Contains(logger.Warnings, message => message.Contains("event=canonical.validation", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, message => message.Contains("canonical_status_invalid", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, message => message.Contains("canonical_review_status_invalid", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -89,7 +92,7 @@ public sealed class ContentPipelineTests
             }
         });
 
-        var factory = new RecordingContentProviderFactory(new ContentLoadResult(new[] { localized }, EmptyContentBodyStore.Instance));
+        var factory = new RecordingContentProviderFactory(RawResult(localized));
         var pipeline = new ContentPipeline(factory, new RecordingLogger());
 
         var result = await pipeline.ExecuteAsync(Config(draft: true, schemaFailMode: "warn"), "/tmp/site", new ConfigOverrides(), "/tmp/site/.cache/media", CancellationToken.None);
@@ -109,7 +112,7 @@ public sealed class ContentPipelineTests
     [Fact]
     public async Task ExecuteAsync_BuildsCanonicalContentGraphFromStructuredFields()
     {
-        var item = new ContentItem(
+        var item = ContentDocument.Create(
             "notion-post",
             "Notion Post",
             "notion-post",
@@ -137,7 +140,7 @@ public sealed class ContentPipelineTests
                 ["gallery"] = new("files", new List<string> { "https://img.example/1.jpg", "https://img.example/2.jpg" })
             });
 
-        var factory = new RecordingContentProviderFactory(new ContentLoadResult(new[] { item }, EmptyContentBodyStore.Instance));
+        var factory = new RecordingContentProviderFactory(RawResult(item));
         var pipeline = new ContentPipeline(factory, new RecordingLogger());
 
         var result = await pipeline.ExecuteAsync(Config(draft: true, schemaFailMode: "warn"), "/tmp/site", new ConfigOverrides(), "/tmp/site/.cache/media", CancellationToken.None);
@@ -157,7 +160,7 @@ public sealed class ContentPipelineTests
     [Fact]
     public async Task ExecuteAsync_ShouldReportCanonicalMediaAltGap_WhenImageHasNoAltText()
     {
-        var item = new ContentItem(
+        var item = ContentDocument.Create(
             "image-post",
             "Image Post",
             "image-post",
@@ -171,7 +174,7 @@ public sealed class ContentPipelineTests
                 ["image"] = new("file", "https://img.example/cover.jpg")
             });
 
-        var factory = new RecordingContentProviderFactory(new ContentLoadResult(new[] { item }, EmptyContentBodyStore.Instance));
+        var factory = new RecordingContentProviderFactory(RawResult(item));
         var pipeline = new ContentPipeline(factory, new RecordingLogger());
 
         var result = await pipeline.ExecuteAsync(Config(draft: true, schemaFailMode: "warn"), "/tmp/site", new ConfigOverrides(), "/tmp/site/.cache/media", CancellationToken.None);
@@ -182,10 +185,23 @@ public sealed class ContentPipelineTests
             error.SourcePath == "image-post");
     }
 
-    private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object> meta)
+    private static ContentDocument Item(string id, string slug, IReadOnlyDictionary<string, object> meta)
     {
-        return new ContentItem(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(meta));
+        return ContentDocument.Create(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(meta));
     }
+
+    private static RawContentLoadResult RawResult(params ContentDocument[] items)
+        => new(items.Select(ToRawDocument).ToArray(), EmptyContentBodyStore.Instance);
+
+    private static RawContentDocument ToRawDocument(ContentDocument item)
+        => new(
+            item.Id,
+            item.Title,
+            item.Slug,
+            item.PublishAt,
+            item.ContentHtml,
+            item.Fields,
+            item.BodyKey);
 
     private static AppConfig Config(bool draft, string schemaFailMode, bool requiredStatus = false)
     {
@@ -228,9 +244,9 @@ public sealed class ContentPipelineTests
 
     private sealed class RecordingContentProviderFactory : IContentProviderFactory
     {
-        private readonly ContentLoadResult _loadResult;
+        private readonly RawContentLoadResult _loadResult;
 
-        public RecordingContentProviderFactory(ContentLoadResult loadResult)
+        public RecordingContentProviderFactory(RawContentLoadResult loadResult)
         {
             _loadResult = loadResult;
         }
@@ -248,7 +264,7 @@ public sealed class ContentPipelineTests
             return new RecordingContentProvider(_loadResult);
         }
 
-        public Task<ContentLoadResult> LocalizeContentImagesAsync(ContentLoadResult result, MediaConfig media, string rootDir, string cacheDir, ILogger logger, CancellationToken cancellationToken)
+        public Task<RawContentLoadResult> LocalizeContentImagesAsync(RawContentLoadResult result, MediaConfig media, string rootDir, string cacheDir, ILogger logger, CancellationToken cancellationToken)
         {
             LocalizeCalled = true;
             RootDirObserved = rootDir;
@@ -258,18 +274,20 @@ public sealed class ContentPipelineTests
 
     private sealed class RecordingContentProvider : IContentProvider
     {
-        private readonly ContentLoadResult _loadResult;
+        private readonly RawContentLoadResult _loadResult;
 
-        public RecordingContentProvider(ContentLoadResult loadResult)
+        public RecordingContentProvider(RawContentLoadResult loadResult)
         {
             _loadResult = loadResult;
         }
 
-        public Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+        public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(_loadResult);
+            return Task.FromResult(ToRawResult(_loadResult));
         }
     }
+
+    private static RawContentLoadResult ToRawResult(RawContentLoadResult result) => result;
 
     private sealed class RecordingLogger : ILogger
     {

@@ -40,13 +40,13 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoFaq_GeneratesFaqPageJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
-            Id: "faq-1",
-            Title: "FAQ Guide",
-            Slug: "faq-guide",
-            PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>faq content</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "faq-1",
+            title: "FAQ Guide",
+            slug: "faq-guide",
+            publishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>faq content</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -84,13 +84,13 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoHowTo_GeneratesHowToJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
-            Id: "howto-1",
-            Title: "How to Setup",
-            Slug: "how-to-setup",
-            PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>guide</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "howto-1",
+            title: "How to Setup",
+            slug: "how-to-setup",
+            publishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>guide</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -130,13 +130,13 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoAuthor_GeneratesPersonJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
-            Id: "post-1",
-            Title: "Post with Author",
-            Slug: "post-author",
-            PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>post</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "post-1",
+            title: "Post with Author",
+            slug: "post-author",
+            publishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>post</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -165,13 +165,13 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoAuthorOnNonPost_GeneratesPersonJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
-            Id: "page-1",
-            Title: "About Us",
-            Slug: "about-us",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>about</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "page-1",
+            title: "About Us",
+            slug: "about-us",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>about</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["geo"] = new Dictionary<string, object>
@@ -195,13 +195,13 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoCitations_GeneratesCitationsJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
-            Id: "page-1",
-            Title: "Research",
-            Slug: "research",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>research</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "page-1",
+            title: "Research",
+            slug: "research",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>research</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "page",
                 ["geo"] = new Dictionary<string, object>
@@ -230,13 +230,13 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoSameAs_AddsToArticleJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
-            Id: "post-1",
-            Title: "SameAs Post",
-            Slug: "sameas-post",
-            PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>post</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "post-1",
+            title: "SameAs Post",
+            slug: "sameas-post",
+            publishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>post</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -258,13 +258,13 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoSpeakable_GeneratesSpeakableJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
-            Id: "post-1",
-            Title: "Speakable Post",
-            Slug: "speakable-post",
-            PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>post</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "post-1",
+            title: "Speakable Post",
+            slug: "speakable-post",
+            publishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>post</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -285,13 +285,13 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoAboutAndDateReviewed_AddsToArticleJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
-            Id: "post-1",
-            Title: "Reviewed Post",
-            Slug: "reviewed-post",
-            PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>post</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "post-1",
+            title: "Reviewed Post",
+            slug: "reviewed-post",
+            publishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>post</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",
@@ -315,13 +315,13 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_ArticleJsonLd_IncludesInLanguage()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
-            Id: "post-1",
-            Title: "Language Post",
-            Slug: "lang-post",
-            PublishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>post</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        var item = ContentDocument.Create(
+            id: "post-1",
+            title: "Language Post",
+            slug: "lang-post",
+            publishAt: new DateTimeOffset(2025, 1, 15, 12, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>post</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = "post",

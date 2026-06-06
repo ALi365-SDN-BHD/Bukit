@@ -13,9 +13,9 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SiteEngineHelperExtendedTests
 {
-    private static ContentItem CreateItem(string id, string title, string slug)
+    private static ContentDocument CreateDocument(string id, string title, string slug)
     {
-        return new ContentItem(id, title, slug, DateTimeOffset.UtcNow, null, null);
+        return ContentDocument.Create(id, title, slug, DateTimeOffset.UtcNow, null, null);
     }
 
     private static AppConfig CreateTestConfig()
@@ -50,16 +50,16 @@ public sealed class SiteEngineHelperExtendedTests
             },
             Content = new ContentConfig { Provider = "markdown" }
         };
-        var items = new List<ContentItem>
+        var documents = new List<ContentDocument>
         {
-            new("1", "Post One", "post-one", DateTimeOffset.UtcNow, null,
+            ContentDocument.Create("1", "Post One", "post-one", DateTimeOffset.UtcNow, null,
                 ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["collection"] = "article" })),
         };
         var languages = new List<string> { "en", "zh" };
         var defaultLanguage = "en";
         var rootBaseUrl = "/";
 
-        var result = SeoAlternatesService.BuildSeoAlternates(config, items, languages, defaultLanguage, rootBaseUrl);
+        var result = SeoAlternatesService.BuildSeoAlternates(config, documents, languages, defaultLanguage, rootBaseUrl);
 
         Assert.NotNull(result);
     }
@@ -68,15 +68,15 @@ public sealed class SiteEngineHelperExtendedTests
     public void BuildSeoAlternates_WithEmptyLanguages_ReturnsEmpty()
     {
         var config = CreateTestConfig();
-        var items = new List<ContentItem>
+        var documents = new List<ContentDocument>
         {
-            CreateItem("1", "Post One", "post-one"),
+            CreateDocument("1", "Post One", "post-one"),
         };
         var languages = Array.Empty<string>();
         var defaultLanguage = "en";
         var rootBaseUrl = "/";
 
-        var result = SeoAlternatesService.BuildSeoAlternates(config, items, languages, defaultLanguage, rootBaseUrl);
+        var result = SeoAlternatesService.BuildSeoAlternates(config, documents, languages, defaultLanguage, rootBaseUrl);
 
         Assert.NotNull(result);
         Assert.Empty(result!);
@@ -97,9 +97,9 @@ public sealed class SiteEngineHelperExtendedTests
                 }
             }
         };
-        var item = CreateItem("1", "Post One", "post-one");
+        var item = CreateDocument("1", "Post One", "post-one");
         var route = new RouteInfo("/post-one", "post-one/index.html", "post");
-        var routed = new List<(ContentItem, RouteInfo)> { (item, route) };
+        var routed = new List<RoutedContentDocument> { new(item, route) };
 
         var result = SeoAlternatesService.BuildTaxonomyRouteUrls(config, routed);
 
@@ -110,7 +110,7 @@ public sealed class SiteEngineHelperExtendedTests
     public void BuildTaxonomyRouteUrls_WithEmptyRouted_ReturnsEmpty()
     {
         var config = CreateTestConfig();
-        var routed = Array.Empty<(ContentItem, RouteInfo)>();
+        var routed = Array.Empty<RoutedContentDocument>();
 
         var result = SeoAlternatesService.BuildTaxonomyRouteUrls(config, routed);
 
@@ -141,17 +141,17 @@ public sealed class SiteEngineHelperExtendedTests
             },
             Content = new ContentConfig { Provider = "markdown" }
         };
-        var items = new List<ContentItem>();
+        var items = new List<ContentDocument>();
         for (var i = 0; i < 25; i++)
         {
-            items.Add(CreateItem($"{i}", $"Post {i}", $"post-{i}"));
+            items.Add(CreateDocument($"{i}", $"Post {i}", $"post-{i}"));
         }
 
         var route = new RouteInfo("/blog/post-0", "blog/post-0/index.html", "post");
-        var routed = new List<(ContentItem, RouteInfo)>();
+        var routed = new List<RoutedContentDocument>();
         foreach (var item in items)
         {
-            routed.Add((item, route));
+            routed.Add(new RoutedContentDocument(item, route));
         }
 
         var result = SeoAlternatesService.BuildPaginationRouteUrls(config, routed);
@@ -163,7 +163,7 @@ public sealed class SiteEngineHelperExtendedTests
     public void BuildPaginationRouteUrls_WithEmptyRouted_ReturnsEmpty()
     {
         var config = CreateTestConfig();
-        var routed = Array.Empty<(ContentItem, RouteInfo)>();
+        var routed = Array.Empty<RoutedContentDocument>();
 
         var result = SeoAlternatesService.BuildPaginationRouteUrls(config, routed);
 
@@ -206,9 +206,9 @@ public sealed class SiteEngineHelperExtendedTests
     [Fact]
     public void BuildTaxonomyTermCounts_WithTerms_ReturnsCounts()
     {
-        var item = CreateItem("1", "Post One", "post-one");
+        var item = CreateDocument("1", "Post One", "post-one");
         var route = new RouteInfo("/post-one", "post-one/index.html", "post");
-        var routed = new List<(ContentItem, RouteInfo)> { (item, route) };
+        var routed = new List<RoutedContentDocument> { new(item, route) };
         var key = "tags";
 
         var result = SeoAlternatesService.BuildTaxonomyTermCounts(routed, key);

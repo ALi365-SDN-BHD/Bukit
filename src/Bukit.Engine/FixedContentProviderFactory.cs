@@ -19,8 +19,8 @@ internal sealed class FixedContentProviderFactory : IContentProviderFactory
     public IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger)
         => _provider;
 
-    public Task<ContentLoadResult> LocalizeContentImagesAsync(
-        ContentLoadResult result,
+    public Task<RawContentLoadResult> LocalizeContentImagesAsync(
+        RawContentLoadResult result,
         MediaConfig media,
         string rootDir,
         string cacheDir,

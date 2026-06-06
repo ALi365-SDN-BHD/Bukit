@@ -9,12 +9,12 @@ using Xunit;
 
 namespace Bukit.Engine.Tests;
 
-#pragma warning disable CS0618 // ComputeListContentHash is intentionally tested in its obsolete sync form for backward compatibility.
+#pragma warning disable CS0618 // Sync document hashing is intentionally tested for deterministic behavior.
 public sealed class IncrementalBuildEngineTests
 {
     private static readonly DateTimeOffset s_testPublishAt = new(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
 
-    private static ContentItem CreateItem(
+    private static ContentDocument CreateItem(
         string id = "test-id",
         string title = "Test Title",
         string slug = "test-slug",
@@ -23,13 +23,13 @@ public sealed class IncrementalBuildEngineTests
         IReadOnlyDictionary<string, object>? meta = null,
         IReadOnlyDictionary<string, ContentField>? fields = null)
     {
-        return new ContentItem(
-            Id: id,
-            Title: title,
-            Slug: slug,
-            PublishAt: publishAt ?? s_testPublishAt,
-            ContentHtml: contentHtml,
-            Fields: ContentFieldReader.WithValues(fields, meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase))
+        return ContentDocument.Create(
+            id,
+            title,
+            slug,
+            publishAt ?? s_testPublishAt,
+            contentHtml,
+            ContentFieldReader.WithValues(fields, meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase))
         );
     }
 
@@ -466,7 +466,7 @@ public sealed class IncrementalBuildEngineTests
     [Fact]
     public void ComputeListContentHash_EmptySource_ProducesDeterministicHash()
     {
-        var source = Array.Empty<(ContentItem Item, RouteInfo Route)>();
+        var source = Array.Empty<RoutedContentDocument>();
         var manifest = new BuildManifest();
         var bodyStore = NullContentBodyStore.Instance;
 
@@ -483,7 +483,7 @@ public sealed class IncrementalBuildEngineTests
     {
         var item = CreateItem(id: "post-1", title: "Post 1");
         var route = CreateRoute(url: "/blog/post-1/", outputPath: "blog/post-1/index.html");
-        var source = new[] { (item, route) };
+        var source = new[] { new RoutedContentDocument(item, route) };
 
         var entryOutputPath = "blog/post-1/index.html";
         var manifest = new BuildManifest
@@ -513,7 +513,7 @@ public sealed class IncrementalBuildEngineTests
     {
         var item = CreateItem(id: "post-2", title: "Post 2");
         var route = CreateRoute(url: "/blog/post-2/", outputPath: "blog/post-2/index.html");
-        var source = new[] { (item, route) };
+        var source = new[] { new RoutedContentDocument(item, route) };
 
         var manifest = new BuildManifest();
         var bodyStore = NullContentBodyStore.Instance;
@@ -529,7 +529,7 @@ public sealed class IncrementalBuildEngineTests
     [Fact]
     public void ComputeListContentHash_DifferentTemplateHash_ProducesDifferentHash()
     {
-        var source = Array.Empty<(ContentItem Item, RouteInfo Route)>();
+        var source = Array.Empty<RoutedContentDocument>();
         var manifest = new BuildManifest();
         var bodyStore = NullContentBodyStore.Instance;
 
@@ -544,7 +544,7 @@ public sealed class IncrementalBuildEngineTests
     [Fact]
     public void ComputeListContentHash_DifferentTemplate_ProducesDifferentHash()
     {
-        var source = Array.Empty<(ContentItem Item, RouteInfo Route)>();
+        var source = Array.Empty<RoutedContentDocument>();
         var manifest = new BuildManifest();
         var bodyStore = NullContentBodyStore.Instance;
 
@@ -561,7 +561,7 @@ public sealed class IncrementalBuildEngineTests
     {
         var item = CreateItem(id: "post-3", title: "Post 3", contentHtml: "<p>Hello</p>");
         var route = CreateRoute(url: "/blog/post-3/", outputPath: "blog/post-3/index.html");
-        var source = new[] { (item, route) };
+        var source = new[] { new RoutedContentDocument(item, route) };
         var manifest = new BuildManifest();
         var bodyStore = NullContentBodyStore.Instance;
 

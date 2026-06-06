@@ -58,7 +58,7 @@ public sealed class ScribanTemplateRendererAdapterTests
 
         try
         {
-            File.WriteAllText(Path.Combine(tempDir, "post.scriban"), "Title: {{ page.title }}");
+            File.WriteAllText(Path.Combine(tempDir, "post.scriban"), "title: {{ page.title }}");
 
             var adapter = new ScribanTemplateRendererAdapter(tempDir);
             var pageModel = new PageModel
@@ -115,7 +115,7 @@ public sealed class ScribanTemplateRendererAdapterTests
 
         try
         {
-            File.WriteAllText(Path.Combine(tempDir, "list.scriban"), "Title: {{ page.title }} | Count: {{ pages | array.size }}");
+            File.WriteAllText(Path.Combine(tempDir, "list.scriban"), "title: {{ page.title }} | Count: {{ pages | array.size }}");
 
             var adapter = new ScribanTemplateRendererAdapter(tempDir);
             var listModel = new ListPageModel
@@ -152,7 +152,7 @@ public sealed class ScribanTemplateRendererAdapterTests
 
         try
         {
-            File.WriteAllText(Path.Combine(tempDir, "list.scriban"), "Title: {{ page.title }} ({{ pages | array.size }} items)");
+            File.WriteAllText(Path.Combine(tempDir, "list.scriban"), "title: {{ page.title }} ({{ pages | array.size }} items)");
 
             var adapter = new ScribanTemplateRendererAdapter(tempDir);
             var listModel = new ListPageModel

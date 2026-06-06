@@ -9,16 +9,16 @@ namespace Bukit.Engine.Tests;
 
 public sealed class RouteGeneratorTests
 {
-    private static ContentItem Item(
+    private static ContentDocument Item(
         string slug = "my-slug",
         IReadOnlyDictionary<string, object>? meta = null) =>
-        new(
-            Id: "id-1",
-            Title: "Title",
-            Slug: slug,
-            PublishAt: DateTimeOffset.MinValue,
-            ContentHtml: "",
-            Fields: ContentFieldReader.ToFieldMap(meta ?? new Dictionary<string, object>()));
+        ContentDocument.Create(
+            id: "id-1",
+            title: "Title",
+            slug: slug,
+            publishAt: DateTimeOffset.MinValue,
+            contentHtml: "",
+            fields: ContentFieldReader.ToFieldMap(meta ?? new Dictionary<string, object>()));
 
     private static readonly IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule> DefaultCollections =
         new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
@@ -52,13 +52,13 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_FieldOnlyTypeAndCollection_ProducesCollectionRoute()
     {
-        var item = new ContentItem(
-            Id: "id-2",
-            Title: "Title",
-            Slug: "field-post",
-            PublishAt: DateTimeOffset.MinValue,
-            ContentHtml: "",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "id-2",
+            title: "Title",
+            slug: "field-post",
+            publishAt: DateTimeOffset.MinValue,
+            contentHtml: "",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = new("text", "post"),
                 ["collection"] = new("text", "post")
@@ -557,11 +557,11 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_PermalinkPattern_DateSlug()
     {
-        var item = new ContentItem(
-            Id: "id-1", Title: "My Post", Slug: "my-post",
-            PublishAt: new DateTimeOffset(2025, 3, 15, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post" }));
+        var item = ContentDocument.Create(
+            id: "id-1", title: "My Post", slug: "my-post",
+            publishAt: new DateTimeOffset(2025, 3, 15, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post" }));
 
         var permalinks = new Dictionary<string, string> { ["post"] = "/{year}/{month}/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -575,11 +575,11 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_PermalinkPattern_YearMonthDaySlug()
     {
-        var item = new ContentItem(
-            Id: "id-1", Title: "T", Slug: "hello",
-            PublishAt: new DateTimeOffset(2024, 12, 5, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post" }));
+        var item = ContentDocument.Create(
+            id: "id-1", title: "T", slug: "hello",
+            publishAt: new DateTimeOffset(2024, 12, 5, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post" }));
 
         var permalinks = new Dictionary<string, string> { ["post"] = "/{year}/{month}/{day}/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -590,11 +590,11 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_PermalinkPattern_PageType()
     {
-        var item = new ContentItem(
-            Id: "id-1", Title: "T", Slug: "about",
-            PublishAt: DateTimeOffset.MinValue,
-            ContentHtml: "",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+        var item = ContentDocument.Create(
+            id: "id-1", title: "T", slug: "about",
+            publishAt: DateTimeOffset.MinValue,
+            contentHtml: "",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
 
         var permalinks = new Dictionary<string, string> { ["page"] = "/docs/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -636,11 +636,11 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void ExpandPermalinkPattern_AllPlaceholders()
     {
-        var item = new ContentItem(
-            Id: "id-1", Title: "T", Slug: "my-slug",
-            PublishAt: new DateTimeOffset(2025, 1, 9, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post" }));
+        var item = ContentDocument.Create(
+            id: "id-1", title: "T", slug: "my-slug",
+            publishAt: new DateTimeOffset(2025, 1, 9, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post" }));
 
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{year}/{month}/{day}/{slug}/", item);
 
@@ -669,7 +669,7 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
-    public void Generate_CollectionsRule_TypeOnly_NoLongerMatchesCollectionRule()
+    public void Generate_CollectionsRule_TypeOnly_UsesCanonicalCollection()
     {
         var item = Item("hello", new Dictionary<string, object>
         {
@@ -681,7 +681,9 @@ public sealed class RouteGeneratorTests
             ["article"] = new("/articles/{slug}/", "pages/article.html")
         };
 
-        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, collections: collections));
-        Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
+        var route = RouteGenerator.Generate(item, collections: collections);
+
+        Assert.Equal("/articles/hello/", route.Url);
+        Assert.Equal("pages/article.html", route.Template);
     }
 }

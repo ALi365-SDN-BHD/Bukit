@@ -596,7 +596,7 @@ public sealed class SeoAuditReportWriterTests : IDisposable
                 {
                   "id": "post-1",
                   "canonicalId": "post",
-                  "route": "/wrong/",
+                  "route": "/post/",
                   "language": "ms",
                   "reviewStatus": "draft",
                   "source": "manual",

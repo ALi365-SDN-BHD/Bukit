@@ -115,6 +115,50 @@ internal static partial class SeoAuditReportWriter
         return "seo.audit";
     }
 
+    private static ContentRecord? ResolveRecordForEntry(
+        IReadOnlyDictionary<string, ContentRecord[]> recordsById,
+        SeoIndexEntry entry,
+        string? siteLanguage)
+    {
+        if (string.IsNullOrWhiteSpace(entry.SourceItemId) ||
+            !recordsById.TryGetValue(entry.SourceItemId, out var records) ||
+            records.Length == 0)
+        {
+            return null;
+        }
+
+        var languageSegment = GetFirstRouteSegment(entry.Route.Url);
+        if (!string.IsNullOrWhiteSpace(languageSegment))
+        {
+            var languageMatch = records.FirstOrDefault(record =>
+                string.Equals(record.Presentation.Language, languageSegment, StringComparison.OrdinalIgnoreCase));
+            if (languageMatch is not null)
+            {
+                return languageMatch;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(siteLanguage))
+        {
+            var siteLanguageMatch = records.FirstOrDefault(record =>
+                string.Equals(record.Presentation.Language, siteLanguage, StringComparison.OrdinalIgnoreCase));
+            if (siteLanguageMatch is not null)
+            {
+                return siteLanguageMatch;
+            }
+        }
+
+        return records[0];
+    }
+
+    private static string? GetFirstRouteSegment(string routeUrl)
+    {
+        var parts = (routeUrl ?? string.Empty)
+            .Trim('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 0 ? null : parts[0];
+    }
+
     private static void WriteGeoReport(string outputDir, SeoAuditReport report, ILogger logger)
     {
         if (report.Summary is null)
@@ -179,12 +223,12 @@ internal static partial class SeoAuditReportWriter
         var modelByCanonical = new Dictionary<string, (SeoIndexEntry Entry, SeoModel Model)>(StringComparer.OrdinalIgnoreCase);
         var recordsById = contentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.OrdinalIgnoreCase);
 
         foreach (var (key, entry) in seoIndex.OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             seoModels.TryGetValue(key, out var model);
-            recordsById.TryGetValue(entry.SourceItemId ?? string.Empty, out var record);
+            var record = ResolveRecordForEntry(recordsById, entry, config.Site.Language);
             var schemaTypes = model is null ? Array.Empty<string>() : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, issues);
             var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes);
             var outputPath = Path.Combine(outputDir, entry.Route.OutputPath);

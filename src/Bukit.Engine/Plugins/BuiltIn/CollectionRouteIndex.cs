@@ -10,17 +10,17 @@ internal sealed class CollectionRouteIndex
 {
     private const string CacheKey = "__collection_route_index";
 
-    private readonly Dictionary<string, IReadOnlyList<(ContentItem Item, RouteInfo Route)>> _byCollection;
+    private readonly Dictionary<string, IReadOnlyList<RoutedContentDocument>> _byCollection;
 
     private CollectionRouteIndex(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> allOrdered,
-        Dictionary<string, IReadOnlyList<(ContentItem Item, RouteInfo Route)>> byCollection)
+        IReadOnlyList<RoutedContentDocument> allOrdered,
+        Dictionary<string, IReadOnlyList<RoutedContentDocument>> byCollection)
     {
         AllOrdered = allOrdered;
         _byCollection = byCollection;
     }
 
-    internal IReadOnlyList<(ContentItem Item, RouteInfo Route)> AllOrdered { get; }
+    internal IReadOnlyList<RoutedContentDocument> AllOrdered { get; }
 
     internal static CollectionRouteIndex GetOrBuild(BuildContext context)
     {
@@ -29,44 +29,44 @@ internal sealed class CollectionRouteIndex
             return existing;
         }
 
-        var index = Create(context.Routed);
+        var index = Create(context.RoutedDocuments);
         context.Data[CacheKey] = index;
         return index;
     }
 
-    internal static CollectionRouteIndex Create(IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
+    internal static CollectionRouteIndex Create(IReadOnlyList<RoutedContentDocument> routed)
     {
         var ordered = routed
-            .OrderByDescending(x => x.Item.PublishAt)
+            .OrderByDescending(x => x.Document.PublishAt)
             .ToList();
 
         var byCollection = ordered
-            .GroupBy(x => GetCollection(x.Item), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => GetCollection(x.Document), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 g => g.Key,
-                g => (IReadOnlyList<(ContentItem Item, RouteInfo Route)>)g.ToList(),
+                g => (IReadOnlyList<RoutedContentDocument>)g.ToList(),
                 StringComparer.OrdinalIgnoreCase);
 
         return new CollectionRouteIndex(ordered, byCollection);
     }
 
-    internal IReadOnlyList<(ContentItem Item, RouteInfo Route)> GetByCollection(string collectionKey)
+    internal IReadOnlyList<RoutedContentDocument> GetByCollection(string collectionKey)
     {
         if (string.IsNullOrWhiteSpace(collectionKey))
         {
-            return Array.Empty<(ContentItem Item, RouteInfo Route)>();
+            return Array.Empty<RoutedContentDocument>();
         }
 
         return _byCollection.TryGetValue(collectionKey, out var items)
             ? items
-            : Array.Empty<(ContentItem Item, RouteInfo Route)>();
+            : Array.Empty<RoutedContentDocument>();
     }
 
-    internal IReadOnlyList<(ContentItem Item, RouteInfo Route)> GetByRoutePrefix(string prefix)
+    internal IReadOnlyList<RoutedContentDocument> GetByRoutePrefix(string prefix)
     {
         if (string.IsNullOrWhiteSpace(prefix))
         {
-            return Array.Empty<(ContentItem Item, RouteInfo Route)>();
+            return Array.Empty<RoutedContentDocument>();
         }
 
         return AllOrdered
@@ -74,8 +74,8 @@ internal sealed class CollectionRouteIndex
             .ToList();
     }
 
-    internal static string GetCollection(ContentItem item)
+    internal static string GetCollection(ContentDocument document)
     {
-        return ContentFieldReader.GetCollection(item);
+        return ContentFieldReader.GetCollection(document, document.Record.Identity.ContentType);
     }
 }

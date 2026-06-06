@@ -13,10 +13,10 @@ namespace Bukit.Engine.Tests;
 
 public sealed class AliasPluginTests
 {
-    private static ContentItem Item(string id, string title, string slug, Dictionary<string, object>? meta = null)
+    private static ContentDocument Item(string id, string title, string slug, Dictionary<string, object>? meta = null)
     {
         meta ??= new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        return new ContentItem(id, title, slug, DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
+        return ContentDocument.Create(id, title, slug, DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
     }
 
     private static RouteInfo Route(string url) => new(url, $"out{url}index.html", "pages/post.html");
@@ -28,7 +28,7 @@ public sealed class AliasPluginTests
         {
             ["aliases"] = new[] { "/old-url/", "/another-old/" }
         };
-        var ctx = CreateContext(new List<(ContentItem, RouteInfo)>
+        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post", meta), Route("/post/"))
         });
@@ -47,7 +47,7 @@ public sealed class AliasPluginTests
         {
             ["aliases"] = "/legacy/"
         };
-        var ctx = CreateContext(new List<(ContentItem, RouteInfo)>
+        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post", meta), Route("/post/"))
         });
@@ -61,7 +61,7 @@ public sealed class AliasPluginTests
     [Fact]
     public void DerivePages_NoAliases_ReturnsEmpty()
     {
-        var ctx = CreateContext(new List<(ContentItem, RouteInfo)>
+        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post"), Route("/post/"))
         });
@@ -77,14 +77,14 @@ public sealed class AliasPluginTests
         {
             ["aliases"] = new[] { "/old/" }
         };
-        var ctx = CreateContext(new List<(ContentItem, RouteInfo)>
+        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post", meta), Route("/post/"))
         });
 
         var derived = new AliasPlugin().DerivePages(ctx);
 
-        var html = derived[0].Item.ContentHtml;
+        var html = derived[0].Document.ContentHtml;
         Assert.Contains("http-equiv=\"refresh\"", html);
         Assert.Contains("rel=\"canonical\"", html);
         Assert.Contains("/post/", html);
@@ -97,7 +97,7 @@ public sealed class AliasPluginTests
         {
             ["aliases"] = new[] { "old-post" }
         };
-        var ctx = CreateContext(new List<(ContentItem, RouteInfo)>
+        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post", meta), Route("/post/"))
         });
@@ -114,17 +114,17 @@ public sealed class AliasPluginTests
         {
             ["aliases"] = new[] { "/old/" }
         };
-        var ctx = CreateContext(new List<(ContentItem, RouteInfo)>
+        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post", meta), Route("/post/"))
         });
 
         var derived = new AliasPlugin().DerivePages(ctx);
 
-        Assert.Equal("redirect", ContentFieldReader.GetText(derived[0].Item.Fields, "type"));
+        Assert.Equal("redirect", ContentFieldReader.GetText(derived[0].Document.Fields, "type"));
     }
 
-    private static BuildContext CreateContext(List<(ContentItem, RouteInfo)> routed)
+    private static BuildContext CreateContext(List<(ContentDocument, RouteInfo)> routed)
     {
         return new BuildContext
         {
@@ -137,7 +137,7 @@ public sealed class AliasPluginTests
             OutputDir = "/t/out",
             BaseUrl = "/",
             LayoutsDir = "/t/l",
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
     }

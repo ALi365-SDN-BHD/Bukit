@@ -81,8 +81,8 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             context.BaseUrl,
             context.Config.Site.SearchIncludeDerived,
             emitSnippet,
-            context.Routed,
-            context.DerivedRouted,
+            context.RoutedDocuments,
+            context.DerivedDocuments,
             context.SeoIndex,
             context.BodyStore);
         WriteSearchUi(context);

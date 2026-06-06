@@ -19,20 +19,19 @@ public sealed class RenderPipelineTests
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-render-pipeline-tests", Guid.NewGuid().ToString("N"));
         var layoutsDir = Path.Combine(outputDir, "layouts");
         Directory.CreateDirectory(layoutsDir);
-        var item = new ContentItem(
-            Id: "hello",
-            Title: "Hello",
-            Slug: "hello",
-            PublishAt: DateTimeOffset.UnixEpoch,
-            ContentHtml: "<p>Hello</p>",
-            BodyKey: null);
+        var item = ContentDocument.Create(
+            id: "hello",
+            title: "Hello",
+            slug: "hello",
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: "<p>Hello</p>",
+            bodyKey: null);
         var route = new RouteInfo("/blog/hello/", "blog/hello/index.html", "pages/post.html");
+        var routedDocuments = new[] { (item, route) }.ToRoutedDocuments();
         var renderer = new CaptureRenderer();
         var pipeline = new RenderPipeline();
 
         var result = await pipeline.ExecuteAsync(new RenderPipelineContext(
-            RenderQueue: new[] { (item, route) },
-            Routed: new[] { (item, route) },
             BodyStore: EmptyContentBodyStore.Instance,
             Renderer: renderer,
             SiteModel: new SiteModel { Name = "test", Title = "Test", BaseUrl = "/", Language = "en" },
@@ -47,7 +46,9 @@ public sealed class RenderPipelineTests
             Manifest: new BuildManifest(),
             ManifestEntries: null,
             MaxDegreeOfParallelism: 1,
-            Logger: new ConsoleLogger(LogLevel.Error)), CancellationToken.None);
+            Logger: new ConsoleLogger(LogLevel.Error),
+            RenderDocuments: routedDocuments,
+            RoutedDocuments: routedDocuments), CancellationToken.None);
 
         Assert.Equal(4, result.RenderedCount);
         Assert.Equal(0, result.SkippedCount);
@@ -68,21 +69,20 @@ public sealed class RenderPipelineTests
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-render-pipeline-tests", Guid.NewGuid().ToString("N"));
         var layoutsDir = Path.Combine(outputDir, "layouts");
         Directory.CreateDirectory(layoutsDir);
-        var item = new ContentItem(
-            Id: "hello",
-            Title: "Hello",
-            Slug: "hello",
-            PublishAt: DateTimeOffset.UnixEpoch,
-            ContentHtml: "<p>Hello</p>",
-            BodyKey: null);
+        var item = ContentDocument.Create(
+            id: "hello",
+            title: "Hello",
+            slug: "hello",
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: "<p>Hello</p>",
+            bodyKey: null);
         var route = new RouteInfo("/blog/hello/", "blog/hello/index.html", "pages/post.html");
+        var routedDocuments = new[] { (item, route) }.ToRoutedDocuments();
         var manifest = new BuildManifest();
         var manifestEntries = new ConcurrentDictionary<string, BuildManifestEntry>(StringComparer.Ordinal);
         var pipeline = new RenderPipeline();
 
         await pipeline.ExecuteAsync(new RenderPipelineContext(
-            RenderQueue: new[] { (item, route) },
-            Routed: new[] { (item, route) },
             BodyStore: EmptyContentBodyStore.Instance,
             Renderer: new CaptureRenderer(),
             SiteModel: new SiteModel { Name = "test", Title = "Test", BaseUrl = "/", Language = "en" },
@@ -97,7 +97,9 @@ public sealed class RenderPipelineTests
             Manifest: manifest,
             ManifestEntries: manifestEntries,
             MaxDegreeOfParallelism: 1,
-            Logger: new ConsoleLogger(LogLevel.Error)), CancellationToken.None);
+            Logger: new ConsoleLogger(LogLevel.Error),
+            RenderDocuments: routedDocuments,
+            RoutedDocuments: routedDocuments), CancellationToken.None);
 
         Assert.True(manifest.Entries.ContainsKey("blog/hello/index.html"));
         Assert.True(manifest.Entries.ContainsKey("index.html"));

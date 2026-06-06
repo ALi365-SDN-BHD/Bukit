@@ -9,8 +9,14 @@ namespace Bukit.Engine.Tests;
 
 public sealed class ContentStagesTests
 {
-    private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object> meta) =>
-        new(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(meta));
+    private static ContentDocument Document(string id, string slug, IReadOnlyDictionary<string, object> fields) =>
+        ContentDocumentNormalizer.ToDocument(new RawContentDocument(
+            id,
+            id,
+            slug,
+            DateTimeOffset.UnixEpoch,
+            $"<p>{id}</p>",
+            ContentFieldReader.ToFieldMap(fields)));
 
     private static AppConfig Config(bool draft = false) => new()
     {
@@ -24,17 +30,26 @@ public sealed class ContentStagesTests
     [Fact]
     public async Task ContentLoadStage_RoutesToProviderFactory()
     {
-        var loadResult = new ContentLoadResult(
-            new[] { Item("a", "a", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page" }) },
+        var loadResult = new RawContentLoadResult(
+            new[]
+            {
+                new RawContentDocument(
+                    "a",
+                    "a",
+                    "a",
+                    DateTimeOffset.UnixEpoch,
+                    "<p>a</p>",
+                    ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page" }))
+            },
             EmptyContentBodyStore.Instance);
         var factory = new StubContentProviderFactory(loadResult);
         var stage = new ContentLoadStage(factory);
-        var input = new ContentStageInput(Array.Empty<ContentItem>(), EmptyContentBodyStore.Instance, Config(), NoOverrides, "/root", "/cache", new NoOpLogger());
+        var input = new ContentStageInput(Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, Config(), NoOverrides, "/root", "/cache", new NoOpLogger());
 
         var output = await stage.ExecuteAsync(input, CancellationToken.None);
 
-        Assert.Single(output.Items);
-        Assert.Equal("a", output.Items[0].Id);
+        Assert.Single(output.Documents);
+        Assert.Equal("a", output.Documents[0].Id);
         Assert.True(output.DurationMs >= 0);
         Assert.Equal(stage.Name, output.StageName);
     }
@@ -42,8 +57,8 @@ public sealed class ContentStagesTests
     [Fact]
     public async Task DraftFilterStage_RemovesDraftItems()
     {
-        var published = Item("published", "pub", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase));
-        var draft = Item("draft", "draft", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var published = Document("published", "pub", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase));
+        var draft = Document("draft", "draft", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["draft"] = true
         });
@@ -52,16 +67,16 @@ public sealed class ContentStagesTests
 
         var output = await stage.ExecuteAsync(input, CancellationToken.None);
 
-        Assert.Single(output.Items);
-        Assert.Equal("published", output.Items[0].Id);
+        Assert.Single(output.Documents);
+        Assert.Equal("published", output.Documents[0].Id);
         Assert.Equal("DraftFilter", output.StageName);
     }
 
     [Fact]
     public async Task DraftFilterStage_DraftMode_KeepsAll()
     {
-        var published = Item("published", "pub", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase));
-        var draft = Item("draft", "draft", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var published = Document("published", "pub", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase));
+        var draft = Document("draft", "draft", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["draft"] = true
         });
@@ -70,117 +85,57 @@ public sealed class ContentStagesTests
 
         var output = await stage.ExecuteAsync(input, CancellationToken.None);
 
-        Assert.Equal(2, output.Items.Count);
+        Assert.Equal(2, output.Documents.Count);
     }
 
     [Fact]
-    public async Task SchemaDefaultsStage_AppliesDefaultValues()
+    public async Task ContentGraphValidateStage_WarnMode_CollectsCanonicalErrors()
     {
-        var item = Item("a", "a", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = Document("a", "a", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "post"
+            ["type"] = "post",
+            ["status"] = "bad-status"
         });
         var config = new AppConfig
         {
             Site = new SiteConfig
             {
                 Name = "test",
-                Title = "Test",
-                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["post"] = new()
-                    {
-                        Permalink = "/blog/{slug}/",
-                        Template = "pages/post.html",
-                        Schema = new[]
-                        {
-                            new SchemaFieldDefinition { Name = "status", Type = "string", Default = "published" }
-                        }
-                    }
-                }
-            },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() },
-            Build = new BuildConfig { Draft = true }
-        };
-        var stage = new SchemaDefaultsStage();
-        var input = new ContentStageInput(new[] { item }, EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
-
-        var output = await stage.ExecuteAsync(input, CancellationToken.None);
-
-        Assert.Equal("published", ContentFieldReader.GetText(output.Items[0].Fields, "status"));
-        Assert.Equal("SchemaDefaults", output.StageName);
-    }
-
-    [Fact]
-    public async Task SchemaValidateStage_WarnMode_CollectsErrors()
-    {
-        var item = Item("a", "a", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = "post"
-        });
-        var config = new AppConfig
-        {
-            Site = new SiteConfig
-            {
-                Name = "test",
-                Title = "Test",
-                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["post"] = new()
-                    {
-                        Permalink = "/blog/{slug}/",
-                        Template = "pages/post.html",
-                        Schema = new[]
-                        {
-                            new SchemaFieldDefinition { Name = "required_field", Type = "string", Required = true }
-                        }
-                    }
-                }
+                Title = "Test"
             },
             Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() },
             Build = new BuildConfig { SchemaFailMode = "warn" }
         };
-        var stage = new SchemaValidateStage();
-        var input = new ContentStageInput(new[] { item }, EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
+        var stage = new ContentGraphValidateStage();
+        var input = new ContentStageInput(new[] { document }, EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
 
         var output = await stage.ExecuteAsync(input, CancellationToken.None);
 
         Assert.NotNull(output.SchemaErrors);
-        Assert.NotEmpty(output.SchemaErrors);
-        Assert.Contains(output.SchemaErrors, e => e.Code.Contains("required", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(output.SchemaErrors, e => e.Code == "canonical_status_invalid");
+        Assert.Equal("ContentGraphValidate", output.StageName);
     }
 
     [Fact]
-    public async Task SchemaValidateStage_StrictMode_Throws()
+    public async Task ContentGraphValidateStage_StrictMode_Throws()
     {
-        var item = Item("a", "a", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var document = Document("a", "a", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "post"
+            ["type"] = "post",
+            ["status"] = "bad-status"
         });
         var config = new AppConfig
         {
             Site = new SiteConfig
             {
                 Name = "test",
-                Title = "Test",
-                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["post"] = new()
-                    {
-                        Permalink = "/blog/{slug}/",
-                        Template = "pages/post.html",
-                        Schema = new[]
-                        {
-                            new SchemaFieldDefinition { Name = "required_field", Type = "string", Required = true }
-                        }
-                    }
-                }
+                Title = "Test"
             },
             Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() },
             Build = new BuildConfig { SchemaFailMode = "strict" }
         };
-        var stage = new SchemaValidateStage();
-        var input = new ContentStageInput(new[] { item }, EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
+        var stage = new ContentGraphValidateStage();
+        var input = new ContentStageInput(new[] { document }, EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
 
         await Assert.ThrowsAsync<ConfigException>(() => stage.ExecuteAsync(input, CancellationToken.None));
     }
@@ -197,8 +152,8 @@ public sealed class ContentStagesTests
         };
         var pipeline = new ContentPipeline(stages, new NoOpLogger());
         var config = Config(draft: true);
-        var item = Item("a", "a", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase));
-        var input = new ContentStageInput(new[] { item }, EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
+        var document = Document("a", "a", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase));
+        var input = new ContentStageInput(new[] { document }, EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
 
         var result = await pipeline.ExecuteAsync(input, CancellationToken.None);
 
@@ -218,7 +173,7 @@ public sealed class ContentStagesTests
         };
         var pipeline = new ContentPipeline(stages, new NoOpLogger());
         var config = Config();
-        var input = new ContentStageInput(Array.Empty<ContentItem>(), EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
+        var input = new ContentStageInput(Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
 
         var ex = await Assert.ThrowsAsync<ConfigException>(() => pipeline.ExecuteAsync(input, CancellationToken.None));
 
@@ -241,7 +196,7 @@ public sealed class ContentStagesTests
         public Task<ContentStageOutput> ExecuteAsync(ContentStageInput input, CancellationToken cancellationToken)
         {
             _order.Add(_name);
-            return Task.FromResult(new ContentStageOutput(input.Items, input.BodyStore, Name, 0, null));
+            return Task.FromResult(new ContentStageOutput(input.Documents, input.BodyStore, Name, 0, null));
         }
     }
 
@@ -261,16 +216,16 @@ public sealed class ContentStagesTests
 
     private sealed class StubContentProviderFactory : IContentProviderFactory
     {
-        private readonly ContentLoadResult _result;
+        private readonly RawContentLoadResult _result;
 
-        public StubContentProviderFactory(ContentLoadResult result) => _result = result;
+        public StubContentProviderFactory(RawContentLoadResult result) => _result = result;
 
         public IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger)
         {
             return new StubContentProvider(_result);
         }
 
-        public Task<ContentLoadResult> LocalizeContentImagesAsync(ContentLoadResult result, MediaConfig media, string rootDir, string cacheDir, ILogger logger, CancellationToken cancellationToken)
+        public Task<RawContentLoadResult> LocalizeContentImagesAsync(RawContentLoadResult result, MediaConfig media, string rootDir, string cacheDir, ILogger logger, CancellationToken cancellationToken)
         {
             return Task.FromResult(result);
         }
@@ -278,15 +233,17 @@ public sealed class ContentStagesTests
 
     private sealed class StubContentProvider : IContentProvider
     {
-        private readonly ContentLoadResult _result;
+        private readonly RawContentLoadResult _result;
 
-        public StubContentProvider(ContentLoadResult result) => _result = result;
+        public StubContentProvider(RawContentLoadResult result) => _result = result;
 
-        public Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+        public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(_result);
+            return Task.FromResult(ToRawResult(_result));
         }
     }
+
+    private static RawContentLoadResult ToRawResult(RawContentLoadResult result) => result;
 
     private sealed class NoOpLogger : ILogger
     {

@@ -31,7 +31,7 @@ public sealed class MenuPluginTests
                 OutputDir = outDir,
                 BaseUrl = "/",
                 LayoutsDir = "/t/l",
-                Routed = new List<(ContentItem, RouteInfo)>(),
+                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
@@ -73,7 +73,7 @@ public sealed class MenuPluginTests
                 OutputDir = outDir,
                 BaseUrl = "/",
                 LayoutsDir = "/t/l",
-                Routed = new List<(ContentItem, RouteInfo)>(),
+                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
@@ -128,7 +128,7 @@ public sealed class MenuPluginTests
                 OutputDir = outDir,
                 BaseUrl = "/",
                 LayoutsDir = "/t/l",
-                Routed = new List<(ContentItem, RouteInfo)>(),
+                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
@@ -170,7 +170,7 @@ public sealed class MenuPluginTests
                 OutputDir = outDir,
                 BaseUrl = "/",
                 LayoutsDir = "/t/l",
-                Routed = new List<(ContentItem, RouteInfo)>(),
+                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 

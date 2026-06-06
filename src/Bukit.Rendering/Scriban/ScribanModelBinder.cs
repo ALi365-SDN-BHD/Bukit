@@ -104,7 +104,9 @@ public static class ScribanModelBinder
         obj.SetValue("fields", ToFieldsScriptObject(model.Fields), readOnly: true);
         if (model.ContentRecord is not null)
         {
-            obj.SetValue("content_model", ToScriptObject(model.ContentRecord), readOnly: true);
+            var contentRecord = ToScriptObject(model.ContentRecord);
+            obj.SetValue("content_model", contentRecord, readOnly: true);
+            obj.SetValue("content_record", contentRecord, readOnly: true);
         }
 
         if (model.Entities is not null)

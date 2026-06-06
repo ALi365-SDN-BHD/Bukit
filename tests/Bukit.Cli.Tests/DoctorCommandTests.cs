@@ -558,7 +558,7 @@ public sealed class DoctorCommandTests : IDisposable
         var (exitCode, output) = await RunDoctorAsync();
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("No theme template matches content item", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("No theme template matches content document", output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

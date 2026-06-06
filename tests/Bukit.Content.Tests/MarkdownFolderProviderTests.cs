@@ -108,7 +108,7 @@ public sealed class MarkdownFolderProviderTests
         var dir = Path.Combine(Path.GetTempPath(), "bukit-md-missing-" + Guid.NewGuid().ToString("N"));
         var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(dir));
 
-        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadAsync());
+        var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
 
         Assert.Contains("ContentDir not found", ex.Message);
         Assert.Contains(dir, ex.Message);
@@ -128,18 +128,18 @@ public sealed class MarkdownFolderProviderTests
             var byPath = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(
                 root,
                 IncludePaths: new[] { "about" }));
-            var pathResult = await byPath.LoadAsync();
+            var pathResult = await byPath.LoadRawAsync();
 
-            var pathItem = Assert.Single(pathResult.Items);
+            var pathItem = Assert.Single(pathResult.Documents);
             Assert.Equal("about", pathItem.Slug);
 
             var byGlob = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(
                 root,
                 IncludeGlobs: new[] { "posts/*.md" },
                 MaxItems: 1));
-            var globResult = await byGlob.LoadAsync();
+            var globResult = await byGlob.LoadRawAsync();
 
-            var globItem = Assert.Single(globResult.Items);
+            var globItem = Assert.Single(globResult.Documents);
             Assert.Equal("first", globItem.Slug);
             Assert.Equal("markdown", ContentFieldReader.GetText(globItem.Fields, "source"));
         }
@@ -173,9 +173,9 @@ public sealed class MarkdownFolderProviderTests
             """);
 
             var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
-            var result = await provider.LoadAsync();
+            var result = await provider.LoadRawAsync();
 
-            Assert.True(ContentFieldReader.TryGetField(result.Items[0].Fields, "tableOfContents", out var tocField));
+            Assert.True(ContentFieldReader.TryGetField(result.Documents[0].Fields, "tableOfContents", out var tocField));
             var toc = Assert.IsAssignableFrom<IReadOnlyList<TableOfContentsEntry>>(tocField.Value);
             Assert.Equal(4, toc.Count);
             Assert.Equal(1, toc[0].Level);
@@ -208,9 +208,9 @@ public sealed class MarkdownFolderProviderTests
             """);
 
             var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root, DefaultType: "page"));
-            var result = await provider.LoadAsync();
+            var result = await provider.LoadRawAsync();
 
-            var item = Assert.Single(result.Items);
+            var item = Assert.Single(result.Documents);
             Assert.Equal("post", ContentFieldReader.GetText(item.Fields, "collection"));
             Assert.False(ContentFieldReader.TryGetField(item.Fields, "type", out _));
         }

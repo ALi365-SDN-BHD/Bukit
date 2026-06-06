@@ -12,9 +12,9 @@ internal sealed record SeoPipelineResult(
     bool ShouldProvideSeoModel,
     bool ShouldInjectSeo,
     SeoIndexBuildResult SeoIndex,
-    Func<ContentItem, RouteInfo, SeoModel>? SeoBuilder,
-    Func<ContentItem, RouteInfo, PageInfo, string, string>? HtmlPostProcessor,
-    Func<ContentItem, RouteInfo, SeoModel>? ListItemSeoBuilder,
+    Func<ContentDocument, RouteInfo, SeoModel>? SeoBuilder,
+    Func<ContentDocument, RouteInfo, PageInfo, string, string>? HtmlPostProcessor,
+    Func<ContentDocument, RouteInfo, SeoModel>? ListItemSeoBuilder,
     Func<RouteInfo, PageInfo, SeoModel>? ListSeoBuilder,
     Func<RouteInfo, PageInfo, string, string>? ListHtmlPostProcessor);
 
@@ -23,7 +23,7 @@ internal sealed class SeoPipeline
     internal SeoPipelineResult Execute(
         AppConfig config,
         string baseUrl,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> renderQueue,
+        IReadOnlyList<RoutedContentDocument> renderQueue,
         IReadOnlyList<RouteInfo> listRoutes,
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> seoAlternates,
         AnalyticsModel analytics,
@@ -36,14 +36,14 @@ internal sealed class SeoPipeline
         var shouldProvideSeoModel = config.Site.Seo.Enabled && seoHtmlMode != "off";
         var shouldInjectSeo = shouldProvideSeoModel && seoHtmlMode == "inject";
 
-        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = shouldProvideSeoModel
+        Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder = shouldProvideSeoModel
             ? (_, route) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model) ? model : null!
             : null;
 
-        Func<ContentItem, RouteInfo, PageInfo, string, string>? htmlPostProcessor = shouldProvideSeoModel
-            ? (item, route, page, html) =>
+        Func<ContentDocument, RouteInfo, PageInfo, string, string>? htmlPostProcessor = shouldProvideSeoModel
+            ? (document, route, page, html) =>
             {
-                var skipSeo = SeoInjectionPolicy.ShouldSkip(item.Fields);
+                var skipSeo = SeoInjectionPolicy.ShouldSkip(document.Fields);
                 if (shouldInjectSeo && !skipSeo)
                 {
                     html = SeoHtmlRenderer.InjectIntoHead(html, page.Seo, analytics);
@@ -53,13 +53,13 @@ internal sealed class SeoPipeline
             }
         : null;
 
-        Func<ContentItem, RouteInfo, SeoModel>? listItemSeoBuilder = shouldProvideSeoModel
-            ? (item, route) => SeoModelBuilder.BuildForContent(
+        Func<ContentDocument, RouteInfo, SeoModel>? listItemSeoBuilder = shouldProvideSeoModel
+            ? (document, route) => SeoModelBuilder.BuildForContent(
                 config,
                 baseUrl,
-                item,
+                document,
                 route,
-                SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildAlternateKey(item, route)))
+                SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildAlternateKey(document, route)))
             : null;
 
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = shouldProvideSeoModel

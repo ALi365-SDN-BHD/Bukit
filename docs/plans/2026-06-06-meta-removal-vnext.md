@@ -8,6 +8,31 @@ The intent is not to stop users from writing Markdown front matter or Notion pro
 
 This is a breaking redesign. No long-lived compatibility fallback is included in vNext.
 
+## Implementation Status
+
+Status as of 2026-06-06:
+
+- Done: `ContentItem.Meta` has been removed from the runtime ABI.
+- Done: `MetaHelpers` and `ContentItemExtensions` have been removed; production code and tests no longer read `.Meta`.
+- Done: provider metadata now flows through `ContentField` and canonical content records.
+- Done: `RawContentDocument`, `ContentDocument`, and `RoutedContentDocument` are available as vNext content types.
+- Done: Markdown, Notion, and composite providers implement raw-first ingestion through `IRawContentProvider`.
+- Done: content loading normalizes raw documents before downstream pipeline stages consume them.
+- Done: build context, route results, render entries, publish projections, and build reports now carry document-first views while legacy item tuples remain as migration scaffolding.
+- Done: canonical records include identity, presentation, classification, ownership, lifecycle, provenance, trust, entities, relations, and media.
+- Done: canonical entity/relation/media records now preserve URL/sameAs, relation target type/id, and media alt/caption/description/license where available.
+- Done: publish projections generate per-document JSON, per-document Markdown, and `agent-manifest.json`.
+- Done: `bukit publish audit` / `bukit publish diff` are primary audit commands; `seo audit` prefers publish audit reports when present.
+- Done: protocol routed pages include a canonical `content` object in addition to `fields`.
+- Done: templates expose `page.content_model`, `page.content_record`, `page.entities`, `page.provenance`, `page.trust`, and `page.representations`.
+
+Remaining migration scaffolding:
+
+- `ContentItem` still exists as an adapter for body stores, legacy plugin interfaces, and some renderer APIs.
+- `BuildContext.Routed` / `DerivedRouted` still exist beside `RoutedDocuments` / `DerivedDocuments`.
+- Collection field schema still exists beside `ContentModelSchema`; collection schema should eventually become a compatibility projection over the content model schema.
+- Some aggregate projections still wrap existing generators (`RssGenerator`, `SearchIndexBuilder`, `LlmsTxtPlugin`, `RobotsTxtWriter`) instead of being pure `ContentDocument` projections.
+
 ## Design Principles
 
 - `Meta` is removed from runtime domain objects, not merely deprecated.

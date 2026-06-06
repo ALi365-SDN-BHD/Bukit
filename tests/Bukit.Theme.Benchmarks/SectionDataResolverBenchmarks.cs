@@ -9,7 +9,7 @@ namespace Bukit.Theme.Benchmarks;
 [ShortRunJob]
 public class SectionDataResolverBenchmarks
 {
-    private IReadOnlyList<(ContentItem Item, RouteInfo? Route)> _allPages = null!;
+    private IReadOnlyList<(ContentDocument Item, RouteInfo? Route)> _allPages = null!;
     private PageSectionDefinition _sectionWithSource = null!;
     private PageSectionDefinition _sectionWithFilter = null!;
     private PageSectionDefinition _sectionWithSort = null!;
@@ -20,11 +20,11 @@ public class SectionDataResolverBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        var items = new List<(ContentItem, RouteInfo?)>();
+        var items = new List<(ContentDocument, RouteInfo?)>();
         for (int i = 0; i < ItemCount; i++)
         {
             var isFeature = i % 3 == 0;
-            var item = new ContentItem(
+            var item = ContentDocument.Create(
                 $"post-{i}",
                 $"Post Title {i}",
                 $"post-title-{i}",
@@ -71,25 +71,25 @@ public class SectionDataResolverBenchmarks
     }
 
     [Benchmark]
-    public IReadOnlyList<(ContentItem, string?)> Resolve_WithSourceOnly()
+    public IReadOnlyList<(ContentDocument, string?)> Resolve_WithSourceOnly()
     {
         return SectionDataResolver.Resolve(_sectionWithSource, _allPages);
     }
 
     [Benchmark]
-    public IReadOnlyList<(ContentItem, string?)> Resolve_WithSourceAndFilter()
+    public IReadOnlyList<(ContentDocument, string?)> Resolve_WithSourceAndFilter()
     {
         return SectionDataResolver.Resolve(_sectionWithFilter, _allPages);
     }
 
     [Benchmark]
-    public IReadOnlyList<(ContentItem, string?)> Resolve_WithSourceAndSort()
+    public IReadOnlyList<(ContentDocument, string?)> Resolve_WithSourceAndSort()
     {
         return SectionDataResolver.Resolve(_sectionWithSort, _allPages);
     }
 
     [Benchmark]
-    public IReadOnlyList<(ContentItem, string?)> Resolve_AllPages()
+    public IReadOnlyList<(ContentDocument, string?)> Resolve_AllPages()
     {
         var section = new PageSectionDefinition { Type = "cardGrid", Source = "*" };
         return SectionDataResolver.Resolve(section, _allPages);

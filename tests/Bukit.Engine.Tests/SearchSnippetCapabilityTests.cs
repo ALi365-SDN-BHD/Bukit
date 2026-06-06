@@ -57,13 +57,13 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
 
     private BuildContext CreateContext()
     {
-        var item = new ContentItem(
-            Id: "post-1",
-            Title: "Post",
-            Slug: "post",
-            PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
-            ContentHtml: "<p>Body text</p>",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = ContentDocument.Create(
+            id: "post-1",
+            title: "Post",
+            slug: "post",
+            publishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>Body text</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["type"] = "post",
                 ["summary"] = "Summary text"
@@ -81,10 +81,10 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
             OutputDir = _outputDir,
             BaseUrl = "/",
             LayoutsDir = _layoutsDir,
-            Routed = new List<(ContentItem Item, RouteInfo Route)>
+            RoutedDocuments = new List<(ContentDocument Item, RouteInfo Route)>
             {
                 (item, route)
-            },
+            }.ToRoutedDocuments(),
             TemplateResolver = kind => kind.Equals("search", StringComparison.OrdinalIgnoreCase)
                 ? "pages/search.html"
                 : throw new ConfigException($"Unexpected template kind: {kind}"),

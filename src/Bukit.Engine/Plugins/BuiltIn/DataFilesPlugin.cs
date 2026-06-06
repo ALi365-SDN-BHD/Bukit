@@ -14,12 +14,12 @@ public sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
     public string Name => "data-files";
     public string Version => "1.0.0";
 
-    public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
+    public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
     {
         var dataDir = Path.Combine(context.RootDir, "data");
         if (!Directory.Exists(dataDir))
         {
-            return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+            return Array.Empty<RoutedContentDocument>();
         }
 
         var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -51,7 +51,7 @@ public sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
             context.Data["__data_files"] = result;
         }
 
-        return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
+        return Array.Empty<RoutedContentDocument>();
     }
 
     private static Dictionary<string, object> LoadDataDirectory(string dir)

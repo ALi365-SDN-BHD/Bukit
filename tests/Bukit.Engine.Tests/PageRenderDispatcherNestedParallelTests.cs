@@ -24,7 +24,7 @@ public sealed class PageRenderDispatcherNestedParallelTests
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "list.html"), "{{ for p in pages }}{{ p.content }}{{ end }}");
 
         var result = await PageRenderDispatcher.RenderSpecialListsAsync(
-            routed,
+            routed.ToRoutedDocuments(),
             bodyStore,
             new CaptureRenderer(),
             CreateSiteModel(),
@@ -61,7 +61,7 @@ public sealed class PageRenderDispatcherNestedParallelTests
         await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "list.html"), "{{ for p in pages }}{{ p.content }}{{ end }}");
 
         var result = await PageRenderDispatcher.RenderSpecialListsAsync(
-            routed,
+            routed.ToRoutedDocuments(),
             bodyStore,
             new CaptureRenderer(),
             CreateSiteModel(),
@@ -86,18 +86,18 @@ public sealed class PageRenderDispatcherNestedParallelTests
         try { Directory.Delete(outputDir, true); } catch { }
     }
 
-    private static List<(ContentItem Item, RouteInfo Route)> CreateRoutedItems(int count)
+    private static List<(ContentDocument Item, RouteInfo Route)> CreateRoutedItems(int count)
     {
-        var list = new List<(ContentItem Item, RouteInfo Route)>(count);
+        var list = new List<(ContentDocument Item, RouteInfo Route)>(count);
         for (var i = 0; i < count; i++)
         {
-            var item = new ContentItem(
-                Id: $"id-{i}",
-                Title: $"Post {i}",
-                Slug: $"post-{i}",
-                PublishAt: DateTimeOffset.UtcNow,
-                ContentHtml: null,
-                BodyKey: $"body-{i}");
+            var item = ContentDocument.Create(
+                id: $"id-{i}",
+                title: $"Post {i}",
+                slug: $"post-{i}",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+                bodyKey: $"body-{i}");
             var route = new RouteInfo($"/blog/post-{i}/", $"blog/post-{i}/index.html", "pages/post.html");
             list.Add((item, route));
         }
@@ -136,7 +136,7 @@ public sealed class PageRenderDispatcherNestedParallelTests
         public int PeakConcurrency => Volatile.Read(ref _peak);
         public int TotalCalls => Volatile.Read(ref _total);
 
-        public async Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public async Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _total);
             var entered = Interlocked.Increment(ref _current);

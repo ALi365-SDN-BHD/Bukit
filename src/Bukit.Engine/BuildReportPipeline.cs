@@ -3,7 +3,6 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Rendering;
-using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 
@@ -16,8 +15,6 @@ internal sealed record BuildReportPipelineContext(
     string BaseUrl,
     bool SearchSnippetsEnabled,
     IContentBodyStore BodyStore,
-    IReadOnlyList<(ContentItem Item, RouteInfo Route)> Routed,
-    IReadOnlyList<(ContentItem Item, RouteInfo Route)> DerivedRouted,
     IReadOnlyList<(RouteInfo Route, DateTimeOffset LastModified)> DerivedRoutes,
     IReadOnlyDictionary<string, SeoIndexEntry> SeoIndex,
     IReadOnlyDictionary<string, SeoModel> SeoModels,
@@ -28,8 +25,13 @@ internal sealed record BuildReportPipelineContext(
     BuildStageMetrics StageMetrics,
     ILogger Logger,
     string? DefaultLanguage,
+    IReadOnlyList<RoutedContentDocument> RoutedDocuments,
     BuildContext? PluginContext = null,
-    CanonicalContentGraph? ContentGraph = null);
+    CanonicalContentGraph? ContentGraph = null,
+    IReadOnlyList<RoutedContentDocument>? DerivedDocuments = null)
+{
+    public IReadOnlyList<RoutedContentDocument> DerivedDocuments { get; init; } = DerivedDocuments ?? Array.Empty<RoutedContentDocument>();
+}
 
 internal sealed class BuildReportPipeline
 {
@@ -56,38 +58,38 @@ internal sealed class BuildReportPipeline
             ctx.Logger.Info($"Build completed: {Path.GetFullPath(ctx.OutputDir)} (lang={ctx.Config.Site.Language})");
         }
 
-        var result = new BuildVariantResult(
-            ctx.Language,
-            ctx.OutputDir,
-            ctx.BaseUrl,
-            ctx.SearchSnippetsEnabled,
-            ctx.BodyStore,
-            ctx.Routed,
-            ctx.DerivedRouted,
-            ctx.DerivedRoutes,
-            ctx.SeoIndex,
-            ctx.SeoModels,
-            ctx.PluginExecutions,
-            ctx.RenderedCount,
-            ctx.SkippedCount,
-            ctx.RenderReasons,
-            ctx.StageMetrics,
-            ctx.ContentGraph);
         var contentGraph = ctx.ContentGraph ?? CanonicalContentGraph.Empty;
         var projectionResults = _contentProjectionWriter.Write(new PublishProjectionContext(
-            ctx.Config,
-            ctx.OutputDir,
-            contentGraph,
-            ctx.Routed,
-            ctx.DerivedRouted,
-            ctx.SeoIndex,
-            ctx.SeoModels,
-            ctx.BodyStore,
-            ctx.BaseUrl,
-            ctx.SearchSnippetsEnabled,
-            ctx.Logger,
-            ctx.PluginContext));
+            Config: ctx.Config,
+            OutputDir: ctx.OutputDir,
+            ContentGraph: contentGraph,
+            SeoIndex: ctx.SeoIndex,
+            SeoModels: ctx.SeoModels,
+            BodyStore: ctx.BodyStore,
+            BaseUrl: ctx.BaseUrl,
+            SearchSnippetsEnabled: ctx.SearchSnippetsEnabled,
+            Logger: ctx.Logger,
+            PluginContext: ctx.PluginContext,
+            RoutedDocuments: ctx.RoutedDocuments,
+            DerivedDocuments: ctx.DerivedDocuments));
         SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger, projectionResults);
-        return result;
+        return new BuildVariantResult(
+            Language: ctx.Language,
+            OutputDir: ctx.OutputDir,
+            BaseUrl: ctx.BaseUrl,
+            SearchSnippetsEnabled: ctx.SearchSnippetsEnabled,
+            BodyStore: ctx.BodyStore,
+            DerivedRoutes: ctx.DerivedRoutes,
+            SeoIndex: ctx.SeoIndex,
+            SeoModels: ctx.SeoModels,
+            PluginExecutions: ctx.PluginExecutions,
+            RenderedCount: ctx.RenderedCount,
+            SkippedCount: ctx.SkippedCount,
+            RenderReasons: ctx.RenderReasons,
+            StageMetrics: ctx.StageMetrics,
+            RoutedDocuments: ctx.RoutedDocuments,
+            ContentGraph: ctx.ContentGraph,
+            DerivedDocuments: ctx.DerivedDocuments,
+            ProjectionResults: projectionResults);
     }
 }

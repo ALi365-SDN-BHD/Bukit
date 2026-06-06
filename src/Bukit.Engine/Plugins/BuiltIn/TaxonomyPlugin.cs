@@ -69,9 +69,9 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         return requirements.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    public IReadOnlyList<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)> DerivePages(BuildContext context)
+    public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
     {
-        var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
+        var derived = new List<RoutedContentDocument>();
         var outputMode = NormalizeOutputMode(context.Config.Taxonomy.OutputMode);
         var itemFields = NormalizeItemFields(context.Config.Taxonomy.ItemFields);
         var pageSize = NormalizePageSize(context.Config.Taxonomy.PageSize);

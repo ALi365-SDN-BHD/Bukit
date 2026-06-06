@@ -13,31 +13,31 @@ namespace Bukit.Engine.Tests;
 
 public sealed class RelatedContentPluginTests
 {
-    private static ContentItem CreateItem(string id, string title, string slug, string? tags = null, string? categories = null, string? collection = null)
+    private static ContentDocument CreateItem(string id, string title, string slug, string? tags = null, string? categories = null, string? collection = null)
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         if (tags is not null) meta["tags"] = tags;
         if (categories is not null) meta["categories"] = categories;
         if (collection is not null) meta["collection"] = collection;
 
-        return new ContentItem(
-            Id: id,
-            Title: title,
-            Slug: slug,
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>content</p>",
-            Fields: ContentFieldReader.ToFieldMap(meta));
+        return ContentDocument.Create(
+            id: id,
+            title: title,
+            slug: slug,
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>content</p>",
+            fields: ContentFieldReader.ToFieldMap(meta));
     }
 
-    private static ContentItem CreateFieldItem(string id, string title, string slug, IReadOnlyList<string> tags)
+    private static ContentDocument CreateFieldItem(string id, string title, string slug, IReadOnlyList<string> tags)
     {
-        return new ContentItem(
-            Id: id,
-            Title: title,
-            Slug: slug,
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>content</p>",
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        return ContentDocument.Create(
+            id: id,
+            title: title,
+            slug: slug,
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>content</p>",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
                 ["tags"] = new("list", tags)
             });
@@ -59,7 +59,7 @@ public sealed class RelatedContentPluginTests
             OutputDir = "/t/out",
             BaseUrl = "/",
             LayoutsDir = "/t/l",
-            Routed = new List<(ContentItem, RouteInfo)> { (CreateItem("1", "A", "a", tags: "go"), Route("/a/")) },
+            RoutedDocuments = new List<(ContentDocument, RouteInfo)> { (CreateItem("1", "A", "a", tags: "go"), Route("/a/")) }.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -70,7 +70,7 @@ public sealed class RelatedContentPluginTests
     [Fact]
     public void DerivePages_SharedTags_CreatesRelatedLinks()
     {
-        var routed = new List<(ContentItem, RouteInfo)>
+        var routed = new List<(ContentDocument, RouteInfo)>
         {
             (CreateItem("1", "Go Post", "go-post", tags: "go,runtime"), Route("/go-post/")),
             (CreateItem("2", "Rust Post", "rust-post", tags: "rust,cargo"), Route("/rust-post/")),
@@ -97,7 +97,7 @@ public sealed class RelatedContentPluginTests
             OutputDir = "/t/out",
             BaseUrl = "/",
             LayoutsDir = "/t/l",
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -112,7 +112,7 @@ public sealed class RelatedContentPluginTests
     [Fact]
     public void DerivePages_ShouldCreateRelatedLinks_WhenTagsExistOnlyInStructuredFields()
     {
-        var routed = new List<(ContentItem, RouteInfo)>
+        var routed = new List<(ContentDocument, RouteInfo)>
         {
             (CreateFieldItem("1", "Go Post", "go-post", new[] { "go", "runtime" }), Route("/go-post/")),
             (CreateFieldItem("2", "Rust Post", "rust-post", new[] { "rust", "cargo" }), Route("/rust-post/")),
@@ -139,8 +139,8 @@ public sealed class RelatedContentPluginTests
             OutputDir = "/t/out",
             BaseUrl = "/",
             LayoutsDir = "/t/l",
-            Routed = routed,
-            ContentGraph = CanonicalContentGraphBuilder.Build(routed.Select(x => x.Item1).ToList()),
+            RoutedDocuments = routed.ToRoutedDocuments(),
+            ContentGraph = CanonicalContentGraphBuilder.BuildFromDocuments(routed.ToRoutedDocuments().Select(x => x.Document).ToList()),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -155,7 +155,7 @@ public sealed class RelatedContentPluginTests
     [Fact]
     public void DerivePages_NoSharedTags_NoRelatedData()
     {
-        var routed = new List<(ContentItem, RouteInfo)>
+        var routed = new List<(ContentDocument, RouteInfo)>
         {
             (CreateItem("1", "A", "a", tags: "go"), Route("/a/")),
             (CreateItem("2", "B", "b", tags: "rust"), Route("/b/")),
@@ -176,7 +176,7 @@ public sealed class RelatedContentPluginTests
             OutputDir = "/t/out",
             BaseUrl = "/",
             LayoutsDir = "/t/l",
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -200,7 +200,7 @@ public sealed class RelatedContentPluginTests
             OutputDir = "/t/out",
             BaseUrl = "/",
             LayoutsDir = "/t/l",
-            Routed = new List<(ContentItem, RouteInfo)> { (CreateItem("1", "A", "a"), Route("/a/")) },
+            RoutedDocuments = new List<(ContentDocument, RouteInfo)> { (CreateItem("1", "A", "a"), Route("/a/")) }.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -212,10 +212,10 @@ public sealed class RelatedContentPluginTests
     public void DerivePages_SkipsArchiveAndPaginationItems()
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        var archiveItem = new ContentItem("blog-archive-2024", "Archive", "a", DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
-        var pageItem = new ContentItem("blog-page-2", "Page 2", "p2", DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
+        var archiveItem = ContentDocument.Create("blog-archive-2024", "Archive", "a", DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
+        var pageItem = ContentDocument.Create("blog-page-2", "Page 2", "p2", DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
         var normalItem = CreateItem("1", "Normal", "n", tags: "tag1");
-        var routed = new List<(ContentItem, RouteInfo)>
+        var routed = new List<(ContentDocument, RouteInfo)>
         {
             (archiveItem, Route("/archive/")),
             (pageItem, Route("/page/2/")),
@@ -232,7 +232,7 @@ public sealed class RelatedContentPluginTests
             OutputDir = "/t/out",
             BaseUrl = "/",
             LayoutsDir = "/t/l",
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -246,7 +246,7 @@ public sealed class RelatedContentPluginTests
     [Fact]
     public void DerivePages_CategoriesIndex_MatchesByCategory()
     {
-        var routed = new List<(ContentItem, RouteInfo)>
+        var routed = new List<(ContentDocument, RouteInfo)>
         {
             (CreateItem("1", "A", "a", categories: "tech"), Route("/a/")),
             (CreateItem("2", "B", "b", categories: "life"), Route("/b/")),
@@ -268,7 +268,7 @@ public sealed class RelatedContentPluginTests
             OutputDir = "/t/out",
             BaseUrl = "/",
             LayoutsDir = "/t/l",
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
@@ -283,7 +283,7 @@ public sealed class RelatedContentPluginTests
     [Fact]
     public void DerivePages_HighThreshold_ReducesMatches()
     {
-        var routed = new List<(ContentItem, RouteInfo)>
+        var routed = new List<(ContentDocument, RouteInfo)>
         {
             (CreateItem("1", "A", "a", tags: "a"), Route("/a/")),
             (CreateItem("2", "B", "b", tags: "a"), Route("/b/")),
@@ -304,7 +304,7 @@ public sealed class RelatedContentPluginTests
             OutputDir = "/t/out",
             BaseUrl = "/",
             LayoutsDir = "/t/l",
-            Routed = routed,
+            RoutedDocuments = routed.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 

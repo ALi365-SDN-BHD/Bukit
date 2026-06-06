@@ -4,10 +4,23 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
-### Changed
-- **SiteEngine refactored**: 856 → 592 line orchestrator with 8 independent pipeline classes (`BuildPipeline`, `ContentPipeline`, `RoutePipeline`, `RenderPipeline`, `AssetPipeline`, `SeoPipeline`, `PluginPipeline`, `BuildReportPipeline`), plus `ThemeBootstrapper`, `BuildOptionsMapper`, `FixedContentProviderFactory`. Dual `BuildAsync` paths unified into single pipeline chain. All reflection-based test helpers eliminated (zero `BindingFlags` remaining). Added performance regression tests.
+### Breaking
+- **Content meta ABI removed**: `ContentItem.Meta` is no longer part of the runtime content ABI. Providers normalize front matter / Notion properties into typed `ContentField` values and canonical content records.
+- **Plugin protocol routed pages now expose canonical content**: protocol routed page payloads include `fields` plus a typed `content` object with identity, lifecycle, provenance, trust, entities, relations, and media.
 
 ### Added
+- **Document-first publishing foundation**: Added `RawContentDocument`, `ContentDocument`, and `RoutedContentDocument` as the vNext content pipeline types. Route, render, build context, publish projection, and report stages now carry document-first views alongside legacy item tuples during migration.
+- **Raw provider ingestion contract**: Added `IRawContentProvider` and connected Markdown, Notion, and composite providers through raw document loading before normalization.
+- **Content model schema validation**: Added `ContentModelSchema` and canonical validation rules for status, review/sync status, provenance, ownership, relation targets, media metadata, and entity IDs.
+- **Machine-readable publish projections**: per-document JSON/Markdown representations and `agent-manifest.json` are generated from canonical content records.
+- **Publish audit command path**: `bukit publish audit` and `bukit publish diff` are the primary audit commands; `seo audit` now prefers `.bukit/publish-audit-report.json` when present.
+
+### Changed
+- **Canonical graph enriched**: entities now support URL and `sameAs`; relations include target type/id; media extraction keeps alt/caption/description/license when provided.
+- **Template context enriched**: page templates can read `page.content_model`, `page.content_record`, `page.entities`, `page.provenance`, `page.trust`, and `page.representations`.
+- **SiteEngine refactored**: 856 → 592 line orchestrator with 8 independent pipeline classes (`BuildPipeline`, `ContentPipeline`, `RoutePipeline`, `RenderPipeline`, `AssetPipeline`, `SeoPipeline`, `PluginPipeline`, `BuildReportPipeline`), plus `ThemeBootstrapper`, `BuildOptionsMapper`, `FixedContentProviderFactory`. Dual `BuildAsync` paths unified into single pipeline chain. All reflection-based test helpers eliminated (zero `BindingFlags` remaining). Added performance regression tests.
+
+### Added (Build Hardening)
 - **Build core hardening**: 15-task TDD repair covering static HTML routing, theme inheritance fix, incremental stale cleanup, route/output path security, plugin hardening, safe output filesystem, remote theme reproducibility, and composite template fingerprinting
   - **Plugin environment isolation**: Process plugins now run in a clean environment with only `BUKIT_PLUGIN_NAME`, `BUKIT_PLUGIN_HOOK`, `BUKIT_PROJECT_ROOT`, and `BUKIT_OUTPUT_DIR` exposed by default; `allowEnvironment` config allows explicit host variable passthrough
   - **Plugin output limits**: `maxStdoutBytes` / `maxStderrBytes` fields in `externalPlugins` config cap plugin stdout/stderr; exceeding the limit kills the process

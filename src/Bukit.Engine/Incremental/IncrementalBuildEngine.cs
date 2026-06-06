@@ -12,60 +12,58 @@ internal static class IncrementalBuildEngine
 {
     private const string BodyFingerprintKey = "bodyFingerprint";
 
-    internal static string ComputeContentHash(ContentItem item, IContentBodyStore bodyStore)
+    internal static string ComputeContentHash(ContentDocument document, IContentBodyStore bodyStore)
     {
-        var metadataHash = ComputeMetadataHash(item);
-        if (TryComputeStableContentHash(item, bodyStore, metadataHash, out var stableContentHash))
+        var metadataHash = ComputeMetadataHash(document);
+        if (TryComputeStableContentHash(document, bodyStore, metadataHash, out var stableContentHash))
         {
             return stableContentHash;
         }
 
 #pragma warning disable CS0618
-        return ComputeContentHash(item, metadataHash, ContentBodyResolver.GetHtml(item, bodyStore));
+        return ComputeContentHash(document, metadataHash, ContentBodyResolver.GetHtml(document, bodyStore));
 #pragma warning restore CS0618
     }
 
-    internal static string ComputeMetadataHash(ContentItem item)
+    internal static string ComputeMetadataHash(ContentDocument document)
     {
         using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         Span<byte> newline = stackalloc byte[1];
         newline[0] = (byte)'\n';
 
-        AppendUtf8(hasher, item.Id);
+        AppendUtf8(hasher, document.Id);
         hasher.AppendData(newline);
-        AppendUtf8(hasher, item.Title);
+        AppendUtf8(hasher, document.Title);
         hasher.AppendData(newline);
-        AppendUtf8(hasher, item.Slug);
+        AppendUtf8(hasher, document.Slug);
         hasher.AppendData(newline);
-        AppendUtf8(hasher, item.PublishAt.ToString("O"));
-        hasher.AppendData(newline);
-
-        var type = ContentFieldReader.GetContentType(item);
-        AppendUtf8(hasher, type);
+        AppendUtf8(hasher, document.PublishAt.ToString("O"));
         hasher.AppendData(newline);
 
-        var summary = CanonicalContentGraphBuilder.ToRecord(item).Presentation.Summary ?? string.Empty;
-        AppendUtf8(hasher, summary);
+        AppendUtf8(hasher, document.Record.Identity.ContentType);
         hasher.AppendData(newline);
 
-        AppendFieldsFingerprint(hasher, item.Fields);
+        AppendUtf8(hasher, document.Record.Presentation.Summary ?? string.Empty);
+        hasher.AppendData(newline);
+
+        AppendFieldsFingerprint(hasher, document.Fields);
 
         var digest = hasher.GetHashAndReset();
         return HashUtil.ToHexLower(digest);
     }
 
-    internal static string ComputeStableContentHash(ContentItem item, string metadataHash)
+    internal static string ComputeStableContentHash(ContentDocument document, string metadataHash)
     {
-        if (!TryGetBodyFingerprint(item, out var bodyFingerprint))
+        if (!TryGetBodyFingerprint(document, out var bodyFingerprint))
         {
-            throw new InvalidOperationException($"No stable body fingerprint is available for item '{item.Id}'.");
+            throw new InvalidOperationException($"No stable body fingerprint is available for document '{document.Id}'.");
         }
 
         return HashUtil.Sha256Hex(string.Join("\n", metadataHash, bodyFingerprint));
     }
 
     internal static bool TryComputeStableContentHash(
-        ContentItem item,
+        ContentDocument document,
         IContentBodyStore bodyStore,
         string metadataHash,
         out string contentHash)
@@ -76,7 +74,7 @@ internal static class IncrementalBuildEngine
             return false;
         }
 
-        if (!TryGetBodyFingerprint(item, out var bodyFingerprint))
+        if (!TryGetBodyFingerprint(document, out var bodyFingerprint))
         {
             return false;
         }
@@ -85,7 +83,7 @@ internal static class IncrementalBuildEngine
         return true;
     }
 
-    internal static string ComputeContentHash(ContentItem item, string metadataHash, string contentHtml)
+    internal static string ComputeContentHash(ContentDocument document, string metadataHash, string contentHtml)
     {
         return HashUtil.Sha256Hex(string.Join("\n", metadataHash, contentHtml ?? string.Empty));
     }
@@ -100,7 +98,7 @@ internal static class IncrementalBuildEngine
     internal static string ComputeListContentHash(
         string templateHash,
         string template,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> source,
+        IReadOnlyList<RoutedContentDocument> source,
         BuildManifest manifest,
         IContentBodyStore bodyStore,
         bool includeContent)
@@ -113,17 +111,20 @@ internal static class IncrementalBuildEngine
         hasher.AppendData(newline);
         AppendUtf8(hasher, template);
 
-        foreach (var (item, route) in source)
+        foreach (var routedDocument in source)
         {
+            var document = routedDocument.Document;
+            var route = routedDocument.Route;
+
             hasher.AppendData(newline);
             AppendUtf8(hasher, route.Url);
             hasher.AppendData(newline);
 
-            var k = BuildPathUtils.NormalizeRelPath(route.OutputPath);
-            AppendUtf8(hasher, k);
+            var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+            AppendUtf8(hasher, key);
             hasher.AppendData(newline);
 
-            if (manifest.Entries.TryGetValue(k, out var entry) && entry is not null)
+            if (manifest.Entries.TryGetValue(key, out var entry) && entry is not null)
             {
                 AppendUtf8(hasher, entry.ContentHash);
                 hasher.AppendData(newline);
@@ -131,7 +132,7 @@ internal static class IncrementalBuildEngine
             }
             else
             {
-                AppendUtf8(hasher, ComputeListItemHash(item, bodyStore, includeContent));
+                AppendUtf8(hasher, ComputeListDocumentHash(document, bodyStore, includeContent));
                 hasher.AppendData(newline);
                 AppendUtf8(hasher, ComputeRouteHash(route));
             }
@@ -144,7 +145,7 @@ internal static class IncrementalBuildEngine
     internal static async Task<string> ComputeListContentHashAsync(
         string templateHash,
         string template,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> source,
+        IReadOnlyList<RoutedContentDocument> source,
         BuildManifest manifest,
         IContentBodyStore bodyStore,
         bool includeContent,
@@ -157,9 +158,11 @@ internal static class IncrementalBuildEngine
         hasher.AppendData(newline);
         AppendUtf8(hasher, template);
 
-        foreach (var (item, route) in source)
+        foreach (var routedDocument in source)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var document = routedDocument.Document;
+            var route = routedDocument.Route;
 
             hasher.AppendData(newline);
             AppendUtf8(hasher, route.Url);
@@ -177,7 +180,7 @@ internal static class IncrementalBuildEngine
             }
             else
             {
-                var itemHash = await ComputeListItemHashAsync(item, bodyStore, includeContent, cancellationToken).ConfigureAwait(false);
+                var itemHash = await ComputeListDocumentHashAsync(document, bodyStore, includeContent, cancellationToken).ConfigureAwait(false);
                 AppendUtf8(hasher, itemHash);
                 hasher.AppendData(newline);
                 AppendUtf8(hasher, ComputeRouteHash(route));
@@ -188,61 +191,61 @@ internal static class IncrementalBuildEngine
         return HashUtil.ToHexLower(digest);
     }
 
-    [Obsolete("Blocking. Use ComputeListItemHashAsync instead to avoid sync-over-async deadlocks.")]
-    private static string ComputeListItemHash(ContentItem item, IContentBodyStore bodyStore, bool includeContent)
+    private static async Task<string> ComputeListDocumentHashAsync(
+        ContentDocument document,
+        IContentBodyStore bodyStore,
+        bool includeContent,
+        CancellationToken cancellationToken)
     {
-        var metadataHash = ComputeMetadataHash(item);
+        var metadataHash = ComputeMetadataHash(document);
 
         if (includeContent)
         {
-            if (TryComputeStableContentHash(item, bodyStore, metadataHash, out var stableContentHash))
+            if (TryComputeStableContentHash(document, bodyStore, metadataHash, out var stableContentHash))
+            {
+                return stableContentHash;
+            }
+
+            var html = await ContentBodyResolver.GetHtmlAsync(document, bodyStore, cancellationToken).ConfigureAwait(false);
+            return ComputeContentHash(document, metadataHash, html);
+        }
+
+        return metadataHash;
+    }
+
+    [Obsolete("Blocking. Use ComputeListDocumentHashAsync instead to avoid sync-over-async deadlocks.")]
+    private static string ComputeListDocumentHash(ContentDocument document, IContentBodyStore bodyStore, bool includeContent)
+    {
+        var metadataHash = ComputeMetadataHash(document);
+
+        if (includeContent)
+        {
+            if (TryComputeStableContentHash(document, bodyStore, metadataHash, out var stableContentHash))
             {
                 return stableContentHash;
             }
 
 #pragma warning disable CS0618
-            return ComputeContentHash(item, metadataHash, ContentBodyResolver.GetHtml(item, bodyStore));
+            return ComputeContentHash(document, metadataHash, ContentBodyResolver.GetHtml(document, bodyStore));
 #pragma warning restore CS0618
         }
 
         return metadataHash;
     }
 
-    private static async Task<string> ComputeListItemHashAsync(
-        ContentItem item,
-        IContentBodyStore bodyStore,
-        bool includeContent,
-        CancellationToken cancellationToken)
-    {
-        var metadataHash = ComputeMetadataHash(item);
-
-        if (includeContent)
-        {
-            if (TryComputeStableContentHash(item, bodyStore, metadataHash, out var stableContentHash))
-            {
-                return stableContentHash;
-            }
-
-            var html = await ContentBodyResolver.GetHtmlAsync(item, bodyStore, cancellationToken).ConfigureAwait(false);
-            return ComputeContentHash(item, metadataHash, html);
-        }
-
-        return metadataHash;
-    }
-
-    private static bool TryGetBodyFingerprint(ContentItem item, out string bodyFingerprint)
+    private static bool TryGetBodyFingerprint(ContentDocument document, out string bodyFingerprint)
     {
         bodyFingerprint = string.Empty;
-        var bodyFingerprintValue = ContentFieldReader.GetText(item.Fields, BodyFingerprintKey);
+        var bodyFingerprintValue = ContentFieldReader.GetText(document.Fields, BodyFingerprintKey);
         if (!string.IsNullOrWhiteSpace(bodyFingerprintValue))
         {
             bodyFingerprint = bodyFingerprintValue;
             return true;
         }
 
-        if (!string.IsNullOrEmpty(item.ContentHtml))
+        if (!string.IsNullOrEmpty(document.ContentHtml))
         {
-            bodyFingerprint = HashUtil.Sha256Hex(item.ContentHtml);
+            bodyFingerprint = HashUtil.Sha256Hex(document.ContentHtml);
             return true;
         }
 

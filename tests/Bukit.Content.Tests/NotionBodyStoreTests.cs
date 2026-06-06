@@ -18,19 +18,19 @@ public sealed class NotionBodyStoreTests
             return $"<p>{item.Id}</p>";
         });
 
-        var item = new ContentItem(
-            Id: "page-1",
-            Title: "Page",
-            Slug: "page",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: null,
-            BodyKey: "page-1");
+        var item = ContentDocument.Create(
+            id: "page-1",
+            title: "Page",
+            slug: "page",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: null,
+            bodyKey: "page-1");
 
         Assert.Equal(0, renderCount);
 
-        var first = await store.GetAsync(item);
-        var second = await store.GetAsync(item);
+        var first = await store.GetAsync(item.ToDocument());
+        var second = await store.GetAsync(item.ToDocument());
 
         Assert.Equal("<p>page-1</p>", first.Html);
         Assert.Equal("<p>page-1</p>", second.Html);
@@ -47,16 +47,16 @@ public sealed class NotionBodyStoreTests
             return Task.FromResult("<p>should not render</p>");
         });
 
-        var item = new ContentItem(
-            Id: "page-1",
-            Title: "Page",
-            Slug: "page",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "<p>inline content</p>",
-            Fields: null,
-            BodyKey: "page-1");
+        var item = ContentDocument.Create(
+            id: "page-1",
+            title: "Page",
+            slug: "page",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>inline content</p>",
+            fields: null,
+            bodyKey: "page-1");
 
-        var body = await store.GetAsync(item);
+        var body = await store.GetAsync(item.ToDocument());
 
         Assert.Equal("<p>inline content</p>", body.Html);
         Assert.False(invoked);

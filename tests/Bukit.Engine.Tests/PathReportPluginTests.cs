@@ -137,7 +137,7 @@ public sealed class PathReportPluginTests
             OutputDir = distDir,
             BaseUrl = "/",
             LayoutsDir = Path.Combine(rootDir, "themes", themeName, "layouts"),
-            Routed = new List<(ContentItem Item, RouteInfo Route)>(),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
     }

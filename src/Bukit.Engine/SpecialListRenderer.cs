@@ -20,7 +20,7 @@ internal static class SpecialListRenderer
 
     internal static async Task<BuildStageMetrics> RenderSpecialListAlwaysAsync(
         RouteInfo listRoute,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> source,
+        IReadOnlyList<RoutedContentDocument> source,
         IContentBodyStore bodyStore,
         ITemplateRenderer renderer,
         SiteModel siteModel,
@@ -30,7 +30,7 @@ internal static class SpecialListRenderer
         int outerCount,
         bool includeContent,
         CancellationToken cancellationToken,
-        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder,
+        Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder,
         Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor)
     {
@@ -60,7 +60,7 @@ internal static class SpecialListRenderer
 
     internal static async Task<PageRenderDispatcher.SpecialListRenderResult> RenderSpecialListIfNeededAsync(
         RouteInfo listRoute,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> source,
+        IReadOnlyList<RoutedContentDocument> source,
         IContentBodyStore bodyStore,
         ITemplateRenderer renderer,
         SiteModel siteModel,
@@ -73,7 +73,7 @@ internal static class SpecialListRenderer
         int outerCount,
         bool includeContent,
         CancellationToken cancellationToken,
-        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder,
+        Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder,
         Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor)
     {
@@ -81,9 +81,7 @@ internal static class SpecialListRenderer
         var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
         var routeHash = IncrementalBuildEngine.ComputeRouteHash(listRoute);
         var listHashStopwatch = Stopwatch.StartNew();
-#pragma warning disable CS0618
-        var contentHash = IncrementalBuildEngine.ComputeListContentHash(templateHash, listRoute.Template, source, manifest, bodyStore, includeContent);
-#pragma warning restore CS0618
+        var contentHash = await IncrementalBuildEngine.ComputeListContentHashAsync(templateHash, listRoute.Template, source, manifest, bodyStore, includeContent, cancellationToken);
         listHashStopwatch.Stop();
         stageMetrics.Increment("listHash");
         stageMetrics.AddDuration("listHash", listHashStopwatch.ElapsedMilliseconds);
@@ -144,7 +142,7 @@ internal static class SpecialListRenderer
     }
 
     internal static async Task<List<PageInfo>> BuildPageInfosAsync(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> source,
+        IReadOnlyList<RoutedContentDocument> source,
         IContentBodyStore bodyStore,
         bool includeContent,
         int maxDegreeOfParallelism,
@@ -152,7 +150,7 @@ internal static class SpecialListRenderer
         CancellationToken cancellationToken,
         BuildStageMetricsCollector? stageMetrics = null,
         string bodyLoadMetricName = "listBodyLoad",
-        Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null)
+        Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder = null)
     {
         var pageInfos = new PageInfo[source.Count];
 
@@ -160,22 +158,24 @@ internal static class SpecialListRenderer
         {
             for (var i = 0; i < source.Count; i++)
             {
-                var contentRecord = CanonicalContentGraphBuilder.ToRecord(source[i].Item);
+                var document = source[i].Document;
+                var route = source[i].Route;
+                var contentRecord = document.Record;
                 pageInfos[i] = new PageInfo
                 {
-                    Title = source[i].Item.Title,
-                    Url = source[i].Route.Url,
+                    Title = document.Title,
+                    Url = route.Url,
                     Content = string.Empty,
-                    Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(source[i].Item),
-                    TableOfContents = GetTableOfContents(source[i].Item),
-                    PublishDate = source[i].Item.PublishAt,
-                    Fields = source[i].Item.Fields,
+                    Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
+                    TableOfContents = GetTableOfContents(document),
+                    PublishDate = document.PublishAt,
+                    Fields = document.Fields,
                     ContentRecord = contentRecord,
                     Entities = contentRecord.Entities,
                     Provenance = contentRecord.Provenance,
                     Trust = contentRecord.Trust,
                     Representations = PublishRepresentationRegistry.DocumentKinds(),
-                    Seo = seoBuilder?.Invoke(source[i].Item, source[i].Route)
+                    Seo = seoBuilder?.Invoke(document, route)
                 };
             }
 
@@ -189,7 +189,9 @@ internal static class SpecialListRenderer
             async (i, ct) =>
             {
                 var bodyLoadStopwatch = Stopwatch.StartNew();
-                var content = await ContentBodyResolver.GetHtmlAsync(source[i].Item, bodyStore, ct);
+                var document = source[i].Document;
+                var route = source[i].Route;
+                var content = await ContentBodyResolver.GetHtmlAsync(document, bodyStore, ct);
                 bodyLoadStopwatch.Stop();
                 if (stageMetrics is not null)
                 {
@@ -200,30 +202,30 @@ internal static class SpecialListRenderer
                     }
                 }
 
-                var contentRecord = CanonicalContentGraphBuilder.ToRecord(source[i].Item);
+                var contentRecord = document.Record;
                 pageInfos[i] = new PageInfo
                 {
-                    Title = source[i].Item.Title,
-                    Url = source[i].Route.Url,
+                    Title = document.Title,
+                    Url = route.Url,
                     Content = content,
-                    Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(source[i].Item),
-                    TableOfContents = GetTableOfContents(source[i].Item),
-                    PublishDate = source[i].Item.PublishAt,
-                    Fields = source[i].Item.Fields,
+                    Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
+                    TableOfContents = GetTableOfContents(document),
+                    PublishDate = document.PublishAt,
+                    Fields = document.Fields,
                     ContentRecord = contentRecord,
                     Entities = contentRecord.Entities,
                     Provenance = contentRecord.Provenance,
                     Trust = contentRecord.Trust,
                     Representations = PublishRepresentationRegistry.DocumentKinds(),
-                    Seo = seoBuilder?.Invoke(source[i].Item, source[i].Route)
+                    Seo = seoBuilder?.Invoke(document, route)
                 };
             });
 
         return new List<PageInfo>(pageInfos);
     }
 
-    internal static IReadOnlyList<TableOfContentsEntry>? GetTableOfContents(ContentItem item)
-        => ContentFieldReader.TryGetField(item.Fields, "tableOfContents", out var toc) && toc.Value is IReadOnlyList<TableOfContentsEntry> entries
+    internal static IReadOnlyList<TableOfContentsEntry>? GetTableOfContents(ContentDocument document)
+        => ContentFieldReader.TryGetField(document.Fields, "tableOfContents", out var toc) && toc.Value is IReadOnlyList<TableOfContentsEntry> entries
             ? entries
             : null;
 

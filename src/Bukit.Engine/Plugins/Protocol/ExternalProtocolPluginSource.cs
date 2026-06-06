@@ -98,14 +98,13 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
         public IReadOnlyList<string> GetTemplateRequirementKinds(BuildContext context)
             => _config.TemplateRequirements ?? Array.Empty<string>();
 
-        public Task<IReadOnlyList<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route, DateTimeOffset LastModified)>> DerivePagesAsync(
+        public Task<IReadOnlyList<RoutedContentDocument>> DerivePagesAsync(
             BuildContext context,
             CancellationToken cancellationToken = default)
         {
             if (!HasHook(_config, "derive-pages"))
             {
-                return Task.FromResult<IReadOnlyList<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route, DateTimeOffset LastModified)>>(
-                    Array.Empty<(Bukit.Engine.Abstractions.Content.ContentItem Item, Bukit.Engine.Abstractions.Routing.RouteInfo Route, DateTimeOffset LastModified)>());
+                return Task.FromResult<IReadOnlyList<RoutedContentDocument>>(Array.Empty<RoutedContentDocument>());
             }
 
             PluginCapabilityEnforcer.Enforce(_config, "derive-pages");

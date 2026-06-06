@@ -38,17 +38,17 @@ public sealed class BodyCacheDecorator : IContentBodyStore
         _cache.Count,
         Volatile.Read(ref _cacheSkips));
 
-    public async Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+    public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
         Interlocked.Increment(ref _totalRequests);
 
-        if (!string.IsNullOrWhiteSpace(item.ContentHtml))
+        if (!string.IsNullOrWhiteSpace(document.ContentHtml))
         {
             Interlocked.Increment(ref _inlineBypasses);
-            return new ContentBody(item.ContentHtml);
+            return new ContentBody(document.ContentHtml);
         }
 
-        var key = item.BodyKey ?? item.Id;
+        var key = document.BodyKey ?? document.Id;
         if (_cache.TryGetValue(key, out var lazy))
         {
             Interlocked.Increment(ref _cacheHits);
@@ -64,7 +64,7 @@ public sealed class BodyCacheDecorator : IContentBodyStore
         }
 
         var newLazy = new Lazy<Task<ContentBody>>(
-            async () => new ContentBody((await _inner.GetAsync(item, cancellationToken)).Html),
+            async () => new ContentBody((await _inner.GetAsync(document, cancellationToken)).Html),
             LazyThreadSafetyMode.ExecutionAndPublication);
         lazy = _cache.GetOrAdd(key, newLazy);
         if (ReferenceEquals(lazy, newLazy))

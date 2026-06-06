@@ -8,17 +8,17 @@ internal enum RenderEntryKind { Page, List, Static }
 
 internal sealed record RenderEntry(
     RenderEntryKind Kind,
-    ContentItem? Item,
+    ContentDocument? Document,
     RouteInfo Route,
-    IReadOnlyList<(ContentItem Item, RouteInfo Route)>? SourceItems,
+    IReadOnlyList<RoutedContentDocument>? SourceDocuments,
     bool IncludeContent,
     string? RawContent,
     string Title)
 {
-    internal static RenderEntry ForPage(ContentItem item, RouteInfo route) =>
-        new(RenderEntryKind.Page, item, route, null, false, null, item.Title);
+    internal static RenderEntry ForPage(ContentDocument document, RouteInfo route) =>
+        new(RenderEntryKind.Page, document, route, null, false, null, document.Title);
 
-    internal static RenderEntry ForList(RouteInfo listRoute, IReadOnlyList<(ContentItem Item, RouteInfo Route)> source, bool includeContent) =>
+    internal static RenderEntry ForList(RouteInfo listRoute, IReadOnlyList<RoutedContentDocument> source, bool includeContent) =>
         new(RenderEntryKind.List, null, listRoute, source, includeContent, null, listRoute.Url);
 
     internal static IReadOnlyList<RenderEntry> ForStaticDir(string staticDir, string template, Action<string> warn, bool publishDotFiles)
@@ -99,4 +99,5 @@ internal sealed record RenderEntry(
         }
         return false;
     }
+
 }

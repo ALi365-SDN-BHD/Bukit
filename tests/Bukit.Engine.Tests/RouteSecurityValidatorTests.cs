@@ -44,27 +44,27 @@ public sealed class RouteSecurityValidatorTests
 
         Assert.Throws<ConfigException>(() =>
             RouteInventoryValidator.ValidateFinalRoutes(
-                Array.Empty<(ContentItem Item, RouteInfo Route)>(),
-                Array.Empty<(ContentItem Item, RouteInfo Route)>(),
+                Array.Empty<RoutedContentDocument>(),
+                Array.Empty<RoutedContentDocument>(),
                 staticHtmlRoutes: new[] { route }));
     }
 
     [Fact]
     public void ValidateFinalRoutes_DerivedRouteWithTraversalOutputPath_Throws()
     {
-        var item = new ContentItem(
-            Id: "plugin",
-            Title: "Plugin Page",
-            Slug: "plugin-page",
-            PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: "",
-            Fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var document = ContentDocument.Create(
+            id: "plugin",
+            title: "Plugin Page",
+            slug: "plugin-page",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var route = new RouteInfo("/plugin-page/", "../evil/index.html", "pages/page.html");
 
         Assert.Throws<ConfigException>(() =>
             RouteInventoryValidator.ValidateFinalRoutes(
-                Array.Empty<(ContentItem Item, RouteInfo Route)>(),
-                new[] { (item, route) }));
+                Array.Empty<RoutedContentDocument>(),
+                new[] { new RoutedContentDocument(document, route) }));
     }
 
     [Theory]

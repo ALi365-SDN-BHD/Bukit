@@ -163,7 +163,7 @@ internal static class PagesIndexConfigHelper
     }
 
     public static List<string> CollectRelationIds(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyList<string> fieldKeys,
         Dictionary<string, object> index,
         int maxItems)
@@ -175,7 +175,7 @@ internal static class PagesIndexConfigHelper
 
         for (var i = 0; i < routed.Count; i++)
         {
-            var fields = routed[i].Item.Fields;
+            var fields = routed[i].Document.Fields;
             if (fields is null || fields.Count == 0)
             {
                 continue;

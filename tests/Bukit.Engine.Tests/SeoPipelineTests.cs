@@ -14,13 +14,13 @@ public sealed class SeoPipelineTests
     [Fact]
     public void Execute_BuildsSeoIndexAndDetectsSeoMode()
     {
-        var item = new ContentItem(
-            Id: "hello",
-            Title: "Hello World",
-            Slug: "hello",
-            PublishAt: DateTimeOffset.UnixEpoch,
-            ContentHtml: "<p>Hello</p>",
-            BodyKey: null);
+        var item = ContentDocument.Create(
+            id: "hello",
+            title: "Hello World",
+            slug: "hello",
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: "<p>Hello</p>",
+            bodyKey: null);
         var route = new RouteInfo("/blog/hello/", "blog/hello/index.html", "pages/post.html");
         var config = new AppConfig
         {
@@ -39,7 +39,7 @@ public sealed class SeoPipelineTests
         var result = pipeline.Execute(
             config,
             baseUrl: "/",
-            renderQueue: new[] { (item, route) },
+            renderQueue: new[] { (item, route) }.ToRoutedDocuments(),
             listRoutes: new[] { new RouteInfo("/blog/", "blog/index.html", "pages/blog-list.html") },
             seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
             analytics: new AnalyticsModel { Enabled = false },
@@ -72,7 +72,7 @@ public sealed class SeoPipelineTests
         var result = pipeline.Execute(
             config,
             baseUrl: "/",
-            renderQueue: Array.Empty<(ContentItem, RouteInfo)>(),
+            renderQueue: Array.Empty<RoutedContentDocument>(),
             listRoutes: Array.Empty<RouteInfo>(),
             seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
             analytics: new AnalyticsModel { Enabled = false },

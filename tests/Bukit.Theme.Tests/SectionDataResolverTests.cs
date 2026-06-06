@@ -7,7 +7,7 @@ namespace Bukit.Theme.Tests;
 
 public sealed class SectionDataResolverTests
 {
-    private static ContentItem MakeItem(string id, string title, string type, DateTimeOffset publishAt, List<string>? collections = null, IReadOnlyDictionary<string, ContentField>? fields = null)
+    private static ContentDocument MakeItem(string id, string title, string type, DateTimeOffset publishAt, List<string>? collections = null, IReadOnlyDictionary<string, ContentField>? fields = null)
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -18,7 +18,7 @@ public sealed class SectionDataResolverTests
             meta["collections"] = collections;
         }
 
-        return new ContentItem(id, title, id, publishAt, null, ContentFieldReader.WithValues(fields, meta));
+        return ContentDocument.Create(id, title, id, publishAt, null, ContentFieldReader.WithValues(fields, meta));
     }
 
     private static RouteInfo MakeRoute(string url)
@@ -26,9 +26,9 @@ public sealed class SectionDataResolverTests
         return new RouteInfo(url, url.TrimStart('/') + "index.html", "pages/page.html");
     }
 
-    private static IReadOnlyList<(ContentItem Item, RouteInfo? Route)> MakePages(params (ContentItem, string)[] items)
+    private static IReadOnlyList<(ContentDocument Item, RouteInfo? Route)> MakePages(params (ContentDocument, string)[] items)
     {
-        return items.Select(i => ((ContentItem, RouteInfo?))(i.Item1, MakeRoute(i.Item2))).ToList();
+        return items.Select(i => ((ContentDocument, RouteInfo?))(i.Item1, MakeRoute(i.Item2))).ToList();
     }
 
     [Fact]
@@ -186,7 +186,7 @@ public sealed class SectionDataResolverTests
     [Fact]
     public void Resolve_TypePrefixWorksWithStructuredTypeField()
     {
-        var item = new ContentItem(
+        var item = ContentDocument.Create(
             "a",
             "A",
             "a",

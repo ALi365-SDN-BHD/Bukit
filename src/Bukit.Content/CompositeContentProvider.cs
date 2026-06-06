@@ -19,23 +19,23 @@ public sealed class CompositeContentProvider : IContentProvider
         _providers = providers;
     }
 
-    public async Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+    public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
     {
-        var tasks = new Task<ContentLoadResult>[_providers.Count];
+        var tasks = new Task<RawContentLoadResult>[_providers.Count];
         for (var i = 0; i < _providers.Count; i++)
         {
-            tasks[i] = _providers[i].Provider.LoadAsync(cancellationToken);
+            tasks[i] = LoadProviderRawAsync(_providers[i].Provider, cancellationToken);
         }
 
         await Task.WhenAll(tasks);
 
-        var all = new List<ContentItem>();
+        var all = new List<RawContentDocument>();
         var stores = new Dictionary<string, IContentBodyStore>(StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < _providers.Count; i++)
         {
             var (sourceKey, sourceMode, collection, addToCollections, _) = _providers[i];
             var result = await tasks[i];
-            var items = result.Items;
+            var items = result.Documents;
             stores[sourceKey] = result.BodyStore;
 
             foreach (var item in items)
@@ -92,6 +92,13 @@ public sealed class CompositeContentProvider : IContentProvider
             }
         }
 
-        return new ContentLoadResult(all, new CompositeContentBodyStore(stores));
+        return new RawContentLoadResult(all, new CompositeContentBodyStore(stores));
+    }
+
+    private static async Task<RawContentLoadResult> LoadProviderRawAsync(
+        IContentProvider provider,
+        CancellationToken cancellationToken)
+    {
+        return await provider.LoadRawAsync(cancellationToken);
     }
 }

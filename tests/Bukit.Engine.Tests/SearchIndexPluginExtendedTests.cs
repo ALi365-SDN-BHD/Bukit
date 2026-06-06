@@ -13,9 +13,9 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SearchIndexPluginExtendedTests
 {
-    private static ContentItem CreateItem(string id, string title, string slug, string? contentHtml = null)
+    private static ContentDocument CreateItem(string id, string title, string slug, string? contentHtml = null)
     {
-        return new ContentItem(
+        return ContentDocument.Create(
             id,
             title,
             slug,
@@ -68,11 +68,11 @@ public sealed class SearchIndexPluginExtendedTests
                 OutputDir = tempDir,
                 BaseUrl = "https://example.com",
                 LayoutsDir = tempDir,
-                Routed = new List<(ContentItem, RouteInfo)>
+                RoutedDocuments = new List<(ContentDocument, RouteInfo)>
                 {
                     (CreateItem("1", "Home", "home", "<p>Welcome</p>"), route1),
                     (CreateItem("2", "About", "about", "<p>About us</p>"), route2),
-                },
+                }.ToRoutedDocuments(),
                 BodyStore = NullContentBodyStore.Instance,
                 Logger = new ConsoleLogger(LogLevel.Debug),
             };
@@ -128,15 +128,15 @@ public sealed class SearchIndexPluginExtendedTests
                 OutputDir = tempDir,
                 BaseUrl = "https://example.com",
                 LayoutsDir = tempDir,
-                Routed = new List<(ContentItem, RouteInfo)>
+                RoutedDocuments = new List<(ContentDocument, RouteInfo)>
                 {
                     (CreateItem("1", "Main", "main", "<p>Main content</p>"), mainRoute),
-                },
+                }.ToRoutedDocuments(),
                 BodyStore = NullContentBodyStore.Instance,
                 Logger = new ConsoleLogger(LogLevel.Debug),
             };
             context.SeoIndex = seoIndex;
-            context.DerivedRouted.Add((CreateItem("d1", "Derived Item", "derived", "<p>Derived content</p>"), derivedRoute));
+            context.DerivedDocuments.Add(new RoutedContentDocument(CreateItem("d1", "Derived Item", "derived", "<p>Derived content</p>").ToDocument(), derivedRoute));
             context.DerivedRoutes.Add((derivedRoute, DateTimeOffset.UtcNow));
 
             var plugin = new SearchIndexPlugin();
@@ -188,15 +188,15 @@ public sealed class SearchIndexPluginExtendedTests
                 OutputDir = tempDir,
                 BaseUrl = "https://example.com",
                 LayoutsDir = tempDir,
-                Routed = new List<(ContentItem, RouteInfo)>
+                RoutedDocuments = new List<(ContentDocument, RouteInfo)>
                 {
                     (CreateItem("1", "Main", "main", "<p>Main content</p>"), mainRoute),
-                },
+                }.ToRoutedDocuments(),
                 BodyStore = NullContentBodyStore.Instance,
                 Logger = new ConsoleLogger(LogLevel.Debug),
             };
             context.SeoIndex = seoIndex;
-            context.DerivedRouted.Add((CreateItem("d1", "Derived Item", "derived", "<p>Derived content</p>"), derivedRoute));
+            context.DerivedDocuments.Add(new RoutedContentDocument(CreateItem("d1", "Derived Item", "derived", "<p>Derived content</p>").ToDocument(), derivedRoute));
 
             var plugin = new SearchIndexPlugin();
             plugin.AfterBuild(context);
@@ -239,7 +239,7 @@ public sealed class SearchIndexPluginExtendedTests
                 OutputDir = tempDir,
                 BaseUrl = "https://example.com",
                 LayoutsDir = tempDir,
-                Routed = Array.Empty<(ContentItem, RouteInfo)>(),
+                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
                 BodyStore = NullContentBodyStore.Instance,
                 Logger = new ConsoleLogger(LogLevel.Debug),
             };

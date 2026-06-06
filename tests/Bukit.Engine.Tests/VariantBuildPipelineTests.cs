@@ -42,12 +42,12 @@ public sealed class VariantBuildPipelineTests : IDisposable
     public void PrepareDataModules_EmptyItems_ReturnsEmptyResult()
     {
         var pipeline = new VariantBuildPipeline();
-        var items = new List<ContentItem>();
+        var documents = new List<ContentDocument>();
         var bodyStore = new NoOpBodyStore();
 
-        var result = pipeline.PrepareDataModules(items, "en", bodyStore);
+        var result = pipeline.PrepareDataModules(documents, "en", bodyStore);
 
-        Assert.Empty(result.DataItems);
+        Assert.Empty(result.DataDocuments);
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
 
     private sealed class NoOpBodyStore : IContentBodyStore
     {
-        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
             => Task.FromResult(new ContentBody(string.Empty));
     }
 }
