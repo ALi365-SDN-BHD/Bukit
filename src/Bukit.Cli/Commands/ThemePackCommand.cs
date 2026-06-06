@@ -69,7 +69,7 @@ public static class ThemePackCommand
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Failed to pack theme: {ex.Message}");
-            try { File.Delete(fullOutputPath); } catch { }
+            DeleteFileBestEffort(fullOutputPath);
             return 1;
         }
 
@@ -98,11 +98,28 @@ public static class ThemePackCommand
                 return nameScalar.Value;
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or YamlDotNet.Core.YamlException)
         {
+            Console.Error.WriteLine($"Warning: could not read active theme from config: {ex.Message}");
         }
 
         return null;
+    }
+
+    private static void DeleteFileBestEffort(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException ex)
+        {
+            Console.Error.WriteLine($"Warning: failed to delete incomplete archive '{path}': {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.Error.WriteLine($"Warning: failed to delete incomplete archive '{path}': {ex.Message}");
+        }
     }
 
     private static string FormatSize(long bytes)

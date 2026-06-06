@@ -131,8 +131,22 @@ public sealed class BuildManifest
         }
         catch
         {
-            try { File.Delete(tempPath); } catch { }
+            DeleteFileBestEffort(tempPath);
             throw;
+        }
+    }
+
+    private static void DeleteFileBestEffort(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
         }
     }
 
@@ -243,4 +257,3 @@ public sealed class BuildManifestEntry
     public string TemplateHash { get; set; } = string.Empty;
     public string RenderDependencyHash { get; set; } = string.Empty;
 }
-

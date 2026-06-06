@@ -2,14 +2,14 @@ using Scriban;
 
 namespace Bukit.Engine;
 
-internal sealed record TemplateVariableWarning(
+public sealed record TemplateVariableWarning(
     string Variable,
     string Template,
     string Message);
 
-internal static class ScribanTemplateLinter
+public static class ScribanTemplateLinter
 {
-    internal static List<TemplateVariableWarning> LintDirectory(string layoutsDir, string templateName)
+    public static List<TemplateVariableWarning> LintDirectory(string layoutsDir, string templateName)
     {
         var warnings = new List<TemplateVariableWarning>();
         var allHtmlFiles = Directory.GetFiles(layoutsDir, "*.html", SearchOption.AllDirectories);
@@ -33,15 +33,19 @@ internal static class ScribanTemplateLinter
                 var fileWarnings = LintTemplate(template, relativePath);
                 warnings.AddRange(fileWarnings);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Scriban.Syntax.ScriptRuntimeException)
             {
+                warnings.Add(new TemplateVariableWarning(
+                    string.Empty,
+                    relativePath,
+                    $"Unable to lint template '{relativePath}': {ex.Message}"));
             }
         }
 
         return warnings;
     }
 
-    internal static List<TemplateVariableWarning> LintTemplate(Template template, string templateRelativePath)
+    public static List<TemplateVariableWarning> LintTemplate(Template template, string templateRelativePath)
     {
         var warnings = new List<TemplateVariableWarning>();
         var variables = ScribanVariableCollector.Collect(template);
@@ -75,7 +79,7 @@ internal static class ScribanTemplateLinter
         return warnings;
     }
 
-    internal static string? GetRootContext(string variableName)
+    public static string? GetRootContext(string variableName)
     {
         if (string.IsNullOrWhiteSpace(variableName)) return null;
 
@@ -100,7 +104,7 @@ internal static class ScribanTemplateLinter
         return null;
     }
 
-    internal static string? GetFieldPath(string variableName, string? root)
+    public static string? GetFieldPath(string variableName, string? root)
     {
         if (root is null) return null;
 

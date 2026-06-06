@@ -4,21 +4,21 @@ using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Engine;
 
-internal static class TemplateCapabilitiesResolver
+public static class TemplateCapabilitiesResolver
 {
     private const string ManifestFileName = "bukit.templates.yaml";
     private static readonly ConcurrentDictionary<string, Task<TemplateCapabilitiesManifest?>> Cache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, bool> FallbackCache = new(StringComparer.OrdinalIgnoreCase);
-    internal static void ValidateManifest(string layoutsDir)
+    public static void ValidateManifest(string layoutsDir)
     {
         var task = Cache.GetOrAdd(layoutsDir, static dir => LoadManifestAsync(dir));
         task.GetAwaiter().GetResult();
     }
 
-    internal static bool ShouldIncludeListPageContent(string templateRelativePath, string layoutsDir, string mode)
+    public static bool ShouldIncludeListPageContent(string templateRelativePath, string layoutsDir, string mode)
         => ResolveListPageContent(templateRelativePath, layoutsDir, mode).IncludeContent;
 
-    internal static ListPageContentResolution ResolveListPageContent(string templateRelativePath, string layoutsDir, string mode)
+    public static ListPageContentResolution ResolveListPageContent(string templateRelativePath, string layoutsDir, string mode)
     {
         var normalizedMode = (mode ?? "auto").Trim().ToLowerInvariant();
         if (normalizedMode == "always")
@@ -51,7 +51,7 @@ internal static class TemplateCapabilitiesResolver
         return GetCapabilities(templateRelativePath, layoutsDir)?.NeedsPageContent;
     }
 
-    internal static TemplateCapabilityFlags? GetCapabilities(string templateRelativePath, string layoutsDir)
+    public static TemplateCapabilityFlags? GetCapabilities(string templateRelativePath, string layoutsDir)
     {
         var task = Cache.GetOrAdd(layoutsDir, static dir => LoadManifestAsync(dir));
         var manifest = task.GetAwaiter().GetResult();
@@ -69,13 +69,13 @@ internal static class TemplateCapabilitiesResolver
         return template.Capabilities;
     }
 
-    internal static bool SupportsPagination(string templateRelativePath, string layoutsDir)
+    public static bool SupportsPagination(string templateRelativePath, string layoutsDir)
         => GetCapabilities(templateRelativePath, layoutsDir)?.SupportsPagination == true;
 
-    internal static bool SupportsTaxonomy(string templateRelativePath, string layoutsDir)
+    public static bool SupportsTaxonomy(string templateRelativePath, string layoutsDir)
         => GetCapabilities(templateRelativePath, layoutsDir)?.SupportsTaxonomy == true;
 
-    internal static bool SupportsSearchSnippets(string templateRelativePath, string layoutsDir)
+    public static bool SupportsSearchSnippets(string templateRelativePath, string layoutsDir)
         => GetCapabilities(templateRelativePath, layoutsDir)?.SupportsSearchSnippets == true;
 
     private static async Task<TemplateCapabilitiesManifest?> LoadManifestAsync(string layoutsDir)
@@ -320,17 +320,17 @@ internal static class TemplateCapabilitiesResolver
     private static string NormalizeManifestKey(string templateRelativePath)
         => templateRelativePath.Replace('\\', '/');
 
-    internal sealed class TemplateCapabilitiesManifest
+    private sealed class TemplateCapabilitiesManifest
     {
         public Dictionary<string, TemplateCapabilityDefinition>? Templates { get; init; }
     }
 
-    internal sealed class TemplateCapabilityDefinition
+    private sealed class TemplateCapabilityDefinition
     {
         public TemplateCapabilityFlags? Capabilities { get; init; }
     }
 
-    internal sealed class TemplateCapabilityFlags
+    public sealed class TemplateCapabilityFlags
     {
         public bool? NeedsPageContent { get; init; }
         public bool? SupportsPagination { get; init; }
@@ -348,12 +348,12 @@ internal static class TemplateCapabilitiesResolver
         }
     }
 
-    internal sealed record ListPageContentResolution(
+    public sealed record ListPageContentResolution(
         bool IncludeContent,
         bool UsedHeuristic,
         string Source);
 
-    internal sealed record TemplateFieldDeclaration
+    public sealed record TemplateFieldDeclaration
     {
         public string? Key { get; init; }
         public string? Type { get; init; }

@@ -20,12 +20,12 @@ public sealed class ThemeTemplateResolver
 
     private readonly ThemeManifestV2? _manifest;
 
-    internal ThemeTemplateResolver(ThemeManifestV2? manifest)
+    public ThemeTemplateResolver(ThemeManifestV2? manifest)
     {
         _manifest = manifest;
     }
 
-    internal string ResolveHomeTemplate()
+    public string ResolveHomeTemplate()
     {
         ValidateRequiredTemplates();
         if (_manifest?.Templates is not null &&
@@ -42,7 +42,7 @@ public sealed class ThemeTemplateResolver
     /// Ensures the home template's <c>required</c> field is not explicitly set to <c>false</c>.
     /// The home template is always required and cannot be opted out.
     /// </summary>
-    internal void ValidateRequiredTemplates()
+    public void ValidateRequiredTemplates()
     {
         if (_manifest?.Templates is not null &&
             _manifest.Templates.TryGetValue(HomeTemplateKey, out var home) &&
@@ -52,7 +52,7 @@ public sealed class ThemeTemplateResolver
         }
     }
 
-    internal string ResolveContentTemplate(ContentDocument document, string? kind = null)
+    public string ResolveContentTemplate(ContentDocument document, string? kind = null)
     {
         var matched = TryResolveContentTemplate(document, kind);
         if (!string.IsNullOrWhiteSpace(matched))
@@ -67,7 +67,7 @@ public sealed class ThemeTemplateResolver
             "Add a matching theme.yaml templates entry or set route.template/site.collections.*.template.");
     }
 
-    internal string ResolveKindTemplate(string kind)
+    public string ResolveKindTemplate(string kind)
     {
         if (TryResolveKindTemplate(kind, out var template))
         {
@@ -78,7 +78,7 @@ public sealed class ThemeTemplateResolver
             $"No theme template matches kind='{kind}'. Add a matching theme.yaml templates entry or configure an explicit template.");
     }
 
-    internal bool TryResolveKindTemplate(string kind, out string template)
+    public bool TryResolveKindTemplate(string kind, out string template)
     {
         template = string.Empty;
         if (_manifest?.Templates is null || string.IsNullOrWhiteSpace(kind))
@@ -103,10 +103,10 @@ public sealed class ThemeTemplateResolver
         return false;
     }
 
-    internal IReadOnlyDictionary<string, ThemeTemplateDefinition> DeclaredTemplates =>
+    public IReadOnlyDictionary<string, ThemeTemplateDefinition> DeclaredTemplates =>
         _manifest?.Templates ?? new Dictionary<string, ThemeTemplateDefinition>(StringComparer.OrdinalIgnoreCase);
 
-    internal IReadOnlyList<string> GetRequiredTemplatePaths()
+    public IReadOnlyList<string> GetRequiredTemplatePaths()
     {
         ValidateRequiredTemplates();
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

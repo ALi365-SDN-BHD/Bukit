@@ -2,11 +2,11 @@
 
 发布日期：**2026-06-07**（Asia/Kuala_Lumpur）  
 项目：**Bukit**  
-范围：vNext Meta 移除、协议/CLI cleanup、文档一致性
+范围：vNext Meta 移除、协议/CLI cleanup、文档一致性、`.trae/specs` 合规、`InternalsVisibleTo` 边界、生产空 `catch`、依赖矩阵
 
 ## 结论
 
-当前 vNext Meta 移除主目标 **通过复审（PASS）**：
+当前 vNext Meta 移除主目标与本轮合规治理项 **通过复审（PASS）**：
 
 - 运行时 ABI 中已无 `ContentItem` / `ContentItem.Meta`。
 - `MetaHelpers.cs` 与 `ContentItemExtensions.cs` 已删除。
@@ -14,8 +14,12 @@
 - 协议 routed page payload 不再暴露 `Meta`，host 代码也已移除旧 `Meta` 命名。
 - 协议 invocation / handshake 默认 schema version 已提升到 `2`，after-build negotiation 不再回退 v1。
 - `seo audit` / `geo audit` 默认报告发现路径以 `.bukit/seo-report.json` 为首选，不再回退到根目录 `seo-report.json`。
+- `.trae/specs/compliance-hardening-vnext/` 已补齐 spec、tasks、checklist。
+- 生产程序集不再通过 `InternalsVisibleTo` 暴露给其他生产程序集；CLI 需要的 Engine 能力已改为显式 public API。
+- 生产 `src/**/*.cs` 中已无空 `catch {}` 命中。
+- 依赖矩阵与 IVT allowlist 已由 architecture tests 覆盖。
 
-本复审不宣称整个仓库所有历史技术债都已清零；它只覆盖本轮 vNext Meta cleanup 的合规性。
+本复审不宣称整个仓库所有历史技术债都已清零；测试 teardown 中仍有历史空 `catch` 写法，本轮清理范围是生产代码与发布/构建路径。
 
 ## 本轮验证
 
@@ -23,13 +27,19 @@
 
 ```bash
 dotnet build bukit.slnx -p:UseSharedCompilation=false -m:1 --no-restore
+dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -p:UseSharedCompilation=false --no-restore --no-build
 dotnet test bukit.slnx -p:UseSharedCompilation=false -m:1 --no-restore --no-build
+rg -n "catch\\s*(\\([^)]*\\))?\\s*\\{\\s*\\}" src -g '*.cs' -g '!bin' -g '!obj'
+rg -n "InternalsVisibleTo" src tests -g '*.cs' -g '*.csproj' -g '!bin' -g '!obj' -g '!lscache'
 ```
 
 结果：
 
 - Build 通过。
-- Test 通过。
+- Architecture tests 通过：12 passed。
+- Full test suite 通过：3435 passed。
+- 生产空 `catch` 扫描无命中。
+- IVT 扫描仅保留测试程序集/benchmark 目标，未发现生产程序集目标。
 
 建议在提交前再跑一次全量门禁：
 
@@ -37,7 +47,7 @@ dotnet test bukit.slnx -p:UseSharedCompilation=false -m:1 --no-restore --no-buil
 bash scripts/quality-gate.sh
 ```
 
-本轮没有重新执行该脚本，因此 full quality gate 仍标为“待最终确认”。
+本轮没有重新执行该脚本，因此 quality-gate shell wrapper 仍标为“待最终确认”；编译、架构测试与完整 dotnet test 已通过。
 
 ## 关键证据
 
@@ -92,6 +102,16 @@ bash scripts/quality-gate.sh
 - 新增 SEO 测试覆盖默认忽略根目录 `seo-report.json`。
 - 新增 GEO 测试覆盖默认忽略根目录 `seo-report.json`。
 
+### Compliance hardening
+
+- 新增 `.trae/specs/compliance-hardening-vnext/spec.md`、`tasks.md`、`checklist.md`，让本轮治理有可追踪规范。
+- 移除 `Bukit.Engine -> Bukit.Cli/bukit`、`Bukit.Engine.Abstractions -> Bukit.Engine/bukit`、`Bukit.Shared -> Bukit.Content` 等生产 `InternalsVisibleTo` 目标。
+- 删除空壳 `src/Bukit.Engine.Abstractions/InternalsVisibleTo.cs`。
+- 将 CLI 真实需要的 Engine 表面改为显式 public API：`BuildPathUtils`、`DefaultContentProviderFactory`、`ThemeBootstrapper`、`ThemeTemplateResolver`、`TemplateCapabilitiesResolver`、`ScribanTemplateLinter` 及其必要 DTO。
+- 收紧 `DependencyMatrixTests.InternalsVisibleTo_MustOnlyExposeTo_TestAssemblies`，allowlist 不再包含生产程序集。
+- 替换生产代码中的空 `catch {}`：build manifest cleanup、dev response handling、theme install/pack cleanup、theme pack YAML parse、template linter。
+- 未做宽泛 project reference 重排；当前依赖矩阵测试无违规，避免无证据的大规模项目引用调整。
+
 ### 文档 cleanup
 
 - vNext plan 状态已更新到 2026-06-07。
@@ -119,11 +139,17 @@ RSS、search、llms、robots 等聚合输出已经读 document-first 数据，�
 
 建议：P3 阶段继续将它们改为纯 `IPublishProjection` 消费者。
 
-### 4. Full quality gate 尚未在本轮复跑
+### 4. 测试 teardown 中仍有历史空 catch
 
-`dotnet build` 和 `dotnet test` 已通过，但 `scripts/quality-gate.sh` 未在本轮复跑。
+生产 `src` 已清零；测试项目里仍有大量临时目录清理用的 `catch {}`。
 
-建议：提交前运行完整门禁并把结果写入 PR 描述。
+建议：若要把空 `catch` 治理扩展到测试代码，单独做一轮 test utility cleanup，把临时目录删除封装为 shared helper。
+
+### 5. Full quality gate wrapper 尚未在本轮复跑
+
+`dotnet build`、architecture tests 和 full `dotnet test` 已通过，但 `scripts/quality-gate.sh` 未在本轮复跑。
+
+建议：提交前运行完整门禁脚本并把结果写入 PR 描述。
 
 ## 当前判定
 
@@ -132,4 +158,8 @@ RSS、search、llms、robots 等聚合输出已经读 document-first 数据，�
 - Protocol v2-only after-build negotiation: **PASS**
 - vNext content type shape hardening: **PASS**
 - Root `seo-report.json` automatic fallback removal: **PASS**
-- Full repository compliance beyond this scope: **PARTIAL / requires separate audit**
+- `.trae/specs` compliance hardening: **PASS**
+- Production `InternalsVisibleTo` hardening: **PASS**
+- Production empty `catch` cleanup: **PASS**
+- Dependency matrix tests: **PASS**
+- Full repository compliance beyond this scope: **PARTIAL / tests cleanup and quality-gate wrapper remain separate follow-ups**

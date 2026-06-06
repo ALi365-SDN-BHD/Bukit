@@ -6,7 +6,7 @@ using Bukit.Theme;
 
 namespace Bukit.Engine;
 
-internal sealed record ThemeBootstrapResult(
+public sealed record ThemeBootstrapResult(
     string? ThemeName,
     string? ThemeRoot,
     string? ParentThemeRoot,
@@ -15,9 +15,9 @@ internal sealed record ThemeBootstrapResult(
     SectionSchemaValidator? SchemaValidator,
     IReadOnlyDictionary<string, ISectionPlugin>? SectionPlugins);
 
-internal static class ThemeBootstrapper
+public static class ThemeBootstrapper
 {
-    internal static ThemeBootstrapResult Bootstrap(AppConfig config, string rootDir, ILogger log)
+    public static ThemeBootstrapResult Bootstrap(AppConfig config, string rootDir, ILogger log)
     {
         return Bootstrap(config, rootDir, log,
             ThemePathResolver.Resolve(rootDir, config.Theme, log));

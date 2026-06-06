@@ -82,11 +82,42 @@ internal sealed class DevRequestHandler
         catch (Exception ex)
         {
             _logger.Warn($"dev.request: {ex.Message}");
-            try { context.Response.StatusCode = 500; } catch { }
+            TrySetStatusCode(context.Response, 500);
         }
         finally
         {
-            try { context.Response.Close(); } catch { }
+            CloseResponseBestEffort(context.Response);
+        }
+    }
+
+    private void TrySetStatusCode(HttpListenerResponse response, int statusCode)
+    {
+        try
+        {
+            response.StatusCode = statusCode;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            _logger.Warn($"dev.response_status_skipped: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.Warn($"dev.response_status_skipped: {ex.Message}");
+        }
+    }
+
+    private void CloseResponseBestEffort(HttpListenerResponse response)
+    {
+        try
+        {
+            response.Close();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.Warn($"dev.response_close_skipped: {ex.Message}");
         }
     }
 

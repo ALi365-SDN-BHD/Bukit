@@ -119,7 +119,7 @@ public static class ThemeInstallCommand
             }
             finally
             {
-                try { File.Delete(tempFile); } catch { }
+                DeleteFileBestEffort(tempFile);
             }
         }
         catch (HttpRequestException ex)
@@ -156,7 +156,7 @@ public static class ThemeInstallCommand
             }
             finally
             {
-                try { File.Delete(tempFile); } catch { }
+                DeleteFileBestEffort(tempFile);
             }
         }
         catch (HttpRequestException ex)
@@ -233,9 +233,41 @@ public static class ThemeInstallCommand
         var themeDest = ResolveThemeDestination(themesDir, themeName);
         var result = InstallExtractedDir(tmpDir, themeDest, force, themeName);
 
-        try { Directory.Delete(tmpDir, recursive: true); } catch { }
+        DeleteDirectoryBestEffort(tmpDir);
 
         return result;
+    }
+
+    private static void DeleteFileBestEffort(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException ex)
+        {
+            Console.Error.WriteLine($"Warning: failed to delete temporary file '{path}': {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.Error.WriteLine($"Warning: failed to delete temporary file '{path}': {ex.Message}");
+        }
+    }
+
+    private static void DeleteDirectoryBestEffort(string path)
+    {
+        try
+        {
+            Directory.Delete(path, recursive: true);
+        }
+        catch (IOException ex)
+        {
+            Console.Error.WriteLine($"Warning: failed to delete temporary directory '{path}': {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.Error.WriteLine($"Warning: failed to delete temporary directory '{path}': {ex.Message}");
+        }
     }
 
     private static string ResolveThemeDestination(string themesDir, string themeName)

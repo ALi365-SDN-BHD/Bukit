@@ -172,7 +172,7 @@ public class DependencyMatrixTests
     // ── InternalsVisibleTo guard ──────────────────────────────────
 
     [Fact]
-    public void InternalsVisibleTo_MustOnlyExposeTo_TestOrSiblingAssemblies()
+    public void InternalsVisibleTo_MustOnlyExposeTo_TestAssemblies()
     {
         var allowedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -186,11 +186,7 @@ public class DependencyMatrixTests
             "Bukit.Shared.Tests",
             "Bukit.Theme.Tests",
             "Bukit.Architecture.Tests",
-            "Bukit.Theme.Benchmarks",
-            "Bukit.Engine",
-            "Bukit.Content",
-            "Bukit.Cli",
-            "bukit"
+            "Bukit.Theme.Benchmarks"
         };
 
         var allAssemblies = new[]

@@ -2,9 +2,9 @@ using System.Text.Json;
 
 namespace Bukit.Engine.Abstractions.Plugins.Protocol;
 
-internal static class JsonElementMaterializer
+public static class JsonElementMaterializer
 {
-    internal static object? Materialize(object? value)
+    public static object? Materialize(object? value)
     {
         if (value is JsonElement element)
         {
@@ -25,7 +25,7 @@ internal static class JsonElementMaterializer
         return value;
     }
 
-    internal static IReadOnlyDictionary<string, object>? Materialize(IReadOnlyDictionary<string, object>? dict)
+    public static IReadOnlyDictionary<string, object>? Materialize(IReadOnlyDictionary<string, object>? dict)
     {
         if (dict is null)
         {

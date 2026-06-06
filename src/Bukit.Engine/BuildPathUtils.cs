@@ -8,14 +8,14 @@ using Bukit.Shared;
 
 namespace Bukit.Engine;
 
-internal static class BuildPathUtils
+public static class BuildPathUtils
 {
-    internal static string MakeAbsolute(string rootDir, string path)
+    public static string MakeAbsolute(string rootDir, string path)
     {
         return MakeAbsolute(rootDir, path, enforceWithinRoot: false);
     }
 
-    internal static string MakeAbsolute(string rootDir, string path, bool enforceWithinRoot)
+    public static string MakeAbsolute(string rootDir, string path, bool enforceWithinRoot)
     {
         ArgumentNullException.ThrowIfNull(path);
 
@@ -46,7 +46,7 @@ internal static class BuildPathUtils
         return resolved;
     }
 
-    internal static string NormalizeBaseUrl(string baseUrl)
+    public static string NormalizeBaseUrl(string baseUrl)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
@@ -67,12 +67,12 @@ internal static class BuildPathUtils
         return trimmed;
     }
 
-    internal static string NormalizeRelPath(string path)
+    public static string NormalizeRelPath(string path)
     {
         return path.Replace('\\', '/');
     }
 
-    internal static string SanitizeFileSegment(string value)
+    public static string SanitizeFileSegment(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -84,7 +84,7 @@ internal static class BuildPathUtils
         return new string(chars);
     }
 
-    internal static string EscapeHtml(string text)
+    public static string EscapeHtml(string text)
     {
         return text
             .Replace("&", "&amp;", StringComparison.Ordinal)
@@ -94,7 +94,7 @@ internal static class BuildPathUtils
             .Replace("'", "&#39;", StringComparison.Ordinal);
     }
 
-    internal static (string LayoutsDir, string AssetsDir, string StaticDir, string? ParentLayoutsDir, string? ParentAssetsDir, string? ParentStaticDir, string? UserLayoutsDir) ResolveThemeDirectories(string rootDir, ThemeConfig theme, string? resolvedThemeRoot = null)
+    public static (string LayoutsDir, string AssetsDir, string StaticDir, string? ParentLayoutsDir, string? ParentAssetsDir, string? ParentStaticDir, string? UserLayoutsDir) ResolveThemeDirectories(string rootDir, ThemeConfig theme, string? resolvedThemeRoot = null)
     {
         var (childLayouts, childAssets, childStatic) = ResolveThemeDirInternal(rootDir, theme, resolvedThemeRoot);
 

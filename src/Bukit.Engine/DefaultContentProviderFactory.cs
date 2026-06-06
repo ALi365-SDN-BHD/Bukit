@@ -5,7 +5,7 @@ using Bukit.Shared;
 
 namespace Bukit.Engine;
 
-internal sealed class DefaultContentProviderFactory : IContentProviderFactory
+public sealed class DefaultContentProviderFactory : IContentProviderFactory
 {
     public IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger)
         => ContentProviderFactory.Create(config, rootDir, isCi, logger);
