@@ -91,4 +91,24 @@ public sealed class ContentItemExtensionsTests
 
         Assert.Equal("", result);
     }
+
+    [Fact]
+    public void GetTextValues_FieldStringList_ReturnsStructuredValues()
+    {
+        var item = new ContentItem(
+            Id: "test-id",
+            Title: "Test",
+            Slug: "test-slug",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: "<p>content</p>",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["collections"] = new("list", new[] { "news", "featured" })
+            });
+
+        var result = item.GetTextValues("collections");
+
+        Assert.Equal(["news", "featured"], result);
+    }
 }

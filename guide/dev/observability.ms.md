@@ -71,7 +71,8 @@ event=notion.stats requests=1234 throttle_wait_count=56 throttle_wait_ms=7890
 Apabila `build.report.enabled: true` (atau `--ci`), enjin menulis laporan binaan berstruktur ke `dist/.bukit/`:
 
 - `build-report.json` — termasuk `schemaErrorCount` (ralat pengesahan skema kandungan), kiraan halaman/laluan/aset, pemasaan, dan statistik tokokan.
-- `seo-report.json` — ~40 semakan audit SEO setiap laluan.
+- `publish-audit-report.json` — audit utama kebolehbacaan mesin dan kepercayaan, meliputi HTML semantik, asal-usul, status semakan, liputan representation, dan konsistensi output agregat.
+- `seo-report.json` — semakan audit SEO keserasian setiap laluan.
 - `geo-report.json` — Skor GEO dan kesediaan perangkak LLM.
 
 Laporan ini direka untuk integrasi CI/CD, papan pemuka pemantauan, dan penggunaan ejen AI.

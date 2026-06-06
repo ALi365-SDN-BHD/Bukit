@@ -199,6 +199,27 @@ public sealed class I18nOutputMergerTests
     }
 
     [Fact]
+    public void FilterItemsByLanguage_UsesStructuredLanguageField()
+    {
+        var item = new ContentItem(
+            Id: "1",
+            Title: "Structured",
+            Slug: "structured",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: "<p>hi</p>",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["language"] = new("text", "ms-MY")
+            });
+
+        var result = I18nOutputMerger.FilterItemsByLanguage(new[] { item }, "ms-my", "en");
+
+        Assert.Single(result);
+        Assert.Equal("1", result[0].Id);
+    }
+
+    [Fact]
     public void FilterItemsByLanguage_LanguageMismatch_Excludes()
     {
         var item = CreateItem("1", "zh-CN");

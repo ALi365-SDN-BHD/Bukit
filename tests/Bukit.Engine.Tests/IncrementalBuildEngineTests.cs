@@ -142,6 +142,23 @@ public sealed class IncrementalBuildEngineTests
     }
 
     [Fact]
+    public void ComputeMetadataHash_DifferentStructuredSummary_ProducesDifferentHash()
+    {
+        var item1 = CreateItem(fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["summary"] = new("text", "Summary A")
+        });
+        var item2 = CreateItem(fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["summary"] = new("text", "Summary B")
+        });
+
+        Assert.NotEqual(
+            IncrementalBuildEngine.ComputeMetadataHash(item1),
+            IncrementalBuildEngine.ComputeMetadataHash(item2));
+    }
+
+    [Fact]
     public void ComputeMetadataHash_FieldsParticipateInHash()
     {
         var item1 = CreateItem();

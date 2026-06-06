@@ -143,7 +143,8 @@ event=notion.stats requests=1234 throttle_wait_count=56 throttle_wait_ms=7890
 当 `build.report.enabled: true`（或使用 `--ci`）时，引擎将结构化构建报告写入 `dist/.bukit/`：
 
 - `build-report.json` — 包含 `schemaErrorCount`（内容 schema 校验错误数）、页面/路由/资产计数、耗时与增量统计。
-- `seo-report.json` — 每条路由约 40 项 SEO 审计检查。
+- `publish-audit-report.json` — 机器可读与可信发布主审计，覆盖语义 HTML、来源、审核状态、representation 覆盖率与聚合输出一致性。
+- `seo-report.json` — 每条路由的兼容 SEO 审计检查。
 - `geo-report.json` — GEO Score 与 LLM 爬虫就绪度评估。
 
 这些报告设计用于 CI/CD 集成、监控看板与 AI agent 消费。

@@ -286,6 +286,26 @@ public sealed class SiteEngineHelperTests
     }
 
     [Fact]
+    public void GetCollection_WithCollectionField_ReturnsCollectionValue()
+    {
+        var item = new ContentItem(
+            Id: "p1",
+            Title: "Post",
+            Slug: "post",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: "<p>content</p>",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["collection"] = new("text", "knowledge")
+            });
+
+        var result = SeoAlternatesService.GetCollection(item);
+
+        Assert.Equal("knowledge", result);
+    }
+
+    [Fact]
     public void BuildCollectionRules_NullCollections_ReturnsNull()
     {
         var site = new SiteConfig { Name = "t", Title = "t", Collections = null };

@@ -104,6 +104,9 @@ After downloading, place the binary in a PATH directory or the project root.
 | `geo audit` | GEO audit on dist output | `--dir` |
 | `seo audit` | Audit SEO health from build report | `--dir` `--report` `--strict` `--external` |
 | `seo diff` | Compare SEO reports for regression budgets | `--baseline` `--current` `--max-new-errors N` `--max-new-warnings N` `--max-new-issues N` `--fail-on-new-code c1,c2` `--fail-on-route-removed` `--fail-on-indexable-drop` |
+| `publish` | Alias group for publish audit operations | `--dir` `--report` `--strict` |
+| `publish audit` | Audit publish readiness from publish-audit-report.json | `--dir` `--report` `--strict` |
+| `publish diff` | Compare publish audit reports for regression budgets | `--baseline` `--current` `--max-new-errors N` `--max-new-warnings N` `--max-new-issues N` `--fail-on-new-code c1,c2` `--fail-on-route-removed` `--fail-on-indexable-drop` |
 | `data inspect` | List all data modules (Markdown/Notion content + data sources) | `--config` `--site` `--module` |
 | `data dump` | Export data module content as JSON | `--config` `--site` `--format` |
 | `completion` | Generate shell auto-completion script | `<shell>` (bash\|zsh\|fish) |
@@ -397,7 +400,7 @@ bukit intent apply <intent.yaml> [--out <path>]  # Apply intent to generate site
 
 ### seo
 
-Audit and regression-detect traditional SEO health. Reads `seo-report.json` from the output directory.
+Audit and regression-detect traditional SEO health. Reads `.bukit/seo-report.json` from the output directory by default; pass `--report` explicitly to validate another compatible report.
 
 ```
 bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]
@@ -408,8 +411,8 @@ bukit seo diff --baseline <old> --current <new> [--max-new-errors N] [--max-new-
 
 | Option | Default | Description |
 |------|--------|------|
-| `--dir` | `dist` | Output directory containing `seo-report.json` |
-| `--report` | `<dir>/seo-report.json` | Explicit report path |
+| `--dir` | `dist` | Output directory containing `.bukit/seo-report.json` |
+| `--report` | `<dir>/.bukit/seo-report.json` | Explicit report path |
 | `--strict` | off | Treat warnings as errors (exit code 1) |
 | `--external` | off | Live HTTP validation of canonical URLs, links, and images (HEAD first, fallback to GET) |
 
@@ -443,7 +446,7 @@ bukit geo audit [--dir <dir>]
 | `audit` | — | Subcommand (required) |
 | `--dir` | `dist` | Output directory to audit |
 
-Reads `seo-report.json` from the output directory and reports llms.txt/llms-full.txt status, GEO-enhanced routes, schema types, GEO Score, and geo.* diagnostic issues. Requires a full `bukit build` first.
+Reads generated audit reports from the output directory and reports llms.txt/llms-full.txt status, GEO-enhanced routes, schema types, GEO Score, and geo.* diagnostic issues. Requires a full `bukit build` first. Use `bukit publish audit` for the broader machine-readability and trust gate.
 
 Exit codes: 0 = success, 1 = report or directory not found, 1 = invalid report JSON.
 

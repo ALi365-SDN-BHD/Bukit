@@ -1,9 +1,8 @@
 using Xunit;
 using Bukit.Theme;
-using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
-using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+
 namespace Bukit.Theme.Tests;
 
 public sealed class SectionDataResolverTests
@@ -182,6 +181,34 @@ public sealed class SectionDataResolverTests
         var result = SectionDataResolver.Resolve(sectionDef, items);
         Assert.Equal(2, result.Count);
         Assert.All(result, r => Assert.Equal("post", r.Item.Meta["type"]));
+    }
+
+    [Fact]
+    public void Resolve_TypePrefixWorksWithStructuredTypeField()
+    {
+        var item = new ContentItem(
+            "a",
+            "A",
+            "a",
+            new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            null,
+            new Dictionary<string, object>(),
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "post")
+            });
+        var items = MakePages((item, "/a/"));
+
+        var sectionDef = new PageSectionDefinition
+        {
+            Type = "hero",
+            Source = "type:post"
+        };
+
+        var result = SectionDataResolver.Resolve(sectionDef, items);
+
+        Assert.Single(result);
+        Assert.Equal("A", result[0].Item.Title);
     }
 
     [Fact]

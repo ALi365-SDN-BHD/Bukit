@@ -1,6 +1,7 @@
 using System.Text;
 
 namespace Bukit.Shared.Notion;
+
 public static class HtmlToNotionBlockConverter
 {
     public static string ToBlocksJson(string html)

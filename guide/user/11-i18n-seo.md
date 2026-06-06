@@ -409,7 +409,7 @@ The **GEO Score** (0–100) measures your site's readiness for AI search engines
 - Speakable markup (5 pts)
 - Multi-route GEO coverage (5 pts)
 
-Diagnostic codes (`geo.*`) appear in both build logs and `seo-report.json`:
+Diagnostic codes (`geo.*`) appear in build logs, the publish audit report, and SEO/GEO compatibility reports:
 - `geo.faq_empty_question` / `geo.faq_empty_answer`
 - `geo.howto_step_empty_name` / `geo.howto_step_empty_text`
 - `geo.citation_url_invalid`
@@ -418,9 +418,19 @@ Diagnostic codes (`geo.*`) appear in both build logs and `seo-report.json`:
 - `geo.schema_type_missing`
 - `geo.llms_txt_missing`
 
+### Publish Audit Report (`publish-audit-report.json`)
+
+After every build, Bukit writes `.bukit/publish-audit-report.json`. This is the primary machine-readability and trust report for semantic HTML, visible content, provenance, review status, entity metadata, and representation coverage.
+
+```bash
+bukit publish audit --dir dist
+bukit publish audit --dir dist --strict
+bukit publish diff --baseline previous/.bukit/publish-audit-report.json --current dist/.bukit/publish-audit-report.json
+```
+
 ### SEO Audit Report (`seo-report.json`)
 
-After every build, Bukit writes `seo-report.json` to the output directory. This structured JSON report contains:
+Bukit also writes `.bukit/seo-report.json` for traditional SEO compatibility. This structured JSON report contains:
 
 - **Route inventory** — every route with its title, description, canonical URL, robots status, sitemap/search/RSS inclusion, schema types, and hreflang alternates
 - **Issue list** — each issue has a severity (`error`/`warning`), error code, affected route, and description

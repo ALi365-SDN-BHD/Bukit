@@ -88,7 +88,7 @@ GEO Front Matter 在内容加载期间通过 `SeoModelBuilder` 解析。Front Ma
 
 实现：`src/Bukit.Cli/Commands/GeoCommand.cs`
 
-读取 `seo-report.json`（由 `bukit build` 生成）并计算：
+读取构建审计产物（主要是 `.bukit/publish-audit-report.json`，以及作为 SEO 兼容视图的 `.bukit/seo-report.json`）并计算：
 
 ### GEO 评分（0–100）
 
@@ -152,7 +152,7 @@ robots.txt 规则生成逻辑：
 | `bukit build` | 构建并生成 GEO 产物 | （读取 site.seo.geo 配置） |
 | `bukit geo audit` | 审计现有 dist 的 GEO 就绪度 | `--dir <path>` |
 
-GEO 审计从构建输出目录读取 `seo-report.json`。不需要重新构建。
+GEO 审计从构建输出目录读取已生成的审计报告。不需要重新构建；更完整的机器可读与可信发布门禁请使用 `bukit publish audit`。
 
 ## 文件输出
 

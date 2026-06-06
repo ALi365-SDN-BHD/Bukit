@@ -55,6 +55,20 @@ public static class JsonFeedGenerator
                 writer.WriteString("summary", post.Description);
             }
 
+            if (!string.IsNullOrWhiteSpace(post.Language))
+            {
+                writer.WriteString("language", post.Language);
+            }
+
+            if (!string.IsNullOrWhiteSpace(post.Author))
+            {
+                writer.WriteStartArray("authors");
+                writer.WriteStartObject();
+                writer.WriteString("name", post.Author);
+                writer.WriteEndObject();
+                writer.WriteEndArray();
+            }
+
             if (post.Categories is { Count: > 0 })
             {
                 writer.WriteStartArray("tags");
@@ -70,6 +84,31 @@ public static class JsonFeedGenerator
                 writer.WriteString("content_html", post.ContentHtml);
             }
 
+            if (HasBukitExtension(post))
+            {
+                writer.WriteStartObject("_bukit");
+                if (post.Entities is { Count: > 0 })
+                {
+                    writer.WriteStartArray("entities");
+                    foreach (var entity in post.Entities)
+                    {
+                        writer.WriteStringValue(entity);
+                    }
+                    writer.WriteEndArray();
+                }
+
+                if (!string.IsNullOrWhiteSpace(post.Source))
+                {
+                    writer.WriteString("source", post.Source);
+                }
+
+                if (!string.IsNullOrWhiteSpace(post.ReviewStatus))
+                {
+                    writer.WriteString("reviewStatus", post.ReviewStatus);
+                }
+                writer.WriteEndObject();
+            }
+
             writer.WriteEndObject();
         }
 
@@ -77,4 +116,9 @@ public static class JsonFeedGenerator
         writer.WriteEndObject();
         writer.Flush();
     }
+
+    private static bool HasBukitExtension(RssGenerator.Post post)
+        => post.Entities is { Count: > 0 } ||
+           !string.IsNullOrWhiteSpace(post.Source) ||
+           !string.IsNullOrWhiteSpace(post.ReviewStatus);
 }

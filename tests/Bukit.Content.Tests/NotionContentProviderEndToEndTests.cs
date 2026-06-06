@@ -485,8 +485,11 @@ public sealed class NotionContentProviderEndToEndTests
 
         Assert.Contains("<p>Alpha", body.Html);
         var summary = Assert.IsType<string>(item.Meta["summary"]);
+        Assert.NotNull(item.Fields);
         Assert.StartsWith("Alpha beta & gamma text that should stop", summary);
         Assert.True(summary.Length <= 42);
+        Assert.True(item.Fields!.ContainsKey("summary"));
+        Assert.Equal(summary, item.Fields["summary"].Value);
     }
 
     [Fact]

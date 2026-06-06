@@ -182,4 +182,28 @@ public sealed class CollectionWarningStageTests
 
         Assert.NotEmpty(logger.Warnings);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_FieldOnlyTypeWithoutCollection_EmitsWarning()
+    {
+        var logger = new TestLogger();
+        var item = new ContentItem(
+            Id: "field-post",
+            Title: "Field Post",
+            Slug: "field-post",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: "<p>hi</p>",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "post")
+            });
+        var stage = new CollectionWarningStage();
+        var input = CreateInput(new[] { item }, logger);
+
+        await stage.ExecuteAsync(input, CancellationToken.None);
+
+        Assert.Single(logger.Warnings);
+        Assert.Contains("type=post", logger.Warnings[0], StringComparison.Ordinal);
+    }
 }

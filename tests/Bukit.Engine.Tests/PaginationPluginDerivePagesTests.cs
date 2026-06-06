@@ -209,6 +209,42 @@ public sealed class PaginationPluginDerivePagesTests
     }
 
     [Fact]
+    public void DerivePages_UsesStructuredCollectionAndSummary()
+    {
+        var publish = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var routed = Enumerable.Range(0, 12)
+            .Select(i =>
+            {
+                var item = new ContentItem(
+                    Id: $"post-{i}",
+                    Title: $"Post {i}",
+                    Slug: $"post-{i}",
+                    PublishAt: publish.AddDays(i),
+                    ContentHtml: $"<p>content {i}</p>",
+                    Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["type"] = "post"
+                    },
+                    Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["collection"] = new("text", "post"),
+                        ["summary"] = new("text", $"Canonical summary {i}")
+                    });
+                var route = new RouteInfo($"/blog/post-{i}/", $"blog/post-{i}/index.html", "pages/post.html");
+                return (item, route);
+            })
+            .ToList();
+        var ctx = CreateContext(routed, pageSize: 5);
+
+        var derived = new PaginationPlugin().DerivePages(ctx);
+
+        var page2 = Assert.Single(derived, x => x.Route.Url == "/blog/page/2/");
+        var items = Assert.IsType<List<object>>(page2.Item.Fields!["items"].Value);
+        var first = Assert.IsType<Dictionary<string, object>>(items[0]);
+        Assert.Equal("Canonical summary 6", first["summary"]);
+    }
+
+    [Fact]
     public void DerivePages_NoPaginationCollection_ReturnsEmpty()
     {
         var routed = Enumerable.Range(0, 5)

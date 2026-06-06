@@ -30,7 +30,7 @@ public sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
         }
 
         var allPosts = RssGenerator.CollectAllPosts(
-            collections, context.Routed, context.BodyStore, context.SeoIndex, siteUrl, context.BaseUrl);
+            collections, context.Routed, context.BodyStore, context.ContentGraph, context.SeoIndex, siteUrl, context.BaseUrl);
 
         GenerateGlobalFeeds(context.OutputDir, siteUrl, context.BaseUrl, context.Config.Site.Title,
             allPosts, formats, limit, feedConfig.Path, context.Config.Site.Description);
@@ -94,7 +94,7 @@ public sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
             var description = cfg.Output.FeedDescription ?? context.Config.Site.Description;
 
             var collectionPosts = RssGenerator.CollectPosts(
-                collections, context.Routed, context.BodyStore, context.SeoIndex, siteUrl, context.BaseUrl, key);
+                collections, context.Routed, context.BodyStore, context.ContentGraph, context.SeoIndex, siteUrl, context.BaseUrl, key);
 
             foreach (var format in formats)
             {

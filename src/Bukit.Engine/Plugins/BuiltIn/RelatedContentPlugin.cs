@@ -37,11 +37,15 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
 
         var threshold = relatedConfig.Threshold;
         var limit = relatedConfig.Limit > 0 ? relatedConfig.Limit : 5;
+        var recordsById = context.ContentGraph.Records
+            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 
         for (var i = 0; i < items.Count; i++)
         {
             var (currentItem, currentRoute) = items[i];
             var related = new List<object>();
+            recordsById.TryGetValue(currentItem.Id, out var currentRecord);
 
             for (var j = 0; j < items.Count; j++)
             {
@@ -51,7 +55,8 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
                 }
 
                 var (otherItem, otherRoute) = items[j];
-                var score = CalculateScore(currentItem, otherItem, indices);
+                recordsById.TryGetValue(otherItem.Id, out var otherRecord);
+                var score = CalculateScore(currentItem, otherItem, currentRecord, otherRecord, indices);
                 if (score >= threshold)
                 {
                     related.Add(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -90,7 +95,12 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
         return Array.Empty<(ContentItem, RouteInfo, DateTimeOffset)>();
     }
 
-    private static int CalculateScore(ContentItem a, ContentItem b, IReadOnlyList<RelatedIndexConfig> indices)
+    private static int CalculateScore(
+        ContentItem a,
+        ContentItem b,
+        ContentRecord? aRecord,
+        ContentRecord? bRecord,
+        IReadOnlyList<RelatedIndexConfig> indices)
     {
         var total = 0;
 
@@ -99,17 +109,17 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
             switch (idx.Name.ToLowerInvariant())
             {
                 case "tags":
-                    total += idx.Weight * CountShared(MetaHelpers.GetStringList(a.Meta, "tags"), MetaHelpers.GetStringList(b.Meta, "tags"));
+                    total += idx.Weight * CountShared(ResolveTags(a, aRecord), ResolveTags(b, bRecord));
                     break;
                 case "categories":
-                    total += idx.Weight * CountShared(MetaHelpers.GetStringList(a.Meta, "categories"), MetaHelpers.GetStringList(b.Meta, "categories"));
+                    total += idx.Weight * CountShared(ResolveCategories(a, aRecord), ResolveCategories(b, bRecord));
                     break;
                 case "keywords":
                     total += idx.Weight * CountShared(MetaHelpers.GetStringList(a.Meta, "keywords"), MetaHelpers.GetStringList(b.Meta, "keywords"));
                     break;
                 case "collection":
-                    var ta = MetaHelpers.GetString(a.Meta, "collection");
-                    var tb = MetaHelpers.GetString(b.Meta, "collection");
+                    var ta = ResolveCollection(a, aRecord);
+                    var tb = ResolveCollection(b, bRecord);
                     if (string.Equals(ta, tb, StringComparison.OrdinalIgnoreCase))
                     {
                         total += idx.Weight;
@@ -117,8 +127,8 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
 
                     break;
                 case "type":
-                    var taType = MetaHelpers.GetString(a.Meta, "type");
-                    var tbType = MetaHelpers.GetString(b.Meta, "type");
+                    var taType = ResolveType(a, aRecord);
+                    var tbType = ResolveType(b, bRecord);
                     if (string.Equals(taType, tbType, StringComparison.OrdinalIgnoreCase))
                     {
                         total += idx.Weight;
@@ -138,6 +148,26 @@ public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
 
         return total;
     }
+
+    private static IReadOnlyList<string>? ResolveTags(ContentItem item, ContentRecord? record)
+        => record?.Classification.Tags is { Count: > 0 } tags
+            ? tags
+            : MetaHelpers.GetStringList(item.Meta, "tags");
+
+    private static IReadOnlyList<string>? ResolveCategories(ContentItem item, ContentRecord? record)
+        => record?.Classification.Sections is { Count: > 0 } categories
+            ? categories
+            : MetaHelpers.GetStringList(item.Meta, "categories");
+
+    private static string? ResolveCollection(ContentItem item, ContentRecord? record)
+        => string.IsNullOrWhiteSpace(record?.Classification.Collection)
+            ? MetaHelpers.GetString(item.Meta, "collection")
+            : record.Classification.Collection;
+
+    private static string? ResolveType(ContentItem item, ContentRecord? record)
+        => string.IsNullOrWhiteSpace(record?.Classification.Type)
+            ? MetaHelpers.GetString(item.Meta, "type")
+            : record.Classification.Type;
 
     private static int CountShared(IReadOnlyList<string>? a, IReadOnlyList<string>? b)
     {

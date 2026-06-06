@@ -67,6 +67,57 @@ public sealed class GeoCommandTests : IDisposable
         Assert.Equal(0, exitCode);
     }
 
+    [Fact]
+    public async Task RunAsync_AuditReadsPublishDocumentsSchemaTypes()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, ".bukit"));
+        WritePublishAuditReport(new[] { "Article", "FAQPage", "WebPage" });
+
+        using var writer = new StringWriter();
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await GeoCommand.RunAsync(CliTestHelper.CreateCommand("geo", new[] { "geo", "audit", "--dir", _root }));
+
+            Assert.Equal(0, exitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        var output = writer.ToString();
+        Assert.Contains("Geo-enhanced routes: 1", output, StringComparison.Ordinal);
+        Assert.Contains("Article", output, StringComparison.Ordinal);
+        Assert.Contains("FAQPage", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_AuditReportsInvalidAuditReportJson()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, ".bukit"));
+        File.WriteAllText(Path.Combine(_root, ".bukit", "publish-audit-report.json"), "{");
+
+        using var writer = new StringWriter();
+        var originalError = Console.Error;
+        Console.SetError(writer);
+        try
+        {
+            var exitCode = await GeoCommand.RunAsync(CliTestHelper.CreateCommand("geo", new[] { "geo", "audit", "--dir", _root }));
+
+            Assert.Equal(1, exitCode);
+        }
+        finally
+        {
+            Console.SetError(originalError);
+        }
+
+        var output = writer.ToString();
+        Assert.Contains("Invalid audit report JSON", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("Invalid SEO report JSON", output, StringComparison.Ordinal);
+    }
+
     private void WriteGeoReport(int geoEnhancedCount, IReadOnlyList<string> geoSchemaTypes,
         bool llmsTxtGenerated, bool llmsFullTxtGenerated, int geoScore)
     {
@@ -122,6 +173,62 @@ public sealed class GeoCommandTests : IDisposable
                 "llmsFullTxtGenerated": {{(llmsFullTxtGenerated ? "true" : "false")}},
                 "geoEnhancedCount": {{geoEnhancedCount}},
                 "geoScore": {{geoScore}}
+              }
+            }
+            """);
+    }
+
+    private void WritePublishAuditReport(IReadOnlyList<string> geoSchemaTypes)
+    {
+        File.WriteAllText(Path.Combine(_root, "llms.txt"), "# Test\n> Description\n\n- [Home](/)\n");
+        File.WriteAllText(Path.Combine(_root, "robots.txt"), "User-agent: *\nAllow: /\n");
+
+        var schemaTypesJson = string.Join(", ", geoSchemaTypes.Select(t => $"\"{t}\""));
+
+        File.WriteAllText(Path.Combine(_root, ".bukit", "publish-audit-report.json"), $$"""
+            {
+              "schema": "https://bukit.dev/schemas/publish-audit-report.v1.json",
+              "schemaVersion": "1.0",
+              "generatedAt": "2026-06-05T00:00:00+00:00",
+              "siteName": "GeoTest",
+              "siteUrl": "https://example.com",
+              "baseUrl": "/",
+              "documents": [
+                {
+                  "routeUrl": "/",
+                  "outputPath": "index.html",
+                  "canonical": "https://example.com/",
+                  "indexable": true,
+                  "lastModified": "2026-06-05T00:00:00+00:00",
+                  "contentType": "post",
+                  "sourceItemId": "post-1",
+                  "title": "Home",
+                  "description": "Home page",
+                  "language": "en",
+                  "author": "Ali",
+                  "organization": "Bukit",
+                  "source": "markdown",
+                  "originalSource": null,
+                  "reviewStatus": "approved",
+                  "entityNames": [ "Bukit" ],
+                  "representationKinds": [ "html", "json", "markdown" ],
+                  "schemaTypes": [ {{schemaTypesJson}} ],
+                  "sitemapIncluded": true,
+                  "searchIncluded": true,
+                  "rssIncluded": true
+                }
+              ],
+              "issues": [],
+              "summary": {
+                "documentCount": 1,
+                "indexableCount": 1,
+                "nonIndexableCount": 0,
+                "errorCount": 0,
+                "warningCount": 0,
+                "publishIssueCount": 0,
+                "machineReadabilityIssueCount": 0,
+                "trustIssueCount": 0,
+                "representationGapCount": 0
               }
             }
             """);

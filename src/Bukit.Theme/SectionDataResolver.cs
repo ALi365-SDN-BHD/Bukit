@@ -41,8 +41,8 @@ public static class SectionDataResolver
     {
         if (sourceSet.Contains("*") || sourceSet.Contains("all")) return true;
 
-        var itemType = GetMetaString(item.Meta, "type");
-        var itemCollections = GetMetaStringList(item.Meta, "collections");
+        var itemType = item.GetContentType();
+        var itemCollections = GetCollections(item);
 
         foreach (var source in sourceSet)
         {
@@ -78,24 +78,16 @@ public static class SectionDataResolver
         return false;
     }
 
-    private static string? GetMetaString(IReadOnlyDictionary<string, object> meta, string key)
+    private static IReadOnlyList<string> GetCollections(ContentItem item)
     {
-        if (meta.TryGetValue(key, out var v) && v is not null) return v.ToString();
-        return null;
-    }
-
-    private static List<string>? GetMetaStringList(IReadOnlyDictionary<string, object> meta, string key)
-    {
-        if (!meta.TryGetValue(key, out var v) || v is null) return null;
-
-        if (v is List<string> stringList) return stringList;
-        if (v is List<object> objList)
+        var collections = item.GetTextValues("collections");
+        if (collections.Count > 0)
         {
-            return objList.Select(o => o.ToString() ?? "").Where(s => !string.IsNullOrEmpty(s)).ToList();
+            return collections;
         }
-        if (v is string s) return [s];
 
-        return null;
+        var collection = item.GetCollection();
+        return string.IsNullOrWhiteSpace(collection) ? Array.Empty<string>() : [collection];
     }
 
     private static bool MatchesFilters(ContentItem item, IReadOnlyDictionary<string, object?>? filters)

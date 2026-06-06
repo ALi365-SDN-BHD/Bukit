@@ -11,14 +11,16 @@ internal static class MetaHelpers
 
     internal static string? GetEffectiveCollection(ContentItem item, string? defaultCollection = null)
     {
-        if (item.Meta.TryGetValue("collection", out var c) && c is not null && !string.IsNullOrWhiteSpace(c.ToString()))
+        var collection = item.GetCollection();
+        if (!string.IsNullOrWhiteSpace(collection))
         {
-            return c.ToString();
+            return collection;
         }
 
-        if (item.Meta.TryGetValue("type", out var t) && t is not null && !string.IsNullOrWhiteSpace(t.ToString()))
+        var type = item.GetContentType();
+        if (!string.IsNullOrWhiteSpace(type))
         {
-            return t.ToString();
+            return type;
         }
 
         return defaultCollection;

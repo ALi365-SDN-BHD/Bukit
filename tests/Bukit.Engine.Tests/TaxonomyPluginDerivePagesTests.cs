@@ -17,7 +17,8 @@ public sealed class TaxonomyPluginDerivePagesTests
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         TaxonomyConfig? taxonomyConfig = null,
         string outputMode = "pages",
-        string outputPathEncoding = "none")
+        string outputPathEncoding = "none",
+        CanonicalContentGraph? contentGraph = null)
     {
         var layoutsDir = CreateTaxonomyLayoutsDir();
         return new BuildContext
@@ -37,6 +38,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             BaseUrl = "/",
             LayoutsDir = layoutsDir,
             Routed = routed,
+            ContentGraph = contentGraph ?? CanonicalContentGraph.Empty,
             TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
@@ -251,6 +253,71 @@ public sealed class TaxonomyPluginDerivePagesTests
         Assert.DoesNotContain(derived, x => x.Route.Url.StartsWith("/tags/"));
         Assert.Contains(derived, x => x.Route.Url == "/categories/");
         Assert.Contains(derived, x => x.Route.Url == "/categories/news/");
+    }
+
+    [Fact]
+    public void DerivePages_UsesStructuredTaxonomyAndSummary()
+    {
+        var publishAt = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var item = new ContentItem(
+            Id: "p1",
+            Title: "Post 1",
+            Slug: "p1",
+            PublishAt: publishAt,
+            ContentHtml: "<p>Post 1</p>",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["tags"] = new("list", new object[] { "alpha" }),
+                ["summary"] = new("text", "Canonical taxonomy summary")
+            });
+        var route = new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html");
+        var ctx = CreateContext(new List<(ContentItem Item, RouteInfo Route)> { (item, route) });
+
+        var derived = new TaxonomyPlugin().DerivePages(ctx);
+
+        var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alpha/");
+        var items = Assert.IsType<List<object>>(termPage.Item.Fields!["items"].Value);
+        var first = Assert.IsType<Dictionary<string, object>>(items[0]);
+        Assert.Equal("Canonical taxonomy summary", first["summary"]);
+    }
+
+    [Fact]
+    public void DerivePages_ShouldUseCanonicalGraphTaxonomy_WhenItemHasNoTaxonomyFields()
+    {
+        var publishAt = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var item = new ContentItem(
+            Id: "p1",
+            Title: "Post 1",
+            Slug: "p1",
+            PublishAt: publishAt,
+            ContentHtml: "<p>Post 1</p>",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: null);
+        var route = new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html");
+        var graph = new CanonicalContentGraph(
+        [
+            new ContentRecord(
+                new ContentIdentity("p1", "p1", "p1", "post", "published"),
+                new ContentPresentation("Post 1", "Canonical taxonomy summary", "<p>Post 1</p>", "en", []),
+                new ContentClassification("post", "post", ["Canonical Category"], ["Canonical Tag"]),
+                new ContentOwnership(null, null, null, null),
+                new ContentLifecycle(publishAt, null, null, null),
+                new ProvenanceRecord("markdown", null, [], [], null),
+                new TrustMetadata(null, "published", []),
+                [],
+                [],
+                [])
+        ], []);
+        var ctx = CreateContext(new List<(ContentItem Item, RouteInfo Route)> { (item, route) }, contentGraph: graph);
+
+        var derived = new TaxonomyPlugin().DerivePages(ctx);
+
+        Assert.Contains(derived, x => x.Route.Url == "/tags/canonical-tag/");
+        var categoryPage = Assert.Single(derived, x => x.Route.Url == "/categories/canonical-category/");
+        var items = Assert.IsType<List<object>>(categoryPage.Item.Fields!["items"].Value);
+        var first = Assert.IsType<Dictionary<string, object>>(items[0]);
+        Assert.Equal("Canonical taxonomy summary", first["summary"]);
     }
 
     [Fact]

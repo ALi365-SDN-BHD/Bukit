@@ -80,7 +80,7 @@ public static class RouteGenerator
         result = result.Replace("{month}", item.PublishAt.Month.ToString("D2"), StringComparison.OrdinalIgnoreCase);
         result = result.Replace("{day}", item.PublishAt.Day.ToString("D2"), StringComparison.OrdinalIgnoreCase);
 
-        var typeVal = item.Meta.TryGetValue("type", out var t) && t is not null ? (t.ToString() ?? string.Empty) : string.Empty;
+        var typeVal = item.GetContentType();
         result = result.Replace("{type}", typeVal, StringComparison.OrdinalIgnoreCase);
 
         var collectionVal = item.GetCollection();
@@ -218,12 +218,7 @@ public static class RouteGenerator
 
     private static string GetType(ContentItem item)
     {
-        if (item.Meta.TryGetValue("type", out var v) && v is not null)
-        {
-            return v.ToString() ?? string.Empty;
-        }
-
-        return string.Empty;
+        return item.GetContentType();
     }
 
     private static string GetCollection(ContentItem item)

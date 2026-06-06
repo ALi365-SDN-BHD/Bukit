@@ -112,6 +112,35 @@ public sealed class SpecialListRendererNestedParallelTests
         Assert.All(infos, info => Assert.Equal(string.Empty, info.Content));
     }
 
+    [Fact]
+    public async Task BuildPageInfosAsync_PrefersCanonicalSummaryWhenMetaMissing()
+    {
+        var item = new ContentItem(
+            Id: "id-1",
+            Title: "Item 1",
+            Slug: "item-1",
+            PublishAt: DateTimeOffset.UtcNow,
+            ContentHtml: null,
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["summary"] = new("text", "Canonical list summary")
+            },
+            BodyKey: "body-1");
+        var route = new RouteInfo("/posts/item-1/", "posts/item-1/index.html", "pages/post.html");
+
+        var infos = await SpecialListRenderer.BuildPageInfosAsync(
+            new List<(ContentItem Item, RouteInfo Route)> { (item, route) },
+            new ConcurrencyProbeBodyStore(),
+            includeContent: false,
+            maxDegreeOfParallelism: 1,
+            outerCount: 1,
+            cancellationToken: CancellationToken.None);
+
+        Assert.Single(infos);
+        Assert.Equal("Canonical list summary", infos[0].Summary);
+    }
+
     private static IReadOnlyList<(ContentItem Item, RouteInfo Route)> CreateSource(int count)
     {
         var list = new List<(ContentItem Item, RouteInfo Route)>(count);

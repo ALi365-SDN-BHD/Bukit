@@ -12,13 +12,19 @@ internal static partial class SeoReportValidator
             throw new InvalidDataException("root must be a JSON object.");
         }
 
-        EnsureAllowedProperties(root, "$", "schema", "schemaVersion", "generatedAt", "siteName", "siteUrl", "baseUrl", "routes", "issues", "summary");
-
         var schema = ReadRequiredString(root, "$", "schema");
+        if (string.Equals(schema, "https://bukit.dev/schemas/publish-audit-report.v1.json", StringComparison.Ordinal))
+        {
+            ValidatePublishReportContract(root);
+            return;
+        }
+
         if (!string.Equals(schema, "https://bukit.dev/schemas/seo-report.v1.json", StringComparison.Ordinal))
         {
-            throw new InvalidDataException($"unsupported schema '{schema}'. Expected 'https://bukit.dev/schemas/seo-report.v1.json'.");
+            throw new InvalidDataException($"unsupported schema '{schema}'. Expected 'https://bukit.dev/schemas/seo-report.v1.json' or 'https://bukit.dev/schemas/publish-audit-report.v1.json'.");
         }
+
+        EnsureAllowedProperties(root, "$", "schema", "schemaVersion", "generatedAt", "siteName", "siteUrl", "baseUrl", "routes", "issues", "summary");
 
         var schemaVersion = ReadRequiredString(root, "$", "schemaVersion");
         if (!string.Equals(schemaVersion, "1.0", StringComparison.Ordinal))
@@ -34,7 +40,7 @@ internal static partial class SeoReportValidator
         ReadRequiredString(root, "$", "siteName");
         ReadRequiredString(root, "$", "baseUrl");
         ReadOptionalString(root, "$", "siteUrl");
-        EnsureAllowedProperties(summary, "summary", "routeCount", "indexableCount", "nonIndexableCount", "errorCount", "warningCount", "llmsTxtGenerated", "llmsFullTxtGenerated", "geoEnhancedCount", "geoScore");
+        EnsureAllowedProperties(summary, "summary", "routeCount", "indexableCount", "nonIndexableCount", "errorCount", "warningCount", "llmsTxtGenerated", "llmsFullTxtGenerated", "geoEnhancedCount", "geoScore", "publishIssueCount", "machineReadabilityIssueCount", "trustIssueCount", "representationGapCount");
         ReadRequiredInt(summary, "summary", "routeCount");
         ReadRequiredInt(summary, "summary", "indexableCount");
         ReadRequiredInt(summary, "summary", "nonIndexableCount");
@@ -44,13 +50,17 @@ internal static partial class SeoReportValidator
         ReadOptionalBool(summary, "summary", "llmsFullTxtGenerated");
         ReadOptionalInt(summary, "summary", "geoEnhancedCount");
         ReadOptionalInt(summary, "summary", "geoScore");
+        ReadOptionalInt(summary, "summary", "publishIssueCount");
+        ReadOptionalInt(summary, "summary", "machineReadabilityIssueCount");
+        ReadOptionalInt(summary, "summary", "trustIssueCount");
+        ReadOptionalInt(summary, "summary", "representationGapCount");
 
         var routeIndex = 0;
         foreach (var route in routes.EnumerateArray())
         {
             var path = $"routes[{routeIndex}]";
             EnsureObject(route, path);
-            EnsureAllowedProperties(route, path, "url", "outputPath", "title", "description", "canonical", "robots", "indexable", "lastModified", "contentType", "sourceItemId", "sitemapIncluded", "searchIncluded", "rssIncluded", "alternates", "schemaTypes");
+            EnsureAllowedProperties(route, path, "url", "outputPath", "title", "description", "canonical", "robots", "indexable", "lastModified", "contentType", "sourceItemId", "sitemapIncluded", "searchIncluded", "rssIncluded", "alternates", "schemaTypes", "language", "author", "organization", "source", "originalSource", "reviewStatus", "entityNames", "representationKinds");
             ReadRequiredString(route, path, "url");
             ReadRequiredString(route, path, "outputPath");
             ReadOptionalString(route, path, "title");
@@ -64,6 +74,12 @@ internal static partial class SeoReportValidator
             ReadRequiredBool(route, path, "sitemapIncluded");
             ReadRequiredBool(route, path, "searchIncluded");
             ReadRequiredBool(route, path, "rssIncluded");
+            ReadOptionalString(route, path, "language");
+            ReadOptionalString(route, path, "author");
+            ReadOptionalString(route, path, "organization");
+            ReadOptionalString(route, path, "source");
+            ReadOptionalString(route, path, "originalSource");
+            ReadOptionalString(route, path, "reviewStatus");
             var alternates = ReadRequiredArray(route, path, "alternates");
             var altIndex = 0;
             foreach (var alternate in alternates.EnumerateArray())
@@ -88,9 +104,87 @@ internal static partial class SeoReportValidator
                 schemaTypeIndex++;
             }
 
+            ReadOptionalStringArray(route, path, "entityNames");
+            ReadOptionalStringArray(route, path, "representationKinds");
+
             routeIndex++;
         }
 
+        ValidateIssues(issues);
+    }
+
+    private static void ValidatePublishReportContract(JsonElement root)
+    {
+        EnsureAllowedProperties(root, "$", "schema", "schemaVersion", "generatedAt", "siteName", "siteUrl", "baseUrl", "documents", "issues", "summary");
+
+        var schemaVersion = ReadRequiredString(root, "$", "schemaVersion");
+        if (!string.Equals(schemaVersion, "1.0", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException($"unsupported schemaVersion '{schemaVersion}'. Expected '1.0'.");
+        }
+
+        var documents = ReadRequiredArray(root, "$", "documents");
+        var issues = ReadRequiredArray(root, "$", "issues");
+        var summary = ReadRequiredObject(root, "$", "summary");
+
+        ReadRequiredString(root, "$", "generatedAt");
+        ReadRequiredString(root, "$", "siteName");
+        ReadRequiredString(root, "$", "baseUrl");
+        ReadOptionalString(root, "$", "siteUrl");
+        EnsureAllowedProperties(summary, "summary", "documentCount", "indexableCount", "nonIndexableCount", "errorCount", "warningCount", "publishIssueCount", "machineReadabilityIssueCount", "trustIssueCount", "representationGapCount");
+        ReadRequiredInt(summary, "summary", "documentCount");
+        ReadRequiredInt(summary, "summary", "indexableCount");
+        ReadRequiredInt(summary, "summary", "nonIndexableCount");
+        ReadRequiredInt(summary, "summary", "errorCount");
+        ReadRequiredInt(summary, "summary", "warningCount");
+        ReadOptionalInt(summary, "summary", "publishIssueCount");
+        ReadOptionalInt(summary, "summary", "machineReadabilityIssueCount");
+        ReadOptionalInt(summary, "summary", "trustIssueCount");
+        ReadOptionalInt(summary, "summary", "representationGapCount");
+
+        var documentIndex = 0;
+        foreach (var document in documents.EnumerateArray())
+        {
+            var path = $"documents[{documentIndex}]";
+            EnsureObject(document, path);
+            EnsureAllowedProperties(document, path, "routeUrl", "outputPath", "canonical", "indexable", "lastModified", "contentType", "sourceItemId", "title", "description", "language", "author", "organization", "source", "originalSource", "reviewStatus", "summary", "updatedAt", "sourceReferences", "entityNames", "entitySummaries", "representationKinds", "schemaTypes", "structuredDataTypes", "semanticOutline", "sitemapIncluded", "searchIncluded", "rssIncluded", "jsonFeedIncluded", "manifestIncluded");
+            ReadRequiredString(document, path, "routeUrl");
+            ReadRequiredString(document, path, "outputPath");
+            ReadRequiredString(document, path, "canonical");
+            ReadRequiredBool(document, path, "indexable");
+            ReadRequiredString(document, path, "lastModified");
+            ReadOptionalString(document, path, "contentType");
+            ReadOptionalString(document, path, "sourceItemId");
+            ReadOptionalString(document, path, "title");
+            ReadOptionalString(document, path, "description");
+            ReadOptionalString(document, path, "language");
+            ReadOptionalString(document, path, "author");
+            ReadOptionalString(document, path, "organization");
+            ReadOptionalString(document, path, "source");
+            ReadOptionalString(document, path, "originalSource");
+            ReadOptionalString(document, path, "reviewStatus");
+            ReadOptionalString(document, path, "summary");
+            ReadOptionalString(document, path, "updatedAt");
+            ReadOptionalStringArray(document, path, "sourceReferences");
+            ReadOptionalStringArray(document, path, "entityNames");
+            ReadOptionalEntitySummaries(document, path, "entitySummaries");
+            ReadOptionalStringArray(document, path, "representationKinds");
+            ReadOptionalStringArray(document, path, "schemaTypes");
+            ReadOptionalStringArray(document, path, "structuredDataTypes");
+            ReadOptionalSemanticOutline(document, path, "semanticOutline");
+            ReadRequiredBool(document, path, "sitemapIncluded");
+            ReadRequiredBool(document, path, "searchIncluded");
+            ReadRequiredBool(document, path, "rssIncluded");
+            ReadOptionalBool(document, path, "jsonFeedIncluded");
+            ReadOptionalBool(document, path, "manifestIncluded");
+            documentIndex++;
+        }
+
+        ValidateIssues(issues);
+    }
+
+    private static void ValidateIssues(JsonElement issues)
+    {
         var issueIndex = 0;
         foreach (var issue in issues.EnumerateArray())
         {
@@ -192,6 +286,18 @@ internal static partial class SeoReportValidator
         }
     }
 
+    internal static int? TryReadOptionalInt(JsonElement element, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        return value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var result)
+            ? result
+            : null;
+    }
+
     internal static bool ReadRequiredBool(JsonElement element, string path, string property)
     {
         if (!element.TryGetProperty(property, out var value) ||
@@ -213,6 +319,79 @@ internal static partial class SeoReportValidator
         if (value.ValueKind != JsonValueKind.True && value.ValueKind != JsonValueKind.False)
         {
             throw new InvalidDataException($"{path}.{property} must be a boolean.");
+        }
+    }
+
+    internal static void ReadOptionalStringArray(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException($"{path}.{property} must be an array or null.");
+        }
+
+        var index = 0;
+        foreach (var item in value.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String)
+            {
+                throw new InvalidDataException($"{path}.{property}[{index}] must be a string.");
+            }
+
+            index++;
+        }
+    }
+
+    private static void ReadOptionalEntitySummaries(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException($"{path}.{property} must be an array.");
+        }
+
+        var index = 0;
+        foreach (var item in value.EnumerateArray())
+        {
+            var itemPath = $"{path}.{property}[{index}]";
+            EnsureObject(item, itemPath);
+            EnsureAllowedProperties(item, itemPath, "type", "name", "description");
+            ReadRequiredString(item, itemPath, "type");
+            ReadRequiredString(item, itemPath, "name");
+            ReadOptionalString(item, itemPath, "description");
+            index++;
+        }
+    }
+
+    private static void ReadOptionalSemanticOutline(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException($"{path}.{property} must be an array.");
+        }
+
+        var index = 0;
+        foreach (var item in value.EnumerateArray())
+        {
+            var itemPath = $"{path}.{property}[{index}]";
+            EnsureObject(item, itemPath);
+            EnsureAllowedProperties(item, itemPath, "level", "text");
+            ReadRequiredInt(item, itemPath, "level");
+            ReadRequiredString(item, itemPath, "text");
+            index++;
         }
     }
 
@@ -267,10 +446,21 @@ internal static partial class SeoReportValidator
         public static SeoReportSnapshot From(JsonElement root)
         {
             var routes = new Dictionary<string, SeoRouteSnapshot>(StringComparer.OrdinalIgnoreCase);
-            foreach (var route in root.GetProperty("routes").EnumerateArray())
+            if (root.TryGetProperty("documents", out var documents))
             {
-                var url = ReadRequiredString(route, "route", "url");
-                routes[url] = new SeoRouteSnapshot(url, ReadRequiredBool(route, "route", "indexable"));
+                foreach (var document in documents.EnumerateArray())
+                {
+                    var url = ReadRequiredString(document, "document", "routeUrl");
+                    routes[url] = new SeoRouteSnapshot(url, ReadRequiredBool(document, "document", "indexable"));
+                }
+            }
+            else
+            {
+                foreach (var route in root.GetProperty("routes").EnumerateArray())
+                {
+                    var url = ReadRequiredString(route, "route", "url");
+                    routes[url] = new SeoRouteSnapshot(url, ReadRequiredBool(route, "route", "indexable"));
+                }
             }
 
             var issues = root.GetProperty("issues").EnumerateArray()

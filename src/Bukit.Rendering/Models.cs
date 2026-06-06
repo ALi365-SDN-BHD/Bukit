@@ -34,6 +34,11 @@ public sealed record PageInfo
     public DateTimeOffset? PublishDate { get; init; }
     public IReadOnlyDictionary<string, ContentField>? Fields { get; init; }
     public SeoModel? Seo { get; init; }
+    public ContentRecord? ContentRecord { get; init; }
+    public IReadOnlyList<EntityRecord>? Entities { get; init; }
+    public ProvenanceRecord? Provenance { get; init; }
+    public TrustMetadata? Trust { get; init; }
+    public IReadOnlyList<string>? Representations { get; init; }
 }
 
 public sealed record AnalyticsModel

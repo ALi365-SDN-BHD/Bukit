@@ -176,6 +176,31 @@ public sealed class MarkdownFieldBuilderTests
     }
 
     [Fact]
+    public void BuildFields_ShouldPreserveCanonicalProvenanceAndTrustFields_WhenPresentInFrontMatter()
+    {
+        var meta = new Dictionary<string, object>
+        {
+            ["source"] = "markdown",
+            ["original_url"] = "https://example.com/source",
+            ["review_status"] = "approved",
+            ["credibility_score"] = 0.95,
+            ["quality_flags"] = new[] { "reviewed" }
+        };
+
+        var result = MarkdownFieldBuilder.BuildFields(meta);
+
+        Assert.Equal("text", result["source"].Type);
+        Assert.Equal("markdown", result["source"].Value);
+        Assert.Equal("text", result["original_url"].Type);
+        Assert.Equal("https://example.com/source", result["original_url"].Value);
+        Assert.Equal("text", result["review_status"].Type);
+        Assert.Equal("approved", result["review_status"].Value);
+        Assert.Equal("number", result["credibility_score"].Type);
+        Assert.Equal(0.95, result["credibility_score"].Value);
+        Assert.Equal("list", result["quality_flags"].Type);
+    }
+
+    [Fact]
     public void TryParseDateTimeOffset_ValidDate_ReturnsTrue()
     {
         Assert.True(MarkdownFieldBuilder.TryParseDateTimeOffset("2026-01-15", out var dto));

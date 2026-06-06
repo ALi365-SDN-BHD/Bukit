@@ -3,6 +3,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using System.Text.Json;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -260,5 +261,94 @@ public sealed class SearchIndexBuilderTests
         var result = SearchIndexBuilder.BuildItemMap([(item, route)]);
 
         Assert.True(result.ContainsKey("pages/x/index.html"));
+    }
+
+    [Fact]
+    public void WriteSearchItem_EmitsCanonicalContentMetadata()
+    {
+        var item = new ContentItem(
+            Id: "search-1",
+            Title: "Search Post",
+            Slug: "search-post",
+            PublishAt: DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
+            ContentHtml: "<p>Body</p>",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "post",
+                ["summary"] = "Search summary",
+                ["language"] = "en",
+                ["source"] = "notion",
+                ["review_status"] = "approved",
+                ["tags"] = new[] { "bukit" },
+                ["entities"] = new object[]
+                {
+                    new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["type"] = "company",
+                        ["name"] = "Bukit"
+                    }
+                }
+            });
+        var route = new RouteInfo("/search-post/", "search-post/index.html", "pages/post.html");
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            SearchIndexBuilder.WriteSearchItem(writer, item, route, "/", new DictionaryContentBodyStore(new Dictionary<string, ContentBody>
+            {
+                ["search-1"] = new("<p>Body</p>")
+            }), emitSnippet: true);
+        }
+
+        using var doc = JsonDocument.Parse(stream.ToArray());
+        Assert.Equal("approved", doc.RootElement.GetProperty("reviewStatus").GetString());
+        Assert.Equal("notion", doc.RootElement.GetProperty("source").GetString());
+        Assert.Equal("post", doc.RootElement.GetProperty("contentType").GetString());
+        Assert.Equal("Bukit", doc.RootElement.GetProperty("entities")[0].GetString());
+    }
+
+    [Fact]
+    public void WriteSearchItem_PrefersCanonicalSummaryClassificationAndLanguage()
+    {
+        var item = new ContentItem(
+            Id: "search-2",
+            Title: "Structured Post",
+            Slug: "structured-post",
+            PublishAt: DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
+            ContentHtml: "<p>Structured body</p>",
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["summary"] = "Legacy summary",
+                ["language"] = "en",
+                ["sourceKey"] = "legacy-source"
+            },
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "guide"),
+                ["summary"] = new("text", "Canonical summary"),
+                ["language"] = new("text", "ms-MY"),
+                ["source"] = new("text", "notion"),
+                ["tags"] = new("list", new object[] { "bukit", "canonical" }),
+                ["categories"] = new("list", new object[] { "docs" })
+            });
+        var route = new RouteInfo("/structured-post/", "structured-post/index.html", "pages/post.html");
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            SearchIndexBuilder.WriteSearchItem(writer, item, route, "/", new DictionaryContentBodyStore(new Dictionary<string, ContentBody>
+            {
+                ["search-2"] = new("<p>Structured body</p>")
+            }), emitSnippet: true);
+        }
+
+        using var doc = JsonDocument.Parse(stream.ToArray());
+        Assert.Equal("Canonical summary", doc.RootElement.GetProperty("summary").GetString());
+        Assert.Equal("Canonical summary", doc.RootElement.GetProperty("snippet").GetString());
+        Assert.Equal("guide", doc.RootElement.GetProperty("type").GetString());
+        Assert.Equal("ms-MY", doc.RootElement.GetProperty("language").GetString());
+        Assert.Equal("notion", doc.RootElement.GetProperty("sourceKey").GetString());
+        Assert.Equal("bukit", doc.RootElement.GetProperty("tags")[0].GetString());
+        Assert.Equal("docs", doc.RootElement.GetProperty("categories")[0].GetString());
     }
 }

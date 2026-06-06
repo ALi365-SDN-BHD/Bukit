@@ -88,7 +88,7 @@ Parsed from content front matter under the `geo:` key. Implementation in `SeoMod
 
 Implementation: `src/Bukit.Cli/Commands/GeoCommand.cs`
 
-Reads `seo-report.json` (produced by `bukit build`) and calculates:
+Reads the build audit artifacts (primarily `.bukit/publish-audit-report.json`, with `.bukit/seo-report.json` as the SEO compatibility view) and calculates:
 
 ### GEO Score (0–100)
 
@@ -152,7 +152,7 @@ robots.txt rule generation logic:
 | `bukit build` | Build with GEO artifact generation | (reads site.seo.geo config) |
 | `bukit geo audit` | Audit existing dist for GEO readiness | `--dir <path>` |
 
-GEO audit reads `seo-report.json` from the build output directory. It does not require a re-build.
+GEO audit reads the generated audit reports from the build output directory. It does not require a re-build; use `bukit publish audit` for the broader machine-readability and trust gate.
 
 ## File Outputs
 

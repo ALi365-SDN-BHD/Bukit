@@ -14,7 +14,7 @@ cleanup() {
 intent_out="examples/starter/.sitegen-smoke-ai-$$.yaml"
 trap cleanup EXIT
 
-dotnet build bukit.slnx -c "$configuration"
+dotnet build bukit.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
 
 dotnet run --project src/Bukit.Cli -c "$configuration" -- doctor --config examples/starter/site.yaml
 dotnet run --project src/Bukit.Cli -c "$configuration" -- build --config examples/starter/site.yaml --output "$smoke_run/dist" --clean --site-url https://example.com --allow-external-plugins

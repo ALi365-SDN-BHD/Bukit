@@ -6,7 +6,7 @@ the Quick Reference table in the CLI reference skill.
 
 Returns exit code 0 if consistent, 1 if discrepancies found.
 """
-import re, os, sys
+import glob, re, os, sys
 
 # --- Configuration ---
 PLANNED_COMMANDS = {
@@ -28,15 +28,18 @@ REF_ALIASES = {'create'}  # 'create' is alias for 'init'
 repo_root = os.environ.get('REPO_ROOT', os.getcwd())
 
 # --- Phase 1: Parse BukitCliSpecs.cs for full command paths ---
-specs_path = os.path.join(repo_root, 'src', 'Bukit.Cli', 'Cli', 'BukitCliSpecs.cs')
+specs_pattern = os.path.join(repo_root, 'src', 'Bukit.Cli', 'Cli', 'BukitCliSpecs*.cs')
+specs_paths = sorted(glob.glob(specs_pattern))
 source_commands = set()
 
-if not os.path.exists(specs_path):
-    print(f'ERROR: {specs_path} not found — cannot verify CLI consistency', file=sys.stderr)
+if not specs_paths:
+    print(f'ERROR: {specs_pattern} not found — cannot verify CLI consistency', file=sys.stderr)
     sys.exit(1)
 
-with open(specs_path) as f:
-    lines = f.readlines()
+lines = []
+for specs_path in specs_paths:
+    with open(specs_path) as f:
+        lines.extend(f.readlines())
 
 parent_name = None
 in_subcommands = 0

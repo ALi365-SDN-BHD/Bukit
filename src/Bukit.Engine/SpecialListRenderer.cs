@@ -160,15 +160,21 @@ internal static class SpecialListRenderer
         {
             for (var i = 0; i < source.Count; i++)
             {
+                var contentRecord = CanonicalContentGraphBuilder.ToRecord(source[i].Item);
                 pageInfos[i] = new PageInfo
                 {
                     Title = source[i].Item.Title,
                     Url = source[i].Route.Url,
                     Content = string.Empty,
-                    Summary = source[i].Item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
+                    Summary = contentRecord.Presentation.Summary ?? source[i].Item.GetSummary(),
                     TableOfContents = GetTableOfContents(source[i].Item),
                     PublishDate = source[i].Item.PublishAt,
                     Fields = source[i].Item.Fields,
+                    ContentRecord = contentRecord,
+                    Entities = contentRecord.Entities,
+                    Provenance = contentRecord.Provenance,
+                    Trust = contentRecord.Trust,
+                    Representations = new[] { "html", "json", "markdown" },
                     Seo = seoBuilder?.Invoke(source[i].Item, source[i].Route)
                 };
             }
@@ -194,15 +200,21 @@ internal static class SpecialListRenderer
                     }
                 }
 
+                var contentRecord = CanonicalContentGraphBuilder.ToRecord(source[i].Item);
                 pageInfos[i] = new PageInfo
                 {
                     Title = source[i].Item.Title,
                     Url = source[i].Route.Url,
                     Content = content,
-                    Summary = source[i].Item.Meta.TryGetValue("summary", out var summary) ? summary?.ToString() : null,
+                    Summary = contentRecord.Presentation.Summary ?? source[i].Item.GetSummary(),
                     TableOfContents = GetTableOfContents(source[i].Item),
                     PublishDate = source[i].Item.PublishAt,
                     Fields = source[i].Item.Fields,
+                    ContentRecord = contentRecord,
+                    Entities = contentRecord.Entities,
+                    Provenance = contentRecord.Provenance,
+                    Trust = contentRecord.Trust,
+                    Representations = new[] { "html", "json", "markdown" },
                     Seo = seoBuilder?.Invoke(source[i].Item, source[i].Route)
                 };
             });
@@ -222,7 +234,8 @@ internal static class SpecialListRenderer
             Title = listRoute.Url == "/" ? siteModel.Title : BuildListTitle(listRoute.Url),
             Url = listRoute.Url,
             Content = string.Empty,
-            Summary = BuildListSummary(siteModel, listRoute)
+            Summary = BuildListSummary(siteModel, listRoute),
+            Representations = new[] { "html", "json", "markdown" }
         };
     }
 

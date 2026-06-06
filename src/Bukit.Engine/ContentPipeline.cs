@@ -11,7 +11,8 @@ public sealed record ContentPipelineResult(
     IReadOnlyList<ContentItem> Items,
     IContentBodyStore BodyStore,
     IReadOnlyList<ContentSchemaValidator.SchemaValidationError> SchemaErrors,
-    BodyCacheMetrics? BodyCacheMetrics = null);
+    BodyCacheMetrics? BodyCacheMetrics = null,
+    CanonicalContentGraph? ContentGraph = null);
 
 public sealed class ContentPipeline
 {
@@ -94,10 +95,23 @@ public sealed class ContentPipeline
             }
         }
 
+        var contentGraph = CanonicalContentGraphBuilder.Build(currentItems);
+        var canonicalErrors = CanonicalContentValidator.Validate(contentGraph);
+        if (canonicalErrors.Count > 0)
+        {
+            allSchemaErrors ??= new List<ContentSchemaValidator.SchemaValidationError>();
+            allSchemaErrors.AddRange(canonicalErrors);
+            foreach (var error in canonicalErrors)
+            {
+                _logger.Warn($"event=canonical.validation code={error.Code} field={error.Field} source={error.SourcePath} message={error.Message}");
+            }
+        }
+
         return new ContentPipelineResult(
             currentItems,
             currentBodyStore,
             (IReadOnlyList<ContentSchemaValidator.SchemaValidationError>?)allSchemaErrors ?? Array.Empty<ContentSchemaValidator.SchemaValidationError>(),
-            bodyCache?.Metrics);
+            bodyCache?.Metrics,
+            contentGraph);
     }
 }

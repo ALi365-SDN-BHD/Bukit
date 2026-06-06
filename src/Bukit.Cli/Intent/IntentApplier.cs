@@ -277,6 +277,11 @@ public static class IntentApplier
             {
                 Permalink = "/pages/{slug}/",
                 ListRoute = "/pages/"
+            },
+            ["about"] = new()
+            {
+                Permalink = "/{slug}/",
+                Template = "pages/page.html"
             }
         };
     }

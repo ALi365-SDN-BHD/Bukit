@@ -50,14 +50,16 @@ internal static class SearchIndexBuilder
         IContentBodyStore bodyStore,
         bool emitSnippet)
     {
+        var record = CanonicalContentGraphBuilder.ToRecord(item);
+
         writer.WriteStartObject();
         writer.WriteString("id", item.Id);
-        writer.WriteString("title", item.Title);
+        writer.WriteString("title", record.Presentation.Title);
         writer.WriteString("url", NormalizeSearchUrl(baseUrl, route.Url));
 
-        if (item.Meta.TryGetValue("summary", out var summary) && summary is not null)
+        if (!string.IsNullOrWhiteSpace(record.Presentation.Summary))
         {
-            writer.WriteString("summary", summary.ToString());
+            writer.WriteString("summary", record.Presentation.Summary);
         }
 
 #pragma warning disable CS0618
@@ -71,15 +73,17 @@ internal static class SearchIndexBuilder
         writer.WriteString("content", text);
         if (emitSnippet)
         {
-            writer.WriteString("snippet", BuildSnippet(item, text));
+            writer.WriteString("snippet", BuildSnippet(item, record, text));
         }
-        writer.WriteString("type", MetaHelpers.GetString(item.Meta, "type"));
+        writer.WriteString("type", record.Classification.Type);
+        writer.WriteString("contentType", record.Identity.ContentType);
+        writer.WriteString("source", record.Provenance.Source);
+        writer.WriteString("reviewStatus", record.Trust.ReviewStatus);
 
-        var tags = MetaHelpers.GetStringList(item.Meta, "tags");
-        if (tags is not null)
+        if (record.Classification.Tags.Count > 0)
         {
             writer.WriteStartArray("tags");
-            foreach (var t in tags)
+            foreach (var t in record.Classification.Tags)
             {
                 writer.WriteStringValue(t);
             }
@@ -87,11 +91,10 @@ internal static class SearchIndexBuilder
             writer.WriteEndArray();
         }
 
-        var categories = MetaHelpers.GetStringList(item.Meta, "categories");
-        if (categories is not null)
+        if (record.Classification.Sections.Count > 0)
         {
             writer.WriteStartArray("categories");
-            foreach (var c in categories)
+            foreach (var c in record.Classification.Sections)
             {
                 writer.WriteStringValue(c);
             }
@@ -99,9 +102,16 @@ internal static class SearchIndexBuilder
             writer.WriteEndArray();
         }
 
-        writer.WriteString("language", MetaHelpers.GetString(item.Meta, "language"));
-        writer.WriteString("sourceKey", MetaHelpers.GetString(item.Meta, "sourceKey") ?? MetaHelpers.GetString(item.Meta, "source"));
-        writer.WriteString("publishAt", item.PublishAt.ToString("O"));
+        writer.WriteString("language", record.Presentation.Language);
+        writer.WriteString("sourceKey", record.Provenance.Source ?? MetaHelpers.GetString(item.Meta, "sourceKey") ?? MetaHelpers.GetString(item.Meta, "source"));
+        writer.WriteString("publishAt", record.Lifecycle.PublishedAt.ToString("O"));
+
+        writer.WriteStartArray("entities");
+        foreach (var entity in record.Entities)
+        {
+            writer.WriteStringValue(entity.Name);
+        }
+        writer.WriteEndArray();
         writer.WriteEndObject();
     }
 
@@ -157,11 +167,11 @@ internal static class SearchIndexBuilder
         return b + u;
     }
 
-    private static string BuildSnippet(ContentItem item, string text)
+    private static string BuildSnippet(ContentItem item, ContentRecord record, string text)
     {
-        if (item.Meta.TryGetValue("summary", out var summary) && summary is not null)
+        if (!string.IsNullOrWhiteSpace(record.Presentation.Summary))
         {
-            return summary.ToString() ?? string.Empty;
+            return record.Presentation.Summary;
         }
 
         return text.Length > 280 ? text[..280] : text;

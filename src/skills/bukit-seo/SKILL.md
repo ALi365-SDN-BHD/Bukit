@@ -18,7 +18,7 @@ guide_chapters:
 
 ## Overview
 
-Bukit SEO covers the full traditional search engine optimization pipeline — **configuration** (`site.seo` with 5 sub-nodes), **two rendering modes** (engine inject vs theme responsible), **content Front Matter** (priority fallback chain), **6 Schema.org JSON-LD types**, **build-time diagnostics** (11 codes), **post-build audit** (~40 codes in `seo-report.json`), and **CLI audit/diff** commands with CI/CD regression gating.
+Bukit SEO covers the traditional search engine optimization pipeline — **configuration** (`site.seo` with 5 sub-nodes), **two rendering modes** (engine inject vs theme responsible), **content Front Matter** (priority fallback chain), **6 Schema.org JSON-LD types**, **build-time diagnostics** (11 codes), compatibility `seo-report.json`, and **CLI audit/diff** commands with CI/CD regression gating. For machine readability, provenance, trust, and representation coverage, use `bukit publish audit`.
 
 **REQUIRED BACKGROUND:** SEO config lives under `site.seo` in site.yaml — you must understand the config model in bukit-config first. GEO features live under `site.seo.geo` — see bukit-geo.
 **REQUIRED SUB-SKILL:** Build sites with `bukit build`, audit with `bukit seo audit`. CLI commands reference bukit-cli-reference.
@@ -220,7 +220,7 @@ Collection/list pages with field items generate `ItemList` JSON-LD with `itemLis
 
 ## SEO Audit
 
-Run `bukit seo audit` after a full build to check SEO health. It reads `dist/.bukit/seo-report.json` (new standard location). The legacy path `dist/seo-report.json` is still supported as a fallback for backward compatibility.
+Run `bukit seo audit` after a full build to check traditional SEO health. It reads `dist/.bukit/seo-report.json` by default. The legacy path `dist/seo-report.json` is still supported as a fallback for backward compatibility. Use `bukit publish audit` for the primary machine-readability and trust report.
 
 ```
 bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]

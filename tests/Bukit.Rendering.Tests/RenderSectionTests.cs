@@ -356,6 +356,56 @@ public sealed class RenderSectionTests : IDisposable
     }
 
     [Fact]
+    public void RenderSection_WithDataBinding_UsesStructuredSummary()
+    {
+        File.WriteAllText(Path.Combine(_layoutsDir, "sections", "hero", "hero.html"),
+            """
+            <section class="hero">
+              {{ for item in items }}
+              <div class="item">{{ item.title }}|{{ item.summary }}</div>
+              {{ end }}
+            </section>
+            """);
+
+        var json = "[{\"type\":\"hero\",\"source\":\"posts\",\"limit\":1}]";
+
+        File.WriteAllText(Path.Combine(_layoutsDir, "pages", "page.html"),
+            "{{ render_section '" + json + "' }}");
+
+        var manifest = new ThemeManifestV2
+        {
+            Name = "test",
+            Version = "1.0.0",
+            Sections = new()
+            {
+                ["hero"] = new() { Template = "sections/hero/hero.html" }
+            }
+        };
+
+        var allPages = new List<(ContentItem, RouteInfo?)>
+        {
+            (new ContentItem("post1", "First Post", "first-post", DateTimeOffset.UtcNow, null,
+                new Dictionary<string, object> { ["type"] = "posts" },
+                new Dictionary<string, ContentField> { ["summary"] = new("text", "Canonical section summary") }), null)
+        };
+
+        var registry = new ThemeComponentRegistry(_themeDir, manifest, null);
+        var renderer = new ScribanTemplateRenderer(
+            _layoutsDir, null, null, null, null,
+            registry, null, null, "off", allPages);
+
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Test", Content = "", Url = "/test/" }
+        };
+
+        var result = renderer.RenderPage("pages/page.html", model);
+
+        Assert.Contains("Canonical section summary", result);
+    }
+
+    [Fact]
     public void RenderSection_NoSource_NoItemsInjected()
     {
         File.WriteAllText(Path.Combine(_layoutsDir, "sections", "hero", "hero.html"),

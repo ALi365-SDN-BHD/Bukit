@@ -91,4 +91,36 @@ public sealed class ThemeTemplateResolverTests
         Assert.Contains("No theme template matches", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("articles", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void ResolveContentTemplate_MatchesStructuredTypeAndCollection()
+    {
+        var manifest = new ThemeManifestV2
+        {
+            Templates = new Dictionary<string, ThemeTemplateDefinition>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["article"] = new()
+                {
+                    Template = "content/article.html",
+                    Accepts = new ThemeTemplateAccept { Type = "post", Collection = "articles" }
+                }
+            }
+        };
+        var item = new ContentItem(
+            "1",
+            "Hello",
+            "hello",
+            DateTimeOffset.UnixEpoch,
+            "<p>Hello</p>",
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "post"),
+                ["collection"] = new("text", "articles")
+            });
+
+        var template = new ThemeTemplateResolver(manifest).ResolveContentTemplate(item);
+
+        Assert.Equal("content/article.html", template);
+    }
 }

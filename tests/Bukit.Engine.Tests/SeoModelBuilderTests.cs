@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using System.Text.Json;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -126,6 +127,47 @@ public sealed class SeoModelBuilderTests
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
 
         Assert.Equal("Custom desc", model.Description);
+    }
+
+    [Fact]
+    public void BuildForContent_PrefersCanonicalFieldsForSummaryTagsAndLanguage()
+    {
+        var config = CreateConfig();
+        var item = new ContentItem(
+            Id: "p1",
+            Title: "Canonical",
+            Slug: "canonical",
+            PublishAt: DateTimeOffset.Parse("2026-06-05T10:00:00Z"),
+            ContentHtml: null,
+            Meta: new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["summary"] = "Legacy summary",
+                ["author"] = "Legacy Author",
+                ["tags"] = new[] { "legacy-tag" },
+                ["language"] = "zh-CN"
+            },
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["summary"] = new("text", "Canonical summary"),
+                ["author"] = new("text", "Canonical Author"),
+                ["tags"] = new("list", new object[] { "canonical-tag", "canonical-second" }),
+                ["language"] = new("text", "ms-MY")
+            });
+        var route = new RouteInfo("/posts/canonical/", "posts/canonical/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("Canonical summary", model.Description);
+        Assert.Equal("Canonical Author", model.Article.Author);
+        Assert.Equal(new[] { "canonical-tag", "canonical-second" }, model.Article.Tags);
+
+        var articleJson = model.JsonLd
+            .Select(static json => JsonDocument.Parse(json))
+            .First(doc => doc.RootElement.TryGetProperty("@type", out var type) &&
+                          type.GetString() == "BlogPosting");
+        Assert.Equal("ms-MY", articleJson.RootElement.GetProperty("inLanguage").GetString());
+        Assert.Equal("canonical-tag", articleJson.RootElement.GetProperty("keywords")[0].GetString());
     }
 
     [Fact]

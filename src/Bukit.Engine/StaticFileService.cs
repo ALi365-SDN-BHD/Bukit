@@ -57,7 +57,8 @@ internal static class StaticFileService
                 Title = title,
                 Url = url,
                 Content = htmlContent,
-                Summary = siteModel.Description
+                Summary = siteModel.Description,
+                Representations = new[] { "html" }
             };
 
             var pageModel = new PageModel

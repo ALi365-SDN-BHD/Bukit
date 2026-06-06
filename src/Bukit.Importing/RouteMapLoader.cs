@@ -52,11 +52,11 @@ internal static class RouteMapLoader
 
                 var page = new RouteMapPage
                 {
-                    Source      = ReadString(item, "source"),
-                    Route       = ReadString(item, "route"),
-                    Type        = ReadString(item, "type"),
-                    Template    = ReadString(item, "template"),
-                    Slug        = ReadOptionalString(item, "slug"),
+                    Source = ReadString(item, "source"),
+                    Route = ReadString(item, "route"),
+                    Type = ReadString(item, "type"),
+                    Template = ReadString(item, "template"),
+                    Slug = ReadOptionalString(item, "slug"),
                     Description = ReadOptionalString(item, "description")
                 };
 

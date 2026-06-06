@@ -1,0 +1,274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/publish-audit-report.v1.json",
+  "title": "Bukit Publish Audit Report",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "generatedAt", "siteName", "baseUrl", "documents", "issues", "summary"],
+  "properties": {
+    "schema": {
+      "const": "https://bukit.dev/schemas/publish-audit-report.v1.json"
+    },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "siteName": {
+      "type": "string"
+    },
+    "siteUrl": {
+      "type": ["string", "null"]
+    },
+    "baseUrl": {
+      "type": "string"
+    },
+    "documents": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/document"
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "document": {
+      "type": "object",
+      "required": [
+        "routeUrl",
+        "outputPath",
+        "canonical",
+        "indexable",
+        "lastModified",
+        "entityNames",
+        "sourceReferences",
+        "entitySummaries",
+        "representationKinds",
+        "schemaTypes",
+        "structuredDataTypes",
+        "semanticOutline",
+        "sitemapIncluded",
+        "searchIncluded",
+        "rssIncluded",
+        "jsonFeedIncluded",
+        "manifestIncluded"
+      ],
+      "properties": {
+        "routeUrl": {
+          "type": "string"
+        },
+        "outputPath": {
+          "type": "string"
+        },
+        "canonical": {
+          "type": "string"
+        },
+        "indexable": {
+          "type": "boolean"
+        },
+        "lastModified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "contentType": {
+          "type": ["string", "null"]
+        },
+        "sourceItemId": {
+          "type": ["string", "null"]
+        },
+        "title": {
+          "type": ["string", "null"]
+        },
+        "description": {
+          "type": ["string", "null"]
+        },
+        "language": {
+          "type": ["string", "null"]
+        },
+        "author": {
+          "type": ["string", "null"]
+        },
+        "organization": {
+          "type": ["string", "null"]
+        },
+        "source": {
+          "type": ["string", "null"]
+        },
+        "originalSource": {
+          "type": ["string", "null"]
+        },
+        "reviewStatus": {
+          "type": ["string", "null"]
+        },
+        "summary": {
+          "type": ["string", "null"]
+        },
+        "updatedAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "sourceReferences": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "entityNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "entitySummaries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entitySummary"
+          }
+        },
+        "representationKinds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schemaTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "structuredDataTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "semanticOutline": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semanticOutlineItem"
+          }
+        },
+        "sitemapIncluded": {
+          "type": "boolean"
+        },
+        "searchIncluded": {
+          "type": "boolean"
+        },
+        "rssIncluded": {
+          "type": "boolean"
+        },
+        "jsonFeedIncluded": {
+          "type": "boolean"
+        },
+        "manifestIncluded": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "entitySummary": {
+      "type": "object",
+      "required": ["type", "name"],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "semanticOutlineItem": {
+      "type": "object",
+      "required": ["level", "text"],
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "issue": {
+      "type": "object",
+      "required": ["severity", "code", "message"],
+      "properties": {
+        "severity": {
+          "enum": ["error", "warning"]
+        },
+        "code": {
+          "type": "string"
+        },
+        "route": {
+          "type": ["string", "null"]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": ["documentCount", "indexableCount", "nonIndexableCount", "errorCount", "warningCount"],
+      "properties": {
+        "documentCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "indexableCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "nonIndexableCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "errorCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warningCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "publishIssueCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "machineReadabilityIssueCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "trustIssueCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "representationGapCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -37,12 +37,9 @@ public static class RouteCommand
 
             var (route, routeSource) = RouteInventoryValidator.GenerateRouteWithSource(item, config.Site);
 
-            var collection = item.Meta.TryGetValue("collection", out var c) && c is not null
-                ? c.ToString() : null;
-            var type = item.Meta.TryGetValue("type", out var t) && t is not null
-                ? t.ToString() : null;
-            var language = item.Meta.TryGetValue("language", out var l) && l is not null
-                ? l.ToString() : null;
+            var collection = NullIfEmpty(item.GetCollection());
+            var type = NullIfEmpty(item.GetContentType());
+            var language = item.GetTextValue("language");
 
             entries.Add(new RouteInspectEntry(
                 route.Url,
@@ -116,5 +113,10 @@ public static class RouteCommand
         writer.WriteEndArray();
         writer.Flush();
         Console.WriteLine(Encoding.UTF8.GetString(stream.ToArray()));
+    }
+
+    private static string? NullIfEmpty(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 }

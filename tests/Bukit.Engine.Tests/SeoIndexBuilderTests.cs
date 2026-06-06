@@ -148,6 +148,33 @@ public sealed class SeoIndexBuilderTests
     }
 
     [Fact]
+    public void Build_PrefersCanonicalCollectionFromFields()
+    {
+        var config = CreateConfig();
+        var routed = new (ContentItem, RouteInfo)[]
+        {
+            (new ContentItem(
+                Id: "post-1",
+                Title: "Post",
+                Slug: "post",
+                PublishAt: DateTimeOffset.UtcNow,
+                ContentHtml: null,
+                Meta: new Dictionary<string, object>(),
+                Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["type"] = new("text", "post"),
+                    ["collection"] = new("text", "knowledge")
+                }),
+             new RouteInfo("/knowledge/post/", "knowledge/post/index.html", "pages/post.html"))
+        };
+
+        var result = SeoIndexBuilder.Build(config, "/", routed, Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+
+        var entry = result.Entries["knowledge/post/index.html"];
+        Assert.Equal("knowledge", entry.ContentType);
+    }
+
+    [Fact]
     public void Build_EntryHasLastModified()
     {
         var config = CreateConfig();

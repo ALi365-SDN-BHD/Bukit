@@ -15,26 +15,31 @@ internal static class SeoModelBuilder
         RouteInfo route,
         IReadOnlyList<SeoAlternateModel>? alternates = null)
     {
+        var record = CanonicalContentGraphBuilder.ToRecord(item);
         var title = FirstTextOrMeta(item, "seo_title") ?? FirstTextOrMeta(item, "seotitle") ?? item.Title;
-        var description = FirstTextOrMeta(item, "seo_desc") ?? FirstTextOrMeta(item, "seodesc") ?? MetaHelpers.GetString(item.Meta, "summary") ?? config.Site.Description;
+        var description = FirstTextOrMeta(item, "seo_desc") ?? FirstTextOrMeta(item, "seodesc") ?? record.Presentation.Summary ?? config.Site.Description;
         var canonical = FirstTextOrMeta(item, "canonical") ?? BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url);
         var robots = FirstTextOrMeta(item, "robots");
         var image = FirstTextOrMeta(item, "og_image")
             ?? FirstTextOrMeta(item, "cover")
             ?? FirstTextOrMeta(item, "image")
+            ?? record.Media.FirstOrDefault(media => string.Equals(media.Kind, "image", StringComparison.OrdinalIgnoreCase))?.Url
             ?? config.Site.Seo.DefaultImage;
         image = BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, image);
 
         var geo = SeoGeoMetaParser.ParseGeoMeta(item);
         var schemaType = ResolveSchemaType(item, geo);
-        var isArticle = IsArticleSchemaType(schemaType) || IsTruthyMeta(item, "seo_article");
+        var isArticle = IsArticleSchemaType(schemaType)
+                        || IsTruthyMeta(item, "seo_article")
+                        || string.Equals(record.Identity.ContentType, "post", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(record.Classification.Type, "post", StringComparison.OrdinalIgnoreCase);
         schemaType = isArticle && string.IsNullOrWhiteSpace(schemaType) ? "BlogPosting" : schemaType;
         var isStructuredContent = isArticle || IsStructuredContentSchemaType(schemaType);
         var isCollectionPage = !isStructuredContent && IsCollectionLikePage(item);
-        TryGetUpdateTime(item, out var updated);
-        var author = FirstTextOrMeta(item, "author");
-        var tags = GetStringList(item.Meta, "tags") ?? Array.Empty<string>();
-        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, route.Url, item, item.Fields, isStructuredContent, isCollectionPage, geo, schemaType);
+        var updated = record.Lifecycle.UpdatedAt;
+        var author = record.Ownership.Author ?? FirstTextOrMeta(item, "author");
+        var tags = record.Classification.Tags.Count > 0 ? record.Classification.Tags : GetStringList(item.Meta, "tags") ?? Array.Empty<string>();
+        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, route.Url, item, item.Fields, isStructuredContent, isCollectionPage, geo, schemaType, record);
 
         return new SeoModel
         {
@@ -63,8 +68,8 @@ internal static class SeoModelBuilder
             },
             Article = new SeoArticleModel
             {
-                PublishedTime = isArticle ? item.PublishAt : null,
-                ModifiedTime = isArticle && updated != default ? updated : null,
+                PublishedTime = isArticle ? record.Lifecycle.PublishedAt : null,
+                ModifiedTime = isArticle ? updated : null,
                 Author = isArticle ? author : null,
                 Tags = isArticle ? tags : Array.Empty<string>()
             },
@@ -115,7 +120,7 @@ internal static class SeoModelBuilder
                 Site = config.Site.Seo.TwitterSite
             },
             Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
-            JsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, page.Url, item: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: SeoGeoMetaParser.ParsedGeoMeta.Empty, schemaType: null)
+            JsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, page.Url, item: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: SeoGeoMetaParser.ParsedGeoMeta.Empty, schemaType: null, record: null)
         };
     }
 
