@@ -28,7 +28,9 @@ public static class JsonFeedGenerator
         var homeUrl = RssGenerator.BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");
         var channelDescription = string.IsNullOrWhiteSpace(siteDescription) ? siteTitle : siteDescription.Trim();
 
-        using var stream = File.Create(Path.Combine(outputDir, feedFileName));
+        var path = Path.Combine(outputDir, feedFileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using var stream = File.Create(path);
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
 
         writer.WriteStartObject();

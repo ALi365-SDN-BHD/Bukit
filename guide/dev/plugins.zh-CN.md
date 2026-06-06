@@ -1,6 +1,6 @@
 # 插件体系（derive-pages / after-build）
 
-插件是 Bukit 的主要扩展点。它允许在不修改引擎主流程的前提下增加：派生页面、构建后生成附加产物（sitemap/rss/search/taxonomy 等）。
+插件是 Bukit 的主要扩展点。它允许在不修改引擎主流程的前提下增加：派生页面、以及非核心 publish projection 的构建后附加产物。
 
 实现参考：
 - 插件接口：`src/Bukit.Engine.Abstractions/Plugins/*`
@@ -33,7 +33,15 @@
 接口：`IAfterBuildPlugin.AfterBuild(BuildContext)`
 
 作用：
-- 在所有页面渲染完成后，生成附加文件（例如 sitemap.xml、rss.xml、search.json 等）
+- 在所有页面渲染完成后，生成自定义附加文件。核心机器可读产物（sitemap/feed/search/llms/robots/agent-manifest）由 publish projection pipeline 统一生成。
+
+### 3) Publish Projections（发布投影）
+
+接口：`IPublishProjection`
+
+作用：
+- 从同一个 content graph / route inventory 生成 canonical publish representations
+- 内置 aggregate outputs 通过 `PublishRepresentationRegistry` 注册，包括 `sitemap.xml`、RSS/Atom/JSON Feed、`search.json`、`llms.txt`、`llms-full.txt`、`robots.txt`、`agent-manifest.json`
 
 ## 失败策略：site.pluginFailMode
 
@@ -139,14 +147,12 @@ site:
 内置插件当前包括（见 `BuiltInPluginSource`）：
 
 - `taxonomy`：根据 meta.tags/meta.categories 派生 `/tags/` 与 `/categories/`（IDerivePagesPlugin）
-- `sitemap`：生成 sitemap.xml（IAfterBuildPlugin）
-- `rss`：生成 rss.xml（IAfterBuildPlugin）
-- `search-index`：生成 search.json 等（IAfterBuildPlugin）
 - `pagination`：分页类派生/输出（视实现）
 - `archive`：归档类派生/输出（视实现）
 
 说明：
 - 具体输出策略与文件名以各插件实现为准：`src/Bukit.Engine/Plugins/BuiltIn/*`
+- sitemap/feed/search/llms/robots/agent-manifest 的默认 owner 是 publish projection adapter，不是 after-build 插件。
 - 输出契约与多语言边界的汇总见 [内置插件（BuiltIn）产物与边界](./built-in-plugins.zh-CN.md)。
 
 ## 插件开发建议（契约优先）

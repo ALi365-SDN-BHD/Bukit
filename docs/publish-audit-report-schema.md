@@ -36,8 +36,10 @@ Each document represents one final published route:
 
 - `routeUrl`, `outputPath`, `canonical`, `indexable`, and `lastModified` identify the route.
 - `title`, `description`, `summary`, `language`, `author`, `organization`, `source`, `originalSource`, `sourceReferences`, `reviewStatus`, and `updatedAt` expose trust and provenance metadata.
-- `entityNames`, `entitySummaries`, `representationKinds`, `schemaTypes`, `structuredDataTypes`, and `semanticOutline` expose machine-readable discovery data.
-- `sitemapIncluded`, `searchIncluded`, `rssIncluded`, `jsonFeedIncluded`, and `manifestIncluded` show whether aggregate outputs include the route.
+- `entityNames`, `entitySummaries`, `representationKinds`, `representations`, `schemaTypes`, `structuredDataTypes`, and `semanticOutline` expose machine-readable discovery data.
+- `representations[]` records each representation `kind`, public `url`, output `path`, whether it was `generated`, and whether it belongs to an indexable document.
+- Document-level representation kinds are `html`, `semantic-html`, `json`, `markdown`, and optional `jsonld`; `semantic-html` points to the same HTML route and means the route participates in semantic HTML audit rules.
+- `sitemapIncluded`, `searchIncluded`, `rssIncluded`, `atomFeedIncluded`, `jsonFeedIncluded`, `llmsIncluded`, `robotsIncluded`, and `manifestIncluded` show whether aggregate outputs or crawler policy files include/apply to the route.
 
 ## Issue Codes
 
@@ -47,8 +49,8 @@ Publish audit issue codes use the `publish.*` prefix. Current checks include:
 - JSON-LD consistency: `publish.jsonld_title_mismatch`, `publish.jsonld_description_mismatch`, `publish.jsonld_author_mismatch`, and `publish.jsonld_date_mismatch`.
 - Trust metadata: `publish.author_missing`, `publish.source_missing`, `publish.source_references_missing`, `publish.review_status_missing`, `publish.updated_at_missing`, and `publish.entity_missing`.
 - Publish document completeness: `publish.summary_missing` and `publish.entity_summary_missing`.
-- Representation coverage: `publish.representation_missing`.
-- Aggregate output compatibility: `publish.sitemap_missing_route`, `publish.search_missing_route`, `publish.rss_missing_route`, `publish.json_feed_missing_route`, `publish.manifest_missing_route`, and `publish.ai_crawler_policy_conflict`.
+- Representation coverage and consistency: `publish.representation_missing`, `publish.representation_file_missing`, `publish.representation_json_mismatch`, `publish.representation_markdown_mismatch`, `publish.representation_json_invalid`, `publish.manifest_mismatch`, and `publish.manifest_invalid`.
+- Aggregate output compatibility: `publish.sitemap_missing_route`, `publish.search_missing_route`, `publish.rss_missing_route`, `publish.atom_feed_missing_route`, `publish.json_feed_missing_route`, `publish.llms_missing_route`, `publish.manifest_missing_route`, and `publish.ai_crawler_policy_conflict`.
 - Content uniqueness and value: `publish.content_duplicate` and `publish.unique_value_missing`.
 
 ## CLI

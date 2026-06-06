@@ -216,8 +216,8 @@ dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj -c Release
 | derive-pages 执行链 | `PluginRunner.RunDerivePages` |
 | after-build 执行链 | `PluginRunner.RunAfterBuild` |
 | 插件可访问的数据 | `BuildContext.cs` |
-| 搜索索引输出 | `SearchIndexPlugin.cs` |
-| sitemap/rss 输出 | `SitemapPlugin.cs` / `RssPlugin.cs` |
+| 搜索索引输出 | `PublishRepresentationRegistry` / `SearchIndexBuilder.cs` |
+| sitemap/rss 输出 | `PublishRepresentationRegistry` / `SitemapGenerator.cs` / `RssGenerator.cs` |
 | taxonomy 输出 | `TaxonomyPlugin.cs` |
 | 调试/报告插件 | `src/plugins/PathReportPlugin/*` |
 

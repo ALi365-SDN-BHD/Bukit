@@ -8,21 +8,62 @@ using Bukit.Engine.Abstractions.Routing;
 
 namespace Bukit.Engine;
 
-internal static class ContentProjectionWriter
+internal interface IContentProjectionWriter
 {
-    internal static void Write(
-        string outputDir,
-        CanonicalContentGraph graph,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> derivedRouted,
-        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
-        IReadOnlyDictionary<string, SeoModel> seoModels)
+    IReadOnlyList<PublishProjectionResult> Write(PublishProjectionContext context);
+}
+
+internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
+{
+    private readonly JsonContentDocumentProjection _jsonProjection;
+    private readonly MarkdownContentDocumentProjection _markdownProjection;
+    private readonly AgentManifestProjection _agentManifestProjection;
+    private readonly IReadOnlyList<IPublishProjection> _aggregateProjections;
+
+    internal DefaultContentProjectionWriter()
+        : this(
+            new JsonContentDocumentProjection(),
+            new MarkdownContentDocumentProjection(),
+            new AgentManifestProjection(),
+            PublishRepresentationRegistry.AggregateProjectionAdapters())
     {
-        var recordsById = graph.Records
+    }
+
+    internal DefaultContentProjectionWriter(
+        JsonContentDocumentProjection jsonProjection,
+        MarkdownContentDocumentProjection markdownProjection,
+        AgentManifestProjection agentManifestProjection,
+        IReadOnlyList<IPublishProjection> aggregateProjections)
+    {
+        _jsonProjection = jsonProjection;
+        _markdownProjection = markdownProjection;
+        _agentManifestProjection = agentManifestProjection;
+        _aggregateProjections = aggregateProjections;
+    }
+
+    public IReadOnlyList<PublishProjectionResult> Write(PublishProjectionContext context)
+    {
+        var results = new List<PublishProjectionResult>
+        {
+            _jsonProjection.Project(context),
+            _markdownProjection.Project(context),
+            _agentManifestProjection.Project(context)
+        };
+        foreach (var projection in _aggregateProjections)
+        {
+            results.Add(projection.Project(context));
+        }
+
+        return results;
+    }
+
+    internal static IReadOnlyList<ContentProjectionDocumentContext> BuildDocumentContexts(PublishProjectionContext context)
+    {
+        var recordsById = context.ContentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
-        var routedAll = routed.Concat(derivedRouted).ToList();
-        var manifestEntries = new List<AgentManifestEntry>();
+        var routedAll = context.Routed.Concat(context.DerivedRouted).ToList();
+        var documentContexts = new List<ContentProjectionDocumentContext>(routedAll.Count);
 
         foreach (var (item, route) in routedAll)
         {
@@ -32,12 +73,34 @@ internal static class ContentProjectionWriter
             }
 
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
-            seoIndex.TryGetValue(key, out var entry);
-            seoModels.TryGetValue(key, out var model);
+            context.SeoIndex.TryGetValue(key, out var entry);
+            context.SeoModels.TryGetValue(key, out var model);
 
-            var outputBase = GetContentProjectionBasePath(outputDir, record);
-            WriteJsonProjection(outputBase + ".json", record, route, entry, model);
-            WriteMarkdownProjection(outputBase + ".md", record, route, entry);
+            var documentContext = new ContentProjectionDocumentContext(
+                context.OutputDir,
+                record,
+                route,
+                entry,
+                model);
+            documentContexts.Add(documentContext);
+        }
+
+        return documentContexts;
+    }
+
+    internal static IReadOnlyList<AgentManifestEntry> BuildAgentManifestEntries(PublishProjectionContext context)
+    {
+        var manifestEntries = new List<AgentManifestEntry>();
+        foreach (var documentContext in BuildDocumentContexts(context))
+        {
+            var record = documentContext.Record;
+            var route = documentContext.Route;
+            var entry = documentContext.SeoIndexEntry;
+            var model = documentContext.SeoModel;
+            if (entry?.Indexable == false)
+            {
+                continue;
+            }
 
             manifestEntries.Add(new AgentManifestEntry(
                 record.Identity.Id,
@@ -47,21 +110,95 @@ internal static class ContentProjectionWriter
                 record.Trust.ReviewStatus,
                 record.Provenance.Source,
                 record.Entities.Select(x => x.Name).ToArray(),
-                new[]
-                {
-                    new RepresentationEntry("html", route.Url),
-                    new RepresentationEntry("json", NormalizeContentProjectionUrl(route.Url, ".json")),
-                    new RepresentationEntry("markdown", NormalizeContentProjectionUrl(route.Url, ".md")),
-                    new RepresentationEntry("jsonld", model?.Canonical ?? entry?.Canonical ?? route.Url)
-                },
+                BuildAgentManifestRepresentationEntries(record, route.Url, entry, model),
                 record.Lifecycle.UpdatedAt ?? record.Lifecycle.PublishedAt));
         }
 
-        WriteAgentManifest(outputDir, manifestEntries);
+        return manifestEntries;
     }
 
-    private static void WriteJsonProjection(string path, ContentRecord record, RouteInfo route, SeoIndexEntry? entry, SeoModel? model)
+    internal static IReadOnlyList<RepresentationEntry> BuildAgentManifestRepresentationEntries(
+        ContentRecord record,
+        string routeUrl,
+        SeoIndexEntry? entry,
+        SeoModel? model)
     {
+        var canonical = model?.Canonical ?? entry?.Canonical ?? routeUrl;
+        return PublishRepresentationRegistry.DocumentRepresentationsFor(includeJsonLd: model?.JsonLd.Count > 0)
+            .Select(representation => representation.Kind switch
+            {
+                "html" => new RepresentationEntry(representation.Kind, routeUrl),
+                "semantic-html" => new RepresentationEntry(representation.Kind, routeUrl),
+                "json" => new RepresentationEntry(representation.Kind, GetContentProjectionUrl(record, ".json")),
+                "markdown" => new RepresentationEntry(representation.Kind, GetContentProjectionUrl(record, ".md")),
+                "jsonld" => new RepresentationEntry(representation.Kind, canonical),
+                _ => new RepresentationEntry(representation.Kind, routeUrl)
+            })
+            .ToArray();
+    }
+
+    internal static string GetContentProjectionBasePath(string outputDir, ContentRecord record)
+    {
+        var fileName = BuildPathUtils.SanitizeFileSegment(record.Identity.Slug);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            fileName = BuildPathUtils.SanitizeFileSegment(record.Identity.Id);
+        }
+
+        return Path.Combine(outputDir, "content", fileName);
+    }
+
+    internal static string GetContentProjectionUrl(ContentRecord record, string extension)
+    {
+        var fileName = BuildPathUtils.SanitizeFileSegment(record.Identity.Slug);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            fileName = BuildPathUtils.SanitizeFileSegment(record.Identity.Id);
+        }
+
+        return $"/content/{fileName}{extension}";
+    }
+
+    internal sealed record AgentManifestEntry(
+        string Id,
+        string CanonicalId,
+        string Route,
+        string Language,
+        string ReviewStatus,
+        string? Source,
+        IReadOnlyList<string> Entities,
+        IReadOnlyList<RepresentationEntry> Representations,
+        DateTimeOffset PublishedAt);
+
+    internal sealed record RepresentationEntry(string Kind, string Url);
+}
+
+internal sealed record ContentProjectionDocumentContext(
+    string OutputDir,
+    ContentRecord Record,
+    RouteInfo Route,
+    SeoIndexEntry? SeoIndexEntry,
+    SeoModel? SeoModel);
+
+internal sealed class JsonContentDocumentProjection : IPublishProjection
+{
+    public PublishRepresentation Representation => PublishRepresentationRegistry.Json;
+
+    public PublishProjectionResult Project(PublishProjectionContext context)
+    {
+        var outputs = DefaultContentProjectionWriter.BuildDocumentContexts(context)
+            .Select(Project)
+            .ToArray();
+        return new PublishProjectionResult(Representation, outputs);
+    }
+
+    internal PublishRepresentationOutput Project(ContentProjectionDocumentContext context)
+    {
+        var record = context.Record;
+        var route = context.Route;
+        var entry = context.SeoIndexEntry;
+        var model = context.SeoModel;
+        var path = DefaultContentProjectionWriter.GetContentProjectionBasePath(context.OutputDir, record) + ".json";
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var projection = new ContentProjectionDocument(
             Id: record.Identity.Id,
@@ -97,10 +234,34 @@ internal static class ContentProjectionWriter
 
         var json = JsonSerializer.Serialize(projection, ContentProjectionJsonContext.Default.ContentProjectionDocument);
         File.WriteAllText(path, json + Environment.NewLine, Encoding.UTF8);
+        var relPath = DefaultContentProjectionWriter.GetContentProjectionUrl(record, ".json").TrimStart('/');
+        return new PublishRepresentationOutput(
+            Representation.Kind,
+            DefaultContentProjectionWriter.GetContentProjectionUrl(record, ".json"),
+            relPath,
+            File.Exists(path),
+            entry?.Indexable != false);
+    }
+}
+
+internal sealed class MarkdownContentDocumentProjection : IPublishProjection
+{
+    public PublishRepresentation Representation => PublishRepresentationRegistry.Markdown;
+
+    public PublishProjectionResult Project(PublishProjectionContext context)
+    {
+        var outputs = DefaultContentProjectionWriter.BuildDocumentContexts(context)
+            .Select(Project)
+            .ToArray();
+        return new PublishProjectionResult(Representation, outputs);
     }
 
-    private static void WriteMarkdownProjection(string path, ContentRecord record, RouteInfo route, SeoIndexEntry? entry)
+    internal PublishRepresentationOutput Project(ContentProjectionDocumentContext context)
     {
+        var record = context.Record;
+        var route = context.Route;
+        var entry = context.SeoIndexEntry;
+        var path = DefaultContentProjectionWriter.GetContentProjectionBasePath(context.OutputDir, record) + ".md";
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var sb = new StringBuilder();
         sb.AppendLine($"# {record.Presentation.Title}");
@@ -145,9 +306,30 @@ internal static class ContentProjectionWriter
         }
 
         File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+        var relPath = DefaultContentProjectionWriter.GetContentProjectionUrl(record, ".md").TrimStart('/');
+        return new PublishRepresentationOutput(
+            Representation.Kind,
+            DefaultContentProjectionWriter.GetContentProjectionUrl(record, ".md"),
+            relPath,
+            File.Exists(path),
+            entry?.Indexable != false);
+    }
+}
+
+internal sealed class AgentManifestProjection : IPublishProjection
+{
+    public PublishRepresentation Representation => PublishRepresentationRegistry.AggregateRepresentations()
+        .Single(x => x.Kind == "agent-manifest");
+
+    public PublishProjectionResult Project(PublishProjectionContext context)
+    {
+        var path = Project(context.OutputDir, DefaultContentProjectionWriter.BuildAgentManifestEntries(context));
+        return new PublishProjectionResult(
+            Representation,
+            [new PublishRepresentationOutput(Representation.Kind, "/" + Representation.Path, Representation.Path, File.Exists(path), Indexable: false)]);
     }
 
-    private static void WriteAgentManifest(string outputDir, IReadOnlyList<AgentManifestEntry> entries)
+    internal string Project(string outputDir, IReadOnlyList<DefaultContentProjectionWriter.AgentManifestEntry> entries)
     {
         var generatedAt = entries.Count == 0
             ? DateTimeOffset.UnixEpoch
@@ -160,39 +342,10 @@ internal static class ContentProjectionWriter
             Documents: orderedEntries);
 
         var json = JsonSerializer.Serialize(manifest, ContentProjectionJsonContext.Default.ContentProjectionAgentManifest);
-        File.WriteAllText(Path.Combine(outputDir, "agent-manifest.json"), json + Environment.NewLine, Encoding.UTF8);
+        var path = Path.Combine(outputDir, "agent-manifest.json");
+        File.WriteAllText(path, json + Environment.NewLine, Encoding.UTF8);
+        return path;
     }
-
-    private static string GetContentProjectionBasePath(string outputDir, ContentRecord record)
-    {
-        var fileName = BuildPathUtils.SanitizeFileSegment(record.Identity.Slug);
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            fileName = BuildPathUtils.SanitizeFileSegment(record.Identity.Id);
-        }
-
-        return Path.Combine(outputDir, "content", fileName);
-    }
-
-    private static string NormalizeContentProjectionUrl(string routeUrl, string extension)
-    {
-        var trimmed = routeUrl.Trim('/');
-        var slug = string.IsNullOrWhiteSpace(trimmed) ? "index" : trimmed.Replace('/', '-');
-        return $"/content/{slug}{extension}";
-    }
-
-    internal sealed record AgentManifestEntry(
-        string Id,
-        string CanonicalId,
-        string Route,
-        string Language,
-        string ReviewStatus,
-        string? Source,
-        IReadOnlyList<string> Entities,
-        IReadOnlyList<RepresentationEntry> Representations,
-        DateTimeOffset PublishedAt);
-
-    internal sealed record RepresentationEntry(string Kind, string Url);
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
@@ -236,4 +389,4 @@ internal sealed record ContentProjectionAgentManifest(
     string Schema,
     string SchemaVersion,
     DateTimeOffset GeneratedAt,
-    IReadOnlyList<ContentProjectionWriter.AgentManifestEntry> Documents);
+    IReadOnlyList<DefaultContentProjectionWriter.AgentManifestEntry> Documents);

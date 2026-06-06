@@ -8,8 +8,14 @@ internal static class SeoCompatibilityAuditRules
         bool searchIncluded,
         bool rssIncluded,
         bool rssExpected,
+        bool atomFeedIncluded,
+        bool atomFeedExpected,
         bool jsonFeedIncluded,
         bool jsonFeedExpected,
+        bool llmsIncluded,
+        bool llmsExpected,
+        bool llmsFullIncluded,
+        bool llmsFullExpected,
         bool manifestIncluded,
         string? robotsText,
         List<SeoAuditIssue> issues)
@@ -34,9 +40,24 @@ internal static class SeoCompatibilityAuditRules
             issues.Add(Warning("publish.rss_missing_route", document.RouteUrl, "RSS-enabled published content is missing from RSS output."));
         }
 
+        if (atomFeedExpected && !atomFeedIncluded)
+        {
+            issues.Add(Warning("publish.atom_feed_missing_route", document.RouteUrl, "Atom-enabled published content is missing from Atom output."));
+        }
+
         if (jsonFeedExpected && !jsonFeedIncluded)
         {
             issues.Add(Warning("publish.json_feed_missing_route", document.RouteUrl, "JSON Feed-enabled published content is missing from JSON Feed output."));
+        }
+
+        if (llmsExpected && !llmsIncluded)
+        {
+            issues.Add(Warning("publish.llms_missing_route", document.RouteUrl, "llms.txt-enabled published content is missing from llms.txt output."));
+        }
+
+        if (llmsFullExpected && !llmsFullIncluded)
+        {
+            issues.Add(Warning("publish.llms_full_missing_route", document.RouteUrl, "llms-full.txt-enabled published content is missing from llms-full.txt output."));
         }
 
         if (!manifestIncluded)

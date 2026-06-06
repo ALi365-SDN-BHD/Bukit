@@ -18,7 +18,7 @@ flowchart TD
 
     subgraph P2["🔧 Phase 2: VariantBuildPipeline（每个语言独立/并行）"]
         direction LR
-        G1["① Theme + Data<br/>引导主题 / 数据模块"] --> G2["② Routing<br/>RouteGenerator 生成 URL"] --> G3["③ Enrich<br/>分类注入 / 插件派生页"] --> G4["④ Model<br/>SiteModel / Manifest"] --> G5["⑤ Output<br/>SEO → 渲染 → 资产 → AfterBuild → 报告"]
+        G1["① Theme + Data<br/>引导主题 / 数据模块"] --> G2["② Routing<br/>RouteGenerator 生成 URL"] --> G3["③ Enrich<br/>分类注入 / 插件派生页"] --> G4["④ Model<br/>SiteModel / Manifest"] --> G5["⑤ Output<br/>SEO → 渲染 → 资产 → Publish Projections → AfterBuild → 报告"]
     end
 
     C5 --> G1
@@ -42,7 +42,8 @@ CLI (bukit build/doctor/...)
               │   ├─ DataModuleBuilder（构建 site.modules）
               │   ├─ PluginRunner.RunDerivePages（派生页）
               │   ├─ PageRenderDispatcher → ITemplateRenderer（增量渲染）
-              │   └─ PluginRunner.RunAfterBuild（sitemap/rss/search 等）
+              │   ├─ Publish projections（JSON/Markdown/feed/search/llms/robots/manifest）
+              │   └─ PluginRunner.RunAfterBuild（非 projection 扩展）
               ├─ I18nOutputMerger.GenerateRootOutputs（多语言合并产物）
               └─ MetricsWriter（可选构建指标输出）
 ```

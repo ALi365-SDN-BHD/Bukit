@@ -47,7 +47,7 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
         }
     }
 
-    private static void WriteLlmsTxt(BuildContext context, SeoGeoConfig geo)
+    internal static void WriteLlmsTxt(BuildContext context, SeoGeoConfig geo)
     {
         var sb = new StringBuilder();
         var title = context.Config.Site.Title;
@@ -188,7 +188,7 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
         File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
     }
 
-    private static void WriteLlmsFullTxt(BuildContext context)
+    internal static void WriteLlmsFullTxt(BuildContext context)
     {
         var sb = new StringBuilder();
         var title = context.Config.Site.Title;

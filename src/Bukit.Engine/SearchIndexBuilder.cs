@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 namespace Bukit.Engine;
@@ -40,6 +41,56 @@ internal static class SearchIndexBuilder
 
         writer.WriteEndArray();
         writer.Flush();
+    }
+
+    internal static void GenerateSingleSearchIndex(
+        string outputDir,
+        string baseUrl,
+        bool includeDerived,
+        bool emitSnippet,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> derivedRouted,
+        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
+        IContentBodyStore bodyStore)
+    {
+        var outPath = Path.Combine(outputDir, "search.json");
+        Directory.CreateDirectory(outputDir);
+
+        using var stream = File.Create(outPath);
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false });
+        writer.WriteStartArray();
+
+        var itemsByPath = BuildItemMap(includeDerived ? routed.Concat(derivedRouted) : routed);
+        foreach (var (key, seo) in seoIndex
+                     .Where(x => x.Value.Indexable)
+                     .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
+        {
+            if (itemsByPath.TryGetValue(key, out var item) && !IsSearchExcluded(item))
+            {
+                WriteSearchItem(writer, item, seo.Route, baseUrl, bodyStore, emitSnippet);
+            }
+        }
+
+        writer.WriteEndArray();
+        writer.Flush();
+    }
+
+    private static bool IsSearchExcluded(ContentItem item)
+    {
+        if (item.Meta.TryGetValue("searchExclude", out var value) && value is not null)
+        {
+            if (value is bool b)
+            {
+                return b;
+            }
+
+            if (value is string s && bool.TryParse(s, out var parsed))
+            {
+                return parsed;
+            }
+        }
+
+        return false;
     }
 
     internal static void WriteSearchItem(

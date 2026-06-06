@@ -425,6 +425,18 @@ public sealed class SiteEngineIntegrationTests
             Assert.Contains(manifestDocuments, x =>
                 (x.TryGetProperty("route", out var route) && route.GetString() == "/blog/hello-world/") ||
                 (x.TryGetProperty("Route", out var routeUpper) && routeUpper.GetString() == "/blog/hello-world/"));
+            var manifestDocument = manifestDocuments.Single(x => x.GetProperty("route").GetString() == "/blog/hello-world/");
+            var manifestRepresentations = manifestDocument.GetProperty("representations").EnumerateArray().ToArray();
+            foreach (var kind in PublishRepresentationRegistry.DocumentKinds(includeJsonLd: false))
+            {
+                var representation = manifestRepresentations.Single(x => x.GetProperty("kind").GetString() == kind);
+                var representationUrl = representation.GetProperty("url").GetString();
+                Assert.False(string.IsNullOrWhiteSpace(representationUrl));
+                var expectedPath = kind is "html" or "semantic-html"
+                    ? Path.Combine(distDir, representationUrl!.TrimStart('/'), "index.html")
+                    : Path.Combine(distDir, representationUrl!.TrimStart('/'));
+                Assert.True(File.Exists(expectedPath), $"Expected manifest {kind} representation to exist at {expectedPath}.");
+            }
 
             using var publishAuditDoc = JsonDocument.Parse(File.ReadAllText(publishAuditPath));
             Assert.Equal("https://bukit.dev/schemas/publish-audit-report.v1.json", publishAuditDoc.RootElement.GetProperty("schema").GetString());
@@ -726,6 +738,8 @@ public sealed class SiteEngineIntegrationTests
                   url: https://example.com/
                   baseUrl: /docs/
                   language: en-US
+                  feed:
+                    formats: [rss, atom, json]
                   collections:
                     post:
                       permalink: /blog/{slug}/
@@ -774,6 +788,18 @@ public sealed class SiteEngineIntegrationTests
                 # Hidden
                 """);
 
+            File.WriteAllText(Path.Combine(root, "content", "expired.md"), """
+                ---
+                type: post
+                collection: post
+                title: Expired Post
+                slug: expired
+                publishAt: 2024-06-03T00:00:00Z
+                expires_at: 2024-06-04T00:00:00Z
+                ---
+                # Expired
+                """);
+
             File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
                 <!DOCTYPE html>
                 <html>
@@ -817,14 +843,27 @@ public sealed class SiteEngineIntegrationTests
             var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
             Assert.Contains("https://example.com/docs/blog/visible/", sitemap, StringComparison.Ordinal);
             Assert.DoesNotContain("https://example.com/docs/blog/hidden/", sitemap, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/docs/blog/expired/", sitemap, StringComparison.Ordinal);
 
             var search = File.ReadAllText(Path.Combine(root, "dist", "search.json"));
             Assert.Contains("/docs/blog/visible/", search, StringComparison.Ordinal);
             Assert.DoesNotContain("/docs/blog/hidden/", search, StringComparison.Ordinal);
+            Assert.DoesNotContain("/docs/blog/expired/", search, StringComparison.Ordinal);
 
             var rss = File.ReadAllText(Path.Combine(root, "dist", "rss.xml"));
             Assert.Contains("https://example.com/docs/blog/visible/", rss, StringComparison.Ordinal);
             Assert.DoesNotContain("https://example.com/docs/blog/hidden/", rss, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/docs/blog/expired/", rss, StringComparison.Ordinal);
+
+            var atom = File.ReadAllText(Path.Combine(root, "dist", "feed", "atom.xml"));
+            Assert.Contains("https://example.com/docs/blog/visible/", atom, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/docs/blog/hidden/", atom, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/docs/blog/expired/", atom, StringComparison.Ordinal);
+
+            var manifest = File.ReadAllText(Path.Combine(root, "dist", "agent-manifest.json"));
+            Assert.Contains("/docs/blog/visible/", manifest, StringComparison.Ordinal);
+            Assert.DoesNotContain("/docs/blog/hidden/", manifest, StringComparison.Ordinal);
+            Assert.DoesNotContain("/docs/blog/expired/", manifest, StringComparison.Ordinal);
 
             var robots = File.ReadAllText(Path.Combine(root, "dist", "robots.txt"));
             Assert.Contains("Sitemap: https://example.com/docs/sitemap.xml", robots, StringComparison.Ordinal);

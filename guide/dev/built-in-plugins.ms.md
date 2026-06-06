@@ -4,14 +4,16 @@ Halaman ini menerangkan "kontrak output" plugin terbina dalam (fail/halaman yang
 
 Direktori pelaksanaan plugin terbina dalam: `src/Bukit.Engine/Plugins/BuiltIn/`
 
+Nota P3 publish outputs: sitemap, feed, search, llms/llms-full, robots, dan agent manifest dimiliki oleh pipeline publish projection (`PublishRepresentationRegistry`). Sesetengah adapter masih menggunakan semula kelas generator/plugin lama seperti `SitemapGenerator`, `RssGenerator`, `SearchIndexBuilder`, dan `LlmsTxtPlugin`, tetapi fail aggregate ini bukan lagi pemilikan lalai `IAfterBuildPlugin`.
+
 Dokumen berkaitan:
 - [Sistem plugin](./plugins.ms.md)
 - [Pelbagai bahasa dan SEO](./i18n-seo.ms.md)
 - [Produk tetap enjin](./engine-outputs.ms.md)
 
-## sitemap (IAfterBuildPlugin)
+## sitemap (publish projection adapter)
 
-Fail: `SitemapPlugin.cs`
+Sumber: adapter `PublishRepresentationRegistry` melalui helper generator sitemap.
 
 - Output: `<outputDir>/sitemap.xml`
 - Kebergantungan: `site.url` mesti dikonfigurasi (jika tidak, terus dilangkau dan tidak dijana)
@@ -32,12 +34,12 @@ Fail: `SitemapPlugin.cs`
   - Keserasian: `<meta name="sitemap" content="exclude|noindex|false|0">`
 
 Tingkah laku pelbagai bahasa:
-- Apabila `site.languages` tidak kosong dan `site.sitemapMode == merged`: plugin ini melangkau penjanaan dalam subdirektori bahasa (enjin menjana merged sitemap di direktori akar)
+- Apabila `site.languages` tidak kosong dan `site.sitemapMode == merged`: output akar dijana oleh adapter i18n root projection
 - Mod lain: setiap direktori output bahasa menjana `sitemap.xml` masing-masing
 
-## feed (IAfterBuildPlugin, v3.0 menggantikan plugin rss asal)
+## feed (publish projection adapter, v3.0 menggantikan plugin rss asal)
 
-Fail: `FeedPlugin.cs` (`RssPlugin.cs` asal telah dinyahgunakan)
+Sumber: adapter `PublishRepresentationRegistry` melalui helper generator RSS, Atom, dan JSON Feed.
 
 - Output: jana berbilang format mengikut `site.feed.formats`:
   - `rss` → `<outputDir>/rss.xml` (RSS 2.0)
@@ -57,12 +59,12 @@ Fail: `FeedPlugin.cs` (`RssPlugin.cs` asal telah dinyahgunakan)
 - Key suis plugin: `site.plugins.feed` (tidak lagi menggunakan `rss`)
 
 Tingkah laku pelbagai bahasa:
-- Apabila `site.languages` tidak kosong dan `site.rssMode == merged`: plugin ini melangkau penjanaan dalam subdirektori bahasa (enjin menjana merged feed di direktori akar)
+- Apabila `site.languages` tidak kosong dan `site.rssMode == merged`: output akar dijana oleh adapter i18n root projection
 - Mod lain: setiap direktori output bahasa menjana fail feed masing-masing
 
-## search-index (IAfterBuildPlugin)
+## search-index (publish projection adapter)
 
-Fail: `SearchIndexPlugin.cs`
+Sumber: adapter `PublishRepresentationRegistry` melalui `SearchIndexBuilder`; adapter juga menulis partial UI pilihan `bukit-search.html`.
 
 - Output: `<outputDir>/search.json` + pilihan `bukit-search.html`
 - Kebergantungan: tidak bergantung pada `site.url` (boleh digunakan pada laman yang hanya menggunakan pautan relatif)
@@ -339,9 +341,9 @@ site:
 
 Perhatian: laluan fail yang dimuat naik tertakluk kepada kekangan keselamatan dan tidak boleh keluar daripada direktori output.
 
-## llms-txt (IAfterBuildPlugin)
+## llms-txt (publish projection adapter)
 
-Fail: `LlmsTxtPlugin.cs`
+Sumber: adapter `PublishRepresentationRegistry` menggunakan semula helper writer `LlmsTxtPlugin`.
 
 Menjana produk laman mesra AI untuk Generative Engine Optimization (GEO):
 

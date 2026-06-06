@@ -74,6 +74,22 @@ internal static class SiteDefaultsApplier
         };
     }
 
+    internal static FeedConfig ReadFeedConfig(YamlMappingNode siteNode)
+    {
+        var feedNode = ConfigYamlHelpers.GetOptionalMapping(siteNode, "feed");
+        if (feedNode is null)
+        {
+            return new FeedConfig();
+        }
+
+        return new FeedConfig
+        {
+            Formats = ConfigYamlHelpers.ReadStringList(feedNode, "formats") ?? new[] { "rss" },
+            Limit = ConfigYamlHelpers.GetOptionalInt(feedNode, "limit") ?? 20,
+            Path = ConfigYamlHelpers.GetOptionalString(feedNode, "path") ?? "feed"
+        };
+    }
+
     internal static NotionConfig ReadNotionConfigFrom(YamlMappingNode contentNode)
     {
         var notionNode = ConfigYamlHelpers.GetOptionalMapping(contentNode, "notion") ?? contentNode;

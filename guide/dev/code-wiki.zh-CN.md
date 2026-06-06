@@ -91,7 +91,7 @@ flowchart TD
 4. 通过内容提供器加载 Markdown / Notion / 多源内容。
 5. 对内容做草稿过滤、图片本地化和多语言切分。
 6. 对每个语言变体执行路由、模块构建、插件派生页、页面渲染、资源拷贝。
-7. 运行 after-build 插件，生成 sitemap/rss/search/taxonomy 等产物。
+7. 运行 publish projection pipeline，生成 sitemap/rss/search/llms/robots/agent manifest 等机器可读产物；after-build 插件继续处理菜单、图片等非 P3 聚合输出。
 8. 写入增量构建 manifest 与 metrics。
 
 ## 5. 核心模块职责

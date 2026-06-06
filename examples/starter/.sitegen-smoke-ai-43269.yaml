@@ -1,0 +1,33 @@
+site:
+  name: ai-sample-blog
+  title: AI Sample Blog
+  baseUrl: /
+  language: zh-CN
+  languages:
+  - zh-CN
+  - en-US
+  defaultLanguage: zh-CN
+  collections:
+    post:
+      permalink: /blog/{slug}/
+      listRoute: /blog/
+    page:
+      permalink: /pages/{slug}/
+      listRoute: /pages/
+    about:
+      permalink: /{slug}/
+      template: pages/page.html
+content:
+  provider: markdown
+  markdown:
+    dir: content
+build:
+  output: dist
+  clean: true
+theme:
+  name: alt
+  params:
+    brand: AI Sample
+logging:
+  level: info
+...

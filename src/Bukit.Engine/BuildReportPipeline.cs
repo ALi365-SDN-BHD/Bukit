@@ -28,10 +28,23 @@ internal sealed record BuildReportPipelineContext(
     BuildStageMetrics StageMetrics,
     ILogger Logger,
     string? DefaultLanguage,
+    BuildContext? PluginContext = null,
     CanonicalContentGraph? ContentGraph = null);
 
 internal sealed class BuildReportPipeline
 {
+    private readonly IContentProjectionWriter _contentProjectionWriter;
+
+    internal BuildReportPipeline()
+        : this(new DefaultContentProjectionWriter())
+    {
+    }
+
+    internal BuildReportPipeline(IContentProjectionWriter contentProjectionWriter)
+    {
+        _contentProjectionWriter = contentProjectionWriter;
+    }
+
     internal BuildVariantResult Execute(BuildReportPipelineContext ctx)
     {
         if (ctx.DefaultLanguage is null)
@@ -61,8 +74,20 @@ internal sealed class BuildReportPipeline
             ctx.StageMetrics,
             ctx.ContentGraph);
         var contentGraph = ctx.ContentGraph ?? CanonicalContentGraph.Empty;
-        SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger);
-        ContentProjectionWriter.Write(ctx.OutputDir, contentGraph, ctx.Routed, ctx.DerivedRouted, ctx.SeoIndex, ctx.SeoModels);
+        var projectionResults = _contentProjectionWriter.Write(new PublishProjectionContext(
+            ctx.Config,
+            ctx.OutputDir,
+            contentGraph,
+            ctx.Routed,
+            ctx.DerivedRouted,
+            ctx.SeoIndex,
+            ctx.SeoModels,
+            ctx.BodyStore,
+            ctx.BaseUrl,
+            ctx.SearchSnippetsEnabled,
+            ctx.Logger,
+            ctx.PluginContext));
+        SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger, projectionResults);
         return result;
     }
 }

@@ -198,8 +198,8 @@ public sealed class SiteEngine
 
         var variantResults = results.Where(r => r is not null).ToList();
 
-        I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, _logger, _searchIndexBuilder);
-        SeoAuditReportWriter.WriteMerged(config, outputDir, variantResults, _logger);
+        var projectionResults = I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, _logger, _searchIndexBuilder);
+        SeoAuditReportWriter.WriteMerged(config, outputDir, variantResults, _logger, projectionResults);
         _logger.Info("event=build.done");
         MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, items.Count, variantResults, bodyCacheMetrics);
         buildStopwatch.Stop();

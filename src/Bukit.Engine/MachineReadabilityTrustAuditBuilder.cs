@@ -17,12 +17,14 @@ internal static class MachineReadabilityTrustAuditBuilder
         IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
         IReadOnlyDictionary<string, SeoModel> seoModels,
         CanonicalContentGraph? contentGraph = null,
-        bool requireHreflangTargets = true)
+        bool requireHreflangTargets = true,
+        IReadOnlyList<PublishProjectionResult>? projectionResults = null)
         => SeoAuditReportWriter.BuildMachineReadabilityTrustAudit(
             config,
             outputDir,
             seoIndex,
             seoModels,
             contentGraph,
-            requireHreflangTargets);
+            requireHreflangTargets,
+            projectionResults);
 }

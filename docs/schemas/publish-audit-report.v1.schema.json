@@ -54,13 +54,17 @@
         "sourceReferences",
         "entitySummaries",
         "representationKinds",
+        "representations",
         "schemaTypes",
         "structuredDataTypes",
         "semanticOutline",
         "sitemapIncluded",
         "searchIncluded",
         "rssIncluded",
+        "atomFeedIncluded",
         "jsonFeedIncluded",
+        "llmsIncluded",
+        "robotsIncluded",
         "manifestIncluded"
       ],
       "properties": {
@@ -141,6 +145,12 @@
             "type": "string"
           }
         },
+        "representations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/representation"
+          }
+        },
         "schemaTypes": {
           "type": "array",
           "items": {
@@ -168,10 +178,41 @@
         "rssIncluded": {
           "type": "boolean"
         },
+        "atomFeedIncluded": {
+          "type": "boolean"
+        },
         "jsonFeedIncluded": {
           "type": "boolean"
         },
+        "llmsIncluded": {
+          "type": "boolean"
+        },
+        "robotsIncluded": {
+          "type": "boolean"
+        },
         "manifestIncluded": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "representation": {
+      "type": "object",
+      "required": ["kind", "url", "path", "generated", "indexable"],
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "generated": {
+          "type": "boolean"
+        },
+        "indexable": {
           "type": "boolean"
         }
       },

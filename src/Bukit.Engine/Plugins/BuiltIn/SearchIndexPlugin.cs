@@ -74,60 +74,18 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
 
     public void AfterBuild(BuildContext context)
     {
-        var outPath = Path.Combine(context.OutputDir, "search.json");
-        Directory.CreateDirectory(context.OutputDir);
         var emitSnippet = TryResolveTemplate(context, "search", out var searchTemplate) &&
             TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, context.LayoutsDir);
-
-        using var stream = File.Create(outPath);
-        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false });
-
-        writer.WriteStartArray();
-
-        var itemsByPath = SearchIndexBuilder.BuildItemMap(
-            context.Config.Site.SearchIncludeDerived
-                ? context.Routed.Concat(context.DerivedRouted)
-                : context.Routed);
-
-        foreach (var (key, seo) in context.SeoIndex
-                     .Where(x => x.Value.Indexable)
-                     .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
-        {
-            if (!itemsByPath.TryGetValue(key, out var item))
-            {
-                continue;
-            }
-
-            if (IsSearchExcluded(item))
-            {
-                continue;
-            }
-
-            SearchIndexBuilder.WriteSearchItem(writer, item, seo.Route, context.BaseUrl, context.BodyStore, emitSnippet);
-        }
-
-        writer.WriteEndArray();
-        writer.Flush();
-
+        SearchIndexBuilder.GenerateSingleSearchIndex(
+            context.OutputDir,
+            context.BaseUrl,
+            context.Config.Site.SearchIncludeDerived,
+            emitSnippet,
+            context.Routed,
+            context.DerivedRouted,
+            context.SeoIndex,
+            context.BodyStore);
         WriteSearchUi(context);
-    }
-
-    private static bool IsSearchExcluded(ContentItem item)
-    {
-        if (item.Meta.TryGetValue("searchExclude", out var value) && value is not null)
-        {
-            if (value is bool b)
-            {
-                return b;
-            }
-
-            if (value is string s && bool.TryParse(s, out var parsed))
-            {
-                return parsed;
-            }
-        }
-
-        return false;
     }
 
     private static bool TryResolveTemplate(BuildContext context, string kind, out string template)
@@ -144,7 +102,7 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
         }
     }
 
-    private static void WriteSearchUi(BuildContext context)
+    internal static void WriteSearchUi(BuildContext context)
     {
         var searchConfig = context.Config.Site.Search;
         var ui = searchConfig.Ui?.Trim().ToLowerInvariant();

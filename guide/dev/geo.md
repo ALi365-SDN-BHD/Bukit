@@ -41,11 +41,11 @@ GEO front matter is parsed during content loading via `SeoModelBuilder`. The `ge
 
 ### 2. Derive Pages Phase
 
-No GEO-specific work in this phase. GEO only operates in after-build.
+No GEO-specific work in this phase. GEO static artifacts are emitted by publish projection adapters before publish audit runs.
 
 ### 3. After-Build Phase
 
-`LlmsTxtPlugin.AfterBuild(context)` executes:
+The publish projection adapter reuses `LlmsTxtPlugin` generation logic:
 
 1. **Check enabled**: Returns immediately if `!geo.Enabled`
 2. **llms.txt generation** (if `geo.LlmsTxt`):
@@ -156,10 +156,10 @@ GEO audit reads the generated audit reports from the build output directory. It 
 
 ## File Outputs
 
-| File | Plugin | Config Required |
+| File | Owner | Config Required |
 |------|--------|----------------|
-| `llms.txt` | LlmsTxtPlugin | `geo.enabled && geo.llmsTxt` |
-| `llms-full.txt` | LlmsTxtPlugin | `geo.enabled && geo.llmsFullTxt` |
-| `robots.txt` (AI rules) | LlmsTxtPlugin | `geo.enabled && seo.robotsTxt.enabled` |
+| `llms.txt` | Publish projection adapter via `LlmsTxtPlugin` | `geo.enabled && geo.llmsTxt` |
+| `llms-full.txt` | Publish projection adapter via `LlmsTxtPlugin` | `geo.enabled && geo.llmsFullTxt` |
+| `robots.txt` (AI rules) | Publish projection adapter via crawler policy writer | `geo.enabled && seo.robotsTxt.enabled` |
 
 llms.txt content structure follows [llmstxt.org](https://llmstxt.org) specification: `# Title` → `> Description` → `## Documentation` → `## Articles` → `## Optional`.

@@ -18,7 +18,7 @@ flowchart TD
 
     subgraph P2["🔧 Phase 2: VariantBuildPipeline (per language, parallel)"]
         direction LR
-        G1["① Theme + Data<br/>bootstrap theme / data modules"] --> G2["② Routing<br/>URL generation"] --> G3["③ Enrich<br/>taxonomy / derive pages"] --> G4["④ Model<br/>SiteModel / Manifest"] --> G5["⑤ Output<br/>SEO → Render → Assets → AfterBuild → Report"]
+        G1["① Theme + Data<br/>bootstrap theme / data modules"] --> G2["② Routing<br/>URL generation"] --> G3["③ Enrich<br/>taxonomy / derive pages"] --> G4["④ Model<br/>SiteModel / Manifest"] --> G5["⑤ Output<br/>SEO → Render → Assets → Publish Projections → AfterBuild → Report"]
     end
 
     C5 --> G1
@@ -37,8 +37,10 @@ CLI (bukit build/doctor/...)
       → BuildVariantAsync per language
         → RouteGenerator.Generate
         → DataModuleBuilder (site.modules)
-        → PluginRunner (DerivePages + AfterBuild)
+        → PluginRunner (DerivePages)
         → PageRenderDispatcher (incremental rendering)
+        → Publish projections (HTML-adjacent JSON/Markdown/feeds/search/llms/robots/manifest)
+        → PluginRunner (AfterBuild for non-projection extensions)
       → I18nOutputMerger (merged artifacts)
       → MetricsWriter
 ```
@@ -72,7 +74,7 @@ After refactoring, `SiteEngine` was split from a God Class into an orchestrator 
 | `RenderPipeline` | Page rendering, special list rendering, incremental skip decisions |
 | `AssetPipeline` | Static/assets sync, SCSS compilation, image optimization, tokens, media. **4 个子操作使用 `Task.WhenAll` 真异步并行**（static/assets/tokens/media），外部进程使用 `await Process.WaitForExitAsync()` |
 | `SeoPipeline` | SEO index building, diagnostics, Open Graph / JSON-LD |
-| `PluginPipeline` | After-build plugin execution, stale deletion, manifest persistence |
+| `PluginPipeline` | Publish projection execution, after-build plugin execution for non-projection extensions, stale deletion, manifest persistence |
 | `BuildReportPipeline` | BuildVariantResult aggregation, logging, audit report |
 | `VariantBuildPipeline` | Per-language build orchestration (Theme → Route → Enrich → Model → Output) |
 

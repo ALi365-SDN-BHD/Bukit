@@ -26,14 +26,10 @@ public sealed class BuiltInPluginSource : IPluginSource
         yield return new BuiltIn.DataFilesPlugin();
         yield return new BuiltIn.PagesIndexPlugin();
         yield return new BuiltIn.TaxonomyPlugin();
-        yield return new BuiltIn.SitemapPlugin();
-        yield return new BuiltIn.FeedPlugin();
-        yield return new BuiltIn.SearchIndexPlugin();
         yield return new BuiltIn.PaginationPlugin();
         yield return new BuiltIn.ArchivePlugin();
         yield return new BuiltIn.RelatedContentPlugin();
         yield return new BuiltIn.AliasPlugin();
-        yield return new BuiltIn.LlmsTxtPlugin();
         yield return new BuiltIn.MenuPlugin();
         yield return new BuiltIn.ImageProcessingPlugin();
     }

@@ -174,7 +174,7 @@ internal static class SpecialListRenderer
                     Entities = contentRecord.Entities,
                     Provenance = contentRecord.Provenance,
                     Trust = contentRecord.Trust,
-                    Representations = new[] { "html", "json", "markdown" },
+                    Representations = PublishRepresentationRegistry.DocumentKinds(),
                     Seo = seoBuilder?.Invoke(source[i].Item, source[i].Route)
                 };
             }
@@ -214,7 +214,7 @@ internal static class SpecialListRenderer
                     Entities = contentRecord.Entities,
                     Provenance = contentRecord.Provenance,
                     Trust = contentRecord.Trust,
-                    Representations = new[] { "html", "json", "markdown" },
+                    Representations = PublishRepresentationRegistry.DocumentKinds(),
                     Seo = seoBuilder?.Invoke(source[i].Item, source[i].Route)
                 };
             });
@@ -235,7 +235,7 @@ internal static class SpecialListRenderer
             Url = listRoute.Url,
             Content = string.Empty,
             Summary = BuildListSummary(siteModel, listRoute),
-            Representations = new[] { "html", "json", "markdown" }
+            Representations = PublishRepresentationRegistry.DocumentKinds()
         };
     }
 

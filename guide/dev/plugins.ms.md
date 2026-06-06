@@ -1,19 +1,20 @@
 # Plugin Sistem (derive-pages / after-build)
 
-Plugin adalah titik sambungan utama Bukit.
+Plugin adalah titik sambungan utama Bukit untuk halaman terbitan dan output tersuai. Output publish teras yang boleh dibaca mesin dimiliki oleh pipeline publish projection.
 
 Pelaksanaan: `src/Bukit.Engine/Plugins/PluginRunner.cs`, `src/Bukit.Engine/Plugins/PluginRegistry.cs`
 
 ## Kitaran Hayat
 - **DerivePages** (`IDerivePagesPlugin`): Menerbitkan halaman tambahan dari kandungan routed. Dasar konflik: `fail|warn|last-wins`.
-- **AfterBuild** (`IAfterBuildPlugin`): Menjana fail tambahan selepas semua halaman dihasilkan.
+- **AfterBuild** (`IAfterBuildPlugin`): Menjana fail tambahan tersuai selepas semua halaman dihasilkan.
+- **Publish Projections** (`IPublishProjection`): Menjana representasi publish teras seperti `sitemap.xml`, RSS/Atom/JSON Feed, `search.json`, `llms.txt`, `llms-full.txt`, `robots.txt`, dan `agent-manifest.json` melalui `PublishRepresentationRegistry`.
 
 ## Dasar Kegagalan: `site.pluginFailMode`
 - `strict`: Ralat plugin menggugurkan binaan
 - `warn`: Log ralat dan teruskan
 
 ## Sumber Plugin
-1. **built-in**: Dibundle dengan enjin (taxonomy/sitemap/rss/search-index/pagination/archive)
+1. **built-in**: Dibundle dengan enjin (taxonomy/pagination/archive/menu/image; output projection didaftarkan berasingan)
 2. **generated**: Plugin dijana masa kompilasi (serasi AOT)
 3. **external**: Pemuatan `plugins/*.dll` runtime (Non-AOT sahaja)
 4. **external-protocol**: Plugin protokol `stdin/stdout + JSON` (serasi AOT)
@@ -67,6 +68,13 @@ site:
 | Plugin | Jenis | Output |
 |---|---|---|
 | taxonomy | DerivePages + AfterBuild | Halaman `/tags/`, `/categories/` |
-| sitemap | AfterBuild | `sitemap.xml` |
-| rss | AfterBuild | `rss.xml` |
-| search-index | AfterBuild | `search.json` |
+
+## Gambaran Keseluruhan Publish Projection
+| Projection | Output |
+|---|---|
+| sitemap | `sitemap.xml` |
+| feed / atom / jsonfeed | `rss.xml`, `feed/atom.xml`, `feed/feed.json` |
+| search | `search.json`, pilihan `bukit-search.html` |
+| llms / llms-full | `llms.txt`, `llms-full.txt` |
+| robots | `robots.txt` |
+| agent-manifest | `agent-manifest.json` |
