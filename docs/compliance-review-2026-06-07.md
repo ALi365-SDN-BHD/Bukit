@@ -2,7 +2,7 @@
 
 发布日期：**2026-06-07**（Asia/Kuala_Lumpur）  
 项目：**Bukit**  
-范围：vNext Meta 移除、协议/CLI cleanup、文档一致性、`.trae/specs` 合规、`InternalsVisibleTo` 边界、生产空 `catch`、依赖矩阵
+范围：vNext Meta 移除、协议/CLI cleanup、文档一致性、`.trae/specs` 合规、`InternalsVisibleTo` 边界、空 `catch`、依赖矩阵
 
 ## 结论
 
@@ -16,10 +16,10 @@
 - `seo audit` / `geo audit` 默认报告发现路径以 `.bukit/seo-report.json` 为首选，不再回退到根目录 `seo-report.json`。
 - `.trae/specs/compliance-hardening-vnext/` 已补齐 spec、tasks、checklist。
 - 生产程序集不再通过 `InternalsVisibleTo` 暴露给其他生产程序集；CLI 需要的 Engine 能力已改为显式 public API。
-- 生产 `src/**/*.cs` 中已无空 `catch {}` 命中。
+- `src/**/*.cs` 与 `tests/**/*.cs` 中已无空 `catch {}` 命中。
 - 依赖矩阵与 IVT allowlist 已由 architecture tests 覆盖。
 
-本复审不宣称整个仓库所有历史技术债都已清零；测试 teardown 中仍有历史空 `catch` 写法，本轮清理范围是生产代码与发布/构建路径。
+本复审不宣称整个仓库所有历史技术债都已清零；本轮已把生产代码与测试代码中的空 `catch` 写法收敛为显式处理或命名 best-effort helper。
 
 ## 本轮验证
 
@@ -29,7 +29,7 @@
 dotnet build bukit.slnx -p:UseSharedCompilation=false -m:1 --no-restore
 dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -p:UseSharedCompilation=false --no-restore --no-build
 dotnet test bukit.slnx -p:UseSharedCompilation=false -m:1 --no-restore --no-build
-rg -n "catch\\s*(\\([^)]*\\))?\\s*\\{\\s*\\}" src -g '*.cs' -g '!bin' -g '!obj'
+rg -n "catch\\s*(\\([^)]*\\))?\\s*\\{\\s*\\}" src tests -g '*.cs' -g '!bin' -g '!obj'
 rg -n "InternalsVisibleTo" src tests -g '*.cs' -g '*.csproj' -g '!bin' -g '!obj' -g '!lscache'
 ```
 
@@ -38,7 +38,7 @@ rg -n "InternalsVisibleTo" src tests -g '*.cs' -g '*.csproj' -g '!bin' -g '!obj'
 - Build 通过。
 - Architecture tests 通过：12 passed。
 - Full test suite 通过：3435 passed。
-- 生产空 `catch` 扫描无命中。
+- 全仓 `src + tests` 空 `catch` 扫描无命中。
 - IVT 扫描仅保留测试程序集/benchmark 目标，未发现生产程序集目标。
 
 建议在提交前再跑一次全量门禁：
@@ -110,6 +110,8 @@ bash scripts/quality-gate.sh
 - 将 CLI 真实需要的 Engine 表面改为显式 public API：`BuildPathUtils`、`DefaultContentProviderFactory`、`ThemeBootstrapper`、`ThemeTemplateResolver`、`TemplateCapabilitiesResolver`、`ScribanTemplateLinter` 及其必要 DTO。
 - 收紧 `DependencyMatrixTests.InternalsVisibleTo_MustOnlyExposeTo_TestAssemblies`，allowlist 不再包含生产程序集。
 - 替换生产代码中的空 `catch {}`：build manifest cleanup、dev response handling、theme install/pack cleanup、theme pack YAML parse、template linter。
+- 新增 `tests/TestCleanup.cs` 与 `tests/Directory.Build.props`，把测试 teardown 中的目录/文件清理统一为命名 best-effort helper。
+- 将测试中的预期异常吞掉改为显式 `Assert.NotNull(ex)`，保留测试意图但去掉空 catch。
 - 未做宽泛 project reference 重排；当前依赖矩阵测试无违规，避免无证据的大规模项目引用调整。
 
 ### 文档 cleanup
@@ -139,11 +141,11 @@ RSS、search、llms、robots 等聚合输出已经读 document-first 数据，�
 
 建议：P3 阶段继续将它们改为纯 `IPublishProjection` 消费者。
 
-### 4. 测试 teardown 中仍有历史空 catch
+### 4. 测试 teardown 已清理，但仍是 best-effort 策略
 
-生产 `src` 已清零；测试项目里仍有大量临时目录清理用的 `catch {}`。
+测试项目的临时目录/文件删除已集中到 `TestCleanup`，并显式消费允许忽略的异常。
 
-建议：若要把空 `catch` 治理扩展到测试代码，单独做一轮 test utility cleanup，把临时目录删除封装为 shared helper。
+建议：如后续要进一步提升可观测性，可让 `TestCleanup` 在诊断模式下写入 test output；当前保持静默以避免 teardown 噪声。
 
 ### 5. Full quality gate wrapper 尚未在本轮复跑
 
@@ -160,6 +162,6 @@ RSS、search、llms、robots 等聚合输出已经读 document-first 数据，�
 - Root `seo-report.json` automatic fallback removal: **PASS**
 - `.trae/specs` compliance hardening: **PASS**
 - Production `InternalsVisibleTo` hardening: **PASS**
-- Production empty `catch` cleanup: **PASS**
+- Empty `catch` cleanup across `src + tests`: **PASS**
 - Dependency matrix tests: **PASS**
-- Full repository compliance beyond this scope: **PARTIAL / tests cleanup and quality-gate wrapper remain separate follow-ups**
+- Full repository compliance beyond this scope: **PARTIAL / quality-gate wrapper remains a separate follow-up**

@@ -19,7 +19,7 @@ public sealed class ThemePathResolverTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_rootDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_rootDir, recursive: true);
     }
 
     [Fact]
@@ -233,7 +233,7 @@ public sealed class ThemePathResolverTests : IDisposable
         }
         finally
         {
-            try { Directory.Delete(absoluteLayouts, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(absoluteLayouts, recursive: true);
         }
     }
 

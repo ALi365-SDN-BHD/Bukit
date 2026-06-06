@@ -1,0 +1,7 @@
+<Project>
+  <Import Project="../Directory.Build.props" />
+
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)TestCleanup.cs" Link="TestCleanup.cs" />
+  </ItemGroup>
+</Project>

@@ -46,7 +46,7 @@ public sealed class PageRenderDispatcherNestedParallelTests
         Assert.True(bodyStore.PeakConcurrency <= 4,
             $"Peak concurrency {bodyStore.PeakConcurrency} should not exceed outer MDoP=4");
 
-        try { Directory.Delete(outputDir, true); } catch { }
+        TestCleanup.DeleteDirectory(outputDir, true);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public sealed class PageRenderDispatcherNestedParallelTests
         Assert.True(bodyStore.PeakConcurrency <= 4,
             $"Peak concurrency {bodyStore.PeakConcurrency} should not exceed outer MDoP=4");
 
-        try { Directory.Delete(outputDir, true); } catch { }
+        TestCleanup.DeleteDirectory(outputDir, true);
     }
 
     private static List<(ContentDocument Item, RouteInfo Route)> CreateRoutedItems(int count)

@@ -172,7 +172,7 @@ tags: [blog]
             Assert.NotNull(result);
             Assert.Empty(result!);
         }
-        finally { try { Directory.Delete(tempDir, true); } catch { } }
+        finally { TestCleanup.DeleteDirectory(tempDir, true); }
     }
 
     [Fact]
@@ -190,7 +190,7 @@ version: 1.0.0
             Assert.NotNull(result);
             Assert.Contains(result!, w => w.Contains("name"));
         }
-        finally { try { Directory.Delete(tempDir, true); } catch { } }
+        finally { TestCleanup.DeleteDirectory(tempDir, true); }
     }
 
     [Fact]
@@ -209,6 +209,6 @@ version: not-a-version
             Assert.NotNull(result);
             Assert.Contains(result!, w => w.Contains("version"));
         }
-        finally { try { Directory.Delete(tempDir, true); } catch { } }
+        finally { TestCleanup.DeleteDirectory(tempDir, true); }
     }
 }

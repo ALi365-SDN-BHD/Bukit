@@ -61,7 +61,7 @@ public sealed class PreviewCommandTests
         }
         finally
         {
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 
@@ -80,7 +80,7 @@ public sealed class PreviewCommandTests
         }
         finally
         {
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 
@@ -101,7 +101,7 @@ public sealed class PreviewCommandTests
         }
         finally
         {
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 

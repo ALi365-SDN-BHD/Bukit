@@ -43,7 +43,7 @@ public sealed class BuildPlannerCleanErrorTests
         }
         finally
         {
-            try { Directory.Delete(root, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(root, recursive: true);
         }
     }
 
@@ -84,7 +84,7 @@ public sealed class BuildPlannerCleanErrorTests
         }
         finally
         {
-            try { Directory.Delete(root, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(root, recursive: true);
         }
     }
 

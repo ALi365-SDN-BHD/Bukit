@@ -22,7 +22,7 @@ public sealed class BuildCompatibilityTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_rootDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_rootDir, recursive: true);
     }
 
     private static SiteModel CreateSite()

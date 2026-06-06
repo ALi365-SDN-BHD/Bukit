@@ -16,7 +16,7 @@ public sealed class CloneVerifierTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_testDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_testDir, recursive: true);
     }
 
     private static byte[] MinimalPng()

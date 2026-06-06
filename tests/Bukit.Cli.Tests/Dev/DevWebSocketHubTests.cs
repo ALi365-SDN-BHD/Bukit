@@ -49,7 +49,10 @@ public sealed class DevWebSocketHubTests
         var requestTask = Task.Run(async () =>
         {
             try { await httpClient.GetAsync($"http://localhost:{port}/test"); }
-            catch { }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or ObjectDisposedException)
+            {
+                Assert.NotNull(ex);
+            }
         });
 
         var context = await listener.GetContextAsync();

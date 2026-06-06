@@ -649,7 +649,7 @@ public sealed class ConfigLoaderTests : IDisposable
         }
         finally
         {
-            try { Directory.Delete(dir, true); } catch { }
+            TestCleanup.DeleteDirectory(dir, true);
         }
     }
 
@@ -675,7 +675,7 @@ public sealed class ConfigLoaderTests : IDisposable
         }
         finally
         {
-            try { Directory.Delete(dir, true); } catch { }
+            TestCleanup.DeleteDirectory(dir, true);
         }
     }
 
@@ -702,7 +702,7 @@ public sealed class ConfigLoaderTests : IDisposable
         }
         finally
         {
-            try { Directory.Delete(dir, true); } catch { }
+            TestCleanup.DeleteDirectory(dir, true);
         }
     }
 
@@ -728,7 +728,7 @@ public sealed class ConfigLoaderTests : IDisposable
         }
         finally
         {
-            try { Directory.Delete(dir, true); } catch { }
+            TestCleanup.DeleteDirectory(dir, true);
         }
     }
 

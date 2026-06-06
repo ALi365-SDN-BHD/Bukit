@@ -17,7 +17,7 @@ public sealed class SchemaFailModeTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_rootDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_rootDir, recursive: true);
     }
 
     [Fact]

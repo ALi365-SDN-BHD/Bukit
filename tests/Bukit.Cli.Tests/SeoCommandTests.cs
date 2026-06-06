@@ -229,7 +229,7 @@ public sealed class SeoCommandTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_root, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_root, recursive: true);
     }
 
     private void WriteReport(int errorCount, int warningCount, string issuesJson, string schemaVersion = "1.0", string extraRootProperty = "", string summaryExtraProperties = "")

@@ -19,6 +19,8 @@
 - [x] Replace cleanup `catch {}` blocks in build manifest cleanup
 - [x] Replace HTTP response `catch {}` blocks in dev request handling
 - [x] Replace config YAML parse silent catch in theme pack command
+- [x] Replace test teardown `catch {}` blocks with shared best-effort cleanup helper
+- [x] Replace expected-exception `catch {}` blocks in tests with explicit assertions
 
 ## 4. Dependency Matrix
 

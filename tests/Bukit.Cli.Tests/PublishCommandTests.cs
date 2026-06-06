@@ -70,7 +70,7 @@ public sealed class PublishCommandTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_root, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_root, recursive: true);
     }
 
     private static void WritePublishReport(string path, int errorCount, int warningCount, string issuesJson)

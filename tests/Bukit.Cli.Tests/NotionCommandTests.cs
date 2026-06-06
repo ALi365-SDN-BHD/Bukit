@@ -18,7 +18,7 @@ public sealed class NotionCommandTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_tempDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_tempDir, recursive: true);
     }
 
     private static CliBoundCommand MakeCommand(Dictionary<string, string?> options, string[] args)

@@ -24,7 +24,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_root, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_root, recursive: true);
     }
 
     private sealed class TestLogger : ILogger

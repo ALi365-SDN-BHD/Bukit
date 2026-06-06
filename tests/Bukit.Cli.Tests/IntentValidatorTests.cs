@@ -15,7 +15,7 @@ public sealed class IntentValidatorTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_tempDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_tempDir, recursive: true);
     }
 
     private static SiteIntent CreateValidMarkdownIntent()

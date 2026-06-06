@@ -44,7 +44,7 @@ public sealed class DeployCommandTests
         finally
         {
             Environment.CurrentDirectory = originalDir;
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 
@@ -87,7 +87,7 @@ public sealed class DeployCommandTests
         finally
         {
             Environment.CurrentDirectory = originalDir;
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 
@@ -128,7 +128,7 @@ public sealed class DeployCommandTests
         finally
         {
             Environment.CurrentDirectory = originalDir;
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 
@@ -169,7 +169,7 @@ public sealed class DeployCommandTests
         finally
         {
             Environment.CurrentDirectory = originalDir;
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 
@@ -221,7 +221,7 @@ deploy:
         finally
         {
             Environment.CurrentDirectory = originalDir;
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 
@@ -261,7 +261,7 @@ deploy:
         finally
         {
             Environment.CurrentDirectory = originalDir;
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 
@@ -308,7 +308,7 @@ deploy:
         finally
         {
             Environment.CurrentDirectory = originalDir;
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 
@@ -329,7 +329,7 @@ deploy:
         finally
         {
             Environment.CurrentDirectory = originalDir;
-            try { Directory.Delete(tempDir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(tempDir, recursive: true);
         }
     }
 }

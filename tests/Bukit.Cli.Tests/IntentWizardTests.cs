@@ -16,7 +16,7 @@ public sealed class IntentWizardTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_tempDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_tempDir, recursive: true);
     }
 
     [Fact]

@@ -15,7 +15,7 @@ public sealed class ScribanTemplateRendererLayoutTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_layoutsDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_layoutsDir, recursive: true);
     }
 
     private static SiteModel CreateSite()
@@ -172,7 +172,7 @@ public sealed class ScribanTemplateRendererLayoutTests : IDisposable
         }
         finally
         {
-            try { File.Delete(outsidePath); } catch { }
+            TestCleanup.DeleteFile(outsidePath);
         }
     }
 

@@ -25,7 +25,7 @@ public sealed class RenderSectionTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_themeDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_themeDir, recursive: true);
     }
 
     private static SiteModel CreateSite()

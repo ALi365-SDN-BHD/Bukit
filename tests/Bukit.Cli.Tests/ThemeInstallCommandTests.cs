@@ -28,7 +28,7 @@ public sealed class ThemeInstallCommandTests : IDisposable
     {
         if (Directory.Exists(_rootDir))
         {
-            try { Directory.Delete(_rootDir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(_rootDir, recursive: true);
         }
     }
 
@@ -166,7 +166,7 @@ public sealed class ThemeInstallCommandTests : IDisposable
         writer.WriteEntryAsync(Path.Combine(tmpDir, "theme.yaml"), "theme.yaml").Wait();
         writer.WriteEntryAsync(Path.Combine(tmpDir, "layouts", "default.scriban"), "layouts/default.scriban").Wait();
 
-        try { Directory.Delete(tmpDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(tmpDir, recursive: true);
         return archivePath;
     }
 

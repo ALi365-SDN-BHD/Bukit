@@ -61,15 +61,19 @@ public class DoctorCommandAppendFileOrWarnTests
         }
         finally
         {
-            try
+            if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                if (!System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                try
                 {
                     File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
                 }
-                File.Delete(path);
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Assert.NotNull(ex);
+                }
             }
-            catch { }
+
+            TestCleanup.DeleteFile(path);
         }
     }
 

@@ -134,7 +134,7 @@ public sealed class DeployProviderTests
         }
         finally
         {
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 
@@ -176,7 +176,7 @@ public sealed class DeployProviderTests
         }
         finally
         {
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 

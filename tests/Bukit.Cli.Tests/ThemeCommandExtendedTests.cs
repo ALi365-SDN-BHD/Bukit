@@ -634,7 +634,7 @@ version: 1.0.0
 
         var outputFile = Path.Combine(Directory.GetCurrentDirectory(), "packable-1.0.0.tar.gz");
         Assert.True(File.Exists(outputFile));
-        try { File.Delete(outputFile); } catch { }
+        TestCleanup.DeleteFile(outputFile);
     }
 
     [Fact]
@@ -834,7 +834,7 @@ themes:
     public async Task ThemeSearch_RoutesFromThemeCommand()
     {
         var testCacheFile = ThemeRegistryCommand.CacheFilePath;
-        try { File.Delete(testCacheFile); } catch { }
+        TestCleanup.DeleteFile(testCacheFile);
 
         var exitCode = await ThemeCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
@@ -853,7 +853,10 @@ themes:
             var ok = await ThemeRegistryCommand.VerifySha256Async(path, "");
             Assert.True(ok);
         }
-        finally { try { File.Delete(path); } catch { } }
+        finally
+        {
+            TestCleanup.DeleteFile(path);
+        }
     }
 
     [Fact]

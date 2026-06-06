@@ -17,7 +17,7 @@ public sealed class ScribanTemplateRendererTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_layoutsDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_layoutsDir, recursive: true);
     }
 
     private static SiteModel CreateSite()

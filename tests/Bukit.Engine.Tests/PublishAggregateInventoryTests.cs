@@ -73,7 +73,7 @@ public sealed class PublishAggregateInventoryTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_outputDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_outputDir, recursive: true);
     }
 
     private void WriteOutput(string path, string html)

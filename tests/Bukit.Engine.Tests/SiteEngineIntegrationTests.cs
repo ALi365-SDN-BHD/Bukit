@@ -318,7 +318,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -460,7 +460,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -532,7 +532,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -603,7 +603,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -883,7 +883,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1026,7 +1026,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1093,7 +1093,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1144,7 +1144,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1206,7 +1206,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1314,8 +1314,8 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root1); } catch { }
-            try { CleanupDir(root2); } catch { }
+            CleanupDir(root1);
+            CleanupDir(root2);
         }
     }
 
@@ -1430,7 +1430,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1534,7 +1534,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1621,7 +1621,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1661,7 +1661,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1720,7 +1720,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1779,7 +1779,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1807,7 +1807,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1836,7 +1836,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1892,7 +1892,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -1970,7 +1970,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2029,7 +2029,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2113,7 +2113,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2176,7 +2176,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2216,7 +2216,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2264,7 +2264,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2303,7 +2303,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2343,7 +2343,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2364,7 +2364,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2385,7 +2385,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2405,7 +2405,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2491,7 +2491,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2568,7 +2568,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2695,7 +2695,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2813,7 +2813,7 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
@@ -2961,22 +2961,13 @@ public sealed class SiteEngineIntegrationTests
         }
         finally
         {
-            try { CleanupDir(root); } catch { }
+            CleanupDir(root);
         }
     }
 
     private static void CleanupDir(string dir)
     {
-        try
-        {
-            if (Directory.Exists(dir))
-            {
-                Directory.Delete(dir, recursive: true);
-            }
-        }
-        catch
-        {
-        }
+        TestCleanup.DeleteDirectory(dir);
     }
 
     private static string CreateThemeInheritanceSite(bool createChildAssets, bool createChildStatic)

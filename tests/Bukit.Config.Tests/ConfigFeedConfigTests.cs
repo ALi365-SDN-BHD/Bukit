@@ -37,6 +37,6 @@ public sealed class ConfigFeedConfigTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_dir, recursive: true);
     }
 }

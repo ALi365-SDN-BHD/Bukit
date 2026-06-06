@@ -21,7 +21,7 @@ public class DevFileWatcherTests : IDisposable
     {
         _cts.Cancel();
         _cts.Dispose();
-        try { Directory.Delete(_tmpDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_tmpDir, recursive: true);
     }
 
     [Fact]

@@ -15,7 +15,7 @@ public sealed class GeoCommandTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_root, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_root, recursive: true);
     }
 
     [Fact]

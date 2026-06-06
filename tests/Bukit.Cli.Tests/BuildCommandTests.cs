@@ -19,7 +19,7 @@ public sealed class BuildCommandTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_testDir, recursive: true); } catch { }
+        TestCleanup.DeleteDirectory(_testDir, recursive: true);
     }
 
     [Fact]
@@ -42,8 +42,8 @@ public sealed class BuildCommandTests : IDisposable
         var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
         Assert.Same(buildTask, completed);
         try { await buildTask; }
-        catch (ConfigException) { }
-        catch (ContentException) { }
+        catch (ConfigException ex) { Assert.NotNull(ex); }
+        catch (ContentException ex) { Assert.NotNull(ex); }
     }
 
     [Fact]
@@ -92,12 +92,12 @@ public sealed class BuildCommandTests : IDisposable
             var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
             Assert.Same(buildTask, completed);
             try { await buildTask; }
-            catch (ConfigException) { }
-            catch (ContentException) { }
+            catch (ConfigException ex) { Assert.NotNull(ex); }
+            catch (ContentException ex) { Assert.NotNull(ex); }
         }
         finally
         {
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(dir, recursive: true);
         }
     }
 
@@ -259,8 +259,8 @@ public sealed class BuildCommandTests : IDisposable
         var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
         Assert.Same(buildTask, completed);
         try { await buildTask; }
-        catch (ConfigException) { }
-        catch (ContentException) { }
+        catch (ConfigException ex) { Assert.NotNull(ex); }
+        catch (ContentException ex) { Assert.NotNull(ex); }
     }
 
     [Fact]

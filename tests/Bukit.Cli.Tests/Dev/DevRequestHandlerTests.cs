@@ -66,7 +66,7 @@ public class DevRequestHandlerTests
         }
         finally
         {
-            try { Directory.Delete(tmpDir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(tmpDir, recursive: true);
         }
     }
 
@@ -97,7 +97,7 @@ public class DevRequestHandlerTests
         }
         finally
         {
-            try { Directory.Delete(tmpDir, recursive: true); } catch { }
+            TestCleanup.DeleteDirectory(tmpDir, recursive: true);
         }
     }
 
