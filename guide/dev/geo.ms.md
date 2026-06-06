@@ -41,11 +41,11 @@ Front Matter GEO dihuraikan semasa pemuatan kandungan melalui `SeoModelBuilder`.
 
 ### 2. Fasa Halaman Derived
 
-Tiada kerja khusus GEO dalam fasa ini. GEO hanya beroperasi dalam after-build.
+Tiada kerja khusus GEO dalam fasa ini. Artifak statik GEO ditulis oleh publish projection adapter sebelum publish audit dijalankan.
 
-### 3. Fasa After-Build
+### 3. Fasa Publish Projection
 
-`LlmsTxtPlugin.AfterBuild(context)` melaksanakan:
+Publish projection adapter menggunakan semula logik penjanaan `LlmsTxtPlugin`:
 
 1. **Semak didayakan**: Kembali serta-merta jika `!geo.Enabled`
 2. **Penjanaan llms.txt** (jika `geo.LlmsTxt`):
@@ -156,10 +156,10 @@ Audit GEO membaca laporan audit yang dijana dari direktori output binaan. Ia tid
 
 ## Output Fail
 
-| Fail | Plugin | Konfigurasi Diperlukan |
+| Fail | Owner | Konfigurasi Diperlukan |
 |------|--------|----------------|
-| `llms.txt` | LlmsTxtPlugin | `geo.enabled && geo.llmsTxt` |
-| `llms-full.txt` | LlmsTxtPlugin | `geo.enabled && geo.llmsFullTxt` |
-| `robots.txt` (peraturan AI) | LlmsTxtPlugin | `geo.enabled && seo.robotsTxt.enabled` |
+| `llms.txt` | Publish projection adapter via `LlmsTxtPlugin` | `geo.enabled && geo.llmsTxt` |
+| `llms-full.txt` | Publish projection adapter via `LlmsTxtPlugin` | `geo.enabled && geo.llmsFullTxt` |
+| `robots.txt` (peraturan AI) | Publish projection adapter via crawler policy writer | `geo.enabled && seo.robotsTxt.enabled` |
 
 Struktur kandungan llms.txt mengikuti spesifikasi [llmstxt.org](https://llmstxt.org): `# Tajuk` → `> Penerangan` → `## Dokumentasi` → `## Artikel` → `## Optional`.

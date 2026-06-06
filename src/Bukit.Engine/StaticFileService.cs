@@ -58,7 +58,7 @@ internal static class StaticFileService
                 Url = url,
                 Content = htmlContent,
                 Summary = siteModel.Description,
-                Representations = new[] { "html" }
+                Representations = [PublishRepresentationRegistry.Html.Kind]
             };
 
             var pageModel = new PageModel

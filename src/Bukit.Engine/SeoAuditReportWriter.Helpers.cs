@@ -212,10 +212,93 @@ internal static partial class SeoAuditReportWriter
            !string.IsNullOrWhiteSpace(entry.ContentType) &&
            !string.Equals(entry.ContentType, "list", StringComparison.OrdinalIgnoreCase);
 
-    private static void AnalyzePublishDocument(PublishDocument document, List<SeoAuditIssue> issues)
+    private static bool IsAtomFeedContent(AppConfig config, SeoIndexEntry entry)
+        => entry.Indexable &&
+           config.Site.Feed.Formats.Any(format => string.Equals(format, "atom", StringComparison.OrdinalIgnoreCase)) &&
+           !string.IsNullOrWhiteSpace(entry.ContentType) &&
+           !string.Equals(entry.ContentType, "list", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsLlmsContent(AppConfig config, SeoIndexEntry entry)
+        => entry.Indexable &&
+           config.Site.Seo.Geo.Enabled &&
+           config.Site.Seo.Geo.LlmsTxt &&
+           !string.IsNullOrWhiteSpace(entry.ContentType) &&
+           !string.Equals(entry.ContentType, "list", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsLlmsFullContent(AppConfig config, SeoIndexEntry entry)
+        => entry.Indexable &&
+           config.Site.Seo.Geo.Enabled &&
+           config.Site.Seo.Geo.LlmsFullTxt &&
+           !string.IsNullOrWhiteSpace(entry.ContentType) &&
+           !string.Equals(entry.ContentType, "list", StringComparison.OrdinalIgnoreCase);
+
+    private static IReadOnlyList<string> BuildAggregateRepresentationKinds(
+        IReadOnlyList<string> existing,
+        PublishRepresentationExpectation expectation)
+    {
+        var kinds = existing.ToList();
+        foreach (var kind in PublishRepresentationRegistry.ExpectedAggregateKinds(expectation))
+        {
+            AddKind(kinds, true, kind);
+        }
+
+        return kinds;
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, PublishRepresentationOutput>> BuildProjectionLookup(
+        IReadOnlyList<PublishProjectionResult>? projectionResults)
+    {
+        if (projectionResults is null || projectionResults.Count == 0)
+        {
+            return new Dictionary<string, IReadOnlyDictionary<string, PublishRepresentationOutput>>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var result = new Dictionary<string, IReadOnlyDictionary<string, PublishRepresentationOutput>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in projectionResults.SelectMany(x => x.Outputs).GroupBy(x => x.Kind, StringComparer.OrdinalIgnoreCase))
+        {
+            result[group.Key] = group
+                .Where(x => !string.IsNullOrWhiteSpace(x.Url))
+                .GroupBy(x => x.Url, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(x => x.Key, x => x.Last(), StringComparer.OrdinalIgnoreCase);
+        }
+
+        return result;
+    }
+
+    private static bool TryGetProjectionIncluded(
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, PublishRepresentationOutput>> projectionLookup,
+        string kind,
+        SeoIndexEntry entry,
+        out bool included)
+    {
+        included = false;
+        if (!projectionLookup.TryGetValue(kind, out var byUrl))
+        {
+            return false;
+        }
+
+        if (byUrl.TryGetValue(entry.Route.Url, out var output) ||
+            byUrl.TryGetValue(entry.Canonical, out output))
+        {
+            included = output.Exists;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void AddKind(List<string> kinds, bool enabled, string kind)
+    {
+        if (enabled && !kinds.Contains(kind, StringComparer.OrdinalIgnoreCase))
+        {
+            kinds.Add(kind);
+        }
+    }
+
+    private static void AnalyzePublishDocument(PublishDocument document, string outputDir, List<SeoAuditIssue> issues)
     {
         TrustAuditRules.Analyze(document, issues);
-        RepresentationAuditRules.Analyze(document, issues);
+        RepresentationAuditRules.Analyze(document, outputDir, issues);
     }
 
     private static void AnalyzePublishDocumentDuplicates(IReadOnlyList<PublishDocument> documents, List<SeoAuditIssue> issues)
@@ -287,8 +370,18 @@ internal static partial class SeoAuditReportWriter
             or "publish.sitemap_missing_route"
             or "publish.search_missing_route"
             or "publish.rss_missing_route"
+            or "publish.atom_feed_missing_route"
             or "publish.json_feed_missing_route"
+            or "publish.llms_missing_route"
+            or "publish.llms_full_missing_route"
             or "publish.manifest_missing_route"
+            or "publish.representation_missing"
+            or "publish.representation_file_missing"
+            or "publish.representation_json_mismatch"
+            or "publish.representation_markdown_mismatch"
+            or "publish.representation_json_invalid"
+            or "publish.manifest_mismatch"
+            or "publish.manifest_invalid"
             or "publish.content_duplicate"
             or "publish.unique_value_missing"
             or "publish.ai_crawler_policy_conflict";

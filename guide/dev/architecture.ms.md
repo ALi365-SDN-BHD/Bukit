@@ -18,7 +18,7 @@ flowchart LR
 
     subgraph P2["🔧 VariantBuildPipeline (setiap bahasa)"]
         direction LR
-        V1["Theme+Data"] --> V2["Routing"] --> V3["DerivePages"] --> V4["Render"] --> V5["AfterBuild+Report"]
+        V1["Theme+Data"] --> V2["Routing"] --> V3["DerivePages"] --> V4["Render"] --> V5["Publish Projections+AfterBuild+Report"]
     end
 
     C5 --> V1
@@ -41,7 +41,8 @@ CLI (bukit build/doctor/...)
               │   ├─ DataModuleBuilder (bina site.modules)
               │   ├─ PluginRunner.RunDerivePages (halaman terbitan)
               │   ├─ PageRenderDispatcher → ITemplateRenderer (rendering tokokan)
-              │   └─ PluginRunner.RunAfterBuild (sitemap/rss/search dsb.)
+              │   ├─ Publish projections (JSON/Markdown/feed/search/llms/robots/manifest)
+              │   └─ PluginRunner.RunAfterBuild (sambungan bukan projection)
               ├─ I18nOutputMerger.GenerateRootOutputs (gabungan berbilang bahasa)
               └─ MetricsWriter (output metrik binaan pilihan)
 ```

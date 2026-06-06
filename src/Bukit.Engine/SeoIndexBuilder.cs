@@ -43,7 +43,7 @@ internal static class SeoIndexBuilder
                 route,
                 model.Canonical,
                 model.Robots,
-                SeoModelBuilder.IsIndexable(model.Robots),
+                IsIndexableContent(item, model.Robots),
                 SitemapPolicy.ResolveLastModified(item),
                 item.Id,
                 ResolveExplicitCollection(item));
@@ -112,6 +112,22 @@ internal static class SeoIndexBuilder
         return count is > 0
             ? $"Browse {count} items in {title} from {siteTitle}."
             : $"Browse {title} from {siteTitle}.";
+    }
+
+    private static bool IsIndexableContent(ContentItem item, string? robots)
+    {
+        if (!SeoModelBuilder.IsIndexable(robots))
+        {
+            return false;
+        }
+
+        var record = CanonicalContentGraphBuilder.ToRecord(item);
+        if (!string.Equals(record.Identity.Status, "published", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return record.Lifecycle.ExpiresAt is null || record.Lifecycle.ExpiresAt > DateTimeOffset.UtcNow;
     }
 
     private static IReadOnlyDictionary<string, ContentField>? BuildListFields(

@@ -135,7 +135,7 @@ internal static class PageRenderDispatcher
                             Entities = contentRecord.Entities,
                             Provenance = contentRecord.Provenance,
                             Trust = contentRecord.Trust,
-                            Representations = new[] { "html", "json", "markdown" },
+                            Representations = PublishRepresentationRegistry.DocumentKinds(),
                             Seo = seoBuilder?.Invoke(item, route)
                         };
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
@@ -201,7 +201,7 @@ internal static class PageRenderDispatcher
                             Url = route.Url,
                             Content = entry.RawContent ?? string.Empty,
                             Summary = siteModel.Description,
-                            Representations = new[] { "html" }
+                            Representations = [PublishRepresentationRegistry.Html.Kind]
                         };
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
                         var staticHtml = renderer.RenderPage(route.Template, pageModel);
@@ -363,7 +363,7 @@ internal static class PageRenderDispatcher
                 Entities = contentRecord.Entities,
                 Provenance = contentRecord.Provenance,
                 Trust = contentRecord.Trust,
-                Representations = new[] { "html", "json", "markdown" },
+                Representations = PublishRepresentationRegistry.DocumentKinds(),
                 Seo = seoBuilder?.Invoke(item, route)
             };
 

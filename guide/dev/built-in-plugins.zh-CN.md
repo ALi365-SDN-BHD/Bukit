@@ -4,14 +4,16 @@
 
 内置插件实现目录：`src/Bukit.Engine/Plugins/BuiltIn/`
 
+P3 publish outputs 说明：sitemap、feed、search、llms/llms-full、robots、agent manifest 由 publish projection pipeline（`PublishRepresentationRegistry`）统一拥有。部分 projection adapter 仍复用历史 generator/plugin 类（如 `SitemapGenerator`、`RssGenerator`、`SearchIndexBuilder`、`LlmsTxtPlugin`），但这些 aggregate 文件不再由默认 `IAfterBuildPlugin` 拥有。
+
 相关文档：
 - [插件体系](./plugins.zh-CN.md)
 - [多语言与 SEO](./i18n-seo.zh-CN.md)
 - [引擎固定产物](./engine-outputs.zh-CN.md)
 
-## sitemap（IAfterBuildPlugin）
+## sitemap（publish projection adapter）
 
-文件：`SitemapPlugin.cs`
+来源：`PublishRepresentationRegistry` adapter 复用 sitemap generator helpers。
 
 - 输出：`<outputDir>/sitemap.xml`
 - 依赖：必须配置 `site.url`（否则直接跳过不生成）
@@ -32,12 +34,12 @@
   - 兼容：`<meta name="sitemap" content="exclude|noindex|false|0">`
 
 多语言行为：
-- 当 `site.languages` 非空且 `site.sitemapMode == merged`：该插件会在语言子目录跳过生成（由引擎在根目录生成 merged sitemap）
+- 当 `site.languages` 非空且 `site.sitemapMode == merged`：根目录输出由 i18n root projection adapter 生成
 - 其他模式：各语言输出目录各自生成 `sitemap.xml`
 
-## feed（IAfterBuildPlugin，v3.0 替代原 rss 插件）
+## feed（publish projection adapter，v3.0 替代原 rss 插件）
 
-文件：`FeedPlugin.cs`（原 `RssPlugin.cs` 已废弃）
+来源：`PublishRepresentationRegistry` adapter 复用 RSS、Atom、JSON Feed generator helpers。
 
 - 输出：根据 `site.feed.formats` 生成多种格式：
   - `rss` → `<outputDir>/rss.xml`（RSS 2.0）
@@ -57,12 +59,12 @@
 - 插件开关 key：`site.plugins.feed`（不再使用 `rss`）
 
 多语言行为：
-- 当 `site.languages` 非空且 `site.rssMode == merged`：该插件会在语言子目录跳过生成（由引擎在根目录生成 merged feed）
+- 当 `site.languages` 非空且 `site.rssMode == merged`：根目录输出由 i18n root projection adapter 生成
 - 其他模式：各语言输出目录各自生成 feed 文件
 
-## search-index（IAfterBuildPlugin）
+## search-index（publish projection adapter）
 
-文件：`SearchIndexPlugin.cs`
+来源：`PublishRepresentationRegistry` adapter 复用 `SearchIndexBuilder`；adapter 也会写可选的 `bukit-search.html` UI partial。
 
 - 输出：`<outputDir>/search.json` + 可选 `bukit-search.html`
 - 依赖：不依赖 `site.url`（可在纯相对链接站点使用）
@@ -339,9 +341,9 @@ site:
 
 注意：上传的文件路径受安全约束，不能逃逸出输出目录。
 
-## llms-txt（IAfterBuildPlugin）
+## llms-txt（publish projection adapter）
 
-文件：`LlmsTxtPlugin.cs`
+来源：`PublishRepresentationRegistry` adapter 复用 `LlmsTxtPlugin` writer helpers。
 
 生成面向 AI 友好的站点产物，用于生成式引擎优化（GEO）：
 

@@ -41,11 +41,11 @@ GEO Front Matter 在内容加载期间通过 `SeoModelBuilder` 解析。Front Ma
 
 ### 2. 派生页面阶段
 
-此阶段没有 GEO 特定工作。GEO 仅在 after-build 阶段运作。
+此阶段没有 GEO 特定工作。GEO 静态产物由 publish projection adapter 在 publish audit 前写出。
 
-### 3. After-Build 阶段
+### 3. Publish Projection 阶段
 
-`LlmsTxtPlugin.AfterBuild(context)` 执行：
+publish projection adapter 会复用 `LlmsTxtPlugin` 的生成逻辑：
 
 1. **检查启用状态**：如果 `!geo.Enabled` 则立即返回
 2. **llms.txt 生成**（如果 `geo.LlmsTxt`）：
@@ -156,10 +156,10 @@ GEO 审计从构建输出目录读取已生成的审计报告。不需要重新�
 
 ## 文件输出
 
-| 文件 | 插件 | 所需配置 |
+| 文件 | Owner | 所需配置 |
 |------|--------|----------------|
-| `llms.txt` | LlmsTxtPlugin | `geo.enabled && geo.llmsTxt` |
-| `llms-full.txt` | LlmsTxtPlugin | `geo.enabled && geo.llmsFullTxt` |
-| `robots.txt`（AI 规则） | LlmsTxtPlugin | `geo.enabled && seo.robotsTxt.enabled` |
+| `llms.txt` | Publish projection adapter via `LlmsTxtPlugin` | `geo.enabled && geo.llmsTxt` |
+| `llms-full.txt` | Publish projection adapter via `LlmsTxtPlugin` | `geo.enabled && geo.llmsFullTxt` |
+| `robots.txt`（AI 规则） | Publish projection adapter via crawler policy writer | `geo.enabled && seo.robotsTxt.enabled` |
 
 llms.txt 内容结构遵循 [llmstxt.org](https://llmstxt.org) 规范：`# 标题` → `> 描述` → `## 文档` → `## 文章` → `## 可选`。

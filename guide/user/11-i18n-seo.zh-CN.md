@@ -419,6 +419,8 @@ geo:
 
 每次构建后，Bukit 会写入 `.bukit/publish-audit-report.json`。这是语义 HTML、可见正文、来源、审核状态、实体元数据和 representation 覆盖率的主机器可读与可信发布报告。
 
+Bukit 也会为每篇内容写入机器可读发布投影：`content/*.json` 暴露 canonical content record，方便集成使用；`content/*.md` 暴露面向 RAG / 知识摄取的文本表示。`agent-manifest.json` 由 projection pipeline 生成，只枚举可索引内容以及它们可用的 HTML、semantic HTML、JSON、Markdown、JSON-LD representations。publish audit 会验证已声明的 JSON 与 Markdown representation 文件确实存在，并以 route-level inventory 盘点 RSS、Atom、JSON Feed、sitemap、search、llms.txt、robots.txt 和 agent manifest 等聚合输出，明确每条 route 是否进入面向 AI / crawler 的输出。
+
 ```bash
 bukit publish audit --dir dist
 bukit publish audit --dir dist --strict

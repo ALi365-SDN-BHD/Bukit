@@ -30,9 +30,10 @@ internal static partial class SeoAuditReportWriter
         IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
         IReadOnlyDictionary<string, SeoModel> seoModels,
         CanonicalContentGraph? contentGraph,
-        ILogger logger)
+        ILogger logger,
+        IReadOnlyList<PublishProjectionResult>? projectionResults = null)
     {
-        var result = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, contentGraph, requireHreflangTargets: false);
+        var result = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, contentGraph, requireHreflangTargets: false, projectionResults);
         WriteReport(outputDir, result, logger);
         return result.SeoReport;
     }
@@ -41,7 +42,8 @@ internal static partial class SeoAuditReportWriter
         AppConfig config,
         string outputDir,
         IReadOnlyList<BuildVariantResult> results,
-        ILogger logger)
+        ILogger logger,
+        IReadOnlyList<PublishProjectionResult>? projectionResults = null)
     {
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         var seoModels = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
@@ -70,7 +72,7 @@ internal static partial class SeoAuditReportWriter
             entities.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Entities);
         }
 
-        var auditResult = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, new CanonicalContentGraph(records, entities), requireHreflangTargets: true);
+        var auditResult = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, new CanonicalContentGraph(records, entities), requireHreflangTargets: true, projectionResults);
         WriteReport(outputDir, auditResult, logger);
         return auditResult.SeoReport;
     }
@@ -83,7 +85,6 @@ internal static partial class SeoAuditReportWriter
         PublishAuditReportWriter.Write(outputDir, result.PublishReport);
 
         WriteGeoReport(outputDir, report, logger);
-        WriteAgentManifest(outputDir, report);
 
         foreach (var issue in report.Issues)
         {
@@ -139,28 +140,6 @@ internal static partial class SeoAuditReportWriter
         FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReporter.ReportDirectoryName, "geo-report.json"), json + Environment.NewLine);
     }
 
-    private static void WriteAgentManifest(string outputDir, SeoAuditReport report)
-    {
-        var manifest = new AgentManifest(
-            Schema: "https://bukit.dev/schemas/agent-manifest.v1.json",
-            SchemaVersion: "1.0",
-            GeneratedAt: report.Routes.Count == 0 ? DateTimeOffset.UnixEpoch : report.Routes.Max(x => x.LastModified),
-            Documents: report.Routes.Select(route => new AgentManifestDocument(
-                Id: route.SourceItemId ?? route.Url,
-                CanonicalId: route.Canonical,
-                Route: route.Url,
-                Language: route.Language,
-                ReviewStatus: route.ReviewStatus,
-                Source: route.Source,
-                Entities: route.EntityNames ?? Array.Empty<string>(),
-                Representations: (route.RepresentationKinds ?? Array.Empty<string>())
-                    .Select(kind => new AgentManifestRepresentation(kind, route.Url))
-                    .ToArray())).ToArray());
-
-        var json = JsonSerializer.Serialize(manifest, AgentManifestJsonContext.Default.AgentManifest);
-        FileWriter.WriteUtf8(outputDir, "agent-manifest.json", json + Environment.NewLine);
-    }
-
     internal static SeoAuditReport Build(
         AppConfig config,
         string outputDir,
@@ -176,16 +155,22 @@ internal static partial class SeoAuditReportWriter
         IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
         IReadOnlyDictionary<string, SeoModel> seoModels,
         CanonicalContentGraph? contentGraph = null,
-        bool requireHreflangTargets = true)
+        bool requireHreflangTargets = true,
+        IReadOnlyList<PublishProjectionResult>? projectionResults = null)
     {
         contentGraph ??= CanonicalContentGraph.Empty;
+        var projectionLookup = BuildProjectionLookup(projectionResults);
         var sitemapText = ReadOptional(Path.Combine(outputDir, "sitemap.xml"));
         var searchText = ReadOptional(Path.Combine(outputDir, "search.json"));
         var rssText = ReadOptional(Path.Combine(outputDir, "rss.xml"));
+        var atomFeedText = ReadOptional(Path.Combine(outputDir, config.Site.Feed.Path, "atom.xml")) ??
+                           ReadOptional(Path.Combine(outputDir, "atom.xml"));
         var jsonFeedText = ReadOptional(Path.Combine(outputDir, config.Site.Feed.Path, "feed.json")) ??
                            ReadOptional(Path.Combine(outputDir, "feed.json"));
         var agentManifestText = ReadOptional(Path.Combine(outputDir, "agent-manifest.json"));
         var robotsText = ReadOptional(Path.Combine(outputDir, "robots.txt"));
+        var llmsText = ReadOptional(Path.Combine(outputDir, "llms.txt"));
+        var llmsFullText = ReadOptional(Path.Combine(outputDir, "llms-full.txt"));
 
         var issues = new List<SeoAuditIssue>();
         AnalyzeSitemapXml(sitemapText, issues);
@@ -216,21 +201,71 @@ internal static partial class SeoAuditReportWriter
             }
 
             var rssExpected = IsRssContent(config, entry);
-            var sitemapIncluded = entry.Indexable && ContainsInvariant(sitemapText, entry.Canonical);
-            var searchIncluded = entry.Indexable && ContainsInvariant(searchText, entry.Route.Url);
-            var rssIncluded = entry.Indexable && rssExpected && ContainsInvariant(rssText, entry.Canonical);
+            var sitemapIncluded = TryGetProjectionIncluded(projectionLookup, "sitemap", entry, out var projectedSitemap)
+                ? projectedSitemap
+                : entry.Indexable && ContainsInvariant(sitemapText, entry.Canonical);
+            var searchIncluded = TryGetProjectionIncluded(projectionLookup, "search", entry, out var projectedSearch)
+                ? projectedSearch
+                : entry.Indexable && ContainsInvariant(searchText, entry.Route.Url);
+            var rssIncluded = TryGetProjectionIncluded(projectionLookup, "feed", entry, out var projectedRss)
+                ? projectedRss
+                : entry.Indexable && rssExpected && ContainsInvariant(rssText, entry.Canonical);
+            var atomFeedExpected = IsAtomFeedContent(config, entry);
+            var atomFeedIncluded = TryGetProjectionIncluded(projectionLookup, "atom", entry, out var projectedAtom)
+                ? projectedAtom
+                : entry.Indexable && atomFeedExpected && ContainsInvariant(atomFeedText, entry.Canonical);
             var jsonFeedExpected = IsJsonFeedContent(config, entry);
-            var jsonFeedIncluded = entry.Indexable && jsonFeedExpected && ContainsInvariant(jsonFeedText, entry.Canonical);
-            var manifestIncluded = !entry.Indexable ||
-                                   agentManifestText is null ||
-                                   ContainsInvariant(agentManifestText, entry.Route.Url) ||
-                                   ContainsInvariant(agentManifestText, entry.Canonical);
+            var jsonFeedIncluded = TryGetProjectionIncluded(projectionLookup, "jsonfeed", entry, out var projectedJsonFeed)
+                ? projectedJsonFeed
+                : entry.Indexable && jsonFeedExpected && ContainsInvariant(jsonFeedText, entry.Canonical);
+            var llmsExpected = IsLlmsContent(config, entry);
+            var llmsKindExpected = llmsExpected || (entry.Indexable && llmsText is not null);
+            var llmsIncluded = TryGetProjectionIncluded(projectionLookup, "llms", entry, out var projectedLlms)
+                ? projectedLlms
+                : entry.Indexable &&
+                  llmsKindExpected &&
+                  (ContainsInvariant(llmsText, entry.Route.Url) || ContainsInvariant(llmsText, entry.Canonical));
+            var llmsFullExpected = IsLlmsFullContent(config, entry);
+            var llmsFullKindExpected = llmsFullExpected || (entry.Indexable && llmsFullText is not null);
+            var llmsFullIncluded = TryGetProjectionIncluded(projectionLookup, "llms-full", entry, out var projectedLlmsFull)
+                ? projectedLlmsFull
+                : entry.Indexable &&
+                  llmsFullKindExpected &&
+                  (ContainsInvariant(llmsFullText, entry.Route.Url) || ContainsInvariant(llmsFullText, entry.Canonical));
+            var robotsExpected = config.Site.Seo.RobotsTxt.Enabled || robotsText is not null;
+            var agentManifestExpected = entry.Indexable;
+            var manifestIncluded = TryGetProjectionIncluded(projectionLookup, "agent-manifest", entry, out var projectedManifest)
+                ? projectedManifest
+                : !entry.Indexable ||
+                  (agentManifestText is not null &&
+                   (ContainsInvariant(agentManifestText, entry.Route.Url) ||
+                    ContainsInvariant(agentManifestText, entry.Canonical)));
+            var robotsIncluded = TryGetProjectionIncluded(projectionLookup, "robots", entry, out var projectedRobots)
+                ? projectedRobots
+                : robotsText is not null;
+            document = document with
+            {
+                RepresentationKinds = BuildAggregateRepresentationKinds(document.RepresentationKinds, new PublishRepresentationExpectation(
+                    Feed: rssExpected,
+                    Atom: atomFeedExpected,
+                    JsonFeed: jsonFeedExpected,
+                    Sitemap: entry.Indexable,
+                    Search: entry.Indexable,
+                    Llms: llmsKindExpected,
+                    LlmsFull: llmsFullKindExpected,
+                    Robots: robotsExpected,
+                    AgentManifest: agentManifestExpected))
+            };
             document = document with
             {
                 SitemapIncluded = sitemapIncluded,
                 SearchIncluded = searchIncluded,
                 RssIncluded = rssIncluded,
+                AtomFeedIncluded = atomFeedIncluded,
                 JsonFeedIncluded = jsonFeedIncluded,
+                LlmsIncluded = llmsIncluded,
+                LlmsFullIncluded = llmsFullIncluded,
+                RobotsIncluded = robotsIncluded,
                 ManifestIncluded = manifestIncluded
             };
 
@@ -255,8 +290,8 @@ internal static partial class SeoAuditReportWriter
                 modelByCanonical[model.Canonical] = (entry, model);
             }
 
-            AnalyzePublishDocument(document, issues);
-            SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, searchIncluded, rssIncluded, rssExpected, jsonFeedIncluded, jsonFeedExpected, manifestIncluded, robotsText, issues);
+            AnalyzePublishDocument(document, outputDir, issues);
+            SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, searchIncluded, rssIncluded, rssExpected, atomFeedIncluded, atomFeedExpected, jsonFeedIncluded, jsonFeedExpected, llmsIncluded, llmsExpected, llmsFullIncluded, llmsFullExpected, manifestIncluded, robotsText, issues);
             publishDocuments.Add(document);
 
             routes.Add(new SeoAuditRoute(
@@ -325,7 +360,16 @@ internal static partial class SeoAuditReportWriter
         var publishIssueCount = sortedIssues.Count(x => x.Code.StartsWith("publish.", StringComparison.OrdinalIgnoreCase));
         var machineReadabilityIssueCount = sortedIssues.Count(x => IsMachineReadabilityIssue(x.Code));
         var trustIssueCount = sortedIssues.Count(x => IsTrustIssue(x.Code));
-        var representationGapCount = sortedIssues.Count(x => string.Equals(x.Code, "publish.representation_missing", StringComparison.OrdinalIgnoreCase));
+        var representationGapCount = sortedIssues.Count(x =>
+            x.Code is "publish.representation_missing"
+                or "publish.atom_feed_missing_route"
+                or "publish.llms_full_missing_route"
+                or "publish.representation_file_missing"
+                or "publish.representation_json_mismatch"
+                or "publish.representation_markdown_mismatch"
+                or "publish.representation_json_invalid"
+                or "publish.manifest_mismatch"
+                or "publish.manifest_invalid");
 
         var summary = new SeoAuditSummary(
             RouteCount: sortedRoutes.Count,
@@ -354,7 +398,7 @@ internal static partial class SeoAuditReportWriter
             Summary: summary);
         return new MachineReadabilityTrustAuditResult(
             seoReport,
-            PublishAuditBuilder.Build(seoReport, publishDocuments));
+            PublishAuditBuilder.Build(seoReport, publishDocuments, outputDir));
     }
 
     private static int ComputeGeoScore(bool llmsTxtGenerated, bool llmsFullTxtGenerated, SeoAuditRoute[] geoRoutes, List<SeoAuditRoute> allRoutes)

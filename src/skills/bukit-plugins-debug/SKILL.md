@@ -49,12 +49,17 @@ Bukit has 13 core built-in plugins plus support for external process protocol pl
 
 | Plugin | Hook | Function |
 |------|------|------|
-| **SitemapPlugin** | after-build | sitemap.xml generation with `<priority>`/`<changefreq>`, Image/Video Sitemap extensions. Config: `site.sitemapDetail` |
-| **FeedPlugin** | after-build | Multi-format feed generation (RSS 2.0, Atom, JSON Feed). Per-collection independent feeds. Config: `site.feed` |
-| **SearchIndexPlugin** | after-build | Search index JSON generation + built-in search UI component (`bukit-search.html`). Supports `searchWeight` and `searchExclude` front matter |
-| **LlmsTxtPlugin** | after-build | llms.txt + llms-full.txt generation + AI crawler robots.txt rules |
 | **MenuPlugin** | after-build | Multi-menu navigation system with nesting support. Outputs `menus.json`. Config: `site.menus` |
 | **ImageProcessingPlugin** | after-build | Image resizing via CLI tools (ImageMagick). Generates multi-size variants + srcset data. Config: `theme.images` |
+
+### Publish Projection Phase (P3)
+
+| Output | Owner | Function |
+|------|------|------|
+| `sitemap.xml` | Publish projection adapter | sitemap.xml generation with `<priority>`/`<changefreq>`, Image/Video Sitemap extensions. Config: `site.sitemapDetail` |
+| `rss.xml`, `feed/atom.xml`, `feed/feed.json` | Publish projection adapter via feed generators | Multi-format feed generation (RSS 2.0, Atom, JSON Feed). Config: `site.feed` |
+| `search.json` | Publish projection adapter via `SearchIndexBuilder` | Search index JSON generation. Supports `searchWeight` and `searchExclude` front matter |
+| `llms.txt`, `llms-full.txt`, `robots.txt` | Publish projection adapter via GEO/crawler writers | AI-readable summaries and crawler policy. Config: `site.seo.geo` and `site.seo.robotsTxt` |
 
 ## Plugin Registration Sources
 
@@ -204,11 +209,11 @@ For integration tests, `ProtocolEchoPlugin` (`tests/ProtocolEchoPlugin/Program.c
 2. Parallel rendering phase:
    - All original + derived pages rendered concurrently via Scriban
 
-3. afterBuild phase (in registration order):
-   - SitemapPlugin
-   - FeedPlugin (RSS + Atom + JSON Feed)
-   - SearchIndexPlugin
-   - LlmsTxtPlugin (llms.txt + llms-full.txt + AI crawler rules)
+3. publish projection phase:
+   - sitemap/feed/search/llms/robots projection adapters
+   - legacy generator classes (`SitemapPlugin`, `FeedPlugin`, `SearchIndexPlugin`, `LlmsTxtPlugin`) may still be used directly in focused tests, but are not registered as the default aggregate-output owners
+
+4. afterBuild phase (in registration order):
    - MenuPlugin (menus.json generation)
    - ImageProcessingPlugin (image resizing)
    - Custom afterBuild plugins

@@ -3,10 +3,17 @@
 ## Plugin Terbina Dalam
 | Plugin | Output | Kebergantungan |
 |---|---|---|
-| sitemap | `sitemap.xml` | `site.url` diperlukan |
-| rss | `rss.xml` | `site.url` diperlukan |
-| search-index | `search.json` | Tiada |
 | taxonomy | `/tags/`, `/categories/` | `meta.tags`/`meta.categories` |
+
+## Output Publish Projection
+| Projection | Output | Kebergantungan |
+|---|---|---|
+| sitemap | `sitemap.xml` | `site.url` diperlukan |
+| feed / atom / jsonfeed | `rss.xml`, `feed/atom.xml`, `feed/feed.json` | `site.url` diperlukan |
+| search | `search.json`, pilihan `bukit-search.html` | Tiada |
+| llms / llms-full | `llms.txt`, `llms-full.txt` | `site.seo.geo` |
+| robots | `robots.txt` | `site.seo.robotsTxt` |
+| agent-manifest | `agent-manifest.json` | Tiada |
 
 ## Konfigurasi Plugin
 ```yaml

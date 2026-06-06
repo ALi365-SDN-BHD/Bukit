@@ -63,6 +63,15 @@ dotnet format bukit.slnx --verify-no-changes
 - **横切关注点集中**：`Logger`、`SlugHelper`、`UrlRedactor`、`DiagnosticCode` 等沉淀到 [Bukit.Shared](file:///Users/ali/mydev/Git/Github/Bukit/src/Bukit.Shared)，不得在业务工程内重复实现。
 - **慎引第三方包**：新增 NuGet 依赖须在 PR 描述中给出"为什么不能内置实现"的说明，避免被绑架。
 
+### 2.5 拒绝隐式兼容
+
+- **边界即合约**：只在系统边界（CLI 入参、site.yaml 解析、Notion / HTTP / 文件 IO）做校验；内部模块之间相互信任，禁止"防御性"重复校验。
+- **不符合契约直接抛错**：参数越界、配置缺失、前置条件不满足时必须 `throw` 明确异常（参考 `DiagnosticCode`），禁止 `?? defaultValue`、`try { ... } catch { return null; }`、`if (legacy) ...` 之类的隐式兜底。
+- **禁止"自动迁移"老格式**：site.yaml / front matter / theme.yaml 等用户配置发生 breaking change 时，必须升级版本号并在解析阶段直接报错指引用户迁移，禁止在代码里悄悄"兼容旧写法"。
+- **禁止 dead-fallback**：为"理论上不会发生"的分支写的兜底分支属于不可测代码，违反 §4 TDD 可测性原则，应直接删除。
+- **删除即彻底删除**：移除 API / 字段 / 命令时直接删干净，禁止保留 `[Obsolete]` 转发、`// removed:` 注释、空壳重导出。
+- **例外条款**：跨大版本（major release）的迁移期兼容必须有对应 spec（`.trae/specs/<change-id>/`）说明迁移窗口与移除时间点，否则一律按上述规则处理。
+
 ### 3. 敏捷开发
 
 - **Spec 先行**：≥ 200 行变更或新增公共 API 的改动必须先建 `.trae/specs/<change-id>/{spec.md,tasks.md,checklist.md}` 三件套，PR 描述里通过 `Spec:` 字段引用该路径。
@@ -93,6 +102,7 @@ dotnet format bukit.slnx --verify-no-changes
 - [ ] 新增有副作用的服务类已暴露为 `I*` 接口并通过构造函数注入
 - [ ] 改动文件均 ≤ 600 行；命名空间匹配目录
 - [ ] 跨工程引用未越过依赖矩阵
+- [ ] 未引入隐式兼容兜底（默认值 / 静默 catch / legacy 分支 / `[Obsolete]` 转发）；所有边界违约均 fail-fast
 - [ ] ≥ 200 行变更已有对应 `.trae/specs/<change-id>/` 三件套
 - [ ] 用户/开发者文档已同步更新（如涉及）
 - [ ] PR 描述含 `Closes #` 或 `Spec:` 链接，PR 模板的 TDD 与质量门禁勾选项已逐项确认
@@ -106,3 +116,4 @@ dotnet format bukit.slnx --verify-no-changes
 3. 触碰 `.cs` 文件时先执行 `test-driven-development` skill 流程（Red → Green → Refactor）。
 4. 在声称"完成"前必须实际运行 `bash scripts/quality-gate.sh` 并查看输出，禁止凭直觉断言成功（参考 `verification-before-completion` skill）。
 5. 不允许为通过门禁而调低 `COVERAGE_THRESHOLD` 或临时移除测试。如需调整门禁，必须单独开 spec 走评审。
+6. 禁止以"为了兼容"为理由加 `try/catch` 吞错、加默认值掩盖配置缺失、保留 dead 分支或 `[Obsolete]` 转发；遇到 breaking change 必须 fail-fast，不确定时用 `AskUserQuestion` 与用户确认是否走 spec 流程。

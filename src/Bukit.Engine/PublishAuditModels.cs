@@ -39,14 +39,26 @@ internal sealed record PublishAuditDocument(
     IReadOnlyList<string> EntityNames,
     IReadOnlyList<PublishEntitySummary> EntitySummaries,
     IReadOnlyList<string> RepresentationKinds,
+    IReadOnlyList<PublishRepresentationInventoryItem> Representations,
     IReadOnlyList<string> SchemaTypes,
     IReadOnlyList<string> StructuredDataTypes,
     IReadOnlyList<PublishSemanticOutlineItem> SemanticOutline,
     bool SitemapIncluded,
     bool SearchIncluded,
     bool RssIncluded,
+    bool AtomFeedIncluded,
     bool JsonFeedIncluded,
+    bool LlmsIncluded,
+    bool LlmsFullIncluded,
+    bool RobotsIncluded,
     bool ManifestIncluded);
+
+internal sealed record PublishRepresentationInventoryItem(
+    string Kind,
+    string Url,
+    string Path,
+    bool Generated,
+    bool Indexable);
 
 internal sealed record PublishAuditSummary(
     int DocumentCount,

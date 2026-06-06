@@ -293,6 +293,8 @@ Kod diagnostik (`geo.*`) muncul dalam log binaan, laporan audit publish, dan lap
 
 Selepas setiap binaan, Bukit menulis `.bukit/publish-audit-report.json`. Ini ialah laporan utama untuk HTML semantik, kandungan kelihatan, metadata asal, status semakan, metadata entiti, dan liputan representation.
 
+Bukit juga menulis projection publish yang boleh dibaca mesin untuk setiap dokumen kandungan: `content/*.json` mendedahkan canonical content record untuk integrasi, manakala `content/*.md` menyediakan representasi teks untuk RAG atau ingest pengetahuan. `agent-manifest.json` dijana oleh projection pipeline dan hanya menyenaraikan dokumen boleh indeks bersama representation HTML, semantic HTML, JSON, Markdown, dan JSON-LD yang tersedia. Publish audit mengesahkan fail JSON dan Markdown yang diisytiharkan benar-benar wujud serta menginventori output agregat seperti RSS, Atom, JSON Feed, sitemap, search, llms.txt, robots.txt, dan agent manifest pada peringkat route, termasuk sama ada setiap route masuk ke output untuk AI / crawler.
+
 ```bash
 bukit publish audit --dir dist
 bukit publish audit --dir dist --strict

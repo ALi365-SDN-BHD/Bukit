@@ -18,7 +18,7 @@ guide_chapters:
 
 ## Overview
 
-Bukit SEO covers the traditional search engine optimization pipeline — **configuration** (`site.seo` with 5 sub-nodes), **two rendering modes** (engine inject vs theme responsible), **content Front Matter** (priority fallback chain), **6 Schema.org JSON-LD types**, **build-time diagnostics** (11 codes), compatibility `seo-report.json`, and **CLI audit/diff** commands with CI/CD regression gating. For machine readability, provenance, trust, and representation coverage, use `bukit publish audit`.
+Bukit SEO covers the traditional search engine optimization pipeline — **configuration** (`site.seo` with 5 sub-nodes), **two rendering modes** (engine inject vs theme responsible), **content Front Matter** (priority fallback chain), **6 Schema.org JSON-LD types**, **build-time diagnostics** (11 codes), compatibility `seo-report.json`, and **CLI audit/diff** commands with CI/CD regression gating. For machine readability, provenance, trust, publish projections (`content/*.json`, `content/*.md`, `agent-manifest.json`), and aggregate representation coverage (RSS, Atom, JSON Feed, sitemap, search, llms.txt, robots.txt), use `bukit publish audit`.
 
 **REQUIRED BACKGROUND:** SEO config lives under `site.seo` in site.yaml — you must understand the config model in bukit-config first. GEO features live under `site.seo.geo` — see bukit-geo.
 **REQUIRED SUB-SKILL:** Build sites with `bukit build`, audit with `bukit seo audit`. CLI commands reference bukit-cli-reference.
@@ -109,7 +109,7 @@ The theme template explicitly includes SEO tags via Scriban. Use `SeoPartial.htm
 
 **What the theme must render:** All tags listed in the inject mode above — the engine will NOT inject anything.
 
-**Required config:** Set `plugins.llms-txt.enabled: false` to disable the LlmsTxtPlugin if not needed.
+**Required config:** Set `site.seo.geo.llmsTxt: false` or `site.seo.geo.llmsFullTxt: false` to disable GEO text projections when they are not needed.
 
 ## Sitemap Enhancement (site.sitemapDetail)
 

@@ -76,7 +76,8 @@ public static class ConfigLoader
             Collections = collections,
             ExternalPlugins = SiteDefaultsApplier.ReadExternalPlugins(siteNode),
             ExternalPluginPolicy = ReadExternalPluginPolicy(siteNode),
-            Plugins = SiteDefaultsApplier.ReadPluginToggles(siteNode)
+            Plugins = SiteDefaultsApplier.ReadPluginToggles(siteNode),
+            Feed = SiteDefaultsApplier.ReadFeedConfig(siteNode)
         };
 
         var sources = ConfigCollectionReader.ReadSources(contentNode);

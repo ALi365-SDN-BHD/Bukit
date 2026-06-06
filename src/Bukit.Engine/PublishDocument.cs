@@ -31,7 +31,11 @@ internal sealed record PublishDocument(
     bool SitemapIncluded,
     bool SearchIncluded,
     bool RssIncluded,
+    bool AtomFeedIncluded,
     bool JsonFeedIncluded,
+    bool LlmsIncluded,
+    bool LlmsFullIncluded,
+    bool RobotsIncluded,
     bool ManifestIncluded,
     SeoModel? SeoModel,
     ContentRecord? ContentRecord);
@@ -75,7 +79,11 @@ internal static class PublishDocumentBuilder
             SitemapIncluded: false,
             SearchIncluded: false,
             RssIncluded: false,
+            AtomFeedIncluded: false,
             JsonFeedIncluded: false,
+            LlmsIncluded: false,
+            LlmsFullIncluded: false,
+            RobotsIncluded: false,
             ManifestIncluded: false,
             model,
             record);
@@ -99,12 +107,7 @@ internal static class PublishDocumentBuilder
 
     internal static IReadOnlyList<string> BuildRepresentationKinds(SeoIndexEntry entry, SeoModel? model)
     {
-        var values = new List<string> { "html", "json", "markdown" };
-        if (model?.JsonLd.Count > 0)
-        {
-            values.Add("jsonld");
-        }
-
+        var values = PublishRepresentationRegistry.DocumentKinds(model?.JsonLd.Count > 0).ToList();
         if (entry.Indexable)
         {
             values.Add("search");

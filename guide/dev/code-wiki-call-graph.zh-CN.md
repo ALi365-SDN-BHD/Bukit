@@ -292,7 +292,8 @@ flowchart LR
 4. **页面生成视角**
    - `ContentProviderFactory` → `RouteGenerator` → `PageRenderDispatcher`
 5. **输出产物视角**
-   - `PluginRunner.RunAfterBuild` → sitemap/rss/search/taxonomy
+   - `PublishRepresentationRegistry` → sitemap/rss/search/llms/robots/agent-manifest
+   - `PluginRunner.RunAfterBuild` → taxonomy 等非 projection 扩展
 
 ## 9. 常见误解
 

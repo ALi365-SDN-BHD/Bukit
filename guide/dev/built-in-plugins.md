@@ -4,14 +4,16 @@ This page describes the “output contracts” of built-in plugins: what files/p
 
 Built-in plugin implementation directory: `src/Bukit.Engine/Plugins/BuiltIn/`
 
+P3 publish outputs note: sitemap, feed, search, llms/llms-full, robots, and agent manifest are owned by the publish projection pipeline (`PublishRepresentationRegistry`). Some projection adapters still reuse historical generator/plugin classes such as `SitemapGenerator`, `RssGenerator`, `SearchIndexBuilder`, and `LlmsTxtPlugin`, but those aggregate files are no longer default `IAfterBuildPlugin` ownership.
+
 Related docs:
 - [Plugin System](./plugins.md)
 - [Multilingual and SEO](./i18n-seo.md)
 - [Engine Fixed Outputs](./engine-outputs.zh-CN.md)
 
-## sitemap (IAfterBuildPlugin)
+## sitemap (publish projection adapter)
 
-File: `SitemapPlugin.cs`
+Source: `PublishRepresentationRegistry` adapter via sitemap generator helpers.
 
 - Output: `<outputDir>/sitemap.xml`
 - Dependency: `site.url` must be configured; otherwise generation is skipped
@@ -32,12 +34,12 @@ File: `SitemapPlugin.cs`
   - Compatibility: `<meta name="sitemap" content="exclude|noindex|false|0">`
 
 Multilingual behavior:
-- When `site.languages` is non-empty and `site.sitemapMode == merged`, this plugin skips generation in language subdirectories; the engine generates the merged sitemap at the root
+- When `site.languages` is non-empty and `site.sitemapMode == merged`, root generation is driven by the i18n root projection adapter
 - In other modes, each language output directory generates its own `sitemap.xml`
 
-## feed (IAfterBuildPlugin, replaces the original rss plugin in v3.0)
+## feed (publish projection adapter, replaces the original rss plugin in v3.0)
 
-File: `FeedPlugin.cs` (the original `RssPlugin.cs` is deprecated)
+Source: `PublishRepresentationRegistry` adapter via RSS, Atom, and JSON Feed generator helpers.
 
 - Output: generates multiple formats according to `site.feed.formats`:
   - `rss` → `<outputDir>/rss.xml` (RSS 2.0)
@@ -57,12 +59,12 @@ File: `FeedPlugin.cs` (the original `RssPlugin.cs` is deprecated)
 - Plugin switch key: `site.plugins.feed`; `rss` is no longer used
 
 Multilingual behavior:
-- When `site.languages` is non-empty and `site.rssMode == merged`, this plugin skips generation in language subdirectories; the engine generates the merged feed at the root
+- When `site.languages` is non-empty and `site.rssMode == merged`, root generation is driven by the i18n root projection adapter
 - In other modes, each language output directory generates its own feed files
 
-## search-index (IAfterBuildPlugin)
+## search-index (publish projection adapter)
 
-File: `SearchIndexPlugin.cs`
+Source: `PublishRepresentationRegistry` adapter via `SearchIndexBuilder`; the adapter also writes the optional `bukit-search.html` UI partial.
 
 - Output: `<outputDir>/search.json` plus optional `bukit-search.html`
 - Dependency: does not depend on `site.url`; it can be used on sites with purely relative links
@@ -339,9 +341,9 @@ site:
 
 Note: the uploaded file path is constrained for security and cannot escape the output directory.
 
-## llms-txt (IAfterBuildPlugin)
+## llms-txt (publish projection adapter)
 
-File: `LlmsTxtPlugin.cs`
+Source: `PublishRepresentationRegistry` adapter reusing `LlmsTxtPlugin` writer helpers.
 
 Generates AI-friendly site artifacts for generative engine optimization (GEO):
 

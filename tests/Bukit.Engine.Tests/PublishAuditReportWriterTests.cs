@@ -52,7 +52,12 @@ public sealed class PublishAuditReportWriterTests : IDisposable
         Assert.False(publishDoc.RootElement.TryGetProperty("routes", out _));
         Assert.True(publishDoc.RootElement.TryGetProperty("documents", out var documents));
         Assert.Equal("https://bukit.dev/schemas/publish-audit-report.v1.json", publishDoc.RootElement.GetProperty("schema").GetString());
-        Assert.Equal("/post/", documents.EnumerateArray().Single().GetProperty("routeUrl").GetString());
+        var document = documents.EnumerateArray().Single();
+        Assert.Equal("/post/", document.GetProperty("routeUrl").GetString());
+        var representations = document.GetProperty("representations").EnumerateArray().ToArray();
+        Assert.Contains(representations, x => x.GetProperty("kind").GetString() == "html" && x.GetProperty("url").GetString() == "/post/" && x.GetProperty("generated").GetBoolean());
+        Assert.Contains(representations, x => x.GetProperty("kind").GetString() == "json" && x.GetProperty("path").GetString() == "content/post.json");
+        Assert.Contains(representations, x => x.GetProperty("kind").GetString() == "markdown" && x.GetProperty("path").GetString() == "content/post.md");
         Assert.NotEqual(File.ReadAllText(seoPath), File.ReadAllText(publishPath));
     }
 
@@ -348,6 +353,39 @@ public sealed class PublishAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_ReportsAtomFeedGapAndInventory()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body><header></header><nav></nav><main><article><h1>Post</h1><time datetime="2026-06-05">June 5</time><p>Body content for people and machines.</p></article></main><footer></footer></body>
+            </html>
+            """);
+        Directory.CreateDirectory(Path.Combine(_outputDir, "feed"));
+        File.WriteAllText(Path.Combine(_outputDir, "feed", "atom.xml"), """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <feed xmlns="http://www.w3.org/2005/Atom"></feed>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Entry("/post/", "post/index.html", "https://example.com/post/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+
+        var result = SeoAuditReportWriter.BuildMachineReadabilityTrustAudit(ConfigWithAtomFeed(), _outputDir, index, models, ContentGraph());
+
+        Assert.Contains(result.SeoReport.Issues, x => x.Code == "publish.atom_feed_missing_route" && x.Route == "/post/");
+        var document = Assert.Single(result.PublishReport.Documents);
+        Assert.False(document.AtomFeedIncluded);
+        Assert.Contains(document.RepresentationKinds, x => x == "atom");
+        Assert.Contains(document.Representations, x => x.Kind == "atom" && x.Path == "feed/atom.xml" && x.Url == "/feed/atom.xml");
+    }
+
+    [Fact]
     public void Build_ReportsAiCrawlerConflictForWildcardDisallow()
     {
         WriteOutput("post/index.html", """
@@ -526,6 +564,19 @@ public sealed class PublishAuditReportWriterTests : IDisposable
                 Title = "Test",
                 Url = "https://example.com",
                 Feed = new FeedConfig { Formats = ["json"] }
+            },
+            Content = new ContentConfig { Provider = "markdown" }
+        };
+
+    private static AppConfig ConfigWithAtomFeed()
+        => new()
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Url = "https://example.com",
+                Feed = new FeedConfig { Formats = ["atom"] }
             },
             Content = new ContentConfig { Provider = "markdown" }
         };

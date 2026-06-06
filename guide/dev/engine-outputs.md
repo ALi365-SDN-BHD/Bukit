@@ -17,18 +17,18 @@ Notes:
 - `/blog/` and `/pages/` are not engine-fixed outputs. They appear only when site config declares collection list routes or equivalent derived pages.
 - List pages only use routed content, not derived pages.
 
-## Plugin-Generated Outputs
+## Projection-Generated Aggregate Outputs
 
 | File | Source | Notes |
 |------|--------|-------|
-| `sitemap.xml` | SitemapPlugin (`IAfterBuildPlugin`) | Requires `site.url`. Multilingual: merged at root when `sitemapMode == merged`. |
-| `rss.xml` | FeedPlugin (`IAfterBuildPlugin`) | Requires `site.url`. RSS 2.0 format. |
-| `feed/atom.xml` | FeedPlugin | Atom 1.0 format (when `site.feed.formats` includes `atom`). |
-| `feed/feed.json` | FeedPlugin | JSON Feed 1.1 (when `site.feed.formats` includes `json`). |
-| `robots.txt` | RobotTxtWriter | Generated after plugin execution. |
-| `llms.txt` | LlmsTxtPlugin (`IAfterBuildPlugin`) | AI crawler content summary. Configure via `site.seo.geo`. |
-| `llms-full.txt` | LlmsTxtPlugin | Full content for AI ingestion. |
-| `search.json` | SearchIndexPlugin (`IAfterBuildPlugin`) | Search index. Configure via `site.search`. |
+| `sitemap.xml` | Publish projection adapter | Requires `site.url`. Multilingual: merged at root when `sitemapMode == merged`. |
+| `rss.xml` | Publish projection adapter | Requires `site.url`. RSS 2.0 format. |
+| `feed/atom.xml` | Publish projection adapter | Atom 1.0 format (when `site.feed.formats` includes `atom`). |
+| `feed/feed.json` | Publish projection adapter | JSON Feed 1.1 (when `site.feed.formats` includes `json`). |
+| `robots.txt` | Publish projection adapter via `RobotsTxtWriter` | Crawler policy generated before publish audit. |
+| `llms.txt` | Publish projection adapter via `LlmsTxtPlugin` | AI crawler content summary. Configure via `site.seo.geo`. |
+| `llms-full.txt` | Publish projection adapter via `LlmsTxtPlugin` | Full content for AI ingestion. |
+| `search.json` | Publish projection adapter via `SearchIndexBuilder` | Search index. Configure via `site.search`. |
 
 ## Static Directory Copy Rules
 
@@ -75,6 +75,18 @@ Always generated (not gated by `build.report.enabled`):
 | `geo-report.json` | Derived GEO report: GEO Score (0-100), llms.txt/llms-full.txt status, geo-enhanced route list with schema types |
 
 **Legacy path compatibility:** `seo-report.json` was previously written to the output root (`dist/seo-report.json`). `bukit seo audit` resolves `.bukit/seo-report.json` first, then falls back to the legacy root path. `bukit publish audit` resolves `.bukit/publish-audit-report.json` only unless `--report` is provided.
+
+## Publish Projections (dist/)
+
+The publish projection pipeline writes machine-readable alternate representations before publish audit runs:
+
+| File | Content |
+|------|---------|
+| `content/*.json` | Per-document canonical JSON projection with title, summary, body, provenance, trust, entities, relations, media, and canonical URL |
+| `content/*.md` | Per-document Markdown/text projection for RAG and knowledge ingestion |
+| `agent-manifest.json` | Indexable document manifest with canonical ids, language, review status, entities, and available HTML/semantic HTML/JSON/Markdown/JSON-LD representations |
+
+`PublishRepresentationRegistry` is the internal source of truth for document representation kinds (`html`, `semantic-html`, `json`, `markdown`, optional `jsonld`) and aggregate outputs (`feed`, `atom`, `jsonfeed`, `sitemap`, `search`, `llms`, `llms-full`, `robots`, `agent-manifest`). Built-in JSON, Markdown, agent manifest outputs, and aggregate projections execute through `IPublishProjection.Project(PublishProjectionContext)` and return route-level output inventory. Aggregate projections call the same feed, sitemap, search, llms.txt, llms-full.txt, and robots.txt generators used by the build pipeline, then publish audit consumes the returned projection results before falling back to file inspection. `agent-manifest.json` is written only by the projection pipeline. Publish audit validates that declared JSON and Markdown representation files exist, records a `representations[]` inventory for every publish document, and checks that JSON, Markdown, `llms.txt`, `llms-full.txt`, and agent manifest metadata match the publish document route, identity, language, trust, provenance, and entities.
 
 ---
 

@@ -18,7 +18,7 @@ guide_chapters:
 
 ## Overview
 
-GEO optimizes Bukit sites for AI-driven search engines — ChatGPT Search, Perplexity, Google AI Overviews, Bing Copilot — beyond traditional SEO. Bukit implements GEO through three layers: **static artifacts** (llms.txt / llms-full.txt / AI crawler rules), **structured data** (FAQPage / HowTo / Person / Article / Speakable via front matter), and **audit diagnostics** (10 geo.* codes + GEO Score).
+GEO optimizes Bukit sites for AI-driven search engines — ChatGPT Search, Perplexity, Google AI Overviews, Bing Copilot — beyond traditional SEO. Bukit implements GEO through three layers: **static artifacts** (llms.txt / llms-full.txt / AI crawler rules), **structured data** (FAQPage / HowTo / Person / Article / Speakable via front matter), and **audit diagnostics** (10 geo.* codes + GEO Score). For broader agent ingestion, Bukit also emits publish projections (`content/*.json`, `content/*.md`) and `agent-manifest.json`, with RSS/Atom/JSON Feed, sitemap, search, llms.txt, robots.txt, and manifest coverage verified by `bukit publish audit`.
 
 **REQUIRED BACKGROUND:** GEO config lives under `site.seo.geo` in site.yaml — you must understand bukit-config for the parent `site.seo` node.
 **REQUIRED SUB-SKILL:** Build sites with `bukit build`, audit with `bukit geo audit`. CLI commands reference bukit-cli-reference.
@@ -188,7 +188,7 @@ When `schema_type` is set:
 
 ## GEO Audit
 
-Run `bukit geo audit` (reference bukit-cli-reference) to check GEO readiness from generated audit artifacts. Use `bukit publish audit` for the broader machine-readability and trust gate.
+Run `bukit geo audit` (reference bukit-cli-reference) to check GEO readiness from generated audit artifacts. Use `bukit publish audit` for the broader machine-readability and trust gate; route-level llms.txt coverage gaps are reported there as `publish.llms_missing_route`.
 
 ```
 === GEO Audit ===

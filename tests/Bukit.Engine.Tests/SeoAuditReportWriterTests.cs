@@ -416,7 +416,7 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     }
 
     [Fact]
-    public void Write_WritesPublishAuditReportAndAgentManifest()
+    public void Write_WritesPublishAuditReportButNotAgentManifest()
     {
         WriteOutput("a/index.html");
         var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
@@ -440,7 +440,7 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         SeoAuditReportWriter.Write(Config(), _outputDir, index, models, new ConsoleLogger(LogLevel.Error));
 
         Assert.True(File.Exists(Path.Combine(_outputDir, ".bukit", "publish-audit-report.json")));
-        Assert.True(File.Exists(Path.Combine(_outputDir, "agent-manifest.json")));
+        Assert.False(File.Exists(Path.Combine(_outputDir, "agent-manifest.json")));
     }
 
     [Fact]
@@ -525,6 +525,121 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         Assert.Equal("approved", route.ReviewStatus);
         Assert.Contains("Bukit", route.EntityNames!);
         Assert.Contains("json", route.RepresentationKinds!);
+    }
+
+    [Fact]
+    public void Build_ReportsMissingProjectionFilesForDeclaredRepresentations()
+    {
+        WriteOutput("post/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new()
+            {
+                Title = "Post",
+                Description = "Post description",
+                Canonical = "https://example.com/post/"
+            }
+        };
+        var graph = new CanonicalContentGraph(
+        [
+            new ContentRecord(
+                new ContentIdentity("post-1", "post", "post", "post", "published"),
+                new ContentPresentation("Post", "Post description", "<article><p>body</p></article>", "en", []),
+                new ContentClassification("post", "post", [], []),
+                new ContentOwnership("Ali", "Bukit", null, null),
+                new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), DateTimeOffset.Parse("2026-06-06T00:00:00Z"), null, null),
+                new ProvenanceRecord("notion", "https://example.com/original", [], [], "synced"),
+                new TrustMetadata(0.9, "approved", []),
+                [new EntityRecord("company", "Bukit")],
+                [],
+                [])
+        ], [new EntityRecord("company", "Bukit")]);
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, graph);
+
+        Assert.Contains(report.Issues, x => x.Code == "publish.representation_file_missing" && x.Route == "/post/" && x.Message.Contains("content/post.json", StringComparison.Ordinal));
+        Assert.Contains(report.Issues, x => x.Code == "publish.representation_file_missing" && x.Route == "/post/" && x.Message.Contains("content/post.md", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Build_ReportsProjectionContentMismatches()
+    {
+        WriteOutput("post/index.html");
+        WriteOutput("content/post.md", """
+            # Post
+
+            - Route: /post/
+            - Language: ms
+            - Review Status: draft
+            """);
+        WriteOutput("content/post.json", """
+            {
+              "id": "post-1",
+              "route": "/wrong/",
+              "canonicalUrlKey": "post",
+              "language": "ms",
+              "reviewStatus": "draft",
+              "source": "manual",
+              "entities": []
+            }
+            """);
+        WriteOutput("agent-manifest.json", """
+            {
+              "schema": "https://bukit.dev/schemas/agent-manifest.v1.json",
+              "schemaVersion": "1.0",
+              "generatedAt": "2026-06-06T00:00:00+00:00",
+              "documents": [
+                {
+                  "id": "post-1",
+                  "canonicalId": "post",
+                  "route": "/wrong/",
+                  "language": "ms",
+                  "reviewStatus": "draft",
+                  "source": "manual",
+                  "entities": [],
+                  "representations": []
+                }
+              ]
+            }
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new()
+            {
+                Title = "Post",
+                Description = "Post description",
+                Canonical = "https://example.com/post/"
+            }
+        };
+        var graph = new CanonicalContentGraph(
+        [
+            new ContentRecord(
+                new ContentIdentity("post-1", "post", "post", "post", "published"),
+                new ContentPresentation("Post", "Post description", "<article><p>body</p></article>", "en", []),
+                new ContentClassification("post", "post", [], []),
+                new ContentOwnership("Ali", "Bukit", null, null),
+                new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), DateTimeOffset.Parse("2026-06-06T00:00:00Z"), null, null),
+                new ProvenanceRecord("notion", "https://example.com/original", [], [], "synced"),
+                new TrustMetadata(0.9, "approved", []),
+                [new EntityRecord("company", "Bukit")],
+                [],
+                [])
+        ], [new EntityRecord("company", "Bukit")]);
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, graph);
+
+        Assert.Contains(report.Issues, x => x.Code == "publish.representation_json_mismatch" && x.Route == "/post/");
+        Assert.Contains(report.Issues, x => x.Code == "publish.representation_markdown_mismatch" && x.Route == "/post/");
+        Assert.Contains(report.Issues, x => x.Code == "publish.manifest_mismatch" && x.Route == "/post/");
+        Assert.True(report.Summary.RepresentationGapCount >= 3);
     }
 
     public void Dispose()

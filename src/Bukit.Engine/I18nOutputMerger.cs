@@ -1,6 +1,8 @@
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
@@ -88,37 +90,82 @@ internal static class I18nOutputMerger
         }).ToList();
     }
 
-    internal static void GenerateRootOutputs(AppConfig config, string outputDir, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results, ILogger logger, ISearchIndexBuilder searchIndexBuilder)
+    internal static IReadOnlyList<PublishProjectionResult> GenerateRootOutputs(AppConfig config, string outputDir, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results, ILogger logger, ISearchIndexBuilder searchIndexBuilder)
+    {
+        _ = searchIndexBuilder;
+        var context = new PublishProjectionContext(
+            config,
+            outputDir,
+            CanonicalContentGraph.Empty,
+            Array.Empty<(ContentItem Item, RouteInfo Route)>(),
+            Array.Empty<(ContentItem Item, RouteInfo Route)>(),
+            new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, Bukit.Rendering.SeoModel>(StringComparer.OrdinalIgnoreCase),
+            BaseUrl: rootBaseUrl,
+            Logger: logger,
+            VariantResults: results);
+        return PublishRepresentationRegistry.RootAggregateProjectionAdapters()
+            .Select(projection => projection.Project(context))
+            .ToArray();
+    }
+
+    internal static PublishProjectionResult ProjectRootAggregate(PublishProjectionContext context, PublishRepresentation representation)
+    {
+        var results = context.VariantResults ?? Array.Empty<BuildVariantResult>();
+        GenerateRootAggregate(context.Config, context.OutputDir, context.BaseUrl, results, context.Logger ?? new ConsoleLogger(LogLevel.Error), representation);
+        return new PublishProjectionResult(representation, BuildRootRepresentationOutputs(context.OutputDir, representation, results));
+    }
+
+    private static void GenerateRootAggregate(AppConfig config, string outputDir, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results, ILogger logger, PublishRepresentation representation)
     {
         var siteUrl = config.Site.Url;
-        if (!string.IsNullOrWhiteSpace(siteUrl))
+        switch (representation.Kind)
         {
-            var sitemapMode = (config.Site.SitemapMode ?? "split").Trim().ToLowerInvariant();
-            if (sitemapMode == "merged")
-            {
-                GenerateMergedSitemap(config, outputDir, siteUrl, results, logger);
-            }
-            else if (sitemapMode == "index")
-            {
-                var sitemaps = results.Select(r => SitemapGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, "/sitemap.xml")).ToList();
-                SitemapGenerator.GenerateIndex(outputDir, sitemaps);
-            }
+            case "sitemap" when !string.IsNullOrWhiteSpace(siteUrl):
+                var sitemapMode = (config.Site.SitemapMode ?? "split").Trim().ToLowerInvariant();
+                if (sitemapMode == "merged")
+                {
+                    GenerateMergedSitemap(config, outputDir, siteUrl, results, logger);
+                }
+                else if (sitemapMode == "index")
+                {
+                    var sitemaps = results.Select(r => SitemapGenerator.BuildAbsoluteUrl(siteUrl, r.BaseUrl, "/sitemap.xml")).ToList();
+                    SitemapGenerator.GenerateIndex(outputDir, sitemaps);
+                }
 
-            var rssMode = (config.Site.RssMode ?? "split").Trim().ToLowerInvariant();
-            if (rssMode == "merged")
-            {
-                GenerateMergedRss(config, outputDir, siteUrl, rootBaseUrl, results);
-            }
-        }
+                break;
+            case "feed" or "atom" or "jsonfeed" when !string.IsNullOrWhiteSpace(siteUrl):
+                var rssMode = (config.Site.RssMode ?? "split").Trim().ToLowerInvariant();
+                if (rssMode == "merged")
+                {
+                    GenerateMergedFeeds(config, outputDir, siteUrl, rootBaseUrl, results);
+                }
 
-        var searchMode = (config.Site.SearchMode ?? "split").Trim().ToLowerInvariant();
-        if (searchMode == "merged")
-        {
-            searchIndexBuilder.GenerateMergedSearchIndex(outputDir, results, config.Site.SearchIncludeDerived);
-        }
-        else if (searchMode == "index")
-        {
-            searchIndexBuilder.GenerateSearchIndexIndex(outputDir, results);
+                break;
+            case "search":
+                var searchMode = (config.Site.SearchMode ?? "split").Trim().ToLowerInvariant();
+                if (searchMode == "merged")
+                {
+                    SearchIndexBuilder.GenerateMergedSearchIndex(outputDir, results, config.Site.SearchIncludeDerived);
+                }
+                else if (searchMode == "index")
+                {
+                    SearchIndexBuilder.GenerateSearchIndexIndex(outputDir, results);
+                }
+
+                break;
+            case "llms":
+                GenerateRootLlms(config, outputDir, rootBaseUrl, results, logger);
+                break;
+            case "llms-full":
+                GenerateRootLlmsFull(config, outputDir, rootBaseUrl, results, logger);
+                break;
+            case "robots":
+                GenerateRootRobots(config, outputDir, rootBaseUrl, results);
+                break;
+            case "agent-manifest":
+                GenerateRootAgentManifest(outputDir, results);
+                break;
         }
     }
 
@@ -172,7 +219,7 @@ internal static class I18nOutputMerger
         }
     }
 
-    private static void GenerateMergedRss(AppConfig config, string outputDir, string siteUrl, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results)
+    private static void GenerateMergedFeeds(AppConfig config, string outputDir, string siteUrl, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results)
     {
         var posts = new List<RssGenerator.Post>();
         var rssCollections = ResolveRssCollections(config.Site.Collections);
@@ -195,7 +242,43 @@ internal static class I18nOutputMerger
             }
         }
 
-        RssGenerator.GenerateMerged(outputDir, siteUrl, rootBaseUrl, config.Site.Title, posts, siteDescription: config.Site.Description);
+        var formats = ParseFeedFormats(config.Site.Feed.Formats);
+        var limit = config.Site.Feed.Limit > 0 ? config.Site.Feed.Limit : 20;
+        foreach (var format in formats)
+        {
+            switch (format)
+            {
+                case "rss":
+                    RssGenerator.GenerateMerged(outputDir, siteUrl, rootBaseUrl, config.Site.Title, posts, limit, config.Site.Description);
+                    break;
+                case "atom":
+                    AtomFeedGenerator.Generate(outputDir, siteUrl, rootBaseUrl, config.Site.Title, posts, $"{config.Site.Feed.Path}/atom.xml", limit, config.Site.Description);
+                    break;
+                case "json":
+                    JsonFeedGenerator.Generate(outputDir, siteUrl, rootBaseUrl, config.Site.Title, posts, $"{config.Site.Feed.Path}/feed.json", limit, config.Site.Description);
+                    break;
+            }
+        }
+    }
+
+    private static IReadOnlySet<string> ParseFeedFormats(IReadOnlyList<string> formats)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var format in formats)
+        {
+            var normalized = format.Trim().ToLowerInvariant();
+            if (normalized is "rss" or "atom" or "json")
+            {
+                set.Add(normalized);
+            }
+        }
+
+        if (set.Count == 0)
+        {
+            set.Add("rss");
+        }
+
+        return set;
     }
 
     private static HashSet<string> ResolveRssCollections(IReadOnlyDictionary<string, CollectionConfig>? collections)
@@ -220,6 +303,242 @@ internal static class I18nOutputMerger
     private static string GetCollection(ContentItem item)
     {
         return item.GetCollection();
+    }
+
+    private static void GenerateRootAgentManifest(string outputDir, IReadOnlyList<BuildVariantResult> results)
+    {
+        var entries = new List<DefaultContentProjectionWriter.AgentManifestEntry>();
+        foreach (var result in results)
+        {
+            var recordsById = (result.ContentGraph ?? CanonicalContentGraph.Empty).Records
+                .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+            foreach (var (item, route) in result.Routed.Concat(result.DerivedRouted))
+            {
+                var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+                result.SeoIndex.TryGetValue(key, out var seoEntry);
+                if (seoEntry?.Indexable == false)
+                {
+                    continue;
+                }
+
+                if (!recordsById.TryGetValue(item.Id, out var record))
+                {
+                    record = CanonicalContentGraphBuilder.ToRecord(item);
+                }
+
+                result.SeoModels.TryGetValue(key, out var model);
+                var mergedRoute = CombineBaseUrl(result.BaseUrl, route.Url);
+                entries.Add(new DefaultContentProjectionWriter.AgentManifestEntry(
+                    record.Identity.Id,
+                    record.Identity.CanonicalUrlKey,
+                    mergedRoute,
+                    record.Presentation.Language,
+                    record.Trust.ReviewStatus,
+                    record.Provenance.Source,
+                    record.Entities.Select(x => x.Name).ToArray(),
+                    PrefixRepresentationUrls(
+                        result.BaseUrl,
+                        DefaultContentProjectionWriter.BuildAgentManifestRepresentationEntries(record, mergedRoute, seoEntry, model)),
+                    record.Lifecycle.UpdatedAt ?? record.Lifecycle.PublishedAt));
+            }
+        }
+
+        new AgentManifestProjection().Project(outputDir, entries);
+    }
+
+    private static void GenerateRootLlms(AppConfig config, string outputDir, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results, ILogger logger)
+    {
+        if (!config.Site.Seo.Geo.Enabled || !config.Site.Seo.Geo.LlmsTxt)
+        {
+            return;
+        }
+
+        LlmsTxtPlugin.WriteLlmsTxt(BuildRootPluginContext(config, outputDir, rootBaseUrl, results, logger), config.Site.Seo.Geo);
+    }
+
+    private static void GenerateRootLlmsFull(AppConfig config, string outputDir, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results, ILogger logger)
+    {
+        if (!config.Site.Seo.Geo.Enabled || !config.Site.Seo.Geo.LlmsFullTxt)
+        {
+            return;
+        }
+
+        LlmsTxtPlugin.WriteLlmsFullTxt(BuildRootPluginContext(config, outputDir, rootBaseUrl, results, logger));
+    }
+
+    private static void GenerateRootRobots(AppConfig config, string outputDir, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results)
+    {
+        var seoIndex = BuildRootSeoIndex(results);
+        RobotsTxtWriter.WriteIfRequested(config, outputDir, rootBaseUrl, seoIndex);
+    }
+
+    private static BuildContext BuildRootPluginContext(
+        AppConfig config,
+        string outputDir,
+        string rootBaseUrl,
+        IReadOnlyList<BuildVariantResult> results,
+        ILogger logger)
+    {
+        var routed = new List<(ContentItem Item, RouteInfo Route)>();
+        var derivedRouted = new List<(ContentItem Item, RouteInfo Route)>();
+        var records = new List<ContentRecord>();
+        var entities = new List<EntityRecord>();
+        var seoModels = new Dictionary<string, Bukit.Rendering.SeoModel>(StringComparer.OrdinalIgnoreCase);
+        var bodySources = new Dictionary<string, (ContentItem Item, IContentBodyStore Store)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var result in results)
+        {
+            routed.AddRange(result.Routed.Select(x => (x.Item, MergeRoute(result, x.Route))));
+            derivedRouted.AddRange(result.DerivedRouted.Select(x => (x.Item, MergeRoute(result, x.Route))));
+            foreach (var (item, _) in result.Routed.Concat(result.DerivedRouted))
+            {
+                bodySources[BuildBodyStoreKey(item)] = (item, result.BodyStore);
+            }
+
+            records.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Records);
+            entities.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Entities);
+            foreach (var (key, model) in result.SeoModels)
+            {
+                seoModels[BuildMergedKey(result.Language, key)] = model;
+            }
+        }
+
+        var context = new BuildContext
+        {
+            Config = config,
+            RootDir = Directory.GetCurrentDirectory(),
+            OutputDir = outputDir,
+            BaseUrl = rootBaseUrl,
+            LayoutsDir = string.Empty,
+            Routed = routed,
+            ContentGraph = new CanonicalContentGraph(records, entities),
+            BodyStore = new MergedVariantContentBodyStore(bodySources),
+            SeoIndex = BuildRootSeoIndex(results),
+            Logger = logger
+        };
+        context.DerivedRouted.AddRange(derivedRouted);
+        context.Data["__seo_models"] = seoModels;
+        return context;
+    }
+
+    private static IReadOnlyDictionary<string, SeoIndexEntry> BuildRootSeoIndex(IReadOnlyList<BuildVariantResult> results)
+    {
+        var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var result in results)
+        {
+            foreach (var (key, entry) in result.SeoIndex)
+            {
+                seoIndex[BuildMergedKey(result.Language, key)] = entry with
+                {
+                    Route = MergeRoute(result, entry.Route)
+                };
+            }
+        }
+
+        return seoIndex;
+    }
+
+    private static RouteInfo MergeRoute(BuildVariantResult result, RouteInfo route)
+        => new(
+            CombineBaseUrl(result.BaseUrl, route.Url),
+            Path.Combine(result.Language, route.OutputPath),
+            route.Template);
+
+    private static string BuildBodyStoreKey(ContentItem item)
+    {
+        var language = MetaHelpers.GetString(item.Meta, "language") ?? string.Empty;
+        return item.Id + "\n" + language;
+    }
+
+    private sealed class MergedVariantContentBodyStore : IContentBodyStore
+    {
+        private readonly IReadOnlyDictionary<string, (ContentItem Item, IContentBodyStore Store)> _sources;
+
+        public MergedVariantContentBodyStore(IReadOnlyDictionary<string, (ContentItem Item, IContentBodyStore Store)> sources)
+        {
+            _sources = sources;
+        }
+
+        public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
+        {
+            if (_sources.TryGetValue(BuildBodyStoreKey(item), out var source))
+            {
+                return source.Store.GetAsync(source.Item, cancellationToken);
+            }
+
+            return NullContentBodyStore.Instance.GetAsync(item, cancellationToken);
+        }
+    }
+
+    private static IReadOnlyList<DefaultContentProjectionWriter.RepresentationEntry> PrefixRepresentationUrls(
+        string baseUrl,
+        IReadOnlyList<DefaultContentProjectionWriter.RepresentationEntry> representations)
+    {
+        return representations.Select(x => x.Kind switch
+        {
+            "json" or "markdown" => x with { Url = CombineBaseUrl(baseUrl, x.Url) },
+            _ => x
+        }).ToArray();
+    }
+
+    private static IReadOnlyList<PublishProjectionResult> BuildRootProjectionResults(
+        string outputDir,
+        IReadOnlyList<BuildVariantResult> results)
+    {
+        return PublishRepresentationRegistry.AggregateRepresentations()
+            .Select(representation => new PublishProjectionResult(
+                representation,
+                BuildRootRepresentationOutputs(outputDir, representation, results)))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<PublishRepresentationOutput> BuildRootRepresentationOutputs(
+        string outputDir,
+        PublishRepresentation representation,
+        IReadOnlyList<BuildVariantResult> results)
+    {
+        var path = Path.Combine(outputDir, representation.Path);
+        var fileExists = File.Exists(path);
+        var text = fileExists ? File.ReadAllText(path) : null;
+        var outputs = new List<PublishRepresentationOutput>();
+        foreach (var result in results)
+        {
+            foreach (var (_, seo) in result.SeoIndex.OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
+            {
+                var url = CombineBaseUrl(result.BaseUrl, seo.Route.Url);
+                var routePresent = ContainsInvariant(text, url) || ContainsInvariant(text, seo.Canonical);
+                var exists = representation.Kind.Equals("robots", StringComparison.OrdinalIgnoreCase)
+                    ? fileExists
+                    : fileExists && seo.Indexable && routePresent;
+                outputs.Add(new PublishRepresentationOutput(
+                    representation.Kind,
+                    url,
+                    representation.Path.Replace('\\', '/'),
+                    exists,
+                    seo.Indexable));
+            }
+        }
+
+        if (outputs.Count > 0)
+        {
+            return outputs;
+        }
+
+        return [new PublishRepresentationOutput(representation.Kind, "/" + representation.Path.Replace('\\', '/'), representation.Path.Replace('\\', '/'), fileExists, Indexable: false)];
+    }
+
+    private static bool ContainsInvariant(string? haystack, string needle)
+        => !string.IsNullOrWhiteSpace(haystack) &&
+           !string.IsNullOrWhiteSpace(needle) &&
+           haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
+
+    private static string BuildMergedKey(string language, string key) => language + "/" + key;
+
+    private static string CombineBaseUrl(string baseUrl, string routeUrl)
+    {
+        var b = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
+        var r = routeUrl.StartsWith('/') ? routeUrl : "/" + routeUrl;
+        return string.IsNullOrWhiteSpace(b) ? r : b + r;
     }
 
     private static IReadOnlyList<RouteInfo> BuildCollectionListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections)

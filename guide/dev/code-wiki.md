@@ -84,9 +84,9 @@ Bukit.Cli → Bukit.Engine → Bukit.Config + Content + Rendering + Routing + Sh
 | Pagination | derive-pages | Pagination pages |
 | Archive | derive-pages | Archive pages |
 | Taxonomy | derive+after | `/tags/`, `/categories/` |
-| Sitemap | after-build | `sitemap.xml` |
-| RSS | after-build | `rss.xml` |
-| SearchIndex | after-build | `search.json` |
+| Sitemap | publish projection | `sitemap.xml` |
+| RSS / Atom / JSON Feed | publish projection | `rss.xml`, `feed/atom.xml`, `feed/feed.json` |
+| SearchIndex | publish projection | `search.json` |
 
 ## Key Dependencies
 - `YamlDotNet` — YAML parsing

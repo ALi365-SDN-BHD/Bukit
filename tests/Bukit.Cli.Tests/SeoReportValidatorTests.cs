@@ -76,6 +76,53 @@ public sealed class SeoReportValidatorTests
     }
 
     [Fact]
+    public void ValidateReportContract_PublishReportWithLlmsFullIncluded_Passes()
+    {
+        var json = """
+        {
+          "schema": "https://bukit.dev/schemas/publish-audit-report.v1.json",
+          "schemaVersion": "1.0",
+          "generatedAt": "2026-01-01T00:00:00Z",
+          "siteName": "test",
+          "baseUrl": "/",
+          "documents": [
+            {
+              "routeUrl": "/post/",
+              "outputPath": "post/index.html",
+              "canonical": "https://example.com/post/",
+              "indexable": true,
+              "lastModified": "2026-01-01T00:00:00Z",
+              "representationKinds": ["html", "semantic-html", "json", "markdown", "llms-full"],
+              "representations": [],
+              "schemaTypes": [],
+              "structuredDataTypes": [],
+              "semanticOutline": [],
+              "sitemapIncluded": true,
+              "searchIncluded": true,
+              "rssIncluded": false,
+              "atomFeedIncluded": false,
+              "jsonFeedIncluded": false,
+              "llmsIncluded": true,
+              "llmsFullIncluded": true,
+              "robotsIncluded": true,
+              "manifestIncluded": true
+            }
+          ],
+          "issues": [],
+          "summary": {
+            "documentCount": 1,
+            "indexableCount": 1,
+            "nonIndexableCount": 0,
+            "errorCount": 0,
+            "warningCount": 0
+          }
+        }
+        """;
+
+        SeoReportValidator.ValidateReportContract(Parse(json));
+    }
+
+    [Fact]
     public void ValidateReportContract_MissingRoutes_Throws()
     {
         var json = """

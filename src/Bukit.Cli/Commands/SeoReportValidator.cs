@@ -147,7 +147,7 @@ internal static partial class SeoReportValidator
         {
             var path = $"documents[{documentIndex}]";
             EnsureObject(document, path);
-            EnsureAllowedProperties(document, path, "routeUrl", "outputPath", "canonical", "indexable", "lastModified", "contentType", "sourceItemId", "title", "description", "language", "author", "organization", "source", "originalSource", "reviewStatus", "summary", "updatedAt", "sourceReferences", "entityNames", "entitySummaries", "representationKinds", "schemaTypes", "structuredDataTypes", "semanticOutline", "sitemapIncluded", "searchIncluded", "rssIncluded", "jsonFeedIncluded", "manifestIncluded");
+            EnsureAllowedProperties(document, path, "routeUrl", "outputPath", "canonical", "indexable", "lastModified", "contentType", "sourceItemId", "title", "description", "language", "author", "organization", "source", "originalSource", "reviewStatus", "summary", "updatedAt", "sourceReferences", "entityNames", "entitySummaries", "representationKinds", "representations", "schemaTypes", "structuredDataTypes", "semanticOutline", "sitemapIncluded", "searchIncluded", "rssIncluded", "atomFeedIncluded", "jsonFeedIncluded", "llmsIncluded", "llmsFullIncluded", "robotsIncluded", "manifestIncluded");
             ReadRequiredString(document, path, "routeUrl");
             ReadRequiredString(document, path, "outputPath");
             ReadRequiredString(document, path, "canonical");
@@ -169,18 +169,50 @@ internal static partial class SeoReportValidator
             ReadOptionalStringArray(document, path, "entityNames");
             ReadOptionalEntitySummaries(document, path, "entitySummaries");
             ReadOptionalStringArray(document, path, "representationKinds");
+            ReadOptionalRepresentations(document, path, "representations");
             ReadOptionalStringArray(document, path, "schemaTypes");
             ReadOptionalStringArray(document, path, "structuredDataTypes");
             ReadOptionalSemanticOutline(document, path, "semanticOutline");
             ReadRequiredBool(document, path, "sitemapIncluded");
             ReadRequiredBool(document, path, "searchIncluded");
             ReadRequiredBool(document, path, "rssIncluded");
+            ReadOptionalBool(document, path, "atomFeedIncluded");
             ReadOptionalBool(document, path, "jsonFeedIncluded");
+            ReadOptionalBool(document, path, "llmsIncluded");
+            ReadOptionalBool(document, path, "llmsFullIncluded");
+            ReadOptionalBool(document, path, "robotsIncluded");
             ReadOptionalBool(document, path, "manifestIncluded");
             documentIndex++;
         }
 
         ValidateIssues(issues);
+    }
+
+    private static void ReadOptionalRepresentations(JsonElement element, string path, string property)
+    {
+        if (!element.TryGetProperty(property, out var representations) || representations.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (representations.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException($"{path}.{property} must be an array.");
+        }
+
+        var index = 0;
+        foreach (var representation in representations.EnumerateArray())
+        {
+            var itemPath = $"{path}.{property}[{index}]";
+            EnsureObject(representation, itemPath);
+            EnsureAllowedProperties(representation, itemPath, "kind", "url", "path", "generated", "indexable");
+            ReadRequiredString(representation, itemPath, "kind");
+            ReadRequiredString(representation, itemPath, "url");
+            ReadRequiredString(representation, itemPath, "path");
+            ReadRequiredBool(representation, itemPath, "generated");
+            ReadRequiredBool(representation, itemPath, "indexable");
+            index++;
+        }
     }
 
     private static void ValidateIssues(JsonElement issues)

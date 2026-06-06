@@ -4,9 +4,6 @@
 
 | 插件 | 类型 | 输出 | 关键依赖 |
 |------|------|------|---------|
-| sitemap | AfterBuild | `sitemap.xml` | 必须配置 `site.url` |
-| rss | AfterBuild | `rss.xml` | 必须配置 `site.url` |
-| search-index | AfterBuild | `search.json` | 无特殊依赖 |
 | taxonomy | DerivePages + AfterBuild | `/tags/`、`/categories/` 页面 + `taxonomy.json` | 内容需含 `meta.tags`/`meta.categories` |
 | pagination | DerivePages | `/blog/page/2/` 等分页 | blog 文章数 > 10 |
 | archive | DerivePages | `/blog/archive/` 年月归档 | 需有 blog 内容 |
@@ -45,7 +42,14 @@ site:
   pluginFailMode: strict   # strict=插件失败中断构建，warn=记录错误继续
 ```
 
-## sitemap 插件
+## Publish Projection 输出
+
+- `sitemap.xml`：projection 拥有，必须配置 `site.url`
+- `rss.xml`、`feed/atom.xml`、`feed/feed.json`：projection 拥有，必须配置 `site.url`
+- `search.json` 与可选 `bukit-search.html`：projection 拥有
+- `llms.txt`、`llms-full.txt`、`robots.txt`、`agent-manifest.json`：projection 拥有
+
+## sitemap projection
 
 - 输出：`<outputDir>/sitemap.xml`
 - **必须配置 `site.url`**，否则不生成
@@ -53,14 +57,14 @@ site:
 - 会排除含 `<meta name="robots" content="noindex">` 的页面
 - 多语言：`site.sitemapMode` 控制（`split`/`merged`/`index`）
 
-## rss 插件
+## feed projection
 
 - 输出：`<outputDir>/rss.xml`
 - **必须配置 `site.url`**，否则不生成
 - 只包含 routed 内容（不含派生页）
 - 多语言：`site.rssMode` 控制（`split`/`merged`）
 
-## search-index 插件
+## search projection
 
 - 输出：`<outputDir>/search.json`
 - 不依赖 `site.url`

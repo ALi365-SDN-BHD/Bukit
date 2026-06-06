@@ -4,9 +4,6 @@
 
 | Plugin | Type | Output | Dependency |
 |---|---|---|---|
-| sitemap | AfterBuild | `sitemap.xml` | `site.url` required |
-| rss | AfterBuild | `rss.xml` | `site.url` required |
-| search-index | AfterBuild | `search.json` | None |
 | taxonomy | DerivePages+AfterBuild | `/tags/`, `/categories/`, `taxonomy.json` | `meta.tags`/`meta.categories` |
 | pagination | DerivePages | `/blog/page/2/` etc. | Blog posts > 10 |
 | archive | DerivePages | Archive pages | Blog content |
@@ -27,18 +24,24 @@ site:
 
 ## Failure Policy: `site.pluginFailMode: strict|warn`
 
-## sitemap Plugin
+## Publish Projection Outputs
+- `sitemap.xml`: projection-owned; requires `site.url`
+- `rss.xml`, `feed/atom.xml`, `feed/feed.json`: projection-owned; requires `site.url`
+- `search.json` and optional `bukit-search.html`: projection-owned
+- `llms.txt`, `llms-full.txt`, `robots.txt`, `agent-manifest.json`: projection-owned
+
+## sitemap Projection
 - Output: `sitemap.xml` (requires `site.url`)
 - Includes: `/`, `/blog/`, `/pages/`, all routed + derived pages
 - Excludes: pages with `noindex` meta
 - Multilingual: controlled by `site.sitemapMode`
 
-## rss Plugin
+## feed Projection
 - Output: `rss.xml` (requires `site.url`)
 - Input: routed content only
 - Multilingual: controlled by `site.rssMode`
 
-## search-index Plugin
+## search Projection
 - Output: `search.json` (does not require `site.url`)
 - Fields: id/title/url/content/summary/type/tags/categories/language/sourceKey/publishAt
 - `site.searchIncludeDerived: true` includes derived pages
