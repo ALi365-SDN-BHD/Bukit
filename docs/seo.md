@@ -70,7 +70,7 @@ Diagnostics run at both index and HTML levels. Bukit reports missing `site.url`,
 
 ## SEO Audit Report
 
-Every build writes `seo-report.json` next to the generated site output. In multilingual builds, Bukit also writes a root-level merged report that covers all language variants. The report schema and compatibility contract are documented in [SEO Audit Report Schema](seo-report-schema.md).
+Every build writes the SEO report to `.bukit/seo-report.json` under the generated site output. `bukit seo audit` uses that file as its default discovery target, with `.bukit/publish-audit-report.json` as a secondary compatible input. The report schema and compatibility contract are documented in [SEO Audit Report Schema](seo-report-schema.md).
 
 The report is designed as a CI artifact and stable URL inventory. It includes:
 
@@ -90,7 +90,7 @@ Run the CI audit command after build:
 ```bash
 bukit seo audit --dir dist
 bukit seo audit --dir dist --strict
-bukit seo audit --report dist/seo-report.json
+bukit seo audit --report dist/.bukit/seo-report.json
 bukit seo audit --dir dist --external
 ```
 
@@ -98,13 +98,13 @@ Default mode returns non-zero when the report has errors. `--strict` also fails 
 
 `--external` performs live HTTP checks for canonical URLs, page links, and HTML/OG/Twitter images found in generated pages. These checks can fail because of network, DNS, rate limits, or unpublished environments, so use them as an explicit CI stage rather than as part of the default static build.
 
-Use `seo diff` to prevent SEO regressions between two archived reports:
+Use `seo diff` to prevent SEO regressions between two reports:
 
 ```bash
-bukit seo diff --baseline previous/seo-report.json --current dist/seo-report.json
-bukit seo diff --baseline previous/seo-report.json --current dist/seo-report.json --max-new-errors 0 --max-new-warnings 5
-bukit seo diff --baseline previous/seo-report.json --current dist/seo-report.json --fail-on-new-code seo.noindex_in_sitemap,seo.title_missing
-bukit seo diff --baseline previous/seo-report.json --current dist/seo-report.json --fail-on-route-removed --fail-on-indexable-drop
+bukit seo diff --baseline previous/.bukit/seo-report.json --current dist/.bukit/seo-report.json
+bukit seo diff --baseline previous/.bukit/seo-report.json --current dist/.bukit/seo-report.json --max-new-errors 0 --max-new-warnings 5
+bukit seo diff --baseline previous/.bukit/seo-report.json --current dist/.bukit/seo-report.json --fail-on-new-code seo.noindex_in_sitemap,seo.title_missing
+bukit seo diff --baseline previous/.bukit/seo-report.json --current dist/.bukit/seo-report.json --fail-on-route-removed --fail-on-indexable-drop
 ```
 
 The diff gate compares issue identity by severity, code, route, and message. It also reports added routes, removed routes, and routes that changed from indexable to non-indexable.

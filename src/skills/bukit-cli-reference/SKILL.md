@@ -400,7 +400,7 @@ bukit intent apply <intent.yaml> [--out <path>]  # Apply intent to generate site
 
 ### seo
 
-Audit and regression-detect traditional SEO health. Reads `.bukit/seo-report.json` from the output directory by default; pass `--report` explicitly to validate another compatible report.
+Audit and regression-detect traditional SEO health. Reads `.bukit/seo-report.json` first and then `.bukit/publish-audit-report.json` from the output directory by default; pass `--report` explicitly to validate another report path.
 
 ```
 bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]
@@ -411,7 +411,7 @@ bukit seo diff --baseline <old> --current <new> [--max-new-errors N] [--max-new-
 
 | Option | Default | Description |
 |------|--------|------|
-| `--dir` | `dist` | Output directory containing `.bukit/seo-report.json` |
+| `--dir` | `dist` | Output directory containing `.bukit/seo-report.json` or `.bukit/publish-audit-report.json` |
 | `--report` | `<dir>/.bukit/seo-report.json` | Explicit report path |
 | `--strict` | off | Treat warnings as errors (exit code 1) |
 | `--external` | off | Live HTTP validation of canonical URLs, links, and images (HEAD first, fallback to GET) |

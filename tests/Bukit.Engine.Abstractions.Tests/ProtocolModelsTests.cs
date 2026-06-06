@@ -95,6 +95,7 @@ public sealed class ProtocolModelsTests
         Assert.Equal("handshake", request.Hook);
         Assert.Equal("after-build", request.RequestedHook);
         Assert.Contains("2", request.HostSupportedSchemaVersions);
+        Assert.DoesNotContain("1", request.HostSupportedSchemaVersions);
     }
 
     [Fact]
@@ -186,7 +187,7 @@ public sealed class ProtocolModelsTests
         Assert.Equal("after-build", request.Hook);
         Assert.NotNull(request.Plugin);
         Assert.NotNull(request.Site);
-        Assert.Equal("1", request.SchemaVersion);
+        Assert.Equal("2", request.SchemaVersion);
     }
 
     [Fact]

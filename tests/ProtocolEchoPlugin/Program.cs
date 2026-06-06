@@ -11,6 +11,13 @@ if (mode == "sleep")
     return;
 }
 
+if (string.Equals(hook, "handshake", StringComparison.OrdinalIgnoreCase) &&
+    mode is not "handshake-v1only" and not "handshake-invalid" and not "handshake-counter")
+{
+    Console.Out.Write("""{"ok":true,"negotiatedSchemaVersion":"2"}""");
+    return;
+}
+
 if (mode == "empty")
 {
     return;

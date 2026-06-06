@@ -107,6 +107,9 @@ public sealed class ContentPipelineTests
         Assert.Contains(record.Entities, x => x.Name == "Bukit" && x.Type == "company");
         Assert.Equal("https://example.com/original", record.Provenance.OriginalSource);
         Assert.Equal("approved", record.Trust.ReviewStatus);
+        var graphDocument = Assert.Single(result.ContentGraph.Documents);
+        Assert.Equal("localized-post", graphDocument.Id);
+        Assert.Contains(result.ContentGraph.Entities, x => x.Name == "Bukit" && x.Type == "company");
     }
 
     [Fact]
@@ -153,6 +156,7 @@ public sealed class ContentPipelineTests
         Assert.Equal("notion", record.Provenance.Source);
         Assert.Contains(record.Entities, x => x.Name == "Bukit" && x.Type == "company");
         Assert.Contains(record.Relations, x => x.Type == "related-posts" && x.Target == "Related One");
+        Assert.Contains(result.ContentGraph!.Relations, x => x.Type == "related-posts" && x.Target == "Related One");
         Assert.Contains(record.Media, x => x.Kind == "image" && x.Url == "https://img.example/1.jpg");
         Assert.Contains(record.Media, x => x.Kind == "image" && x.Url == "https://img.example/2.jpg");
     }

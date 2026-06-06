@@ -2,9 +2,22 @@ namespace Bukit.Engine.Abstractions.Content;
 
 public sealed record CanonicalContentGraph(
     IReadOnlyList<ContentRecord> Records,
-    IReadOnlyList<EntityRecord> Entities)
+    IReadOnlyList<EntityRecord> Entities,
+    IReadOnlyList<ContentRelation> Relations,
+    IReadOnlyList<ContentDocument> Documents)
 {
-    public static readonly CanonicalContentGraph Empty = new(Array.Empty<ContentRecord>(), Array.Empty<EntityRecord>());
+    public static readonly CanonicalContentGraph Empty = new(
+        Array.Empty<ContentRecord>(),
+        Array.Empty<EntityRecord>(),
+        Array.Empty<ContentRelation>(),
+        Array.Empty<ContentDocument>());
+
+    public CanonicalContentGraph(
+        IReadOnlyList<ContentRecord> records,
+        IReadOnlyList<EntityRecord> entities)
+        : this(records, entities, records.SelectMany(x => x.Relations).ToArray(), Array.Empty<ContentDocument>())
+    {
+    }
 }
 
 public sealed record ContentRecord(

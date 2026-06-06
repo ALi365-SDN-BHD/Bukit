@@ -306,7 +306,7 @@ public static partial class BukitCliSpecs
             Options: new[]
             {
                 new CliOptionSpec("--dir", "构建输出目录"),
-                new CliOptionSpec("--report", "seo-report.json 路径"),
+                new CliOptionSpec("--report", "审计报告路径"),
                 new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag),
                 new CliOptionSpec("--external", "联网检查 canonical、链接和图片", CliOptionType.Flag),
                 new CliOptionSpec("--baseline", "基线 seo-report.json 路径"),
@@ -322,11 +322,11 @@ public static partial class BukitCliSpecs
             {
                 new CliCommandSpec(
                     Name: "audit",
-                    Description: "读取 seo-report.json 并返回 CI 状态",
+                    Description: "读取 .bukit/seo-report.json 或 publish-audit-report.json 并返回 CI 状态",
                     Options: new[]
                     {
                         new CliOptionSpec("--dir", "构建输出目录"),
-                        new CliOptionSpec("--report", "seo-report.json 路径"),
+                        new CliOptionSpec("--report", "审计报告路径"),
                         new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag),
                         new CliOptionSpec("--external", "联网检查 canonical、链接和图片", CliOptionType.Flag)
                     }),
@@ -374,7 +374,7 @@ public static partial class BukitCliSpecs
             {
                 new CliCommandSpec(
                     Name: "audit",
-                    Description: "检查 GEO 指标，读取 seo-report.json 并审核 AI 引擎优化表现",
+                    Description: "检查 GEO 指标，读取 .bukit/seo-report.json 或 publish-audit-report.json",
                     Options: new[]
                     {
                         new CliOptionSpec("--dir", "构建输出目录")

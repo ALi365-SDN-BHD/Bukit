@@ -32,8 +32,8 @@ Every compatibility item should use one of the statuses below.
 | ID | Compatibility Item | Current Status | Code Location | Risk | Recommended Action | Target Version | Suggested Owner |
 |---|---|---|---|---|---|---|---|
 | `CG-001` | `content.provider` and `content.sources` dual-path loading | `supported` | [ConfigLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigLoader.cs:82), [ContentProviderFactory.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ContentProviderFactory.cs:15) | Medium | Keep. Add explicit precedence tests and state that new projects should prefer `content.sources`. | `v1.x` | Config / Engine |
-| `CG-002` | SEO audit report path fallback from `.bukit/seo-report.json` to legacy `dist/seo-report.json` | `deprecated-but-working` | [SeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/SeoCommand.cs:8) | Low | Keep for now. Add tests for new-only, old-only, and both-present precedence. Document legacy path sunset. | Review for `v2.0` | CLI |
-| `CG-003` | GEO audit report lookup across publish audit, new SEO report, and legacy SEO report | `deprecated-but-working` | [GeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/GeoCommand.cs:26) | Low | Keep for now. Add precedence tests and document lookup order. | Review for `v2.0` | CLI |
+| `CG-002` | SEO audit no longer discovers root `dist/seo-report.json` | `rejected-with-message` | [SeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/SeoCommand.cs:8) | Low | Keep default discovery limited to `.bukit/seo-report.json`, with `.bukit/publish-audit-report.json` as secondary compatible input. Run a fresh build instead of relying on root output. | vNext | CLI |
+| `CG-003` | GEO audit no longer discovers root `dist/seo-report.json` | `rejected-with-message` | [GeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/GeoCommand.cs:26) | Low | Keep default discovery limited to `.bukit/seo-report.json`, with `.bukit/publish-audit-report.json` as secondary compatible input. Run a fresh build instead of relying on root output. | vNext | CLI |
 | `CG-004` | Old themes without `theme.yaml` still render | `supported` | [ThemeManifestLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Theme/ThemeManifestLoader.cs:7), [BuildCompatibilityTests.cs](/Users/ali/mydev/Git/Github/Bukit/tests/Bukit.Theme.Tests/BuildCompatibilityTests.cs:41) | Medium | Keep as an explicit compatibility promise. Add more fixtures for inherited and mixed-mode themes. | `v1.x` | Theme |
 | `CG-005` | Theme template fallback chain via `fallbackDir` and default home template | `supported` | [FileTemplateLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Rendering/Scriban/FileTemplateLoader.cs:15), [ThemeTemplateResolver.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ThemeTemplateResolver.cs:17) | Medium | Keep. Add tests for override, child, and parent precedence. | `v1.x` | Rendering / Theme |
 | `CG-006` | Taxonomy `kinds[]` coexisting with legacy `tags/categories` template config | `deprecated-but-working` | [TaxonomyTemplateResolver.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/BuiltIn/TaxonomyTemplateResolver.cs:16) | Medium | Document as legacy-compatible, but steer users to `taxonomy.kinds[]`. Plan major-version cleanup. | `v2.0` | Engine |
@@ -74,8 +74,8 @@ Expected outcome:
 The highest-value compatibility test additions are:
 
 1. `content.sources` vs `content.provider` precedence matrix
-2. SEO report path fallback precedence
-3. GEO report path fallback precedence
+2. SEO report path discovery without root report fallback
+3. GEO report path discovery without root legacy fallback
 4. Plugin handshake `v2 -> v1` fallback cases
 5. Missing `capabilities` behavior
 6. Windows time zone fallback table
@@ -103,7 +103,7 @@ When updating Bukit docs, use the following rules:
 - [ ] Add or link this document from the maintainer docs index
 - [ ] Align config and routing docs with the status vocabulary above
 - [ ] Add precedence tests for `content.sources` and `content.provider`
-- [ ] Add fallback-path tests for SEO and GEO audit commands
+- [ ] Add path-discovery tests for SEO and GEO audit commands
 - [ ] Add protocol handshake fallback tests
 - [ ] Add tests for omitted plugin `capabilities`
 - [ ] Add parameterized tests for Windows time zone fallback mappings
@@ -119,4 +119,3 @@ Review this table whenever one of the following happens:
 - a parser starts accepting or rejecting a legacy field
 - a major release plan is drafted
 - docs are updated for config, themes, routing, plugins, or import behavior
-

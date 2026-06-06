@@ -220,7 +220,7 @@ Collection/list pages with field items generate `ItemList` JSON-LD with `itemLis
 
 ## SEO Audit
 
-Run `bukit seo audit` after a full build to check traditional SEO health. It reads `dist/.bukit/seo-report.json` by default. The legacy path `dist/seo-report.json` is still supported as a fallback for backward compatibility. Use `bukit publish audit` for the primary machine-readability and trust report.
+Run `bukit seo audit` after a full build to check traditional SEO health. By default it reads `dist/.bukit/seo-report.json`, with `dist/.bukit/publish-audit-report.json` as a secondary compatible input. Root-level `dist/seo-report.json` is not part of the vNext report contract. Use `bukit publish audit` for the primary machine-readability and trust report.
 
 ```
 bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]
@@ -228,8 +228,8 @@ bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]
 
 | Option | Default | Description |
 |------|--------|------|
-| `--dir` | `dist` | Output directory containing `seo-report.json` |
-| `--report` | `<dir>/.bukit/seo-report.json` | Explicit report path. If omitted, checks `dist/.bukit/seo-report.json` first, then falls back to `dist/seo-report.json`. |
+| `--dir` | `dist` | Output directory containing `.bukit/seo-report.json` or `.bukit/publish-audit-report.json` |
+| `--report` | `<dir>/.bukit/seo-report.json` | Explicit report path |
 | `--strict` | off | Treat warnings as errors (exit code 1) |
 | `--external` | off | Perform live HTTP HEAD/GET validation of canonical URLs, links, and images |
 

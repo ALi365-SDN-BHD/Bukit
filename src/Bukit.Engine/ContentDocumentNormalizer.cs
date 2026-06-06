@@ -4,15 +4,127 @@ namespace Bukit.Engine;
 
 internal static class ContentDocumentNormalizer
 {
-    internal static ContentDocument ToDocument(RawContentDocument raw)
+    private static readonly IContentNormalizer Default = new DefaultContentNormalizer();
+
+    internal static ContentDocument ToDocument(RawContentDocument raw, ContentModelSchema? schema = null)
+        => Default.Normalize(raw, schema);
+
+    internal static IReadOnlyList<ContentDocument> ToDocuments(IReadOnlyList<RawContentDocument> rawDocuments, ContentModelSchema? schema = null)
+        => rawDocuments.Select(raw => ToDocument(raw, schema)).ToArray();
+}
+
+internal sealed class DefaultContentNormalizer : IContentNormalizer
+{
+    public ContentDocument Normalize(RawContentDocument raw, ContentModelSchema? schema = null)
     {
+        var fields = raw.CustomFields ?? ToFieldMap(raw.Properties);
+        var diagnostics = BuildDiagnostics(raw, fields, schema);
+        var normalizedRaw = raw with { CustomFields = fields };
         return new ContentDocument(
-            CanonicalContentGraphBuilder.ToRecord(raw),
-            raw.ContentHtml,
-            raw.Fields,
-            raw.BodyKey);
+            CanonicalContentGraphBuilder.ToRecord(normalizedRaw),
+            new ContentBodyRef(raw.Body.InlineHtml, raw.Body.BodyKey, raw.Body.Markdown, raw.Body.PlainText),
+            ContentRoutePolicy.FromFields(fields),
+            ContentPublishPolicy.FromFields(fields),
+            fields,
+            raw.Source,
+            diagnostics);
     }
 
-    internal static IReadOnlyList<ContentDocument> ToDocuments(IReadOnlyList<RawContentDocument> rawDocuments)
-        => rawDocuments.Select(ToDocument).ToArray();
+    private static IReadOnlyDictionary<string, ContentField>? ToFieldMap(IReadOnlyDictionary<string, RawContentValue>? properties)
+    {
+        if (properties is null)
+        {
+            return null;
+        }
+
+        return properties.ToDictionary(
+            x => x.Key,
+            x => new ContentField(x.Value.Kind, x.Value.Value),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static IReadOnlyList<ContentDiagnostic> BuildDiagnostics(
+        RawContentDocument raw,
+        IReadOnlyDictionary<string, ContentField>? fields,
+        ContentModelSchema? schema)
+    {
+        if (schema is null)
+        {
+            return Array.Empty<ContentDiagnostic>();
+        }
+
+        var diagnostics = new List<ContentDiagnostic>();
+        foreach (var mapping in schema.CanonicalMappings?.Values ?? Array.Empty<CanonicalFieldMapping>())
+        {
+            var key = mapping.RawKey ?? mapping.CanonicalField;
+            if (mapping.Required && !ContentFieldReader.TryGetField(fields, key, out _))
+            {
+                diagnostics.Add(new ContentDiagnostic(
+                    "content.required_canonical_field_missing",
+                    "error",
+                    $"Required canonical field '{mapping.CanonicalField}' is missing.",
+                    key,
+                    raw.Id));
+            }
+        }
+
+        foreach (var definition in schema.CustomFields?.Values ?? Array.Empty<CustomFieldDefinition>())
+        {
+            if (definition.Required && !ContentFieldReader.TryGetField(fields, definition.Name, out _))
+            {
+                diagnostics.Add(new ContentDiagnostic(
+                    "content.required_custom_field_missing",
+                    "error",
+                    $"Required custom field '{definition.Name}' is missing.",
+                    definition.Name,
+                    raw.Id));
+            }
+        }
+
+        if (schema.RejectUnknownRawKeys && raw.Properties is { Count: > 0 })
+        {
+            var allowed = BuildAllowedRawKeys(schema);
+            foreach (var key in raw.Properties.Keys)
+            {
+                if (!allowed.Contains(key))
+                {
+                    diagnostics.Add(new ContentDiagnostic(
+                        "content.unknown_raw_key",
+                        "error",
+                        $"Raw key '{key}' is not declared by the content model schema.",
+                        key,
+                        raw.Id));
+                }
+            }
+        }
+
+        return diagnostics;
+    }
+
+    private static HashSet<string> BuildAllowedRawKeys(ContentModelSchema schema)
+    {
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var mapping in schema.CanonicalMappings?.Values ?? Array.Empty<CanonicalFieldMapping>())
+        {
+            allowed.Add(mapping.RawKey ?? mapping.CanonicalField);
+        }
+
+        foreach (var definition in schema.CustomFields?.Values ?? Array.Empty<CustomFieldDefinition>())
+        {
+            allowed.Add(definition.Name);
+        }
+
+        foreach (var mapping in schema.EntityMappings?.Values ?? Array.Empty<EntityMapping>())
+        {
+            allowed.Add(mapping.RawKey);
+        }
+
+        foreach (var mapping in schema.RelationMappings?.Values ?? Array.Empty<RelationMapping>())
+        {
+            allowed.Add(mapping.RawKey);
+        }
+
+        return allowed;
+    }
 }

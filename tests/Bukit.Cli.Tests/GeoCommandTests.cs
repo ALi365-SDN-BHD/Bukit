@@ -46,6 +46,17 @@ public sealed class GeoCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_AuditIgnoresRootReportByDefault()
+    {
+        WriteRootGeoReport(geoEnhancedCount: 1, geoSchemaTypes: new[] { "FAQPage" },
+            llmsTxtGenerated: false, llmsFullTxtGenerated: false, geoScore: 25);
+
+        var exitCode = await GeoCommand.RunAsync(CliTestHelper.CreateCommand("geo", new[] { "geo", "audit", "--dir", _root }));
+
+        Assert.Equal(1, exitCode);
+    }
+
+    [Fact]
     public async Task RunAsync_AuditReturnsZeroWhenGeoEnhancedIsZero()
     {
         WriteGeoReport(geoEnhancedCount: 0, geoSchemaTypes: new[] { "WebPage", "WebSite" },
@@ -94,6 +105,30 @@ public sealed class GeoCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_AuditPrefersSeoReportOverPublishAuditReportByDefault()
+    {
+        WriteGeoReport(geoEnhancedCount: 1, geoSchemaTypes: new[] { "FAQPage" },
+            llmsTxtGenerated: true, llmsFullTxtGenerated: false, geoScore: 50);
+        WritePublishAuditReport(new[] { "WebPage" });
+
+        using var writer = new StringWriter();
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await GeoCommand.RunAsync(CliTestHelper.CreateCommand("geo", new[] { "geo", "audit", "--dir", _root }));
+
+            Assert.Equal(0, exitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        Assert.Contains("Geo-enhanced routes: 1", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RunAsync_AuditReportsInvalidAuditReportJson()
     {
         Directory.CreateDirectory(Path.Combine(_root, ".bukit"));
@@ -133,6 +168,55 @@ public sealed class GeoCommandTests : IDisposable
 
         File.WriteAllText(Path.Combine(_root, "robots.txt"), "User-agent: *\nAllow: /\n");
 
+        var schemaTypesJson = string.Join(", ", geoSchemaTypes.Select(t => $"\"{t}\""));
+
+        Directory.CreateDirectory(Path.Combine(_root, ".bukit"));
+        File.WriteAllText(Path.Combine(_root, ".bukit", "seo-report.json"), $$"""
+            {
+              "schema": "https://bukit.dev/schemas/seo-report.v1.json",
+              "schemaVersion": "1.0",
+              "generatedAt": "2026-05-19T00:00:00+00:00",
+              "siteName": "GeoTest",
+              "siteUrl": "https://example.com",
+              "baseUrl": "/",
+              "routes": [
+                {
+                  "url": "/",
+                  "outputPath": "index.html",
+                  "title": "Home",
+                  "description": "Home page",
+                  "canonical": "https://example.com/",
+                  "robots": null,
+                  "indexable": true,
+                  "lastModified": "2026-05-19T00:00:00+00:00",
+                  "contentType": "page",
+                  "sourceItemId": null,
+                  "sitemapIncluded": true,
+                  "searchIncluded": true,
+                  "rssIncluded": false,
+                  "alternates": [],
+                  "schemaTypes": [ {{schemaTypesJson}} ]
+                }
+              ],
+              "issues": [],
+              "summary": {
+                "routeCount": 1,
+                "indexableCount": 1,
+                "nonIndexableCount": 0,
+                "errorCount": 0,
+                "warningCount": 0,
+                "llmsTxtGenerated": {{(llmsTxtGenerated ? "true" : "false")}},
+                "llmsFullTxtGenerated": {{(llmsFullTxtGenerated ? "true" : "false")}},
+                "geoEnhancedCount": {{geoEnhancedCount}},
+                "geoScore": {{geoScore}}
+              }
+            }
+            """);
+    }
+
+    private void WriteRootGeoReport(int geoEnhancedCount, IReadOnlyList<string> geoSchemaTypes,
+        bool llmsTxtGenerated, bool llmsFullTxtGenerated, int geoScore)
+    {
         var schemaTypesJson = string.Join(", ", geoSchemaTypes.Select(t => $"\"{t}\""));
 
         File.WriteAllText(Path.Combine(_root, "seo-report.json"), $$"""

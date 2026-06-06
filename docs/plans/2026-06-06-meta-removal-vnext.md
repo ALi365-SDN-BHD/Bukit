@@ -10,28 +10,33 @@ This is a breaking redesign. No long-lived compatibility fallback is included in
 
 ## Implementation Status
 
-Status as of 2026-06-06:
+Status as of 2026-06-07:
 
 - Done: `ContentItem.Meta` has been removed from the runtime ABI.
+- Done: `ContentItem` itself has been removed from the runtime ABI; provider and build paths now use raw/document-first types.
 - Done: `MetaHelpers` and `ContentItemExtensions` have been removed; production code and tests no longer read `.Meta`.
 - Done: provider metadata now flows through `ContentField` and canonical content records.
-- Done: `RawContentDocument`, `ContentDocument`, and `RoutedContentDocument` are available as vNext content types.
+- Done: `RawContentDocument`, `RawBody`, `RawContentValue`, `ContentSourceInfo`, `ContentDocument`, and `RoutedContentDocument` are available as vNext content types.
+- Done: `ContentDocument` now owns `ContentBodyRef`, `ContentRoutePolicy`, `ContentPublishPolicy`, `ContentSourceInfo`, and `ContentDiagnostic` while keeping compatibility accessors for existing consumers.
 - Done: Markdown, Notion, and composite providers implement raw-first ingestion through `IRawContentProvider`.
-- Done: content loading normalizes raw documents before downstream pipeline stages consume them.
-- Done: build context, route results, render entries, publish projections, and build reports now carry document-first views while legacy item tuples remain as migration scaffolding.
+- Done: content loading normalizes raw documents through the `IContentNormalizer.Normalize(raw, schema)` contract before downstream pipeline stages consume them.
+- Done: build context, route results, render entries, publish projections, and build reports now carry document-first views.
 - Done: canonical records include identity, presentation, classification, ownership, lifecycle, provenance, trust, entities, relations, and media.
 - Done: canonical entity/relation/media records now preserve URL/sameAs, relation target type/id, and media alt/caption/description/license where available.
 - Done: publish projections generate per-document JSON, per-document Markdown, and `agent-manifest.json`.
 - Done: `bukit publish audit` / `bukit publish diff` are primary audit commands; `seo audit` prefers publish audit reports when present.
-- Done: protocol routed pages include a canonical `content` object in addition to `fields`.
+- Done: protocol routed pages include a canonical `content` object in addition to `fields`, and protocol host code no longer uses old `Meta` naming for field materialization.
 - Done: templates expose `page.content_model`, `page.content_record`, `page.entities`, `page.provenance`, `page.trust`, and `page.representations`.
+- Done: `seo audit` and `geo audit` default discovery starts at `.bukit/seo-report.json`; root `dist/seo-report.json` is no longer part of the report contract.
+- Done: `CanonicalContentGraph` carries graph-level `Documents` and `Relations` in addition to `Records` and `Entities`.
+- Done: protocol invocation and handshake models default to schema version `2`; after-build negotiation is v2-only and fails fast instead of falling back to v1.
 
-Remaining migration scaffolding:
+Remaining vNext hardening, not `Meta` ABI compatibility:
 
-- `ContentItem` still exists as an adapter for body stores, legacy plugin interfaces, and some renderer APIs.
-- `BuildContext.Routed` / `DerivedRouted` still exist beside `RoutedDocuments` / `DerivedDocuments`.
-- Collection field schema still exists beside `ContentModelSchema`; collection schema should eventually become a compatibility projection over the content model schema.
+- `ContentModelSchema` now exposes canonical field mappings, custom field definitions, entity mappings, relation mappings, and media policy, but collection field schema still needs to become a projection over this model instead of a parallel concept.
+- Unknown raw key strictness currently produces content diagnostics through the normalizer; a future stage can decide whether those diagnostics should fail the build immediately.
 - Some aggregate projections still wrap existing generators (`RssGenerator`, `SearchIndexBuilder`, `LlmsTxtPlugin`, `RobotsTxtWriter`) instead of being pure `ContentDocument` projections.
+- Derive-pages protocol requests now use schema version `2`, but derive-pages still has no handshake negotiation layer equivalent to after-build.
 
 ## Design Principles
 

@@ -111,7 +111,7 @@ public sealed class PluginCommandTests : IDisposable
             Assert.Contains("enabled=false", text, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("runtime=process", text, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("hooks=after-build", text, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("negotiation=handshake-v2-fallback-v1", text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("negotiation=handshake-v2", text, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

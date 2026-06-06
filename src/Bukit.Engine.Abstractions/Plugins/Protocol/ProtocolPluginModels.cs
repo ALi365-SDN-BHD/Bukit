@@ -5,7 +5,7 @@ namespace Bukit.Engine.Abstractions.Plugins.Protocol;
 public sealed record ProtocolPluginInvocationRequest
 {
     [JsonPropertyName("schemaVersion")]
-    public string SchemaVersion { get; init; } = "1";
+    public string SchemaVersion { get; init; } = "2";
     [JsonPropertyName("hook")]
     public required string Hook { get; init; }
     [JsonPropertyName("plugin")]

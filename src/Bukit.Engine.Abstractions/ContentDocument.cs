@@ -2,12 +2,72 @@ using Bukit.Engine.Abstractions.Routing;
 
 namespace Bukit.Engine.Abstractions.Content;
 
-public sealed record ContentDocument(
-    ContentRecord Record,
-    string? ContentHtml,
-    IReadOnlyDictionary<string, ContentField>? Fields,
-    string? BodyKey)
+public sealed record ContentDocument
 {
+    public ContentDocument(
+        ContentRecord record,
+        string? contentHtml,
+        IReadOnlyDictionary<string, ContentField>? fields,
+        string? bodyKey)
+        : this(
+            record,
+            new ContentBodyRef(contentHtml, bodyKey),
+            ContentRoutePolicy.FromFields(fields),
+            ContentPublishPolicy.FromFields(fields),
+            fields,
+            ContentSourceInfo.Unknown,
+            Array.Empty<ContentDiagnostic>())
+    {
+    }
+
+    public ContentDocument(
+        ContentRecord record,
+        ContentBodyRef body,
+        ContentRoutePolicy? route = null,
+        ContentPublishPolicy? publish = null,
+        IReadOnlyDictionary<string, ContentField>? customFields = null,
+        ContentSourceInfo? source = null,
+        IReadOnlyList<ContentDiagnostic>? diagnostics = null)
+    {
+        Record = record;
+        Body = body;
+        Route = route ?? ContentRoutePolicy.Empty;
+        Publish = publish ?? ContentPublishPolicy.Empty;
+        CustomFields = customFields;
+        Source = source ?? ContentSourceInfo.Unknown;
+        Diagnostics = diagnostics ?? Array.Empty<ContentDiagnostic>();
+    }
+
+    public ContentRecord Record { get; init; }
+    public ContentBodyRef Body { get; init; }
+    public ContentRoutePolicy Route { get; init; }
+    public ContentPublishPolicy Publish { get; init; }
+    public IReadOnlyDictionary<string, ContentField>? CustomFields { get; init; }
+    public ContentSourceInfo Source { get; init; }
+    public IReadOnlyList<ContentDiagnostic> Diagnostics { get; init; }
+
+    public string? ContentHtml
+    {
+        get => Body.Html;
+        init => Body = Body with { Html = value };
+    }
+
+    public string? BodyKey
+    {
+        get => Body.BodyKey;
+        init => Body = Body with { BodyKey = value };
+    }
+
+    public IReadOnlyDictionary<string, ContentField>? Fields
+    {
+        get => CustomFields;
+        init
+        {
+            CustomFields = value;
+            Route = ContentRoutePolicy.FromFields(value);
+            Publish = ContentPublishPolicy.FromFields(value);
+        }
+    }
     public string Id => Record.Identity.Id;
     public string Title => Record.Presentation.Title;
     public string Slug => Record.Identity.Slug;
@@ -177,6 +237,72 @@ public sealed record ContentDocument(
             ContentFieldReader.GetText(fields, $"{key}_license") ?? ContentFieldReader.GetText(fields, "license")));
     }
 }
+
+public sealed record ContentBodyRef(
+    string? Html = null,
+    string? BodyKey = null,
+    string? Markdown = null,
+    string? PlainText = null);
+
+public sealed record ContentRoutePolicy(
+    string? Url = null,
+    string? OutputPath = null,
+    string? Template = null,
+    string? PermalinkPattern = null,
+    string? ListGroup = null)
+{
+    public static readonly ContentRoutePolicy Empty = new();
+
+    public static ContentRoutePolicy FromFields(IReadOnlyDictionary<string, ContentField>? fields)
+        => new(
+            ContentFieldReader.GetText(fields, "url"),
+            ContentFieldReader.GetText(fields, "outputPath"),
+            ContentFieldReader.GetText(fields, "template"),
+            ContentFieldReader.GetText(fields, "permalink"),
+            ContentFieldReader.GetText(fields, "listGroup"));
+}
+
+public sealed record ContentPublishPolicy(
+    bool Draft = false,
+    bool NoIndex = false,
+    bool NoFollow = false,
+    bool ExcludeFromFeed = false,
+    bool ExcludeFromSearch = false,
+    bool ExcludeFromSitemap = false,
+    bool IsDataModule = false)
+{
+    public static readonly ContentPublishPolicy Empty = new();
+
+    public static ContentPublishPolicy FromFields(IReadOnlyDictionary<string, ContentField>? fields)
+        => new(
+            ContentFieldReader.GetBool(fields, "draft") is true,
+            IsNoIndex(fields),
+            string.Equals(ContentFieldReader.GetText(fields, "robots"), "nofollow", StringComparison.OrdinalIgnoreCase),
+            ContentFieldReader.GetBool(fields, "feedExclude") is true || ContentFieldReader.GetBool(fields, "excludeFromFeed") is true,
+            ContentFieldReader.GetBool(fields, "searchExclude") is true || ContentFieldReader.GetBool(fields, "excludeFromSearch") is true,
+            ContentFieldReader.GetBool(fields, "sitemapExclude") is true || ContentFieldReader.GetBool(fields, "excludeFromSitemap") is true,
+            string.Equals(ContentFieldReader.GetText(fields, "sourceMode"), "data", StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsNoIndex(IReadOnlyDictionary<string, ContentField>? fields)
+    {
+        if (ContentFieldReader.GetBool(fields, "noindex") is true)
+        {
+            return true;
+        }
+
+        var robots = ContentFieldReader.GetText(fields, "robots");
+        return robots is not null &&
+               (robots.Contains("noindex", StringComparison.OrdinalIgnoreCase) ||
+                robots.Equals("none", StringComparison.OrdinalIgnoreCase));
+    }
+}
+
+public sealed record ContentDiagnostic(
+    string Code,
+    string Severity,
+    string Message,
+    string? Field = null,
+    string? SourceId = null);
 
 public sealed record RoutedContentDocument(
     ContentDocument Document,

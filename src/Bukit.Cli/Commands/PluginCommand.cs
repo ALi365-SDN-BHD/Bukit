@@ -101,7 +101,7 @@ public static class PluginCommand
             return "n/a";
         }
 
-        return "handshake-v2-fallback-v1";
+        return "handshake-v2";
     }
 
     private static int Unknown(string sub)

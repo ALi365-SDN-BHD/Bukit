@@ -11,7 +11,7 @@ public sealed record ProtocolHandshakeRequest
     [JsonPropertyName("requestedHook")]
     public required string RequestedHook { get; init; }
     [JsonPropertyName("hostSupportedSchemaVersions")]
-    public IReadOnlyList<string> HostSupportedSchemaVersions { get; init; } = new[] { "2", "1" };
+    public IReadOnlyList<string> HostSupportedSchemaVersions { get; init; } = new[] { "2" };
 }
 
 public sealed record ProtocolHandshakeResponse

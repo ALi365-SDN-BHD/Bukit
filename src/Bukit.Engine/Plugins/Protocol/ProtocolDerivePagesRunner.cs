@@ -95,7 +95,7 @@ internal sealed class ProtocolDerivePagesRunner
     {
         var request = new JsonObject
         {
-            ["schemaVersion"] = "1",
+            ["schemaVersion"] = "2",
             ["hook"] = DerivePagesHook,
             ["plugin"] = new JsonObject
             {

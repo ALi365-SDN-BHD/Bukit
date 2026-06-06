@@ -93,9 +93,19 @@ internal sealed class ProtocolAfterBuildRunner
     {
         var handshakeRequest = BuildHandshakeRequestJson();
         var result = await InvokeAsync(config, handshakeRequest, arguments, cancellationToken);
-        if (result.TimedOut || result.ExitCode != 0 || string.IsNullOrWhiteSpace(result.StdOut))
+        if (result.TimedOut)
         {
-            return "1";
+            throw new InvalidOperationException("[plugin-protocol][handshake] protocol plugin handshake timeout.");
+        }
+
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"[plugin-protocol][handshake] protocol plugin handshake exited with code {result.ExitCode}: {result.StdErr}");
+        }
+
+        if (string.IsNullOrWhiteSpace(result.StdOut))
+        {
+            throw new InvalidOperationException("[plugin-protocol][handshake] protocol plugin handshake returned empty stdout.");
         }
 
         try
@@ -103,16 +113,19 @@ internal sealed class ProtocolAfterBuildRunner
             var response = JsonSerializer.Deserialize(result.StdOut, ProtocolPluginJsonContext.Default.ProtocolHandshakeResponse);
             if (response is null || !response.Ok)
             {
-                return "1";
+                throw new InvalidOperationException($"[plugin-protocol][handshake] {response?.Error?.Message ?? "Protocol plugin handshake returned ok=false."} Bukit vNext requires protocol schema version 2.");
             }
 
-            return string.Equals(response.NegotiatedSchemaVersion, "2", StringComparison.Ordinal)
-                ? "2"
-                : "1";
+            if (!string.Equals(response.NegotiatedSchemaVersion, "2", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"[plugin-protocol][handshake] unsupported negotiated schema version '{response.NegotiatedSchemaVersion ?? "<missing>"}'. Bukit vNext requires protocol schema version 2.");
+            }
+
+            return "2";
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            return "1";
+            throw new InvalidOperationException($"[plugin-protocol][handshake] protocol plugin handshake returned invalid JSON: {ex.Message}", ex);
         }
     }
 
@@ -177,7 +190,7 @@ internal sealed class ProtocolAfterBuildRunner
             ["schemaVersion"] = "2",
             ["hook"] = HandshakeHook,
             ["requestedHook"] = AfterBuildHook,
-            ["hostSupportedSchemaVersions"] = new JsonArray("2", "1")
+            ["hostSupportedSchemaVersions"] = new JsonArray("2")
         }.ToJsonString();
     }
 

@@ -21,7 +21,7 @@ public sealed class ExternalProtocolPluginTests
     {
         var request = new ProtocolPluginInvocationRequest
         {
-            SchemaVersion = "1",
+            SchemaVersion = "2",
             Hook = "after-build",
             Plugin = new ProtocolPluginIdentity
             {
@@ -50,7 +50,7 @@ public sealed class ExternalProtocolPluginTests
 
         var json = JsonSerializer.Serialize(request);
 
-        Assert.Contains("\"schemaVersion\":\"1\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"schemaVersion\":\"2\"", json, StringComparison.Ordinal);
         Assert.Contains("\"hook\":\"after-build\"", json, StringComparison.Ordinal);
         Assert.Contains("\"outputDir\":\"dist\"", json, StringComparison.Ordinal);
         Assert.Contains("\"pluginOptions\":{\"mode\":\"demo\"}", json, StringComparison.Ordinal);
@@ -276,10 +276,8 @@ public sealed class ExternalProtocolPluginTests
 
     [Theory]
     [InlineData("process", "handshake-v2", true)]
-    [InlineData("process", "handshake-v1only", false)]
     // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
     // [InlineData("wasm", "handshake-v2", true)]
-    // [InlineData("wasm", "handshake-v1only", false)]
     public void ExternalProtocolPlugin_AfterBuild_ProtocolSchemaCompatibilityMatrix(
         string runtime,
         string mode,
@@ -348,29 +346,25 @@ public sealed class ExternalProtocolPluginTests
     }
 
     [Fact]
-    public void ExternalProtocolPlugin_AfterBuild_DowngradesToV1_WhenPluginDoesNotSupportV2()
+    public void ExternalProtocolPlugin_AfterBuild_Throws_WhenPluginDoesNotSupportV2()
     {
         using var temp = new TempDir();
         var context = CreateContext(temp.Path, "strict", "handshake-v1only");
 
-        PluginRunner.RunAfterBuild(context);
+        var ex = Assert.Throws<InvalidOperationException>(() => PluginRunner.RunAfterBuild(context));
 
-        var outputPath = Path.Combine(context.OutputDir, "plugin-output.json");
-        Assert.True(File.Exists(outputPath));
-        Assert.Contains("\"ok\":true", File.ReadAllText(outputPath), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("requires protocol schema version 2", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void ExternalProtocolPlugin_AfterBuild_FallsBackToLegacy_WhenHandshakeReturnsInvalidJson()
+    public void ExternalProtocolPlugin_AfterBuild_Throws_WhenHandshakeReturnsInvalidJson()
     {
         using var temp = new TempDir();
         var context = CreateContext(temp.Path, "strict", "handshake-invalid");
 
-        PluginRunner.RunAfterBuild(context);
+        var ex = Assert.Throws<InvalidOperationException>(() => PluginRunner.RunAfterBuild(context));
 
-        var outputPath = Path.Combine(context.OutputDir, "plugin-output.json");
-        Assert.True(File.Exists(outputPath));
-        Assert.Contains("\"ok\":true", File.ReadAllText(outputPath), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("handshake returned invalid JSON", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

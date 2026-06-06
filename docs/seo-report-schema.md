@@ -1,6 +1,6 @@
 # SEO Audit Report Schema
 
-Bukit writes `seo-report.json` at every build output root. The report is a machine-readable SEO URL inventory and CI artifact.
+Bukit writes the compatibility SEO report to `.bukit/seo-report.json` under every build output root. The report is a machine-readable SEO URL inventory and CI artifact.
 
 Current schema:
 

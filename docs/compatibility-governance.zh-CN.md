@@ -30,8 +30,8 @@
 | ID | 兼容项 | 当前状态 | 代码位置 | 风险 | 建议动作 | 目标版本 | 建议负责人 |
 |---|---|---|---|---|---|---|---|
 | `CG-001` | `content.provider` 与 `content.sources` 双轨加载 | `supported` | [ConfigLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigLoader.cs:82), [ContentProviderFactory.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ContentProviderFactory.cs:15) | 中 | 保留；补齐优先级测试矩阵；文档明确新项目优先使用 `content.sources`。 | `v1.x` | Config / Engine |
-| `CG-002` | SEO 审计报告从 `.bukit/seo-report.json` 回退到旧 `dist/seo-report.json` | `deprecated-but-working` | [SeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/SeoCommand.cs:8) | 低 | 暂时保留；补“仅新路径”“仅旧路径”“两者同时存在”三类优先级测试；文档标出旧路径 sunset。 | `v2.0` 前评估 | CLI |
-| `CG-003` | GEO 审计在 publish audit、新 SEO 报告、旧 SEO 报告之间回退查找 | `deprecated-but-working` | [GeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/GeoCommand.cs:26) | 低 | 暂时保留；补查找优先级测试；文档写清查找顺序。 | `v2.0` 前评估 | CLI |
+| `CG-002` | SEO 审计不再发现根路径 `dist/seo-report.json` | `rejected-with-message` | [SeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/SeoCommand.cs:8) | 低 | 默认只发现 `.bukit/seo-report.json`，并以 `.bukit/publish-audit-report.json` 作为次级兼容输入。不要依赖根路径输出，需重新 build。 | vNext | CLI |
+| `CG-003` | GEO 审计不再发现根路径 `dist/seo-report.json` | `rejected-with-message` | [GeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/GeoCommand.cs:26) | 低 | 默认只发现 `.bukit/seo-report.json`，并以 `.bukit/publish-audit-report.json` 作为次级兼容输入。不要依赖根路径输出，需重新 build。 | vNext | CLI |
 | `CG-004` | 无 `theme.yaml` 的旧主题仍可渲染 | `supported` | [ThemeManifestLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Theme/ThemeManifestLoader.cs:7), [BuildCompatibilityTests.cs](/Users/ali/mydev/Git/Github/Bukit/tests/Bukit.Theme.Tests/BuildCompatibilityTests.cs:41) | 中 | 保留，并作为明确兼容承诺写入文档；补更多旧主题/混合主题 fixture。 | `v1.x` | Theme |
 | `CG-005` | 主题模板 `fallbackDir` 与默认首页模板回退链 | `supported` | [FileTemplateLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Rendering/Scriban/FileTemplateLoader.cs:15), [ThemeTemplateResolver.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ThemeTemplateResolver.cs:17) | 中 | 保留；补 override、child、parent 三层优先级测试。 | `v1.x` | Rendering / Theme |
 | `CG-006` | taxonomy 新 `kinds[]` 与旧 `tags/categories` 模板配置并存 | `deprecated-but-working` | [TaxonomyTemplateResolver.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/BuiltIn/TaxonomyTemplateResolver.cs:16) | 中 | 文档标为旧配置兼容；新示例统一引导到 `taxonomy.kinds[]`；计划 major 清理 legacy 分支。 | `v2.0` | Engine |
@@ -71,8 +71,8 @@
 优先级最高的兼容测试包括：
 
 1. `content.sources` 与 `content.provider` 优先级矩阵
-2. SEO 报告路径回退优先级
-3. GEO 报告路径回退优先级
+2. SEO 报告路径发现，且不再回退根目录报告
+3. GEO 报告路径发现，且不再回退根目录旧报告
 4. 插件 handshake `v2 -> v1` 回退场景
 5. 未声明 `capabilities` 的行为
 6. Windows 时区 fallback 映射
@@ -100,7 +100,7 @@
 - [ ] 将本文档加入维护者文档入口或索引
 - [ ] 按本文状态词表统一 config / routing / plugin 文档表述
 - [ ] 补 `content.sources` / `content.provider` 优先级测试
-- [ ] 补 SEO / GEO 审计路径 fallback 测试
+- [ ] 补 SEO / GEO 审计路径发现测试
 - [ ] 补协议 handshake fallback 测试
 - [ ] 补插件 `capabilities` 缺省行为测试
 - [ ] 补 Windows 时区 fallback 参数化测试
@@ -116,4 +116,3 @@
 - 某个解析器开始接受或拒绝旧字段
 - 开始制定新的 major 版本计划
 - 更新了 config、theme、routing、plugin 或 import 相关文档
-

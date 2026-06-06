@@ -49,7 +49,6 @@ public abstract class ProcessPluginHost
 
     private void HandleHandshake(ProtocolPluginInvocationRequest request)
     {
-        var supported = new List<string> { "1" };
         var response = new ProtocolPluginInvocationResponse
         {
             Ok = true,
@@ -74,7 +73,7 @@ public abstract class ProcessPluginHost
             {
                 var payload = request.AfterBuild ?? new AfterBuildRequestPayload { OutputDir = "." };
                 var pluginOptions = JsonElementMaterializer.Materialize(request.Config?.PluginOptions);
-                payload = MaterializeRoutedPagesMeta(payload);
+                payload = MaterializeRoutedPageFields(payload);
                 await AfterBuildAsync(payload, pluginOptions, ct);
             }
 
@@ -87,7 +86,7 @@ public abstract class ProcessPluginHost
         }
     }
 
-    private static AfterBuildRequestPayload MaterializeRoutedPagesMeta(AfterBuildRequestPayload payload)
+    private static AfterBuildRequestPayload MaterializeRoutedPageFields(AfterBuildRequestPayload payload)
     {
         var pages = payload.RoutedPages;
         if (pages is null || pages.Count == 0)

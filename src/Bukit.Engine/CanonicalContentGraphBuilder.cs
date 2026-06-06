@@ -13,15 +13,27 @@ internal static class CanonicalContentGraphBuilder
 
         var records = new List<ContentRecord>(documents.Count);
         var entities = new List<EntityRecord>();
+        var relations = new List<ContentRelation>();
 
         foreach (var document in documents)
         {
             var record = document.Record;
             records.Add(record);
             entities.AddRange(record.Entities);
+            relations.AddRange(record.Relations);
         }
 
-        return new CanonicalContentGraph(records, entities);
+        return new CanonicalContentGraph(
+            records,
+            entities
+                .GroupBy(x => $"{x.Type}:{x.Id ?? x.Name}", StringComparer.OrdinalIgnoreCase)
+                .Select(x => x.First())
+                .ToArray(),
+            relations
+                .GroupBy(x => $"{x.Type}:{x.TargetType}:{x.TargetId ?? x.Target}", StringComparer.OrdinalIgnoreCase)
+                .Select(x => x.First())
+                .ToArray(),
+            documents);
     }
 
     internal static ContentRecord ToRecord(RawContentDocument raw)

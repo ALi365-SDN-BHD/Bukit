@@ -55,6 +55,68 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
+    public void ContentDocumentNormalizer_MapsRawBodySourcePoliciesAndDiagnostics()
+    {
+        var raw = new RawContentDocument(
+            Id: "doc-1",
+            Title: "Doc",
+            Slug: "doc",
+            PublishAt: DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
+            Body: new RawBody(
+                InlineHtml: "<p>Doc</p>",
+                BodyKey: "body-1",
+                Markdown: "# Doc",
+                PlainText: "Doc"),
+            Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "post"),
+                ["url"] = new("text", "/docs/doc/"),
+                ["template"] = new("text", "article"),
+                ["draft"] = new("bool", true),
+                ["sourceMode"] = new("text", "data"),
+                ["unknown"] = new("text", "value")
+            },
+            Source: new ContentSourceInfo(
+                Provider: "markdown",
+                SourceKey: "docs",
+                SourcePath: "content/doc.md",
+                ExternalId: "doc-1",
+                ExternalUrl: new Uri("https://example.com/doc"),
+                SyncedAt: DateTimeOffset.Parse("2026-06-02T00:00:00Z"),
+                SyncStatus: "synced"));
+        var schema = new ContentModelSchema(
+            CanonicalMappings: new Dictionary<string, CanonicalFieldMapping>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("type")
+            },
+            CustomFields: new Dictionary<string, CustomFieldDefinition>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["url"] = new("url", "text"),
+                ["template"] = new("template", "text"),
+                ["draft"] = new("draft", "bool"),
+                ["sourceMode"] = new("sourceMode", "text")
+            },
+            RejectUnknownRawKeys: true);
+
+        var document = ContentDocumentNormalizer.ToDocument(raw, schema);
+
+        Assert.Equal("<p>Doc</p>", document.Body.Html);
+        Assert.Equal("body-1", document.Body.BodyKey);
+        Assert.Equal("# Doc", document.Body.Markdown);
+        Assert.Equal("Doc", document.Body.PlainText);
+        Assert.Equal("markdown", document.Source.Provider);
+        Assert.Equal("content/doc.md", document.Source.SourcePath);
+        Assert.Equal("/docs/doc/", document.Route.Url);
+        Assert.Equal("article", document.Route.Template);
+        Assert.True(document.Publish.Draft);
+        Assert.True(document.Publish.IsDataModule);
+        Assert.Contains(document.Diagnostics, diagnostic =>
+            diagnostic.Code == "content.unknown_raw_key" &&
+            diagnostic.Field == "unknown" &&
+            diagnostic.SourceId == "doc-1");
+    }
+
+    [Fact]
     public async Task DraftFilterStage_RemovesDraftItems()
     {
         var published = Document("published", "pub", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase));
