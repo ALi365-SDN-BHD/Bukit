@@ -15,9 +15,7 @@ public sealed class ArchivePluginTests
 {
     private static ContentItem CreateItem(string id, string title, string slug, DateTimeOffset publishAt, string? collection = null)
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        meta["type"] = collection ?? "post";
-        meta["collection"] = collection ?? "post";
+        var collectionValue = collection ?? "post";
 
         return new ContentItem(
             Id: id,
@@ -25,8 +23,12 @@ public sealed class ArchivePluginTests
             Slug: slug,
             PublishAt: publishAt,
             ContentHtml: "<p>content</p>",
-            Meta: meta,
-            Fields: null);
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", collectionValue),
+                ["collection"] = new("text", collectionValue)
+            });
     }
 
     private static BuildContext CreateContext(List<(ContentItem Item, RouteInfo Route)> routed)
@@ -94,7 +96,11 @@ public sealed class ArchivePluginTests
             PublishAt: DateTimeOffset.MinValue,
             ContentHtml: "<p>no date</p>",
             Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
-            Fields: null);
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "post"),
+                ["collection"] = new("text", "post")
+            });
         var routed = new List<(ContentItem Item, RouteInfo Route)>
         {
             (itemNoDate, new RouteInfo("/blog/no-date/", "blog/no-date/index.html", "pages/post.html")),

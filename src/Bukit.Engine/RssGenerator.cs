@@ -180,11 +180,6 @@ public static class RssGenerator
         return value.Replace("]]>", "]]]]><![CDATA[>", StringComparison.Ordinal);
     }
 
-    private static string? GetString(IReadOnlyDictionary<string, object> meta, string key)
-    {
-        return meta.TryGetValue(key, out var v) && v is not null ? v.ToString() : null;
-    }
-
     internal static List<Post>? BuildPostsFromSeoIndex(
         IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
@@ -220,8 +215,8 @@ public static class RssGenerator
             Title: record?.Presentation.Title ?? item.Title,
             AbsoluteUrl: absoluteUrl,
             PublishAt: record?.Lifecycle.PublishedAt ?? item.PublishAt,
-            Description: record?.Presentation.Summary ?? GetString(item.Meta, "summary"),
-            Categories: MergeCategories(record?.Classification.Tags, record?.Classification.Sections, GetStringList(item.Meta, "tags"), GetStringList(item.Meta, "categories")),
+            Description: record?.Presentation.Summary,
+            Categories: MergeCategories(record?.Classification.Tags, record?.Classification.Sections),
 #pragma warning disable CS0618
             ContentHtml: ContentBodyResolver.GetHtml(item, bodyStore),
 #pragma warning restore CS0618
@@ -231,30 +226,21 @@ public static class RssGenerator
             ReviewStatus: string.IsNullOrWhiteSpace(record?.Trust.ReviewStatus) ? null : record.Trust.ReviewStatus,
             Entities: record?.Entities.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
 
-    private static IReadOnlyList<string>? GetStringList(IReadOnlyDictionary<string, object> meta, string key)
+    internal static Post ToPost(ContentDocument document, string absoluteUrl)
     {
-        if (!meta.TryGetValue(key, out var v) || v is null)
-        {
-            return null;
-        }
-
-        if (v is string s)
-        {
-            var parts = s.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            return parts.Length == 0 ? null : parts;
-        }
-
-        if (v is IEnumerable<object> seq)
-        {
-            var list = seq.Select(x => x?.ToString() ?? string.Empty)
-                .Select(x => x.Trim())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToList();
-
-            return list.Count == 0 ? null : list;
-        }
-
-        return null;
+        var record = document.Record;
+        return new Post(
+            Title: record.Presentation.Title,
+            AbsoluteUrl: absoluteUrl,
+            PublishAt: record.Lifecycle.PublishedAt,
+            Description: record.Presentation.Summary,
+            Categories: MergeCategories(record.Classification.Tags, record.Classification.Sections),
+            ContentHtml: document.Body.Html ?? record.Presentation.Body,
+            Author: record.Ownership.Author,
+            Language: record.Presentation.Language,
+            Source: record.Provenance.Source,
+            ReviewStatus: string.IsNullOrWhiteSpace(record.Trust.ReviewStatus) ? null : record.Trust.ReviewStatus,
+            Entities: record.Entities.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
     }
 
     private static IReadOnlyList<string>? MergeCategories(IReadOnlyList<string>? tags, IReadOnlyList<string>? categories, IReadOnlyList<string>? fallbackTags = null, IReadOnlyList<string>? fallbackCategories = null)
@@ -322,7 +308,7 @@ public static class RssGenerator
 
     private static string GetCollection(ContentItem item)
     {
-        return item.GetCollection();
+        return ContentFieldReader.GetCollection(item.Fields);
     }
 
     public static string BuildAbsoluteUrl(string siteUrl, string baseUrl, string url)

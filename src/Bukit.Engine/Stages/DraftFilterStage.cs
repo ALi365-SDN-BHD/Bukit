@@ -1,3 +1,4 @@
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Stages;
@@ -14,8 +15,7 @@ internal sealed class DraftFilterStage : IContentStage
         }
 
         var before = input.Items.Count;
-        var filtered = input.Items.Where(i =>
-            !(i.Meta.TryGetValue("draft", out var d) && ValueCoercion.IsTruthy(d))).ToList();
+        var filtered = input.Items.Where(i => !IsDraft(i)).ToList();
 
         if (filtered.Count < before)
         {
@@ -23,5 +23,15 @@ internal sealed class DraftFilterStage : IContentStage
         }
 
         return Task.FromResult(new ContentStageOutput(filtered, input.BodyStore, Name, 0, null));
+    }
+
+    private static bool IsDraft(ContentItem item)
+    {
+        if (item.Fields is null || !item.Fields.TryGetValue("draft", out var field) || field.Value is null)
+        {
+            return false;
+        }
+
+        return ValueCoercion.IsTruthy(field.Value);
     }
 }

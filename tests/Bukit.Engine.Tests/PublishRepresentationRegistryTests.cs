@@ -319,14 +319,14 @@ public sealed class PublishRepresentationRegistryTests
             id,
             DateTimeOffset.Parse("2026-06-05T00:00:00Z"),
             "<p>Body</p>",
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["language"] = "en",
-                ["status"] = "published",
-                ["type"] = "post",
-                ["collection"] = "post"
-            },
-            Fields: null);
+                ["language"] = new("text", "en"),
+                ["status"] = new("text", "published"),
+                ["type"] = new("text", "post"),
+                ["collection"] = new("text", "post")
+            });
 
     private sealed class InlineBodyStore : IContentBodyStore
     {

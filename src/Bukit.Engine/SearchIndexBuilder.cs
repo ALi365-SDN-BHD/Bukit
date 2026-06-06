@@ -65,7 +65,7 @@ internal static class SearchIndexBuilder
                      .Where(x => x.Value.Indexable)
                      .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
-            if (itemsByPath.TryGetValue(key, out var item) && !IsSearchExcluded(item))
+            if (itemsByPath.TryGetValue(key, out var item))
             {
                 WriteSearchItem(writer, item, seo.Route, baseUrl, bodyStore, emitSnippet);
             }
@@ -75,22 +75,33 @@ internal static class SearchIndexBuilder
         writer.Flush();
     }
 
-    private static bool IsSearchExcluded(ContentItem item)
+    internal static void GenerateSingleSearchIndex(
+        string outputDir,
+        string baseUrl,
+        bool emitSnippet,
+        IReadOnlyList<(ContentDocument Document, RouteInfo Route)> routed,
+        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex)
     {
-        if (item.Meta.TryGetValue("searchExclude", out var value) && value is not null)
-        {
-            if (value is bool b)
-            {
-                return b;
-            }
+        var outPath = Path.Combine(outputDir, "search.json");
+        Directory.CreateDirectory(outputDir);
 
-            if (value is string s && bool.TryParse(s, out var parsed))
+        using var stream = File.Create(outPath);
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false });
+        writer.WriteStartArray();
+
+        var documentsByPath = BuildDocumentMap(routed);
+        foreach (var (key, seo) in seoIndex
+                     .Where(x => x.Value.Indexable)
+                     .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
+        {
+            if (documentsByPath.TryGetValue(key, out var document) && !document.Publish.ExcludeFromSearch)
             {
-                return parsed;
+                WriteSearchItem(writer, document, seo.Route, baseUrl, emitSnippet);
             }
         }
 
-        return false;
+        writer.WriteEndArray();
+        writer.Flush();
     }
 
     internal static void WriteSearchItem(
@@ -103,8 +114,31 @@ internal static class SearchIndexBuilder
     {
         var record = CanonicalContentGraphBuilder.ToRecord(item);
 
+#pragma warning disable CS0618
+        WriteSearchItem(writer, record, ContentBodyResolver.GetHtml(item, bodyStore), route, baseUrl, emitSnippet);
+#pragma warning restore CS0618
+    }
+
+    internal static void WriteSearchItem(
+        Utf8JsonWriter writer,
+        ContentDocument document,
+        RouteInfo route,
+        string baseUrl,
+        bool emitSnippet)
+    {
+        WriteSearchItem(writer, document.Record, ResolveDocumentHtml(document), route, baseUrl, emitSnippet);
+    }
+
+    private static void WriteSearchItem(
+        Utf8JsonWriter writer,
+        ContentRecord record,
+        string html,
+        RouteInfo route,
+        string baseUrl,
+        bool emitSnippet)
+    {
         writer.WriteStartObject();
-        writer.WriteString("id", item.Id);
+        writer.WriteString("id", record.Identity.Id);
         writer.WriteString("title", record.Presentation.Title);
         writer.WriteString("url", NormalizeSearchUrl(baseUrl, route.Url));
 
@@ -113,9 +147,7 @@ internal static class SearchIndexBuilder
             writer.WriteString("summary", record.Presentation.Summary);
         }
 
-#pragma warning disable CS0618
-        var text = StripHtmlToText(ContentBodyResolver.GetHtml(item, bodyStore));
-#pragma warning restore CS0618
+        var text = StripHtmlToText(html);
         if (text.Length > 8000)
         {
             text = text[..8000];
@@ -124,7 +156,7 @@ internal static class SearchIndexBuilder
         writer.WriteString("content", text);
         if (emitSnippet)
         {
-            writer.WriteString("snippet", BuildSnippet(item, record, text));
+            writer.WriteString("snippet", BuildSnippet(record, text));
         }
         writer.WriteString("type", record.Classification.Type);
         writer.WriteString("contentType", record.Identity.ContentType);
@@ -154,7 +186,7 @@ internal static class SearchIndexBuilder
         }
 
         writer.WriteString("language", record.Presentation.Language);
-        writer.WriteString("sourceKey", record.Provenance.Source ?? MetaHelpers.GetString(item.Meta, "sourceKey") ?? MetaHelpers.GetString(item.Meta, "source"));
+        writer.WriteString("sourceKey", record.Provenance.Source);
         writer.WriteString("publishAt", record.Lifecycle.PublishedAt.ToString("O"));
 
         writer.WriteStartArray("entities");
@@ -166,12 +198,30 @@ internal static class SearchIndexBuilder
         writer.WriteEndObject();
     }
 
+    private static string ResolveDocumentHtml(ContentDocument document)
+        => document.Body.Html
+           ?? document.Record.Presentation.Body
+           ?? (string.IsNullOrWhiteSpace(document.Body.Markdown) ? null : document.Body.Markdown)
+           ?? document.Body.PlainText
+           ?? string.Empty;
+
     internal static Dictionary<string, ContentItem> BuildItemMap(IEnumerable<(ContentItem Item, RouteInfo Route)> routed)
     {
         var result = new Dictionary<string, ContentItem>(StringComparer.OrdinalIgnoreCase);
         foreach (var (item, route) in routed)
         {
             result[BuildPathUtils.NormalizeRelPath(route.OutputPath)] = item;
+        }
+
+        return result;
+    }
+
+    internal static Dictionary<string, ContentDocument> BuildDocumentMap(IEnumerable<(ContentDocument Document, RouteInfo Route)> routed)
+    {
+        var result = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (document, route) in routed)
+        {
+            result[BuildPathUtils.NormalizeRelPath(route.OutputPath)] = document;
         }
 
         return result;
@@ -218,7 +268,7 @@ internal static class SearchIndexBuilder
         return b + u;
     }
 
-    private static string BuildSnippet(ContentItem item, ContentRecord record, string text)
+    private static string BuildSnippet(ContentRecord record, string text)
     {
         if (!string.IsNullOrWhiteSpace(record.Presentation.Summary))
         {

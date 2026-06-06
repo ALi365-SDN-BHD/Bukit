@@ -11,6 +11,50 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SeoModelBuilderTests
 {
+    private static ContentItem TestItem(
+        string Id,
+        string Title,
+        string Slug,
+        DateTimeOffset PublishAt,
+        string? ContentHtml,
+        IReadOnlyDictionary<string, object>? Meta,
+        IReadOnlyDictionary<string, ContentField>? Fields = null)
+    {
+        var fields = ToFields(Meta);
+        if (Fields is not null)
+        {
+            foreach (var (key, value) in Fields)
+            {
+                fields[key] = value;
+            }
+        }
+
+        return new ContentItem(
+            Id,
+            Title,
+            Slug,
+            PublishAt,
+            ContentHtml,
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            fields);
+    }
+
+    private static Dictionary<string, ContentField> ToFields(IReadOnlyDictionary<string, object>? values)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (values is null)
+        {
+            return fields;
+        }
+
+        foreach (var (key, value) in values)
+        {
+            fields[key] = new ContentField("test", value);
+        }
+
+        return fields;
+    }
+
     private static AppConfig CreateConfig(string siteUrl = "https://example.com", string siteTitle = "My Site", string? defaultImage = null)
     {
         return new AppConfig
@@ -42,10 +86,59 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForDocument_UsesCanonicalContentDocumentAsSeoSource()
+    {
+        var config = CreateConfig(defaultImage: "/default.png");
+        var publishedAt = new DateTimeOffset(2026, 2, 3, 4, 5, 6, TimeSpan.Zero);
+        var updatedAt = new DateTimeOffset(2026, 2, 4, 4, 5, 6, TimeSpan.Zero);
+        var document = new ContentDocument(
+            Record: new ContentRecord(
+                Identity: new ContentIdentity("doc-1", "hello", "doc-1", "post", "published"),
+                Presentation: new ContentPresentation("Canonical Title", "Canonical summary", "<p>Hello</p>", "en", Array.Empty<string>()),
+                Classification: new ContentClassification("post", "posts", new[] { "Guides" }, new[] { "canonical", "typed" }),
+                Ownership: new ContentOwnership("Canonical Author", "Bukit", "Owner", "Reviewer"),
+                Lifecycle: new ContentLifecycle(publishedAt, updatedAt, null, null),
+                Provenance: new ProvenanceRecord("notion", "https://source.example/doc", Array.Empty<string>(), Array.Empty<string>(), "synced"),
+                Trust: new TrustMetadata(0.91, "reviewed", Array.Empty<string>()),
+                Entities: Array.Empty<EntityRecord>(),
+                Relations: Array.Empty<ContentRelation>(),
+                Media: new[] { new MediaAsset("image", "/cover.png", "Cover alt") }),
+            Body: new ContentBodyRef("<p>Hello</p>", null, "# Hello", "Hello"),
+            Route: new ContentRoutePolicy("/guides/hello/", "guides/hello/index.html", "pages/post.html", null, null),
+            Publish: new ContentPublishPolicy(Draft: false, NoIndex: true, NoFollow: true, ExcludeFromFeed: false, ExcludeFromSearch: false, ExcludeFromSitemap: false, IsDataModule: false),
+            CustomFields: new Dictionary<string, ContentField>
+            {
+                ["seo_title"] = new("text", "Typed SEO Title"),
+                ["seo_desc"] = new("text", "Typed SEO Description"),
+                ["schema_type"] = new("text", "BlogPosting"),
+                ["twitter_creator"] = new("text", "@bukit")
+            },
+            Diagnostics: Array.Empty<ContentDiagnostic>());
+        var route = new RouteInfo("/guides/hello/", "guides/hello/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForDocument(config, "/docs", document, route);
+
+        Assert.Equal("Typed SEO Title", model.Title);
+        Assert.Equal("Typed SEO Description", model.Description);
+        Assert.Equal("https://example.com/docs/guides/hello/", model.Canonical);
+        Assert.Equal("noindex,nofollow", model.Robots);
+        Assert.Equal("article", model.Og.Type);
+        Assert.Equal("https://example.com/docs/cover.png", model.Og.Image);
+        Assert.Equal("@bukit", model.Twitter.Creator);
+        Assert.Equal(publishedAt, model.Article.PublishedTime);
+        Assert.Equal(updatedAt, model.Article.ModifiedTime);
+        Assert.Equal("Canonical Author", model.Article.Author);
+        Assert.Equal(new[] { "canonical", "typed" }, model.Article.Tags);
+        Assert.Equal("BlogPosting", model.SchemaType);
+        Assert.Contains(model.JsonLd, json => json.Contains("\"dateModified\":\"2026-02-04T04:05:06", StringComparison.Ordinal));
+        Assert.Contains(model.JsonLd, json => json.Contains("\"inLanguage\":\"en\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void BuildForContent_WithFullItem_SetsAllProperties()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "post-1",
             Title: "Hello World",
             Slug: "hello-world",
@@ -58,7 +151,8 @@ public sealed class SeoModelBuilderTests
                 ["schema_type"] = "BlogPosting",
                 ["author"] = "Alice",
                 ["tags"] = "dotnet,aspire",
-                ["summary"] = "A test post"
+                ["summary"] = "A test post",
+                ["language"] = "zh-CN"
             });
         var route = new RouteInfo("/blog/hello-world/", "blog/hello-world/index.html", "pages/post.html");
 
@@ -87,7 +181,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_SeoTitleOverridesTitle()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Original",
             Slug: "original",
@@ -110,7 +204,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_SeoDescriptionOverridesSummary()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Test",
             Slug: "test",
@@ -133,7 +227,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_PrefersCanonicalFieldsForSummaryTagsAndLanguage()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Canonical",
             Slug: "canonical",
@@ -174,7 +268,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_LegacySeoFieldsFallbackToStandardSeo()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Original",
             Slug: "test",
@@ -199,7 +293,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_NonPost_UsesWebsiteOgType()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "About",
             Slug: "about",
@@ -220,7 +314,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_RobotsFromMeta()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Noindex",
             Slug: "noindex",
@@ -242,7 +336,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_WithAlternates()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Translated",
             Slug: "translated",
@@ -343,7 +437,7 @@ public sealed class SeoModelBuilderTests
     [Fact]
     public void BuildAlternateKey_WithI18nKey()
     {
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Test",
             Slug: "test",
@@ -360,7 +454,7 @@ public sealed class SeoModelBuilderTests
     [Fact]
     public void BuildAlternateKey_WithoutI18nKey_UsesRoute()
     {
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Test",
             Slug: "test",
@@ -418,7 +512,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_WithoutImage_UsesSummaryTwitterCard()
     {
         var config = CreateConfig(defaultImage: null);
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "No Image",
             Slug: "no-image",
@@ -452,7 +546,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_ImageFromOgImageField()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Test",
             Slug: "test",
@@ -475,7 +569,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_ImageFromCoverField()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Test",
             Slug: "test",
@@ -497,7 +591,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_JsonLdContainsWebSite()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Test",
             Slug: "test",
@@ -516,7 +610,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_JsonLdContainsWebPage()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Test",
             Slug: "test",
@@ -536,7 +630,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_PostHasBlogPostingJsonLd()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "post-1",
             Title: "My Post",
             Slug: "my-post",
@@ -566,7 +660,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_PageTypeWithPostCollectionDoesNotEmitBlogPostingJsonLd()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "blog-archive-2026",
             Title: "Archive: 2026",
             Slug: "archive-2026",
@@ -588,7 +682,7 @@ public sealed class SeoModelBuilderTests
     public void BuildForContent_CustomCanonicalOverrides()
     {
         var config = CreateConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "p1",
             Title: "Test",
             Slug: "test",

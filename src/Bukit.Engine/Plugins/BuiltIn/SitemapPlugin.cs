@@ -24,9 +24,15 @@ public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
         }
 
         var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>(context.SeoIndex.Count);
+        var typedExclusions = BuildTypedSitemapExclusions(context);
         foreach (var seo in context.SeoIndex.Values.OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             if (!seo.Indexable)
+            {
+                continue;
+            }
+
+            if (typedExclusions.Contains(BuildPathUtils.NormalizeRelPath(seo.Route.OutputPath)))
             {
                 continue;
             }
@@ -41,5 +47,18 @@ public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
         }
 
         SitemapGenerator.GenerateAbsolute(context.OutputDir, filtered);
+    }
+
+    private static HashSet<string> BuildTypedSitemapExclusions(BuildContext context)
+    {
+        if (context.RoutedDocuments.Count == 0)
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return context.RoutedDocuments
+            .Where(x => x.Document.Publish.ExcludeFromSitemap)
+            .Select(x => BuildPathUtils.NormalizeRelPath(x.Route.OutputPath))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 }

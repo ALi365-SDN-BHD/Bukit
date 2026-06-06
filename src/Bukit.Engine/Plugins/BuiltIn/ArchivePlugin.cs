@@ -93,13 +93,13 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
 
         var now = DateTimeOffset.UtcNow;
         var route = new RouteInfo(archiveBaseUrl, RoutePathBuilder.BuildOutputPathFromUrl(archiveBaseUrl, outputPathEncoding), template);
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "derived",
-            ["collection"] = collectionKey,
-            ["summary"] = $"Browse archived {collectionKey} entries by year."
+            ["type"] = new("text", "derived"),
+            ["collection"] = new("text", collectionKey),
+            ["summary"] = new("text", $"Browse archived {collectionKey} entries by year.")
         };
-        var item = new ContentItem($"{collectionKey}-archive-index", "Archive", "archive", now, sb.ToString(), meta);
+        var item = new ContentItem($"{collectionKey}-archive-index", "Archive", "archive", now, sb.ToString(), new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), fields);
         return (item, route, now);
     }
 
@@ -130,13 +130,13 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
         var url = $"{archiveBaseUrl}{year}/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var route = new RouteInfo(url, outputPath, template);
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "derived",
-            ["collection"] = collectionKey,
-            ["summary"] = $"Browse {collectionKey} entries published in {year}."
+            ["type"] = new("text", "derived"),
+            ["collection"] = new("text", collectionKey),
+            ["summary"] = new("text", $"Browse {collectionKey} entries published in {year}.")
         };
-        var item = new ContentItem($"{collectionKey}-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), meta);
+        var item = new ContentItem($"{collectionKey}-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), fields);
         return (item, route, publishAt);
     }
 
@@ -163,13 +163,13 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
         var url = $"{archiveBaseUrl}{year}/{month:D2}/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var routeInfo = new RouteInfo(url, outputPath, template);
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "derived",
-            ["collection"] = collectionKey,
-            ["summary"] = $"Browse {collectionKey} entries published in {year}-{month:D2}."
+            ["type"] = new("text", "derived"),
+            ["collection"] = new("text", collectionKey),
+            ["summary"] = new("text", $"Browse {collectionKey} entries published in {year}-{month:D2}.")
         };
-        var itemInfo = new ContentItem($"{collectionKey}-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), meta);
+        var itemInfo = new ContentItem($"{collectionKey}-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase), fields);
         return (itemInfo, routeInfo, publishAt);
     }
 

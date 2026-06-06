@@ -334,8 +334,8 @@ public static class NotionPropertyParser
         return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
     }
 
-    internal static void ExtractSeoMeta(
-        Dictionary<string, object> meta,
+    internal static void ExtractSeoFields(
+        Dictionary<string, ContentField> fields,
         JsonElement properties,
         NotionPropertyMapConfig? propertyMap)
     {
@@ -346,7 +346,7 @@ public static class NotionPropertyParser
         {
             var value = GetRichTextPlain(seoTitleProp);
             if (!string.IsNullOrWhiteSpace(value))
-                meta["seo_title"] = value;
+                fields["seo_title"] = new ContentField("text", value);
         }
 
         if (!string.IsNullOrWhiteSpace(propertyMap.SeoDescription) &&
@@ -354,7 +354,7 @@ public static class NotionPropertyParser
         {
             var value = GetRichTextPlain(seoDescProp);
             if (!string.IsNullOrWhiteSpace(value))
-                meta["seo_desc"] = value;
+                fields["seo_desc"] = new ContentField("text", value);
         }
 
         if (!string.IsNullOrWhiteSpace(propertyMap.SeoImage) &&
@@ -362,7 +362,7 @@ public static class NotionPropertyParser
         {
             var value = GetRichTextPlain(seoImageProp);
             if (!string.IsNullOrWhiteSpace(value))
-                meta["seo_image"] = value;
+                fields["seo_image"] = new ContentField("text", value);
         }
 
         if (!string.IsNullOrWhiteSpace(propertyMap.Canonical) &&
@@ -370,7 +370,7 @@ public static class NotionPropertyParser
         {
             var value = GetRichTextPlain(canonicalProp);
             if (!string.IsNullOrWhiteSpace(value))
-                meta["canonical"] = value;
+                fields["canonical"] = new ContentField("text", value);
         }
     }
 }

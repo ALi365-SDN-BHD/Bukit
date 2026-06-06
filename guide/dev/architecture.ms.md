@@ -144,7 +144,7 @@ Komponen tambahan: `ThemeBootstrapper` (pemulaan tema), `BuildOptionsMapper` (Bu
 | `BuildVariantContext` | Agregasi parameter input untuk binaan varian tunggal |
 | `BuildVariantResult` | Agregasi hasil untuk binaan varian tunggal |
 | `ContentProviderFactory` | Mencipta contoh IContentProvider, mengendalikan penyetempatan media |
-| `MetaHelpers` | Pembantu akses statik untuk ContentItem meta/fields |
+| `ContentFieldReader` | Pembantu akses statik untuk nilai canonical `ContentField` |
 | `BuildPathUtils` | Operasi laluan, penormalan URL, pelarian HTML, resolusi direktori tema |
 | `TaxonomyTermsInjector` | Suntikan istilah taksonomi dari item data ke BuildContext |
 | `DataModuleBuilder` | Pembinaan `site.modules` dari item data (dikumpul mengikut type, diisih mengikut order) |

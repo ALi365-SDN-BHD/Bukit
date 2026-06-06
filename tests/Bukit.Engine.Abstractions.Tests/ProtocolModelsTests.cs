@@ -1,5 +1,6 @@
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Plugins.Protocol;
+using System.Text.Json;
 using Xunit;
 
 namespace Bukit.Engine.Abstractions.Tests;
@@ -14,13 +15,13 @@ public sealed class ProtocolModelsTests
             Id = "page-1",
             Url = "/test/",
             OutputPath = "test/index.html",
-            Meta = new Dictionary<string, object> { ["tags"] = new[] { "a", "b" } }
+            Fields = new Dictionary<string, object> { ["tags"] = new[] { "a", "b" } }
         };
 
         Assert.Equal("page-1", page.Id);
         Assert.Equal("/test/", page.Url);
         Assert.Equal("test/index.html", page.OutputPath);
-        Assert.NotNull(page.Meta);
+        Assert.NotNull(page.Fields);
     }
 
     [Fact]
@@ -215,5 +216,54 @@ public sealed class ProtocolModelsTests
 
         Assert.Single(response.Outputs);
         Assert.Equal("out.html", response.Outputs[0].Path);
+    }
+
+    [Fact]
+    public void PluginContentDocumentDto_ShouldSerializeWithoutMeta_WhenUsingProtocolV2()
+    {
+        var document = new PluginContentDocumentDto
+        {
+            Content = new ContentRecordDto
+            {
+                Id = "post-1",
+                Slug = "hello",
+                Title = "Hello",
+                Type = "post",
+                Collection = "posts",
+                Language = "en",
+                Summary = "Summary"
+            },
+            Route = new ContentRoutePolicyDto
+            {
+                Url = "/posts/hello/",
+                OutputPath = "posts/hello/index.html",
+                Template = "pages/post.html"
+            },
+            Publish = new ContentPublishPolicyDto
+            {
+                Draft = false,
+                NoIndex = false,
+                IsDataModule = false
+            },
+            Fields = new Dictionary<string, ContentFieldDto>
+            {
+                ["featured"] = new() { Type = "bool", Value = true }
+            },
+            Source = new ContentSourceInfoDto
+            {
+                Provider = "markdown",
+                SourceKey = "posts",
+                SourcePath = "content/posts/hello.md"
+            }
+        };
+
+        var json = JsonSerializer.Serialize(document);
+
+        Assert.Contains("\"content\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"route\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"publish\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"fields\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"source\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"meta\"", json, StringComparison.OrdinalIgnoreCase);
     }
 }

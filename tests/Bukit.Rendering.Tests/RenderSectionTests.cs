@@ -276,11 +276,14 @@ public sealed class RenderSectionTests : IDisposable
         var allPages = new List<(ContentItem, RouteInfo?)>
         {
             (new ContentItem("post1", "First Post", "first-post", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object> { ["type"] = "posts" }), null),
+                new Dictionary<string, object>(),
+                new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase) { ["type"] = new("text", "posts") }), null),
             (new ContentItem("post2", "Second Post", "second-post", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object> { ["type"] = "posts" }), null),
+                new Dictionary<string, object>(),
+                new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase) { ["type"] = new("text", "posts") }), null),
             (new ContentItem("other", "Other Page", "other", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object> { ["type"] = "page" }), null)
+                new Dictionary<string, object>(),
+                new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase) { ["type"] = new("text", "page") }), null)
         };
 
         var registry = new ThemeComponentRegistry(_themeDir, manifest, null);
@@ -385,8 +388,12 @@ public sealed class RenderSectionTests : IDisposable
         var allPages = new List<(ContentItem, RouteInfo?)>
         {
             (new ContentItem("post1", "First Post", "first-post", DateTimeOffset.UtcNow, null,
-                new Dictionary<string, object> { ["type"] = "posts" },
-                new Dictionary<string, ContentField> { ["summary"] = new("text", "Canonical section summary") }), null)
+                new Dictionary<string, object>(),
+                new Dictionary<string, ContentField>
+                {
+                    ["type"] = new("text", "posts"),
+                    ["summary"] = new("text", "Canonical section summary")
+                }), null)
         };
 
         var registry = new ThemeComponentRegistry(_themeDir, manifest, null);

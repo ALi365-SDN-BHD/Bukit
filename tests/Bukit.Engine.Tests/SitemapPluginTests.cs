@@ -14,6 +14,51 @@ namespace Bukit.Engine.Tests;
 public sealed class SitemapPluginTests
 {
     [Fact]
+    public void AfterBuild_WithRoutedDocuments_RespectsTypedExcludeFromSitemap()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var outDir = Path.Combine(root, "dist");
+        Directory.CreateDirectory(Path.Combine(outDir, "included"));
+        Directory.CreateDirectory(Path.Combine(outDir, "excluded"));
+        File.WriteAllText(Path.Combine(outDir, "included", "index.html"), "<html><head></head></html>");
+        File.WriteAllText(Path.Combine(outDir, "excluded", "index.html"), "<html><head></head></html>");
+
+        var includedRoute = new RouteInfo("/included/", "included/index.html", "pages/page.html");
+        var excludedRoute = new RouteInfo("/excluded/", "excluded/index.html", "pages/page.html");
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "n", Title = "t", Url = "https://example.com" },
+            Content = new ContentConfig { Provider = "markdown" }
+        };
+        var context = new BuildContext
+        {
+            Config = config,
+            RootDir = root,
+            OutputDir = outDir,
+            BaseUrl = "/",
+            LayoutsDir = root,
+            Routed = Array.Empty<(ContentItem, RouteInfo)>(),
+            RoutedDocuments = new[]
+            {
+                (Document("included", excludeFromSitemap: false), includedRoute),
+                (Document("excluded", excludeFromSitemap: true), excludedRoute)
+            },
+            SeoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["included/index.html"] = new(includedRoute, "https://example.com/included/", null, true, DateTimeOffset.UnixEpoch, "included", "page"),
+                ["excluded/index.html"] = new(excludedRoute, "https://example.com/excluded/", null, true, DateTimeOffset.UnixEpoch, "excluded", "page")
+            },
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        new SitemapPlugin().AfterBuild(context);
+
+        var sitemap = File.ReadAllText(Path.Combine(outDir, "sitemap.xml"));
+        Assert.Contains("https://example.com/included/", sitemap, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/excluded/", sitemap, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AfterBuild_RobotsNoindex_ExcludesUrlFromSitemap()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
@@ -134,5 +179,28 @@ public sealed class SitemapPluginTests
         var sitemap = File.ReadAllText(Path.Combine(outDir, "sitemap.xml"));
         Assert.Contains("<loc>https://example.com/pages/b/</loc>", sitemap, StringComparison.Ordinal);
         Assert.Contains("<lastmod>2024-02-03</lastmod>", sitemap, StringComparison.Ordinal);
+    }
+
+    private static ContentDocument Document(string id, bool excludeFromSitemap)
+    {
+        var record = new ContentRecord(
+            new ContentIdentity(id, id, id, "page", "published"),
+            new ContentPresentation(id, null, $"<p>{id}</p>", "en", []),
+            new ContentClassification("page", "page", [], []),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(DateTimeOffset.UnixEpoch, null, null, null),
+            new ProvenanceRecord("markdown", null, [], [], null),
+            new TrustMetadata(null, "approved", []),
+            [],
+            [],
+            []);
+
+        return new ContentDocument(
+            record,
+            new ContentBodyRef($"<p>{id}</p>", null, null, null),
+            new ContentRoutePolicy(null, null, null, null, "page"),
+            new ContentPublishPolicy(false, false, false, false, false, excludeFromSitemap, false),
+            new Dictionary<string, ContentField>(),
+            Array.Empty<ContentDiagnostic>());
     }
 }

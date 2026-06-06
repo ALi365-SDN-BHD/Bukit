@@ -178,7 +178,7 @@ mode 的语义：
 
 ContentItem 的 `Id` 会被修改为 `{sourceKey}:{originalId}` 格式以保证多源唯一性。
 
-这些 meta 字段在模板中可通过 `page.fields` 访问（如果进入 fields），在插件中可通过 `item.Meta` 读取，用于区分内容来源。
+这些来源字段会进入 canonical fields；模板通过 `page.fields` 访问，插件通过 `ContentDocument.CustomFields` 或 `ContentFieldReader` 读取，用于区分内容来源。
 
 ## 统一媒体本地化（跨数据源）
 

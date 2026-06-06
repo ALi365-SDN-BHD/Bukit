@@ -11,6 +11,42 @@ namespace Bukit.Engine.Tests;
 
 public sealed class GeoSeoModelBuilderTests
 {
+    private static ContentItem TestItem(
+        string Id,
+        string Title,
+        string Slug,
+        DateTimeOffset PublishAt,
+        string? ContentHtml,
+        IReadOnlyDictionary<string, object>? Meta,
+        IReadOnlyDictionary<string, ContentField>? Fields = null)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (Meta is not null)
+        {
+            foreach (var (key, value) in Meta)
+            {
+                fields[key] = new ContentField("test", value);
+            }
+        }
+
+        if (Fields is not null)
+        {
+            foreach (var (key, value) in Fields)
+            {
+                fields[key] = value;
+            }
+        }
+
+        return new ContentItem(
+            Id,
+            Title,
+            Slug,
+            PublishAt,
+            ContentHtml,
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            fields);
+    }
+
     private static AppConfig CreateGeoConfig()
     {
         return new AppConfig
@@ -40,7 +76,7 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoFaq_GeneratesFaqPageJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "faq-1",
             Title: "FAQ Guide",
             Slug: "faq-guide",
@@ -84,7 +120,7 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoHowTo_GeneratesHowToJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "howto-1",
             Title: "How to Setup",
             Slug: "how-to-setup",
@@ -130,7 +166,7 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoAuthor_GeneratesPersonJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "post-1",
             Title: "Post with Author",
             Slug: "post-author",
@@ -165,7 +201,7 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoAuthorOnNonPost_GeneratesPersonJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "page-1",
             Title: "About Us",
             Slug: "about-us",
@@ -195,7 +231,7 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoCitations_GeneratesCitationsJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "page-1",
             Title: "Research",
             Slug: "research",
@@ -230,7 +266,7 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoSameAs_AddsToArticleJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "post-1",
             Title: "SameAs Post",
             Slug: "sameas-post",
@@ -258,7 +294,7 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoSpeakable_GeneratesSpeakableJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "post-1",
             Title: "Speakable Post",
             Slug: "speakable-post",
@@ -285,7 +321,7 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_WithGeoAboutAndDateReviewed_AddsToArticleJsonLd()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "post-1",
             Title: "Reviewed Post",
             Slug: "reviewed-post",
@@ -315,7 +351,7 @@ public sealed class GeoSeoModelBuilderTests
     public void BuildForContent_ArticleJsonLd_IncludesInLanguage()
     {
         var config = CreateGeoConfig();
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "post-1",
             Title: "Language Post",
             Slug: "lang-post",

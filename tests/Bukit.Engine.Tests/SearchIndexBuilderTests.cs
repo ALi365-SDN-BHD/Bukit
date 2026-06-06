@@ -1,5 +1,6 @@
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
@@ -10,6 +11,44 @@ namespace Bukit.Engine.Tests;
 
 public sealed class SearchIndexBuilderTests
 {
+    private static ContentItem TestItem(
+        string Id,
+        string Title,
+        string Slug,
+        DateTimeOffset PublishAt,
+        string? ContentHtml,
+        IReadOnlyDictionary<string, object>? Meta,
+        IReadOnlyDictionary<string, ContentField>? Fields = null,
+        string? BodyKey = null)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (Meta is not null)
+        {
+            foreach (var (key, value) in Meta)
+            {
+                fields[key] = new ContentField("test", value);
+            }
+        }
+
+        if (Fields is not null)
+        {
+            foreach (var (key, value) in Fields)
+            {
+                fields[key] = value;
+            }
+        }
+
+        return new ContentItem(
+            Id,
+            Title,
+            Slug,
+            PublishAt,
+            ContentHtml,
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            fields,
+            BodyKey);
+    }
+
     [Fact]
     public void StripHtmlToText_BasicHtml_StripsTagsAndJoinsWithSpace()
     {
@@ -190,7 +229,7 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void BuildItemMap_SingleItem_MapsByOutputPath()
     {
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "post-1",
             Title: "Test Post",
             Slug: "test-post",
@@ -210,21 +249,21 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void BuildItemMap_MultipleItems_MapsByNormalizedOutputPath()
     {
-        var item1 = new ContentItem(
+        var item1 = TestItem(
             Id: "a",
             Title: "Alpha",
             Slug: "alpha",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
             Meta: new Dictionary<string, object>());
-        var item2 = new ContentItem(
+        var item2 = TestItem(
             Id: "b",
             Title: "Beta",
             Slug: "beta",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
             Meta: new Dictionary<string, object>());
-        var item3 = new ContentItem(
+        var item3 = TestItem(
             Id: "c",
             Title: "Gamma",
             Slug: "gamma",
@@ -249,7 +288,7 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void BuildItemMap_OutputPathWithBackslashes_NormalizesToForwardSlashes()
     {
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "x",
             Title: "X",
             Slug: "x",
@@ -266,7 +305,7 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void WriteSearchItem_EmitsCanonicalContentMetadata()
     {
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "search-1",
             Title: "Search Post",
             Slug: "search-post",
@@ -310,7 +349,7 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void WriteSearchItem_PrefersCanonicalSummaryClassificationAndLanguage()
     {
-        var item = new ContentItem(
+        var item = TestItem(
             Id: "search-2",
             Title: "Structured Post",
             Slug: "structured-post",
@@ -350,5 +389,92 @@ public sealed class SearchIndexBuilderTests
         Assert.Equal("notion", doc.RootElement.GetProperty("sourceKey").GetString());
         Assert.Equal("bukit", doc.RootElement.GetProperty("tags")[0].GetString());
         Assert.Equal("docs", doc.RootElement.GetProperty("categories")[0].GetString());
+    }
+
+    [Fact]
+    public void WriteSearchItem_ContentDocument_EmitsCanonicalDocumentMetadata()
+    {
+        var record = new ContentRecord(
+            Identity: new ContentIdentity("doc-search", "doc-search", "doc-search", "guide", "published"),
+            Presentation: new ContentPresentation("Document Search", "Document summary", "<p>Document body</p>", "en", Array.Empty<string>()),
+            Classification: new ContentClassification("guide", "docs", new[] { "docs" }, new[] { "canonical" }),
+            Ownership: new ContentOwnership("Ali", null, null, null),
+            Lifecycle: new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T12:00:00Z"), null, null, null),
+            Provenance: new ProvenanceRecord("notion", null, Array.Empty<string>(), Array.Empty<string>(), null),
+            Trust: new TrustMetadata(null, "approved", Array.Empty<string>()),
+            Entities: new[] { new EntityRecord("company", "Bukit", null, "company:bukit") },
+            Relations: Array.Empty<ContentRelation>(),
+            Media: Array.Empty<MediaAsset>());
+        var document = new ContentDocument(
+            record,
+            new ContentBodyRef("<p>Document body</p>", null, null, null),
+            new ContentRoutePolicy(null, null, null, null, "docs"),
+            new ContentPublishPolicy(false, false, false, false, false, false, false),
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+            Array.Empty<ContentDiagnostic>());
+        var route = new RouteInfo("/doc-search/", "doc-search/index.html", "pages/post.html");
+
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            SearchIndexBuilder.WriteSearchItem(writer, document, route, "/", emitSnippet: true);
+        }
+
+        using var doc = JsonDocument.Parse(stream.ToArray());
+        Assert.Equal("doc-search", doc.RootElement.GetProperty("id").GetString());
+        Assert.Equal("Document summary", doc.RootElement.GetProperty("summary").GetString());
+        Assert.Equal("Document body", doc.RootElement.GetProperty("content").GetString());
+        Assert.Equal("approved", doc.RootElement.GetProperty("reviewStatus").GetString());
+        Assert.Equal("notion", doc.RootElement.GetProperty("sourceKey").GetString());
+        Assert.Equal("Bukit", doc.RootElement.GetProperty("entities")[0].GetString());
+    }
+
+    [Fact]
+    public void GenerateSingleSearchIndex_ContentDocuments_WritesIndexableDocumentsOnly()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-search-docs-" + Guid.NewGuid().ToString("N"));
+        var included = SearchDocument("included", "Included", excludeFromSearch: false);
+        var excluded = SearchDocument("excluded", "Excluded", excludeFromSearch: true);
+        var includedRoute = new RouteInfo("/included/", "included/index.html", "pages/post.html");
+        var excludedRoute = new RouteInfo("/excluded/", "excluded/index.html", "pages/post.html");
+        var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["included/index.html"] = new(includedRoute, "/included/", null, true, DateTimeOffset.UnixEpoch, "included", "post"),
+            ["excluded/index.html"] = new(excludedRoute, "/excluded/", null, true, DateTimeOffset.UnixEpoch, "excluded", "post")
+        };
+
+        SearchIndexBuilder.GenerateSingleSearchIndex(
+            outputDir,
+            "/",
+            emitSnippet: false,
+            routed: new[] { (included, includedRoute), (excluded, excludedRoute) },
+            seoIndex: seoIndex);
+
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(outputDir, "search.json")));
+        var item = Assert.Single(doc.RootElement.EnumerateArray());
+        Assert.Equal("included", item.GetProperty("id").GetString());
+    }
+
+    private static ContentDocument SearchDocument(string id, string title, bool excludeFromSearch)
+    {
+        var record = new ContentRecord(
+            Identity: new ContentIdentity(id, id, id, "post", "published"),
+            Presentation: new ContentPresentation(title, null, $"<p>{title}</p>", "en", Array.Empty<string>()),
+            Classification: new ContentClassification("post", "post", Array.Empty<string>(), Array.Empty<string>()),
+            Ownership: new ContentOwnership(null, null, null, null),
+            Lifecycle: new ContentLifecycle(DateTimeOffset.UnixEpoch, null, null, null),
+            Provenance: new ProvenanceRecord("markdown", null, Array.Empty<string>(), Array.Empty<string>(), null),
+            Trust: new TrustMetadata(null, "approved", Array.Empty<string>()),
+            Entities: Array.Empty<EntityRecord>(),
+            Relations: Array.Empty<ContentRelation>(),
+            Media: Array.Empty<MediaAsset>());
+
+        return new ContentDocument(
+            record,
+            new ContentBodyRef($"<p>{title}</p>", null, null, null),
+            new ContentRoutePolicy(null, null, null, null, "post"),
+            new ContentPublishPolicy(false, false, false, false, excludeFromSearch, false, false),
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+            Array.Empty<ContentDiagnostic>());
     }
 }

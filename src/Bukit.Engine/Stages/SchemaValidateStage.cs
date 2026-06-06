@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Stages;
@@ -23,7 +24,7 @@ internal sealed class SchemaValidateStage : IContentStage
         {
             foreach (var item in input.Items)
             {
-                var collectionName = MetaHelpers.GetEffectiveCollection(item);
+                var collectionName = GetFieldText(item.Fields, "collection") ?? GetFieldText(item.Fields, "type") ?? "post";
                 if (string.IsNullOrWhiteSpace(collectionName) ||
                     !collections.TryGetValue(collectionName, out var collection) ||
                     collection.Schema is null || collection.Schema.Count == 0)
@@ -31,7 +32,7 @@ internal sealed class SchemaValidateStage : IContentStage
                     continue;
                 }
 
-                var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id, failMode: "strict");
+                var errors = ContentSchemaValidator.Validate(item.Fields, collection.Schema, item.Id, failMode: "strict");
                 if (errors.Count > 0)
                 {
                     allErrors.AddRange(errors);
@@ -50,7 +51,7 @@ internal sealed class SchemaValidateStage : IContentStage
 
         foreach (var item in input.Items)
         {
-            var collectionName = MetaHelpers.GetEffectiveCollection(item);
+            var collectionName = GetFieldText(item.Fields, "collection") ?? GetFieldText(item.Fields, "type") ?? "post";
             if (string.IsNullOrWhiteSpace(collectionName) ||
                 !collections.TryGetValue(collectionName, out var collection) ||
                 collection.Schema is null || collection.Schema.Count == 0)
@@ -59,7 +60,7 @@ internal sealed class SchemaValidateStage : IContentStage
             }
 
             var failMode = ContentSchemaValidator.ResolveSchemaFailMode(collection, globalFailMode);
-            var errors = ContentSchemaValidator.Validate(item.Meta, collection.Schema, item.Id, failMode);
+            var errors = ContentSchemaValidator.Validate(item.Fields, collection.Schema, item.Id, failMode);
             if (errors.Count > 0)
             {
 
@@ -77,5 +78,16 @@ internal sealed class SchemaValidateStage : IContentStage
         }
 
         return Task.FromResult(new ContentStageOutput(input.Items, input.BodyStore, Name, 0, allErrors));
+    }
+
+    private static string? GetFieldText(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }

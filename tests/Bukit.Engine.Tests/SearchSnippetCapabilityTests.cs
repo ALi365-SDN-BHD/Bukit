@@ -63,12 +63,12 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
             Slug: "post",
             PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "<p>Body text</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = "post",
-                ["summary"] = "Summary text"
-            },
-            Fields: null);
+                ["type"] = new("text", "post"),
+                ["summary"] = new("text", "Summary text")
+            });
 
         var route = new RouteInfo("/blog/post/", Path.Combine("blog", "post", "index.html"), "pages/post.html");
         return new BuildContext

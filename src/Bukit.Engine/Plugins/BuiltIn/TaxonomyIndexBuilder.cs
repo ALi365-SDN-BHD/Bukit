@@ -30,7 +30,7 @@ internal static class TaxonomyIndexBuilder
         var indexKey = $"{key}|{string.Join(",", itemFields)}";
         if (!cache.TryGetValue(indexKey, out var terms))
         {
-            terms = BuildIndexCore(context.Routed, context.ContentGraph, key, itemFields, context.Config.Taxonomy);
+            terms = BuildIndexCore(context.RoutedDocuments, key, itemFields, context.Config.Taxonomy);
             cache[indexKey] = terms;
         }
 
@@ -38,38 +38,35 @@ internal static class TaxonomyIndexBuilder
     }
 
     internal static Dictionary<string, TaxonomyTerm> BuildIndexCore(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
-        CanonicalContentGraph contentGraph,
+        IReadOnlyList<(ContentDocument Document, RouteInfo Route)> routed,
         string key,
         IReadOnlyList<string> itemFields,
         TaxonomyConfig config)
     {
         TaxonomyPlugin.BuildIndexCountForTestsScope.Value++;
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase);
-        var recordsById = contentGraph.Records
-            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (item, route) in routed)
+        foreach (var (document, route) in routed)
         {
-            recordsById.TryGetValue(item.Id, out var record);
-            var values = ResolveTaxonomyValues(item, record, key);
+            var record = document.Record;
+            var values = ResolveTaxonomyValues(document, key);
             if (values is null || values.Count == 0)
             {
                 continue;
             }
 
-            var summary = record?.Presentation.Summary ?? item.GetSummary();
-            var extra = ExtractExtraFields(item, itemFields);
-            var sourceKey = GetSourceKey(item.Meta);
+            var summary = record.Presentation.Summary;
+            var extra = ExtractExtraFields(document, itemFields);
+            var sourceKey = record.Provenance.Source;
             var pinField = ResolvePinField(config, sourceKey);
             var pinOrderField = ResolvePinOrderField(config, sourceKey);
-            var isPinned = TaxonomySortHelper.TryGetPinned(item, pinField);
-            var pinOrder = TaxonomySortHelper.TryGetPinOrder(item, pinOrderField);
+            var isPinned = TaxonomySortHelper.TryGetPinned(document.CustomFields, pinField);
+            var pinOrder = TaxonomySortHelper.TryGetPinOrder(document.CustomFields, pinOrderField);
             if (pinOrder.HasValue)
             {
                 isPinned = true;
             }
+
             foreach (var raw in values)
             {
                 var display = (raw ?? string.Empty).Trim();
@@ -90,7 +87,14 @@ internal static class TaxonomyIndexBuilder
                     terms[slug] = term;
                 }
 
-                term.Pages.Add(new TaxonomyPage(item.Title, route.Url, item.PublishAt, summary, extra, isPinned, pinOrder));
+                term.Pages.Add(new TaxonomyPage(
+                    record.Presentation.Title,
+                    route.Url,
+                    record.Lifecycle.PublishedAt,
+                    summary,
+                    extra,
+                    isPinned,
+                    pinOrder));
             }
         }
 
@@ -102,71 +106,55 @@ internal static class TaxonomyIndexBuilder
         return terms;
     }
 
-    private static IReadOnlyList<string>? ResolveTaxonomyValues(ContentItem item, ContentRecord? record, string key)
+    private static IReadOnlyList<string>? ResolveTaxonomyValues(ContentDocument document, string key)
     {
+        var record = document.Record;
         if (key.Equals("tags", StringComparison.OrdinalIgnoreCase) &&
-            record?.Classification.Tags is { Count: > 0 } tags)
+            record.Classification.Tags is { Count: > 0 } tags)
         {
             return tags;
         }
 
         if (key.Equals("categories", StringComparison.OrdinalIgnoreCase) &&
-            record?.Classification.Sections is { Count: > 0 } categories)
+            record.Classification.Sections is { Count: > 0 } categories)
         {
             return categories;
         }
 
-        return GetStringList(item, key);
+        return GetStringList(document.CustomFields, key);
     }
 
-    internal static IReadOnlyList<string>? GetStringList(ContentItem item, string key)
+    internal static IReadOnlyList<string>? GetStringList(IReadOnlyDictionary<string, ContentField>? fields, string key)
     {
-        if (item.Fields is not null)
-        {
-            if (item.Fields.TryGetValue(key, out var field) && field.Value is not null)
-            {
-                if (field.Value is string fieldText)
-                {
-                    var fieldParts = fieldText.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-                    return fieldParts.Length == 0 ? null : fieldParts;
-                }
-
-                if (field.Value is IEnumerable<object> fieldSeq)
-                {
-                    var fieldList = fieldSeq.Select(x => x?.ToString() ?? string.Empty)
-                        .Select(x => x.Trim())
-                        .Where(x => !string.IsNullOrWhiteSpace(x))
-                        .ToList();
-                    return fieldList.Count == 0 ? null : fieldList;
-                }
-            }
-        }
-
-        if (!item.Meta.TryGetValue(key, out var v) || v is null)
+        if (fields is null)
         {
             return null;
         }
 
-        if (v is string s)
+        if (!fields.TryGetValue(key, out var field) || field.Value is null)
         {
-            var parts = s.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            return parts.Length == 0 ? null : parts;
+            return null;
         }
 
-        if (v is IEnumerable<object> seq)
+        if (field.Value is string fieldText)
         {
-            var list = seq.Select(x => x?.ToString() ?? string.Empty)
+            var fieldParts = fieldText.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            return fieldParts.Length == 0 ? null : fieldParts;
+        }
+
+        if (field.Value is IEnumerable<object> fieldSeq)
+        {
+            var fieldList = fieldSeq.Select(x => x?.ToString() ?? string.Empty)
                 .Select(x => x.Trim())
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .ToList();
-
-            return list.Count == 0 ? null : list;
+            return fieldList.Count == 0 ? null : fieldList;
         }
 
         return null;
     }
 
-    internal static IReadOnlyDictionary<string, object>? ExtractExtraFields(ContentItem item, IReadOnlyList<string> itemFields)
+    internal static IReadOnlyDictionary<string, object>? ExtractExtraFields(ContentDocument document, IReadOnlyList<string> itemFields)
     {
         if (itemFields.Count == 0)
         {
@@ -176,7 +164,7 @@ internal static class TaxonomyIndexBuilder
         var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         foreach (var key in itemFields)
         {
-            if (TryGetItemValue(item, key, out var value))
+            if (TryGetItemValue(document, key, out var value))
             {
                 dict[key] = value!;
                 continue;
@@ -184,53 +172,29 @@ internal static class TaxonomyIndexBuilder
 
             if (key.Equals("date", StringComparison.OrdinalIgnoreCase))
             {
-                dict["date"] = item.PublishAt.UtcDateTime.ToString("yyyy-MM-dd");
+                dict["date"] = document.Record.Lifecycle.PublishedAt.UtcDateTime.ToString("yyyy-MM-dd");
             }
         }
 
         return dict.Count == 0 ? null : dict;
     }
 
-    internal static bool TryGetItemValue(ContentItem item, string key, out object? value)
+    internal static bool TryGetItemValue(ContentDocument document, string key, out object? value)
+    {
+        return TryGetItemValue(document.CustomFields, key, out value);
+    }
+
+    internal static bool TryGetItemValue(IReadOnlyDictionary<string, ContentField> fields, string key, out object? value)
     {
         value = null;
 
-        if (item.Fields is not null && item.Fields.TryGetValue(key, out var field) && field.Value is not null)
+        if (fields.TryGetValue(key, out var field) && field.Value is not null)
         {
             value = field.Value;
             return true;
         }
 
-        if (item.Meta.TryGetValue(key, out var metaValue) && metaValue is not null)
-        {
-            if (metaValue is string s)
-            {
-                var trimmed = s.Trim();
-                if (trimmed.Length == 0)
-                {
-                    return false;
-                }
-
-                value = trimmed;
-                return true;
-            }
-
-            value = metaValue;
-            return true;
-        }
-
         return false;
-    }
-
-    internal static string? GetSourceKey(IReadOnlyDictionary<string, object> meta)
-    {
-        if (!meta.TryGetValue("sourceKey", out var obj) || obj is null)
-        {
-            return null;
-        }
-
-        var text = obj.ToString();
-        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
     }
 
     internal static string ResolvePinField(TaxonomyConfig config, string? sourceKey)

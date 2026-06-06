@@ -80,6 +80,7 @@ public sealed class SiteEngine
         var contentPipeline = new ContentPipeline(_contentProviderFactory, _logger);
         var contentResult = await contentPipeline.ExecuteAsync(effectiveConfig, rootDir, overrides, plan.MediaCacheDir, cancellationToken);
         var items = contentResult.Items;
+        var documents = contentResult.Documents;
         var contentGraph = contentResult.ContentGraph ?? CanonicalContentGraph.Empty;
         var bodyStore = contentResult.BodyStore;
         var bodyCacheMetrics = contentResult.BodyCacheMetrics;
@@ -92,6 +93,7 @@ public sealed class SiteEngine
             var siteLanguage = effectiveConfig.Site.Language;
             var result = await BuildSingleLanguageVariantAsync(
                 effectiveConfig, rootDir, overrides, items, contentGraph, bodyStore, plan.OutputDir,
+                documents,
                 plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
                 plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
                 templateHashCache, cancellationToken);
@@ -108,6 +110,7 @@ public sealed class SiteEngine
 
         return await BuildMultiLanguageAsync(
             effectiveConfig, rootDir, overrides, items, contentGraph, bodyStore, plan.OutputDir,
+            documents,
             plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
             plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
             templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
@@ -118,7 +121,7 @@ public sealed class SiteEngine
     private async Task<BuildVariantResult> BuildSingleLanguageVariantAsync(
         AppConfig config, string rootDir, ConfigOverrides overrides,
         IReadOnlyList<ContentItem> items, CanonicalContentGraph contentGraph, IContentBodyStore bodyStore,
-        string outputDir, string layoutsDir, string assetsDir, string staticDir,
+        string outputDir, IReadOnlyList<ContentDocument> documents, string layoutsDir, string assetsDir, string staticDir,
         string mediaCacheDir,
         string? parentLayoutsDir, string? parentAssetsDir, string? parentStaticDir,
         string? userLayoutsDir,
@@ -128,7 +131,7 @@ public sealed class SiteEngine
         var baseUrl = BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl);
         _logger.Info($"event=build.variant.start language={config.Site.Language} baseUrl={baseUrl}");
         var variantCtx = new BuildVariantContext(
-            config, rootDir, overrides, items, contentGraph, bodyStore, outputDir, baseUrl,
+            config, rootDir, overrides, items, documents, contentGraph, bodyStore, outputDir, baseUrl,
             layoutsDir, assetsDir, staticDir, mediaCacheDir,
             SeoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal),
             RootBaseUrl: null, ManifestSuffix: null, DefaultLanguage: null,
@@ -140,7 +143,7 @@ public sealed class SiteEngine
     private async Task<BuildResult> BuildMultiLanguageAsync(
         AppConfig config, string rootDir, ConfigOverrides overrides,
         IReadOnlyList<ContentItem> items, CanonicalContentGraph contentGraph, IContentBodyStore bodyStore,
-        string outputDir, string layoutsDir, string assetsDir, string staticDir,
+        string outputDir, IReadOnlyList<ContentDocument> documents, string layoutsDir, string assetsDir, string staticDir,
         string mediaCacheDir,
         string? parentLayoutsDir, string? parentAssetsDir, string? parentStaticDir,
         string? userLayoutsDir,
@@ -183,10 +186,11 @@ public sealed class SiteEngine
                 };
 
                 var variantItems = I18nOutputMerger.FilterItemsByLanguage(items, lang, defaultLanguage);
+                var variantDocuments = FilterDocumentsByLanguage(documents, lang, defaultLanguage);
                 var variantOutputDir = Path.Combine(outputDir, lang);
                 variantLogger.Info($"event=build.variant.start language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
                 var variantCtx = new BuildVariantContext(
-                    variantConfig, rootDir, overrides, variantItems, contentGraph, bodyStore, variantOutputDir, baseUrl,
+                    variantConfig, rootDir, overrides, variantItems, variantDocuments, contentGraph, bodyStore, variantOutputDir, baseUrl,
                     layoutsDir, assetsDir, staticDir, mediaCacheDir,
                     SeoAlternates: seoAlternates,
                     RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage,
@@ -208,6 +212,26 @@ public sealed class SiteEngine
         WriteOutputMarker(outputDir);
         BuildRecoveryTracker.MarkCompleted(outputDir);
         return buildResult;
+    }
+
+    private static IReadOnlyList<ContentDocument> FilterDocumentsByLanguage(
+        IReadOnlyList<ContentDocument> documents,
+        string language,
+        string defaultLanguage)
+    {
+        return documents
+            .Where(document =>
+            {
+                var docLanguage = document.Record.Presentation.Language;
+                if (string.IsNullOrWhiteSpace(docLanguage) ||
+                    string.Equals(docLanguage, "und", StringComparison.OrdinalIgnoreCase))
+                {
+                    return string.Equals(language, defaultLanguage, StringComparison.OrdinalIgnoreCase);
+                }
+
+                return string.Equals(docLanguage, language, StringComparison.OrdinalIgnoreCase);
+            })
+            .ToArray();
     }
 
     private async Task<BuildVariantResult> BuildVariantAsync(

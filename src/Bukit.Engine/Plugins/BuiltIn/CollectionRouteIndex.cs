@@ -76,6 +76,6 @@ internal sealed class CollectionRouteIndex
 
     internal static string GetCollection(ContentItem item)
     {
-        return item.GetCollection();
+        return ContentFieldReader.GetCollection(item.Fields);
     }
 }

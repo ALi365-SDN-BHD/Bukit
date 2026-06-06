@@ -7,6 +7,55 @@ namespace Bukit.Cli.Commands;
 
 internal static class DoctorSchemaChecker
 {
+    public static bool CheckSchemaFieldCompleteness(DoctorCommand.DoctorContext ctx, IReadOnlyList<(ContentDocument Document, RouteInfo Route)> routed)
+    {
+        var collections = ctx.Config.Site.Collections;
+        if (collections is null || collections.Count == 0)
+        {
+            return false;
+        }
+
+        var hasErrors = false;
+        var allErrors = new List<string>();
+        var allWarnings = new List<string>();
+
+        foreach (var (collectionName, collectionConfig) in collections)
+        {
+            var schema = collectionConfig.Schema;
+            if (schema is null || schema.Count == 0)
+            {
+                continue;
+            }
+
+            var template = collectionConfig.Template?.Trim();
+            var collectionItems = string.IsNullOrWhiteSpace(template)
+                ? routed
+                : routed.Where(r => r.Route.Template?.Trim() == template).ToList();
+
+            foreach (var (document, _) in collectionItems)
+            {
+                var values = BuildSchemaValues(document);
+                var errors = ContentSchemaValidator.Validate(values, schema, document.Record.Identity.Id);
+                foreach (var err in errors)
+                {
+                    var detail = $"{err.SourcePath ?? document.Record.Identity.Id} (collection: {collectionName}): {err.Message}";
+                    if (err.Code == "required")
+                    {
+                        hasErrors = true;
+                        allErrors.Add(detail);
+                    }
+                    else
+                    {
+                        allWarnings.Add(detail);
+                    }
+                }
+            }
+        }
+
+        PrintSchemaMessages(hasErrors, allErrors, allWarnings);
+        return hasErrors;
+    }
+
     public static bool CheckSchemaFieldCompleteness(DoctorCommand.DoctorContext ctx, IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed)
     {
         var collections = ctx.Config.Site.Collections;
@@ -34,7 +83,7 @@ internal static class DoctorSchemaChecker
 
             foreach (var (item, _) in collectionItems)
             {
-                var errors = ContentSchemaValidator.Validate(item.Meta, schema, item.Id);
+                var errors = ContentSchemaValidator.Validate(item.Fields, schema, item.Id);
                 foreach (var err in errors)
                 {
                     var detail = $"{err.SourcePath ?? item.Id} (collection: {collectionName}): {err.Message}";
@@ -51,6 +100,34 @@ internal static class DoctorSchemaChecker
             }
         }
 
+        PrintSchemaMessages(hasErrors, allErrors, allWarnings);
+
+        return hasErrors;
+    }
+
+    private static IReadOnlyDictionary<string, object> BuildSchemaValues(ContentDocument document)
+    {
+        var values = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = document.Record.Identity.Status,
+            ["type"] = document.Record.Identity.ContentType,
+            ["collection"] = document.Record.Classification.Collection,
+            ["language"] = document.Record.Presentation.Language
+        };
+
+        foreach (var (key, field) in document.CustomFields)
+        {
+            if (field.Value is not null)
+            {
+                values[key] = field.Value;
+            }
+        }
+
+        return values;
+    }
+
+    private static void PrintSchemaMessages(bool hasErrors, IReadOnlyList<string> allErrors, IReadOnlyList<string> allWarnings)
+    {
         if (hasErrors)
         {
             Console.WriteLine($"✖ {allErrors.Count} schema validation error(s):");
@@ -68,8 +145,6 @@ internal static class DoctorSchemaChecker
                 Console.WriteLine($"  - {w}");
             }
         }
-
-        return hasErrors;
     }
 
     public static void CheckTemplateFieldsVsSchema(DoctorCommand.DoctorContext ctx)
@@ -175,7 +250,8 @@ internal static class DoctorSchemaChecker
             foreach (var (item, _) in collectionItems)
             {
                 var fileExtras = new List<string>();
-                foreach (var kv in item.Meta)
+                var fields = item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in fields)
                 {
                     if (reservedKeys.Contains(kv.Key))
                     {
@@ -192,8 +268,8 @@ internal static class DoctorSchemaChecker
                 {
                     filesWithExtras++;
                     totalExtras += fileExtras.Count;
-                    var fileId = item.Meta.TryGetValue("sourcePath", out var sp) && sp is string s ? s : item.Id;
-                    extraFields.Add($"{fileId}: field(s) [{string.Join(", ", fileExtras)}] not in collection schema");
+                var fileId = TryGetTextField(item.Fields, "sourcePath") ?? item.Id;
+                extraFields.Add($"{fileId}: field(s) [{string.Join(", ", fileExtras)}] not in collection schema");
                 }
             }
         }
@@ -208,5 +284,16 @@ internal static class DoctorSchemaChecker
 
             Console.WriteLine($"  ({totalExtras} extra field(s) total across {filesWithExtras} file(s))");
         }
+    }
+
+    private static string? TryGetTextField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }

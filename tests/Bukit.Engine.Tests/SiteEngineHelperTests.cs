@@ -216,11 +216,11 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["collection"] = "blog"
-            },
-            Fields: null);
+                ["collection"] = new("text", "blog")
+            });
 
         var result = SeoAlternatesService.GetCollection(item);
 
@@ -236,15 +236,15 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = "article"
-            },
-            Fields: null);
+                ["type"] = new("text", "article")
+            });
 
         var result = SeoAlternatesService.GetCollection(item);
 
-        Assert.Equal("", result);
+        Assert.Equal("article", result);
     }
 
     [Fact]
@@ -261,7 +261,7 @@ public sealed class SiteEngineHelperTests
 
         var result = SeoAlternatesService.GetCollection(item);
 
-        Assert.Equal("", result);
+        Assert.Equal("post", result);
     }
 
     [Fact]
@@ -273,12 +273,12 @@ public sealed class SiteEngineHelperTests
             Slug: "post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["collection"] = "blog",
-                ["type"] = "article"
-            },
-            Fields: null);
+                ["collection"] = new("text", "blog"),
+                ["type"] = new("text", "article")
+            });
 
         var result = SeoAlternatesService.GetCollection(item);
 

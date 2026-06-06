@@ -106,18 +106,22 @@ internal static class SeoJsonLdBuilder
             }));
         }
 
-        if (isPost && item is not null)
+        if (isPost && (item is not null || record is not null))
         {
             var effectiveType = schemaType ?? "BlogPosting";
             if (string.Equals(effectiveType, "FAQPage", StringComparison.OrdinalIgnoreCase) && geo.FaqItems is { Count: > 0 })
             {
-                BuildFaqPageJsonLd(result, title, description, canonical, image, item, geo.FaqItems);
+                BuildFaqPageJsonLd(result, title, description, canonical, image, GetPublishedAt(item, record), geo.FaqItems);
             }
             else if (string.Equals(effectiveType, "HowTo", StringComparison.OrdinalIgnoreCase) && geo.HowToSteps is { Count: > 0 })
             {
-                BuildHowToJsonLd(result, title, description, canonical, image, item, geo.HowToSteps);
+                BuildHowToJsonLd(result, title, description, canonical, image, GetPublishedAt(item, record), geo.HowToSteps);
             }
-            else
+            else if (record is not null)
+            {
+                BuildArticleJsonLd(result, effectiveType, title, description, canonical, image, geo, record, config.Site.Language);
+            }
+            else if (item is not null)
             {
                 BuildArticleJsonLd(result, effectiveType, title, description, canonical, image, item, geo, record, config.Site.Language);
             }
@@ -225,10 +229,93 @@ internal static class SeoJsonLdBuilder
 
         var tags = record?.Classification.Tags.Count > 0
             ? record.Classification.Tags
-            : SeoModelBuilder.GetStringList(item.Meta, "tags");
+            : SeoModelBuilder.GetStringList(item?.Fields, "tags");
         if (tags is { Count: > 0 })
         {
             article["keywords"] = tags;
+        }
+
+        result.Add(ToJson(article));
+    }
+
+    private static void BuildArticleJsonLd(
+        List<string> result,
+        string schemaType,
+        string title,
+        string? description,
+        string canonical,
+        string? image,
+        SeoGeoMetaParser.ParsedGeoMeta geo,
+        ContentRecord record,
+        string? language)
+    {
+        var article = new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = schemaType,
+            ["headline"] = title,
+            ["description"] = description,
+            ["url"] = canonical,
+            ["datePublished"] = record.Lifecycle.PublishedAt.ToString("O")
+        };
+        if (!string.IsNullOrWhiteSpace(image))
+        {
+            article["image"] = image;
+        }
+
+        if (record.Lifecycle.UpdatedAt.HasValue)
+        {
+            article["dateModified"] = record.Lifecycle.UpdatedAt.Value.ToString("O");
+        }
+
+        if (geo.DateReviewed.HasValue)
+        {
+            article["dateReviewed"] = geo.DateReviewed.Value.ToString("O");
+        }
+
+        if (!string.IsNullOrWhiteSpace(geo.About))
+        {
+            article["about"] = geo.About;
+        }
+
+        var contentLanguage = string.IsNullOrWhiteSpace(record.Presentation.Language) ||
+                              string.Equals(record.Presentation.Language, "und", StringComparison.OrdinalIgnoreCase)
+            ? language
+            : record.Presentation.Language;
+        if (!string.IsNullOrWhiteSpace(contentLanguage))
+        {
+            article["inLanguage"] = contentLanguage;
+        }
+
+        var author = geo.GeoAuthor?.Name ?? record.Ownership.Author;
+        if (!string.IsNullOrWhiteSpace(author))
+        {
+            var person = new Dictionary<string, object?>
+            {
+                ["@type"] = "Person",
+                ["name"] = author
+            };
+            if (geo.GeoAuthor?.Url is { } authorUrl)
+            {
+                person["url"] = authorUrl;
+            }
+
+            if (geo.GeoAuthor?.SameAs is { Count: > 0 })
+            {
+                person["sameAs"] = geo.GeoAuthor.SameAs;
+            }
+
+            article["author"] = person;
+        }
+
+        if (geo.SameAs is { Count: > 0 })
+        {
+            article["sameAs"] = geo.SameAs;
+        }
+
+        if (record.Classification.Tags is { Count: > 0 })
+        {
+            article["keywords"] = record.Classification.Tags;
         }
 
         result.Add(ToJson(article));
@@ -240,7 +327,7 @@ internal static class SeoJsonLdBuilder
         string? description,
         string canonical,
         string? image,
-        ContentItem item,
+        DateTimeOffset publishedAt,
         IReadOnlyList<GeoFaqModel> faqItems)
     {
         var mainEntity = new List<Dictionary<string, object?>>();
@@ -265,7 +352,7 @@ internal static class SeoJsonLdBuilder
             ["headline"] = title,
             ["description"] = description,
             ["url"] = canonical,
-            ["datePublished"] = item.PublishAt.ToString("O"),
+            ["datePublished"] = publishedAt.ToString("O"),
             ["mainEntity"] = mainEntity
         };
 
@@ -283,7 +370,7 @@ internal static class SeoJsonLdBuilder
         string? description,
         string canonical,
         string? image,
-        ContentItem item,
+        DateTimeOffset publishedAt,
         IReadOnlyList<GeoHowToStepModel> steps)
     {
         var stepList = new List<Dictionary<string, object?>>();
@@ -318,7 +405,7 @@ internal static class SeoJsonLdBuilder
             ["name"] = title,
             ["description"] = description ?? title,
             ["url"] = canonical,
-            ["datePublished"] = item.PublishAt.ToString("O"),
+            ["datePublished"] = publishedAt.ToString("O"),
             ["step"] = stepList
         };
 
@@ -329,6 +416,9 @@ internal static class SeoJsonLdBuilder
 
         result.Add(ToJson(howTo));
     }
+
+    private static DateTimeOffset GetPublishedAt(ContentItem? item, ContentRecord? record)
+        => record?.Lifecycle.PublishedAt ?? item?.PublishAt ?? DateTimeOffset.UnixEpoch;
 
     private static void BuildPersonJsonLd(List<string> result, GeoAuthorModel author)
     {

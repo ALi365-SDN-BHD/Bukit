@@ -80,10 +80,10 @@ public sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
 
     private static Dictionary<string, object> BuildPageObject(ContentItem item, RouteInfo route, ContentRecord? record)
     {
-        var type = record?.Identity.ContentType ?? item.GetContentType();
+        var type = record?.Identity.ContentType ?? ContentFieldReader.GetContentType(item.Fields);
         type = string.IsNullOrWhiteSpace(type) ? null : type.Trim();
 
-        var summary = record?.Presentation.Summary ?? item.GetSummary();
+        var summary = record?.Presentation.Summary ?? ContentFieldReader.GetSummary(item.Fields);
         summary = string.IsNullOrWhiteSpace(summary) ? null : summary.Trim();
 
         return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)

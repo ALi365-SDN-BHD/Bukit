@@ -126,11 +126,11 @@ public sealed class PageRenderDispatcherLazyBodyTests
             Slug: "hello",
             PublishAt: DateTimeOffset.Parse("2026-05-04T00:00:00Z"),
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["bodyFingerprint"] = "body-v1"
+                ["bodyFingerprint"] = new("text", "body-v1")
             },
-            Fields: null,
             BodyKey: "body-1");
 
         var route = new RouteInfo("/pages/hello/", "pages/hello/index.html", "pages/page.html");
@@ -401,12 +401,12 @@ public sealed class PageRenderDispatcherLazyBodyTests
             Slug: "blog-post",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: null,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["collection"] = "post",
-                ["summary"] = "summary"
+                ["collection"] = new("text", "post"),
+                ["summary"] = new("text", "summary")
             },
-            Fields: null,
             BodyKey: "body-2");
 
         return new List<(ContentItem Item, RouteInfo Route)>

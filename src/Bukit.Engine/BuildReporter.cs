@@ -238,9 +238,11 @@ internal static class BuildReporter
     {
         foreach (var key in new[] { "source", "sourcePath", "path", "file" })
         {
-            if (item.Meta.TryGetValue(key, out var value) && value is not null)
+            if (item.Fields is not null &&
+                item.Fields.TryGetValue(key, out var field) &&
+                field.Value is not null)
             {
-                return Convert.ToString(value, CultureInfo.InvariantCulture);
+                return Convert.ToString(field.Value, CultureInfo.InvariantCulture);
             }
         }
 
@@ -249,7 +251,23 @@ internal static class BuildReporter
 
     private static string GetKind(ContentItem item)
     {
-        return item.GetCollection();
+        if (item.Fields is not null &&
+            item.Fields.TryGetValue("collection", out var collection) &&
+            collection.Value is not null &&
+            !string.IsNullOrWhiteSpace(collection.Value.ToString()))
+        {
+            return collection.Value.ToString()!.Trim();
+        }
+
+        if (item.Fields is not null &&
+            item.Fields.TryGetValue("type", out var type) &&
+            type.Value is not null &&
+            !string.IsNullOrWhiteSpace(type.Value.ToString()))
+        {
+            return type.Value.ToString()!.Trim();
+        }
+
+        return "post";
     }
 
     private static string ComputeSha256(string path)

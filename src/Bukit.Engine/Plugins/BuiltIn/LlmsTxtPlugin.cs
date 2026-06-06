@@ -2,6 +2,7 @@ using System.Text;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Routing;
 using Bukit.Rendering;
 using Bukit.Engine.Abstractions.Plugins;
 
@@ -61,15 +62,8 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
         }
 
         var canonicalBase = BuildBase(context);
-        var recordsById = context.ContentGraph.Records
-            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
-        var routed = context.Routed
-            .Concat(context.DerivedRouted)
-            .ToList();
-
-        var keyed = new Dictionary<string, (ContentItem Item, ContentRecord? Record, SeoIndexEntry Entry, SeoModel? Model)>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (item, route) in routed)
+        var keyed = new Dictionary<string, (ContentDocument Document, SeoIndexEntry Entry, SeoModel? Model)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (document, route) in GetRoutedDocuments(context))
         {
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
             if (key is null)
@@ -83,20 +77,22 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
                     && dict.TryGetValue(key, out var seoModel)
                     ? seoModel
                     : null;
-                recordsById.TryGetValue(item.Id, out var record);
-                keyed[key] = (item, record, entry, model);
+                keyed[key] = (document, entry, model);
             }
         }
 
         var pages = new List<(string Url, string Title, string? Description)>();
         var groups = new Dictionary<string, List<(string Url, string Title, string? Description, DateTimeOffset Published)>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (_, (item, record, entry, model)) in keyed)
+        foreach (var (_, (document, entry, model)) in keyed)
         {
+            var record = document.Record;
             var url = ResolveFullUrl(entry.Route.Url, canonicalBase);
-            var pageTitle = record?.Presentation.Title ?? model?.Title ?? item.Title;
-            var desc = record?.Presentation.Summary ?? model?.Description ?? description;
-            var collection = record?.Classification.Collection ?? item.GetCollection();
+            var pageTitle = string.IsNullOrWhiteSpace(record.Presentation.Title)
+                ? model?.Title ?? record.Identity.Id
+                : record.Presentation.Title;
+            var desc = record.Presentation.Summary ?? model?.Description ?? description;
+            var collection = record.Classification.Collection;
 
             if (!string.IsNullOrWhiteSpace(collection))
             {
@@ -106,7 +102,7 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
                     groups[collection] = group;
                 }
 
-                group.Add((url, pageTitle, desc, item.PublishAt));
+                group.Add((url, pageTitle, desc, record.Lifecycle.PublishedAt));
             }
             else
             {
@@ -194,10 +190,6 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
         var title = context.Config.Site.Title;
         var description = context.Config.Site.Description;
         var canonicalBase = BuildBase(context);
-        var recordsById = context.ContentGraph.Records
-            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
-
         sb.AppendLine($"# {title}");
         if (!string.IsNullOrWhiteSpace(description))
         {
@@ -205,68 +197,65 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             sb.AppendLine();
         }
 
-        var routed = context.Routed.Concat(context.DerivedRouted);
-        var itemsByPath = new Dictionary<string, ContentItem>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (item, route) in routed)
+        var documentsByPath = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (document, route) in GetRoutedDocuments(context))
         {
-            itemsByPath[BuildPathUtils.NormalizeRelPath(route.OutputPath)] = item;
+            documentsByPath[BuildPathUtils.NormalizeRelPath(route.OutputPath)] = document;
         }
 
         foreach (var (key, entry) in context.SeoIndex
                      .Where(x => x.Value.Indexable)
                      .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
-            if (!itemsByPath.TryGetValue(key, out var item))
+            if (!documentsByPath.TryGetValue(key, out var document))
             {
                 continue;
             }
 
-            recordsById.TryGetValue(item.Id, out var record);
+            var record = document.Record;
 
             var url = ResolveFullUrl(entry.Route.Url, canonicalBase);
-            sb.AppendLine($"# {record?.Presentation.Title ?? item.Title}");
+            sb.AppendLine($"# {record.Presentation.Title}");
             sb.AppendLine();
             sb.AppendLine($"URL: {url}");
             sb.AppendLine();
 
-            var itemDescription = ResolveDescription(item, record, context.Config.Site.Description);
+            var itemDescription = ResolveDescription(record, context.Config.Site.Description);
             if (!string.IsNullOrWhiteSpace(itemDescription))
             {
                 sb.AppendLine(itemDescription);
                 sb.AppendLine();
             }
 
-            if (!string.IsNullOrWhiteSpace(record?.Ownership.Author))
+            if (!string.IsNullOrWhiteSpace(record.Ownership.Author))
             {
                 sb.AppendLine($"Author: {record.Ownership.Author}");
             }
 
-            if (!string.IsNullOrWhiteSpace(record?.Provenance.Source))
+            if (!string.IsNullOrWhiteSpace(record.Provenance.Source))
             {
                 sb.AppendLine($"Source: {record.Provenance.Source}");
             }
 
-            if (!string.IsNullOrWhiteSpace(record?.Trust.ReviewStatus))
+            if (!string.IsNullOrWhiteSpace(record.Trust.ReviewStatus))
             {
                 sb.AppendLine($"Review Status: {record.Trust.ReviewStatus}");
             }
 
-            if (record?.Entities.Count > 0)
+            if (record.Entities.Count > 0)
             {
                 sb.AppendLine($"Entities: {string.Join(", ", record.Entities.Select(x => x.Name))}");
             }
 
-            if (!string.IsNullOrWhiteSpace(record?.Ownership.Author) ||
-                !string.IsNullOrWhiteSpace(record?.Provenance.Source) ||
-                !string.IsNullOrWhiteSpace(record?.Trust.ReviewStatus) ||
-                record?.Entities.Count > 0)
+            if (!string.IsNullOrWhiteSpace(record.Ownership.Author) ||
+                !string.IsNullOrWhiteSpace(record.Provenance.Source) ||
+                !string.IsNullOrWhiteSpace(record.Trust.ReviewStatus) ||
+                record.Entities.Count > 0)
             {
                 sb.AppendLine();
             }
 
-#pragma warning disable CS0618
-            var html = ContentBodyResolver.GetHtml(item, context.BodyStore);
-#pragma warning restore CS0618
+            var html = document.Body.Html ?? string.Empty;
             var text = SearchIndexBuilder.StripHtmlToText(html);
             sb.AppendLine(text);
             sb.AppendLine();
@@ -284,6 +273,46 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
         return $"- [{text}]({url})";
     }
 
+    private static IReadOnlyList<(ContentDocument Document, RouteInfo Route)> GetRoutedDocuments(BuildContext context)
+    {
+        if (context.RoutedDocuments.Count > 0)
+        {
+            return context.RoutedDocuments;
+        }
+
+        var recordsById = context.ContentGraph.Records
+            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+        var documents = new List<(ContentDocument Document, RouteInfo Route)>();
+        foreach (var (item, route) in context.Routed)
+        {
+            if (!recordsById.TryGetValue(item.Id, out var record))
+            {
+                record = new ContentRecord(
+                    new ContentIdentity(item.Id, item.Slug, item.Id, "page", "published"),
+                    new ContentPresentation(item.Title, null, item.ContentHtml, "und", []),
+                    new ContentClassification("page", "page", [], []),
+                    new ContentOwnership(null, null, null, null),
+                    new ContentLifecycle(item.PublishAt, null, null, null),
+                    new ProvenanceRecord(null, null, [], [], null),
+                    new TrustMetadata(null, "unreviewed", []),
+                    [],
+                    [],
+                    []);
+            }
+
+            documents.Add((new ContentDocument(
+                record,
+                new ContentBodyRef(item.ContentHtml, item.BodyKey, null, null),
+                new ContentRoutePolicy(null, null, route.Template, null, record.Classification.Collection),
+                new ContentPublishPolicy(false, false, false, false, false, false, false),
+                item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+                Array.Empty<ContentDiagnostic>()), route));
+        }
+
+        return documents;
+    }
+
     private static string ToTitle(string value)
     {
         var parts = value.Replace('-', ' ').Replace('_', ' ')
@@ -297,32 +326,11 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             char.ToUpperInvariant(part[0]) + (part.Length == 1 ? string.Empty : part[1..])));
     }
 
-    private static string? ResolveDescription(ContentItem item, ContentRecord? record, string? siteDescription)
+    private static string? ResolveDescription(ContentRecord record, string? siteDescription)
     {
-        if (!string.IsNullOrWhiteSpace(record?.Presentation.Summary))
+        if (!string.IsNullOrWhiteSpace(record.Presentation.Summary))
         {
             return record.Presentation.Summary.Trim();
-        }
-
-        var summary = item.GetSummary();
-        if (!string.IsNullOrWhiteSpace(summary))
-        {
-            return summary.Trim();
-        }
-
-        if (item.Meta.TryGetValue("seo_desc", out var seoDesc) && seoDesc is string s2 && !string.IsNullOrWhiteSpace(s2))
-        {
-            return s2.Trim();
-        }
-
-        if (item.Meta.TryGetValue("seodesc", out var legacySeoDesc) && legacySeoDesc is string s4 && !string.IsNullOrWhiteSpace(s4))
-        {
-            return s4.Trim();
-        }
-
-        if (item.Meta.TryGetValue("description", out var desc) && desc is string s3 && !string.IsNullOrWhiteSpace(s3))
-        {
-            return s3.Trim();
         }
 
         if (!string.IsNullOrWhiteSpace(siteDescription))

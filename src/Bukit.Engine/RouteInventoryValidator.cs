@@ -7,6 +7,15 @@ using Bukit.Shared;
 
 namespace Bukit.Engine;
 
+public sealed record RouteInventoryInspectEntry(
+    string Url,
+    string OutputPath,
+    string Template,
+    string? Collection,
+    string? Type,
+    string? Language,
+    string RouteSource);
+
 public static class RouteInventoryValidator
 {
     /// <summary>
@@ -16,7 +25,7 @@ public static class RouteInventoryValidator
     /// </summary>
     private const string DefaultDetailKind = "detail";
 
-    public static async Task<IReadOnlyList<(ContentItem Item, RouteInfo Route)>> BuildContentRoutesAsync(
+    public static async Task<IReadOnlyList<(ContentDocument Document, RouteInfo Route)>> BuildContentDocumentRoutesAsync(
         AppConfig config,
         string rootDir,
         bool isCi,
@@ -25,47 +34,88 @@ public static class RouteInventoryValidator
         CancellationToken cancellationToken = default)
     {
         var provider = ContentProviderFactory.Create(config, rootDir, isCi, logger);
-        var loadResult = await provider.LoadAsync(cancellationToken);
-        var items = loadResult.Items;
+        if (provider is not IRawContentProvider rawProvider)
+        {
+            throw new ContentException("The configured content provider does not support vNext raw content route inventory.");
+        }
+
+        var rawResult = await rawProvider.LoadRawAsync(cancellationToken);
+        var normalizer = new Normalization.ContentNormalizer();
+        var documents = rawResult.Documents
+            .Select(document => normalizer.Normalize(document, Normalization.ContentModelSchema.Default))
+            .ToList();
         if (!config.Build.Draft)
         {
-            items = items.Where(i =>
-                !(i.Meta.TryGetValue("draft", out var d) && ValueCoercion.IsTruthy(d))).ToList();
+            documents = documents.Where(document => !document.Publish.Draft).ToList();
         }
 
         var siteLanguages = config.Site.Languages;
         if (siteLanguages is null or { Count: 0 })
         {
             var siteLanguage = config.Site.Language;
-            items = I18nOutputMerger.FilterItemsByLanguage(items, siteLanguage, siteLanguage);
+            documents = FilterDocumentsByLanguage(documents, siteLanguage, siteLanguage).ToList();
         }
         else
         {
             var defaultLang = I18nOutputMerger.GetDefaultLanguage(config.Site, siteLanguages);
-            items = I18nOutputMerger.FilterItemsByLanguage(items, defaultLang, defaultLang);
+            documents = FilterDocumentsByLanguage(documents, defaultLang, defaultLang).ToList();
         }
 
-        var contentItems = items.Where(i => !MetaHelpers.IsDataItem(i)).ToList();
+        var contentDocuments = documents.Where(document => !document.Publish.IsDataModule).ToList();
         var collectionRules = BuildCollectionRules(config.Site);
-        return contentItems
-            .Select(i => (Item: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
-            .Select(x => (x.Item, Route: ResolveRouteTemplate(x.Item, x.Route, templateResolver)))
+        return contentDocuments
+            .Select(i => (Document: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
+            .Select(x => (x.Document, Route: ResolveRouteTemplate(x.Document, x.Route, templateResolver)))
             .ToList();
     }
 
-    public static void ValidateContentRoutes(IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed, string scope = "content")
+    public static void ValidateContentDocumentRoutes(
+        IReadOnlyList<(ContentDocument Document, RouteInfo Route)> routed,
+        string scope = "content")
     {
-        ValidateEntries(routed.Select(x => RouteInventoryEntry.ForContent(x.Item, x.Route, scope)).ToList());
+        ValidateEntries(routed.Select(x => RouteInventoryEntry.ForContentDocument(x.Document, x.Route, scope)).ToList());
+    }
+
+    public static IReadOnlyList<RouteInventoryInspectEntry> BuildInspectEntries(
+        IReadOnlyList<ContentDocument> documents,
+        SiteConfig site)
+    {
+        var entries = new List<RouteInventoryInspectEntry>();
+        var collectionRules = BuildCollectionRules(site);
+        var permalinks = site.Permalinks;
+        var outputPathEncoding = site.OutputPathEncoding ?? "none";
+
+        foreach (var document in documents)
+        {
+            if (document.Publish.IsDataModule)
+            {
+                continue;
+            }
+
+            var result = RouteGenerator.GenerateWithSource(document, outputPathEncoding, permalinks, collectionRules);
+            var record = document.Record;
+
+            entries.Add(new RouteInventoryInspectEntry(
+                result.Route.Url,
+                result.Route.OutputPath,
+                result.Route.Template,
+                NullIfEmpty(record.Classification.Collection),
+                NullIfEmpty(record.Identity.ContentType),
+                NullIfEmpty(record.Presentation.Language),
+                result.Source.ToString()));
+        }
+
+        return entries;
     }
 
     public static void ValidateFinalRoutes(
-        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        IReadOnlyList<(ContentDocument Document, RouteInfo Route)> routed,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> derived,
         IReadOnlyList<RouteInfo>? specialRoutes = null,
         IReadOnlyList<RouteInfo>? staticHtmlRoutes = null)
     {
         var entries = new List<RouteInventoryEntry>(routed.Count + derived.Count + (specialRoutes?.Count ?? 0) + (staticHtmlRoutes?.Count ?? 0));
-        entries.AddRange(routed.Select(x => RouteInventoryEntry.ForContent(x.Item, x.Route, "content")));
+        entries.AddRange(routed.Select(x => RouteInventoryEntry.ForContentDocument(x.Document, x.Route, "content")));
         entries.AddRange(derived.Select(x => RouteInventoryEntry.ForContent(x.Item, x.Route, "derived")));
         if (specialRoutes is not null)
         {
@@ -78,13 +128,6 @@ public static class RouteInventoryValidator
         }
 
         ValidateEntries(entries);
-    }
-
-    public static (RouteInfo Route, string Source) GenerateRouteWithSource(ContentItem item, SiteConfig site)
-    {
-        var collections = BuildCollectionRules(site);
-        var result = RouteGenerator.GenerateWithSource(item, site.OutputPathEncoding, site.Permalinks, collections);
-        return (result.Route, result.Source.ToString());
     }
 
     internal static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)
@@ -103,7 +146,7 @@ public static class RouteInventoryValidator
         return rules;
     }
 
-    private static RouteInfo ResolveRouteTemplate(ContentItem item, RouteInfo route, ThemeTemplateResolver? templateResolver)
+    private static RouteInfo ResolveRouteTemplate(ContentDocument document, RouteInfo route, ThemeTemplateResolver? templateResolver)
     {
         if (!string.IsNullOrWhiteSpace(route.Template))
         {
@@ -115,7 +158,28 @@ public static class RouteInventoryValidator
             return route;
         }
 
-        return route with { Template = templateResolver.ResolveContentTemplate(item, DefaultDetailKind) };
+        return route with { Template = templateResolver.ResolveContentTemplate(document, DefaultDetailKind) };
+    }
+
+    private static string? NullIfEmpty(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static IEnumerable<ContentDocument> FilterDocumentsByLanguage(
+        IEnumerable<ContentDocument> documents,
+        string language,
+        string defaultLanguage)
+    {
+        return documents.Where(document =>
+        {
+            var docLanguage = document.Record.Presentation.Language;
+            if (string.IsNullOrWhiteSpace(docLanguage) ||
+                string.Equals(docLanguage, "und", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Equals(language, defaultLanguage, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return string.Equals(docLanguage, language, StringComparison.OrdinalIgnoreCase);
+        });
     }
 
     private static void ValidateEntries(IReadOnlyList<RouteInventoryEntry> entries)
@@ -175,6 +239,14 @@ public static class RouteInventoryValidator
     {
         internal static RouteInventoryEntry ForContent(ContentItem item, RouteInfo route, string scope)
             => new(scope, item.Id, item.Title, item.Slug, route);
+
+        internal static RouteInventoryEntry ForContentDocument(ContentDocument document, RouteInfo route, string scope)
+            => new(
+                scope,
+                document.Record.Identity.Id,
+                document.Record.Presentation.Title,
+                document.Record.Identity.Slug,
+                route);
 
         internal static RouteInventoryEntry ForRoute(RouteInfo route)
             => new("special", null, null, null, route);

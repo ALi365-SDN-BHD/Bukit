@@ -141,7 +141,7 @@ public sealed class MarkdownFolderProviderTests
 
             var globItem = Assert.Single(globResult.Items);
             Assert.Equal("first", globItem.Slug);
-            Assert.Equal("markdown", globItem.Meta["source"]);
+            Assert.Equal("markdown", globItem.Fields!["source"].Value);
         }
         finally
         {
@@ -175,7 +175,7 @@ public sealed class MarkdownFolderProviderTests
             var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
             var result = await provider.LoadAsync();
 
-            var toc = Assert.IsAssignableFrom<IReadOnlyList<TableOfContentsEntry>>(result.Items[0].Meta["tableOfContents"]);
+            var toc = Assert.IsAssignableFrom<IReadOnlyList<TableOfContentsEntry>>(result.Items[0].Fields!["tableOfContents"].Value);
             Assert.Equal(4, toc.Count);
             Assert.Equal(1, toc[0].Level);
             Assert.Equal("Main Title", toc[0].Text);
@@ -210,8 +210,51 @@ public sealed class MarkdownFolderProviderTests
             var result = await provider.LoadAsync();
 
             var item = Assert.Single(result.Items);
-            Assert.Equal("post", item.Meta["collection"]);
-            Assert.False(item.Meta.ContainsKey("type"));
+            Assert.Equal("post", item.Fields!["collection"].Value);
+            Assert.False(item.Fields!.ContainsKey("type"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_ShouldReturnRawContentDocument_WhenMarkdownHasFrontMatter()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-raw-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            await File.WriteAllTextAsync(Path.Combine(root, "hello.md"), """
+            ---
+            title: Hello
+            slug: custom-hello
+            type: post
+            language: en
+            summary: Raw summary
+            tags: [ai, infra]
+            featured: true
+            ---
+            # Hello
+            Body
+            """);
+            var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
+
+            var result = await ((IRawContentProvider)provider).LoadRawAsync();
+
+            var raw = Assert.Single(result.Documents);
+            Assert.Equal("custom-hello", raw.Slug);
+            Assert.Equal("Hello", raw.Title);
+            Assert.Equal("markdown", raw.Source.Provider);
+            Assert.Equal("hello", raw.SourceId);
+            Assert.Equal("post", raw.Properties["type"].Value);
+            Assert.Equal("en", raw.Properties["language"].Value);
+            Assert.Equal("Raw summary", raw.Properties["summary"].Value);
+            Assert.True((bool)raw.CustomFields["featured"].Value!);
         }
         finally
         {

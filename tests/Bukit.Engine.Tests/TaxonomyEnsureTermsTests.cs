@@ -85,12 +85,12 @@ public sealed class TaxonomyEnsureTermsTests
             Slug: "cat-one",
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: string.Empty,
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["sourceKey"] = "categories",
-                ["sourceMode"] = "data"
-            },
-            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase));
+                ["sourceKey"] = new("text", "categories"),
+                ["sourceMode"] = new("text", "data")
+            });
 
         TaxonomyTermsInjector.InjectFromDataItems(ctx, new List<ContentItem> { dataItem });
 

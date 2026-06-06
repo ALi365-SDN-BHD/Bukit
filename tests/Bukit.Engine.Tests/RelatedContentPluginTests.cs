@@ -15,10 +15,10 @@ public sealed class RelatedContentPluginTests
 {
     private static ContentItem CreateItem(string id, string title, string slug, string? tags = null, string? categories = null, string? collection = null)
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        if (tags is not null) meta["tags"] = tags;
-        if (categories is not null) meta["categories"] = categories;
-        if (collection is not null) meta["collection"] = collection;
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (tags is not null) fields["tags"] = new("list", tags);
+        if (categories is not null) fields["categories"] = new("list", categories);
+        if (collection is not null) fields["collection"] = new("text", collection);
 
         return new ContentItem(
             Id: id,
@@ -26,8 +26,8 @@ public sealed class RelatedContentPluginTests
             Slug: slug,
             PublishAt: DateTimeOffset.UtcNow,
             ContentHtml: "<p>content</p>",
-            Meta: meta,
-            Fields: null);
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: fields);
     }
 
     private static ContentItem CreateFieldItem(string id, string title, string slug, IReadOnlyList<string> tags)

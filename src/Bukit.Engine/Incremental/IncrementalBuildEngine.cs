@@ -40,7 +40,7 @@ internal static class IncrementalBuildEngine
         AppendUtf8(hasher, item.PublishAt.ToString("O"));
         hasher.AppendData(newline);
 
-        var type = item.GetContentType();
+        var type = ContentFieldReader.GetContentType(item.Fields);
         AppendUtf8(hasher, type);
         hasher.AppendData(newline);
 
@@ -233,11 +233,12 @@ internal static class IncrementalBuildEngine
     private static bool TryGetBodyFingerprint(ContentItem item, out string bodyFingerprint)
     {
         bodyFingerprint = string.Empty;
-        if (item.Meta.TryGetValue(BodyFingerprintKey, out var bodyFingerprintObj) &&
-            bodyFingerprintObj is not null &&
-            !string.IsNullOrWhiteSpace(bodyFingerprintObj.ToString()))
+        if (item.Fields is not null &&
+            item.Fields.TryGetValue(BodyFingerprintKey, out var bodyFingerprintField) &&
+            bodyFingerprintField.Value is not null &&
+            !string.IsNullOrWhiteSpace(bodyFingerprintField.Value.ToString()))
         {
-            bodyFingerprint = bodyFingerprintObj.ToString()!.Trim();
+            bodyFingerprint = bodyFingerprintField.Value.ToString()!.Trim();
             return true;
         }
 

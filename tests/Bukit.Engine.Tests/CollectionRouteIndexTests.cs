@@ -55,11 +55,11 @@ public sealed class CollectionRouteIndexTests
             Slug: id,
             PublishAt: new DateTimeOffset(2024, 1, day, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: $"<p>{id}</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = collection,
-                ["collection"] = collection
-            },
-            Fields: null);
+                ["type"] = new("text", collection),
+                ["collection"] = new("text", collection)
+            });
     }
 }

@@ -97,11 +97,9 @@ public sealed class CompositeContentProviderTests
         Assert.Equal("notion:item-1", result.Items[0].Id);
         Assert.Equal("markdown:item-2", result.Items[1].Id);
 
-        Assert.True(result.Items[0].Meta.TryGetValue("sourceKey", out var srcKey1));
-        Assert.Equal("notion", srcKey1);
+        Assert.Equal("notion", result.Items[0].Fields!["sourceKey"].Value);
 
-        Assert.True(result.Items[1].Meta.TryGetValue("sourceKey", out var srcKey2));
-        Assert.Equal("markdown", srcKey2);
+        Assert.Equal("markdown", result.Items[1].Fields!["sourceKey"].Value);
     }
 
     [Fact]
@@ -131,11 +129,11 @@ public sealed class CompositeContentProviderTests
 
         Assert.Equal(3, result.Items.Count);
         Assert.Equal("companies-db:company-1", result.Items[0].Id);
-        Assert.Equal("companies", result.Items[0].Meta["collection"]);
+        Assert.Equal("companies", result.Items[0].Fields!["collection"].Value);
         Assert.Equal("companies-db:company-1:china_companies", result.Items[1].Id);
-        Assert.Equal("china_companies", result.Items[1].Meta["collection"]);
+        Assert.Equal("china_companies", result.Items[1].Fields!["collection"].Value);
         Assert.Equal("companies-db:company-1:malaysia_companies", result.Items[2].Id);
-        Assert.Equal("malaysia_companies", result.Items[2].Meta["collection"]);
+        Assert.Equal("malaysia_companies", result.Items[2].Fields!["collection"].Value);
     }
 
     [Fact]
@@ -194,6 +192,43 @@ public sealed class CompositeContentProviderTests
         Assert.NotNull(result.BodyStore);
     }
 
+    [Fact]
+    public async Task LoadRawAsync_MultipleProviders_AssignsSourceInfoAndCollection()
+    {
+        var provider = new RawTestProvider(new RawContentLoadResult(
+            new[]
+            {
+                new RawContentDocument(
+                    SourceId: "item-1",
+                    SourceKind: "markdown",
+                    Title: "Item 1",
+                    Slug: "item-1",
+                    PublishedAt: DateTimeOffset.UtcNow,
+                    Body: new RawBody(null, "item-1.md", "# Item", "Item"),
+                    Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["type"] = new("text", "post")
+                    },
+                    Source: new ContentSourceInfo("markdown", null, "content/item-1.md", null, null, null, "loaded"),
+                    CustomFields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))
+            },
+            new NullBodyStore()));
+        (string SourceKey, string SourceMode, string? Collection, IReadOnlyList<string>? AddToCollections, IContentProvider Provider)[] providers =
+        {
+            ("markdown", "content", "posts", null, provider)
+        };
+        var composite = new CompositeContentProvider(providers);
+
+        var result = await ((IRawContentProvider)composite).LoadRawAsync();
+
+        var raw = Assert.Single(result.Documents);
+        Assert.Equal("markdown:item-1", raw.SourceId);
+        Assert.Equal("markdown", raw.Source.SourceKey);
+        Assert.Equal("markdown", raw.Source.Provider);
+        Assert.Equal("posts", raw.Properties["collection"].Value);
+        Assert.Equal("markdown:item-1.md", raw.Body.BodyKey);
+    }
+
     private sealed class TestProvider : IContentProvider
     {
         private readonly ContentLoadResult _result;
@@ -207,6 +242,27 @@ public sealed class CompositeContentProviderTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(_result);
+        }
+    }
+
+    private sealed class RawTestProvider : IContentProvider, IRawContentProvider
+    {
+        private readonly RawContentLoadResult _rawResult;
+
+        public RawTestProvider(RawContentLoadResult rawResult)
+        {
+            _rawResult = rawResult;
+        }
+
+        public Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new ContentLoadResult(Array.Empty<ContentItem>(), _rawResult.BodyStore));
+        }
+
+        public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_rawResult);
         }
     }
 

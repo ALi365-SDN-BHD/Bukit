@@ -27,7 +27,8 @@ internal sealed record ManifestSetupResult(
     bool IncrementalEnabled);
 
 internal sealed record BuildRoutePipelineResult(
-    RoutePipelineResult RouteResult,
+    ContentDocumentRoutePipelineResult RouteResult,
+    IReadOnlyList<(ContentItem Item, RouteInfo Route)> Routed,
     IReadOnlyList<RouteInfo> StaticHtmlRoutes,
     IReadOnlyList<RenderEntry>? StaticEntries,
     BuildContext PluginContext);
@@ -42,15 +43,61 @@ internal sealed class VariantBuildPipeline
     internal DataModuleResult PrepareDataModules(
         IReadOnlyList<ContentItem> items, string language, IContentBodyStore bodyStore)
     {
-        var dataItems = items.Where(MetaHelpers.IsDataItem).ToList();
+        var dataItems = items.Where(IsDataItem).ToList();
         var modules = DataModuleBuilder.BuildModules(dataItems, language, bodyStore);
         var sourceData = DataModuleBuilder.BuildDataBySource(dataItems, bodyStore);
         return new DataModuleResult(dataItems, modules, sourceData);
     }
 
-    internal RoutePipelineResult GenerateRoutes(AppConfig config, IReadOnlyList<ContentItem> items, ThemeTemplateResolver templateResolver)
+    private static bool IsDataItem(ContentItem item)
     {
-        return new RoutePipeline().Execute(config, items, templateResolver);
+        if (item.Fields is null)
+        {
+            return false;
+        }
+
+        var sourceMode = GetFieldText(item.Fields, "sourceMode");
+        return string.Equals(sourceMode, "data", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetFieldText(IReadOnlyDictionary<string, ContentField> fields, string key)
+    {
+        if (!fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    internal ContentDocumentRoutePipelineResult GenerateRoutes(AppConfig config, IReadOnlyList<ContentDocument> documents, ThemeTemplateResolver templateResolver)
+    {
+        return new RoutePipeline().ExecuteDocuments(config, documents, templateResolver);
+    }
+
+    internal static IReadOnlyList<(ContentDocument Document, RouteInfo Route)> BuildRoutedDocuments(
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        CanonicalContentGraph contentGraph)
+    {
+        if (contentGraph.Documents.Count == 0)
+        {
+            return Array.Empty<(ContentDocument Document, RouteInfo Route)>();
+        }
+
+        var documentsById = contentGraph.Documents.ToDictionary(
+            document => document.Record.Identity.Id,
+            StringComparer.OrdinalIgnoreCase);
+        var result = new List<(ContentDocument Document, RouteInfo Route)>();
+        foreach (var (item, route) in routed)
+        {
+            if (documentsById.TryGetValue(item.Id, out var document))
+            {
+                result.Add((document, route));
+            }
+        }
+
+        return result;
     }
 
     internal ITemplateRenderer CreateRenderer(
@@ -191,12 +238,12 @@ internal sealed class VariantBuildPipeline
         templateResolver.ValidateRequiredTemplates();
         var dataModules = await BuildDataModulesAsync(items, config.Site.Language, bodyStore, variantStageMetrics);
         var routePipelineResult = await BuildRoutePipelineAsync(
-            config, items, dataModules.DataItems, bodyStore, ctx, logger, variantStageMetrics, templateResolver, cancellationToken);
+            config, items, ctx.Documents, dataModules.DataItems, bodyStore, ctx, logger, variantStageMetrics, templateResolver, cancellationToken);
 
         await RunPluginDeriveStageAsync(routePipelineResult.PluginContext, variantStageMetrics, cancellationToken);
 
         var allPagesForSections = bootstrap.Registry is not null
-            ? routePipelineResult.RouteResult.Routed.Select(x => ((ContentItem)x.Item, (RouteInfo?)x.Route)).ToList()
+            ? routePipelineResult.Routed.Select(x => ((ContentItem)x.Item, (RouteInfo?)x.Route)).ToList()
             : (IReadOnlyList<(ContentItem, RouteInfo?)>?)null;
 
         ITemplateRenderer renderer = rendererFactory is not null
@@ -206,7 +253,7 @@ internal sealed class VariantBuildPipeline
         var siteModel = BuildSiteModel(config, baseUrl, dataModules.Modules, dataModules.SourceData, routePipelineResult.PluginContext.Data);
         var manifestSetup = SetupManifest(ctx, overrides, templateHashCache);
 
-        var renderQueue = routePipelineResult.RouteResult.Routed.Concat(routePipelineResult.PluginContext.DerivedRouted).ToList();
+        var renderQueue = routePipelineResult.Routed.Concat(routePipelineResult.PluginContext.DerivedRouted).ToList();
         var listRoutes = routePipelineResult.RouteResult.ListRoutes;
 
         var seoStage = await BuildSeoStageAsync(
@@ -215,7 +262,7 @@ internal sealed class VariantBuildPipeline
             routePipelineResult.PluginContext);
 
         var renderPipelineResult = await RenderPagesStageAsync(
-            renderQueue, routePipelineResult.RouteResult.Routed, bodyStore, renderer, siteModel,
+            renderQueue, routePipelineResult.Routed, bodyStore, renderer, siteModel,
             config, ctx, outputDir, manifestSetup, seoStage, routePipelineResult.StaticEntries,
             variantStageMetrics, logger, templateResolver, cancellationToken);
 
@@ -241,7 +288,7 @@ internal sealed class VariantBuildPipeline
         return await GenerateReportStageAsync(
             config, baseUrl, outputDir, searchSnippetsEnabled, bodyStore,
             ctx.ContentGraph,
-            routePipelineResult.RouteResult.Routed, routePipelineResult.PluginContext,
+            routePipelineResult.Routed, routePipelineResult.PluginContext,
             seoStage.SeoResult, renderPipelineResult, variantStageMetrics, logger, ctx.DefaultLanguage);
     }
 
@@ -264,6 +311,7 @@ internal sealed class VariantBuildPipeline
     private async Task<BuildRoutePipelineResult> BuildRoutePipelineAsync(
         AppConfig config,
         IReadOnlyList<ContentItem> items,
+        IReadOnlyList<ContentDocument> documents,
         IReadOnlyList<ContentItem> dataItems,
         IContentBodyStore bodyStore,
         BuildVariantContext ctx,
@@ -273,8 +321,8 @@ internal sealed class VariantBuildPipeline
         CancellationToken cancellationToken)
     {
         var routeGenerationStopwatch = Stopwatch.StartNew();
-        var routeResult = GenerateRoutes(config, items, templateResolver);
-        var routed = routeResult.Routed;
+        var routeResult = GenerateRoutes(config, documents, templateResolver);
+        var routed = BuildLegacyRoutedItems(routeResult.RoutedDocuments, items);
         routeGenerationStopwatch.Stop();
         metrics.AddDuration("routeGeneration", routeGenerationStopwatch.ElapsedMilliseconds);
 
@@ -286,6 +334,7 @@ internal sealed class VariantBuildPipeline
             BaseUrl = ctx.BaseUrl,
             LayoutsDir = ctx.LayoutsDir,
             Routed = routed,
+            RoutedDocuments = routeResult.RoutedDocuments,
             ContentGraph = ctx.ContentGraph,
             BodyStore = bodyStore,
             TemplateResolver = templateResolver.ResolveKindTemplate,
@@ -314,9 +363,28 @@ internal sealed class VariantBuildPipeline
             logger.Warn("Static HTML files in static dir are skipped because no static template is configured (theme.staticTemplate).");
         }
 
-        RouteInventoryValidator.ValidateFinalRoutes(routed, pluginContext.DerivedRouted, routeResult.ListRoutes, staticHtmlRoutes);
+        RouteInventoryValidator.ValidateFinalRoutes(routeResult.RoutedDocuments, pluginContext.DerivedRouted, routeResult.ListRoutes, staticHtmlRoutes);
 
-        return new BuildRoutePipelineResult(routeResult, staticHtmlRoutes, staticEntries, pluginContext);
+        return new BuildRoutePipelineResult(routeResult, routed, staticHtmlRoutes, staticEntries, pluginContext);
+    }
+
+    private static IReadOnlyList<(ContentItem Item, RouteInfo Route)> BuildLegacyRoutedItems(
+        IReadOnlyList<(ContentDocument Document, RouteInfo Route)> routedDocuments,
+        IReadOnlyList<ContentItem> items)
+    {
+        var itemsById = items
+            .GroupBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+        var routed = new List<(ContentItem Item, RouteInfo Route)>(routedDocuments.Count);
+        foreach (var (document, route) in routedDocuments)
+        {
+            if (itemsById.TryGetValue(document.Record.Identity.Id, out var item))
+            {
+                routed.Add((item, route));
+            }
+        }
+
+        return routed;
     }
 
     private async Task RunPluginDeriveStageAsync(
@@ -355,8 +423,11 @@ internal sealed class VariantBuildPipeline
             1,
             Math.Max(1, Environment.ProcessorCount * 2));
 
-        var seoResult = new SeoPipeline().Execute(
-            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger);
+        var seoResult = pluginContext.RoutedDocuments.Count > 0
+            ? new SeoPipeline().ExecuteDocuments(
+                config, baseUrl, pluginContext.RoutedDocuments, listRoutes, seoAlternates, analytics, logger, pluginContext.DerivedRouted)
+            : new SeoPipeline().Execute(
+                config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
 
         return Task.FromResult(new SeoStageResult(seoResult, seoAlternates, maxDegreeOfParallelism));
@@ -404,7 +475,10 @@ internal sealed class VariantBuildPipeline
             ListItemSeoBuilder: seoStage.SeoResult.ListItemSeoBuilder,
             ListSeoBuilder: seoStage.SeoResult.ListSeoBuilder,
             ListHtmlPostProcessor: seoStage.SeoResult.ListHtmlPostProcessor,
-            TemplateResolver: templateResolver),
+            DocumentSeoBuilder: seoStage.SeoResult.DocumentSeoBuilder,
+            DocumentHtmlPostProcessor: seoStage.SeoResult.DocumentHtmlPostProcessor,
+            TemplateResolver: templateResolver,
+            ContentGraph: ctx.ContentGraph),
             cancellationToken);
 
         metrics.Merge(renderPipelineResult.StageMetrics);

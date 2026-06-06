@@ -73,16 +73,15 @@ internal sealed class ProtocolDerivePagesRunner
         var derived = new List<(ContentItem Item, RouteInfo Route, DateTimeOffset LastModified)>();
         foreach (var page in response.DerivedPages ?? Array.Empty<ProtocolDerivedPage>())
         {
-            var meta = page.Meta is null
-                ? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                : new Dictionary<string, object>(JsonElementMaterializer.Materialize(page.Meta)!, StringComparer.OrdinalIgnoreCase);
+            var fields = BuildFields(page);
             var item = new ContentItem(
                 page.Id,
                 page.Title,
                 page.Slug,
                 page.PublishAt,
                 page.ContentHtml,
-                meta);
+                new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+                fields);
             var route = new RouteInfo(page.Url, page.OutputPath, page.Template);
             var lastModified = page.LastModified ?? page.PublishAt;
             derived.Add((item, route, lastModified));
@@ -91,11 +90,34 @@ internal sealed class ProtocolDerivePagesRunner
         return derived;
     }
 
+    private static IReadOnlyDictionary<string, ContentField> BuildFields(ProtocolDerivedPage page)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (page.Fields is null)
+        {
+            return fields;
+        }
+
+        var materialized = JsonElementMaterializer.Materialize(page.Fields);
+        if (materialized is IReadOnlyDictionary<string, object> map)
+        {
+            foreach (var (key, value) in map)
+            {
+                if (value is not null)
+                {
+                    fields[key] = new ContentField("protocol", value);
+                }
+            }
+        }
+
+        return fields;
+    }
+
     private static string BuildRequestJson(BuildContext context, ExternalPluginConfig config, string pluginName, string pluginVersion)
     {
         var request = new JsonObject
         {
-            ["schemaVersion"] = "1",
+            ["schemaVersion"] = context.RoutedDocuments.Count > 0 ? "2" : "1",
             ["hook"] = DerivePagesHook,
             ["plugin"] = new JsonObject
             {
@@ -116,18 +138,64 @@ internal sealed class ProtocolDerivePagesRunner
             {
                 ["projectRoot"] = context.RootDir,
                 ["outputDir"] = context.OutputDir,
-                ["routedPages"] = new JsonArray(context.Routed
-                    .Select(x => (JsonNode)new JsonObject
-                    {
-                        ["id"] = x.Item.Id,
-                        ["url"] = x.Route.Url,
-                        ["outputPath"] = x.Route.OutputPath,
-                        ["meta"] = ProtocolJsonHelper.ToJsonNode(x.Item.Meta)
-                    })
-                    .ToArray())
+                ["routedPages"] = BuildRoutedPagesJson(context)
             }
         };
 
         return request.ToJsonString();
+    }
+
+    private static JsonArray BuildRoutedPagesJson(BuildContext context)
+    {
+        if (context.RoutedDocuments.Count > 0)
+        {
+            return new JsonArray(context.RoutedDocuments
+                .Select(x => (JsonNode)new JsonObject
+                {
+                    ["content"] = ToContentJson(x.Document),
+                    ["route"] = new JsonObject
+                    {
+                        ["url"] = x.Route.Url,
+                        ["outputPath"] = x.Route.OutputPath,
+                        ["template"] = x.Route.Template
+                    },
+                    ["publish"] = new JsonObject
+                    {
+                        ["draft"] = x.Document.Publish.Draft,
+                        ["noIndex"] = x.Document.Publish.NoIndex,
+                        ["noFollow"] = x.Document.Publish.NoFollow,
+                        ["excludeFromFeed"] = x.Document.Publish.ExcludeFromFeed,
+                        ["excludeFromSearch"] = x.Document.Publish.ExcludeFromSearch,
+                        ["excludeFromSitemap"] = x.Document.Publish.ExcludeFromSitemap,
+                        ["isDataModule"] = x.Document.Publish.IsDataModule
+                    },
+                    ["fields"] = ProtocolJsonHelper.ToJsonNode(x.Document.CustomFields)
+                })
+                .ToArray());
+        }
+
+        return new JsonArray(context.Routed
+            .Select(x => (JsonNode)new JsonObject
+            {
+                ["id"] = x.Item.Id,
+                ["url"] = x.Route.Url,
+                ["outputPath"] = x.Route.OutputPath
+            })
+            .ToArray());
+    }
+
+    private static JsonObject ToContentJson(ContentDocument document)
+    {
+        var record = document.Record;
+        return new JsonObject
+        {
+            ["id"] = record.Identity.Id,
+            ["slug"] = record.Identity.Slug,
+            ["title"] = record.Presentation.Title,
+            ["type"] = record.Identity.ContentType,
+            ["collection"] = record.Classification.Collection,
+            ["language"] = record.Presentation.Language,
+            ["summary"] = record.Presentation.Summary
+        };
     }
 }

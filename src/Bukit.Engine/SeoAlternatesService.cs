@@ -30,7 +30,7 @@ public static class SeoAlternatesService
             var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, language);
             var variantItems = I18nOutputMerger
                 .FilterItemsByLanguage(items, language, defaultLanguage)
-                .Where(i => !MetaHelpers.IsDataItem(i))
+                .Where(i => !IsDataItem(i))
                 .ToList();
             var variantRouted = variantItems
                 .Select(i => (Item: i, Route: RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
@@ -303,7 +303,7 @@ public static class SeoAlternatesService
         var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var (item, _) in routed)
         {
-            var values = GetSeoStringList(item.Meta, key);
+            var values = GetSeoStringList(item.Fields, key);
             if (values is null)
             {
                 continue;
@@ -324,9 +324,35 @@ public static class SeoAlternatesService
         return result;
     }
 
-    internal static IReadOnlyList<string>? GetSeoStringList(IReadOnlyDictionary<string, object> meta, string key)
+    internal static IReadOnlyList<string>? GetSeoStringList(IReadOnlyDictionary<string, ContentField>? fields, string key)
     {
-        if (!meta.TryGetValue(key, out var value) || value is null)
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        if (field.Value is string text)
+        {
+            var parts = text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length == 0 ? null : parts;
+        }
+
+        if (field.Value is IEnumerable<object> values)
+        {
+            var list = values
+                .Select(x => x?.ToString()?.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!)
+                .ToList();
+            return list.Count == 0 ? null : list;
+        }
+
+        return null;
+    }
+
+    internal static IReadOnlyList<string>? GetSeoStringList(IReadOnlyDictionary<string, object>? valuesByKey, string key)
+    {
+        if (valuesByKey is null || !valuesByKey.TryGetValue(key, out var value) || value is null)
         {
             return null;
         }
@@ -352,7 +378,24 @@ public static class SeoAlternatesService
 
     internal static string GetCollection(ContentItem item)
     {
-        return item.GetCollection();
+        return GetFieldText(item.Fields, "collection") ?? GetFieldText(item.Fields, "type") ?? "post";
+    }
+
+    private static bool IsDataItem(ContentItem item)
+    {
+        var sourceMode = GetFieldText(item.Fields, "sourceMode");
+        return string.Equals(sourceMode, "data", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetFieldText(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     internal static int NormalizePageSize(int pageSize) => pageSize <= 0 ? 10 : pageSize;

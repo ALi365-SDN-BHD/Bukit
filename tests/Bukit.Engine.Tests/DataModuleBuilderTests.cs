@@ -26,21 +26,24 @@ public sealed class DataModuleBuilderTests
                 Slug: "hero-banner",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>hero</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "hero" }),
+                Meta: new Dictionary<string, object>(),
+                Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "hero") }),
             new ContentItem(
                 Id: "m2",
                 Title: "Footer",
                 Slug: "footer",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>footer</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "footer" }),
+                Meta: new Dictionary<string, object>(),
+                Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "footer") }),
             new ContentItem(
                 Id: "m3",
                 Title: "Hero Secondary",
                 Slug: "hero-secondary",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>hero2</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "hero" }),
+                Meta: new Dictionary<string, object>(),
+                Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "hero") }),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -84,32 +87,32 @@ public sealed class DataModuleBuilderTests
                 Slug: "charlie",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>c</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" },
-                Fields: new Dictionary<string, ContentField> { ["order"] = new("number", 3d) }),
+                Meta: new Dictionary<string, object>(),
+                Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget"), ["order"] = new("number", 3d) }),
             new ContentItem(
                 Id: "a",
                 Title: "Alpha",
                 Slug: "alpha",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>a</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" },
-                Fields: new Dictionary<string, ContentField> { ["order"] = new("number", 1d) }),
+                Meta: new Dictionary<string, object>(),
+                Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget"), ["order"] = new("number", 1d) }),
             new ContentItem(
                 Id: "b1",
                 Title: "Beta",
                 Slug: "beta",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>b1</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" },
-                Fields: new Dictionary<string, ContentField> { ["order"] = new("number", 2d) }),
+                Meta: new Dictionary<string, object>(),
+                Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget"), ["order"] = new("number", 2d) }),
             new ContentItem(
                 Id: "b2",
                 Title: "Beta A",
                 Slug: "beta-a",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>b2</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" },
-                Fields: new Dictionary<string, ContentField> { ["order"] = new("number", 2d) }),
+                Meta: new Dictionary<string, object>(),
+                Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget"), ["order"] = new("number", 2d) }),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -134,15 +137,16 @@ public sealed class DataModuleBuilderTests
                 Slug: "enabled",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>enabled</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" }),
+                Meta: new Dictionary<string, object>(),
+                Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget") }),
             new ContentItem(
                 Id: "m2",
                 Title: "Disabled",
                 Slug: "disabled",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>disabled</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "widget" },
-                Fields: new Dictionary<string, ContentField> { ["enabled"] = new("bool", false) }),
+                Meta: new Dictionary<string, object>(),
+                Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget"), ["enabled"] = new("bool", false) }),
         };
 
         var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
@@ -157,6 +161,7 @@ public sealed class DataModuleBuilderTests
     {
         var fields = new Dictionary<string, ContentField>
         {
+            ["type"] = new("text", "banner"),
             ["color"] = new("text", "red")
         };
         var items = new[]
@@ -167,7 +172,7 @@ public sealed class DataModuleBuilderTests
                 Slug: "test-module",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: "<p>content</p>",
-                Meta: new Dictionary<string, object> { ["type"] = "banner" },
+                Meta: new Dictionary<string, object>(),
                 Fields: fields),
         };
 
@@ -194,7 +199,8 @@ public sealed class DataModuleBuilderTests
                 Slug: "from-store",
                 PublishAt: DateTimeOffset.UtcNow,
                 ContentHtml: null,
-                Meta: new Dictionary<string, object> { ["type"] = "widget" }),
+                Meta: new Dictionary<string, object>(),
+                Fields: new Dictionary<string, ContentField> { ["type"] = new("text", "widget") }),
         };
         var bodyStore = new StubBodyStore(html: "<p>stored content</p>");
 

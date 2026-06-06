@@ -67,12 +67,12 @@ public sealed class PaginationPluginDerivePagesTests
             Slug: $"post-{index}",
             PublishAt: publish,
             ContentHtml: $"<p>content {index}</p>",
-            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = "post",
-                ["collection"] = "post"
-            },
-            Fields: null);
+                ["type"] = new("text", "post"),
+                ["collection"] = new("text", "post")
+            });
         var route = new RouteInfo($"/blog/post-{index}/", $"blog/post-{index}/index.html", "pages/post.html");
         return (item, route);
     }

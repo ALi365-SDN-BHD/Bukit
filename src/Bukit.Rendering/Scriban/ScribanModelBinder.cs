@@ -105,6 +105,17 @@ public static class ScribanModelBinder
         if (model.ContentRecord is not null)
         {
             obj.SetValue("content_model", ToScriptObject(model.ContentRecord), readOnly: true);
+            obj.SetValue("content_record", ToScriptObject(model.ContentRecord), readOnly: true);
+        }
+
+        if (model.Route is not null)
+        {
+            obj.SetValue("route", ToScriptObject(model.Route), readOnly: true);
+        }
+
+        if (model.Publish is not null)
+        {
+            obj.SetValue("publish", ToScriptObject(model.Publish), readOnly: true);
         }
 
         if (model.Entities is not null)
@@ -260,6 +271,30 @@ public static class ScribanModelBinder
         obj.SetValue("title", model.Presentation.Title, readOnly: true);
         obj.SetValue("summary", model.Presentation.Summary, readOnly: true);
         obj.SetValue("language", model.Presentation.Language, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(ContentRoutePolicy model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("url", model.Url, readOnly: true);
+        obj.SetValue("output_path", model.OutputPath, readOnly: true);
+        obj.SetValue("template", model.Template, readOnly: true);
+        obj.SetValue("permalink_pattern", model.PermalinkPattern, readOnly: true);
+        obj.SetValue("list_group", model.ListGroup, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(ContentPublishPolicy model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("draft", model.Draft, readOnly: true);
+        obj.SetValue("noindex", model.NoIndex, readOnly: true);
+        obj.SetValue("nofollow", model.NoFollow, readOnly: true);
+        obj.SetValue("exclude_from_feed", model.ExcludeFromFeed, readOnly: true);
+        obj.SetValue("exclude_from_search", model.ExcludeFromSearch, readOnly: true);
+        obj.SetValue("exclude_from_sitemap", model.ExcludeFromSitemap, readOnly: true);
+        obj.SetValue("is_data_module", model.IsDataModule, readOnly: true);
         return obj;
     }
 

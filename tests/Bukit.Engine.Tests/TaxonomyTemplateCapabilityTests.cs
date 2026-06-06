@@ -68,6 +68,28 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
                 ["tags"] = new[] { "News" }
             },
             Fields: null);
+        var route = new RouteInfo("/blog/post/", Path.Combine("blog", "post", "index.html"), "pages/post.html");
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tags"] = new("legacy-test", new object[] { "News" })
+        };
+        var document = new ContentDocument(
+            new ContentRecord(
+                new ContentIdentity(item.Id, item.Slug, item.Id, "post", "published"),
+                new ContentPresentation(item.Title, null, item.ContentHtml, "en", []),
+                new ContentClassification("post", "post", [], ["News"]),
+                new ContentOwnership(null, null, null, null),
+                new ContentLifecycle(item.PublishAt, null, null, null),
+                new ProvenanceRecord(null, null, [], [], null),
+                new TrustMetadata(null, "published", []),
+                [],
+                [],
+                []),
+            new ContentBodyRef(item.ContentHtml, null, null, null),
+            new ContentRoutePolicy(null, null, null, null, "post"),
+            new ContentPublishPolicy(false, false, false, false, false, false, false),
+            fields,
+            []);
 
         return new BuildContext
         {
@@ -82,7 +104,11 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
             LayoutsDir = _layoutsDir,
             Routed = new List<(ContentItem Item, RouteInfo Route)>
             {
-                (item, new RouteInfo("/blog/post/", Path.Combine("blog", "post", "index.html"), "pages/post.html"))
+                (item, route)
+            },
+            RoutedDocuments = new List<(ContentDocument Document, RouteInfo Route)>
+            {
+                (document, route)
             },
             TemplateResolver = kind => kind.Trim().ToLowerInvariant() switch
             {

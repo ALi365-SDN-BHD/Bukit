@@ -74,13 +74,13 @@ internal static class I18nOutputMerger
     {
         return items.Where(item =>
         {
-            if (MetaHelpers.IsDataItem(item))
+            if (IsDataItem(item))
             {
-                var locale = MetaHelpers.TryGetTextField(item.Fields, "locale");
+                var locale = GetTextField(item.Fields, "locale");
                 return string.IsNullOrWhiteSpace(locale) || string.Equals(locale, language, StringComparison.OrdinalIgnoreCase);
             }
 
-            var itemLanguage = item.GetTextValue("language");
+            var itemLanguage = GetTextField(item.Fields, "language");
             if (!string.IsNullOrWhiteSpace(itemLanguage))
             {
                 return string.Equals(itemLanguage, language, StringComparison.OrdinalIgnoreCase);
@@ -302,7 +302,7 @@ internal static class I18nOutputMerger
 
     private static string GetCollection(ContentItem item)
     {
-        return item.GetCollection();
+        return GetTextField(item.Fields, "collection") ?? GetTextField(item.Fields, "type") ?? "post";
     }
 
     private static void GenerateRootAgentManifest(string outputDir, IReadOnlyList<BuildVariantResult> results)
@@ -381,14 +381,21 @@ internal static class I18nOutputMerger
         ILogger logger)
     {
         var routed = new List<(ContentItem Item, RouteInfo Route)>();
+        var routedDocuments = new List<(ContentDocument Document, RouteInfo Route)>();
         var derivedRouted = new List<(ContentItem Item, RouteInfo Route)>();
         var records = new List<ContentRecord>();
         var entities = new List<EntityRecord>();
+        var documents = new List<ContentDocument>();
+        var relations = new List<ContentRelation>();
         var seoModels = new Dictionary<string, Bukit.Rendering.SeoModel>(StringComparer.OrdinalIgnoreCase);
         var bodySources = new Dictionary<string, (ContentItem Item, IContentBodyStore Store)>(StringComparer.OrdinalIgnoreCase);
         foreach (var result in results)
         {
-            routed.AddRange(result.Routed.Select(x => (x.Item, MergeRoute(result, x.Route))));
+            var mergedRouted = result.Routed.Select(x => (x.Item, MergeRoute(result, x.Route))).ToList();
+            routed.AddRange(mergedRouted);
+            routedDocuments.AddRange(VariantBuildPipeline.BuildRoutedDocuments(
+                mergedRouted,
+                result.ContentGraph ?? CanonicalContentGraph.Empty));
             derivedRouted.AddRange(result.DerivedRouted.Select(x => (x.Item, MergeRoute(result, x.Route))));
             foreach (var (item, _) in result.Routed.Concat(result.DerivedRouted))
             {
@@ -397,6 +404,8 @@ internal static class I18nOutputMerger
 
             records.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Records);
             entities.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Entities);
+            documents.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Documents);
+            relations.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Relations);
             foreach (var (key, model) in result.SeoModels)
             {
                 seoModels[BuildMergedKey(result.Language, key)] = model;
@@ -411,7 +420,8 @@ internal static class I18nOutputMerger
             BaseUrl = rootBaseUrl,
             LayoutsDir = string.Empty,
             Routed = routed,
-            ContentGraph = new CanonicalContentGraph(records, entities),
+            RoutedDocuments = routedDocuments,
+            ContentGraph = new CanonicalContentGraph(records, entities, documents, relations),
             BodyStore = new MergedVariantContentBodyStore(bodySources),
             SeoIndex = BuildRootSeoIndex(results),
             Logger = logger
@@ -446,8 +456,25 @@ internal static class I18nOutputMerger
 
     private static string BuildBodyStoreKey(ContentItem item)
     {
-        var language = MetaHelpers.GetString(item.Meta, "language") ?? string.Empty;
+        var language = GetTextField(item.Fields, "language") ?? string.Empty;
         return item.Id + "\n" + language;
+    }
+
+    private static bool IsDataItem(ContentItem item)
+    {
+        var sourceMode = GetTextField(item.Fields, "sourceMode");
+        return string.Equals(sourceMode, "data", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetTextField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private sealed class MergedVariantContentBodyStore : IContentBodyStore

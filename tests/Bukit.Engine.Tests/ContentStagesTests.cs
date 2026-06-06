@@ -9,8 +9,15 @@ namespace Bukit.Engine.Tests;
 
 public sealed class ContentStagesTests
 {
-    private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object> meta) =>
-        new(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", meta);
+    private static ContentItem Item(string id, string slug, IReadOnlyDictionary<string, object> fields) =>
+        new(
+            id,
+            id,
+            slug,
+            DateTimeOffset.UnixEpoch,
+            $"<p>{id}</p>",
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            fields.ToDictionary(kv => kv.Key, kv => new ContentField("test", kv.Value), StringComparer.OrdinalIgnoreCase));
 
     private static AppConfig Config(bool draft = false) => new()
     {
@@ -107,7 +114,7 @@ public sealed class ContentStagesTests
 
         var output = await stage.ExecuteAsync(input, CancellationToken.None);
 
-        Assert.Equal("published", output.Items[0].Meta["status"]);
+        Assert.Equal("published", output.Items[0].Fields!["status"].Value);
         Assert.Equal("SchemaDefaults", output.StageName);
     }
 

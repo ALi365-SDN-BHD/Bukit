@@ -2,6 +2,7 @@ using Bukit.Engine.Abstractions.Plugins.Protocol;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bukit.Config;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Plugins.Protocol;
@@ -185,15 +186,7 @@ internal sealed class ProtocolAfterBuildRunner
     {
         var includeRoutedPages = context.Config.Site.ExternalProtocolIncludeRoutedPages;
         var routedPages = includeRoutedPages
-            ? new JsonArray(context.Routed
-                .Select(x => (JsonNode)new JsonObject
-                {
-                    ["id"] = x.Item.Id,
-                    ["url"] = x.Route.Url,
-                    ["outputPath"] = x.Route.OutputPath,
-                    ["meta"] = ProtocolJsonHelper.ToJsonNode(x.Item.Meta)
-                })
-                .ToArray())
+            ? BuildRoutedPages(context, schemaVersion)
             : new JsonArray();
 
         var request = new JsonObject
@@ -224,6 +217,78 @@ internal sealed class ProtocolAfterBuildRunner
         };
 
         return request.ToJsonString();
+    }
+
+    private static JsonArray BuildRoutedPages(BuildContext context, string schemaVersion)
+    {
+        if (string.Equals(schemaVersion, "2", StringComparison.Ordinal) && context.RoutedDocuments.Count > 0)
+        {
+            return new JsonArray(context.RoutedDocuments
+                .Select(x => (JsonNode)new JsonObject
+                {
+                    ["content"] = ToContentJson(x.Document),
+                    ["route"] = new JsonObject
+                    {
+                        ["url"] = x.Route.Url,
+                        ["outputPath"] = x.Route.OutputPath,
+                        ["template"] = x.Route.Template
+                    },
+                    ["publish"] = new JsonObject
+                    {
+                        ["draft"] = x.Document.Publish.Draft,
+                        ["noindex"] = x.Document.Publish.NoIndex,
+                        ["nofollow"] = x.Document.Publish.NoFollow,
+                        ["excludeFromFeed"] = x.Document.Publish.ExcludeFromFeed,
+                        ["excludeFromSearch"] = x.Document.Publish.ExcludeFromSearch,
+                        ["excludeFromSitemap"] = x.Document.Publish.ExcludeFromSitemap,
+                        ["isDataModule"] = x.Document.Publish.IsDataModule
+                    },
+                    ["fields"] = ProtocolJsonHelper.ToJsonNode(x.Document.CustomFields)
+                })
+                .ToArray());
+        }
+
+        return new JsonArray(context.Routed
+            .Select(x => (JsonNode)new JsonObject
+            {
+                ["id"] = x.Item.Id,
+                ["title"] = x.Item.Title,
+                ["slug"] = x.Item.Slug,
+                ["url"] = x.Route.Url,
+                ["outputPath"] = x.Route.OutputPath
+            })
+            .ToArray());
+    }
+
+    private static JsonObject ToContentJson(ContentDocument document)
+    {
+        var record = document.Record;
+        return new JsonObject
+        {
+            ["id"] = record.Identity.Id,
+            ["slug"] = record.Identity.Slug,
+            ["canonicalUrlKey"] = record.Identity.CanonicalUrlKey,
+            ["contentType"] = record.Identity.ContentType,
+            ["status"] = record.Identity.Status,
+            ["title"] = record.Presentation.Title,
+            ["summary"] = record.Presentation.Summary,
+            ["language"] = record.Presentation.Language,
+            ["publishedAt"] = record.Lifecycle.PublishedAt.ToString("O"),
+            ["updatedAt"] = record.Lifecycle.UpdatedAt?.ToString("O"),
+            ["source"] = record.Provenance.Source,
+            ["reviewStatus"] = record.Trust.ReviewStatus,
+            ["tags"] = new JsonArray(record.Classification.Tags.Select(tag => (JsonNode)tag).ToArray()),
+            ["sections"] = new JsonArray(record.Classification.Sections.Select(section => (JsonNode)section).ToArray()),
+            ["entities"] = new JsonArray(record.Entities
+                .Select(entity => (JsonNode)new JsonObject
+                {
+                    ["type"] = entity.Type,
+                    ["name"] = entity.Name,
+                    ["id"] = entity.Id,
+                    ["description"] = entity.Description
+                })
+                .ToArray())
+        };
     }
 
 }

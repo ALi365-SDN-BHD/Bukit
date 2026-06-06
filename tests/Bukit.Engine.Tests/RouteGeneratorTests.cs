@@ -18,7 +18,58 @@ public sealed class RouteGeneratorTests
             Slug: slug,
             PublishAt: DateTimeOffset.MinValue,
             ContentHtml: "",
-            Meta: meta ?? new Dictionary<string, object>());
+            Meta: new Dictionary<string, object>(),
+            Fields: ToFields(meta));
+
+    private static IReadOnlyDictionary<string, ContentField> ToFields(IReadOnlyDictionary<string, object>? values)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+        if (values is null)
+        {
+            return fields;
+        }
+
+        foreach (var (key, value) in values)
+        {
+            if (string.Equals(key, "route", StringComparison.OrdinalIgnoreCase) &&
+                value is IReadOnlyDictionary<string, object> route)
+            {
+                foreach (var (routeKey, routeValue) in route)
+                {
+                    fields[routeKey] = new ContentField("test", routeValue);
+                }
+
+                continue;
+            }
+
+            fields[key] = new ContentField("test", value);
+        }
+
+        return fields;
+    }
+
+    private static ContentDocument Document(string id, string slug, string type, string collection)
+    {
+        var record = new ContentRecord(
+            Identity: new ContentIdentity(id, slug, id, type, "published"),
+            Presentation: new ContentPresentation("Hello", null, "<p>Hello</p>", "en", Array.Empty<string>()),
+            Classification: new ContentClassification(type, collection, Array.Empty<string>(), Array.Empty<string>()),
+            Ownership: new ContentOwnership(null, null, null, null),
+            Lifecycle: new ContentLifecycle(DateTimeOffset.UnixEpoch, null, null, null),
+            Provenance: new ProvenanceRecord(null, null, Array.Empty<string>(), Array.Empty<string>(), null),
+            Trust: new TrustMetadata(null, "unreviewed", Array.Empty<string>()),
+            Entities: Array.Empty<EntityRecord>(),
+            Relations: Array.Empty<ContentRelation>(),
+            Media: Array.Empty<MediaAsset>());
+
+        return new ContentDocument(
+            record,
+            new ContentBodyRef("<p>Hello</p>", null, null, null),
+            new ContentRoutePolicy(null, null, null, null, collection),
+            new ContentPublishPolicy(false, false, false, false, false, false, false),
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+            Array.Empty<ContentDiagnostic>());
+    }
 
     private static readonly IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule> DefaultCollections =
         new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
@@ -69,6 +120,44 @@ public sealed class RouteGeneratorTests
 
         Assert.Equal("/blog/field-post/", route.Url);
         Assert.Equal("blog/field-post/index.html", route.OutputPath);
+    }
+
+    [Fact]
+    public void Generate_ContentDocument_UsesTypedRoutePolicyAndClassification()
+    {
+        var document = new ContentDocument(
+            Record: new ContentRecord(
+                Identity: new ContentIdentity("post-1", "hello", "post-1", "post", "published"),
+                Presentation: new ContentPresentation("Hello", null, "<p>Hello</p>", "en", Array.Empty<string>()),
+                Classification: new ContentClassification("post", "post", Array.Empty<string>(), Array.Empty<string>()),
+                Ownership: new ContentOwnership(null, null, null, null),
+                Lifecycle: new ContentLifecycle(DateTimeOffset.UnixEpoch, null, null, null),
+                Provenance: new ProvenanceRecord(null, null, Array.Empty<string>(), Array.Empty<string>(), null),
+                Trust: new TrustMetadata(null, "unreviewed", Array.Empty<string>()),
+                Entities: Array.Empty<EntityRecord>(),
+                Relations: Array.Empty<ContentRelation>(),
+                Media: Array.Empty<MediaAsset>()),
+            Body: new ContentBodyRef("<p>Hello</p>", null, null, null),
+            Route: new ContentRoutePolicy(null, null, null, null, "post"),
+            Publish: new ContentPublishPolicy(false, false, false, false, false, false, false),
+            CustomFields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+            Diagnostics: Array.Empty<ContentDiagnostic>());
+
+        var route = RouteGenerator.Generate(document, collections: DefaultCollections);
+
+        Assert.Equal("/blog/hello/", route.Url);
+        Assert.Equal("blog/hello/index.html", route.OutputPath);
+    }
+
+    [Fact]
+    public void GenerateWithSource_ContentDocument_ReportsCollectionSource()
+    {
+        var document = Document("post-1", "hello", "post", "post");
+
+        var result = RouteGenerator.GenerateWithSource(document, collections: DefaultCollections);
+
+        Assert.Equal("/blog/hello/", result.Route.Url);
+        Assert.Equal(RouteGenerator.RouteSource.Collection, result.Source);
     }
 
     [Fact]
@@ -562,7 +651,8 @@ public sealed class RouteGeneratorTests
             Id: "id-1", Title: "My Post", Slug: "my-post",
             PublishAt: new DateTimeOffset(2025, 3, 15, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: new Dictionary<string, object> { ["type"] = "post" });
+            Meta: new Dictionary<string, object>(),
+            Fields: ToFields(new Dictionary<string, object> { ["type"] = "post" }));
 
         var permalinks = new Dictionary<string, string> { ["post"] = "/{year}/{month}/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -580,7 +670,8 @@ public sealed class RouteGeneratorTests
             Id: "id-1", Title: "T", Slug: "hello",
             PublishAt: new DateTimeOffset(2024, 12, 5, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: new Dictionary<string, object> { ["type"] = "post" });
+            Meta: new Dictionary<string, object>(),
+            Fields: ToFields(new Dictionary<string, object> { ["type"] = "post" }));
 
         var permalinks = new Dictionary<string, string> { ["post"] = "/{year}/{month}/{day}/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -591,11 +682,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_PermalinkPattern_PageType()
     {
-        var item = new ContentItem(
-            Id: "id-1", Title: "T", Slug: "about",
-            PublishAt: DateTimeOffset.MinValue,
-            ContentHtml: "",
-            Meta: new Dictionary<string, object> { ["type"] = "page" });
+        var item = Item("about", new Dictionary<string, object> { ["type"] = "page" });
 
         var permalinks = new Dictionary<string, string> { ["page"] = "/docs/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -641,7 +728,8 @@ public sealed class RouteGeneratorTests
             Id: "id-1", Title: "T", Slug: "my-slug",
             PublishAt: new DateTimeOffset(2025, 1, 9, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: "",
-            Meta: new Dictionary<string, object> { ["type"] = "post" });
+            Meta: new Dictionary<string, object>(),
+            Fields: ToFields(new Dictionary<string, object> { ["type"] = "post" }));
 
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{year}/{month}/{day}/{slug}/", item);
 

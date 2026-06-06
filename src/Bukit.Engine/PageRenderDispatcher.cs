@@ -48,7 +48,10 @@ internal static class PageRenderDispatcher
         Func<ContentItem, RouteInfo, SeoModel>? seoBuilder = null,
         Func<ContentItem, RouteInfo, PageInfo, string, string>? htmlPostProcessor = null,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
-        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null)
+        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null,
+        Func<ContentDocument, RouteInfo, SeoModel>? documentSeoBuilder = null,
+        Func<ContentDocument, RouteInfo, PageInfo, string, string>? documentHtmlPostProcessor = null,
+        IReadOnlyDictionary<string, ContentDocument>? documentsById = null)
     {
         var renderedCount = 0;
         var skippedCount = 0;
@@ -121,26 +124,39 @@ internal static class PageRenderDispatcher
                         }
 
                         var content = await ContentBodyResolver.GetHtmlAsync(item, bodyStore, ct);
-                        var contentRecord = CanonicalContentGraphBuilder.ToRecord(item);
+                        ContentDocument? contentDocument = null;
+                        documentsById?.TryGetValue(item.Id, out contentDocument);
+                        var contentRecord = contentDocument?.Record ?? CanonicalContentGraphBuilder.ToRecord(item);
                         var pageInfo = new PageInfo
                         {
                             Title = item.Title,
                             Url = route.Url,
                             Content = content,
-                            Summary = contentRecord.Presentation.Summary ?? item.GetSummary(),
+                            Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(item.Fields),
                             TableOfContents = SpecialListRenderer.GetTableOfContents(item),
                             PublishDate = item.PublishAt,
                             Fields = item.Fields,
                             ContentRecord = contentRecord,
+                            Route = contentDocument?.Route ?? new ContentRoutePolicy(null, null, route.Template, null, contentRecord.Classification.Collection),
+                            Publish = contentDocument?.Publish,
                             Entities = contentRecord.Entities,
                             Provenance = contentRecord.Provenance,
                             Trust = contentRecord.Trust,
                             Representations = PublishRepresentationRegistry.DocumentKinds(),
-                            Seo = seoBuilder?.Invoke(item, route)
+                            Seo = contentDocument is not null && documentSeoBuilder is not null
+                                ? documentSeoBuilder.Invoke(contentDocument, route)
+                                : seoBuilder?.Invoke(item, route)
                         };
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
                         var html = renderer.RenderPage(route.Template, pageModel);
-                        if (htmlPostProcessor is not null) html = htmlPostProcessor(item, route, pageInfo, html);
+                        if (contentDocument is not null && documentHtmlPostProcessor is not null)
+                        {
+                            html = documentHtmlPostProcessor(contentDocument, route, pageInfo, html);
+                        }
+                        else if (htmlPostProcessor is not null)
+                        {
+                            html = htmlPostProcessor(item, route, pageInfo, html);
+                        }
                         await WriteUtf8LockedAsync(outputDir, route.OutputPath, html, writeLocks, ct);
                         Interlocked.Increment(ref renderedCount);
                         stageMetrics.Increment("pageRender");
@@ -355,7 +371,7 @@ internal static class PageRenderDispatcher
                 Title = item.Title,
                 Url = route.Url,
                 Content = content,
-                Summary = contentRecord.Presentation.Summary ?? item.GetSummary(),
+                Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(item.Fields),
                 TableOfContents = SpecialListRenderer.GetTableOfContents(item),
                 PublishDate = item.PublishAt,
                 Fields = item.Fields,

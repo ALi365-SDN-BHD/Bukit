@@ -30,26 +30,7 @@ public static class RouteCommand
         var contentPipeline = new ContentPipeline(factory, new ConsoleLogger(LogLevel.Warn));
         var contentResult = await contentPipeline.ExecuteAsync(config, rootDir, new ConfigOverrides(), Path.Combine(rootDir, ".cache", "media"));
 
-        var entries = new List<RouteInspectEntry>();
-        foreach (var item in contentResult.Items)
-        {
-            if (MetaHelpers.IsDataItem(item)) continue;
-
-            var (route, routeSource) = RouteInventoryValidator.GenerateRouteWithSource(item, config.Site);
-
-            var collection = NullIfEmpty(item.GetCollection());
-            var type = NullIfEmpty(item.GetContentType());
-            var language = item.GetTextValue("language");
-
-            entries.Add(new RouteInspectEntry(
-                route.Url,
-                route.OutputPath,
-                route.Template,
-                collection,
-                type,
-                language,
-                routeSource));
-        }
+        var entries = BuildInspectEntries(contentResult.Documents, config.Site);
 
         var sub = command.GetArgument(0) ?? "inspect";
         switch (sub)
@@ -119,4 +100,16 @@ public static class RouteCommand
     {
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
+
+    internal static List<RouteInspectEntry> BuildInspectEntries(IReadOnlyList<ContentDocument> documents, SiteConfig site)
+        => RouteInventoryValidator.BuildInspectEntries(documents, site)
+            .Select(e => new RouteInspectEntry(
+                e.Url,
+                e.OutputPath,
+                e.Template,
+                e.Collection,
+                e.Type,
+                e.Language,
+                e.RouteSource))
+            .ToList();
 }

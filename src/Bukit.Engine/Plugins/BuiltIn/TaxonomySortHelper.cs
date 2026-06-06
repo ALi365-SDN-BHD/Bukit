@@ -1,8 +1,6 @@
-using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-using Bukit.Engine.Abstractions.Plugins;
 internal static class TaxonomySortHelper
 {
     internal static int ComparePages(TaxonomyPage a, TaxonomyPage b)
@@ -61,14 +59,14 @@ internal static class TaxonomySortHelper
         return 0;
     }
 
-    internal static bool TryGetPinned(ContentItem item, string field)
+    internal static bool TryGetPinned(IReadOnlyDictionary<string, ContentField> fields, string field)
     {
         if (string.IsNullOrWhiteSpace(field))
         {
             return false;
         }
 
-        if (!TaxonomyIndexBuilder.TryGetItemValue(item, field, out var value) || value is null)
+        if (!TaxonomyIndexBuilder.TryGetItemValue(fields, field, out var value) || value is null)
         {
             return false;
         }
@@ -85,14 +83,14 @@ internal static class TaxonomySortHelper
         };
     }
 
-    internal static int? TryGetPinOrder(ContentItem item, string? field)
+    internal static int? TryGetPinOrder(IReadOnlyDictionary<string, ContentField> fields, string? field)
     {
         if (string.IsNullOrWhiteSpace(field))
         {
             return null;
         }
 
-        if (!TaxonomyIndexBuilder.TryGetItemValue(item, field, out var value) || value is null)
+        if (!TaxonomyIndexBuilder.TryGetItemValue(fields, field, out var value) || value is null)
         {
             return null;
         }

@@ -16,7 +16,7 @@ public sealed record MarkdownFolderProviderOptions(
     int AutoSummaryMaxLength = 200
 );
 
-public sealed class MarkdownFolderProvider : IContentProvider
+public sealed class MarkdownFolderProvider : IContentProvider, IRawContentProvider
 {
     private readonly MarkdownFolderProviderOptions _options;
 
@@ -153,7 +153,11 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 publishAt = dto.UtcDateTime;
             }
 
-            var fields = MarkdownFieldBuilder.BuildFields(meta);
+            var fields = new Dictionary<string, ContentField>(MarkdownFieldBuilder.BuildFields(meta), StringComparer.OrdinalIgnoreCase);
+            if (tableOfContents.Count > 0)
+            {
+                fields["tableOfContents"] = new ContentField("toc", tableOfContents);
+            }
 
             items.Add(new ContentItem(
                 Id: slug,
@@ -161,13 +165,124 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 Slug: slug,
                 PublishAt: publishAt,
                 ContentHtml: null,
-                Meta: meta,
+                Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
                 Fields: fields,
                 BodyKey: file
             ));
         }
 
         return new ContentLoadResult(items, new MarkdownBodyStore());
+    }
+
+    public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_options.ContentDir))
+        {
+            throw new ContentException("ContentDir is required.");
+        }
+
+        if (!Directory.Exists(_options.ContentDir))
+        {
+            throw new ContentException($"ContentDir not found: {_options.ContentDir}");
+        }
+
+        var files = Directory.GetFiles(_options.ContentDir, "*.md", SearchOption.AllDirectories)
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (_options.MaxItems is > 0)
+        {
+            files = files.Take(_options.MaxItems.Value).ToArray();
+        }
+
+        var documents = new List<RawContentDocument>(capacity: files.Length);
+        foreach (var file in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var markdown = await File.ReadAllTextAsync(file, cancellationToken);
+            var sourceId = Path.GetFileNameWithoutExtension(file);
+            var slug = sourceId;
+            var properties = new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase);
+            var rawValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            var bodyMarkdown = markdown;
+
+            if (MarkdownFrontMatterParser.TryExtractFrontMatter(markdown, out var frontMatterYaml, out var body))
+            {
+                bodyMarkdown = body;
+                foreach (var kv in MarkdownFrontMatterParser.ParseFrontMatter(frontMatterYaml))
+                {
+                    rawValues[kv.Key] = kv.Value;
+                    properties[kv.Key] = ToRawContentValue(kv.Value);
+                }
+            }
+
+            if (!properties.ContainsKey("collection") &&
+                !properties.ContainsKey("type") &&
+                !string.IsNullOrWhiteSpace(_options.DefaultType))
+            {
+                rawValues["type"] = _options.DefaultType;
+                properties["type"] = new RawContentValue("text", _options.DefaultType);
+            }
+
+            if (rawValues.TryGetValue("slug", out var slugObj) &&
+                slugObj is string slugText &&
+                !string.IsNullOrWhiteSpace(slugText))
+            {
+                slug = slugText.Trim();
+            }
+
+            var title = rawValues.TryGetValue("title", out var titleObj) &&
+                        titleObj is string titleText &&
+                        !string.IsNullOrWhiteSpace(titleText)
+                ? titleText.Trim()
+                : MarkdownTextHelper.ExtractTitle(bodyMarkdown) ?? slug;
+
+            if (!properties.ContainsKey("summary") && _options.AutoSummary)
+            {
+                var extracted = ExtractSummaryFromMarkdown(bodyMarkdown, _options.AutoSummaryMaxLength);
+                if (!string.IsNullOrWhiteSpace(extracted))
+                {
+                    rawValues["summary"] = extracted;
+                    properties["summary"] = new RawContentValue("text", extracted);
+                }
+            }
+
+            var fields = MarkdownFieldBuilder.BuildFields(rawValues);
+            documents.Add(new RawContentDocument(
+                SourceId: sourceId,
+                SourceKind: "markdown",
+                Title: title,
+                Slug: slug,
+                PublishedAt: TryGetPublishAt(rawValues) ?? File.GetLastWriteTimeUtc(file),
+                Body: new RawBody(null, file, bodyMarkdown, MarkdownTextHelper.ExtractSummaryFromMarkdown(bodyMarkdown, int.MaxValue)),
+                Properties: properties,
+                Source: new ContentSourceInfo("markdown", null, file, null, null, null, "loaded"),
+                CustomFields: fields));
+        }
+
+        return new RawContentLoadResult(documents, new MarkdownBodyStore());
+    }
+
+    private static DateTimeOffset? TryGetPublishAt(IReadOnlyDictionary<string, object> values)
+    {
+        return values.TryGetValue("publishAt", out var publishObj) &&
+               publishObj is string publishText &&
+               MarkdownFieldBuilder.TryParseDateTimeOffset(publishText, out var dto)
+            ? dto
+            : null;
+    }
+
+    private static RawContentValue ToRawContentValue(object value)
+    {
+        return value switch
+        {
+            bool => new RawContentValue("bool", value),
+            int or long or double or float => new RawContentValue("number", value),
+            IEnumerable<string> => new RawContentValue("list", value),
+            IEnumerable<object> => new RawContentValue("list", value),
+            _ => new RawContentValue("text", value)
+        };
     }
 
     private static string ComputeBodyFingerprint(string markdown)

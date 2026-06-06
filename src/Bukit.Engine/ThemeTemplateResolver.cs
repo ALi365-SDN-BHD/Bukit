@@ -61,9 +61,24 @@ public sealed class ThemeTemplateResolver
         }
 
         var type = GetContentType(item);
-        var collection = item.GetCollection();
+        var collection = GetCollection(item);
         throw new ConfigException(
             $"No theme template matches content item '{item.Id}' (type='{type}', collection='{collection}', kind='{kind ?? "detail"}'). " +
+            "Add a matching theme.yaml templates entry or set route.template/site.collections.*.template.");
+    }
+
+    internal string ResolveContentTemplate(ContentDocument document, string? kind = null)
+    {
+        var matched = TryResolveContentTemplate(document, kind);
+        if (!string.IsNullOrWhiteSpace(matched))
+        {
+            return matched!;
+        }
+
+        var type = GetContentType(document);
+        var collection = GetCollection(document);
+        throw new ConfigException(
+            $"No theme template matches content document '{document.Record.Identity.Id}' (type='{type}', collection='{collection}', kind='{kind ?? "detail"}'). " +
             "Add a matching theme.yaml templates entry or set route.template/site.collections.*.template.");
     }
 
@@ -136,7 +151,36 @@ public sealed class ThemeTemplateResolver
         }
 
         var type = GetContentType(item);
-        var collection = item.GetCollection();
+        var collection = GetCollection(item);
+        foreach (var (_, def) in _manifest.Templates)
+        {
+            if (def.Accepts is null || string.IsNullOrWhiteSpace(def.Template))
+            {
+                continue;
+            }
+
+            if (!Matches(def.Accepts.Type, type) ||
+                !Matches(def.Accepts.Collection, collection) ||
+                !Matches(def.Accepts.Kind, kind))
+            {
+                continue;
+            }
+
+            return NormalizeTemplatePath(def.Template);
+        }
+
+        return null;
+    }
+
+    private string? TryResolveContentTemplate(ContentDocument document, string? kind)
+    {
+        if (_manifest?.Templates is null)
+        {
+            return null;
+        }
+
+        var type = GetContentType(document);
+        var collection = GetCollection(document);
         foreach (var (_, def) in _manifest.Templates)
         {
             if (def.Accepts is null || string.IsNullOrWhiteSpace(def.Template))
@@ -158,7 +202,20 @@ public sealed class ThemeTemplateResolver
     }
 
     private static string GetContentType(ContentItem item)
-        => item.GetContentType();
+        => ContentFieldReader.GetContentType(item.Fields);
+
+    private static string GetContentType(ContentDocument document)
+        => !string.IsNullOrWhiteSpace(document.Record.Identity.ContentType)
+            ? document.Record.Identity.ContentType
+            : document.Record.Classification.Type;
+
+    private static string GetCollection(ContentDocument document)
+        => !string.IsNullOrWhiteSpace(document.Route.ListGroup)
+            ? document.Route.ListGroup
+            : document.Record.Classification.Collection;
+
+    private static string GetCollection(ContentItem item)
+        => ContentFieldReader.GetCollection(item.Fields);
 
     private static bool Matches(string? expected, string? actual)
         => string.IsNullOrWhiteSpace(expected) ||

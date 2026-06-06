@@ -22,18 +22,19 @@ public sealed class RssGeneratorTests
             Slug: slug,
             PublishAt: publishAt ?? new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero),
             ContentHtml: null,
-            Meta: BuildMeta(type, summary, tags));
+            Meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+            Fields: BuildFields(type, summary, tags));
 
-    private static IReadOnlyDictionary<string, object> BuildMeta(string type, string? summary, IReadOnlyList<string>? tags)
+    private static IReadOnlyDictionary<string, ContentField> BuildFields(string type, string? summary, IReadOnlyList<string>? tags)
     {
-        var meta = new Dictionary<string, object>
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = type,
-            ["collection"] = type
+            ["type"] = new("text", type),
+            ["collection"] = new("text", type)
         };
-        if (summary is not null) meta["summary"] = summary;
-        if (tags is not null) meta["tags"] = tags;
-        return meta;
+        if (summary is not null) fields["summary"] = new("text", summary);
+        if (tags is not null) fields["tags"] = new("list", tags);
+        return fields;
     }
 
     private sealed class InMemoryBodyStore : IContentBodyStore
@@ -63,7 +64,15 @@ public sealed class RssGeneratorTests
              new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
 
-        RssGenerator.Generate(outDir, "https://example.com", "/", "My Site", RssCollections, items, new InMemoryBodyStore());
+        RssGenerator.Generate(
+            outDir,
+            "https://example.com",
+            "/",
+            "My Site",
+            RssCollections,
+            items,
+            new InMemoryBodyStore(),
+            contentGraph: GraphFor(items[0].Item, summary: "Summary one", tags: []));
 
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", rss, StringComparison.Ordinal);
@@ -205,7 +214,15 @@ public sealed class RssGeneratorTests
              new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
 
-        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", RssCollections, items, new InMemoryBodyStore());
+        RssGenerator.Generate(
+            outDir,
+            "https://example.com",
+            "/",
+            "Site",
+            RssCollections,
+            items,
+            new InMemoryBodyStore(),
+            contentGraph: GraphFor(items[0].Item, summary: "Summary", tags: ["tech", "dotnet"]));
 
         var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
         Assert.Contains("<category>tech</category>", rss, StringComparison.Ordinal);
@@ -234,6 +251,42 @@ public sealed class RssGeneratorTests
         Assert.Equal("Canonical summary", post.Description);
         Assert.Equal("Ali", post.Author);
         Assert.Equal("en", post.Language);
+        Assert.Equal("approved", post.ReviewStatus);
+        Assert.Contains("canonical-tag", post.Categories!);
+        Assert.Contains("guides", post.Categories!);
+        Assert.Contains("Bukit", post.Entities!);
+    }
+
+    [Fact]
+    public void ToPost_ContentDocument_UsesCanonicalDocumentMetadata()
+    {
+        var record = new ContentRecord(
+            new ContentIdentity("doc-1", "doc-1", "doc-1", "guide", "published"),
+            new ContentPresentation("Document Title", "Document summary", "<p>Document body</p>", "en", []),
+            new ContentClassification("guide", "docs", ["guides"], ["canonical-tag"]),
+            new ContentOwnership("Ali", null, null, null),
+            new ContentLifecycle(new DateTimeOffset(2026, 6, 5, 12, 0, 0, TimeSpan.Zero), null, null, null),
+            new ProvenanceRecord("notion", null, [], [], null),
+            new TrustMetadata(null, "approved", []),
+            [new EntityRecord("company", "Bukit")],
+            [],
+            []);
+        var document = new ContentDocument(
+            record,
+            new ContentBodyRef("<p>Document body</p>", null, null, null),
+            new ContentRoutePolicy(null, null, null, null, "docs"),
+            new ContentPublishPolicy(false, false, false, false, false, false, false),
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+            Array.Empty<ContentDiagnostic>());
+
+        var post = RssGenerator.ToPost(document, "https://example.com/docs/doc-1/");
+
+        Assert.Equal("Document Title", post.Title);
+        Assert.Equal("Document summary", post.Description);
+        Assert.Equal("<p>Document body</p>", post.ContentHtml);
+        Assert.Equal("Ali", post.Author);
+        Assert.Equal("en", post.Language);
+        Assert.Equal("notion", post.Source);
         Assert.Equal("approved", post.ReviewStatus);
         Assert.Contains("canonical-tag", post.Categories!);
         Assert.Contains("guides", post.Categories!);
@@ -298,5 +351,22 @@ public sealed class RssGeneratorTests
     {
         var url = RssGenerator.BuildAbsoluteUrl("https://example.com/", "/docs/", "/blog/hello/");
         Assert.Equal("https://example.com/docs/blog/hello/", url);
+    }
+
+    private static CanonicalContentGraph GraphFor(ContentItem item, string? summary, IReadOnlyList<string> tags)
+    {
+        var record = new ContentRecord(
+            new ContentIdentity(item.Id, item.Slug, item.Id, "post", "published"),
+            new ContentPresentation(item.Title, summary, item.ContentHtml, "en", []),
+            new ContentClassification("post", "post", [], tags),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(item.PublishAt, null, null, null),
+            new ProvenanceRecord("markdown", null, [], [], null),
+            new TrustMetadata(null, "approved", []),
+            [],
+            [],
+            []);
+
+        return new CanonicalContentGraph([record], []);
     }
 }
