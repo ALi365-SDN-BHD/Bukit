@@ -107,6 +107,60 @@ public sealed class ContentPipelineTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_BuildsContentDocumentsFromCanonicalGraph()
+    {
+        var item = Item("doc-post", "doc-post", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "post",
+            ["collection"] = "post",
+            ["summary"] = "Document summary",
+            ["draft"] = false
+        });
+        var factory = new RecordingContentProviderFactory(new ContentLoadResult(new[] { item }, EmptyContentBodyStore.Instance));
+        var pipeline = new ContentPipeline(factory, new RecordingLogger());
+
+        var result = await pipeline.ExecuteAsync(Config(draft: true, schemaFailMode: "warn"), "/tmp/site", new ConfigOverrides(), "/tmp/site/.cache/media", CancellationToken.None);
+
+        var document = Assert.Single(result.Documents);
+        Assert.Equal("doc-post", document.Record.Identity.Id);
+        Assert.Equal("Document summary", document.Record.Presentation.Summary);
+        Assert.Equal("<p>doc-post</p>", document.Body.Html);
+        Assert.False(document.Publish.Draft);
+    }
+
+    [Fact]
+    public void BuildFromDocuments_UsesContentDocumentsAsCanonicalGraphSource()
+    {
+        var entity = new EntityRecord("company", "Bukit", null, "company:bukit");
+        var relation = new ContentRelation("mentions", "Bukit");
+        var record = new ContentRecord(
+            Identity: new ContentIdentity("doc-1", "doc-1", "doc-1", "post", "published"),
+            Presentation: new ContentPresentation("Doc 1", "Summary", "<p>Doc 1</p>", "en", Array.Empty<string>()),
+            Classification: new ContentClassification("post", "post", Array.Empty<string>(), Array.Empty<string>()),
+            Ownership: new ContentOwnership("Ali", null, null, null),
+            Lifecycle: new ContentLifecycle(DateTimeOffset.UnixEpoch, null, null, null),
+            Provenance: new ProvenanceRecord("markdown", null, Array.Empty<string>(), Array.Empty<string>(), null),
+            Trust: new TrustMetadata(null, "approved", Array.Empty<string>()),
+            Entities: new[] { entity },
+            Relations: new[] { relation },
+            Media: Array.Empty<MediaAsset>());
+        var document = new ContentDocument(
+            record,
+            new ContentBodyRef("<p>Doc 1</p>", null, null, null),
+            new ContentRoutePolicy(null, null, null, null, "post"),
+            new ContentPublishPolicy(false, false, false, false, false, false, false),
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+            Array.Empty<ContentDiagnostic>());
+
+        var graph = CanonicalContentGraphBuilder.BuildFromDocuments(new[] { document });
+
+        Assert.Equal(new[] { document }, graph.Documents);
+        Assert.Equal(new[] { record }, graph.Records);
+        Assert.Equal(new[] { entity }, graph.Entities);
+        Assert.Equal(new[] { relation }, graph.Relations);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_BuildsCanonicalContentGraphFromStructuredFields()
     {
         var item = new ContentItem(

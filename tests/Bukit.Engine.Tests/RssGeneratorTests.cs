@@ -241,6 +241,42 @@ public sealed class RssGeneratorTests
     }
 
     [Fact]
+    public void ToPost_ContentDocument_UsesCanonicalDocumentMetadata()
+    {
+        var record = new ContentRecord(
+            new ContentIdentity("doc-1", "doc-1", "doc-1", "guide", "published"),
+            new ContentPresentation("Document Title", "Document summary", "<p>Document body</p>", "en", []),
+            new ContentClassification("guide", "docs", ["guides"], ["canonical-tag"]),
+            new ContentOwnership("Ali", null, null, null),
+            new ContentLifecycle(new DateTimeOffset(2026, 6, 5, 12, 0, 0, TimeSpan.Zero), null, null, null),
+            new ProvenanceRecord("notion", null, [], [], null),
+            new TrustMetadata(null, "approved", []),
+            [new EntityRecord("company", "Bukit")],
+            [],
+            []);
+        var document = new ContentDocument(
+            record,
+            new ContentBodyRef("<p>Document body</p>", null, null, null),
+            new ContentRoutePolicy(null, null, null, null, "docs"),
+            new ContentPublishPolicy(false, false, false, false, false, false, false),
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+            Array.Empty<ContentDiagnostic>());
+
+        var post = RssGenerator.ToPost(document, "https://example.com/docs/doc-1/");
+
+        Assert.Equal("Document Title", post.Title);
+        Assert.Equal("Document summary", post.Description);
+        Assert.Equal("<p>Document body</p>", post.ContentHtml);
+        Assert.Equal("Ali", post.Author);
+        Assert.Equal("en", post.Language);
+        Assert.Equal("notion", post.Source);
+        Assert.Equal("approved", post.ReviewStatus);
+        Assert.Contains("canonical-tag", post.Categories!);
+        Assert.Contains("guides", post.Categories!);
+        Assert.Contains("Bukit", post.Entities!);
+    }
+
+    [Fact]
     public void GenerateJsonFeed_ShouldIncludeCanonicalSummaryAndSource_WhenSourceHasNoEntities()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));

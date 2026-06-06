@@ -231,6 +231,23 @@ public static class RssGenerator
             ReviewStatus: string.IsNullOrWhiteSpace(record?.Trust.ReviewStatus) ? null : record.Trust.ReviewStatus,
             Entities: record?.Entities.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
 
+    internal static Post ToPost(ContentDocument document, string absoluteUrl)
+    {
+        var record = document.Record;
+        return new Post(
+            Title: record.Presentation.Title,
+            AbsoluteUrl: absoluteUrl,
+            PublishAt: record.Lifecycle.PublishedAt,
+            Description: record.Presentation.Summary,
+            Categories: MergeCategories(record.Classification.Tags, record.Classification.Sections),
+            ContentHtml: document.Body.Html ?? record.Presentation.Body,
+            Author: record.Ownership.Author,
+            Language: record.Presentation.Language,
+            Source: record.Provenance.Source,
+            ReviewStatus: string.IsNullOrWhiteSpace(record.Trust.ReviewStatus) ? null : record.Trust.ReviewStatus,
+            Entities: record.Entities.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+    }
+
     private static IReadOnlyList<string>? GetStringList(IReadOnlyDictionary<string, object> meta, string key)
     {
         if (!meta.TryGetValue(key, out var v) || v is null)

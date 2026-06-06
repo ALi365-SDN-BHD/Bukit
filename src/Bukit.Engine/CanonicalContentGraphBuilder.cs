@@ -24,6 +24,28 @@ internal static class CanonicalContentGraphBuilder
         return new CanonicalContentGraph(records, entities);
     }
 
+    internal static CanonicalContentGraph BuildFromDocuments(IReadOnlyList<ContentDocument> documents)
+    {
+        if (documents.Count == 0)
+        {
+            return CanonicalContentGraph.Empty;
+        }
+
+        var records = documents.Select(document => document.Record).ToArray();
+        var entities = records
+            .SelectMany(record => record.Entities)
+            .GroupBy(entity => $"{entity.Type}:{entity.Name}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+        var relations = records
+            .SelectMany(record => record.Relations)
+            .GroupBy(relation => $"{relation.Type}:{relation.Target}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+
+        return new CanonicalContentGraph(records, entities, documents, relations);
+    }
+
     internal static ContentRecord ToRecord(ContentItem item)
     {
         var language = FirstText(item, "language") ?? "und";

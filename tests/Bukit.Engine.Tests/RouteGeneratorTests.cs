@@ -20,6 +20,29 @@ public sealed class RouteGeneratorTests
             ContentHtml: "",
             Meta: meta ?? new Dictionary<string, object>());
 
+    private static ContentDocument Document(string id, string slug, string type, string collection)
+    {
+        var record = new ContentRecord(
+            Identity: new ContentIdentity(id, slug, id, type, "published"),
+            Presentation: new ContentPresentation("Hello", null, "<p>Hello</p>", "en", Array.Empty<string>()),
+            Classification: new ContentClassification(type, collection, Array.Empty<string>(), Array.Empty<string>()),
+            Ownership: new ContentOwnership(null, null, null, null),
+            Lifecycle: new ContentLifecycle(DateTimeOffset.UnixEpoch, null, null, null),
+            Provenance: new ProvenanceRecord(null, null, Array.Empty<string>(), Array.Empty<string>(), null),
+            Trust: new TrustMetadata(null, "unreviewed", Array.Empty<string>()),
+            Entities: Array.Empty<EntityRecord>(),
+            Relations: Array.Empty<ContentRelation>(),
+            Media: Array.Empty<MediaAsset>());
+
+        return new ContentDocument(
+            record,
+            new ContentBodyRef("<p>Hello</p>", null, null, null),
+            new ContentRoutePolicy(null, null, null, null, collection),
+            new ContentPublishPolicy(false, false, false, false, false, false, false),
+            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+            Array.Empty<ContentDiagnostic>());
+    }
+
     private static readonly IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule> DefaultCollections =
         new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
         {
@@ -69,6 +92,44 @@ public sealed class RouteGeneratorTests
 
         Assert.Equal("/blog/field-post/", route.Url);
         Assert.Equal("blog/field-post/index.html", route.OutputPath);
+    }
+
+    [Fact]
+    public void Generate_ContentDocument_UsesTypedRoutePolicyAndClassification()
+    {
+        var document = new ContentDocument(
+            Record: new ContentRecord(
+                Identity: new ContentIdentity("post-1", "hello", "post-1", "post", "published"),
+                Presentation: new ContentPresentation("Hello", null, "<p>Hello</p>", "en", Array.Empty<string>()),
+                Classification: new ContentClassification("post", "post", Array.Empty<string>(), Array.Empty<string>()),
+                Ownership: new ContentOwnership(null, null, null, null),
+                Lifecycle: new ContentLifecycle(DateTimeOffset.UnixEpoch, null, null, null),
+                Provenance: new ProvenanceRecord(null, null, Array.Empty<string>(), Array.Empty<string>(), null),
+                Trust: new TrustMetadata(null, "unreviewed", Array.Empty<string>()),
+                Entities: Array.Empty<EntityRecord>(),
+                Relations: Array.Empty<ContentRelation>(),
+                Media: Array.Empty<MediaAsset>()),
+            Body: new ContentBodyRef("<p>Hello</p>", null, null, null),
+            Route: new ContentRoutePolicy(null, null, null, null, "post"),
+            Publish: new ContentPublishPolicy(false, false, false, false, false, false, false),
+            CustomFields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+            Diagnostics: Array.Empty<ContentDiagnostic>());
+
+        var route = RouteGenerator.Generate(document, collections: DefaultCollections);
+
+        Assert.Equal("/blog/hello/", route.Url);
+        Assert.Equal("blog/hello/index.html", route.OutputPath);
+    }
+
+    [Fact]
+    public void GenerateWithSource_ContentDocument_ReportsCollectionSource()
+    {
+        var document = Document("post-1", "hello", "post", "post");
+
+        var result = RouteGenerator.GenerateWithSource(document, collections: DefaultCollections);
+
+        Assert.Equal("/blog/hello/", result.Route.Url);
+        Assert.Equal(RouteGenerator.RouteSource.Collection, result.Source);
     }
 
     [Fact]

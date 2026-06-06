@@ -194,6 +194,43 @@ public sealed class CompositeContentProviderTests
         Assert.NotNull(result.BodyStore);
     }
 
+    [Fact]
+    public async Task LoadRawAsync_MultipleProviders_AssignsSourceInfoAndCollection()
+    {
+        var provider = new RawTestProvider(new RawContentLoadResult(
+            new[]
+            {
+                new RawContentDocument(
+                    SourceId: "item-1",
+                    SourceKind: "markdown",
+                    Title: "Item 1",
+                    Slug: "item-1",
+                    PublishedAt: DateTimeOffset.UtcNow,
+                    Body: new RawBody(null, "item-1.md", "# Item", "Item"),
+                    Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["type"] = new("text", "post")
+                    },
+                    Source: new ContentSourceInfo("markdown", null, "content/item-1.md", null, null, null, "loaded"),
+                    CustomFields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))
+            },
+            new NullBodyStore()));
+        (string SourceKey, string SourceMode, string? Collection, IReadOnlyList<string>? AddToCollections, IContentProvider Provider)[] providers =
+        {
+            ("markdown", "content", "posts", null, provider)
+        };
+        var composite = new CompositeContentProvider(providers);
+
+        var result = await ((IRawContentProvider)composite).LoadRawAsync();
+
+        var raw = Assert.Single(result.Documents);
+        Assert.Equal("markdown:item-1", raw.SourceId);
+        Assert.Equal("markdown", raw.Source.SourceKey);
+        Assert.Equal("markdown", raw.Source.Provider);
+        Assert.Equal("posts", raw.Properties["collection"].Value);
+        Assert.Equal("markdown:item-1.md", raw.Body.BodyKey);
+    }
+
     private sealed class TestProvider : IContentProvider
     {
         private readonly ContentLoadResult _result;
@@ -207,6 +244,27 @@ public sealed class CompositeContentProviderTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(_result);
+        }
+    }
+
+    private sealed class RawTestProvider : IContentProvider, IRawContentProvider
+    {
+        private readonly RawContentLoadResult _rawResult;
+
+        public RawTestProvider(RawContentLoadResult rawResult)
+        {
+            _rawResult = rawResult;
+        }
+
+        public Task<ContentLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new ContentLoadResult(Array.Empty<ContentItem>(), _rawResult.BodyStore));
+        }
+
+        public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_rawResult);
         }
     }
 

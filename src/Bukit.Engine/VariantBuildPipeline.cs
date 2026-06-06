@@ -53,6 +53,30 @@ internal sealed class VariantBuildPipeline
         return new RoutePipeline().Execute(config, items, templateResolver);
     }
 
+    internal static IReadOnlyList<(ContentDocument Document, RouteInfo Route)> BuildRoutedDocuments(
+        IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
+        CanonicalContentGraph contentGraph)
+    {
+        if (contentGraph.Documents.Count == 0)
+        {
+            return Array.Empty<(ContentDocument Document, RouteInfo Route)>();
+        }
+
+        var documentsById = contentGraph.Documents.ToDictionary(
+            document => document.Record.Identity.Id,
+            StringComparer.OrdinalIgnoreCase);
+        var result = new List<(ContentDocument Document, RouteInfo Route)>();
+        foreach (var (item, route) in routed)
+        {
+            if (documentsById.TryGetValue(item.Id, out var document))
+            {
+                result.Add((document, route));
+            }
+        }
+
+        return result;
+    }
+
     internal ITemplateRenderer CreateRenderer(
         BuildVariantContext ctx, ThemeComponentRegistry? themeRegistry,
         SectionSchemaValidator? schemaValidator,
@@ -286,6 +310,7 @@ internal sealed class VariantBuildPipeline
             BaseUrl = ctx.BaseUrl,
             LayoutsDir = ctx.LayoutsDir,
             Routed = routed,
+            RoutedDocuments = BuildRoutedDocuments(routed, ctx.ContentGraph),
             ContentGraph = ctx.ContentGraph,
             BodyStore = bodyStore,
             TemplateResolver = templateResolver.ResolveKindTemplate,

@@ -223,6 +223,49 @@ public sealed class MarkdownFolderProviderTests
     }
 
     [Fact]
+    public async Task LoadRawAsync_ShouldReturnRawContentDocument_WhenMarkdownHasFrontMatter()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-raw-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            await File.WriteAllTextAsync(Path.Combine(root, "hello.md"), """
+            ---
+            title: Hello
+            slug: custom-hello
+            type: post
+            language: en
+            summary: Raw summary
+            tags: [ai, infra]
+            featured: true
+            ---
+            # Hello
+            Body
+            """);
+            var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
+
+            var result = await ((IRawContentProvider)provider).LoadRawAsync();
+
+            var raw = Assert.Single(result.Documents);
+            Assert.Equal("custom-hello", raw.Slug);
+            Assert.Equal("Hello", raw.Title);
+            Assert.Equal("markdown", raw.Source.Provider);
+            Assert.Equal("hello", raw.SourceId);
+            Assert.Equal("post", raw.Properties["type"].Value);
+            Assert.Equal("en", raw.Properties["language"].Value);
+            Assert.Equal("Raw summary", raw.Properties["summary"].Value);
+            Assert.True((bool)raw.CustomFields["featured"].Value!);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void ExtractSummaryFromMarkdown_StripsHtmlDecodesEntitiesAndTruncates()
     {
         var summary = MarkdownTextHelper.ExtractSummaryFromMarkdown("""

@@ -340,6 +340,7 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
             BaseUrl = context.BaseUrl,
             LayoutsDir = string.Empty,
             Routed = context.Routed,
+            RoutedDocuments = VariantBuildPipeline.BuildRoutedDocuments(context.Routed, context.ContentGraph),
             ContentGraph = context.ContentGraph,
             BodyStore = context.BodyStore ?? NullContentBodyStore.Instance,
             SeoIndex = context.SeoIndex,

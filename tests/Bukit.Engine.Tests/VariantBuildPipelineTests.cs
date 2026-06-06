@@ -3,6 +3,8 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine;
 using Bukit.Rendering;
+using Bukit.Routing;
+using Bukit.Engine.Abstractions.Routing;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -48,6 +50,21 @@ public sealed class VariantBuildPipelineTests : IDisposable
         var result = pipeline.PrepareDataModules(items, "en", bodyStore);
 
         Assert.Empty(result.DataItems);
+    }
+
+    [Fact]
+    public void BuildRoutedDocuments_MapsRoutesByCanonicalDocumentIdentity()
+    {
+        var item = new ContentItem("post-1", "Post 1", "post-1", DateTimeOffset.UnixEpoch, "<p>Post</p>", new Dictionary<string, object>());
+        var route = new RouteInfo("/post-1/", "post-1/index.html", "pages/post.html");
+        var document = Document("post-1");
+        var graph = new CanonicalContentGraph(new[] { document.Record }, document.Record.Entities, new[] { document }, document.Record.Relations);
+
+        var result = VariantBuildPipeline.BuildRoutedDocuments(new[] { (item, route) }, graph);
+
+        var mapped = Assert.Single(result);
+        Assert.Same(document, mapped.Document);
+        Assert.Equal(route, mapped.Route);
     }
 
     [Fact]
@@ -192,5 +209,28 @@ public sealed class VariantBuildPipelineTests : IDisposable
     {
         public Task<ContentBody> GetAsync(ContentItem item, CancellationToken cancellationToken = default)
             => Task.FromResult(new ContentBody(string.Empty));
+    }
+
+    private static ContentDocument Document(string id)
+    {
+        var record = new ContentRecord(
+            new ContentIdentity(id, id, id, "post", "published"),
+            new ContentPresentation("Post", null, "<p>Post</p>", "en", []),
+            new ContentClassification("post", "post", [], []),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(DateTimeOffset.UnixEpoch, null, null, null),
+            new ProvenanceRecord("markdown", null, [], [], null),
+            new TrustMetadata(null, "approved", []),
+            [],
+            [],
+            []);
+
+        return new ContentDocument(
+            record,
+            new ContentBodyRef("<p>Post</p>", null, null, null),
+            new ContentRoutePolicy(null, null, null, null, "post"),
+            new ContentPublishPolicy(false, false, false, false, false, false, false),
+            new Dictionary<string, ContentField>(),
+            Array.Empty<ContentDiagnostic>());
     }
 }

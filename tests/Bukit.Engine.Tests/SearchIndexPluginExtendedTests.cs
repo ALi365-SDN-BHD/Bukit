@@ -36,6 +36,29 @@ public sealed class SearchIndexPluginExtendedTests
         return new SeoIndexEntry(route, route.Url, null, indexable, DateTimeOffset.UtcNow, null, null);
     }
 
+    private static ContentDocument SearchDocument(string id, string title, bool excludeFromSearch)
+    {
+        var record = new ContentRecord(
+            new ContentIdentity(id, id, id, "post", "published"),
+            new ContentPresentation(title, null, $"<p>{title}</p>", "en", []),
+            new ContentClassification("post", "post", [], []),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(DateTimeOffset.UnixEpoch, null, null, null),
+            new ProvenanceRecord("markdown", null, [], [], null),
+            new TrustMetadata(null, "approved", []),
+            [],
+            [],
+            []);
+
+        return new ContentDocument(
+            record,
+            new ContentBodyRef($"<p>{title}</p>", null, null, null),
+            new ContentRoutePolicy(null, null, null, null, "post"),
+            new ContentPublishPolicy(false, false, false, false, excludeFromSearch, false, false),
+            new Dictionary<string, ContentField>(),
+            Array.Empty<ContentDiagnostic>());
+    }
+
     [Fact]
     public void AfterBuild_StandardIndex_GeneratesFile()
     {
@@ -85,6 +108,63 @@ public sealed class SearchIndexPluginExtendedTests
 
             var indexPath = Path.Combine(tempDir, "search.json");
             Assert.True(File.Exists(indexPath));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void AfterBuild_WithRoutedDocuments_UsesTypedSearchProjection()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_search_docs_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var route1 = CreateRoute("/included/", "included/index.html");
+            var route2 = CreateRoute("/excluded/", "excluded/index.html");
+            var context = new BuildContext
+            {
+                Config = new AppConfig
+                {
+                    Site = new SiteConfig
+                    {
+                        Name = "test",
+                        Title = "Test Site",
+                        BaseUrl = "https://example.com"
+                    },
+                    Content = new ContentConfig { Provider = "markdown" }
+                },
+                RootDir = tempDir,
+                OutputDir = tempDir,
+                BaseUrl = "https://example.com",
+                LayoutsDir = tempDir,
+                Routed = Array.Empty<(ContentItem, RouteInfo)>(),
+                RoutedDocuments = new[]
+                {
+                    (SearchDocument("included", "Included", excludeFromSearch: false), route1),
+                    (SearchDocument("excluded", "Excluded", excludeFromSearch: true), route2)
+                },
+                BodyStore = NullContentBodyStore.Instance,
+                Logger = new ConsoleLogger(LogLevel.Debug),
+                SeoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["included/index.html"] = CreateSeoEntry(route1),
+                    ["excluded/index.html"] = CreateSeoEntry(route2)
+                }
+            };
+
+            var plugin = new SearchIndexPlugin();
+            plugin.AfterBuild(context);
+
+            var json = File.ReadAllText(Path.Combine(tempDir, "search.json"));
+            Assert.Contains("included", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("excluded", json, StringComparison.Ordinal);
         }
         finally
         {

@@ -27,6 +27,58 @@ public static class RouteGenerator
         return GenerateWithSource(item, outputPathEncoding, permalinks, collections).Route;
     }
 
+    public static RouteInfo Generate(
+        ContentDocument document,
+        string outputPathEncoding = "none",
+        IReadOnlyDictionary<string, string>? permalinks = null,
+        IReadOnlyDictionary<string, CollectionRouteRule>? collections = null)
+    {
+        return GenerateWithSource(document, outputPathEncoding, permalinks, collections).Route;
+    }
+
+    public static RouteGenerationResult GenerateWithSource(
+        ContentDocument document,
+        string outputPathEncoding = "none",
+        IReadOnlyDictionary<string, string>? permalinks = null,
+        IReadOnlyDictionary<string, CollectionRouteRule>? collections = null)
+    {
+        if (!string.IsNullOrWhiteSpace(document.Route.Url) &&
+            !string.IsNullOrWhiteSpace(document.Route.OutputPath) &&
+            !string.IsNullOrWhiteSpace(document.Route.Template))
+        {
+            var route = ValidateRoute(
+                new RouteInfo(
+                    RoutePathBuilder.NormalizeUrl(document.Route.Url),
+                    RoutePathBuilder.NormalizeOutputPath(document.Route.OutputPath, outputPathEncoding),
+                    document.Route.Template.Trim()),
+                document.Record.Identity.Slug);
+            return new RouteGenerationResult(route, RouteSource.FullOverride);
+        }
+
+        var collectionKey = !string.IsNullOrWhiteSpace(document.Route.ListGroup)
+            ? document.Route.ListGroup
+            : document.Record.Classification.Collection;
+        var type = !string.IsNullOrWhiteSpace(document.Record.Identity.ContentType)
+            ? document.Record.Identity.ContentType
+            : document.Record.Classification.Type;
+
+        if (collections is not null && collections.TryGetValue(collectionKey, out var rule))
+        {
+            var route = BuildFromPattern(document, rule.Permalink, rule.Template, outputPathEncoding);
+            return new RouteGenerationResult(ApplyPartialRoutePolicy(document, outputPathEncoding, route), RouteSource.Collection);
+        }
+
+        if (permalinks is not null && permalinks.TryGetValue(type, out var pattern) && !string.IsNullOrWhiteSpace(pattern))
+        {
+            var route = BuildFromPattern(document, pattern, string.Empty, outputPathEncoding);
+            return new RouteGenerationResult(ApplyPartialRoutePolicy(document, outputPathEncoding, route), RouteSource.Permalink);
+        }
+
+        throw new ConfigException(
+            $"No route rule matches content document '{document.Record.Identity.Id}' (collection='{collectionKey}', type='{type}'). " +
+            "Add an explicit collection rule, site.permalinks.<type>, or typed route policy.");
+    }
+
     public static RouteGenerationResult GenerateWithSource(
         ContentItem item,
         string outputPathEncoding = "none",
@@ -64,10 +116,53 @@ public static class RouteGenerator
         return new RouteInfo(url, outputPath, template);
     }
 
+    private static RouteInfo BuildFromPattern(ContentDocument document, string pattern, string template, string outputPathEncoding)
+    {
+        var url = ExpandPermalinkPattern(pattern, document);
+        url = RoutePathBuilder.NormalizeUrl(url);
+        var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
+
+        return ValidateRoute(new RouteInfo(url, outputPath, template), document.Record.Identity.Slug);
+    }
+
+    private static RouteInfo ApplyPartialRoutePolicy(
+        ContentDocument document,
+        string outputPathEncoding,
+        RouteInfo baseRoute)
+    {
+        if (string.IsNullOrWhiteSpace(document.Route.Url) &&
+            string.IsNullOrWhiteSpace(document.Route.OutputPath) &&
+            string.IsNullOrWhiteSpace(document.Route.Template))
+        {
+            return baseRoute;
+        }
+
+        var normalizedUrl = string.IsNullOrWhiteSpace(document.Route.Url)
+            ? baseRoute.Url
+            : RoutePathBuilder.NormalizeUrl(document.Route.Url);
+        var outputPath = string.IsNullOrWhiteSpace(document.Route.OutputPath)
+            ? string.IsNullOrWhiteSpace(document.Route.Url)
+                ? baseRoute.OutputPath
+                : RoutePathBuilder.BuildOutputPathFromUrl(normalizedUrl, outputPathEncoding)
+            : RoutePathBuilder.NormalizeOutputPath(document.Route.OutputPath, outputPathEncoding);
+        var template = string.IsNullOrWhiteSpace(document.Route.Template)
+            ? baseRoute.Template
+            : document.Route.Template.Trim();
+
+        return ValidateRoute(new RouteInfo(normalizedUrl, outputPath, template), document.Record.Identity.Slug);
+    }
+
     private static RouteInfo ValidateRoute(RouteInfo route, ContentItem item)
     {
         RouteSecurityValidator.ValidateInternalUrl(route.Url, $"route.url for {item.Slug}");
         RouteSecurityValidator.ValidateOutputPath(route.OutputPath, $"route.outputPath for {item.Slug}");
+        return route;
+    }
+
+    private static RouteInfo ValidateRoute(RouteInfo route, string slug)
+    {
+        RouteSecurityValidator.ValidateInternalUrl(route.Url, $"route.url for {slug}");
+        RouteSecurityValidator.ValidateOutputPath(route.OutputPath, $"route.outputPath for {slug}");
         return route;
     }
 
@@ -86,6 +181,19 @@ public static class RouteGenerator
         var collectionVal = item.GetCollection();
         result = result.Replace("{collection}", collectionVal, StringComparison.OrdinalIgnoreCase);
 
+        return result;
+    }
+
+    public static string ExpandPermalinkPattern(string pattern, ContentDocument document)
+    {
+        var result = pattern;
+        result = result.Replace("{slug}", document.Record.Identity.Slug, StringComparison.OrdinalIgnoreCase);
+        result = result.Replace("{title}", RoutePathBuilder.Slugify(document.Record.Presentation.Title), StringComparison.OrdinalIgnoreCase);
+        result = result.Replace("{year}", document.Record.Lifecycle.PublishedAt.Year.ToString("D4"), StringComparison.OrdinalIgnoreCase);
+        result = result.Replace("{month}", document.Record.Lifecycle.PublishedAt.Month.ToString("D2"), StringComparison.OrdinalIgnoreCase);
+        result = result.Replace("{day}", document.Record.Lifecycle.PublishedAt.Day.ToString("D2"), StringComparison.OrdinalIgnoreCase);
+        result = result.Replace("{type}", document.Record.Identity.ContentType, StringComparison.OrdinalIgnoreCase);
+        result = result.Replace("{collection}", document.Record.Classification.Collection, StringComparison.OrdinalIgnoreCase);
         return result;
     }
 

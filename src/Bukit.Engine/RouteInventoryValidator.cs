@@ -58,6 +58,13 @@ public static class RouteInventoryValidator
         ValidateEntries(routed.Select(x => RouteInventoryEntry.ForContent(x.Item, x.Route, scope)).ToList());
     }
 
+    public static void ValidateContentDocumentRoutes(
+        IReadOnlyList<(ContentDocument Document, RouteInfo Route)> routed,
+        string scope = "content")
+    {
+        ValidateEntries(routed.Select(x => RouteInventoryEntry.ForContentDocument(x.Document, x.Route, scope)).ToList());
+    }
+
     public static void ValidateFinalRoutes(
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> routed,
         IReadOnlyList<(ContentItem Item, RouteInfo Route)> derived,
@@ -175,6 +182,14 @@ public static class RouteInventoryValidator
     {
         internal static RouteInventoryEntry ForContent(ContentItem item, RouteInfo route, string scope)
             => new(scope, item.Id, item.Title, item.Slug, route);
+
+        internal static RouteInventoryEntry ForContentDocument(ContentDocument document, RouteInfo route, string scope)
+            => new(
+                scope,
+                document.Record.Identity.Id,
+                document.Record.Presentation.Title,
+                document.Record.Identity.Slug,
+                route);
 
         internal static RouteInventoryEntry ForRoute(RouteInfo route)
             => new("special", null, null, null, route);

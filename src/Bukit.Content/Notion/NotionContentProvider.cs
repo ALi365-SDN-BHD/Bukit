@@ -6,7 +6,7 @@ using Bukit.Shared;
 using Bukit.Shared.Notion;
 namespace Bukit.Content.Notion;
 
-public sealed class NotionContentProvider : IContentProvider
+public sealed class NotionContentProvider : IContentProvider, IRawContentProvider
 {
     private readonly NotionProviderOptions _options;
     private readonly ILogger? _logger;
@@ -213,6 +213,53 @@ public sealed class NotionContentProvider : IContentProvider
 
             return html;
         }));
+    }
+
+    public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await LoadAsync(cancellationToken);
+        var documents = result.Items.Select(ToRawContentDocument).ToArray();
+        return new RawContentLoadResult(documents, result.BodyStore);
+    }
+
+    private static RawContentDocument ToRawContentDocument(ContentItem item)
+    {
+        var properties = item.Meta
+            .Where(kv => !IsSourceKey(kv.Key))
+            .ToDictionary(
+                kv => kv.Key,
+                kv => ToRawContentValue(kv.Value),
+                StringComparer.OrdinalIgnoreCase);
+        var externalId = item.Meta.TryGetValue("notionPageId", out var notionPageId) ? notionPageId?.ToString() : item.Id;
+
+        return new RawContentDocument(
+            SourceId: item.Id,
+            SourceKind: "notion",
+            Title: item.Title,
+            Slug: item.Slug,
+            PublishedAt: item.PublishAt,
+            Body: new RawBody(item.ContentHtml, item.BodyKey, null, null),
+            Properties: properties,
+            Source: new ContentSourceInfo("notion", null, null, externalId, null, null, "loaded"),
+            CustomFields: item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static bool IsSourceKey(string key)
+    {
+        return string.Equals(key, "source", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(key, "notionPageId", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static RawContentValue ToRawContentValue(object? value)
+    {
+        return value switch
+        {
+            bool => new RawContentValue("bool", value),
+            int or long or double or float => new RawContentValue("number", value),
+            IEnumerable<string> => new RawContentValue("list", value),
+            IEnumerable<object> => new RawContentValue("list", value),
+            _ => new RawContentValue("text", value)
+        };
     }
 
     internal sealed record PageDraft(

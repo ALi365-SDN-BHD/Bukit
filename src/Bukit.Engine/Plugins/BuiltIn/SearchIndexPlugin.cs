@@ -76,15 +76,28 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
     {
         var emitSnippet = TryResolveTemplate(context, "search", out var searchTemplate) &&
             TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, context.LayoutsDir);
-        SearchIndexBuilder.GenerateSingleSearchIndex(
-            context.OutputDir,
-            context.BaseUrl,
-            context.Config.Site.SearchIncludeDerived,
-            emitSnippet,
-            context.Routed,
-            context.DerivedRouted,
-            context.SeoIndex,
-            context.BodyStore);
+        if (context.RoutedDocuments.Count > 0)
+        {
+            SearchIndexBuilder.GenerateSingleSearchIndex(
+                context.OutputDir,
+                context.BaseUrl,
+                emitSnippet,
+                context.RoutedDocuments,
+                context.SeoIndex);
+        }
+        else
+        {
+            SearchIndexBuilder.GenerateSingleSearchIndex(
+                context.OutputDir,
+                context.BaseUrl,
+                context.Config.Site.SearchIncludeDerived,
+                emitSnippet,
+                context.Routed,
+                context.DerivedRouted,
+                context.SeoIndex,
+                context.BodyStore);
+        }
+
         WriteSearchUi(context);
     }
 

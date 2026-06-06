@@ -11,6 +11,7 @@ public sealed record ContentPipelineResult(
     IReadOnlyList<ContentItem> Items,
     IContentBodyStore BodyStore,
     IReadOnlyList<ContentSchemaValidator.SchemaValidationError> SchemaErrors,
+    IReadOnlyList<ContentDocument> Documents,
     BodyCacheMetrics? BodyCacheMetrics = null,
     CanonicalContentGraph? ContentGraph = null);
 
@@ -95,7 +96,9 @@ public sealed class ContentPipeline
             }
         }
 
-        var contentGraph = CanonicalContentGraphBuilder.Build(currentItems);
+        var legacyContentGraph = CanonicalContentGraphBuilder.Build(currentItems);
+        var documents = BuildDocuments(currentItems, legacyContentGraph);
+        var contentGraph = CanonicalContentGraphBuilder.BuildFromDocuments(documents);
         var canonicalErrors = CanonicalContentValidator.Validate(contentGraph);
         if (canonicalErrors.Count > 0)
         {
@@ -111,7 +114,40 @@ public sealed class ContentPipeline
             currentItems,
             currentBodyStore,
             (IReadOnlyList<ContentSchemaValidator.SchemaValidationError>?)allSchemaErrors ?? Array.Empty<ContentSchemaValidator.SchemaValidationError>(),
+            documents,
             bodyCache?.Metrics,
             contentGraph);
+    }
+
+    private static IReadOnlyList<ContentDocument> BuildDocuments(
+        IReadOnlyList<ContentItem> items,
+        CanonicalContentGraph contentGraph)
+    {
+        var recordsById = contentGraph.Records.ToDictionary(record => record.Identity.Id, StringComparer.OrdinalIgnoreCase);
+        var documents = new List<ContentDocument>(items.Count);
+        foreach (var item in items)
+        {
+            if (!recordsById.TryGetValue(item.Id, out var record))
+            {
+                continue;
+            }
+
+            documents.Add(new ContentDocument(
+                record,
+                new ContentBodyRef(item.ContentHtml, item.BodyKey, null, null),
+                new ContentRoutePolicy(null, null, null, null, record.Classification.Collection),
+                new ContentPublishPolicy(
+                    string.Equals(record.Identity.Status, "draft", StringComparison.OrdinalIgnoreCase),
+                    NoIndex: false,
+                    NoFollow: false,
+                    ExcludeFromFeed: false,
+                    ExcludeFromSearch: false,
+                    ExcludeFromSitemap: false,
+                    IsDataModule: false),
+                item.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+                Array.Empty<ContentDiagnostic>()));
+        }
+
+        return documents;
     }
 }

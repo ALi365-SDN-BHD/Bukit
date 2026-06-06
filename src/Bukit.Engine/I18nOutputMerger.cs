@@ -381,14 +381,21 @@ internal static class I18nOutputMerger
         ILogger logger)
     {
         var routed = new List<(ContentItem Item, RouteInfo Route)>();
+        var routedDocuments = new List<(ContentDocument Document, RouteInfo Route)>();
         var derivedRouted = new List<(ContentItem Item, RouteInfo Route)>();
         var records = new List<ContentRecord>();
         var entities = new List<EntityRecord>();
+        var documents = new List<ContentDocument>();
+        var relations = new List<ContentRelation>();
         var seoModels = new Dictionary<string, Bukit.Rendering.SeoModel>(StringComparer.OrdinalIgnoreCase);
         var bodySources = new Dictionary<string, (ContentItem Item, IContentBodyStore Store)>(StringComparer.OrdinalIgnoreCase);
         foreach (var result in results)
         {
-            routed.AddRange(result.Routed.Select(x => (x.Item, MergeRoute(result, x.Route))));
+            var mergedRouted = result.Routed.Select(x => (x.Item, MergeRoute(result, x.Route))).ToList();
+            routed.AddRange(mergedRouted);
+            routedDocuments.AddRange(VariantBuildPipeline.BuildRoutedDocuments(
+                mergedRouted,
+                result.ContentGraph ?? CanonicalContentGraph.Empty));
             derivedRouted.AddRange(result.DerivedRouted.Select(x => (x.Item, MergeRoute(result, x.Route))));
             foreach (var (item, _) in result.Routed.Concat(result.DerivedRouted))
             {
@@ -397,6 +404,8 @@ internal static class I18nOutputMerger
 
             records.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Records);
             entities.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Entities);
+            documents.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Documents);
+            relations.AddRange((result.ContentGraph ?? CanonicalContentGraph.Empty).Relations);
             foreach (var (key, model) in result.SeoModels)
             {
                 seoModels[BuildMergedKey(result.Language, key)] = model;
@@ -411,7 +420,8 @@ internal static class I18nOutputMerger
             BaseUrl = rootBaseUrl,
             LayoutsDir = string.Empty,
             Routed = routed,
-            ContentGraph = new CanonicalContentGraph(records, entities),
+            RoutedDocuments = routedDocuments,
+            ContentGraph = new CanonicalContentGraph(records, entities, documents, relations),
             BodyStore = new MergedVariantContentBodyStore(bodySources),
             SeoIndex = BuildRootSeoIndex(results),
             Logger = logger
