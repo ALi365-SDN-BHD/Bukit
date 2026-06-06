@@ -147,7 +147,7 @@ internal static partial class SeoReportValidator
         {
             var path = $"documents[{documentIndex}]";
             EnsureObject(document, path);
-            EnsureAllowedProperties(document, path, "routeUrl", "outputPath", "canonical", "indexable", "lastModified", "contentType", "sourceItemId", "title", "description", "language", "author", "organization", "source", "originalSource", "reviewStatus", "summary", "updatedAt", "sourceReferences", "entityNames", "entitySummaries", "representationKinds", "representations", "schemaTypes", "structuredDataTypes", "semanticOutline", "sitemapIncluded", "searchIncluded", "rssIncluded", "atomFeedIncluded", "jsonFeedIncluded", "llmsIncluded", "robotsIncluded", "manifestIncluded");
+            EnsureAllowedProperties(document, path, "routeUrl", "outputPath", "canonical", "indexable", "lastModified", "contentType", "sourceItemId", "title", "description", "language", "author", "organization", "source", "originalSource", "reviewStatus", "summary", "updatedAt", "sourceReferences", "entityNames", "entitySummaries", "representationKinds", "representations", "schemaTypes", "structuredDataTypes", "semanticOutline", "sitemapIncluded", "searchIncluded", "rssIncluded", "atomFeedIncluded", "jsonFeedIncluded", "llmsIncluded", "llmsFullIncluded", "robotsIncluded", "manifestIncluded");
             ReadRequiredString(document, path, "routeUrl");
             ReadRequiredString(document, path, "outputPath");
             ReadRequiredString(document, path, "canonical");
@@ -179,6 +179,7 @@ internal static partial class SeoReportValidator
             ReadOptionalBool(document, path, "atomFeedIncluded");
             ReadOptionalBool(document, path, "jsonFeedIncluded");
             ReadOptionalBool(document, path, "llmsIncluded");
+            ReadOptionalBool(document, path, "llmsFullIncluded");
             ReadOptionalBool(document, path, "robotsIncluded");
             ReadOptionalBool(document, path, "manifestIncluded");
             documentIndex++;
