@@ -1,0 +1,1822 @@
+{
+  "schema": "https://bukit.dev/schemas/seo-report.v1.json",
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-06-07T09:54:35.700134+00:00",
+  "siteName": "component-demo",
+  "siteUrl": "https://example.com",
+  "baseUrl": "/",
+  "routes": [
+    {
+      "url": "/",
+      "outputPath": "index.html",
+      "title": "Bukit Component Theme Demo",
+      "description": "Browse 15 content items from Bukit Component Theme Demo.",
+      "canonical": "https://example.com/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-07T09:54:35.50054+00:00",
+      "contentType": "list",
+      "sourceItemId": null,
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/",
+      "outputPath": "categories/index.html",
+      "title": "Categories",
+      "description": "Browse all categories.",
+      "canonical": "https://example.com/categories/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-07T09:54:35.50054+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-index",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/limit3/",
+      "outputPath": "categories/limit3/index.html",
+      "title": "Category: \u0022limit\u0022:3",
+      "description": "Browse 1 content items in \u0022limit\u0022:3.",
+      "canonical": "https://example.com/categories/limit3/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-05T05:13:42.2798142+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-limit3",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/primary-button-textexplore/",
+      "outputPath": "categories/primary-button-textexplore/index.html",
+      "title": "Category: \u0022primary_button_text\u0022:\u0022Explore\u0022",
+      "description": "Browse 1 content items in \u0022primary_button_text\u0022:\u0022Explore\u0022.",
+      "canonical": "https://example.com/categories/primary-button-textexplore/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-05T05:13:42.2798142+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-primary-button-textexplore",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/primary-button-urlposts/",
+      "outputPath": "categories/primary-button-urlposts/index.html",
+      "title": "Category: \u0022primary_button_url\u0022:\u0022/posts/\u0022}}",
+      "description": "Browse 1 content items in \u0022primary_button_url\u0022:\u0022/posts/\u0022}}.",
+      "canonical": "https://example.com/categories/primary-button-urlposts/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-05T05:13:42.2798142+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-primary-button-urlposts",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/propstitlebuild-beautiful-static-sites/",
+      "outputPath": "categories/propstitlebuild-beautiful-static-sites/index.html",
+      "title": "Category: \u0022props\u0022:{\u0022title\u0022:\u0022Build beautiful static sites\u0022",
+      "description": "Browse 1 content items in \u0022props\u0022:{\u0022title\u0022:\u0022Build beautiful static sites\u0022.",
+      "canonical": "https://example.com/categories/propstitlebuild-beautiful-static-sites/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-05T05:13:42.2798142+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-propstitlebuild-beautiful-static-sites",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/sortpublishat-desc/",
+      "outputPath": "categories/sortpublishat-desc/index.html",
+      "title": "Category: \u0022sort\u0022:\u0022publishAt desc\u0022}]",
+      "description": "Browse 1 content items in \u0022sort\u0022:\u0022publishAt desc\u0022}].",
+      "canonical": "https://example.com/categories/sortpublishat-desc/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-05T05:13:42.2798142+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-sortpublishat-desc",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/sourceposts/",
+      "outputPath": "categories/sourceposts/index.html",
+      "title": "Category: \u0022source\u0022:\u0022posts\u0022",
+      "description": "Browse 1 content items in \u0022source\u0022:\u0022posts\u0022.",
+      "canonical": "https://example.com/categories/sourceposts/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-05T05:13:42.2798142+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-sourceposts",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "outputPath": "categories/subtitlecomponent-driven-themes-with-schema-validation/index.html",
+      "title": "Category: \u0022subtitle\u0022:\u0022Component-driven themes with schema validation\u0022",
+      "description": "Browse 1 content items in \u0022subtitle\u0022:\u0022Component-driven themes with schema validation\u0022.",
+      "canonical": "https://example.com/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-05T05:13:42.2798142+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-subtitlecomponent-driven-themes-with-schema-validation",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/typecard-grid/",
+      "outputPath": "categories/typecard-grid/index.html",
+      "title": "Category: {\u0022type\u0022:\u0022card-grid\u0022",
+      "description": "Browse 1 content items in {\u0022type\u0022:\u0022card-grid\u0022.",
+      "canonical": "https://example.com/categories/typecard-grid/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-05T05:13:42.2798142+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-typecard-grid",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/typehero/",
+      "outputPath": "categories/typehero/index.html",
+      "title": "Category: [{\u0022type\u0022:\u0022hero\u0022",
+      "description": "Browse 1 content items in [{\u0022type\u0022:\u0022hero\u0022.",
+      "canonical": "https://example.com/categories/typehero/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-05T05:13:42.2798142+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-typehero",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/index/",
+      "outputPath": "index/index.html",
+      "title": "Home",
+      "description": null,
+      "canonical": "https://example.com/index/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-05T05:13:42.2798142+00:00",
+      "contentType": "page",
+      "sourceItemId": "index",
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": true,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "ListItem",
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ],
+      "language": "und",
+      "author": null,
+      "organization": null,
+      "source": "markdown",
+      "originalSource": null,
+      "reviewStatus": "published",
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/posts/",
+      "outputPath": "posts/index.html",
+      "title": "Posts",
+      "description": "Browse 4 items in Posts from Bukit Component Theme Demo.",
+      "canonical": "https://example.com/posts/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2025-04-05T00:00:00+00:00",
+      "contentType": "list",
+      "sourceItemId": null,
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/posts/first-post/",
+      "outputPath": "posts/first-post/index.html",
+      "title": "Getting Started with Bukit",
+      "description": "Learn how to set up your first Bukit site with componentized themes",
+      "canonical": "https://example.com/posts/first-post/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2025-01-15T00:00:00+00:00",
+      "contentType": "posts",
+      "sourceItemId": "first-post",
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": true,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "ListItem",
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ],
+      "language": "und",
+      "author": null,
+      "organization": null,
+      "source": "markdown",
+      "originalSource": null,
+      "reviewStatus": "published",
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/posts/fourth-post/",
+      "outputPath": "posts/fourth-post/index.html",
+      "title": "Performance Optimization Tips",
+      "description": "Speed up your Bukit site with these optimization techniques",
+      "canonical": "https://example.com/posts/fourth-post/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2025-04-05T00:00:00+00:00",
+      "contentType": "posts",
+      "sourceItemId": "fourth-post",
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": true,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "ListItem",
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ],
+      "language": "und",
+      "author": null,
+      "organization": null,
+      "source": "markdown",
+      "originalSource": null,
+      "reviewStatus": "published",
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/posts/second-post/",
+      "outputPath": "posts/second-post/index.html",
+      "title": "Section Composition Deep Dive",
+      "description": "Understanding how sections and components work together",
+      "canonical": "https://example.com/posts/second-post/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2025-02-20T00:00:00+00:00",
+      "contentType": "posts",
+      "sourceItemId": "second-post",
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": true,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "ListItem",
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ],
+      "language": "und",
+      "author": null,
+      "organization": null,
+      "source": "markdown",
+      "originalSource": null,
+      "reviewStatus": "published",
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/posts/third-post/",
+      "outputPath": "posts/third-post/index.html",
+      "title": "Design Tokens in Practice",
+      "description": "Using design tokens to build consistent visual systems",
+      "canonical": "https://example.com/posts/third-post/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2025-03-10T00:00:00+00:00",
+      "contentType": "posts",
+      "sourceItemId": "third-post",
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": true,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "ListItem",
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ],
+      "language": "und",
+      "author": null,
+      "organization": null,
+      "source": "markdown",
+      "originalSource": null,
+      "reviewStatus": "published",
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "feed",
+        "llms",
+        "agent-manifest"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/categories/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.rss_missing_route",
+      "route": "/categories/",
+      "message": "RSS-enabled published content is missing from RSS output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/categories/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/categories/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.unique_value_missing",
+      "route": "/categories/",
+      "message": "Published content summary is too thin to communicate unique value to machine consumers."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/limit3/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/limit3/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/categories/limit3/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/limit3/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/limit3/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.rss_missing_route",
+      "route": "/categories/limit3/",
+      "message": "RSS-enabled published content is missing from RSS output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/limit3/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/limit3/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/categories/limit3/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/categories/limit3/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/limit3/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/limit3/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.rss_missing_route",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "RSS-enabled published content is missing from RSS output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/primary-button-textexplore/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.rss_missing_route",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "RSS-enabled published content is missing from RSS output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/primary-button-urlposts/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.rss_missing_route",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "RSS-enabled published content is missing from RSS output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/propstitlebuild-beautiful-static-sites/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.rss_missing_route",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "RSS-enabled published content is missing from RSS output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/sortpublishat-desc/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/sourceposts/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/sourceposts/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/categories/sourceposts/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/sourceposts/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/sourceposts/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.rss_missing_route",
+      "route": "/categories/sourceposts/",
+      "message": "RSS-enabled published content is missing from RSS output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/sourceposts/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/sourceposts/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/categories/sourceposts/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/categories/sourceposts/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/sourceposts/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/sourceposts/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.rss_missing_route",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "RSS-enabled published content is missing from RSS output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "seo.title_too_long",
+      "route": "/categories/subtitlecomponent-driven-themes-with-schema-validation/",
+      "message": "SEO title length is 69, recommended maximum is 60."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/typecard-grid/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/typecard-grid/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/categories/typecard-grid/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/typecard-grid/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/typecard-grid/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.rss_missing_route",
+      "route": "/categories/typecard-grid/",
+      "message": "RSS-enabled published content is missing from RSS output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/typecard-grid/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/typecard-grid/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/categories/typecard-grid/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/categories/typecard-grid/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/typecard-grid/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/typecard-grid/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/typehero/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/typehero/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/categories/typehero/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/typehero/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/typehero/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.rss_missing_route",
+      "route": "/categories/typehero/",
+      "message": "RSS-enabled published content is missing from RSS output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/typehero/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/typehero/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/categories/typehero/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/categories/typehero/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/typehero/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/typehero/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/index/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/index/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/index/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/index/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/index/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_references_missing",
+      "route": "/index/",
+      "message": "Published content is missing source references, citations, or original source metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.summary_missing",
+      "route": "/index/",
+      "message": "Published content is missing a canonical summary for machine-readable previews."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.time_missing",
+      "route": "/index/",
+      "message": "Dated content is missing a visible \u003Ctime datetime=\u0022...\u0022\u003E element."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.unique_value_missing",
+      "route": "/index/",
+      "message": "Published content summary is too thin to communicate unique value to machine consumers."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/index/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "seo.description_missing",
+      "route": "/index/",
+      "message": "SEO description is missing."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/posts/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/posts/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/posts/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/posts/first-post/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/posts/first-post/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.heading_h1_missing",
+      "route": "/posts/first-post/",
+      "message": "HTML output is missing an \u003Ch1\u003E for the primary page heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/posts/first-post/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/posts/first-post/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/posts/first-post/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/posts/first-post/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_references_missing",
+      "route": "/posts/first-post/",
+      "message": "Published content is missing source references, citations, or original source metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.time_missing",
+      "route": "/posts/first-post/",
+      "message": "Dated content is missing a visible \u003Ctime datetime=\u0022...\u0022\u003E element."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/posts/first-post/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/posts/fourth-post/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/posts/fourth-post/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.heading_h1_missing",
+      "route": "/posts/fourth-post/",
+      "message": "HTML output is missing an \u003Ch1\u003E for the primary page heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/posts/fourth-post/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/posts/fourth-post/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/posts/fourth-post/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/posts/fourth-post/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_references_missing",
+      "route": "/posts/fourth-post/",
+      "message": "Published content is missing source references, citations, or original source metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.time_missing",
+      "route": "/posts/fourth-post/",
+      "message": "Dated content is missing a visible \u003Ctime datetime=\u0022...\u0022\u003E element."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/posts/fourth-post/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/posts/second-post/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/posts/second-post/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.heading_h1_missing",
+      "route": "/posts/second-post/",
+      "message": "HTML output is missing an \u003Ch1\u003E for the primary page heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/posts/second-post/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/posts/second-post/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/posts/second-post/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/posts/second-post/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_references_missing",
+      "route": "/posts/second-post/",
+      "message": "Published content is missing source references, citations, or original source metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.time_missing",
+      "route": "/posts/second-post/",
+      "message": "Dated content is missing a visible \u003Ctime datetime=\u0022...\u0022\u003E element."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/posts/second-post/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/posts/third-post/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/posts/third-post/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.heading_h1_missing",
+      "route": "/posts/third-post/",
+      "message": "HTML output is missing an \u003Ch1\u003E for the primary page heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.initial_html_unreadable",
+      "route": "/posts/third-post/",
+      "message": "Initial HTML does not expose enough readable main content without executing JavaScript."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/posts/third-post/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_header_missing",
+      "route": "/posts/third-post/",
+      "message": "HTML output is missing a \u003Cheader\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_nav_missing",
+      "route": "/posts/third-post/",
+      "message": "HTML output is missing a \u003Cnav\u003E landmark."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_references_missing",
+      "route": "/posts/third-post/",
+      "message": "Published content is missing source references, citations, or original source metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.time_missing",
+      "route": "/posts/third-post/",
+      "message": "Dated content is missing a visible \u003Ctime datetime=\u0022...\u0022\u003E element."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/posts/third-post/",
+      "message": "Published content is missing explicit updated-at metadata."
+    }
+  ],
+  "summary": {
+    "routeCount": 17,
+    "indexableCount": 17,
+    "nonIndexableCount": 0,
+    "errorCount": 0,
+    "warningCount": 179,
+    "llmsTxtGenerated": true,
+    "llmsFullTxtGenerated": false,
+    "geoEnhancedCount": 0,
+    "geoScore": 25,
+    "publishIssueCount": 177,
+    "machineReadabilityIssueCount": 107,
+    "trustIssueCount": 70,
+    "representationGapCount": 0
+  }
+}

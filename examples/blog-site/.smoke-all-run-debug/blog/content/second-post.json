@@ -1,0 +1,36 @@
+﻿{
+  "id": "second-post",
+  "slug": "second-post",
+  "canonicalUrlKey": "second-post",
+  "route": "/blog/second-post/",
+  "title": "Second Post",
+  "summary": "The second post about design systems.",
+  "body": null,
+  "language": "und",
+  "type": "post",
+  "collection": "post",
+  "tags": [
+    "design"
+  ],
+  "sections": [
+    "design"
+  ],
+  "author": null,
+  "organization": null,
+  "publishedAt": "2025-02-01T00:00:00+00:00",
+  "updatedAt": null,
+  "expiresAt": null,
+  "reviewedAt": null,
+  "source": "markdown",
+  "originalSource": null,
+  "citations": [],
+  "references": [],
+  "syncStatus": null,
+  "reviewStatus": "published",
+  "credibilityScore": null,
+  "qualityFlags": [],
+  "entities": [],
+  "relations": [],
+  "media": [],
+  "canonical": "https://example.com/blog/second-post/"
+}

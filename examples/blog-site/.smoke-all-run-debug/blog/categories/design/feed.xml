@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>Blog Example: design</title>
+  <link>https://example.com//categories/design/</link>
+  <atom:link href="https://example.com//categories/design/feed.xml" rel="self" type="application/rss+xml"/>
+  <lastBuildDate>Sat, 01 Feb 2025 00:00:00 GMT</lastBuildDate>
+  <item>
+    <title>Second Post</title>
+    <link>https://example.com//blog/second-post/</link>
+    <guid isPermaLink="true">https://example.com//blog/second-post/</guid>
+    <pubDate>Sat, 01 Feb 2025 00:00:00 GMT</pubDate>
+    <description>The second post about design systems.</description>
+  </item>
+</channel>
+</rss>

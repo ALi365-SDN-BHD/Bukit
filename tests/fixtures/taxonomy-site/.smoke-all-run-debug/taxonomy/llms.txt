@@ -1,0 +1,14 @@
+﻿# Taxonomy Test
+## Page
+
+- [Categories](https://example.com/categories/): Browse all categories.
+- [Tags](https://example.com/tags/): Browse all tags.
+- [Another Post](https://example.com/another-post/)
+- [Tag: news](https://example.com/tags/news/): Browse 1 content items tagged news.
+- [Category: news](https://example.com/categories/news/): Browse 1 content items in news.
+- [Taxonomy Test](https://example.com/index/)
+- [Tag: blog](https://example.com/tags/blog/): Browse 1 content items tagged blog.
+- [Tag: tech](https://example.com/tags/tech/): Browse 1 content items tagged tech.
+- [Category: blog](https://example.com/categories/blog/): Browse 1 content items in blog.
+- [Category: tech](https://example.com/categories/tech/): Browse 1 content items in tech.
+

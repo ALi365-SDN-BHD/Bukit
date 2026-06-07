@@ -1,0 +1,38 @@
+﻿{
+  "id": "first-post",
+  "slug": "first-post",
+  "canonicalUrlKey": "first-post",
+  "route": "/blog/first-post/",
+  "title": "First Post",
+  "summary": "This is the first blog post with taxonomy.",
+  "body": null,
+  "language": "und",
+  "type": "post",
+  "collection": "post",
+  "tags": [
+    "tech",
+    "web"
+  ],
+  "sections": [
+    "tech",
+    "web"
+  ],
+  "author": null,
+  "organization": null,
+  "publishedAt": "2025-01-15T00:00:00+00:00",
+  "updatedAt": null,
+  "expiresAt": null,
+  "reviewedAt": null,
+  "source": "markdown",
+  "originalSource": null,
+  "citations": [],
+  "references": [],
+  "syncStatus": null,
+  "reviewStatus": "published",
+  "credibilityScore": null,
+  "qualityFlags": [],
+  "entities": [],
+  "relations": [],
+  "media": [],
+  "canonical": "https://example.com/blog/first-post/"
+}

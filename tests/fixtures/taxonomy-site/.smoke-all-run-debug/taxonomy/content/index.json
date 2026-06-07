@@ -1,0 +1,38 @@
+﻿{
+  "id": "index",
+  "slug": "index",
+  "canonicalUrlKey": "index",
+  "route": "/index/",
+  "title": "Taxonomy Test",
+  "summary": null,
+  "body": null,
+  "language": "und",
+  "type": "page",
+  "collection": "page",
+  "tags": [
+    "tech",
+    "blog"
+  ],
+  "sections": [
+    "tech",
+    "blog"
+  ],
+  "author": null,
+  "organization": null,
+  "publishedAt": "2026-05-30T13:36:07.8984503+00:00",
+  "updatedAt": null,
+  "expiresAt": null,
+  "reviewedAt": null,
+  "source": "markdown",
+  "originalSource": null,
+  "citations": [],
+  "references": [],
+  "syncStatus": null,
+  "reviewStatus": "published",
+  "credibilityScore": null,
+  "qualityFlags": [],
+  "entities": [],
+  "relations": [],
+  "media": [],
+  "canonical": "https://example.com/index/"
+}

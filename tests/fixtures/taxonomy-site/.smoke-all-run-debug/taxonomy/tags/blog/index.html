@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Tag: blog</title>
+  <link rel="canonical" href="https://example.com/tags/blog/" />
+  <meta name="description" content="Browse 1 content items tagged blog." />
+  <meta property="og:title" content="Tag: blog" />
+  <meta property="og:description" content="Browse 1 content items tagged blog." />
+  <meta property="og:url" content="https://example.com/tags/blog/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Taxonomy Test" />
+  <meta property="og:locale" content="en" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Tag: blog" />
+  <meta name="twitter:description" content="Browse 1 content items tagged blog." />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Taxonomy Test","url":"https://example.com/","potentialAction":{"@type":"SearchAction","target":"https://example.com/search/?q={search_term_string}","query-input":"required name=search_term_string"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"CollectionPage","name":"Tag: blog","description":"Browse 1 content items tagged blog.","url":"https://example.com/tags/blog/","isPartOf":{"@type":"WebSite","name":"Taxonomy Test","url":"https://example.com/"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Tags","item":"https://example.com/tags/"},{"@type":"ListItem","position":2,"name":"Tag: blog","item":"https://example.com/tags/blog/"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemList","itemListElement":[{"@type":"ListItem","position":1,"name":"Taxonomy Test","url":"https://example.com/index/"}]}</script>
+</head>
+<body>
+<h1></h1>
+<ul>
+{% for page in taxonomy.pages %}
+<li><a href="/tags/blog/">Tag: blog</a></li>
+{% endfor %}
+</ul>
+
+</body>
+</html>

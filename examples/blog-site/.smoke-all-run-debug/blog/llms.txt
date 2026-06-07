@@ -1,0 +1,20 @@
+﻿# Blog Example
+## Page
+
+- [Categories](https://example.com/categories/): Browse all categories.
+- [Tags](https://example.com/tags/): Browse all tags.
+- [Home](https://example.com/home/): Welcome to the Blog Example site.
+- [Tag: tech](https://example.com/tags/tech/): Browse 2 content items tagged tech.
+- [Tag: web](https://example.com/tags/web/): Browse 2 content items tagged web.
+- [Category: tech](https://example.com/categories/tech/): Browse 2 content items in tech.
+- [Category: web](https://example.com/categories/web/): Browse 2 content items in web.
+- [Tag: design](https://example.com/tags/design/): Browse 1 content items tagged design.
+- [Category: design](https://example.com/categories/design/): Browse 1 content items in design.
+
+## Post
+
+- [Third Post](https://example.com/blog/third-post/): Third post about performance optimization.
+- [Second Post](https://example.com/blog/second-post/): The second post about design systems.
+- [First Post](https://example.com/blog/first-post/): This is the first blog post with taxonomy.
+- [post - Page 2](https://example.com/blog/page/2/)
+

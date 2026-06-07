@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>Blog Example: web</title>
+  <link>https://example.com//tags/web/</link>
+  <atom:link href="https://example.com//tags/web/feed.xml" rel="self" type="application/rss+xml"/>
+  <lastBuildDate>Mon, 10 Mar 2025 00:00:00 GMT</lastBuildDate>
+  <item>
+    <title>Third Post</title>
+    <link>https://example.com//blog/third-post/</link>
+    <guid isPermaLink="true">https://example.com//blog/third-post/</guid>
+    <pubDate>Mon, 10 Mar 2025 00:00:00 GMT</pubDate>
+    <description>Third post about performance optimization.</description>
+  </item>
+  <item>
+    <title>First Post</title>
+    <link>https://example.com//blog/first-post/</link>
+    <guid isPermaLink="true">https://example.com//blog/first-post/</guid>
+    <pubDate>Wed, 15 Jan 2025 00:00:00 GMT</pubDate>
+    <description>This is the first blog post with taxonomy.</description>
+  </item>
+</channel>
+</rss>

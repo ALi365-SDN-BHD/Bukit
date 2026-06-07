@@ -1,0 +1,36 @@
+﻿{
+  "id": "another-post",
+  "slug": "another-post",
+  "canonicalUrlKey": "another-post",
+  "route": "/another-post/",
+  "title": "Another Post",
+  "summary": null,
+  "body": null,
+  "language": "und",
+  "type": "page",
+  "collection": "page",
+  "tags": [
+    "news"
+  ],
+  "sections": [
+    "news"
+  ],
+  "author": null,
+  "organization": null,
+  "publishedAt": "2026-05-30T13:36:09.1009239+00:00",
+  "updatedAt": null,
+  "expiresAt": null,
+  "reviewedAt": null,
+  "source": "markdown",
+  "originalSource": null,
+  "citations": [],
+  "references": [],
+  "syncStatus": null,
+  "reviewStatus": "published",
+  "credibilityScore": null,
+  "qualityFlags": [],
+  "entities": [],
+  "relations": [],
+  "media": [],
+  "canonical": "https://example.com/another-post/"
+}
