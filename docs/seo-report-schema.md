@@ -1,6 +1,6 @@
 # SEO Audit Report Schema
 
-Bukit writes the compatibility SEO report to `.bukit/seo-report.json` under every build output root. The report is a machine-readable SEO URL inventory and CI artifact.
+Bukit writes the SEO report to `.bukit/seo-report.json` under every build output root. The report is a machine-readable SEO URL inventory and CI artifact.
 
 Current schema:
 
@@ -17,6 +17,8 @@ Bukit keeps this report diff-friendly:
 - `schemaVersion` changes only when fields are removed, renamed, or their meaning changes.
 - New optional fields may be added without changing the major version.
 - `generatedAt` is intentionally time-dependent and should be ignored by strict artifact diffs.
+- `bukit seo audit` defaults to this schema and validates it strictly.
+- `--report` is an explicit compatibility entrypoint for cross-schema inputs such as publish audit reports.
 
 ## Top-Level Shape
 

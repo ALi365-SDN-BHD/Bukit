@@ -70,7 +70,8 @@ Diagnostics run at both index and HTML levels. Bukit reports missing `site.url`,
 
 ## SEO Audit Report
 
-Every build writes the SEO report to `.bukit/seo-report.json` under the generated site output. `bukit seo audit` uses that file as its default discovery target, with `.bukit/publish-audit-report.json` as a secondary compatible input. The report schema and compatibility contract are documented in [SEO Audit Report Schema](seo-report-schema.md).
+Every build writes the SEO report to `.bukit/seo-report.json` under the generated site output. `bukit seo audit` uses that file as its default discovery target and validates only that schema by default. The report schema and compatibility contract are documented in [SEO Audit Report Schema](seo-report-schema.md).
+`--report` is the explicit compatibility entrypoint for non-SEO schema inputs, including `.bukit/publish-audit-report.json` when cross-schema comparison is intentionally required.
 
 The report is designed as a CI artifact and stable URL inventory. It includes:
 
@@ -91,10 +92,11 @@ Run the CI audit command after build:
 bukit seo audit --dir dist
 bukit seo audit --dir dist --strict
 bukit seo audit --report dist/.bukit/seo-report.json
+bukit seo audit --report dist/.bukit/publish-audit-report.json --strict
 bukit seo audit --dir dist --external
 ```
 
-Default mode returns non-zero when the report has errors. `--strict` also fails on warnings. The audit command validates the report schema URL, schema version, top-level fields, route inventory fields, issue fields, summary counters, and disallows unknown report fields before applying those thresholds, so malformed or unsupported reports fail with exit code `2`.
+Default mode returns non-zero when the report has errors. `--strict` also fails on warnings. The default audit command validates the SEO report schema URL, schema version, top-level fields, route inventory fields, issue fields, summary counters, and disallows unknown report fields before applying those thresholds, so malformed or unsupported reports fail with exit code `2`.
 
 `--external` performs live HTTP checks for canonical URLs, page links, and HTML/OG/Twitter images found in generated pages. These checks can fail because of network, DNS, rate limits, or unpublished environments, so use them as an explicit CI stage rather than as part of the default static build.
 
@@ -108,6 +110,7 @@ bukit seo diff --baseline previous/.bukit/seo-report.json --current dist/.bukit/
 ```
 
 The diff gate compares issue identity by severity, code, route, and message. It also reports added routes, removed routes, and routes that changed from indexable to non-indexable.
+By default, `seo diff` requires both inputs to use the same SEO report schema; use `--allow-cross-schema` only when comparing SEO and publish audit artifacts explicitly.
 
 ## JSON-LD
 

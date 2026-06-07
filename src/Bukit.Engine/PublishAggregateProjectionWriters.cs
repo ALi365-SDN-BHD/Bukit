@@ -4,7 +4,7 @@ using Bukit.Engine.Plugins.BuiltIn;
 
 namespace Bukit.Engine;
 
-internal static class AggregateFeedProjectionWriter
+internal static class RssProjectionWriter
 {
     internal static void WriteRss(PublishProjectionContext context)
     {
@@ -60,7 +60,7 @@ internal static class AggregateFeedProjectionWriter
         => context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
 }
 
-internal static class SearchIndexProjectionWriter
+internal static class SearchProjectionWriter
 {
     internal static void WriteSearchIndex(PublishProjectionContext context)
     {
@@ -77,7 +77,7 @@ internal static class SearchIndexProjectionWriter
     }
 }
 
-internal static class LlmsProjectionWriter
+internal static class LlmsAggregateProjectionWriter
 {
     internal static void WriteLlmsTxt(PublishProjectionContext context)
     {
@@ -116,7 +116,7 @@ internal static class LlmsProjectionWriter
     }
 }
 
-internal static class RobotsProjectionWriter
+internal static class RobotsAggregateProjectionWriter
 {
     internal static void WriteRobotsTxt(PublishProjectionContext context)
         => RobotsTxtWriter.WriteIfRequested(context.Config, context.OutputDir, context.BaseUrl, context.SeoIndex);

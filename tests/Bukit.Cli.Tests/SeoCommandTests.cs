@@ -56,14 +56,14 @@ public sealed class SeoCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task RunAsync_AuditReadsPublishAuditReportByDefault()
+    public async Task RunAsync_AuditRejectsPublishReportWithoutExplicitPath()
     {
         Directory.CreateDirectory(Path.Combine(_root, ".bukit"));
         WriteReportFile(Path.Combine(_root, ".bukit", "publish-audit-report.json"), 0, 0, "[]", schema: "https://bukit.dev/schemas/publish-audit-report.v1.json");
 
         var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "audit", "--dir", _root }));
 
-        Assert.Equal(0, exitCode);
+        Assert.Equal(2, exitCode);
     }
 
     [Fact]
@@ -225,6 +225,50 @@ public sealed class SeoCommandTests : IDisposable
         var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "diff", "--baseline", baseline, "--current", current, "--fail-on-new-code", "seo.description_missing" }));
 
         Assert.Equal(1, exitCode);
+    }
+
+    [Fact]
+    public async Task RunAsync_DiffRejectsCrossSchemaWithoutFlag()
+    {
+        var baseline = Path.Combine(_root, "baseline.json");
+        var current = Path.Combine(_root, "current.json");
+        WriteReportFile(
+            baseline,
+            0,
+            0,
+            "[]",
+            schema: "https://bukit.dev/schemas/publish-audit-report.v1.json");
+        WriteReportFile(
+            current,
+            0,
+            0,
+            "[]");
+
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "diff", "--baseline", baseline, "--current", current }));
+
+        Assert.Equal(2, exitCode);
+    }
+
+    [Fact]
+    public async Task RunAsync_DiffAllowsCrossSchemaWithFlag()
+    {
+        var baseline = Path.Combine(_root, "baseline.json");
+        var current = Path.Combine(_root, "current.json");
+        WriteReportFile(
+            baseline,
+            0,
+            0,
+            "[]",
+            schema: "https://bukit.dev/schemas/publish-audit-report.v1.json");
+        WriteReportFile(
+            current,
+            0,
+            0,
+            "[]");
+
+        var exitCode = await SeoCommand.RunAsync(CliTestHelper.CreateCommand("seo", new[] { "seo", "diff", "--baseline", baseline, "--current", current, "--allow-cross-schema" }));
+
+        Assert.Equal(0, exitCode);
     }
 
     public void Dispose()

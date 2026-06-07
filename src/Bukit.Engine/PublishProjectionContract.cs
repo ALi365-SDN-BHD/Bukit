@@ -247,7 +247,7 @@ internal sealed class RssFeedPublishProjection : AggregatePublishProjectionBase
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        AggregateFeedProjectionWriter.WriteRss(context);
+        RssProjectionWriter.WriteRss(context);
     }
 }
 
@@ -260,7 +260,7 @@ internal sealed class AtomFeedPublishProjection : AggregatePublishProjectionBase
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        AggregateFeedProjectionWriter.WriteAtom(context);
+        RssProjectionWriter.WriteAtom(context);
     }
 }
 
@@ -273,7 +273,7 @@ internal sealed class JsonFeedPublishProjection : AggregatePublishProjectionBase
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        AggregateFeedProjectionWriter.WriteJsonFeed(context);
+        RssProjectionWriter.WriteJsonFeed(context);
     }
 }
 
@@ -321,7 +321,7 @@ internal sealed class SearchIndexPublishProjection : AggregatePublishProjectionB
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        SearchIndexProjectionWriter.WriteSearchIndex(context);
+        SearchProjectionWriter.WriteSearchIndex(context);
     }
 }
 
@@ -334,7 +334,7 @@ internal sealed class LlmsTxtPublishProjection : AggregatePublishProjectionBase
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        LlmsProjectionWriter.WriteLlmsTxt(context);
+        LlmsAggregateProjectionWriter.WriteLlmsTxt(context);
     }
 }
 
@@ -347,7 +347,7 @@ internal sealed class LlmsFullTxtPublishProjection : AggregatePublishProjectionB
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        LlmsProjectionWriter.WriteLlmsFullTxt(context);
+        LlmsAggregateProjectionWriter.WriteLlmsFullTxt(context);
     }
 }
 
@@ -359,7 +359,7 @@ internal sealed class RobotsTxtPublishProjection : AggregatePublishProjectionBas
     }
 
     protected override void ProjectAggregate(PublishProjectionContext context)
-        => RobotsProjectionWriter.WriteRobotsTxt(context);
+        => RobotsAggregateProjectionWriter.WriteRobotsTxt(context);
 }
 
 internal sealed class AgentManifestAggregateInventoryProjection : AggregatePublishProjectionBase
