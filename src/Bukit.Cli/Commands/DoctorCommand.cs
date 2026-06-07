@@ -80,7 +80,7 @@ public static class DoctorCommand
             Console.WriteLine("✖ Missing templates:");
             foreach (var p in missing)
             {
-                Console.WriteLine($"  - {p}");
+                Console.WriteLine($"  - {ToRelativeTemplatePath(layoutsDir, p)}");
             }
 
             return 1;
@@ -95,8 +95,7 @@ public static class DoctorCommand
             var template = Template.Parse(text, p);
             if (template.HasErrors)
             {
-                var relative = Path.GetRelativePath(layoutsDir, p);
-                Console.WriteLine($"✖ Template parse error: {relative}");
+                Console.WriteLine($"✖ Template parse error: {ToRelativeTemplatePath(layoutsDir, p)}");
                 foreach (var m in template.Messages)
                 {
                     Console.WriteLine($"  - {m}");
@@ -114,8 +113,7 @@ public static class DoctorCommand
             var template = Template.Parse(text, p);
             if (template.HasErrors)
             {
-                var relative = Path.GetRelativePath(layoutsDir, p);
-                Console.WriteLine($"✖ Template parse error: {relative}");
+                Console.WriteLine($"✖ Template parse error: {ToRelativeTemplatePath(layoutsDir, p)}");
                 foreach (var m in template.Messages)
                 {
                     Console.WriteLine($"  - {m}");
@@ -140,7 +138,7 @@ public static class DoctorCommand
             var closeDouble = DoctorTemplateAnalyzer.CountOpenings(text, "}}");
             if (openDouble != closeDouble)
             {
-                var relative = Path.GetRelativePath(layoutsDir, p);
+                var relative = ToRelativeTemplatePath(layoutsDir, p);
                 Console.WriteLine($"⚠ Unmatched {{{{/}}}} in {relative}: {openDouble} opens, {closeDouble} closes");
             }
 
@@ -148,7 +146,7 @@ public static class DoctorCommand
             var closePercent = DoctorTemplateAnalyzer.CountOpenings(text, "%}");
             if (openPercent != closePercent)
             {
-                var relative = Path.GetRelativePath(layoutsDir, p);
+                var relative = ToRelativeTemplatePath(layoutsDir, p);
                 Console.WriteLine($"⚠ Unmatched {{%/ %}} in {relative}: {openPercent} opens, {closePercent} closes");
             }
 
@@ -156,7 +154,7 @@ public static class DoctorCommand
             var closeHash = DoctorTemplateAnalyzer.CountOpenings(text, "#}");
             if (openHash != closeHash)
             {
-                var relative = Path.GetRelativePath(layoutsDir, p);
+                var relative = ToRelativeTemplatePath(layoutsDir, p);
                 Console.WriteLine($"⚠ Unmatched {{#/#}} in {relative}: {openHash} opens, {closeHash} closes");
             }
         }
@@ -431,6 +429,23 @@ public static class DoctorCommand
         {
             Console.WriteLine("⚠ build.followSymlinks is enabled. Ensure all symlinks are within the project directory and trusted. Consider disabling in CI environments.");
         }
+    }
+
+    private static string ToRelativeTemplatePath(string layoutsDir, string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return filePath;
+        }
+
+        if (!Path.IsPathRooted(filePath))
+        {
+            return filePath.Replace(Path.DirectorySeparatorChar, '/').Replace('\\', '/');
+        }
+
+        return Path.GetRelativePath(layoutsDir, filePath)
+            .Replace(Path.DirectorySeparatorChar, '/')
+            .Replace('\\', '/');
     }
 
     private static bool CheckOutputDirectorySafety(AppConfig config, string rootDir)
