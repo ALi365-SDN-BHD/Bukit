@@ -89,7 +89,7 @@ public static class SeoCommand
         Console.Error.WriteLine($"Usage: bukit {commandName} audit [--dir dist] [--report seo-report.json] [--strict] [--external]");
         Console.Error.WriteLine($"       bukit {commandName} diff --baseline old-report.json --current new-report.json [--max-new-errors n] [--max-new-warnings n] [--max-new-issues n] [--fail-on-new-code code1,code2] [--fail-on-route-removed] [--fail-on-indexable-drop] [--allow-cross-schema]");
         return 2;
-        }
+    }
 
     internal static int Audit(string reportPath, bool strict)
         => AuditAsync(reportPath, Path.GetDirectoryName(Path.GetFullPath(reportPath)) ?? ".", strict, external: false, label: "SEO").GetAwaiter().GetResult();
