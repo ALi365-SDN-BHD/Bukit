@@ -7,6 +7,7 @@ public sealed record ContentModelSchema(
     IReadOnlyList<string>? SyncStatuses = null,
     IReadOnlyDictionary<string, CanonicalFieldMapping>? CanonicalMappings = null,
     IReadOnlyDictionary<string, CustomFieldDefinition>? CustomFields = null,
+    IReadOnlyDictionary<string, IReadOnlyList<CustomFieldDefinition>>? CollectionFields = null,
     IReadOnlyDictionary<string, EntityMapping>? EntityMappings = null,
     IReadOnlyDictionary<string, RelationMapping>? RelationMappings = null,
     MediaPolicy? Media = null,

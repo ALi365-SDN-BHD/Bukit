@@ -9,6 +9,13 @@ internal static class PublishAuditBuilder
         => Build(report, publishDocuments, null);
 
     internal static PublishAuditReport Build(SeoAuditReport report, IReadOnlyList<PublishDocument> publishDocuments, string? outputDir)
+        => Build(report, publishDocuments, outputDir, report.Issues.Select(PublishAuditIssue.FromSeoIssue).ToArray());
+
+    internal static PublishAuditReport Build(
+        SeoAuditReport report,
+        IReadOnlyList<PublishDocument> publishDocuments,
+        string? outputDir,
+        IReadOnlyList<PublishAuditIssue> issues)
     {
         var documentsByRoute = publishDocuments.ToDictionary(x => x.RouteUrl, StringComparer.OrdinalIgnoreCase);
         var documents = report.Routes.Select(route =>
@@ -70,7 +77,7 @@ internal static class PublishAuditBuilder
             SiteUrl: report.SiteUrl,
             BaseUrl: report.BaseUrl,
             Documents: documents,
-            Issues: report.Issues,
+            Issues: issues,
             Summary: summary);
     }
 

@@ -18,7 +18,7 @@ internal static class SeoCompatibilityAuditRules
         bool llmsFullExpected,
         bool manifestIncluded,
         string? robotsText,
-        List<SeoAuditIssue> issues)
+        List<PublishAuditIssue> issues)
     {
         if (!document.Indexable)
         {
@@ -172,5 +172,5 @@ internal static class SeoCompatibilityAuditRules
     private static string NormalizeRulePath(string value)
         => string.IsNullOrWhiteSpace(value) ? string.Empty : value.StartsWith('/') ? value : "/" + value;
 
-    private static SeoAuditIssue Warning(string code, string? route, string message) => new("warning", code, route, message);
+    private static PublishAuditIssue Warning(string code, string? route, string message) => new("warning", code, route, message);
 }

@@ -334,6 +334,76 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_ContentModelSchema_ParsesCanonicalSchema()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              provider: markdown
+              modelSchema:
+                rejectUnknownRawKeys: true
+                requireAuthor: true
+                statuses:
+                  - published
+                  - draft
+                canonicalMappings:
+                  - canonicalField: summary
+                    rawKey: abstract
+                    required: true
+                customFields:
+                  - name: deck
+                    type: string
+                    required: true
+                entityMappings:
+                  - rawKey: companies
+                    entityType: company
+                    idField: companyIds
+                relationMappings:
+                  - rawKey: related
+                    relationType: related-to
+                    targetType: content
+                media:
+                  requireAlt: false
+                  allowedKinds:
+                    - image
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+
+        var schema = Assert.IsType<ContentModelSchemaConfig>(config.Content.ModelSchema);
+        Assert.True(schema.RejectUnknownRawKeys);
+        Assert.True(schema.RequireAuthor);
+        Assert.Equal(new[] { "published", "draft" }, schema.Statuses);
+
+        var canonical = Assert.Single(schema.CanonicalMappings!);
+        Assert.Equal("summary", canonical.CanonicalField);
+        Assert.Equal("abstract", canonical.RawKey);
+        Assert.True(canonical.Required);
+
+        var custom = Assert.Single(schema.CustomFields!);
+        Assert.Equal("deck", custom.Name);
+        Assert.Equal("string", custom.FieldType);
+        Assert.True(custom.Required);
+
+        var entity = Assert.Single(schema.EntityMappings!);
+        Assert.Equal("companies", entity.RawKey);
+        Assert.Equal("company", entity.EntityType);
+        Assert.Equal("companyIds", entity.IdField);
+
+        var relation = Assert.Single(schema.RelationMappings!);
+        Assert.Equal("related", relation.RawKey);
+        Assert.Equal("related-to", relation.RelationType);
+        Assert.Equal("content", relation.TargetType);
+
+        Assert.NotNull(schema.Media);
+        Assert.False(schema.Media.RequireAlt);
+        Assert.Equal(new[] { "image" }, schema.Media.AllowedKinds);
+    }
+
+    [Fact]
     public void Load_Permalinks_ParsesPermalinksMap()
     {
         var yaml = """

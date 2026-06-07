@@ -210,6 +210,73 @@ public sealed record ContentConfig
     public NotionConfig? Notion { get; init; }
     public MarkdownConfig? Markdown { get; init; }
     public MediaConfig Media { get; init; } = new();
+    public ContentModelSchemaConfig? ModelSchema { get; init; }
+}
+
+public sealed record ContentModelSchemaConfig
+{
+    public IReadOnlyList<string>? ContentTypes { get; init; }
+    public IReadOnlyList<string>? Statuses { get; init; }
+    public IReadOnlyList<string>? ReviewStatuses { get; init; }
+    public IReadOnlyList<string>? SyncStatuses { get; init; }
+    public IReadOnlyList<CanonicalFieldMappingConfig>? CanonicalMappings { get; init; }
+    public IReadOnlyList<CustomFieldDefinitionConfig>? CustomFields { get; init; }
+    public IReadOnlyList<EntityMappingConfig>? EntityMappings { get; init; }
+    public IReadOnlyList<RelationMappingConfig>? RelationMappings { get; init; }
+    public MediaPolicyConfig? Media { get; init; }
+    public bool RejectUnknownRawKeys { get; init; }
+    public bool RequireSummary { get; init; }
+    public bool RequireAuthor { get; init; }
+    public bool RequireOrganization { get; init; }
+    public bool RequireUpdatedAt { get; init; }
+    public bool RequireProvenance { get; init; }
+    public bool RequireReviewedAt { get; init; }
+    public bool RequireMediaAlt { get; init; } = true;
+    public bool RequireMediaDescription { get; init; }
+    public bool RequireMediaLicense { get; init; }
+    public bool RequireEntityIds { get; init; }
+    public bool RequireRelationTargets { get; init; } = true;
+}
+
+public sealed record CanonicalFieldMappingConfig
+{
+    public required string CanonicalField { get; init; }
+    public string? RawKey { get; init; }
+    public string? SemanticType { get; init; }
+    public bool Required { get; init; }
+}
+
+public sealed record CustomFieldDefinitionConfig
+{
+    public required string Name { get; init; }
+    public string FieldType { get; init; } = "string";
+    public bool Required { get; init; }
+    public string? SemanticType { get; init; }
+}
+
+public sealed record EntityMappingConfig
+{
+    public required string RawKey { get; init; }
+    public required string EntityType { get; init; }
+    public string? IdField { get; init; }
+    public string? NameField { get; init; }
+    public bool Required { get; init; }
+}
+
+public sealed record RelationMappingConfig
+{
+    public required string RawKey { get; init; }
+    public required string RelationType { get; init; }
+    public string? TargetType { get; init; }
+    public bool Required { get; init; }
+}
+
+public sealed record MediaPolicyConfig
+{
+    public bool RequireAlt { get; init; } = true;
+    public bool RequireDescription { get; init; }
+    public bool RequireLicense { get; init; }
+    public IReadOnlyList<string>? AllowedKinds { get; init; }
 }
 
 public sealed record ContentSourceConfig

@@ -94,7 +94,8 @@ public static class ConfigLoader
             Sources = sources,
             Notion = provider.Equals("notion", StringComparison.OrdinalIgnoreCase) ? SiteDefaultsApplier.ReadNotionConfigFrom(contentNode) : null,
             Markdown = provider.Equals("markdown", StringComparison.OrdinalIgnoreCase) ? SiteDefaultsApplier.ReadMarkdownConfigFrom(contentNode) : null,
-            Media = SiteDefaultsApplier.ReadMediaConfigFrom(contentNode)
+            Media = SiteDefaultsApplier.ReadMediaConfigFrom(contentNode),
+            ModelSchema = ConfigCollectionReader.ReadContentModelSchema(contentNode)
         };
 
         var buildReportNode = buildNode is null ? null : ConfigYamlHelpers.GetOptionalMapping(buildNode, "report");

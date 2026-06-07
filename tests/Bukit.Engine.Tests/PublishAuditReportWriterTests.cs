@@ -184,6 +184,9 @@ public sealed class PublishAuditReportWriterTests : IDisposable
         Assert.Equal("/post/", document.RouteUrl);
         Assert.Equal("Article", Assert.Single(document.SchemaTypes));
         Assert.False(document.RssIncluded);
+        var issue = Assert.Single(publishReport.Issues);
+        Assert.IsType<PublishAuditIssue>(issue);
+        Assert.Equal("publish.rss_missing_route", issue.Code);
     }
 
     [Fact]
@@ -376,7 +379,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
             ["post/index.html"] = Model("Post", "https://example.com/post/")
         };
 
-        var result = SeoAuditReportWriter.BuildMachineReadabilityTrustAudit(ConfigWithAtomFeed(), _outputDir, index, models, ContentGraph());
+        var result = MachineReadabilityTrustAuditBuilder.Build(ConfigWithAtomFeed(), _outputDir, index, models, ContentGraph());
 
         Assert.Contains(result.SeoReport.Issues, x => x.Code == "publish.atom_feed_missing_route" && x.Route == "/post/");
         var document = Assert.Single(result.PublishReport.Documents);

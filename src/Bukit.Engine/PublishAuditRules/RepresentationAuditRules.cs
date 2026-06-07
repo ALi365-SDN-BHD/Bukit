@@ -4,12 +4,12 @@ namespace Bukit.Engine.PublishAuditRules;
 
 internal static class RepresentationAuditRules
 {
-    internal static void Analyze(PublishDocument document, string outputDir, List<SeoAuditIssue> issues)
+    internal static void Analyze(PublishDocument document, string outputDir, List<PublishAuditIssue> issues)
     {
         var requiredKinds = PublishRepresentationRegistry.DocumentKinds();
         if (requiredKinds.Any(kind => !document.RepresentationKinds.Contains(kind, StringComparer.OrdinalIgnoreCase)))
         {
-            issues.Add(new SeoAuditIssue("error", "publish.representation_missing", document.RouteUrl, "Published content is missing one or more required representations (html/semantic-html/json/markdown)."));
+            issues.Add(new PublishAuditIssue("error", "publish.representation_missing", document.RouteUrl, "Published content is missing one or more required representations (html/semantic-html/json/markdown)."));
         }
 
         if (document.ContentRecord is null)
@@ -29,7 +29,7 @@ internal static class RepresentationAuditRules
         string outputDir,
         string kind,
         string extension,
-        List<SeoAuditIssue> issues)
+        List<PublishAuditIssue> issues)
     {
         if (!document.RepresentationKinds.Contains(kind, StringComparer.OrdinalIgnoreCase))
         {
@@ -43,7 +43,7 @@ internal static class RepresentationAuditRules
         }
 
         var relativePath = Path.GetRelativePath(outputDir, paths[0]).Replace(Path.DirectorySeparatorChar, '/');
-        issues.Add(new SeoAuditIssue("error", "publish.representation_file_missing", document.RouteUrl, $"Published content declares {kind} representation but the file is missing: {relativePath}."));
+        issues.Add(new PublishAuditIssue("error", "publish.representation_file_missing", document.RouteUrl, $"Published content declares {kind} representation but the file is missing: {relativePath}."));
     }
 
     private static IReadOnlyList<string> BuildProjectionPathCandidates(PublishDocument document, string outputDir, string extension)
@@ -68,7 +68,7 @@ internal static class RepresentationAuditRules
         return paths;
     }
 
-    private static void AnalyzeJsonProjection(PublishDocument document, string outputDir, List<SeoAuditIssue> issues)
+    private static void AnalyzeJsonProjection(PublishDocument document, string outputDir, List<PublishAuditIssue> issues)
     {
         var path = FindProjectionPath(document, outputDir, ".json");
         if (path is null)
@@ -87,16 +87,16 @@ internal static class RepresentationAuditRules
                            !ContainsEntities(root, document.EntityNames);
             if (mismatch)
             {
-                issues.Add(new SeoAuditIssue("error", "publish.representation_json_mismatch", document.RouteUrl, "JSON content representation does not match the publish document identity, language, trust, provenance, or entities."));
+                issues.Add(new PublishAuditIssue("error", "publish.representation_json_mismatch", document.RouteUrl, "JSON content representation does not match the publish document identity, language, trust, provenance, or entities."));
             }
         }
         catch (JsonException ex)
         {
-            issues.Add(new SeoAuditIssue("error", "publish.representation_json_invalid", document.RouteUrl, $"JSON content representation is invalid JSON: {ex.Message}"));
+            issues.Add(new PublishAuditIssue("error", "publish.representation_json_invalid", document.RouteUrl, $"JSON content representation is invalid JSON: {ex.Message}"));
         }
     }
 
-    private static void AnalyzeMarkdownProjection(PublishDocument document, string outputDir, List<SeoAuditIssue> issues)
+    private static void AnalyzeMarkdownProjection(PublishDocument document, string outputDir, List<PublishAuditIssue> issues)
     {
         var path = FindProjectionPath(document, outputDir, ".md");
         if (path is null)
@@ -112,11 +112,11 @@ internal static class RepresentationAuditRules
                        (document.Source is not null && !markdown.Contains($"- Source: {document.Source}", StringComparison.Ordinal));
         if (mismatch)
         {
-            issues.Add(new SeoAuditIssue("error", "publish.representation_markdown_mismatch", document.RouteUrl, "Markdown content representation does not match the publish document route, language, review status, or provenance."));
+            issues.Add(new PublishAuditIssue("error", "publish.representation_markdown_mismatch", document.RouteUrl, "Markdown content representation does not match the publish document route, language, review status, or provenance."));
         }
     }
 
-    private static void AnalyzeAgentManifest(PublishDocument document, string outputDir, List<SeoAuditIssue> issues)
+    private static void AnalyzeAgentManifest(PublishDocument document, string outputDir, List<PublishAuditIssue> issues)
     {
         if (!document.Indexable)
         {
@@ -135,7 +135,7 @@ internal static class RepresentationAuditRules
             if (!json.RootElement.TryGetProperty("documents", out var documents) ||
                 documents.ValueKind != JsonValueKind.Array)
             {
-                issues.Add(new SeoAuditIssue("error", "publish.manifest_invalid", document.RouteUrl, "Agent manifest is missing a documents array."));
+                issues.Add(new PublishAuditIssue("error", "publish.manifest_invalid", document.RouteUrl, "Agent manifest is missing a documents array."));
                 return;
             }
 
@@ -178,12 +178,12 @@ internal static class RepresentationAuditRules
                            !ContainsManifestEntities(value, document.EntityNames);
             if (mismatch)
             {
-                issues.Add(new SeoAuditIssue("error", "publish.manifest_mismatch", document.RouteUrl, BuildManifestMismatchMessage(value, document)));
+                issues.Add(new PublishAuditIssue("error", "publish.manifest_mismatch", document.RouteUrl, BuildManifestMismatchMessage(value, document)));
             }
         }
         catch (JsonException ex)
         {
-            issues.Add(new SeoAuditIssue("error", "publish.manifest_invalid", document.RouteUrl, $"Agent manifest is invalid JSON: {ex.Message}"));
+            issues.Add(new PublishAuditIssue("error", "publish.manifest_invalid", document.RouteUrl, $"Agent manifest is invalid JSON: {ex.Message}"));
         }
     }
 

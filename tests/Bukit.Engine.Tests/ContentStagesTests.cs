@@ -55,6 +55,96 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
+    public async Task ContentLoadStage_PassesContentModelSchemaToNormalizer()
+    {
+        var loadResult = new RawContentLoadResult(
+            new[]
+            {
+                new RawContentDocument(
+                    Id: "a",
+                    Title: "A",
+                    Slug: "a",
+                    PublishAt: DateTimeOffset.UnixEpoch,
+                    Body: new RawBody(InlineHtml: "<p>a</p>"),
+                    Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["type"] = new("text", "page"),
+                        ["unknown"] = new("text", "value")
+                    })
+            },
+            EmptyContentBodyStore.Instance);
+        var factory = new StubContentProviderFactory(loadResult);
+        var stage = new ContentLoadStage(factory);
+        var config = Config() with
+        {
+            Content = Config().Content with
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    RejectUnknownRawKeys = true,
+                    CustomFields = new[]
+                    {
+                        new CustomFieldDefinitionConfig { Name = "type" }
+                    }
+                }
+            }
+        };
+        var input = new ContentStageInput(Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
+
+        var output = await stage.ExecuteAsync(input, CancellationToken.None);
+
+        var document = Assert.Single(output.Documents);
+        Assert.Contains(document.Diagnostics, diagnostic =>
+            diagnostic.Code == "content.unknown_raw_key" &&
+            diagnostic.Field == "unknown" &&
+            diagnostic.SourceId == "a");
+    }
+
+    [Fact]
+    public async Task ContentLoadStage_ProjectsConfiguredCanonicalMappings()
+    {
+        var loadResult = new RawContentLoadResult(
+            new[]
+            {
+                new RawContentDocument(
+                    Id: "a",
+                    Title: "A",
+                    Slug: "a",
+                    PublishAt: DateTimeOffset.UnixEpoch,
+                    Body: new RawBody(InlineHtml: "<p>a</p>"),
+                    Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["kind"] = new("text", "article"),
+                        ["abstract"] = new("text", "Configured summary")
+                    })
+            },
+            EmptyContentBodyStore.Instance);
+        var factory = new StubContentProviderFactory(loadResult);
+        var stage = new ContentLoadStage(factory);
+        var config = Config() with
+        {
+            Content = Config().Content with
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    CanonicalMappings = new[]
+                    {
+                        new CanonicalFieldMappingConfig { CanonicalField = "type", RawKey = "kind" },
+                        new CanonicalFieldMappingConfig { CanonicalField = "summary", RawKey = "abstract" }
+                    }
+                }
+            }
+        };
+        var input = new ContentStageInput(Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
+
+        var output = await stage.ExecuteAsync(input, CancellationToken.None);
+
+        var document = Assert.Single(output.Documents);
+        Assert.Equal("article", document.Record.Identity.ContentType);
+        Assert.Equal("Configured summary", document.Record.Presentation.Summary);
+    }
+
+    [Fact]
     public void ContentDocumentNormalizer_MapsRawBodySourcePoliciesAndDiagnostics()
     {
         var raw = new RawContentDocument(
@@ -114,6 +204,121 @@ public sealed class ContentStagesTests
             diagnostic.Code == "content.unknown_raw_key" &&
             diagnostic.Field == "unknown" &&
             diagnostic.SourceId == "doc-1");
+    }
+
+    [Fact]
+    public void ContentDocumentNormalizer_ProjectsCanonicalMappingsIntoContentRecord()
+    {
+        var raw = new RawContentDocument(
+            Id: "doc-1",
+            Title: "Doc",
+            Slug: "doc",
+            PublishAt: DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
+            Body: new RawBody(InlineHtml: "<p>Doc</p>"),
+            Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["kind"] = new("text", "article"),
+                ["abstract"] = new("text", "Mapped summary"),
+                ["writer"] = new("text", "Mapped Author"),
+                ["publishedState"] = new("text", "reviewed"),
+                ["sourceUrl"] = new("url", "https://example.com/original"),
+                ["unknown"] = new("text", "value")
+            });
+        var schema = new ContentModelSchema(
+            CanonicalMappings: new Dictionary<string, CanonicalFieldMapping>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["kind"] = new("type", "kind", Required: true),
+                ["abstract"] = new("summary", "abstract", Required: true),
+                ["writer"] = new("author", "writer"),
+                ["publishedState"] = new("review_status", "publishedState"),
+                ["sourceUrl"] = new("original_url", "sourceUrl")
+            },
+            RejectUnknownRawKeys: true);
+
+        var document = ContentDocumentNormalizer.ToDocument(raw, schema);
+
+        Assert.Equal("article", document.Record.Identity.ContentType);
+        Assert.Equal("Mapped summary", document.Record.Presentation.Summary);
+        Assert.Equal("Mapped Author", document.Record.Ownership.Author);
+        Assert.Equal("reviewed", document.Record.Trust.ReviewStatus);
+        Assert.Equal("https://example.com/original", document.Record.Provenance.OriginalSource);
+        Assert.Equal("article", ContentFieldReader.GetText(document.Fields, "type"));
+        Assert.Equal("Mapped summary", ContentFieldReader.GetText(document.Fields, "summary"));
+        Assert.Equal("article", ContentFieldReader.GetText(document.Fields, "kind"));
+        Assert.DoesNotContain(document.Diagnostics, diagnostic =>
+            diagnostic.Code == "content.required_canonical_field_missing");
+        Assert.Contains(document.Diagnostics, diagnostic =>
+            diagnostic.Code == "content.unknown_raw_key" &&
+            diagnostic.Field == "unknown");
+    }
+
+    [Fact]
+    public async Task ContentGraphValidateStage_UsesCollectionSchemaProjection()
+    {
+        var loadResult = new RawContentLoadResult(
+            new[]
+            {
+                new RawContentDocument(
+                    Id: "post-1",
+                    Title: "Post",
+                    Slug: "post-1",
+                    PublishAt: DateTimeOffset.UnixEpoch,
+                    Body: new RawBody(InlineHtml: "<p>post</p>"),
+                    Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["collection"] = new("text", "posts"),
+                        ["type"] = new("text", "post")
+                    }),
+                new RawContentDocument(
+                    Id: "page-1",
+                    Title: "Page",
+                    Slug: "page-1",
+                    PublishAt: DateTimeOffset.UnixEpoch,
+                    Body: new RawBody(InlineHtml: "<p>page</p>"),
+                    Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["collection"] = new("text", "pages"),
+                        ["type"] = new("text", "page")
+                    })
+            },
+            EmptyContentBodyStore.Instance);
+        var config = Config() with
+        {
+            Site = Config().Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["posts"] = new()
+                    {
+                        Permalink = "/posts/{slug}/",
+                        Schema = new[]
+                        {
+                            new SchemaFieldDefinition { Name = "deck", Required = true }
+                        }
+                    },
+                    ["pages"] = new()
+                    {
+                        Permalink = "/{slug}/"
+                    }
+                }
+            },
+            Build = Config().Build with { SchemaFailMode = "warn" }
+        };
+        var loadStage = new ContentLoadStage(new StubContentProviderFactory(loadResult));
+        var validateStage = new ContentGraphValidateStage();
+        var input = new ContentStageInput(Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
+
+        var loaded = await loadStage.ExecuteAsync(input, CancellationToken.None);
+        var validated = await validateStage.ExecuteAsync(new ContentStageInput(loaded.Documents, loaded.BodyStore, config, NoOverrides, "/root", "/cache", new NoOpLogger()), CancellationToken.None);
+
+        Assert.NotNull(validated.SchemaErrors);
+        Assert.Contains(validated.SchemaErrors, error =>
+            error.Code == "content.required_collection_field_missing" &&
+            error.Field == "deck" &&
+            error.SourcePath == "post-1");
+        Assert.DoesNotContain(validated.SchemaErrors, error =>
+            error.Code == "content.required_collection_field_missing" &&
+            error.SourcePath == "page-1");
     }
 
     [Fact]

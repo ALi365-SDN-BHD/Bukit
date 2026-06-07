@@ -16,7 +16,7 @@ internal static class SemanticHtmlAuditRules
     private static readonly Regex StripTagRegex = new("<[^>]+>", RegexOptions.Compiled);
     private static readonly Regex CollapseWhitespaceRegex = new("\\s+", RegexOptions.Compiled);
 
-    internal static void Analyze(SeoIndexEntry entry, PublishDocument document, string html, List<SeoAuditIssue> issues)
+    internal static void Analyze(SeoIndexEntry entry, PublishDocument document, string html, List<PublishAuditIssue> issues)
     {
         if (!html.Contains("<main", StringComparison.OrdinalIgnoreCase))
         {
@@ -104,7 +104,7 @@ internal static class SemanticHtmlAuditRules
             .Where(item => !string.IsNullOrWhiteSpace(item.Text))
             .ToArray();
 
-    private static void AnalyzeJsonLdConsistency(PublishDocument document, string? visibleHeading, string visibleText, List<SeoAuditIssue> issues)
+    private static void AnalyzeJsonLdConsistency(PublishDocument document, string? visibleHeading, string visibleText, List<PublishAuditIssue> issues)
     {
         if (document.SeoModel is null || string.IsNullOrWhiteSpace(visibleHeading))
         {
@@ -272,5 +272,5 @@ internal static class SemanticHtmlAuditRules
     private static string NormalizeText(string value)
         => CollapseWhitespaceRegex.Replace(StripTagRegex.Replace(value, " "), " ").Trim();
 
-    private static SeoAuditIssue Warning(string code, string? route, string message) => new("warning", code, route, message);
+    private static PublishAuditIssue Warning(string code, string? route, string message) => new("warning", code, route, message);
 }

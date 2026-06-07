@@ -14,8 +14,17 @@ internal sealed record PublishAuditReport(
     string? SiteUrl,
     string BaseUrl,
     IReadOnlyList<PublishAuditDocument> Documents,
-    IReadOnlyList<SeoAuditIssue> Issues,
+    IReadOnlyList<PublishAuditIssue> Issues,
     PublishAuditSummary Summary);
+
+internal sealed record PublishAuditIssue(string Severity, string Code, string? Route, string Message)
+{
+    internal static PublishAuditIssue FromSeoIssue(SeoAuditIssue issue)
+        => new(issue.Severity, issue.Code, issue.Route, issue.Message);
+
+    internal SeoAuditIssue ToSeoIssue()
+        => new(Severity, Code, Route, Message);
+}
 
 internal sealed record PublishAuditDocument(
     string RouteUrl,

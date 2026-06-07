@@ -44,6 +44,14 @@ public sealed class PublishRepresentationRegistryTests
     }
 
     [Fact]
+    public void ProjectionContract_RemainsInternalUntilExternalProjectionAbiIsDefined()
+    {
+        Assert.False(typeof(IPublishProjection).IsPublic);
+        Assert.False(typeof(PublishProjectionContext).IsPublic);
+        Assert.False(typeof(PublishProjectionResult).IsPublic);
+    }
+
+    [Fact]
     public void DocumentProjectionContracts_WriteFilesAndReturnOutputs()
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit_projection_contract_" + Guid.NewGuid().ToString("N"));

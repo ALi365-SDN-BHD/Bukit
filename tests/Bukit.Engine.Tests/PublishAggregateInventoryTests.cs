@@ -37,7 +37,7 @@ public sealed class PublishAggregateInventoryTests : IDisposable
             ["post/index.html"] = Model("Post", "https://example.com/post/")
         };
 
-        var result = SeoAuditReportWriter.BuildMachineReadabilityTrustAudit(ConfigWithGeo(), _outputDir, index, models, ContentGraph());
+        var result = MachineReadabilityTrustAuditBuilder.Build(ConfigWithGeo(), _outputDir, index, models, ContentGraph());
 
         var document = Assert.Single(result.PublishReport.Documents);
         Assert.Contains("llms", document.RepresentationKinds);
@@ -65,10 +65,12 @@ public sealed class PublishAggregateInventoryTests : IDisposable
             ["post/index.html"] = Model("Post", "https://example.com/post/")
         };
 
-        var result = SeoAuditReportWriter.BuildMachineReadabilityTrustAudit(ConfigWithGeo(), _outputDir, index, models, ContentGraph());
+        var result = MachineReadabilityTrustAuditBuilder.Build(ConfigWithGeo(), _outputDir, index, models, ContentGraph());
 
         Assert.Contains(result.SeoReport.Issues, x => x.Code == "publish.llms_missing_route" && x.Route == "/post/");
         Assert.Contains(result.SeoReport.Issues, x => x.Code == "publish.llms_full_missing_route" && x.Route == "/post/");
+        Assert.Contains(result.PublishReport.Issues, x => x.Code == "publish.llms_missing_route" && x.Route == "/post/");
+        Assert.Contains(result.PublishReport.Issues, x => x.Code == "publish.llms_full_missing_route" && x.Route == "/post/");
     }
 
     public void Dispose()

@@ -9,7 +9,7 @@ internal sealed record MachineReadabilityTrustAuditResult(
     SeoAuditReport SeoReport,
     PublishAuditReport PublishReport);
 
-internal static class MachineReadabilityTrustAuditBuilder
+internal static partial class MachineReadabilityTrustAuditBuilder
 {
     internal static MachineReadabilityTrustAuditResult Build(
         AppConfig config,
@@ -19,7 +19,8 @@ internal static class MachineReadabilityTrustAuditBuilder
         CanonicalContentGraph? contentGraph = null,
         bool requireHreflangTargets = true,
         IReadOnlyList<PublishProjectionResult>? projectionResults = null)
-        => SeoAuditReportWriter.BuildMachineReadabilityTrustAudit(
+    {
+        return BuildPublishAuditCore(
             config,
             outputDir,
             seoIndex,
@@ -27,4 +28,5 @@ internal static class MachineReadabilityTrustAuditBuilder
             contentGraph,
             requireHreflangTargets,
             projectionResults);
+    }
 }

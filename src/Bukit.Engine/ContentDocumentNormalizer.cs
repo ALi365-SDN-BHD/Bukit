@@ -17,7 +17,7 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
 {
     public ContentDocument Normalize(RawContentDocument raw, ContentModelSchema? schema = null)
     {
-        var fields = raw.CustomFields ?? ToFieldMap(raw.Properties);
+        var fields = ApplyCanonicalMappings(raw.CustomFields ?? ToFieldMap(raw.Properties), schema);
         var diagnostics = BuildDiagnostics(raw, fields, schema);
         var normalizedRaw = raw with { CustomFields = fields };
         return new ContentDocument(
@@ -28,6 +28,50 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
             fields,
             raw.Source,
             diagnostics);
+    }
+
+    private static IReadOnlyDictionary<string, ContentField>? ApplyCanonicalMappings(
+        IReadOnlyDictionary<string, ContentField>? fields,
+        ContentModelSchema? schema)
+    {
+        if (fields is null ||
+            schema?.CanonicalMappings is null ||
+            schema.CanonicalMappings.Count == 0)
+        {
+            return fields;
+        }
+
+        Dictionary<string, ContentField>? projected = null;
+        foreach (var mapping in schema.CanonicalMappings.Values)
+        {
+            if (string.IsNullOrWhiteSpace(mapping.CanonicalField))
+            {
+                continue;
+            }
+
+            var rawKey = string.IsNullOrWhiteSpace(mapping.RawKey)
+                ? mapping.CanonicalField
+                : mapping.RawKey;
+            if (string.Equals(rawKey, mapping.CanonicalField, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (ContentFieldReader.TryGetField(fields, mapping.CanonicalField, out _))
+            {
+                continue;
+            }
+
+            if (!ContentFieldReader.TryGetField(fields, rawKey, out var rawField))
+            {
+                continue;
+            }
+
+            projected ??= new Dictionary<string, ContentField>(fields, StringComparer.OrdinalIgnoreCase);
+            projected[mapping.CanonicalField] = rawField;
+        }
+
+        return projected ?? fields;
     }
 
     private static IReadOnlyDictionary<string, ContentField>? ToFieldMap(IReadOnlyDictionary<string, RawContentValue>? properties)
@@ -56,14 +100,13 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
         var diagnostics = new List<ContentDiagnostic>();
         foreach (var mapping in schema.CanonicalMappings?.Values ?? Array.Empty<CanonicalFieldMapping>())
         {
-            var key = mapping.RawKey ?? mapping.CanonicalField;
-            if (mapping.Required && !ContentFieldReader.TryGetField(fields, key, out _))
+            if (mapping.Required && !ContentFieldReader.TryGetField(fields, mapping.CanonicalField, out _))
             {
                 diagnostics.Add(new ContentDiagnostic(
                     "content.required_canonical_field_missing",
                     "error",
                     $"Required canonical field '{mapping.CanonicalField}' is missing.",
-                    key,
+                    mapping.CanonicalField,
                     raw.Id));
             }
         }
@@ -78,6 +121,25 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
                     $"Required custom field '{definition.Name}' is missing.",
                     definition.Name,
                     raw.Id));
+            }
+        }
+
+        var collection = ContentFieldReader.GetText(fields, "collection")
+            ?? ContentFieldReader.GetText(fields, "type");
+        if (!string.IsNullOrWhiteSpace(collection) &&
+            schema.CollectionFields?.TryGetValue(collection, out var collectionFields) is true)
+        {
+            foreach (var definition in collectionFields)
+            {
+                if (definition.Required && !ContentFieldReader.TryGetField(fields, definition.Name, out _))
+                {
+                    diagnostics.Add(new ContentDiagnostic(
+                        "content.required_collection_field_missing",
+                        "error",
+                        $"Required field '{definition.Name}' is missing for collection '{collection}'.",
+                        definition.Name,
+                        raw.Id));
+                }
             }
         }
 
@@ -107,12 +169,21 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
 
         foreach (var mapping in schema.CanonicalMappings?.Values ?? Array.Empty<CanonicalFieldMapping>())
         {
+            allowed.Add(mapping.CanonicalField);
             allowed.Add(mapping.RawKey ?? mapping.CanonicalField);
         }
 
         foreach (var definition in schema.CustomFields?.Values ?? Array.Empty<CustomFieldDefinition>())
         {
             allowed.Add(definition.Name);
+        }
+
+        foreach (var collectionFields in schema.CollectionFields?.Values ?? Array.Empty<IReadOnlyList<CustomFieldDefinition>>())
+        {
+            foreach (var definition in collectionFields)
+            {
+                allowed.Add(definition.Name);
+            }
         }
 
         foreach (var mapping in schema.EntityMappings?.Values ?? Array.Empty<EntityMapping>())

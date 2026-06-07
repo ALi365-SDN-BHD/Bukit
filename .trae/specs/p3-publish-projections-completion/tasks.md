@@ -12,6 +12,7 @@
 - [x] Add failing tests proving document representation kinds come from one registry.
 - [x] Add failing tests proving aggregate representations are registered with existing output paths.
 - [x] Implement `IPublishProjection`, `PublishProjectionContext`, `PublishProjectionResult`, and `PublishRepresentationRegistry`.
+- [x] Decide external plugin ABI status: keep `IPublishProjection` internal because it depends on internal engine context; external process plugins continue to emit files through after-build protocol outputs.
 - [x] Verify targeted projection tests pass.
 
 ## Phase 2: Projection Writer Refactor

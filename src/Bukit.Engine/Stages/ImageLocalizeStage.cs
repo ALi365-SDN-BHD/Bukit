@@ -26,7 +26,8 @@ internal sealed class ImageLocalizeStage : IContentStage
             input.MediaCacheDir, input.Logger, cancellationToken);
         sw.Stop();
 
-        var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents);
+        var schema = ContentModelSchemaFactory.FromConfig(input.Config);
+        var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents, schema);
 
         return new ContentStageOutput(documents, loadResult.BodyStore, Name, sw.ElapsedMilliseconds, null);
     }

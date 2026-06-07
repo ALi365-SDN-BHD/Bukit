@@ -222,6 +222,177 @@ internal static class ConfigCollectionReader
         return sources;
     }
 
+    internal static ContentModelSchemaConfig? ReadContentModelSchema(YamlMappingNode contentNode)
+    {
+        var node = ConfigYamlHelpers.GetOptionalMapping(contentNode, "modelSchema");
+        if (node is null)
+        {
+            return null;
+        }
+
+        return new ContentModelSchemaConfig
+        {
+            ContentTypes = ConfigYamlHelpers.ReadStringList(node, "contentTypes"),
+            Statuses = ConfigYamlHelpers.ReadStringList(node, "statuses"),
+            ReviewStatuses = ConfigYamlHelpers.ReadStringList(node, "reviewStatuses"),
+            SyncStatuses = ConfigYamlHelpers.ReadStringList(node, "syncStatuses"),
+            CanonicalMappings = ReadCanonicalMappings(node),
+            CustomFields = ReadCustomFields(node),
+            EntityMappings = ReadEntityMappings(node),
+            RelationMappings = ReadRelationMappings(node),
+            Media = ReadMediaPolicy(node),
+            RejectUnknownRawKeys = ConfigYamlHelpers.GetOptionalBool(node, "rejectUnknownRawKeys") ?? false,
+            RequireSummary = ConfigYamlHelpers.GetOptionalBool(node, "requireSummary") ?? false,
+            RequireAuthor = ConfigYamlHelpers.GetOptionalBool(node, "requireAuthor") ?? false,
+            RequireOrganization = ConfigYamlHelpers.GetOptionalBool(node, "requireOrganization") ?? false,
+            RequireUpdatedAt = ConfigYamlHelpers.GetOptionalBool(node, "requireUpdatedAt") ?? false,
+            RequireProvenance = ConfigYamlHelpers.GetOptionalBool(node, "requireProvenance") ?? false,
+            RequireReviewedAt = ConfigYamlHelpers.GetOptionalBool(node, "requireReviewedAt") ?? false,
+            RequireMediaAlt = ConfigYamlHelpers.GetOptionalBool(node, "requireMediaAlt") ?? true,
+            RequireMediaDescription = ConfigYamlHelpers.GetOptionalBool(node, "requireMediaDescription") ?? false,
+            RequireMediaLicense = ConfigYamlHelpers.GetOptionalBool(node, "requireMediaLicense") ?? false,
+            RequireEntityIds = ConfigYamlHelpers.GetOptionalBool(node, "requireEntityIds") ?? false,
+            RequireRelationTargets = ConfigYamlHelpers.GetOptionalBool(node, "requireRelationTargets") ?? true
+        };
+    }
+
+    private static IReadOnlyList<CanonicalFieldMappingConfig>? ReadCanonicalMappings(YamlMappingNode node)
+    {
+        var seq = ConfigYamlHelpers.GetOptionalSequence(node, "canonicalMappings");
+        if (seq is null || seq.Children.Count == 0)
+        {
+            return null;
+        }
+
+        var mappings = new List<CanonicalFieldMappingConfig>();
+        foreach (var child in seq.Children.OfType<YamlMappingNode>())
+        {
+            var canonicalField = ConfigYamlHelpers.GetOptionalString(child, "canonicalField")
+                ?? ConfigYamlHelpers.GetOptionalString(child, "field");
+            if (string.IsNullOrWhiteSpace(canonicalField))
+            {
+                continue;
+            }
+
+            mappings.Add(new CanonicalFieldMappingConfig
+            {
+                CanonicalField = canonicalField,
+                RawKey = ConfigYamlHelpers.GetOptionalString(child, "rawKey"),
+                SemanticType = ConfigYamlHelpers.GetOptionalString(child, "semanticType"),
+                Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false
+            });
+        }
+
+        return mappings.Count == 0 ? null : mappings;
+    }
+
+    private static IReadOnlyList<CustomFieldDefinitionConfig>? ReadCustomFields(YamlMappingNode node)
+    {
+        var seq = ConfigYamlHelpers.GetOptionalSequence(node, "customFields");
+        if (seq is null || seq.Children.Count == 0)
+        {
+            return null;
+        }
+
+        var fields = new List<CustomFieldDefinitionConfig>();
+        foreach (var child in seq.Children.OfType<YamlMappingNode>())
+        {
+            var name = ConfigYamlHelpers.GetOptionalString(child, "name");
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            fields.Add(new CustomFieldDefinitionConfig
+            {
+                Name = name,
+                FieldType = ConfigYamlHelpers.GetOptionalString(child, "fieldType")
+                    ?? ConfigYamlHelpers.GetOptionalString(child, "type")
+                    ?? "string",
+                Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
+                SemanticType = ConfigYamlHelpers.GetOptionalString(child, "semanticType")
+            });
+        }
+
+        return fields.Count == 0 ? null : fields;
+    }
+
+    private static IReadOnlyList<EntityMappingConfig>? ReadEntityMappings(YamlMappingNode node)
+        => ReadSchemaMappings(node, "entityMappings", child =>
+        {
+            var rawKey = ConfigYamlHelpers.GetOptionalString(child, "rawKey");
+            var entityType = ConfigYamlHelpers.GetOptionalString(child, "entityType")
+                ?? ConfigYamlHelpers.GetOptionalString(child, "type");
+            return string.IsNullOrWhiteSpace(rawKey) || string.IsNullOrWhiteSpace(entityType)
+                ? null
+                : new EntityMappingConfig
+                {
+                    RawKey = rawKey,
+                    EntityType = entityType,
+                    IdField = ConfigYamlHelpers.GetOptionalString(child, "idField"),
+                    NameField = ConfigYamlHelpers.GetOptionalString(child, "nameField"),
+                    Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false
+                };
+        });
+
+    private static IReadOnlyList<RelationMappingConfig>? ReadRelationMappings(YamlMappingNode node)
+        => ReadSchemaMappings(node, "relationMappings", child =>
+        {
+            var rawKey = ConfigYamlHelpers.GetOptionalString(child, "rawKey");
+            var relationType = ConfigYamlHelpers.GetOptionalString(child, "relationType")
+                ?? ConfigYamlHelpers.GetOptionalString(child, "type");
+            return string.IsNullOrWhiteSpace(rawKey) || string.IsNullOrWhiteSpace(relationType)
+                ? null
+                : new RelationMappingConfig
+                {
+                    RawKey = rawKey,
+                    RelationType = relationType,
+                    TargetType = ConfigYamlHelpers.GetOptionalString(child, "targetType"),
+                    Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false
+                };
+        });
+
+    private static IReadOnlyList<T>? ReadSchemaMappings<T>(
+        YamlMappingNode node,
+        string key,
+        Func<YamlMappingNode, T?> read)
+    {
+        var seq = ConfigYamlHelpers.GetOptionalSequence(node, key);
+        if (seq is null || seq.Children.Count == 0)
+        {
+            return null;
+        }
+
+        var values = new List<T>();
+        foreach (var child in seq.Children.OfType<YamlMappingNode>())
+        {
+            var value = read(child);
+            if (value is not null)
+            {
+                values.Add(value);
+            }
+        }
+
+        return values.Count == 0 ? null : values;
+    }
+
+    private static MediaPolicyConfig? ReadMediaPolicy(YamlMappingNode node)
+    {
+        var mediaNode = ConfigYamlHelpers.GetOptionalMapping(node, "media");
+        if (mediaNode is null)
+        {
+            return null;
+        }
+
+        return new MediaPolicyConfig
+        {
+            RequireAlt = ConfigYamlHelpers.GetOptionalBool(mediaNode, "requireAlt") ?? true,
+            RequireDescription = ConfigYamlHelpers.GetOptionalBool(mediaNode, "requireDescription") ?? false,
+            RequireLicense = ConfigYamlHelpers.GetOptionalBool(mediaNode, "requireLicense") ?? false,
+            AllowedKinds = ConfigYamlHelpers.ReadStringList(mediaNode, "allowedKinds")
+        };
+    }
+
     internal static ContentSourceConfig ReadSource(YamlMappingNode sourceNode)
     {
         var type = ConfigYamlHelpers.GetRequiredString(sourceNode, "type");

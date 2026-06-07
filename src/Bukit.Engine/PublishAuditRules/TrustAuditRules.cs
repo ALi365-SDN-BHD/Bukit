@@ -2,7 +2,7 @@ namespace Bukit.Engine.PublishAuditRules;
 
 internal static class TrustAuditRules
 {
-    internal static void Analyze(PublishDocument document, List<SeoAuditIssue> issues)
+    internal static void Analyze(PublishDocument document, List<PublishAuditIssue> issues)
     {
         if (!document.Indexable ||
             string.Equals(document.ContentType, "list", StringComparison.OrdinalIgnoreCase))
@@ -55,5 +55,5 @@ internal static class TrustAuditRules
         }
     }
 
-    private static SeoAuditIssue Warning(string code, string? route, string message) => new("warning", code, route, message);
+    private static PublishAuditIssue Warning(string code, string? route, string message) => new("warning", code, route, message);
 }

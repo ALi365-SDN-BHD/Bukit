@@ -590,18 +590,25 @@ Tests:
 
 Files:
 
-- Add: `src/Bukit.Engine/Normalization/ContentNormalizer.cs`
-- Add: `src/Bukit.Engine/Normalization/ContentModelSchema.cs`
+- Implemented: `src/Bukit.Engine/ContentDocumentNormalizer.cs`
+- Implemented: `src/Bukit.Engine/ContentModelSchemaFactory.cs`
+- Implemented: `src/Bukit.Engine.Abstractions/ContentModelSchema.cs`
+- Modified: `src/Bukit.Config/AppConfig.cs`
+- Modified: `src/Bukit.Config/ConfigCollectionReader.cs`
+- Modified: `src/Bukit.Config/ConfigLoader.cs`
 - Modify: `CanonicalContentGraphBuilder`
 - Modify: `CanonicalContentValidator`
 - Modify: `ContentSchemaValidator`
 
 Tests:
 
-- Markdown raw input normalizes to canonical document.
-- Notion raw input normalizes to the same canonical fields.
-- Unknown raw key fails unless declared as custom field.
-- Route and publish policies normalize from raw input.
+- [x] `content.modelSchema` is read from `site.yaml`.
+- [x] `ContentLoadStage` passes the schema to the normalizer.
+- [x] Unknown raw keys produce canonical diagnostics when `rejectUnknownRawKeys` is enabled.
+- [x] `site.collections.*.schema` projects into `ContentModelSchema.CollectionFields`.
+- [x] Required collection fields produce canonical diagnostics through `ContentGraphValidateStage`.
+- [x] Route and publish policies normalize from raw input.
+- [ ] Notion raw input coverage should be extended to assert the same schema-driven mapping contract as Markdown.
 
 ### Task D: Providers
 
@@ -635,8 +642,20 @@ Tests:
 - Route generation from `ContentDocument.Route` and `Record.Classification`.
 - SEO/search/feed/audit output from `ContentRecord`.
 - No expired/draft/noindex data leaks into outputs.
+- [x] Publish audit report now exposes publish-native `PublishAuditIssue` instead of `SeoAuditIssue`.
+- [x] `MachineReadabilityTrustAuditBuilder.Build` is the preferred publish audit construction entrypoint.
+- [x] Publish audit rules now emit `PublishAuditIssue`; SEO reports receive converted compatibility issues.
+- [x] Removed the old `SeoAuditReportWriter.BuildMachineReadabilityTrustAudit` entrypoint.
+- [x] Moved the remaining `BuildPublishAuditCore` implementation body into `MachineReadabilityTrustAuditBuilder.Core.cs`.
 
 ### Task F: Rendering, Themes, Plugins, CLI
+
+Projection plugin ABI decision:
+
+- [x] Keep engine `IPublishProjection` internal for vNext because its context depends on internal AppConfig, route, SEO, rendering, variant, and plugin build-context types.
+- [x] External process plugins should continue to emit additional machine-readable files through after-build protocol outputs.
+
+Future work: design a separate public projection plugin ABI before supporting third-party `IPublishProjection` implementations.
 
 Files:
 
