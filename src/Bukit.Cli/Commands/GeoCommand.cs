@@ -31,6 +31,12 @@ public static class GeoCommand
             return preferred;
         }
 
+        var compatible = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
+        if (File.Exists(compatible))
+        {
+            return compatible;
+        }
+
         return null;
     }
 
@@ -60,6 +66,7 @@ public static class GeoCommand
         try
         {
             using var doc = await JsonDocument.ParseAsync(File.OpenRead(reportPath));
+            SeoReportValidator.ValidateReportContract(doc.RootElement, SeoReportValidator.AuditReportContract.SeoOrPublish);
 
             foreach (var document in EnumerateAuditDocuments(doc.RootElement))
             {
@@ -145,6 +152,11 @@ public static class GeoCommand
         catch (JsonException ex)
         {
             Console.Error.WriteLine($"Invalid audit report JSON: {ex.Message}");
+            return 1;
+        }
+        catch (InvalidDataException ex)
+        {
+            Console.Error.WriteLine($"Invalid audit report: {ex.Message}");
             return 1;
         }
 

@@ -210,6 +210,26 @@ public sealed class SiteEngine
         return buildResult;
     }
 
+    private static IReadOnlyList<ContentDocument> FilterDocumentsByLanguage(
+        IReadOnlyList<ContentDocument> documents,
+        string language,
+        string defaultLanguage)
+    {
+        return documents
+            .Where(document =>
+            {
+                var docLanguage = document.Record.Presentation.Language;
+                if (string.IsNullOrWhiteSpace(docLanguage) ||
+                    string.Equals(docLanguage, "und", StringComparison.OrdinalIgnoreCase))
+                {
+                    return string.Equals(language, defaultLanguage, StringComparison.OrdinalIgnoreCase);
+                }
+
+                return string.Equals(docLanguage, language, StringComparison.OrdinalIgnoreCase);
+            })
+            .ToArray();
+    }
+
     private async Task<BuildVariantResult> BuildVariantAsync(
         BuildVariantContext ctx,
         DirectoryHashCache templateHashCache,

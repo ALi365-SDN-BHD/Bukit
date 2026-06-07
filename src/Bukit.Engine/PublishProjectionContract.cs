@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Rendering;
 using Bukit.Shared;
 
 namespace Bukit.Engine;

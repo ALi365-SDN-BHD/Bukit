@@ -117,4 +117,49 @@ internal static class DataModuleBuilder
 
         return result.Count == 0 ? null : result;
     }
+
+    private static string? TryGetTextField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static bool? TryGetBoolField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        var value = TryGetTextField(fields, key);
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (bool.TryParse(value, out var parsed))
+        {
+            return parsed;
+        }
+
+        if (string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(value, "0", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "no", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return null;
+    }
+
+    private static double? TryGetNumberField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        var value = TryGetTextField(fields, key);
+        return double.TryParse(value, out var parsed) ? parsed : null;
+    }
 }

@@ -177,7 +177,7 @@ public sealed class NotionContentProvider : IContentProvider
                 PublishAt: d.PublishAt,
                 Body: new RawBody(BodyKey: d.PageId),
                 Properties: RawContentValue.FromFields(fields),
-                Source: new ContentSourceInfo("notion", SourcePath: d.PageId),
+                Source: new ContentSourceInfo("notion", SourcePath: d.PageId, ExternalId: d.PageId, SyncStatus: "loaded"),
                 CustomFields: fields
             ));
         }

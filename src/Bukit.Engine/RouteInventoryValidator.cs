@@ -7,6 +7,15 @@ using Bukit.Shared;
 
 namespace Bukit.Engine;
 
+public sealed record RouteInventoryInspectEntry(
+    string Url,
+    string OutputPath,
+    string Template,
+    string? Collection,
+    string? Type,
+    string? Language,
+    string RouteSource);
+
 public static class RouteInventoryValidator
 {
     /// <summary>
@@ -174,6 +183,14 @@ public static class RouteInventoryValidator
     {
         internal static RouteInventoryEntry ForContent(ContentDocument document, RouteInfo route, string scope)
             => new(scope, document.Id, document.Title, document.Slug, route);
+
+        internal static RouteInventoryEntry ForContentDocument(ContentDocument document, RouteInfo route, string scope)
+            => new(
+                scope,
+                document.Record.Identity.Id,
+                document.Record.Presentation.Title,
+                document.Record.Identity.Slug,
+                route);
 
         internal static RouteInventoryEntry ForRoute(RouteInfo route)
             => new("special", null, null, null, route);

@@ -65,6 +65,17 @@ internal static class TaxonomyTermsInjector
         }
     }
 
+    private static string? GetTextField(IReadOnlyDictionary<string, ContentField>? fields, string key)
+    {
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        var value = field.Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
     internal static async Task InjectFromNotionDatabaseOptionsAsync(BuildContext context, CancellationToken cancellationToken)
     {
         var token = EnvironmentHelper.GetNotionToken();

@@ -78,6 +78,43 @@ public sealed class NotionContentProviderEndToEndTests
     }
 
     [Fact]
+    public async Task LoadRawAsync_WithFakeNotionApi_ReturnsRawContentDocuments()
+    {
+        var handler = new FakeNotionHandler();
+        var options = new NotionProviderOptions
+        {
+            DatabaseId = "db-123",
+            Token = "secret-token",
+            RequestDelayMs = 0,
+            FilterType = "checkbox_true",
+            FilterProperty = "Published",
+            SortProperty = "PublishAt",
+            SortDirection = "descending",
+            FieldPolicyMode = "all",
+            RenderContent = false
+        };
+
+        NotionApiClient CreateClient() =>
+            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+
+        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+
+        var result = await provider.LoadRawAsync();
+
+        var raw = Assert.Single(result.Documents);
+        Assert.Equal("page-1", raw.SourceId);
+        Assert.Equal("notion", raw.Source.Provider);
+        Assert.Equal("page-1", raw.Source.ExternalId);
+        Assert.Equal("Hello Notion", raw.Title);
+        Assert.Equal("hello-notion", raw.Slug);
+        var properties = Assert.IsAssignableFrom<IReadOnlyDictionary<string, RawContentValue>>(raw.Properties);
+        var fields = Assert.IsAssignableFrom<IReadOnlyDictionary<string, ContentField>>(raw.CustomFields);
+        Assert.Equal("post", properties["type"].Value);
+        Assert.Equal("en", properties["language"].Value);
+        Assert.True(fields.ContainsKey("summary"));
+    }
+
+    [Fact]
     public async Task LoadAsync_WithWhitelistFieldPolicy_FiltersUnallowedFieldsBeforeMetaPromotion()
     {
         var handler = new FieldPolicyHandler();

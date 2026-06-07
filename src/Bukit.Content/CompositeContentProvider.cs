@@ -56,7 +56,7 @@ public sealed class CompositeContentProvider : IContentProvider
 
                 all.Add(item with
                 {
-                    Id = $"{sourceKey}:{item.Id}",
+                    SourceId = $"{sourceKey}:{item.Id}",
                     Body = item.Body with
                     {
                         BodyKey = item.Body.BodyKey is null
@@ -64,7 +64,8 @@ public sealed class CompositeContentProvider : IContentProvider
                             : $"{sourceKey}:{item.Body.BodyKey}"
                     },
                     CustomFields = fields,
-                    Properties = RawContentValue.FromFields(fields)
+                    Properties = RawContentValue.FromFields(fields),
+                    Source = item.Source with { SourceKey = sourceKey }
                 });
 
                 if (addToCollections is null)
@@ -86,7 +87,7 @@ public sealed class CompositeContentProvider : IContentProvider
 
                     all.Add(item with
                     {
-                        Id = $"{sourceKey}:{item.Id}:{extraCollection.Trim()}",
+                        SourceId = $"{sourceKey}:{item.Id}:{extraCollection.Trim()}",
                         Body = item.Body with
                         {
                             BodyKey = item.Body.BodyKey is null
@@ -94,7 +95,8 @@ public sealed class CompositeContentProvider : IContentProvider
                                 : $"{sourceKey}:{item.Body.BodyKey}"
                         },
                         CustomFields = extraFields,
-                        Properties = RawContentValue.FromFields(extraFields)
+                        Properties = RawContentValue.FromFields(extraFields),
+                        Source = item.Source with { SourceKey = sourceKey }
                     });
                 }
             }

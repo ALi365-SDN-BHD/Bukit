@@ -324,9 +324,35 @@ public static class SeoAlternatesService
         return result;
     }
 
-    internal static IReadOnlyList<string>? GetSeoStringList(IReadOnlyDictionary<string, object> meta, string key)
+    internal static IReadOnlyList<string>? GetSeoStringList(IReadOnlyDictionary<string, ContentField>? fields, string key)
     {
-        if (!meta.TryGetValue(key, out var value) || value is null)
+        if (fields is null || !fields.TryGetValue(key, out var field) || field.Value is null)
+        {
+            return null;
+        }
+
+        if (field.Value is string text)
+        {
+            var parts = text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length == 0 ? null : parts;
+        }
+
+        if (field.Value is IEnumerable<object> values)
+        {
+            var list = values
+                .Select(x => x?.ToString()?.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!)
+                .ToList();
+            return list.Count == 0 ? null : list;
+        }
+
+        return null;
+    }
+
+    internal static IReadOnlyList<string>? GetSeoStringList(IReadOnlyDictionary<string, object>? valuesByKey, string key)
+    {
+        if (valuesByKey is null || !valuesByKey.TryGetValue(key, out var value) || value is null)
         {
             return null;
         }

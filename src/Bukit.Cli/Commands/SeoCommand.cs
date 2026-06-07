@@ -13,6 +13,12 @@ public static class SeoCommand
             return preferred;
         }
 
+        var compatible = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
+        if (File.Exists(compatible))
+        {
+            return compatible;
+        }
+
         return null;
     }
 
@@ -186,7 +192,8 @@ public static class SeoCommand
             using var currentDoc = JsonDocument.Parse(File.ReadAllText(Path.GetFullPath(currentPath)));
             var baselineContract = AuditReportContractValidator.ValidateReportContract(baselineDoc.RootElement, contract);
             var currentContract = AuditReportContractValidator.ValidateReportContract(currentDoc.RootElement, contract);
-            if (baselineContract != currentContract)
+            if (baselineContract != currentContract &&
+                contract != SeoReportValidator.AuditReportContract.SeoOrPublish)
             {
                 throw new InvalidDataException(
                     $"Cannot diff different report schema kinds: baseline uses {baselineContract} and current uses {currentContract}. " +

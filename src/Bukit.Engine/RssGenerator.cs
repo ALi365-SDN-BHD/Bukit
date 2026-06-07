@@ -179,11 +179,6 @@ public static class RssGenerator
         return value.Replace("]]>", "]]]]><![CDATA[>", StringComparison.Ordinal);
     }
 
-    private static string? GetString(IReadOnlyDictionary<string, object> meta, string key)
-    {
-        return meta.TryGetValue(key, out var v) && v is not null ? v.ToString() : null;
-    }
-
     internal static List<Post>? BuildPostsFromSeoIndex(
         IReadOnlyDictionary<string, SeoIndexEntry>? seoIndex,
         IReadOnlyList<RoutedContentDocument> routed,

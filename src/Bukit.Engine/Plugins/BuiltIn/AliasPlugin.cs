@@ -39,6 +39,12 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
                 var html = BuildRedirectHtml($"{baseUrl}{targetUrl}");
                 var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(aliasUrl, context.Config.Site.OutputPathEncoding);
                 var aliasRoute = new RouteInfo(aliasUrl, outputPath, null!);
+                var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["type"] = new("text", "redirect"),
+                    ["collection"] = new("text", "redirect"),
+                    ["excludeFromSitemap"] = new("bool", true)
+                };
 
                 var aliasDocument = DerivedContentDocumentFactory.Create(
                     id: $"alias-{document.Id}-{EscapePath(alias)}",

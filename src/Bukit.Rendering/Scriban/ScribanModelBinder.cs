@@ -265,6 +265,30 @@ public static class ScribanModelBinder
         return obj;
     }
 
+    private static ScriptObject ToScriptObject(ContentRoutePolicy model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("url", model.Url, readOnly: true);
+        obj.SetValue("output_path", model.OutputPath, readOnly: true);
+        obj.SetValue("template", model.Template, readOnly: true);
+        obj.SetValue("permalink_pattern", model.PermalinkPattern, readOnly: true);
+        obj.SetValue("list_group", model.ListGroup, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(ContentPublishPolicy model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("draft", model.Draft, readOnly: true);
+        obj.SetValue("noindex", model.NoIndex, readOnly: true);
+        obj.SetValue("nofollow", model.NoFollow, readOnly: true);
+        obj.SetValue("exclude_from_feed", model.ExcludeFromFeed, readOnly: true);
+        obj.SetValue("exclude_from_search", model.ExcludeFromSearch, readOnly: true);
+        obj.SetValue("exclude_from_sitemap", model.ExcludeFromSitemap, readOnly: true);
+        obj.SetValue("is_data_module", model.IsDataModule, readOnly: true);
+        return obj;
+    }
+
     private static ScriptObject ToScriptObject(ProvenanceRecord model)
     {
         var obj = new ScriptObject();

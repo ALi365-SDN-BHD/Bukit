@@ -35,6 +35,8 @@ public sealed record PageInfo
     public IReadOnlyDictionary<string, ContentField>? Fields { get; init; }
     public SeoModel? Seo { get; init; }
     public ContentRecord? ContentRecord { get; init; }
+    public ContentRoutePolicy? Route { get; init; }
+    public ContentPublishPolicy? Publish { get; init; }
     public IReadOnlyList<EntityRecord>? Entities { get; init; }
     public ProvenanceRecord? Provenance { get; init; }
     public TrustMetadata? Trust { get; init; }
