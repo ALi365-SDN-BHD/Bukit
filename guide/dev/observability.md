@@ -52,11 +52,11 @@ Each content loading stage logs its completion with name and duration:
 event=content.stage stage=ContentLoad duration_ms=234
 event=content.stage stage=ImageLocalize duration_ms=156
 event=content.stage stage=DraftFilter duration_ms=1
-event=content.stage stage=SchemaDefaults duration_ms=3
-event=content.stage stage=SchemaValidate duration_ms=12
+event=content.stage stage=ContentGraphValidate duration_ms=3
+event=content.stage stage=CollectionWarning duration_ms=12
 ```
 
-Stages: `ContentLoad` → `ImageLocalize` → `DraftFilter` → `SchemaDefaults` → `SchemaValidate`. Implementation: `src/Bukit.Engine/ContentPipeline.cs`, `src/Bukit.Engine/Stages/`.
+Stages: `ContentLoad` → `ImageLocalize` → `DraftFilter` → `ContentGraphValidate` → `CollectionWarning`. Implementation: `src/Bukit.Engine/ContentPipeline.cs`, `src/Bukit.Engine/Stages/`.
 
 ## Build Metrics (`--metrics <path>`)
 

@@ -79,6 +79,7 @@ public static class ConfigJsonSchemaGenerator
                 ("includePaths", StringArraySchema()),
                 ("includeGlobs", StringArraySchema()))))),
             ("media", MediaSchema()),
+            ("modelSchema", ContentModelSchemaSchema()),
             ("sources", Obj(("type", "array"), ("items", ContentSourceItemSchema()))),
             ("notion", NotionSchema()));
         return schema;
@@ -387,8 +388,7 @@ public static class ConfigJsonSchemaGenerator
             ("schemaFailMode", EnumSchema("off", "warn", "strict")),
             ("pagination", CollectionPaginationSchema()),
             ("output", CollectionOutputSchema()),
-            ("filteredLists", Obj(("type", "array"), ("items", CollectionFilteredListItemSchema()))),
-            ("schema", Obj(("type", "array"), ("items", CollectionSchemaFieldItemSchema()))));
+            ("filteredLists", Obj(("type", "array"), ("items", CollectionFilteredListItemSchema()))));
         return schema;
     }
 
@@ -427,22 +427,105 @@ public static class ConfigJsonSchemaGenerator
         return schema;
     }
 
-    private static JsonObject CollectionSchemaFieldItemSchema()
+    private static JsonObject ContentModelSchemaSchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("contentTypes", StringArraySchema()),
+            ("statuses", StringArraySchema()),
+            ("reviewStatuses", StringArraySchema()),
+            ("syncStatuses", StringArraySchema()),
+            ("canonicalMappings", Obj(("type", "array"), ("items", CanonicalFieldMappingSchema()))),
+            ("customFields", Obj(("type", "array"), ("items", ContentModelFieldSchema()))),
+            ("fieldScopes", Obj(("type", "object"), ("additionalProperties", Obj(("type", "array"), ("items", ContentModelFieldSchema()))))),
+            ("scopedFields", Obj(("type", "object"), ("additionalProperties", Obj(("type", "array"), ("items", ContentModelFieldSchema()))))),
+            ("entityMappings", Obj(("type", "array"), ("items", EntityMappingSchema()))),
+            ("relationMappings", Obj(("type", "array"), ("items", RelationMappingSchema()))),
+            ("media", ContentModelMediaPolicySchema()),
+            ("rejectUnknownRawKeys", BoolSchema()),
+            ("requireSummary", BoolSchema()),
+            ("requireAuthor", BoolSchema()),
+            ("requireOrganization", BoolSchema()),
+            ("requireUpdatedAt", BoolSchema()),
+            ("requireProvenance", BoolSchema()),
+            ("requireReviewedAt", BoolSchema()),
+            ("requireMediaAlt", BoolSchema()),
+            ("requireMediaDescription", BoolSchema()),
+            ("requireMediaLicense", BoolSchema()),
+            ("requireEntityIds", BoolSchema()),
+            ("requireRelationTargets", BoolSchema()))));
+
+    private static JsonObject CanonicalFieldMappingSchema()
+        => Obj(("type", "object"), ("required", Arr("canonicalField")), ("properties", Obj(
+            ("canonicalField", StringSchema()),
+            ("field", StringSchema()),
+            ("rawKey", StringSchema()),
+            ("semanticType", StringSchema()),
+            ("required", BoolSchema()))));
+
+    private static JsonObject ContentModelFieldSchema()
     {
         var schema = Obj(("type", "object"));
         schema["required"] = Arr("name");
         schema["properties"] = Obj(
             ("name", StringSchema()),
             ("type", StringSchema()),
+            ("fieldType", StringSchema()),
             ("label", StringSchema()),
+            ("semanticType", StringSchema()),
             ("format", StringSchema()),
             ("enum", StringArraySchema()),
             ("min", Obj(("type", "number"))),
             ("max", Obj(("type", "number"))),
             ("required", BoolSchema()),
-            ("default", Obj()));
+            ("default", Obj()),
+            ("sourcePolicy", StringSchema()),
+            ("reference", ContentReferenceRuleSchema()),
+            ("referenceRule", ContentReferenceRuleSchema()));
         return schema;
     }
+
+    private static JsonObject EntityMappingSchema()
+        => Obj(("type", "object"), ("required", Arr("rawKey", "entityType")), ("properties", Obj(
+            ("rawKey", StringSchema()),
+            ("entityType", StringSchema()),
+            ("type", StringSchema()),
+            ("idField", StringSchema()),
+            ("nameField", StringSchema()),
+            ("descriptionField", StringSchema()),
+            ("urlField", StringSchema()),
+            ("sameAsField", StringSchema()),
+            ("required", BoolSchema()),
+            ("reference", ContentReferenceRuleSchema()),
+            ("referenceRule", ContentReferenceRuleSchema()))));
+
+    private static JsonObject RelationMappingSchema()
+        => Obj(("type", "object"), ("required", Arr("rawKey", "relationType")), ("properties", Obj(
+            ("rawKey", StringSchema()),
+            ("relationType", StringSchema()),
+            ("type", StringSchema()),
+            ("targetType", StringSchema()),
+            ("targetField", StringSchema()),
+            ("labelField", StringSchema()),
+            ("targetIdField", StringSchema()),
+            ("idField", StringSchema()),
+            ("required", BoolSchema()),
+            ("reference", ContentReferenceRuleSchema()),
+            ("referenceRule", ContentReferenceRuleSchema()))));
+
+    private static JsonObject ContentReferenceRuleSchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("targetType", StringSchema()),
+            ("idField", StringSchema()),
+            ("labelField", StringSchema()),
+            ("nameField", StringSchema()),
+            ("urlField", StringSchema()),
+            ("required", BoolSchema()))));
+
+    private static JsonObject ContentModelMediaPolicySchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("requireAlt", BoolSchema()),
+            ("requireDescription", BoolSchema()),
+            ("requireLicense", BoolSchema()),
+            ("allowedKinds", StringArraySchema()))));
 
     private static JsonObject StringSchema() => Obj(("type", "string"));
 

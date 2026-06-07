@@ -11,9 +11,9 @@ public sealed class ContentSchemaValidatorExtendedTests
     {
         var schema = new[]
         {
-            new SchemaFieldDefinition { Name = "status", Type = "string", Enum = new[] { "draft", "published" } },
-            new SchemaFieldDefinition { Name = "canonical", Type = "string", Format = "url" },
-            new SchemaFieldDefinition { Name = "score", Type = "number", Min = 1, Max = 10 }
+            new CustomFieldDefinitionConfig { Name = "status", FieldType = "string", Enum = new[] { "draft", "published" } },
+            new CustomFieldDefinitionConfig { Name = "canonical", FieldType = "string", Format = "url" },
+            new CustomFieldDefinitionConfig { Name = "score", FieldType = "number", Min = 1, Max = 10 }
         };
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {

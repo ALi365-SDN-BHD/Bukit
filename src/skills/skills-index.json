@@ -246,10 +246,10 @@
       "type": "technique",
       "priority": 6,
       "path": "src/skills/bukit-content-to-template/SKILL.md",
-      "description": "Schema-driven template generation — maps collection schema definitions to precise Scriban templates ensuring every field is correctly rendered.\n",
+      "description": "Schema-driven template generation — maps content model field scope definitions to precise Scriban templates ensuring every field is correctly rendered.\n",
       "triggers": [
         {
-          "pattern": "schema.*template|generate template.*schema|collection schema.*template",
+          "pattern": "schema.*template|generate template.*schema|content model field scope.*template",
           "languages": [
             "en",
             "zh-CN",

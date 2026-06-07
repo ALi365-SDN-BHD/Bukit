@@ -408,7 +408,7 @@ Collection routing is Bukit's core routing model. Each entry must declare:
 | `output.archive` | bool | false | Whether to generate yearly archives |
 | `output.archiveDetail` | map | — | Archive detail config: `depth` (yearly/monthly/daily), `template`, `routePrefix` |
 | `filteredLists` | array | — | Sub-list pages filtered by field value. Each entry: `{field, value, listRoute, listTemplate?}`. Items whose front matter `field` value matches `value` are grouped into a separate list page. |
-| `schema` | array | — | Content field validation schema. Each entry: `{name, type, label, required, default}` |
+| `content.modelSchema.fieldScopes.<collection>` | array | — | Scoped content model fields. Each entry: `{name, type/fieldType, label, required, default}` |
 
 ## Feed Configuration (site.feed)
 
@@ -694,34 +694,36 @@ theme:
 ### Schema Validation
 
 ```yaml
-collections:
-  posts:
-    schema:
-      - name: featured
-        type: bool
-        required: true
-      - name: rating
-        type: number
-        min: 1
-        max: 5
-      - name: status
-        type: string
-        enum: [draft, published]
-        default: draft
+content:
+  modelSchema:
+    fieldScopes:
+      posts:
+        - name: featured
+          type: bool
+          required: true
+        - name: rating
+          type: number
+          min: 1
+          max: 5
+        - name: status
+          type: string
+          enum: [draft, published]
+          default: draft
 ```
 
-Supported schema keys: `name`, `type`, `label`, `required`, `default`, `enum`, `format`, `min`, `max`. `type` values: `string|text` — Text value (`text` is an alias for `string`, both validate the same way); `number`; `bool`; `date`; `array`; `select`; `multi_select`; `image`. Formats include `url`/`uri`, `email`, `date`/`datetime`, and `slug`; defaults are applied before schema validation.
+Scoped fields now live under `content.modelSchema.fieldScopes.<collection>`; the old collection-level `schema` key is removed in vNext. Supported field keys: `name`, `type`/`fieldType`, `label`, `required`, `default`, `enum`, `format`, `min`, `max`, `semanticType`, `sourcePolicy`, and `reference`. Type values include `string|text`, `number`, `bool`, `date`, and `array`; formats include `url`/`uri`, `email`, `date`/`datetime`, and `slug`; defaults are applied before schema validation.
 
 ### Schema Validation Error Codes
 
 | Code | Description |
 |------|-------------|
-| `required` | A required schema field is missing from the content front matter. |
-| `type_mismatch` | The value type does not match the schema field type declaration. |
-| `unknown_field` | A field exists in content front matter but is not declared in the collection schema. Known system fields (`collection`, `type`, `draft`, `title`, `slug`, `seo_title`, `seo_desc`, `description`, `summary`, `excerpt`, `image`, `icon`, `tags`, `categories`, `author`, `created`, `modified`, `published`, `updated`, `template`, `layout`, `source`, `sourcePath`, `path`, `file`, `weight`, `order`, `schema_type`, `geo_schema_type`) are excluded from this check. |
-| `enum_invalid` | The value is not one of the allowed `enum` values. |
-| `format_invalid` | The value does not match the expected format (e.g., `url`, `email`, `date`). |
-| `min_violation` / `max_violation` | Numeric value is outside the allowed range. |
+| `content.required_custom_field_missing` | A required content model custom field is missing. |
+| `content.required_collection_field_missing` | A required scoped field is missing for the document collection. |
+| `content.unknown_raw_key` | `rejectUnknownRawKeys: true` found a raw key not declared by canonical mappings, custom fields, field scopes, entity mappings, or relation mappings. In vNext this fails during normalization. |
+| `content.custom_field_type_mismatch` | The value type does not match the content model field declaration. |
+| `content.custom_field_enum_mismatch` | The value is not one of the allowed `enum` values. |
+| `content.custom_field_format_mismatch` | The value does not match the expected format (e.g., `url`, `email`, `date`). |
+| `content.custom_field_range_mismatch` | Numeric or text-length value is outside the allowed range. |
 
 ### Environment Overrides
 
@@ -832,16 +834,16 @@ The content loading pipeline is internally organized as a sequence of independen
 | 1 | `ContentLoad` | Creates the content provider and loads all content items |
 | 2 | `ImageLocalize` | Downloads and localizes remote images in content HTML |
 | 3 | `DraftFilter` | Filters out items with `draft: true` (unless `build.draft: true`) |
-| 4 | `SchemaDefaults` | Applies collection schema default values to missing fields |
-| 5 | `SchemaValidate` | Validates each item against its collection schema (warn or strict) |
+| 4 | `ContentGraphValidate` | Validates canonical content records and content model schema rules |
+| 5 | `CollectionWarning` | Emits collection-level content warnings |
 
 Each stage logs its completion with duration:
 ```
 event=content.stage stage=ContentLoad duration_ms=234
 event=content.stage stage=ImageLocalize duration_ms=156
 event=content.stage stage=DraftFilter duration_ms=1
-event=content.stage stage=SchemaDefaults duration_ms=3
-event=content.stage stage=SchemaValidate duration_ms=12
+event=content.stage stage=ContentGraphValidate duration_ms=3
+event=content.stage stage=CollectionWarning duration_ms=12
 ```
 
 These stages can be extended or reordered via `IContentStage` (plugin development).
@@ -889,7 +891,7 @@ SSRF protection is also applied to `CloneCommand` (theme asset downloads) and `S
 
 ## JSON Schema (P3-2)
 
-`bukit config schema` generates a complete JSON Schema for `site.yaml` including all 18 collection sub-fields: `permalink`, `template`, `listRoute`, `listTemplate`, `pagination` (enabled/pageSize/urlPattern/firstPageUsesListRoute), `output` (rss/sitemap/archive/archiveDetail/feedPath/feedTitle/feedDescription), `filteredLists`, `schema` (all SchemaFieldDefinition properties), `sortBy`, `sortDirection`, `filter`, `pageSize`, `taxonomy`, `deriveArchive`, `source`, `label`.
+`bukit config schema` generates a complete JSON Schema for `site.yaml` including collection routing fields (`permalink`, `template`, `listRoute`, `listTemplate`, `pagination`, `output`, `filteredLists`) and the vNext content model schema surface (`content.modelSchema.canonicalMappings`, `customFields`, `fieldScopes`, `entityMappings`, `relationMappings`, and `media`).
 
 ## Checklist: New Site Config Review
 

@@ -371,6 +371,12 @@ public sealed class ConfigLoaderTests : IDisposable
                       labelField: title
                       urlField: url
                       required: true
+                fieldScopes:
+                  posts:
+                    - name: postDeck
+                      type: string
+                      required: true
+                      default: standard
                 entityMappings:
                   - rawKey: companies
                     entityType: company
@@ -433,6 +439,13 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("url", custom.Reference.UrlField);
         Assert.True(custom.Reference.Required);
 
+        Assert.NotNull(schema.FieldScopes);
+        var scoped = Assert.Single(schema.FieldScopes!["posts"]);
+        Assert.Equal("postDeck", scoped.Name);
+        Assert.Equal("string", scoped.FieldType);
+        Assert.True(scoped.Required);
+        Assert.Equal("standard", scoped.Default);
+
         var entity = Assert.Single(schema.EntityMappings!);
         Assert.Equal("companies", entity.RawKey);
         Assert.Equal("company", entity.EntityType);
@@ -460,6 +473,28 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.NotNull(schema.Media);
         Assert.False(schema.Media.RequireAlt);
         Assert.Equal(new[] { "image" }, schema.Media.AllowedKinds);
+    }
+
+    [Fact]
+    public void Load_CollectionsSchema_ThrowsVNextMigrationError()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              collections:
+                posts:
+                  permalink: /posts/{slug}/
+                  schema:
+                    - name: deck
+            content:
+              provider: markdown
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Contains("content.modelSchema.fieldScopes", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

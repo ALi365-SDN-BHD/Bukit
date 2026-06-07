@@ -8,9 +8,9 @@ namespace Bukit.Engine;
 
 public static class ContentSchemaValidator
 {
-    public static List<SchemaValidationError> ValidateFields(
+    internal static List<ContentValidationIssue> ValidateFields(
         IReadOnlyDictionary<string, ContentField>? fields,
-        IReadOnlyList<SchemaFieldDefinition>? schema,
+        IReadOnlyList<CustomFieldDefinitionConfig>? schema,
         string sourcePath,
         string failMode = "warn")
     {
@@ -29,13 +29,13 @@ public static class ContentSchemaValidator
         return Validate(values, schema, sourcePath, failMode);
     }
 
-    public static List<SchemaValidationError> Validate(
-        IReadOnlyDictionary<string, object> meta,
-        IReadOnlyList<SchemaFieldDefinition>? schema,
+    internal static List<ContentValidationIssue> Validate(
+        IReadOnlyDictionary<string, object> values,
+        IReadOnlyList<CustomFieldDefinitionConfig>? schema,
         string sourcePath,
         string failMode = "warn")
     {
-        var errors = new List<SchemaValidationError>();
+        var errors = new List<ContentValidationIssue>();
 
         if (schema is null || schema.Count == 0)
         {
@@ -52,11 +52,11 @@ public static class ContentSchemaValidator
 
             schemaFieldNames.Add(field.Name);
 
-            var hasValue = meta.TryGetValue(field.Name, out var rawValue) && rawValue is not null;
+            var hasValue = values.TryGetValue(field.Name, out var rawValue) && rawValue is not null;
 
             if (field.Required && !hasValue && field.Default is null)
             {
-                errors.Add(new SchemaValidationError(
+                errors.Add(new ContentValidationIssue(
                     field.Name,
                     "required",
                     $"Field '{field.Name}' is required but missing.",
@@ -69,11 +69,11 @@ public static class ContentSchemaValidator
                 continue;
             }
 
-            var expectedType = (field.Type ?? "string").Trim().ToLowerInvariant();
+            var expectedType = (field.FieldType ?? "string").Trim().ToLowerInvariant();
             if (!ValidateType(expectedType, rawValue!))
             {
                 var actualType = rawValue!.GetType().Name.ToLowerInvariant();
-                errors.Add(new SchemaValidationError(
+                errors.Add(new ContentValidationIssue(
                     field.Name,
                     "type_mismatch",
                     $"Field '{field.Name}' expected type '{expectedType}' but got '{actualType}'.",
@@ -83,7 +83,7 @@ public static class ContentSchemaValidator
 
             if (field.Enum is { Count: > 0 } allowed && !MatchesEnum(rawValue!, allowed))
             {
-                errors.Add(new SchemaValidationError(
+                errors.Add(new ContentValidationIssue(
                     field.Name,
                     "enum_mismatch",
                     $"Field '{field.Name}' must be one of: {string.Join(", ", allowed)}.",
@@ -92,7 +92,7 @@ public static class ContentSchemaValidator
 
             if (!string.IsNullOrWhiteSpace(field.Format) && !ValidateFormat(field.Format, rawValue!))
             {
-                errors.Add(new SchemaValidationError(
+                errors.Add(new ContentValidationIssue(
                     field.Name,
                     "format_mismatch",
                     $"Field '{field.Name}' must match format '{field.Format}'.",
@@ -101,7 +101,7 @@ public static class ContentSchemaValidator
 
             if ((field.Min is not null || field.Max is not null) && !ValidateRange(rawValue!, field.Min, field.Max))
             {
-                errors.Add(new SchemaValidationError(
+                errors.Add(new ContentValidationIssue(
                     field.Name,
                     "range_mismatch",
                     $"Field '{field.Name}' must be within range {field.Min?.ToString(CultureInfo.InvariantCulture) ?? "-∞"}..{field.Max?.ToString(CultureInfo.InvariantCulture) ?? "∞"}.",
@@ -111,14 +111,14 @@ public static class ContentSchemaValidator
 
         if (failMode != "off")
         {
-            foreach (var key in meta.Keys)
+            foreach (var key in values.Keys)
             {
                 if (!schemaFieldNames.Contains(key) && !IsKnownSystemField(key))
                 {
-                    errors.Add(new SchemaValidationError(
+                    errors.Add(new ContentValidationIssue(
                         key,
                         "unknown_field",
-                        $"Field '{key}' is not declared in the collection schema.",
+                        $"Field '{key}' is not declared in the content model schema.",
                         sourcePath));
                 }
             }
@@ -161,20 +161,6 @@ public static class ContentSchemaValidator
             "date" or "datetime" => value is DateTime or DateTimeOffset,
             "list" or "array" or "string[]" => value is IEnumerable<object> or System.Collections.IList,
             _ => true
-        };
-    }
-
-    private static ContentField ToContentField(string? type, object value)
-    {
-        var normalized = (type ?? "string").Trim().ToLowerInvariant();
-        return normalized switch
-        {
-            "bool" or "boolean" => new ContentField("bool", value is bool b ? b : bool.TryParse(value.ToString(), out var parsed) && parsed),
-            "number" or "int" => new ContentField("number", value),
-            "date" or "datetime" => new ContentField("date", value),
-            "list" or "array" or "string[]" => new ContentField("list", value),
-            "string" => new ContentField("text", value.ToString() ?? string.Empty),
-            _ => new ContentField("text", value.ToString() ?? string.Empty)
         };
     }
 
@@ -245,13 +231,7 @@ public static class ContentSchemaValidator
         return result;
     }
 
-    public sealed record SchemaValidationError(
-        string Field,
-        string Code,
-        string Message,
-        string? SourcePath);
-
-    public static string ResolveSchemaFailMode(CollectionConfig? collection, string globalSchemaFailMode)
+    internal static string ResolveSchemaFailMode(CollectionConfig? collection, string globalSchemaFailMode)
     {
         if (!string.IsNullOrWhiteSpace(collection?.SchemaFailMode))
         {
@@ -261,3 +241,9 @@ public static class ContentSchemaValidator
         return (globalSchemaFailMode ?? "warn").Trim().ToLowerInvariant();
     }
 }
+
+public sealed record ContentValidationIssue(
+    string Field,
+    string Code,
+    string Message,
+    string? SourcePath);

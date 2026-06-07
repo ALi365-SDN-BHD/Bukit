@@ -670,14 +670,14 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void BuildFields_TagsAndCategories_Injected()
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var projectedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags"] = new List<object> { "go", "rust" },
             ["categories"] = new List<object> { "programming" },
             ["count"] = 42
         };
 
-        var fields = InvokeFromType<IReadOnlyDictionary<string, ContentField>>(FieldType, "BuildFields", meta);
+        var fields = InvokeFromType<IReadOnlyDictionary<string, ContentField>>(FieldType, "BuildFields", projectedValues);
 
         Assert.Contains("tags", fields.Keys);
         Assert.Contains("categories", fields.Keys);
@@ -690,7 +690,7 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void BuildFields_ReservedKeys_Filtered()
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var projectedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["title"] = "My Page",
             ["slug"] = "my-page",
@@ -698,7 +698,7 @@ public sealed class MarkdownFolderProviderTests
             ["custom_field"] = "visible"
         };
 
-        var fields = InvokeFromType<IReadOnlyDictionary<string, ContentField>>(FieldType, "BuildFields", meta);
+        var fields = InvokeFromType<IReadOnlyDictionary<string, ContentField>>(FieldType, "BuildFields", projectedValues);
 
         Assert.DoesNotContain("title", fields.Keys);
         Assert.DoesNotContain("slug", fields.Keys);
@@ -709,12 +709,12 @@ public sealed class MarkdownFolderProviderTests
     [Fact]
     public void BuildFields_Summary_InjectedAsText()
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var projectedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["summary"] = "A short summary."
         };
 
-        var fields = InvokeFromType<IReadOnlyDictionary<string, ContentField>>(FieldType, "BuildFields", meta);
+        var fields = InvokeFromType<IReadOnlyDictionary<string, ContentField>>(FieldType, "BuildFields", projectedValues);
 
         Assert.Contains("summary", fields.Keys);
         Assert.Equal("text", fields["summary"].Type);

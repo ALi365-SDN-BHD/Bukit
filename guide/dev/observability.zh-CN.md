@@ -66,11 +66,11 @@ DoctorCommand 通过 `DiagnosticExceptionFormatter.Format()` 以格式化诊断�
 event=content.stage stage=ContentLoad duration_ms=234
 event=content.stage stage=ImageLocalize duration_ms=156
 event=content.stage stage=DraftFilter duration_ms=1
-event=content.stage stage=SchemaDefaults duration_ms=3
-event=content.stage stage=SchemaValidate duration_ms=12
+event=content.stage stage=ContentGraphValidate duration_ms=3
+event=content.stage stage=CollectionWarning duration_ms=12
 ```
 
-阶段顺序：`ContentLoad` → `ImageLocalize` → `DraftFilter` → `SchemaDefaults` → `SchemaValidate`。实现：`src/Bukit.Engine/ContentPipeline.cs`、`src/Bukit.Engine/Stages/`。
+阶段顺序：`ContentLoad` → `ImageLocalize` → `DraftFilter` → `ContentGraphValidate` → `CollectionWarning`。实现：`src/Bukit.Engine/ContentPipeline.cs`、`src/Bukit.Engine/Stages/`。
 
 ## metrics（--metrics <path>）
 

@@ -40,7 +40,7 @@ src/skills/
 | `bukit-theme` | `layouts/`、`assets/`、`static/` 的分工、wizard 创建、主题分发 (pack/install)、注册表搜索、模板片段 | 通过 wizard/preset 创建主题、列出主题信息/参数、打包分享主题、从注册表安装、浏览模板片段 |
 | `bukit-templating` | Scriban 语法、layout 继承、数据访问与常见模板模式 | 编写页面模板、列表页、分页组件、排查模板渲染错误 |
 | `bukit-design-tokens` | 主题设计令牌体系：CSS 变量、调色板、排版尺度、间距系统、深色模式 | 建立统一的视觉标识、定义 `:root {}` CSS 变量、配置深色模式、选择配色方案 |
-| `bukit-content-to-template` | Schema 驱动模板生成：将 content collection schema 映射为精准的 Scriban 模板 | 根据 `site.yaml` 集合 schema 生成 post/page/list/card 模板，确保每个字段正确渲染 |
+| `bukit-content-to-template` | Schema 驱动模板生成：将 content content model field scope 映射为精准的 Scriban 模板 | 根据 `site.yaml` content model fieldScopes 生成 post/page/list/card 模板，确保每个字段正确渲染 |
 | `bukit-notion` | Notion API 接入、字段映射、块渲染、图片本地化 | 用 Notion 做 CMS、排查拉取失败、检查属性映射与图片问题 |
 | `bukit-routing` | permalink、集合路由、URL 编码与输出路径 | 自定义 URL 结构、解决路由冲突或 404、配置集合列表页 |
 | `bukit-i18n` | 语言检测、独立变体构建、合并 sitemap/RSS/search | 搭建多语言站点、排查语言切换与输出合并问题 |
@@ -60,7 +60,7 @@ src/skills/
 3. 配置作为背景知识：`bukit-theme`、`bukit-design-tokens`、`bukit-content-to-template`、`bukit-notion`、`bukit-routing`、`bukit-i18n`、`bukit-plugins-debug`、`bukit-import`、`bukit-seo`、`bukit-geo` 都建立在 `bukit-config` 的配置模型之上
 4. 主题先于模板：`bukit-templating` 默认依赖 `bukit-theme` 提供目录结构与资源约定
 5. 设计令牌：当目标涉及视觉一致性时加载 `bukit-design-tokens`——提供调色板、排版尺度和深色模式方案
-6. Schema 转模板：当需要根据集合 schema 生成模板时加载 `bukit-content-to-template`——桥接 schema 字段定义与 Scriban 代码
+6. Schema 转模板：当需要根据content model fieldScopes 生成模板时加载 `bukit-content-to-template`——桥接 schema 字段定义与 Scriban 代码
 7. SEO 分工：传统 SEO 加载 `bukit-seo`，AI 搜索引擎优化加载 `bukit-geo`——它们共享 `site.seo` 配置但面向不同受众
 
 可以把它理解成一条常见工作流：
@@ -294,7 +294,7 @@ bash src/skills/scripts/generate-index-json.sh
 
 1. `using-bukit`
 2. `bukit-content-to-template`
-3. `bukit-config`（collection schema）
+3. `bukit-config`（content model field scope）
 4. `bukit-templating`
 5. `bukit-design-tokens`（视觉样式）
 

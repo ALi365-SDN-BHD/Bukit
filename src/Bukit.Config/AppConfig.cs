@@ -125,20 +125,6 @@ public sealed record CollectionConfig
     public CollectionPaginationConfig Pagination { get; init; } = new();
     public CollectionOutputConfig Output { get; init; } = new();
     public IReadOnlyList<FilteredListConfig>? FilteredLists { get; init; }
-    public IReadOnlyList<SchemaFieldDefinition>? Schema { get; init; }
-}
-
-public sealed record SchemaFieldDefinition
-{
-    public required string Name { get; init; }
-    public string Type { get; init; } = "string";
-    public string? Label { get; init; }
-    public string? Format { get; init; }
-    public IReadOnlyList<string>? Enum { get; init; }
-    public double? Min { get; init; }
-    public double? Max { get; init; }
-    public bool Required { get; init; }
-    public object? Default { get; init; }
 }
 
 public sealed record CollectionPaginationConfig
@@ -221,6 +207,7 @@ public sealed record ContentModelSchemaConfig
     public IReadOnlyList<string>? SyncStatuses { get; init; }
     public IReadOnlyList<CanonicalFieldMappingConfig>? CanonicalMappings { get; init; }
     public IReadOnlyList<CustomFieldDefinitionConfig>? CustomFields { get; init; }
+    public IReadOnlyDictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>? FieldScopes { get; init; }
     public IReadOnlyList<EntityMappingConfig>? EntityMappings { get; init; }
     public IReadOnlyList<RelationMappingConfig>? RelationMappings { get; init; }
     public MediaPolicyConfig? Media { get; init; }

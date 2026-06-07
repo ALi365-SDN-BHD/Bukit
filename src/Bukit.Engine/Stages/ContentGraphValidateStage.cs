@@ -33,10 +33,10 @@ internal sealed class ContentGraphValidateStage : IContentStage
         return Task.FromResult(new ContentStageOutput(input.Documents, input.BodyStore, Name, 0, errors));
     }
 
-    private static IEnumerable<ContentSchemaValidator.SchemaValidationError> ToSchemaErrors(ContentDocument document)
+    private static IEnumerable<ContentValidationIssue> ToSchemaErrors(ContentDocument document)
         => document.Diagnostics
             .Where(diagnostic => string.Equals(diagnostic.Severity, "error", StringComparison.OrdinalIgnoreCase))
-            .Select(diagnostic => new ContentSchemaValidator.SchemaValidationError(
+            .Select(diagnostic => new ContentValidationIssue(
                 diagnostic.Field ?? "content",
                 diagnostic.Code,
                 diagnostic.Message,

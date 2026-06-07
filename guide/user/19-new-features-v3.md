@@ -486,7 +486,7 @@ This release also includes multiple build engine reliability and security improv
 | **Multi-language concurrency budget** | Multi-language builds respect a global concurrency budget to prevent resource exhaustion. | More predictable resource usage |
 | **Diagnostic code system** 🆕 | All build errors now carry stable `BKT-XXXX` diagnostic codes (8 categories, 27 codes). See [Diagnostic Codes Reference](#diagnostic-codes-reference) below. | Machine-readable error codes; consistent across versions |
 | **Template variable spell check** 🆕 | `bukit doctor` now scans all Scriban templates for unknown variable references (e.g., `site.settings` when you meant `site.params`). Uses AST analysis against a known field whitelist. | Catches silent rendering failures from variable typos |
-| **Content pipeline stages** 🆕 | The content loading pipeline is decomposed into 5 named stages (`ContentLoad` → `ImageLocalize` → `DraftFilter` → `SchemaDefaults` → `SchemaValidate`), each logging its own duration. Extensible via `IContentStage`. | Per-stage performance visibility; custom stage injection for plugin developers |
+| **Content pipeline stages** 🆕 | The content loading pipeline is decomposed into 5 named stages (`ContentLoad` → `ImageLocalize` → `DraftFilter` → `ContentGraphValidate` → `CollectionWarning`), each logging its own duration. Extensible via `IContentStage`. | Per-stage performance visibility; custom stage injection for plugin developers |
 | **Render entry unification** 🆕 | Page, list, and static HTML rendering now share a single unified dispatch loop inside `PageRenderDispatcher.DispatchAsync()`. Static HTML pages through `theme.staticTemplate` benefit from the same incremental build, SEO injection, and error handling as content pages. | Simplified rendering pipeline; static pages get parity with content pages |
 
 ---
@@ -529,8 +529,8 @@ The content loading pipeline is now organized as 5 named stages, each logged wit
 event=content.stage stage=ContentLoad duration_ms=234
 event=content.stage stage=ImageLocalize duration_ms=156
 event=content.stage stage=DraftFilter duration_ms=1
-event=content.stage stage=SchemaDefaults duration_ms=3
-event=content.stage stage=SchemaValidate duration_ms=12
+event=content.stage stage=ContentGraphValidate duration_ms=3
+event=content.stage stage=CollectionWarning duration_ms=12
 ```
 
 | Order | Stage | Responsibility |
@@ -538,7 +538,7 @@ event=content.stage stage=SchemaValidate duration_ms=12
 | 1 | `ContentLoad` | Creates content provider, loads items |
 | 2 | `ImageLocalize` | Downloads/localizes remote images |
 | 3 | `DraftFilter` | Filters draft items (unless `build.draft: true`) |
-| 4 | `SchemaDefaults` | Applies schema default values |
-| 5 | `SchemaValidate` | Validates against collection schemas |
+| 4 | `ContentGraphValidate` | Applies schema default values |
+| 5 | `CollectionWarning` | Validates against content model field scopes |
 
 Plugin developers can inject custom stages by implementing `IContentStage`.

@@ -11,7 +11,7 @@ flowchart TD
 
     subgraph P1["📥 Phase 1: ContentPipeline（5 级 Pipe-and-Filter 链）"]
         direction LR
-        C1["① ContentLoad<br/>加载 ContentItem"] --> C2["② ImageLocalize<br/>本地化远程图片"] --> C3["③ DraftFilter<br/>过滤 draft:true"] --> C4["④ SchemaDefaults<br/>应用 schema 默认值"] --> C5["⑤ SchemaValidate<br/>校验 schema 字段"]
+        C1["① ContentLoad<br/>加载 ContentItem"] --> C2["② ImageLocalize<br/>本地化远程图片"] --> C3["③ DraftFilter<br/>过滤 draft:true"] --> C4["④ ContentGraphValidate<br/>应用 schema 默认值"] --> C5["⑤ CollectionWarning<br/>校验 schema 字段"]
     end
 
     P0 --> C1

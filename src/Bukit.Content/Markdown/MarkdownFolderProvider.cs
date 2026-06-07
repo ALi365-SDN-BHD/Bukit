@@ -93,7 +93,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
             var markdown = await File.ReadAllTextAsync(file, cancellationToken);
             var slug = Path.GetFileNameWithoutExtension(file);
 
-            var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            var frontMatterValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["source"] = "markdown",
                 ["sourcePath"] = file
@@ -106,27 +106,27 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 var fm = MarkdownFrontMatterParser.ParseFrontMatter(frontMatterYaml);
                 foreach (var kv in fm)
                 {
-                    meta[kv.Key] = kv.Value;
+                    frontMatterValues[kv.Key] = kv.Value;
                 }
             }
 
-            if (!meta.ContainsKey("collection") &&
-                !meta.ContainsKey("type") &&
+            if (!frontMatterValues.ContainsKey("collection") &&
+                !frontMatterValues.ContainsKey("type") &&
                 !string.IsNullOrWhiteSpace(_options.DefaultType))
             {
-                meta["type"] = _options.DefaultType;
+                frontMatterValues["type"] = _options.DefaultType;
             }
 
-            if (meta.TryGetValue("slug", out var slugObj) && slugObj is string slugText && !string.IsNullOrWhiteSpace(slugText))
+            if (frontMatterValues.TryGetValue("slug", out var slugObj) && slugObj is string slugText && !string.IsNullOrWhiteSpace(slugText))
             {
                 slug = slugText.Trim();
             }
 
-            var title = meta.TryGetValue("title", out var titleObj) && titleObj is string titleText && !string.IsNullOrWhiteSpace(titleText)
+            var title = frontMatterValues.TryGetValue("title", out var titleObj) && titleObj is string titleText && !string.IsNullOrWhiteSpace(titleText)
                 ? titleText.Trim()
                 : MarkdownTextHelper.ExtractTitle(bodyMarkdown) ?? slug;
 
-            if (!meta.TryGetValue("summary", out var summaryObj) || string.IsNullOrWhiteSpace(summaryObj?.ToString()))
+            if (!frontMatterValues.TryGetValue("summary", out var summaryObj) || string.IsNullOrWhiteSpace(summaryObj?.ToString()))
             {
                 if (_options.AutoSummary)
                 {
@@ -134,7 +134,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
                     var extracted = ExtractSummaryFromMarkdown(bodyMarkdown, maxLen);
                     if (!string.IsNullOrWhiteSpace(extracted))
                     {
-                        meta["summary"] = extracted;
+                        frontMatterValues["summary"] = extracted;
                     }
                 }
             }
@@ -142,19 +142,19 @@ public sealed class MarkdownFolderProvider : IContentProvider
             var tableOfContents = BasicMarkdownToHtml.ExtractTableOfContents(bodyMarkdown);
             if (tableOfContents.Count > 0)
             {
-                meta["tableOfContents"] = tableOfContents;
+                frontMatterValues["tableOfContents"] = tableOfContents;
             }
 
-            meta["bodyFingerprint"] = ComputeBodyFingerprint(bodyMarkdown);
+            frontMatterValues["bodyFingerprint"] = ComputeBodyFingerprint(bodyMarkdown);
 
             var publishAt = File.GetLastWriteTimeUtc(file);
-            if (meta.TryGetValue("publishAt", out var publishObj) && publishObj is string publishText && MarkdownFieldBuilder.TryParseDateTimeOffset(publishText, out var dto))
+            if (frontMatterValues.TryGetValue("publishAt", out var publishObj) && publishObj is string publishText && MarkdownFieldBuilder.TryParseDateTimeOffset(publishText, out var dto))
             {
                 publishAt = dto.UtcDateTime;
             }
 
-            var fields = MarkdownFieldBuilder.BuildFields(meta);
-            fields = ContentFieldReader.WithValues(fields, BuildCanonicalFields(meta, title, slug, publishAt));
+            var fields = MarkdownFieldBuilder.BuildFields(frontMatterValues);
+            fields = ContentFieldReader.WithValues(fields, BuildCanonicalFields(frontMatterValues, title, slug, publishAt));
 
             items.Add(new RawContentDocument(
                 Id: slug,
@@ -178,7 +178,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
     }
 
     private static IReadOnlyDictionary<string, object> BuildCanonicalFields(
-        IReadOnlyDictionary<string, object> meta,
+        IReadOnlyDictionary<string, object> frontMatterValues,
         string title,
         string slug,
         DateTimeOffset publishAt)
@@ -190,23 +190,23 @@ public sealed class MarkdownFolderProvider : IContentProvider
             ["publishAt"] = publishAt
         };
 
-        AddIfPresent(meta, values, "type");
-        AddIfPresent(meta, values, "collection");
-        AddIfPresent(meta, values, "language");
-        AddIfPresent(meta, values, "i18nKey");
-        AddIfPresent(meta, values, "i18n_key");
-        AddIfPresent(meta, values, "summary");
-        AddIfPresent(meta, values, "description");
-        AddIfPresent(meta, values, "excerpt");
-        AddIfPresent(meta, values, "draft");
-        AddIfPresent(meta, values, "route");
-        AddIfPresent(meta, values, "url");
-        AddIfPresent(meta, values, "outputPath");
-        AddIfPresent(meta, values, "template");
-        AddIfPresent(meta, values, "source");
-        AddIfPresent(meta, values, "sourcePath");
-        AddIfPresent(meta, values, "bodyFingerprint");
-        AddIfPresent(meta, values, "tableOfContents");
+        AddIfPresent(frontMatterValues, values, "type");
+        AddIfPresent(frontMatterValues, values, "collection");
+        AddIfPresent(frontMatterValues, values, "language");
+        AddIfPresent(frontMatterValues, values, "i18nKey");
+        AddIfPresent(frontMatterValues, values, "i18n_key");
+        AddIfPresent(frontMatterValues, values, "summary");
+        AddIfPresent(frontMatterValues, values, "description");
+        AddIfPresent(frontMatterValues, values, "excerpt");
+        AddIfPresent(frontMatterValues, values, "draft");
+        AddIfPresent(frontMatterValues, values, "route");
+        AddIfPresent(frontMatterValues, values, "url");
+        AddIfPresent(frontMatterValues, values, "outputPath");
+        AddIfPresent(frontMatterValues, values, "template");
+        AddIfPresent(frontMatterValues, values, "source");
+        AddIfPresent(frontMatterValues, values, "sourcePath");
+        AddIfPresent(frontMatterValues, values, "bodyFingerprint");
+        AddIfPresent(frontMatterValues, values, "tableOfContents");
 
         return values;
     }

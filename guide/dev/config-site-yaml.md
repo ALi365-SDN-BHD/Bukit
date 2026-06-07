@@ -53,11 +53,11 @@ Each collection under `site.collections.{name}` supports:
 | `sortDirection` | string | `desc` | `asc` or `desc` |
 | `filter` | string | - | Filter expression |
 | `pageSize` | int | 10 | Items per list page |
-| `schema` | array | - | Array of `SchemaFieldDefinition` for content validation |
+| `content.modelSchema.fieldScopes.<collection>` | array | - | Scoped content model fields for validation |
 | `taxonomy` | bool | false | Enable taxonomy for this collection |
 | `deriveArchive` | bool | false | Generate archive pages |
 
-Each schema field (`schema[].*`) supports:
+Each scoped field (`content.modelSchema.fieldScopes.<collection>[].*`) supports:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -256,7 +256,7 @@ taxonomy:
 
 ## JSON Schema Generation (P3-2)
 
-`bukit config schema` generates a complete `site.yaml` JSON Schema file. Since P3-2, the schema covers all 18 collection sub-fields including `pagination` (enabled/pageSize/urlPattern/firstPageUsesListRoute), `output` (rss/sitemap/archive/archiveDetail/feedPath/feedTitle/feedDescription), `filteredLists`, `schema` (with all SchemaFieldDefinition properties), `permalink`, `template`, `listRoute`, `listTemplate`, `sortBy`, `sortDirection`, `filter`, `pageSize`, `taxonomy`, `deriveArchive`, `source`, `label`.
+`bukit config schema` generates a complete `site.yaml` JSON Schema file. In vNext, collection routing fields stay under `site.collections`, while scoped content validation lives under `content.modelSchema.fieldScopes`; the old collection-level `schema` key is no longer part of the config contract.
 
 ## Config Deprecation Scanner (P3-3)
 

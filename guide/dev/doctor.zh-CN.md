@@ -45,7 +45,7 @@ doctor 的检查顺序基本如下：
    - 发现未知变量时输出警告（不会失败，仅 ⚠）
    - 白名单定义：`src/Bukit.Rendering/Scriban/ScribanModelKnownFields.cs`
 10. **Extra fields 报告**
-    - 检查内容 front matter 中的字段是否在 collection schema 中声明
+    - 检查内容 front matter 中的字段是否在 content model field scope 中声明
     - 发现未声明字段时输出警告
 11. **诊断码格式化输出**
     - 所有配置错误使用 `BKT-XXXX` 稳定格式输出

@@ -496,7 +496,7 @@ public sealed class NotionContentProviderEndToEndTests
     }
 
     [Fact]
-    public async Task LoadAsync_WithComplexPageProperties_MapsFieldsCoverIconAndMeta()
+    public async Task LoadAsync_WithComplexPageProperties_MapsFieldsCoverIconAndProjectedFields()
     {
         var handler = new ComplexPropertiesHandler();
         var options = new NotionProviderOptions

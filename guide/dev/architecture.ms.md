@@ -11,7 +11,7 @@ flowchart LR
 
     subgraph P1["📥 ContentPipeline (5 peringkat)"]
         direction LR
-        C1["ContentLoad"] --> C2["ImageLocalize"] --> C3["DraftFilter"] --> C4["SchemaDefaults"] --> C5["SchemaValidate"]
+        C1["ContentLoad"] --> C2["ImageLocalize"] --> C3["DraftFilter"] --> C4["ContentGraphValidate"] --> C5["CollectionWarning"]
     end
 
     P0 --> C1

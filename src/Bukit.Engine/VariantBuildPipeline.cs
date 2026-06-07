@@ -506,7 +506,6 @@ internal sealed class VariantBuildPipeline
             StageMetrics: variantStageMetrics.Snapshot(),
             Logger: logger,
             DefaultLanguage: defaultLanguage,
-            PluginContext: pluginContext,
             ContentGraph: contentGraph)));
     }
 

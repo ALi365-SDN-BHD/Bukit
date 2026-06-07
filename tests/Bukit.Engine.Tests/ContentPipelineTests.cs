@@ -221,23 +221,29 @@ public sealed class ContentPipelineTests
                     ["post"] = new CollectionConfig
                     {
                         Permalink = "/blog/{slug}/",
-                        Template = "pages/post.html",
-                        Schema = new[]
+                        Template = "pages/post.html"
+                    }
+                }
+            },
+            Content = new ContentConfig
+            {
+                Provider = "markdown",
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    FieldScopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["post"] = new[]
                         {
-                            new SchemaFieldDefinition
+                            new CustomFieldDefinitionConfig
                             {
                                 Name = "status",
-                                Type = "string",
+                                FieldType = "string",
                                 Required = requiredStatus,
                                 Default = requiredStatus ? null : "published"
                             }
                         }
                     }
                 }
-            },
-            Content = new ContentConfig
-            {
-                Provider = "markdown"
             },
             Build = new BuildConfig
             {

@@ -1,10 +1,11 @@
 using Bukit.Engine.Abstractions.Content;
 using System.Text.Json;
+
 namespace Bukit.Content.Notion;
 
-internal static class NotionMetaHelper
+internal static class NotionFieldProjectionHelper
 {
-    internal static void PromoteFieldToMeta(IReadOnlyDictionary<string, ContentField> fields, Dictionary<string, object> meta, string fieldKey, string metaKey)
+    internal static void ProjectTextField(IReadOnlyDictionary<string, ContentField> fields, Dictionary<string, object> projectedValues, string fieldKey, string targetKey)
     {
         if (!fields.TryGetValue(fieldKey, out var field))
         {
@@ -22,10 +23,10 @@ internal static class NotionMetaHelper
             return;
         }
 
-        meta[metaKey] = text.Trim();
+        projectedValues[targetKey] = text.Trim();
     }
 
-    internal static void PromoteTaxonomyFieldToMeta(IReadOnlyDictionary<string, ContentField> fields, Dictionary<string, object> meta, string fieldKey)
+    internal static void ProjectTaxonomyField(IReadOnlyDictionary<string, ContentField> fields, Dictionary<string, object> projectedValues, string fieldKey)
     {
         if (!fields.TryGetValue(fieldKey, out var field) || field.Value is null)
         {
@@ -37,7 +38,7 @@ internal static class NotionMetaHelper
             var text = s.Trim();
             if (!string.IsNullOrWhiteSpace(text))
             {
-                meta[fieldKey] = text;
+                projectedValues[fieldKey] = text;
             }
             return;
         }
@@ -52,7 +53,7 @@ internal static class NotionMetaHelper
 
             if (list.Count > 0)
             {
-                meta[fieldKey] = list;
+                projectedValues[fieldKey] = list;
             }
             return;
         }
@@ -68,7 +69,7 @@ internal static class NotionMetaHelper
 
             if (list.Count > 0)
             {
-                meta[fieldKey] = list;
+                projectedValues[fieldKey] = list;
             }
         }
     }

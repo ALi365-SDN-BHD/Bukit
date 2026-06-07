@@ -40,6 +40,31 @@ internal static class ContentModelSchemaFactory
                 ToReferenceRule(field.Reference));
         }
 
+        foreach (var (scope, fields) in explicitSchema?.FieldScopes ?? new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>(StringComparer.OrdinalIgnoreCase))
+        {
+            var scopedFields = fields
+                .Where(field => !string.IsNullOrWhiteSpace(field.Name))
+                .Select(field => new CustomFieldDefinition(
+                    field.Name,
+                    field.FieldType,
+                    field.Required,
+                    field.SemanticType,
+                    field.Label,
+                    field.Format,
+                    field.Enum,
+                    field.Min,
+                    field.Max,
+                    field.Default,
+                    field.SourcePolicy,
+                    ToReferenceRule(field.Reference)))
+                .ToArray();
+
+            if (!string.IsNullOrWhiteSpace(scope) && scopedFields.Length > 0)
+            {
+                fieldScopes[scope] = scopedFields;
+            }
+        }
+
         foreach (var mapping in explicitSchema?.EntityMappings ?? Array.Empty<EntityMappingConfig>())
         {
             entityMappings[mapping.RawKey] = new EntityMapping(
@@ -65,8 +90,6 @@ internal static class ContentModelSchemaFactory
                 mapping.TargetField,
                 mapping.TargetIdField);
         }
-
-        AddCollectionSchemaProjection(config.Site.Collections, fieldScopes);
 
         return new ContentModelSchema(
             ContentTypes: explicitSchema?.ContentTypes,
@@ -97,46 +120,6 @@ internal static class ContentModelSchemaFactory
             RequireMediaLicense: explicitSchema?.RequireMediaLicense ?? false,
             RequireEntityIds: explicitSchema?.RequireEntityIds ?? false,
             RequireRelationTargets: explicitSchema?.RequireRelationTargets ?? ContentModelSchemaValidator.Default.RequireRelationTargets);
-    }
-
-    private static void AddCollectionSchemaProjection(
-        IReadOnlyDictionary<string, CollectionConfig>? collections,
-        Dictionary<string, IReadOnlyList<CustomFieldDefinition>> fieldScopes)
-    {
-        if (collections is null)
-        {
-            return;
-        }
-
-        foreach (var (collectionName, collection) in collections)
-        {
-            var projectedFields = new List<CustomFieldDefinition>();
-            foreach (var field in collection.Schema ?? Array.Empty<SchemaFieldDefinition>())
-            {
-                if (string.IsNullOrWhiteSpace(field.Name))
-                {
-                    continue;
-                }
-
-                var projected = new CustomFieldDefinition(
-                    field.Name,
-                    field.Type,
-                    field.Required,
-                    SemanticType: field.Format,
-                    Label: field.Label,
-                    Format: field.Format,
-                    Enum: field.Enum,
-                    Min: field.Min,
-                    Max: field.Max,
-                    Default: field.Default);
-                projectedFields.Add(projected);
-            }
-
-            if (projectedFields.Count > 0)
-            {
-                fieldScopes[collectionName] = projectedFields;
-            }
-        }
     }
 
     private static ContentReferenceRule? ToReferenceRule(ContentReferenceRuleConfig? config)

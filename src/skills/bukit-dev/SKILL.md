@@ -145,8 +145,8 @@ Use incremental builds and check the per-stage timing in the output log:
 event=content.stage stage=ContentLoad duration_ms=234
 event=content.stage stage=ImageLocalize duration_ms=156
 event=content.stage stage=DraftFilter duration_ms=1
-event=content.stage stage=SchemaDefaults duration_ms=3
-event=content.stage stage=SchemaValidate duration_ms=12
+event=content.stage stage=ContentGraphValidate duration_ms=3
+event=content.stage stage=CollectionWarning duration_ms=12
 ```
 
 Each content pipeline stage logs its name and duration. Long stages (especially `ContentLoad` and `ImageLocalize`) indicate where build time is spent.

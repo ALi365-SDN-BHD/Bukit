@@ -12,12 +12,12 @@ internal static class ContentModelSchemaValidator
         RequireRelationTargets: true,
         RequireMediaAlt: true);
 
-    internal static IReadOnlyList<ContentSchemaValidator.SchemaValidationError> Validate(
+    internal static IReadOnlyList<ContentValidationIssue> Validate(
         CanonicalContentGraph graph,
         ContentModelSchema? schema = null)
     {
         schema ??= Default;
-        var errors = new List<ContentSchemaValidator.SchemaValidationError>();
+        var errors = new List<ContentValidationIssue>();
 
         var documentsById = graph.Documents
             .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
@@ -35,7 +35,7 @@ internal static class ContentModelSchemaValidator
     private static void ValidateRecord(
         ContentRecord record,
         ContentModelSchema schema,
-        List<ContentSchemaValidator.SchemaValidationError> errors)
+        List<ContentValidationIssue> errors)
     {
         CheckAllowed(schema.ContentTypes, record.Identity.ContentType, "identity.content_type", "canonical_content_type_invalid", record, errors);
         CheckAllowed(schema.Statuses, record.Identity.Status, "identity.status", "canonical_status_invalid", record, errors);
@@ -100,7 +100,7 @@ internal static class ContentModelSchemaValidator
         ContentRecord record,
         ContentDocument? document,
         ContentModelSchema schema,
-        List<ContentSchemaValidator.SchemaValidationError> errors)
+        List<ContentValidationIssue> errors)
     {
         if (document is null)
         {
@@ -166,7 +166,7 @@ internal static class ContentModelSchemaValidator
         ContentRecord record,
         ContentDocument document,
         CustomFieldDefinition definition,
-        List<ContentSchemaValidator.SchemaValidationError> errors)
+        List<ContentValidationIssue> errors)
     {
         if (string.IsNullOrWhiteSpace(definition.Name))
         {
@@ -225,7 +225,7 @@ internal static class ContentModelSchemaValidator
         string field,
         string code,
         string message,
-        List<ContentSchemaValidator.SchemaValidationError> errors)
+        List<ContentValidationIssue> errors)
     {
         if (!required)
         {
@@ -245,7 +245,7 @@ internal static class ContentModelSchemaValidator
         string rawKey,
         ContentReferenceRule? rule,
         string field,
-        List<ContentSchemaValidator.SchemaValidationError> errors)
+        List<ContentValidationIssue> errors)
     {
         if (rule is null ||
             !ContentFieldReader.TryGetField(document.CustomFields, rawKey, out var contentField) ||
@@ -269,7 +269,7 @@ internal static class ContentModelSchemaValidator
         IReadOnlyDictionary<string, object?> reference,
         string field,
         string role,
-        List<ContentSchemaValidator.SchemaValidationError> errors)
+        List<ContentValidationIssue> errors)
     {
         if (!required || string.IsNullOrWhiteSpace(member))
         {
@@ -316,7 +316,7 @@ internal static class ContentModelSchemaValidator
         string field,
         string code,
         ContentRecord record,
-        List<ContentSchemaValidator.SchemaValidationError> errors)
+        List<ContentValidationIssue> errors)
     {
         if (allowed is null || allowed.Count == 0 || string.IsNullOrWhiteSpace(value))
         {
@@ -336,7 +336,7 @@ internal static class ContentModelSchemaValidator
         string code,
         string message,
         ContentRecord record,
-        List<ContentSchemaValidator.SchemaValidationError> errors)
+        List<ContentValidationIssue> errors)
     {
         if (!required)
         {
@@ -463,10 +463,10 @@ internal static class ContentModelSchemaValidator
     }
 
     private static void Add(
-        List<ContentSchemaValidator.SchemaValidationError> errors,
+        List<ContentValidationIssue> errors,
         string field,
         string code,
         string message,
         ContentRecord record)
-        => errors.Add(new ContentSchemaValidator.SchemaValidationError(field, code, message, record.Identity.Id));
+        => errors.Add(new ContentValidationIssue(field, code, message, record.Identity.Id));
 }

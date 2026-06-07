@@ -36,11 +36,11 @@ Setiap peringkat pemuatan kandungan mencatat penyelesaiannya dengan nama dan tem
 event=content.stage stage=ContentLoad duration_ms=234
 event=content.stage stage=ImageLocalize duration_ms=156
 event=content.stage stage=DraftFilter duration_ms=1
-event=content.stage stage=SchemaDefaults duration_ms=3
-event=content.stage stage=SchemaValidate duration_ms=12
+event=content.stage stage=ContentGraphValidate duration_ms=3
+event=content.stage stage=CollectionWarning duration_ms=12
 ```
 
-Peringkat: `ContentLoad` → `ImageLocalize` → `DraftFilter` → `SchemaDefaults` → `SchemaValidate`. Pelaksanaan: `src/Bukit.Engine/ContentPipeline.cs`, `src/Bukit.Engine/Stages/`.
+Peringkat: `ContentLoad` → `ImageLocalize` → `DraftFilter` → `ContentGraphValidate` → `CollectionWarning`. Pelaksanaan: `src/Bukit.Engine/ContentPipeline.cs`, `src/Bukit.Engine/Stages/`.
 
 ## Metrik Binaan (`--metrics <path>`)
 

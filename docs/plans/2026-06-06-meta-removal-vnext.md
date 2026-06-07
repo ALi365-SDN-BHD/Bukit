@@ -32,11 +32,16 @@ Status as of 2026-06-07:
 - Done: protocol invocation and handshake models default to schema version `2`; after-build negotiation is v2-only and fails fast instead of falling back to v1.
 - Done: aggregate publish projections now use named `ContentDocument`/`PublishProjectionContext` projections instead of the old generic aggregate adapter.
 - Done: derive-pages protocol now shares the v2-only handshake negotiation layer used by after-build.
+- Done: the old collection-scoped schema key has been removed from the config model; scoped field definitions now live under `content.modelSchema.fieldScopes`.
+- Done: `ContentModelSchemaFactory` no longer projects collection-level field declarations into the content model; it only reads the canonical content model schema.
+- Done: `rejectUnknownRawKeys: true` now uses strict vNext normalization semantics and rejects undeclared raw keys during normalization.
+- Done: the legacy nested schema validation error surface has been replaced by the neutral top-level `ContentValidationIssue`; the legacy value/schema validator is internal migration-only.
+- Done: Notion and Markdown raw-input helpers no longer use `Meta` naming for field projection.
+- Done: `PublishProjectionContext` no longer carries an optional `BuildContext`; plugin execution keeps its own context boundary.
 
 Remaining vNext hardening, not `Meta` ABI compatibility:
 
-- `ContentModelSchema` now exposes canonical field mappings, custom field definitions, entity mappings, relation mappings, and media policy, but collection field schema still needs to become a projection over this model instead of a parallel concept.
-- Unknown raw key strictness currently produces content diagnostics through the normalizer; a future stage can decide whether those diagnostics should fail the build immediately.
+- None currently tracked for the vNext Meta removal scope.
 
 ## Design Principles
 
@@ -604,8 +609,8 @@ Tests:
 
 - [x] `content.modelSchema` is read from `site.yaml`.
 - [x] `ContentLoadStage` passes the schema to the normalizer.
-- [x] Unknown raw keys produce canonical diagnostics when `rejectUnknownRawKeys` is enabled.
-- [x] `site.collections.*.schema` projects into `ContentModelSchema.CollectionFields`.
+- [x] Unknown raw keys fail during normalization when `rejectUnknownRawKeys` is enabled.
+- [x] Old collection-scoped schema key removed; scoped fields are declared in `content.modelSchema.fieldScopes`.
 - [x] Required collection fields produce canonical diagnostics through `ContentGraphValidateStage`.
 - [x] Route and publish policies normalize from raw input.
 - [x] Notion raw input coverage should be extended to assert the same schema-driven mapping contract as Markdown.

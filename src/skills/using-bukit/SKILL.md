@@ -71,7 +71,7 @@ Skills marked **(beta)** have stable implementations but APIs may evolve. **(exp
 | 14 | bukit-dev | HMR development server | When wanting hot-reload during development, file watching with automatic rebuild, or live browser refresh |
 | 15 | bukit-webhook | Webhook server for automated builds | When setting up Notion-to-GitHub webhook triggers, debugging payload verification or rate limiting |
 | 16 | bukit-design-tokens | Theme design token systems | When defining CSS variables, palettes, typography, spacing, or dark mode |
-| 17 | bukit-content-to-template | Schema-driven template generation | When mapping collection schema fields to Scriban templates |
+| 17 | bukit-content-to-template | Schema-driven template generation | When mapping content model field scope fields to Scriban templates |
 | 18 | theme-component-system | Componentized theme system | When working with theme.yaml V2 sections, components, tokens, catalogs, or inheritance |
 | 19 | bukit-import | HTML demo import and seed workflow | When converting a local HTML demo into a Bukit theme/site draft |
 

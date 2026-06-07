@@ -28,6 +28,7 @@ internal static class ConfigCollectionReader
 
             var paginationNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "pagination");
             var outputNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "output");
+            ThrowIfCollectionSchemaDeclared($"site.collections.{keyNode.Value}.schema", collectionNode);
             collections[keyNode.Value.Trim()] = new CollectionConfig
             {
                 Permalink = ConfigYamlHelpers.GetRequiredString(collectionNode, "permalink"),
@@ -46,8 +47,7 @@ internal static class ConfigCollectionReader
                     Sitemap = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "sitemap") ?? true,
                     Archive = outputNode is not null && (ConfigYamlHelpers.GetOptionalBool(outputNode, "archive") ?? false)
                 },
-                FilteredLists = ReadFilteredLists(collectionNode),
-                Schema = ReadSchema(collectionNode)
+                FilteredLists = ReadFilteredLists(collectionNode)
             };
         }
 
@@ -105,6 +105,7 @@ internal static class ConfigCollectionReader
 
             var paginationNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "pagination");
             var outputNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "output");
+            ThrowIfCollectionSchemaDeclared($"collections.yaml:{keyNode.Value}.schema", collectionNode);
             collections[keyNode.Value.Trim()] = new CollectionConfig
             {
                 Permalink = ConfigYamlHelpers.GetRequiredString(collectionNode, "permalink"),
@@ -123,8 +124,7 @@ internal static class ConfigCollectionReader
                     Sitemap = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "sitemap") ?? true,
                     Archive = outputNode is not null && (ConfigYamlHelpers.GetOptionalBool(outputNode, "archive") ?? false)
                 },
-                FilteredLists = ReadFilteredLists(collectionNode),
-                Schema = ReadSchema(collectionNode)
+                FilteredLists = ReadFilteredLists(collectionNode)
             };
         }
 
@@ -159,45 +159,15 @@ internal static class ConfigCollectionReader
         return filteredLists.Count == 0 ? null : filteredLists;
     }
 
-    internal static IReadOnlyList<SchemaFieldDefinition>? ReadSchema(YamlMappingNode collectionNode)
+    private static void ThrowIfCollectionSchemaDeclared(string path, YamlMappingNode collectionNode)
     {
-        var schemaNode = ConfigYamlHelpers.GetOptionalSequence(collectionNode, "schema");
-        if (schemaNode is null || schemaNode.Children.Count == 0)
+        if (!collectionNode.Children.ContainsKey(new YamlScalarNode("schema")))
         {
-            return null;
+            return;
         }
 
-        var fields = new List<SchemaFieldDefinition>();
-        foreach (var child in schemaNode.Children)
-        {
-            if (child is not YamlMappingNode fieldNode)
-            {
-                continue;
-            }
-
-            var name = ConfigYamlHelpers.GetOptionalString(fieldNode, "name");
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                continue;
-            }
-
-            fields.Add(new SchemaFieldDefinition
-            {
-                Name = name,
-                Type = ConfigYamlHelpers.GetOptionalString(fieldNode, "type") ?? "string",
-                Label = ConfigYamlHelpers.GetOptionalString(fieldNode, "label"),
-                Format = ConfigYamlHelpers.GetOptionalString(fieldNode, "format"),
-                Enum = ConfigYamlHelpers.ReadStringList(fieldNode, "enum"),
-                Min = ConfigYamlHelpers.GetOptionalDouble(fieldNode, "min"),
-                Max = ConfigYamlHelpers.GetOptionalDouble(fieldNode, "max"),
-                Required = ConfigYamlHelpers.GetOptionalBool(fieldNode, "required") ?? false,
-                Default = fieldNode.Children.TryGetValue(new YamlScalarNode("default"), out var defaultNode)
-                    ? ConfigYamlHelpers.ToObject(defaultNode)
-                    : null
-            });
-        }
-
-        return fields.Count == 0 ? null : fields;
+        throw new ConfigException(
+            $"{path} was removed in Bukit vNext. Move scoped field definitions to content.modelSchema.fieldScopes.<collection>.");
     }
 
     internal static IReadOnlyList<ContentSourceConfig>? ReadSources(YamlMappingNode contentNode)
@@ -238,6 +208,7 @@ internal static class ConfigCollectionReader
             SyncStatuses = ConfigYamlHelpers.ReadStringList(node, "syncStatuses"),
             CanonicalMappings = ReadCanonicalMappings(node),
             CustomFields = ReadCustomFields(node),
+            FieldScopes = ReadFieldScopes(node),
             EntityMappings = ReadEntityMappings(node),
             RelationMappings = ReadRelationMappings(node),
             Media = ReadMediaPolicy(node),
@@ -294,6 +265,44 @@ internal static class ConfigCollectionReader
             return null;
         }
 
+        var fields = ReadCustomFieldSequence(seq);
+        return fields.Count == 0 ? null : fields;
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>? ReadFieldScopes(YamlMappingNode node)
+    {
+        var scopesNode = ConfigYamlHelpers.GetOptionalMapping(node, "fieldScopes")
+            ?? ConfigYamlHelpers.GetOptionalMapping(node, "scopedFields");
+        if (scopesNode is null || scopesNode.Children.Count == 0)
+        {
+            return null;
+        }
+
+        var scopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in scopesNode.Children)
+        {
+            if (kv.Key is not YamlScalarNode keyNode || string.IsNullOrWhiteSpace(keyNode.Value))
+            {
+                continue;
+            }
+
+            if (kv.Value is not YamlSequenceNode fieldsNode)
+            {
+                throw new ConfigException($"content.modelSchema.fieldScopes.{keyNode.Value} must be a sequence.");
+            }
+
+            var fields = ReadCustomFieldSequence(fieldsNode);
+            if (fields.Count > 0)
+            {
+                scopes[keyNode.Value.Trim()] = fields;
+            }
+        }
+
+        return scopes.Count == 0 ? null : scopes;
+    }
+
+    private static IReadOnlyList<CustomFieldDefinitionConfig> ReadCustomFieldSequence(YamlSequenceNode seq)
+    {
         var fields = new List<CustomFieldDefinitionConfig>();
         foreach (var child in seq.Children.OfType<YamlMappingNode>())
         {
@@ -324,7 +333,7 @@ internal static class ConfigCollectionReader
             });
         }
 
-        return fields.Count == 0 ? null : fields;
+        return fields;
     }
 
     private static IReadOnlyList<EntityMappingConfig>? ReadEntityMappings(YamlMappingNode node)

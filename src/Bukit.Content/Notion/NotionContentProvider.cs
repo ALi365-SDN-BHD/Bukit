@@ -40,8 +40,8 @@ public sealed class NotionContentProvider : IContentProvider
 
         var drafts = new List<PageDraft>();
         var maxItems = _options.MaxItems is > 0 ? _options.MaxItems : null;
-        var policyMode = NotionMetaHelper.NormalizePolicyMode(_options.FieldPolicyMode);
-        var allowed = policyMode == "whitelist" ? NotionMetaHelper.BuildAllowedSet(_options.AllowedFields) : null;
+        var policyMode = NotionFieldProjectionHelper.NormalizePolicyMode(_options.FieldPolicyMode);
+        var allowed = policyMode == "whitelist" ? NotionFieldProjectionHelper.BuildAllowedSet(_options.AllowedFields) : null;
         var resolvedProperties = await NotionDatabaseSchemaResolver.ResolveAsync(client, _options, cancellationToken);
         string? startCursor = null;
         var pageHtmlCache = NotionCacheManager.CreatePageHtmlCache(_options);
@@ -92,7 +92,7 @@ public sealed class NotionContentProvider : IContentProvider
 
                     var lastEditedTime = GetString(page, "last_edited_time");
 
-                    var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    var projectedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["source"] = "notion",
                         ["notionPageId"] = pageId,
@@ -100,24 +100,24 @@ public sealed class NotionContentProvider : IContentProvider
                     };
                     if (!string.IsNullOrWhiteSpace(type))
                     {
-                        meta["type"] = type;
+                        projectedValues["type"] = type;
                     }
 
                     var fields = NotionPropertyParser.ExtractFields(props, policyMode, allowed, out var relationKeys);
-                    fields = NotionMetaHelper.InjectPageCoverAndIcon(fields, page);
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, NotionPropertyParser.NormalizeFieldKey(pm?.Language ?? "language"), "language");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, NotionPropertyParser.NormalizeFieldKey(pm?.I18nKey ?? "i18n_key"), "i18nKey");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, "i18nkey", "i18nKey");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, "url", "url");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, "outputpath", "outputPath");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, "template", "template");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, NotionPropertyParser.NormalizeFieldKey(pm?.Summary ?? "summary"), "summary");
-                    NotionMetaHelper.PromoteFieldToMeta(fields, meta, NotionPropertyParser.NormalizeFieldKey(pm?.Collection ?? "collection"), "collection");
-                    NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "tags");
-                    NotionMetaHelper.PromoteTaxonomyFieldToMeta(fields, meta, "categories");
-                    NotionPropertyParser.ExtractSeoMeta(meta, props, pm);
+                    fields = NotionFieldProjectionHelper.InjectPageCoverAndIcon(fields, page);
+                    NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, NotionPropertyParser.NormalizeFieldKey(pm?.Language ?? "language"), "language");
+                    NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, NotionPropertyParser.NormalizeFieldKey(pm?.I18nKey ?? "i18n_key"), "i18nKey");
+                    NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, "i18nkey", "i18nKey");
+                    NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, "url", "url");
+                    NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, "outputpath", "outputPath");
+                    NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, "template", "template");
+                    NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, NotionPropertyParser.NormalizeFieldKey(pm?.Summary ?? "summary"), "summary");
+                    NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, NotionPropertyParser.NormalizeFieldKey(pm?.Collection ?? "collection"), "collection");
+                    NotionFieldProjectionHelper.ProjectTaxonomyField(fields, projectedValues, "tags");
+                    NotionFieldProjectionHelper.ProjectTaxonomyField(fields, projectedValues, "categories");
+                    NotionPropertyParser.ProjectSeoFields(projectedValues, props, pm);
 
-                    fields = ContentFieldReader.WithValues(fields, meta);
+                    fields = ContentFieldReader.WithValues(fields, projectedValues);
                     drafts.Add(new PageDraft(pageId, title, slug, type ?? string.Empty, publishAt, lastEditedTime, fields, relationKeys));
                 }
 
@@ -166,8 +166,8 @@ public sealed class NotionContentProvider : IContentProvider
             }
 
             var taxonomyValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-            NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(taxonomyValues, fields, "tags");
-            NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(taxonomyValues, fields, "categories");
+            NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(taxonomyValues, fields, "tags");
+            NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(taxonomyValues, fields, "categories");
             fields = ContentFieldReader.WithValues(fields, taxonomyValues);
 
             items.Add(new RawContentDocument(

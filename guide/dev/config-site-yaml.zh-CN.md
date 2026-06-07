@@ -57,7 +57,7 @@ logging: {}
 | `site.externalProtocolIncludeRoutedPages` | bool | 否 | false | 是否将完整 routedPages 传递给 after-build 阶段的协议插件 |
 | `site.timezone` | string | 否 | `Asia/Shanghai` | 时间相关处理的默认时区；必须为有效的 IANA/Windows 时区标识符 |
 | `site.permalinks` | object | 否 | null | 按内容类型自定义 URL 模式；键为类型名（如 `post`），值为 URL 模式字符串（支持 `{year}/{month}/{day}/{slug}/{type}` 占位符）；详见 [路由系统](./routing.zh-CN.md) |
-| `site.collections` | object | 否 | null | collection 驱动路由配置。每个集合至少声明 `permalink` 与 `template`，可选 `listRoute`、`pagination`、`output`、`schema` |
+| `site.collections` | object | 否 | null | collection 驱动路由配置。每个集合至少声明 `permalink` 与 `template`，可选 `listRoute`、`pagination`、`output`；字段校验改用 `content.modelSchema.fieldScopes` |
 
 ### site.collections（collection 驱动路由）
 

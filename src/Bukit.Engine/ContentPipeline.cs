@@ -10,7 +10,7 @@ namespace Bukit.Engine;
 public sealed record ContentPipelineResult(
     IReadOnlyList<ContentDocument> Documents,
     IContentBodyStore BodyStore,
-    IReadOnlyList<ContentSchemaValidator.SchemaValidationError> SchemaErrors,
+    IReadOnlyList<ContentValidationIssue> SchemaErrors,
     BodyCacheMetrics? BodyCacheMetrics = null,
     CanonicalContentGraph? ContentGraph = null);
 
@@ -65,7 +65,7 @@ public sealed class ContentPipeline
         var currentDocuments = input.Documents;
         var currentBodyStore = input.BodyStore;
         BodyCacheDecorator? bodyCache = null;
-        List<ContentSchemaValidator.SchemaValidationError>? allSchemaErrors = null;
+        List<ContentValidationIssue>? allSchemaErrors = null;
 
         foreach (var stage in _stages)
         {
@@ -89,7 +89,7 @@ public sealed class ContentPipeline
 
             if (output.SchemaErrors is { Count: > 0 } errors)
             {
-                allSchemaErrors ??= new List<ContentSchemaValidator.SchemaValidationError>();
+                allSchemaErrors ??= new List<ContentValidationIssue>();
                 allSchemaErrors.AddRange(errors);
             }
         }
@@ -99,7 +99,7 @@ public sealed class ContentPipeline
         return new ContentPipelineResult(
             currentDocuments,
             currentBodyStore,
-            (IReadOnlyList<ContentSchemaValidator.SchemaValidationError>?)allSchemaErrors ?? Array.Empty<ContentSchemaValidator.SchemaValidationError>(),
+            (IReadOnlyList<ContentValidationIssue>?)allSchemaErrors ?? Array.Empty<ContentValidationIssue>(),
             bodyCache?.Metrics,
             contentGraph);
     }

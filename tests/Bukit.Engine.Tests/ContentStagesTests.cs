@@ -93,13 +93,9 @@ public sealed class ContentStagesTests
         };
         var input = new ContentStageInput(Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
 
-        var output = await stage.ExecuteAsync(input, CancellationToken.None);
+        var ex = await Assert.ThrowsAsync<ConfigException>(() => stage.ExecuteAsync(input, CancellationToken.None));
 
-        var document = Assert.Single(output.Documents);
-        Assert.Contains(document.Diagnostics, diagnostic =>
-            diagnostic.Code == "content.unknown_raw_key" &&
-            diagnostic.Field == "unknown" &&
-            diagnostic.SourceId == "a");
+        Assert.Contains("unknown", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -165,8 +161,7 @@ public sealed class ContentStagesTests
                 ["url"] = new("text", "/docs/doc/"),
                 ["template"] = new("text", "article"),
                 ["draft"] = new("bool", true),
-                ["sourceMode"] = new("text", "data"),
-                ["unknown"] = new("text", "value")
+                ["sourceMode"] = new("text", "data")
             },
             Source: new ContentSourceInfo(
                 Provider: "markdown",
@@ -187,8 +182,7 @@ public sealed class ContentStagesTests
                 ["template"] = new("template", "text"),
                 ["draft"] = new("draft", "bool"),
                 ["sourceMode"] = new("sourceMode", "text")
-            },
-            RejectUnknownRawKeys: true);
+            });
 
         var document = ContentDocumentNormalizer.ToDocument(raw, schema);
 
@@ -202,10 +196,7 @@ public sealed class ContentStagesTests
         Assert.Equal("article", document.Route.Template);
         Assert.True(document.Publish.Draft);
         Assert.True(document.Publish.IsDataModule);
-        Assert.Contains(document.Diagnostics, diagnostic =>
-            diagnostic.Code == "content.unknown_raw_key" &&
-            diagnostic.Field == "unknown" &&
-            diagnostic.SourceId == "doc-1");
+        Assert.Empty(document.Diagnostics);
     }
 
     [Fact]
@@ -223,8 +214,7 @@ public sealed class ContentStagesTests
                 ["abstract"] = new("text", "Mapped summary"),
                 ["writer"] = new("text", "Mapped Author"),
                 ["publishedState"] = new("text", "reviewed"),
-                ["sourceUrl"] = new("url", "https://example.com/original"),
-                ["unknown"] = new("text", "value")
+                ["sourceUrl"] = new("url", "https://example.com/original")
             });
         var schema = new ContentModelSchema(
             CanonicalMappings: new Dictionary<string, CanonicalFieldMapping>(StringComparer.OrdinalIgnoreCase)
@@ -249,13 +239,11 @@ public sealed class ContentStagesTests
         Assert.Equal("article", ContentFieldReader.GetText(document.CustomFields, "kind"));
         Assert.DoesNotContain(document.Diagnostics, diagnostic =>
             diagnostic.Code == "content.required_canonical_field_missing");
-        Assert.Contains(document.Diagnostics, diagnostic =>
-            diagnostic.Code == "content.unknown_raw_key" &&
-            diagnostic.Field == "unknown");
+        Assert.Empty(document.Diagnostics);
     }
 
     [Fact]
-    public void ContentDocumentNormalizer_AppliesContentModelSchemaDefaults()
+    public void ContentDocumentNormalizer_AppliesContentModelDefaults()
     {
         var raw = new RawContentDocument(
             Id: "doc-1",
@@ -676,7 +664,7 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
-    public async Task ContentGraphValidateStage_UsesCollectionSchemaProjection()
+    public async Task ContentGraphValidateStage_UsesContentModelFieldScopes()
     {
         var loadResult = new RawContentLoadResult(
             new[]
@@ -713,15 +701,24 @@ public sealed class ContentStagesTests
                 {
                     ["posts"] = new()
                     {
-                        Permalink = "/posts/{slug}/",
-                        Schema = new[]
-                        {
-                            new SchemaFieldDefinition { Name = "deck", Required = true }
-                        }
+                        Permalink = "/posts/{slug}/"
                     },
                     ["pages"] = new()
                     {
                         Permalink = "/{slug}/"
+                    }
+                }
+            },
+            Content = Config().Content with
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    FieldScopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["posts"] = new[]
+                        {
+                            new CustomFieldDefinitionConfig { Name = "deck", Required = true }
+                        }
                     }
                 }
             },
@@ -745,7 +742,7 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
-    public async Task ContentLoadStage_TreatsCollectionSchemaProjectionAsCollectionScoped()
+    public async Task ContentLoadStage_TreatsContentModelFieldScopesAsCollectionScoped()
     {
         var loadResult = new RawContentLoadResult(
             new[]
@@ -773,39 +770,40 @@ public sealed class ContentStagesTests
                 {
                     ["posts"] = new()
                     {
-                        Permalink = "/posts/{slug}/",
-                        Schema = new[]
-                        {
-                            new SchemaFieldDefinition { Name = "postOnly" }
-                        }
+                        Permalink = "/posts/{slug}/"
                     },
                     ["pages"] = new()
                     {
-                        Permalink = "/{slug}/",
-                        Schema = new[]
-                        {
-                            new SchemaFieldDefinition { Name = "pageOnly" }
-                        }
+                        Permalink = "/{slug}/"
                     }
                 }
             },
             Content = Config().Content with
             {
-                ModelSchema = new ContentModelSchemaConfig { RejectUnknownRawKeys = true }
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    RejectUnknownRawKeys = true,
+                    FieldScopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["posts"] = new[]
+                        {
+                            new CustomFieldDefinitionConfig { Name = "postOnly" }
+                        },
+                        ["pages"] = new[]
+                        {
+                            new CustomFieldDefinitionConfig { Name = "pageOnly" }
+                        }
+                    }
+                }
             }
         };
         var loadStage = new ContentLoadStage(new StubContentProviderFactory(loadResult));
         var input = new ContentStageInput(Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
 
-        var loaded = await loadStage.ExecuteAsync(input, CancellationToken.None);
+        var ex = await Assert.ThrowsAsync<ConfigException>(() => loadStage.ExecuteAsync(input, CancellationToken.None));
 
-        var document = Assert.Single(loaded.Documents);
-        Assert.Contains(document.Diagnostics, diagnostic =>
-            diagnostic.Code == "content.unknown_raw_key" &&
-            diagnostic.Field == "pageOnly");
-        Assert.DoesNotContain(document.Diagnostics, diagnostic =>
-            diagnostic.Code == "content.unknown_raw_key" &&
-            diagnostic.Field == "postOnly");
+        Assert.Contains("pageOnly", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("postOnly", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

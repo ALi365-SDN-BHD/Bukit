@@ -290,7 +290,7 @@ Checks:
 6. **Template chain analysis**: extracts `{% layout %}` inheritance chains and `{{ include }}` dependency references
 7. **Template variable spell check**: scans all Scriban templates for unknown variable references using AST analysis, cross-referenced against a known field whitelist for `page`/`site`/`pages`/`p`/`item`
 8. **Unused parameter warnings**: `theme.params` declared in site.yaml but not referenced in any template
-9. **Extra fields report**: front matter fields in content files not declared in collection schemas
+9. **Extra fields report**: raw content fields not declared in `content.modelSchema` canonical mappings, custom fields, field scopes, entity mappings, or relation mappings
 10. Assets and Static directory existence
 11. Build manifest JSON format
 12. Plugin discovery count

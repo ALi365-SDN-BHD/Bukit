@@ -8,9 +8,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_NullValue_Skipped()
     {
-        var meta = new Dictionary<string, object> { ["key"] = null! };
+        var projectedValues = new Dictionary<string, object> { ["key"] = null! };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Empty(result);
     }
@@ -18,9 +18,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_EmptyKey_Skipped()
     {
-        var meta = new Dictionary<string, object> { ["  "] = "value" };
+        var projectedValues = new Dictionary<string, object> { ["  "] = "value" };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Empty(result);
     }
@@ -28,9 +28,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_ReservedKey_Skipped()
     {
-        var meta = new Dictionary<string, object> { ["title"] = "My Title", ["slug"] = "my-slug" };
+        var projectedValues = new Dictionary<string, object> { ["title"] = "My Title", ["slug"] = "my-slug" };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Empty(result);
     }
@@ -38,9 +38,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_ListValue_ReturnsListField()
     {
-        var meta = new Dictionary<string, object> { ["items"] = new[] { "a", "b", "c" } };
+        var projectedValues = new Dictionary<string, object> { ["items"] = new[] { "a", "b", "c" } };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("list", result["items"].Type);
     }
@@ -48,9 +48,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_Tags_ReturnsTagsField()
     {
-        var meta = new Dictionary<string, object> { ["tags"] = new[] { "tag1", "tag2" } };
+        var projectedValues = new Dictionary<string, object> { ["tags"] = new[] { "tag1", "tag2" } };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("list", result["tags"].Type);
     }
@@ -58,9 +58,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_Categories_ReturnsCategoriesField()
     {
-        var meta = new Dictionary<string, object> { ["categories"] = new[] { "cat1" } };
+        var projectedValues = new Dictionary<string, object> { ["categories"] = new[] { "cat1" } };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("list", result["categories"].Type);
     }
@@ -68,9 +68,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_Summary_ReturnsTextField()
     {
-        var meta = new Dictionary<string, object> { ["summary"] = "A brief summary" };
+        var projectedValues = new Dictionary<string, object> { ["summary"] = "A brief summary" };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("text", result["summary"].Type);
     }
@@ -78,9 +78,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_BoolValue_ReturnsBoolField()
     {
-        var meta = new Dictionary<string, object> { ["featured"] = true };
+        var projectedValues = new Dictionary<string, object> { ["featured"] = true };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("bool", result["featured"].Type);
     }
@@ -88,9 +88,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_IntValue_ReturnsNumberField()
     {
-        var meta = new Dictionary<string, object> { ["priority"] = 42 };
+        var projectedValues = new Dictionary<string, object> { ["priority"] = 42 };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("number", result["priority"].Type);
     }
@@ -98,9 +98,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_DoubleValue_ReturnsNumberField()
     {
-        var meta = new Dictionary<string, object> { ["score"] = 3.14 };
+        var projectedValues = new Dictionary<string, object> { ["score"] = 3.14 };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("number", result["score"].Type);
     }
@@ -108,9 +108,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_DateTime_ReturnsDateField()
     {
-        var meta = new Dictionary<string, object> { ["eventDate"] = new DateTime(2026, 6, 1) };
+        var projectedValues = new Dictionary<string, object> { ["eventDate"] = new DateTime(2026, 6, 1) };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("date", result["eventDate"].Type);
     }
@@ -118,9 +118,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_StringBool_ConvertsToBoolField()
     {
-        var meta = new Dictionary<string, object> { ["published"] = "true" };
+        var projectedValues = new Dictionary<string, object> { ["published"] = "true" };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("bool", result["published"].Type);
     }
@@ -128,9 +128,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_StringNumber_ConvertsToNumberField()
     {
-        var meta = new Dictionary<string, object> { ["count"] = "123" };
+        var projectedValues = new Dictionary<string, object> { ["count"] = "123" };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("number", result["count"].Type);
     }
@@ -138,9 +138,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_PlainString_ReturnsTextField()
     {
-        var meta = new Dictionary<string, object> { ["author"] = "Alice" };
+        var projectedValues = new Dictionary<string, object> { ["author"] = "Alice" };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("text", result["author"].Type);
     }
@@ -148,9 +148,9 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_StringDate_ReturnsDateField()
     {
-        var meta = new Dictionary<string, object> { ["deadline"] = "2026-12-31" };
+        var projectedValues = new Dictionary<string, object> { ["deadline"] = "2026-12-31" };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("date", result["deadline"].Type);
     }
@@ -158,7 +158,7 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_MultipleFields_ReturnsAll()
     {
-        var meta = new Dictionary<string, object>
+        var projectedValues = new Dictionary<string, object>
         {
             ["author"] = "Bob",
             ["count"] = 7,
@@ -166,7 +166,7 @@ public sealed class MarkdownFieldBuilderTests
             ["tags"] = new[] { "x" }
         };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal(4, result.Count);
         Assert.Equal("text", result["author"].Type);
@@ -178,7 +178,7 @@ public sealed class MarkdownFieldBuilderTests
     [Fact]
     public void BuildFields_ShouldPreserveCanonicalProvenanceAndTrustFields_WhenPresentInFrontMatter()
     {
-        var meta = new Dictionary<string, object>
+        var projectedValues = new Dictionary<string, object>
         {
             ["source"] = "markdown",
             ["original_url"] = "https://example.com/source",
@@ -187,7 +187,7 @@ public sealed class MarkdownFieldBuilderTests
             ["quality_flags"] = new[] { "reviewed" }
         };
 
-        var result = MarkdownFieldBuilder.BuildFields(meta);
+        var result = MarkdownFieldBuilder.BuildFields(projectedValues);
 
         Assert.Equal("text", result["source"].Type);
         Assert.Equal("markdown", result["source"].Value);

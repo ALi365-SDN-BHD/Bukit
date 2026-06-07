@@ -59,10 +59,6 @@ public sealed class SchemaFailModeTests : IDisposable
                   permalink: /posts/{slug}/
                   template: post.html
                   schemaFailMode: strict
-                  schema:
-                    - name: title
-                      type: string
-                      required: true
             content:
               provider: markdown
             """;
@@ -96,10 +92,6 @@ public sealed class SchemaFailModeTests : IDisposable
                 permalink: /posts/{slug}/
                 template: post.html
                 schemaFailMode: strict
-                schema:
-                  - name: title
-                    type: string
-                    required: true
             """;
 
         File.WriteAllText(Path.Combine(_rootDir, "site.yaml"), siteYaml);

@@ -75,24 +75,33 @@ public sealed class DoctorSchemaCheckerTests
                     ["post"] = new()
                     {
                         Permalink = "/posts/{slug}/",
-                        Template = "pages/post.html",
-                        Schema = new[]
-                        {
-                            new SchemaFieldDefinition { Name = "postOnly", Type = "string", Required = true }
-                        }
+                        Template = "pages/post.html"
                     },
                     ["page"] = new()
                     {
                         Permalink = "/pages/{slug}/",
-                        Template = "pages/page.html",
-                        Schema = new[]
-                        {
-                            new SchemaFieldDefinition { Name = "pageOnly", Type = "string", Required = true }
-                        }
+                        Template = "pages/page.html"
                     }
                 }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = new ContentConfig
+            {
+                Provider = "markdown",
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    FieldScopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["post"] = new[]
+                        {
+                            new CustomFieldDefinitionConfig { Name = "postOnly", FieldType = "string", Required = true }
+                        },
+                        ["page"] = new[]
+                        {
+                            new CustomFieldDefinitionConfig { Name = "pageOnly", FieldType = "string", Required = true }
+                        }
+                    }
+                }
+            }
         };
 
     private static RoutedContentDocument RoutedDocument(string id, IReadOnlyDictionary<string, object> fields)

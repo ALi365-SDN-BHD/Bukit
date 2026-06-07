@@ -26,4 +26,4 @@ public sealed record ContentStageOutput(
     IContentBodyStore BodyStore,
     string StageName,
     long DurationMs,
-    IReadOnlyList<ContentSchemaValidator.SchemaValidationError>? SchemaErrors);
+    IReadOnlyList<ContentValidationIssue>? SchemaErrors);

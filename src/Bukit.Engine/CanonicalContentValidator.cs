@@ -4,20 +4,20 @@ namespace Bukit.Engine;
 
 internal static class CanonicalContentValidator
 {
-    internal static IReadOnlyList<ContentSchemaValidator.SchemaValidationError> Validate(CanonicalContentGraph graph)
+    internal static IReadOnlyList<ContentValidationIssue> Validate(CanonicalContentGraph graph)
     {
         if (graph.Records.Count == 0)
         {
-            return Array.Empty<ContentSchemaValidator.SchemaValidationError>();
+            return Array.Empty<ContentValidationIssue>();
         }
 
-        var errors = new List<ContentSchemaValidator.SchemaValidationError>();
+        var errors = new List<ContentValidationIssue>();
         foreach (var record in graph.Records)
         {
             if (record.Provenance.Source is not null &&
                 string.IsNullOrWhiteSpace(record.Provenance.Source))
             {
-                errors.Add(new ContentSchemaValidator.SchemaValidationError(
+                errors.Add(new ContentValidationIssue(
                     "provenance.source",
                     "canonical_source_missing",
                     "Canonical provenance source is blank.",
@@ -26,7 +26,7 @@ internal static class CanonicalContentValidator
 
             if (string.IsNullOrWhiteSpace(record.Trust.ReviewStatus))
             {
-                errors.Add(new ContentSchemaValidator.SchemaValidationError(
+                errors.Add(new ContentValidationIssue(
                     "trust.review_status",
                     "canonical_review_status_missing",
                     "Canonical trust review status is blank.",
@@ -37,7 +37,7 @@ internal static class CanonicalContentValidator
             {
                 if (string.IsNullOrWhiteSpace(relation.Target))
                 {
-                    errors.Add(new ContentSchemaValidator.SchemaValidationError(
+                    errors.Add(new ContentValidationIssue(
                         "relations.target",
                         "canonical_relation_target_missing",
                         $"Canonical relation '{relation.Type}' is missing a target.",
@@ -49,7 +49,7 @@ internal static class CanonicalContentValidator
             {
                 if (RequiresAlt(media) && string.IsNullOrWhiteSpace(media.Alt))
                 {
-                    errors.Add(new ContentSchemaValidator.SchemaValidationError(
+                    errors.Add(new ContentValidationIssue(
                         "media.alt",
                         "canonical_media_alt_missing",
                         $"Media asset '{media.Url}' is missing alt text.",

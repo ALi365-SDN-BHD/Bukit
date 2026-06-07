@@ -24,9 +24,9 @@ This skill bridges the gap between content schema (defined in site.yaml) and Scr
 
 | Language | Trigger Phrases |
 |----------|----------------|
-| 中文 | "Schema 生成模板"、"集合 schema"、"内容类型模板"、"字段映射模板" |
-| English | "schema driven template", "generate template from schema", "collection schema template", "field-aware template" |
-| Bahasa Melayu | "templat dipacu skema", "jana templat dari skema", "templat skema koleksi" |
+| 中文 | "Schema 生成模板"、"content model fieldScopes"、"内容类型模板"、"字段映射模板" |
+| English | "schema driven template", "generate template from schema", "content model field scope template", "field-aware template" |
+| Bahasa Melayu | "templat dipacu skema", "jana templat dari skema", "templat content model field scopes" |
 
 ## Workflow: Schema → Template
 
@@ -172,7 +172,7 @@ Generated template:
 
 | Symptom | Likely Cause | Fix |
 |---|---|---|
-| Template renders blank where a field should appear | Field name in template does not match the collection schema or source property casing | Compare `site.collections.<key>.schema[].name` with the template access path and use the exact field key |
+| Template renders blank where a field should appear | Field name in template does not match the content model field scope or source property casing | Compare `content.modelSchema.fieldScopes.<key>[].name` with the template access path and use the exact field key |
 | Build fails or renders errors for optional fields | Template accesses `.value` on a field that may be absent | Guard optional fields with `{{ if page.fields.X && page.fields.X.value }}...{{ end }}` or use a fallback |
 | Arrays render as `System...` or a single unformatted value | Array, multi-select, or tags field is printed directly instead of iterated | Render arrays with `{{ for item in page.fields.X.value }}...{{ end }}` and add an empty-state branch when needed |
 | Dates show in the wrong format or fail formatting | Field is a string, null, or uses a provider-specific date value rather than a normalized date | Prefer normalized page dates such as `page.publish_date`, or validate schema type/format before applying date filters |
@@ -222,12 +222,12 @@ public interface IContentStage
 | 1 | `ContentLoad` | Creates provider, loads items | `event=content.stage stage=ContentLoad duration_ms=234` |
 | 2 | `ImageLocalize` | Downloads/localizes remote images | `event=content.stage stage=ImageLocalize duration_ms=156` |
 | 3 | `DraftFilter` | Filters draft items | `event=content.stage stage=DraftFilter duration_ms=1` |
-| 4 | `SchemaDefaults` | Applies schema defaults | `event=content.stage stage=SchemaDefaults duration_ms=3` |
-| 5 | `SchemaValidate` | Validates against schema | `event=content.stage stage=SchemaValidate duration_ms=12` |
+| 4 | `ContentGraphValidate` | Validates canonical records and content model schema | `event=content.stage stage=ContentGraphValidate duration_ms=3` |
+| 5 | `CollectionWarning` | Emits collection-level warnings | `event=content.stage stage=CollectionWarning duration_ms=12` |
 
 ### Injecting Custom Stages
 
-Custom stages receive `ContentStageInput` (with `Items`, `BodyStore`, `Config`, `RootDir`, `MediaCacheDir`, `Logger`) and return `ContentStageOutput` (with `Items`, `BodyStore`, `StageName`, `DurationMs`, `SchemaErrors`). Each stage's output feeds the next stage's input in a pipeline pattern.
+Custom stages receive `ContentStageInput` (with `Documents`, `BodyStore`, `Config`, `RootDir`, `MediaCacheDir`, `Logger`) and return `ContentStageOutput` (with `Documents`, `BodyStore`, `StageName`, `DurationMs`, `SchemaErrors`). Each stage's output feeds the next stage's input in a pipeline pattern.
 
 ## Common Mistakes
 

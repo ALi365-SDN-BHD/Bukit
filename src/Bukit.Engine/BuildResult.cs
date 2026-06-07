@@ -61,7 +61,7 @@ internal static class BuildResultFactory
         DateTimeOffset endedAt,
         long durationMs,
         IReadOnlyList<BuildVariantResult> variants,
-        IReadOnlyList<ContentSchemaValidator.SchemaValidationError>? schemaErrors = null,
+        IReadOnlyList<ContentValidationIssue>? schemaErrors = null,
         IReadOnlyList<string>? generatedFiles = null)
     {
         var pageCount = variants.Sum(v => v.RenderedCount + v.SkippedCount);

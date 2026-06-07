@@ -486,7 +486,7 @@ content/_taxonomy/tags/dl/_index.md:
 | **诊断码体系** 🆕 | 所有构建错误现在携带稳定的 `BKT-XXXX` 诊断码（8 个分类，27 个码）。详见下方[诊断码参考](#诊断码参考)。 | 机器可读的错误码；跨版本稳定不变 |
 | **插件能力系统** 🆕 | 每个外部插件可声明 `capabilities: [emit-outputs, derive-pages]`。运行时 hook 执行将被**强制校验**。声明了 capabilities 但缺少对应能力的插件会导致构建失败，错误码 `[BKT-0701]`。 | 沙箱机制 — 阻止插件执行未授权的 hook |
 | **模板变量拼写检查** 🆕 | `bukit doctor` 现在扫描所有 Scriban 模板中的未知变量引用（如 `site.settings` 实际应写 `site.params`）。使用 AST 分析 + 已知字段白名单比对。 | 捕获变量拼写错误导致的静默渲染失败 |
-| **内容管道阶段** 🆕 | 内容加载管道拆分为 5 个命名阶段（`ContentLoad` → `ImageLocalize` → `DraftFilter` → `SchemaDefaults` → `SchemaValidate`），每阶段记录耗时。可通过 `IContentStage` 扩展。 | 每个阶段的性能可见；支持插件开发者注入自定义阶段 |
+| **内容管道阶段** 🆕 | 内容加载管道拆分为 5 个命名阶段（`ContentLoad` → `ImageLocalize` → `DraftFilter` → `ContentGraphValidate` → `CollectionWarning`），每阶段记录耗时。可通过 `IContentStage` 扩展。 | 每个阶段的性能可见；支持插件开发者注入自定义阶段 |
 | **渲染入口统一** 🆕 | 页面、列表和静态 HTML 渲染现在共享统一的调度循环 `PageRenderDispatcher.DispatchAsync()`。通过 `theme.staticTemplate` 渲染的静态 HTML 页面享有与内容页面相同的增量构建、SEO 注入和错误处理。 | 简化渲染管道；静态页面获得与内容页面同等的处理 |
 
 ---
@@ -529,8 +529,8 @@ content/_taxonomy/tags/dl/_index.md:
 event=content.stage stage=ContentLoad duration_ms=234
 event=content.stage stage=ImageLocalize duration_ms=156
 event=content.stage stage=DraftFilter duration_ms=1
-event=content.stage stage=SchemaDefaults duration_ms=3
-event=content.stage stage=SchemaValidate duration_ms=12
+event=content.stage stage=ContentGraphValidate duration_ms=3
+event=content.stage stage=CollectionWarning duration_ms=12
 ```
 
 | 顺序 | 阶段 | 职责 |
@@ -538,7 +538,7 @@ event=content.stage stage=SchemaValidate duration_ms=12
 | 1 | `ContentLoad` | 创建内容提供者，加载内容条目 |
 | 2 | `ImageLocalize` | 下载并本地化远程图片 |
 | 3 | `DraftFilter` | 过滤草稿条目（除非 `build.draft: true`） |
-| 4 | `SchemaDefaults` | 应用 schema 默认值 |
-| 5 | `SchemaValidate` | 按集合 schema 验证 |
+| 4 | `ContentGraphValidate` | 应用 schema 默认值 |
+| 5 | `CollectionWarning` | 按content model fieldScopes 验证 |
 
 插件开发者可通过实现 `IContentStage` 接口注入自定义阶段。

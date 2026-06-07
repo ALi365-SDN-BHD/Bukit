@@ -5,11 +5,11 @@ namespace Bukit.Content.Markdown;
 
 internal static class MarkdownFieldBuilder
 {
-    internal static IReadOnlyDictionary<string, ContentField> BuildFields(IReadOnlyDictionary<string, object> meta)
+    internal static IReadOnlyDictionary<string, ContentField> BuildFields(IReadOnlyDictionary<string, object> frontMatterValues)
     {
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var kv in meta)
+        foreach (var kv in frontMatterValues)
         {
             if (string.IsNullOrWhiteSpace(kv.Key) || kv.Value is null)
             {
@@ -28,17 +28,17 @@ internal static class MarkdownFieldBuilder
             }
         }
 
-        if (meta.TryGetValue("tags", out var tagsObj) && tagsObj is not null && TryConvertToList(tagsObj, out var tags))
+        if (frontMatterValues.TryGetValue("tags", out var tagsObj) && tagsObj is not null && TryConvertToList(tagsObj, out var tags))
         {
             fields["tags"] = new ContentField("list", tags);
         }
 
-        if (meta.TryGetValue("categories", out var catsObj) && catsObj is not null && TryConvertToList(catsObj, out var cats))
+        if (frontMatterValues.TryGetValue("categories", out var catsObj) && catsObj is not null && TryConvertToList(catsObj, out var cats))
         {
             fields["categories"] = new ContentField("list", cats);
         }
 
-        if (meta.TryGetValue("summary", out var summaryObj) && summaryObj is not null)
+        if (frontMatterValues.TryGetValue("summary", out var summaryObj) && summaryObj is not null)
         {
             fields["summary"] = new ContentField("text", summaryObj.ToString() ?? string.Empty);
         }

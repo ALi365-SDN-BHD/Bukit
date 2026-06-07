@@ -486,7 +486,7 @@ Keluaran ini juga merangkumi pelbagai penambahbaikan kebolehpercayaan dan kesela
 | **Sistem kod diagnostik** 🆕 | Semua ralat binaan kini membawa kod diagnostik stabil `BKT-XXXX` (8 kategori, 27 kod). Lihat [Rujukan Kod Diagnostik](#rujukan-kod-diagnostik) di bawah. | Kod ralat boleh dibaca mesin; stabil merentas versi |
 | **Sistem keupayaan plugin** 🆕 | Setiap plugin luaran boleh mengisytiharkan `capabilities: [emit-outputs, derive-pages]`. Pada masa jalan, pelaksanaan hook akan **dikuatkuasakan**. Plugin yang mengisytiharkan capabilities tetapi kekurangan keupayaan diperlukan akan menyebabkan kegagalan binaan dengan kod ralat `[BKT-0701]`. | Mekanisme kotak pasir — menghalang plugin melaksanakan hook yang tidak dibenarkan |
 | **Pemeriksaan ejaan pemboleh ubah templat** 🆕 | `bukit doctor` kini mengimbas semua templat Scriban untuk rujukan pemboleh ubah yang tidak diketahui (cth. `site.settings` sepatutnya `site.params`). Menggunakan analisis AST + perbandingan senarai putih medan diketahui. | Menangkap kegagalan perenderan senyap akibat salah eja pemboleh ubah |
-| **Peringkat saluran paip kandungan** 🆕 | Saluran paip pemuatan kandungan dipecahkan kepada 5 peringkat bernama (`ContentLoad` → `ImageLocalize` → `DraftFilter` → `SchemaDefaults` → `SchemaValidate`), setiap satu mencatatkan tempoh. Boleh dikembangkan melalui `IContentStage`. | Keterlihatan prestasi setiap peringkat; menyokong suntikan peringkat tersuai oleh pembangun plugin |
+| **Peringkat saluran paip kandungan** 🆕 | Saluran paip pemuatan kandungan dipecahkan kepada 5 peringkat bernama (`ContentLoad` → `ImageLocalize` → `DraftFilter` → `ContentGraphValidate` → `CollectionWarning`), setiap satu mencatatkan tempoh. Boleh dikembangkan melalui `IContentStage`. | Keterlihatan prestasi setiap peringkat; menyokong suntikan peringkat tersuai oleh pembangun plugin |
 | **Penyatuan pintu masuk perenderan** 🆕 | Perenderan halaman, senarai, dan HTML statik kini berkongsi gelung penghantaran bersatu `PageRenderDispatcher.DispatchAsync()`. Halaman HTML statik melalui `theme.staticTemplate` menikmati binaan tambahan, suntikan SEO, dan pengendalian ralat yang sama seperti halaman kandungan. | Saluran paip perenderan dipermudahkan; halaman statik mendapat pariti dengan halaman kandungan |
 
 ---
@@ -529,8 +529,8 @@ Saluran paip pemuatan kandungan kini disusun sebagai 5 peringkat bernama, setiap
 event=content.stage stage=ContentLoad duration_ms=234
 event=content.stage stage=ImageLocalize duration_ms=156
 event=content.stage stage=DraftFilter duration_ms=1
-event=content.stage stage=SchemaDefaults duration_ms=3
-event=content.stage stage=SchemaValidate duration_ms=12
+event=content.stage stage=ContentGraphValidate duration_ms=3
+event=content.stage stage=CollectionWarning duration_ms=12
 ```
 
 | Urutan | Peringkat | Tanggungjawab |
@@ -538,7 +538,7 @@ event=content.stage stage=SchemaValidate duration_ms=12
 | 1 | `ContentLoad` | Mencipta penyedia kandungan, memuatkan item |
 | 2 | `ImageLocalize` | Memuat turun dan menyetempatkan imej jauh |
 | 3 | `DraftFilter` | Menapis item draf (kecuali `build.draft: true`) |
-| 4 | `SchemaDefaults` | Mengaplikasikan nilai lalai skema |
-| 5 | `SchemaValidate` | Mengesahkan mengikut skema koleksi |
+| 4 | `ContentGraphValidate` | Mengaplikasikan nilai lalai skema |
+| 5 | `CollectionWarning` | Mengesahkan mengikut content model field scopes |
 
 Pembangun plugin boleh menyuntik peringkat tersuai dengan melaksanakan `IContentStage`.

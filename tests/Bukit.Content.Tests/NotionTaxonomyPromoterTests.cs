@@ -7,9 +7,9 @@ namespace Bukit.Content.Tests;
 public sealed class NotionTaxonomyPromoterTests
 {
     [Fact]
-    public void PromoteRelationTaxonomyTerms_WithLinksField_PromotesTermsToMeta()
+    public void ProjectRelationTaxonomyTerms_WithLinksField_ProjectsTermsToFields()
     {
-        var meta = new Dictionary<string, object>();
+        var projectedValues = new Dictionary<string, object>();
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags_links"] = new ContentField("list", new List<Dictionary<string, object?>>
@@ -29,17 +29,17 @@ public sealed class NotionTaxonomyPromoterTests
             })
         };
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "tags");
+        NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(projectedValues, fields, "tags");
 
-        Assert.True(meta.ContainsKey("tags"));
-        var terms = Assert.IsType<List<string>>(meta["tags"]);
+        Assert.True(projectedValues.ContainsKey("tags"));
+        var terms = Assert.IsType<List<string>>(projectedValues["tags"]);
         Assert.Equal(new[] { "Docs", "Release" }, terms);
     }
 
     [Fact]
-    public void PromoteRelationTaxonomyTerms_UsesTitleFirst_ThenSlug_ThenId()
+    public void ProjectRelationTaxonomyTerms_UsesTitleFirst_ThenSlug_ThenId()
     {
-        var meta = new Dictionary<string, object>();
+        var projectedValues = new Dictionary<string, object>();
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags_links"] = new ContentField("list", new List<Dictionary<string, object?>>
@@ -50,16 +50,16 @@ public sealed class NotionTaxonomyPromoterTests
             })
         };
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "tags");
+        NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(projectedValues, fields, "tags");
 
-        var terms = Assert.IsType<List<string>>(meta["tags"]);
+        var terms = Assert.IsType<List<string>>(projectedValues["tags"]);
         Assert.Equal(new[] { "T1", "s2", "i3" }, terms);
     }
 
     [Fact]
-    public void PromoteRelationTaxonomyTerms_DeduplicatesByCaseInsensitive()
+    public void ProjectRelationTaxonomyTerms_DeduplicatesByCaseInsensitive()
     {
-        var meta = new Dictionary<string, object>();
+        var projectedValues = new Dictionary<string, object>();
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags_links"] = new ContentField("list", new List<Dictionary<string, object?>>
@@ -70,17 +70,17 @@ public sealed class NotionTaxonomyPromoterTests
             })
         };
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "tags");
+        NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(projectedValues, fields, "tags");
 
-        var terms = Assert.IsType<List<string>>(meta["tags"]);
+        var terms = Assert.IsType<List<string>>(projectedValues["tags"]);
         Assert.Single(terms);
         Assert.Equal("Docs", terms[0]);
     }
 
     [Fact]
-    public void PromoteRelationTaxonomyTerms_TrimsWhitespace()
+    public void ProjectRelationTaxonomyTerms_TrimsWhitespace()
     {
-        var meta = new Dictionary<string, object>();
+        var projectedValues = new Dictionary<string, object>();
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags_links"] = new ContentField("list", new List<Dictionary<string, object?>>
@@ -89,56 +89,56 @@ public sealed class NotionTaxonomyPromoterTests
             })
         };
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "tags");
+        NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(projectedValues, fields, "tags");
 
-        var terms = Assert.IsType<List<string>>(meta["tags"]);
+        var terms = Assert.IsType<List<string>>(projectedValues["tags"]);
         Assert.Single(terms);
         Assert.Equal("Padded", terms[0]);
     }
 
     [Fact]
-    public void PromoteRelationTaxonomyTerms_WhenLinksFieldMissing_DoesNothing()
+    public void ProjectRelationTaxonomyTerms_WhenLinksFieldMissing_DoesNothing()
     {
-        var meta = new Dictionary<string, object>();
+        var projectedValues = new Dictionary<string, object>();
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "tags");
+        NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(projectedValues, fields, "tags");
 
-        Assert.False(meta.ContainsKey("tags"));
+        Assert.False(projectedValues.ContainsKey("tags"));
     }
 
     [Fact]
-    public void PromoteRelationTaxonomyTerms_WhenLinksFieldValueNull_DoesNothing()
+    public void ProjectRelationTaxonomyTerms_WhenLinksFieldValueNull_DoesNothing()
     {
-        var meta = new Dictionary<string, object>();
+        var projectedValues = new Dictionary<string, object>();
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags_links"] = new ContentField("list", null!)
         };
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "tags");
+        NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(projectedValues, fields, "tags");
 
-        Assert.False(meta.ContainsKey("tags"));
+        Assert.False(projectedValues.ContainsKey("tags"));
     }
 
     [Fact]
-    public void PromoteRelationTaxonomyTerms_WithEmptyLinks_DoesNothing()
+    public void ProjectRelationTaxonomyTerms_WithEmptyLinks_DoesNothing()
     {
-        var meta = new Dictionary<string, object>();
+        var projectedValues = new Dictionary<string, object>();
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags_links"] = new ContentField("list", new List<Dictionary<string, object?>>())
         };
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "tags");
+        NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(projectedValues, fields, "tags");
 
-        Assert.False(meta.ContainsKey("tags"));
+        Assert.False(projectedValues.ContainsKey("tags"));
     }
 
     [Fact]
-    public void PromoteRelationTaxonomyTerms_WithNullLinkEntries_SkipsThem()
+    public void ProjectRelationTaxonomyTerms_WithNullLinkEntries_SkipsThem()
     {
-        var meta = new Dictionary<string, object>();
+        var projectedValues = new Dictionary<string, object>();
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags_links"] = new ContentField("list", new List<Dictionary<string, object?>>
@@ -148,17 +148,17 @@ public sealed class NotionTaxonomyPromoterTests
             })
         };
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "tags");
+        NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(projectedValues, fields, "tags");
 
-        var terms = Assert.IsType<List<string>>(meta["tags"]);
+        var terms = Assert.IsType<List<string>>(projectedValues["tags"]);
         Assert.Single(terms);
         Assert.Equal("Valid", terms[0]);
     }
 
     [Fact]
-    public void PromoteRelationTaxonomyTerms_WithEmptyTrimmedTerms_SkipsThem()
+    public void ProjectRelationTaxonomyTerms_WithEmptyTrimmedTerms_SkipsThem()
     {
-        var meta = new Dictionary<string, object>();
+        var projectedValues = new Dictionary<string, object>();
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags_links"] = new ContentField("list", new List<Dictionary<string, object?>>
@@ -169,31 +169,31 @@ public sealed class NotionTaxonomyPromoterTests
             })
         };
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "tags");
+        NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(projectedValues, fields, "tags");
 
-        var terms = Assert.IsType<List<string>>(meta["tags"]);
+        var terms = Assert.IsType<List<string>>(projectedValues["tags"]);
         Assert.Single(terms);
         Assert.Equal("real", terms[0]);
     }
 
     [Fact]
-    public void PromoteRelationTaxonomyTerms_WhenLinksValueNotEnumerable_DoesNothing()
+    public void ProjectRelationTaxonomyTerms_WhenLinksValueNotEnumerable_DoesNothing()
     {
-        var meta = new Dictionary<string, object>();
+        var projectedValues = new Dictionary<string, object>();
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags_links"] = new ContentField("text", "not-a-list")
         };
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "tags");
+        NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(projectedValues, fields, "tags");
 
-        Assert.False(meta.ContainsKey("tags"));
+        Assert.False(projectedValues.ContainsKey("tags"));
     }
 
     [Fact]
-    public void PromoteRelationTaxonomyTerms_WithCategoriesKey_UsesCorrectLinkKey()
+    public void ProjectRelationTaxonomyTerms_WithCategoriesKey_UsesCorrectLinkKey()
     {
-        var meta = new Dictionary<string, object>();
+        var projectedValues = new Dictionary<string, object>();
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["categories_links"] = new ContentField("list", new List<Dictionary<string, object?>>
@@ -203,10 +203,10 @@ public sealed class NotionTaxonomyPromoterTests
             })
         };
 
-        NotionTaxonomyPromoter.PromoteRelationTaxonomyTerms(meta, fields, "categories");
+        NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(projectedValues, fields, "categories");
 
-        Assert.True(meta.ContainsKey("categories"));
-        var terms = Assert.IsType<List<string>>(meta["categories"]);
+        Assert.True(projectedValues.ContainsKey("categories"));
+        var terms = Assert.IsType<List<string>>(projectedValues["categories"]);
         Assert.Equal(new[] { "Tech", "Life" }, terms);
     }
 }

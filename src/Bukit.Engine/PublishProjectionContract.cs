@@ -26,7 +26,6 @@ internal sealed record PublishProjectionContext(
     string BaseUrl = "/",
     bool SearchSnippetsEnabled = false,
     ILogger? Logger = null,
-    BuildContext? PluginContext = null,
     IReadOnlyList<BuildVariantResult>? VariantResults = null,
     IReadOnlyList<RoutedContentDocument>? DerivedDocuments = null)
 {

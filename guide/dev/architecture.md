@@ -11,7 +11,7 @@ flowchart TD
 
     subgraph P1["📥 Phase 1: ContentPipeline (5 stages, Pipe-and-Filter)"]
         direction LR
-        C1["① ContentLoad<br/>load ContentItem"] --> C2["② ImageLocalize<br/>localize remote images"] --> C3["③ DraftFilter<br/>filter draft:true"] --> C4["④ SchemaDefaults<br/>apply schema defaults"] --> C5["⑤ SchemaValidate<br/>validate schema fields"]
+        C1["① ContentLoad<br/>load ContentDocument"] --> C2["② ImageLocalize<br/>localize remote images"] --> C3["③ DraftFilter<br/>filter draft:true"] --> C4["④ ContentGraphValidate<br/>validate canonical graph"] --> C5["⑤ CollectionWarning<br/>emit collection warnings"]
     end
 
     P0 --> C1

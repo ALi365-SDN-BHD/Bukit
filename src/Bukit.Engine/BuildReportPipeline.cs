@@ -26,7 +26,6 @@ internal sealed record BuildReportPipelineContext(
     ILogger Logger,
     string? DefaultLanguage,
     IReadOnlyList<RoutedContentDocument> RoutedDocuments,
-    BuildContext? PluginContext = null,
     CanonicalContentGraph? ContentGraph = null,
     IReadOnlyList<RoutedContentDocument>? DerivedDocuments = null)
 {
@@ -69,7 +68,6 @@ internal sealed class BuildReportPipeline
             BaseUrl: ctx.BaseUrl,
             SearchSnippetsEnabled: ctx.SearchSnippetsEnabled,
             Logger: ctx.Logger,
-            PluginContext: ctx.PluginContext,
             RoutedDocuments: ctx.RoutedDocuments,
             DerivedDocuments: ctx.DerivedDocuments));
         SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger, projectionResults);

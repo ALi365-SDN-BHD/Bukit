@@ -8,7 +8,7 @@ public static class ContentModelSchemaProjection
     public static ContentModelSchema FromConfig(AppConfig config)
         => ContentModelSchemaFactory.FromConfig(config);
 
-    public static IReadOnlyList<ContentSchemaValidator.SchemaValidationError> ValidateDocuments(
+    public static IReadOnlyList<ContentValidationIssue> ValidateDocuments(
         AppConfig config,
         IReadOnlyList<ContentDocument> documents)
     {
@@ -47,11 +47,11 @@ public static class ContentModelSchemaProjection
         return names;
     }
 
-    private static IEnumerable<ContentSchemaValidator.SchemaValidationError> ToSchemaErrors(ContentDocument document)
+    private static IEnumerable<ContentValidationIssue> ToSchemaErrors(ContentDocument document)
     {
         foreach (var diagnostic in document.Diagnostics)
         {
-            yield return new ContentSchemaValidator.SchemaValidationError(
+            yield return new ContentValidationIssue(
                 diagnostic.Field ?? string.Empty,
                 diagnostic.Code,
                 diagnostic.Message,

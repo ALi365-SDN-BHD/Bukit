@@ -148,7 +148,7 @@ public sealed class SiteEngine
         IReadOnlyList<string> languages,
         DateTimeOffset buildStartedAt, Stopwatch buildStopwatch,
         BodyCacheMetrics? bodyCacheMetrics,
-        IReadOnlyList<ContentSchemaValidator.SchemaValidationError> schemaErrors,
+        IReadOnlyList<ContentValidationIssue> schemaErrors,
         CancellationToken cancellationToken)
     {
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);

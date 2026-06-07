@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Shared;
 
 namespace Bukit.Engine;
 
@@ -17,10 +18,11 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
 {
     public ContentDocument Normalize(RawContentDocument raw, ContentModelSchema? schema = null)
     {
-        var fields = ApplySchemaDefaults(
+        var fields = ApplyContentModelDefaults(
             ApplyCanonicalMappings(BuildInputFieldMap(raw), schema),
             schema);
         var diagnostics = BuildDiagnostics(raw, fields, schema);
+        ThrowIfUnknownRawKeyRejected(schema, diagnostics);
         var normalizedRaw = raw with { CustomFields = fields };
         return new ContentDocument(
             CanonicalContentGraphBuilder.ToRecord(normalizedRaw, schema),
@@ -30,6 +32,29 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
             fields,
             raw.Source,
             diagnostics);
+    }
+
+    private static void ThrowIfUnknownRawKeyRejected(
+        ContentModelSchema? schema,
+        IReadOnlyList<ContentDiagnostic> diagnostics)
+    {
+        if (schema?.RejectUnknownRawKeys != true)
+        {
+            return;
+        }
+
+        var unknownKeys = diagnostics
+            .Where(diagnostic => string.Equals(diagnostic.Code, "content.unknown_raw_key", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (unknownKeys.Length == 0)
+        {
+            return;
+        }
+
+        var fields = string.Join(", ", unknownKeys.Select(x => x.Field).Where(x => !string.IsNullOrWhiteSpace(x)));
+        throw new ConfigException(
+            $"Content model normalization rejected undeclared raw key(s): {fields}. Declare them in content.modelSchema canonicalMappings, customFields, fieldScopes, entityMappings, or relationMappings.",
+            DiagnosticCode.SchemaStrictModeBlocked);
     }
 
     private static IReadOnlyDictionary<string, ContentField>? ApplyCanonicalMappings(
@@ -76,7 +101,7 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
         return projected ?? fields;
     }
 
-    private static IReadOnlyDictionary<string, ContentField>? ApplySchemaDefaults(
+    private static IReadOnlyDictionary<string, ContentField>? ApplyContentModelDefaults(
         IReadOnlyDictionary<string, ContentField>? fields,
         ContentModelSchema? schema)
     {

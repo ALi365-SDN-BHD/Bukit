@@ -48,7 +48,7 @@ src/skills/
 | `bukit-theme` | Theme directory structure, static assets, wizard-based creation, theme distribution (pack/install), registry search, template snippets | Creating themes via wizard/preset, listing theme info/params, packaging themes for sharing, installing from registry, browsing template snippets |
 | `bukit-templating` | Scriban syntax, layout inheritance, data access, and template patterns | Writing page templates, list pages, pagination, or fixing template rendering errors |
 | `bukit-design-tokens` | Design token systems for Bukit themes: CSS variables, color palettes, typography scales, spacing systems, and dark mode configuration | Creating a consistent visual identity, defining `:root {}` CSS variables, setting up dark mode, choosing color palettes |
-| `bukit-content-to-template` | Schema-driven template generation: maps content collection schemas to precise Scriban template patterns | Generating post/page/list/card templates from `site.yaml` collection schema definitions, ensuring every field is correctly rendered |
+| `bukit-content-to-template` | Schema-driven template generation: maps content content model field scopes to precise Scriban template patterns | Generating post/page/list/card templates from `site.yaml` content model field scope definitions, ensuring every field is correctly rendered |
 | `bukit-notion` | Notion integration, property mapping, block rendering, and image localization | Using Notion as CMS or troubleshooting Notion fetch and mapping issues |
 | `bukit-routing` | Permalinks, collection routes, URL encoding, and output path behavior | Customizing URLs, fixing 404s, handling route conflicts, configuring list pages |
 | `bukit-i18n` | Language detection, per-language builds, sitemap/RSS/search merging | Building multilingual sites and debugging language switch or merged output issues |
@@ -72,7 +72,7 @@ These skills are designed to be combined with clear boundaries:
 3. Treat `bukit-config` as background knowledge for `bukit-theme`, `bukit-design-tokens`, `bukit-content-to-template`, `bukit-notion`, `bukit-routing`, `bukit-i18n`, `bukit-plugins-debug`, `bukit-import`, `bukit-seo`, and `bukit-geo`
 4. Read `bukit-theme` before `bukit-templating` when template work depends on theme structure
 5. Load `bukit-design-tokens` when visual consistency is a goal — it provides palettes, scales, and dark mode patterns
-6. Load `bukit-content-to-template` when generating templates from collection schemas — it bridges schema field definitions to Scriban code
+6. Load `bukit-content-to-template` when generating templates from content model field scopes — it bridges schema field definitions to Scriban code
 7. Load `bukit-seo` for traditional SEO tasks and `bukit-geo` for AI search optimization tasks — they share `site.seo` config but target different audiences
 8. Load `theme-component-system` for V2 componentized theme work — it depends on `bukit-theme` and `bukit-templating` as prerequisites
 
@@ -313,7 +313,7 @@ The basic validate script checks:
 
 1. `using-bukit`
 2. `bukit-content-to-template`
-3. `bukit-config` (for collection schema)
+3. `bukit-config` (for content model field scope)
 4. `bukit-templating`
 5. `bukit-design-tokens` (for visual styling)
 

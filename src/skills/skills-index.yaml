@@ -173,10 +173,10 @@ skills:
     priority: 6
     path: src/skills/bukit-content-to-template/SKILL.md
     description: >
-      Schema-driven template generation — maps collection schema definitions
+      Schema-driven template generation — maps content model field scope definitions
       to precise Scriban templates ensuring every field is correctly rendered.
     triggers:
-      - pattern: "schema.*template|generate template.*schema|collection schema.*template"
+      - pattern: "schema.*template|generate template.*schema|content model field scope.*template"
         languages: [en, zh-CN, ms]
     requires: [bukit-config, bukit-templating, bukit-design-tokens]
     guide_chapter: "08 Themes & Templates (schema section)"
