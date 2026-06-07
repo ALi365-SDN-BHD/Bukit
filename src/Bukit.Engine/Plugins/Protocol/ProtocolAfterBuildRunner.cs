@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.Protocol;
 
@@ -27,17 +28,17 @@ internal sealed class ProtocolAfterBuildRunner
         var result = await InvokeAsync(config, requestJson, arguments, cancellationToken);
         if (result.TimedOut)
         {
-            throw new InvalidOperationException($"[plugin-timeout][after-build] protocol plugin '{pluginName}' timed out.");
+            throw new ConfigException($"[plugin-protocol][after-build] protocol plugin '{pluginName}' timed out.", DiagnosticCode.PluginExecutionFailed);
         }
 
         if (result.ExitCode != 0)
         {
-            throw new InvalidOperationException($"[plugin-exit][after-build] protocol plugin '{pluginName}' exited with code {result.ExitCode}: {result.StdErr}");
+            throw new ConfigException($"[plugin-protocol][after-build] protocol plugin '{pluginName}' exited with code {result.ExitCode}: {result.StdErr}", DiagnosticCode.PluginExecutionFailed);
         }
 
         if (string.IsNullOrWhiteSpace(result.StdOut))
         {
-            throw new InvalidOperationException($"[plugin-protocol][after-build] protocol plugin '{pluginName}' returned empty stdout.");
+            throw new ConfigException($"[plugin-protocol][after-build] protocol plugin '{pluginName}' returned empty stdout.", DiagnosticCode.PluginExecutionFailed);
         }
 
         ProtocolPluginInvocationResponse? response;
@@ -47,17 +48,17 @@ internal sealed class ProtocolAfterBuildRunner
         }
         catch (JsonException ex)
         {
-            throw new InvalidOperationException($"[plugin-protocol][after-build] protocol plugin '{pluginName}' returned invalid JSON: {ex.Message}", ex);
+            throw new ConfigException($"[plugin-protocol][after-build] protocol plugin '{pluginName}' returned invalid JSON: {ex.Message}", ex, DiagnosticCode.PluginExecutionFailed);
         }
 
         if (response is null)
         {
-            throw new InvalidOperationException($"[plugin-protocol][after-build] protocol plugin '{pluginName}' returned no response.");
+            throw new ConfigException($"[plugin-protocol][after-build] protocol plugin '{pluginName}' returned no response.", DiagnosticCode.PluginExecutionFailed);
         }
 
         if (!response.Ok)
         {
-            throw new InvalidOperationException($"[plugin-protocol][after-build] {response.Error?.Message ?? $"Protocol plugin '{pluginName}' returned ok=false."}");
+            throw new ConfigException($"[plugin-protocol][after-build] {response.Error?.Message ?? $"Protocol plugin '{pluginName}' returned ok=false."}", DiagnosticCode.PluginExecutionFailed);
         }
 
         foreach (var log in response.Logs ?? Array.Empty<ProtocolPluginLogEntry>())

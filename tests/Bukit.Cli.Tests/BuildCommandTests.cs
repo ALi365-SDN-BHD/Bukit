@@ -187,6 +187,30 @@ public sealed class BuildCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_DeprecationWarnings_StrictMode_ThrowsConfigException()
+    {
+        var siteYaml = Path.Combine(_testDir, "site.yaml");
+        File.WriteAllText(siteYaml, """
+                                      site:
+                                        name: test
+                                        title: Test
+                                        pluginFailMode: strict
+                                        rssMode: root
+                                      content:
+                                        provider: markdown
+                                      """);
+
+        var cmd = new CliBoundCommand(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--config"] = siteYaml
+            },
+            Array.Empty<string>());
+
+        var ex = await Assert.ThrowsAsync<ConfigException>(() => BuildCommand.RunAsync(cmd));
+        Assert.Contains("Removed configuration fields", ex.Message);
+    }
+
+    [Fact]
     public async Task RunAsync_JobsAbc_ThrowsCommandArgumentException()
     {
         var siteYaml = Path.Combine(_testDir, "site.yaml");

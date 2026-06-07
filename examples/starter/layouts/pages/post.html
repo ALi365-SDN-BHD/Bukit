@@ -5,7 +5,7 @@
     <p class="eyebrow">Article</p>
     <h1>{{ page.title }}</h1>
     {{ if page.publish_date }}
-      <p class="meta"><time datetime="{{ page.publish_date | date.to_string "%Y-%m-%d" }}">{{ page.publish_date | date.to_string "%Y-%m-%d" }}</time></p>
+      <p class="meta"><time datetime="{{ page.publish_date }}">{{ page.publish_date }}</time></p>
     {{ end }}
     {{ if page.summary }}<p class="article-summary">{{ page.summary }}</p>{{ end }}
   </header>

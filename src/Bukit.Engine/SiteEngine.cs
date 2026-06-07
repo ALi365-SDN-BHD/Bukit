@@ -153,7 +153,7 @@ public sealed class SiteEngine
     {
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
         var rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl);
-        var templateResolver = new ThemeTemplateResolver(ThemeBootstrapper.Bootstrap(config, rootDir, _logger).Manifest);
+        var templateResolver = new ThemeTemplateResolver(ThemeBootstrapper.BootstrapRequired(config, rootDir, _logger).Manifest);
         var seoAlternates = SeoAlternatesService.BuildSeoAlternates(config, documents, languages, defaultLanguage, rootBaseUrl, templateResolver);
         var results = new BuildVariantResult[languages.Count];
 

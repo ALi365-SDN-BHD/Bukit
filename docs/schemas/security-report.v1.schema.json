@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/security-report.v1.json",
+  "title": "Bukit Security Report",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "status", "warnings", "errors", "checks"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/security-report.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "status": { "enum": ["passed", "warning", "failed"] },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "errors": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "checks": {
+      "type": "object",
+      "required": ["routeTraversal", "unsafeSlug", "pluginOutputPath", "remoteThemeLock"],
+      "properties": {
+        "routeTraversal": { "$ref": "#/$defs/check" },
+        "unsafeSlug": { "$ref": "#/$defs/check" },
+        "pluginOutputPath": { "$ref": "#/$defs/check" },
+        "remoteThemeLock": { "$ref": "#/$defs/check" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "check": {
+      "type": "object",
+      "required": ["status", "severity"],
+      "properties": {
+        "status": { "enum": ["passed", "warning", "failed"] },
+        "severity": { "enum": ["info", "warning", "error"] }
+      },
+      "additionalProperties": false
+    }
+  }
+}

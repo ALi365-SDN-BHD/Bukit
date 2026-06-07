@@ -22,10 +22,17 @@ public sealed class ThemeManifestLoaderTests : IDisposable
     }
 
     [Fact]
-    public void Load_NoThemeYaml_ReturnsNull()
+    public void Load_NoThemeYaml_ReturnsNullByDefault()
     {
         var result = ThemeManifestLoader.Load(_testDir);
         Assert.Null(result);
+    }
+
+    [Fact]
+    public void Load_NoThemeYaml_Throws()
+    {
+        var ex = Assert.Throws<ThemeManifestException>(() => ThemeManifestLoader.Load(_testDir, true));
+        Assert.Contains("theme.yaml not found", ex.Message);
     }
 
     [Fact]

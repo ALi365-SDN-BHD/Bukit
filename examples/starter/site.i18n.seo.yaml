@@ -8,7 +8,6 @@ site:
     - en-US
   defaultLanguage: zh-CN
   sitemapMode: merged
-  rssMode: merged
   searchMode: index
   timezone: Asia/Shanghai
 content:

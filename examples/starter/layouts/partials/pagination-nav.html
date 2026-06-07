@@ -1,25 +1,25 @@
-{{ page_num = 1 }}
-{{ page_total = 1 }}
-{{ prev_url = "" }}
-{{ next_url = "" }}
-{{ if pagination }}
-  {{ page_num = pagination.page }}
-  {{ page_total = pagination.total_pages }}
-  {{ if pagination.has_prev }}
-    {{ if page_num == 2 }}
-      {{ prev_url = base_url }}
-    {{ else }}
-      {{ prev_url = base_url + "page/" + (page_num - 1) + "/" }}
-    {{ end }}
-  {{ end }}
-  {{ if pagination.has_next }}
-    {{ next_url = base_url + "page/" + (page_num + 1) + "/" }}
-  {{ end }}
-{{ end }}
-{{ if page_total > 1 }}
+{{ if page.fields.pagination.value && page.fields.pagination.value.total_pages > 1 }}
 <nav class="pagination" aria-label="Pagination">
-  <span>{{ if prev_url != "" }}<a href="{{ prev_url }}">Previous</a>{{ end }}</span>
-  <span>Page {{ page_num }} of {{ page_total }}</span>
-  <span>{{ if next_url != "" }}<a href="{{ next_url }}">Next</a>{{ end }}</span>
+  <span>
+    {{ if page.fields.pagination.value.has_prev }}
+      <a href="{{ if page.fields.pagination.value.page == 2 }}{{ site.base_url }}/blog/{{ else }}{{ site.base_url }}/blog/page/{{ page.fields.pagination.value.page - 1 }}/{{ end }}">
+        {{ if site.params.pagination_prev_label }}
+          {{ site.params.pagination_prev_label }}
+        {{ end }}
+      </a>
+    {{ end }}
+  </span>
+  <span>
+    {{ page.fields.pagination.value.page }} of {{ page.fields.pagination.value.total_pages }}
+  </span>
+  <span>
+    {{ if page.fields.pagination.value.has_next }}
+      <a href="{{ site.base_url }}/blog/page/{{ page.fields.pagination.value.page + 1 }}/">
+        {{ if site.params.pagination_next_label }}
+          {{ site.params.pagination_next_label }}
+        {{ end }}
+      </a>
+    {{ end }}
+  </span>
 </nav>
 {{ end }}

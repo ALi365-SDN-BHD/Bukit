@@ -34,11 +34,11 @@ Every compatibility item should use one of the statuses below.
 | `CG-001` | `content.provider` and `content.sources` dual-path loading | `supported` | [ConfigLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigLoader.cs:82), [ContentProviderFactory.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ContentProviderFactory.cs:15) | Medium | Keep. Add explicit precedence tests and state that new projects should prefer `content.sources`. | `v1.x` | Config / Engine |
 | `CG-002` | SEO audit no longer discovers root `dist/seo-report.json` | `rejected-with-message` | [SeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/SeoCommand.cs:8) | Low | Keep default discovery limited to `.bukit/seo-report.json`, with `.bukit/publish-audit-report.json` as secondary compatible input. Run a fresh build instead of relying on root output. | vNext | CLI |
 | `CG-003` | GEO audit no longer discovers root `dist/seo-report.json` | `rejected-with-message` | [GeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/GeoCommand.cs:26) | Low | Keep default discovery limited to `.bukit/seo-report.json`, with `.bukit/publish-audit-report.json` as secondary compatible input. Run a fresh build instead of relying on root output. | vNext | CLI |
-| `CG-004` | Old themes without `theme.yaml` still render | `supported` | [ThemeManifestLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Theme/ThemeManifestLoader.cs:7), [BuildCompatibilityTests.cs](/Users/ali/mydev/Git/Github/Bukit/tests/Bukit.Theme.Tests/BuildCompatibilityTests.cs:41) | Medium | Keep as an explicit compatibility promise. Add more fixtures for inherited and mixed-mode themes. | `v1.x` | Theme |
+| `CG-004` | Themes without `theme.yaml` are rejected | `rejected-with-message` | [ThemeManifestLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Theme/ThemeManifestLoader.cs:7), [ThemeBootstrapper.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ThemeBootstrapper.cs:11), [BuildCompatibilityTests.cs](/Users/ali/mydev/Git/Github/Bukit/tests/Bukit.Theme.Tests/BuildCompatibilityTests.cs:121) | High | Require `theme.yaml` for build and doctor; keep migration guidance to generate or restore manifest. | `current` | Theme |
 | `CG-005` | Theme template fallback chain via `fallbackDir` and default home template | `supported` | [FileTemplateLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Rendering/Scriban/FileTemplateLoader.cs:15), [ThemeTemplateResolver.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ThemeTemplateResolver.cs:17) | Medium | Keep. Add tests for override, child, and parent precedence. | `v1.x` | Rendering / Theme |
 | `CG-006` | Taxonomy `kinds[]` coexisting with legacy `tags/categories` template config | `deprecated-but-working` | [TaxonomyTemplateResolver.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/BuiltIn/TaxonomyTemplateResolver.cs:16) | Medium | Document as legacy-compatible, but steer users to `taxonomy.kinds[]`. Plan major-version cleanup. | `v2.0` | Engine |
-| `CG-007` | External protocol plugin handshake `v2 -> v1` fallback | `supported` | [ProtocolAfterBuildRunner.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/Protocol/ProtocolAfterBuildRunner.cs:92) | Medium | Keep. Add tests for timeout, invalid JSON, `ok=false`, and empty stdout fallback cases. | `v1.x` | Plugin |
-| `CG-008` | External plugin `capabilities` omitted means allow-all | `deprecated-but-working` | [PluginCapabilityEnforcer.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs:10) | High | Clarify the status. Add warning for missing capabilities before tightening policy in a future major release. | Warn in `v1.1`, review strictness for `v2.0` | Plugin / Security |
+| `CG-007` | External protocol plugin `v1` handshake fallback | `rejected-with-message` | [ProtocolAfterBuildRunner.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/Protocol/ProtocolAfterBuildRunner.cs:92), [ProtocolHandshakeNegotiator.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/Protocol/ProtocolHandshakeNegotiator.cs:23) | Medium | Enforce schema v2-only handshake and reject v1 responses with migration guidance. | `current` | Plugin |
+| `CG-008` | External plugin `capabilities` omitted metadata | `rejected-with-message` | [PluginCapabilityEnforcer.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs:10) | High | Missing capabilities now fail plugin execution (`site.pluginFailMode` controls strict vs warning behavior). | `current` | Plugin / Security |
 | `CG-009` | Legacy plugin option key `options.arguments` | `rejected` | [ProcessArgumentsBuilder.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/Protocol/ProcessArgumentsBuilder.cs:16) | Low | Keep rejected. Do not describe this as compatibility in docs. | Current | Plugin |
 | `CG-010` | `site.rssMode` still affects feed behavior | `deprecated-but-working` | [ConfigLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigLoader.cs:68), [FeedPlugin.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/BuiltIn/FeedPlugin.cs:24) | Medium | Publish a sunset plan. Keep until replacement guidance is fully documented. | `v2.0` | Config / Engine |
 | `CG-011` | `site.plugins.rss` deprecation warning | `warned-only` | [ConfigDeprecationScanner.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigDeprecationScanner.cs:36) | Medium | Document clearly that this is warning-only, not automatic runtime compatibility. | `v1.1` docs cleanup | Config |
@@ -63,6 +63,9 @@ users and maintainers:
 - `CG-012` `collections.*.rss`
 - `CG-013` `site.collection`
 - `CG-014` `content.notion.rootPageId`
+- `CG-004` themes without `theme.yaml`
+- `CG-007` protocol `v1` handshake fallback
+- `CG-008` `capabilities` omitted on external plugins
 
 Expected outcome:
 
@@ -76,7 +79,7 @@ The highest-value compatibility test additions are:
 1. `content.sources` vs `content.provider` precedence matrix
 2. SEO report path discovery without root report fallback
 3. GEO report path discovery without root legacy fallback
-4. Plugin handshake `v2 -> v1` fallback cases
+4. Protocol handshake `v1` rejection cases
 5. Missing `capabilities` behavior
 6. Windows time zone fallback table
 
@@ -104,7 +107,7 @@ When updating Bukit docs, use the following rules:
 - [ ] Align config and routing docs with the status vocabulary above
 - [ ] Add precedence tests for `content.sources` and `content.provider`
 - [ ] Add path-discovery tests for SEO and GEO audit commands
-- [ ] Add protocol handshake fallback tests
+- [ ] Add protocol handshake rejection tests (`version` not `2`, `ok=false`, invalid JSON, empty stdout)
 - [ ] Add tests for omitted plugin `capabilities`
 - [ ] Add parameterized tests for Windows time zone fallback mappings
 - [ ] Decide whether `rootPageId` should stay warning-only or gain alias parsing

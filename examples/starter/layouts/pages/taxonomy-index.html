@@ -1,19 +1,17 @@
 {% layout "layouts/base.html" %}
 
-{{ terms = page.fields.terms.value }}
-
 <header class="page-header">
   <p class="eyebrow">Browse</p>
   <h1>{{ page.title }}</h1>
 </header>
 
 <ul class="term-grid">
-{{ for term in terms }}
+{{ for section in page.fields.terms.value }}
   <li class="term-card">
-    <a href="{{ term.url }}">{{ term.title }}</a>
-    <span class="meta">{{ term.count }} items</span>
-    {{ if term.description }}
-      <p class="desc">{{ term.description }}</p>
+    <a href="{{ section.url }}">{{ section.title }}</a>
+    <span class="meta">{{ section.count }} items</span>
+    {{ if section.description }}
+      <p class="desc">{{ section.description }}</p>
     {{ end }}
   </li>
 {{ end }}

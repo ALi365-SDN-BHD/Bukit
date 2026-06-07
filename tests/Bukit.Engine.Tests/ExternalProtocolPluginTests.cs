@@ -351,7 +351,7 @@ public sealed class ExternalProtocolPluginTests
         using var temp = new TempDir();
         var context = CreateContext(temp.Path, "strict", "handshake-v1only");
 
-        var ex = Assert.Throws<InvalidOperationException>(() => PluginRunner.RunAfterBuild(context));
+        var ex = Assert.Throws<ConfigException>(() => PluginRunner.RunAfterBuild(context));
 
         Assert.Contains("requires protocol schema version 2", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -362,7 +362,7 @@ public sealed class ExternalProtocolPluginTests
         using var temp = new TempDir();
         var context = CreateContext(temp.Path, "strict", "handshake-invalid");
 
-        var ex = Assert.Throws<InvalidOperationException>(() => PluginRunner.RunAfterBuild(context));
+        var ex = Assert.Throws<ConfigException>(() => PluginRunner.RunAfterBuild(context));
 
         Assert.Contains("handshake returned invalid JSON", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -542,7 +542,7 @@ public sealed class ExternalProtocolPluginTests
         using var temp = new TempDir();
         var context = CreateContext(temp.Path, "strict", "handshake-v1only", hooks: new[] { "derive-pages" });
 
-        var ex = Assert.Throws<InvalidOperationException>(() => PluginRunner.RunDerivePages(context));
+        var ex = Assert.Throws<ConfigException>(() => PluginRunner.RunDerivePages(context));
 
         Assert.Contains("requires protocol schema version 2", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -681,6 +681,7 @@ public sealed class ExternalProtocolPluginTests
                             Runtime = "process",
                             Entry = DotNetHostPath(),
                             Hooks = new[] { "derive-pages" },
+                            Capabilities = new[] { "derive-pages" },
                             TimeoutMs = 5000,
                             Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                             {
@@ -692,6 +693,7 @@ public sealed class ExternalProtocolPluginTests
                             Runtime = "process",
                             Entry = DotNetHostPath(),
                             Hooks = new[] { "derive-pages" },
+                            Capabilities = new[] { "derive-pages" },
                             TimeoutMs = 5000,
                             Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                             {
@@ -778,6 +780,18 @@ public sealed class ExternalProtocolPluginTests
         Directory.CreateDirectory(outputDir);
         var isWasm = string.Equals(runtime, "wasm", StringComparison.OrdinalIgnoreCase);
 
+        var effectiveHooks = hooks ?? new[] { "after-build" };
+        var effectiveCapabilities = effectiveHooks
+            .Select(h => h.Trim().ToLowerInvariant() switch
+            {
+                "derive-pages" => "derive-pages",
+                "after-build" => "emit-outputs",
+                _ => null
+            })
+            .Where(c => c is not null)
+            .Cast<string>()
+            .ToList();
+
         return new BuildContext
         {
             Config = new AppConfig
@@ -795,7 +809,8 @@ public sealed class ExternalProtocolPluginTests
                         {
                             Runtime = runtime,
                             Entry = isWasm ? CreateWasmModuleForMode(rootDir, pluginMode) : DotNetHostPath(),
-                            Hooks = hooks ?? new[] { "after-build" },
+                            Hooks = effectiveHooks,
+                            Capabilities = effectiveCapabilities,
                             TimeoutMs = timeoutMs,
                             AllowEnvironment = allowEnvironment,
                             Options = isWasm

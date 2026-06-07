@@ -9,12 +9,12 @@ namespace Bukit.Engine.Tests;
 public sealed class PluginCapabilityEnforcerTests
 {
     [Fact]
-    public void Enforce_NoCapabilitiesDeclared_AllowsAnyHook()
+    public void Enforce_NoCapabilitiesDeclared_Throws()
     {
         var plugin = CreatePlugin(capabilities: null);
 
-        PluginCapabilityEnforcer.Enforce(plugin, "derive-pages");
-        PluginCapabilityEnforcer.Enforce(plugin, "after-build");
+        Assert.Throws<ConfigException>(() => PluginCapabilityEnforcer.Enforce(plugin, "derive-pages"));
+        Assert.Throws<ConfigException>(() => PluginCapabilityEnforcer.Enforce(plugin, "after-build"));
     }
 
     [Fact]

@@ -1,0 +1,73 @@
+templates:
+  pages/home.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/index.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/list.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: true
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/page.html:
+    capabilities:
+      needs_page_content: true
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/post.html:
+    capabilities:
+      needs_page_content: true
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/taxonomy-index.html:
+    capabilities:
+      supports_taxonomy: true
+  pages/taxonomy-term.html:
+    capabilities:
+      supports_taxonomy: true
+  layouts/base.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  base.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  partials/footer.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  components/cards/insight-card.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  sections/card-grid/card-grid.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  sections/hero/hero.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false

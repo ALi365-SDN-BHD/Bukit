@@ -86,7 +86,7 @@ site:
       maxStderrBytes: 262144    # optional: cap stderr at 256 KB
       allowEnvironment:         # optional: host env vars to expose
         - PATH
-      capabilities:             # optional: declared permissions (enforced at runtime)
+      capabilities:             # required: declared permissions (enforced at runtime)
         - derive-pages
         - emit-outputs
 ```
@@ -101,8 +101,8 @@ Each external plugin can declare a `capabilities` list to limit what hooks it ca
 | `emit-outputs` | `hooks: [after-build]` | Allows the plugin to write files to the output directory |
 
 **Enforcement rules:**
-- When `capabilities` is **not declared** (`null` or absent): all hooks are allowed (backward compatible)
-- When `capabilities` is **declared**: each hook execution is checked against the capability list
+- When `capabilities` is **not declared** (`null` or absent): plugin execution fails with `ConfigException` (`BKT-0701`) and clear migration guidance.
+- When `capabilities` is **declared**: each hook execution is checked against the capability list.
 - If a hook requires a capability the plugin doesn't declare, build fails with `ConfigException` + `BKT-0701`
 
 ```yaml

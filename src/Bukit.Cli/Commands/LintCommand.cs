@@ -14,11 +14,7 @@ public static class LintCommand
             var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
             var config = ConfigLoader.Load(resolved.FullConfigPath);
             ConfigValidator.Validate(config);
-
-            foreach (var warning in ConfigDeprecationScanner.ScanFile(resolved.FullConfigPath))
-            {
-                issues.Add(warning.Message);
-            }
+            ConfigDeprecationScanner.RejectRemovedFields(resolved.FullConfigPath);
 
             LintMarkdown(config, resolved.RootDir, issues);
         }

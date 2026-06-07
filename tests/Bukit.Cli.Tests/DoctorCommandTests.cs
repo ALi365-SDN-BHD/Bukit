@@ -68,6 +68,24 @@ public sealed class DoctorCommandTests : IDisposable
                                        """);
     }
 
+    private static string FindRepositoryRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null)
+        {
+            if (Directory.Exists(Path.Combine(dir.FullName, "examples")) &&
+                Directory.Exists(Path.Combine(dir.FullName, "src")) &&
+                Directory.Exists(Path.Combine(dir.FullName, "tests")))
+            {
+                return dir.FullName;
+            }
+
+            dir = dir.Parent;
+        }
+
+        throw new InvalidOperationException("Unable to locate repository root from test runtime path.");
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_rootDir))
@@ -773,6 +791,40 @@ public sealed class DoctorCommandTests : IDisposable
             {
                 Directory.Delete(initRootDir, recursive: true);
             }
+        }
+    }
+
+    [Fact]
+    public async Task StarterExampleThemeAssetAndDoctorAreConsistent()
+    {
+        var repoRoot = FindRepositoryRoot();
+        var exampleConfigPath = Path.Combine(repoRoot, "examples", "starter", "site.yaml");
+        var mediaRoot = Path.Combine(repoRoot, "examples", "starter", "assets");
+        var mediaRootImages = Path.Combine(mediaRoot, "images");
+
+        Assert.True(File.Exists(exampleConfigPath));
+        Assert.True(File.Exists(Path.Combine(mediaRoot, "noneimg-news.jpg")));
+        Assert.True(File.Exists(Path.Combine(mediaRootImages, "noneimg-news.jpg")));
+
+        var output = new StringBuilder();
+        var originalOut = Console.Out;
+        Console.SetOut(new StringWriter(output));
+        try
+        {
+            var doctorExitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = exampleConfigPath
+                },
+                Array.Empty<string>()));
+
+            Assert.Equal(0, doctorExitCode);
+            Assert.Contains("Doctor passed", output.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("event=media.skip_non_http", output.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
         }
     }
 }

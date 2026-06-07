@@ -114,12 +114,10 @@ public sealed class BuildCompatibilityTests : IDisposable
     }
 
     [Fact]
-    public void ThemeManifestLoader_NoFile_ReturnsNull()
+    public void ThemeManifestLoader_NoFile_Throws()
     {
         var nonExistentDir = Path.Combine(_rootDir, "themes", "nonexistent");
 
-        var result = ThemeManifestLoader.Load(nonExistentDir);
-
-        Assert.Null(result);
+        Assert.Throws<ThemeManifestException>(() => ThemeManifestLoader.Load(nonExistentDir, true));
     }
 }

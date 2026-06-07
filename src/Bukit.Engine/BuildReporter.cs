@@ -11,6 +11,12 @@ namespace Bukit.Engine;
 internal static class BuildReporter
 {
     internal const string ReportDirectoryName = ".bukit";
+    internal const string ArtifactSchemaVersion = "1.0";
+    internal const string BuildReportSchema = "https://bukit.dev/schemas/build-report.v1.json";
+    internal const string RoutesReportSchema = "https://bukit.dev/schemas/routes.v1.json";
+    internal const string AssetsReportSchema = "https://bukit.dev/schemas/assets.v1.json";
+    internal const string IncrementalManifestSchema = "https://bukit.dev/schemas/incremental-manifest.v1.json";
+    internal const string SecurityReportSchema = "https://bukit.dev/schemas/security-report.v1.json";
 
     internal static void WriteIfEnabled(
         AppConfig config,
@@ -41,6 +47,7 @@ internal static class BuildReporter
         using var stream = File.Create(path);
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();
+        WriteArtifactContract(writer, BuildReportSchema);
         writer.WriteString("version", result.Version);
         writer.WriteString("startedAt", result.StartedAt);
         writer.WriteString("endedAt", result.EndedAt);
@@ -93,6 +100,7 @@ internal static class BuildReporter
         using var stream = File.Create(path);
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();
+        WriteArtifactContract(writer, RoutesReportSchema);
         writer.WritePropertyName("routes");
         writer.WriteStartArray();
         foreach (var entry in entries)
@@ -117,6 +125,7 @@ internal static class BuildReporter
         using var stream = File.Create(path);
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();
+        WriteArtifactContract(writer, AssetsReportSchema);
         writer.WritePropertyName("assets");
         writer.WriteStartArray();
         foreach (var asset in assets)
@@ -138,6 +147,7 @@ internal static class BuildReporter
         using var stream = File.Create(path);
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();
+        WriteArtifactContract(writer, IncrementalManifestSchema);
         writer.WriteBoolean("enabled", result.Incremental.Enabled);
         writer.WriteNumber("cacheHitCount", result.Incremental.CacheHitCount);
         writer.WriteNumber("cacheMissCount", result.Incremental.CacheMissCount);
@@ -170,6 +180,7 @@ internal static class BuildReporter
         using var stream = File.Create(path);
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();
+        WriteArtifactContract(writer, SecurityReportSchema);
         writer.WriteString("status", "passed");
         writer.WritePropertyName("warnings");
         writer.WriteStartArray();
@@ -194,6 +205,12 @@ internal static class BuildReporter
         writer.WriteString("status", status);
         writer.WriteString("severity", severity);
         writer.WriteEndObject();
+    }
+
+    private static void WriteArtifactContract(Utf8JsonWriter writer, string schema)
+    {
+        writer.WriteString("schema", schema);
+        writer.WriteString("schemaVersion", ArtifactSchemaVersion);
     }
 
     private static IReadOnlyList<RouteReportEntry> BuildRouteEntries(IReadOnlyList<BuildVariantResult> variants)

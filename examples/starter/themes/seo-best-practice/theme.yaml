@@ -1,0 +1,36 @@
+name: seo-best-practice
+version: 1.0.0
+description: SEO-focused starter theme variant.
+author: Bukit
+license: MIT
+tags: [starter, seo]
+templates:
+  home:
+    template: pages/index.html
+    required: true
+  page:
+    template: pages/page.html
+    accepts:
+      collection: page
+  post:
+    template: pages/post.html
+    accepts:
+      collection: post
+  list:
+    template: pages/list.html
+    accepts:
+      collection: page
+params:
+  - key: brand
+    label: Site Brand
+    type: string
+    default: Bukit Starter
+  - key: github_url
+    label: GitHub URL
+    type: string
+    default: https://github.com/ALi365-SDN-BHD/Bukit
+    description: Link used by theme footer.
+  - key: empty_result_text
+    label: Empty Result Text
+    type: string
+    default: 没有找到你要的内容。

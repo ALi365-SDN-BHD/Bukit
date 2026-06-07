@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/incremental-manifest.v1.json",
+  "title": "Bukit Incremental Manifest Report",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "enabled", "cacheHitCount", "cacheMissCount", "renderReasons", "variants"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/incremental-manifest.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "enabled": { "type": "boolean" },
+    "cacheHitCount": { "type": "integer", "minimum": 0 },
+    "cacheMissCount": { "type": "integer", "minimum": 0 },
+    "renderReasons": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "variants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["language", "outputDir", "renderedCount", "skippedCount"],
+        "properties": {
+          "language": { "type": "string" },
+          "outputDir": { "type": "string" },
+          "renderedCount": { "type": "integer", "minimum": 0 },
+          "skippedCount": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

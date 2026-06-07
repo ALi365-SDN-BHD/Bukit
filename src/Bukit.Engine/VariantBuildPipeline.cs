@@ -249,7 +249,7 @@ internal sealed class VariantBuildPipeline
 
     private static Task<ThemeBootstrapResult> BootstrapThemeAsync(AppConfig config, string rootDir, ILogger logger)
     {
-        return Task.FromResult(ThemeBootstrapper.Bootstrap(config, rootDir, logger));
+        return Task.FromResult(ThemeBootstrapper.BootstrapRequired(config, rootDir, logger));
     }
 
     private Task<DataModuleResult> BuildDataModulesAsync(

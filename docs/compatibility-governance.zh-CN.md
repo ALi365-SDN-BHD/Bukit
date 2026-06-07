@@ -32,11 +32,11 @@
 | `CG-001` | `content.provider` 与 `content.sources` 双轨加载 | `supported` | [ConfigLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigLoader.cs:82), [ContentProviderFactory.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ContentProviderFactory.cs:15) | 中 | 保留；补齐优先级测试矩阵；文档明确新项目优先使用 `content.sources`。 | `v1.x` | Config / Engine |
 | `CG-002` | SEO 审计不再发现根路径 `dist/seo-report.json` | `rejected-with-message` | [SeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/SeoCommand.cs:8) | 低 | 默认只发现 `.bukit/seo-report.json`，并以 `.bukit/publish-audit-report.json` 作为次级兼容输入。不要依赖根路径输出，需重新 build。 | vNext | CLI |
 | `CG-003` | GEO 审计不再发现根路径 `dist/seo-report.json` | `rejected-with-message` | [GeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/GeoCommand.cs:26) | 低 | 默认只发现 `.bukit/seo-report.json`，并以 `.bukit/publish-audit-report.json` 作为次级兼容输入。不要依赖根路径输出，需重新 build。 | vNext | CLI |
-| `CG-004` | 无 `theme.yaml` 的旧主题仍可渲染 | `supported` | [ThemeManifestLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Theme/ThemeManifestLoader.cs:7), [BuildCompatibilityTests.cs](/Users/ali/mydev/Git/Github/Bukit/tests/Bukit.Theme.Tests/BuildCompatibilityTests.cs:41) | 中 | 保留，并作为明确兼容承诺写入文档；补更多旧主题/混合主题 fixture。 | `v1.x` | Theme |
+| `CG-004` | 无 `theme.yaml` 的旧主题仍可渲染 | `rejected-with-message` | [ThemeManifestLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Theme/ThemeManifestLoader.cs:7), [ThemeBootstrapper.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ThemeBootstrapper.cs:11), [BuildCompatibilityTests.cs](/Users/ali/mydev/Git/Github/Bukit/tests/Bukit.Theme.Tests/BuildCompatibilityTests.cs:121) | 高 | 构建与 doctor 阶段要求 `theme.yaml`，否则返回明确错误提示；保留迁移指引用于生成或补齐清单。 | `current` | Theme |
 | `CG-005` | 主题模板 `fallbackDir` 与默认首页模板回退链 | `supported` | [FileTemplateLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Rendering/Scriban/FileTemplateLoader.cs:15), [ThemeTemplateResolver.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ThemeTemplateResolver.cs:17) | 中 | 保留；补 override、child、parent 三层优先级测试。 | `v1.x` | Rendering / Theme |
 | `CG-006` | taxonomy 新 `kinds[]` 与旧 `tags/categories` 模板配置并存 | `deprecated-but-working` | [TaxonomyTemplateResolver.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/BuiltIn/TaxonomyTemplateResolver.cs:16) | 中 | 文档标为旧配置兼容；新示例统一引导到 `taxonomy.kinds[]`；计划 major 清理 legacy 分支。 | `v2.0` | Engine |
-| `CG-007` | 外部协议插件 handshake `v2 -> v1` 回退 | `supported` | [ProtocolAfterBuildRunner.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/Protocol/ProtocolAfterBuildRunner.cs:92) | 中 | 保留；补超时、坏 JSON、`ok=false`、空 stdout 回退测试。 | `v1.x` | Plugin |
-| `CG-008` | 外部插件未声明 `capabilities` 时默认放行 | `deprecated-but-working` | [PluginCapabilityEnforcer.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs:10) | 高 | 明确其状态；先加 warning；后续 major 版本再考虑收紧为 strict。 | `v1.1` 加 warning，`v2.0` 评估收紧 | Plugin / Security |
+| `CG-007` | 外部协议插件 handshake `v2 -> v1` 回退 | `rejected-with-message` | [ProtocolAfterBuildRunner.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/Protocol/ProtocolAfterBuildRunner.cs:92), [ProtocolHandshakeNegotiator.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/Protocol/ProtocolHandshakeNegotiator.cs:23) | 中 | 强制 v2 握手 schema，拒绝 v1 响应并给迁移指引。 | `current` | Plugin |
+| `CG-008` | 外部插件未声明 `capabilities` 时默认放行 | `rejected-with-message` | [PluginCapabilityEnforcer.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs:10) | 高 | 缺少 `capabilities` 直接拒绝并给迁移提示：按 hook 补齐 `derive-pages` 或 `emit-outputs`。 | `current` | Plugin / Security |
 | `CG-009` | 旧插件参数键 `options.arguments` | `rejected` | [ProcessArgumentsBuilder.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/Protocol/ProcessArgumentsBuilder.cs:16) | 低 | 保持拒绝；文档不要再把它写成兼容项。 | 当前 | Plugin |
 | `CG-010` | `site.rssMode` 仍影响 feed 行为 | `deprecated-but-working` | [ConfigLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigLoader.cs:68), [FeedPlugin.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/BuiltIn/FeedPlugin.cs:24) | 中 | 给出 sunset 计划；在替代配置说明完整前继续保留。 | `v2.0` | Config / Engine |
 | `CG-011` | `site.plugins.rss` 的弃用警告 | `warned-only` | [ConfigDeprecationScanner.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigDeprecationScanner.cs:36) | 中 | 文档明确这是“仅警告”，不是自动运行兼容。 | `v1.1` 文档清理 | Config |
@@ -56,6 +56,9 @@
 
 这些项应优先澄清，因为它们最容易误导用户和维护者：
 
+- `CG-004` 无 `theme.yaml` 的旧主题
+- `CG-007` 外部协议 `v1` 回退
+- `CG-008` 未声明 `capabilities` 的外部插件
 - `CG-011` `site.plugins.rss`
 - `CG-012` `collections.*.rss`
 - `CG-013` `site.collection`
@@ -73,7 +76,7 @@
 1. `content.sources` 与 `content.provider` 优先级矩阵
 2. SEO 报告路径发现，且不再回退根目录报告
 3. GEO 报告路径发现，且不再回退根目录旧报告
-4. 插件 handshake `v2 -> v1` 回退场景
+4. 插件 handshake `v1` 拒绝场景
 5. 未声明 `capabilities` 的行为
 6. Windows 时区 fallback 映射
 
@@ -101,7 +104,7 @@
 - [ ] 按本文状态词表统一 config / routing / plugin 文档表述
 - [ ] 补 `content.sources` / `content.provider` 优先级测试
 - [ ] 补 SEO / GEO 审计路径发现测试
-- [ ] 补协议 handshake fallback 测试
+- [ ] 补协议 handshake 拒绝测试（`version` not `2`、`ok=false`、无效 JSON、空 stdout）
 - [ ] 补插件 `capabilities` 缺省行为测试
 - [ ] 补 Windows 时区 fallback 参数化测试
 - [ ] 决定 `rootPageId` 保持 warning-only 还是新增 alias 解析

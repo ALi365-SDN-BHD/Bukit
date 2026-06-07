@@ -7,6 +7,9 @@
         {{ site.title }}
       {{ end }}
     </span>
-    <small>Powered by <a href="https://github.com/ALi365-SDN-BHD/Bukit" target="_blank" rel="noopener">bukit</a></small>
+    <small>
+      Powered by
+      <a href="{{ if site.params && site.params.github_url }}{{ site.params.github_url }}{{ else }}https://github.com/ALi365-SDN-BHD/Bukit{{ end }}" target="_blank" rel="noopener">bukit</a>
+    </small>
   </div>
 </footer>

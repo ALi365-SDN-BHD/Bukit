@@ -1,3 +1,4 @@
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Config.Tests;
@@ -9,7 +10,7 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
 
     public ConfigDeprecationScannerTests()
     {
-        _dir = Path.Combine(Path.GetTempPath(), "bukit-config-deprecated-" + Guid.NewGuid().ToString("N"));
+        _dir = Path.Combine(Path.GetTempPath(), "bukit-config-removed-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
         _configPath = Path.Combine(_dir, "site.yaml");
     }
@@ -23,7 +24,7 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
     }
 
     [Fact]
-    public void Scan_ReportsDeprecatedRssPluginToggle()
+    public void Reject_ThrowsOnDeprecatedRssPluginToggle()
     {
         File.WriteAllText(_configPath, """
                                       site:
@@ -36,15 +37,14 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                         provider: markdown
                                       """);
 
-        var warnings = ConfigDeprecationScanner.ScanFile(_configPath);
-
-        var warning = Assert.Single(warnings);
-        Assert.Contains("site.plugins.rss", warning.Message, StringComparison.Ordinal);
-        Assert.Contains("site.plugins.feed", warning.Message, StringComparison.Ordinal);
+        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Contains("site.plugins.rss", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("site.plugins.feed", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Scan_ReportsDeprecatedRssMode()
+    public void Reject_ThrowsOnDeprecatedRssMode()
     {
         File.WriteAllText(_configPath, """
                                       site:
@@ -55,15 +55,14 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                         provider: markdown
                                       """);
 
-        var warnings = ConfigDeprecationScanner.ScanFile(_configPath);
-
-        var warning = Assert.Single(warnings);
-        Assert.Contains("site.rssMode", warning.Message, StringComparison.Ordinal);
-        Assert.Contains("site.feed.formats", warning.Message, StringComparison.Ordinal);
+        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Contains("site.rssMode", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("site.feed.formats", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Scan_ReportsDeprecatedOutputPath()
+    public void Reject_ThrowsOnDeprecatedOutputPath()
     {
         File.WriteAllText(_configPath, """
                                       site:
@@ -74,15 +73,14 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                         provider: markdown
                                       """);
 
-        var warnings = ConfigDeprecationScanner.ScanFile(_configPath);
-
-        var warning = Assert.Single(warnings);
-        Assert.Contains("outputPath", warning.Message, StringComparison.Ordinal);
-        Assert.Contains("route.outputPath", warning.Message, StringComparison.Ordinal);
+        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Contains("outputPath", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("route.outputPath", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Scan_ReportsDeprecatedCollectionRss()
+    public void Reject_ThrowsOnDeprecatedCollectionRss()
     {
         File.WriteAllText(_configPath, """
                                       site:
@@ -97,16 +95,14 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                         provider: markdown
                                       """);
 
-        var warnings = ConfigDeprecationScanner.ScanFile(_configPath);
-
-        Assert.NotEmpty(warnings);
-        var rssWarning = warnings.FirstOrDefault(w => w.Message.Contains("collections.posts.rss", StringComparison.Ordinal));
-        Assert.NotNull(rssWarning);
-        Assert.Contains("collections.posts.feed", rssWarning.Message, StringComparison.Ordinal);
+        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Contains("collections.posts.rss", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("collections.posts.feed", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Scan_ReportsDeprecatedSingularCollection()
+    public void Reject_ThrowsOnDeprecatedSingularCollection()
     {
         File.WriteAllText(_configPath, """
                                       site:
@@ -120,15 +116,14 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                         provider: markdown
                                       """);
 
-        var warnings = ConfigDeprecationScanner.ScanFile(_configPath);
-
-        var warning = Assert.Single(warnings);
-        Assert.Contains("site.collection", warning.Message, StringComparison.Ordinal);
-        Assert.Contains("site.collections", warning.Message, StringComparison.Ordinal);
+        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Contains("site.collection", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("site.collections", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Scan_ReportsDeprecatedNotionRootPageId()
+    public void Reject_ThrowsOnDeprecatedNotionRootPageId()
     {
         File.WriteAllText(_configPath, """
                                       site:
@@ -141,16 +136,13 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                           rootPageId: xyz789
                                       """);
 
-        var warnings = ConfigDeprecationScanner.ScanFile(_configPath);
-
-        var notionWarning = warnings.FirstOrDefault(w => w.Message.Contains("rootPageId", StringComparison.Ordinal));
-        Assert.NotNull(notionWarning);
-        Assert.Contains("content.notion.rootPageId", notionWarning.Message, StringComparison.Ordinal);
-        Assert.Contains("rootBlockId", notionWarning.Message, StringComparison.Ordinal);
+        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        Assert.Contains("content.notion.rootPageId", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("rootBlockId", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Scan_ReportsDeprecatedNotionProvider()
+    public void Reject_ThrowsOnDeprecatedNotionProvider()
     {
         File.WriteAllText(_configPath, """
                                       site:
@@ -160,10 +152,23 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                         provider: notion
                                       """);
 
-        var warnings = ConfigDeprecationScanner.ScanFile(_configPath);
+        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        Assert.Contains("content.provider", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("content.sources", ex.Message, StringComparison.Ordinal);
+    }
 
-        var providerWarning = warnings.FirstOrDefault(w => w.Message.Contains("content.provider", StringComparison.Ordinal));
-        Assert.NotNull(providerWarning);
-        Assert.Contains("content.sources", providerWarning.Message, StringComparison.Ordinal);
+    [Fact]
+    public void Reject_DoesNotThrowForValidConfig()
+    {
+        File.WriteAllText(_configPath, """
+                                      site:
+                                        name: test
+                                        title: Test
+                                      content:
+                                        provider: markdown
+                                      """);
+
+        var exception = Record.Exception(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        Assert.Null(exception);
     }
 }

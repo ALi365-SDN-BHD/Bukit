@@ -1,0 +1,885 @@
+{
+  "schema": "https://bukit.dev/schemas/seo-report.v1.json",
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-06-07T15:41:59.582696+00:00",
+  "siteName": "starter",
+  "siteUrl": "https://example.com",
+  "baseUrl": "/",
+  "routes": [
+    {
+      "url": "/",
+      "outputPath": "index.html",
+      "title": "Bukit Starter",
+      "description": "A content-first starter theme for Markdown and Notion sites.",
+      "canonical": "https://example.com/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-07T15:41:59.392388+00:00",
+      "contentType": "list",
+      "sourceItemId": null,
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/about/",
+      "outputPath": "about/index.html",
+      "title": "\u5173\u4E8E - Bukit \u793A\u4F8B\u7AD9\u70B9",
+      "description": "\u793A\u4F8B\u7AD9\u70B9\u8BF4\u660E",
+      "canonical": "https://example.com/about/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-07T15:36:31.4636429+00:00",
+      "contentType": "about",
+      "sourceItemId": "about",
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "ListItem",
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ],
+      "language": "zh-CN",
+      "author": null,
+      "organization": null,
+      "source": "markdown",
+      "originalSource": null,
+      "reviewStatus": "published",
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/blog/",
+      "outputPath": "blog/index.html",
+      "title": "Blog",
+      "description": "Browse Blog from Bukit Starter.",
+      "canonical": "https://example.com/blog/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "1970-01-01T00:00:00+00:00",
+      "contentType": "list",
+      "sourceItemId": null,
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/",
+      "outputPath": "categories/index.html",
+      "title": "Categories",
+      "description": "Browse all categories.",
+      "canonical": "https://example.com/categories/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-07T15:41:59.392388+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-index",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/categories/docs/",
+      "outputPath": "categories/docs/index.html",
+      "title": "Category: docs",
+      "description": "Browse 1 content items in docs.",
+      "canonical": "https://example.com/categories/docs/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-07T15:36:31.4636429+00:00",
+      "contentType": "page",
+      "sourceItemId": "categories-docs",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/pages/",
+      "outputPath": "pages/index.html",
+      "title": "Pages",
+      "description": "Browse 7 items in Pages from Bukit Starter.",
+      "canonical": "https://example.com/pages/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-07T15:41:59.392388+00:00",
+      "contentType": "list",
+      "sourceItemId": null,
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/pages/hello-world/",
+      "outputPath": "pages/hello-world/index.html",
+      "title": "Hello World",
+      "description": "Hello World \u8FD9\u662F\u4E00\u4E2A\u7528 MarkdownFolderProvider \u751F\u6210\u7684\u793A\u4F8B\u9875\u9762\u3002 \u4E8C\u7EA7\u6807\u9898 \u666E\u901A\u6BB5\u843D\u6587\u672C\u3002",
+      "canonical": "https://example.com/pages/hello-world/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-05T05:13:42.294273+00:00",
+      "contentType": "page",
+      "sourceItemId": "hello-world",
+      "sitemapIncluded": true,
+      "searchIncluded": true,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "ListItem",
+        "SearchAction",
+        "WebPage",
+        "WebSite"
+      ],
+      "language": "und",
+      "author": null,
+      "organization": null,
+      "source": "markdown",
+      "originalSource": null,
+      "reviewStatus": "published",
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/tags/",
+      "outputPath": "tags/index.html",
+      "title": "Tags",
+      "description": "Browse all tags.",
+      "canonical": "https://example.com/tags/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-07T15:41:59.390345+00:00",
+      "contentType": "page",
+      "sourceItemId": "tags-index",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/tags/bukit/",
+      "outputPath": "tags/bukit/index.html",
+      "title": "Tag: bukit",
+      "description": "Browse 1 content items tagged bukit.",
+      "canonical": "https://example.com/tags/bukit/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-07T15:36:31.4636429+00:00",
+      "contentType": "page",
+      "sourceItemId": "tags-bukit",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/tags/docs/",
+      "outputPath": "tags/docs/index.html",
+      "title": "Tag: docs",
+      "description": "Browse 1 content items tagged docs.",
+      "canonical": "https://example.com/tags/docs/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-07T15:36:31.4636429+00:00",
+      "contentType": "page",
+      "sourceItemId": "tags-docs",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    },
+    {
+      "url": "/tags/starter/",
+      "outputPath": "tags/starter/index.html",
+      "title": "Tag: starter",
+      "description": "Browse 1 content items tagged starter.",
+      "canonical": "https://example.com/tags/starter/",
+      "robots": null,
+      "indexable": true,
+      "lastModified": "2026-06-07T15:36:31.4636429+00:00",
+      "contentType": "page",
+      "sourceItemId": "tags-starter",
+      "sitemapIncluded": true,
+      "searchIncluded": false,
+      "rssIncluded": false,
+      "alternates": [],
+      "schemaTypes": [
+        "BreadcrumbList",
+        "CollectionPage",
+        "ItemList",
+        "ListItem",
+        "SearchAction",
+        "WebSite"
+      ],
+      "language": null,
+      "author": null,
+      "organization": null,
+      "source": null,
+      "originalSource": null,
+      "reviewStatus": null,
+      "entityNames": [],
+      "representationKinds": [
+        "html",
+        "semantic-html",
+        "json",
+        "markdown",
+        "jsonld",
+        "search",
+        "sitemap",
+        "llms",
+        "agent-manifest"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/about/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/about/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/about/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_references_missing",
+      "route": "/about/",
+      "message": "Published content is missing source references, citations, or original source metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.time_missing",
+      "route": "/about/",
+      "message": "Dated content is missing a visible \u003Ctime datetime=\u0022...\u0022\u003E element."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.unique_value_missing",
+      "route": "/about/",
+      "message": "Published content summary is too thin to communicate unique value to machine consumers."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/about/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/blog/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.manifest_missing_route",
+      "route": "/blog/",
+      "message": "Published content is missing from agent manifest output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/blog/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.unique_value_missing",
+      "route": "/categories/",
+      "message": "Published content summary is too thin to communicate unique value to machine consumers."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/categories/docs/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/categories/docs/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/categories/docs/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/categories/docs/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/categories/docs/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/categories/docs/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/categories/docs/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/categories/docs/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/pages/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/pages/hello-world/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/pages/hello-world/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/pages/hello-world/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_references_missing",
+      "route": "/pages/hello-world/",
+      "message": "Published content is missing source references, citations, or original source metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.time_missing",
+      "route": "/pages/hello-world/",
+      "message": "Dated content is missing a visible \u003Ctime datetime=\u0022...\u0022\u003E element."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/pages/hello-world/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/tags/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/tags/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/tags/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/tags/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/tags/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/tags/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/tags/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.unique_value_missing",
+      "route": "/tags/",
+      "message": "Published content summary is too thin to communicate unique value to machine consumers."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/tags/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/tags/bukit/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/tags/bukit/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/tags/bukit/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/tags/bukit/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/tags/bukit/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/tags/bukit/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/tags/bukit/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/tags/bukit/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/tags/docs/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/tags/docs/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/tags/docs/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/tags/docs/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/tags/docs/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/tags/docs/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/tags/docs/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/tags/docs/",
+      "message": "Published content is missing explicit updated-at metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.author_missing",
+      "route": "/tags/starter/",
+      "message": "Published content is missing author metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.entity_missing",
+      "route": "/tags/starter/",
+      "message": "Published content does not declare any entities."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.jsonld_title_mismatch",
+      "route": "/tags/starter/",
+      "message": "JSON-LD title/headline does not match the visible primary heading."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.review_status_missing",
+      "route": "/tags/starter/",
+      "message": "Published content is missing review status metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.search_missing_route",
+      "route": "/tags/starter/",
+      "message": "Indexable published content is missing from search index output."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.semantic_article_missing",
+      "route": "/tags/starter/",
+      "message": "HTML output is missing an \u003Carticle\u003E wrapper for page content."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.source_missing",
+      "route": "/tags/starter/",
+      "message": "Published content is missing source/provenance metadata."
+    },
+    {
+      "severity": "warning",
+      "code": "publish.updated_at_missing",
+      "route": "/tags/starter/",
+      "message": "Published content is missing explicit updated-at metadata."
+    }
+  ],
+  "summary": {
+    "routeCount": 11,
+    "indexableCount": 11,
+    "nonIndexableCount": 0,
+    "errorCount": 0,
+    "warningCount": 67,
+    "llmsTxtGenerated": true,
+    "llmsFullTxtGenerated": false,
+    "geoEnhancedCount": 0,
+    "geoScore": 25,
+    "publishIssueCount": 67,
+    "machineReadabilityIssueCount": 29,
+    "trustIssueCount": 38,
+    "representationGapCount": 0
+  }
+}

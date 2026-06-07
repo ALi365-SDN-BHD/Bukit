@@ -1,0 +1,263 @@
+﻿{
+  "schema": "https://bukit.dev/schemas/agent-manifest.v1.json",
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-06-07T15:41:59.392388+00:00",
+  "documents": [
+    {
+      "id": "about",
+      "canonicalId": "about",
+      "route": "/about/",
+      "language": "zh-CN",
+      "reviewStatus": "published",
+      "source": "markdown",
+      "entities": [],
+      "representations": [
+        {
+          "kind": "html",
+          "url": "/about/"
+        },
+        {
+          "kind": "semantic-html",
+          "url": "/about/"
+        },
+        {
+          "kind": "json",
+          "url": "/content/about.json"
+        },
+        {
+          "kind": "markdown",
+          "url": "/content/about.md"
+        },
+        {
+          "kind": "jsonld",
+          "url": "https://example.com/about/"
+        }
+      ],
+      "publishedAt": "2026-06-07T15:36:31.4636429+00:00"
+    },
+    {
+      "id": "categories-index",
+      "canonicalId": "categories",
+      "route": "/categories/",
+      "language": "und",
+      "reviewStatus": "published",
+      "source": null,
+      "entities": [],
+      "representations": [
+        {
+          "kind": "html",
+          "url": "/categories/"
+        },
+        {
+          "kind": "semantic-html",
+          "url": "/categories/"
+        },
+        {
+          "kind": "json",
+          "url": "/content/categories.json"
+        },
+        {
+          "kind": "markdown",
+          "url": "/content/categories.md"
+        },
+        {
+          "kind": "jsonld",
+          "url": "https://example.com/categories/"
+        }
+      ],
+      "publishedAt": "2026-06-07T15:41:59.392388+00:00"
+    },
+    {
+      "id": "categories-docs",
+      "canonicalId": "docs",
+      "route": "/categories/docs/",
+      "language": "und",
+      "reviewStatus": "published",
+      "source": null,
+      "entities": [],
+      "representations": [
+        {
+          "kind": "html",
+          "url": "/categories/docs/"
+        },
+        {
+          "kind": "semantic-html",
+          "url": "/categories/docs/"
+        },
+        {
+          "kind": "json",
+          "url": "/content/docs.json"
+        },
+        {
+          "kind": "markdown",
+          "url": "/content/docs.md"
+        },
+        {
+          "kind": "jsonld",
+          "url": "https://example.com/categories/docs/"
+        }
+      ],
+      "publishedAt": "2026-06-07T15:36:31.4636429+00:00"
+    },
+    {
+      "id": "hello-world",
+      "canonicalId": "hello-world",
+      "route": "/pages/hello-world/",
+      "language": "und",
+      "reviewStatus": "published",
+      "source": "markdown",
+      "entities": [],
+      "representations": [
+        {
+          "kind": "html",
+          "url": "/pages/hello-world/"
+        },
+        {
+          "kind": "semantic-html",
+          "url": "/pages/hello-world/"
+        },
+        {
+          "kind": "json",
+          "url": "/content/hello-world.json"
+        },
+        {
+          "kind": "markdown",
+          "url": "/content/hello-world.md"
+        },
+        {
+          "kind": "jsonld",
+          "url": "https://example.com/pages/hello-world/"
+        }
+      ],
+      "publishedAt": "2026-06-05T05:13:42.294273+00:00"
+    },
+    {
+      "id": "tags-index",
+      "canonicalId": "tags",
+      "route": "/tags/",
+      "language": "und",
+      "reviewStatus": "published",
+      "source": null,
+      "entities": [],
+      "representations": [
+        {
+          "kind": "html",
+          "url": "/tags/"
+        },
+        {
+          "kind": "semantic-html",
+          "url": "/tags/"
+        },
+        {
+          "kind": "json",
+          "url": "/content/tags.json"
+        },
+        {
+          "kind": "markdown",
+          "url": "/content/tags.md"
+        },
+        {
+          "kind": "jsonld",
+          "url": "https://example.com/tags/"
+        }
+      ],
+      "publishedAt": "2026-06-07T15:41:59.390345+00:00"
+    },
+    {
+      "id": "tags-bukit",
+      "canonicalId": "bukit",
+      "route": "/tags/bukit/",
+      "language": "und",
+      "reviewStatus": "published",
+      "source": null,
+      "entities": [],
+      "representations": [
+        {
+          "kind": "html",
+          "url": "/tags/bukit/"
+        },
+        {
+          "kind": "semantic-html",
+          "url": "/tags/bukit/"
+        },
+        {
+          "kind": "json",
+          "url": "/content/bukit.json"
+        },
+        {
+          "kind": "markdown",
+          "url": "/content/bukit.md"
+        },
+        {
+          "kind": "jsonld",
+          "url": "https://example.com/tags/bukit/"
+        }
+      ],
+      "publishedAt": "2026-06-07T15:36:31.4636429+00:00"
+    },
+    {
+      "id": "tags-docs",
+      "canonicalId": "docs",
+      "route": "/tags/docs/",
+      "language": "und",
+      "reviewStatus": "published",
+      "source": null,
+      "entities": [],
+      "representations": [
+        {
+          "kind": "html",
+          "url": "/tags/docs/"
+        },
+        {
+          "kind": "semantic-html",
+          "url": "/tags/docs/"
+        },
+        {
+          "kind": "json",
+          "url": "/content/docs.json"
+        },
+        {
+          "kind": "markdown",
+          "url": "/content/docs.md"
+        },
+        {
+          "kind": "jsonld",
+          "url": "https://example.com/tags/docs/"
+        }
+      ],
+      "publishedAt": "2026-06-07T15:36:31.4636429+00:00"
+    },
+    {
+      "id": "tags-starter",
+      "canonicalId": "starter",
+      "route": "/tags/starter/",
+      "language": "und",
+      "reviewStatus": "published",
+      "source": null,
+      "entities": [],
+      "representations": [
+        {
+          "kind": "html",
+          "url": "/tags/starter/"
+        },
+        {
+          "kind": "semantic-html",
+          "url": "/tags/starter/"
+        },
+        {
+          "kind": "json",
+          "url": "/content/starter.json"
+        },
+        {
+          "kind": "markdown",
+          "url": "/content/starter.md"
+        },
+        {
+          "kind": "jsonld",
+          "url": "https://example.com/tags/starter/"
+        }
+      ],
+      "publishedAt": "2026-06-07T15:36:31.4636429+00:00"
+    }
+  ]
+}

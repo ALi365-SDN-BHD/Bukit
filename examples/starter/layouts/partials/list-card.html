@@ -3,7 +3,7 @@
     <a href="{{ site.base_url }}{{ item.url }}">{{ item.title }}</a>
   </h2>
   {{ if item.publish_date }}
-    <p class="meta"><time datetime="{{ item.publish_date | date.to_string "%Y-%m-%d" }}">{{ item.publish_date | date.to_string "%Y-%m-%d" }}</time></p>
+    <p class="meta"><time datetime="{{ item.publish_date }}">{{ item.publish_date }}</time></p>
   {{ end }}
   {{ if item.summary }}
     <p class="summary">{{ item.summary }}</p>

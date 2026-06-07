@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Plugins.Protocol;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.Protocol;
 
@@ -66,17 +67,17 @@ internal sealed class ProtocolHandshakeNegotiator
         var result = await _invoker.InvokeAsync(config, handshakeRequest, arguments, cancellationToken);
         if (result.TimedOut)
         {
-            throw new InvalidOperationException("[plugin-protocol][handshake] protocol plugin handshake timeout.");
+            throw new ConfigException("[plugin-protocol][handshake] protocol plugin handshake timeout.", DiagnosticCode.PluginExecutionFailed);
         }
 
         if (result.ExitCode != 0)
         {
-            throw new InvalidOperationException($"[plugin-protocol][handshake] protocol plugin handshake exited with code {result.ExitCode}: {result.StdErr}");
+            throw new ConfigException($"[plugin-protocol][handshake] protocol plugin handshake exited with code {result.ExitCode}: {result.StdErr}", DiagnosticCode.PluginExecutionFailed);
         }
 
         if (string.IsNullOrWhiteSpace(result.StdOut))
         {
-            throw new InvalidOperationException("[plugin-protocol][handshake] protocol plugin handshake returned empty stdout.");
+            throw new ConfigException("[plugin-protocol][handshake] protocol plugin handshake returned empty stdout.", DiagnosticCode.PluginExecutionFailed);
         }
 
         try
@@ -84,19 +85,19 @@ internal sealed class ProtocolHandshakeNegotiator
             var response = JsonSerializer.Deserialize(result.StdOut, ProtocolPluginJsonContext.Default.ProtocolHandshakeResponse);
             if (response is null || !response.Ok)
             {
-                throw new InvalidOperationException($"[plugin-protocol][handshake] {response?.Error?.Message ?? "Protocol plugin handshake returned ok=false."} Bukit vNext requires protocol schema version 2.");
+                throw new ConfigException($"[plugin-protocol][handshake] {response?.Error?.Message ?? "Protocol plugin handshake returned ok=false."} Bukit vNext requires protocol schema version 2.", DiagnosticCode.PluginExecutionFailed);
             }
 
             if (!string.Equals(response.NegotiatedSchemaVersion, "2", StringComparison.Ordinal))
             {
-                throw new InvalidOperationException($"[plugin-protocol][handshake] unsupported negotiated schema version '{response.NegotiatedSchemaVersion ?? "<missing>"}'. Bukit vNext requires protocol schema version 2.");
+                throw new ConfigException($"[plugin-protocol][handshake] unsupported negotiated schema version '{response.NegotiatedSchemaVersion ?? "<missing>"}'. Bukit vNext requires protocol schema version 2.", DiagnosticCode.PluginExecutionFailed);
             }
 
             return "2";
         }
         catch (JsonException ex)
         {
-            throw new InvalidOperationException($"[plugin-protocol][handshake] protocol plugin handshake returned invalid JSON: {ex.Message}", ex);
+            throw new ConfigException($"[plugin-protocol][handshake] protocol plugin handshake returned invalid JSON: {ex.Message}", ex, DiagnosticCode.PluginExecutionFailed);
         }
     }
 

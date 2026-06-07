@@ -5,9 +5,8 @@
   <li>
     <a href="{{ site.base_url }}{{ p.url }}">{{ p.title }}</a>
     {{ if p.publish_date }}
-      <small>{{ p.publish_date | date.to_string "%Y-%m-%d" }}</small>
+      <small>{{ p.publish_date }}</small>
     {{ end }}
   </li>
 {{ end }}
 </ul>
-

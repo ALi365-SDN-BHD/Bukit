@@ -19,11 +19,15 @@ public static class ThemeBootstrapper
 {
     public static ThemeBootstrapResult Bootstrap(AppConfig config, string rootDir, ILogger log)
     {
-        return Bootstrap(config, rootDir, log,
-            ThemePathResolver.Resolve(rootDir, config.Theme, log));
+        return Bootstrap(config, rootDir, log, ThemePathResolver.Resolve(rootDir, config.Theme, log));
     }
 
-    internal static ThemeBootstrapResult Bootstrap(AppConfig config, string rootDir, ILogger log, ResolvedThemePaths resolved)
+    public static ThemeBootstrapResult BootstrapRequired(AppConfig config, string rootDir, ILogger log)
+    {
+        return Bootstrap(config, rootDir, log, ThemePathResolver.Resolve(rootDir, config.Theme, log), requireThemeManifest: true);
+    }
+
+    internal static ThemeBootstrapResult Bootstrap(AppConfig config, string rootDir, ILogger log, ResolvedThemePaths resolved, bool requireThemeManifest = false)
     {
         var themeName = resolved.ThemeName == "default" ? (config.Theme.Name ?? "default") : resolved.ThemeName;
         var themeRoot = resolved.ThemeRoot;
@@ -34,7 +38,7 @@ public static class ThemeBootstrapper
 
         if ((string.IsNullOrWhiteSpace(config.Theme.Name) && string.IsNullOrWhiteSpace(config.Theme.Source)))
         {
-            themeManifest = ThemeManifestLoader.Load(resolved.LayoutsDir);
+            themeManifest = ThemeManifestLoader.Load(resolved.LayoutsDir, required: false);
             if (themeManifest is null)
             {
                 return new ThemeBootstrapResult(themeName, null, null, null, null, null, null);
@@ -44,7 +48,7 @@ public static class ThemeBootstrapper
         }
         else
         {
-            themeManifest = ThemeManifestLoader.Load(themeRoot);
+            themeManifest = ThemeManifestLoader.Load(themeRoot, required: requireThemeManifest);
             if (themeManifest is null)
             {
                 return new ThemeBootstrapResult(themeName, themeRoot, null, null, null, null, null);

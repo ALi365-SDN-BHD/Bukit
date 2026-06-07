@@ -33,10 +33,7 @@ public static class BuildCommand
         };
 
         var logger = new ConsoleLogger(ParseLogLevel(config.Logging.Level, overrides.IsCI), command.GetString("--log-format") ?? "text");
-        foreach (var warning in ConfigDeprecationScanner.ScanFile(resolved.FullConfigPath))
-        {
-            logger.Warn($"event=config.deprecated path={warning.Path} replacement={warning.Replacement} message={warning.Message}");
-        }
+        ConfigDeprecationScanner.RejectRemovedFields(resolved.FullConfigPath);
 
         var engine = new SiteEngine(logger);
         await engine.BuildAsync(config, resolved.RootDir, overrides, cancellationToken);

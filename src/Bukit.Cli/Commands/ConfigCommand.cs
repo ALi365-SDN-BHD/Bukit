@@ -37,6 +37,7 @@ public static class ConfigCommand
             }
 
             ConfigValidator.Validate(config);
+            ConfigDeprecationScanner.RejectRemovedFields(resolved.FullConfigPath);
 
             Console.WriteLine("✔ Config check passed");
             Console.WriteLine($"  config: {resolved.FullConfigPath}");
@@ -46,11 +47,6 @@ public static class ConfigCommand
             if (!string.IsNullOrWhiteSpace(config.Site.Url))
             {
                 Console.WriteLine($"  siteUrl={config.Site.Url}");
-            }
-
-            foreach (var warning in ConfigDeprecationScanner.ScanFile(resolved.FullConfigPath))
-            {
-                Console.WriteLine($"  warning: {warning.Message}");
             }
 
             return 0;

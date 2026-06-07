@@ -145,11 +145,12 @@ public sealed class ConfigValidatorExtendedTests
     }
 
     [Fact]
-    public void ValidateThemeYaml_NoFile_ReturnsNull()
+    public void ValidateThemeYaml_NoFile_ReturnsIssues()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var result = ConfigValidator.ValidateThemeYaml(tempDir);
-        Assert.Null(result);
+        Assert.NotEmpty(result);
+        Assert.Contains(result, w => w.Contains("theme.yaml not found"));
     }
 
     [Fact]

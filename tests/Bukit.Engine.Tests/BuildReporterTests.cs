@@ -28,6 +28,7 @@ public sealed class BuildReporterTests
         Assert.True(File.Exists(reportPath));
         using var doc = JsonDocument.Parse(File.ReadAllText(reportPath));
         var root = doc.RootElement;
+        AssertArtifactContract(root, "https://bukit.dev/schemas/build-report.v1.json");
         Assert.True(root.TryGetProperty("version", out _));
         Assert.True(root.TryGetProperty("startedAt", out _));
         Assert.True(root.TryGetProperty("endedAt", out _));
@@ -49,6 +50,7 @@ public sealed class BuildReporterTests
         var routesPath = Path.Combine(tempDir, ".bukit", "routes.json");
         Assert.True(File.Exists(routesPath));
         using var doc = JsonDocument.Parse(File.ReadAllText(routesPath));
+        AssertArtifactContract(doc.RootElement, "https://bukit.dev/schemas/routes.v1.json");
         var routes = doc.RootElement.GetProperty("routes");
         Assert.Equal("/archive/2024/", routes[0].GetProperty("url").GetString());
         Assert.Equal("/blog/alpha/", routes[1].GetProperty("url").GetString());
@@ -95,6 +97,7 @@ public sealed class BuildReporterTests
         var assetsPath = Path.Combine(tempDir, ".bukit", "assets.json");
         Assert.True(File.Exists(assetsPath));
         using var doc = JsonDocument.Parse(File.ReadAllText(assetsPath));
+        AssertArtifactContract(doc.RootElement, "https://bukit.dev/schemas/assets.v1.json");
         var asset = doc.RootElement.GetProperty("assets")[0];
         Assert.Equal("assets/css/main.css", asset.GetProperty("path").GetString());
         Assert.Equal("assets/css/main.css", asset.GetProperty("source").GetString());
@@ -116,6 +119,7 @@ public sealed class BuildReporterTests
         Assert.True(File.Exists(manifestPath));
         using var doc = JsonDocument.Parse(File.ReadAllText(manifestPath));
         var root = doc.RootElement;
+        AssertArtifactContract(root, "https://bukit.dev/schemas/incremental-manifest.v1.json");
         Assert.True(root.GetProperty("enabled").GetBoolean());
         Assert.Equal(0, root.GetProperty("cacheHitCount").GetInt32());
         Assert.Equal(1, root.GetProperty("cacheMissCount").GetInt32());
@@ -138,6 +142,7 @@ public sealed class BuildReporterTests
         Assert.True(File.Exists(securityPath));
         using var doc = JsonDocument.Parse(File.ReadAllText(securityPath));
         var root = doc.RootElement;
+        AssertArtifactContract(root, "https://bukit.dev/schemas/security-report.v1.json");
         Assert.Equal("passed", root.GetProperty("status").GetString());
         var routeTraversal = root.GetProperty("checks").GetProperty("routeTraversal");
         Assert.Equal("passed", routeTraversal.GetProperty("status").GetString());
@@ -164,6 +169,12 @@ public sealed class BuildReporterTests
         var tempDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         return tempDir;
+    }
+
+    private static void AssertArtifactContract(JsonElement root, string expectedSchema)
+    {
+        Assert.Equal(expectedSchema, root.GetProperty("schema").GetString());
+        Assert.Equal("1.0", root.GetProperty("schemaVersion").GetString());
     }
 
     private static AppConfig CreateConfig(bool enabled)

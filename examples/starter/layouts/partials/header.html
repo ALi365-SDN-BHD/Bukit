@@ -10,11 +10,7 @@
     <div class="nav-links">
       {{ if site.modules && site.modules.navigation }}
         {{ for item in site.modules.navigation }}
-          {{ nav_url = "/" }}
-          {{ if item.fields && item.fields.link }}
-            {{ nav_url = item.fields.link.value }}
-          {{ end }}
-          <a href="{{ nav_url }}">{{ item.title }}</a>
+          <a href="{{ if item.fields && item.fields.link && item.fields.link.value }}{{ item.fields.link.value }}{{ else }}/{{ end }}">{{ item.title }}</a>
         {{ end }}
       {{ else }}
         <a href="{{ site.base_url }}/">Home</a>

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/routes.v1.json",
+  "title": "Bukit Route Inventory",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "routes"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/routes.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["url", "outputPath", "template", "source", "kind", "language"],
+        "properties": {
+          "url": { "type": "string" },
+          "outputPath": { "type": "string" },
+          "template": { "type": "string" },
+          "source": { "type": ["string", "null"] },
+          "kind": { "type": "string" },
+          "language": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

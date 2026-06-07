@@ -1,6 +1,7 @@
 site:
   name: starter
   title: Bukit Starter
+  description: A content-first starter theme for Markdown and Notion sites.
   url: https://example.com
   baseUrl: /
   language: zh-CN
@@ -19,16 +20,6 @@ site:
           positionals:
             - plugins/ProtocolEchoPlugin.dll
             - success
-  plugins:
-    path-report:
-      enabled: true
-      options:
-        wechatMaterialUpload:
-          enabled: false
-          appIdEnv: WECHAT_APP_ID
-          appSecretEnv: WECHAT_APP_SECRET
-          file: assets/imgs/default.png
-          type: image
   timezone: Asia/Shanghai
   autoSummary: true
   autoSummaryMaxLength: 200
@@ -63,17 +54,35 @@ content:
   provider: markdown
   markdown:
     dir: content
-build:
+  modelSchema:
+    customFields:
+      - name: seo_title
+        fieldType: json
+      - name: cover
+        fieldType: json
+      - name: cover_alt
+        fieldType: json
+      - name: tableOfContents
+        fieldType: json
+  build:
   output: dist
   clean: true
   listPageContentMode: auto
 theme:
   layouts: layouts
   assets: assets
-  static: static
+  static: assets
   params:
     brand: Bukit Starter
     footer_text: Starter content site
+    github_url: https://github.com/ALi365-SDN-BHD/Bukit
+    hero_eyebrow: Starter theme
+    featured_section_title: Featured
+    latest_content_title: Latest content
+    search_hint: Search generated titles, summaries, and snippets.
+    analytics_script_base: https://www.googletagmanager.com/gtag/js
+    pagination_prev_label: ←
+    pagination_next_label: →
 taxonomy:
   itemFields:
     - cover

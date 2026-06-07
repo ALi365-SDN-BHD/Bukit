@@ -16,6 +16,8 @@ theme:
   name: alt
   params:
     brand: "AI Sample"
+    github_url: https://github.com/ALi365-SDN-BHD/Bukit
+    empty_result_text: 没有找到你要的结果。
 
 features:
   sitemap: true

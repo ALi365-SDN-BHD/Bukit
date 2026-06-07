@@ -45,3 +45,12 @@ params:
     label: Site Brand
     type: string
     default: Bukit Starter
+  - key: github_url
+    label: GitHub URL
+    type: string
+    default: https://github.com/ALi365-SDN-BHD/Bukit
+    description: Link used by theme footer.
+  - key: empty_result_text
+    label: Empty Result Text
+    type: string
+    default: 没有找到你要的结果。

@@ -7,6 +7,8 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Shared;
+
 namespace Bukit.Engine.Plugins.Protocol;
 
 internal sealed class ProtocolDerivePagesRunner
@@ -35,17 +37,17 @@ internal sealed class ProtocolDerivePagesRunner
 
         if (result.TimedOut)
         {
-            throw new InvalidOperationException($"[plugin-timeout][derive-pages] protocol plugin '{pluginName}' timed out.");
+            throw new ConfigException($"[plugin-protocol][derive-pages] protocol plugin '{pluginName}' timed out.", DiagnosticCode.PluginExecutionFailed);
         }
 
         if (result.ExitCode != 0)
         {
-            throw new InvalidOperationException($"[plugin-exit][derive-pages] protocol plugin '{pluginName}' exited with code {result.ExitCode}: {result.StdErr}");
+            throw new ConfigException($"[plugin-protocol][derive-pages] protocol plugin '{pluginName}' exited with code {result.ExitCode}: {result.StdErr}", DiagnosticCode.PluginExecutionFailed);
         }
 
         if (string.IsNullOrWhiteSpace(result.StdOut))
         {
-            throw new InvalidOperationException($"[plugin-protocol][derive-pages] protocol plugin '{pluginName}' returned empty stdout.");
+            throw new ConfigException($"[plugin-protocol][derive-pages] protocol plugin '{pluginName}' returned empty stdout.", DiagnosticCode.PluginExecutionFailed);
         }
 
         DerivePagesResponsePayload? response;
@@ -55,17 +57,17 @@ internal sealed class ProtocolDerivePagesRunner
         }
         catch (JsonException ex)
         {
-            throw new InvalidOperationException($"[plugin-protocol][derive-pages] protocol plugin '{pluginName}' returned invalid JSON: {ex.Message}", ex);
+            throw new ConfigException($"[plugin-protocol][derive-pages] protocol plugin '{pluginName}' returned invalid JSON: {ex.Message}", ex, DiagnosticCode.PluginExecutionFailed);
         }
 
         if (response is null)
         {
-            throw new InvalidOperationException($"[plugin-protocol][derive-pages] protocol plugin '{pluginName}' returned no response.");
+            throw new ConfigException($"[plugin-protocol][derive-pages] protocol plugin '{pluginName}' returned no response.", DiagnosticCode.PluginExecutionFailed);
         }
 
         if (!response.Ok)
         {
-            throw new InvalidOperationException($"[plugin-protocol][derive-pages] {response.Error?.Message ?? $"Protocol plugin '{pluginName}' returned ok=false."}");
+            throw new ConfigException($"[plugin-protocol][derive-pages] {response.Error?.Message ?? $"Protocol plugin '{pluginName}' returned ok=false."}", DiagnosticCode.PluginExecutionFailed);
         }
 
         foreach (var log in response.Logs ?? Array.Empty<ProtocolPluginLogEntry>())

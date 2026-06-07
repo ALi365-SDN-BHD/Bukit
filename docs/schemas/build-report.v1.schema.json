@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/build-report.v1.json",
+  "title": "Bukit Build Report",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "version", "startedAt", "endedAt", "durationMs", "environment", "project", "summary", "incremental", "generatedFiles"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/build-report.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "version": { "type": "string" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "endedAt": { "type": "string", "format": "date-time" },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "environment": {
+      "type": "object",
+      "required": ["os", "runtime", "aot"],
+      "properties": {
+        "os": { "type": "string" },
+        "runtime": { "type": "string" },
+        "aot": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "project": {
+      "type": "object",
+      "required": ["root", "output", "contentSource", "themeName", "themeSource"],
+      "properties": {
+        "root": { "type": "string" },
+        "output": { "type": "string" },
+        "contentSource": { "type": "string" },
+        "themeName": { "type": ["string", "null"] },
+        "themeSource": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": ["pageCount", "routeCount", "assetCount", "mediaCount", "pluginCount", "warningCount", "errorCount", "schemaErrorCount"],
+      "properties": {
+        "pageCount": { "type": "integer", "minimum": 0 },
+        "routeCount": { "type": "integer", "minimum": 0 },
+        "assetCount": { "type": "integer", "minimum": 0 },
+        "mediaCount": { "type": "integer", "minimum": 0 },
+        "pluginCount": { "type": "integer", "minimum": 0 },
+        "warningCount": { "type": "integer", "minimum": 0 },
+        "errorCount": { "type": "integer", "minimum": 0 },
+        "schemaErrorCount": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "incremental": {
+      "type": "object",
+      "required": ["enabled", "cacheHitCount", "cacheMissCount"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "cacheHitCount": { "type": "integer", "minimum": 0 },
+        "cacheMissCount": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "generatedFiles": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

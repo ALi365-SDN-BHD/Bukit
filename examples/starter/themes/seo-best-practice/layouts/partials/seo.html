@@ -1,58 +1,58 @@
 {{ if page.seo }}
-  <link rel="canonical" href="{{ page.seo.canonical | html.escape }}" />
+  <link rel="canonical" href="{{ page.seo.canonical }}" />
   {{ if page.seo.description }}
-    <meta name="description" content="{{ page.seo.description | html.escape }}" />
+    <meta name="description" content="{{ page.seo.description }}" />
   {{ end }}
   {{ if page.seo.robots }}
-    <meta name="robots" content="{{ page.seo.robots | html.escape }}" />
+    <meta name="robots" content="{{ page.seo.robots }}" />
   {{ end }}
 
-  <meta property="og:title" content="{{ page.seo.og.title | html.escape }}" />
+  <meta property="og:title" content="{{ page.seo.og.title }}" />
   {{ if page.seo.og.description }}
-    <meta property="og:description" content="{{ page.seo.og.description | html.escape }}" />
+    <meta property="og:description" content="{{ page.seo.og.description }}" />
   {{ end }}
-  <meta property="og:url" content="{{ page.seo.og.url | html.escape }}" />
-  <meta property="og:type" content="{{ page.seo.og.type | html.escape }}" />
+  <meta property="og:url" content="{{ page.seo.og.url }}" />
+  <meta property="og:type" content="{{ page.seo.og.type }}" />
   {{ if page.seo.og.image }}
-    <meta property="og:image" content="{{ page.seo.og.image | html.escape }}" />
+    <meta property="og:image" content="{{ page.seo.og.image }}" />
   {{ end }}
   {{ if page.seo.og.site_name }}
-    <meta property="og:site_name" content="{{ page.seo.og.site_name | html.escape }}" />
+    <meta property="og:site_name" content="{{ page.seo.og.site_name }}" />
   {{ end }}
   {{ if page.seo.og.locale }}
-    <meta property="og:locale" content="{{ page.seo.og.locale | html.escape }}" />
+    <meta property="og:locale" content="{{ page.seo.og.locale }}" />
   {{ end }}
 
   {{ if page.seo.article.published_time }}
-    <meta property="article:published_time" content="{{ page.seo.article.published_time | html.escape }}" />
+    <meta property="article:published_time" content="{{ page.seo.article.published_time }}" />
   {{ end }}
   {{ if page.seo.article.modified_time }}
-    <meta property="article:modified_time" content="{{ page.seo.article.modified_time | html.escape }}" />
+    <meta property="article:modified_time" content="{{ page.seo.article.modified_time }}" />
   {{ end }}
   {{ if page.seo.article.author }}
-    <meta property="article:author" content="{{ page.seo.article.author | html.escape }}" />
+    <meta property="article:author" content="{{ page.seo.article.author }}" />
   {{ end }}
-  {{ for tag in page.seo.article.tags }}
-    <meta property="article:tag" content="{{ tag | html.escape }}" />
+  {{ for item in page.seo.article.tags }}
+    <meta property="article:tag" content="{{ item }}" />
   {{ end }}
 
-  <meta name="twitter:card" content="{{ page.seo.twitter.card | html.escape }}" />
-  <meta name="twitter:title" content="{{ page.seo.twitter.title | html.escape }}" />
+  <meta name="twitter:card" content="{{ page.seo.twitter.card }}" />
+  <meta name="twitter:title" content="{{ page.seo.twitter.title }}" />
   {{ if page.seo.twitter.description }}
-    <meta name="twitter:description" content="{{ page.seo.twitter.description | html.escape }}" />
+    <meta name="twitter:description" content="{{ page.seo.twitter.description }}" />
   {{ end }}
   {{ if page.seo.twitter.image }}
-    <meta name="twitter:image" content="{{ page.seo.twitter.image | html.escape }}" />
+    <meta name="twitter:image" content="{{ page.seo.twitter.image }}" />
   {{ end }}
   {{ if page.seo.twitter.site }}
-    <meta name="twitter:site" content="{{ page.seo.twitter.site | html.escape }}" />
+    <meta name="twitter:site" content="{{ page.seo.twitter.site }}" />
   {{ end }}
   {{ if page.seo.twitter.creator }}
-    <meta name="twitter:creator" content="{{ page.seo.twitter.creator | html.escape }}" />
+    <meta name="twitter:creator" content="{{ page.seo.twitter.creator }}" />
   {{ end }}
 
   {{ for alternate in page.seo.alternates }}
-    <link rel="alternate" hreflang="{{ alternate.hreflang | html.escape }}" href="{{ alternate.href | html.escape }}" />
+    <link rel="alternate" hreflang="{{ alternate.hreflang }}" href="{{ alternate.href }}" />
   {{ end }}
 
   {{ for json in page.seo.json_ld }}

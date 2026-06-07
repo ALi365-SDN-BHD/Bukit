@@ -4,10 +4,18 @@ namespace Bukit.Theme;
 
 public static class ThemeManifestLoader
 {
-    public static ThemeManifestV2? Load(string themeRoot)
+    public static ThemeManifestV2? Load(string themeRoot, bool required = false)
     {
         var manifestPath = Path.Combine(themeRoot, "theme.yaml");
-        if (!File.Exists(manifestPath)) return null;
+        if (!File.Exists(manifestPath))
+        {
+            if (required)
+            {
+                throw new ThemeManifestException($"theme.yaml not found: {manifestPath}");
+            }
+
+            return null;
+        }
 
         try
         {
@@ -16,10 +24,19 @@ public static class ThemeManifestLoader
             stream.Load(new StringReader(yaml));
             if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
             {
+                if (required)
+                {
+                    throw new ThemeManifestException($"theme.yaml is invalid at {manifestPath}: root is not a YAML mapping.");
+                }
+
                 return null;
             }
 
             return ParseManifest(root);
+        }
+        catch (ThemeManifestException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -292,6 +309,11 @@ public static class ThemeManifestLoader
 
 public sealed class ThemeManifestException : Exception
 {
+    public ThemeManifestException(string message)
+        : base(message)
+    {
+    }
+
     public ThemeManifestException(string message, Exception innerException)
         : base(message, innerException)
     {

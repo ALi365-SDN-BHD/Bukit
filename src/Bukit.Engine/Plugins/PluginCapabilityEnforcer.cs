@@ -9,15 +9,19 @@ public static class PluginCapabilityEnforcer
 {
     public static void Enforce(ExternalPluginConfig plugin, string hook)
     {
-        if (plugin.Capabilities is null or { Count: 0 })
-        {
-            return;
-        }
-
         var requiredCapability = GetRequiredCapability(hook);
         if (requiredCapability is null)
         {
             return;
+        }
+
+        if (plugin.Capabilities is null or { Count: 0 })
+        {
+            throw new ConfigException(
+                $"Plugin '{plugin.Entry}' is missing required capability metadata for hook '{hook}'. " +
+                $"Declared capabilities: <none>. " +
+                $"How to fix: add '{requiredCapability}' to the plugin's capabilities list in site.yaml.",
+                DiagnosticCode.PluginExecutionFailed);
         }
 
         var hasCapability = false;

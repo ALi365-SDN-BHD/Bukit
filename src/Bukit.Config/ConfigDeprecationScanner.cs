@@ -1,14 +1,22 @@
+using Bukit.Shared;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Config;
 
+/// <summary>
+/// 1.0 config rejection scanner. Old fields are rejected with BKT-0001 diagnostic code
+/// and a migration hint. No warning-only fallback.
+/// </summary>
 public static class ConfigDeprecationScanner
 {
-    public static IReadOnlyList<ConfigDeprecationWarning> ScanFile(string path)
+    /// <summary>
+    /// Scans a site.yaml file for removed 1.0 fields. Throws ConfigException if any are found.
+    /// </summary>
+    public static void RejectRemovedFields(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
         {
-            return Array.Empty<ConfigDeprecationWarning>();
+            return;
         }
 
         try
@@ -18,46 +26,44 @@ public static class ConfigDeprecationScanner
             yaml.Load(reader);
             if (yaml.Documents.Count == 0 || yaml.Documents[0].RootNode is not YamlMappingNode root)
             {
-                return Array.Empty<ConfigDeprecationWarning>();
+                return;
             }
 
-            return Scan(root);
+            RejectRemovedFields(root);
+        }
+        catch (ConfigException)
+        {
+            throw;
         }
         catch
         {
-            return Array.Empty<ConfigDeprecationWarning>();
+            // YAML parse errors are handled by ConfigLoader, not here.
         }
     }
 
-    public static IReadOnlyList<ConfigDeprecationWarning> Scan(YamlMappingNode root)
+    /// <summary>
+    /// Scans a parsed YAML root node for removed 1.0 fields. Throws ConfigException if any are found.
+    /// </summary>
+    public static void RejectRemovedFields(YamlMappingNode root)
     {
-        var warnings = new List<ConfigDeprecationWarning>();
-
-        if (TryGetMapping(root, "site", out var site) &&
-            TryGetMapping(site, "plugins", out var plugins) &&
-            plugins.Children.ContainsKey(new YamlScalarNode("rss")))
-        {
-            warnings.Add(new ConfigDeprecationWarning(
-                "site.plugins.rss",
-                "site.plugins.feed",
-                "site.plugins.rss is deprecated. Use site.plugins.feed instead."));
-        }
+        var removed = new List<ConfigRemovedField>();
 
         if (TryGetMapping(root, "site", out var siteNode) &&
-            siteNode.Children.ContainsKey(new YamlScalarNode("rssMode")))
+            TryGetMapping(siteNode, "plugins", out var plugins) &&
+            plugins.Children.ContainsKey(new YamlScalarNode("rss")))
         {
-            warnings.Add(new ConfigDeprecationWarning(
-                "site.rssMode",
-                "site.feed.formats",
-                "site.rssMode is deprecated. Use site.feed.formats instead."));
+            removed.Add(new ConfigRemovedField("site.plugins.rss", "site.plugins.feed"));
+        }
+
+        if (TryGetMapping(root, "site", out var siteNode2) &&
+            siteNode2.Children.ContainsKey(new YamlScalarNode("rssMode")))
+        {
+            removed.Add(new ConfigRemovedField("site.rssMode", "site.feed.formats"));
         }
 
         if (root.Children.ContainsKey(new YamlScalarNode("outputPath")))
         {
-            warnings.Add(new ConfigDeprecationWarning(
-                "outputPath",
-                "route.outputPath",
-                "Top-level outputPath is deprecated. Use route.outputPath instead."));
+            removed.Add(new ConfigRemovedField("outputPath", "route.outputPath"));
         }
 
         if (TryGetMapping(root, "site", out var siteForCollections) &&
@@ -69,31 +75,24 @@ public static class ConfigDeprecationScanner
                     entry.Value is YamlMappingNode collectionNode &&
                     collectionNode.Children.ContainsKey(new YamlScalarNode("rss")))
                 {
-                    warnings.Add(new ConfigDeprecationWarning(
+                    removed.Add(new ConfigRemovedField(
                         $"collections.{keyNode.Value}.rss",
-                        $"collections.{keyNode.Value}.feed",
-                        $"collections.{keyNode.Value}.rss is deprecated. Use collections.{keyNode.Value}.feed instead."));
+                        $"collections.{keyNode.Value}.feed"));
                 }
             }
         }
 
-        if (TryGetMapping(root, "site", out var siteNode2) &&
-            siteNode2.Children.ContainsKey(new YamlScalarNode("collection")))
+        if (TryGetMapping(root, "site", out var siteNode3) &&
+            siteNode3.Children.ContainsKey(new YamlScalarNode("collection")))
         {
-            warnings.Add(new ConfigDeprecationWarning(
-                "site.collection",
-                "site.collections",
-                "site.collection is deprecated. Use site.collections (plural) instead."));
+            removed.Add(new ConfigRemovedField("site.collection", "site.collections"));
         }
 
         if (TryGetMapping(root, "content", out var contentNode) &&
             TryGetMapping(contentNode, "notion", out var notionNode) &&
             notionNode.Children.ContainsKey(new YamlScalarNode("rootPageId")))
         {
-            warnings.Add(new ConfigDeprecationWarning(
-                "content.notion.rootPageId",
-                "content.notion.rootBlockId",
-                "content.notion.rootPageId is deprecated. Use content.notion.rootBlockId instead."));
+            removed.Add(new ConfigRemovedField("content.notion.rootPageId", "content.notion.rootBlockId"));
         }
 
         if (root.Children.TryGetValue(new YamlScalarNode("content"), out var contentChild) &&
@@ -102,13 +101,16 @@ public static class ConfigDeprecationScanner
             providerNode is YamlScalarNode providerScalar &&
             "notion".Equals(providerScalar.Value, StringComparison.OrdinalIgnoreCase))
         {
-            warnings.Add(new ConfigDeprecationWarning(
-                "content.provider: notion",
-                "content.sources",
-                "content.provider notion is deprecated. Consider using content.sources with a notion source instead."));
+            removed.Add(new ConfigRemovedField("content.provider: notion", "content.sources with a notion source"));
         }
 
-        return warnings;
+        if (removed.Count > 0)
+        {
+            var details = string.Join("\n  ", removed.Select(r => $"{r.Path} — removed in 1.0. Migration: use '{r.Migration}' instead."));
+            throw new ConfigException(
+                $"Removed configuration fields detected in 1.0:\n  {details}\nBukit 1.0 is a new project contract. Remove or migrate the fields above.",
+                DiagnosticCode.ConfigRequiredFieldMissing);
+        }
     }
 
     private static bool TryGetMapping(YamlMappingNode node, string key, out YamlMappingNode mapping)
@@ -125,4 +127,4 @@ public static class ConfigDeprecationScanner
     }
 }
 
-public sealed record ConfigDeprecationWarning(string Path, string Replacement, string Message);
+internal sealed record ConfigRemovedField(string Path, string Migration);

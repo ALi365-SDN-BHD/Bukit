@@ -1,23 +1,21 @@
 {% layout "layouts/base.html" %}
 
 <section class="hero">
-  <p class="eyebrow">Starter theme</p>
+  <p class="eyebrow">{{ site.params.hero_eyebrow }}</p>
   <h1>{{ site.title }}</h1>
   {{ if site.description }}
     <p>{{ site.description }}</p>
-  {{ else }}
-    <p>A clean content-first starting point for Markdown, Notion, blog, and documentation sites.</p>
   {{ end }}
 </section>
 
 {{ if site.modules && site.modules.features }}
   <section>
-    <h2 class="section-heading">Featured</h2>
+    <h2 class="section-heading">{{ site.params.featured_section_title }}</h2>
     <ul class="card-list">
-      {{ for feature in site.modules.features }}
+      {{ for section in site.modules.features }}
         <li class="card">
-          <h2 class="card-title">{{ feature.title }}</h2>
-          {{ if feature.fields && feature.fields.desc }}<p class="summary">{{ feature.fields.desc.value }}</p>{{ end }}
+          <h2 class="card-title">{{ section.title }}</h2>
+          {{ if section.fields && section.fields.desc }}<p class="summary">{{ section.fields.desc.value }}</p>{{ end }}
         </li>
       {{ end }}
     </ul>
@@ -25,7 +23,7 @@
 {{ end }}
 
 <section>
-  <h2 class="section-heading">Latest content</h2>
+  <h2 class="section-heading">{{ site.params.latest_content_title }}</h2>
   <ul class="card-list">
 {{ for p in pages }}
   {{ item = p }}

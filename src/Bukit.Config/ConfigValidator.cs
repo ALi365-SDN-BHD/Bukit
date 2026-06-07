@@ -214,16 +214,20 @@ public static class ConfigValidator
     }
 
     /// <summary>
-    /// Optional theme.yaml validation. Returns a list of warnings (never throws).
-    /// Returns null if no theme.yaml is found (not an error).
+    /// 1.0 theme.yaml validation. Returns a non-empty list of issues when validation fails.
+    /// Missing theme.yaml is a hard error in 1.0.
     /// </summary>
-    public static List<string>? ValidateThemeYaml(string themeRoot)
+    public static List<string> ValidateThemeYaml(string themeRoot)
     {
         var yamlPath = Path.Combine(themeRoot, "theme.yaml");
-        if (!File.Exists(yamlPath))
-            return null;
+        var issues = new List<string>();
 
-        var warnings = new List<string>();
+        if (!File.Exists(yamlPath))
+        {
+            issues.Add("BKT-0100: theme.yaml not found. Bukit 1.0 requires a theme.yaml manifest. Generate one with 'bukit theme manifest'.");
+            return issues;
+        }
+
         try
         {
             var text = File.ReadAllText(yamlPath);
@@ -232,36 +236,38 @@ public static class ConfigValidator
 
             if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
             {
-                warnings.Add("theme.yaml is empty or not a valid mapping.");
-                return warnings;
+                issues.Add("BKT-0101: theme.yaml is empty or not a valid mapping.");
+                return issues;
             }
 
             GetStringValue(root, "name", out var name);
             if (string.IsNullOrWhiteSpace(name))
-                warnings.Add("theme.yaml: 'name' is missing or empty.");
+                issues.Add("BKT-0100: theme.yaml: 'name' is missing or empty (required in 1.0).");
 
             GetStringValue(root, "version", out var version);
-            if (!string.IsNullOrWhiteSpace(version) && !System.Version.TryParse(version, out _))
-                warnings.Add($"theme.yaml: 'version' '{version}' is not valid semver.");
+            if (string.IsNullOrWhiteSpace(version))
+                issues.Add("BKT-0100: theme.yaml: 'version' is missing (required in 1.0).");
+            else if (!System.Version.TryParse(version, out _))
+                issues.Add($"BKT-0100: theme.yaml: 'version' '{version}' is not valid semver.");
 
             GetStringValue(root, "requires_bukit", out var requires);
             if (!string.IsNullOrWhiteSpace(requires) &&
                 !requires.StartsWith(">=", StringComparison.Ordinal) &&
                 !requires.StartsWith("^", StringComparison.Ordinal) &&
                 !requires.StartsWith("~", StringComparison.Ordinal))
-                warnings.Add($"theme.yaml: 'requires_bukit' '{requires}' should use semver range like '>=2.0.0'.");
+                issues.Add($"BKT-0100: theme.yaml: 'requires_bukit' '{requires}' should use semver range like '>=2.0.0'.");
 
             if (root.Children.TryGetValue(new YamlScalarNode("tags"), out var tagsNode) &&
                 tagsNode is YamlSequenceNode tagsSeq &&
                 tagsSeq.Children.Count == 0)
-                warnings.Add("theme.yaml: 'tags' is an empty list.");
+                issues.Add("BKT-0100: theme.yaml: 'tags' is an empty list.");
         }
         catch (Exception ex)
         {
-            warnings.Add($"theme.yaml parse error: {ex.Message}");
+            issues.Add($"BKT-0101: theme.yaml parse error: {ex.Message}");
         }
 
-        return warnings;
+        return issues;
     }
 
     private static void ValidateTaxonomyKind(string prefix, TaxonomyKindTemplateConfig kind)
