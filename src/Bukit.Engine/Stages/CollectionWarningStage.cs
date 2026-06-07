@@ -21,9 +21,9 @@ internal sealed class CollectionWarningStage : IContentStage
             {
                 if (!string.IsNullOrWhiteSpace(type))
                 {
-                        input.Logger.Warn(
-                        $"[WARN] Content \"{document.Id}\" defines both type={type} and collection={collection}. " +
-                        "Collection routing uses collection; type remains content metadata.");
+                    input.Logger.Warn(
+                    $"[WARN] Content \"{document.Id}\" defines both type={type} and collection={collection}. " +
+                    "Collection routing uses collection; type remains content metadata.");
                     warned++;
                 }
                 continue;

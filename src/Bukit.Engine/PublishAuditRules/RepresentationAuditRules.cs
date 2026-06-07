@@ -153,16 +153,16 @@ internal static class RepresentationAuditRules
             {
                 foreach (var item in documents.EnumerateArray())
                 {
-                if (StringEquals(ReadString(item, "id"), document.SourceItemId) ||
-                    StringEquals(ReadString(item, "canonicalId"), document.ContentRecord?.Identity.CanonicalUrlKey))
-                {
-                    if (ManifestLanguageMatches(item, document))
+                    if (StringEquals(ReadString(item, "id"), document.SourceItemId) ||
+                        StringEquals(ReadString(item, "canonicalId"), document.ContentRecord?.Identity.CanonicalUrlKey))
                     {
-                        manifestDocument = item;
-                        break;
+                        if (ManifestLanguageMatches(item, document))
+                        {
+                            manifestDocument = item;
+                            break;
+                        }
                     }
                 }
-            }
             }
 
             if (manifestDocument is null)
