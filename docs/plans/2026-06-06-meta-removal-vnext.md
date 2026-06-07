@@ -738,3 +738,7 @@ vNext Meta removal is complete when:
 - Plugin protocol v2 has no `Meta`.
 - Unknown raw keys produce deterministic diagnostics.
 - Full test suite and inventory checks pass.
+
+
+
+## Merge vNext meta-removal plan into main with conflict resolution aligned to the vNext contract; preserve protocol v2, document-first pipeline, publish projections, and typed template/CLI surfaces. 20260607
