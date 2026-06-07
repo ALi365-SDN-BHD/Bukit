@@ -322,7 +322,7 @@ public static partial class BukitCliSpecs
             {
                 new CliCommandSpec(
                     Name: "audit",
-                    Description: "读取 .bukit/seo-report.json 或 publish-audit-report.json 并返回 CI 状态",
+                    Description: "读取 .bukit/seo-report.json 并返回 CI 状态",
                     Options: new[]
                     {
                         new CliOptionSpec("--dir", "构建输出目录"),
@@ -335,6 +335,7 @@ public static partial class BukitCliSpecs
                     Description: "比较两个 seo-report.json 并执行回归预算",
                     Options: new[]
                     {
+                        new CliOptionSpec("--allow-cross-schema", "允许比较 SEO 与 publish 审计报告", CliOptionType.Flag),
                         new CliOptionSpec("--baseline", "基线 seo-report.json 路径"),
                         new CliOptionSpec("--current", "当前 seo-report.json 路径"),
                         new CliOptionSpec("--max-new-errors", "允许新增 error 数量", CliOptionType.Integer, ValueName: "n"),
@@ -374,7 +375,7 @@ public static partial class BukitCliSpecs
             {
                 new CliCommandSpec(
                     Name: "audit",
-                    Description: "检查 GEO 指标，读取 .bukit/seo-report.json 或 publish-audit-report.json",
+                    Description: "检查 GEO 指标，读取 .bukit/seo-report.json",
                     Options: new[]
                     {
                         new CliOptionSpec("--dir", "构建输出目录")
@@ -416,6 +417,7 @@ public static partial class BukitCliSpecs
                     Description: "比较两个 publish audit 报告并执行回归预算",
                     Options: new[]
                     {
+                        new CliOptionSpec("--allow-cross-schema", "允许比较 SEO 与 publish 审计报告", CliOptionType.Flag),
                         new CliOptionSpec("--baseline", "基线报告路径"),
                         new CliOptionSpec("--current", "当前报告路径"),
                         new CliOptionSpec("--max-new-errors", "允许新增 error 数量", CliOptionType.Integer, ValueName: "n"),

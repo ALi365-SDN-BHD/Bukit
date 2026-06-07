@@ -68,58 +68,85 @@ public sealed class SeoReportValidatorTests
     }
     """;
 
+    private static string ValidPublishReportJson() => """
+    {
+      "schema": "https://bukit.dev/schemas/publish-audit-report.v1.json",
+      "schemaVersion": "1.0",
+      "generatedAt": "2026-01-01T00:00:00Z",
+      "siteName": "test",
+      "baseUrl": "/",
+      "documents": [
+        {
+          "routeUrl": "/post/",
+          "outputPath": "post/index.html",
+          "canonical": "https://example.com/post/",
+          "indexable": true,
+          "lastModified": "2026-01-01T00:00:00Z",
+          "representationKinds": ["html", "semantic-html", "json", "markdown", "llms-full"],
+          "representations": [],
+          "schemaTypes": [],
+          "structuredDataTypes": [],
+          "semanticOutline": [],
+          "sitemapIncluded": true,
+          "searchIncluded": true,
+          "rssIncluded": false,
+          "atomFeedIncluded": false,
+          "jsonFeedIncluded": false,
+          "llmsIncluded": true,
+          "llmsFullIncluded": true,
+          "robotsIncluded": true,
+          "manifestIncluded": true
+        }
+      ],
+      "issues": [],
+      "summary": {
+        "documentCount": 1,
+        "indexableCount": 1,
+        "nonIndexableCount": 0,
+        "errorCount": 0,
+        "warningCount": 0
+      }
+    }
+    """;
+
     [Fact]
     public void ValidateReportContract_ValidReport_Passes()
     {
         var root = Parse(ValidReportJson());
-        SeoReportValidator.ValidateReportContract(root);
+        AuditReportContractValidator.ValidateReportContract(root, SeoReportValidator.AuditReportContract.SeoOnly);
     }
 
     [Fact]
     public void ValidateReportContract_PublishReportWithLlmsFullIncluded_Passes()
     {
-        var json = """
-        {
-          "schema": "https://bukit.dev/schemas/publish-audit-report.v1.json",
-          "schemaVersion": "1.0",
-          "generatedAt": "2026-01-01T00:00:00Z",
-          "siteName": "test",
-          "baseUrl": "/",
-          "documents": [
-            {
-              "routeUrl": "/post/",
-              "outputPath": "post/index.html",
-              "canonical": "https://example.com/post/",
-              "indexable": true,
-              "lastModified": "2026-01-01T00:00:00Z",
-              "representationKinds": ["html", "semantic-html", "json", "markdown", "llms-full"],
-              "representations": [],
-              "schemaTypes": [],
-              "structuredDataTypes": [],
-              "semanticOutline": [],
-              "sitemapIncluded": true,
-              "searchIncluded": true,
-              "rssIncluded": false,
-              "atomFeedIncluded": false,
-              "jsonFeedIncluded": false,
-              "llmsIncluded": true,
-              "llmsFullIncluded": true,
-              "robotsIncluded": true,
-              "manifestIncluded": true
-            }
-          ],
-          "issues": [],
-          "summary": {
-            "documentCount": 1,
-            "indexableCount": 1,
-            "nonIndexableCount": 0,
-            "errorCount": 0,
-            "warningCount": 0
-          }
-        }
-        """;
+        AuditReportContractValidator.ValidateReportContract(Parse(ValidPublishReportJson()), SeoReportValidator.AuditReportContract.PublishOnly);
+    }
 
-        SeoReportValidator.ValidateReportContract(Parse(json));
+    [Fact]
+    public void ValidateReportContract_PublishReport_WhenSeoOnly_Throws()
+    {
+        var ex = Assert.Throws<InvalidDataException>(() => AuditReportContractValidator.ValidateReportContract(
+            Parse(ValidPublishReportJson()),
+            SeoReportValidator.AuditReportContract.SeoOnly));
+
+        Assert.Contains("Expected 'https://bukit.dev/schemas/seo-report.v1.json'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidateReportContract_SeoReport_WhenPublishOnly_Throws()
+    {
+        var ex = Assert.Throws<InvalidDataException>(() => AuditReportContractValidator.ValidateReportContract(
+            Parse(ValidReportJson()),
+            SeoReportValidator.AuditReportContract.PublishOnly));
+
+        Assert.Contains("Expected 'https://bukit.dev/schemas/publish-audit-report.v1.json'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidateReportContract_CompatibleContract_AcceptsBoth()
+    {
+        AuditReportContractValidator.ValidateReportContract(Parse(ValidReportJson()), SeoReportValidator.AuditReportContract.SeoOrPublish);
+        AuditReportContractValidator.ValidateReportContract(Parse(ValidPublishReportJson()), SeoReportValidator.AuditReportContract.SeoOrPublish);
     }
 
     [Fact]
@@ -143,7 +170,7 @@ public sealed class SeoReportValidatorTests
         }
         """;
 
-        var ex = Assert.Throws<InvalidDataException>(() => SeoReportValidator.ValidateReportContract(Parse(json)));
+        var ex = Assert.Throws<InvalidDataException>(() => AuditReportContractValidator.ValidateReportContract(Parse(json), SeoReportValidator.AuditReportContract.SeoOnly));
         Assert.Contains("routes", ex.Message, StringComparison.Ordinal);
     }
 
@@ -169,7 +196,7 @@ public sealed class SeoReportValidatorTests
         }
         """;
 
-        var ex = Assert.Throws<InvalidDataException>(() => SeoReportValidator.ValidateReportContract(Parse(json)));
+        var ex = Assert.Throws<InvalidDataException>(() => AuditReportContractValidator.ValidateReportContract(Parse(json), SeoReportValidator.AuditReportContract.SeoOnly));
         Assert.Contains("schemaVersion", ex.Message, StringComparison.Ordinal);
     }
 
@@ -202,7 +229,7 @@ public sealed class SeoReportValidatorTests
     {
         var root = Parse(ValidReportWithRoutesJson());
 
-        var snapshot = SeoReportValidator.SeoReportSnapshot.From(root);
+        var snapshot = AuditReportContractValidator.ReadDiffSnapshot(root);
 
         Assert.Single(snapshot.Routes);
         Assert.True(snapshot.Routes.ContainsKey("/"));

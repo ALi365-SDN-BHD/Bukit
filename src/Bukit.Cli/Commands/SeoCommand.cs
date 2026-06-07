@@ -13,12 +13,6 @@ public static class SeoCommand
             return preferred;
         }
 
-        var publish = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
-        if (File.Exists(publish))
-        {
-            return publish;
-        }
-
         return null;
     }
 
@@ -31,22 +25,37 @@ public static class SeoCommand
         if (string.Equals(subcommand, "audit", StringComparison.OrdinalIgnoreCase))
         {
             var reportPath = command.GetString("--report");
+            var reportSpecified = !string.IsNullOrWhiteSpace(reportPath);
             var dir = command.GetString("--dir") ?? "dist";
             if (string.IsNullOrWhiteSpace(reportPath))
             {
                 reportPath = ResolveAuditReportPath(dir);
                 if (reportPath is null)
                 {
-                    Console.Error.WriteLine($"{label} report not found under {Path.GetFullPath(dir)} (looked for .bukit/seo-report.json and .bukit/publish-audit-report.json). Run a full build first.");
+                    Console.Error.WriteLine($"{label} report not found under {Path.GetFullPath(dir)} (looked for .bukit/seo-report.json). Run a full build first.");
                     return 1;
                 }
             }
+            var contract = reportSpecified
+                ? SeoReportValidator.AuditReportContract.SeoOrPublish
+                : SeoReportValidator.AuditReportContract.SeoOnly;
 
-            return await AuditAsync(reportPath, dir, strict: command.GetBool("--strict"), external: command.GetBool("--external"), label: label);
+            return await AuditAsync(
+                reportPath,
+                dir,
+                strict: command.GetBool("--strict"),
+                external: command.GetBool("--external"),
+                label: label,
+                contract: contract,
+                reportSpecified: reportSpecified);
         }
 
         if (string.Equals(subcommand, "diff", StringComparison.OrdinalIgnoreCase))
         {
+            var allowCrossSchema = command.GetBool("--allow-cross-schema");
+            var contract = allowCrossSchema
+                ? SeoReportValidator.AuditReportContract.SeoOrPublish
+                : SeoReportValidator.AuditReportContract.SeoOnly;
             try
             {
                 var baseline = command.GetString("--baseline") ?? command.GetArgument(1);
@@ -60,6 +69,7 @@ public static class SeoCommand
                     failOnNewCodes: SeoReportValidator.SplitCsv(command.GetString("--fail-on-new-code")),
                     failOnRouteRemoved: command.GetBool("--fail-on-route-removed"),
                     failOnIndexableDrop: command.GetBool("--fail-on-indexable-drop"),
+                    contract: contract,
                     label: label,
                     commandName: commandName);
             }
@@ -70,15 +80,22 @@ public static class SeoCommand
             }
         }
 
-        Console.Error.WriteLine($"Usage: bukit {commandName} audit [--dir dist] [--report seo-report.json] [--strict] [--external]");
-        Console.Error.WriteLine($"       bukit {commandName} diff --baseline old-report.json --current new-report.json [--max-new-errors n] [--max-new-warnings n] [--max-new-issues n] [--fail-on-new-code code1,code2] [--fail-on-route-removed] [--fail-on-indexable-drop]");
-        return 2;
-    }
+            Console.Error.WriteLine($"Usage: bukit {commandName} audit [--dir dist] [--report seo-report.json] [--strict] [--external]");
+            Console.Error.WriteLine($"       bukit {commandName} diff --baseline old-report.json --current new-report.json [--max-new-errors n] [--max-new-warnings n] [--max-new-issues n] [--fail-on-new-code code1,code2] [--fail-on-route-removed] [--fail-on-indexable-drop] [--allow-cross-schema]");
+            return 2;
+        }
 
     internal static int Audit(string reportPath, bool strict)
         => AuditAsync(reportPath, Path.GetDirectoryName(Path.GetFullPath(reportPath)) ?? ".", strict, external: false, label: "SEO").GetAwaiter().GetResult();
 
-    internal static async Task<int> AuditAsync(string reportPath, string outputDir, bool strict, bool external, string label)
+    internal static async Task<int> AuditAsync(
+        string reportPath,
+        string outputDir,
+        bool strict,
+        bool external,
+        string label,
+        SeoReportValidator.AuditReportContract contract = SeoReportValidator.AuditReportContract.SeoOnly,
+        bool reportSpecified = false)
     {
         var fullPath = Path.GetFullPath(reportPath);
         if (!File.Exists(fullPath))
@@ -90,7 +107,11 @@ public static class SeoCommand
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(fullPath));
-            SeoReportValidator.ValidateReportContract(doc.RootElement);
+            var actualContract = AuditReportContractValidator.ValidateReportContract(doc.RootElement, contract);
+            if (reportSpecified && actualContract == SeoReportValidator.AuditReportContract.PublishOnly)
+            {
+                Console.Error.WriteLine("warning: publish-audit-report schema detected for SEO audit; this is compatibility mode.");
+            }
 
             var summary = doc.RootElement.GetProperty("summary");
             var errorCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "errorCount");
@@ -149,6 +170,7 @@ public static class SeoCommand
         IReadOnlySet<string> failOnNewCodes,
         bool failOnRouteRemoved,
         bool failOnIndexableDrop,
+        SeoReportValidator.AuditReportContract contract,
         string label,
         string commandName)
     {
@@ -162,11 +184,17 @@ public static class SeoCommand
         {
             using var baselineDoc = JsonDocument.Parse(File.ReadAllText(Path.GetFullPath(baselinePath)));
             using var currentDoc = JsonDocument.Parse(File.ReadAllText(Path.GetFullPath(currentPath)));
-            SeoReportValidator.ValidateReportContract(baselineDoc.RootElement);
-            SeoReportValidator.ValidateReportContract(currentDoc.RootElement);
+            var baselineContract = AuditReportContractValidator.ValidateReportContract(baselineDoc.RootElement, contract);
+            var currentContract = AuditReportContractValidator.ValidateReportContract(currentDoc.RootElement, contract);
+            if (baselineContract != currentContract)
+            {
+                throw new InvalidDataException(
+                    $"Cannot diff different report schema kinds: baseline uses {baselineContract} and current uses {currentContract}. " +
+                    "Pass --allow-cross-schema to compare compatible schemas.");
+            }
 
-            var baseline = SeoReportValidator.SeoReportSnapshot.From(baselineDoc.RootElement);
-            var current = SeoReportValidator.SeoReportSnapshot.From(currentDoc.RootElement);
+            var baseline = AuditReportContractValidator.ReadDiffSnapshot(baselineDoc.RootElement);
+            var current = AuditReportContractValidator.ReadDiffSnapshot(currentDoc.RootElement);
 
             var baselineIssues = baseline.Issues.ToHashSet();
             var currentIssues = current.Issues.ToHashSet();

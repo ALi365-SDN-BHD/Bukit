@@ -31,12 +31,6 @@ public static class GeoCommand
             return preferred;
         }
 
-        var publish = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
-        if (File.Exists(publish))
-        {
-            return publish;
-        }
-
         return null;
     }
 
@@ -59,7 +53,7 @@ public static class GeoCommand
 
         if (reportPath is null)
         {
-            Console.Error.WriteLine($"Audit report not found under {fullDir} (looked for .bukit/seo-report.json and .bukit/publish-audit-report.json). Run a full build first.");
+            Console.Error.WriteLine($"Audit report not found under {fullDir} (looked for .bukit/seo-report.json). Run a full build first.");
             return 1;
         }
 

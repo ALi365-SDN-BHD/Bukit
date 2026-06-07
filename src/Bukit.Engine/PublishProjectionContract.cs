@@ -2,8 +2,6 @@ using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Routing;
-using Bukit.Engine.Plugins.BuiltIn;
-using Bukit.Rendering;
 using Bukit.Shared;
 
 namespace Bukit.Engine;
@@ -249,26 +247,8 @@ internal sealed class RssFeedPublishProjection : AggregatePublishProjectionBase
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        if (string.IsNullOrWhiteSpace(context.Config.Site.Url) ||
-            !context.Config.Site.Feed.Formats.Any(x => string.Equals(x, "rss", StringComparison.OrdinalIgnoreCase)))
-        {
-            return;
-        }
-
-        var posts = CollectFeedPosts(context);
-        var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
-        RssGenerator.GenerateMerged(context.OutputDir, context.Config.Site.Url, context.BaseUrl, context.Config.Site.Title, posts, limit, context.Config.Site.Description);
+        AggregateFeedProjectionWriter.WriteRss(context);
     }
-
-    internal static List<RssGenerator.Post> CollectFeedPosts(PublishProjectionContext context)
-        => RssGenerator.CollectAllPosts(
-            context.Config.Site.Collections,
-            context.RoutedDocuments,
-            context.BodyStore ?? NullContentBodyStore.Instance,
-            context.ContentGraph,
-            context.SeoIndex,
-            context.Config.Site.Url ?? string.Empty,
-            context.BaseUrl);
 }
 
 internal sealed class AtomFeedPublishProjection : AggregatePublishProjectionBase
@@ -280,15 +260,7 @@ internal sealed class AtomFeedPublishProjection : AggregatePublishProjectionBase
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        if (string.IsNullOrWhiteSpace(context.Config.Site.Url) ||
-            !context.Config.Site.Feed.Formats.Any(x => string.Equals(x, "atom", StringComparison.OrdinalIgnoreCase)))
-        {
-            return;
-        }
-
-        var posts = RssFeedPublishProjection.CollectFeedPosts(context);
-        var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
-        AtomFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url, context.BaseUrl, context.Config.Site.Title, posts, $"{context.Config.Site.Feed.Path}/atom.xml", limit, context.Config.Site.Description);
+        AggregateFeedProjectionWriter.WriteAtom(context);
     }
 }
 
@@ -301,15 +273,7 @@ internal sealed class JsonFeedPublishProjection : AggregatePublishProjectionBase
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        if (string.IsNullOrWhiteSpace(context.Config.Site.Url) ||
-            !context.Config.Site.Feed.Formats.Any(x => string.Equals(x, "json", StringComparison.OrdinalIgnoreCase)))
-        {
-            return;
-        }
-
-        var posts = RssFeedPublishProjection.CollectFeedPosts(context);
-        var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
-        JsonFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url, context.BaseUrl, context.Config.Site.Title, posts, $"{context.Config.Site.Feed.Path}/feed.json", limit, context.Config.Site.Description);
+        AggregateFeedProjectionWriter.WriteJsonFeed(context);
     }
 }
 
@@ -357,16 +321,7 @@ internal sealed class SearchIndexPublishProjection : AggregatePublishProjectionB
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        SearchIndexBuilder.GenerateSingleSearchIndex(
-            context.OutputDir,
-            context.BaseUrl,
-            context.Config.Site.SearchIncludeDerived,
-            context.SearchSnippetsEnabled,
-            context.RoutedDocuments,
-            context.DerivedDocuments,
-            context.SeoIndex,
-            context.BodyStore ?? NullContentBodyStore.Instance);
-        SearchIndexPlugin.WriteSearchUi(context.Config, context.OutputDir);
+        SearchIndexProjectionWriter.WriteSearchIndex(context);
     }
 }
 
@@ -379,20 +334,7 @@ internal sealed class LlmsTxtPublishProjection : AggregatePublishProjectionBase
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        if (!context.Config.Site.Seo.Geo.Enabled || !context.Config.Site.Seo.Geo.LlmsTxt)
-        {
-            return;
-        }
-
-        LlmsTxtPlugin.WriteLlmsTxt(
-            context.Config,
-            context.OutputDir,
-            context.BaseUrl,
-            context.RoutedDocuments,
-            context.DerivedDocuments,
-            context.SeoIndex,
-            context.SeoModels,
-            context.Config.Site.Seo.Geo);
+        LlmsProjectionWriter.WriteLlmsTxt(context);
     }
 }
 
@@ -405,20 +347,7 @@ internal sealed class LlmsFullTxtPublishProjection : AggregatePublishProjectionB
 
     protected override void ProjectAggregate(PublishProjectionContext context)
     {
-        if (!context.Config.Site.Seo.Geo.Enabled || !context.Config.Site.Seo.Geo.LlmsFullTxt)
-        {
-            return;
-        }
-
-        LlmsTxtPlugin.WriteLlmsFullTxt(
-            context.Config,
-            context.OutputDir,
-            context.BaseUrl,
-            context.RoutedDocuments,
-            context.DerivedDocuments,
-            context.ContentGraph,
-            context.SeoIndex,
-            context.BodyStore ?? NullContentBodyStore.Instance);
+        LlmsProjectionWriter.WriteLlmsFullTxt(context);
     }
 }
 
@@ -430,7 +359,7 @@ internal sealed class RobotsTxtPublishProjection : AggregatePublishProjectionBas
     }
 
     protected override void ProjectAggregate(PublishProjectionContext context)
-        => RobotsTxtWriter.WriteIfRequested(context.Config, context.OutputDir, context.BaseUrl, context.SeoIndex);
+        => RobotsProjectionWriter.WriteRobotsTxt(context);
 }
 
 internal sealed class AgentManifestAggregateInventoryProjection : AggregatePublishProjectionBase

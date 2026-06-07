@@ -5,7 +5,17 @@ namespace Bukit.Cli.Commands;
 
 internal static partial class SeoReportValidator
 {
-    internal static void ValidateReportContract(JsonElement root)
+    internal const string SeoReportSchema = "https://bukit.dev/schemas/seo-report.v1.json";
+    internal const string PublishAuditReportSchema = "https://bukit.dev/schemas/publish-audit-report.v1.json";
+
+    internal enum AuditReportContract
+    {
+        SeoOnly,
+        PublishOnly,
+        SeoOrPublish
+    }
+
+    internal static AuditReportContract ValidateReportContract(JsonElement root, AuditReportContract contractMode)
     {
         if (root.ValueKind != JsonValueKind.Object)
         {
@@ -13,17 +23,44 @@ internal static partial class SeoReportValidator
         }
 
         var schema = ReadRequiredString(root, "$", "schema");
-        if (string.Equals(schema, "https://bukit.dev/schemas/publish-audit-report.v1.json", StringComparison.Ordinal))
+
+        if (string.Equals(schema, PublishAuditReportSchema, StringComparison.Ordinal))
         {
+            if (contractMode == AuditReportContract.SeoOnly)
+            {
+                throw new InvalidDataException($"unsupported schema '{schema}'. Expected '{SeoReportSchema}'.");
+            }
+
             ValidatePublishReportContract(root);
-            return;
+            return AuditReportContract.PublishOnly;
         }
 
-        if (!string.Equals(schema, "https://bukit.dev/schemas/seo-report.v1.json", StringComparison.Ordinal))
+        if (string.Equals(schema, SeoReportSchema, StringComparison.Ordinal))
         {
-            throw new InvalidDataException($"unsupported schema '{schema}'. Expected 'https://bukit.dev/schemas/seo-report.v1.json' or 'https://bukit.dev/schemas/publish-audit-report.v1.json'.");
+            if (contractMode == AuditReportContract.PublishOnly)
+            {
+                throw new InvalidDataException($"unsupported schema '{schema}'. Expected '{PublishAuditReportSchema}'.");
+            }
+
+            ValidateSeoReportContract(root);
+            return AuditReportContract.SeoOnly;
         }
 
+        if (contractMode == AuditReportContract.SeoOrPublish)
+        {
+            throw new InvalidDataException($"unsupported schema '{schema}'. Expected '{SeoReportSchema}' or '{PublishAuditReportSchema}'.");
+        }
+
+        if (contractMode == AuditReportContract.SeoOnly)
+        {
+            throw new InvalidDataException($"unsupported schema '{schema}'. Expected '{SeoReportSchema}'.");
+        }
+
+        throw new InvalidDataException($"unsupported schema '{schema}'. Expected '{PublishAuditReportSchema}'.");
+    }
+
+    internal static void ValidateSeoReportContract(JsonElement root)
+    {
         EnsureAllowedProperties(root, "$", "schema", "schemaVersion", "generatedAt", "siteName", "siteUrl", "baseUrl", "routes", "issues", "summary");
 
         var schemaVersion = ReadRequiredString(root, "$", "schemaVersion");
@@ -113,7 +150,7 @@ internal static partial class SeoReportValidator
         ValidateIssues(issues);
     }
 
-    private static void ValidatePublishReportContract(JsonElement root)
+    internal static void ValidatePublishReportContract(JsonElement root)
     {
         EnsureAllowedProperties(root, "$", "schema", "schemaVersion", "generatedAt", "siteName", "siteUrl", "baseUrl", "documents", "issues", "summary");
 
@@ -522,4 +559,19 @@ internal static partial class SeoReportValidator
 
     [GeneratedRegex(@"<a\b(?=[^>]*href\s*=\s*[""']([^""'#]+)[""'])[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     internal static partial Regex AnchorHrefRegex();
+}
+
+internal static class AuditReportContractValidator
+{
+    internal static SeoReportValidator.AuditReportContract ValidateReportContract(JsonElement root, SeoReportValidator.AuditReportContract contractMode)
+        => SeoReportValidator.ValidateReportContract(root, contractMode);
+
+    internal static void ValidateSeoReportContract(JsonElement root)
+        => SeoReportValidator.ValidateSeoReportContract(root);
+
+    internal static void ValidatePublishReportContract(JsonElement root)
+        => SeoReportValidator.ValidatePublishReportContract(root);
+
+    internal static SeoReportValidator.SeoReportSnapshot ReadDiffSnapshot(JsonElement root)
+        => SeoReportValidator.SeoReportSnapshot.From(root);
 }
