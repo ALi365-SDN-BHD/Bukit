@@ -115,9 +115,9 @@ For a serious import task:
 
 1. Run `--dry-run` and inspect page/template/component/record counts.
 2. Run the real import with `--force --verify`.
-3. Read `sites/<theme>/import-report.md`.
-4. Run `bukit doctor --config sites/<theme>/site.yaml` if verification was not included.
-5. Run `bukit build --config sites/<theme>/site.yaml`.
+3. Read sites/&lt;theme&gt;/import-report.md.
+4. Run bukit doctor --config sites/&lt;theme&gt;/site.yaml if verification was not included.
+5. Run bukit build --config sites/&lt;theme&gt;/site.yaml.
 6. Preview and compare desktop/tablet/mobile against the original demo.
 
 ## Common Errors

@@ -571,6 +571,65 @@ bukit route inspect [--json] [--collection <name>] [--config <path>] [--site <na
 | `--config` | site.yaml | Config file path |
 | `--site` | - | Multi-site name |
 
+### import
+
+Convert HTML demos into Bukit sites or seed files into Markdown content.
+
+```
+bukit import html-demo <demo-dir> [--theme <name>] [--force] [--verify] [--content-source notion|json|yaml] [--build-source markdown|notion] [--site-path <path>] [--strict] [--push-notion] [--notion-database-id <id>] [--notion-database-map <path>] [--create-missing-notion-databases]
+bukit import seed <seed-dir> [--output <dir>] [--force]
+```
+
+`import html-demo` scans a local HTML demo directory and generates a Bukit theme/site draft. `import seed` converts generated JSON/YAML seed files into local Markdown content.
+
+### notion
+
+Push generated seed records to Notion databases and validate target schemas.
+
+```
+bukit notion push --input <dir> [--database-id <id>] [--database-map <path>] [--create-missing-databases] [--parent-page-id <id>] [--no-validate-schema] [--dry-run] [--report <path>] [--token-env <var>]
+bukit notion validate-schema --database-id <id> [--token-env <var>] [--report <path>]
+```
+
+`notion push` writes generated Notion seed records to one or more Notion databases. `notion validate-schema` validates that a Notion database has the fields required by Bukit seed push.
+
+### webhook
+
+Start an HTTP webhook server that receives Notion triggers and dispatches GitHub repository_dispatch events.
+
+```
+bukit webhook [--host <host>] [--port <port>] [--path <path>] [--repo <owner/repo>] [--event <type>]
+```
+
+| Parameter | Default | Description |
+|------|--------|------|
+| `--host` | `localhost` | Listen address |
+| `--port` | `4000` | Listen port |
+| `--path` | `/webhook` | Webhook endpoint path |
+| `--repo` | — | GitHub repository (owner/repo) |
+| `--event` | `notion-update` | GitHub repository_dispatch event type |
+
+### deploy
+
+Build and deploy the site to GitHub Pages.
+
+```
+bukit deploy [--config <path>] [--site <name>] [--output <dir>] [--base-url <url>] [--site-url <url>] [--branch <name>] [--message <msg>] [--ci] [--dry-run] [--skip-build]
+```
+
+| Parameter | Default | Description |
+|------|--------|------|
+| `--config` | `site.yaml` | Config file path |
+| `--site` | — | Multi-site name |
+| `--output` | `dist` | Output directory |
+| `--base-url` | — | Override site baseUrl |
+| `--site-url` | — | Override site URL |
+| `--branch` | `gh-pages` | Target deployment branch |
+| `--message` | auto | Custom commit message |
+| `--ci` | false | CI mode |
+| `--dry-run` | false | Preview without pushing |
+| `--skip-build` | false | Deploy existing output without rebuilding |
+
 ### docs check (beta)
 
 Check consistency between README, user guide, skills documentation, and source code.

@@ -338,7 +338,7 @@ Bukit skills are organized in five layers for clear responsibility boundaries:
 
 ## Maintenance Notes
 
-- Keep each skill at src/skills/&lt;skill-name&gt;/SKILL.md
+- Keep each skill at src/skills/&lt;skill-name&gt;/SKILL (replace &lt;skill-name&gt; with actual skill name)
 - Use `description` only for trigger conditions, not for generic summaries
 - Centralize CLI instructions in `bukit-cli-reference`
 - Keep theme paths, config fields, and CLI parameters aligned with the codebase and user-facing docs

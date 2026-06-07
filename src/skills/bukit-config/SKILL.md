@@ -425,7 +425,7 @@ Per-collection feed customization (in `site.collections.<key>.output`):
 | Field | Type | Default | Description |
 |------|------|--------|------|
 | `output.rss` | bool | true | Enable feed for this collection |
-| `output.feedPath` | string | — | Per-collection feed directory (e.g., `blog-feed` → `/blog-feed/atom.xml`) |
+| `output.feedPath` | string | — | Per-collection feed directory (e.g., `blog-feed` → /blog-feed/atom) |
 | `output.feedTitle` | string | — | Per-collection feed title (defaults to `site.title`) |
 | `output.feedDescription` | string | — | Per-collection feed description |
 

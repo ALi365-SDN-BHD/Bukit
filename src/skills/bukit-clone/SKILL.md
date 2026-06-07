@@ -736,7 +736,7 @@ Options:
 
 In high-fidelity mode (`--page` or `--sections`), the CLI also generates:
 - `content/index.md` — editable page metadata and fallback body
-- `data/clone-*.md` — one Bukit data module per visible section
+- `data/clone-*.md` — one data module per visible section
 - `site.yaml` source updates — switches to `provider: sources`
 
 The CLI generates files under `themes/<name>/`:

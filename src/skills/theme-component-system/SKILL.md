@@ -357,8 +357,8 @@ Child themes extend parent themes via `extends` in theme.yaml. The `ThemeCompone
 Validates the componentized theme:
 
 ```bash
-bukit theme doctor              # (planned - not yet available in CLI)
-bukit theme doctor my-theme     # (planned - not yet available in CLI)
+theme doctor              # (planned - not yet available in CLI)
+theme doctor my-theme     # (planned - not yet available in CLI)
 ```
 
 Checks performed:
@@ -378,8 +378,8 @@ Checks performed:
 Lists all sections and components available in a theme:
 
 ```bash
-bukit theme list-components              # (planned - not yet available in CLI)
-bukit theme list-components my-theme     # (planned - not yet available in CLI)
+theme list-components              # (planned - not yet available in CLI)
+theme list-components my-theme     # (planned - not yet available in CLI)
 ```
 
 Output:
@@ -402,8 +402,8 @@ Components:
 Exports `theme-catalog.json` to the `.cache/` directory for AI Agent consumption:
 
 ```bash
-bukit theme export-catalog              # (planned - not yet available in CLI)
-bukit theme export-catalog my-theme     # (planned - not yet available in CLI)
+theme export-catalog              # (planned - not yet available in CLI)
+theme export-catalog my-theme     # (planned - not yet available in CLI)
 ```
 
 Output: `.cache/theme-catalog.json`
@@ -560,9 +560,9 @@ The V2 componentized theme system coexists with V1 themes:
 
 | Symptom | Likely Cause | Fix |
 |---|---|---|
-| `bukit theme doctor` reports missing section templates | `sections.<name>.template` is relative to `layouts/`, but the file is placed elsewhere | Move the template under `themes/<name>/layouts/sections/...` or update the manifest path to match the actual file |
+| `theme doctor` reports missing section templates | `sections.<name>.template` is relative to `layouts/`, but the file is placed elsewhere | Move the template under `themes/<name>/layouts/sections/...` or update the manifest path to match the actual file |
 | Section renders but required props are empty | Page composer props, section schema names, and template variable names do not match | Align schema property names, page section JSON keys, and Scriban access paths before changing rendering logic |
-| Variant is ignored and default section appears | Variant key is not declared under `sections.<name>.variants`, or its template path is missing | Add the variant definition with a valid template path and verify it with `bukit theme doctor` |
+| Variant is ignored and default section appears | Variant key is not declared under `sections.<name>.variants`, or its template path is missing | Add the variant definition with a valid template path and verify it with `theme doctor` |
 | Component cannot be rendered by name | Component key in `theme.yaml` differs from the name passed to `render_component` or `comp.render` | Use the manifest component key exactly and keep naming conventions consistent, including case |
 | Data-bound section has no items | `data.source` does not match content `type`, collection name, or the source pattern expected by `SectionDataResolver` | Use supported patterns such as `type:post`, `collection:blog`, `posts`, `*`, or comma-separated sources |
 | Data-bound section returns too many or wrong items | Filter keys do not match content field names, or boolean/string values differ | Match `filters` keys to `ContentDocument.Fields` and normalize boolean values in content or config |
@@ -673,7 +673,7 @@ https://github.com/user/theme.git           ← latest main/master
 bukit build --config site.yaml    # site.yaml includes theme.source
 
 # Theme doctor on remote theme
-bukit theme doctor --config site.yaml  # (planned - not yet available in CLI)
+theme doctor --config site.yaml  # (planned - not yet available in CLI)
 ```
 
 ## Component Utility Functions (util.*)

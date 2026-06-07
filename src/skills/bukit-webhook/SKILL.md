@@ -156,7 +156,7 @@ For production use:
 
 ```ini
 [Unit]
-Description=Bukit Webhook Server
+Description=Webhook Server
 After=network.target
 
 [Service]

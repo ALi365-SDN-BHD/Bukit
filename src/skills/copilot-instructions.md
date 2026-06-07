@@ -2,7 +2,7 @@
 
 When the user's task involves Bukit (static site generator for .NET):
 
-1. Use the `skill` tool to load Bukit skills from src/skills/&lt;skill-name&gt;/SKILL.md.
+1. Use the `skill` tool to load Bukit skills from the skill directory (src/skills/&lt;skill-name&gt;/SKILL).
 2. Start with `using-bukit` as the gateway skill.
 3. Route to sub-skills per the gateway's routing table.
 

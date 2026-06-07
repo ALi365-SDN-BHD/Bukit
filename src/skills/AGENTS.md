@@ -29,7 +29,7 @@ Load Bukit skills when the user mentions ANY of these signals:
 2. **Follow the routing instructions** in the gateway skill to determine
    which sub-skills are needed for the user's task.
 
-3. **Read sub-skills directly** from src/skills/&lt;skill-name&gt;/SKILL.md.
+3. **Read sub-skills directly** from the skill directory (src/skills/&lt;skill-name&gt;/SKILL).
 
 4. **ALWAYS load `bukit-cli-reference` first** before executing any
    bukit CLI command.
