@@ -3,6 +3,7 @@ collection: about
 summary: 示例站点说明
 seo_title: 关于 - Bukit 示例站点
 cover: /assets/images/noneimg-news.jpg
+cover_alt: 示例站点关于页封面图
 tags:
   - bukit
   - starter
