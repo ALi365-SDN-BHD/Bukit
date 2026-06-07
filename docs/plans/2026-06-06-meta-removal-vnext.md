@@ -30,13 +30,13 @@ Status as of 2026-06-07:
 - Done: `seo audit` and `geo audit` default discovery starts at `.bukit/seo-report.json`; root `dist/seo-report.json` is no longer part of the report contract.
 - Done: `CanonicalContentGraph` carries graph-level `Documents` and `Relations` in addition to `Records` and `Entities`.
 - Done: protocol invocation and handshake models default to schema version `2`; after-build negotiation is v2-only and fails fast instead of falling back to v1.
+- Done: aggregate publish projections now use named `ContentDocument`/`PublishProjectionContext` projections instead of the old generic aggregate adapter.
+- Done: derive-pages protocol now shares the v2-only handshake negotiation layer used by after-build.
 
 Remaining vNext hardening, not `Meta` ABI compatibility:
 
 - `ContentModelSchema` now exposes canonical field mappings, custom field definitions, entity mappings, relation mappings, and media policy, but collection field schema still needs to become a projection over this model instead of a parallel concept.
 - Unknown raw key strictness currently produces content diagnostics through the normalizer; a future stage can decide whether those diagnostics should fail the build immediately.
-- Some aggregate projections still wrap existing generators (`RssGenerator`, `SearchIndexBuilder`, `LlmsTxtPlugin`, `RobotsTxtWriter`) instead of being pure `ContentDocument` projections.
-- Derive-pages protocol requests now use schema version `2`, but derive-pages still has no handshake negotiation layer equivalent to after-build.
 
 ## Design Principles
 

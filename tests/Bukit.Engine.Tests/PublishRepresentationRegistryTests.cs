@@ -44,6 +44,28 @@ public sealed class PublishRepresentationRegistryTests
     }
 
     [Fact]
+    public void AggregateProjectionAdapters_ReturnNamedDocumentFirstProjections()
+    {
+        var projections = PublishRepresentationRegistry.AggregateProjectionAdapters();
+
+        Assert.Equal(
+            [
+                typeof(RssFeedPublishProjection),
+                typeof(AtomFeedPublishProjection),
+                typeof(JsonFeedPublishProjection),
+                typeof(SitemapPublishProjection),
+                typeof(SearchIndexPublishProjection),
+                typeof(LlmsTxtPublishProjection),
+                typeof(LlmsFullTxtPublishProjection),
+                typeof(RobotsTxtPublishProjection),
+                typeof(AgentManifestAggregateInventoryProjection)
+            ],
+            projections.Select(x => x.GetType()).ToArray());
+        Assert.DoesNotContain(projections, projection =>
+            projection.GetType().Name.Contains("ExistingAggregate", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void ProjectionContract_RemainsInternalUntilExternalProjectionAbiIsDefined()
     {
         Assert.False(typeof(IPublishProjection).IsPublic);

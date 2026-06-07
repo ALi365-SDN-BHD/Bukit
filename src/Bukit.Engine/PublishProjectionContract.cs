@@ -104,9 +104,18 @@ internal static class PublishRepresentationRegistry
         => AggregateOutputRepresentations;
 
     internal static IReadOnlyList<IPublishProjection> AggregateProjectionAdapters()
-        => AggregateOutputRepresentations
-            .Select(x => new ExistingAggregatePublishProjection(x))
-            .ToArray();
+        =>
+        [
+            new RssFeedPublishProjection(),
+            new AtomFeedPublishProjection(),
+            new JsonFeedPublishProjection(),
+            new SitemapPublishProjection(),
+            new SearchIndexPublishProjection(),
+            new LlmsTxtPublishProjection(),
+            new LlmsFullTxtPublishProjection(),
+            new RobotsTxtPublishProjection(),
+            new AgentManifestAggregateInventoryProjection()
+        ];
 
     internal static IReadOnlyList<IPublishProjection> RootAggregateProjectionAdapters()
         => AggregateOutputRepresentations
@@ -156,9 +165,9 @@ internal sealed record PublishRepresentationExpectation(
     bool Robots = false,
     bool AgentManifest = false);
 
-internal sealed class ExistingAggregatePublishProjection : IPublishProjection
+internal abstract class AggregatePublishProjectionBase : IPublishProjection
 {
-    internal ExistingAggregatePublishProjection(PublishRepresentation representation)
+    protected AggregatePublishProjectionBase(PublishRepresentation representation)
     {
         Representation = representation;
     }
@@ -167,7 +176,7 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
 
     public PublishProjectionResult Project(PublishProjectionContext context)
     {
-        Generate(context);
+        ProjectAggregate(context);
         var path = Path.Combine(context.OutputDir, Representation.Path);
         var text = File.Exists(path) ? File.ReadAllText(path) : null;
         var outputs = BuildRouteOutputs(context, text, File.Exists(path));
@@ -181,177 +190,7 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
             [new PublishRepresentationOutput(Representation.Kind, "/" + Representation.Path.Replace('\\', '/'), Representation.Path, File.Exists(path), Indexable: false)]);
     }
 
-    private void Generate(PublishProjectionContext context)
-    {
-        switch (Representation.Kind)
-        {
-            case "feed":
-                GenerateRss(context);
-                break;
-            case "atom":
-                GenerateAtom(context);
-                break;
-            case "jsonfeed":
-                GenerateJsonFeed(context);
-                break;
-            case "sitemap":
-                GenerateSitemap(context);
-                break;
-            case "search":
-                GenerateSearch(context);
-                break;
-            case "llms":
-                GenerateLlms(context);
-                break;
-            case "llms-full":
-                GenerateLlmsFull(context);
-                break;
-            case "robots":
-                GenerateRobots(context);
-                break;
-        }
-    }
-
-    private static void GenerateRss(PublishProjectionContext context)
-    {
-        if (string.IsNullOrWhiteSpace(context.Config.Site.Url))
-        {
-            return;
-        }
-
-        if (!context.Config.Site.Feed.Formats.Any(x => string.Equals(x, "rss", StringComparison.OrdinalIgnoreCase)))
-        {
-            return;
-        }
-
-        var posts = RssGenerator.CollectAllPosts(
-            context.Config.Site.Collections,
-            context.RoutedDocuments,
-            context.BodyStore ?? NullContentBodyStore.Instance,
-            context.ContentGraph,
-            context.SeoIndex,
-            context.Config.Site.Url,
-            context.BaseUrl);
-        var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
-        RssGenerator.GenerateMerged(context.OutputDir, context.Config.Site.Url, context.BaseUrl, context.Config.Site.Title, posts, limit, context.Config.Site.Description);
-    }
-
-    private static void GenerateAtom(PublishProjectionContext context)
-    {
-        if (string.IsNullOrWhiteSpace(context.Config.Site.Url) ||
-            !context.Config.Site.Feed.Formats.Any(x => string.Equals(x, "atom", StringComparison.OrdinalIgnoreCase)))
-        {
-            return;
-        }
-
-        var posts = RssGenerator.CollectAllPosts(context.Config.Site.Collections, context.RoutedDocuments, context.BodyStore ?? NullContentBodyStore.Instance, context.ContentGraph, context.SeoIndex, context.Config.Site.Url, context.BaseUrl);
-        var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
-        AtomFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url, context.BaseUrl, context.Config.Site.Title, posts, $"{context.Config.Site.Feed.Path}/atom.xml", limit, context.Config.Site.Description);
-    }
-
-    private static void GenerateJsonFeed(PublishProjectionContext context)
-    {
-        if (string.IsNullOrWhiteSpace(context.Config.Site.Url) ||
-            !context.Config.Site.Feed.Formats.Any(x => string.Equals(x, "json", StringComparison.OrdinalIgnoreCase)))
-        {
-            return;
-        }
-
-        var posts = RssGenerator.CollectAllPosts(context.Config.Site.Collections, context.RoutedDocuments, context.BodyStore ?? NullContentBodyStore.Instance, context.ContentGraph, context.SeoIndex, context.Config.Site.Url, context.BaseUrl);
-        var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
-        JsonFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url, context.BaseUrl, context.Config.Site.Title, posts, $"{context.Config.Site.Feed.Path}/feed.json", limit, context.Config.Site.Description);
-    }
-
-    private static void GenerateSitemap(PublishProjectionContext context)
-    {
-        if (string.IsNullOrWhiteSpace(context.Config.Site.Url))
-        {
-            return;
-        }
-
-        var logger = context.Logger ?? new ConsoleLogger(LogLevel.Error);
-        var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>();
-        foreach (var seo in context.SeoIndex.Values.OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
-        {
-            if (!seo.Indexable)
-            {
-                continue;
-            }
-
-            if (SitemapPolicy.ShouldExcludeFromSitemapFile(Path.Combine(context.OutputDir, seo.Route.OutputPath), logger))
-            {
-                continue;
-            }
-
-            filtered.Add((seo.Canonical, seo.LastModified));
-        }
-
-        SitemapGenerator.GenerateAbsolute(context.OutputDir, filtered);
-    }
-
-    private static void GenerateSearch(PublishProjectionContext context)
-    {
-        SearchIndexBuilder.GenerateSingleSearchIndex(
-            context.OutputDir,
-            context.BaseUrl,
-            context.Config.Site.SearchIncludeDerived,
-            context.SearchSnippetsEnabled,
-            context.RoutedDocuments,
-            context.DerivedDocuments,
-            context.SeoIndex,
-            context.BodyStore ?? NullContentBodyStore.Instance);
-        SearchIndexPlugin.WriteSearchUi(BuildPluginContext(context));
-    }
-
-    private static void GenerateLlms(PublishProjectionContext context)
-    {
-        if (!context.Config.Site.Seo.Geo.Enabled || !context.Config.Site.Seo.Geo.LlmsTxt)
-        {
-            return;
-        }
-
-        LlmsTxtPlugin.WriteLlmsTxt(BuildPluginContext(context), context.Config.Site.Seo.Geo);
-    }
-
-    private static void GenerateLlmsFull(PublishProjectionContext context)
-    {
-        if (!context.Config.Site.Seo.Geo.Enabled || !context.Config.Site.Seo.Geo.LlmsFullTxt)
-        {
-            return;
-        }
-
-        LlmsTxtPlugin.WriteLlmsFullTxt(BuildPluginContext(context));
-    }
-
-    private static void GenerateRobots(PublishProjectionContext context)
-    {
-        RobotsTxtWriter.WriteIfRequested(context.Config, context.OutputDir, context.BaseUrl, context.SeoIndex);
-    }
-
-    private static BuildContext BuildPluginContext(PublishProjectionContext context)
-    {
-        if (context.PluginContext is not null)
-        {
-            return context.PluginContext;
-        }
-
-        var buildContext = new BuildContext
-        {
-            Config = context.Config,
-            RootDir = Directory.GetCurrentDirectory(),
-            OutputDir = context.OutputDir,
-            BaseUrl = context.BaseUrl,
-            LayoutsDir = string.Empty,
-            RoutedDocuments = context.RoutedDocuments,
-            ContentGraph = context.ContentGraph,
-            BodyStore = context.BodyStore ?? NullContentBodyStore.Instance,
-            SeoIndex = context.SeoIndex,
-            Logger = context.Logger ?? new ConsoleLogger(LogLevel.Error)
-        };
-        buildContext.DerivedDocuments.AddRange(context.DerivedDocuments);
-        buildContext.Data["__seo_models"] = context.SeoModels;
-        return buildContext;
-    }
+    protected abstract void ProjectAggregate(PublishProjectionContext context);
 
     private IReadOnlyList<PublishRepresentationOutput> BuildRouteOutputs(
         PublishProjectionContext context,
@@ -400,4 +239,209 @@ internal sealed class ExistingAggregatePublishProjection : IPublishProjection
         => !string.IsNullOrWhiteSpace(haystack) &&
            !string.IsNullOrWhiteSpace(needle) &&
            haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
+}
+
+internal sealed class RssFeedPublishProjection : AggregatePublishProjectionBase
+{
+    internal RssFeedPublishProjection()
+        : base(new PublishRepresentation("feed", "rss.xml", IsAggregate: true))
+    {
+    }
+
+    protected override void ProjectAggregate(PublishProjectionContext context)
+    {
+        if (string.IsNullOrWhiteSpace(context.Config.Site.Url) ||
+            !context.Config.Site.Feed.Formats.Any(x => string.Equals(x, "rss", StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var posts = CollectFeedPosts(context);
+        var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
+        RssGenerator.GenerateMerged(context.OutputDir, context.Config.Site.Url, context.BaseUrl, context.Config.Site.Title, posts, limit, context.Config.Site.Description);
+    }
+
+    internal static List<RssGenerator.Post> CollectFeedPosts(PublishProjectionContext context)
+        => RssGenerator.CollectAllPosts(
+            context.Config.Site.Collections,
+            context.RoutedDocuments,
+            context.BodyStore ?? NullContentBodyStore.Instance,
+            context.ContentGraph,
+            context.SeoIndex,
+            context.Config.Site.Url ?? string.Empty,
+            context.BaseUrl);
+}
+
+internal sealed class AtomFeedPublishProjection : AggregatePublishProjectionBase
+{
+    internal AtomFeedPublishProjection()
+        : base(new PublishRepresentation("atom", "feed/atom.xml", IsAggregate: true))
+    {
+    }
+
+    protected override void ProjectAggregate(PublishProjectionContext context)
+    {
+        if (string.IsNullOrWhiteSpace(context.Config.Site.Url) ||
+            !context.Config.Site.Feed.Formats.Any(x => string.Equals(x, "atom", StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var posts = RssFeedPublishProjection.CollectFeedPosts(context);
+        var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
+        AtomFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url, context.BaseUrl, context.Config.Site.Title, posts, $"{context.Config.Site.Feed.Path}/atom.xml", limit, context.Config.Site.Description);
+    }
+}
+
+internal sealed class JsonFeedPublishProjection : AggregatePublishProjectionBase
+{
+    internal JsonFeedPublishProjection()
+        : base(new PublishRepresentation("jsonfeed", "feed/feed.json", IsAggregate: true))
+    {
+    }
+
+    protected override void ProjectAggregate(PublishProjectionContext context)
+    {
+        if (string.IsNullOrWhiteSpace(context.Config.Site.Url) ||
+            !context.Config.Site.Feed.Formats.Any(x => string.Equals(x, "json", StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var posts = RssFeedPublishProjection.CollectFeedPosts(context);
+        var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
+        JsonFeedGenerator.Generate(context.OutputDir, context.Config.Site.Url, context.BaseUrl, context.Config.Site.Title, posts, $"{context.Config.Site.Feed.Path}/feed.json", limit, context.Config.Site.Description);
+    }
+}
+
+internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
+{
+    internal SitemapPublishProjection()
+        : base(new PublishRepresentation("sitemap", "sitemap.xml", IsAggregate: true))
+    {
+    }
+
+    protected override void ProjectAggregate(PublishProjectionContext context)
+    {
+        if (string.IsNullOrWhiteSpace(context.Config.Site.Url))
+        {
+            return;
+        }
+
+        var logger = context.Logger ?? new ConsoleLogger(LogLevel.Error);
+        var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>();
+        foreach (var seo in context.SeoIndex.Values.OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!seo.Indexable)
+            {
+                continue;
+            }
+
+            if (SitemapPolicy.ShouldExcludeFromSitemapFile(Path.Combine(context.OutputDir, seo.Route.OutputPath), logger))
+            {
+                continue;
+            }
+
+            filtered.Add((seo.Canonical, seo.LastModified));
+        }
+
+        SitemapGenerator.GenerateAbsolute(context.OutputDir, filtered);
+    }
+}
+
+internal sealed class SearchIndexPublishProjection : AggregatePublishProjectionBase
+{
+    internal SearchIndexPublishProjection()
+        : base(new PublishRepresentation("search", "search.json", IsAggregate: true))
+    {
+    }
+
+    protected override void ProjectAggregate(PublishProjectionContext context)
+    {
+        SearchIndexBuilder.GenerateSingleSearchIndex(
+            context.OutputDir,
+            context.BaseUrl,
+            context.Config.Site.SearchIncludeDerived,
+            context.SearchSnippetsEnabled,
+            context.RoutedDocuments,
+            context.DerivedDocuments,
+            context.SeoIndex,
+            context.BodyStore ?? NullContentBodyStore.Instance);
+        SearchIndexPlugin.WriteSearchUi(context.Config, context.OutputDir);
+    }
+}
+
+internal sealed class LlmsTxtPublishProjection : AggregatePublishProjectionBase
+{
+    internal LlmsTxtPublishProjection()
+        : base(new PublishRepresentation("llms", "llms.txt", IsAggregate: true))
+    {
+    }
+
+    protected override void ProjectAggregate(PublishProjectionContext context)
+    {
+        if (!context.Config.Site.Seo.Geo.Enabled || !context.Config.Site.Seo.Geo.LlmsTxt)
+        {
+            return;
+        }
+
+        LlmsTxtPlugin.WriteLlmsTxt(
+            context.Config,
+            context.OutputDir,
+            context.BaseUrl,
+            context.RoutedDocuments,
+            context.DerivedDocuments,
+            context.SeoIndex,
+            context.SeoModels,
+            context.Config.Site.Seo.Geo);
+    }
+}
+
+internal sealed class LlmsFullTxtPublishProjection : AggregatePublishProjectionBase
+{
+    internal LlmsFullTxtPublishProjection()
+        : base(new PublishRepresentation("llms-full", "llms-full.txt", IsAggregate: true))
+    {
+    }
+
+    protected override void ProjectAggregate(PublishProjectionContext context)
+    {
+        if (!context.Config.Site.Seo.Geo.Enabled || !context.Config.Site.Seo.Geo.LlmsFullTxt)
+        {
+            return;
+        }
+
+        LlmsTxtPlugin.WriteLlmsFullTxt(
+            context.Config,
+            context.OutputDir,
+            context.BaseUrl,
+            context.RoutedDocuments,
+            context.DerivedDocuments,
+            context.ContentGraph,
+            context.SeoIndex,
+            context.BodyStore ?? NullContentBodyStore.Instance);
+    }
+}
+
+internal sealed class RobotsTxtPublishProjection : AggregatePublishProjectionBase
+{
+    internal RobotsTxtPublishProjection()
+        : base(new PublishRepresentation("robots", "robots.txt", IsAggregate: true))
+    {
+    }
+
+    protected override void ProjectAggregate(PublishProjectionContext context)
+        => RobotsTxtWriter.WriteIfRequested(context.Config, context.OutputDir, context.BaseUrl, context.SeoIndex);
+}
+
+internal sealed class AgentManifestAggregateInventoryProjection : AggregatePublishProjectionBase
+{
+    internal AgentManifestAggregateInventoryProjection()
+        : base(new PublishRepresentation("agent-manifest", "agent-manifest.json", IsAggregate: true))
+    {
+    }
+
+    protected override void ProjectAggregate(PublishProjectionContext context)
+    {
+    }
 }

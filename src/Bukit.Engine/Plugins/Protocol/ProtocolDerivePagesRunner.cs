@@ -13,10 +13,12 @@ internal sealed class ProtocolDerivePagesRunner
 {
     private const string DerivePagesHook = "derive-pages";
     private readonly IProtocolPluginInvoker _invoker;
+    private readonly ProtocolHandshakeNegotiator _handshake;
 
     public ProtocolDerivePagesRunner(IProtocolPluginInvoker invoker)
     {
         _invoker = invoker;
+        _handshake = new ProtocolHandshakeNegotiator(invoker);
     }
 
     public async Task<IReadOnlyList<RoutedContentDocument>> RunAsync(
@@ -27,7 +29,8 @@ internal sealed class ProtocolDerivePagesRunner
         CancellationToken cancellationToken = default)
     {
         var arguments = ProcessArgumentsBuilder.Build(config.Options);
-        var requestJson = BuildRequestJson(context, config, pluginName, pluginVersion);
+        var schemaVersion = await _handshake.GetNegotiatedSchemaVersionAsync(context, config, pluginName, pluginVersion, DerivePagesHook, arguments, cancellationToken);
+        var requestJson = BuildRequestJson(context, config, pluginName, pluginVersion, schemaVersion);
         var result = await _invoker.InvokeAsync(config, requestJson, arguments, cancellationToken);
 
         if (result.TimedOut)
@@ -91,11 +94,11 @@ internal sealed class ProtocolDerivePagesRunner
         return derived;
     }
 
-    private static string BuildRequestJson(BuildContext context, ExternalPluginConfig config, string pluginName, string pluginVersion)
+    private static string BuildRequestJson(BuildContext context, ExternalPluginConfig config, string pluginName, string pluginVersion, string schemaVersion)
     {
         var request = new JsonObject
         {
-            ["schemaVersion"] = "2",
+            ["schemaVersion"] = schemaVersion,
             ["hook"] = DerivePagesHook,
             ["plugin"] = new JsonObject
             {

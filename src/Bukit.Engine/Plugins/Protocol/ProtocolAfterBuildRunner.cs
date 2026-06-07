@@ -8,20 +8,20 @@ namespace Bukit.Engine.Plugins.Protocol;
 
 internal sealed class ProtocolAfterBuildRunner
 {
-    private const string HandshakeCacheKey = "__protocol_handshake_cache";
     private const string AfterBuildHook = "after-build";
-    private const string HandshakeHook = "handshake";
     private readonly IProtocolPluginInvoker _invoker;
+    private readonly ProtocolHandshakeNegotiator _handshake;
 
     public ProtocolAfterBuildRunner(IProtocolPluginInvoker invoker)
     {
         _invoker = invoker;
+        _handshake = new ProtocolHandshakeNegotiator(invoker);
     }
 
     public async Task RunAsync(BuildContext context, ExternalPluginConfig config, string pluginName, string pluginVersion, CancellationToken cancellationToken = default)
     {
         var arguments = ProcessArgumentsBuilder.Build(config.Options);
-        var schemaVersion = await GetNegotiatedSchemaVersionAsync(context, config, pluginName, pluginVersion, arguments, cancellationToken);
+        var schemaVersion = await _handshake.GetNegotiatedSchemaVersionAsync(context, config, pluginName, pluginVersion, AfterBuildHook, arguments, cancellationToken);
         var requestJson = BuildRequestJson(context, config, pluginName, pluginVersion, schemaVersion);
         var result = await InvokeAsync(config, requestJson, arguments, cancellationToken);
         if (result.TimedOut)
@@ -87,111 +87,6 @@ internal sealed class ProtocolAfterBuildRunner
         CancellationToken cancellationToken)
     {
         return _invoker.InvokeAsync(config, requestJson, arguments, cancellationToken);
-    }
-
-    private async Task<string> NegotiateSchemaVersionAsync(ExternalPluginConfig config, string? arguments, CancellationToken cancellationToken)
-    {
-        var handshakeRequest = BuildHandshakeRequestJson();
-        var result = await InvokeAsync(config, handshakeRequest, arguments, cancellationToken);
-        if (result.TimedOut)
-        {
-            throw new InvalidOperationException("[plugin-protocol][handshake] protocol plugin handshake timeout.");
-        }
-
-        if (result.ExitCode != 0)
-        {
-            throw new InvalidOperationException($"[plugin-protocol][handshake] protocol plugin handshake exited with code {result.ExitCode}: {result.StdErr}");
-        }
-
-        if (string.IsNullOrWhiteSpace(result.StdOut))
-        {
-            throw new InvalidOperationException("[plugin-protocol][handshake] protocol plugin handshake returned empty stdout.");
-        }
-
-        try
-        {
-            var response = JsonSerializer.Deserialize(result.StdOut, ProtocolPluginJsonContext.Default.ProtocolHandshakeResponse);
-            if (response is null || !response.Ok)
-            {
-                throw new InvalidOperationException($"[plugin-protocol][handshake] {response?.Error?.Message ?? "Protocol plugin handshake returned ok=false."} Bukit vNext requires protocol schema version 2.");
-            }
-
-            if (!string.Equals(response.NegotiatedSchemaVersion, "2", StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException($"[plugin-protocol][handshake] unsupported negotiated schema version '{response.NegotiatedSchemaVersion ?? "<missing>"}'. Bukit vNext requires protocol schema version 2.");
-            }
-
-            return "2";
-        }
-        catch (JsonException ex)
-        {
-            throw new InvalidOperationException($"[plugin-protocol][handshake] protocol plugin handshake returned invalid JSON: {ex.Message}", ex);
-        }
-    }
-
-    private async Task<string> GetNegotiatedSchemaVersionAsync(
-        BuildContext context,
-        ExternalPluginConfig config,
-        string pluginName,
-        string pluginVersion,
-        string? arguments,
-        CancellationToken cancellationToken)
-    {
-        var cacheToken = BuildHandshakeCacheToken(pluginName, pluginVersion, config, arguments);
-        Dictionary<string, string> cache;
-        lock (context.Data)
-        {
-            if (context.Data.TryGetValue(HandshakeCacheKey, out var cacheObj)
-                && cacheObj is Dictionary<string, string> existingCache)
-            {
-                cache = existingCache;
-            }
-            else
-            {
-                cache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                context.Data[HandshakeCacheKey] = cache;
-            }
-
-            if (cache.TryGetValue(cacheToken, out var cachedVersion))
-            {
-                return cachedVersion;
-            }
-        }
-
-        var negotiated = await NegotiateSchemaVersionAsync(config, arguments, cancellationToken);
-        lock (context.Data)
-        {
-            cache[cacheToken] = negotiated;
-        }
-
-        return negotiated;
-    }
-
-    private static string BuildHandshakeCacheToken(
-        string pluginName,
-        string pluginVersion,
-        ExternalPluginConfig config,
-        string? arguments)
-    {
-        return string.Join("|", new[]
-        {
-            pluginName,
-            pluginVersion,
-            config.Runtime ?? string.Empty,
-            config.Entry ?? string.Empty,
-            arguments ?? string.Empty
-        });
-    }
-
-    private static string BuildHandshakeRequestJson()
-    {
-        return new JsonObject
-        {
-            ["schemaVersion"] = "2",
-            ["hook"] = HandshakeHook,
-            ["requestedHook"] = AfterBuildHook,
-            ["hostSupportedSchemaVersions"] = new JsonArray("2")
-        }.ToJsonString();
     }
 
     private static string BuildRequestJson(BuildContext context, ExternalPluginConfig config, string pluginName, string pluginVersion, string schemaVersion)

@@ -524,6 +524,48 @@ public sealed class ExternalProtocolPluginTests
                 StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void ExternalProtocolPlugin_DerivePages_UsesV2Negotiation_WhenSupported()
+    {
+        using var temp = new TempDir();
+        var context = CreateContext(temp.Path, "strict", "derive-success", hooks: new[] { "derive-pages" });
+
+        var derived = PluginRunner.RunDerivePages(context);
+
+        Assert.Contains(derived, x => x.Document.Id == "derived-1");
+        Assert.Contains(context.PluginExecutions, x => x.Name == "sample" && x.Hook == "derive-pages" && x.Success);
+    }
+
+    [Fact]
+    public void ExternalProtocolPlugin_DerivePages_Throws_WhenPluginDoesNotSupportV2()
+    {
+        using var temp = new TempDir();
+        var context = CreateContext(temp.Path, "strict", "handshake-v1only", hooks: new[] { "derive-pages" });
+
+        var ex = Assert.Throws<InvalidOperationException>(() => PluginRunner.RunDerivePages(context));
+
+        Assert.Contains("requires protocol schema version 2", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ExternalProtocolPlugin_DerivePages_CachesHandshakePerBuildContext()
+    {
+        using var temp = new TempDir();
+        var handshakeCounterPath = Path.Combine(temp.Path, "derive-handshake-counter.txt");
+        var context = CreateContext(
+            temp.Path,
+            "strict",
+            "handshake-counter",
+            hooks: new[] { "derive-pages" },
+            extraPluginArgs: new[] { handshakeCounterPath });
+
+        PluginRunner.RunDerivePages(context);
+        PluginRunner.RunDerivePages(context);
+
+        Assert.True(File.Exists(handshakeCounterPath));
+        Assert.Equal("1", File.ReadAllText(handshakeCounterPath).Trim());
+    }
+
     // DESKTOP-REMOVED: wasm runtime tests disabled (AOT-only).
 #if false
     [Fact]

@@ -48,10 +48,31 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
     }
 
     internal static void WriteLlmsTxt(BuildContext context, SeoGeoConfig geo)
+        => WriteLlmsTxt(
+            context.Config,
+            context.OutputDir,
+            context.BaseUrl,
+            context.RoutedDocuments,
+            context.DerivedDocuments,
+            context.SeoIndex,
+            context.Data.TryGetValue("__seo_models", out var m) && m is IReadOnlyDictionary<string, SeoModel> models
+                ? models
+                : new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
+            geo);
+
+    internal static void WriteLlmsTxt(
+        AppConfig config,
+        string outputDir,
+        string baseUrl,
+        IReadOnlyList<RoutedContentDocument> routedDocuments,
+        IReadOnlyList<RoutedContentDocument> derivedDocuments,
+        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
+        IReadOnlyDictionary<string, SeoModel> seoModels,
+        SeoGeoConfig geo)
     {
         var sb = new StringBuilder();
-        var title = context.Config.Site.Title;
-        var description = context.Config.Site.Description;
+        var title = config.Site.Title;
+        var description = config.Site.Description;
 
         sb.AppendLine($"# {title}");
         if (!string.IsNullOrWhiteSpace(description))
@@ -60,9 +81,9 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             sb.AppendLine();
         }
 
-        var canonicalBase = BuildBase(context);
-        var routed = context.RoutedDocuments
-            .Concat(context.DerivedDocuments)
+        var canonicalBase = BuildBase(config, baseUrl);
+        var routed = routedDocuments
+            .Concat(derivedDocuments)
             .ToList();
 
         var keyed = new Dictionary<string, (ContentDocument Document, ContentRecord Record, SeoIndexEntry Entry, SeoModel? Model)>(StringComparer.OrdinalIgnoreCase);
@@ -76,10 +97,9 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
                 continue;
             }
 
-            if (context.SeoIndex.TryGetValue(key, out var entry) && entry.Indexable)
+            if (seoIndex.TryGetValue(key, out var entry) && entry.Indexable)
             {
-                var model = context.Data.TryGetValue("__seo_models", out var m) && m is Dictionary<string, SeoModel> dict
-                    && dict.TryGetValue(key, out var seoModel)
+                var model = seoModels.TryGetValue(key, out var seoModel)
                     ? seoModel
                     : null;
                 keyed[key] = (document, document.Record, entry, model);
@@ -181,18 +201,37 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             sb.AppendLine("No indexable pages found.");
         }
 
-        var path = Path.Combine(context.OutputDir, "llms.txt");
-        Directory.CreateDirectory(context.OutputDir);
+        var path = Path.Combine(outputDir, "llms.txt");
+        Directory.CreateDirectory(outputDir);
         File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
     }
 
     internal static void WriteLlmsFullTxt(BuildContext context)
+        => WriteLlmsFullTxt(
+            context.Config,
+            context.OutputDir,
+            context.BaseUrl,
+            context.RoutedDocuments,
+            context.DerivedDocuments,
+            context.ContentGraph,
+            context.SeoIndex,
+            context.BodyStore);
+
+    internal static void WriteLlmsFullTxt(
+        AppConfig config,
+        string outputDir,
+        string baseUrl,
+        IReadOnlyList<RoutedContentDocument> routedDocuments,
+        IReadOnlyList<RoutedContentDocument> derivedDocuments,
+        CanonicalContentGraph contentGraph,
+        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
+        IContentBodyStore bodyStore)
     {
         var sb = new StringBuilder();
-        var title = context.Config.Site.Title;
-        var description = context.Config.Site.Description;
-        var canonicalBase = BuildBase(context);
-        var recordsById = context.ContentGraph.Records
+        var title = config.Site.Title;
+        var description = config.Site.Description;
+        var canonicalBase = BuildBase(config, baseUrl);
+        var recordsById = contentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 
@@ -203,14 +242,14 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             sb.AppendLine();
         }
 
-        var routed = context.RoutedDocuments.Concat(context.DerivedDocuments);
+        var routed = routedDocuments.Concat(derivedDocuments);
         var documentsByPath = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
         foreach (var routedDocument in routed)
         {
             documentsByPath[BuildPathUtils.NormalizeRelPath(routedDocument.Route.OutputPath)] = routedDocument.Document;
         }
 
-        foreach (var (key, entry) in context.SeoIndex
+        foreach (var (key, entry) in seoIndex
                      .Where(x => x.Value.Indexable)
                      .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
@@ -229,7 +268,7 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             sb.AppendLine($"URL: {url}");
             sb.AppendLine();
 
-            var itemDescription = ResolveDescription(document, record, context.Config.Site.Description);
+            var itemDescription = ResolveDescription(document, record, config.Site.Description);
             if (!string.IsNullOrWhiteSpace(itemDescription))
             {
                 sb.AppendLine(itemDescription);
@@ -265,7 +304,7 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             }
 
 #pragma warning disable CS0618
-            var html = ContentBodyResolver.GetHtml(document, context.BodyStore);
+            var html = ContentBodyResolver.GetHtml(document, bodyStore);
 #pragma warning restore CS0618
             var text = SearchIndexBuilder.StripHtmlToText(html);
             sb.AppendLine(text);
@@ -274,8 +313,8 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             sb.AppendLine();
         }
 
-        var path = Path.Combine(context.OutputDir, "llms-full.txt");
-        Directory.CreateDirectory(context.OutputDir);
+        var path = Path.Combine(outputDir, "llms-full.txt");
+        Directory.CreateDirectory(outputDir);
         File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
     }
 
@@ -367,12 +406,15 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
     }
 
     private static string BuildBase(BuildContext context)
+        => BuildBase(context.Config, context.BaseUrl);
+
+    private static string BuildBase(AppConfig config, string baseUrl)
     {
-        if (!string.IsNullOrWhiteSpace(context.Config.Site.Url))
+        if (!string.IsNullOrWhiteSpace(config.Site.Url))
         {
-            return context.Config.Site.Url.Trim().TrimEnd('/');
+            return config.Site.Url.Trim().TrimEnd('/');
         }
 
-        return context.BaseUrl;
+        return baseUrl;
     }
 }

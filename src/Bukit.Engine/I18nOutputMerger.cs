@@ -5,6 +5,7 @@ using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Rendering;
 using Bukit.Shared;
 
 namespace Bukit.Engine;
@@ -358,7 +359,16 @@ internal static class I18nOutputMerger
             return;
         }
 
-        LlmsTxtPlugin.WriteLlmsTxt(BuildRootPluginContext(config, outputDir, rootBaseUrl, results, logger), config.Site.Seo.Geo);
+        var state = BuildRootProjectionState(rootBaseUrl, results);
+        LlmsTxtPlugin.WriteLlmsTxt(
+            config,
+            outputDir,
+            rootBaseUrl,
+            state.RoutedDocuments,
+            state.DerivedDocuments,
+            state.SeoIndex,
+            state.SeoModels,
+            config.Site.Seo.Geo);
     }
 
     private static void GenerateRootLlmsFull(AppConfig config, string outputDir, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results, ILogger logger)
@@ -368,7 +378,16 @@ internal static class I18nOutputMerger
             return;
         }
 
-        LlmsTxtPlugin.WriteLlmsFullTxt(BuildRootPluginContext(config, outputDir, rootBaseUrl, results, logger));
+        var state = BuildRootProjectionState(rootBaseUrl, results);
+        LlmsTxtPlugin.WriteLlmsFullTxt(
+            config,
+            outputDir,
+            rootBaseUrl,
+            state.RoutedDocuments,
+            state.DerivedDocuments,
+            state.ContentGraph,
+            state.SeoIndex,
+            state.BodyStore);
     }
 
     private static void GenerateRootRobots(AppConfig config, string outputDir, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results)
@@ -377,12 +396,9 @@ internal static class I18nOutputMerger
         RobotsTxtWriter.WriteIfRequested(config, outputDir, rootBaseUrl, seoIndex);
     }
 
-    private static BuildContext BuildRootPluginContext(
-        AppConfig config,
-        string outputDir,
+    private static RootProjectionState BuildRootProjectionState(
         string rootBaseUrl,
-        IReadOnlyList<BuildVariantResult> results,
-        ILogger logger)
+        IReadOnlyList<BuildVariantResult> results)
     {
         var routedDocuments = new List<RoutedContentDocument>();
         var derivedDocuments = new List<RoutedContentDocument>();
@@ -407,23 +423,22 @@ internal static class I18nOutputMerger
             }
         }
 
-        var context = new BuildContext
-        {
-            Config = config,
-            RootDir = Directory.GetCurrentDirectory(),
-            OutputDir = outputDir,
-            BaseUrl = rootBaseUrl,
-            LayoutsDir = string.Empty,
-            RoutedDocuments = routedDocuments,
-            ContentGraph = new CanonicalContentGraph(records, entities),
-            BodyStore = new MergedVariantContentBodyStore(bodySources),
-            SeoIndex = BuildRootSeoIndex(results),
-            Logger = logger
-        };
-        context.DerivedDocuments.AddRange(derivedDocuments);
-        context.Data["__seo_models"] = seoModels;
-        return context;
+        return new RootProjectionState(
+            routedDocuments,
+            derivedDocuments,
+            new CanonicalContentGraph(records, entities),
+            new MergedVariantContentBodyStore(bodySources),
+            BuildRootSeoIndex(results),
+            seoModels);
     }
+
+    private sealed record RootProjectionState(
+        IReadOnlyList<RoutedContentDocument> RoutedDocuments,
+        IReadOnlyList<RoutedContentDocument> DerivedDocuments,
+        CanonicalContentGraph ContentGraph,
+        IContentBodyStore BodyStore,
+        IReadOnlyDictionary<string, SeoIndexEntry> SeoIndex,
+        IReadOnlyDictionary<string, Bukit.Rendering.SeoModel> SeoModels);
 
     private static IReadOnlyDictionary<string, SeoIndexEntry> BuildRootSeoIndex(IReadOnlyList<BuildVariantResult> results)
     {

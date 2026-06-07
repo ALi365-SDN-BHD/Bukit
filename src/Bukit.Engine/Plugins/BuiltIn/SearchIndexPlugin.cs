@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using System.Text;
 using System.Text.Json;
@@ -85,7 +86,7 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             context.DerivedDocuments,
             context.SeoIndex,
             context.BodyStore);
-        WriteSearchUi(context);
+        WriteSearchUi(context.Config, context.OutputDir);
     }
 
     private static bool TryResolveTemplate(BuildContext context, string kind, out string template)
@@ -103,8 +104,11 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
     }
 
     internal static void WriteSearchUi(BuildContext context)
+        => WriteSearchUi(context.Config, context.OutputDir);
+
+    internal static void WriteSearchUi(AppConfig config, string outputDir)
     {
-        var searchConfig = context.Config.Site.Search;
+        var searchConfig = config.Site.Search;
         var ui = searchConfig.Ui?.Trim().ToLowerInvariant();
         if (ui is null or "false" or "off")
         {
@@ -143,7 +147,7 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
         sb.AppendLine(GetSearchJs());
         sb.AppendLine("</script>");
 
-        var uiPath = Path.Combine(context.OutputDir, "bukit-search.html");
+        var uiPath = Path.Combine(outputDir, "bukit-search.html");
         File.WriteAllText(uiPath, sb.ToString(), Encoding.UTF8);
     }
 }
