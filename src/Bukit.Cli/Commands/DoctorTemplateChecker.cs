@@ -12,7 +12,7 @@ internal static class DoctorTemplateChecker
         foreach (var file in ctx.AllHtmlFiles)
         {
             var text = File.ReadAllText(file);
-            var relative = ToRelativeTemplatePath(ctx.LayoutsDir, file);
+            var relative = DoctorPathHelpers.ToRelativeTemplatePath(ctx.LayoutsDir, file);
 
             var withoutComments = RemoveHtmlComments(text);
             var withoutScriban = RemoveScribanBlocks(withoutComments);
@@ -71,7 +71,7 @@ internal static class DoctorTemplateChecker
         foreach (var file in ctx.AllHtmlFiles)
         {
             var text = File.ReadAllText(file);
-            var relative = ToRelativeTemplatePath(ctx.LayoutsDir, file);
+            var relative = DoctorPathHelpers.ToRelativeTemplatePath(ctx.LayoutsDir, file);
 
             var withoutComments = RemoveHtmlComments(text);
             var cleaned = RemoveScribanBlocks(withoutComments);
@@ -159,7 +159,7 @@ internal static class DoctorTemplateChecker
                 var resolved = Path.Combine(ctx.LayoutsDir, includePath);
                 if (!File.Exists(resolved))
                 {
-                    var relative = ToRelativeTemplatePath(ctx.LayoutsDir, file);
+                    var relative = DoctorPathHelpers.ToRelativeTemplatePath(ctx.LayoutsDir, file);
                     Console.WriteLine($"  ⚠ {relative}: include \"{includePath}\" not found");
                     issues++;
                 }
@@ -193,7 +193,7 @@ internal static class DoctorTemplateChecker
 
         foreach (var file in ctx.AllHtmlFiles)
         {
-            var relative = ToRelativeTemplatePath(ctx.LayoutsDir, file);
+            var relative = DoctorPathHelpers.ToRelativeTemplatePath(ctx.LayoutsDir, file);
             var text = File.ReadAllText(file);
             if (listRouteTemplates.Contains(relative) && text.Contains("page.title"))
             {
@@ -286,20 +286,4 @@ internal static class DoctorTemplateChecker
         }
     }
 
-    private static string ToRelativeTemplatePath(string layoutsDir, string filePath)
-    {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            return filePath;
-        }
-
-        if (!Path.IsPathRooted(filePath))
-        {
-            return filePath.Replace('\\', '/');
-        }
-
-        return Path.GetRelativePath(layoutsDir, filePath)
-            .Replace(Path.DirectorySeparatorChar, '/')
-            .Replace('\\', '/');
-    }
 }
