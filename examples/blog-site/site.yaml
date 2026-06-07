@@ -12,6 +12,7 @@ site:
       permalink: /blog/{slug}/
       template: pages/post.html
       listRoute: /blog/
+      listTemplate: pages/list.html
       pagination:
         enabled: true
         pageSize: 2
@@ -34,6 +35,9 @@ build:
 theme:
   layouts: layouts
 taxonomy:
+  template: pages/taxonomy-term.html
+  indexTemplate: pages/taxonomy-term.html
+  termTemplate: pages/taxonomy-term.html
   itemFields:
     - date
   templates:

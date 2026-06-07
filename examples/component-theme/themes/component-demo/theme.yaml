@@ -32,6 +32,14 @@ templates:
     template: pages/list.html
     accepts:
       kind: list
+  taxonomyIndex:
+    template: pages/taxonomy-index.html
+    accepts:
+      kind: taxonomy_index
+  taxonomyTerm:
+    template: pages/taxonomy-term.html
+    accepts:
+      kind: taxonomy_term
 
 page_templates:
   home:

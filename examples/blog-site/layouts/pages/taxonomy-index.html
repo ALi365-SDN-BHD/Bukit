@@ -1,0 +1,14 @@
+{% layout "layouts/base.html" %}
+
+<h1>Taxonomy</h1>
+
+{{ taxonomy = page.fields.taxonomy.value }}
+{{ if taxonomy }}
+  <p>{{ taxonomy.title }}</p>
+{{ end }}
+
+{{ for item in page.fields.terms.value }}
+  <div>
+    <a href="{{ item.permalink }}">{{ item.name }} ({{ item.count }})</a>
+  </div>
+{{ end }}
