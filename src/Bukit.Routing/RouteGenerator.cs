@@ -48,7 +48,7 @@ public static class RouteGenerator
         var topOutputPath = ContentFieldReader.GetText(source.Fields, "outputPath");
         if (!HasNestedRouteMap(source.Fields) && !string.IsNullOrWhiteSpace(topOutputPath))
         {
-            throw new ConfigException($"Top-level outputPath is deprecated. Use route.outputPath instead. Found in front matter: outputPath: '{topOutputPath}'");
+            throw new ConfigException($"Top-level outputPath is removed in 1.0. Use route.outputPath instead. Found in front matter: outputPath: '{topOutputPath}'", DiagnosticCode.RouteInvalidPattern);
         }
 
         var (baseRoute, baseSource) = GenerateBaseRouteWithSource(source, outputPathEncoding, permalinks, collections);

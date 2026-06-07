@@ -99,7 +99,7 @@ public static class TemplateCapabilitiesResolver
         }
         catch (Exception ex)
         {
-            throw new ConfigException($"Failed to parse {ManifestFileName}: {ex.Message}");
+            throw new ConfigException($"Failed to parse {ManifestFileName}: {ex.Message}", ex, DiagnosticCode.ConfigInvalidValue);
         }
     }
 
@@ -109,7 +109,7 @@ public static class TemplateCapabilitiesResolver
         stream.Load(new StringReader(text));
         if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
         {
-            throw new ConfigException($"{ManifestFileName} must contain a root mapping.");
+            throw new ConfigException($"{ManifestFileName} must contain a root mapping.", DiagnosticCode.ConfigInvalidValue);
         }
 
         var templatesNode = GetRequiredMapping(root, "templates", $"{ManifestFileName} must contain a templates mapping.");
@@ -149,7 +149,7 @@ public static class TemplateCapabilitiesResolver
     {
         if (manifest?.Templates is null || manifest.Templates.Count == 0)
         {
-            throw new ConfigException($"{ManifestFileName} must contain a non-empty templates mapping.");
+            throw new ConfigException($"{ManifestFileName} must contain a non-empty templates mapping.", DiagnosticCode.ConfigInvalidValue);
         }
 
         var layoutsFullPath = Path.GetFullPath(layoutsDir)
@@ -159,34 +159,34 @@ public static class TemplateCapabilitiesResolver
         {
             if (string.IsNullOrWhiteSpace(rawKey))
             {
-                throw new ConfigException($"{ManifestFileName} contains an empty template path.");
+                throw new ConfigException($"{ManifestFileName} contains an empty template path.", DiagnosticCode.ConfigInvalidValue);
             }
 
             var key = NormalizeManifestKey(rawKey);
             if (Path.IsPathRooted(key))
             {
-                throw new ConfigException($"Template path '{rawKey}' in {ManifestFileName} must be relative to layouts.");
+                throw new ConfigException($"Template path '{rawKey}' in {ManifestFileName} must be relative to layouts.", DiagnosticCode.ConfigInvalidValue);
             }
 
             var fullPath = Path.GetFullPath(Path.Combine(layoutsDir, key.Replace('/', Path.DirectorySeparatorChar)));
             if (!fullPath.StartsWith(layoutsFullPath, StringComparison.OrdinalIgnoreCase))
             {
-                throw new ConfigException($"Template path '{rawKey}' in {ManifestFileName} must stay within layouts.");
+                throw new ConfigException($"Template path '{rawKey}' in {ManifestFileName} must stay within layouts.", DiagnosticCode.ConfigInvalidValue);
             }
 
             if (!File.Exists(fullPath))
             {
-                throw new ConfigException($"Template declared in {ManifestFileName} not found: {rawKey}");
+                throw new ConfigException($"Template declared in {ManifestFileName} not found: {rawKey}", DiagnosticCode.ConfigInvalidValue);
             }
 
             if (definition?.Capabilities is null)
             {
-                throw new ConfigException($"Template '{rawKey}' in {ManifestFileName} must declare capabilities.");
+                throw new ConfigException($"Template '{rawKey}' in {ManifestFileName} must declare capabilities.", DiagnosticCode.ConfigInvalidValue);
             }
 
             if (!definition.Capabilities.HasAnyValue())
             {
-                throw new ConfigException($"Template '{rawKey}' in {ManifestFileName} must declare at least one capability.");
+                throw new ConfigException($"Template '{rawKey}' in {ManifestFileName} must declare at least one capability.", DiagnosticCode.ConfigInvalidValue);
             }
         }
     }
@@ -197,12 +197,12 @@ public static class TemplateCapabilitiesResolver
         {
             if (entry.Key is not YamlScalarNode keyNode)
             {
-                throw new ConfigException($"{ManifestFileName} template keys must be strings.");
+                throw new ConfigException($"{ManifestFileName} template keys must be strings.", DiagnosticCode.ConfigInvalidValue);
             }
 
             var key = keyNode.Value?.Trim() ?? string.Empty;
             var definitionNode = entry.Value as YamlMappingNode
-                ?? throw new ConfigException($"Template '{key}' in {ManifestFileName} must be a mapping.");
+                ?? throw new ConfigException($"Template '{key}' in {ManifestFileName} must be a mapping.", DiagnosticCode.ConfigInvalidValue);
             yield return new KeyValuePair<string, TemplateCapabilityDefinition>(key, ReadTemplateDefinition(key, definitionNode));
         }
     }
@@ -239,11 +239,11 @@ public static class TemplateCapabilitiesResolver
             if (entry.Key is YamlScalarNode keyNode &&
                 string.Equals(keyNode.Value, key, StringComparison.OrdinalIgnoreCase))
             {
-                return entry.Value as YamlMappingNode ?? throw new ConfigException(errorMessage);
+                return entry.Value as YamlMappingNode ?? throw new ConfigException(errorMessage, DiagnosticCode.ConfigInvalidValue);
             }
         }
 
-        throw new ConfigException(errorMessage);
+        throw new ConfigException(errorMessage, DiagnosticCode.ConfigInvalidValue);
     }
 
     private static List<TemplateFieldDeclaration>? ReadFieldDeclarations(YamlMappingNode node, string templatePath)
@@ -311,7 +311,7 @@ public static class TemplateCapabilitiesResolver
                 return value;
             }
 
-            throw new ConfigException($"Template '{templatePath}' in {ManifestFileName} has invalid boolean value for {key}.");
+            throw new ConfigException($"Template '{templatePath}' in {ManifestFileName} has invalid boolean value for {key}.", DiagnosticCode.ConfigInvalidValue);
         }
 
         return null;

@@ -386,7 +386,7 @@ public sealed record BuildConfig
 
 public sealed record BuildReportConfig
 {
-    public bool Enabled { get; init; }
+    public bool Enabled { get; init; } = true;
 }
 
 public sealed record ThemeConfig

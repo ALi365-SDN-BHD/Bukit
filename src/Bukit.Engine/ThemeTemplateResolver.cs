@@ -48,7 +48,7 @@ public sealed class ThemeTemplateResolver
             _manifest.Templates.TryGetValue(HomeTemplateKey, out var home) &&
             !home.Required)
         {
-            throw new ConfigException("templates.home.required cannot be false. The home template is always required.");
+            throw new ConfigException("templates.home.required cannot be false. The home template is always required.", DiagnosticCode.ConfigInvalidValue);
         }
     }
 
@@ -64,7 +64,7 @@ public sealed class ThemeTemplateResolver
         var collection = ContentFieldReader.GetCollection(document);
         throw new ConfigException(
             $"No theme template matches content document '{document.Id}' (type='{type}', collection='{collection}', kind='{kind ?? "detail"}'). " +
-            "Add a matching theme.yaml templates entry or set route.template/site.collections.*.template.");
+            "Add a matching theme.yaml templates entry or set route.template/site.collections.*.template.", DiagnosticCode.ConfigInvalidValue);
     }
 
     public string ResolveKindTemplate(string kind)
@@ -75,7 +75,7 @@ public sealed class ThemeTemplateResolver
         }
 
         throw new ConfigException(
-            $"No theme template matches kind='{kind}'. Add a matching theme.yaml templates entry or configure an explicit template.");
+            $"No theme template matches kind='{kind}'. Add a matching theme.yaml templates entry or configure an explicit template.", DiagnosticCode.ConfigInvalidValue);
     }
 
     public bool TryResolveKindTemplate(string kind, out string template)

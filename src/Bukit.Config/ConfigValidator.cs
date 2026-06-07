@@ -27,7 +27,7 @@ public static class ConfigValidator
 
         if (string.IsNullOrWhiteSpace(config.Content.Provider))
         {
-            throw new ConfigException("content.provider is required.");
+            throw new ConfigException("content.provider is required.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (config.Content.Sources is { Count: > 0 })
@@ -37,34 +37,34 @@ public static class ConfigValidator
             {
                 if (string.IsNullOrWhiteSpace(source.Type))
                 {
-                    throw new ConfigException("content.sources[].type is required.");
+                    throw new ConfigException("content.sources[].type is required.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
 
                 var mode = (source.Mode ?? "content").Trim().ToLowerInvariant();
                 if (mode is not ("content" or "data"))
                 {
-                    throw new ConfigException("content.sources[].mode must be content|data.");
+                    throw new ConfigException("content.sources[].mode must be content|data.", DiagnosticCode.ConfigInvalidValue);
                 }
 
                 if (!string.IsNullOrWhiteSpace(source.Name))
                 {
                     if (!names.Add(source.Name.Trim()))
                     {
-                        throw new ConfigException("content.sources[].name must be unique when set.");
+                        throw new ConfigException("content.sources[].name must be unique when set.", DiagnosticCode.ConfigInvalidValue);
                     }
                 }
 
                 if (source.AddToCollections is { Count: > 0 } &&
                     source.AddToCollections.Any(string.IsNullOrWhiteSpace))
                 {
-                    throw new ConfigException("content.sources[].addToCollections must contain non-empty collection names.");
+                    throw new ConfigException("content.sources[].addToCollections must contain non-empty collection names.", DiagnosticCode.ConfigInvalidValue);
                 }
 
                 if (source.Type.Equals("notion", StringComparison.OrdinalIgnoreCase))
                 {
                     if (source.Notion is null)
                     {
-                        throw new ConfigException("content.sources[].notion is required when type is notion.");
+                        throw new ConfigException("content.sources[].notion is required when type is notion.", DiagnosticCode.ConfigRequiredFieldMissing);
                     }
 
                     ProviderValidators.ValidateNotion(source.Notion);
@@ -75,21 +75,21 @@ public static class ConfigValidator
                 {
                     if (source.Markdown is null)
                     {
-                        throw new ConfigException("content.sources[].markdown is required when type is markdown.");
+                        throw new ConfigException("content.sources[].markdown is required when type is markdown.", DiagnosticCode.ConfigRequiredFieldMissing);
                     }
 
                     ProviderValidators.ValidateMarkdown(source.Markdown);
                     continue;
                 }
 
-                throw new ConfigException($"Unsupported content source type: {source.Type}");
+                throw new ConfigException($"Unsupported content source type: {source.Type}", DiagnosticCode.ConfigInvalidValue);
             }
         }
         else if (config.Content.Provider.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             if (config.Content.Notion is null)
             {
-                throw new ConfigException("content.notion is required when provider is notion.");
+                throw new ConfigException("content.notion is required when provider is notion.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             ProviderValidators.ValidateNotion(config.Content.Notion);
@@ -99,7 +99,7 @@ public static class ConfigValidator
         {
             if (config.Content.Markdown is null)
             {
-                throw new ConfigException("content.markdown is required when provider is markdown.");
+                throw new ConfigException("content.markdown is required when provider is markdown.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             ProviderValidators.ValidateMarkdown(config.Content.Markdown);
@@ -111,7 +111,7 @@ public static class ConfigValidator
         {
             if (!IsValidTimeZone(config.Site.Timezone))
             {
-                throw new ConfigException($"site.timezone '{config.Site.Timezone}' is not a valid time zone identifier.");
+                throw new ConfigException($"site.timezone '{config.Site.Timezone}' is not a valid time zone identifier.", DiagnosticCode.ConfigInvalidValue);
             }
         }
 
@@ -126,37 +126,37 @@ public static class ConfigValidator
         var componentValidation = (config.Theme.ComponentValidation ?? "off").Trim().ToLowerInvariant();
         if (componentValidation is not ("off" or "warn" or "strict"))
         {
-            throw new ConfigException("theme.componentValidation must be off|warn|strict.");
+            throw new ConfigException("theme.componentValidation must be off|warn|strict.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (string.IsNullOrWhiteSpace(config.Build.Output))
         {
-            throw new ConfigException("build.output is required.");
+            throw new ConfigException("build.output is required.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         ProviderValidators.RejectPathTraversal("build.output", config.Build.Output);
         var listPageContentMode = (config.Build.ListPageContentMode ?? "auto").Trim().ToLowerInvariant();
         if (listPageContentMode is not ("auto" or "always" or "never"))
         {
-            throw new ConfigException("build.listPageContentMode must be auto|always|never.");
+            throw new ConfigException("build.listPageContentMode must be auto|always|never.", DiagnosticCode.ConfigInvalidValue);
         }
 
         var assetHashMode = (config.Build.AssetHashMode ?? "size-time").Trim().ToLowerInvariant();
         if (assetHashMode is not ("size-time" or "sha256"))
         {
-            throw new ConfigException("build.assetHashMode must be size-time|sha256.");
+            throw new ConfigException("build.assetHashMode must be size-time|sha256.", DiagnosticCode.ConfigInvalidValue);
         }
 
         var fingerprintMode = (config.Build.FingerprintMode ?? "size-time").Trim().ToLowerInvariant();
         if (fingerprintMode is not ("size-time" or "sha256"))
         {
-            throw new ConfigException("build.fingerprintMode must be size-time|sha256.");
+            throw new ConfigException("build.fingerprintMode must be size-time|sha256.", DiagnosticCode.ConfigInvalidValue);
         }
 
         var loggingLevel = (config.Logging.Level ?? "info").Trim().ToLowerInvariant();
         if (loggingLevel is not ("debug" or "info" or "warn" or "error"))
         {
-            throw new ConfigException("logging.level must be debug|info|warn|error.");
+            throw new ConfigException("logging.level must be debug|info|warn|error.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (config.Deploy is not null)
@@ -166,28 +166,28 @@ public static class ConfigValidator
 
         if (config.Taxonomy.Template is not null && string.IsNullOrWhiteSpace(config.Taxonomy.Template))
         {
-            throw new ConfigException("taxonomy.template must be a non-empty string when set.");
+            throw new ConfigException("taxonomy.template must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
         var taxonomyOutputMode = (config.Taxonomy.OutputMode ?? "both").Trim().ToLowerInvariant();
         if (taxonomyOutputMode is not ("both" or "pages" or "data" or "fields_only"))
         {
-            throw new ConfigException("taxonomy.outputMode must be both|pages|data|fields_only.");
+            throw new ConfigException("taxonomy.outputMode must be both|pages|data|fields_only.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (config.Taxonomy.PageSize <= 0)
         {
-            throw new ConfigException("taxonomy.pageSize must be a positive integer.");
+            throw new ConfigException("taxonomy.pageSize must be a positive integer.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (config.Taxonomy.IndexTemplate is not null && string.IsNullOrWhiteSpace(config.Taxonomy.IndexTemplate))
         {
-            throw new ConfigException("taxonomy.indexTemplate must be a non-empty string when set.");
+            throw new ConfigException("taxonomy.indexTemplate must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (config.Taxonomy.TermTemplate is not null && string.IsNullOrWhiteSpace(config.Taxonomy.TermTemplate))
         {
-            throw new ConfigException("taxonomy.termTemplate must be a non-empty string when set.");
+            throw new ConfigException("taxonomy.termTemplate must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (config.Taxonomy.ItemFields is { Count: > 0 } itemFields)
@@ -196,7 +196,7 @@ public static class ConfigValidator
             {
                 if (string.IsNullOrWhiteSpace(itemFields[i]))
                 {
-                    throw new ConfigException($"taxonomy.itemFields[{i}] must be a non-empty string.");
+                    throw new ConfigException($"taxonomy.itemFields[{i}] must be a non-empty string.", DiagnosticCode.ConfigInvalidValue);
                 }
             }
         }
@@ -274,17 +274,17 @@ public static class ConfigValidator
     {
         if (kind.Template is not null && string.IsNullOrWhiteSpace(kind.Template))
         {
-            throw new ConfigException($"{prefix}.template must be a non-empty string when set.");
+            throw new ConfigException($"{prefix}.template must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (kind.IndexTemplate is not null && string.IsNullOrWhiteSpace(kind.IndexTemplate))
         {
-            throw new ConfigException($"{prefix}.indexTemplate must be a non-empty string when set.");
+            throw new ConfigException($"{prefix}.indexTemplate must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (kind.TermTemplate is not null && string.IsNullOrWhiteSpace(kind.TermTemplate))
         {
-            throw new ConfigException($"{prefix}.termTemplate must be a non-empty string when set.");
+            throw new ConfigException($"{prefix}.termTemplate must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
     }
 
@@ -292,37 +292,37 @@ public static class ConfigValidator
     {
         if (string.IsNullOrWhiteSpace(kind.Key))
         {
-            throw new ConfigException($"{prefix}.key is required.");
+            throw new ConfigException($"{prefix}.key is required.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (kind.Kind is not null && string.IsNullOrWhiteSpace(kind.Kind))
         {
-            throw new ConfigException($"{prefix}.kind must be a non-empty string when set.");
+            throw new ConfigException($"{prefix}.kind must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (kind.Title is not null && string.IsNullOrWhiteSpace(kind.Title))
         {
-            throw new ConfigException($"{prefix}.title must be a non-empty string when set.");
+            throw new ConfigException($"{prefix}.title must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (kind.SingularTitlePrefix is not null && string.IsNullOrWhiteSpace(kind.SingularTitlePrefix))
         {
-            throw new ConfigException($"{prefix}.singularTitlePrefix must be a non-empty string when set.");
+            throw new ConfigException($"{prefix}.singularTitlePrefix must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (kind.Template is not null && string.IsNullOrWhiteSpace(kind.Template))
         {
-            throw new ConfigException($"{prefix}.template must be a non-empty string when set.");
+            throw new ConfigException($"{prefix}.template must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (kind.IndexTemplate is not null && string.IsNullOrWhiteSpace(kind.IndexTemplate))
         {
-            throw new ConfigException($"{prefix}.indexTemplate must be a non-empty string when set.");
+            throw new ConfigException($"{prefix}.indexTemplate must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (kind.TermTemplate is not null && string.IsNullOrWhiteSpace(kind.TermTemplate))
         {
-            throw new ConfigException($"{prefix}.termTemplate must be a non-empty string when set.");
+            throw new ConfigException($"{prefix}.termTemplate must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
     }
 

@@ -9,12 +9,12 @@ public static class ConfigLoader
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            throw new ConfigException("Config path is required.");
+            throw new ConfigException("Config path is required.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (!File.Exists(path))
         {
-            throw new ConfigException($"Config file not found: {path}");
+            throw new ConfigException($"Config file not found: {path}", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         using var reader = File.OpenText(path);
@@ -25,17 +25,17 @@ public static class ConfigLoader
         }
         catch (YamlDotNet.Core.YamlException ex)
         {
-            throw new ConfigException($"Invalid YAML syntax in config file: {path}", ex);
+            throw new ConfigException($"Invalid YAML syntax in config file: {path}", ex, DiagnosticCode.ConfigYamlSyntaxError);
         }
 
         if (yaml.Documents.Count == 0)
         {
-            throw new ConfigException("Config file is empty.");
+            throw new ConfigException("Config file is empty.", DiagnosticCode.ConfigYamlSyntaxError);
         }
 
         if (yaml.Documents[0].RootNode is not YamlMappingNode root)
         {
-            throw new ConfigException("Config root must be a mapping.");
+            throw new ConfigException("Config root must be a mapping.", DiagnosticCode.ConfigYamlSyntaxError);
         }
 
         ConfigEnvironmentOverrides.Apply(root);

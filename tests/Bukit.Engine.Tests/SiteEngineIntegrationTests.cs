@@ -514,7 +514,7 @@ public sealed class SiteEngineIntegrationTests
                     Collections = TestCollections()
                 },
                 Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } },
-                Build = new BuildConfig { Output = "dist", Clean = true },
+                Build = new BuildConfig { Output = "dist", Clean = true, Report = new BuildReportConfig { Enabled = false } },
                 Theme = new ThemeConfig { Source = "local-theme" }
             };
 
@@ -591,7 +591,7 @@ public sealed class SiteEngineIntegrationTests
                     Provider = "markdown",
                     Markdown = new MarkdownConfig { Dir = "content" },
                 },
-                Build = new BuildConfig { Output = "dist", Clean = true },
+                Build = new BuildConfig { Output = "dist", Clean = true, Report = new BuildReportConfig { Enabled = false } },
             };
 
             var engine = new SiteEngine(new TestLogger());

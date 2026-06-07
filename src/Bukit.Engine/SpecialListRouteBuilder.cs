@@ -94,7 +94,7 @@ public static class SpecialListRouteBuilder
 
         if (templateResolver is null)
         {
-            throw new ConfigException("No list template was configured. Add site.collections.*.listTemplate or a matching theme.yaml templates entry.");
+            throw new ConfigException("No list template was configured. Add site.collections.*.listTemplate or a matching theme.yaml templates entry.", DiagnosticCode.ConfigInvalidValue);
         }
 
         return templateResolver.ResolveKindTemplate("list");

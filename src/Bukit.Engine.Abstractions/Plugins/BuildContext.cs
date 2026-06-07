@@ -27,7 +27,7 @@ public sealed class BuildContext
     {
         if (TemplateResolver is null)
         {
-            throw new ConfigException($"No template resolver is available for plugin template kind '{kind}'.");
+            throw new ConfigException($"No template resolver is available for plugin template kind '{kind}'.", DiagnosticCode.ConfigInvalidValue);
         }
 
         return TemplateResolver(kind);

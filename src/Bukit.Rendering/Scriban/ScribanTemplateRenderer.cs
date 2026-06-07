@@ -102,7 +102,7 @@ public sealed class ScribanTemplateRenderer
                 throw renderException;
             }
 
-            throw new RenderException($"Render failed: {templateRelativePath}", ex);
+            throw new RenderException($"Render failed: {templateRelativePath}", ex, DiagnosticCode.RenderFailed);
         }
     }
 
