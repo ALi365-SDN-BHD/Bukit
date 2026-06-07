@@ -55,7 +55,7 @@ Key concepts:
 
 ## Directory Structure
 
-A componentized theme extends the standard Bukit theme structure with additional metadata and schema files:
+A componentized theme extends the standard theme structure with additional metadata and schema files:
 
 ```
 themes/<name>/
@@ -352,7 +352,7 @@ Child themes extend parent themes via `extends` in theme.yaml. The `ThemeCompone
 
 ## CLI Commands
 
-### `bukit theme doctor` (planned)
+### `theme doctor` (planned)
 
 Validates the componentized theme:
 
@@ -370,7 +370,7 @@ Checks performed:
 - Component names are unique
 - Unused components (not yet implemented)
 
-### `bukit theme list-components` (planned)
+### `theme list-components` (planned)
 
 
 > **⚠️ Planned**: This command has internal implementation but is not yet registered in the CLI. It may not be available. See ThemeCommand.cs for current status.
@@ -395,7 +395,9 @@ Components:
   ...
 ```
 
-### `bukit theme export-catalog` (planned)
+### `theme export-catalog` (planned)
+
+> **⚠️ Planned**: This command has internal implementation but is not yet registered in the CLI. It may not be available. See ThemeCommand.cs for current status.
 
 Exports `theme-catalog.json` to the `.cache/` directory for AI Agent consumption:
 

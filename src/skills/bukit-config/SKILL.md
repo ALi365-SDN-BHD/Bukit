@@ -1,6 +1,6 @@
 ---
 name: bukit-config
-description: Use when using bukit to create or modify site.yaml, asking about the meaning of a bukit configuration field, encountering bukit config validation errors, or needing to configure a specific Bukit feature (collections, taxonomy, i18n, plugins, media) through YAML
+description: Use when using bukit to create or modify site.yaml, asking about the meaning of a bukit configuration field, encountering config validation errors, or needing to configure a specific Bukit feature (collections, taxonomy, i18n, plugins, media) through YAML
 
 status: stable
 since: "v3.0.0"
@@ -16,7 +16,7 @@ guide_chapters:
 
 ## Overview
 
-`site.yaml` is Bukit's single configuration entry point. Seven top-level nodes: `site`, `content`, `build`, `theme`, `taxonomy`, `logging`, `deploy`. Routing and templates are explicit: content must match `site.collections`, `site.permalinks`, route front matter, or theme `templates.accepts`; otherwise doctor/build fails with an actionable config error.
+`site.yaml` is Bukit's single configuration entry point. Seven top-level nodes: `site`, `content`, `build`, `theme`, `taxonomy`, `logging`, `deploy` (planned). Routing and templates are explicit: content must match `site.collections`, `site.permalinks`, route front matter, or theme `templates.accepts`; otherwise doctor/build fails with an actionable config error.
 
 **REQUIRED SUB-SKILL:** Verify config changes with `bukit build`. CLI commands reference bukit-cli-reference.
 
@@ -25,7 +25,7 @@ guide_chapters:
 | Language | Trigger Phrases |
 |----------|----------------|
 | 中文 | "配置 site.yaml"、"bukit 配置文件"、"collections 怎么配"、"taxonomy 配置" |
-| English | "configure site.yaml", "bukit config file", "how to set up collections", "taxonomy setup" |
+| English | "configure site.yaml", "config file", "how to set up collections", "taxonomy setup" |
 | Bahasa Melayu | "konfigurasi site.yaml", "fail konfigurasi bukit", "cara sediakan collections", "tetapan taxonomy" |
 
 ## Config Model Quick Reference
@@ -38,7 +38,7 @@ guide_chapters:
 | `theme` | Theme configuration | name, layouts, assets, static, params |
 | `taxonomy` | Taxonomy configuration | template, kinds, pageSize, outputMode |
 | `logging` | Log level | level (debug/info/warn/error) |
-| `deploy` | Deployment configuration | provider, branch, message, cname, keepHistory |
+| `deploy` | Deployment configuration (planned — not yet shown in examples) | provider, branch, message, cname, keepHistory |
 
 ## Scenario Templates
 
@@ -781,7 +781,7 @@ These overrides only affect the current build and do not modify site.yaml.
 | `site.title is required` | Title not set | Add `site.title: My Site` |
 | `site.baseUrl must start with '/'` | baseUrl format incorrect | Change to `/` or `/subpath/` |
 | `site.collections.xxx.permalink must include {slug}` | Permalink missing {slug} placeholder | Add `{slug}`, e.g., `/blog/{slug}/` |
-| `site.collections.xxx.template is required` | Collection has no template | Add `template: pages/post.html` |
+| `site.collections.xxx.template is required` | Collection has no template | Add template: pages/post.html |
 | `site.collections.xxx.listRoute must start with '/'` | listRoute format incorrect | Change to `/blog/` |
 | `content.provider is required` | Content source not specified | Set `provider: markdown` or `provider: notion` |
 | `NOTION_TOKEN is required...` | Notion API key not set | Set env var `NOTION_TOKEN` |

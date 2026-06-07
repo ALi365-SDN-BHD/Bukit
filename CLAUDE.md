@@ -8,6 +8,6 @@ Read that file when the user mentions bukit, site.yaml, Scriban,
 or any Bukit-related concepts.
 
 Key paths:
-- Skills: src/skills/<skill-name>/SKILL.md (19 skills)
+- Skills: src/skills/<skill-name>/SKILL.md (20 skills)
 - Index: src/skills/skills-index.yaml
 - Plugin: src/skills/plugin.json

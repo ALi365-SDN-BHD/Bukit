@@ -1,0 +1,14 @@
+name: corporate-site
+version: 1.0.0
+engine: bukit
+min_engine_version: 0.3.0
+description: Corporate site theme for bukit smoke checks.
+
+templates:
+  home:
+    template: pages/index.html
+    required: true
+  page:
+    template: pages/page.html
+    accepts:
+      collection: page

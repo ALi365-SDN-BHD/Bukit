@@ -171,7 +171,7 @@ Incremental build is enabled by default. First build is full, subsequent builds 
 
 ### Dev Server Architecture (P2-2)
 
-The dev command has been decomposed into a modular `Dev/` subdirectory under `src/Bukit.Cli/Commands/`:
+The dev command has been decomposed into a modular `Dev/` subdirectory under `Bukit.Cli/Commands/`:
 
 | Component | Responsibility |
 |---|---|

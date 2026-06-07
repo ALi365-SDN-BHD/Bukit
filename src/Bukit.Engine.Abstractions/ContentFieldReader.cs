@@ -151,23 +151,23 @@ public static class ContentFieldReader
                 var parts = text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
                 return parts.Length == 0 ? null : parts;
             case IEnumerable<string> strings:
-            {
-                var list = strings
-                    .Select(x => x?.Trim())
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Cast<string>()
-                    .ToArray();
-                return list.Length == 0 ? null : list;
-            }
+                {
+                    var list = strings
+                        .Select(x => x?.Trim())
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Cast<string>()
+                        .ToArray();
+                    return list.Length == 0 ? null : list;
+                }
             case IEnumerable<object> objects:
-            {
-                var list = objects
-                    .Select(x => x?.ToString()?.Trim())
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Cast<string>()
-                    .ToArray();
-                return list.Length == 0 ? null : list;
-            }
+                {
+                    var list = objects
+                        .Select(x => x?.ToString()?.Trim())
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Cast<string>()
+                        .ToArray();
+                    return list.Length == 0 ? null : list;
+                }
             default:
                 var scalar = value.ToString()?.Trim();
                 return string.IsNullOrWhiteSpace(scalar) ? null : new[] { scalar };

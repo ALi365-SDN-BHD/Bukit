@@ -16,7 +16,7 @@ guide_chapters:
   - "guide/user/12-cli-reference.md"
 ---
 
-# Bukit Import
+# Import
 
 ## Overview
 
@@ -68,11 +68,11 @@ bukit import seed sites/mysite/data --output sites/mysite/content --force
 By default, `import html-demo` generates:
 
 - `themes/<theme>/` with layouts, partials, assets, and synced `bukit.templates.yaml`
-- `sites/<theme>/site.yaml`
+- sites/&lt;theme&gt;/site.yaml
 - `sites/<theme>/content/` Markdown drafts when `--build-source markdown` is active
 - seed review files under `sites/<theme>/notion-seed/` for Notion source or `sites/<theme>/data/` for JSON/YAML source
 - `sites/<theme>/original-demo/` unless `--no-preserve-html` is passed
-- `sites/<theme>/import-report.md` unless `--no-report` is passed
+- sites/&lt;theme&gt;/import-report.md unless `--no-report` is passed
 
 Treat `import-report.md` as the handoff checklist. It includes scanned pages, generated components, seed files, diagnostics, hardcoded-content residue, build/data source relationship, and visual verification notes.
 
@@ -130,7 +130,7 @@ For a serious import task:
 | `--push-notion 不能与 --dry-run 同时使用` | Direct push has an external side effect | Run import first, then `bukit notion push --dry-run`, then push without dry run |
 | Missing Notion database IDs | Generated database map has empty `databaseId` values | Fill the IDs or pass `--create-missing-notion-databases --notion-parent-page-id <id>` |
 | `static HTML files in static dir are skipped` after import | HTML files were copied into theme static assets | Check `original-demo/` for preserved originals and keep `.html` out of theme `static/` |
-| `seo.site_url_missing` after import | Generated config lacks production URL replacement | Replace placeholder `site.url: https://example.com` before publishing |
+| `seo.site_url_missing` after import | Generated config lacks production URL replacement | Replace placeholder site.url: https://example.com before publishing |
 
 ## Agent Notes
 

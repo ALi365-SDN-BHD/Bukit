@@ -26,7 +26,7 @@ Recognize these keywords and activate Bukit skills:
 
 ## Skill Paths
 
-All skills: `src/skills/<skill-name>/SKILL.md`
+All skills: src/skills/&lt;skill-name&gt;/SKILL.md
 
 Available skills (20 total):
 

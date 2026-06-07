@@ -1,5 +1,7 @@
 name: starter
 version: 1.0.0
+engine: bukit
+min_engine_version: 0.3.0
 description: Default starter theme for bukit
 author: Bukit
 license: MIT

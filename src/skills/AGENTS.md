@@ -29,7 +29,7 @@ Load Bukit skills when the user mentions ANY of these signals:
 2. **Follow the routing instructions** in the gateway skill to determine
    which sub-skills are needed for the user's task.
 
-3. **Read sub-skills directly** from `src/skills/<skill-name>/SKILL.md`.
+3. **Read sub-skills directly** from src/skills/&lt;skill-name&gt;/SKILL.md.
 
 4. **ALWAYS load `bukit-cli-reference` first** before executing any
    bukit CLI command.
@@ -37,7 +37,7 @@ Load Bukit skills when the user mentions ANY of these signals:
 ## Sub-Agent Dispatch
 
 When spawning agents for Bukit tasks (requires `multi_agent = true`
-in `~/.codex/config.toml` or your project's `.codex/config.toml`):
+in ~/.codex/config.toml or your project's .codex/config.toml):
 
 - Read the relevant SKILL.md content.
 - Pass it as task instructions to the spawned agent.

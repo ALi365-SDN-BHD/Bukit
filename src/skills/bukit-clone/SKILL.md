@@ -17,11 +17,11 @@ guide_chapters:
   - "guide/user/18-clone-website.md"
 ---
 
-# Bukit Clone Website → Theme
+# Clone Website → Theme
 
 ## Overview
 
-Clone any website's visual design and visible content as a Bukit theme plus Bukit content/data. Three-phase workflow:
+Clone any website's visual design and visible content as a theme plus content/data. Three-phase workflow:
 
 1. **Extraction** (you): Browser MCP → extract design tokens + page metadata + sections + assets → `tokens.json` + `page.json` + `sections.json` + `assets.json`
 2. **Generation** (CLI): `bukit clone --tokens tokens.json --page page.json --sections sections.json --assets assets.json --theme <name>`
@@ -555,7 +555,7 @@ Run this browser MCP script at each required viewport. Merge the results into `s
 
 ### Step 1.6c: Build `sections.json`
 
-Every visible section must become a Bukit data module. Preserve real text and content first; use `contentHtml` for complex sections that cannot be safely decomposed.
+Every visible section must become a data module. Preserve real text and content first; use `contentHtml` for complex sections that cannot be safely decomposed.
 
 ```json
 {

@@ -18,7 +18,7 @@ guide_chapters:
 
 ## Overview
 
-Bukit SEO covers the traditional search engine optimization pipeline — **configuration** (`site.seo` with 5 sub-nodes), **two rendering modes** (engine inject vs theme responsible), **content Front Matter** (priority fallback chain), **6 Schema.org JSON-LD types**, **build-time diagnostics** (11 codes), compatibility `seo-report.json`, and **CLI audit/diff** commands with CI/CD regression gating. For machine readability, provenance, trust, publish projections (`content/*.json`, `content/*.md`, `agent-manifest.json`), and aggregate representation coverage (RSS, Atom, JSON Feed, sitemap, search, llms.txt, robots.txt), use `bukit publish audit`.
+SEO covers the traditional search engine optimization pipeline — **configuration** (`site.seo` with 5 sub-nodes), **two rendering modes** (engine inject vs theme responsible), **content Front Matter** (priority fallback chain), **6 Schema.org JSON-LD types**, **build-time diagnostics** (11 codes), compatibility `seo-report.json`, and **CLI audit/diff** commands with CI/CD regression gating. For machine readability, provenance, trust, publish projections (content/*.json, content/*.md, `agent-manifest.json`), and aggregate representation coverage (RSS, Atom, JSON Feed, sitemap, search, llms.txt, robots.txt), use `bukit publish audit`.
 
 **REQUIRED BACKGROUND:** SEO config lives under `site.seo` in site.yaml — you must understand the config model in bukit-config first. GEO features live under `site.seo.geo` — see bukit-geo.
 **REQUIRED SUB-SKILL:** Build sites with `bukit build`, audit with `bukit seo audit`. CLI commands reference bukit-cli-reference.
@@ -220,7 +220,7 @@ Collection/list pages with field items generate `ItemList` JSON-LD with `itemLis
 
 ## SEO Audit
 
-Run `bukit seo audit` after a full build to check traditional SEO health. By default it reads `dist/.bukit/seo-report.json`. Root-level `dist/seo-report.json` is not part of the vNext report contract. For machine-readability, trust scoring, publish projections (`content/*.json`, `content/*.md`, `agent-manifest.json`) and cross-surface coverage, use `bukit publish audit`.
+Run `bukit seo audit` after a full build to check traditional SEO health. By default it reads dist/.bukit/seo-report.json. Root-level dist/seo-report.json is not part of the vNext report contract. For machine-readability, trust scoring, publish projections (content/*.json, content/*.md, `agent-manifest.json`) and cross-surface coverage, use `bukit publish audit`.
 
 ```
 bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]
@@ -228,8 +228,8 @@ bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]
 
 | Option | Default | Description |
 |------|--------|------|
-| `--dir` | `dist` | Output directory containing `.bukit/seo-report.json` |
-| `--report` | `<dir>/.bukit/seo-report.json` | Explicit report path |
+| `--dir` | `dist` | Output directory containing .bukit/seo-report.json |
+| `--report` | &lt;dir&gt;/.bukit/seo-report.json | Explicit report path |
 | `--strict` | off | Treat warnings as errors (exit code 1) |
 | `--external` | off | Perform live HTTP HEAD/GET validation of canonical URLs, links, and images |
 
@@ -421,7 +421,7 @@ SEO diff: newIssues=3 newErrors=1 newWarnings=2 resolvedIssues=5 addedRoutes=1 r
 | Issue | Cause | Fix |
 |------|------|------|
 | SEO tags not appearing in HTML | `seo.enabled: false` or wrong renderMode | Enable SEO; check if using inject or theme responsible mode |
-| `seo.site_url_missing` / `seo.canonical_not_absolute` | `site.url` is empty | Set `site.url: https://example.com` — required for absolute canonical, sitemap, RSS |
+| `seo.site_url_missing` / `seo.canonical_not_absolute` | `site.url` is empty | Set site.url: https://example.com — required for absolute canonical, sitemap, RSS |
 | `seo.title_missing` / `seo.title_too_long` | Content has no title or title > 60 chars | Set `title` or `seo_title` in front matter; keep under 60 chars |
 | `seo.description_missing` | No description in content or config | Set `seo_desc` in front matter, or `summary` in metadata, or `site.description` |
 | `seo.canonical_http` | Canonical uses HTTP | Ensure `site.url` uses `https://`, or set `canonical` to HTTPS URL in front matter |

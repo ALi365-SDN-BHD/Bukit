@@ -130,7 +130,7 @@ Requesting a directory path (e.g., `/blog/`) serves `index.html` from that direc
 - **Multiple sites**: Run multiple preview instances on different ports for side-by-side comparison
 - **Diagnose problems first**: Run `bukit doctor` before preview to catch config errors and template variable typos before they appear as blank pages
 
-## bukit dev vs bukit preview
+## Comparing dev and preview
 
 | Feature | `bukit dev` | `bukit preview` |
 |---------|------------|-----------------|

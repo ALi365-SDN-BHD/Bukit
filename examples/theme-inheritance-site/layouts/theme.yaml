@@ -1,0 +1,10 @@
+name: theme-inheritance-child
+version: 1.0.0
+engine: bukit
+min_engine_version: 0.3.0
+description: Theme inheritance child theme for bukit smoke checks. Extends parent theme and overrides index template.
+
+templates:
+  home:
+    template: pages/index.html
+    required: true

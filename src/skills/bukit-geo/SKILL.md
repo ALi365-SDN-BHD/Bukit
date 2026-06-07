@@ -140,7 +140,7 @@ geo:
       text: Download the binary from GitHub Releases.
       image: /assets/images/install.png
     - name: Initialize Site
-      text: Run bukit init my-site.
+      text: Run `bukit init` my-site.
   citations:
     - title: Schema.org HowTo
       url: https://schema.org/HowTo

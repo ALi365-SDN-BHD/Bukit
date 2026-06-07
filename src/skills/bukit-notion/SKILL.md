@@ -6,15 +6,15 @@ status: stable
 since: "v3.0.0"
 verified_by:
   - "src/Bukit.Engine/ContentProviderFactory.cs"
-  - "src/Bukit.Shared/Notion/"
+  - "src/Bukit.Shared/Notion/NotionBlockTypes.cs"
 source_anchors:
   - "src/Bukit.Engine/ContentProviderFactory.cs"
-  - "src/Bukit.Shared/Notion/"
+  - "src/Bukit.Shared/Notion/NotionApiUrls.cs"
 guide_chapters:
   - "guide/user/06-notion-content.md"
 ---
 
-# Bukit Notion Content Source
+# Notion Content Source
 
 ## Overview
 

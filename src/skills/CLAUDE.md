@@ -36,7 +36,7 @@ site.yaml files, or any related Bukit concepts:
    - ".csproj" (in context of static site generation)
    - Bukit-specific concepts: "permalink", "content collection", "Notion CMS"
 
-4. **Skill file paths**: `src/skills/<skill-name>/SKILL.md`
+4. **Skill file paths**: src/skills/&lt;skill-name&gt;/SKILL.md
 
 5. **CLI command policy**: ALL CLI command execution MUST reference `bukit-cli-reference`.
    Other skills provide knowledge and configuration guidance only — never duplicate

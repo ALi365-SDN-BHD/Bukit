@@ -12,11 +12,11 @@ guide_chapters:
   - "guide/user/14-troubleshooting.md"
 ---
 
-# Bukit Webhook Server
+# Webhook Server
 
 ## Overview
 
-Bukit's `webhook` command starts an HTTP listener that receives webhook payloads (typically from Notion), verifies a shared token, and sends a GitHub `repository_dispatch` event. The actual build/deploy work should happen in the GitHub Actions workflow that handles that dispatch event.
+The `webhook` command starts an HTTP listener that receives webhook payloads (typically from Notion), verifies a shared token, and sends a GitHub `repository_dispatch` event. The actual build/deploy work should happen in the GitHub Actions workflow that handles that dispatch event.
 
 **REQUIRED BACKGROUND:** Notion integration setup — see bukit-notion for Notion API configuration.
 **REQUIRED SUB-SKILL:** CLI commands reference bukit-cli-reference.

@@ -1,6 +1,6 @@
 ---
 name: bukit-templating
-description: Use when using bukit to write or modify Scriban templates, encountering bukit template rendering errors, needing to access page/site/data in bukit templates, using layout inheritance in bukit, or working with bukit list pages, pagination, or multi-language conditional rendering
+description: Use when using bukit to write or modify Scriban templates, encountering template rendering errors, needing to access page/site/data in bukit templates, using layout inheritance in bukit, or working with bukit list pages, pagination, or multi-language conditional rendering
 
 status: stable
 since: "v3.0.0"
@@ -26,7 +26,7 @@ Bukit uses the [Scriban](https://github.com/scriban/scriban) template engine, su
 | Language | Trigger Phrases |
 |----------|----------------|
 | 中文 | "Scriban 模板"、"layout 继承不生效"、"模板渲染报错"、"{{ page.title }}" |
-| English | "Scriban template", "layout inheritance not working", "template render error", "bukit template syntax" |
+| English | "Scriban template", "layout inheritance not working", "template render error", "template syntax" |
 | Bahasa Melayu | "templat Scriban", "pewarisan layout tidak berfungsi", "ralat render templat", "sintaks templat bukit" |
 
 ## Data Model
