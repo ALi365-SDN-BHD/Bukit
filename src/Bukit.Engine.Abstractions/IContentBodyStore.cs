@@ -12,11 +12,13 @@ public interface IContentBodyStore
                     document.Title,
                     document.Slug,
                     document.PublishAt,
-                    document.ContentHtml,
-                    document.Fields),
-                document.ContentHtml,
-                document.Fields,
-                document.BodyKey),
+                    document.Body.InlineHtml,
+                    document.CustomFields),
+                new ContentBodyRef(document.Body.InlineHtml, document.Body.BodyKey, document.Body.Markdown, document.Body.PlainText),
+                ContentRoutePolicy.FromFields(document.CustomFields),
+                ContentPublishPolicy.FromFields(document.CustomFields),
+                document.CustomFields,
+                document.Source),
             cancellationToken);
 
     private static ContentRecord ToRecord(

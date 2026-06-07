@@ -84,7 +84,7 @@ public sealed class AliasPluginTests
 
         var derived = new AliasPlugin().DerivePages(ctx);
 
-        var html = derived[0].Document.ContentHtml;
+        var html = derived[0].Document.Body.Html;
         Assert.Contains("http-equiv=\"refresh\"", html);
         Assert.Contains("rel=\"canonical\"", html);
         Assert.Contains("/post/", html);
@@ -121,7 +121,7 @@ public sealed class AliasPluginTests
 
         var derived = new AliasPlugin().DerivePages(ctx);
 
-        Assert.Equal("redirect", ContentFieldReader.GetText(derived[0].Document.Fields, "type"));
+        Assert.Equal("redirect", ContentFieldReader.GetText(derived[0].Document.CustomFields, "type"));
     }
 
     private static BuildContext CreateContext(List<(ContentDocument, RouteInfo)> routed)

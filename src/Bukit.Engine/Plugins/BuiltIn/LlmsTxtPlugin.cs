@@ -310,19 +310,19 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             return summary.Trim();
         }
 
-        var seoDesc = ContentFieldReader.GetText(item.Fields, "seo_desc");
+        var seoDesc = ContentFieldReader.GetText(item.CustomFields, "seo_desc");
         if (!string.IsNullOrWhiteSpace(seoDesc))
         {
             return seoDesc.Trim();
         }
 
-        var compactSeoDesc = ContentFieldReader.GetText(item.Fields, "seodesc");
+        var compactSeoDesc = ContentFieldReader.GetText(item.CustomFields, "seodesc");
         if (!string.IsNullOrWhiteSpace(compactSeoDesc))
         {
             return compactSeoDesc.Trim();
         }
 
-        var desc = ContentFieldReader.GetText(item.Fields, "description");
+        var desc = ContentFieldReader.GetText(item.CustomFields, "description");
         if (!string.IsNullOrWhiteSpace(desc))
         {
             return desc.Trim();

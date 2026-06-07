@@ -38,20 +38,20 @@ public sealed class NotionContentProviderEndToEndTests
         Assert.Equal("Hello Notion", item.Title);
         Assert.Equal("hello-notion", item.Slug);
         Assert.Equal(new DateTimeOffset(2026, 5, 15, 10, 30, 0, TimeSpan.Zero), item.PublishAt);
-        Assert.Equal("post", ContentFieldReader.GetText(item.Fields, "type"));
-        Assert.Equal("notion", ContentFieldReader.GetText(item.Fields, "source"));
-        Assert.Equal("page-1", ContentFieldReader.GetText(item.Fields, "notionPageId"));
-        Assert.Equal("en", ContentFieldReader.GetText(item.Fields, "language"));
-        Assert.True(ContentFieldReader.TryGetField(item.Fields, "tags", out var tagsField));
+        Assert.Equal("post", ContentFieldReader.GetText(item.CustomFields, "type"));
+        Assert.Equal("notion", ContentFieldReader.GetText(item.CustomFields, "source"));
+        Assert.Equal("page-1", ContentFieldReader.GetText(item.CustomFields, "notionPageId"));
+        Assert.Equal("en", ContentFieldReader.GetText(item.CustomFields, "language"));
+        Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "tags", out var tagsField));
         var tags = Assert.IsAssignableFrom<IEnumerable<object>>(tagsField.Value);
         Assert.Equal(new[] { "docs", "release" }, tags.Select(x => x.ToString()).ToArray());
-        Assert.Null(item.ContentHtml);
-        Assert.Equal("page-1", item.BodyKey);
+        Assert.Null(item.Body.InlineHtml);
+        Assert.Equal("page-1", item.Body.BodyKey);
 
-        Assert.NotNull(item.Fields);
-        Assert.True(item.Fields.ContainsKey("language"));
-        Assert.True(item.Fields.ContainsKey("tags"));
-        Assert.True(item.Fields.ContainsKey("summary"));
+        Assert.NotNull(item.CustomFields);
+        Assert.True(item.CustomFields.ContainsKey("language"));
+        Assert.True(item.CustomFields.ContainsKey("tags"));
+        Assert.True(item.CustomFields.ContainsKey("summary"));
 
         var body = await result.BodyStore.GetAsync(item);
 
@@ -100,13 +100,13 @@ public sealed class NotionContentProviderEndToEndTests
         var result = await provider.LoadRawAsync();
 
         var item = Assert.Single(result.Documents);
-        Assert.NotNull(item.Fields);
-        Assert.True(item.Fields.ContainsKey("language"));
-        Assert.True(item.Fields.ContainsKey("tags"));
-        Assert.False(item.Fields.ContainsKey("summary"));
-        Assert.False(item.Fields.ContainsKey("secret"));
-        Assert.Equal("en", ContentFieldReader.GetText(item.Fields, "language"));
-        Assert.False(ContentFieldReader.TryGetField(item.Fields, "summary", out _));
+        Assert.NotNull(item.CustomFields);
+        Assert.True(item.CustomFields.ContainsKey("language"));
+        Assert.True(item.CustomFields.ContainsKey("tags"));
+        Assert.False(item.CustomFields.ContainsKey("summary"));
+        Assert.False(item.CustomFields.ContainsKey("secret"));
+        Assert.Equal("en", ContentFieldReader.GetText(item.CustomFields, "language"));
+        Assert.False(ContentFieldReader.TryGetField(item.CustomFields, "summary", out _));
     }
 
     [Fact]
@@ -176,8 +176,8 @@ public sealed class NotionContentProviderEndToEndTests
         var result = await provider.LoadRawAsync();
 
         var item = Assert.Single(result.Documents);
-        Assert.NotNull(item.Fields);
-        var linksField = Assert.Contains("tags_links", item.Fields);
+        Assert.NotNull(item.CustomFields);
+        var linksField = Assert.Contains("tags_links", item.CustomFields);
         var links = Assert.IsAssignableFrom<IEnumerable<Dictionary<string, object?>>>(linksField.Value);
         var link = Assert.Single(links);
         Assert.Equal("tag-1", link["id"]);
@@ -186,7 +186,7 @@ public sealed class NotionContentProviderEndToEndTests
         Assert.Equal("page", link["type"]);
         Assert.Equal("https://example.test/tags/resolved-tag", link["url"]);
 
-        Assert.True(ContentFieldReader.TryGetField(item.Fields, "tags", out var tagsField));
+        Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "tags", out var tagsField));
         var tags = Assert.IsAssignableFrom<IEnumerable<string>>(tagsField.Value);
         Assert.Equal(new[] { "Resolved Tag" }, tags.ToArray());
         Assert.Equal(1, handler.Count(HttpMethod.Get, "https://api.notion.com/v1/pages/tag-1"));
@@ -481,18 +481,18 @@ public sealed class NotionContentProviderEndToEndTests
         var result = await provider.LoadRawAsync();
         var item = Assert.Single(result.Documents);
 
-        Assert.False(ContentFieldReader.TryGetField(item.Fields, "summary", out _));
+        Assert.False(ContentFieldReader.TryGetField(item.CustomFields, "summary", out _));
 
         var body = await result.BodyStore.GetAsync(item);
 
         Assert.Contains("<p>Alpha", body.Html);
-        Assert.True(ContentFieldReader.TryGetField(item.Fields, "summary", out var summaryField));
+        Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "summary", out var summaryField));
         var summary = Assert.IsType<string>(summaryField.Value);
-        Assert.NotNull(item.Fields);
+        Assert.NotNull(item.CustomFields);
         Assert.StartsWith("Alpha beta & gamma text that should stop", summary);
         Assert.True(summary.Length <= 42);
-        Assert.True(item.Fields!.ContainsKey("summary"));
-        Assert.Equal(summary, item.Fields["summary"].Value);
+        Assert.True(item.CustomFields!.ContainsKey("summary"));
+        Assert.Equal(summary, item.CustomFields["summary"].Value);
     }
 
     [Fact]
@@ -516,14 +516,14 @@ public sealed class NotionContentProviderEndToEndTests
 
         var item = Assert.Single(result.Documents);
         Assert.Equal("formula-slug", item.Slug);
-        Assert.Equal("page", ContentFieldReader.GetText(item.Fields, "type"));
-        Assert.Equal("ms-MY", ContentFieldReader.GetText(item.Fields, "language"));
-        Assert.Equal("article-template", ContentFieldReader.GetText(item.Fields, "template"));
-        Assert.Equal("/custom/output.html", ContentFieldReader.GetText(item.Fields, "outputPath"));
-        Assert.Equal("https://example.test/page", ContentFieldReader.GetText(item.Fields, "url"));
+        Assert.Equal("page", ContentFieldReader.GetText(item.CustomFields, "type"));
+        Assert.Equal("ms-MY", ContentFieldReader.GetText(item.CustomFields, "language"));
+        Assert.Equal("article-template", ContentFieldReader.GetText(item.CustomFields, "template"));
+        Assert.Equal("/custom/output.html", ContentFieldReader.GetText(item.CustomFields, "outputPath"));
+        Assert.Equal("https://example.test/page", ContentFieldReader.GetText(item.CustomFields, "url"));
         Assert.Equal(new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero), item.PublishAt);
 
-        var fields = Assert.IsAssignableFrom<IReadOnlyDictionary<string, ContentField>>(item.Fields);
+        var fields = Assert.IsAssignableFrom<IReadOnlyDictionary<string, ContentField>>(item.CustomFields);
         Assert.Equal("https://cdn.test/cover.jpg", fields["cover"].Value);
         Assert.Equal("https://cdn.test/icon.png", fields["icon"].Value);
         Assert.Equal("ali@example.test", fields["contact_email"].Value);
@@ -560,7 +560,7 @@ public sealed class NotionContentProviderEndToEndTests
         var result = await provider.LoadRawAsync();
 
         var item = Assert.Single(result.Documents);
-        var fields = Assert.IsAssignableFrom<IReadOnlyDictionary<string, ContentField>>(item.Fields);
+        var fields = Assert.IsAssignableFrom<IReadOnlyDictionary<string, ContentField>>(item.CustomFields);
         Assert.Equal("invalid-field-page", item.Slug);
         Assert.Equal("not-a-date", fields["created_time_text"].Value);
         Assert.Equal("still-not-a-date", fields["last_edited_time_text"].Value);

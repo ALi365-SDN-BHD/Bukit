@@ -35,12 +35,13 @@ internal sealed class ImageLocalizeStage : IContentStage
     private static IReadOnlyList<RawContentDocument> ToRawDocuments(IReadOnlyList<ContentDocument> documents)
         => documents
             .Select(document => new RawContentDocument(
-                document.Id,
-                document.Title,
-                document.Slug,
-                document.PublishAt,
-                document.ContentHtml,
-                document.Fields,
-                document.BodyKey))
+                Id: document.Id,
+                Title: document.Title,
+                Slug: document.Slug,
+                PublishAt: document.PublishAt,
+                Body: new RawBody(document.Body.Html, document.Body.BodyKey, document.Body.Markdown, document.Body.PlainText),
+                Properties: RawContentValue.FromFields(document.CustomFields),
+                Source: document.Source,
+                CustomFields: document.CustomFields))
             .ToArray();
 }

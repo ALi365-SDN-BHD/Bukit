@@ -376,6 +376,9 @@ public sealed class ConfigLoaderTests : IDisposable
                     entityType: company
                     idField: companyIds
                     nameField: companyNames
+                    descriptionField: companyDeck
+                    urlField: companyProfile
+                    sameAsField: companySameAs
                     required: true
                     reference:
                       targetType: company
@@ -385,6 +388,8 @@ public sealed class ConfigLoaderTests : IDisposable
                   - rawKey: related
                     relationType: related-to
                     targetType: content
+                    targetField: headline
+                    targetIdField: documentKey
                     required: true
                     reference:
                       targetType: content
@@ -433,6 +438,9 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("company", entity.EntityType);
         Assert.Equal("companyIds", entity.IdField);
         Assert.Equal("companyNames", entity.NameField);
+        Assert.Equal("companyDeck", entity.DescriptionField);
+        Assert.Equal("companyProfile", entity.UrlField);
+        Assert.Equal("companySameAs", entity.SameAsField);
         Assert.True(entity.Required);
         Assert.NotNull(entity.Reference);
         Assert.Equal("company", entity.Reference.TargetType);
@@ -442,6 +450,8 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("related", relation.RawKey);
         Assert.Equal("related-to", relation.RelationType);
         Assert.Equal("content", relation.TargetType);
+        Assert.Equal("headline", relation.TargetField);
+        Assert.Equal("documentKey", relation.TargetIdField);
         Assert.True(relation.Required);
         Assert.NotNull(relation.Reference);
         Assert.Equal("content", relation.Reference.TargetType);

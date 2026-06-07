@@ -80,13 +80,13 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
                 })
             };
 
-            var document = ContentDocument.Create(
+            var document = DerivedContentDocumentFactory.Create(
                 id: $"{collectionKey}-page-{page}",
                 title: $"{collectionKey} - Page {page}",
                 slug: $"page-{page}",
                 publishAt: publishAt,
-                contentHtml: html,
-                fields: fields);
+                body: new ContentBodyRef(Html: html),
+                customFields: fields);
 
             derived.Add(new RoutedContentDocument(document, route, publishAt));
         }

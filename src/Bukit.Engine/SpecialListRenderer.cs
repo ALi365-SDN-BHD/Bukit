@@ -169,7 +169,7 @@ internal static class SpecialListRenderer
                     Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
                     TableOfContents = GetTableOfContents(document),
                     PublishDate = document.PublishAt,
-                    Fields = document.Fields,
+                    Fields = document.CustomFields,
                     ContentRecord = contentRecord,
                     Entities = contentRecord.Entities,
                     Provenance = contentRecord.Provenance,
@@ -211,7 +211,7 @@ internal static class SpecialListRenderer
                     Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
                     TableOfContents = GetTableOfContents(document),
                     PublishDate = document.PublishAt,
-                    Fields = document.Fields,
+                    Fields = document.CustomFields,
                     ContentRecord = contentRecord,
                     Entities = contentRecord.Entities,
                     Provenance = contentRecord.Provenance,
@@ -225,7 +225,7 @@ internal static class SpecialListRenderer
     }
 
     internal static IReadOnlyList<TableOfContentsEntry>? GetTableOfContents(ContentDocument document)
-        => ContentFieldReader.TryGetField(document.Fields, "tableOfContents", out var toc) && toc.Value is IReadOnlyList<TableOfContentsEntry> entries
+        => ContentFieldReader.TryGetField(document.CustomFields, "tableOfContents", out var toc) && toc.Value is IReadOnlyList<TableOfContentsEntry> entries
             ? entries
             : null;
 

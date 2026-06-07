@@ -175,7 +175,7 @@ internal static class PagesIndexConfigHelper
 
         for (var i = 0; i < routed.Count; i++)
         {
-            var fields = routed[i].Document.Fields;
+            var fields = routed[i].Document.CustomFields;
             if (fields is null || fields.Count == 0)
             {
                 continue;

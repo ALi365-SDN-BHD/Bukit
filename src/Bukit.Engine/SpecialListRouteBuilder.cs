@@ -57,7 +57,7 @@ public static class SpecialListRouteBuilder
                 foreach (var filter in collection.FilteredLists)
                 {
                     var filtered = items
-                        .Where(x => TryMatchFieldValue(x.Document.Fields, filter.Field, filter.Value))
+                        .Where(x => TryMatchFieldValue(x.Document.CustomFields, filter.Field, filter.Value))
                         .ToList();
 
                     var filterUrl = RoutePathBuilder.NormalizeListRoute(filter.ListRoute);

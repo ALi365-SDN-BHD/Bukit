@@ -171,9 +171,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         var derived = plugin.DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/topic/");
-        Assert.NotNull(termPage.Document.Fields);
-        Assert.True(termPage.Document.Fields!.ContainsKey("items"));
-        var items = Assert.IsType<List<object>>(termPage.Document.Fields["items"].Value);
+        Assert.NotNull(termPage.Document.CustomFields);
+        Assert.True(termPage.Document.CustomFields!.ContainsKey("items"));
+        var items = Assert.IsType<List<object>>(termPage.Document.CustomFields["items"].Value);
         Assert.Equal(2, items.Count);
         var first = Assert.IsType<Dictionary<string, object>>(items[0]);
         Assert.Equal("Pinned", first["title"]);
@@ -200,11 +200,21 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             Item = routed[0].Item with
             {
-                Fields = ContentFieldReader.WithValues(routed[0].Item.Fields, new Dictionary<string, object>
+                CustomFields = ContentFieldReader.WithValues(routed[0].Item.CustomFields, new Dictionary<string, object>
                 {
                     ["series"] = new[] { "My Series" },
                     ["authors"] = new[] { "Alice" }
-                })
+                }),
+                Route = ContentRoutePolicy.FromFields(ContentFieldReader.WithValues(routed[0].Item.CustomFields, new Dictionary<string, object>
+                {
+                    ["series"] = new[] { "My Series" },
+                    ["authors"] = new[] { "Alice" }
+                })),
+                Publish = ContentPublishPolicy.FromFields(ContentFieldReader.WithValues(routed[0].Item.CustomFields, new Dictionary<string, object>
+                {
+                    ["series"] = new[] { "My Series" },
+                    ["authors"] = new[] { "Alice" }
+                }))
             }
         };
         var ctx = CreateContext(routed, taxonomyConfig: config);
@@ -283,7 +293,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         var derived = new TaxonomyPlugin().DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alpha/");
-        var items = Assert.IsType<List<object>>(termPage.Document.Fields!["items"].Value);
+        var items = Assert.IsType<List<object>>(termPage.Document.CustomFields!["items"].Value);
         var first = Assert.IsType<Dictionary<string, object>>(items[0]);
         Assert.Equal("Canonical taxonomy summary", first["summary"]);
     }
@@ -319,7 +329,7 @@ public sealed class TaxonomyPluginDerivePagesTests
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/canonical-tag/");
         var categoryPage = Assert.Single(derived, x => x.Route.Url == "/categories/canonical-category/");
-        var items = Assert.IsType<List<object>>(categoryPage.Document.Fields!["items"].Value);
+        var items = Assert.IsType<List<object>>(categoryPage.Document.CustomFields!["items"].Value);
         var first = Assert.IsType<Dictionary<string, object>>(items[0]);
         Assert.Equal("Canonical taxonomy summary", first["summary"]);
     }

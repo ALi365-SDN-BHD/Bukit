@@ -34,7 +34,7 @@ public sealed class ContentPipelineTests
         Assert.Equal("/tmp/site", factory.RootDirObserved);
         var document = Assert.Single(result.Documents);
         Assert.Equal("published", document.Id);
-        Assert.Equal("published", ContentFieldReader.GetText(document.Fields, "status"));
+        Assert.Equal("published", ContentFieldReader.GetText(document.CustomFields, "status"));
         var record = Assert.Single(result.ContentGraph!.Records);
         Assert.Equal("published", record.Identity.Id);
         Assert.Equal("published", record.Trust.ReviewStatus);
@@ -199,13 +199,14 @@ public sealed class ContentPipelineTests
 
     private static RawContentDocument ToRawDocument(ContentDocument item)
         => new(
-            item.Id,
-            item.Title,
-            item.Slug,
-            item.PublishAt,
-            item.ContentHtml,
-            item.Fields,
-            item.BodyKey);
+            Id: item.Id,
+            Title: item.Title,
+            Slug: item.Slug,
+            PublishAt: item.PublishAt,
+            Body: new RawBody(item.Body.Html, item.Body.BodyKey, item.Body.Markdown, item.Body.PlainText),
+            Properties: RawContentValue.FromFields(item.CustomFields),
+            Source: item.Source,
+            CustomFields: item.CustomFields);
 
     private static AppConfig Config(bool draft, string schemaFailMode, bool requiredStatus = false)
     {

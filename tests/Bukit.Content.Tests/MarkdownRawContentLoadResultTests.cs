@@ -29,8 +29,8 @@ public sealed class MarkdownRawContentLoadResultTests
         var result = await provider.LoadRawAsync();
 
         var item = Assert.Single(result.Documents);
-        Assert.Null(item.ContentHtml);
-        Assert.False(string.IsNullOrWhiteSpace(item.BodyKey));
+        Assert.Null(item.Body.InlineHtml);
+        Assert.False(string.IsNullOrWhiteSpace(item.Body.BodyKey));
 
         var body = await result.BodyStore.GetAsync(item);
         Assert.Contains("<h1 id=\"hi\">Hi</h1>", body.Html);

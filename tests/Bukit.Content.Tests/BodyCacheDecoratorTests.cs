@@ -15,7 +15,7 @@ public sealed class BodyCacheDecoratorTests
         public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _callCount);
-            var html = item.ContentHtml ?? $"<p>body-{item.Id}</p>";
+            var html = item.Body.Html ?? $"<p>body-{item.Id}</p>";
             return Task.FromResult(new ContentBody(html));
         }
     }

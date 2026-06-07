@@ -107,7 +107,7 @@ internal static class ContentModelSchemaValidator
             return;
         }
 
-        foreach (var definition in EnumerateFieldDefinitions(schema, document.Fields))
+        foreach (var definition in EnumerateFieldDefinitions(schema, document.CustomFields))
         {
             ValidateCustomField(record, document, definition, errors);
         }
@@ -153,9 +153,9 @@ internal static class ContentModelSchemaValidator
         var collection = ContentFieldReader.GetText(fields, "collection")
             ?? ContentFieldReader.GetText(fields, "type");
         if (!string.IsNullOrWhiteSpace(collection) &&
-            schema.CollectionFields?.TryGetValue(collection, out var collectionFields) is true)
+            schema.FieldScopes?.TryGetValue(collection, out var scopedFields) is true)
         {
-            foreach (var definition in collectionFields)
+            foreach (var definition in scopedFields)
             {
                 yield return definition;
             }
@@ -178,7 +178,7 @@ internal static class ContentModelSchemaValidator
             Add(errors, $"fields.{definition.Name}", "content.custom_field_source_policy_invalid", $"Custom field '{definition.Name}' has invalid source policy '{definition.SourcePolicy}'.", record);
         }
 
-        var hasField = ContentFieldReader.TryGetField(document.Fields, definition.Name, out var field) &&
+        var hasField = ContentFieldReader.TryGetField(document.CustomFields, definition.Name, out var field) &&
             field.Value is not null;
         if (definition.Required && !hasField && definition.Default is null)
         {
@@ -232,7 +232,7 @@ internal static class ContentModelSchemaValidator
             return;
         }
 
-        if (!ContentFieldReader.TryGetField(document.Fields, rawKey, out var contentField) ||
+        if (!ContentFieldReader.TryGetField(document.CustomFields, rawKey, out var contentField) ||
             IsEmpty(contentField.Value))
         {
             Add(errors, field, code, message, record);
@@ -248,7 +248,7 @@ internal static class ContentModelSchemaValidator
         List<ContentSchemaValidator.SchemaValidationError> errors)
     {
         if (rule is null ||
-            !ContentFieldReader.TryGetField(document.Fields, rawKey, out var contentField) ||
+            !ContentFieldReader.TryGetField(document.CustomFields, rawKey, out var contentField) ||
             IsEmpty(contentField.Value))
         {
             return;

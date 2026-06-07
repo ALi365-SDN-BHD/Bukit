@@ -173,13 +173,13 @@ internal static class TaxonomyPageCreator
             ["terms"] = new ContentField("list", termsValue)
         };
 
-        var document = ContentDocument.Create(
+        var document = DerivedContentDocumentFactory.Create(
             id: $"{kind}-index",
             title: title,
             slug: kind,
             publishAt: publishAt,
-            contentHtml: html,
-            fields: fields);
+            body: new ContentBodyRef(Html: html),
+            customFields: fields);
 
         return new RoutedContentDocument(document, route, publishAt);
     }
@@ -315,13 +315,13 @@ internal static class TaxonomyPageCreator
             ["pagination"] = new ContentField("object", paginationValue)
         };
 
-        var document = ContentDocument.Create(
+        var document = DerivedContentDocumentFactory.Create(
             id: page <= 1 ? $"{kind}-{term.Slug}" : $"{kind}-{term.Slug}-page-{page}",
             title: page <= 1 ? $"{singularTitlePrefix}: {term.DisplayName}" : $"{singularTitlePrefix}: {term.DisplayName} (Page {page})",
             slug: term.Slug,
             publishAt: publishAt,
-            contentHtml: html,
-            fields: fields);
+            body: new ContentBodyRef(Html: html),
+            customFields: fields);
 
         return new RoutedContentDocument(document, route, publishAt);
     }

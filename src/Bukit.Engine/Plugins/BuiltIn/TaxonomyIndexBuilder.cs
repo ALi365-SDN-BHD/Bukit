@@ -123,7 +123,7 @@ internal static class TaxonomyIndexBuilder
 
     internal static IReadOnlyList<string>? GetStringList(ContentDocument item, string key)
     {
-        return ContentFieldReader.GetTextList(item.Fields, key);
+        return ContentFieldReader.GetTextList(item.CustomFields, key);
     }
 
     internal static IReadOnlyDictionary<string, object>? ExtractExtraFields(ContentDocument item, IReadOnlyList<string> itemFields)
@@ -155,7 +155,7 @@ internal static class TaxonomyIndexBuilder
     {
         value = null;
 
-        if (ContentFieldReader.TryGetField(item.Fields, key, out var field) && field.Value is not null)
+        if (ContentFieldReader.TryGetField(item.CustomFields, key, out var field) && field.Value is not null)
         {
             value = field.Value;
             return true;
@@ -166,7 +166,7 @@ internal static class TaxonomyIndexBuilder
 
     internal static string? GetSourceKey(ContentDocument item)
     {
-        return ContentFieldReader.GetText(item.Fields, "sourceKey");
+        return ContentFieldReader.GetText(item.CustomFields, "sourceKey");
     }
 
     internal static string ResolvePinField(TaxonomyConfig config, string? sourceKey)

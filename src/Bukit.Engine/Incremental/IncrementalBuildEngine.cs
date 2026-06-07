@@ -46,7 +46,7 @@ internal static class IncrementalBuildEngine
         AppendUtf8(hasher, document.Record.Presentation.Summary ?? string.Empty);
         hasher.AppendData(newline);
 
-        AppendFieldsFingerprint(hasher, document.Fields);
+        AppendFieldsFingerprint(hasher, document.CustomFields);
 
         var digest = hasher.GetHashAndReset();
         return HashUtil.ToHexLower(digest);
@@ -236,16 +236,16 @@ internal static class IncrementalBuildEngine
     private static bool TryGetBodyFingerprint(ContentDocument document, out string bodyFingerprint)
     {
         bodyFingerprint = string.Empty;
-        var bodyFingerprintValue = ContentFieldReader.GetText(document.Fields, BodyFingerprintKey);
+        var bodyFingerprintValue = ContentFieldReader.GetText(document.CustomFields, BodyFingerprintKey);
         if (!string.IsNullOrWhiteSpace(bodyFingerprintValue))
         {
             bodyFingerprint = bodyFingerprintValue;
             return true;
         }
 
-        if (!string.IsNullOrEmpty(document.ContentHtml))
+        if (!string.IsNullOrEmpty(document.Body.Html))
         {
-            bodyFingerprint = HashUtil.Sha256Hex(document.ContentHtml);
+            bodyFingerprint = HashUtil.Sha256Hex(document.Body.Html);
             return true;
         }
 

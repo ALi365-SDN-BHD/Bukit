@@ -37,13 +37,17 @@ internal static class CanonicalContentGraphBuilder
     }
 
     internal static ContentRecord ToRecord(RawContentDocument raw)
+        => ToRecord(raw, null);
+
+    internal static ContentRecord ToRecord(RawContentDocument raw, ContentModelSchema? schema)
         => ToRecord(new ContentRecordSource(
             raw.Id,
             raw.Title,
             raw.Slug,
             raw.PublishAt,
-            raw.ContentHtml,
-            raw.Fields));
+            raw.Body.InlineHtml,
+            raw.CustomFields,
+            schema));
 
     private static ContentRecord ToRecord(ContentRecordSource source)
     {
@@ -179,6 +183,7 @@ internal static class CanonicalContentGraphBuilder
         AppendNamedEntities(entities, "person", FirstList(source, "people"));
         AppendNamedEntities(entities, "person", FirstList(source, "authors"));
         AppendNamedEntities(entities, "company", FirstList(source, "companies"));
+        AppendSchemaMappedEntities(entities, source);
 
         if (source.Fields is not null)
         {
@@ -229,6 +234,8 @@ internal static class CanonicalContentGraphBuilder
         {
             relations.Add(new ContentRelation("related-to", related, "content", related));
         }
+
+        AppendSchemaMappedRelations(relations, source);
 
         if (source.Fields is not null)
         {
@@ -334,6 +341,148 @@ internal static class CanonicalContentGraphBuilder
         }
     }
 
+    private static void AppendSchemaMappedEntities(List<EntityRecord> entities, ContentRecordSource source)
+    {
+        if (source.Schema?.EntityMappings is null || source.Fields is null)
+        {
+            return;
+        }
+
+        foreach (var mapping in source.Schema.EntityMappings.Values)
+        {
+            if (string.IsNullOrWhiteSpace(mapping.RawKey) ||
+                string.IsNullOrWhiteSpace(mapping.EntityType) ||
+                !ContentFieldReader.TryGetField(source.Fields, mapping.RawKey, out var field))
+            {
+                continue;
+            }
+
+            foreach (var value in EnumerateMappedValues(field.Value))
+            {
+                var name = ReadMappedValue(value, mapping.NameField)
+                    ?? ReadMappedValue(value, mapping.Reference?.LabelField)
+                    ?? ReadMappedValue(value, "name")
+                    ?? ReadMappedValue(value, "title")
+                    ?? ReadMappedValue(value, "label")
+                    ?? ReadMappedValue(value, "id")
+                    ?? value.Scalar;
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                entities.Add(new EntityRecord(
+                    mapping.EntityType,
+                    name,
+                    ReadMappedValue(value, mapping.DescriptionField)
+                        ?? ReadMappedValue(value, "description"),
+                    ReadMappedValue(value, mapping.IdField)
+                        ?? ReadMappedValue(value, mapping.Reference?.IdField),
+                    ReadMappedValue(value, mapping.UrlField)
+                        ?? ReadMappedValue(value, mapping.Reference?.UrlField)
+                        ?? ReadMappedValue(value, "url"),
+                    ReadMappedList(value, mapping.SameAsField)
+                        ?? ReadMappedList(value, "sameAs")
+                        ?? ReadMappedList(value, "same_as")));
+            }
+        }
+    }
+
+    private static void AppendSchemaMappedRelations(List<ContentRelation> relations, ContentRecordSource source)
+    {
+        if (source.Schema?.RelationMappings is null || source.Fields is null)
+        {
+            return;
+        }
+
+        foreach (var mapping in source.Schema.RelationMappings.Values)
+        {
+            if (string.IsNullOrWhiteSpace(mapping.RawKey) ||
+                string.IsNullOrWhiteSpace(mapping.RelationType) ||
+                !ContentFieldReader.TryGetField(source.Fields, mapping.RawKey, out var field))
+            {
+                continue;
+            }
+
+            foreach (var value in EnumerateMappedValues(field.Value))
+            {
+                var target = ReadMappedValue(value, mapping.TargetField)
+                    ?? ReadMappedValue(value, mapping.Reference?.LabelField)
+                    ?? ReadMappedValue(value, "title")
+                    ?? ReadMappedValue(value, "name")
+                    ?? ReadMappedValue(value, "label")
+                    ?? ReadMappedValue(value, "id")
+                    ?? value.Scalar;
+                if (string.IsNullOrWhiteSpace(target))
+                {
+                    continue;
+                }
+
+                relations.Add(new ContentRelation(
+                    mapping.RelationType,
+                    target,
+                    mapping.TargetType ?? mapping.Reference?.TargetType,
+                    ReadMappedValue(value, mapping.TargetIdField)
+                        ?? ReadMappedValue(value, mapping.Reference?.IdField)
+                        ?? ReadMappedValue(value, "id")));
+            }
+        }
+    }
+
+    private static IEnumerable<MappedValue> EnumerateMappedValues(object? value)
+    {
+        switch (value)
+        {
+            case null:
+                yield break;
+            case string text:
+                foreach (var item in ContentFieldReader.ToTextList(text) ?? Array.Empty<string>())
+                {
+                    yield return new MappedValue(item, null);
+                }
+
+                yield break;
+            case IReadOnlyDictionary<string, object?> map:
+                yield return new MappedValue(null, map);
+                yield break;
+            case IDictionary<string, object?> map:
+                yield return new MappedValue(null, new Dictionary<string, object?>(map, StringComparer.OrdinalIgnoreCase));
+                yield break;
+            case IEnumerable<IReadOnlyDictionary<string, object?>> maps:
+                foreach (var map in maps)
+                {
+                    yield return new MappedValue(null, map);
+                }
+
+                yield break;
+            case IEnumerable<object> objects:
+                foreach (var item in objects)
+                {
+                    if (item is IReadOnlyDictionary<string, object?> itemMap)
+                    {
+                        yield return new MappedValue(null, itemMap);
+                        continue;
+                    }
+
+                    var text = item?.ToString();
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        yield return new MappedValue(text, null);
+                    }
+                }
+
+                yield break;
+            default:
+                var scalar = value.ToString();
+                if (!string.IsNullOrWhiteSpace(scalar))
+                {
+                    yield return new MappedValue(scalar, null);
+                }
+
+                yield break;
+        }
+    }
+
     private static IReadOnlyList<string> MergeLists(IReadOnlyList<string>? first, IReadOnlyList<string>? second)
     {
         var result = new List<string>();
@@ -435,11 +584,38 @@ internal static class CanonicalContentGraphBuilder
             : null;
     }
 
+    private static string? ReadMappedValue(MappedValue value, string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key) || value.Map is null)
+        {
+            return null;
+        }
+
+        return value.Map.TryGetValue(key, out var raw) && raw is not null
+            ? raw.ToString()
+            : null;
+    }
+
+    private static IReadOnlyList<string>? ReadMappedList(MappedValue value, string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key) ||
+            value.Map is null ||
+            !value.Map.TryGetValue(key, out var raw))
+        {
+            return null;
+        }
+
+        return ContentFieldReader.ToTextList(raw);
+    }
+
     private sealed record ContentRecordSource(
         string Id,
         string Title,
         string Slug,
         DateTimeOffset PublishAt,
         string? ContentHtml,
-        IReadOnlyDictionary<string, ContentField>? Fields);
+        IReadOnlyDictionary<string, ContentField>? Fields,
+        ContentModelSchema? Schema);
+
+    private sealed record MappedValue(string? Scalar, IReadOnlyDictionary<string, object?>? Map);
 }

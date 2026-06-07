@@ -53,8 +53,8 @@ public sealed class TaxonomyPinningTests
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
-        Assert.NotNull(term.Document.Fields);
-        var fields = term.Document.Fields!;
+        Assert.NotNull(term.Document.CustomFields);
+        var fields = term.Document.CustomFields!;
         var list = Assert.IsType<List<object>>(fields!["items"].Value);
         var first = Assert.IsType<Dictionary<string, object>>(list[0]);
         Assert.Equal("Pinned", first["title"]);
@@ -110,8 +110,8 @@ public sealed class TaxonomyPinningTests
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
-        Assert.NotNull(term.Document.Fields);
-        var fields = term.Document.Fields!;
+        Assert.NotNull(term.Document.CustomFields);
+        var fields = term.Document.CustomFields!;
         var list = Assert.IsType<List<object>>(fields!["items"].Value);
         var first = Assert.IsType<Dictionary<string, object>>(list[0]);
         Assert.Equal("Pinned", first["title"]);
@@ -167,8 +167,8 @@ public sealed class TaxonomyPinningTests
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
-        Assert.NotNull(term.Document.Fields);
-        var fields = term.Document.Fields!;
+        Assert.NotNull(term.Document.CustomFields);
+        var fields = term.Document.CustomFields!;
         var list = Assert.IsType<List<object>>(fields!["items"].Value);
         var first = Assert.IsType<Dictionary<string, object>>(list[0]);
         var second = Assert.IsType<Dictionary<string, object>>(list[1]);

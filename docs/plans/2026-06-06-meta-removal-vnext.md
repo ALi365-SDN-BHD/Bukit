@@ -608,7 +608,7 @@ Tests:
 - [x] `site.collections.*.schema` projects into `ContentModelSchema.CollectionFields`.
 - [x] Required collection fields produce canonical diagnostics through `ContentGraphValidateStage`.
 - [x] Route and publish policies normalize from raw input.
-- [ ] Notion raw input coverage should be extended to assert the same schema-driven mapping contract as Markdown.
+- [x] Notion raw input coverage should be extended to assert the same schema-driven mapping contract as Markdown.
 
 ### Task D: Providers
 

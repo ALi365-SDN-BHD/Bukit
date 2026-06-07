@@ -13,9 +13,9 @@ public sealed class EmptyContentBodyStore : IContentBodyStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrEmpty(document.ContentHtml))
+        if (!string.IsNullOrEmpty(document.Body.Html))
         {
-            return Task.FromResult(new ContentBody(document.ContentHtml));
+            return Task.FromResult(new ContentBody(document.Body.Html));
         }
 
         throw new InvalidOperationException($"No content body available for document '{document.Id}'.");

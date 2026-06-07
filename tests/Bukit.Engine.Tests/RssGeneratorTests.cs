@@ -232,7 +232,12 @@ public sealed class RssGeneratorTests
             [new EntityRecord("company", "Bukit")],
             [],
             []);
-        var document = new ContentDocument(record, sourceDocument.ContentHtml, sourceDocument.Fields, sourceDocument.BodyKey);
+        var document = new ContentDocument(
+            record,
+            new ContentBodyRef(sourceDocument.Body.Html, sourceDocument.Body.BodyKey),
+            ContentRoutePolicy.FromFields(sourceDocument.CustomFields),
+            ContentPublishPolicy.FromFields(sourceDocument.CustomFields),
+            sourceDocument.CustomFields);
 
         var post = RssGenerator.ToPost(document, "https://example.com/blog/post-1/", new InMemoryBodyStore());
 

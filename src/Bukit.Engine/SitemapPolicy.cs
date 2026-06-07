@@ -14,7 +14,7 @@ internal static partial class SitemapPolicy
             return updatedAt;
         }
 
-        if (document.Fields is not null && document.Fields.TryGetValue("update_time", out var field) && field is not null)
+        if (document.CustomFields is not null && document.CustomFields.TryGetValue("update_time", out var field) && field is not null)
         {
             if (TryReadDate(field.Value, out var dt))
             {

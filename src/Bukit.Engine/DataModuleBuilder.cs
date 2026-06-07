@@ -17,7 +17,7 @@ internal static class DataModuleBuilder
 
         foreach (var document in dataDocuments)
         {
-            var enabled = ContentFieldReader.GetBool(document.Fields, "enabled");
+            var enabled = ContentFieldReader.GetBool(document.CustomFields, "enabled");
             if (enabled is false)
             {
                 continue;
@@ -26,7 +26,7 @@ internal static class DataModuleBuilder
             var type = ContentFieldReader.GetContentType(document).Trim();
             if (string.IsNullOrWhiteSpace(type))
             {
-                type = ContentFieldReader.GetText(document.Fields, "sourceKey") ?? string.Empty;
+                type = ContentFieldReader.GetText(document.CustomFields, "sourceKey") ?? string.Empty;
             }
 
             if (string.IsNullOrWhiteSpace(type))
@@ -48,7 +48,7 @@ internal static class DataModuleBuilder
 #pragma warning disable CS0618
                 Content = ContentBodyResolver.GetHtml(document, bodyStore),
 #pragma warning restore CS0618
-                Fields = document.Fields
+                Fields = document.CustomFields
             });
         }
 
@@ -76,13 +76,13 @@ internal static class DataModuleBuilder
         var map = new Dictionary<string, List<ModuleInfo>>(StringComparer.OrdinalIgnoreCase);
         foreach (var document in dataDocuments)
         {
-            var sourceKey = ContentFieldReader.GetText(document.Fields, "sourceKey") ?? string.Empty;
+            var sourceKey = ContentFieldReader.GetText(document.CustomFields, "sourceKey") ?? string.Empty;
             if (string.IsNullOrWhiteSpace(sourceKey))
             {
                 continue;
             }
 
-            var enabled = ContentFieldReader.GetBool(document.Fields, "enabled");
+            var enabled = ContentFieldReader.GetBool(document.CustomFields, "enabled");
             if (enabled is false)
             {
                 continue;
@@ -102,7 +102,7 @@ internal static class DataModuleBuilder
 #pragma warning disable CS0618
                 Content = ContentBodyResolver.GetHtml(document, bodyStore),
 #pragma warning restore CS0618
-                Fields = document.Fields
+                Fields = document.CustomFields
             });
         }
 

@@ -42,13 +42,13 @@ public sealed class BodyCacheDecorator : IContentBodyStore
     {
         Interlocked.Increment(ref _totalRequests);
 
-        if (!string.IsNullOrWhiteSpace(document.ContentHtml))
+        if (!string.IsNullOrWhiteSpace(document.Body.Html))
         {
             Interlocked.Increment(ref _inlineBypasses);
-            return new ContentBody(document.ContentHtml);
+            return new ContentBody(document.Body.Html);
         }
 
-        var key = document.BodyKey ?? document.Id;
+        var key = document.Body.BodyKey ?? document.Id;
         if (_cache.TryGetValue(key, out var lazy))
         {
             Interlocked.Increment(ref _cacheHits);

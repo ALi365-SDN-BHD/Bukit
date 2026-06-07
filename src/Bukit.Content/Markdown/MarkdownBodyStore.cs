@@ -7,17 +7,17 @@ public sealed class MarkdownBodyStore : IContentBodyStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrWhiteSpace(document.ContentHtml))
+        if (!string.IsNullOrWhiteSpace(document.Body.Html))
         {
-            return new ContentBody(document.ContentHtml);
+            return new ContentBody(document.Body.Html);
         }
 
-        if (string.IsNullOrWhiteSpace(document.BodyKey))
+        if (string.IsNullOrWhiteSpace(document.Body.BodyKey))
         {
             throw new InvalidOperationException($"Markdown document '{document.Id}' is missing BodyKey.");
         }
 
-        var html = await MarkdownFolderProvider.RenderHtmlFromFileAsync(document.BodyKey, cancellationToken);
+        var html = await MarkdownFolderProvider.RenderHtmlFromFileAsync(document.Body.BodyKey, cancellationToken);
         return new ContentBody(html);
     }
 }

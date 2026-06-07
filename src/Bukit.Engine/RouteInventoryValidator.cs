@@ -29,7 +29,7 @@ public static class RouteInventoryValidator
         var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents);
         if (!config.Build.Draft)
         {
-            documents = documents.Where(i => ContentFieldReader.GetBool(i.Fields, "draft") is not true).ToList();
+            documents = documents.Where(i => ContentFieldReader.GetBool(i.CustomFields, "draft") is not true).ToList();
         }
 
         var siteLanguages = config.Site.Languages;

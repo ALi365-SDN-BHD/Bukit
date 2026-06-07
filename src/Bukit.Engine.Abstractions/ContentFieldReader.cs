@@ -3,22 +3,22 @@ namespace Bukit.Engine.Abstractions.Content;
 public static class ContentFieldReader
 {
     public static string? GetText(RawContentDocument document, string key)
-        => GetText(document.Fields, key);
+        => GetText(document.CustomFields, key);
 
     public static string? GetText(ContentDocument document, string key)
-        => GetText(document.Fields, key);
+        => GetText(document.CustomFields, key);
 
     public static string GetContentType(RawContentDocument document, string defaultType = "")
-        => GetText(document.Fields, "type") ?? defaultType;
+        => GetText(document.CustomFields, "type") ?? defaultType;
 
     public static string GetContentType(ContentDocument document, string defaultType = "")
-        => document.Record.Identity.ContentType ?? GetText(document.Fields, "type") ?? defaultType;
+        => document.Record.Identity.ContentType ?? GetText(document.CustomFields, "type") ?? defaultType;
 
     public static string GetCollection(RawContentDocument document, string defaultCollection = "")
-        => GetText(document.Fields, "collection") ?? defaultCollection;
+        => GetText(document.CustomFields, "collection") ?? defaultCollection;
 
     public static string GetCollection(ContentDocument document, string defaultCollection = "")
-        => document.Record.Classification.Collection ?? GetText(document.Fields, "collection") ?? defaultCollection;
+        => document.Record.Classification.Collection ?? GetText(document.CustomFields, "collection") ?? defaultCollection;
 
     public static string? GetEffectiveCollection(ContentDocument document, string? defaultCollection = null)
     {
@@ -38,16 +38,16 @@ public static class ContentFieldReader
     }
 
     public static IReadOnlyList<string> GetTextValues(ContentDocument document, string key)
-        => GetTextList(document.Fields, key) ?? Array.Empty<string>();
+        => GetTextList(document.CustomFields, key) ?? Array.Empty<string>();
 
     public static string? GetSummary(ContentDocument document)
         => document.Record.Presentation.Summary
-           ?? GetText(document.Fields, "summary")
-           ?? GetText(document.Fields, "description")
-           ?? GetText(document.Fields, "excerpt");
+           ?? GetText(document.CustomFields, "summary")
+           ?? GetText(document.CustomFields, "description")
+           ?? GetText(document.CustomFields, "excerpt");
 
     public static bool IsDataItem(ContentDocument document)
-        => string.Equals(GetText(document.Fields, "sourceMode"), "data", StringComparison.OrdinalIgnoreCase);
+        => string.Equals(GetText(document.CustomFields, "sourceMode"), "data", StringComparison.OrdinalIgnoreCase);
 
     public static bool TryGetI18nKey(IReadOnlyDictionary<string, ContentField>? fields, out string key)
     {

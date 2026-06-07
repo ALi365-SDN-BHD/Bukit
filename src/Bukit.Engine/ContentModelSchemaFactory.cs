@@ -10,7 +10,7 @@ internal static class ContentModelSchemaFactory
         var explicitSchema = config.Content.ModelSchema;
         var canonicalMappings = new Dictionary<string, CanonicalFieldMapping>(StringComparer.OrdinalIgnoreCase);
         var customFields = new Dictionary<string, CustomFieldDefinition>(StringComparer.OrdinalIgnoreCase);
-        var collectionFields = new Dictionary<string, IReadOnlyList<CustomFieldDefinition>>(StringComparer.OrdinalIgnoreCase);
+        var fieldScopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinition>>(StringComparer.OrdinalIgnoreCase);
         var entityMappings = new Dictionary<string, EntityMapping>(StringComparer.OrdinalIgnoreCase);
         var relationMappings = new Dictionary<string, RelationMapping>(StringComparer.OrdinalIgnoreCase);
 
@@ -48,7 +48,10 @@ internal static class ContentModelSchemaFactory
                 mapping.IdField,
                 mapping.NameField,
                 mapping.Required,
-                ToReferenceRule(mapping.Reference));
+                ToReferenceRule(mapping.Reference),
+                mapping.DescriptionField,
+                mapping.UrlField,
+                mapping.SameAsField);
         }
 
         foreach (var mapping in explicitSchema?.RelationMappings ?? Array.Empty<RelationMappingConfig>())
@@ -58,10 +61,12 @@ internal static class ContentModelSchemaFactory
                 mapping.RelationType,
                 mapping.TargetType,
                 mapping.Required,
-                ToReferenceRule(mapping.Reference));
+                ToReferenceRule(mapping.Reference),
+                mapping.TargetField,
+                mapping.TargetIdField);
         }
 
-        AddCollectionSchemaProjection(config.Site.Collections, customFields, collectionFields);
+        AddCollectionSchemaProjection(config.Site.Collections, fieldScopes);
 
         return new ContentModelSchema(
             ContentTypes: explicitSchema?.ContentTypes,
@@ -70,7 +75,7 @@ internal static class ContentModelSchemaFactory
             SyncStatuses: explicitSchema?.SyncStatuses ?? ContentModelSchemaValidator.Default.SyncStatuses,
             CanonicalMappings: canonicalMappings.Count == 0 ? null : canonicalMappings,
             CustomFields: customFields.Count == 0 ? null : customFields,
-            CollectionFields: collectionFields.Count == 0 ? null : collectionFields,
+            FieldScopes: fieldScopes.Count == 0 ? null : fieldScopes,
             EntityMappings: entityMappings.Count == 0 ? null : entityMappings,
             RelationMappings: relationMappings.Count == 0 ? null : relationMappings,
             Media: explicitSchema?.Media is null
@@ -96,8 +101,7 @@ internal static class ContentModelSchemaFactory
 
     private static void AddCollectionSchemaProjection(
         IReadOnlyDictionary<string, CollectionConfig>? collections,
-        Dictionary<string, CustomFieldDefinition> customFields,
-        Dictionary<string, IReadOnlyList<CustomFieldDefinition>> collectionFields)
+        Dictionary<string, IReadOnlyList<CustomFieldDefinition>> fieldScopes)
     {
         if (collections is null)
         {
@@ -126,13 +130,11 @@ internal static class ContentModelSchemaFactory
                     Max: field.Max,
                     Default: field.Default);
                 projectedFields.Add(projected);
-
-                customFields.TryAdd(field.Name, projected with { Required = false });
             }
 
             if (projectedFields.Count > 0)
             {
-                collectionFields[collectionName] = projectedFields;
+                fieldScopes[collectionName] = projectedFields;
             }
         }
     }

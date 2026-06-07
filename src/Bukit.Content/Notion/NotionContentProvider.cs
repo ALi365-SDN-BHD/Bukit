@@ -175,11 +175,10 @@ public sealed class NotionContentProvider : IContentProvider
                 Title: d.Title,
                 Slug: d.Slug,
                 PublishAt: d.PublishAt,
-                ContentHtml: null,
-                Fields: fields,
-                BodyKey: d.PageId,
-                SourceKind: "notion",
-                SourcePath: d.PageId
+                Body: new RawBody(BodyKey: d.PageId),
+                Properties: RawContentValue.FromFields(fields),
+                Source: new ContentSourceInfo("notion", SourcePath: d.PageId),
+                CustomFields: fields
             ));
         }
 
@@ -190,20 +189,20 @@ public sealed class NotionContentProvider : IContentProvider
                 return string.Empty;
             }
 
-            var draft = draftIndex.GetRequired(item.BodyKey ?? item.Id);
+            var draft = draftIndex.GetRequired(item.Body.BodyKey ?? item.Id);
 
             using var bodyClient = _clientFactory();
             var renderer = new NotionBlocksRenderer(bodyClient);
             var html = await NotionCacheManager.GetOrRenderPageHtmlAsync(renderer, pageHtmlCache, draft.PageId, draft.LastEditedTime, ct, _logger);
 
-            if (string.IsNullOrWhiteSpace(ContentFieldReader.GetText(item.Fields, "summary")) &&
+            if (string.IsNullOrWhiteSpace(ContentFieldReader.GetText(item.CustomFields, "summary")) &&
                 _options.AutoSummary &&
                 !string.IsNullOrWhiteSpace(html))
             {
                 var extracted = NotionAutoSummary.ExtractFromHtml(html, _options.AutoSummaryMaxLength);
                 if (!string.IsNullOrWhiteSpace(extracted))
                 {
-                    if (item.Fields is Dictionary<string, ContentField> mutableFields)
+                    if (item.CustomFields is Dictionary<string, ContentField> mutableFields)
                     {
                         mutableFields["summary"] = new ContentField("text", extracted);
                     }

@@ -268,6 +268,9 @@ public sealed record EntityMappingConfig
     public required string EntityType { get; init; }
     public string? IdField { get; init; }
     public string? NameField { get; init; }
+    public string? DescriptionField { get; init; }
+    public string? UrlField { get; init; }
+    public string? SameAsField { get; init; }
     public bool Required { get; init; }
     public ContentReferenceRuleConfig? Reference { get; init; }
 }
@@ -277,6 +280,8 @@ public sealed record RelationMappingConfig
     public required string RawKey { get; init; }
     public required string RelationType { get; init; }
     public string? TargetType { get; init; }
+    public string? TargetField { get; init; }
+    public string? TargetIdField { get; init; }
     public bool Required { get; init; }
     public ContentReferenceRuleConfig? Reference { get; init; }
 }

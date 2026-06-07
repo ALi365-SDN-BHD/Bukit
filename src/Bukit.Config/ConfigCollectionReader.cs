@@ -341,6 +341,9 @@ internal static class ConfigCollectionReader
                     EntityType = entityType,
                     IdField = ConfigYamlHelpers.GetOptionalString(child, "idField"),
                     NameField = ConfigYamlHelpers.GetOptionalString(child, "nameField"),
+                    DescriptionField = ConfigYamlHelpers.GetOptionalString(child, "descriptionField"),
+                    UrlField = ConfigYamlHelpers.GetOptionalString(child, "urlField"),
+                    SameAsField = ConfigYamlHelpers.GetOptionalString(child, "sameAsField"),
                     Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
                     Reference = ReadReferenceRule(child)
                 };
@@ -359,6 +362,10 @@ internal static class ConfigCollectionReader
                     RawKey = rawKey,
                     RelationType = relationType,
                     TargetType = ConfigYamlHelpers.GetOptionalString(child, "targetType"),
+                    TargetField = ConfigYamlHelpers.GetOptionalString(child, "targetField")
+                        ?? ConfigYamlHelpers.GetOptionalString(child, "labelField"),
+                    TargetIdField = ConfigYamlHelpers.GetOptionalString(child, "targetIdField")
+                        ?? ConfigYamlHelpers.GetOptionalString(child, "idField"),
                     Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
                     Reference = ReadReferenceRule(child)
                 };

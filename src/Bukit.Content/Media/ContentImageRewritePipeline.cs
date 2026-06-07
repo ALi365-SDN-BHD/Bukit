@@ -47,12 +47,14 @@ public sealed class ContentImageRewritePipeline
             try
             {
                 var localizeMemo = new Dictionary<string, string>(StringComparer.Ordinal);
-                var html = await RewriteHtmlAsync(document.ContentHtml, localizeMemo, cancellationToken);
-                var fields = await RewriteFieldsAsync(document.Fields, localizeMemo, cancellationToken);
+                var html = await RewriteHtmlAsync(document.Body.Html, localizeMemo, cancellationToken);
+                var fields = await RewriteFieldsAsync(document.CustomFields, localizeMemo, cancellationToken);
                 results[idx] = document with
                 {
-                    ContentHtml = html,
-                    Fields = fields
+                    Body = document.Body with { Html = html },
+                    CustomFields = fields,
+                    Route = ContentRoutePolicy.FromFields(fields),
+                    Publish = ContentPublishPolicy.FromFields(fields)
                 };
             }
             finally

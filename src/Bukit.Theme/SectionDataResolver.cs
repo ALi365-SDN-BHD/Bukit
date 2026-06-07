@@ -98,7 +98,7 @@ public static class SectionDataResolver
         {
             if (value is null) continue;
 
-            var itemValue = GetFieldValue(document.Fields, key);
+            var itemValue = GetFieldValue(document.CustomFields, key);
             if (itemValue is null) return false;
 
             if (value is bool boolVal)

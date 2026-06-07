@@ -77,7 +77,7 @@ internal static class SearchIndexBuilder
 
     private static bool IsSearchExcluded(ContentDocument document)
     {
-        return ContentFieldReader.GetBool(document.Fields, "searchExclude") is true;
+        return ContentFieldReader.GetBool(document.CustomFields, "searchExclude") is true;
     }
 
     internal static void WriteSearchItem(
@@ -141,7 +141,7 @@ internal static class SearchIndexBuilder
         }
 
         writer.WriteString("language", record.Presentation.Language);
-        writer.WriteString("sourceKey", record.Provenance.Source ?? ContentFieldReader.GetText(document.Fields, "sourceKey") ?? ContentFieldReader.GetText(document.Fields, "source"));
+        writer.WriteString("sourceKey", record.Provenance.Source ?? ContentFieldReader.GetText(document.CustomFields, "sourceKey") ?? ContentFieldReader.GetText(document.CustomFields, "source"));
         writer.WriteString("publishAt", record.Lifecycle.PublishedAt.ToString("O"));
 
         if (record.Entities.Count > 0)

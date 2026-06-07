@@ -96,7 +96,7 @@ public sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
             ["type"] = type ?? string.Empty,
             ["publish_date"] = (record?.Lifecycle.PublishedAt ?? document.PublishAt).DateTime,
             ["summary"] = summary ?? string.Empty,
-            ["fields"] = BuildFieldsObject(document.Fields)
+            ["fields"] = BuildFieldsObject(document.CustomFields)
         };
     }
 

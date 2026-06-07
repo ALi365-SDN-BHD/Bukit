@@ -303,7 +303,7 @@ public static class SeoAlternatesService
         var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var routedDocument in routed)
         {
-            var values = ContentFieldReader.GetTextList(routedDocument.Document.Fields, key);
+            var values = ContentFieldReader.GetTextList(routedDocument.Document.CustomFields, key);
             if (values is null)
             {
                 continue;

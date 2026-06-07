@@ -40,10 +40,10 @@ public static class DataCommand
         foreach (var (type, moduleItems) in byType.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
         {
             var source = "unknown";
-            source = ContentFieldReader.GetText(moduleItems.First().Fields, "sourceKey") ?? source;
+            source = ContentFieldReader.GetText(moduleItems.First().CustomFields, "sourceKey") ?? source;
 
             var sourceMode = "unknown";
-            sourceMode = ContentFieldReader.GetText(moduleItems.First().Fields, "sourceMode") ?? sourceMode;
+            sourceMode = ContentFieldReader.GetText(moduleItems.First().CustomFields, "sourceMode") ?? sourceMode;
 
             var languages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var m in moduleItems)
@@ -57,15 +57,15 @@ public static class DataCommand
             var fieldCount = 0;
             foreach (var m in moduleItems)
             {
-                if (m.Fields is { Count: > 0 } && m.Fields.Count > fieldCount)
-                    fieldCount = m.Fields.Count;
+                if (m.CustomFields is { Count: > 0 } && m.CustomFields.Count > fieldCount)
+                    fieldCount = m.CustomFields.Count;
             }
 
             var allFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var m in moduleItems)
             {
-                if (m.Fields is not null)
-                    foreach (var f in m.Fields.Keys)
+                if (m.CustomFields is not null)
+                    foreach (var f in m.CustomFields.Keys)
                         allFields.Add(f);
             }
 
@@ -98,10 +98,10 @@ public static class DataCommand
             Console.WriteLine($"  {document.Id}");
             Console.WriteLine($"    Title: {document.Title}");
             Console.WriteLine($"    Slug:  {document.Slug}");
-            if (document.Fields is { Count: > 0 })
+            if (document.CustomFields is { Count: > 0 })
             {
                 Console.WriteLine($"    Fields:");
-                foreach (var f in document.Fields.OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase))
+                foreach (var f in document.CustomFields.OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase))
                     Console.WriteLine($"      {f.Key}: {f.Value.Value}");
             }
 
@@ -136,10 +136,10 @@ public static class DataCommand
                 writer.WriteString("id", document.Id);
                 writer.WriteString("title", document.Title);
                 writer.WriteString("slug", document.Slug);
-                if (document.Fields is { Count: > 0 })
+                if (document.CustomFields is { Count: > 0 })
                 {
                     writer.WriteStartObject("fields");
-                    foreach (var f in document.Fields.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+                    foreach (var f in document.CustomFields.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
                     {
                         var val = f.Value.Value;
                         if (val is string s)

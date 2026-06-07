@@ -6,22 +6,6 @@ public sealed record ContentDocument
 {
     public ContentDocument(
         ContentRecord record,
-        string? contentHtml,
-        IReadOnlyDictionary<string, ContentField>? fields,
-        string? bodyKey)
-        : this(
-            record,
-            new ContentBodyRef(contentHtml, bodyKey),
-            ContentRoutePolicy.FromFields(fields),
-            ContentPublishPolicy.FromFields(fields),
-            fields,
-            ContentSourceInfo.Unknown,
-            Array.Empty<ContentDiagnostic>())
-    {
-    }
-
-    public ContentDocument(
-        ContentRecord record,
         ContentBodyRef body,
         ContentRoutePolicy? route = null,
         ContentPublishPolicy? publish = null,
@@ -46,34 +30,12 @@ public sealed record ContentDocument
     public ContentSourceInfo Source { get; init; }
     public IReadOnlyList<ContentDiagnostic> Diagnostics { get; init; }
 
-    public string? ContentHtml
-    {
-        get => Body.Html;
-        init => Body = Body with { Html = value };
-    }
-
-    public string? BodyKey
-    {
-        get => Body.BodyKey;
-        init => Body = Body with { BodyKey = value };
-    }
-
-    public IReadOnlyDictionary<string, ContentField>? Fields
-    {
-        get => CustomFields;
-        init
-        {
-            CustomFields = value;
-            Route = ContentRoutePolicy.FromFields(value);
-            Publish = ContentPublishPolicy.FromFields(value);
-        }
-    }
     public string Id => Record.Identity.Id;
     public string Title => Record.Presentation.Title;
     public string Slug => Record.Identity.Slug;
     public DateTimeOffset PublishAt => Record.Lifecycle.PublishedAt;
 
-    public static ContentDocument Create(
+    internal static ContentDocument Create(
         string id,
         string title,
         string slug,
@@ -126,7 +88,12 @@ public sealed record ContentDocument
             relations,
             media);
 
-        return new ContentDocument(record, contentHtml, fields, bodyKey);
+        return new ContentDocument(
+            record,
+            new ContentBodyRef(contentHtml, bodyKey),
+            ContentRoutePolicy.FromFields(fields),
+            ContentPublishPolicy.FromFields(fields),
+            fields);
     }
 
     private static IReadOnlyList<string> MergeLists(params IReadOnlyList<string>?[] lists)

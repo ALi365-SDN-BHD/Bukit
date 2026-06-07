@@ -250,7 +250,7 @@ public static class RouteGenerator
             document.Title,
             document.Slug,
             document.PublishAt,
-            document.Fields,
+            document.CustomFields,
             document.Record.Identity.ContentType,
             document.Record.Classification.Collection);
 

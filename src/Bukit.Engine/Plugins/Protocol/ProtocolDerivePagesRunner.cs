@@ -76,12 +76,12 @@ internal sealed class ProtocolDerivePagesRunner
             var fields = page.Fields is null
                 ? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                 : new Dictionary<string, object>(JsonElementMaterializer.Materialize(page.Fields)!, StringComparer.OrdinalIgnoreCase);
-            var document = ContentDocument.Create(
+            var document = DerivedContentDocumentFactory.Create(
                 page.Id,
                 page.Title,
                 page.Slug,
                 page.PublishAt,
-                page.ContentHtml,
+                new ContentBodyRef(Html: page.ContentHtml),
                 ContentFieldReader.ToFieldMap(fields));
             var route = new RouteInfo(page.Url, page.OutputPath, page.Template);
             var lastModified = page.LastModified ?? page.PublishAt;
@@ -134,7 +134,7 @@ internal sealed class ProtocolDerivePagesRunner
                     ["id"] = document.Document.Id,
                     ["url"] = document.Route.Url,
                     ["outputPath"] = document.Route.OutputPath,
-                    ["fields"] = ProtocolJsonHelper.ToJsonNode(document.Document.Fields),
+                    ["fields"] = ProtocolJsonHelper.ToJsonNode(document.Document.CustomFields),
                     ["content"] = ProtocolContentJsonBuilder.Build(document.Document.Record)
                 };
             }

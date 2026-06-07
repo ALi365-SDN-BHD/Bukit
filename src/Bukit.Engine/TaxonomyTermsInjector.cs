@@ -22,7 +22,7 @@ internal static class TaxonomyTermsInjector
 
         foreach (var document in dataDocuments)
         {
-            var kind = ContentFieldReader.GetText(document.Fields, "sourceKey") ?? string.Empty;
+            var kind = ContentFieldReader.GetText(document.CustomFields, "sourceKey") ?? string.Empty;
             if (!kind.Equals("categories", StringComparison.OrdinalIgnoreCase) &&
                 !kind.Equals("tags", StringComparison.OrdinalIgnoreCase))
             {

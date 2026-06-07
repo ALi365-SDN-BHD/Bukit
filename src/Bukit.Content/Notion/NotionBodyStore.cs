@@ -17,12 +17,12 @@ internal sealed class NotionBodyStore : IContentBodyStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrWhiteSpace(document.ContentHtml))
+        if (!string.IsNullOrWhiteSpace(document.Body.Html))
         {
-            return new ContentBody(document.ContentHtml);
+            return new ContentBody(document.Body.Html);
         }
 
-        var key = document.BodyKey ?? document.Id;
+        var key = document.Body.BodyKey ?? document.Id;
         var lazy = _cache.GetOrAdd(
             key,
             _ => new Lazy<Task<ContentBody>>(

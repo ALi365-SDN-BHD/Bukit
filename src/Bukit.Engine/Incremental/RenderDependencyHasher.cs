@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Bukit.Config;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 
 namespace Bukit.Engine.Incremental;
@@ -95,7 +96,7 @@ internal static class RenderDependencyHasher
         IncrementalBuildEngine.AppendUtf8(hasher, config.Build.ListPageContentMode);
         hasher.AppendData(newline);
 
-        AppendStableCollectionConfig(hasher, config.Site.Collections);
+        AppendStableCollectionConfig(hasher, config);
 
         AppendStableTaxonomyConfig(hasher, config.Taxonomy);
 
@@ -220,8 +221,9 @@ internal static class RenderDependencyHasher
         }
     }
 
-    private static void AppendStableCollectionConfig(IncrementalHash hasher, IReadOnlyDictionary<string, CollectionConfig>? collections)
+    private static void AppendStableCollectionConfig(IncrementalHash hasher, AppConfig config)
     {
+        var collections = config.Site.Collections;
         if (collections is null || collections.Count == 0) return;
         Span<byte> newline = stackalloc byte[1];
         newline[0] = (byte)'\n';
@@ -284,35 +286,49 @@ internal static class RenderDependencyHasher
                     IncrementalBuildEngine.AppendUtf8(hasher, fl.ListTemplate);
                 }
             }
-            if (kv.Value.Schema is { Count: > 0 })
+        }
+
+        AppendStableFieldScopes(hasher, ContentModelSchemaFactory.FromConfig(config).FieldScopes);
+    }
+
+    private static void AppendStableFieldScopes(
+        IncrementalHash hasher,
+        IReadOnlyDictionary<string, IReadOnlyList<CustomFieldDefinition>>? fieldScopes)
+    {
+        if (fieldScopes is null || fieldScopes.Count == 0) return;
+        Span<byte> newline = stackalloc byte[1];
+        newline[0] = (byte)'\n';
+        foreach (var scope in fieldScopes.OrderBy(x => x.Key, StringComparer.Ordinal))
+        {
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, scope.Key);
+            foreach (var field in scope.Value.OrderBy(x => x.Name, StringComparer.Ordinal))
             {
-                foreach (var sf in kv.Value.Schema.OrderBy(x => x.Name, StringComparer.Ordinal))
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, field.Name);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, field.FieldType);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, field.Label);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, field.Format);
+                if (field.Enum is { Count: > 0 })
                 {
-                    hasher.AppendData(newline);
-                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Name);
-                    hasher.AppendData(newline);
-                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Type);
-                    hasher.AppendData(newline);
-                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Label);
-                    hasher.AppendData(newline);
-                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Format);
-                    if (sf.Enum is { Count: > 0 })
+                    foreach (var value in field.Enum.OrderBy(x => x, StringComparer.Ordinal))
                     {
-                        foreach (var e in sf.Enum.OrderBy(x => x, StringComparer.Ordinal))
-                        {
-                            hasher.AppendData(newline);
-                            IncrementalBuildEngine.AppendUtf8(hasher, e);
-                        }
+                        hasher.AppendData(newline);
+                        IncrementalBuildEngine.AppendUtf8(hasher, value);
                     }
-                    hasher.AppendData(newline);
-                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Min?.ToString());
-                    hasher.AppendData(newline);
-                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Max?.ToString());
-                    hasher.AppendData(newline);
-                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Required.ToString());
-                    hasher.AppendData(newline);
-                    IncrementalBuildEngine.AppendUtf8(hasher, sf.Default?.ToString());
                 }
+
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, field.Min?.ToString());
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, field.Max?.ToString());
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, field.Required.ToString());
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, field.Default?.ToString());
             }
         }
     }

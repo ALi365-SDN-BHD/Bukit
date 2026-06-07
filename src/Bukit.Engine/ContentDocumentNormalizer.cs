@@ -18,12 +18,12 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
     public ContentDocument Normalize(RawContentDocument raw, ContentModelSchema? schema = null)
     {
         var fields = ApplySchemaDefaults(
-            ApplyCanonicalMappings(raw.CustomFields ?? ToFieldMap(raw.Properties), schema),
+            ApplyCanonicalMappings(BuildInputFieldMap(raw), schema),
             schema);
         var diagnostics = BuildDiagnostics(raw, fields, schema);
         var normalizedRaw = raw with { CustomFields = fields };
         return new ContentDocument(
-            CanonicalContentGraphBuilder.ToRecord(normalizedRaw),
+            CanonicalContentGraphBuilder.ToRecord(normalizedRaw, schema),
             new ContentBodyRef(raw.Body.InlineHtml, raw.Body.BodyKey, raw.Body.Markdown, raw.Body.PlainText),
             ContentRoutePolicy.FromFields(fields),
             ContentPublishPolicy.FromFields(fields),
@@ -116,13 +116,36 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
         var collection = ContentFieldReader.GetText(fields, "collection")
             ?? ContentFieldReader.GetText(fields, "type");
         if (!string.IsNullOrWhiteSpace(collection) &&
-            schema.CollectionFields?.TryGetValue(collection, out var collectionFields) is true)
+            schema.FieldScopes?.TryGetValue(collection, out var scopedFields) is true)
         {
-            foreach (var definition in collectionFields)
+            foreach (var definition in scopedFields)
             {
                 yield return definition;
             }
         }
+    }
+
+    private static IReadOnlyDictionary<string, ContentField>? BuildInputFieldMap(RawContentDocument raw)
+    {
+        if (raw.Properties is null || raw.Properties.Count == 0)
+        {
+            return raw.CustomFields;
+        }
+
+        if (raw.CustomFields is null || raw.CustomFields.Count == 0)
+        {
+            return ToFieldMap(raw.Properties);
+        }
+
+        var fields = new Dictionary<string, ContentField>(
+            ToFieldMap(raw.Properties) ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in raw.CustomFields)
+        {
+            fields[key] = value;
+        }
+
+        return fields;
     }
 
     private static IReadOnlyDictionary<string, ContentField>? ToFieldMap(IReadOnlyDictionary<string, RawContentValue>? properties)
@@ -191,9 +214,9 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
         var collection = ContentFieldReader.GetText(fields, "collection")
             ?? ContentFieldReader.GetText(fields, "type");
         if (!string.IsNullOrWhiteSpace(collection) &&
-            schema.CollectionFields?.TryGetValue(collection, out var collectionFields) is true)
+            schema.FieldScopes?.TryGetValue(collection, out var scopedFields) is true)
         {
-            foreach (var definition in collectionFields)
+            foreach (var definition in scopedFields)
             {
                 if (definition.Required && !ContentFieldReader.TryGetField(fields, definition.Name, out _))
                 {
@@ -209,7 +232,7 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
 
         if (schema.RejectUnknownRawKeys && raw.Properties is { Count: > 0 })
         {
-            var allowed = BuildAllowedRawKeys(schema);
+            var allowed = BuildAllowedRawKeys(schema, fields);
             foreach (var key in raw.Properties.Keys)
             {
                 if (!allowed.Contains(key))
@@ -227,7 +250,9 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
         return diagnostics;
     }
 
-    private static HashSet<string> BuildAllowedRawKeys(ContentModelSchema schema)
+    private static HashSet<string> BuildAllowedRawKeys(
+        ContentModelSchema schema,
+        IReadOnlyDictionary<string, ContentField>? fields)
     {
         var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -242,9 +267,12 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
             allowed.Add(definition.Name);
         }
 
-        foreach (var collectionFields in schema.CollectionFields?.Values ?? Array.Empty<IReadOnlyList<CustomFieldDefinition>>())
+        var collection = ContentFieldReader.GetText(fields, "collection")
+            ?? ContentFieldReader.GetText(fields, "type");
+        if (!string.IsNullOrWhiteSpace(collection) &&
+            schema.FieldScopes?.TryGetValue(collection, out var scopedFields) is true)
         {
-            foreach (var definition in collectionFields)
+            foreach (var definition in scopedFields)
             {
                 allowed.Add(definition.Name);
             }

@@ -242,7 +242,7 @@ internal sealed class ProtocolAfterBuildRunner
                     ["id"] = document.Document.Id,
                     ["url"] = document.Route.Url,
                     ["outputPath"] = document.Route.OutputPath,
-                    ["fields"] = ProtocolJsonHelper.ToJsonNode(document.Document.Fields),
+                    ["fields"] = ProtocolJsonHelper.ToJsonNode(document.Document.CustomFields),
                     ["content"] = ProtocolContentJsonBuilder.Build(document.Document.Record)
                 };
             }

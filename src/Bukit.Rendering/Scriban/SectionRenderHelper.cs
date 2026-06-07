@@ -324,10 +324,10 @@ internal sealed class SectionRenderHelper
             obj.SetValue("summary", summary, readOnly: true);
         }
 
-        if (item.Fields is not null)
+        if (item.CustomFields is not null)
         {
             var fieldsObj = new ScriptObject();
-            foreach (var kv in item.Fields)
+            foreach (var kv in item.CustomFields)
             {
                 if (kv.Value.Value is not null) fieldsObj.SetValue(kv.Key, kv.Value.Value, readOnly: true);
             }

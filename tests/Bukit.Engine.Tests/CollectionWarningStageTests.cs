@@ -21,13 +21,15 @@ public sealed class CollectionWarningStageTests
 
     private static ContentDocument CreateDocument(string id, IReadOnlyDictionary<string, object> fields)
     {
+        var fieldMap = ContentFieldReader.ToFieldMap(fields);
         return ContentDocumentNormalizer.ToDocument(new RawContentDocument(
-            id,
-            $"Item {id}",
-            $"item-{id}",
-            DateTimeOffset.UtcNow,
-            "<p>hi</p>",
-            ContentFieldReader.ToFieldMap(fields)));
+            Id: id,
+            Title: $"Item {id}",
+            Slug: $"item-{id}",
+            PublishAt: DateTimeOffset.UtcNow,
+            Body: new RawBody(InlineHtml: "<p>hi</p>"),
+            Properties: RawContentValue.FromFields(fieldMap),
+            CustomFields: fieldMap));
     }
 
     private static ContentStageInput CreateInput(IReadOnlyList<ContentDocument> documents, ILogger logger)
@@ -186,16 +188,18 @@ public sealed class CollectionWarningStageTests
     public async Task ExecuteAsync_FieldOnlyTypeWithoutCollection_EmitsWarning()
     {
         var logger = new TestLogger();
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = new("text", "post")
+        };
         var document = ContentDocumentNormalizer.ToDocument(new RawContentDocument(
-            "field-post",
-            "Field Post",
-            "field-post",
-            DateTimeOffset.UtcNow,
-            "<p>hi</p>",
-            new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["type"] = new("text", "post")
-            }));
+            Id: "field-post",
+            Title: "Field Post",
+            Slug: "field-post",
+            PublishAt: DateTimeOffset.UtcNow,
+            Body: new RawBody(InlineHtml: "<p>hi</p>"),
+            Properties: RawContentValue.FromFields(fields),
+            CustomFields: fields));
         var stage = new CollectionWarningStage();
         var input = CreateInput(new[] { document }, logger);
 

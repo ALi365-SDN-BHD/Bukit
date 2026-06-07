@@ -11,12 +11,13 @@ public sealed class ContentStagesTests
 {
     private static ContentDocument Document(string id, string slug, IReadOnlyDictionary<string, object> fields) =>
         ContentDocumentNormalizer.ToDocument(new RawContentDocument(
-            id,
-            id,
-            slug,
-            DateTimeOffset.UnixEpoch,
-            $"<p>{id}</p>",
-            ContentFieldReader.ToFieldMap(fields)));
+            Id: id,
+            Title: id,
+            Slug: slug,
+            PublishAt: DateTimeOffset.UnixEpoch,
+            Body: new RawBody(InlineHtml: $"<p>{id}</p>"),
+            Properties: RawContentValue.FromFields(ContentFieldReader.ToFieldMap(fields)),
+            CustomFields: ContentFieldReader.ToFieldMap(fields)));
 
     private static AppConfig Config(bool draft = false) => new()
     {
@@ -34,12 +35,13 @@ public sealed class ContentStagesTests
             new[]
             {
                 new RawContentDocument(
-                    "a",
-                    "a",
-                    "a",
-                    DateTimeOffset.UnixEpoch,
-                    "<p>a</p>",
-                    ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page" }))
+                    Id: "a",
+                    Title: "a",
+                    Slug: "a",
+                    PublishAt: DateTimeOffset.UnixEpoch,
+                    Body: new RawBody(InlineHtml: "<p>a</p>"),
+                    Properties: RawContentValue.FromFields(ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page" })),
+                    CustomFields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page" }))
             },
             EmptyContentBodyStore.Instance);
         var factory = new StubContentProviderFactory(loadResult);
@@ -242,9 +244,9 @@ public sealed class ContentStagesTests
         Assert.Equal("Mapped Author", document.Record.Ownership.Author);
         Assert.Equal("reviewed", document.Record.Trust.ReviewStatus);
         Assert.Equal("https://example.com/original", document.Record.Provenance.OriginalSource);
-        Assert.Equal("article", ContentFieldReader.GetText(document.Fields, "type"));
-        Assert.Equal("Mapped summary", ContentFieldReader.GetText(document.Fields, "summary"));
-        Assert.Equal("article", ContentFieldReader.GetText(document.Fields, "kind"));
+        Assert.Equal("article", ContentFieldReader.GetText(document.CustomFields, "type"));
+        Assert.Equal("Mapped summary", ContentFieldReader.GetText(document.CustomFields, "summary"));
+        Assert.Equal("article", ContentFieldReader.GetText(document.CustomFields, "kind"));
         Assert.DoesNotContain(document.Diagnostics, diagnostic =>
             diagnostic.Code == "content.required_canonical_field_missing");
         Assert.Contains(document.Diagnostics, diagnostic =>
@@ -274,8 +276,8 @@ public sealed class ContentStagesTests
 
         var document = ContentDocumentNormalizer.ToDocument(raw, schema);
 
-        Assert.Equal("public", ContentFieldReader.GetText(document.Fields, "audience"));
-        Assert.Equal(3d, ContentFieldReader.GetNumber(document.Fields, "priority"));
+        Assert.Equal("public", ContentFieldReader.GetText(document.CustomFields, "audience"));
+        Assert.Equal(3d, ContentFieldReader.GetNumber(document.CustomFields, "priority"));
     }
 
     [Fact]
@@ -389,6 +391,291 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
+    public void ContentDocumentNormalizer_EnrichesCanonicalGraphFromEntityAndRelationMappings()
+    {
+        var raw = new RawContentDocument(
+            Id: "doc-1",
+            Title: "Doc",
+            Slug: "doc",
+            PublishAt: DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
+            Body: new RawBody(InlineHtml: "<p>Doc</p>"),
+            Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "post"),
+                ["company_refs"] = new("list", new object[]
+                {
+                    new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["id"] = "company-1",
+                        ["name"] = "Bukit Labs",
+                        ["url"] = "https://example.com/companies/bukit-labs"
+                    }
+                }),
+                ["related_refs"] = new("list", new object[]
+                {
+                    new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["id"] = "doc-2",
+                        ["title"] = "Related Doc",
+                        ["url"] = "/docs/related/"
+                    }
+                })
+            });
+        var schema = new ContentModelSchema(
+            EntityMappings: new Dictionary<string, EntityMapping>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["company_refs"] = new(
+                    RawKey: "company_refs",
+                    EntityType: "company",
+                    IdField: "id",
+                    NameField: "name",
+                    Reference: new ContentReferenceRule(TargetType: "company", IdField: "id", LabelField: "name", UrlField: "url"))
+            },
+            RelationMappings: new Dictionary<string, RelationMapping>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["related_refs"] = new(
+                    RawKey: "related_refs",
+                    RelationType: "related-to",
+                    TargetType: "content",
+                    Reference: new ContentReferenceRule(TargetType: "content", IdField: "id", LabelField: "title", UrlField: "url"))
+            });
+
+        var document = ContentDocumentNormalizer.ToDocument(raw, schema);
+
+        var entity = Assert.Single(document.Record.Entities, entity => entity.Type == "company" && entity.Id == "company-1");
+        Assert.Equal("Bukit Labs", entity.Name);
+        Assert.Equal("https://example.com/companies/bukit-labs", entity.Url);
+
+        var relation = Assert.Single(document.Record.Relations, relation => relation.Type == "related-to" && relation.TargetId == "doc-2");
+        Assert.Equal("Related Doc", relation.Target);
+        Assert.Equal("content", relation.TargetType);
+
+        Assert.Contains(document.Record.Relations, relation =>
+            relation.Type == "mentions" &&
+            relation.Target == "Bukit Labs" &&
+            relation.TargetId == "company-1");
+    }
+
+    [Fact]
+    public void ContentDocumentNormalizer_UsesExplicitSchemaMappingFieldsForGraphEnrichment()
+    {
+        var raw = new RawContentDocument(
+            Id: "doc-1",
+            Title: "Doc",
+            Slug: "doc",
+            PublishAt: DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
+            Body: new RawBody(InlineHtml: "<p>Doc</p>"),
+            Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "post"),
+                ["company_refs"] = new("list", new object[]
+                {
+                    new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["companyKey"] = "co-7",
+                        ["legalName"] = "Mapped Company",
+                        ["deck"] = "A schema-mapped company",
+                        ["profile"] = "https://example.com/companies/mapped",
+                        ["aliases"] = new[] { "https://wikidata.example/co-7" }
+                    }
+                }),
+                ["reading_refs"] = new("list", new object[]
+                {
+                    new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["documentKey"] = "doc-99",
+                        ["headline"] = "Mapped Reading"
+                    }
+                })
+            });
+        var schema = new ContentModelSchema(
+            EntityMappings: new Dictionary<string, EntityMapping>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["company_refs"] = new(
+                    RawKey: "company_refs",
+                    EntityType: "company",
+                    IdField: "companyKey",
+                    NameField: "legalName",
+                    DescriptionField: "deck",
+                    UrlField: "profile",
+                    SameAsField: "aliases")
+            },
+            RelationMappings: new Dictionary<string, RelationMapping>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["reading_refs"] = new(
+                    RawKey: "reading_refs",
+                    RelationType: "references",
+                    TargetType: "content",
+                    TargetField: "headline",
+                    TargetIdField: "documentKey")
+            });
+
+        var document = ContentDocumentNormalizer.ToDocument(raw, schema);
+
+        var entity = Assert.Single(document.Record.Entities, entity => entity.Type == "company" && entity.Id == "co-7");
+        Assert.Equal("Mapped Company", entity.Name);
+        Assert.Equal("A schema-mapped company", entity.Description);
+        Assert.Equal("https://example.com/companies/mapped", entity.Url);
+        Assert.Equal(new[] { "https://wikidata.example/co-7" }, entity.SameAs);
+
+        var relation = Assert.Single(document.Record.Relations, relation => relation.Type == "references" && relation.TargetId == "doc-99");
+        Assert.Equal("Mapped Reading", relation.Target);
+        Assert.Equal("content", relation.TargetType);
+
+        Assert.Contains(document.Record.Relations, relation =>
+            relation.Type == "mentions" &&
+            relation.Target == "Mapped Company" &&
+            relation.TargetId == "co-7");
+    }
+
+    [Fact]
+    public void ContentDocumentNormalizer_EnrichesCanonicalGraphFromRawPropertiesWhenCustomFieldsExist()
+    {
+        var raw = new RawContentDocument(
+            Id: "doc-1",
+            Title: "Doc",
+            Slug: "doc",
+            PublishAt: DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
+            Body: new RawBody(InlineHtml: "<p>Doc</p>"),
+            Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["company_refs"] = new("list", new object[]
+                {
+                    new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["companyKey"] = "co-raw",
+                        ["legalName"] = "Raw Property Company"
+                    }
+                }),
+                ["reading_refs"] = new("list", new object[]
+                {
+                    new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["documentKey"] = "doc-raw",
+                        ["headline"] = "Raw Property Reading"
+                    }
+                })
+            },
+            CustomFields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "post",
+                ["summary"] = "Custom fields should not hide raw mapping fields."
+            }));
+        var schema = new ContentModelSchema(
+            EntityMappings: new Dictionary<string, EntityMapping>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["company_refs"] = new(
+                    RawKey: "company_refs",
+                    EntityType: "company",
+                    IdField: "companyKey",
+                    NameField: "legalName")
+            },
+            RelationMappings: new Dictionary<string, RelationMapping>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["reading_refs"] = new(
+                    RawKey: "reading_refs",
+                    RelationType: "references",
+                    TargetType: "content",
+                    TargetField: "headline",
+                    TargetIdField: "documentKey")
+            });
+
+        var document = ContentDocumentNormalizer.ToDocument(raw, schema);
+
+        var entity = Assert.Single(document.Record.Entities, entity => entity.Type == "company" && entity.Id == "co-raw");
+        Assert.Equal("Raw Property Company", entity.Name);
+
+        var relation = Assert.Single(document.Record.Relations, relation => relation.Type == "references" && relation.TargetId == "doc-raw");
+        Assert.Equal("Raw Property Reading", relation.Target);
+        Assert.Equal("content", relation.TargetType);
+
+        Assert.Contains(document.Record.Relations, relation =>
+            relation.Type == "mentions" &&
+            relation.Target == "Raw Property Company" &&
+            relation.TargetId == "co-raw");
+    }
+
+    [Fact]
+    public async Task ContentLoadStage_EnrichesCanonicalGraphFromConfiguredEntityAndRelationMappings()
+    {
+        var loadResult = new RawContentLoadResult(
+            new[]
+            {
+                new RawContentDocument(
+                    Id: "doc-1",
+                    Title: "Doc",
+                    Slug: "doc",
+                    PublishAt: DateTimeOffset.UnixEpoch,
+                    Body: new RawBody(InlineHtml: "<p>doc</p>"),
+                    Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["type"] = new("text", "post"),
+                        ["company_refs"] = new("list", new object[]
+                        {
+                            new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                ["id"] = "company-1",
+                                ["name"] = "Bukit Labs"
+                            }
+                        }),
+                        ["related_refs"] = new("list", new object[]
+                        {
+                            new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                ["id"] = "doc-2",
+                                ["title"] = "Related Doc"
+                            }
+                        })
+                    })
+            },
+            EmptyContentBodyStore.Instance);
+        var config = Config() with
+        {
+            Content = Config().Content with
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    EntityMappings = new[]
+                    {
+                        new EntityMappingConfig
+                        {
+                            RawKey = "company_refs",
+                            EntityType = "company",
+                            IdField = "id",
+                            NameField = "name"
+                        }
+                    },
+                    RelationMappings = new[]
+                    {
+                        new RelationMappingConfig
+                        {
+                            RawKey = "related_refs",
+                            RelationType = "related-to",
+                            TargetType = "content",
+                            Reference = new ContentReferenceRuleConfig { IdField = "id", LabelField = "title" }
+                        }
+                    }
+                }
+            }
+        };
+        var stage = new ContentLoadStage(new StubContentProviderFactory(loadResult));
+        var input = new ContentStageInput(Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
+
+        var output = await stage.ExecuteAsync(input, CancellationToken.None);
+
+        var document = Assert.Single(output.Documents);
+        Assert.Contains(document.Record.Entities, entity =>
+            entity.Type == "company" &&
+            entity.Id == "company-1" &&
+            entity.Name == "Bukit Labs");
+        Assert.Contains(document.Record.Relations, relation =>
+            relation.Type == "related-to" &&
+            relation.TargetType == "content" &&
+            relation.TargetId == "doc-2" &&
+            relation.Target == "Related Doc");
+    }
+
+    [Fact]
     public async Task ContentGraphValidateStage_UsesCollectionSchemaProjection()
     {
         var loadResult = new RawContentLoadResult(
@@ -455,6 +742,70 @@ public sealed class ContentStagesTests
         Assert.DoesNotContain(validated.SchemaErrors, error =>
             error.Code == "content.required_collection_field_missing" &&
             error.SourcePath == "page-1");
+    }
+
+    [Fact]
+    public async Task ContentLoadStage_TreatsCollectionSchemaProjectionAsCollectionScoped()
+    {
+        var loadResult = new RawContentLoadResult(
+            new[]
+            {
+                new RawContentDocument(
+                    Id: "post-1",
+                    Title: "Post",
+                    Slug: "post-1",
+                    PublishAt: DateTimeOffset.UnixEpoch,
+                    Body: new RawBody(InlineHtml: "<p>post</p>"),
+                    Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["collection"] = new("text", "posts"),
+                        ["type"] = new("text", "post"),
+                        ["postOnly"] = new("text", "allowed"),
+                        ["pageOnly"] = new("text", "wrong collection")
+                    })
+            },
+            EmptyContentBodyStore.Instance);
+        var config = Config() with
+        {
+            Site = Config().Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["posts"] = new()
+                    {
+                        Permalink = "/posts/{slug}/",
+                        Schema = new[]
+                        {
+                            new SchemaFieldDefinition { Name = "postOnly" }
+                        }
+                    },
+                    ["pages"] = new()
+                    {
+                        Permalink = "/{slug}/",
+                        Schema = new[]
+                        {
+                            new SchemaFieldDefinition { Name = "pageOnly" }
+                        }
+                    }
+                }
+            },
+            Content = Config().Content with
+            {
+                ModelSchema = new ContentModelSchemaConfig { RejectUnknownRawKeys = true }
+            }
+        };
+        var loadStage = new ContentLoadStage(new StubContentProviderFactory(loadResult));
+        var input = new ContentStageInput(Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
+
+        var loaded = await loadStage.ExecuteAsync(input, CancellationToken.None);
+
+        var document = Assert.Single(loaded.Documents);
+        Assert.Contains(document.Diagnostics, diagnostic =>
+            diagnostic.Code == "content.unknown_raw_key" &&
+            diagnostic.Field == "pageOnly");
+        Assert.DoesNotContain(document.Diagnostics, diagnostic =>
+            diagnostic.Code == "content.unknown_raw_key" &&
+            diagnostic.Field == "postOnly");
     }
 
     [Fact]

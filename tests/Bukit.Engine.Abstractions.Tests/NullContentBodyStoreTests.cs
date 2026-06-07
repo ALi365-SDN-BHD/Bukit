@@ -84,6 +84,11 @@ public class NullContentBodyStoreTests
             Array.Empty<ContentRelation>(),
             Array.Empty<MediaAsset>());
 
-        return new ContentDocument(record, contentHtml, fields, null);
+        return new ContentDocument(
+            record,
+            new ContentBodyRef(contentHtml),
+            ContentRoutePolicy.FromFields(fields),
+            ContentPublishPolicy.FromFields(fields),
+            fields);
     }
 }

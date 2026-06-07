@@ -52,7 +52,7 @@ public sealed class TaxonomyEnsureTermsTests
         Assert.Contains(derived, x => x.Route.Url == "/categories/");
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
 
-        var fields = term.Document.Fields;
+        var fields = term.Document.CustomFields;
         Assert.NotNull(fields);
         Assert.True(fields!.ContainsKey("items"));
         var itemsField = fields["items"];

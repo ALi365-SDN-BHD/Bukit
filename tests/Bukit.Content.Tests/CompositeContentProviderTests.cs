@@ -76,9 +76,9 @@ public sealed class CompositeContentProviderTests
         Assert.Equal("notion:item-1", result.Documents[0].Id);
         Assert.Equal("markdown:item-2", result.Documents[1].Id);
 
-        Assert.Equal("notion", ContentFieldReader.GetText(result.Documents[0].Fields, "sourceKey"));
+        Assert.Equal("notion", ContentFieldReader.GetText(result.Documents[0].CustomFields, "sourceKey"));
 
-        Assert.Equal("markdown", ContentFieldReader.GetText(result.Documents[1].Fields, "sourceKey"));
+        Assert.Equal("markdown", ContentFieldReader.GetText(result.Documents[1].CustomFields, "sourceKey"));
     }
 
     [Fact]
@@ -101,11 +101,11 @@ public sealed class CompositeContentProviderTests
 
         Assert.Equal(3, result.Documents.Count);
         Assert.Equal("companies-db:company-1", result.Documents[0].Id);
-        Assert.Equal("companies", ContentFieldReader.GetText(result.Documents[0].Fields, "collection"));
+        Assert.Equal("companies", ContentFieldReader.GetText(result.Documents[0].CustomFields, "collection"));
         Assert.Equal("companies-db:company-1:china_companies", result.Documents[1].Id);
-        Assert.Equal("china_companies", ContentFieldReader.GetText(result.Documents[1].Fields, "collection"));
+        Assert.Equal("china_companies", ContentFieldReader.GetText(result.Documents[1].CustomFields, "collection"));
         Assert.Equal("companies-db:company-1:malaysia_companies", result.Documents[2].Id);
-        Assert.Equal("malaysia_companies", ContentFieldReader.GetText(result.Documents[2].Fields, "collection"));
+        Assert.Equal("malaysia_companies", ContentFieldReader.GetText(result.Documents[2].CustomFields, "collection"));
     }
 
     [Fact]
@@ -189,8 +189,7 @@ public sealed class CompositeContentProviderTests
             Title: title,
             Slug: slug,
             PublishAt: DateTimeOffset.UtcNow,
-            ContentHtml: null,
-            Fields: null);
+            Body: new RawBody());
 
     private sealed class NullBodyStore : IContentBodyStore
     {

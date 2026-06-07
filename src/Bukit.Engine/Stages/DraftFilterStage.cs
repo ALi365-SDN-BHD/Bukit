@@ -18,7 +18,7 @@ internal sealed class DraftFilterStage : IContentStage
         var documentCount = documents.Length;
         var before = documentCount;
         var filteredDocuments = documents
-            .Where(document => ContentFieldReader.GetBool(document.Fields, "draft") is not true)
+            .Where(document => ContentFieldReader.GetBool(document.CustomFields, "draft") is not true)
             .ToArray();
 
         if (filteredDocuments.Length < before)

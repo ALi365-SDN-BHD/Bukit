@@ -42,9 +42,9 @@ public sealed class CompositeContentProvider : IContentProvider
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var fields = item.Fields is null
+                var fields = item.CustomFields is null
                     ? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
-                    : new Dictionary<string, ContentField>(item.Fields, StringComparer.OrdinalIgnoreCase);
+                    : new Dictionary<string, ContentField>(item.CustomFields, StringComparer.OrdinalIgnoreCase);
 
                 fields["sourceKey"] = new ContentField("text", sourceKey);
                 fields["sourceMode"] = new ContentField("text", sourceMode);
@@ -57,10 +57,14 @@ public sealed class CompositeContentProvider : IContentProvider
                 all.Add(item with
                 {
                     Id = $"{sourceKey}:{item.Id}",
-                    BodyKey = item.BodyKey is null
-                        ? $"{sourceKey}:{item.Id}"
-                        : $"{sourceKey}:{item.BodyKey}",
-                    Fields = fields
+                    Body = item.Body with
+                    {
+                        BodyKey = item.Body.BodyKey is null
+                            ? $"{sourceKey}:{item.Id}"
+                            : $"{sourceKey}:{item.Body.BodyKey}"
+                    },
+                    CustomFields = fields,
+                    Properties = RawContentValue.FromFields(fields)
                 });
 
                 if (addToCollections is null)
@@ -83,10 +87,14 @@ public sealed class CompositeContentProvider : IContentProvider
                     all.Add(item with
                     {
                         Id = $"{sourceKey}:{item.Id}:{extraCollection.Trim()}",
-                        BodyKey = item.BodyKey is null
-                            ? $"{sourceKey}:{item.Id}"
-                            : $"{sourceKey}:{item.BodyKey}",
-                        Fields = extraFields
+                        Body = item.Body with
+                        {
+                            BodyKey = item.Body.BodyKey is null
+                                ? $"{sourceKey}:{item.Id}"
+                                : $"{sourceKey}:{item.Body.BodyKey}"
+                        },
+                        CustomFields = extraFields,
+                        Properties = RawContentValue.FromFields(extraFields)
                     });
                 }
             }

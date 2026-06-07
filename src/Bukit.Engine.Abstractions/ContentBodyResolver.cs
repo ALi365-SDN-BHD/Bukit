@@ -6,9 +6,9 @@ public static class ContentBodyResolver
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrEmpty(document.ContentHtml))
+        if (!string.IsNullOrEmpty(document.Body.Html))
         {
-            return document.ContentHtml;
+            return document.Body.Html;
         }
 
         var body = await bodyStore.GetAsync(document, cancellationToken);
@@ -18,9 +18,9 @@ public static class ContentBodyResolver
     [Obsolete("Blocking. Use GetHtmlAsync instead to avoid sync-over-async deadlocks.")]
     public static string GetHtml(ContentDocument document, IContentBodyStore bodyStore)
     {
-        if (!string.IsNullOrEmpty(document.ContentHtml))
+        if (!string.IsNullOrEmpty(document.Body.Html))
         {
-            return document.ContentHtml;
+            return document.Body.Html;
         }
 
         return bodyStore.GetAsync(document).GetAwaiter().GetResult().Html;

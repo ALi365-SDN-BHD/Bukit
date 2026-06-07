@@ -201,9 +201,9 @@ public sealed class PaginationPluginDerivePagesTests
         var derived = plugin.DerivePages(ctx);
 
         var page2 = Assert.Single(derived, x => x.Route.Url == "/blog/page/2/");
-        Assert.NotNull(page2.Document.Fields);
-        Assert.True(page2.Document.Fields!.ContainsKey("items"));
-        var itemsField = page2.Document.Fields["items"];
+        Assert.NotNull(page2.Document.CustomFields);
+        Assert.True(page2.Document.CustomFields!.ContainsKey("items"));
+        var itemsField = page2.Document.CustomFields["items"];
         Assert.Equal("list", itemsField.Type);
     }
 
@@ -237,7 +237,7 @@ public sealed class PaginationPluginDerivePagesTests
         var derived = new PaginationPlugin().DerivePages(ctx);
 
         var page2 = Assert.Single(derived, x => x.Route.Url == "/blog/page/2/");
-        var items = Assert.IsType<List<object>>(page2.Document.Fields!["items"].Value);
+        var items = Assert.IsType<List<object>>(page2.Document.CustomFields!["items"].Value);
         var first = Assert.IsType<Dictionary<string, object>>(items[0]);
         Assert.Equal("Canonical summary 6", first["summary"]);
     }

@@ -19,7 +19,7 @@ internal static class SeoGeoMetaParser
     }
 
     internal static ParsedGeoMeta ParseGeoMeta(ContentDocument document)
-        => ParseGeoMeta(document.Fields);
+        => ParseGeoMeta(document.CustomFields);
 
     internal static ParsedGeoMeta ParseGeoMeta(IReadOnlyDictionary<string, ContentField>? fields)
     {

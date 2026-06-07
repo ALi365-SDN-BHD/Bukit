@@ -16,7 +16,7 @@ internal static class SeoModelBuilder
         IReadOnlyList<SeoAlternateModel>? alternates = null)
     {
         var record = document.Record;
-        var fields = document.Fields;
+        var fields = document.CustomFields;
         var title = FirstTextField(fields, "seo_title") ?? FirstTextField(fields, "seotitle") ?? document.Title;
         var description = FirstTextField(fields, "seo_desc") ?? FirstTextField(fields, "seodesc") ?? record.Presentation.Summary ?? config.Site.Description;
         var canonical = FirstTextField(fields, "canonical") ?? BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url);
@@ -141,7 +141,7 @@ internal static class SeoModelBuilder
 
     internal static string BuildAlternateKey(ContentDocument document, RouteInfo route)
     {
-        return ContentFieldReader.TryGetI18nKey(document.Fields, out var key) ? $"i18n:{key}" : $"route:{route.Url}";
+        return ContentFieldReader.TryGetI18nKey(document.CustomFields, out var key) ? $"i18n:{key}" : $"route:{route.Url}";
     }
 
     internal static string BuildListAlternateKey(RouteInfo route) => $"route:{route.Url}";
@@ -236,7 +236,7 @@ internal static class SeoModelBuilder
     }
 
     internal static bool TryGetUpdateTime(ContentDocument document, out DateTimeOffset updated)
-        => TryGetUpdateTime(document.Fields, out updated);
+        => TryGetUpdateTime(document.CustomFields, out updated);
 
     internal static bool TryGetUpdateTime(IReadOnlyDictionary<string, ContentField>? fields, out DateTimeOffset updated)
     {

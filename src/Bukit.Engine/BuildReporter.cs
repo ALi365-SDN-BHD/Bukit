@@ -231,7 +231,7 @@ internal static class BuildReporter
     {
         foreach (var key in new[] { "source", "sourcePath", "path", "file" })
         {
-            var value = ContentFieldReader.GetText(document.Fields, key);
+            var value = ContentFieldReader.GetText(document.CustomFields, key);
             if (!string.IsNullOrWhiteSpace(value))
             {
                 return value;

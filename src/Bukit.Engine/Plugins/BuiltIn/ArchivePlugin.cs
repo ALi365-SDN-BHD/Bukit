@@ -99,7 +99,13 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = collectionKey,
             ["summary"] = $"Browse archived {collectionKey} entries by year."
         };
-        var document = ContentDocument.Create($"{collectionKey}-archive-index", "Archive", "archive", now, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
+        var document = DerivedContentDocumentFactory.Create(
+            $"{collectionKey}-archive-index",
+            "Archive",
+            "archive",
+            now,
+            new ContentBodyRef(Html: sb.ToString()),
+            ContentFieldReader.ToFieldMap(meta));
         return new RoutedContentDocument(document, route, now);
     }
 
@@ -136,7 +142,13 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = collectionKey,
             ["summary"] = $"Browse {collectionKey} entries published in {year}."
         };
-        var document = ContentDocument.Create($"{collectionKey}-archive-{year}", $"Archive: {year}", $"archive-{year}", publishAt, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
+        var document = DerivedContentDocumentFactory.Create(
+            $"{collectionKey}-archive-{year}",
+            $"Archive: {year}",
+            $"archive-{year}",
+            publishAt,
+            new ContentBodyRef(Html: sb.ToString()),
+            ContentFieldReader.ToFieldMap(meta));
         return new RoutedContentDocument(document, route, publishAt);
     }
 
@@ -171,7 +183,13 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             ["collection"] = collectionKey,
             ["summary"] = $"Browse {collectionKey} entries published in {year}-{month:D2}."
         };
-        var document = ContentDocument.Create($"{collectionKey}-archive-{year}-{month:D2}", $"Archive: {year}-{month:D2}", $"archive-{year}-{month:D2}", publishAt, sb.ToString(), ContentFieldReader.ToFieldMap(meta));
+        var document = DerivedContentDocumentFactory.Create(
+            $"{collectionKey}-archive-{year}-{month:D2}",
+            $"Archive: {year}-{month:D2}",
+            $"archive-{year}-{month:D2}",
+            publishAt,
+            new ContentBodyRef(Html: sb.ToString()),
+            ContentFieldReader.ToFieldMap(meta));
         return new RoutedContentDocument(document, routeInfo, publishAt);
     }
 

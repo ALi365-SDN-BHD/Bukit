@@ -163,13 +163,14 @@ public sealed class ContentProviderFactoryTests
     private static IReadOnlyList<RawContentDocument> ToRawDocuments(IEnumerable<ContentDocument> items)
         => items
             .Select(item => new RawContentDocument(
-                item.Id,
-                item.Title,
-                item.Slug,
-                item.PublishAt,
-                item.ContentHtml,
-                item.Fields,
-                item.BodyKey))
+                Id: item.Id,
+                Title: item.Title,
+                Slug: item.Slug,
+                PublishAt: item.PublishAt,
+                Body: new RawBody(item.Body.Html, item.Body.BodyKey, item.Body.Markdown, item.Body.PlainText),
+                Properties: RawContentValue.FromFields(item.CustomFields),
+                Source: item.Source,
+                CustomFields: item.CustomFields))
             .ToArray();
 
     [Fact]

@@ -76,7 +76,7 @@ internal static class I18nOutputMerger
         {
             if (ContentFieldReader.IsDataItem(document))
             {
-                var locale = ContentFieldReader.GetText(document.Fields, "locale");
+                var locale = ContentFieldReader.GetText(document.CustomFields, "locale");
                 return string.IsNullOrWhiteSpace(locale) || string.Equals(locale, language, StringComparison.OrdinalIgnoreCase);
             }
 
@@ -453,7 +453,7 @@ internal static class I18nOutputMerger
         var language = document.Record.Presentation.Language;
         if (string.IsNullOrWhiteSpace(language) || string.Equals(language, "und", StringComparison.OrdinalIgnoreCase))
         {
-            language = ContentFieldReader.GetText(document.Fields, "language") ?? string.Empty;
+            language = ContentFieldReader.GetText(document.CustomFields, "language") ?? string.Empty;
         }
 
         return document.Id + "\n" + language;

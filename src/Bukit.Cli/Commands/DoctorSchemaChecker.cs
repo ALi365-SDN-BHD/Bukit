@@ -9,50 +9,28 @@ internal static class DoctorSchemaChecker
 {
     public static bool CheckSchemaFieldCompleteness(DoctorCommand.DoctorContext ctx, IReadOnlyList<RoutedContentDocument> routed)
     {
-        var collections = ctx.Config.Site.Collections;
-        if (collections is null || collections.Count == 0)
+        var documents = routed.Select(x => x.Document).ToArray();
+        if (documents.Length == 0)
         {
             return false;
         }
 
-        var hasErrors = false;
         var allErrors = new List<string>();
         var allWarnings = new List<string>();
-
-        foreach (var (collectionName, collectionConfig) in collections)
+        foreach (var err in ContentModelSchemaProjection.ValidateDocuments(ctx.Config, documents))
         {
-            var schema = collectionConfig.Schema;
-            if (schema is null || schema.Count == 0)
+            var detail = $"{err.SourcePath}: [{err.Code}] {err.Message}";
+            if (IsBlockingSchemaError(err.Code))
             {
-                continue;
+                allErrors.Add(detail);
             }
-
-            var template = collectionConfig.Template?.Trim();
-            var collectionItems = string.IsNullOrWhiteSpace(template)
-                ? routed
-                : routed.Where(r => r.Route.Template?.Trim() == template).ToList();
-
-            foreach (var routedDocument in collectionItems)
+            else
             {
-                var document = routedDocument.Document;
-                var errors = ContentSchemaValidator.ValidateFields(document.Fields, schema, document.Id);
-                foreach (var err in errors)
-                {
-                    var detail = $"{err.SourcePath ?? document.Id} (collection: {collectionName}): {err.Message}";
-                    if (err.Code == "required")
-                    {
-                        hasErrors = true;
-                        allErrors.Add(detail);
-                    }
-                    else
-                    {
-                        allWarnings.Add(detail);
-                    }
-                }
+                allWarnings.Add(detail);
             }
         }
 
-        if (hasErrors)
+        if (allErrors.Count > 0)
         {
             Console.WriteLine($"✖ {allErrors.Count} schema validation error(s):");
             foreach (var e in allErrors)
@@ -70,7 +48,7 @@ internal static class DoctorSchemaChecker
             }
         }
 
-        return hasErrors;
+        return allErrors.Count > 0;
     }
 
     public static void CheckTemplateFieldsVsSchema(DoctorCommand.DoctorContext ctx)
@@ -84,17 +62,7 @@ internal static class DoctorSchemaChecker
         var mismatches = new List<string>();
         foreach (var (collectionName, collectionConfig) in collections)
         {
-            var schemaFieldNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (collectionConfig.Schema is { Count: > 0 })
-            {
-                foreach (var f in collectionConfig.Schema)
-                {
-                    if (!string.IsNullOrWhiteSpace(f.Name))
-                    {
-                        schemaFieldNames.Add(f.Name.Trim());
-                    }
-                }
-            }
+            var schemaFieldNames = ContentModelSchemaProjection.GetFieldNames(ctx.Config, collectionName);
 
             var templates = new List<string>();
             if (!string.IsNullOrWhiteSpace(collectionConfig.Template))
@@ -156,17 +124,7 @@ internal static class DoctorSchemaChecker
 
         foreach (var (collectionName, collectionConfig) in collections)
         {
-            var schemaFieldNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (collectionConfig.Schema is { Count: > 0 })
-            {
-                foreach (var f in collectionConfig.Schema)
-                {
-                    if (!string.IsNullOrWhiteSpace(f.Name))
-                    {
-                        schemaFieldNames.Add(f.Name.Trim());
-                    }
-                }
-            }
+            var schemaFieldNames = ContentModelSchemaProjection.GetFieldNames(ctx.Config, collectionName);
 
             var template = collectionConfig.Template?.Trim();
             var collectionItems = string.IsNullOrWhiteSpace(template)
@@ -177,7 +135,7 @@ internal static class DoctorSchemaChecker
             {
                 var document = routedDocument.Document;
                 var fileExtras = new List<string>();
-                foreach (var kv in document.Fields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))
+                foreach (var kv in document.CustomFields ?? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase))
                 {
                     if (reservedKeys.Contains(kv.Key))
                     {
@@ -194,7 +152,7 @@ internal static class DoctorSchemaChecker
                 {
                     filesWithExtras++;
                     totalExtras += fileExtras.Count;
-                    var fileId = ContentFieldReader.GetText(document.Fields, "sourcePath") ?? document.Id;
+                    var fileId = ContentFieldReader.GetText(document.CustomFields, "sourcePath") ?? document.Id;
                     extraFields.Add($"{fileId}: field(s) [{string.Join(", ", fileExtras)}] not in collection schema");
                 }
             }
@@ -211,4 +169,8 @@ internal static class DoctorSchemaChecker
             Console.WriteLine($"  ({totalExtras} extra field(s) total across {filesWithExtras} file(s))");
         }
     }
+
+    private static bool IsBlockingSchemaError(string code)
+        => code.Contains("required", StringComparison.OrdinalIgnoreCase) ||
+           code.Contains("missing", StringComparison.OrdinalIgnoreCase);
 }

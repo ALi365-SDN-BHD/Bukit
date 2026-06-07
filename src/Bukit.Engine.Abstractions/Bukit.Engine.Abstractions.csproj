@@ -13,7 +13,12 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Bukit.Engine.Abstractions.Tests" />
+    <InternalsVisibleTo Include="Bukit.Engine.Tests" />
+    <InternalsVisibleTo Include="Bukit.Content.Tests" />
+    <InternalsVisibleTo Include="Bukit.Cli.Tests" />
+    <InternalsVisibleTo Include="Bukit.Rendering.Tests" />
+    <InternalsVisibleTo Include="Bukit.Theme.Tests" />
+    <InternalsVisibleTo Include="Bukit.Theme.Benchmarks" />
   </ItemGroup>
 
 </Project>
-

@@ -32,9 +32,9 @@ public sealed class ContentImageRewritePipelineTests
         var result = await pipeline.RewriteAsync(new[] { item }, CancellationToken.None);
         var rewritten = Assert.Single(result);
 
-        Assert.Contains("/assets/uploads/a.jpg", rewritten.ContentHtml, StringComparison.Ordinal);
-        Assert.Equal("/assets/uploads/cover.jpg", rewritten.Fields!["cover"].Value);
-        Assert.Equal("https://img.example/keep.jpg", rewritten.Fields["title_image"].Value);
+        Assert.Contains("/assets/uploads/a.jpg", rewritten.Body.Html, StringComparison.Ordinal);
+        Assert.Equal("/assets/uploads/cover.jpg", rewritten.CustomFields!["cover"].Value);
+        Assert.Equal("https://img.example/keep.jpg", rewritten.CustomFields["title_image"].Value);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class ContentImageRewritePipelineTests
         var pipeline = new ContentImageRewritePipeline(cfg, new StubLocalizer());
         var result = await pipeline.RewriteAsync(new[] { item }, CancellationToken.None);
 
-        Assert.Contains("/assets/images/noneimg-news.jpg", Assert.Single(result).ContentHtml, StringComparison.Ordinal);
+        Assert.Contains("/assets/images/noneimg-news.jpg", Assert.Single(result).Body.Html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -115,11 +115,11 @@ public sealed class ContentImageRewritePipelineTests
         var rewritten = Assert.Single(result);
 
         Assert.Equal(1, recorder.GetCallCount(repeatedUrl));
-        Assert.Contains("/assets/uploads/repeat.jpg", rewritten.ContentHtml, StringComparison.Ordinal);
-        Assert.Equal("/assets/uploads/repeat.jpg", rewritten.Fields!["cover"].Value);
+        Assert.Contains("/assets/uploads/repeat.jpg", rewritten.Body.Html, StringComparison.Ordinal);
+        Assert.Equal("/assets/uploads/repeat.jpg", rewritten.CustomFields!["cover"].Value);
         Assert.Equal(
             new[] { "/assets/uploads/repeat.jpg", "/assets/uploads/repeat.jpg" },
-            Assert.IsAssignableFrom<IReadOnlyList<string>>(rewritten.Fields["gallery"].Value));
+            Assert.IsAssignableFrom<IReadOnlyList<string>>(rewritten.CustomFields["gallery"].Value));
     }
 
     [Fact]

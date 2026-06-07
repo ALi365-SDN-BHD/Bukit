@@ -247,29 +247,31 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void WriteSearchItem_EmitsCanonicalContentMetadata()
     {
-        var document = ContentDocumentNormalizer.ToDocument(new RawContentDocument(
-            "search-1",
-            "Search Post",
-            "search-post",
-            DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
-            "<p>Body</p>",
-            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "post",
+            ["summary"] = "Search summary",
+            ["language"] = "en",
+            ["source"] = "notion",
+            ["review_status"] = "approved",
+            ["tags"] = new[] { "bukit" },
+            ["entities"] = new object[]
             {
-                ["type"] = "post",
-                ["summary"] = "Search summary",
-                ["language"] = "en",
-                ["source"] = "notion",
-                ["review_status"] = "approved",
-                ["tags"] = new[] { "bukit" },
-                ["entities"] = new object[]
+                new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                 {
-                    new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["type"] = "company",
-                        ["name"] = "Bukit"
-                    }
+                    ["type"] = "company",
+                    ["name"] = "Bukit"
                 }
-            })));
+            }
+        });
+        var document = ContentDocumentNormalizer.ToDocument(new RawContentDocument(
+            Id: "search-1",
+            Title: "Search Post",
+            Slug: "search-post",
+            PublishAt: DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
+            Body: new RawBody(InlineHtml: "<p>Body</p>"),
+            Properties: RawContentValue.FromFields(fields),
+            CustomFields: fields));
         var route = new RouteInfo("/search-post/", "search-post/index.html", "pages/post.html");
 
         using var stream = new MemoryStream();
@@ -291,24 +293,26 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void WriteSearchItem_PrefersCanonicalSummaryClassificationAndLanguage()
     {
+        var fields = ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = new("text", "guide"),
+            ["summary"] = new("text", "Canonical summary"),
+            ["language"] = new("text", "ms-MY"),
+            ["source"] = new("text", "notion"),
+            ["tags"] = new("list", new object[] { "bukit", "canonical" }),
+            ["categories"] = new("list", new object[] { "docs" })
+        }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["sourceKey"] = "legacy-source"
+        });
         var document = ContentDocumentNormalizer.ToDocument(new RawContentDocument(
-            "search-2",
-            "Structured Post",
-            "structured-post",
-            DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
-            "<p>Structured body</p>",
-            ContentFieldReader.WithValues(new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["type"] = new("text", "guide"),
-                ["summary"] = new("text", "Canonical summary"),
-                ["language"] = new("text", "ms-MY"),
-                ["source"] = new("text", "notion"),
-                ["tags"] = new("list", new object[] { "bukit", "canonical" }),
-                ["categories"] = new("list", new object[] { "docs" })
-            }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["sourceKey"] = "legacy-source"
-            })));
+            Id: "search-2",
+            Title: "Structured Post",
+            Slug: "structured-post",
+            PublishAt: DateTimeOffset.Parse("2026-06-05T12:00:00Z"),
+            Body: new RawBody(InlineHtml: "<p>Structured body</p>"),
+            Properties: RawContentValue.FromFields(fields),
+            CustomFields: fields));
         var route = new RouteInfo("/structured-post/", "structured-post/index.html", "pages/post.html");
 
         using var stream = new MemoryStream();

@@ -141,7 +141,7 @@ public sealed class MarkdownFolderProviderTests
 
             var globItem = Assert.Single(globResult.Documents);
             Assert.Equal("first", globItem.Slug);
-            Assert.Equal("markdown", ContentFieldReader.GetText(globItem.Fields, "source"));
+            Assert.Equal("markdown", ContentFieldReader.GetText(globItem.CustomFields, "source"));
         }
         finally
         {
@@ -175,7 +175,7 @@ public sealed class MarkdownFolderProviderTests
             var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
             var result = await provider.LoadRawAsync();
 
-            Assert.True(ContentFieldReader.TryGetField(result.Documents[0].Fields, "tableOfContents", out var tocField));
+            Assert.True(ContentFieldReader.TryGetField(result.Documents[0].CustomFields, "tableOfContents", out var tocField));
             var toc = Assert.IsAssignableFrom<IReadOnlyList<TableOfContentsEntry>>(tocField.Value);
             Assert.Equal(4, toc.Count);
             Assert.Equal(1, toc[0].Level);
@@ -211,8 +211,8 @@ public sealed class MarkdownFolderProviderTests
             var result = await provider.LoadRawAsync();
 
             var item = Assert.Single(result.Documents);
-            Assert.Equal("post", ContentFieldReader.GetText(item.Fields, "collection"));
-            Assert.False(ContentFieldReader.TryGetField(item.Fields, "type", out _));
+            Assert.Equal("post", ContentFieldReader.GetText(item.CustomFields, "collection"));
+            Assert.False(ContentFieldReader.TryGetField(item.CustomFields, "type", out _));
         }
         finally
         {

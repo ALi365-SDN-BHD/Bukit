@@ -7,7 +7,7 @@ public sealed record ContentModelSchema(
     IReadOnlyList<string>? SyncStatuses = null,
     IReadOnlyDictionary<string, CanonicalFieldMapping>? CanonicalMappings = null,
     IReadOnlyDictionary<string, CustomFieldDefinition>? CustomFields = null,
-    IReadOnlyDictionary<string, IReadOnlyList<CustomFieldDefinition>>? CollectionFields = null,
+    IReadOnlyDictionary<string, IReadOnlyList<CustomFieldDefinition>>? FieldScopes = null,
     IReadOnlyDictionary<string, EntityMapping>? EntityMappings = null,
     IReadOnlyDictionary<string, RelationMapping>? RelationMappings = null,
     MediaPolicy? Media = null,
@@ -50,14 +50,19 @@ public sealed record EntityMapping(
     string? IdField = null,
     string? NameField = null,
     bool Required = false,
-    ContentReferenceRule? Reference = null);
+    ContentReferenceRule? Reference = null,
+    string? DescriptionField = null,
+    string? UrlField = null,
+    string? SameAsField = null);
 
 public sealed record RelationMapping(
     string RawKey,
     string RelationType,
     string? TargetType = null,
     bool Required = false,
-    ContentReferenceRule? Reference = null);
+    ContentReferenceRule? Reference = null,
+    string? TargetField = null,
+    string? TargetIdField = null);
 
 public sealed record ContentReferenceRule(
     string? TargetType = null,

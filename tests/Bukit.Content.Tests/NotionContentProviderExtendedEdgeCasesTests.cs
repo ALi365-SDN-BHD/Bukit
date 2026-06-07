@@ -136,8 +136,8 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
         var item = Assert.Single(result.Documents);
 
         Assert.Contains(logMessages, m => m.Contains("event=notion.relation.resolve_failed") && m.Contains("pageId=tag-missing"));
-        Assert.NotNull(item.Fields);
-        Assert.Contains("tags_links", item.Fields);
+        Assert.NotNull(item.CustomFields);
+        Assert.Contains("tags_links", item.CustomFields);
     }
 
     [Fact]
@@ -170,9 +170,9 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
             var result = await provider.LoadRawAsync();
             var item = Assert.Single(result.Documents);
 
-            Assert.NotNull(item.Fields);
-            Assert.Contains("tags_links", item.Fields);
-            Assert.True(ContentFieldReader.TryGetField(item.Fields, "tags", out var tagsField));
+            Assert.NotNull(item.CustomFields);
+            Assert.Contains("tags_links", item.CustomFields);
+            Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "tags", out var tagsField));
             var tags = Assert.IsAssignableFrom<IEnumerable<string>>(tagsField.Value);
             Assert.Equal(new[] { "Cached Tag" }, tags.ToArray());
             Assert.Equal(0, handler.Count(HttpMethod.Get, "https://api.notion.com/v1/pages/tag-1"));

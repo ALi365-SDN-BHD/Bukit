@@ -161,11 +161,10 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 Title: title,
                 Slug: slug,
                 PublishAt: publishAt,
-                ContentHtml: null,
-                Fields: fields,
-                BodyKey: file,
-                SourceKind: "markdown",
-                SourcePath: file
+                Body: new RawBody(BodyKey: file),
+                Properties: RawContentValue.FromFields(fields),
+                Source: new ContentSourceInfo("markdown", SourcePath: file),
+                CustomFields: fields
             ));
         }
 

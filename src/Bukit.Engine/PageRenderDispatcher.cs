@@ -138,7 +138,7 @@ internal static class PageRenderDispatcher
                             Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
                             TableOfContents = SpecialListRenderer.GetTableOfContents(document),
                             PublishDate = document.PublishAt,
-                            Fields = document.Fields,
+                            Fields = document.CustomFields,
                             ContentRecord = contentRecord,
                             Entities = contentRecord.Entities,
                             Provenance = contentRecord.Provenance,

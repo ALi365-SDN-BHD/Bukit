@@ -14,12 +14,12 @@ public sealed class DictionaryContentBodyStore : IContentBodyStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrEmpty(document.ContentHtml))
+        if (!string.IsNullOrEmpty(document.Body.Html))
         {
-            return Task.FromResult(new ContentBody(document.ContentHtml));
+            return Task.FromResult(new ContentBody(document.Body.Html));
         }
 
-        if (string.IsNullOrEmpty(document.BodyKey) || !_bodies.TryGetValue(document.BodyKey, out var body))
+        if (string.IsNullOrEmpty(document.Body.BodyKey) || !_bodies.TryGetValue(document.Body.BodyKey, out var body))
         {
             throw new InvalidOperationException($"No content body found for document '{document.Id}'.");
         }

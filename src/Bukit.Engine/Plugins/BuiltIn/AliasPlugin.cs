@@ -20,7 +20,7 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
         {
             var document = routedDocument.Document;
             var route = routedDocument.Route;
-            var aliases = ContentFieldReader.GetTextList(document.Fields, "aliases");
+            var aliases = ContentFieldReader.GetTextList(document.CustomFields, "aliases");
             if (aliases is null)
             {
                 continue;
@@ -40,13 +40,13 @@ public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
                 var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(aliasUrl, context.Config.Site.OutputPathEncoding);
                 var aliasRoute = new RouteInfo(aliasUrl, outputPath, null!);
 
-                var aliasDocument = ContentDocument.Create(
+                var aliasDocument = DerivedContentDocumentFactory.Create(
                     id: $"alias-{document.Id}-{EscapePath(alias)}",
                     title: $"[Redirect] {document.Title}",
                     slug: $"alias-{document.Slug}",
                     publishAt: document.PublishAt,
-                    contentHtml: html,
-                    fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    body: new ContentBodyRef(Html: html),
+                    customFields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["type"] = "redirect",
                         ["sitemap"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)

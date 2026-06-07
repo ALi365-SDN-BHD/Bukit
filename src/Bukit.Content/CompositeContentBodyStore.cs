@@ -14,9 +14,9 @@ public sealed class CompositeContentBodyStore : IContentBodyStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrEmpty(document.ContentHtml))
+        if (!string.IsNullOrEmpty(document.Body.Html))
         {
-            return Task.FromResult(new ContentBody(document.ContentHtml));
+            return Task.FromResult(new ContentBody(document.Body.Html));
         }
 
         var separatorIndex = document.Id.IndexOf(':');
@@ -31,16 +31,16 @@ public sealed class CompositeContentBodyStore : IContentBodyStore
             throw new InvalidOperationException($"No content body store registered for source '{sourceKey}'.");
         }
 
-        var sourceId = ContentFieldReader.GetText(document.Fields, "sourceId");
+        var sourceId = ContentFieldReader.GetText(document.CustomFields, "sourceId");
         if (!string.IsNullOrWhiteSpace(sourceId))
         {
-            var originalBodyKey = document.BodyKey is not null && document.BodyKey.StartsWith(sourceKey + ":", StringComparison.Ordinal)
-                ? document.BodyKey.Substring(sourceKey.Length + 1)
-                : document.BodyKey;
+            var originalBodyKey = document.Body.BodyKey is not null && document.Body.BodyKey.StartsWith(sourceKey + ":", StringComparison.Ordinal)
+                ? document.Body.BodyKey.Substring(sourceKey.Length + 1)
+                : document.Body.BodyKey;
             var sourceDocument = document with
             {
                 Record = document.Record with { Identity = document.Record.Identity with { Id = sourceId } },
-                BodyKey = originalBodyKey
+                Body = document.Body with { BodyKey = originalBodyKey }
             };
             return store.GetAsync(sourceDocument, cancellationToken);
         }
