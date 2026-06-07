@@ -34,7 +34,7 @@ public sealed class ContentPipelineTests
         Assert.Equal("/tmp/site", factory.RootDirObserved);
         var document = Assert.Single(result.Documents);
         Assert.Equal("published", document.Id);
-        Assert.Null(ContentFieldReader.GetText(document.Fields, "status"));
+        Assert.Equal("published", ContentFieldReader.GetText(document.Fields, "status"));
         var record = Assert.Single(result.ContentGraph!.Records);
         Assert.Equal("published", record.Identity.Id);
         Assert.Equal("published", record.Trust.ReviewStatus);

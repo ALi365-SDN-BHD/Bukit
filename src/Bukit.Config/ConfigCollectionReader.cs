@@ -310,7 +310,17 @@ internal static class ConfigCollectionReader
                     ?? ConfigYamlHelpers.GetOptionalString(child, "type")
                     ?? "string",
                 Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
-                SemanticType = ConfigYamlHelpers.GetOptionalString(child, "semanticType")
+                SemanticType = ConfigYamlHelpers.GetOptionalString(child, "semanticType"),
+                Label = ConfigYamlHelpers.GetOptionalString(child, "label"),
+                Format = ConfigYamlHelpers.GetOptionalString(child, "format"),
+                Enum = ConfigYamlHelpers.ReadStringList(child, "enum"),
+                Min = ConfigYamlHelpers.GetOptionalDouble(child, "min"),
+                Max = ConfigYamlHelpers.GetOptionalDouble(child, "max"),
+                Default = child.Children.TryGetValue(new YamlScalarNode("default"), out var defaultNode)
+                    ? ConfigYamlHelpers.ToObject(defaultNode)
+                    : null,
+                SourcePolicy = ConfigYamlHelpers.GetOptionalString(child, "sourcePolicy"),
+                Reference = ReadReferenceRule(child)
             });
         }
 
@@ -331,7 +341,8 @@ internal static class ConfigCollectionReader
                     EntityType = entityType,
                     IdField = ConfigYamlHelpers.GetOptionalString(child, "idField"),
                     NameField = ConfigYamlHelpers.GetOptionalString(child, "nameField"),
-                    Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false
+                    Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
+                    Reference = ReadReferenceRule(child)
                 };
         });
 
@@ -348,9 +359,30 @@ internal static class ConfigCollectionReader
                     RawKey = rawKey,
                     RelationType = relationType,
                     TargetType = ConfigYamlHelpers.GetOptionalString(child, "targetType"),
-                    Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false
+                    Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
+                    Reference = ReadReferenceRule(child)
                 };
         });
+
+    private static ContentReferenceRuleConfig? ReadReferenceRule(YamlMappingNode node)
+    {
+        var refNode = ConfigYamlHelpers.GetOptionalMapping(node, "reference")
+            ?? ConfigYamlHelpers.GetOptionalMapping(node, "referenceRule");
+        if (refNode is null)
+        {
+            return null;
+        }
+
+        return new ContentReferenceRuleConfig
+        {
+            TargetType = ConfigYamlHelpers.GetOptionalString(refNode, "targetType"),
+            IdField = ConfigYamlHelpers.GetOptionalString(refNode, "idField"),
+            LabelField = ConfigYamlHelpers.GetOptionalString(refNode, "labelField")
+                ?? ConfigYamlHelpers.GetOptionalString(refNode, "nameField"),
+            UrlField = ConfigYamlHelpers.GetOptionalString(refNode, "urlField"),
+            Required = ConfigYamlHelpers.GetOptionalBool(refNode, "required") ?? false
+        };
+    }
 
     private static IReadOnlyList<T>? ReadSchemaMappings<T>(
         YamlMappingNode node,

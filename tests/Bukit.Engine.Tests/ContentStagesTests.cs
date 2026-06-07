@@ -253,6 +253,142 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
+    public void ContentDocumentNormalizer_AppliesContentModelSchemaDefaults()
+    {
+        var raw = new RawContentDocument(
+            Id: "doc-1",
+            Title: "Doc",
+            Slug: "doc",
+            PublishAt: DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
+            Body: new RawBody(InlineHtml: "<p>Doc</p>"),
+            Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "page")
+            });
+        var schema = new ContentModelSchema(
+            CustomFields: new Dictionary<string, CustomFieldDefinition>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["audience"] = new("audience", "string", Default: "public"),
+                ["priority"] = new("priority", "number", Default: 3d)
+            });
+
+        var document = ContentDocumentNormalizer.ToDocument(raw, schema);
+
+        Assert.Equal("public", ContentFieldReader.GetText(document.Fields, "audience"));
+        Assert.Equal(3d, ContentFieldReader.GetNumber(document.Fields, "priority"));
+    }
+
+    [Fact]
+    public async Task ContentGraphValidateStage_ValidatesRichContentModelSchema()
+    {
+        var document = ContentDocumentNormalizer.ToDocument(new RawContentDocument(
+            Id: "doc-1",
+            Title: "Doc",
+            Slug: "doc",
+            PublishAt: DateTimeOffset.Parse("2026-06-01T00:00:00Z"),
+            Body: new RawBody(InlineHtml: "<p>Doc</p>"),
+            Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "post"),
+                ["audience"] = new("text", "private"),
+                ["priority"] = new("number", 7),
+                ["source_link"] = new("text", "not-a-url"),
+                ["topic_refs"] = new("list", new object[]
+                {
+                    new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["topicId"] = "topic-1"
+                    }
+                }),
+                ["image"] = new("text", "https://example.com/image.png"),
+                ["video"] = new("text", "https://example.com/video.mp4"),
+                ["products"] = new("list", new[] { "Bukit Pro" })
+            }));
+        var config = Config() with
+        {
+            Content = Config().Content with
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    CustomFields = new[]
+                    {
+                        new CustomFieldDefinitionConfig
+                        {
+                            Name = "audience",
+                            FieldType = "string",
+                            Enum = new[] { "public", "internal" }
+                        },
+                        new CustomFieldDefinitionConfig
+                        {
+                            Name = "priority",
+                            FieldType = "number",
+                            Min = 1,
+                            Max = 5
+                        },
+                        new CustomFieldDefinitionConfig
+                        {
+                            Name = "source_link",
+                            FieldType = "string",
+                            Format = "url"
+                        },
+                        new CustomFieldDefinitionConfig
+                        {
+                            Name = "topic_refs",
+                            FieldType = "list",
+                            SourcePolicy = "invalid-policy",
+                            Reference = new ContentReferenceRuleConfig
+                            {
+                                TargetType = "topic",
+                                IdField = "topicId",
+                                LabelField = "title",
+                                Required = true
+                            }
+                        }
+                    },
+                    EntityMappings = new[]
+                    {
+                        new EntityMappingConfig
+                        {
+                            RawKey = "companies",
+                            EntityType = "company",
+                            Required = true
+                        }
+                    },
+                    RelationMappings = new[]
+                    {
+                        new RelationMappingConfig
+                        {
+                            RawKey = "related_to",
+                            RelationType = "related-to",
+                            TargetType = "content",
+                            Required = true
+                        }
+                    },
+                    Media = new MediaPolicyConfig
+                    {
+                        AllowedKinds = new[] { "image" }
+                    }
+                }
+            },
+            Build = Config().Build with { SchemaFailMode = "warn" }
+        };
+        var stage = new ContentGraphValidateStage();
+        var input = new ContentStageInput(new[] { document }, EmptyContentBodyStore.Instance, config, NoOverrides, "/root", "/cache", new NoOpLogger());
+
+        var output = await stage.ExecuteAsync(input, CancellationToken.None);
+
+        Assert.NotNull(output.SchemaErrors);
+        Assert.Contains(output.SchemaErrors, e => e.Code == "content.custom_field_enum_mismatch" && e.Field == "fields.audience");
+        Assert.Contains(output.SchemaErrors, e => e.Code == "content.custom_field_range_mismatch" && e.Field == "fields.priority");
+        Assert.Contains(output.SchemaErrors, e => e.Code == "content.custom_field_format_mismatch" && e.Field == "fields.source_link");
+        Assert.Contains(output.SchemaErrors, e => e.Code == "content.custom_field_source_policy_invalid" && e.Field == "fields.topic_refs");
+        Assert.Contains(output.SchemaErrors, e => e.Code == "content.reference_field_missing" && e.Field == "fields.topic_refs");
+        Assert.Contains(output.SchemaErrors, e => e.Code == "content.entity_mapping_required_missing" && e.Field == "entities.companies");
+        Assert.Contains(output.SchemaErrors, e => e.Code == "content.relation_mapping_required_missing" && e.Field == "relations.related_to");
+        Assert.Contains(output.SchemaErrors, e => e.Code == "content.media_kind_not_allowed" && e.Field == "media.kind");
+    }
+
+    [Fact]
     public async Task ContentGraphValidateStage_UsesCollectionSchemaProjection()
     {
         var loadResult = new RawContentLoadResult(

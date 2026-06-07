@@ -34,19 +34,36 @@ public sealed record CustomFieldDefinition(
     string Name,
     string FieldType,
     bool Required = false,
-    string? SemanticType = null);
+    string? SemanticType = null,
+    string? Label = null,
+    string? Format = null,
+    IReadOnlyList<string>? Enum = null,
+    double? Min = null,
+    double? Max = null,
+    object? Default = null,
+    string? SourcePolicy = null,
+    ContentReferenceRule? Reference = null);
 
 public sealed record EntityMapping(
     string RawKey,
     string EntityType,
     string? IdField = null,
     string? NameField = null,
-    bool Required = false);
+    bool Required = false,
+    ContentReferenceRule? Reference = null);
 
 public sealed record RelationMapping(
     string RawKey,
     string RelationType,
     string? TargetType = null,
+    bool Required = false,
+    ContentReferenceRule? Reference = null);
+
+public sealed record ContentReferenceRule(
+    string? TargetType = null,
+    string? IdField = null,
+    string? LabelField = null,
+    string? UrlField = null,
     bool Required = false);
 
 public sealed record MediaPolicy(

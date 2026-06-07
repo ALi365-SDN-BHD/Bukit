@@ -356,14 +356,41 @@ public sealed class ConfigLoaderTests : IDisposable
                   - name: deck
                     type: string
                     required: true
+                    label: Deck
+                    format: slug
+                    enum:
+                      - featured
+                      - standard
+                    min: 3
+                    max: 80
+                    default: standard
+                    sourcePolicy: raw
+                    reference:
+                      targetType: topic
+                      idField: topicId
+                      labelField: title
+                      urlField: url
+                      required: true
                 entityMappings:
                   - rawKey: companies
                     entityType: company
                     idField: companyIds
+                    nameField: companyNames
+                    required: true
+                    reference:
+                      targetType: company
+                      idField: id
+                      labelField: name
                 relationMappings:
                   - rawKey: related
                     relationType: related-to
                     targetType: content
+                    required: true
+                    reference:
+                      targetType: content
+                      idField: id
+                      labelField: title
+                      urlField: url
                 media:
                   requireAlt: false
                   allowedKinds:
@@ -387,16 +414,38 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("deck", custom.Name);
         Assert.Equal("string", custom.FieldType);
         Assert.True(custom.Required);
+        Assert.Equal("Deck", custom.Label);
+        Assert.Equal("slug", custom.Format);
+        Assert.Equal(new[] { "featured", "standard" }, custom.Enum);
+        Assert.Equal(3, custom.Min);
+        Assert.Equal(80, custom.Max);
+        Assert.Equal("standard", custom.Default);
+        Assert.Equal("raw", custom.SourcePolicy);
+        Assert.NotNull(custom.Reference);
+        Assert.Equal("topic", custom.Reference.TargetType);
+        Assert.Equal("topicId", custom.Reference.IdField);
+        Assert.Equal("title", custom.Reference.LabelField);
+        Assert.Equal("url", custom.Reference.UrlField);
+        Assert.True(custom.Reference.Required);
 
         var entity = Assert.Single(schema.EntityMappings!);
         Assert.Equal("companies", entity.RawKey);
         Assert.Equal("company", entity.EntityType);
         Assert.Equal("companyIds", entity.IdField);
+        Assert.Equal("companyNames", entity.NameField);
+        Assert.True(entity.Required);
+        Assert.NotNull(entity.Reference);
+        Assert.Equal("company", entity.Reference.TargetType);
+        Assert.Equal("id", entity.Reference.IdField);
 
         var relation = Assert.Single(schema.RelationMappings!);
         Assert.Equal("related", relation.RawKey);
         Assert.Equal("related-to", relation.RelationType);
         Assert.Equal("content", relation.TargetType);
+        Assert.True(relation.Required);
+        Assert.NotNull(relation.Reference);
+        Assert.Equal("content", relation.Reference.TargetType);
+        Assert.Equal("id", relation.Reference.IdField);
 
         Assert.NotNull(schema.Media);
         Assert.False(schema.Media.RequireAlt);

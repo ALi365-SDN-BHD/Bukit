@@ -252,6 +252,14 @@ public sealed record CustomFieldDefinitionConfig
     public string FieldType { get; init; } = "string";
     public bool Required { get; init; }
     public string? SemanticType { get; init; }
+    public string? Label { get; init; }
+    public string? Format { get; init; }
+    public IReadOnlyList<string>? Enum { get; init; }
+    public double? Min { get; init; }
+    public double? Max { get; init; }
+    public object? Default { get; init; }
+    public string? SourcePolicy { get; init; }
+    public ContentReferenceRuleConfig? Reference { get; init; }
 }
 
 public sealed record EntityMappingConfig
@@ -261,6 +269,7 @@ public sealed record EntityMappingConfig
     public string? IdField { get; init; }
     public string? NameField { get; init; }
     public bool Required { get; init; }
+    public ContentReferenceRuleConfig? Reference { get; init; }
 }
 
 public sealed record RelationMappingConfig
@@ -268,6 +277,16 @@ public sealed record RelationMappingConfig
     public required string RawKey { get; init; }
     public required string RelationType { get; init; }
     public string? TargetType { get; init; }
+    public bool Required { get; init; }
+    public ContentReferenceRuleConfig? Reference { get; init; }
+}
+
+public sealed record ContentReferenceRuleConfig
+{
+    public string? TargetType { get; init; }
+    public string? IdField { get; init; }
+    public string? LabelField { get; init; }
+    public string? UrlField { get; init; }
     public bool Required { get; init; }
 }
 

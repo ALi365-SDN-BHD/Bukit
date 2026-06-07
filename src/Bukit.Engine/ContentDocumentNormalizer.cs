@@ -17,7 +17,9 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
 {
     public ContentDocument Normalize(RawContentDocument raw, ContentModelSchema? schema = null)
     {
-        var fields = ApplyCanonicalMappings(raw.CustomFields ?? ToFieldMap(raw.Properties), schema);
+        var fields = ApplySchemaDefaults(
+            ApplyCanonicalMappings(raw.CustomFields ?? ToFieldMap(raw.Properties), schema),
+            schema);
         var diagnostics = BuildDiagnostics(raw, fields, schema);
         var normalizedRaw = raw with { CustomFields = fields };
         return new ContentDocument(
@@ -74,6 +76,55 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
         return projected ?? fields;
     }
 
+    private static IReadOnlyDictionary<string, ContentField>? ApplySchemaDefaults(
+        IReadOnlyDictionary<string, ContentField>? fields,
+        ContentModelSchema? schema)
+    {
+        if (schema is null)
+        {
+            return fields;
+        }
+
+        Dictionary<string, ContentField>? projected = null;
+        foreach (var definition in EnumerateDefaultableFields(schema, fields))
+        {
+            if (definition.Default is null ||
+                string.IsNullOrWhiteSpace(definition.Name) ||
+                ContentFieldReader.TryGetField(projected ?? fields, definition.Name, out _))
+            {
+                continue;
+            }
+
+            projected ??= fields is null
+                ? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, ContentField>(fields, StringComparer.OrdinalIgnoreCase);
+            projected[definition.Name] = ToContentField(definition.FieldType, definition.Default);
+        }
+
+        return projected ?? fields;
+    }
+
+    private static IEnumerable<CustomFieldDefinition> EnumerateDefaultableFields(
+        ContentModelSchema schema,
+        IReadOnlyDictionary<string, ContentField>? fields)
+    {
+        foreach (var definition in schema.CustomFields?.Values ?? Array.Empty<CustomFieldDefinition>())
+        {
+            yield return definition;
+        }
+
+        var collection = ContentFieldReader.GetText(fields, "collection")
+            ?? ContentFieldReader.GetText(fields, "type");
+        if (!string.IsNullOrWhiteSpace(collection) &&
+            schema.CollectionFields?.TryGetValue(collection, out var collectionFields) is true)
+        {
+            foreach (var definition in collectionFields)
+            {
+                yield return definition;
+            }
+        }
+    }
+
     private static IReadOnlyDictionary<string, ContentField>? ToFieldMap(IReadOnlyDictionary<string, RawContentValue>? properties)
     {
         if (properties is null)
@@ -85,6 +136,19 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
             x => x.Key,
             x => new ContentField(x.Value.Kind, x.Value.Value),
             StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static ContentField ToContentField(string? fieldType, object value)
+    {
+        var type = (fieldType ?? "string").Trim().ToLowerInvariant();
+        return type switch
+        {
+            "bool" or "boolean" => new ContentField("bool", value),
+            "number" or "int" or "integer" => new ContentField("number", value),
+            "date" or "datetime" => new ContentField("date", value),
+            "list" or "array" or "string[]" => new ContentField("list", value),
+            _ => new ContentField("text", value)
+        };
     }
 
     private static IReadOnlyList<ContentDiagnostic> BuildDiagnostics(

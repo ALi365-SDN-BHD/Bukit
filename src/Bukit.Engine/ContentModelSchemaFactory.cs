@@ -29,7 +29,15 @@ internal static class ContentModelSchemaFactory
                 field.Name,
                 field.FieldType,
                 field.Required,
-                field.SemanticType);
+                field.SemanticType,
+                field.Label,
+                field.Format,
+                field.Enum,
+                field.Min,
+                field.Max,
+                field.Default,
+                field.SourcePolicy,
+                ToReferenceRule(field.Reference));
         }
 
         foreach (var mapping in explicitSchema?.EntityMappings ?? Array.Empty<EntityMappingConfig>())
@@ -39,7 +47,8 @@ internal static class ContentModelSchemaFactory
                 mapping.EntityType,
                 mapping.IdField,
                 mapping.NameField,
-                mapping.Required);
+                mapping.Required,
+                ToReferenceRule(mapping.Reference));
         }
 
         foreach (var mapping in explicitSchema?.RelationMappings ?? Array.Empty<RelationMappingConfig>())
@@ -48,7 +57,8 @@ internal static class ContentModelSchemaFactory
                 mapping.RawKey,
                 mapping.RelationType,
                 mapping.TargetType,
-                mapping.Required);
+                mapping.Required,
+                ToReferenceRule(mapping.Reference));
         }
 
         AddCollectionSchemaProjection(config.Site.Collections, customFields, collectionFields);
@@ -108,7 +118,13 @@ internal static class ContentModelSchemaFactory
                     field.Name,
                     field.Type,
                     field.Required,
-                    SemanticType: field.Format);
+                    SemanticType: field.Format,
+                    Label: field.Label,
+                    Format: field.Format,
+                    Enum: field.Enum,
+                    Min: field.Min,
+                    Max: field.Max,
+                    Default: field.Default);
                 projectedFields.Add(projected);
 
                 customFields.TryAdd(field.Name, projected with { Required = false });
@@ -120,4 +136,14 @@ internal static class ContentModelSchemaFactory
             }
         }
     }
+
+    private static ContentReferenceRule? ToReferenceRule(ContentReferenceRuleConfig? config)
+        => config is null
+            ? null
+            : new ContentReferenceRule(
+                config.TargetType,
+                config.IdField,
+                config.LabelField,
+                config.UrlField,
+                config.Required);
 }
