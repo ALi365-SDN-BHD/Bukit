@@ -88,7 +88,7 @@ event=content.stage stage=CollectionWarning duration_ms=12
 - `ts`：生成时间（UTC，ISO 8601）
 - `site`：站点基本信息（name/title/url/baseUrl/language/defaultLanguage/languages）
 - `outputDir`：构建输出目录（绝对路径）
-- `contentItems`：加载到的内容条目数量（ContentItem 总数，含 data 项）
+- `contentItems`：加载到的内容条目数量（ContentDocument 总数，含 data 项）
 - `variants[]`：每个语言变体的统计（单语言也会有一个变体）
 
 variants 字段：

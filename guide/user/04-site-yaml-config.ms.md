@@ -201,7 +201,7 @@ site:
     page: "/docs/{slug}/"
 ```
 
-Perhatian: jika sesebuah artikel menetapkan tindihan routing (`url/outputPath/template`) melalui Meta atau medan Notion, tindihan routing mempunyai keutamaan lebih tinggi daripada permalinks.
+Perhatian: jika sesebuah artikel menetapkan tindihan routing (`url/outputPath/template`) melalui medan rekod (record) atau medan Notion, tindihan routing mempunyai keutamaan lebih tinggi daripada permalinks.
 
 ### content: Sumber Kandungan (Markdown / Notion / Pelbagai Sumber)
 

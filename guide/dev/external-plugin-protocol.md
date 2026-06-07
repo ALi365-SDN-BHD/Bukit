@@ -1,4 +1,4 @@
-# External Plugin Protocol v1/v2
+# External Plugin Protocol v2
 
 `external-protocol` is Bukit's AOT-compatible dynamic extension solution. It does not replace built-in or generated plugins but provides dynamically installable plugin capabilities without external DLL reflection loading.
 
@@ -57,9 +57,9 @@ site:
 
 ```json
 {
-  "schemaVersion": "1",
+  "schemaVersion": "2",
   "hook": "after-build",
-  "plugin": { "name": "sample", "version": "protocol-v1" },
+  "plugin": { "name": "sample", "version": "protocol-v2" },
   "site": { "baseUrl": "/", "language": "zh-CN", "title": "Test" },
   "config": { "pluginOptions": { "mode": "demo" } },
   "afterBuild": { "outputDir": "dist", "routedPages": [] }
@@ -139,7 +139,7 @@ Every file written by external plugins is tracked in the build manifest. During 
 ## Protocol Negotiation (v2)
 - After-build first sends `hook=handshake`
 - Successful negotiation returns `negotiatedSchemaVersion=2`
-- Failed negotiation falls back to v1
+- Negotiation must return `schemaVersion=2` (vNext); other versions are unsupported.
 - Handshake results are cached within the same BuildContext
 
 ## Routed Page Payload (vNext)

@@ -1,4 +1,4 @@
-# 外部插件协议（External Plugin Protocol）v1/v2
+# 外部插件协议（External Plugin Protocol）v2
 
 `external-protocol` 是 Bukit 为 AOT 场景提供的动态扩展方案。
 
@@ -18,7 +18,7 @@
 - `runtime: wasm`
 - `hooks: after-build, derive-pages`
 - `stdin/stdout + JSON`
-- `handshake` 协商与 `v2 -> v1` 降级
+- `handshake` 协商（vNext 为 `schemaVersion=2`）
 
 当前限制：
 
@@ -104,11 +104,11 @@ site:
 
 ```json
 {
-  "schemaVersion": "1",
+  "schemaVersion": "2",
   "hook": "after-build",
   "plugin": {
     "name": "sample",
-    "version": "protocol-v1"
+    "version": "protocol-v2"
   },
   "site": {
     "baseUrl": "/",
@@ -166,7 +166,7 @@ site:
       "slug": "derived-1",
       "publishAt": "2026-01-01T00:00:00+00:00",
       "contentHtml": "<p>Derived</p>",
-      "meta": { "type": "page" },
+      "fields": { "type": "page" },
       "url": "/derived/derived-1/",
       "outputPath": "derived/derived-1/index.html",
       "template": "pages/page.html",
@@ -258,10 +258,8 @@ site:
 主程序执行 `after-build` 时会先发 `hook=handshake`：
 
 - 协商成功并返回 `negotiatedSchemaVersion=2`：走 v2 请求
-- 协商失败或返回非法 JSON：自动降级到 v1
-- 降级后仍失败：按 `site.pluginFailMode` 处理
-
-这保证了新主程序对旧插件的兼容。
+- 协商失败或返回非法 JSON：构建失败
+- 失败时按 `site.pluginFailMode` 处理。
 
 补充：
 - 同一个 `BuildContext` 内会缓存握手协商结果

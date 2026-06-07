@@ -7,7 +7,7 @@ Implementation: `src/Bukit.Engine/Plugins/PluginRunner.cs`, `src/Bukit.Engine/Pl
 ## Lifecycle
 
 ### DerivePages (`IDerivePagesPlugin`)
-Derives additional pages from routed content. Returns `(ContentItem, RouteInfo, LastModified)`.
+Derives additional pages from routed content. Returns `(ContentDocument, RouteInfo, LastModified)`.
 Conflict policy via `site.deriveConflictPolicy`: `fail|warn|last-wins`.
 
 ### AfterBuild (`IAfterBuildPlugin`)

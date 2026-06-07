@@ -11,7 +11,7 @@ flowchart TD
 
     subgraph P1["📥 Phase 1: ContentPipeline（5 级 Pipe-and-Filter 链）"]
         direction LR
-        C1["① ContentLoad<br/>加载 ContentItem"] --> C2["② ImageLocalize<br/>本地化远程图片"] --> C3["③ DraftFilter<br/>过滤 draft:true"] --> C4["④ ContentGraphValidate<br/>应用 schema 默认值"] --> C5["⑤ CollectionWarning<br/>校验 schema 字段"]
+        C1["① ContentLoad<br/>加载 ContentDocument"] --> C2["② ImageLocalize<br/>本地化远程图片"] --> C3["③ DraftFilter<br/>过滤 draft:true"] --> C4["④ ContentGraphValidate<br/>应用 schema 默认值"] --> C5["⑤ CollectionWarning<br/>校验 schema 字段"]
     end
 
     P0 --> C1
@@ -80,9 +80,9 @@ CLI (bukit build/doctor/...)
 ### Bukit.Content
 
 职责：
-- 内容统一模型（`ContentItem`、`ContentField`）
+- 内容统一模型（`ContentDocument`、`ContentField`）
 - 内容加载：Markdown 文件夹、Notion 数据库、以及组合 sources 模式
-- 字段/属性归一化：Meta（引擎决策）与 Fields（模板消费）
+- 字段/属性归一化：`ContentDocument.Record` 与 `ContentDocument.CustomFields`（模板消费）
 
 关键入口：
 - `src/Bukit.Content/Markdown/MarkdownFolderProvider.cs`
@@ -92,8 +92,8 @@ CLI (bukit build/doctor/...)
 ### Bukit.Routing
 
 职责：
-- 将 ContentItem 转换为 `RouteInfo`（url/outputPath/template）
-- 支持从 Meta 读取路由覆盖（route/url/outputPath/template）
+- 将 `ContentDocument` 转换为 `RouteInfo`（url/outputPath/template）
+- 支持从字段与路由策略读取路由覆盖（route/url/outputPath/template）
 - 支持 `site.permalinks` 自定义 URL 模式（`{year}/{month}/{slug}` 等占位符）
 - 支持 `site.collections` 按集合定义 permalink/template/list 策略（并保留默认兼容规则）
 
@@ -149,7 +149,7 @@ CLI (bukit build/doctor/...)
 | `BuildVariantContext` | 单次变体构建的输入参数聚合（config/dirs/items/outputDir 等） |
 | `BuildVariantResult` | 单次变体构建的结果聚合（routed/derived/renderCount 等） |
 | `ContentProviderFactory` | 根据配置创建 IContentProvider 实例，处理媒体本地化 |
-| `MetaHelpers` | ContentItem meta/fields 的静态访问辅助（GetString/IsDataItem 等） |
+| `ContentFieldReader` | `ContentDocument` 与字段记录的统一访问工具（GetText/GetBool/GetList/GetText 等） |
 | `BuildPathUtils` | 路径操作、URL 归一化、HTML 转义、主题目录解析、Windows 路径检查 |
 | `TaxonomyTermsInjector` | 从数据项和 Notion 数据库选项注入 taxonomy 术语到 BuildContext |
 | `DataModuleBuilder` | 从数据项构建 `site.modules`（按 type 分组、按 order 排序） |
@@ -212,11 +212,11 @@ SiteEngine (orchestrator)
 
 职责：
 - 插件接口与构建上下文的稳定契约（对外扩展点）
-- 核心数据记录类型的定义（`ContentItem`、`ContentField`、`RouteInfo`）
+- 核心数据记录类型的定义（`ContentDocument`、`ContentRecord`、`RouteInfo`）
 
 关键入口：
 - `src/Bukit.Engine.Abstractions/Plugins/*`
-- `src/Bukit.Engine.Abstractions/ContentItem.cs`
+- `src/Bukit.Engine.Abstractions/ContentDocument.cs`
 - `src/Bukit.Engine.Abstractions/RouteInfo.cs`
 
 ### Bukit.Shared
@@ -229,9 +229,9 @@ SiteEngine (orchestrator)
 
 ## 最核心的数据结构
 
-- ContentItem：内容加载后的统一结构；引擎只认它（定义在 Engine.Abstractions）
+- ContentDocument：内容加载后的统一结构；引擎只认它（定义在 Engine.Abstractions）
 - IContentBodyStore + BodyKey：正文按需读取通道（避免默认把正文常驻在内容元数据对象中）
-- Meta：影响路由/构建策略的元信息（type/language/route/sourceMode...）
+- Record/Policy：影响路由/构建策略的语义信息（type/language/route/sourceMode...）
 - Fields：面向主题与模板的"自定义字段"（fields.<key>.type/value）
 - RouteInfo：路由决策的结果（url/outputPath/template，定义在 Engine.Abstractions）
 - BuildContext：插件运行上下文（config/rootDir/outputDir/baseUrl/routed/derived...）
@@ -243,8 +243,8 @@ SiteEngine (orchestrator)
 - 对外契约优先：配置字段名、校验错误文案、CLI 参数都是用户会依赖的稳定接口，改动需谨慎
 - 单向依赖：Cli → Config/Engine；Engine → Content/Routing/Rendering；插件只通过 Abstractions 访问上下文
 - 明确职责边界：
-  - Content 负责"把内容变成 ContentItem"
-  - Routing 负责"ContentItem → RouteInfo"
+- Content 负责"把内容变成 ContentDocument"
+- Routing 负责"ContentDocument → RouteInfo"
   - Rendering 负责"模型 → HTML"
   - Engine 负责"编排与 IO"
   - Plugins 负责"可插拔扩展"

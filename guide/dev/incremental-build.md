@@ -35,13 +35,13 @@ To skip rendering, all must match:
 1. Incremental enabled
 2. Manifest has entry for the page
 3. Output file exists
-4. TemplateHash, ContentHash (covers Id/Title/Slug/PublishAt/meta.type/meta.summary/fields/ContentHtml), RouteHash (url/outputPath/template) all match
+4. TemplateHash, ContentHash (covers Id/Title/Slug/PublishAt/record.type/record.summary/fields/ContentHtml), RouteHash (url/outputPath/template) all match
 
 Homepage/list pages use dedicated `ListContentHash`. Plugin-derived pages use the same logic.
 
 **TemplateHash** is a composite fingerprint combining: child theme `layouts/` directory content, parent theme `layouts/` (if `theme.extends` is in use), user `layouts/` directory (if `theme.layouts` is overridden), each theme's `theme.yaml` manifest, and a renderer version marker. This means changes to parent theme templates or `theme.yaml` correctly trigger re-rendering.
 
-**ContentHash** covers the full ContentItem: Id, Title, Slug, PublishAt, meta.type, meta.summary, fields, and ContentHtml. Body content is served via the `BodyCacheDecorator` — a build-scoped LRU cache that avoids repeated reads of the same body across multiple render passes.
+**ContentHash** covers the full ContentDocument: Id, Title, Slug, PublishAt, record.type, record.summary, fields, and ContentHtml. Body content is served via the `BodyCacheDecorator` — a build-scoped LRU cache that avoids repeated reads of the same body across multiple render passes.
 
 ### BodyCacheDecorator LRU Eviction (P3-8)
 

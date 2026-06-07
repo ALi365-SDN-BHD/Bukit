@@ -8,7 +8,7 @@
 site.yaml
   │
   ├─ content（Markdown / Notion / sources）
-  │     └─ 读取内容 → 统一为 ContentItem
+  │     └─ 读取内容 → 统一为 ContentDocument
   │
   ├─ routing（按 route/front matter、site.collections、主题 templates.accepts 决定 URL 与模板）
   │
@@ -35,7 +35,7 @@ site.yaml
 
 详细字段见：[04-配置-site-yaml](./04-site-yaml-config.zh-CN.md)。
 
-## 内容（ContentItem）= 一条“会被渲染/注入模板”的数据
+## 内容（ContentDocument）= 一条“会被渲染/注入模板”的数据
 
 不管你的内容来自 Markdown 还是 Notion，引擎都会把它们统一成“内容项”。对你最重要的是：**哪些字段会影响站点行为**。
 

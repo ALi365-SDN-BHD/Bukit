@@ -1,4 +1,4 @@
-# Protokol Plugin Luaran v1/v2
+# Protokol Plugin Luaran v2
 
 `external-protocol` adalah penyelesaian sambungan dinamik serasi AOT Bukit.
 
@@ -43,9 +43,9 @@ site:
 ## Struktur Permintaan (stdin JSON)
 ```json
 {
-  "schemaVersion": "1",
+  "schemaVersion": "2",
   "hook": "after-build",
-  "plugin": { "name": "sample" },
+  "plugin": { "name": "sample", "version": "protocol-v2" },
   "site": { "baseUrl": "/", "language": "zh-CN" },
   "config": { "pluginOptions": {} },
   "afterBuild": { "outputDir": "dist", "routedPages": [] }

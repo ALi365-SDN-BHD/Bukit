@@ -202,7 +202,7 @@ site:
     page: "/docs/{slug}/"
 ```
 
-Note: if an article sets route overrides (url/outputPath/template) through Meta or Notion fields, route overrides take priority over permalinks.
+Note: if an article sets route overrides (url/outputPath/template) through record fields or Notion fields, route overrides take priority over permalinks.
 
 ### content: Content Source (Markdown / Notion / Multiple Sources)
 

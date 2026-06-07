@@ -208,16 +208,16 @@ flowchart TD
 
 ### 6.1 内容归一化层
 
-- Markdown / Notion / 多源内容都会被归一化成 `ContentItem`
-- `Meta` 供引擎决策
+- Markdown / Notion / 多源内容都会被归一化成 `ContentDocument`
+- `Record` 供引擎决策
 - `Fields` 供模板消费
 
 ```mermaid
 flowchart LR
-    A["Markdown 文件"] --> D["ContentItem"]
+    A["Markdown 文件"] --> D["ContentDocument"]
     B["Notion 页面"] --> D
     C["sources[] 多源配置"] --> D
-    D --> E["Meta"]
+    D --> E["Record"]
     D --> F["Fields"]
 ```
 
@@ -225,7 +225,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A["ContentItem"] --> B{"是否存在 route override"}
+    A["ContentDocument"] --> B{"是否存在 route override"}
     B -- 是 --> C["直接使用 url/outputPath/template"]
     B -- 否 --> D{"是否命中 site.permalinks"}
     D -- 是 --> E["BuildFromPermalink"]
@@ -264,8 +264,8 @@ flowchart LR
 |---|---|---|---|
 | CLI | 命令行参数 | `AppConfig + Overrides` | 不应承载实际构建细节 |
 | Config | `site.yaml` | 类型化配置 | 不应负责内容加载 |
-| Content | Markdown / Notion / 多源 | `ContentItem[]` | 不应负责路由与模板选择 |
-| Routing | `ContentItem` | `RouteInfo` | 不应关心内容来源 |
+| Content | Markdown / Notion / 多源 | `ContentDocument[]` | 不应负责路由与模板选择 |
+| Routing | `ContentDocument` | `RouteInfo` | 不应关心内容来源 |
 | Rendering | `SiteModel / PageModel` | HTML | 不应负责内容拉取 |
 | Engine | 上述组件与 IO | 输出目录 | 不应退化为巨型业务类 |
 | Plugins | `BuildContext` | 派生页 / 构建后产物 | 不应绕过稳定契约随意侵入主流程 |

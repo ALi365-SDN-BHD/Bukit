@@ -39,7 +39,7 @@ ContentProviderFactory.Create
 
 ## Aliran Model Data
 ```text
-Markdown/Notion/sources → ContentItem
+Markdown/Notion/sources → ContentDocument
   → RouteGenerator → RouteInfo
     → PageRenderDispatcher → ITemplateRenderer → HTML
 ```
@@ -47,7 +47,7 @@ Markdown/Notion/sources → ContentItem
 ## Struktur Data Utama
 | Struktur | Ditakrifkan Dalam | Digunakan Oleh |
 |---|---|---|
-| `ContentItem` | `Engine.Abstractions` | Content, Routing, Rendering, Plugins |
+| `ContentDocument` | `Engine.Abstractions` | Content, Routing, Rendering, Plugins |
 | `RouteInfo` | `Engine.Abstractions` | Routing, Rendering, Plugins |
 | `BuildContext` | `Engine.Abstractions` | Plugins |
 | `AppConfig` | `Config` | Config, Engine |

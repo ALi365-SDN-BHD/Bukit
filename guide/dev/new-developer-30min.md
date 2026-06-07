@@ -68,7 +68,7 @@ site.yaml → Content (Markdown/Notion) → Routing (url/template) → Rendering
 2. Run smoke
 
 ### Add a content field
-1. Add to `ContentItem.Fields` during content loading
+1. Add to `ContentDocument.Fields` during content loading
 2. Update templates to read it
 
 ### Add a plugin

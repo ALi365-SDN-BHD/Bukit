@@ -84,10 +84,9 @@ Common entries:
 
 ## Quick Concepts
 
-- `ContentItem`: unified content model from Markdown or Notion.
-- Meta vs Fields: Meta drives engine behavior; Fields are consumed by templates (`page.fields.*.value`).
+- `ContentDocument`: unified content model from Markdown or Notion.
+- Record vs Fields: Record drives engine behavior; Fields are consumed by templates (`page.fields.*.value`).
 - `mode=content` vs `mode=data`: content creates routes/pages; data injects into `site.modules`.
 - Plugins: two lifecycle hooks (`derive-pages`, `after-build`).
 
 Canonical reference: [README.zh-CN.md](./README.zh-CN.md)
-

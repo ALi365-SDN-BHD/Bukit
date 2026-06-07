@@ -77,9 +77,9 @@ Pintu masuk utama:
 ### Bukit.Content
 
 Tanggungjawab:
-- Model kandungan bersatu (`ContentItem`, `ContentField`) — **didefinisikan di Bukit.Engine.Abstractions**
+- Model kandungan bersatu (`ContentDocument`, `ContentField`) — **didefinisikan di Bukit.Engine.Abstractions**
 - Pemuatan kandungan: folder Markdown, pangkalan data Notion, dan mod gabungan sumber
-- Penormalan medan/sifat: Meta (keputusan enjin) dan Fields (penggunaan templat)
+- Penormalan medan/sifat: `ContentDocument.Record` dan `ContentDocument.CustomFields` (penggunaan enjin dan templat)
 
 Pintu masuk utama:
 - `src/Bukit.Content/Markdown/MarkdownFolderProvider.cs`
@@ -89,8 +89,8 @@ Pintu masuk utama:
 ### Bukit.Routing
 
 Tanggungjawab:
-- Menukar ContentItem kepada `RouteInfo` (url/outputPath/templat) — **RouteInfo didefinisikan di Bukit.Engine.Abstractions**
-- Menyokong penggantian laluan dari Meta (route/url/outputPath/template)
+- Menukar `ContentDocument` kepada `RouteInfo` (url/outputPath/templat) — **RouteInfo didefinisikan di Bukit.Engine.Abstractions**
+- Menyokong penggantian laluan dari medan route/polisi route
 - Menyokong pola URL tersuai `site.permalinks` (pemegang tempat `{year}/{month}/{slug}` dsb.)
 - Menyokong `site.collections` bagi strategi permalink/templat/senarai mengikut koleksi (dan mengekalkan peraturan lalai serasi)
 
@@ -144,7 +144,7 @@ Komponen tambahan: `ThemeBootstrapper` (pemulaan tema), `BuildOptionsMapper` (Bu
 | `BuildVariantContext` | Agregasi parameter input untuk binaan varian tunggal |
 | `BuildVariantResult` | Agregasi hasil untuk binaan varian tunggal |
 | `ContentProviderFactory` | Mencipta contoh IContentProvider, mengendalikan penyetempatan media |
-| `MetaHelpers` | Pembantu akses statik untuk ContentItem meta/fields |
+| `ContentFieldReader` | Pembantu akses statik bagi `ContentDocument` dan medan kandungan |
 | `BuildPathUtils` | Operasi laluan, penormalan URL, pelarian HTML, resolusi direktori tema |
 | `TaxonomyTermsInjector` | Suntikan istilah taksonomi dari item data ke BuildContext |
 | `DataModuleBuilder` | Pembinaan `site.modules` dari item data (dikumpul mengikut type, diisih mengikut order) |
@@ -207,11 +207,11 @@ Selepas binaan varian selesai, Enjin akan menyalin fail dari direktori muat turu
 
 Tanggungjawab:
 - Kontrak stabil antara muka plugin dan konteks binaan (titik sambungan luaran)
-- Definisi jenis rekod data teras (`ContentItem`, `ContentField`, `RouteInfo`)
+- Definisi jenis rekod data teras (`ContentDocument`, `ContentRecord`, `RouteInfo`)
 
 Pintu masuk utama:
 - `src/Bukit.Engine.Abstractions/Plugins/*`
-- `src/Bukit.Engine.Abstractions/ContentItem.cs`
+- `src/Bukit.Engine.Abstractions/ContentDocument.cs`
 - `src/Bukit.Engine.Abstractions/RouteInfo.cs`
 
 ### Bukit.Shared
@@ -224,9 +224,9 @@ Pintu masuk utama:
 
 ## Struktur Data Teras
 
-- **ContentItem** — struktur kandungan bersatu selepas pemuatan; enjin hanya mengenali ini (didefinisikan di Engine.Abstractions)
+- **ContentDocument** — struktur kandungan bersatu selepas pemuatan; enjin hanya mengenali ini (didefinisikan di Engine.Abstractions)
 - **IContentBodyStore + BodyKey** — saluran akses bodi secara tertunda (mengelakkan bodi disimpan kekal dalam objek metadata kandungan)
-- **Meta** — metadata yang mempengaruhi strategi laluan/binaan (type/language/route/sourceMode...)
+- **Record/Policy** — maklumat semantik yang mempengaruhi strategi laluan/binaan (type/language/route/sourceMode...)
 - **Fields** — "medan tersuai" untuk tema dan templat (fields.\<key\>.type/value)
 - **RouteInfo** — hasil keputusan laluan (url/outputPath/templat, didefinisikan di Engine.Abstractions)
 - **BuildContext** — konteks masa jalan plugin (config/rootDir/outputDir/baseUrl/routed/derived...)
@@ -238,8 +238,8 @@ Pintu masuk utama:
 - **Kontrak luaran dahulu**: Nama medan konfigurasi, teks ralat pengesahan, parameter CLI adalah antara muka stabil yang pengguna sandarkan — ubah dengan berhati-hati
 - **Kebergantungan sehala**: Cli → Config/Engine; Engine → Content/Routing/Rendering; Plugin hanya mengakses konteks melalui Abstractions
 - **Sempadan tanggungjawab jelas**:
-  - Content bertanggungjawab "menukar kandungan kepada ContentItem"
-  - Routing bertanggungjawab "ContentItem → RouteInfo"
+- Content bertanggungjawab "menukar kandungan kepada ContentDocument"
+- Routing bertanggungjawab "ContentDocument → RouteInfo"
   - Rendering bertanggungjawab "model → HTML"
   - Engine bertanggungjawab "orkestrasi & IO"
   - Plugins bertanggungjawab "sambungan boleh pasang"

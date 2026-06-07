@@ -90,7 +90,7 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
 
         public string Name { get; }
 
-        public string Version => "protocol-v1";
+        public string Version => "protocol-v2";
 
         public bool SupportsHook(string hook)
             => HasHook(_config, hook);

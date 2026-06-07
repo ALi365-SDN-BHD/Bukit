@@ -84,8 +84,8 @@
 
 ## 快速概念
 
-- `ContentItem`：来自 Markdown 或 Notion 的统一内容模型
-- Meta 与 Fields：Meta 决定引擎行为，Fields 主要供模板消费（`page.fields.*.value`）
+- `ContentDocument`：来自 Markdown 或 Notion 的统一内容模型
+- Record 与 Fields：Record 决定引擎行为，Fields 主要供模板消费（`page.fields.*.value`）
 - `mode=content` 与 `mode=data`：前者生成路由和页面，后者只把数据注入 `site.modules`
 - 插件生命周期：当前核心钩子是 `derive-pages` 与 `after-build`
 

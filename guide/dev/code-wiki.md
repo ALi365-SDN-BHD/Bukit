@@ -10,7 +10,7 @@ Bukit
 │  ├─ Bukit.Cli/                 # CLI entry, command dispatch
 │  ├─ Bukit.Config/              # site.yaml parsing, defaults, validation
 │  ├─ Bukit.Content/             # Markdown/Notion/multi-source loading
-│  ├─ Bukit.Engine.Abstractions/ # ContentItem, RouteInfo, plugin contracts
+│  ├─ Bukit.Engine.Abstractions/ # ContentDocument, RouteInfo, plugin contracts
 │  ├─ Bukit.Engine/              # Build orchestration, incremental, plugins
 │  ├─ Bukit.Rendering/           # Template models, Scriban binding
 │  ├─ Bukit.Routing/             # Content-to-route mapping
@@ -69,7 +69,7 @@ Bukit.Cli → Bukit.Engine → Bukit.Config + Content + Rendering + Routing + Sh
 - `MetricsWriter.WriteIfRequested` — Build metrics JSON
 
 ### Routing/Rendering/Plugins
-- `RouteGenerator.Generate` — ContentItem → RouteInfo
+- `RouteGenerator.Generate` — ContentDocument → RouteInfo
 - `RoutePathBuilder` — Shared URL/path normalization utilities (used by all plugins)
 - `RouteInventoryValidator.ValidateContentRoutes` / `ValidateFinalRoutes` — Route conflict detection
 - `ScribanModelBinder` — C# models → Scriban

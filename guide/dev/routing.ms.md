@@ -1,6 +1,6 @@
 # Penghalaan (Laluan Utama Koleksi dan Peraturan Keserasian)
 
-Memetakan `ContentItem` kepada `RouteInfo(url, outputPath, template)`.
+Memetakan `ContentDocument` kepada `RouteInfo(url, outputPath, template)`.
 
 Pelaksanaan: `src/Bukit.Routing/RouteGenerator.cs`, `src/Bukit.Routing/RoutePathBuilder.cs`, `src/Bukit.Engine/RouteInventoryValidator.cs`
 
@@ -22,7 +22,7 @@ Keutamaan (tinggi ke rendah):
 2. Tindihan separa (url sahaja atau url + template)
 3. Peraturan Koleksi (`site.collections`)
 4. Corak Permalink (`site.permalinks`)
-5. Penghalaan lalai (post→`/blog/{slug}/`, page→`/pages/{slug}/`)
+5. Penghalaan lalai dibuang kerana laluan kini dikawal oleh peraturan koleksi/permalink/rute terarah.
 
 ## Tindihan Laluan
 

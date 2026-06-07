@@ -72,7 +72,7 @@ ContentProviderFactory.Create
 
 ```text
 Markdown/Notion/sources
-  → ContentItem (Id, Title, Slug, PublishAt, Meta, Fields, ContentHtml, BodyKey)
+  → ContentDocument (Id, Title, Slug, PublishAt, Record, Fields, ContentHtml, BodyKey)
     → RouteGenerator.Generate
       → RouteInfo (url, outputPath, template)
         → PageRenderDispatcher
@@ -85,7 +85,7 @@ Markdown/Notion/sources
 
 | Structure | Defined In | Used By |
 |---|---|---|
-| `ContentItem` | `Bukit.Engine.Abstractions` | Content, Routing, Rendering, Plugins |
+| `ContentDocument` | `Bukit.Engine.Abstractions` | Content, Routing, Rendering, Plugins |
 | `ContentField` | `Bukit.Engine.Abstractions` | Content, Rendering |
 | `RouteInfo` | `Bukit.Engine.Abstractions` | Routing, Rendering, Plugins |
 | `BuildContext` | `Bukit.Engine.Abstractions` | Plugins |

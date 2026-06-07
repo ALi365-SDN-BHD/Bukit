@@ -8,7 +8,7 @@ This page explains Bukit's core objects from a "user perspective": what files yo
 site.yaml
   │
   ├─ content (Markdown / Notion / sources)
-  │     └─ reads content → normalizes into ContentItem
+  │     └─ reads content → normalizes into ContentDocument
   │
   ├─ routing (explicit route overrides, site.collections, or site.permalinks)
   │
@@ -35,13 +35,13 @@ There are only three things to remember:
 
 For detailed fields, see: [04 Site YAML Config](./04-site-yaml-config.md).
 
-## Content (ContentItem) = A piece of data that "will be rendered / injected into templates"
+## Content (ContentDocument) = A piece of data that "will be rendered / injected into templates"
 
 Regardless of whether your content comes from Markdown or Notion, the engine normalizes everything into "content items." What matters most to you is: **which fields affect site behavior**.
 
-### 1) Meta: Metadata that influences engine decisions (keep it few, keep it stable)
+### 1) Record: Metadata that influences engine decisions (keep it few, keep it stable)
 
-Common Meta keys (you provide them in Markdown Front Matter or Notion fields):
+Common Record keys (you provide them in Markdown Front Matter or Notion fields):
 
 - `collection`: The collection the content belongs to (recommended), corresponds to a key in site.collections, determines routing and template
 - `type`: Optional metadata and matching key. It only affects routing/templates when config declares how to use it.

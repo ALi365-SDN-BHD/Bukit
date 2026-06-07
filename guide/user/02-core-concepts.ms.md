@@ -8,7 +8,7 @@ Halaman ini menerangkan objek teras Bukit dari "perspektif pengguna": fail apa y
 site.yaml
   │
   ├─ content (Markdown / Notion / sources)
-  │     └─ membaca kandungan → menormalkan ke dalam ContentItem
+  │     └─ membaca kandungan → menormalkan ke dalam ContentDocument
   │
   ├─ routing (ditentukan oleh route/template eksplisit, site.collections, dan theme templates.accepts)
   │
@@ -35,13 +35,13 @@ Hanya tiga perkara yang perlu diingat:
 
 Untuk medan terperinci, lihat: [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md).
 
-## Kandungan (ContentItem) = Satu keping data yang "akan dihasilkan / disuntik ke dalam templat"
+## Kandungan (ContentDocument) = Satu keping data yang "akan dihasilkan / disuntik ke dalam templat"
 
 Tidak kira sama ada kandungan anda berasal dari Markdown atau Notion, enjin menormalkan semuanya ke dalam "item kandungan." Yang paling penting bagi anda ialah: **medan mana yang mempengaruhi tingkah laku tapak**.
 
-### 1) Meta: Metadata yang mempengaruhi keputusan enjin (kekalkan sedikit, kekalkan stabil)
+### 1) Record: Metadata yang mempengaruhi keputusan enjin (kekalkan sedikit, kekalkan stabil)
 
-Kunci Meta lazim (anda menyediakannya dalam Markdown Front Matter atau medan Notion):
+Kunci Record lazim (anda menyediakannya dalam Markdown Front Matter atau medan Notion):
 
 - `collection`: Koleksi kandungan itu dimiliki (disyorkan), sepadan dengan kunci dalam site.collections, menentukan penghalaan dan templat
 - `type`: jenis kandungan pilihan atau kunci padanan templat tema; tidak mencipta laluan terbina dalam

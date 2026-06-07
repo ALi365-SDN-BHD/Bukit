@@ -2,17 +2,17 @@
 
 Rujukan pembangun untuk sistem kandungan, meliputi model seragam, pelaksanaan pembekal, dan peraturan penormalan medan.
 
-Pelaksanaan: `src/Bukit.Content/*`, `src/Bukit.Engine.Abstractions/ContentItem.cs`
+Pelaksanaan: `src/Bukit.Content/*`, `src/Bukit.Engine.Abstractions/ContentDocument.cs`
 
-## Model Seragam: ContentItem
-Semua sumber kandungan akhirnya mendarat pada `ContentItem`:
+## Model Seragam: ContentDocument
+Semua sumber kandungan akhirnya mendarat pada `ContentDocument`:
 - `Id`, `Title`, `Slug`, `PublishAt`, `Language`
-- `Meta`: Metadata yang mempengaruhi keputusan enjin
+- `Record`: rekod semantik teras untuk keputusan enjin
 - `Fields`: Medan tersuai untuk penggunaan templat
 - `ContentHtml`: Badan HTML (mungkin null dengan BodyKey)
 
-## Pembahagian Meta vs Fields
-- **Meta**: Keputusan enjin — `type`, `language`, `draft`, `route`, `sourceMode`, `tags`, `categories`, `collection`
+## Pembahagian Record vs Fields
+- **Record**: Keputusan enjin — `type`, `language`, `draft`, `route`, `sourceMode`, `tags`, `categories`, `collection`
 - **Fields**: Penggunaan templat — medan SEO, medan perniagaan, imej, masa membaca
 
 ## Pembekal Markdown

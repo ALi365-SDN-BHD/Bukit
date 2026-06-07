@@ -9,7 +9,7 @@ Bukit
 │  ├─ Bukit.Cli/                 # Masuk CLI, penghantaran perintah
 │  ├─ Bukit.Config/              # Penghuraian site.yaml, pengesahan
 │  ├─ Bukit.Content/             # Pemuatan Markdown/Notion/sumber
-│  ├─ Bukit.Engine.Abstractions/ # ContentItem, RouteInfo, kontrak plugin
+│  ├─ Bukit.Engine.Abstractions/ # ContentDocument, RouteInfo, kontrak plugin
 │  ├─ Bukit.Engine/              # Orkestrasi binaan, tokokan, plugin
 │  ├─ Bukit.Rendering/           # Model templat, pengikatan Scriban
 │  ├─ Bukit.Routing/             # Pemetaan kandungan-ke-laluan
@@ -42,7 +42,7 @@ Bukit
 - `DataModuleBuilder.BuildModules` — `mode=data` → `site.modules`
 
 ### Penghalaan/Rendering/Plugin
-- `RouteGenerator.Generate` — ContentItem → RouteInfo
+- `RouteGenerator.Generate` — ContentDocument → RouteInfo
 - `ScribanModelBinder` — Model C# → Scriban
 
 ## Jalankan Setempat

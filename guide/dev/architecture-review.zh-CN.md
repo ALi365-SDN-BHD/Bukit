@@ -69,7 +69,7 @@ CLI -> Config -> Content -> Routing -> Rendering -> Engine -> Plugins -> Output
 
 ### 3.4 内容正文模型已明显改进
 
-当前主链已不是“正文 HTML 一定提前常驻内存”的形态。`ContentItem` 支持 `BodyKey`，正文可经 `IContentBodyStore` 按需获取；Markdown/Notion provider 默认可返回 `ContentHtml: null` 并延迟解析。
+当前主链已不是“正文 HTML 一定提前常驻内存”的形态。`ContentDocument` 支持 `BodyKey`，正文可经 `IContentBodyStore` 按需获取；Markdown/Notion provider 默认可返回 `ContentHtml: null` 并延迟解析。
 
 这意味着正文模型已从“全量正文常驻”演进到“元数据全量 + 正文按需”。
 

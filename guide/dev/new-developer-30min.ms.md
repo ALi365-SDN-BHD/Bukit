@@ -51,7 +51,7 @@ site.yaml → Kandungan → Penghalaan → Rendering → Plugin → dist/
 
 ## 8. Aliran Kerja Lazim
 ### Tambah parameter CLI: Tambah ke `BukitCliSpecs.cs`, kemudian `BuildCommand.cs`
-### Tambah medan kandungan: Tambah ke `ContentItem.Fields` semasa pemuatan kandungan
+### Tambah medan kandungan: Tambah ke `ContentDocument.Fields` semasa pemuatan kandungan
 ### Tambah plugin: Laksana `IBukitPlugin` + `[BukitPlugin]`, letak dalam `plugins/`
 
 ## 9. Pergi Lebih Mendalam

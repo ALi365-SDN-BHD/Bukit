@@ -16,7 +16,7 @@
 
 作用：
 - 基于现有的 routed 内容，派生额外页面（例如 tags/categories 列表页）
-- 派生页返回 `(ContentItem, RouteInfo, LastModified)`，会进入渲染队列
+- 派生页返回 `(ContentDocument, RouteInfo, LastModified)`，会进入渲染队列
 
 注意：
 - 派生页的 `RouteInfo` 应避免与已有路由冲突
@@ -89,7 +89,7 @@
 - 通过配置 `site.externalPlugins`
 - 当前支持 `runtime: process|wasm`
 - 当前支持 `after-build` 与 `derive-pages`
-- after-build 支持 `handshake` 协商并在需要时自动降级到 v1
+- after-build 支持 `handshake` 协商，当前默认以 `protocol-v2` 为主
 - `site.externalProtocolIncludeRoutedPages` 默认 `false`，可按需开启 after-build 全量 routedPages 传输
 - 同一构建上下文内，after-build 握手协商结果会缓存复用
 - `options.arguments` 已禁用；请改用 `options.processArgs`
@@ -146,7 +146,7 @@ site:
 
 内置插件当前包括（见 `BuiltInPluginSource`）：
 
-- `taxonomy`：根据 meta.tags/meta.categories 派生 `/tags/` 与 `/categories/`（IDerivePagesPlugin）
+- `taxonomy`：根据 record.tags/record.categories 派生 `/tags/` 与 `/categories/`（IDerivePagesPlugin）
 - `pagination`：分页类派生/输出（视实现）
 - `archive`：归档类派生/输出（视实现）
 

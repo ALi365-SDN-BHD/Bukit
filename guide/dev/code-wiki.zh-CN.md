@@ -14,7 +14,7 @@ Bukit
 │  ├─ Bukit.Cli/                 # CLI 入口与命令分发
 │  ├─ Bukit.Config/              # site.yaml 解析、默认值、校验、覆盖
 │  ├─ Bukit.Content/             # Markdown / Notion / 多源内容加载
-│  ├─ Bukit.Engine.Abstractions/ # ContentItem、RouteInfo、插件契约
+│  ├─ Bukit.Engine.Abstractions/ # ContentDocument、RouteInfo、插件契约
 │  ├─ Bukit.Engine/              # 构建编排、增量、插件运行、输出合并
 │  ├─ Bukit.Rendering/           # 模板输入模型与 Scriban 绑定
 │  ├─ Bukit.Routing/             # 内容到路由的映射
@@ -70,7 +70,7 @@ flowchart TD
     D --> E[SiteEngine.BuildAsync]
     E --> F[IContentProviderFactory.Create]
     F --> G[Markdown / Notion / CompositeContentProvider]
-    G --> H[ContentItem 列表]
+    G --> H[ContentDocument 列表]
     H --> I[I18nOutputMerger]
     I --> J[BuildVariantAsync]
     J --> K[RouteGenerator]
@@ -102,8 +102,8 @@ flowchart TD
 |---|---|---|
 | `Bukit.Cli` | 命令解析、参数映射、调用引擎 | `Program.cs`、`Commands/*` |
 | `Bukit.Config` | 配置模型、YAML 解析、默认值、配置校验 | `AppConfig.cs`、`ConfigLoader.cs`、`ConfigValidator.cs` |
-| `Bukit.Content` | 从 Markdown / Notion 加载内容并归一化为 `ContentItem` | `MarkdownFolderProvider.cs`、`NotionContentProvider.cs`、`CompositeContentProvider.cs` |
-| `Bukit.Engine.Abstractions` | 定义稳定的数据结构与插件扩展契约 | `ContentItem.cs`、`RouteInfo.cs`、`Plugins/*` |
+| `Bukit.Content` | 从 Markdown / Notion 加载内容并归一化为 `ContentDocument` | `MarkdownFolderProvider.cs`、`NotionContentProvider.cs`、`CompositeContentProvider.cs` |
+| `Bukit.Engine.Abstractions` | 定义稳定的数据结构与插件扩展契约 | `ContentDocument.cs`、`RouteInfo.cs`、`Plugins/*` |
 | `Bukit.Engine` | 构建编排、增量构建、插件执行、多语言输出合并 | `SiteEngine.cs`、`PageRenderDispatcher.cs`、`Plugins/*` |
 | `Bukit.Rendering` | 模板输入模型、Scriban 模型绑定 | `Models.cs`、`Scriban/*` |
 | `Bukit.Routing` | 根据内容和 permalink 规则生成 URL / OutputPath / Template | `RouteGenerator.cs` |
@@ -119,7 +119,7 @@ flowchart TD
 
 | 类型 | 含义 | 备注 |
 |---|---|---|
-| `ContentItem` | 统一内容结构 | 所有内容源最终都要落到这个模型 |
+| `ContentDocument` | 统一内容结构 | 所有内容源最终都要落到这个模型 |
 | `ContentField` | 供模板使用的结构化字段 | 暴露为 `page.fields.*` |
 | `RouteInfo` | 路由决策结果 | 包含 URL、输出路径、模板路径 |
 | `BuildContext` | 插件运行上下文 | 提供 routed / derived / data / logger |
@@ -127,12 +127,12 @@ flowchart TD
 | `PageModel` / `ListPageModel` | 模板中的页面模型 | 暴露 `page.*` 与 `pages.*` |
 | `BuildManifest` | 增量构建缓存文件 | 用于跳过未变更页面 |
 
-### 6.2 Meta 与 Fields 的分工
+### 6.2 Record 与 Fields 的分工
 
-- `Meta`：用于引擎决策，例如 `type`、`language`、`draft`、`route`、`sourceMode`。
+- `Record`：用于引擎决策，例如 `type`、`language`、`draft`、`route`、`sourceMode`。
 - `Fields`：用于模板消费，例如 SEO 字段、业务字段、封面图、阅读时长等。
 
-这一区分非常关键：**引擎依赖 Meta，主题依赖 Fields**。
+这一区分非常关键：**引擎依赖 Record，主题依赖 Fields**。
 
 ## 7. Bukit 关键类与函数索引
 
@@ -152,9 +152,9 @@ flowchart TD
 
 | 类 / 函数 | 所在文件 | 作用 |
 |---|---|---|
-| `MarkdownFolderProvider.LoadAsync` | `src/Bukit.Content/Markdown/MarkdownFolderProvider.cs` | 扫描 Markdown 文件夹并转为 `ContentItem` |
+| `MarkdownFolderProvider.LoadAsync` | `src/Bukit.Content/Markdown/MarkdownFolderProvider.cs` | 扫描 Markdown 文件夹并转为 `ContentDocument` |
 | `MarkdownFolderProvider.ParseFrontMatter` | `src/Bukit.Content/Markdown/MarkdownFolderProvider.cs` | 解析 front matter，为 meta/fields 做归一化 |
-| `NotionContentProvider.LoadAsync` | `src/Bukit.Content/Notion/NotionContentProvider.cs` | 从 Notion 数据库拉取页面、渲染块并转为 `ContentItem` |
+| `NotionContentProvider.LoadAsync` | `src/Bukit.Content/Notion/NotionContentProvider.cs` | 从 Notion 数据库拉取页面、渲染块并转为 `ContentDocument` |
 | `CompositeContentProvider.LoadAsync` | `src/Bukit.Content/CompositeContentProvider.cs` | 多源并发加载，并注入 `sourceKey/sourceMode/sourceId` |
 | `ContentProviderFactory.Create` | `src/Bukit.Engine/ContentProviderFactory.cs` | 根据配置选择 Markdown / Notion / Composite provider |
 
@@ -174,7 +174,7 @@ flowchart TD
 
 | 类 / 函数 | 所在文件 | 作用 |
 |---|---|---|
-| `RouteGenerator.Generate` | `src/Bukit.Routing/RouteGenerator.cs` | 将 `ContentItem` 转为 `RouteInfo` |
+| `RouteGenerator.Generate` | `src/Bukit.Routing/RouteGenerator.cs` | 将 `ContentDocument` 转为 `RouteInfo` |
 | `RouteGenerator.ExpandPermalinkPattern` | `src/Bukit.Routing/RouteGenerator.cs` | 展开 `{slug}`、`{year}` 等 permalink 占位符 |
 | `ScribanModelBinder` | `src/Bukit.Rendering/Scriban/ScribanModelBinder.cs` | 将 C# 模型映射为 Scriban 可消费对象 |
 | `ScribanTemplateRendererAdapter` | `src/Bukit.Engine/ScribanTemplateRendererAdapter.cs` | 将渲染器适配到引擎接口 |

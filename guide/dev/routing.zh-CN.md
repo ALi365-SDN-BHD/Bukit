@@ -1,12 +1,12 @@
 # 路由系统（Collections 主路径与兼容规则）
 
-路由系统负责把 `ContentItem` 映射为 `RouteInfo(url, outputPath, template)`，供渲染阶段使用。
+路由系统负责把 `ContentDocument` 映射为 `RouteInfo(url, outputPath, template)`，供渲染阶段使用。
 
 实现参考：`src/Bukit.Routing/RouteGenerator.cs`、`src/Bukit.Routing/RoutePathBuilder.cs`、`src/Bukit.Engine/RouteInventoryValidator.cs`
 
 ## Collection 驱动路由（主模型）
 
-路由优先由 `site.collections` 决定，集合键通常来自 `meta.collection`（缺失时回退 `meta.type`）：
+路由优先由 `site.collections` 决定，集合键通常来自内容属性中的 `collection`（缺失时回退 `type`）：
 
 ```yaml
 site:
@@ -40,12 +40,12 @@ site:
 
 | 占位符 | 来源 | 示例 |
 |---|---|---|
-| `{slug}` | ContentItem.Slug | `my-post` |
-| `{title}` | ContentItem.Slug（回退） | `my-post` |
-| `{year}` | ContentItem.PublishAt 年（4 位） | `2025` |
-| `{month}` | ContentItem.PublishAt 月（2 位） | `03` |
-| `{day}` | ContentItem.PublishAt 日（2 位） | `15` |
-| `{type}` | meta.type | `post` |
+| `{slug}` | ContentDocument.Slug | `my-post` |
+| `{title}` | ContentDocument.Slug（回退） | `my-post` |
+| `{year}` | ContentDocument.PublishAt 年（4 位） | `2025` |
+| `{month}` | ContentDocument.PublishAt 月（2 位） | `03` |
+| `{day}` | ContentDocument.PublishAt 日（2 位） | `15` |
+| `{type}` | ContentDocument.Record.Identity.ContentType | `post` |
 
 示例效果：
 
@@ -68,7 +68,7 @@ site:
 
 ### 全量覆盖
 
-当 ContentItem 的 Meta 中同时存在 `url`、`outputPath`、`template` 三个字段时，会完全覆盖默认路由：
+当内容中存在路由字段（`route.url` + `route.outputPath` + `route.template`，或兼容的顶层 `url/outputPath/template`）并同时完整时，会完全覆盖默认路由：
 
 ```yaml
 route:
@@ -99,7 +99,7 @@ url: /my-slug/
 
 ## Notion 内容如何覆盖路由
 
-Notion 内容通过数据库属性映射到 `fields`，引擎会把以下字段提升到 `meta` 以支持路由覆盖：
+Notion 内容通过数据库属性映射到 `fields`，引擎会将以下字段用于路由与语义决策：
 - `url`（文本）
 - `outputPath`（文本）
 - `template`（文本）

@@ -1,6 +1,6 @@
 # Routing System (Configuration-Driven Paths)
 
-Maps `ContentItem` to `RouteInfo(url, outputPath, template)`.
+Maps `ContentDocument` to `RouteInfo(url, outputPath, template)`.
 
 Implementation: `src/Bukit.Routing/RouteGenerator.cs`, `src/Bukit.Routing/RoutePathBuilder.cs`, `src/Bukit.Engine/RouteInventoryValidator.cs`
 
@@ -43,7 +43,7 @@ There is no built-in `post`/`page` route fallback. If none of these rules match,
 
 ### Full Override
 
-When all three of `url`, `outputPath`, `template` are present in meta, routing is completely overridden. Notion `url`/`outputPath`/`template` fields are promoted to meta.
+When all three of `url`, `outputPath`, `template` are present in route fields (or compatible top-level fields), routing is completely overridden.
 
 ```yaml
 route:

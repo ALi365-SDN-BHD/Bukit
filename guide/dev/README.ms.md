@@ -84,10 +84,9 @@ Kemasukan biasa:
 
 ## Konsep Pantas
 
-- `ContentItem`: model kandungan bersatu yang datang daripada Markdown atau Notion
-- Meta dan Fields: Meta mengawal tingkah laku enjin, manakala Fields digunakan oleh templat (`page.fields.*.value`)
+- `ContentDocument`: model kandungan bersatu yang datang daripada Markdown atau Notion
+- Record dan Fields: Record mengawal tingkah laku enjin, manakala Fields digunakan oleh templat (`page.fields.*.value`)
 - `mode=content` dan `mode=data`: yang pertama menjana route dan halaman, yang kedua hanya menyuntik data ke `site.modules`
 - Kitar hayat plugin: cangkuk utama semasa ialah `derive-pages` dan `after-build`
 
 Rujukan kanonik: [README.zh-CN.md](./README.zh-CN.md)
-
