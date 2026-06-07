@@ -108,7 +108,7 @@ When `build.report.enabled: true` (or `--ci`), the engine writes structured buil
 
 - `build-report.json` — includes `schemaErrorCount` (content schema validation errors), page/route/asset counts, timing, and incremental stats.
 - `publish-audit-report.json` — primary machine-readability and trust audit covering semantic HTML, provenance, review status, representation coverage, and aggregate output consistency.
-- `seo-report.json` — compatibility SEO audit checks per route.
+- `seo-report.json` — SEO schema audit checks per route.
 - `geo-report.json` — GEO Score and LLM crawler readiness.
 
 These reports are designed for CI/CD integration, monitoring dashboards, and AI agent consumption.

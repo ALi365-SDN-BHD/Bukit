@@ -26,14 +26,14 @@ public sealed class RssGeneratorTests
 
     private static IReadOnlyDictionary<string, object> BuildMeta(string type, string? summary, IReadOnlyList<string>? tags)
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["type"] = type,
             ["collection"] = type
         };
-        if (summary is not null) meta["summary"] = summary;
-        if (tags is not null) meta["tags"] = tags;
-        return meta;
+        if (summary is not null) fieldValues["summary"] = summary;
+        if (tags is not null) fieldValues["tags"] = tags;
+        return fieldValues;
     }
 
     private sealed class InMemoryBodyStore : IContentBodyStore

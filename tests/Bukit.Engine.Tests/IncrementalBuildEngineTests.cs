@@ -20,7 +20,7 @@ public sealed class IncrementalBuildEngineTests
         string slug = "test-slug",
         DateTimeOffset? publishAt = null,
         string? contentHtml = null,
-        IReadOnlyDictionary<string, object>? meta = null,
+        IReadOnlyDictionary<string, object>? fieldValues = null,
         IReadOnlyDictionary<string, ContentField>? fields = null)
     {
         return ContentDocument.Create(
@@ -29,7 +29,7 @@ public sealed class IncrementalBuildEngineTests
             slug,
             publishAt ?? s_testPublishAt,
             contentHtml,
-            ContentFieldReader.WithValues(fields, meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase))
+            ContentFieldReader.WithValues(fields, fieldValues ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase))
         );
     }
 
@@ -109,11 +109,11 @@ public sealed class IncrementalBuildEngineTests
     [Fact]
     public void ComputeMetadataHash_DifferentTypeMeta_ProducesDifferentHash()
     {
-        var item1 = CreateItem(meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item1 = CreateItem(fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "post"
         });
-        var item2 = CreateItem(meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item2 = CreateItem(fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "page"
         });
@@ -126,11 +126,11 @@ public sealed class IncrementalBuildEngineTests
     [Fact]
     public void ComputeMetadataHash_DifferentSummary_ProducesDifferentHash()
     {
-        var item1 = CreateItem(meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item1 = CreateItem(fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["summary"] = "Summary A"
         });
-        var item2 = CreateItem(meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item2 = CreateItem(fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["summary"] = "Summary B"
         });
@@ -198,7 +198,7 @@ public sealed class IncrementalBuildEngineTests
     [Fact]
     public void ComputeContentHash_WithBodyFingerprint_UsesStableHash()
     {
-        var item = CreateItem(meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = CreateItem(fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["bodyFingerprint"] = "abc123def456"
         });
@@ -233,16 +233,16 @@ public sealed class IncrementalBuildEngineTests
     {
         var item = CreateItem(
             contentHtml: "<p>Should not be used</p>",
-            meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
-                ["bodyFingerprint"] = "fingerprint-from-meta"
+                ["bodyFingerprint"] = "fingerprint-from-fieldValues"
             });
         var bodyStore = NullContentBodyStore.Instance;
 
         var hash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
 
         var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(item);
-        var expected = HashUtil.Sha256Hex(string.Join("\n", metadataHash, "fingerprint-from-meta"));
+        var expected = HashUtil.Sha256Hex(string.Join("\n", metadataHash, "fingerprint-from-fieldValues"));
 
         Assert.Equal(expected, hash);
     }
@@ -288,7 +288,7 @@ public sealed class IncrementalBuildEngineTests
     [Fact]
     public void ComputeStableContentHash_WithBodyFingerprint_ProducesHash()
     {
-        var item = CreateItem(meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = CreateItem(fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["bodyFingerprint"] = "abc123"
         });
@@ -340,7 +340,7 @@ public sealed class IncrementalBuildEngineTests
     [Fact]
     public void TryComputeStableContentHash_LocalizedBodyStore_ReturnsFalse()
     {
-        var item = CreateItem(meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = CreateItem(fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["bodyFingerprint"] = "abc"
         });
@@ -371,7 +371,7 @@ public sealed class IncrementalBuildEngineTests
     [Fact]
     public void TryComputeStableContentHash_WithBodyFingerprintMeta_ReturnsTrue()
     {
-        var item = CreateItem(meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = CreateItem(fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["bodyFingerprint"] = "xyz789"
         });
@@ -406,7 +406,7 @@ public sealed class IncrementalBuildEngineTests
     [Fact]
     public void TryComputeStableContentHash_WithWhitespaceBodyFingerprint_ReturnsFalse()
     {
-        var item = CreateItem(meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var item = CreateItem(fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["bodyFingerprint"] = "   "
         });
@@ -668,7 +668,7 @@ public sealed class IncrementalBuildEngineTests
         var html = "<p>Fallback</p>";
         var item = CreateItem(
             contentHtml: html,
-            meta: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["bodyFingerprint"] = "should-ignore-because-localized"
             });

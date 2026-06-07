@@ -13,10 +13,10 @@ namespace Bukit.Engine.Tests;
 
 public sealed class AliasPluginTests
 {
-    private static ContentDocument Item(string id, string title, string slug, Dictionary<string, object>? meta = null)
+    private static ContentDocument Item(string id, string title, string slug, Dictionary<string, object>? fieldValues = null)
     {
-        meta ??= new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        return ContentDocument.Create(id, title, slug, DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
+        fieldValues ??= new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        return ContentDocument.Create(id, title, slug, DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(fieldValues));
     }
 
     private static RouteInfo Route(string url) => new(url, $"out{url}index.html", "pages/post.html");
@@ -24,13 +24,13 @@ public sealed class AliasPluginTests
     [Fact]
     public void DerivePages_AliasesAsList_GeneratesRedirectPages()
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var fieldValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["aliases"] = new[] { "/old-url/", "/another-old/" }
         };
         var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
-            (Item("p1", "Post", "post", meta), Route("/post/"))
+            (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
         var derived = new AliasPlugin().DerivePages(ctx);
@@ -43,13 +43,13 @@ public sealed class AliasPluginTests
     [Fact]
     public void DerivePages_AliasAsString_GeneratesRedirectPage()
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var fieldValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["aliases"] = "/legacy/"
         };
         var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
-            (Item("p1", "Post", "post", meta), Route("/post/"))
+            (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
         var derived = new AliasPlugin().DerivePages(ctx);
@@ -73,13 +73,13 @@ public sealed class AliasPluginTests
     [Fact]
     public void DerivePages_RedirectHtml_ContainsCanonicalAndRefresh()
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var fieldValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["aliases"] = new[] { "/old/" }
         };
         var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
-            (Item("p1", "Post", "post", meta), Route("/post/"))
+            (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
         var derived = new AliasPlugin().DerivePages(ctx);
@@ -93,13 +93,13 @@ public sealed class AliasPluginTests
     [Fact]
     public void DerivePages_AliasWithTrailingSlash_Normalized()
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var fieldValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["aliases"] = new[] { "old-post" }
         };
         var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
-            (Item("p1", "Post", "post", meta), Route("/post/"))
+            (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
         var derived = new AliasPlugin().DerivePages(ctx);
@@ -110,13 +110,13 @@ public sealed class AliasPluginTests
     [Fact]
     public void DerivePages_AliasItemHasRedirectType()
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var fieldValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["aliases"] = new[] { "/old/" }
         };
         var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
-            (Item("p1", "Post", "post", meta), Route("/post/"))
+            (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
         var derived = new AliasPlugin().DerivePages(ctx);

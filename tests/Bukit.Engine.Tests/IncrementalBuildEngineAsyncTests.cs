@@ -19,7 +19,7 @@ public sealed class IncrementalBuildEngineAsyncTests
         string slug = "test-slug",
         DateTimeOffset? publishAt = null,
         string? contentHtml = null,
-        IReadOnlyDictionary<string, object>? meta = null,
+        IReadOnlyDictionary<string, object>? fieldValues = null,
         IReadOnlyDictionary<string, ContentField>? fields = null)
     {
         return ContentDocument.Create(
@@ -28,7 +28,7 @@ public sealed class IncrementalBuildEngineAsyncTests
             slug,
             publishAt ?? s_testPublishAt,
             contentHtml,
-            ContentFieldReader.WithValues(fields, meta ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase))
+            ContentFieldReader.WithValues(fields, fieldValues ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase))
         );
     }
 

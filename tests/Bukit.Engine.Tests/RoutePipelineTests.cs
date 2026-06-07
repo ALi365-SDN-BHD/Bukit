@@ -142,9 +142,9 @@ public sealed class RoutePipelineTests
         };
     }
 
-    private static ContentDocument Item(string id, string slug, IReadOnlyDictionary<string, object> meta)
+    private static ContentDocument Item(string id, string slug, IReadOnlyDictionary<string, object> fieldValues)
     {
-        return ContentDocument.Create(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(meta));
+        return ContentDocument.Create(id, id, slug, DateTimeOffset.UnixEpoch, $"<p>{id}</p>", ContentFieldReader.ToFieldMap(fieldValues));
     }
 
     private static string Normalize(string path)

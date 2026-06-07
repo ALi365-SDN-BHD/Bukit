@@ -88,7 +88,7 @@ Parsed from content front matter under the `geo:` key. Implementation in `SeoMod
 
 Implementation: `src/Bukit.Cli/Commands/GeoCommand.cs`
 
-Reads the build audit artifacts (primarily `.bukit/publish-audit-report.json`, with `.bukit/seo-report.json` as the SEO compatibility view) and calculates:
+Reads build audit artifacts from `.bukit/publish-audit-report.json` by default. `.bukit/seo-report.json` is an optional compatibility report source that must be provided explicitly when cross-schema comparison is required, and then GEO is calculated from the resolved report.
 
 ### GEO Score (0–100)
 

@@ -71,10 +71,10 @@ Always generated (not gated by `build.report.enabled`):
 | File | Content |
 |------|---------|
 | `publish-audit-report.json` | Primary machine-readability and trust audit: semantic HTML, provenance, review status, entity metadata, representation coverage, and aggregate output consistency |
-| `seo-report.json` | Compatibility SEO audit checks per route: metadata completeness, canonical correctness, sitemap/rss inclusion, schema types, GEO indicators |
+| `seo-report.json` | SEO schema audit (`seo-report.v1`) checks per route: metadata completeness, canonical correctness, sitemap/rss inclusion, schema types, GEO indicators |
 | `geo-report.json` | Derived GEO report: GEO Score (0-100), llms.txt/llms-full.txt status, geo-enhanced route list with schema types |
 
-**Legacy path compatibility:** `seo-report.json` was previously written to the output root (`dist/seo-report.json`). `bukit seo audit` resolves `.bukit/seo-report.json` first, then falls back to the legacy root path. `bukit publish audit` resolves `.bukit/publish-audit-report.json` only unless `--report` is provided.
+`seo-report.json` is generated under `.bukit` only. `bukit seo audit` resolves `.bukit/seo-report.json` by default; pass `--report` for explicit compatibility paths (for example `dist/.bukit/publish-audit-report.json`). `bukit publish audit` resolves `.bukit/publish-audit-report.json` by default and does not fall back to root paths.
 
 ## Publish Projections (dist/)
 

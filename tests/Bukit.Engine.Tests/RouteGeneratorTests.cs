@@ -11,14 +11,14 @@ public sealed class RouteGeneratorTests
 {
     private static ContentDocument Item(
         string slug = "my-slug",
-        IReadOnlyDictionary<string, object>? meta = null) =>
+        IReadOnlyDictionary<string, object>? fieldValues = null) =>
         ContentDocument.Create(
             id: "id-1",
             title: "Title",
             slug: slug,
             publishAt: DateTimeOffset.MinValue,
             contentHtml: "",
-            fields: ContentFieldReader.ToFieldMap(meta ?? new Dictionary<string, object>()));
+            fields: ContentFieldReader.ToFieldMap(fieldValues ?? new Dictionary<string, object>()));
 
     private static readonly IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule> DefaultCollections =
         new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
@@ -91,7 +91,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_RouteOverrideDict_OverridesAll()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -100,7 +100,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "custom/template.html"
             }
         };
-        var item = Item("ignored", meta);
+        var item = Item("ignored", fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("/custom/foo/", route.Url);
@@ -111,13 +111,13 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_RouteOverrideIndividualKeys_OverridesAll()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["url"] = "/standalone/bar/",
             ["outputPath"] = "standalone/bar/index.html",
             ["template"] = "standalone/page.html"
         };
-        var item = Item("ignored", meta);
+        var item = Item("ignored", fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("/standalone/bar/", route.Url);
@@ -128,7 +128,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_UrlNormalization_AddsLeadingSlash()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -137,7 +137,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("/no-leading/", route.Url);
@@ -146,7 +146,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_UrlNormalization_AddsTrailingSlash()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -155,7 +155,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("/no-trailing/", route.Url);
@@ -164,7 +164,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_UrlNormalization_TrimsWhitespace()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -173,7 +173,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("/trimmed/path/", route.Url);
@@ -182,7 +182,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_OutputPathEncoding_None_PreservesOriginal()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -191,7 +191,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item, "none");
 
         Assert.Equal("path with spaces/index.html", route.OutputPath);
@@ -200,7 +200,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_OutputPathEncoding_Slug_SlugifiesSegments()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -209,7 +209,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item, "slug");
 
         Assert.Equal("path/hello-world-here/index.html", route.OutputPath);
@@ -218,7 +218,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_OutputPathEncoding_UrlEncode_EncodesSegments()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -227,7 +227,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item, "urlencode");
 
         Assert.Equal("path/hello%20world/index.html", route.OutputPath);
@@ -236,7 +236,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_OutputPathEncoding_Sanitize_ReplacesSpacesRemovesInvalidChars()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -245,7 +245,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item, "sanitize");
 
         Assert.Equal("path/hello-world/index.html", route.OutputPath);
@@ -273,7 +273,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_OutputPathEncoding_CaseInsensitive()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -282,7 +282,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item, "SLUG");
 
         Assert.Equal("path/hello/index.html", route.OutputPath);
@@ -291,7 +291,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_OutputPath_NormalizesBackslashes()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -300,7 +300,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("dir/sub/index.html", route.OutputPath);
@@ -309,7 +309,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_OutputPath_TrimsLeadingSlashes()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -318,7 +318,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("leading/slash/index.html", route.OutputPath);
@@ -327,15 +327,15 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_PartialRouteOverride_AppliesOutputPathOnly()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
                 ["outputPath"] = "custom/about/index.html"
             }
         };
-        meta["collection"] = "page";
-        var item = Item("about", meta);
+        fieldValues["collection"] = "page";
+        var item = Item("about", fieldValues);
 
         var route = RouteGenerator.Generate(item, collections: DefaultCollections);
 
@@ -347,7 +347,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_FullRouteOverride_DangerousUrl_Throws()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -356,7 +356,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
 
         Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
     }
@@ -364,7 +364,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_FullRouteOverride_DangerousOutputPath_Throws()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -373,7 +373,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
 
         Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
     }
@@ -393,7 +393,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_Template_Trimmed()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -402,7 +402,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "  pages/trimmed.html  "
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("pages/trimmed.html", route.Template);
@@ -411,7 +411,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_RouteOverride_IncompleteUrlOnly_DerivesOutputPath()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -420,8 +420,8 @@ public sealed class RouteGeneratorTests
                 ["template"] = ""
             }
         };
-        meta["collection"] = "page";
-        var item = Item("fallback", meta);
+        fieldValues["collection"] = "page";
+        var item = Item("fallback", fieldValues);
         var route = RouteGenerator.Generate(item, collections: DefaultCollections);
 
         Assert.Equal("/only-url/", route.Url);
@@ -432,7 +432,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_RouteOverride_IncompleteUrlAndOutputPath_DerivesTemplate()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -440,8 +440,8 @@ public sealed class RouteGeneratorTests
                 ["outputPath"] = "out/index.html"
             }
         };
-        meta["collection"] = "page";
-        var item = Item("fallback", meta);
+        fieldValues["collection"] = "page";
+        var item = Item("fallback", fieldValues);
         var route = RouteGenerator.Generate(item, collections: DefaultCollections);
 
         Assert.Equal("/only-url/", route.Url);
@@ -492,7 +492,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_Sanitize_CompressesMultipleDashes()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -501,7 +501,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item, "sanitize");
 
         Assert.Equal("path/hello-world/index.html", route.OutputPath);
@@ -510,7 +510,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_Sanitize_RemovesInvalidWindowsChars()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -519,7 +519,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item, "sanitize");
 
         Assert.Equal("path/helloworld/index.html", route.OutputPath);
@@ -528,7 +528,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_Slug_PreservesFileExtension()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -537,7 +537,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta);
+        var item = Item("x", fieldValues);
         var route = RouteGenerator.Generate(item, "slug");
 
         Assert.Equal("path/mydocument.pdf", route.OutputPath);
@@ -615,7 +615,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_PermalinkPattern_OverrideStillTakesPrecedence()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["type"] = "post",
             ["route"] = new Dictionary<string, object>
@@ -625,7 +625,7 @@ public sealed class RouteGeneratorTests
                 ["template"] = "pages/custom.html"
             }
         };
-        var item = Item("test", meta);
+        var item = Item("test", fieldValues);
         var permalinks = new Dictionary<string, string> { ["post"] = "/{year}/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
 

@@ -88,7 +88,7 @@ Dihuraikan daripada Front Matter kandungan di bawah kunci `geo:`. Pelaksanaan da
 
 Pelaksanaan: `src/Bukit.Cli/Commands/GeoCommand.cs`
 
-Membaca artifak audit binaan (terutamanya `.bukit/publish-audit-report.json`, dengan `.bukit/seo-report.json` sebagai paparan keserasian SEO) dan mengira:
+Membaca artifak audit binaan dari `.bukit/publish-audit-report.json` secara lalai. Jika perbandingan rentas-skema diperlukan, berikan secara eksplisit `.bukit/seo-report.json` (titik masuk keserasian), kemudian mengira berasaskan laporan yang dipilih:
 
 ### Skor GEO (0–100)
 

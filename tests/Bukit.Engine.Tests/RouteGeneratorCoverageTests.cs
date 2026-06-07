@@ -12,34 +12,34 @@ public sealed class RouteGeneratorCoverageTests
     private static ContentDocument Item(
         string slug = "my-slug",
         string title = "Title",
-        IReadOnlyDictionary<string, object>? meta = null) =>
+        IReadOnlyDictionary<string, object>? fieldValues = null) =>
         ContentDocument.Create(
             id: "id-1",
             title: title,
             slug: slug,
             publishAt: DateTimeOffset.MinValue,
             contentHtml: "",
-            fields: ContentFieldReader.ToFieldMap(meta ?? new Dictionary<string, object>()));
+            fields: ContentFieldReader.ToFieldMap(fieldValues ?? new Dictionary<string, object>()));
 
     private static ContentDocument ItemWithDate(
         string slug,
         string title,
         int year, int month, int day,
-        IReadOnlyDictionary<string, object>? meta = null) =>
+        IReadOnlyDictionary<string, object>? fieldValues = null) =>
         ContentDocument.Create(
             id: "id-1",
             title: title,
             slug: slug,
             publishAt: new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.Zero),
             contentHtml: "",
-            fields: ContentFieldReader.ToFieldMap(meta ?? new Dictionary<string, object>()));
+            fields: ContentFieldReader.ToFieldMap(fieldValues ?? new Dictionary<string, object>()));
 
     // ── Slugify tests (via Generate with "slug" encoding) ────────────────
 
     [Fact]
     public void Generate_SlugEncoding_NormalText_SlugifiesToLowerDashSeparated()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -48,7 +48,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "slug");
 
         Assert.Equal("path/hello-world-test/index.html", route.OutputPath);
@@ -57,7 +57,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_SlugEncoding_OnlySpecialChars_SegmentBecomesPage()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -66,7 +66,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "slug");
 
         Assert.Contains("page", route.OutputPath);
@@ -75,7 +75,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_SlugEncoding_LeadingTrailingDashes_Trimmed()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -84,7 +84,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "slug");
 
         Assert.Equal("path/leading-trailing/index.html", route.OutputPath);
@@ -93,7 +93,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_SlugEncoding_UnderscoresBecomeDashes()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -102,7 +102,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "slug");
 
         Assert.Equal("path/my-file-name/index.html", route.OutputPath);
@@ -111,7 +111,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_SlugEncoding_EmptyOrWhitespaceSegment_BecomesPage()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -120,7 +120,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "slug");
 
         Assert.Equal("index.html", route.OutputPath);
@@ -131,7 +131,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_SlugEncoding_LeadingDotPreserved()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -140,7 +140,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "slug");
 
         Assert.Equal("base/.hidden/config.json", route.OutputPath);
@@ -149,7 +149,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_SlugEncoding_DotFileExtension()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -158,7 +158,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "slug");
 
         Assert.Equal("data/my-report.pdf", route.OutputPath);
@@ -169,7 +169,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_SanitizeEncoding_AllWhitespaceSegment_BecomesPage()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -178,7 +178,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "sanitize");
 
         Assert.Equal("index.html", route.OutputPath);
@@ -187,7 +187,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_SanitizeEncoding_ControlCharsStripped()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -196,7 +196,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "sanitize");
 
         Assert.Equal("path/helloworld/index.html", route.OutputPath);
@@ -205,7 +205,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_SanitizeEncoding_TrailingDotsAndSpaces_Trimmed()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -214,7 +214,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "sanitize");
 
         Assert.Equal("path/test...-/index.html", route.OutputPath);
@@ -223,7 +223,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_SanitizeEncoding_WindowsInvalidCharsRemoved()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -232,7 +232,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "sanitize");
 
         Assert.Equal("path/abcdefgh/index.html", route.OutputPath);
@@ -243,7 +243,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_SanitizeEncoding_MultipleSpacesAndDashes_Compressed()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -252,7 +252,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "sanitize");
 
         Assert.Equal("path/a-b-c/index.html", route.OutputPath);
@@ -263,7 +263,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_NormalizeUrl_AlreadyNormalized_Unchanged()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -272,7 +272,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("/already/normalized/", route.Url);
@@ -281,7 +281,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_NormalizeUrl_MissingLeadingSlash_Added()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -290,7 +290,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.Equal("/no-slash/path/", route.Url);
@@ -301,7 +301,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_NormalizeOutputPath_LeadingSlashStripped()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -310,7 +310,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.DoesNotContain("\\", route.OutputPath);
@@ -320,7 +320,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_NormalizeOutputPath_BackslashesNormalized()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -329,7 +329,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item);
 
         Assert.DoesNotContain("\\", route.OutputPath);
@@ -370,7 +370,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void ExpandPermalinkPattern_TypePlaceholder_MissingTypeUsesCanonicalPage()
     {
-        var item = ItemWithDate("my-slug", "T", 2025, 6, 15, meta: new Dictionary<string, object>());
+        var item = ItemWithDate("my-slug", "T", 2025, 6, 15, fieldValues: new Dictionary<string, object>());
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 
         Assert.Equal("/page/my-slug/", result);
@@ -380,7 +380,7 @@ public sealed class RouteGeneratorCoverageTests
     public void ExpandPermalinkPattern_TypePlaceholder_ExplicitType()
     {
         var item = ItemWithDate("my-slug", "T", 2025, 6, 15,
-            meta: new Dictionary<string, object> { ["type"] = "article" });
+            fieldValues: new Dictionary<string, object> { ["type"] = "article" });
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 
         Assert.Equal("/article/my-slug/", result);
@@ -390,7 +390,7 @@ public sealed class RouteGeneratorCoverageTests
     public void ExpandPermalinkPattern_TypePlaceholder_NonStringType_UsesToString()
     {
         var item = ItemWithDate("my-slug", "T", 2025, 6, 15,
-            meta: new Dictionary<string, object> { ["type"] = 42 });
+            fieldValues: new Dictionary<string, object> { ["type"] = 42 });
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 
         Assert.Equal("/42/my-slug/", result);
@@ -402,7 +402,7 @@ public sealed class RouteGeneratorCoverageTests
     public void ExpandPermalinkPattern_AllPlaceholders_ReplacesCorrectly()
     {
         var item = ItemWithDate("hello-world", "My Great Post", 2024, 3, 7,
-            meta: new Dictionary<string, object> { ["type"] = "post" });
+            fieldValues: new Dictionary<string, object> { ["type"] = "post" });
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{year}/{month}/{day}/{slug}/{title}/", item);
 
         Assert.Equal("/post/2024/03/07/hello-world/my-great-post/", result);
@@ -413,7 +413,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_UrlEncode_UnicodeCharacters_Encoded()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -422,7 +422,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "urlencode");
 
         Assert.Equal("path/" + Uri.EscapeDataString("中文文件") + "/index.html", route.OutputPath);
@@ -431,7 +431,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_UrlEncode_SpacesEncoded()
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["route"] = new Dictionary<string, object>
             {
@@ -440,7 +440,7 @@ public sealed class RouteGeneratorCoverageTests
                 ["template"] = "t.html"
             }
         };
-        var item = Item("x", meta: meta);
+        var item = Item("x", fieldValues: fieldValues);
         var route = RouteGenerator.Generate(item, "urlencode");
 
         Assert.Equal("path/hello%20world%20here/index.html", route.OutputPath);
@@ -451,7 +451,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_GetCollection_NoCollectionField_UsesCanonicalType()
     {
-        var item = Item("hello", meta: new Dictionary<string, object> { ["type"] = "article" });
+        var item = Item("hello", fieldValues: new Dictionary<string, object> { ["type"] = "article" });
         var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
         {
             ["article"] = new("/articles/{slug}/", "pages/article.html")
@@ -465,7 +465,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_GetCollection_ExplicitCollection_WinsOverType()
     {
-        var item = Item("hello", meta: new Dictionary<string, object>
+        var item = Item("hello", fieldValues: new Dictionary<string, object>
         {
             ["collection"] = "blog-posts",
             ["type"] = "article"
@@ -484,7 +484,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_GetCollection_EmptyCollectionField_UsesCanonicalType()
     {
-        var item = Item("hello", meta: new Dictionary<string, object>
+        var item = Item("hello", fieldValues: new Dictionary<string, object>
         {
             ["collection"] = "",
             ["type"] = "guide"
@@ -502,7 +502,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_GetCollection_WhitespaceCollectionField_UsesCanonicalType()
     {
-        var item = Item("hello", meta: new Dictionary<string, object>
+        var item = Item("hello", fieldValues: new Dictionary<string, object>
         {
             ["collection"] = "   ",
             ["type"] = "doc"
@@ -517,12 +517,12 @@ public sealed class RouteGeneratorCoverageTests
         Assert.Equal("pages/doc.html", route.Template);
     }
 
-    // ── GetType with non-string meta value tests ──────────────────────────
+    // ── GetType with non-string fieldValues value tests ──────────────────────────
 
     [Fact]
     public void Generate_GetType_IntMetaValueWithoutRule_Throws()
     {
-        var item = Item("hello", meta: new Dictionary<string, object> { ["type"] = 99 });
+        var item = Item("hello", fieldValues: new Dictionary<string, object> { ["type"] = 99 });
 
         var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
         Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -531,14 +531,14 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_GetType_NullMetaTypeWithoutRule_Throws()
     {
-        var meta = new Dictionary<string, object> { ["type"] = (object?)null! };
-        var item = Item("hello", meta: meta);
+        var fieldValues = new Dictionary<string, object> { ["type"] = (object?)null! };
+        var item = Item("hello", fieldValues: fieldValues);
 
         var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
         Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    // ── ExpandPermalinkPattern without type meta ──────────────────────────
+    // ── ExpandPermalinkPattern without type fieldValues ──────────────────────────
 
     [Fact]
     public void ExpandPermalinkPattern_NoTypeField_UsesCanonicalPage()
@@ -552,8 +552,8 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void ExpandPermalinkPattern_NullTypeValue_UsesCanonicalPage()
     {
-        var meta = new Dictionary<string, object> { ["type"] = (object?)null! };
-        var item = ItemWithDate("slug", "T", 2025, 1, 1, meta: meta);
+        var fieldValues = new Dictionary<string, object> { ["type"] = (object?)null! };
+        var item = ItemWithDate("slug", "T", 2025, 1, 1, fieldValues: fieldValues);
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 
         Assert.Equal("/page/slug/", result);

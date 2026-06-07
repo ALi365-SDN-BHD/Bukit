@@ -18,7 +18,7 @@ Bukit keeps this report diff-friendly:
 - New optional fields may be added without changing the major version.
 - `generatedAt` is intentionally time-dependent and should be ignored by strict artifact diffs.
 - `bukit seo audit` defaults to this schema and validates it strictly.
-- `--report` is an explicit compatibility entrypoint for cross-schema inputs such as publish audit reports.
+- `--report` is an explicit compatibility entrypoint for non-SEO-schema inputs such as publish audit reports.
 
 ## Top-Level Shape
 

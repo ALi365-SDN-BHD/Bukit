@@ -194,24 +194,24 @@ public sealed class LlmsTxtPluginTests : IDisposable
         string? itemSeoDesc = null,
         string? itemDescription = null)
     {
-        var meta = new Dictionary<string, object>
+        var fieldValues = new Dictionary<string, object>
         {
             ["type"] = "page"
         };
 
         if (itemSummary is not null)
         {
-            meta["summary"] = itemSummary;
+            fieldValues["summary"] = itemSummary;
         }
 
         if (itemSeoDesc is not null)
         {
-            meta["seo_desc"] = itemSeoDesc;
+            fieldValues["seo_desc"] = itemSeoDesc;
         }
 
         if (itemDescription is not null)
         {
-            meta["description"] = itemDescription;
+            fieldValues["description"] = itemDescription;
         }
 
         var item = ContentDocument.Create(
@@ -220,7 +220,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
             slug: "test-page",
             publishAt: DateTimeOffset.UtcNow,
             contentHtml: "<p>Hello world</p>",
-            fields: ContentFieldReader.ToFieldMap(meta));
+            fields: ContentFieldReader.ToFieldMap(fieldValues));
         var route = new RouteInfo("/page-1/", "page-1/index.html", "pages/page.html");
 
         var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)

@@ -72,7 +72,7 @@ Apabila `build.report.enabled: true` (atau `--ci`), enjin menulis laporan binaan
 
 - `build-report.json` — termasuk `schemaErrorCount` (ralat pengesahan skema kandungan), kiraan halaman/laluan/aset, pemasaan, dan statistik tokokan.
 - `publish-audit-report.json` — audit utama kebolehbacaan mesin dan kepercayaan, meliputi HTML semantik, asal-usul, status semakan, liputan representation, dan konsistensi output agregat.
-- `seo-report.json` — semakan audit SEO keserasian setiap laluan.
+- `seo-report.json` — semakan audit SEO mengikut skema pada setiap laluan.
 - `geo-report.json` — Skor GEO dan kesediaan perangkak LLM.
 
 Laporan ini direka untuk integrasi CI/CD, papan pemuka pemantauan, dan penggunaan ejen AI.

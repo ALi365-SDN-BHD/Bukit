@@ -1,26 +1,26 @@
 # 内容系统（Markdown / Notion / sources）
 
-本页描述内容系统的输入、输出与约定：ContentItem/Meta/Fields、Markdown Front Matter、Notion 字段归一化、以及 sources 组合模式。
+本页描述内容系统的输入、输出与约定：`ContentDocument`（`CustomFields`）、Markdown Front Matter、Notion 字段归一化、以及 `sources` 组合模式。
 
 实现参考：
-- `src/Bukit.Content/ContentItem.cs`
+- `src/Bukit.Content/ContentDocument.cs`
 - `src/Bukit.Content/ContentField.cs`
 - `src/Bukit.Content/Markdown/MarkdownFolderProvider.cs`
 - `src/Bukit.Content/Notion/NotionContentProvider.cs`
 - `src/Bukit.Engine/SiteEngine.cs`（mode=data 的处理与 modules 注入）
 
-## 核心模型：ContentItem / Meta / Fields
+## 核心模型：ContentDocument / RoutePublish 策略 / Fields
 
-### ContentItem
+### ContentDocument
 
-ContentItem 是引擎的统一输入模型，包含：
+`ContentDocument` 是引擎的统一输入模型，包含：
 - `Id/Title/Slug/PublishAt/ContentHtml`
-- `Meta`：影响引擎决策的元信息
-- `Fields`：面向模板消费的自定义字段（`<key>.type/value`）
+- `Route` + `Publish`：影响引擎决策的路由/发布策略
+- `CustomFields`：面向模板消费的自定义字段（`<key>.type/value`）
 
-### Meta（引擎决策）
+### Route/Publish 策略（引擎决策）
 
-常见 Meta 键：
+常见策略键：
 - `collection`：对应 site.collections 中的 key（推荐，用于匹配路由与模板）
 - `type`：可选内容分类或主题模板匹配键；不触发核心默认路由
 - `draft`：草稿标记（见下方"草稿过滤"一节）
@@ -46,7 +46,7 @@ ContentItem 是引擎的统一输入模型，包含：
 
 当 `build.draft` 为 `false`（默认）时，引擎会在内容加载后、路由生成前过滤掉草稿内容项。
 
-判定规则（`SiteEngine.cs`）：若 `meta.draft` 的值为 `true`（bool）、`"true"` 或 `"True"`（字符串），该内容项会被移除。
+判定规则（`SiteEngine.cs`）：若字段 `draft` 的值为 `true`（bool）、`"true"` 或 `"True"`（字符串），该内容项会被移除。
 
 ### Markdown 中标记草稿
 
@@ -61,7 +61,7 @@ draft: true
 
 ### Notion 中标记草稿
 
-在 Notion 数据库中添加一个 `Draft` checkbox 属性（勾选表示草稿）。Notion provider 会将其归一化为 `meta.draft = true`。
+在 Notion 数据库中添加一个 `Draft` checkbox 属性（勾选表示草稿）。Notion provider 会将其归一化为 `draft = true`。
 
 ### 与 build.draft 的交互
 
@@ -135,11 +135,11 @@ Notion provider 会把 properties 映射为 `fields`，但会做两层筛选：
 - `SEO Title` → `seo_title`
 - `PublishAt` → `publishat`
 
-### 特殊字段提升到 Meta：language / i18nKey
+### 特殊字段提升到路由/发布语义：language / i18nKey
 
-Notion provider 会把以下 fields（若存在）提升到 Meta，供引擎做多语言与 alternates 关联：
-- `language` → `meta.language`
-- `i18n_key` / `i18nkey` → `meta.i18nKey`
+Notion provider 会把以下 fields（若存在）保留为字段语义供引擎做多语言与 alternates 关联：
+- `language` → `language`
+- `i18n_key` / `i18nkey` → `i18nKey`
 
 ## sources 组合模式（多数据库 + data 模块）
 
@@ -166,19 +166,19 @@ mode 的语义：
 - `content`：参与路由生成与页面渲染
 - `data`：不生成路由；会被引擎分组、排序后注入 `site.modules`（见 [Modules](./modules-data.zh-CN.md)）
 
-### sources 模式下自动注入的 meta 字段
+### sources 模式下自动注入的系统字段
 
-使用 `sources` 组合时，`CompositeContentProvider` 会为每个 `ContentItem` 自动注入以下 meta 字段：
+使用 `sources` 组合时，`CompositeContentProvider` 会为每个 `ContentDocument` 自动注入以下系统字段（写入 `CustomFields`）：
 
-| Meta 字段 | 说明 |
+| 系统字段 | 说明 |
 |---|---|
 | `sourceKey` | 数据源名称（对应 `sources[].name`，无 name 时为索引序号如 `0`、`1`） |
 | `sourceMode` | 数据源模式（`content` 或 `data`） |
-| `sourceId` | 原始 ContentItem ID（不含 sourceKey 前缀） |
+| `sourceId` | 原始内容项 ID（不含 sourceKey 前缀） |
 
-ContentItem 的 `Id` 会被修改为 `{sourceKey}:{originalId}` 格式以保证多源唯一性。
+ContentDocument 的 `Id` 会被修改为 `{sourceKey}:{originalId}` 格式以保证多源唯一性。
 
-这些 meta 字段在模板中可通过 `page.fields` 访问（如果进入 fields），在插件中可通过 `item.Meta` 读取，用于区分内容来源。
+这些系统字段在模板中可通过 `page.fields` 访问（如果进入 fields），在插件中可通过 `ContentFieldReader.GetText(item.CustomFields, "sourceKey")` 一类读取，用于区分内容来源。
 
 ## 统一媒体本地化（跨数据源）
 

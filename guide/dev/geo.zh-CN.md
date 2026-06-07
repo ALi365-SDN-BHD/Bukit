@@ -88,7 +88,7 @@ publish projection adapter 会复用 `LlmsTxtPlugin` 的生成逻辑：
 
 实现：`src/Bukit.Cli/Commands/GeoCommand.cs`
 
-读取构建审计产物（主要是 `.bukit/publish-audit-report.json`，以及作为 SEO 兼容视图的 `.bukit/seo-report.json`）并计算：
+读取构建审计产物，默认使用 `.bukit/publish-audit-report.json`。如需跨 schema 比较，可显式传入 `.bukit/seo-report.json`（兼容入口），再据此计算：
 
 ### GEO 评分（0–100）
 

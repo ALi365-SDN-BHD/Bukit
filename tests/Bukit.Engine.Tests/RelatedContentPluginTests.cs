@@ -15,10 +15,10 @@ public sealed class RelatedContentPluginTests
 {
     private static ContentDocument CreateItem(string id, string title, string slug, string? tags = null, string? categories = null, string? collection = null)
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        if (tags is not null) meta["tags"] = tags;
-        if (categories is not null) meta["categories"] = categories;
-        if (collection is not null) meta["collection"] = collection;
+        var fieldValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        if (tags is not null) fieldValues["tags"] = tags;
+        if (categories is not null) fieldValues["categories"] = categories;
+        if (collection is not null) fieldValues["collection"] = collection;
 
         return ContentDocument.Create(
             id: id,
@@ -26,7 +26,7 @@ public sealed class RelatedContentPluginTests
             slug: slug,
             publishAt: DateTimeOffset.UtcNow,
             contentHtml: "<p>content</p>",
-            fields: ContentFieldReader.ToFieldMap(meta));
+            fields: ContentFieldReader.ToFieldMap(fieldValues));
     }
 
     private static ContentDocument CreateFieldItem(string id, string title, string slug, IReadOnlyList<string> tags)
@@ -211,9 +211,9 @@ public sealed class RelatedContentPluginTests
     [Fact]
     public void DerivePages_SkipsArchiveAndPaginationItems()
     {
-        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        var archiveItem = ContentDocument.Create("blog-archive-2024", "Archive", "a", DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
-        var pageItem = ContentDocument.Create("blog-page-2", "Page 2", "p2", DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(meta));
+        var fieldValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var archiveItem = ContentDocument.Create("blog-archive-2024", "Archive", "a", DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(fieldValues));
+        var pageItem = ContentDocument.Create("blog-page-2", "Page 2", "p2", DateTimeOffset.UtcNow, "<p>x</p>", ContentFieldReader.ToFieldMap(fieldValues));
         var normalItem = CreateItem("1", "Normal", "n", tags: "tag1");
         var routed = new List<(ContentDocument, RouteInfo)>
         {

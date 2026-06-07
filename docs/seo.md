@@ -70,8 +70,7 @@ Diagnostics run at both index and HTML levels. Bukit reports missing `site.url`,
 
 ## SEO Audit Report
 
-Every build writes the SEO report to `.bukit/seo-report.json` under the generated site output. `bukit seo audit` uses that file as its default discovery target and validates only that schema by default. The report schema and compatibility contract are documented in [SEO Audit Report Schema](seo-report-schema.md).
-`--report` is the explicit compatibility entrypoint for non-SEO schema inputs, including `.bukit/publish-audit-report.json` when cross-schema comparison is intentionally required.
+Every build writes the SEO report to `.bukit/seo-report.json` under the generated site output. `bukit seo audit` uses that file as its default discovery target and validates only the SEO schema (`https://bukit.dev/schemas/seo-report.v1.json`) by default. Non-SEO schema inputs are not discovered automatically; pass `--report` explicitly when you need compatibility loading (for example `.bukit/publish-audit-report.json`).
 
 The report is designed as a CI artifact and stable URL inventory. It includes:
 
@@ -91,7 +90,6 @@ Run the CI audit command after build:
 ```bash
 bukit seo audit --dir dist
 bukit seo audit --dir dist --strict
-bukit seo audit --report dist/.bukit/seo-report.json
 bukit seo audit --report dist/.bukit/publish-audit-report.json --strict
 bukit seo audit --dir dist --external
 ```
