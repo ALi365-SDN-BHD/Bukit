@@ -187,7 +187,7 @@ public sealed class BuildCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task RunAsync_DeprecationWarnings_StrictMode_ThrowsConfigException()
+    public async Task RunAsync_RemovedFields_StrictMode_ThrowsConfigException()
     {
         var siteYaml = Path.Combine(_testDir, "site.yaml");
         File.WriteAllText(siteYaml, """

@@ -79,8 +79,7 @@ public static class ThemeInstallCommand
 
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("bukit-cli");
+            using var http = ThemeRegistryCommand.CreateSafeHttpClient(TimeSpan.FromMinutes(5));
 
             var tempFile = Path.GetTempFileName() + ".tar.gz";
             try
@@ -136,8 +135,7 @@ public static class ThemeInstallCommand
 
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("bukit-cli");
+            using var http = ThemeRegistryCommand.CreateSafeHttpClient(TimeSpan.FromMinutes(5));
 
             var tempFile = Path.GetTempFileName() + ".tar.gz";
             try

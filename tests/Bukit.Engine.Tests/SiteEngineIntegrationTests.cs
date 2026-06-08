@@ -549,7 +549,7 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
-    public async Task BuildAsync_ReportDisabled_DoesNotWriteBuildReport()
+    public async Task BuildAsync_ReportDisabled_WritesSecurityReportOnly()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
 
@@ -611,6 +611,7 @@ public sealed class SiteEngineIntegrationTests
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             Assert.False(File.Exists(Path.Combine(root, "dist", ".bukit", "build-report.json")));
+            Assert.True(File.Exists(Path.Combine(root, "dist", ".bukit", "security-report.json")));
 
             CleanupDir(root);
         }

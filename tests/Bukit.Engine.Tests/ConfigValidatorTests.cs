@@ -259,7 +259,7 @@ public sealed class ConfigValidatorTests
     {
         var config = ConfigWithSite(s => s with { RssMode = "index" });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Equal("site.rssMode must be split|merged.", ex.Message);
+        Assert.Equal("site.feed configuration produced an invalid feed mode; expected split|merged.", ex.Message);
     }
 
     [Theory]
@@ -293,7 +293,7 @@ public sealed class ConfigValidatorTests
     {
         var config = ConfigWithSite(s => s with { SearchMode = "invalid" });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Equal("site.searchMode must be split|merged|index.", ex.Message);
+        Assert.Equal("site.search.mode must be split|merged|index.", ex.Message);
     }
 
     [Theory]

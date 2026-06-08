@@ -3,12 +3,12 @@ using Xunit;
 
 namespace Bukit.Config.Tests;
 
-public sealed class ConfigDeprecationScannerTests : IDisposable
+public sealed class ConfigRemovedFieldScannerTests : IDisposable
 {
     private readonly string _dir;
     private readonly string _configPath;
 
-    public ConfigDeprecationScannerTests()
+    public ConfigRemovedFieldScannerTests()
     {
         _dir = Path.Combine(Path.GetTempPath(), "bukit-config-removed-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
@@ -40,7 +40,7 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                               dir: content
                                       """);
 
-        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        var ex = Assert.Throws<ConfigException>(() => ConfigRemovedFieldScanner.RejectRemovedFields(_configPath));
         Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("site.plugins.rss", ex.Message, StringComparison.Ordinal);
         Assert.Contains("site.plugins.feed", ex.Message, StringComparison.Ordinal);
@@ -61,7 +61,7 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                               dir: content
                                       """);
 
-        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        var ex = Assert.Throws<ConfigException>(() => ConfigRemovedFieldScanner.RejectRemovedFields(_configPath));
         Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("site.rssMode", ex.Message, StringComparison.Ordinal);
         Assert.Contains("site.feed.formats", ex.Message, StringComparison.Ordinal);
@@ -82,7 +82,7 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                               dir: content
                                       """);
 
-        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        var ex = Assert.Throws<ConfigException>(() => ConfigRemovedFieldScanner.RejectRemovedFields(_configPath));
         Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("outputPath", ex.Message, StringComparison.Ordinal);
         Assert.Contains("route.url", ex.Message, StringComparison.Ordinal);
@@ -107,7 +107,7 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                               dir: content
                                       """);
 
-        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        var ex = Assert.Throws<ConfigException>(() => ConfigRemovedFieldScanner.RejectRemovedFields(_configPath));
         Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("collections.posts.rss", ex.Message, StringComparison.Ordinal);
         Assert.Contains("collections.posts.feed", ex.Message, StringComparison.Ordinal);
@@ -131,7 +131,7 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                               dir: content
                                       """);
 
-        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        var ex = Assert.Throws<ConfigException>(() => ConfigRemovedFieldScanner.RejectRemovedFields(_configPath));
         Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("site.collection", ex.Message, StringComparison.Ordinal);
         Assert.Contains("site.collections", ex.Message, StringComparison.Ordinal);
@@ -152,7 +152,7 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                               rootPageId: xyz789
                                       """);
 
-        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        var ex = Assert.Throws<ConfigException>(() => ConfigRemovedFieldScanner.RejectRemovedFields(_configPath));
         Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("content.sources[0].notion.rootPageId", ex.Message, StringComparison.Ordinal);
         Assert.Contains("rootBlockId", ex.Message, StringComparison.Ordinal);
@@ -171,7 +171,7 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                           databaseId: test-db
                                       """);
 
-        var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        var ex = Assert.Throws<ConfigException>(() => ConfigRemovedFieldScanner.RejectRemovedFields(_configPath));
         Assert.Equal(DiagnosticCode.ConfigProviderRemoved, ex.Code);
         Assert.Contains("content.provider", ex.Message, StringComparison.Ordinal);
         Assert.Contains("content.sources", ex.Message, StringComparison.Ordinal);
@@ -191,7 +191,7 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                               dir: content
                                       """);
 
-        var exception = Record.Exception(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        var exception = Record.Exception(() => ConfigRemovedFieldScanner.RejectRemovedFields(_configPath));
         Assert.Null(exception);
     }
 }

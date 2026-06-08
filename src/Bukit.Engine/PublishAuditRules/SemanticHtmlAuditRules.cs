@@ -38,7 +38,7 @@ internal static class SemanticHtmlAuditRules
             issues.Add(Warning("publish.semantic_footer_missing", entry.Route.Url, "HTML output is missing a <footer> landmark."));
         }
 
-        if (!string.Equals(entry.ContentType, "list", StringComparison.OrdinalIgnoreCase) &&
+        if (PublishDocumentAuditScope.IsContentBacked(document) &&
             !html.Contains("<article", StringComparison.OrdinalIgnoreCase))
         {
             issues.Add(Warning("publish.semantic_article_missing", entry.Route.Url, "HTML output is missing an <article> wrapper for page content."));
@@ -69,12 +69,13 @@ internal static class SemanticHtmlAuditRules
                 Text = NormalizeText(match.Groups["text"].Value)
             })
             .ToArray();
-        if (!headings.Any(x => x.Level == 1))
+        var isContentBacked = PublishDocumentAuditScope.IsContentBacked(document);
+        if (isContentBacked && !headings.Any(x => x.Level == 1))
         {
             issues.Add(Warning("publish.heading_h1_missing", entry.Route.Url, "HTML output is missing an <h1> for the primary page heading."));
         }
 
-        for (var i = 1; i < headings.Length; i++)
+        for (var i = 1; isContentBacked && i < headings.Length; i++)
         {
             if (headings[i].Level - headings[i - 1].Level > 1)
             {
@@ -83,7 +84,9 @@ internal static class SemanticHtmlAuditRules
             }
         }
 
-        if (RequiresVisibleTime(document) && !TimeDatetimeRegex.IsMatch(html))
+        if (PublishDocumentAuditScope.IsContentBacked(document) &&
+            RequiresVisibleTime(document) &&
+            !TimeDatetimeRegex.IsMatch(html))
         {
             issues.Add(Warning("publish.time_missing", entry.Route.Url, "Dated content is missing a visible <time datetime=\"...\"> element."));
         }
@@ -93,7 +96,10 @@ internal static class SemanticHtmlAuditRules
             issues.Add(Warning("publish.initial_html_unreadable", entry.Route.Url, "Initial HTML does not expose enough readable main content without executing JavaScript."));
         }
 
-        AnalyzeJsonLdConsistency(document, headings.FirstOrDefault(x => x.Level == 1)?.Text, NormalizeText(html), issues);
+        if (PublishDocumentAuditScope.IsContentBacked(document))
+        {
+            AnalyzeJsonLdConsistency(document, headings.FirstOrDefault(x => x.Level == 1)?.Text, NormalizeText(html), issues);
+        }
     }
 
     internal static IReadOnlyList<PublishSemanticOutlineItem> ExtractSemanticOutline(string html)

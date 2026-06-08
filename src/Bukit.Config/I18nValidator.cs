@@ -75,13 +75,13 @@ internal static class I18nValidator
         var rssMode = (site.RssMode ?? "split").Trim().ToLowerInvariant();
         if (rssMode is not ("split" or "merged"))
         {
-            throw new ConfigException("site.rssMode must be split|merged.");
+            throw new ConfigException("site.feed configuration produced an invalid feed mode; expected split|merged.");
         }
 
         var searchMode = (site.SearchMode ?? "split").Trim().ToLowerInvariant();
         if (searchMode is not ("split" or "merged" or "index"))
         {
-            throw new ConfigException("site.searchMode must be split|merged|index.");
+            throw new ConfigException("site.search.mode must be split|merged|index.");
         }
 
         var seoRenderMode = (site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();

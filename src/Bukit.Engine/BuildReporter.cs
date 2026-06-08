@@ -30,19 +30,20 @@ internal static class BuildReporter
         ILogger logger,
         SecurityReportData? securityData = null)
     {
-        if (!config.Build.Report.Enabled)
-        {
-            return;
-        }
-
         var reportDir = Path.Combine(outputDir, ReportDirectoryName);
         Directory.CreateDirectory(reportDir);
+        WriteSecurityReport(Path.Combine(reportDir, "security-report.json"), securityData);
+
+        if (!config.Build.Report.Enabled)
+        {
+            logger.Debug($"event=build.security_report.write dir={reportDir} root={rootDir}");
+            return;
+        }
 
         WriteBuildReport(Path.Combine(reportDir, "build-report.json"), result);
         WriteRoutes(Path.Combine(reportDir, "routes.json"), variants);
         WriteAssets(Path.Combine(reportDir, "assets.json"), outputDir);
         WriteIncrementalManifest(Path.Combine(reportDir, "incremental-manifest.json"), result, variants);
-        WriteSecurityReport(Path.Combine(reportDir, "security-report.json"), securityData);
         logger.Debug($"event=build.report.write dir={reportDir} root={rootDir}");
     }
 

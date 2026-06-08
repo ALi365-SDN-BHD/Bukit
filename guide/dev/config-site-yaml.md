@@ -268,7 +268,7 @@ taxonomy:
 
 ## Removed Config Field Scanner (P3-3)
 
-`ConfigDeprecationScanner` detects 7 removed config patterns and rejects them before build:
+`ConfigRemovedFieldScanner` detects removed 1.0 config patterns and rejects them before build:
 
 | Removed Pattern | Replacement | Rule |
 |---|---|---|

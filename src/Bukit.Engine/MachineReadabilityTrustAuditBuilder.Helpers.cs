@@ -359,7 +359,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             }
         }
 
-        foreach (var document in documents.Where(x => x.Indexable))
+        foreach (var document in documents.Where(x => x.Indexable && PublishDocumentAuditScope.IsContentBacked(x)))
         {
             var summary = document.Summary ?? document.Description;
             if (string.IsNullOrWhiteSpace(summary) ||

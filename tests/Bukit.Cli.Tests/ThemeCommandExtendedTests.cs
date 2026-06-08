@@ -676,6 +676,29 @@ version: 1.0.0
     }
 
     [Fact]
+    public async Task ThemeInstall_UrlToLoopback_IsBlockedBeforeDownload()
+    {
+        var error = new StringWriter();
+        var originalError = Console.Error;
+        try
+        {
+            Console.SetError(error);
+            var exitCode = await ThemeInstallCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
+            {
+                "theme", "install", "http://127.0.0.1:1/theme.tar.gz", "--config", _configPath
+            }));
+
+            Assert.Equal(2, exitCode);
+        }
+        finally
+        {
+            Console.SetError(originalError);
+        }
+
+        Assert.Contains("SSRF blocked", error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ThemeInstall_UnsafeManifestName_ReturnsTwoAndDoesNotWriteOutsideThemes()
     {
         var archive = Path.Combine(_rootDir, "unsafe.tar.gz");

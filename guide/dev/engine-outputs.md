@@ -60,7 +60,6 @@ When `build.report.enabled` is `true`, the engine writes these files:
 | `routes.json` | All routes with url, outputPath, template, source, kind, language |
 | `assets.json` | All static assets with path, source, sha256 hash, size |
 | `incremental-manifest.json` | Cache hit/miss counts, per-variant render counts, render reason breakdowns |
-| `security-report.json` | Security checks (route traversal, unsafe slug, plugin output path, remote theme lock) |
 
 ---
 
@@ -71,6 +70,7 @@ Always generated (not gated by `build.report.enabled`):
 | File | Content |
 |------|---------|
 | `publish-audit-report.json` | Primary machine-readability and trust audit: semantic HTML, provenance, review status, entity metadata, representation coverage, and aggregate output consistency |
+| `security-report.json` | Security checks (route traversal, unsafe slug, plugin output path, remote theme lock) |
 | `seo-report.json` | SEO schema audit (`seo-report.v1`) checks per route: metadata completeness, canonical correctness, sitemap/rss inclusion, schema types, GEO indicators |
 | `geo-report.json` | Derived GEO report: GEO Score (0-100), llms.txt/llms-full.txt status, geo-enhanced route list with schema types |
 

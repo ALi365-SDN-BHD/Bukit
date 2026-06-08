@@ -39,7 +39,7 @@ public static class ConfigLoader
         }
 
         ConfigEnvironmentOverrides.Apply(root);
-        ConfigDeprecationScanner.RejectRemovedFields(root);
+        ConfigRemovedFieldScanner.RejectRemovedFields(root);
 
         var siteNode = ConfigYamlHelpers.GetMapping(root, "site");
         var contentNode = ConfigYamlHelpers.GetMapping(root, "content");

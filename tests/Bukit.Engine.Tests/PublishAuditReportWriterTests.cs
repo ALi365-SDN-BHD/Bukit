@@ -356,6 +356,63 @@ public sealed class PublishAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_DoesNotReportContentOnlyGapsForGeneratedListRoutes()
+    {
+        WriteOutput("tags/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Tags</title><link rel="canonical" href="https://example.com/tags/" /></head>
+            <body><header></header><nav></nav><main><h1>Tags</h1><p>Browse all tags.</p></main><footer></footer></body>
+            </html>
+            """);
+        WriteOutput("blog/archive/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Archive</title><link rel="canonical" href="https://example.com/blog/archive/" /></head>
+            <body><header></header><nav></nav><main><h1>Archive</h1><p>Browse archive.</p></main><footer></footer></body>
+            </html>
+            """);
+        File.WriteAllText(Path.Combine(_outputDir, "search.json"), "[]");
+        File.WriteAllText(Path.Combine(_outputDir, "rss.xml"), "<rss><channel></channel></rss>");
+        File.WriteAllText(Path.Combine(_outputDir, "agent-manifest.json"), """
+            { "schema": "https://bukit.dev/schemas/agent-manifest.v1.json", "documents": [] }
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tags/index.html"] = GeneratedEntry("/tags/", "tags/index.html", "https://example.com/tags/", "tags-index", "page"),
+            ["blog/archive/index.html"] = GeneratedEntry("/blog/archive/", "blog/archive/index.html", "https://example.com/blog/archive/", "post-archive-index", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tags/index.html"] = Model("Tags", "https://example.com/tags/"),
+            ["blog/archive/index.html"] = Model("Archive", "https://example.com/blog/archive/")
+        };
+
+        var report = SeoAuditReportWriter.Build(ConfigWithRssPostCollection(), _outputDir, index, models, CanonicalContentGraph.Empty);
+        var listOnlyCodes = new[]
+        {
+            "publish.author_missing",
+            "publish.source_missing",
+            "publish.review_status_missing",
+            "publish.updated_at_missing",
+            "publish.entity_missing",
+            "publish.heading_h1_missing",
+            "publish.semantic_article_missing",
+            "publish.time_missing",
+            "publish.search_missing_route",
+            "publish.rss_missing_route",
+            "publish.manifest_missing_route",
+            "publish.unique_value_missing"
+        };
+
+        foreach (var code in listOnlyCodes)
+        {
+            Assert.DoesNotContain(report.Issues, x => x.Code == code && x.Route == "/tags/");
+            Assert.DoesNotContain(report.Issues, x => x.Code == code && x.Route == "/blog/archive/");
+        }
+    }
+
+    [Fact]
     public void Build_ReportsAtomFeedGapAndInventory()
     {
         WriteOutput("post/index.html", """
@@ -461,6 +518,9 @@ public sealed class PublishAuditReportWriterTests : IDisposable
 
     private static SeoIndexEntry Entry(string url, string outputPath, string canonical)
         => new(new RouteInfo(url, outputPath, "pages/post.html"), canonical, Robots: null, Indexable: true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), SourceItemId: "post-1", ContentType: "post");
+
+    private static SeoIndexEntry GeneratedEntry(string url, string outputPath, string canonical, string sourceItemId, string contentType)
+        => new(new RouteInfo(url, outputPath, "pages/tags.html"), canonical, Robots: null, Indexable: true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), SourceItemId: sourceItemId, ContentType: contentType);
 
     private static SeoModel Model(string title, string canonical, params string[] jsonLd)
         => new()

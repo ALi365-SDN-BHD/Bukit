@@ -7,7 +7,7 @@ namespace Bukit.Config;
 /// 1.0 config rejection scanner. Old fields are rejected with stable diagnostic codes
 /// and a migration hint. No warning-only fallback.
 /// </summary>
-public static class ConfigDeprecationScanner
+public static class ConfigRemovedFieldScanner
 {
     /// <summary>
     /// Scans a site.yaml file for removed 1.0 fields. Throws ConfigException if any are found.

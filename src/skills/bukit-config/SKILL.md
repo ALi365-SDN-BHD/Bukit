@@ -878,7 +878,7 @@ SSRF protection is also applied to `CloneCommand` (theme asset downloads) and `S
 
 ## Removed Config Field Scanner (P3-3)
 
-`ConfigDeprecationScanner` detects removed config patterns and rejects them during `bukit doctor` and build:
+`ConfigRemovedFieldScanner` detects removed 1.0 config fields and rejects them during `bukit doctor` and build:
 
 | Removed Pattern | Replacement | Rule |
 |---|---|---|

@@ -4,8 +4,7 @@ internal static class TrustAuditRules
 {
     internal static void Analyze(PublishDocument document, List<PublishAuditIssue> issues)
     {
-        if (!document.Indexable ||
-            string.Equals(document.ContentType, "list", StringComparison.OrdinalIgnoreCase))
+        if (!document.Indexable || !PublishDocumentAuditScope.IsContentBacked(document))
         {
             return;
         }

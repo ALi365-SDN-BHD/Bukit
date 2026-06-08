@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Bukit.Cli.Cli.Binding;
+using Bukit.Shared;
 
 namespace Bukit.Cli.Commands;
 
@@ -109,8 +110,7 @@ public static class ThemeRegistryCommand
 
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("bukit-cli");
+            using var http = CreateSafeHttpClient(TimeSpan.FromSeconds(30));
 
             var response = await http.GetStringAsync(registryUrl);
             var index = RegistryIndex.Parse(response);
@@ -138,6 +138,17 @@ public static class ThemeRegistryCommand
 
             return null;
         }
+    }
+
+    internal static HttpClient CreateSafeHttpClient(TimeSpan timeout)
+    {
+        var handler = new SocketsHttpHandler
+        {
+            ConnectCallback = SsrfGuard.SsrfSafeConnectAsync
+        };
+        var http = new HttpClient(handler) { Timeout = timeout };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("bukit-cli");
+        return http;
     }
 
     public static async Task<bool> VerifySha256Async(string filePath, string expectedSha256)

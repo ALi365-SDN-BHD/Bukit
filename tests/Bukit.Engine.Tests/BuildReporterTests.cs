@@ -176,7 +176,7 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WhenDisabled_DoesNotCreateBuildReport()
+    public void WriteIfEnabled_WhenDisabled_WritesSecurityReportOnly()
     {
         var tempDir = CreateTempDir();
         var config = CreateConfig(enabled: false);
@@ -186,6 +186,7 @@ public sealed class BuildReporterTests
         BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         Assert.False(File.Exists(Path.Combine(tempDir, ".bukit", "build-report.json")));
+        Assert.True(File.Exists(Path.Combine(tempDir, ".bukit", "security-report.json")));
     }
 
     private static string CreateTempDir()
