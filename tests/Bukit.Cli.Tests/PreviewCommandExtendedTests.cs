@@ -120,7 +120,12 @@ public sealed class PreviewCommandExtendedTests : IDisposable
                                                                     name: test
                                                                     title: Test
                                                                   content:
-                                                                    provider: markdown
+                                                                    sources:
+                                                                      - type: markdown
+                                                                        name: page
+                                                                        collection: page
+                                                                        markdown:
+                                                                          dir: content
                                                                   """);
 
         var result = (bool)s_resolveDisableAnalytics.Invoke(null, new object[] { previewDir })!;

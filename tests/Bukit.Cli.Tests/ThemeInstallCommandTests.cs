@@ -177,7 +177,12 @@ site:
   name: test
   title: Test
 content:
-  provider: markdown
+  sources:
+    - type: markdown
+      name: page
+      collection: page
+      markdown:
+        dir: content
 """);
     }
 

@@ -6,6 +6,9 @@ public enum DiagnosticCode
     ConfigInvalidValue = 0x0002,
     ConfigYamlSyntaxError = 0x0003,
     ConfigPathTraversal = 0x0004,
+    ConfigDeprecatedField = 0x0005,
+    ConfigRemovedField = 0x0006,
+    ConfigProviderRemoved = 0x0007,
 
     ThemeManifestInvalid = 0x0101,
     ThemeComponentNotFound = 0x0102,
@@ -20,6 +23,7 @@ public enum DiagnosticCode
     RouteUnsafeOutputPath = 0x0206,
     RouteReservedWindowsPath = 0x0207,
     RouteEncodedSlashInPath = 0x0208,
+    RouteOutputPathRejected = 0x0209,
 
     RenderTemplateNotFound = 0x0301,
     RenderTemplateParseError = 0x0302,
@@ -41,6 +45,10 @@ public enum DiagnosticCode
     PluginExecutionFailed = 0x0701,
     PluginTimeoutExceeded = 0x0702,
     PluginOutputLimitExceeded = 0x0703,
+    PluginCapabilityMissing = 0x0704,
+    PluginHandshakeV1Rejected = 0x0705,
+    PluginOutputTraversal = 0x0706,
+    PluginStaleOutputCleanupFailed = 0x0707,
 
     SeoAuditFailed = 0x0801,
     SeoMetaMissing = 0x0802,

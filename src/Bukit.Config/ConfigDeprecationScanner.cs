@@ -4,7 +4,7 @@ using YamlDotNet.RepresentationModel;
 namespace Bukit.Config;
 
 /// <summary>
-/// 1.0 config rejection scanner. Old fields are rejected with BKT-0001 diagnostic code
+/// 1.0 config rejection scanner. Old fields are rejected with stable diagnostic codes
 /// and a migration hint. No warning-only fallback.
 /// </summary>
 public static class ConfigDeprecationScanner
@@ -52,18 +52,24 @@ public static class ConfigDeprecationScanner
             TryGetMapping(siteNode, "plugins", out var plugins) &&
             plugins.Children.ContainsKey(new YamlScalarNode("rss")))
         {
-            removed.Add(new ConfigRemovedField("site.plugins.rss", "site.plugins.feed"));
+            removed.Add(new ConfigRemovedField("site.plugins.rss", "site.plugins.feed", DiagnosticCode.ConfigRemovedField));
         }
 
         if (TryGetMapping(root, "site", out var siteNode2) &&
             siteNode2.Children.ContainsKey(new YamlScalarNode("rssMode")))
         {
-            removed.Add(new ConfigRemovedField("site.rssMode", "site.feed.formats"));
+            removed.Add(new ConfigRemovedField("site.rssMode", "site.feed.formats", DiagnosticCode.ConfigRemovedField));
+        }
+
+        if (TryGetMapping(root, "site", out var siteNode2b) &&
+            siteNode2b.Children.ContainsKey(new YamlScalarNode("searchMode")))
+        {
+            removed.Add(new ConfigRemovedField("site.searchMode", "site.search", DiagnosticCode.ConfigRemovedField));
         }
 
         if (root.Children.ContainsKey(new YamlScalarNode("outputPath")))
         {
-            removed.Add(new ConfigRemovedField("outputPath", "route.outputPath"));
+            removed.Add(new ConfigRemovedField("outputPath", "route.url"));
         }
 
         if (TryGetMapping(root, "site", out var siteForCollections) &&
@@ -77,7 +83,8 @@ public static class ConfigDeprecationScanner
                 {
                     removed.Add(new ConfigRemovedField(
                         $"collections.{keyNode.Value}.rss",
-                        $"collections.{keyNode.Value}.feed"));
+                        $"collections.{keyNode.Value}.feed",
+                        DiagnosticCode.ConfigRemovedField));
                 }
             }
         }
@@ -85,23 +92,39 @@ public static class ConfigDeprecationScanner
         if (TryGetMapping(root, "site", out var siteNode3) &&
             siteNode3.Children.ContainsKey(new YamlScalarNode("collection")))
         {
-            removed.Add(new ConfigRemovedField("site.collection", "site.collections"));
+            removed.Add(new ConfigRemovedField("site.collection", "site.collections", DiagnosticCode.ConfigRemovedField));
         }
 
         if (TryGetMapping(root, "content", out var contentNode) &&
             TryGetMapping(contentNode, "notion", out var notionNode) &&
             notionNode.Children.ContainsKey(new YamlScalarNode("rootPageId")))
         {
-            removed.Add(new ConfigRemovedField("content.notion.rootPageId", "content.notion.rootBlockId"));
+            removed.Add(new ConfigRemovedField("content.notion.rootPageId", "content.notion.rootBlockId", DiagnosticCode.ConfigRemovedField));
+        }
+
+        if (TryGetMapping(root, "content", out var contentWithSources) &&
+            contentWithSources.Children.TryGetValue(new YamlScalarNode("sources"), out var sourcesNode) &&
+            sourcesNode is YamlSequenceNode sources)
+        {
+            for (var i = 0; i < sources.Children.Count; i++)
+            {
+                if (sources.Children[i] is YamlMappingNode sourceNode &&
+                    TryGetMapping(sourceNode, "notion", out var sourceNotionNode) &&
+                    sourceNotionNode.Children.ContainsKey(new YamlScalarNode("rootPageId")))
+                {
+                    removed.Add(new ConfigRemovedField(
+                        $"content.sources[{i}].notion.rootPageId",
+                        $"content.sources[{i}].notion.rootBlockId",
+                        DiagnosticCode.ConfigRemovedField));
+                }
+            }
         }
 
         if (root.Children.TryGetValue(new YamlScalarNode("content"), out var contentChild) &&
             contentChild is YamlMappingNode contentMap &&
-            contentMap.Children.TryGetValue(new YamlScalarNode("provider"), out var providerNode) &&
-            providerNode is YamlScalarNode providerScalar &&
-            "notion".Equals(providerScalar.Value, StringComparison.OrdinalIgnoreCase))
+            contentMap.Children.TryGetValue(new YamlScalarNode("provider"), out _))
         {
-            removed.Add(new ConfigRemovedField("content.provider: notion", "content.sources with a notion source"));
+            removed.Add(new ConfigRemovedField("content.provider", "content.sources", DiagnosticCode.ConfigProviderRemoved));
         }
 
         if (removed.Count > 0)
@@ -109,7 +132,7 @@ public static class ConfigDeprecationScanner
             var details = string.Join("\n  ", removed.Select(r => $"{r.Path} — removed in 1.0. Migration: use '{r.Migration}' instead."));
             throw new ConfigException(
                 $"Removed configuration fields detected in 1.0:\n  {details}\nBukit 1.0 is a new project contract. Remove or migrate the fields above.",
-                DiagnosticCode.ConfigRequiredFieldMissing);
+                removed.Count == 1 ? removed[0].Code : DiagnosticCode.ConfigRemovedField);
         }
     }
 
@@ -127,4 +150,7 @@ public static class ConfigDeprecationScanner
     }
 }
 
-internal sealed record ConfigRemovedField(string Path, string Migration);
+internal sealed record ConfigRemovedField(
+    string Path,
+    string Migration,
+    DiagnosticCode Code = DiagnosticCode.ConfigRemovedField);

@@ -26,7 +26,12 @@ public sealed class ThemeCommandExtendedTests : IDisposable
                                          name: test
                                          title: Test
                                        content:
-                                         provider: markdown
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
                                        theme:
                                          name: starter
                                        """);

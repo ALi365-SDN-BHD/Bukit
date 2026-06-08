@@ -25,9 +25,9 @@ public static class ConfigValidator
             ExternalPluginsValidator.ValidateExternalPlugins(config.Site.ExternalPlugins);
         }
 
-        if (string.IsNullOrWhiteSpace(config.Content.Provider))
+        if (config.Content.Sources is not { Count: > 0 })
         {
-            throw new ConfigException("content.provider is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException("content.sources is required in Bukit 1.0.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (config.Content.Sources is { Count: > 0 })
@@ -84,25 +84,6 @@ public static class ConfigValidator
 
                 throw new ConfigException($"Unsupported content source type: {source.Type}", DiagnosticCode.ConfigInvalidValue);
             }
-        }
-        else if (config.Content.Provider.Equals("notion", StringComparison.OrdinalIgnoreCase))
-        {
-            if (config.Content.Notion is null)
-            {
-                throw new ConfigException("content.notion is required when provider is notion.", DiagnosticCode.ConfigRequiredFieldMissing);
-            }
-
-            ProviderValidators.ValidateNotion(config.Content.Notion);
-        }
-
-        else if (config.Content.Provider.Equals("markdown", StringComparison.OrdinalIgnoreCase))
-        {
-            if (config.Content.Markdown is null)
-            {
-                throw new ConfigException("content.markdown is required when provider is markdown.", DiagnosticCode.ConfigRequiredFieldMissing);
-            }
-
-            ProviderValidators.ValidateMarkdown(config.Content.Markdown);
         }
 
         ProviderValidators.ValidateMedia(config.Content.Media);
@@ -249,6 +230,12 @@ public static class ConfigValidator
                 issues.Add("BKT-0100: theme.yaml: 'version' is missing (required in 1.0).");
             else if (!System.Version.TryParse(version, out _))
                 issues.Add($"BKT-0100: theme.yaml: 'version' '{version}' is not valid semver.");
+
+            GetStringValue(root, "engine", out var engine);
+            if (string.IsNullOrWhiteSpace(engine))
+                issues.Add("BKT-0100: theme.yaml: 'engine' is missing (required in 1.0). Set to 'bukit'.");
+            else if (!engine.Equals("bukit", StringComparison.OrdinalIgnoreCase))
+                issues.Add($"BKT-0100: theme.yaml: 'engine' must be 'bukit', got '{engine}'.");
 
             GetStringValue(root, "requires_bukit", out var requires);
             if (!string.IsNullOrWhiteSpace(requires) &&

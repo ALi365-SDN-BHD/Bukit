@@ -37,22 +37,23 @@ public sealed class ConfigEnvironmentOverrideTests : IDisposable
                                         title: Starter
                                         url: https://old.example
                                       content:
-                                        provider: markdown
-                                        markdown:
-                                          dir: content
+                                        sources:
+                                          - type: markdown
+                                            markdown:
+                                              dir: content
                                       build:
                                         clean: true
                                       """);
         SetEnv("BUKIT_SITE__TITLE", "From Env");
         SetEnv("BUKIT_SITE__URL", "https://env.example");
-        SetEnv("BUKIT_CONTENT__MARKDOWN__DIR", "posts");
+        SetEnv("BUKIT_CONTENT__MEDIA__DOWNLOAD_DIR", "env-media");
         SetEnv("BUKIT_BUILD__CLEAN", "false");
 
         var config = ConfigLoader.Load(_configPath);
 
         Assert.Equal("From Env", config.Site.Title);
         Assert.Equal("https://env.example", config.Site.Url);
-        Assert.Equal("posts", config.Content.Markdown!.Dir);
+        Assert.Equal("env-media", config.Content.Media.DownloadDir);
         Assert.False(config.Build.Clean);
     }
 

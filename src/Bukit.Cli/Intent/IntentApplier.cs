@@ -73,23 +73,15 @@ public static class IntentApplier
         {
             "markdown" => new ContentConfig
             {
-                Provider = "markdown",
-                Markdown = new MarkdownConfig { Dir = intent.Content.Markdown?.Dir ?? "content" }
+                Provider = "sources",
+                Sources = BuildMarkdownSources(intent.Content.Markdown?.Dir ?? "content")
             },
             "notion" => new ContentConfig
             {
-                Provider = "notion",
-                Notion = new NotionConfig
-                {
-                    DatabaseId = intent.Content.Notion!.DatabaseId,
-                    FieldPolicy = new NotionFieldPolicyConfig
-                    {
-                        Mode = intent.Content.Notion!.FieldPolicy.Mode,
-                        Allowed = intent.Content.Notion!.FieldPolicy.Allowed
-                    }
-                }
+                Provider = "sources",
+                Sources = BuildNotionSources(intent.Content.Notion!)
             },
-            _ => new ContentConfig { Provider = intent.Content.Provider }
+            _ => new ContentConfig { Provider = "sources", Sources = new List<ContentSourceConfig>() }
         };
 
         return new AppConfig
@@ -180,44 +172,64 @@ public static class IntentApplier
 
         root.Add("site", site);
 
-        var content = new YamlMappingNode
-        {
-            { "provider", config.Content.Provider }
-        };
+        var content = new YamlMappingNode();
+        var sources = new YamlSequenceNode();
 
-        if (config.Content.Provider.Equals("markdown", StringComparison.OrdinalIgnoreCase))
+        if (config.Content.Sources is { Count: > 0 })
         {
-            var md = new YamlMappingNode();
-            if (config.Content.Markdown is not null && !string.IsNullOrWhiteSpace(config.Content.Markdown.Dir))
+            foreach (var source in config.Content.Sources)
             {
-                md.Add("dir", MakeRelPath(rootDir, config.Content.Markdown.Dir));
-            }
-            content.Add("markdown", md);
-        }
-
-        if (config.Content.Provider.Equals("notion", StringComparison.OrdinalIgnoreCase))
-        {
-            var notion = new YamlMappingNode();
-            if (config.Content.Notion is not null)
-            {
-                notion.Add("databaseId", config.Content.Notion.DatabaseId);
-                if (config.Content.Notion.FieldPolicy is not null)
+                var sourceNode = new YamlMappingNode();
+                sourceNode.Add("type", source.Type);
+                if (!string.IsNullOrWhiteSpace(source.Name))
                 {
-                    var fp = new YamlMappingNode
-                    {
-                        { "mode", config.Content.Notion.FieldPolicy.Mode ?? "whitelist" }
-                    };
-
-                    if (config.Content.Notion.FieldPolicy.Allowed is { Count: > 0 } allowed)
-                    {
-                        fp.Add("allowed", new YamlSequenceNode(allowed.Select(x => new YamlScalarNode(x))));
-                    }
-
-                    notion.Add("fieldPolicy", fp);
+                    sourceNode.Add("name", source.Name);
                 }
+
+                if (!string.IsNullOrWhiteSpace(source.Collection))
+                {
+                    sourceNode.Add("collection", source.Collection);
+                }
+
+                if (source.Type.Equals("markdown", StringComparison.OrdinalIgnoreCase))
+                {
+                    var md = new YamlMappingNode();
+                    if (source.Markdown is not null && !string.IsNullOrWhiteSpace(source.Markdown.Dir))
+                    {
+                        md.Add("dir", MakeRelPath(rootDir, source.Markdown.Dir));
+                    }
+                    sourceNode.Add("markdown", md);
+                }
+
+                if (source.Type.Equals("notion", StringComparison.OrdinalIgnoreCase))
+                {
+                    var notion = new YamlMappingNode();
+                    if (source.Notion is not null)
+                    {
+                        notion.Add("databaseId", source.Notion.DatabaseId);
+                        if (source.Notion.FieldPolicy is not null)
+                        {
+                            var fp = new YamlMappingNode
+                            {
+                                { "mode", source.Notion.FieldPolicy.Mode ?? "whitelist" }
+                            };
+
+                            if (source.Notion.FieldPolicy.Allowed is { Count: > 0 } allowed)
+                            {
+                                fp.Add("allowed", new YamlSequenceNode(allowed.Select(x => new YamlScalarNode(x))));
+                            }
+
+                            notion.Add("fieldPolicy", fp);
+                        }
+                    }
+                    sourceNode.Add("notion", notion);
+                }
+
+                sources.Add(sourceNode);
             }
-            content.Add("notion", notion);
         }
+
+        content.Add("sources", sources);
 
         root.Add("content", content);
 
@@ -284,6 +296,36 @@ public static class IntentApplier
                 Template = "pages/page.html"
             }
         };
+    }
+
+    private static List<ContentSourceConfig> BuildMarkdownSources(string dir)
+    {
+        return BuildDefaultCollections().Keys.Select(collection => new ContentSourceConfig
+        {
+            Type = "markdown",
+            Name = collection,
+            Collection = collection,
+            Markdown = new MarkdownConfig { Dir = dir }
+        }).ToList();
+    }
+
+    private static List<ContentSourceConfig> BuildNotionSources(SiteIntentNotionContent notion)
+    {
+        return BuildDefaultCollections().Keys.Select(collection => new ContentSourceConfig
+        {
+            Type = "notion",
+            Name = collection,
+            Collection = collection,
+            Notion = new NotionConfig
+            {
+                DatabaseId = notion.DatabaseId,
+                FieldPolicy = new NotionFieldPolicyConfig
+                {
+                    Mode = notion.FieldPolicy.Mode,
+                    Allowed = notion.FieldPolicy.Allowed
+                }
+            }
+        }).ToList();
     }
 
     private static string MakeRelPath(string rootDir, string path)

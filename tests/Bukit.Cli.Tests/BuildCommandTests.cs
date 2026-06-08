@@ -28,7 +28,7 @@ public sealed class BuildCommandTests : IDisposable
         var siteYaml = Path.Combine(Path.GetTempPath(), "bukit-test-config", Guid.NewGuid().ToString("N"), "site.yaml");
         var dir = Path.GetDirectoryName(siteYaml)!;
         Directory.CreateDirectory(dir);
-        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
+        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\nbuild:\n  output: dist\n");
 
         var command = new CliBoundCommand(
             new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -75,7 +75,7 @@ public sealed class BuildCommandTests : IDisposable
         var dir = Path.Combine(Path.GetTempPath(), "bukit-test-site", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         Directory.CreateDirectory(Path.Combine(dir, "sites"));
-        File.WriteAllText(Path.Combine(dir, "sites", "testsite.yaml"), "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
+        File.WriteAllText(Path.Combine(dir, "sites", "testsite.yaml"), "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\nbuild:\n  output: dist\n");
 
         using var _ = new CurrentDirectoryScope(dir);
         var command = new CliBoundCommand(
@@ -197,7 +197,12 @@ public sealed class BuildCommandTests : IDisposable
                                         pluginFailMode: strict
                                         rssMode: root
                                       content:
-                                        provider: markdown
+                                        sources:
+                                          - type: markdown
+                                            name: page
+                                            collection: page
+                                            markdown:
+                                              dir: content
                                       """);
 
         var cmd = new CliBoundCommand(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -214,7 +219,7 @@ public sealed class BuildCommandTests : IDisposable
     public async Task RunAsync_JobsAbc_ThrowsCommandArgumentException()
     {
         var siteYaml = Path.Combine(_testDir, "site.yaml");
-        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
+        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\nbuild:\n  output: dist\n");
 
         var cmd = new CliBoundCommand(
             new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -232,7 +237,7 @@ public sealed class BuildCommandTests : IDisposable
     public async Task RunAsync_JobsNegativeOne_ThrowsCommandArgumentException()
     {
         var siteYaml = Path.Combine(_testDir, "site.yaml");
-        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
+        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\nbuild:\n  output: dist\n");
 
         var cmd = new CliBoundCommand(
             new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -250,7 +255,7 @@ public sealed class BuildCommandTests : IDisposable
     public async Task RunAsync_JobsZero_ThrowsCommandArgumentException()
     {
         var siteYaml = Path.Combine(_testDir, "site.yaml");
-        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
+        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\nbuild:\n  output: dist\n");
 
         var cmd = new CliBoundCommand(
             new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -268,7 +273,7 @@ public sealed class BuildCommandTests : IDisposable
     public async Task RunAsync_JobsFour_StartsBuildWithoutArgumentError()
     {
         var siteYaml = Path.Combine(_testDir, "site.yaml");
-        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\nbuild:\n  output: dist\n");
+        File.WriteAllText(siteYaml, "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\nbuild:\n  output: dist\n");
 
         var cmd = new CliBoundCommand(
             new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -307,9 +312,15 @@ public sealed class BuildCommandTests : IDisposable
                       runtime: process
                       entry: plugins/sample.sh
                       hooks: [after-build]
+                      capabilities: [emit-outputs]
                       timeoutMs: 5000
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: page
+                      collection: page
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 """);
@@ -348,9 +359,15 @@ public sealed class BuildCommandTests : IDisposable
                       runtime: process
                       entry: plugins/sample.sh
                       hooks: [after-build]
+                      capabilities: [emit-outputs]
                       timeoutMs: 5000
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: page
+                      collection: page
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 """);
@@ -391,9 +408,15 @@ public sealed class BuildCommandTests : IDisposable
                       runtime: process
                       entry: plugins/sample.sh
                       hooks: [after-build]
+                      capabilities: [emit-outputs]
                       timeoutMs: 5000
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: page
+                      collection: page
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 """);
@@ -434,9 +457,15 @@ public sealed class BuildCommandTests : IDisposable
                       runtime: process
                       entry: plugins/sample.sh
                       hooks: [after-build]
+                      capabilities: [emit-outputs]
                       timeoutMs: 5000
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: page
+                      collection: page
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 """);
@@ -464,7 +493,12 @@ public sealed class BuildCommandTests : IDisposable
               name: test
               title: Test
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
             build:
               output: dist
             """);

@@ -13,7 +13,7 @@ public sealed class DeployCommandTests
     {
         var dir = Path.Combine(Path.GetTempPath(), "bukit-test-deploy", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\n");
+        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\n");
 
         var originalDir = Environment.CurrentDirectory;
         try
@@ -56,7 +56,7 @@ public sealed class DeployCommandTests
         var distDir = Path.Combine(dir, "dist");
         Directory.CreateDirectory(distDir);
         File.WriteAllText(Path.Combine(distDir, "index.html"), "<h1>test</h1>");
-        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\n");
+        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\n");
 
         var originalDir = Environment.CurrentDirectory;
         try
@@ -96,7 +96,7 @@ public sealed class DeployCommandTests
     {
         var dir = Path.Combine(Path.GetTempPath(), "bukit-test-deploy-branch", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\n");
+        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\n");
 
         var originalDir = Environment.CurrentDirectory;
         try
@@ -137,7 +137,7 @@ public sealed class DeployCommandTests
     {
         var dir = Path.Combine(Path.GetTempPath(), "bukit-test-deploy-msg", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\n");
+        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\n");
 
         var originalDir = Environment.CurrentDirectory;
         try
@@ -183,7 +183,12 @@ site:
   name: x
   title: x
 content:
-  provider: markdown
+  sources:
+    - type: markdown
+      name: page
+      collection: page
+      markdown:
+        dir: content
 deploy:
   provider: github-pages
   branch: gh-pages
@@ -230,7 +235,7 @@ deploy:
     {
         var dir = Path.Combine(Path.GetTempPath(), "bukit-test-deploy-nodeploy", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\n");
+        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\n");
 
         var originalDir = Environment.CurrentDirectory;
         try
@@ -278,7 +283,7 @@ deploy:
     {
         var dir = Path.Combine(Path.GetTempPath(), "bukit-test-argreader-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\n");
+        File.WriteAllText(Path.Combine(dir, "site.yaml"), "site:\n  name: x\n  title: x\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\n");
         var distDir = Path.Combine(dir, "dist");
         Directory.CreateDirectory(distDir);
         File.WriteAllText(Path.Combine(distDir, "index.html"), "<h1>test</h1>");

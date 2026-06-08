@@ -306,7 +306,7 @@ public static class DoctorCommand
             }
         }
 
-        if (config.Content.Provider.Equals("notion", StringComparison.OrdinalIgnoreCase) && config.Content.Notion is not null)
+        if (HasNotionSource(config.Content) && config.Content.Sources is not null)
         {
             var token = EnvironmentHelper.GetNotionToken();
             if (string.IsNullOrWhiteSpace(token))
@@ -315,7 +315,15 @@ public static class DoctorCommand
                 return 1;
             }
 
-            var ok = await DoctorNotionChecker.CheckNotionAsync(token, config.Content.Notion.DatabaseId);
+            var notionSource = config.Content.Sources.FirstOrDefault(s =>
+                s.Type.Equals("notion", StringComparison.OrdinalIgnoreCase) && s.Notion is not null);
+            if (notionSource?.Notion is null)
+            {
+                Console.WriteLine("✖ Notion source configuration not found");
+                return 1;
+            }
+
+            var ok = await DoctorNotionChecker.CheckNotionAsync(token, notionSource.Notion.DatabaseId);
             if (!ok)
             {
                 return 1;
@@ -325,7 +333,7 @@ public static class DoctorCommand
 
             if (command.GetString("--notion-schema") is not null)
             {
-                await DoctorNotionChecker.CheckNotionSchemaAsync(token, config.Content.Notion);
+                await DoctorNotionChecker.CheckNotionSchemaAsync(token, notionSource.Notion);
             }
         }
         else if (config.Content.Sources is { Count: > 0 })
@@ -484,6 +492,14 @@ public static class DoctorCommand
             Console.WriteLine("         or set build.clean: false in site.yaml.");
             return false;
         }
+    }
+
+    private static bool HasNotionSource(ContentConfig content)
+    {
+        if (content.Sources is null) return false;
+        return content.Sources.Any(s =>
+            s.Type.Equals("notion", StringComparison.OrdinalIgnoreCase) ||
+            s.Notion is not null);
     }
 
 }

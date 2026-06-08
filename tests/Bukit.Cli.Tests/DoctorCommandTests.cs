@@ -60,9 +60,12 @@ public sealed class DoctorCommandTests : IDisposable
                                              template: pages/page.html
                                              listRoute: /pages/
                                        content:
-                                         provider: markdown
-                                         markdown:
-                                           dir: content
+                                         sources:
+                                           - type: markdown
+                                             name: post
+                                             collection: post
+                                             markdown:
+                                               dir: content
                                        build:
                                          listPageContentMode: auto
                                        """);
@@ -168,9 +171,12 @@ public sealed class DoctorCommandTests : IDisposable
                                                enabled: true
                                                pageSize: 2
                                        content:
-                                         provider: markdown
-                                         markdown:
-                                           dir: content
+                                         sources:
+                                           - type: markdown
+                                             name: post
+                                             collection: post
+                                             markdown:
+                                               dir: content
                                        build:
                                          listPageContentMode: auto
                                        """);
@@ -219,6 +225,8 @@ public sealed class DoctorCommandTests : IDisposable
                                              entry: plugins/sample
                                              hooks:
                                                - after-build
+                                             capabilities:
+                                               - emit-outputs
                                              templateRequirements:
                                                - widget
                                          collections:
@@ -228,9 +236,12 @@ public sealed class DoctorCommandTests : IDisposable
                                              listRoute: /blog/
                                              listTemplate: pages/list.html
                                        content:
-                                         provider: markdown
-                                         markdown:
-                                           dir: content
+                                         sources:
+                                           - type: markdown
+                                             name: post
+                                             collection: post
+                                             markdown:
+                                               dir: content
                                        build:
                                          listPageContentMode: auto
                                        """);
@@ -260,9 +271,36 @@ public sealed class DoctorCommandTests : IDisposable
                                              listRoute: /pages/
                                              listTemplate: pages/list.html
                                        content:
-                                         provider: markdown
-                                         markdown:
-                                           dir: content
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
+                                       build:
+                                         listPageContentMode: auto
+                                       """);
+    }
+
+    private void WritePostOnlyConfig()
+    {
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                         collections:
+                                           post:
+                                             permalink: /blog/{slug}/
+                                             template: pages/post.html
+                                             listRoute: /blog/
+                                             listTemplate: pages/list.html
+                                       content:
+                                         sources:
+                                           - type: markdown
+                                             name: post
+                                             collection: post
+                                             markdown:
+                                               dir: content
                                        build:
                                          listPageContentMode: auto
                                        """);
@@ -389,9 +427,12 @@ public sealed class DoctorCommandTests : IDisposable
                                          name: test
                                          title: Test
                                        content:
-                                         provider: markdown
-                                         markdown:
-                                           dir: content
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
                                        """);
 
         var (exitCode, output) = await RunDoctorAsync();
@@ -409,9 +450,12 @@ public sealed class DoctorCommandTests : IDisposable
                                          name: test
                                          title: Test
                                        content:
-                                         provider: markdown
-                                         markdown:
-                                           dir: content
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
                                        build:
                                          listPageContentMode: auto
                                        """);
@@ -421,7 +465,6 @@ public sealed class DoctorCommandTests : IDisposable
             slug: about
             route:
               url: /about/
-              outputPath: about/index.html
               template: pages/page.html
             ---
             # About
@@ -437,6 +480,7 @@ public sealed class DoctorCommandTests : IDisposable
     [Fact]
     public async Task RunAsync_ReturnsError_WhenRoutesConflict()
     {
+        WritePostOnlyConfig();
         File.WriteAllText(Path.Combine(_rootDir, "content", "one.md"), """
             ---
             type: post
@@ -507,9 +551,12 @@ public sealed class DoctorCommandTests : IDisposable
                                              permalink: /pages/{slug}/
                                              listRoute: /pages/
                                        content:
-                                         provider: markdown
-                                         markdown:
-                                           dir: content
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
                                        build:
                                          listPageContentMode: auto
                                        """);
@@ -557,9 +604,12 @@ public sealed class DoctorCommandTests : IDisposable
                                              permalink: /blog/{slug}/
                                              listRoute: /blog/
                                        content:
-                                         provider: markdown
-                                         markdown:
-                                           dir: content
+                                         sources:
+                                           - type: markdown
+                                             name: post
+                                             collection: post
+                                             markdown:
+                                               dir: content
                                        build:
                                          listPageContentMode: auto
                                        """);
@@ -610,9 +660,12 @@ public sealed class DoctorCommandTests : IDisposable
                                              permalink: /pages/{slug}/
                                              listRoute: /pages/
                                        content:
-                                         provider: markdown
-                                         markdown:
-                                           dir: content
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
                                        build:
                                          listPageContentMode: auto
                                        """);
@@ -660,9 +713,12 @@ public sealed class DoctorCommandTests : IDisposable
                                              permalink: /blog/{slug}/
                                              listRoute: /blog/
                                        content:
-                                         provider: markdown
-                                         markdown:
-                                           dir: content
+                                         sources:
+                                           - type: markdown
+                                             name: post
+                                             collection: post
+                                             markdown:
+                                               dir: content
                                        build:
                                          listPageContentMode: auto
                                        """);

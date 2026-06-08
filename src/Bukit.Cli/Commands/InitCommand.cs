@@ -316,9 +316,10 @@ site:
 {{collections}}
 
 content:
-  provider: notion
-  notion:
-    databaseId: xxxxx
+  sources:
+    - type: notion
+      notion:
+        databaseId: xxxxx
 
 build:
   output: dist
@@ -432,7 +433,6 @@ logging:
         => templateName switch
         {
             "blog" => """
-  provider: sources
   sources:
     - type: markdown
       name: posts
@@ -454,7 +454,6 @@ logging:
         defaultType: module
 """,
             "docs" => """
-  provider: sources
   sources:
     - type: markdown
       name: docs
@@ -470,7 +469,6 @@ logging:
         defaultType: module
 """,
             "landing" => """
-  provider: sources
   sources:
     - type: markdown
       name: pages
@@ -486,7 +484,6 @@ logging:
         defaultType: module
 """,
             "portfolio" => """
-  provider: sources
   sources:
     - type: markdown
       name: work
@@ -508,14 +505,32 @@ logging:
         defaultType: module
 """,
             "bare" or "none" => """
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 """,
             _ => $$"""
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: posts
+      mode: content
+      collection: post
+      markdown:
+        dir: content
+        includePaths:
+          - hello-world
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content
+        includePaths:
+          - about
 """
         };
 

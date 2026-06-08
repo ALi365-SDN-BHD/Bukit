@@ -43,8 +43,13 @@ public static class BukitCliDescriptors
         };
     }
 
-    public static CommandDescriptor? ResolveDescriptor(IReadOnlyList<CommandDescriptor> descriptors, string name)
+    public static CommandDescriptor? ResolveDescriptor(IReadOnlyList<CommandDescriptor> descriptors, string? name)
     {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
         foreach (var d in descriptors)
         {
             if (string.Equals(d.Spec.Name, name, StringComparison.OrdinalIgnoreCase))

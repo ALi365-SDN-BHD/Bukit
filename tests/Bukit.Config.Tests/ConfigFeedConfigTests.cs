@@ -25,7 +25,10 @@ public sealed class ConfigFeedConfigTests : IDisposable
                 limit: 7
                 path: feeds
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """);
 
         var config = ConfigLoader.Load(path);

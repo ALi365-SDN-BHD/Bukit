@@ -58,7 +58,12 @@ public sealed class PluginCommandTests : IDisposable
                                            taxonomy:
                                              enabled: false
                                        content:
-                                         provider: markdown
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
                                        """);
 
         using var writer = new StringWriter(new StringBuilder());
@@ -94,7 +99,12 @@ public sealed class PluginCommandTests : IDisposable
                                                - after-build
                                              enabled: false
                                        content:
-                                         provider: markdown
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
                                        """);
 
         using var writer = new StringWriter(new StringBuilder());

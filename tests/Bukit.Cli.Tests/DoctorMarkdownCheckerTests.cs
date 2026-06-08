@@ -34,7 +34,12 @@ public sealed class DoctorMarkdownCheckerTests : IDisposable
                                              template: pages/page.html
                                              listRoute: /pages/
                                        content:
-                                         provider: markdown
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
                                          markdown:
                                            dir: content
                                        build:

@@ -84,8 +84,10 @@ internal static class CloneFidelityRunner
         sb.AppendLine("      template: 'pages/page.html'");
         sb.AppendLine("      listRoute: '/'");
         sb.AppendLine("content:");
-        sb.AppendLine("  provider: markdown");
-        sb.AppendLine("  contentDir: content");
+        sb.AppendLine("  sources:");
+        sb.AppendLine("    - type: markdown");
+        sb.AppendLine("      markdown:");
+        sb.AppendLine("        dir: content");
         sb.AppendLine("theme:");
         sb.AppendLine($"  name: {themeName}");
 

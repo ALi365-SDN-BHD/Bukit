@@ -23,7 +23,12 @@ site:
 build:
   output: dist
 content:
-  provider: markdown
+  sources:
+    - type: markdown
+      name: page
+      collection: page
+      markdown:
+        dir: content
   markdown:
     dir: content
 theme:

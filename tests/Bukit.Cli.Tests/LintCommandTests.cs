@@ -25,7 +25,12 @@ public sealed class LintCommandTests : IDisposable
                                         name: lint
                                         title: Lint
                                       content:
-                                        provider: markdown
+                                        sources:
+                                          - type: markdown
+                                            name: page
+                                            collection: page
+                                            markdown:
+                                              dir: content
                                         markdown:
                                           dir: content
                                       """);

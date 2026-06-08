@@ -41,7 +41,10 @@ public sealed class ConfigLoaderTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -50,8 +53,8 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.NotNull(config);
         Assert.Equal("myblog", config.Site.Name);
         Assert.Equal("My Blog", config.Site.Title);
-        Assert.Equal("markdown", config.Content.Provider);
-        Assert.NotNull(config.Content.Markdown);
+        Assert.Equal("sources", config.Content.Provider);
+        Assert.NotNull(config.Content.Sources![0].Markdown);
     }
 
     [Fact]
@@ -62,7 +65,10 @@ public sealed class ConfigLoaderTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             build:
               assetHashMode: sha256
             """;
@@ -79,7 +85,7 @@ public sealed class ConfigLoaderTests : IDisposable
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "myblog", Title = "My Blog" },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() },
+            Content = new ContentConfig { Provider = "sources", Sources = new List<ContentSourceConfig> { new ContentSourceConfig { Type = "markdown", Markdown = new MarkdownConfig() } } },
             Build = new BuildConfig { AssetHashMode = "bad" }
         };
 
@@ -153,7 +159,10 @@ public sealed class ConfigLoaderTests : IDisposable
     {
         var yaml = """
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -168,7 +177,10 @@ public sealed class ConfigLoaderTests : IDisposable
             site:
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -184,34 +196,35 @@ public sealed class ConfigLoaderTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: notion
-              notion:
-                databaseId: abc123def456
-                pageSize: 100
-                maxItems: 500
-                renderContent: true
-                maxRps: 3
-                maxRetries: 5
-                cacheMode: file
-                cacheDir: /tmp/notion-cache
-                sortProperty: Created
+              sources:
+                - type: notion
+                  notion:
+                    databaseId: abc123def456
+                    pageSize: 100
+                    maxItems: 500
+                    renderContent: true
+                    maxRps: 3
+                    maxRetries: 5
+                    cacheMode: file
+                    cacheDir: /tmp/notion-cache
+                    sortProperty: Created
             """;
         var path = WriteTempYaml(yaml);
 
         var config = ConfigLoader.Load(path);
+        var source = config.Content.Sources![0].Notion;
 
-        Assert.Equal("notion", config.Content.Provider);
-        Assert.NotNull(config.Content.Notion);
-        Assert.Equal("abc123def456", config.Content.Notion.DatabaseId);
-        Assert.Equal(100, config.Content.Notion.PageSize);
-        Assert.Equal(500, config.Content.Notion.MaxItems);
-        Assert.True(config.Content.Notion.RenderContent);
-        Assert.Equal(3, config.Content.Notion.MaxRps);
-        Assert.Equal(5, config.Content.Notion.MaxRetries);
-        Assert.Equal("file", config.Content.Notion.CacheMode);
-        Assert.Equal("/tmp/notion-cache", config.Content.Notion.CacheDir);
-        Assert.Equal("Created", config.Content.Notion.SortProperty);
-        Assert.Null(config.Content.Markdown);
+        Assert.Equal("sources", config.Content.Provider);
+        Assert.NotNull(source);
+        Assert.Equal("abc123def456", source.DatabaseId);
+        Assert.Equal(100, source.PageSize);
+        Assert.Equal(500, source.MaxItems);
+        Assert.True(source.RenderContent);
+        Assert.Equal(3, source.MaxRps);
+        Assert.Equal(5, source.MaxRetries);
+        Assert.Equal("file", source.CacheMode);
+        Assert.Equal("/tmp/notion-cache", source.CacheDir);
+        Assert.Equal("Created", source.SortProperty);
     }
 
     [Fact]
@@ -222,35 +235,39 @@ public sealed class ConfigLoaderTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
-              markdown:
-                dir: docs
-                defaultType: article
-                maxItems: 200
-                includePaths:
-                  - posts
-                  - pages
-                includeGlobs:
-                  - "*.md"
-                  - "*.markdown"
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: docs
+                    defaultType: article
+                    maxItems: 200
+                    includePaths:
+                      - posts
+                      - pages
+                    includeGlobs:
+                      - "*.md"
+                      - "*.markdown"
             """;
         var path = WriteTempYaml(yaml);
 
         var config = ConfigLoader.Load(path);
+        var md = config.Content.Sources![0].Markdown!;
 
-        Assert.Equal("markdown", config.Content.Provider);
-        Assert.NotNull(config.Content.Markdown);
-        Assert.Equal("docs", config.Content.Markdown.Dir);
-        Assert.Equal("article", config.Content.Markdown.DefaultType);
-        Assert.Equal(200, config.Content.Markdown.MaxItems);
-        Assert.NotNull(config.Content.Markdown.IncludePaths);
-        Assert.Equal(2, config.Content.Markdown.IncludePaths.Count);
-        Assert.Contains("posts", config.Content.Markdown.IncludePaths);
-        Assert.Contains("pages", config.Content.Markdown.IncludePaths);
-        Assert.NotNull(config.Content.Markdown.IncludeGlobs);
-        Assert.Equal(2, config.Content.Markdown.IncludeGlobs.Count);
-        Assert.Contains("*.md", config.Content.Markdown.IncludeGlobs);
-        Assert.Contains("*.markdown", config.Content.Markdown.IncludeGlobs);
+        Assert.Equal("sources", config.Content.Provider);
+        Assert.NotNull(md);
+        Assert.Equal("docs", md.Dir);
+        Assert.Equal("article", md.DefaultType);
+        Assert.Equal(200, md.MaxItems);
+        var inclPaths = md.IncludePaths;
+        Assert.NotNull(inclPaths);
+        Assert.Equal(2, inclPaths.Count);
+        Assert.Contains("posts", inclPaths);
+        Assert.Contains("pages", inclPaths);
+        var inclGlobs = md.IncludeGlobs;
+        Assert.NotNull(inclGlobs);
+        Assert.Equal(2, inclGlobs.Count);
+        Assert.Contains("*.md", inclGlobs);
+        Assert.Contains("*.markdown", inclGlobs);
     }
 
     [Fact]
@@ -277,7 +294,10 @@ public sealed class ConfigLoaderTests : IDisposable
                   permalink: /{slug}/
                   template: pages/page.html
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -341,7 +361,10 @@ public sealed class ConfigLoaderTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
               modelSchema:
                 rejectUnknownRawKeys: true
                 requireAuthor: true
@@ -488,7 +511,10 @@ public sealed class ConfigLoaderTests : IDisposable
                   schema:
                     - name: deck
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -509,7 +535,10 @@ public sealed class ConfigLoaderTests : IDisposable
                 page: "/docs/{slug}/"
                 custom: "/special/{slug}.html"
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -530,7 +559,10 @@ public sealed class ConfigLoaderTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             deploy:
               provider: github-pages
               branch: main
@@ -575,7 +607,10 @@ public sealed class ConfigLoaderTests : IDisposable
                   collectionPage: false
                   searchAction: true
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -633,7 +668,10 @@ public sealed class ConfigLoaderTests : IDisposable
                   capabilities:
                     - emit-outputs
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -682,7 +720,10 @@ public sealed class ConfigLoaderTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
               template: pages/taxonomy.html
               indexTemplate: pages/index.html
@@ -747,7 +788,10 @@ public sealed class ConfigLoaderTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
               media:
                 downloadToLocal: true
                 downloadDir: static/images
@@ -795,7 +839,7 @@ public sealed class ConfigLoaderTests : IDisposable
         Directory.CreateDirectory(dir);
         try
         {
-            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\n  markdown:\n    dir: content\n";
+            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
             var sitePath = Path.Combine(dir, "site.yaml");
             File.WriteAllText(sitePath, siteYaml);
 
@@ -824,7 +868,7 @@ public sealed class ConfigLoaderTests : IDisposable
         Directory.CreateDirectory(dir);
         try
         {
-            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\n  markdown:\n    dir: content\n";
+            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
             var sitePath = Path.Combine(dir, "site.yaml");
             File.WriteAllText(sitePath, siteYaml);
 
@@ -850,7 +894,7 @@ public sealed class ConfigLoaderTests : IDisposable
         Directory.CreateDirectory(dir);
         try
         {
-            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  provider: markdown\n  markdown:\n    dir: content\n";
+            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
             var sitePath = Path.Combine(dir, "site.yaml");
             File.WriteAllText(sitePath, siteYaml);
 
@@ -877,7 +921,7 @@ public sealed class ConfigLoaderTests : IDisposable
         Directory.CreateDirectory(dir);
         try
         {
-            var siteYaml = "site:\n  name: test\n  title: Test\n  collections:\n    post:\n      permalink: /articles/hello/\n      template: pages/article.html\ncontent:\n  provider: markdown\n  markdown:\n    dir: content\n";
+            var siteYaml = "site:\n  name: test\n  title: Test\n  collections:\n    post:\n      permalink: /articles/hello/\n      template: pages/article.html\ncontent:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
             var sitePath = Path.Combine(dir, "site.yaml");
             File.WriteAllText(sitePath, siteYaml);
 
@@ -908,7 +952,10 @@ public sealed class ConfigLoaderTests : IDisposable
               title: Test
               externalPluginPolicy: {invalidPolicy}
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -928,11 +975,37 @@ public sealed class ConfigLoaderTests : IDisposable
               title: Test
               externalPluginPolicy: {policy}
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
         var config = ConfigLoader.Load(path);
         Assert.Equal(policy, config.Site.ExternalPluginPolicy.ToString(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("rssMode: root", DiagnosticCode.ConfigRemovedField, "site.rssMode")]
+    [InlineData("searchMode: merged", DiagnosticCode.ConfigRemovedField, "site.searchMode")]
+    public void Load_RemovedSiteField_ThrowsBeforeValidation(string removedField, DiagnosticCode expectedCode, string expectedPath)
+    {
+        var yaml = $$"""
+            site:
+              name: test
+              title: Test
+              {{removedField}}
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+        Assert.Equal(expectedCode, ex.Code);
+        Assert.Contains(expectedPath, ex.Message, StringComparison.Ordinal);
     }
 }

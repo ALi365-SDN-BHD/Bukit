@@ -9,7 +9,20 @@ public sealed class ConfigValidatorExtendedTests
     private static AppConfig CreateMinimalConfig(Action<SiteConfig>? siteOverride = null, Action<ContentConfig>? contentOverride = null)
     {
         var site = new SiteConfig { Name = "test", Title = "Test" };
-        var content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } };
+        var content = new ContentConfig
+        {
+            Provider = "sources",
+            Sources = new List<ContentSourceConfig>
+            {
+                new()
+                {
+                    Type = "markdown",
+                    Name = "page",
+                    Collection = "page",
+                    Markdown = new MarkdownConfig { Dir = "content" }
+                }
+            }
+        };
 
         if (siteOverride is not null)
         {
@@ -40,7 +53,20 @@ public sealed class ConfigValidatorExtendedTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test" },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } },
+            Content = new ContentConfig
+            {
+                Provider = "sources",
+                Sources = new List<ContentSourceConfig>
+                {
+                    new()
+                    {
+                        Type = "markdown",
+                        Name = "page",
+                        Collection = "page",
+                        Markdown = new MarkdownConfig { Dir = "content" }
+                    }
+                }
+            },
             Build = new BuildConfig { Output = output }
         };
 
@@ -163,6 +189,7 @@ public sealed class ConfigValidatorExtendedTests
             File.WriteAllText(Path.Combine(tempDir, "theme.yaml"), """
 name: test-theme
 version: 1.0.0
+engine: bukit
 description: A test
 author: Tester
 license: MIT

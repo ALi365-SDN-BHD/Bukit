@@ -37,7 +37,6 @@ public static class ConfigCommand
             }
 
             ConfigValidator.Validate(config);
-            ConfigDeprecationScanner.RejectRemovedFields(resolved.FullConfigPath);
 
             Console.WriteLine("✔ Config check passed");
             Console.WriteLine($"  config: {resolved.FullConfigPath}");

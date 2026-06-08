@@ -23,7 +23,7 @@ internal static class ConfigCollectionReader
 
             if (kv.Value is not YamlMappingNode collectionNode)
             {
-                throw new ConfigException($"site.collections.{keyNode.Value} must be a mapping.");
+                throw new ConfigException($"site.collections.{keyNode.Value} must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             var paginationNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "pagination");
@@ -71,7 +71,7 @@ internal static class ConfigCollectionReader
         }
         catch (YamlDotNet.Core.YamlException ex)
         {
-            throw new ConfigException($"Invalid YAML syntax in collections.yaml: {collectionsPath}", ex);
+            throw new ConfigException($"Invalid YAML syntax in collections.yaml: {collectionsPath}", ex, DiagnosticCode.ConfigInvalidValue);
         }
 
         if (yaml.Documents.Count == 0)
@@ -100,7 +100,7 @@ internal static class ConfigCollectionReader
 
             if (kv.Value is not YamlMappingNode collectionNode)
             {
-                throw new ConfigException($"collections.yaml: entry '{keyNode.Value}' must be a mapping.");
+                throw new ConfigException($"collections.yaml: entry '{keyNode.Value}' must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             var paginationNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "pagination");
@@ -144,7 +144,7 @@ internal static class ConfigCollectionReader
         {
             if (child is not YamlMappingNode filterNode)
             {
-                throw new ConfigException("Each item in filteredLists must be a mapping.");
+                throw new ConfigException("Each item in filteredLists must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             filteredLists.Add(new FilteredListConfig
@@ -183,7 +183,7 @@ internal static class ConfigCollectionReader
         {
             if (n is not YamlMappingNode m)
             {
-                throw new ConfigException("content.sources items must be mappings.");
+                throw new ConfigException("content.sources items must be mappings.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             sources.Add(ReadSource(m));
@@ -288,7 +288,7 @@ internal static class ConfigCollectionReader
 
             if (kv.Value is not YamlSequenceNode fieldsNode)
             {
-                throw new ConfigException($"content.modelSchema.fieldScopes.{keyNode.Value} must be a sequence.");
+                throw new ConfigException($"content.modelSchema.fieldScopes.{keyNode.Value} must be a sequence.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             var fields = ReadCustomFieldSequence(fieldsNode);

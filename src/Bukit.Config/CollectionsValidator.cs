@@ -10,34 +10,34 @@ internal static class CollectionsValidator
         {
             if (string.IsNullOrWhiteSpace(name))
             {
-                throw new ConfigException("site.collections keys must be non-empty strings.");
+                throw new ConfigException("site.collections keys must be non-empty strings.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (string.IsNullOrWhiteSpace(collection.Permalink))
             {
-                throw new ConfigException($"site.collections.{name}.permalink is required.");
+                throw new ConfigException($"site.collections.{name}.permalink is required.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (!collection.Permalink.Contains("{slug}", StringComparison.OrdinalIgnoreCase))
             {
-                throw new ConfigException($"site.collections.{name}.permalink must include {{slug}}.");
+                throw new ConfigException($"site.collections.{name}.permalink must include {{slug}}.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (collection.Template is not null && string.IsNullOrWhiteSpace(collection.Template))
             {
-                throw new ConfigException($"site.collections.{name}.template must be a non-empty string when set.");
+                throw new ConfigException($"site.collections.{name}.template must be a non-empty string when set.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (collection.Pagination.PageSize <= 0)
             {
-                throw new ConfigException($"site.collections.{name}.pagination.pageSize must be a positive integer.");
+                throw new ConfigException($"site.collections.{name}.pagination.pageSize must be a positive integer.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (!string.IsNullOrWhiteSpace(collection.ListRoute))
             {
                 if (!collection.ListRoute.StartsWith('/'))
                 {
-                    throw new ConfigException($"site.collections.{name}.listRoute must start with '/'.");
+                    throw new ConfigException($"site.collections.{name}.listRoute must start with '/'.", DiagnosticCode.ConfigInvalidValue);
                 }
             }
 
@@ -51,7 +51,7 @@ internal static class CollectionsValidator
                 var mode = collection.SchemaFailMode!.Trim().ToLowerInvariant();
                 if (mode is not ("off" or "warn" or "strict"))
                 {
-                    throw new ConfigException($"site.collections.{name}.schemaFailMode must be off|warn|strict.");
+                    throw new ConfigException($"site.collections.{name}.schemaFailMode must be off|warn|strict.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
             }
         }
@@ -67,27 +67,27 @@ internal static class CollectionsValidator
 
             if (string.IsNullOrWhiteSpace(filter.Field))
             {
-                throw new ConfigException($"{prefix}.field is required.");
+                throw new ConfigException($"{prefix}.field is required.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (string.IsNullOrWhiteSpace(filter.Value))
             {
-                throw new ConfigException($"{prefix}.value is required.");
+                throw new ConfigException($"{prefix}.value is required.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (string.IsNullOrWhiteSpace(filter.ListRoute))
             {
-                throw new ConfigException($"{prefix}.listRoute is required.");
+                throw new ConfigException($"{prefix}.listRoute is required.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (!filter.ListRoute.StartsWith('/'))
             {
-                throw new ConfigException($"{prefix}.listRoute must start with '/'.");
+                throw new ConfigException($"{prefix}.listRoute must start with '/'.", DiagnosticCode.ConfigInvalidValue);
             }
 
             if (!usedRoutes.Add(filter.ListRoute.Trim().ToLowerInvariant()))
             {
-                throw new ConfigException($"{prefix}.listRoute '{filter.ListRoute}' duplicates another filtered list route.");
+                throw new ConfigException($"{prefix}.listRoute '{filter.ListRoute}' duplicates another filtered list route.", DiagnosticCode.ConfigInvalidValue);
             }
         }
     }
