@@ -82,7 +82,7 @@ public sealed class SeoAuditReportWriterLoggingTests : IDisposable
                 Title = "Test",
                 Url = "https://example.com"
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 
     private sealed class CapturingLogger : ILogger

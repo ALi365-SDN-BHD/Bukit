@@ -23,7 +23,7 @@ public sealed class SiteEngineHelperExtendedTests
         return new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/", Url = "https://example.com" },
-            Content = new ContentConfig { Provider = "markdown" },
+            Content = TestContent.Markdown(),
             Taxonomy = new TaxonomyConfig()
         };
     }
@@ -48,7 +48,7 @@ public sealed class SiteEngineHelperExtendedTests
                     }
                 }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
         var documents = new List<ContentDocument>
         {
@@ -88,7 +88,7 @@ public sealed class SiteEngineHelperExtendedTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-            Content = new ContentConfig { Provider = "markdown" },
+            Content = TestContent.Markdown(),
             Taxonomy = new TaxonomyConfig
             {
                 Kinds = new List<TaxonomyKindConfig>
@@ -139,7 +139,7 @@ public sealed class SiteEngineHelperExtendedTests
                     }
                 }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
         var items = new List<ContentDocument>();
         for (var i = 0; i < 25; i++)
@@ -267,7 +267,7 @@ public sealed class SiteEngineHelperExtendedTests
                         RobotsTxt = new SeoRobotsTxtConfig { Enabled = true }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             };
             var seoEntries = new Dictionary<string, SeoIndexEntry>();
 
@@ -305,7 +305,7 @@ public sealed class SiteEngineHelperExtendedTests
                         RobotsTxt = new SeoRobotsTxtConfig { Enabled = false }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             };
             var seoEntries = new Dictionary<string, SeoIndexEntry>();
 

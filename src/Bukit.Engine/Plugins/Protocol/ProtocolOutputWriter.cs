@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Plugins.Protocol;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.Protocol;
 
@@ -11,19 +12,19 @@ internal static class ProtocolOutputWriter
         {
             if (string.IsNullOrWhiteSpace(output.Path))
             {
-                throw new InvalidOperationException("Protocol plugin output path is required.");
+                throw new ConfigException("Protocol plugin output path is required.", DiagnosticCode.PluginExecutionFailed);
             }
 
             if (Path.IsPathRooted(output.Path))
             {
-                throw new InvalidOperationException($"Protocol plugin output path must be relative: {output.Path}");
+                throw new ConfigException($"Protocol plugin output path must be relative: {output.Path}", DiagnosticCode.PluginOutputTraversal);
             }
 
             var fullPath = Path.GetFullPath(Path.Combine(outputDir, output.Path.Replace('/', Path.DirectorySeparatorChar)));
             var safeRoot = Path.GetFullPath(outputDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
             if (!fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException($"Protocol plugin output path escapes outputDir: {output.Path}");
+                throw new ConfigException($"Protocol plugin output path escapes outputDir: {output.Path}", DiagnosticCode.PluginOutputTraversal);
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
@@ -31,7 +32,7 @@ internal static class ProtocolOutputWriter
             var hasBase64 = !string.IsNullOrWhiteSpace(output.Base64);
             if (hasText && hasBase64)
             {
-                throw new InvalidOperationException($"Protocol plugin output must provide either text or base64: {output.Path}");
+                throw new ConfigException($"Protocol plugin output must provide either text or base64: {output.Path}", DiagnosticCode.PluginExecutionFailed);
             }
 
             if (hasBase64)
@@ -43,7 +44,7 @@ internal static class ProtocolOutputWriter
                 }
                 catch (FormatException ex)
                 {
-                    throw new InvalidOperationException($"Protocol plugin output base64 is invalid: {output.Path}", ex);
+                    throw new ConfigException($"Protocol plugin output base64 is invalid: {output.Path}", ex, DiagnosticCode.PluginExecutionFailed);
                 }
             }
             else

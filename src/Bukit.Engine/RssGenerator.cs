@@ -131,7 +131,8 @@ public static class RssGenerator
         sb.AppendLine($"    <title>{EscapeXml(siteTitle)}</title>");
         sb.AppendLine($"    <link>{EscapeXml(homeUrl)}</link>");
         sb.AppendLine($"    <description>{EscapeXml(channelDescription)}</description>");
-        sb.AppendLine($"    <lastBuildDate>{DateTimeOffset.UtcNow:R}</lastBuildDate>");
+        var lastBuildDate = posts.Count == 0 ? DateTimeOffset.UnixEpoch : posts.Max(x => x.PublishAt);
+        sb.AppendLine($"    <lastBuildDate>{lastBuildDate:R}</lastBuildDate>");
         sb.AppendLine("    <generator>bukit</generator>");
         sb.AppendLine($"    <atom:link href=\"{EscapeXml(feedUrl)}\" rel=\"self\" type=\"application/rss+xml\" />");
 

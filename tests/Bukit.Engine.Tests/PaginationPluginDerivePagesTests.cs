@@ -44,7 +44,7 @@ public sealed class PaginationPluginDerivePagesTests
                         }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test",
             OutputDir = "/test/out",
@@ -267,7 +267,7 @@ public sealed class PaginationPluginDerivePagesTests
                         }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test",
             OutputDir = "/test/out",

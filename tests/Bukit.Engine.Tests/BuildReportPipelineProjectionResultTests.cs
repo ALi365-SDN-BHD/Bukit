@@ -118,6 +118,6 @@ public sealed class BuildReportPipelineProjectionResultTests
                 Url = "https://example.com",
                 Seo = new SeoConfig { Geo = new SeoGeoConfig { Enabled = true, LlmsTxt = true } }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 }

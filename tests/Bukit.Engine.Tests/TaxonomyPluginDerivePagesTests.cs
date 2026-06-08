@@ -26,7 +26,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test", OutputPathEncoding = outputPathEncoding },
-                Content = new ContentConfig { Provider = "markdown" },
+                Content = TestContent.Markdown(),
                 Taxonomy = taxonomyConfig ?? new TaxonomyConfig
                 {
                     OutputMode = outputMode,
@@ -411,7 +411,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" },
+                Content = TestContent.Markdown(),
                 Taxonomy = new TaxonomyConfig { OutputMode = "pages", IndexEnabled = true }
             },
             RootDir = "/test",

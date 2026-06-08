@@ -90,7 +90,7 @@ internal sealed class ProtocolHandshakeNegotiator
 
             if (!string.Equals(response.NegotiatedSchemaVersion, "2", StringComparison.Ordinal))
             {
-                throw new ConfigException($"[plugin-protocol][handshake] unsupported negotiated schema version '{response.NegotiatedSchemaVersion ?? "<missing>"}'. Bukit vNext requires protocol schema version 2.", DiagnosticCode.PluginExecutionFailed);
+                throw new ConfigException($"[plugin-protocol][handshake] unsupported negotiated schema version '{response.NegotiatedSchemaVersion ?? "<missing>"}'. Bukit vNext requires protocol schema version 2.", DiagnosticCode.PluginHandshakeV1Rejected);
             }
 
             return "2";

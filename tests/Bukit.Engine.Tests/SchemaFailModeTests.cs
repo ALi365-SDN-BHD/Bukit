@@ -60,7 +60,12 @@ public sealed class SchemaFailModeTests : IDisposable
                   template: post.html
                   schemaFailMode: strict
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
             """;
 
         var configPath = Path.Combine(_rootDir, "site.yaml");
@@ -83,7 +88,12 @@ public sealed class SchemaFailModeTests : IDisposable
               language: en
               baseUrl: /
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
             """;
 
         var collectionsYaml = """
@@ -169,7 +179,7 @@ public sealed class SchemaFailModeTests : IDisposable
                     }
                 }
             },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } },
+            Content = TestContent.Markdown(),
             Build = new BuildConfig { Output = "dist" }
         };
     }

@@ -88,7 +88,7 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
                         }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = _rootDir,
             OutputDir = Path.Combine(_rootDir, "dist"),

@@ -702,7 +702,7 @@ public sealed class ExternalProtocolPluginTests
                         }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = temp.Path,
             OutputDir = outputDir,
@@ -824,7 +824,8 @@ public sealed class ExternalProtocolPluginTests
                 },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown"
+                    Provider = "sources",
+                    Sources = TestContent.Markdown().Sources
                 }
             },
             RootDir = rootDir,

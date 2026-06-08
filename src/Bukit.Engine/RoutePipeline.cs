@@ -52,7 +52,8 @@ public sealed class RoutePipeline
         if (templateResolver is null)
         {
             throw new ConfigException(
-                $"No template was configured for content document '{document.Id}'. Add route.template, site.collections.*.template, or a matching theme.yaml templates entry.");
+                $"No template was configured for content document '{document.Id}'. Add route.template, site.collections.*.template, or a matching theme.yaml templates entry.",
+                DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         return route with { Template = templateResolver.ResolveContentTemplate(document, "detail") };

@@ -130,7 +130,7 @@ public sealed class PathReportPluginTests
                         ["path-report"] = new PluginToggleConfig { Enabled = true, Options = pluginOptions }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" },
+                Content = TestContent.Markdown(),
                 Theme = new ThemeConfig { Name = themeName }
             },
             RootDir = rootDir,

@@ -15,11 +15,7 @@ public sealed class ConfigValidatorTests
                 Name = "x",
                 Title = "x"
             },
-            Content = new ContentConfig
-            {
-                Provider = "markdown",
-                Markdown = new MarkdownConfig()
-            }
+            Content = TestContent.Markdown()
         };
         return mutate != null ? mutate(config) : config;
     }
@@ -50,7 +46,7 @@ public sealed class ConfigValidatorTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() }
+            Content = TestContent.Markdown()
         };
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);
@@ -332,9 +328,9 @@ public sealed class ConfigValidatorTests
     [Fact]
     public void Validate_ContentProviderEmpty_Throws()
     {
-        var config = ConfigWithContent(c => c with { Provider = "" });
+        var config = ConfigWithContent(c => c with { Sources = Array.Empty<ContentSourceConfig>() });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Equal("content.provider is required.", ex.Message);
+        Assert.Equal("content.sources is required in Bukit 1.0.", ex.Message);
     }
 
     [Fact]
@@ -357,7 +353,12 @@ public sealed class ConfigValidatorTests
                 post: "/{year}/{month}/{slug}/"
                 page: "/docs/{slug}/"
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
             build:
               output: dist
             """;
@@ -388,7 +389,12 @@ public sealed class ConfigValidatorTests
               title: Test
               baseUrl: /
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
             build:
               output: dist
             """;
@@ -437,7 +443,12 @@ public sealed class ConfigValidatorTests
                 google_analytics_id: G-ABC123
                 disableInPreview: false
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
             build:
               output: dist
             """;
@@ -595,6 +606,7 @@ public sealed class ConfigValidatorTests
                         Runtime = "process",
                         Entry = "plugins/sample-plugin.exe",
                         Hooks = new[] { "after-build" },
+                        Capabilities = new[] { "emit-outputs" },
                         Enabled = true,
                         TimeoutMs = 5000,
                         Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -794,6 +806,7 @@ public sealed class ConfigValidatorTests
                         Runtime = "wasm",
                         Entry = "plugins/sample-plugin.wasm",
                         Hooks = new[] { "after-build" },
+                        Capabilities = new[] { "emit-outputs" },
                         TimeoutMs = 5000,
                         WasmProfile = "unknown-profile"
                     }
@@ -819,6 +832,7 @@ public sealed class ConfigValidatorTests
                         Runtime = "wasm",
                         Entry = "plugins/sample-plugin.wasm",
                         Hooks = new[] { "after-build" },
+                        Capabilities = new[] { "emit-outputs" },
                         TimeoutMs = 5000,
                         MaxMemoryMb = 0
                     }
@@ -844,6 +858,7 @@ public sealed class ConfigValidatorTests
                         Runtime = "wasm",
                         Entry = "plugins/sample-plugin.wasm",
                         Hooks = new[] { "after-build" },
+                        Capabilities = new[] { "emit-outputs" },
                         TimeoutMs = 5000,
                         MaxMemoryMb = 1024
                     }
@@ -945,6 +960,7 @@ public sealed class ConfigValidatorTests
                         Runtime = "process",
                         Entry = "plugins/sample-plugin.exe",
                         Hooks = new[] { "after-build" },
+                        Capabilities = new[] { "emit-outputs" },
                         TimeoutMs = 5000,
                         Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                         {
@@ -973,6 +989,7 @@ public sealed class ConfigValidatorTests
                         Runtime = "process",
                         Entry = "plugins/sample-plugin.exe",
                         Hooks = new[] { "after-build" },
+                        Capabilities = new[] { "emit-outputs" },
                         TimeoutMs = 5000,
                         Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                         {
@@ -1007,6 +1024,7 @@ public sealed class ConfigValidatorTests
                         Runtime = "process",
                         Entry = "plugins/sample-plugin.exe",
                         Hooks = new[] { "after-build" },
+                        Capabilities = new[] { "emit-outputs" },
                         TimeoutMs = 5000,
                         Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                         {
@@ -1154,6 +1172,7 @@ public sealed class ConfigValidatorTests
                         Runtime = "process",
                         Entry = "/usr/bin/some-tool",
                         Hooks = new[] { "after-build" },
+                        Capabilities = new[] { "emit-outputs" },
                         TimeoutMs = 5000,
                         AllowAbsoluteEntry = true
                     }
@@ -1179,6 +1198,7 @@ public sealed class ConfigValidatorTests
                         Runtime = "process",
                         Entry = "plugins/my-plugin.js",
                         Hooks = new[] { "after-build" },
+                        Capabilities = new[] { "emit-outputs" },
                         TimeoutMs = 5000
                     }
                 }

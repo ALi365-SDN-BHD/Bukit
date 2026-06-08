@@ -32,7 +32,7 @@ public sealed class GeoSeoModelBuilderTests
                     }
                 }
             },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() }
+            Content = TestContent.Markdown()
         };
     }
 

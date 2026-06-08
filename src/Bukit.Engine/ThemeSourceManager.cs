@@ -48,7 +48,7 @@ public static class ThemeSourceManager
             {
                 var error = FormatGitError(cloneResult);
                 log?.Invoke($"Git clone failed: {error}");
-                throw new ConfigException($"Failed to clone theme source '{url}': {error}");
+                throw new ConfigException($"Failed to clone theme source '{url}': {error}", DiagnosticCode.ConfigInvalidValue);
             }
         }
 
@@ -69,7 +69,7 @@ public static class ThemeSourceManager
             {
                 var error = FormatGitError(retryResult);
                 log?.Invoke($"Version checkout failed: {error}");
-                throw new ConfigException($"Failed to checkout theme source '{url}' version '{versionTag}': {error}");
+                throw new ConfigException($"Failed to checkout theme source '{url}' version '{versionTag}': {error}", DiagnosticCode.ConfigInvalidValue);
             }
 
             WriteOrValidateLock(cacheDir, url, versionTag, repoPath, gitRunner, timeout);
@@ -84,13 +84,13 @@ public static class ThemeSourceManager
         var commitResult = gitRunner.RunAsync("rev-parse HEAD", repoPath, timeout, CancellationToken.None).GetAwaiter().GetResult();
         if (!commitResult.Success)
         {
-            throw new ConfigException($"Failed to resolve theme source '{source}' version '{@ref}' commit: {FormatGitError(commitResult)}");
+            throw new ConfigException($"Failed to resolve theme source '{source}' version '{@ref}' commit: {FormatGitError(commitResult)}", DiagnosticCode.ConfigInvalidValue);
         }
 
         var commit = commitResult.StdOut.Trim();
         if (string.IsNullOrWhiteSpace(commit))
         {
-            throw new ConfigException($"Failed to resolve theme source '{source}' version '{@ref}' commit: git returned an empty commit.");
+            throw new ConfigException($"Failed to resolve theme source '{source}' version '{@ref}' commit: git returned an empty commit.", DiagnosticCode.ConfigInvalidValue);
         }
 
         var lockPath = Path.Combine(cacheDir, "bukit-theme.lock.json");
@@ -98,7 +98,7 @@ public static class ThemeSourceManager
         var existing = themeLock.Themes.FirstOrDefault(x => string.Equals(x.Source, source, StringComparison.OrdinalIgnoreCase) && string.Equals(x.Ref, @ref, StringComparison.Ordinal));
         if (existing is not null && !string.Equals(existing.Commit, commit, StringComparison.OrdinalIgnoreCase))
         {
-            throw new ConfigException($"Theme lock mismatch for '{source}@{@ref}': locked commit {existing.Commit}, current commit {commit}.");
+            throw new ConfigException($"Theme lock mismatch for '{source}@{@ref}': locked commit {existing.Commit}, current commit {commit}.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (existing is null)
@@ -160,7 +160,7 @@ internal sealed class ThemeLockFile
         }
         catch (JsonException ex)
         {
-            throw new ConfigException($"Failed to read theme lock file '{path}': {ex.Message}", ex);
+            throw new ConfigException($"Failed to read theme lock file '{path}': {ex.Message}", ex, DiagnosticCode.ConfigInvalidValue);
         }
     }
 

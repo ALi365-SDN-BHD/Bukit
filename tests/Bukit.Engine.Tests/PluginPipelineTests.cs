@@ -32,7 +32,7 @@ public sealed class PluginPipelineTests
                 Title = "Test",
                 PluginFailMode = "warn"
             },
-            Content = new ContentConfig { Provider = "markdown" },
+            Content = TestContent.Markdown(),
             Build = new BuildConfig()
         };
         var pluginContext = new BuildContext

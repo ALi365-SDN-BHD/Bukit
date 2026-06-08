@@ -35,7 +35,7 @@ internal static class ContentProviderFactory
                 var type = (s.Type ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(type))
                 {
-                    throw new ContentException("content.sources[].type is required.");
+                    throw new ConfigException("content.sources[].type is required.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
 
                 var mode = (s.Mode ?? "content").Trim().ToLowerInvariant();
@@ -63,7 +63,7 @@ internal static class ContentProviderFactory
                     var notion = s.Notion;
                     if (notion is null)
                     {
-                        throw new ContentException("content.sources[].notion is required when type is notion.");
+                        throw new ConfigException("content.sources[].notion is required when type is notion.", DiagnosticCode.ConfigRequiredFieldMissing);
                     }
 
                     var renderContent = notion.RenderContent ?? mode != "data";
@@ -71,32 +71,13 @@ internal static class ContentProviderFactory
                     continue;
                 }
 
-                throw new ContentException($"Unsupported content source type: {type}");
+                throw new ConfigException($"Unsupported content source type: {type}", DiagnosticCode.ConfigInvalidValue);
             }
 
             return new CompositeContentProvider(providers);
         }
 
-        if (config.Content.Provider.Equals("markdown", StringComparison.OrdinalIgnoreCase))
-        {
-            var md = config.Content.Markdown ?? new MarkdownConfig();
-            var contentDir = BuildPathUtils.MakeAbsolute(rootDir, md.Dir);
-            return new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs, config.Site.AutoSummary, config.Site.AutoSummaryMaxLength));
-        }
-
-        if (config.Content.Provider.Equals("notion", StringComparison.OrdinalIgnoreCase))
-        {
-            var notion = config.Content.Notion;
-            if (notion is null)
-            {
-                throw new ContentException("content.notion is required when provider is notion.");
-            }
-
-            var renderContent = notion.RenderContent ?? true;
-            return CreateNotionProvider(rootDir, notion, isCi, renderContent: renderContent, logger: logger, autoSummary: config.Site.AutoSummary, autoSummaryMaxLength: config.Site.AutoSummaryMaxLength);
-        }
-
-        throw new ContentException($"Unknown content provider: {config.Content.Provider}");
+        throw new ConfigException("content.sources is required in Bukit 1.0.", DiagnosticCode.ConfigRequiredFieldMissing);
     }
 
     internal static async Task<RawContentLoadResult> LocalizeContentImagesAsync(
@@ -143,7 +124,7 @@ internal static class ContentProviderFactory
         var token = EnvironmentHelper.GetNotionToken();
         if (string.IsNullOrWhiteSpace(token))
         {
-            throw new ContentException("NOTION_TOKEN is required for notion provider and must come from environment variables.");
+            throw new ConfigException("NOTION_TOKEN is required for notion provider and must come from environment variables.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         var renderConcurrency = notion.RenderConcurrency is > 0 ? notion.RenderConcurrency.Value : isCi ? 2 : 4;

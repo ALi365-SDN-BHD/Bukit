@@ -23,7 +23,7 @@ public sealed class ContentProviderFactoryTests
                 Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
                     Sources = new List<ContentSourceConfig>
                     {
                         new ContentSourceConfig { Type = "markdown", Name = "content" }
@@ -62,7 +62,7 @@ public sealed class ContentProviderFactoryTests
                 Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
                     Sources = new List<ContentSourceConfig>
                     {
                         new ContentSourceConfig { Type = "markdown", Name = "posts", Markdown = new MarkdownConfig { Dir = "content/posts" } },
@@ -86,7 +86,7 @@ public sealed class ContentProviderFactoryTests
     }
 
     [Fact]
-    public void Create_WithEmptySources_ReturnsProvider()
+    public void Create_WithEmptySources_ThrowsConfigException()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "bukit_test_content_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
@@ -98,15 +98,14 @@ public sealed class ContentProviderFactoryTests
                 Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
                     Sources = new List<ContentSourceConfig>()
                 }
             };
             var logger = new ConsoleLogger(LogLevel.Debug);
 
-            var provider = ContentProviderFactory.Create(config, tempDir, false, logger);
-
-            Assert.NotNull(provider);
+            var ex = Assert.Throws<ConfigException>(() => ContentProviderFactory.Create(config, tempDir, false, logger));
+            Assert.Contains("content.sources is required", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -186,7 +185,7 @@ public sealed class ContentProviderFactoryTests
                 Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
                 Content = new ContentConfig
                 {
-                    Provider = "notion",
+                    Provider = "sources",
                     Sources = new List<ContentSourceConfig>
                     {
                         new ContentSourceConfig
@@ -200,7 +199,7 @@ public sealed class ContentProviderFactoryTests
             };
             var logger = new ConsoleLogger(LogLevel.Debug);
 
-            var ex = Assert.Throws<ContentException>(() => ContentProviderFactory.Create(config, tempDir, false, logger));
+            var ex = Assert.Throws<ConfigException>(() => ContentProviderFactory.Create(config, tempDir, false, logger));
             Assert.Contains("NOTION_TOKEN", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally

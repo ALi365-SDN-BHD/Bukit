@@ -97,7 +97,7 @@ internal static partial class CanonicalContentGraphBuilder
                 FirstText(source, "reviewer") ?? reviewers?.FirstOrDefault()),
             new ContentLifecycle(
                 source.PublishAt,
-                FirstDate(source, "updated") ?? FirstDate(source, "modified") ?? FirstDate(source, "update_time") ?? FirstDate(source, "last_edited_time"),
+                FirstDate(source, "updatedAt") ?? FirstDate(source, "updated") ?? FirstDate(source, "modified") ?? FirstDate(source, "update_time") ?? FirstDate(source, "last_edited_time"),
                 FirstDate(source, "expires_at") ?? FirstDate(source, "expires"),
                 ParseGeoMeta(source).DateReviewed),
             new ProvenanceRecord(

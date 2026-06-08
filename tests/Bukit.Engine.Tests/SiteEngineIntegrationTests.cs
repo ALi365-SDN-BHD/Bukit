@@ -151,7 +151,12 @@ public sealed class SiteEngineIntegrationTests
                   baseUrl: /
                   language: en
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                   markdown:
@@ -262,7 +267,12 @@ public sealed class SiteEngineIntegrationTests
                 },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = new[]
+                    {
+                        TestContent.MarkdownSource(collection: "post", includePaths: new[] { "hello.md" }),
+                        TestContent.MarkdownSource(collection: "page", includePaths: new[] { "about.md" })
+                    },
                     Markdown = new MarkdownConfig { Dir = "content" },
                 },
                 Build = new BuildConfig
@@ -284,7 +294,7 @@ public sealed class SiteEngineIntegrationTests
             var result = await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             Assert.Equal("dist", result.Project.Output);
-            Assert.Equal("markdown", result.Project.ContentSource);
+            Assert.Equal("sources", result.Project.ContentSource);
             Assert.True(result.Summary.PageCount > 0);
             Assert.Single(result.Variants);
 
@@ -394,7 +404,8 @@ public sealed class SiteEngineIntegrationTests
                 },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = TestContent.Markdown(collection: "post").Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                 },
                 Build = new BuildConfig
@@ -513,7 +524,7 @@ public sealed class SiteEngineIntegrationTests
                     Language = "en",
                     Collections = TestCollections()
                 },
-                Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } },
+                Content = TestContent.Markdown(),
                 Build = new BuildConfig { Output = "dist", Clean = true, Report = new BuildReportConfig { Enabled = false } },
                 Theme = new ThemeConfig { Source = "local-theme" }
             };
@@ -588,7 +599,8 @@ public sealed class SiteEngineIntegrationTests
                 },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = TestContent.Markdown(collection: "post").Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                 },
                 Build = new BuildConfig { Output = "dist", Clean = true, Report = new BuildReportConfig { Enabled = false } },
@@ -642,7 +654,12 @@ public sealed class SiteEngineIntegrationTests
                   analytics:
                     google_analytics_id: G-ABC123
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                   markdown:
@@ -766,7 +783,12 @@ public sealed class SiteEngineIntegrationTests
                   analytics:
                     google_analytics_id: G-ABC123
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                   markdown:
@@ -926,7 +948,12 @@ public sealed class SiteEngineIntegrationTests
                   analytics:
                     google_analytics_id: G-ABC123
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                   markdown:
@@ -1056,7 +1083,12 @@ public sealed class SiteEngineIntegrationTests
                     renderMode: theme
                     diagnostics: strict
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                   markdown:
@@ -1126,7 +1158,8 @@ public sealed class SiteEngineIntegrationTests
                 Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/", Collections = TestCollections() },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = TestContent.Markdown(collection: "post").Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
@@ -1191,7 +1224,8 @@ public sealed class SiteEngineIntegrationTests
                 },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = TestContent.Markdown().Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
@@ -1287,7 +1321,8 @@ public sealed class SiteEngineIntegrationTests
                 },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = TestContent.Markdown().Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
@@ -1350,7 +1385,12 @@ public sealed class SiteEngineIntegrationTests
                     renderMode: inject
                     diagnostics: strict
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: page
+                      collection: page
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                   markdown:
@@ -1461,7 +1501,12 @@ public sealed class SiteEngineIntegrationTests
                     renderMode: inject
                     diagnostics: warn
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                   markdown:
@@ -1590,7 +1635,12 @@ public sealed class SiteEngineIntegrationTests
                   baseUrl: /
                   language: en
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
                   markdown:
                     dir: content
                 build:
@@ -1602,7 +1652,7 @@ public sealed class SiteEngineIntegrationTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
-                Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } },
+                Content = TestContent.Markdown(),
                 Build = new BuildConfig { Output = "dist", Clean = true },
             };
 
@@ -1696,7 +1746,8 @@ public sealed class SiteEngineIntegrationTests
                 Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = TestContent.Markdown().Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
@@ -1755,7 +1806,8 @@ public sealed class SiteEngineIntegrationTests
                 Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = TestContent.Markdown().Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
@@ -1870,7 +1922,8 @@ public sealed class SiteEngineIntegrationTests
                 Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = TestContent.Markdown().Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
@@ -1948,7 +2001,8 @@ public sealed class SiteEngineIntegrationTests
                 },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = TestContent.Markdown(collection: "post").Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
@@ -2005,7 +2059,8 @@ public sealed class SiteEngineIntegrationTests
                 Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = TestContent.Markdown().Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
@@ -2222,7 +2277,7 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
-    public async Task BuildAsync_DuplicateContentRouteOutputPath_FailsBeforeRendering()
+    public async Task BuildAsync_DuplicateContentRouteOutputPath_IsRejectedBeforeRendering()
     {
         var root = CreateRouteConflictSite();
         try
@@ -2260,8 +2315,7 @@ public sealed class SiteEngineIntegrationTests
 
                 new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
 
-            Assert.Contains("Route conflict on outputPath", ex.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("shared/index.html", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("route.outputPath is removed in Bukit 1.0", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -2284,7 +2338,6 @@ public sealed class SiteEngineIntegrationTests
                 slug: about-content
                 route:
                   url: /about/
-                  outputPath: content-about/index.html
                   template: pages/page.html
                 ---
                 # About Content
@@ -2309,7 +2362,7 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
-    public async Task BuildAsync_StaticHtmlOutputPathConflictsWithContentRoute_FailsWithBothSources()
+    public async Task BuildAsync_StaticHtmlOutputPathConflictsWithContentRoute_IsRejected()
     {
         var root = CreateRouteConflictSite();
         try
@@ -2336,11 +2389,7 @@ public sealed class SiteEngineIntegrationTests
 
                 new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
 
-            Assert.Contains("Route conflict on outputPath", ex.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("static", ex.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("content", ex.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("/about/", ex.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("about/index.html", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("route.outputPath is removed in Bukit 1.0", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -2473,7 +2522,12 @@ public sealed class SiteEngineIntegrationTests
                 },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = new[]
+                    {
+                        TestContent.MarkdownSource(collection: "post", includePaths: new[] { "post1.md", "post2.md", "post3.md" }),
+                        TestContent.MarkdownSource(collection: "page", includePaths: new[] { "conflict.md" })
+                    },
                     Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
@@ -2483,7 +2537,7 @@ public sealed class SiteEngineIntegrationTests
 
             WriteTestThemeTemplates(root);
 
-            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var ex = await Assert.ThrowsAsync<ConfigException>(() =>
 
                 new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
 
@@ -2546,7 +2600,8 @@ public sealed class SiteEngineIntegrationTests
                 },
                 Content = new ContentConfig
                 {
-                    Provider = "markdown",
+                    Provider = "sources",
+                    Sources = TestContent.Markdown(collection: "post").Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
@@ -2600,7 +2655,12 @@ public sealed class SiteEngineIntegrationTests
                       permalink: /pages/{slug}/
                       template: pages/page.html
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: page
+                      collection: page
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                   markdown:
@@ -2727,7 +2787,12 @@ public sealed class SiteEngineIntegrationTests
                       permalink: /pages/{slug}/
                       template: pages/page.html
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: page
+                      collection: page
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                   markdown:
@@ -2839,7 +2904,12 @@ public sealed class SiteEngineIntegrationTests
                   languages: [en, zh]
                   defaultLanguage: en
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                   markdown:
@@ -3041,7 +3111,8 @@ public sealed class SiteEngineIntegrationTests
             },
             Content = new ContentConfig
             {
-                Provider = "markdown",
+                Provider = "sources",
+                Sources = TestContent.Markdown().Sources,
                 Markdown = new MarkdownConfig { Dir = "content" },
                 Media = new MediaConfig { DownloadToLocal = false }
             },
@@ -3055,7 +3126,8 @@ public sealed class SiteEngineIntegrationTests
             Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
             Content = new ContentConfig
             {
-                Provider = "markdown",
+                Provider = "sources",
+                Sources = TestContent.Markdown().Sources,
                 Markdown = new MarkdownConfig { Dir = "content" },
                 Media = new MediaConfig { DownloadToLocal = false }
             },
@@ -3082,7 +3154,8 @@ public sealed class SiteEngineIntegrationTests
             Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
             Content = new ContentConfig
             {
-                Provider = "markdown",
+                Provider = "sources",
+                Sources = TestContent.Markdown(collection: "post").Sources,
                 Markdown = new MarkdownConfig { Dir = "content" },
                 Media = new MediaConfig { DownloadToLocal = false }
             },

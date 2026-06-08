@@ -1,5 +1,6 @@
 using Bukit.Engine.Plugins.Protocol;
 using Bukit.Engine.Abstractions.Plugins.Protocol;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -45,7 +46,7 @@ public sealed class ProtocolOutputWriterTests
             }
         };
 
-        var ex = Assert.Throws<InvalidOperationException>(() => ProtocolOutputWriter.WriteOutputs(outputDir, outputs));
+        var ex = Assert.Throws<ConfigException>(() => ProtocolOutputWriter.WriteOutputs(outputDir, outputs));
         Assert.Contains("base64", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -65,7 +66,7 @@ public sealed class ProtocolOutputWriterTests
             }
         };
 
-        var ex = Assert.Throws<InvalidOperationException>(() => ProtocolOutputWriter.WriteOutputs(outputDir, outputs));
+        var ex = Assert.Throws<ConfigException>(() => ProtocolOutputWriter.WriteOutputs(outputDir, outputs));
         Assert.Contains("escapes", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -86,7 +87,7 @@ public sealed class ProtocolOutputWriterTests
             }
         };
 
-        var ex = Assert.Throws<InvalidOperationException>(() => ProtocolOutputWriter.WriteOutputs(outputDir, outputs));
+        var ex = Assert.Throws<ConfigException>(() => ProtocolOutputWriter.WriteOutputs(outputDir, outputs));
         Assert.Contains("either", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 

@@ -23,7 +23,7 @@ public sealed class TaxonomyEnsureTermsTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "C:\\",
             OutputDir = "C:\\out",
@@ -69,7 +69,7 @@ public sealed class TaxonomyEnsureTermsTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "C:\\",
             OutputDir = "C:\\out",
@@ -111,7 +111,7 @@ public sealed class TaxonomyEnsureTermsTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "C:\\",
             OutputDir = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-tests", Guid.NewGuid().ToString("N")),

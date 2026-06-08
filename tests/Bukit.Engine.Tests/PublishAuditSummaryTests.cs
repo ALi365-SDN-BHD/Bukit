@@ -91,6 +91,6 @@ public sealed class PublishAuditSummaryTests : IDisposable
                 Title = "Test",
                 Url = "https://example.com"
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 }

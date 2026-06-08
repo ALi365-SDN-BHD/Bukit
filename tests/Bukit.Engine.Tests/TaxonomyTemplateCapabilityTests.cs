@@ -73,7 +73,7 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = _rootDir,
             OutputDir = Path.Combine(_rootDir, "dist"),

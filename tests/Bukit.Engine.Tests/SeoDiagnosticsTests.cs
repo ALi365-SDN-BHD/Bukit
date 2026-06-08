@@ -78,6 +78,6 @@ public sealed class SeoDiagnosticsTests
                 Url = "https://example.com",
                 Seo = new SeoConfig { Diagnostics = diagnostics }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 }

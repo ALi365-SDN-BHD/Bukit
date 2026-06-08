@@ -23,7 +23,20 @@ internal static class BuildOptionsMapper
                 Output = outputDirName,
                 Clean = options.Clean
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = new ContentConfig
+            {
+                Provider = "sources",
+                Sources = new[]
+                {
+                    new ContentSourceConfig
+                    {
+                        Type = "markdown",
+                        Name = "page",
+                        Collection = "page",
+                        Markdown = new MarkdownConfig { Dir = "content" }
+                    }
+                }
+            }
         };
     }
 }

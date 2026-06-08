@@ -91,7 +91,11 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
         }
         sb.AppendLine("</ul>");
 
-        var now = DateTimeOffset.UtcNow;
+        var publishAt = byYear
+            .SelectMany(g => g)
+            .Select(x => x.Document.PublishAt)
+            .DefaultIfEmpty(DateTimeOffset.UnixEpoch)
+            .Max();
         var route = new RouteInfo(archiveBaseUrl, RoutePathBuilder.BuildOutputPathFromUrl(archiveBaseUrl, outputPathEncoding), template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -103,10 +107,10 @@ public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateR
             $"{collectionKey}-archive-index",
             "Archive",
             "archive",
-            now,
+            publishAt,
             new ContentBodyRef(Html: sb.ToString()),
             ContentFieldReader.ToFieldMap(meta));
-        return new RoutedContentDocument(document, route, now);
+        return new RoutedContentDocument(document, route, publishAt);
     }
 
     private static RoutedContentDocument CreateYearPage(

@@ -14,7 +14,7 @@ public sealed class SeoIndexBuilderTests
     {
         return new AppConfig
         {
-            Content = new ContentConfig { Provider = "markdown" },
+            Content = TestContent.Markdown(),
             Site = new SiteConfig
             {
                 Name = "test",

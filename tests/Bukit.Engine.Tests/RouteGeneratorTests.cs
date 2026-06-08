@@ -96,7 +96,6 @@ public sealed class RouteGeneratorTests
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "/custom/foo/",
-                ["outputPath"] = "custom/foo/index.html",
                 ["template"] = "custom/template.html"
             }
         };
@@ -114,7 +113,6 @@ public sealed class RouteGeneratorTests
         var fieldValues = new Dictionary<string, object>
         {
             ["url"] = "/standalone/bar/",
-            ["outputPath"] = "standalone/bar/index.html",
             ["template"] = "standalone/page.html"
         };
         var item = Item("ignored", fieldValues);
@@ -133,7 +131,6 @@ public sealed class RouteGeneratorTests
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "no-leading/",
-                ["outputPath"] = "out/index.html",
                 ["template"] = "t.html"
             }
         };
@@ -151,7 +148,6 @@ public sealed class RouteGeneratorTests
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "/no-trailing",
-                ["outputPath"] = "out/index.html",
                 ["template"] = "t.html"
             }
         };
@@ -169,7 +165,6 @@ public sealed class RouteGeneratorTests
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "  /trimmed/path/  ",
-                ["outputPath"] = "out/index.html",
                 ["template"] = "t.html"
             }
         };
@@ -182,73 +177,37 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_OutputPathEncoding_None_PreservesOriginal()
     {
-        var fieldValues = new Dictionary<string, object>
-        {
-            ["route"] = new Dictionary<string, object>
-            {
-                ["url"] = "/u/",
-                ["outputPath"] = "path with spaces/index.html",
-                ["template"] = "t.html"
-            }
-        };
-        var item = Item("x", fieldValues);
-        var route = RouteGenerator.Generate(item, "none");
+        var item = Item("path with spaces", new Dictionary<string, object> { ["collection"] = "page" });
+        var route = RouteGenerator.Generate(item, "none", collections: DefaultCollections);
 
-        Assert.Equal("path with spaces/index.html", route.OutputPath);
+        Assert.Equal("pages/path with spaces/index.html", route.OutputPath);
     }
 
     [Fact]
     public void Generate_OutputPathEncoding_Slug_SlugifiesSegments()
     {
-        var fieldValues = new Dictionary<string, object>
-        {
-            ["route"] = new Dictionary<string, object>
-            {
-                ["url"] = "/u/",
-                ["outputPath"] = "path/Hello World Here/index.html",
-                ["template"] = "t.html"
-            }
-        };
-        var item = Item("x", fieldValues);
-        var route = RouteGenerator.Generate(item, "slug");
+        var item = Item("Hello World Here", new Dictionary<string, object> { ["collection"] = "page" });
+        var route = RouteGenerator.Generate(item, "slug", collections: DefaultCollections);
 
-        Assert.Equal("path/hello-world-here/index.html", route.OutputPath);
+        Assert.Equal("pages/hello-world-here/index.html", route.OutputPath);
     }
 
     [Fact]
     public void Generate_OutputPathEncoding_UrlEncode_EncodesSegments()
     {
-        var fieldValues = new Dictionary<string, object>
-        {
-            ["route"] = new Dictionary<string, object>
-            {
-                ["url"] = "/u/",
-                ["outputPath"] = "path/hello world/index.html",
-                ["template"] = "t.html"
-            }
-        };
-        var item = Item("x", fieldValues);
-        var route = RouteGenerator.Generate(item, "urlencode");
+        var item = Item("hello world", new Dictionary<string, object> { ["collection"] = "page" });
+        var route = RouteGenerator.Generate(item, "urlencode", collections: DefaultCollections);
 
-        Assert.Equal("path/hello%20world/index.html", route.OutputPath);
+        Assert.Equal("pages/hello%20world/index.html", route.OutputPath);
     }
 
     [Fact]
     public void Generate_OutputPathEncoding_Sanitize_ReplacesSpacesRemovesInvalidChars()
     {
-        var fieldValues = new Dictionary<string, object>
-        {
-            ["route"] = new Dictionary<string, object>
-            {
-                ["url"] = "/u/",
-                ["outputPath"] = "path/hello world/index.html",
-                ["template"] = "t.html"
-            }
-        };
-        var item = Item("x", fieldValues);
-        var route = RouteGenerator.Generate(item, "sanitize");
+        var item = Item("hello world", new Dictionary<string, object> { ["collection"] = "page" });
+        var route = RouteGenerator.Generate(item, "sanitize", collections: DefaultCollections);
 
-        Assert.Equal("path/hello-world/index.html", route.OutputPath);
+        Assert.Equal("pages/hello-world/index.html", route.OutputPath);
     }
 
     [Fact]
@@ -273,59 +232,14 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_OutputPathEncoding_CaseInsensitive()
     {
-        var fieldValues = new Dictionary<string, object>
-        {
-            ["route"] = new Dictionary<string, object>
-            {
-                ["url"] = "/u/",
-                ["outputPath"] = "path/Hello/index.html",
-                ["template"] = "t.html"
-            }
-        };
-        var item = Item("x", fieldValues);
-        var route = RouteGenerator.Generate(item, "SLUG");
+        var item = Item("Hello", new Dictionary<string, object> { ["collection"] = "page" });
+        var route = RouteGenerator.Generate(item, "SLUG", collections: DefaultCollections);
 
-        Assert.Equal("path/hello/index.html", route.OutputPath);
+        Assert.Equal("pages/hello/index.html", route.OutputPath);
     }
 
     [Fact]
-    public void Generate_OutputPath_NormalizesBackslashes()
-    {
-        var fieldValues = new Dictionary<string, object>
-        {
-            ["route"] = new Dictionary<string, object>
-            {
-                ["url"] = "/u/",
-                ["outputPath"] = "dir\\sub\\index.html",
-                ["template"] = "t.html"
-            }
-        };
-        var item = Item("x", fieldValues);
-        var route = RouteGenerator.Generate(item);
-
-        Assert.Equal("dir/sub/index.html", route.OutputPath);
-    }
-
-    [Fact]
-    public void Generate_OutputPath_TrimsLeadingSlashes()
-    {
-        var fieldValues = new Dictionary<string, object>
-        {
-            ["route"] = new Dictionary<string, object>
-            {
-                ["url"] = "/u/",
-                ["outputPath"] = "/leading/slash/index.html",
-                ["template"] = "t.html"
-            }
-        };
-        var item = Item("x", fieldValues);
-        var route = RouteGenerator.Generate(item);
-
-        Assert.Equal("leading/slash/index.html", route.OutputPath);
-    }
-
-    [Fact]
-    public void Generate_PartialRouteOverride_AppliesOutputPathOnly()
+    public void Generate_NestedRouteOutputPath_ThrowsRemovedField()
     {
         var fieldValues = new Dictionary<string, object>
         {
@@ -337,11 +251,10 @@ public sealed class RouteGeneratorTests
         fieldValues["collection"] = "page";
         var item = Item("about", fieldValues);
 
-        var route = RouteGenerator.Generate(item, collections: DefaultCollections);
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, collections: DefaultCollections));
 
-        Assert.Equal("/pages/about/", route.Url);
-        Assert.Equal("custom/about/index.html", route.OutputPath.Replace('\\', '/'));
-        Assert.Equal(string.Empty, route.Template);
+        Assert.Equal(DiagnosticCode.RouteOutputPathRejected, ex.Code);
+        Assert.Contains("route.outputPath is removed", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -352,7 +265,6 @@ public sealed class RouteGeneratorTests
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "https://evil.com",
-                ["outputPath"] = "safe/index.html",
                 ["template"] = "t.html"
             }
         };
@@ -375,7 +287,8 @@ public sealed class RouteGeneratorTests
         };
         var item = Item("x", fieldValues);
 
-        Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
+        Assert.Equal(DiagnosticCode.RouteOutputPathRejected, ex.Code);
     }
 
     [Theory]
@@ -398,7 +311,6 @@ public sealed class RouteGeneratorTests
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "/u/",
-                ["outputPath"] = "out/index.html",
                 ["template"] = "  pages/trimmed.html  "
             }
         };
@@ -416,7 +328,6 @@ public sealed class RouteGeneratorTests
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "/only-url/",
-                ["outputPath"] = "",
                 ["template"] = ""
             }
         };
@@ -442,11 +353,9 @@ public sealed class RouteGeneratorTests
         };
         fieldValues["collection"] = "page";
         var item = Item("fallback", fieldValues);
-        var route = RouteGenerator.Generate(item, collections: DefaultCollections);
 
-        Assert.Equal("/only-url/", route.Url);
-        Assert.Equal("out/index.html", route.OutputPath);
-        Assert.Equal(string.Empty, route.Template);
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, collections: DefaultCollections));
+        Assert.Equal(DiagnosticCode.RouteOutputPathRejected, ex.Code);
     }
 
     [Fact]
@@ -492,55 +401,19 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_Sanitize_CompressesMultipleDashes()
     {
-        var fieldValues = new Dictionary<string, object>
-        {
-            ["route"] = new Dictionary<string, object>
-            {
-                ["url"] = "/u/",
-                ["outputPath"] = "path/hello---world/index.html",
-                ["template"] = "t.html"
-            }
-        };
-        var item = Item("x", fieldValues);
-        var route = RouteGenerator.Generate(item, "sanitize");
+        var item = Item("hello---world", new Dictionary<string, object> { ["collection"] = "page" });
+        var route = RouteGenerator.Generate(item, "sanitize", collections: DefaultCollections);
 
-        Assert.Equal("path/hello-world/index.html", route.OutputPath);
+        Assert.Equal("pages/hello-world/index.html", route.OutputPath);
     }
 
     [Fact]
     public void Generate_Sanitize_RemovesInvalidWindowsChars()
     {
-        var fieldValues = new Dictionary<string, object>
-        {
-            ["route"] = new Dictionary<string, object>
-            {
-                ["url"] = "/u/",
-                ["outputPath"] = "path/hello<>:world/index.html",
-                ["template"] = "t.html"
-            }
-        };
-        var item = Item("x", fieldValues);
-        var route = RouteGenerator.Generate(item, "sanitize");
+        var item = Item("hello<>:world", new Dictionary<string, object> { ["collection"] = "page" });
+        var route = RouteGenerator.Generate(item, "sanitize", collections: DefaultCollections);
 
-        Assert.Equal("path/helloworld/index.html", route.OutputPath);
-    }
-
-    [Fact]
-    public void Generate_Slug_PreservesFileExtension()
-    {
-        var fieldValues = new Dictionary<string, object>
-        {
-            ["route"] = new Dictionary<string, object>
-            {
-                ["url"] = "/u/",
-                ["outputPath"] = "path/My.Document.pdf",
-                ["template"] = "t.html"
-            }
-        };
-        var item = Item("x", fieldValues);
-        var route = RouteGenerator.Generate(item, "slug");
-
-        Assert.Equal("path/mydocument.pdf", route.OutputPath);
+        Assert.Equal("pages/helloworld/index.html", route.OutputPath);
     }
 
     [Fact]
@@ -621,7 +494,6 @@ public sealed class RouteGeneratorTests
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "/custom/",
-                ["outputPath"] = "custom/index.html",
                 ["template"] = "pages/custom.html"
             }
         };

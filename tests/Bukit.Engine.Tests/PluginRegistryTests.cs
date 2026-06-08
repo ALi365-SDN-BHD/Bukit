@@ -21,7 +21,7 @@ public sealed class PluginRegistryTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
@@ -47,7 +47,7 @@ public sealed class PluginRegistryTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
@@ -73,7 +73,7 @@ public sealed class PluginRegistryTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
@@ -98,7 +98,7 @@ public sealed class PluginRegistryTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
@@ -129,7 +129,7 @@ public sealed class PluginRegistryTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
@@ -166,7 +166,7 @@ public sealed class PluginRegistryTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
@@ -180,7 +180,7 @@ public sealed class PluginRegistryTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test2", Title = "test2" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
@@ -210,7 +210,7 @@ public sealed class PluginRegistryTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
@@ -240,7 +240,7 @@ public sealed class PluginRegistryTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",

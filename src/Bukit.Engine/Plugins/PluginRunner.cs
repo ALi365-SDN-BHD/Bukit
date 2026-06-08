@@ -3,6 +3,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using System.Diagnostics;
+using Bukit.Shared;
 
 using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins;
@@ -210,7 +211,7 @@ public static class PluginRunner
                 continue;
             }
 
-            throw new InvalidOperationException(message);
+            throw new ConfigException(message, DiagnosticCode.PluginExecutionFailed);
         }
 
         return acceptedPages;

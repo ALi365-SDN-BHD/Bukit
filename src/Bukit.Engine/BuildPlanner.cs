@@ -29,7 +29,7 @@ internal static class BuildPlanner
 
         if (IsCI(overrides) && !overrides.AllowExternalPlugins && effectiveConfig.Site.ExternalPlugins is { Count: > 0 })
         {
-            throw new ConfigException("External plugins are disabled in CI environments. Use --allow-external-plugins to enable.");
+            throw new ConfigException("External plugins are disabled in CI environments. Use --allow-external-plugins to enable.", DiagnosticCode.ConfigInvalidValue);
         }
 
         var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);

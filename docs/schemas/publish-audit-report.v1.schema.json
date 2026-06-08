@@ -64,6 +64,7 @@
         "atomFeedIncluded",
         "jsonFeedIncluded",
         "llmsIncluded",
+        "llmsFullIncluded",
         "robotsIncluded",
         "manifestIncluded"
       ],
@@ -185,6 +186,9 @@
           "type": "boolean"
         },
         "llmsIncluded": {
+          "type": "boolean"
+        },
+        "llmsFullIncluded": {
           "type": "boolean"
         },
         "robotsIncluded": {

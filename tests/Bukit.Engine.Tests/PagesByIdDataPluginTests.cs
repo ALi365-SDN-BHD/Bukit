@@ -55,7 +55,7 @@ public sealed class PagesByIdDataPluginTests
                     ["pages-index"] = new PluginToggleConfig { Enabled = true }
                 }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 
         var ctx = new BuildContext
@@ -110,7 +110,7 @@ public sealed class PagesByIdDataPluginTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "C:\\",
             OutputDir = "C:\\out",
@@ -175,7 +175,7 @@ public sealed class PagesByIdDataPluginTests
                         ["post"] = new CollectionConfig { Permalink = "/blog/{slug}/" }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = root,
             OutputDir = Path.Combine(root, "out"),
@@ -241,7 +241,7 @@ public sealed class PagesByIdDataPluginTests
                         ["pages-index"] = new PluginToggleConfig { Enabled = true }
                     }
                 },
-                Content = new ContentConfig { Provider = "notion", Media = new MediaConfig { DownloadToLocal = false } },
+                Content = TestContent.Notion() with { Media = new MediaConfig { DownloadToLocal = false } },
                 Theme = new ThemeConfig
                 {
                     Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -330,7 +330,7 @@ public sealed class PagesByIdDataPluginTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = new ContentConfig { Provider = "notion" },
+                Content = TestContent.Notion(),
                 Theme = new ThemeConfig
                 {
                     Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)

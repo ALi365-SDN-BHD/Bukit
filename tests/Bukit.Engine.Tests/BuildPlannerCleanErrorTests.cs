@@ -30,7 +30,7 @@ public sealed class BuildPlannerCleanErrorTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/" },
-                Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" }, Media = new MediaConfig { DownloadToLocal = false } },
+                Content = TestContent.Markdown() with { Media = new MediaConfig { DownloadToLocal = false } },
                 Build = new BuildConfig { Output = "dist", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
@@ -71,7 +71,7 @@ public sealed class BuildPlannerCleanErrorTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/" },
-                Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" }, Media = new MediaConfig { DownloadToLocal = false } },
+                Content = TestContent.Markdown() with { Media = new MediaConfig { DownloadToLocal = false } },
                 Build = new BuildConfig { Output = ".git", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };

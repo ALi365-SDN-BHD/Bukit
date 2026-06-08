@@ -27,7 +27,7 @@ public sealed class ImageProcessingPluginTests
                 Config = new AppConfig
                 {
                     Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = new ContentConfig { Provider = "markdown" },
+                    Content = TestContent.Markdown(),
                     Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = false } }
                 },
                 RootDir = "/t",
@@ -58,7 +58,7 @@ public sealed class ImageProcessingPluginTests
                 Config = new AppConfig
                 {
                     Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = new ContentConfig { Provider = "markdown" },
+                    Content = TestContent.Markdown(),
                     Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = true } }
                 },
                 RootDir = "/t",
@@ -93,7 +93,7 @@ public sealed class ImageProcessingPluginTests
                 Config = new AppConfig
                 {
                     Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = new ContentConfig { Provider = "markdown" },
+                    Content = TestContent.Markdown(),
                     Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768 } } }
                 },
                 RootDir = "/t",
@@ -128,7 +128,7 @@ public sealed class ImageProcessingPluginTests
                 Config = new AppConfig
                 {
                     Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = new ContentConfig { Provider = "markdown" },
+                    Content = TestContent.Markdown(),
                     Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = true } }
                 },
                 RootDir = "/t",

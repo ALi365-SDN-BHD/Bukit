@@ -140,6 +140,36 @@
           "items": {
             "type": "string"
           }
+        },
+        "language": {
+          "type": ["string", "null"]
+        },
+        "author": {
+          "type": ["string", "null"]
+        },
+        "organization": {
+          "type": ["string", "null"]
+        },
+        "source": {
+          "type": ["string", "null"]
+        },
+        "originalSource": {
+          "type": ["string", "null"]
+        },
+        "reviewStatus": {
+          "type": ["string", "null"]
+        },
+        "entityNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "representationKinds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
@@ -179,6 +209,22 @@
           "minimum": 0
         },
         "geoScore": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "publishIssueCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "machineReadabilityIssueCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "trustIssueCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "representationGapCount": {
           "type": "integer",
           "minimum": 0
         }

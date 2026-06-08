@@ -24,7 +24,12 @@ public sealed class PluginOptionsParsingTests
                                            retry:
                                              maxAttempts: 5
                                    content:
-                                     provider: markdown
+                                     sources:
+                                       - type: markdown
+                                         name: page
+                                         collection: page
+                                         markdown:
+                                           dir: content
                                      markdown:
                                        dir: content
                                    """);
@@ -57,7 +62,12 @@ public sealed class PluginOptionsParsingTests
                                      plugins:
                                        sitemap: false
                                    content:
-                                     provider: markdown
+                                     sources:
+                                       - type: markdown
+                                         name: page
+                                         collection: page
+                                         markdown:
+                                           dir: content
                                      markdown:
                                        dir: content
                                    """);
@@ -85,7 +95,12 @@ public sealed class PluginOptionsParsingTests
                                          enabled: true
                                          options: bad
                                    content:
-                                     provider: markdown
+                                     sources:
+                                       - type: markdown
+                                         name: page
+                                         collection: page
+                                         markdown:
+                                           dir: content
                                      markdown:
                                        dir: content
                                    """);

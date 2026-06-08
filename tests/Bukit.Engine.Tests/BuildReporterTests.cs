@@ -33,7 +33,7 @@ public sealed class BuildReporterTests
         Assert.True(root.TryGetProperty("startedAt", out _));
         Assert.True(root.TryGetProperty("endedAt", out _));
         Assert.True(root.GetProperty("durationMs").GetInt64() >= 0);
-        Assert.Equal("markdown", root.GetProperty("project").GetProperty("contentSource").GetString());
+        Assert.Equal("sources", root.GetProperty("project").GetProperty("contentSource").GetString());
         Assert.Equal(1, root.GetProperty("summary").GetProperty("pageCount").GetInt32());
     }
 
@@ -143,10 +143,34 @@ public sealed class BuildReporterTests
         using var doc = JsonDocument.Parse(File.ReadAllText(securityPath));
         var root = doc.RootElement;
         AssertArtifactContract(root, "https://bukit.dev/schemas/security-report.v1.json");
-        Assert.Equal("passed", root.GetProperty("status").GetString());
+        Assert.Equal("warning", root.GetProperty("status").GetString());
         var routeTraversal = root.GetProperty("checks").GetProperty("routeTraversal");
-        Assert.Equal("passed", routeTraversal.GetProperty("status").GetString());
+        Assert.Equal("not_checked", routeTraversal.GetProperty("status").GetString());
         Assert.Equal("error", routeTraversal.GetProperty("severity").GetString());
+        Assert.Equal(1, root.GetProperty("warnings").GetArrayLength());
+        Assert.Equal(0, root.GetProperty("errors").GetArrayLength());
+    }
+
+    [Fact]
+    public void WriteIfEnabled_WithSecurityData_WritesRealCheckResults()
+    {
+        var tempDir = CreateTempDir();
+        var config = CreateConfig(enabled: true);
+        var variant = CreateVariant(tempDir);
+        var result = CreateResult(config, tempDir, variant);
+        var securityData = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, new[] { variant });
+
+        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error), securityData);
+
+        var securityPath = Path.Combine(tempDir, ".bukit", "security-report.json");
+        using var doc = JsonDocument.Parse(File.ReadAllText(securityPath));
+        var root = doc.RootElement;
+        Assert.Equal("passed", root.GetProperty("status").GetString());
+        var checks = root.GetProperty("checks");
+        Assert.Equal("passed", checks.GetProperty("routeTraversal").GetProperty("status").GetString());
+        Assert.Equal("passed", checks.GetProperty("unsafeSlug").GetProperty("status").GetString());
+        Assert.Equal("not_applicable", checks.GetProperty("pluginOutputPath").GetProperty("status").GetString());
+        Assert.Equal("not_applicable", checks.GetProperty("remoteThemeLock").GetProperty("status").GetString());
         Assert.Equal(0, root.GetProperty("warnings").GetArrayLength());
         Assert.Equal(0, root.GetProperty("errors").GetArrayLength());
     }
@@ -190,7 +214,8 @@ public sealed class BuildReporterTests
             },
             Content = new ContentConfig
             {
-                Provider = "markdown"
+                Provider = "sources",
+                Sources = TestContent.Markdown().Sources
             },
             Build = new BuildConfig
             {

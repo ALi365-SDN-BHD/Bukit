@@ -27,7 +27,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
         return new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test Site", BaseUrl = "/", Language = "en" },
-            Content = new ContentConfig { Provider = "markdown" },
+            Content = TestContent.Markdown(),
         };
     }
 
@@ -65,7 +65,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
                 Language = "zh",
                 BaseUrl = "/"
             },
-            Content = new ContentConfig { Provider = "markdown" },
+            Content = TestContent.Markdown(),
             Theme = new ThemeConfig
             {
                 Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)

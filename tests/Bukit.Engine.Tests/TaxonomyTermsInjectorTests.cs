@@ -29,7 +29,7 @@ public sealed class TaxonomyTermsInjectorTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-            Content = new ContentConfig { Provider = "markdown" },
+            Content = TestContent.Markdown(),
             Taxonomy = new TaxonomyConfig
             {
                 Kinds = new List<TaxonomyKindConfig>
@@ -62,7 +62,7 @@ public sealed class TaxonomyTermsInjectorTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-            Content = new ContentConfig { Provider = "markdown" },
+            Content = TestContent.Markdown(),
             Taxonomy = new TaxonomyConfig()
         };
 

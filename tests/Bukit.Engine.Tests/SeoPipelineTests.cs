@@ -31,7 +31,7 @@ public sealed class SeoPipelineTests
                 Language = "en",
                 Seo = new SeoConfig { Enabled = true, RenderMode = "inject" }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
         var logger = new RecordingLogger();
 
@@ -64,7 +64,7 @@ public sealed class SeoPipelineTests
                 Title = "Test",
                 Seo = new SeoConfig { Enabled = false }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
         var logger = new RecordingLogger();
 

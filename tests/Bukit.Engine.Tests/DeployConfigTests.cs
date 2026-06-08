@@ -11,7 +11,7 @@ public sealed class DeployConfigTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() }
+            Content = TestContent.Markdown()
         };
         return mutate != null ? mutate(config) : config;
     }

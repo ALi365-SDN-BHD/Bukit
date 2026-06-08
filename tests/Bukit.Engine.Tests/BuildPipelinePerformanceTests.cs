@@ -37,7 +37,12 @@ public sealed class BuildPipelinePerformanceTests
                       permalink: /blog/{slug}/
                       template: pages/post.html
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
                   markdown:
                     dir: content
                 build:
@@ -201,7 +206,12 @@ public sealed class BuildPipelinePerformanceTests
                       permalink: /blog/{slug}/
                       template: pages/post.html
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
                   markdown:
                     dir: content
                 build:

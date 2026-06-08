@@ -34,7 +34,7 @@ internal static class TaxonomyTemplateResolver
         var fullPath = Path.Combine(layoutsDir, template.Replace('/', Path.DirectorySeparatorChar));
         if (!File.Exists(fullPath))
         {
-            throw new ConfigException($"Taxonomy template not found: {template}");
+            throw new ConfigException($"Taxonomy template not found: {template}", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         return template;

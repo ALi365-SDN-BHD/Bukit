@@ -53,7 +53,7 @@ public sealed class RelatedContentPluginTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "t", Related = new RelatedConfig { Enabled = false } },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/t",
             OutputDir = "/t/out",
@@ -91,7 +91,7 @@ public sealed class RelatedContentPluginTests
                         Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/t",
             OutputDir = "/t/out",
@@ -133,7 +133,7 @@ public sealed class RelatedContentPluginTests
                         Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/t",
             OutputDir = "/t/out",
@@ -170,7 +170,7 @@ public sealed class RelatedContentPluginTests
                     Title = "t",
                     Related = new RelatedConfig { Enabled = true, Threshold = 50, Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } } }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/t",
             OutputDir = "/t/out",
@@ -194,7 +194,7 @@ public sealed class RelatedContentPluginTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "t", Related = new RelatedConfig { Enabled = true } },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/t",
             OutputDir = "/t/out",
@@ -226,7 +226,7 @@ public sealed class RelatedContentPluginTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "t", Related = new RelatedConfig { Enabled = true } },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/t",
             OutputDir = "/t/out",
@@ -262,7 +262,7 @@ public sealed class RelatedContentPluginTests
                     Title = "t",
                     Related = new RelatedConfig { Enabled = true, Threshold = 60, Indices = new[] { new RelatedIndexConfig { Name = "categories", Weight = 100 } } }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/t",
             OutputDir = "/t/out",
@@ -298,7 +298,7 @@ public sealed class RelatedContentPluginTests
                     Title = "t",
                     Related = new RelatedConfig { Enabled = true, Threshold = 999, Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } } }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/t",
             OutputDir = "/t/out",

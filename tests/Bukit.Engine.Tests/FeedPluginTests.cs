@@ -46,7 +46,7 @@ public sealed class FeedPluginTests
                     Url = "https://example.com",
                     Description = "A test blog"
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             };
 
             var context = new BuildContext
@@ -97,7 +97,7 @@ public sealed class FeedPluginTests
                     Title = "Empty Blog",
                     Url = "https://example.com"
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             };
 
             var context = new BuildContext
@@ -144,7 +144,7 @@ public sealed class FeedPluginTests
                     Title = "Multi Blog",
                     Url = "https://example.com",
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             };
 
             var context = new BuildContext
@@ -194,7 +194,7 @@ public sealed class FeedPluginTests
                     Title = "Content Blog",
                     Url = "https://example.com"
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             };
 
             var context = new BuildContext

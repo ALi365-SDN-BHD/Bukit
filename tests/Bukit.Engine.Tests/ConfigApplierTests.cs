@@ -33,6 +33,7 @@ public sealed class ConfigApplierTests
         Content = new ContentConfig
         {
             Provider = "markdown",
+            Sources = TestContent.Markdown().Sources,
             Markdown = new MarkdownConfig()
         }
     };
