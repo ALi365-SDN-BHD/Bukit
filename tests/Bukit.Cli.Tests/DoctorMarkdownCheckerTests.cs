@@ -40,8 +40,6 @@ public sealed class DoctorMarkdownCheckerTests : IDisposable
                                              collection: page
                                              markdown:
                                                dir: content
-                                         markdown:
-                                           dir: content
                                        build:
                                          listPageContentMode: auto
                                        """);

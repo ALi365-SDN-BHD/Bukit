@@ -71,7 +71,7 @@ public static class ConfigJsonSchemaGenerator
         schema["properties"] = Obj(
             ("media", MediaSchema()),
             ("modelSchema", ContentModelSchemaSchema()),
-            ("sources", Obj(("type", "array"), ("items", ContentSourceItemSchema()))),
+            ("sources", Obj(("type", "array"), ("items", ContentSourceItemSchema())))
             );
         return schema;
     }

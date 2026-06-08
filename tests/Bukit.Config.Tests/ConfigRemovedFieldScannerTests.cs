@@ -172,7 +172,7 @@ public sealed class ConfigRemovedFieldScannerTests : IDisposable
                                       """);
 
         var ex = Assert.Throws<ConfigException>(() => ConfigRemovedFieldScanner.RejectRemovedFields(_configPath));
-        Assert.Equal(DiagnosticCode.ConfigProviderRemoved, ex.Code);
+        Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("content.provider", ex.Message, StringComparison.Ordinal);
         Assert.Contains("content.sources", ex.Message, StringComparison.Ordinal);
     }

@@ -27,10 +27,6 @@ content:
     - type: markdown
       name: page
       collection: page
-      markdown:
-        dir: content
-  markdown:
-    dir: content
 theme:
   name: starter
 """);

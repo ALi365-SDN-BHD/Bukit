@@ -19,7 +19,7 @@
   <PropertyGroup>
     <BuildInfoVersionBase Condition="'$(VersionPrefix)' != ''">$(VersionPrefix)</BuildInfoVersionBase>
     <BuildInfoVersionBase Condition="'$(BuildInfoVersionBase)' == '' and '$(Version)' != ''">$(Version)</BuildInfoVersionBase>
-    <BuildInfoVersionBase Condition="'$(BuildInfoVersionBase)' == ''">1.0.7</BuildInfoVersionBase>
+    <BuildInfoVersionBase Condition="$(BuildInfoVersionBase) == ''">1.0.0</BuildInfoVersionBase>
 
     <BuildInfoVersion Condition="'$(SourceRevisionId)' != ''">$(BuildInfoVersionBase)+$(SourceRevisionId)</BuildInfoVersion>
     <BuildInfoVersion Condition="'$(BuildInfoVersion)' == ''">$(BuildInfoVersionBase)</BuildInfoVersion>

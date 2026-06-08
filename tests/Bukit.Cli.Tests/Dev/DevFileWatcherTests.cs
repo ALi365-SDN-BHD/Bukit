@@ -5,6 +5,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests.Dev;
 
+[Collection("Serial")]
 public class DevFileWatcherTests : IDisposable
 {
     private readonly string _tmpDir;

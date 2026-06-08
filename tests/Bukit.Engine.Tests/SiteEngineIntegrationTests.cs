@@ -155,12 +155,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
-                      markdown:
-                        dir: content
                   media:
                     downloadToLocal: false
-                  markdown:
-                    dir: content
                 build:
                   output: dist
                 theme:
@@ -644,12 +640,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
-                      markdown:
-                        dir: content
                   media:
                     downloadToLocal: false
-                  markdown:
-                    dir: content
                 build:
                   output: dist
                 theme:
@@ -773,12 +765,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
-                      markdown:
-                        dir: content
                   media:
                     downloadToLocal: false
-                  markdown:
-                    dir: content
                 build:
                   output: dist
                 theme:
@@ -938,12 +926,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
-                      markdown:
-                        dir: content
                   media:
                     downloadToLocal: false
-                  markdown:
-                    dir: content
                 build:
                   output: dist
                 theme:
@@ -1073,12 +1057,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
-                      markdown:
-                        dir: content
                   media:
                     downloadToLocal: false
-                  markdown:
-                    dir: content
                 build:
                   output: dist
                 theme:
@@ -1366,12 +1346,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: page
                       collection: page
-                      markdown:
-                        dir: content
                   media:
                     downloadToLocal: false
-                  markdown:
-                    dir: content
                 build:
                   output: dist
                 theme:
@@ -1482,12 +1458,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
-                      markdown:
-                        dir: content
                   media:
                     downloadToLocal: false
-                  markdown:
-                    dir: content
                 build:
                   output: dist
                 theme:
@@ -1616,10 +1588,6 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
-                      markdown:
-                        dir: content
-                  markdown:
-                    dir: content
                 build:
                   output: dist
                 theme:
@@ -2606,12 +2574,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: page
                       collection: page
-                      markdown:
-                        dir: content
                   media:
                     downloadToLocal: false
-                  markdown:
-                    dir: content
                 build:
                   output: dist
                 theme:
@@ -2739,12 +2703,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: page
                       collection: page
-                      markdown:
-                        dir: content
                   media:
                     downloadToLocal: false
-                  markdown:
-                    dir: content
                 build:
                   output: dist
                 theme:
@@ -2856,12 +2816,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
-                      markdown:
-                        dir: content
                   media:
                     downloadToLocal: false
-                  markdown:
-                    dir: content
                 build:
                   output: dist
                 theme:

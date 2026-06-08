@@ -319,8 +319,6 @@ public sealed class BuildCommandTests : IDisposable
                     - type: markdown
                       name: page
                       collection: page
-                      markdown:
-                        dir: content
                 build:
                   output: dist
                 """);
@@ -366,8 +364,6 @@ public sealed class BuildCommandTests : IDisposable
                     - type: markdown
                       name: page
                       collection: page
-                      markdown:
-                        dir: content
                 build:
                   output: dist
                 """);
@@ -415,8 +411,6 @@ public sealed class BuildCommandTests : IDisposable
                     - type: markdown
                       name: page
                       collection: page
-                      markdown:
-                        dir: content
                 build:
                   output: dist
                 """);
@@ -464,8 +458,6 @@ public sealed class BuildCommandTests : IDisposable
                     - type: markdown
                       name: page
                       collection: page
-                      markdown:
-                        dir: content
                 build:
                   output: dist
                 """);
@@ -497,8 +489,6 @@ public sealed class BuildCommandTests : IDisposable
                 - type: markdown
                   name: page
                   collection: page
-                  markdown:
-                    dir: content
             build:
               output: dist
             """);

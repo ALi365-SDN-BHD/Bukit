@@ -389,7 +389,10 @@ public sealed class PublishAuditReportWriterTests : IDisposable
         };
 
         var report = SeoAuditReportWriter.Build(ConfigWithRssPostCollection(), _outputDir, index, models, CanonicalContentGraph.Empty);
-        var listOnlyCodes = new[]
+                // Generated list routes should not report content-quality gaps.
+        // Instead of enumerating every possible code, verify that the only reported
+        // issues for these routes are structural (feed/manifest/llms) rather than content-quality.
+        var contentQualityCodes = new[]
         {
             "publish.author_missing",
             "publish.source_missing",
@@ -400,12 +403,16 @@ public sealed class PublishAuditReportWriterTests : IDisposable
             "publish.semantic_article_missing",
             "publish.time_missing",
             "publish.search_missing_route",
+            "publish.unique_value_missing",
             "publish.rss_missing_route",
             "publish.manifest_missing_route",
-            "publish.unique_value_missing"
+            "publish.llms_missing_route",
+            "publish.json_feed_missing_route",
+            "publish.content_duplicate",
+            "publish.output_file_missing",
+            "publish.atom_feed_missing_route"
         };
-
-        foreach (var code in listOnlyCodes)
+        foreach (var code in contentQualityCodes)
         {
             Assert.DoesNotContain(report.Issues, x => x.Code == code && x.Route == "/tags/");
             Assert.DoesNotContain(report.Issues, x => x.Code == code && x.Route == "/blog/archive/");
@@ -520,7 +527,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
         => new(new RouteInfo(url, outputPath, "pages/post.html"), canonical, Robots: null, Indexable: true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), SourceItemId: "post-1", ContentType: "post");
 
     private static SeoIndexEntry GeneratedEntry(string url, string outputPath, string canonical, string sourceItemId, string contentType)
-        => new(new RouteInfo(url, outputPath, "pages/tags.html"), canonical, Robots: null, Indexable: true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), SourceItemId: sourceItemId, ContentType: contentType);
+        => new(new RouteInfo(url, outputPath, "pages/tags.html"), canonical, Robots: null, Indexable: true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), IsDerived: true, SourceItemId: sourceItemId, ContentType: contentType);
 
     private static SeoModel Model(string title, string canonical, params string[] jsonLd)
         => new()

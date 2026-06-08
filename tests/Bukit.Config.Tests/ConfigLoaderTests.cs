@@ -43,8 +43,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -66,8 +64,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             build:
               assetHashMode: sha256
             """;
@@ -160,8 +156,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -178,8 +172,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -293,8 +285,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -360,8 +350,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
               modelSchema:
                 rejectUnknownRawKeys: true
                 requireAuthor: true
@@ -510,8 +498,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -534,8 +520,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -558,8 +542,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             deploy:
               provider: github-pages
               branch: main
@@ -606,8 +588,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -667,8 +647,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -719,8 +697,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             taxonomy:
               template: pages/taxonomy.html
               indexTemplate: pages/index.html
@@ -787,8 +763,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
               media:
                 downloadToLocal: true
                 downloadDir: static/images
@@ -951,8 +925,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -974,8 +946,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -996,8 +966,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 

@@ -29,8 +29,6 @@ site:
   base_url: /
 content:
   kind: markdown
-  markdown:
-    dir: content
 theme:
   name: starter
 """);

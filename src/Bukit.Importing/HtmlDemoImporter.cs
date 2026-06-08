@@ -4,13 +4,6 @@ namespace Bukit.Importing;
 
 public static class HtmlDemoImporter
 {
-    private static readonly string[] DangerousInputPatterns =
-    [
-        ".env", ".env.*", ".npmrc", ".git", "node_modules", ".vscode", "dist", "build",
-        "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
-        "*.key", "*.pfx", "*.p12", "*.pem", "*.crt", "*.cert"
-    ];
-
     public static ImportResult Import(HtmlDemoImportOptions options)
     {
         var analysis = ImportAnalyzer.Analyze(options);
@@ -197,7 +190,7 @@ public static class HtmlDemoImporter
 
     private static void ScanDangerousFiles(string inputPath)
     {
-        foreach (var pattern in DangerousInputPatterns)
+        foreach (var pattern in ImportSafetyPatterns.DangerousInputPatterns)
         {
             if (pattern.Contains('*', StringComparison.Ordinal))
             {

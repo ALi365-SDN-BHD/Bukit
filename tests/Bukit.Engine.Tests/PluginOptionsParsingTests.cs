@@ -30,8 +30,6 @@ public sealed class PluginOptionsParsingTests
                                          collection: page
                                          markdown:
                                            dir: content
-                                     markdown:
-                                       dir: content
                                    """);
 
         var config = ConfigLoader.Load(configPath);
@@ -68,8 +66,6 @@ public sealed class PluginOptionsParsingTests
                                          collection: page
                                          markdown:
                                            dir: content
-                                     markdown:
-                                       dir: content
                                    """);
 
         var config = ConfigLoader.Load(configPath);
@@ -101,8 +97,6 @@ public sealed class PluginOptionsParsingTests
                                          collection: page
                                          markdown:
                                            dir: content
-                                     markdown:
-                                       dir: content
                                    """);
 
         var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));

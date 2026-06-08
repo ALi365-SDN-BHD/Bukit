@@ -47,8 +47,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -71,8 +69,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -91,8 +87,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -112,8 +106,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -132,8 +124,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -158,8 +148,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -184,8 +172,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -211,8 +197,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -236,8 +220,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -256,8 +238,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             theme:
               name: my-custom-theme
               source: "https://example.com/themes.git@v1.2.3"
@@ -289,8 +269,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             theme:
               params:
                 primaryColor: "#3498db"
@@ -333,8 +311,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             logging:
               level: debug
             """;
@@ -354,8 +330,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             logging:
               level: warn
             """;
@@ -375,8 +349,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             logging:
               level: error
             """;
@@ -401,8 +373,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -437,8 +407,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -469,8 +437,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             taxonomy:
               templates:
                 tags:
@@ -506,8 +472,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             taxonomy:
               itemFields:
                 - tags
@@ -534,8 +498,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             taxonomy:
               pinField: featured
               pinOrderField: priority
@@ -557,8 +519,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             taxonomy:
               pinFieldBySource:
                 notion: NotionPinned
@@ -583,8 +543,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             taxonomy:
               pinOrderFieldBySource:
                 notion: NotionOrder
@@ -724,8 +682,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             deploy:
               provider: custom
               branch: release
@@ -792,8 +748,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             build:
               report:
                 enabled: true
@@ -814,8 +768,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
