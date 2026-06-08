@@ -166,7 +166,7 @@ internal static class ImportReportWriter
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
             options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
-            sb.AppendLine("- Build uses the Notion API (`provider: notion`). Ensure `NOTION_TOKEN` is set before running `bukit build` or `--verify`.");
+            sb.AppendLine("- Build uses the Notion API (`content.sources[].type: notion`). Ensure `NOTION_TOKEN` is set before running `bukit build` or `--verify`.");
             sb.AppendLine("- Seed files in `notion-seed/` are for push only and do not serve as a build source.");
             sb.AppendLine("- `notion-seed/notion-database-map.yaml` is generated as an editable multi-database push template.");
         }
@@ -261,8 +261,8 @@ internal static class ImportReportWriter
                 : options.NotionDatabaseId;
             var notionBuildSource = options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase);
             var providerStatus = notionBuildSource
-                ? "provider: notion"
-                : "provider: markdown (Notion seed review mode)";
+                ? "content.sources[].type: notion"
+                : "content.sources[].type: markdown (Notion seed review mode)";
             sb.AppendLine($"- {providerStatus}");
             sb.AppendLine($"- databaseId: {dbStatus}");
             sb.AppendLine(notionBuildSource

@@ -75,7 +75,7 @@ Bukit 遇到错误时会输出稳定的 `BKT-XXXX` 诊断码。常见面向用�
 
 修复清单：
 - 两篇内容 slug 相同 → 修改 slug 名称，或使用不同 collection 路由
-- 两篇内容的 `route.outputPath` 覆盖值相同 → 确保唯一性
+- 两篇内容解析到同一个 URL/output path → 修改 collection 路由、slug 或 `route.url`
 - 内容页 URL 与派生页（分页/归档/分类）冲突 → 改 `deriveConflictPolicy` 为 `warn` 或 `last-wins`，或调整冲突 URL
 
 先跑 `bukit doctor` 可以在不完整 build 的情况下提前发现冲突。
@@ -108,8 +108,8 @@ Bukit 遇到错误时会输出稳定的 `BKT-XXXX` 诊断码。常见面向用�
 
 修复：
 
-- 确认内容的 `type` 与 `slug`
-- 不要随意使用 `route/url/outputPath/template` 覆盖字段（除非你明确知道输出路径）
+- 确认内容的 `collection` 与 `slug`
+- 不要随意使用路由覆盖；确需覆盖时使用 `route.url`，让 Bukit 自动派生输出路径
 
 ### B）多语言过滤导致内容被排除
 
@@ -284,4 +284,3 @@ Bukit 遇到错误时会输出稳定的 `BKT-XXXX` 诊断码。常见面向用�
           - derive-pages   # 新增：匹配 hooks 列表
           - emit-outputs
   ```
-- 或者完全移除 `capabilities` 字段以允许所有 hook（向后兼容）。

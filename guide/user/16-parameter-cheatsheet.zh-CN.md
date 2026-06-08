@@ -34,45 +34,33 @@
 | `site.pluginFailMode` | 插件失败策略 | `strict` / `warn` |
 | `site.plugins` | 插件开关与参数 | `sitemap: false` / `path-report: { enabled: true, options: {...} }` |
 | `site.sitemapMode` | sitemap 输出模式 | `split` / `merged` / `index` |
-| `site.rssMode` | rss 输出模式 | `split` / `merged` |
 | `site.searchMode` | search 输出模式 | `split` / `merged` / `index` |
 | `site.autoSummary` | 未提供 summary 时自动从正文提取摘要 | `true` / `false` |
 | `site.autoSummaryMaxLength` | 自动摘要最大长度（字符数） | `200` |
 
 ## content.*（内容系统）
 
-### provider=markdown
+### sources=markdown
 
 | 字段 | 含义 | 示例 |
 |---|---|---|
-| `content.provider` | 内容来源类型 | `markdown` |
-| `content.markdown.dir` | Markdown 根目录 | `content` |
-| `content.markdown.defaultType` | 默认 type | `page` |
+| `content.sources[].type` | 来源类型 | `markdown` |
+| `content.sources[].markdown.dir` | Markdown 根目录 | `content` |
+| `content.sources[].collection` | 默认集合 | `posts` |
 
-### provider=notion
-
-| 字段 | 含义 | 示例 |
-|---|---|---|
-| `content.provider` | 内容来源类型 | `notion` |
-| `content.notion.databaseId` | 数据库 ID | `xxxxxxxx-xxxx-...` |
-| `content.notion.pageSize` | 分页大小（可选） | `50` |
-| `content.notion.filterProperty` | 过滤字段名 | `Published` |
-| `content.notion.filterType` | 过滤类型 | `checkbox_true` |
-| `content.notion.sortProperty` | 排序字段名 | `PublishAt` |
-| `content.notion.sortDirection` | 排序方向 | `descending` |
-| `content.notion.fieldPolicy.mode` | 字段策略 | `whitelist` / `all` |
-| `content.notion.fieldPolicy.allowed` | 白名单字段（归一化后的 key） | `[seo_title, seo_desc]` |
-
-### provider=sources（组合模式）
+### sources=notion
 
 | 字段 | 含义 | 示例 |
 |---|---|---|
-| `content.provider` | 内容来源类型 | `sources` |
-| `content.sources[].type` | 来源类型 | `markdown` / `notion` |
-| `content.sources[].name` | 来源名字 | `pages` / `posts` / `modules` |
-| `content.sources[].mode` | 行为模式 | `content` / `data` |
-| `content.sources[].markdown` | Markdown 子配置 | `{ dir: content }` |
-| `content.sources[].notion` | Notion 子配置 | `{ databaseId: "...", fieldPolicy: { mode: all } }` |
+| `content.sources[].type` | 来源类型 | `notion` |
+| `content.sources[].notion.databaseId` | 数据库 ID | `xxxxxxxx-xxxx-...` |
+| `content.sources[].notion.pageSize` | 分页大小（可选） | `50` |
+| `content.sources[].notion.filterProperty` | 过滤字段名 | `Published` |
+| `content.sources[].notion.filterType` | 过滤类型 | `checkbox_true` |
+| `content.sources[].notion.sortProperty` | 排序字段名 | `PublishAt` |
+| `content.sources[].notion.sortDirection` | 排序方向 | `descending` |
+| `content.sources[].notion.fieldPolicy.mode` | 字段策略 | `whitelist` / `all` |
+| `content.sources[].notion.fieldPolicy.allowed` | 白名单字段（归一化后的 key） | `[seo_title, seo_desc]` |
 
 ## build.*（构建输出）
 

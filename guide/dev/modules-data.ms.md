@@ -7,10 +7,8 @@ Pelaksanaan: `src/Bukit.Engine/DataModuleBuilder.cs`
 ## Konfigurasi
 ```yaml
 content:
-  provider: sources
   sources:
-    - type: markdown
-      name: modules
+    - name: modules
       mode: data
       markdown:
         dir: data

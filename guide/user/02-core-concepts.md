@@ -7,7 +7,7 @@ This page explains Bukit's core objects from a "user perspective": what files yo
 ```text
 site.yaml
   │
-  ├─ content (Markdown / Notion / sources)
+  ├─ content.sources[] (Markdown / Notion / data sources)
   │     └─ reads content → normalizes into ContentDocument
   │
   ├─ routing (explicit route overrides, site.collections, or site.permalinks)
@@ -21,7 +21,7 @@ site.yaml
 
 There are only three things to remember:
 
-1. **Where content comes from** (content.provider / sources)
+1. **Where content comes from** (`content.sources[]`)
 2. **Where each piece of content is output** (configure via route overrides, site.collections, or site.permalinks)
 3. **What template is used for rendering** (route/front matter, collection config, or theme template matching)
 
@@ -48,7 +48,7 @@ Common Record keys (you provide them in Markdown Front Matter or Notion fields):
 - `slug`: Core component of the URL (generally recommended to keep stable)
 - `language`: Language affiliation of the content (used for filtering and linking in multilingual setups)
 - `tags` / `categories`: Tags/categories (used to derive list pages)
-- `route` / `url` / `outputPath` / `template`: Advanced usage for explicit routing/template overrides (use with caution)
+- `route` / `url` / `template`: Advanced usage for explicit URL/template overrides. `outputPath` is derived and not configurable.
 
 ### 2) Fields: Custom fields intended for template consumption (add whatever you want)
 
@@ -81,8 +81,8 @@ You can control the result through the following methods:
 - Declare collection rules in site.collections (recommended)
 - Specify `collection` in content meta matching a collection key (recommended)
 - Change `slug`: alters one segment of the path
-- Set `type`: can match `site.collections.<type>`, `site.permalinks.<type>`, or theme `templates.accepts.type`
-- Use `route/url/outputPath` override: stronger, but easier to misconfigure (see: [03 Project Structure](./03-project-structure.md) and [14 Troubleshooting](./14-troubleshooting.md))
+- Set `type`: optional metadata or theme matching key; do not rely on it for routing
+- Use `route.url` / `route.template` overrides: stronger, but easier to misconfigure (see: [03 Project Structure](./03-project-structure.md) and [14 Troubleshooting](./14-troubleshooting.md))
 
 ## Themes & Templates: What Pages Look Like
 
@@ -105,7 +105,7 @@ After the build completes, the engine generates additional artifacts based on co
 
 From a user perspective, you only need to know:
 
-- You can use `site.sitemapMode/rssMode/searchMode` to control multilingual output modes
+- You can use `site.sitemapMode` and `site.searchMode` to control multilingual output modes (feed output follows 1.0 plugin feed defaults)
 - You can use `site.pluginFailMode` to decide whether a plugin failure interrupts the build
 
 See: [10 Built-in Features & Output](./10-built-in-features.md) and [11 Multilingual & SEO](./11-i18n-seo.md).

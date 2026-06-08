@@ -195,7 +195,7 @@ public sealed class TaxonomyPinningTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = new ContentConfig { Provider = "markdown" },
+                Content = TestContent.Markdown(),
                 Taxonomy = taxonomy ?? new TaxonomyConfig()
             },
             RootDir = "C:\\",

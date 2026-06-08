@@ -81,6 +81,7 @@ dotnet test bukit.slnx \
 dotnet format bukit.slnx --verify-no-changes --no-restore
 bash scripts/check-doc-asset-consistency.sh
 bash scripts/smoke.sh "$configuration"
+bash scripts/build-repro.sh "$configuration"
 
 # --- Coverage aggregation & threshold check (Cobertura) ---
 

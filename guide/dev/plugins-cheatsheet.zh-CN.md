@@ -62,7 +62,9 @@ site:
 - 输出：`<outputDir>/rss.xml`
 - **必须配置 `site.url`**，否则不生成
 - 只包含 routed 内容（不含派生页）
-- 多语言：`site.rssMode` 控制（`split`/`merged`）
+- 多语言 feed 行为：
+  - `site.rssMode` 在 1.0 中已移除（仅保留迁移兼容）
+  - 新 1.0 配置默认按语言目录输出 feed，并使用 `site.plugins.feed` 默认行为
 
 ## search projection
 

@@ -105,8 +105,8 @@ Before generating `site.yaml`:
 
 1. Select a standard Profile from `site-yaml-profiles.md`.
 2. Do not invent fields.
-3. Do not generate `content.provider` and `content.sources` together.
-4. Use `content.sources` for Notion multi-database mode.
+3. Generate only `content.sources[]`; never generate `content.provider`.
+4. Use `content.sources[]` for every content mode, including single-source Markdown and Notion.
 5. `--build-source notion` requires `--content-source notion`.
 
 ## Recommended Commands

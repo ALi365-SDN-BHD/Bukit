@@ -30,7 +30,8 @@ public sealed class MetricsWriterTests
             },
             Content = new ContentConfig
             {
-                Provider = "markdown"
+                Provider = "sources",
+                Sources = TestContent.Markdown().Sources
             }
         };
 

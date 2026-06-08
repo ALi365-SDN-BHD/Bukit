@@ -29,6 +29,7 @@ public sealed class RenderDependencyHasherTests
             Content = new ContentConfig
             {
                 Provider = "markdown",
+                Sources = TestContent.Markdown().Sources,
                 Markdown = new MarkdownConfig { Dir = "content" },
                 Media = new MediaConfig { DownloadToLocal = false }
             },

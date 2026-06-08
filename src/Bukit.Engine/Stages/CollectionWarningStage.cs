@@ -15,24 +15,24 @@ internal sealed class CollectionWarningStage : IContentStage
         {
             var collection = ContentFieldReader.GetCollection(document);
             var hasCollection = !string.IsNullOrWhiteSpace(collection);
-            var type = ContentFieldReader.GetContentType(document);
+            var explicitType = ContentFieldReader.GetText(document.CustomFields, "type");
 
             if (hasCollection)
             {
-                if (!string.IsNullOrWhiteSpace(type))
+                if (!string.IsNullOrWhiteSpace(explicitType))
                 {
                     input.Logger.Warn(
-                    $"[WARN] Content \"{document.Id}\" defines both type={type} and collection={collection}. " +
+                    $"[WARN] Content \"{document.Id}\" defines both type={explicitType} and collection={collection}. " +
                     "Collection routing uses collection; type remains content metadata.");
                     warned++;
                 }
                 continue;
             }
 
-            if (!string.IsNullOrWhiteSpace(type))
+            if (!string.IsNullOrWhiteSpace(explicitType))
             {
                 input.Logger.Warn(
-                    $"[WARN] Content \"{document.Id}\" uses type={type} without collection. " +
+                    $"[WARN] Content \"{document.Id}\" uses type={explicitType} without collection. " +
                     "Routing must be provided by site.collections, site.permalinks, or route front matter.");
                 warned++;
             }

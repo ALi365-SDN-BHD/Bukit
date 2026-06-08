@@ -74,7 +74,7 @@ public sealed class RoutePipelineTests
                     }
                 }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         }, new[] { first, second }));
 
         Assert.Contains("Route conflict", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -137,7 +137,8 @@ public sealed class RoutePipelineTests
             },
             Content = new ContentConfig
             {
-                Provider = "markdown"
+                Provider = "sources",
+                Sources = TestContent.Markdown().Sources
             }
         };
     }

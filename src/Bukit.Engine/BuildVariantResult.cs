@@ -21,8 +21,12 @@ internal sealed record BuildVariantResult(
     IReadOnlyList<RoutedContentDocument> RoutedDocuments,
     CanonicalContentGraph? ContentGraph = null,
     IReadOnlyList<RoutedContentDocument>? DerivedDocuments = null,
-    IReadOnlyList<PublishProjectionResult>? ProjectionResults = null)
+    IReadOnlyList<PublishProjectionResult>? ProjectionResults = null,
+    IReadOnlyList<RouteInfo>? StaticRoutes = null,
+    IReadOnlyList<PluginOutputTrackingInfo>? PluginOutputs = null)
 {
     public IReadOnlyList<RoutedContentDocument> DerivedDocuments { get; init; } = DerivedDocuments ?? Array.Empty<RoutedContentDocument>();
     public IReadOnlyList<PublishProjectionResult> ProjectionResults { get; init; } = ProjectionResults ?? Array.Empty<PublishProjectionResult>();
+    public IReadOnlyList<RouteInfo> StaticRoutes { get; init; } = StaticRoutes ?? Array.Empty<RouteInfo>();
+    public IReadOnlyList<PluginOutputTrackingInfo> PluginOutputs { get; init; } = PluginOutputs ?? Array.Empty<PluginOutputTrackingInfo>();
 }

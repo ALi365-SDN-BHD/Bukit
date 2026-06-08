@@ -39,6 +39,7 @@ public static class ConfigLoader
         }
 
         ConfigEnvironmentOverrides.Apply(root);
+        ConfigDeprecationScanner.RejectRemovedFields(root);
 
         var siteNode = ConfigYamlHelpers.GetMapping(root, "site");
         var contentNode = ConfigYamlHelpers.GetMapping(root, "content");
@@ -82,18 +83,32 @@ public static class ConfigLoader
 
         var sources = ConfigCollectionReader.ReadSources(contentNode);
         var provider = ConfigYamlHelpers.GetOptionalString(contentNode, "provider");
-        if (sources is null || sources.Count == 0)
+        if (!string.IsNullOrWhiteSpace(provider))
         {
-            provider = ConfigYamlHelpers.GetRequiredString(contentNode, "provider");
+            throw new ConfigException(
+                "content.provider is removed in Bukit 1.0. Use content.sources[] instead.",
+                DiagnosticCode.ConfigProviderRemoved);
         }
 
-        provider ??= "sources";
+        if (sources is null || sources.Count == 0)
+        {
+            throw new ConfigException(
+                "content.sources is required in Bukit 1.0. Define at least one content source. Example:\n" +
+                "content:\n" +
+                "  sources:\n" +
+                "    - type: markdown\n" +
+                "      markdown:\n" +
+                "        dir: content",
+                DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        provider = "sources";
         var content = new ContentConfig
         {
             Provider = provider,
             Sources = sources,
-            Notion = provider.Equals("notion", StringComparison.OrdinalIgnoreCase) ? SiteDefaultsApplier.ReadNotionConfigFrom(contentNode) : null,
-            Markdown = provider.Equals("markdown", StringComparison.OrdinalIgnoreCase) ? SiteDefaultsApplier.ReadMarkdownConfigFrom(contentNode) : null,
+            Notion = null,
+            Markdown = null,
             Media = SiteDefaultsApplier.ReadMediaConfigFrom(contentNode),
             ModelSchema = ConfigCollectionReader.ReadContentModelSchema(contentNode)
         };
@@ -113,7 +128,7 @@ public static class ConfigLoader
             LanguageJobs = buildNode is null ? 1 : ConfigYamlHelpers.GetOptionalIntStrict(buildNode, "languageJobs") ?? 1,
             Report = new BuildReportConfig
             {
-                Enabled = buildReportNode is not null && (ConfigYamlHelpers.GetOptionalBool(buildReportNode, "enabled") ?? false)
+                Enabled = buildReportNode is null || (ConfigYamlHelpers.GetOptionalBool(buildReportNode, "enabled") ?? true)
             }
         };
 
@@ -194,4 +209,5 @@ public static class ConfigLoader
                 DiagnosticCode.ConfigInvalidValue)
         };
     }
+
 }

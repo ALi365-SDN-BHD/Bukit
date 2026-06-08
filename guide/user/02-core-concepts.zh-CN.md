@@ -7,7 +7,7 @@
 ```text
 site.yaml
   │
-  ├─ content（Markdown / Notion / sources）
+  ├─ content.sources[]（Markdown / Notion / data sources）
   │     └─ 读取内容 → 统一为 ContentDocument
   │
   ├─ routing（按 route/front matter、site.collections、主题 templates.accepts 决定 URL 与模板）
@@ -21,7 +21,7 @@ site.yaml
 
 你要记住的只有三句话：
 
-1. **内容来自哪里**（content.provider / sources）
+1. **内容来自哪里**（`content.sources[]`）
 2. **每条内容输出到哪里**（通过 route/front matter 或 site.collections 显式配置）
 3. **用什么模板渲染**（显式 template、collection template/listTemplate，或主题 templates.accepts 匹配）
 
@@ -48,7 +48,7 @@ site.yaml
 - `slug`：URL 的核心部分（一般推荐稳定不变）
 - `language`：内容语言归属（多语言时用于过滤与关联）
 - `tags` / `categories`：标签/分类（用于派生列表页）
-- `route` / `url` / `outputPath` / `template`：显式指定路由/模板的高级用法（谨慎使用）
+- `route` / `url` / `template`：显式指定 URL/模板的高级用法。`outputPath` 由最终 URL 派生，不可配置。
 
 ### 2）Fields：面向模板消费的自定义字段（你想加什么都可以）
 
@@ -81,8 +81,8 @@ Notion 模式下字段是否进入 `page.fields` 由 `fieldPolicy` 控制（见�
 - 在 site.collections 中声明集合规则（推荐）
 - 在内容的 meta 中指定 `collection` 对应集合 key（推荐）
 - 改 `slug`：改变路径的一段
-- 改 `type`：仅影响你在配置或主题 `templates.accepts.type` 中声明的匹配逻辑
-- 用 `route/url/outputPath` 覆盖：更强，但更容易配错（详见：[03-项目目录与约定](./03-project-structure.zh-CN.md) 与 [14-故障排查](./14-troubleshooting.zh-CN.md)）
+- 改 `type`：仅作为可选元数据或主题匹配键，不要依赖它驱动路由
+- 用 `route.url` / `route.template` 覆盖：更强，但更容易配错（详见：[03-项目目录与约定](./03-project-structure.zh-CN.md) 与 [14-故障排查](./14-troubleshooting.zh-CN.md)）
 
 ## 主题与模板：页面长什么样
 
@@ -105,7 +105,7 @@ Notion 模式下字段是否进入 `page.fields` 由 `fieldPolicy` 控制（见�
 
 用户视角你只需要知道：
 
-- 你能用 `site.sitemapMode/rssMode/searchMode` 控制多语言输出模式
+- 你能用 `site.sitemapMode/searchMode` 控制多语言输出模式；`rssMode` 为 1.0 遗留字段，Feed 按默认方式处理
 - 你能用 `site.pluginFailMode` 决定插件失败是否中断构建
 
 详见：[10-内置功能与输出](./10-built-in-features.zh-CN.md) 与 [11-多语言与SEO](./11-i18n-seo.zh-CN.md)。

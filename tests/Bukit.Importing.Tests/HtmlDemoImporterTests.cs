@@ -186,7 +186,9 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var yaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "test-theme", "site.yaml"));
         Assert.Contains("test-theme", yaml);
         Assert.Contains("url: https://example.com", yaml);
-        Assert.Contains("provider: markdown", yaml);
+        Assert.Contains("sources:", yaml);
+        Assert.Contains("type: markdown", yaml);
+        Assert.DoesNotContain("provider: markdown", yaml);
         Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "test-theme", "content", "index.md")));
     }
 
@@ -1044,9 +1046,10 @@ pages:
         HtmlDemoImporter.Import(options);
 
         var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-single-db-test", "site.yaml"));
-        Assert.Contains("provider: notion", siteYaml);
+        Assert.Contains("sources:", siteYaml);
+        Assert.Contains("type: notion", siteYaml);
         Assert.Contains("databaseId: single-db", siteYaml);
-        Assert.DoesNotContain("sources:", siteYaml);
+        Assert.DoesNotContain("provider: notion", siteYaml);
     }
 
     [Fact]
@@ -1103,8 +1106,10 @@ pages:
         HtmlDemoImporter.Import(options);
 
         var yaml = File.ReadAllText(Path.Combine(siteDir, "site.yaml"));
-        Assert.Contains("provider: markdown", yaml);
+        Assert.Contains("sources:", yaml);
+        Assert.Contains("type: markdown", yaml);
         Assert.Contains("dir: content", yaml.Replace('\\', '/'));
+        Assert.DoesNotContain("provider: markdown", yaml);
         Assert.DoesNotContain("..", yaml);
         Assert.True(File.Exists(Path.Combine(siteDir, "themes", "absolute-site-test", "layouts", "pages", "index.html")));
         Assert.False(Directory.Exists(Path.Combine(rootDir, "themes", "absolute-site-test")));
@@ -1188,7 +1193,9 @@ pages:
         Assert.True(Directory.Exists(Path.Combine(_tempDir, "sites", "notion-review-test", "notion-seed")));
 
         var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-review-test", "site.yaml"));
-        Assert.Contains("provider: markdown", siteYaml);
+        Assert.Contains("sources:", siteYaml);
+        Assert.Contains("type: markdown", siteYaml);
+        Assert.DoesNotContain("provider: markdown", siteYaml);
         Assert.DoesNotContain("provider: notion", siteYaml);
     }
 

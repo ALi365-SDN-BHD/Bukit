@@ -36,7 +36,7 @@ doctor 的检查顺序基本如下：
 7. 发现插件数量（built-in/generated/external）
    - 输出 “Plugins discovered: <n>”
 8. Notion 模式下探活（需要 `NOTION_TOKEN`）
-   - 若 `content.provider: notion`：缺少 `NOTION_TOKEN` 会失败返回 1
+   - 若存在 Notion source：缺少 `NOTION_TOKEN` 会失败返回 1
    - 会调用 Notion API 检查 databaseId 可达；失败返回 1
 9. **模板变量拼写检查**
    - 对所有 `layouts/` 下的 `.html` 模板执行 AST 解析
@@ -78,4 +78,3 @@ doctor 的检查顺序基本如下：
 4. “NOTION_TOKEN not set / Notion database check failed”
    - 设置环境变量 `NOTION_TOKEN`
    - 确认 databaseId 正确且 token 有权限访问
-

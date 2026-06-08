@@ -186,7 +186,7 @@ internal static partial class SeoDiagnostics
         if (string.Equals(config.Site.Seo.Diagnostics, "strict", StringComparison.OrdinalIgnoreCase))
         {
             logger.Error(message);
-            throw new ConfigException(message);
+            throw new ConfigException(message, DiagnosticCode.ConfigInvalidValue);
         }
 
         logger.Warn(message);

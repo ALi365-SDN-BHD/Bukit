@@ -13,7 +13,10 @@ site:
   rss: merged
   search: merged
 content:
-  provider: markdown
+  sources:
+    - type: markdown
+      markdown:
+        dir: content
   markdown:
     dir: content
 build:

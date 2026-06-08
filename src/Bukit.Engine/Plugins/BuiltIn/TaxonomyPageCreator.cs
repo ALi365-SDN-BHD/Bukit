@@ -31,11 +31,15 @@ internal static class TaxonomyPageCreator
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var now = DateTimeOffset.UtcNow;
+        var publishAt = items
+            .SelectMany(t => t.Pages)
+            .Select(p => p.PublishAt)
+            .DefaultIfEmpty(DateTimeOffset.UnixEpoch)
+            .Max();
         if (indexEnabled)
         {
             var visibleTerms = items.Where(t => t.IsVisible).ToList();
-            derived.Add(CreateIndexPage(baseUrlPrefix, kind, title, visibleTerms, hierarchy, indexTemplate, publishAt: now, emitContentHtml, outputPathEncoding));
+            derived.Add(CreateIndexPage(baseUrlPrefix, kind, title, visibleTerms, hierarchy, indexTemplate, publishAt, emitContentHtml, outputPathEncoding));
         }
 
         foreach (var term in items)
@@ -50,7 +54,7 @@ internal static class TaxonomyPageCreator
                     term,
                     hi,
                     termTemplate,
-                    publishAt: now,
+                    publishAt,
                     emitContentHtml,
                     pageSize,
                     page: 1,
@@ -65,7 +69,7 @@ internal static class TaxonomyPageCreator
             {
                 var skip = (page - 1) * pageSize;
                 var chunk = term.Pages.Skip(skip).Take(pageSize).ToList();
-                var publishAt = chunk.Count == 0 ? now : chunk.Max(x => x.PublishAt);
+                var pagePublishAt = chunk.Count == 0 ? publishAt : chunk.Max(x => x.PublishAt);
                 derived.Add(CreateTermPage(
                     baseUrlPrefix,
                     kind,
@@ -73,7 +77,7 @@ internal static class TaxonomyPageCreator
                     term,
                     hi,
                     termTemplate,
-                    publishAt,
+                    pagePublishAt,
                     emitContentHtml,
                     pageSize,
                     page,

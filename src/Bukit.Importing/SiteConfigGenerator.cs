@@ -145,22 +145,37 @@ internal static class SiteConfigGenerator
                 var dbId = !string.IsNullOrWhiteSpace(options.NotionDatabaseId)
                     ? options.NotionDatabaseId
                     : "${NOTION_DATABASE_ID}";
-                sb.AppendLine("  provider: notion");
-                sb.AppendLine("  notion:");
-                sb.AppendLine($"    databaseId: {dbId}");
-                sb.AppendLine($"    tokenEnv: {tokenEnv}");
-                sb.AppendLine("    filterProperty: Published");
-                sb.AppendLine("    filterType: checkbox_true");
-                sb.AppendLine("    sortProperty: Title");
-                sb.AppendLine("    sortDirection: ascending");
+                sb.AppendLine("  sources:");
+                sb.AppendLine("    - type: notion");
+                sb.AppendLine("      collection: page");
+                sb.AppendLine("      notion:");
+                sb.AppendLine($"        databaseId: {dbId}");
+                sb.AppendLine($"        tokenEnv: {tokenEnv}");
+                sb.AppendLine("        filterProperty: Published");
+                sb.AppendLine("        filterType: checkbox_true");
+                sb.AppendLine("        sortProperty: Title");
+                sb.AppendLine("        sortDirection: ascending");
             }
         }
         else
         {
             sb.AppendLine("content:");
-            sb.AppendLine("  provider: markdown");
-            sb.AppendLine("  markdown:");
-            sb.AppendLine($"    dir: {contentDir}");
+            sb.AppendLine("  sources:");
+            AppendMarkdownSource(sb, "page", contentDir);
+            if (pageTypes.Contains(PageType.PostDetail))
+            {
+                AppendMarkdownSource(sb, "post", contentDir);
+            }
+
+            if (pageTypes.Contains(PageType.CompanyDetail))
+            {
+                AppendMarkdownSource(sb, "company", contentDir);
+            }
+
+            if (pageTypes.Contains(PageType.ServiceDetail))
+            {
+                AppendMarkdownSource(sb, "service", contentDir);
+            }
         }
         sb.AppendLine("build:");
         sb.AppendLine("  output: dist");
@@ -193,6 +208,15 @@ internal static class SiteConfigGenerator
         while (result.Contains("--"))
             result = result.Replace("--", "-");
         return result.Trim('-').ToLowerInvariant();
+    }
+
+    private static void AppendMarkdownSource(StringBuilder sb, string collection, string contentDir)
+    {
+        sb.AppendLine("    - type: markdown");
+        sb.AppendLine($"      name: {collection}");
+        sb.AppendLine($"      collection: {collection}");
+        sb.AppendLine("      markdown:");
+        sb.AppendLine($"        dir: {contentDir}");
     }
 
     private static List<NotionDatabaseTarget> ReadNotionDatabaseTargets(HtmlDemoImportOptions options)

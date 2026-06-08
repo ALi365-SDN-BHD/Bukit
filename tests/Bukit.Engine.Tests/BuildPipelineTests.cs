@@ -17,7 +17,8 @@ public sealed class BuildPipelineTests
             },
             Content = new ContentConfig
             {
-                Provider = "markdown"
+                Provider = "sources",
+                Sources = TestContent.Markdown().Sources
             }
         };
         var overrides = new ConfigOverrides { Incremental = false };
@@ -66,7 +67,8 @@ public sealed class BuildPipelineTests
             },
             Content = new ContentConfig
             {
-                Provider = "markdown"
+                Provider = "sources",
+                Sources = TestContent.Markdown().Sources
             }
         };
     }

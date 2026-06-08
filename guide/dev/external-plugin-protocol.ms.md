@@ -27,7 +27,7 @@ Medan `capabilities` mengisytiharkan hook mana yang dibenarkan untuk dilaksanaka
 | `emit-outputs` | `after-build` | Menulis fail ke direktori output |
 
 **Peraturan penguatkuasaan:**
-- **Tidak diisytiharkan** (`capabilities: null` atau tiada): Semua hook dibenarkan (serasi ke belakang)
+- **Tidak diisytiharkan** (`capabilities: null` atau tiada): Konfigurasi tidak sah (`ConfigException` / `BKT-0701`); plugin protokol memerlukan penjelasan keupayaan
 - **Diisytiharkan tetapi tidak lengkap**: Binaan gagal dengan `[BKT-0701]` — enjin memeriksa setiap hook terhadap keupayaan yang diisytiharkan pada masa jalan
 - Pengesahan konfigurasi menolak nama keupayaan tidak sah (`ConfigException`)
 

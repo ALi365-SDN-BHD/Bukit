@@ -99,7 +99,7 @@ public sealed class PublishRepresentationRegistryTests
                 Config: new AppConfig
                 {
                     Site = new SiteConfig { Name = "test", Title = "Test", Url = "https://example.com" },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 OutputDir: outputDir,
                 ContentGraph: graph,
@@ -179,7 +179,7 @@ public sealed class PublishRepresentationRegistryTests
                 Config: new AppConfig
                 {
                     Site = new SiteConfig { Name = "test", Title = "Test", Url = "https://example.com" },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 OutputDir: outputDir,
                 ContentGraph: CanonicalContentGraph.Empty,
@@ -235,7 +235,7 @@ public sealed class PublishRepresentationRegistryTests
                             ["post"] = new() { Permalink = "/post/{slug}/", Output = new CollectionOutputConfig { Rss = true } }
                         }
                     },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 OutputDir: outputDir,
                 ContentGraph: CanonicalContentGraph.Empty,
@@ -284,7 +284,7 @@ public sealed class PublishRepresentationRegistryTests
                         Url = "https://example.com",
                         Search = new SearchDetailConfig { Ui = "default", PlaceholderText = "Find content" }
                     },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 OutputDir: outputDir,
                 ContentGraph: CanonicalContentGraph.Empty,

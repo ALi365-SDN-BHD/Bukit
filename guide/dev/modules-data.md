@@ -8,10 +8,8 @@ Implementation: `src/Bukit.Engine/DataModuleBuilder.cs`
 
 ```yaml
 content:
-  provider: sources
   sources:
-    - type: markdown
-      name: modules
+    - name: modules
       mode: data
       markdown:
         dir: data
@@ -45,14 +43,11 @@ Multiple `mode: data` sources are merged into `site.modules`. Item IDs are prefi
 
 ```yaml
 content:
-  provider: sources
   sources:
-    - type: markdown
-      name: modules_marketing
+    - name: modules_marketing
       mode: data
       markdown: { dir: data/marketing, defaultType: module }
-    - type: notion
-      name: modules_ops
+    - name: modules_ops
       mode: data
       notion:
         databaseId: "db_modules_ops"

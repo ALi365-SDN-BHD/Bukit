@@ -64,7 +64,7 @@ bukit create my-site
 
 瀵瑰簲鍏崇郴锛?
 - `site.yaml` 涓粯璁ゅ啓鍏?`theme.name: starter`锛屽苟淇濈暀 `layouts/assets/static` 涓洪粯璁ゅ€硷紙瑙?[涓婚寮€鍙慮(./theme.zh-CN.md)锛?
-- `hello-world.md` 榛樿浣滀负 `type: page` 鐨勫唴瀹归〉娓叉煋銆傛柊椤圭洰寤鸿鍦?site.yaml 涓厤缃?`site.collections`锛堢敓鎴愬櫒榛樿宸插寘鍚級锛屼娇璺敱鐢?collection 瑙勫垯椹卞姩锛堣矾鐢辫鍒欒 [routing](./routing.zh-CN.md)锛?
+- `hello-world.md` 使用 `collection: page`。新项目在 `site.yaml` 中配置 `site.collections`，由 collection 规则驱动路由（见 [routing](./routing.zh-CN.md)）。
 - 涓婚妯℃澘婊¤冻 `doctor` 鐨勫繀闇€妯℃澘娓呭崟锛堣 [doctor](./doctor.zh-CN.md)锛?
 
 ## 鐢熸垚鐨勫叧閿枃浠惰鏄?
@@ -80,14 +80,12 @@ bukit create my-site
 ### 2) site.yaml
 
 Markdown 妯″紡涓嬬殑鍏抽敭瀛楁锛?
-- `content.provider: markdown`
-- `content.markdown.dir: content`
+- `content.sources[].markdown.dir: content`
 - `theme.name: starter`
 - `build.output: dist`
 
 Notion 妯″紡涓嬬殑鍏抽敭瀛楁锛?
-- `content.provider: notion`
-- `content.notion.databaseId: xxxxx`锛堝崰浣嶏級
+- `content.sources[].notion.databaseId: xxxxx`（占位）
 
 瀛楁鍚箟涓庨粯璁ゅ€艰瑙侊細[config-site-yaml.md](./config-site-yaml.zh-CN.md)銆?
 
@@ -113,6 +111,5 @@ starter 涓婚鏄€滄渶灏忓彲杩愯涓婚鈥濓紝鍖呭惈锛
 
 - `--template` 鐩墠鍙奖鍝嶅啓鍏ラ厤缃殑 templateName锛堟殏鏈┍鍔ㄤ笉鍚屾枃浠舵ā鏉跨敓鎴愶級
 - `.gitignore` 鐩墠榛樿蹇界暐 `.bukit/`锛屼絾寮曟搸榛樿缂撳瓨鐩綍涓?`.cache/`锛堣 [缂撳瓨涓庢竻鐞哴(./cache-clean.md)锛?
-
 
 

@@ -13,10 +13,12 @@ site:
   language: en
 
 content:
-  provider: markdown
-  markdown:
-    dir: content
-    defaultType: page
+  sources:
+    - name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 
 build:
   output: dist
@@ -37,14 +39,17 @@ site:
   language: en
 
 content:
-  provider: notion
-  notion:
-    databaseId: ${NOTION_DATABASE_ID}
-    tokenEnv: NOTION_TOKEN
-    filterProperty: Published
-    filterType: checkbox_true
-    sortProperty: Title
-    sortDirection: ascending
+  sources:
+    - name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: ${NOTION_DATABASE_ID}
+        tokenEnv: NOTION_TOKEN
+        filterProperty: Published
+        filterType: checkbox_true
+        sortProperty: Title
+        sortDirection: ascending
 
 build:
   output: dist
@@ -66,8 +71,7 @@ site:
 
 content:
   sources:
-    - type: notion
-      name: pages
+    - name: pages
       mode: content
       collection: page
       notion:
@@ -78,8 +82,7 @@ content:
         sortProperty: Title
         sortDirection: ascending
 
-    - type: notion
-      name: posts
+    - name: posts
       mode: content
       collection: post
       notion:
@@ -90,8 +93,7 @@ content:
         sortProperty: Title
         sortDirection: ascending
 
-    - type: notion
-      name: companies
+    - name: companies
       mode: content
       collection: company
       notion:
@@ -102,8 +104,7 @@ content:
         sortProperty: Title
         sortDirection: ascending
 
-    - type: notion
-      name: services
+    - name: services
       mode: content
       collection: service
       notion:
@@ -133,10 +134,12 @@ site:
   language: en
 
 content:
-  provider: markdown
-  markdown:
-    dir: content
-    defaultType: page
+  sources:
+    - name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 
 build:
   output: dist

@@ -135,32 +135,23 @@ Aliases can be specified as a single string or a list. The generated pages are m
 
 Content metadata can override routing at two levels.
 
-### Full Override (backward compatible)
+### Full Override (1.0, nested `route` map)
 
-Set all three fields — `url`, `outputPath`, and `template` — to take full control. Markdown frontmatter:
+In 1.0, full override uses nested `route.url` plus `route.template`. Bukit derives `outputPath` from `route.url`.
+
+Markdown frontmatter:
 
 ```yaml
 ---
 route:
   url: /custom/path/
-  outputPath: custom/path/index.html
   template: pages/special.html
 ---
 
 # My Page
 ```
 
-Or separate top-level fields:
-
-```yaml
----
-url: /custom/path/
-outputPath: custom/path/index.html
-template: pages/special.html
----
-```
-
-All three fields must be present for full override; otherwise partial override applies.
+Both top-level `outputPath` and nested `route.outputPath` are removed in 1.0 and rejected with `BKT-0209`.
 
 ### Partial Override (url-only)
 
@@ -292,7 +283,7 @@ Used by: taxonomy terms, SEO URLs, file system output paths.
 | Error | Cause | Fix |
 |------|------|------|
 | `Route conflict on url` (build fail) | Multiple content items generate same URL | Ensure unique slugs or disambiguate permalink patterns |
-| `Route conflict on outputPath` (build fail) | Multiple content items write to same output path | Ensure unique `route.outputPath` values |
+| `Route conflict on outputPath` (build fail) | Multiple content items write to same output path derived from URL | Ensure unique slugs, collection permalinks, or `route.url` values |
 | `route conflict` from plugin (build fail) | Derived page URL/outputPath collides with existing route | Change `deriveConflictPolicy` to `warn` or `last-wins`, or adjust routing |
 | Route inventory error (doctor) | Route conflicts detected by `bukit doctor` | Fix conflicting slugs/URLs/permalinks before building |
 | Permalink generates unexpected URL | Placeholder typo | Use `{slug}` not `{Slug}` or `{SLUG}` |

@@ -50,7 +50,7 @@ public sealed class SearchIndexPluginExtendedTests
                     Title = "Test Site",
                     BaseUrl = "https://example.com"
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             };
 
             var route1 = CreateRoute("/", "index.html");
@@ -110,7 +110,7 @@ public sealed class SearchIndexPluginExtendedTests
                     BaseUrl = "https://example.com",
                     SearchIncludeDerived = true
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             };
 
             var mainRoute = CreateRoute("/main", "main/index.html");
@@ -171,7 +171,7 @@ public sealed class SearchIndexPluginExtendedTests
                     BaseUrl = "https://example.com",
                     SearchIncludeDerived = false
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             };
 
             var mainRoute = CreateRoute("/main", "main/index.html");
@@ -229,7 +229,7 @@ public sealed class SearchIndexPluginExtendedTests
                     Title = "Empty",
                     BaseUrl = "https://example.com"
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             };
 
             var context = new BuildContext

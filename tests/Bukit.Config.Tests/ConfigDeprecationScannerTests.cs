@@ -34,11 +34,14 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                           rss:
                                             enabled: true
                                       content:
-                                        provider: markdown
+                                        sources:
+                                          - type: markdown
+                                            markdown:
+                                              dir: content
                                       """);
 
         var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
-        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("site.plugins.rss", ex.Message, StringComparison.Ordinal);
         Assert.Contains("site.plugins.feed", ex.Message, StringComparison.Ordinal);
     }
@@ -52,11 +55,14 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                         title: Test
                                         rssMode: root
                                       content:
-                                        provider: markdown
+                                        sources:
+                                          - type: markdown
+                                            markdown:
+                                              dir: content
                                       """);
 
         var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
-        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("site.rssMode", ex.Message, StringComparison.Ordinal);
         Assert.Contains("site.feed.formats", ex.Message, StringComparison.Ordinal);
     }
@@ -70,13 +76,16 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                         title: Test
                                       outputPath: /custom/
                                       content:
-                                        provider: markdown
+                                        sources:
+                                          - type: markdown
+                                            markdown:
+                                              dir: content
                                       """);
 
         var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
-        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("outputPath", ex.Message, StringComparison.Ordinal);
-        Assert.Contains("route.outputPath", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("route.url", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -92,11 +101,14 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                             template: pages/post.html
                                             rss: true
                                       content:
-                                        provider: markdown
+                                        sources:
+                                          - type: markdown
+                                            markdown:
+                                              dir: content
                                       """);
 
         var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
-        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("collections.posts.rss", ex.Message, StringComparison.Ordinal);
         Assert.Contains("collections.posts.feed", ex.Message, StringComparison.Ordinal);
     }
@@ -113,11 +125,14 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                             permalink: /posts/{slug}/
                                             template: pages/post.html
                                       content:
-                                        provider: markdown
+                                        sources:
+                                          - type: markdown
+                                            markdown:
+                                              dir: content
                                       """);
 
         var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
-        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
         Assert.Contains("site.collection", ex.Message, StringComparison.Ordinal);
         Assert.Contains("site.collections", ex.Message, StringComparison.Ordinal);
     }
@@ -130,14 +145,16 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                         name: test
                                         title: Test
                                       content:
-                                        provider: notion
-                                        notion:
-                                          databaseId: abc123
-                                          rootPageId: xyz789
+                                        sources:
+                                          - type: notion
+                                            notion:
+                                              databaseId: abc123
+                                              rootPageId: xyz789
                                       """);
 
         var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
-        Assert.Contains("content.notion.rootPageId", ex.Message, StringComparison.Ordinal);
+        Assert.Equal(DiagnosticCode.ConfigRemovedField, ex.Code);
+        Assert.Contains("content.sources[0].notion.rootPageId", ex.Message, StringComparison.Ordinal);
         Assert.Contains("rootBlockId", ex.Message, StringComparison.Ordinal);
     }
 
@@ -150,9 +167,12 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                         title: Test
                                       content:
                                         provider: notion
+                                        notion:
+                                          databaseId: test-db
                                       """);
 
         var ex = Assert.Throws<ConfigException>(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));
+        Assert.Equal(DiagnosticCode.ConfigProviderRemoved, ex.Code);
         Assert.Contains("content.provider", ex.Message, StringComparison.Ordinal);
         Assert.Contains("content.sources", ex.Message, StringComparison.Ordinal);
     }
@@ -165,7 +185,10 @@ public sealed class ConfigDeprecationScannerTests : IDisposable
                                         name: test
                                         title: Test
                                       content:
-                                        provider: markdown
+                                        sources:
+                                          - type: markdown
+                                            markdown:
+                                              dir: content
                                       """);
 
         var exception = Record.Exception(() => ConfigDeprecationScanner.RejectRemovedFields(_configPath));

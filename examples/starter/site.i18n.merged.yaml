@@ -20,9 +20,13 @@ site:
         archive: false
 
 content:
-  provider: markdown
-  markdown:
-    dir: content-i18n
+  sources:
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content-i18n
 
 build:
   output: dist_i18n_merged

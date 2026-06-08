@@ -13,6 +13,7 @@ public sealed class BuildContext
     public required string BaseUrl { get; init; }
     public required string LayoutsDir { get; init; }
     public required IReadOnlyList<RoutedContentDocument> RoutedDocuments { get; init; }
+    public IReadOnlyList<RouteInfo> StaticHtmlRoutes { get; set; } = Array.Empty<RouteInfo>();
     public CanonicalContentGraph ContentGraph { get; init; } = CanonicalContentGraph.Empty;
     public IContentBodyStore BodyStore { get; init; } = NullContentBodyStore.Instance;
     public IReadOnlyDictionary<string, SeoIndexEntry> SeoIndex { get; set; } = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);

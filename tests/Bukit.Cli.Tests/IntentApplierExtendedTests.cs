@@ -77,7 +77,9 @@ public sealed class IntentApplierExtendedTests : IDisposable
 
             Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Errors));
             var yaml = File.ReadAllText(outPath);
-            Assert.Contains("provider: notion", yaml, StringComparison.Ordinal);
+            Assert.Contains("sources:", yaml, StringComparison.Ordinal);
+            Assert.Contains("type: notion", yaml, StringComparison.Ordinal);
+            Assert.DoesNotContain("provider: notion", yaml, StringComparison.Ordinal);
             Assert.Contains("databaseId: abc-123", yaml, StringComparison.Ordinal);
             Assert.Contains("mode: whitelist", yaml, StringComparison.Ordinal);
             Assert.Contains("title", yaml, StringComparison.Ordinal);
@@ -147,7 +149,7 @@ public sealed class IntentApplierExtendedTests : IDisposable
         var yaml = File.ReadAllText(outPath);
         Assert.Contains("dir: posts", yaml, StringComparison.Ordinal);
         var config = ConfigLoader.Load(outPath);
-        Assert.Equal("posts", config.Content.Markdown?.Dir);
+        Assert.Equal("posts", config.Content.Sources?[0].Markdown?.Dir);
     }
 
     [Fact]

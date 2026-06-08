@@ -11,7 +11,7 @@ internal static class ConfigYamlHelpers
         var result = GetOptionalMapping(node, key);
         if (result is null)
         {
-            throw new ConfigException($"{key} section is required.");
+            throw new ConfigException($"{key} section is required.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         return result;
@@ -47,7 +47,7 @@ internal static class ConfigYamlHelpers
         var value = GetOptionalString(node, key);
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ConfigException($"{key} is required.");
+            throw new ConfigException($"{key} is required.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         return value;
@@ -88,7 +88,7 @@ internal static class ConfigYamlHelpers
         if (value.Equals("yes", StringComparison.OrdinalIgnoreCase)) return true;
         if (value.Equals("no", StringComparison.OrdinalIgnoreCase)) return false;
 
-        throw new ConfigException($"Invalid config value: {key} expected boolean, got '{value}'");
+        throw new ConfigException($"Invalid config value: {key} expected boolean, got '{value}'", DiagnosticCode.ConfigInvalidValue);
     }
 
     internal static int? GetOptionalInt(YamlMappingNode node, string key)
@@ -115,7 +115,7 @@ internal static class ConfigYamlHelpers
         if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i))
             return i;
 
-        throw new ConfigException($"Invalid config value: {key} expected integer, got '{value}'");
+        throw new ConfigException($"Invalid config value: {key} expected integer, got '{value}'", DiagnosticCode.ConfigInvalidValue);
     }
 
     internal static long? GetOptionalLong(YamlMappingNode node, string key)
@@ -142,7 +142,7 @@ internal static class ConfigYamlHelpers
         if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l))
             return l;
 
-        throw new ConfigException($"Invalid config value: {key} expected long integer, got '{value}'");
+        throw new ConfigException($"Invalid config value: {key} expected long integer, got '{value}'", DiagnosticCode.ConfigInvalidValue);
     }
 
     internal static double? GetOptionalDouble(YamlMappingNode node, string key)
@@ -169,7 +169,7 @@ internal static class ConfigYamlHelpers
         if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
             return d;
 
-        throw new ConfigException($"Invalid config value: {key} expected double, got '{value}'");
+        throw new ConfigException($"Invalid config value: {key} expected double, got '{value}'", DiagnosticCode.ConfigInvalidValue);
     }
 
     internal static IReadOnlyDictionary<string, string>? ReadStringMap(YamlMappingNode? parent, string key)

@@ -26,9 +26,22 @@ dotnet run --project src/Bukit.Cli -c "$configuration" -- build --config example
 test -f "examples/starter/$smoke_run/dist_taxonomy_data/taxonomy.json"
 test ! -f "examples/starter/$smoke_run/dist_taxonomy_data/tags/index.html"
 
+dotnet run --project src/Bukit.Cli -c "$configuration" -- doctor --config examples/starter/site.theme.yaml
+dotnet run --project src/Bukit.Cli -c "$configuration" -- build --config examples/starter/site.theme.yaml --output "$smoke_run/dist_theme_alt" --clean --site-url https://example.com --allow-external-plugins
+test -f "examples/starter/$smoke_run/dist_theme_alt/index.html"
+test -f "examples/starter/$smoke_run/dist_theme_alt/sitemap.xml"
+
 dotnet run --project src/Bukit.Cli -c "$configuration" -- build --config examples/starter/site.taxonomy.disabled.yaml --output "$smoke_run/dist_taxonomy_disabled" --clean --site-url https://example.com --allow-external-plugins
 test ! -f "examples/starter/$smoke_run/dist_taxonomy_disabled/taxonomy.json"
 test ! -f "examples/starter/$smoke_run/dist_taxonomy_disabled/tags/index.html"
+
+dotnet run --project src/Bukit.Cli -c "$configuration" -- doctor --config examples/starter/site.i18n.seo.yaml
+dotnet run --project src/Bukit.Cli -c "$configuration" -- build --config examples/starter/site.i18n.seo.yaml --output "$smoke_run/dist_i18n_seo_best_practice" --clean --site-url https://example.com --allow-external-plugins
+test -f "examples/starter/$smoke_run/dist_i18n_seo_best_practice/sitemap.xml"
+test -f "examples/starter/$smoke_run/dist_i18n_seo_best_practice/zh-CN/index.html"
+test -f "examples/starter/$smoke_run/dist_i18n_seo_best_practice/zh-CN/rss.xml"
+test -f "examples/starter/$smoke_run/dist_i18n_seo_best_practice/en-US/index.html"
+test -f "examples/starter/$smoke_run/dist_i18n_seo_best_practice/en-US/rss.xml"
 
 mkdir -p "$(dirname "$intent_out")"
 dotnet run --project src/Bukit.Cli -c "$configuration" -- intent validate samples/intent/markdown_blog.yaml --out "$intent_out"

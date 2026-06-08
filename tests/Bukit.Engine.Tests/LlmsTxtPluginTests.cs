@@ -249,7 +249,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
                         }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() }
+                Content = TestContent.Markdown()
             },
             RootDir = _root,
             OutputDir = outputDir,

@@ -145,8 +145,8 @@ Spark 不允许：
 
 ```md
 ## Spark 执行结果
-- 任务编号：
-- 是否完成：
+- 任务编号：S1 / S2 / S3 / S4 / S5 / S6
+- 是否完成：已完成（代码与文档落地）/ `starter schema` 与 `starter publish audit warning` 最低阈值按本轮决策收敛
 - 修改文件：
 - 实现修复：
 - 契约澄清：
@@ -163,3 +163,33 @@ Spark 不允许：
 ## 下一步
 - 建议继续任务：
 ```
+
+## Spark 执行结果（本轮）
+
+- 任务编号：S1 / S2 / S3 / S4 / S5 / S6
+- 是否完成：已完成（代码与文档落地）+ 关键待确认项 1 项
+- 修改文件：`docs/compatibility-governance.md`, `docs/compatibility-governance.zh-CN.md`, `docs/bukit-1.0-security-boundary-audit.md`, `docs/bukit-1.0-contract-matrix.zh-CN.md`, `scripts/build-repro.sh`, `scripts/normalize-json.sh`, `scripts/smoke.sh`, `examples/starter/...`, `src/Bukit.Cli/**`, `src/Bukit.Engine/**`, `tests/Bukit.Cli.Tests/**`, `tests/Bukit.Engine.Tests/**`, `tests/Bukit.Engine.Tests/BuildReporterTests.cs`, `tests/Bukit.Engine.Tests/Snapshots/RouteInventory/route-inventory.golden.json`
+- 实现修复：已补齐 `s1~s6` 对应低风险执行面：starter 报警项治理与内容补齐、route inventory 覆盖（content/derived/static/plugin 统一 golden 断言）、主题衍生样板 build/smoke 覆证、可复现构建归一化对比脚本、错误输出 JSON envelope 与命令级日志格式化入口。
+- 契约澄清：文档已将主要旧行为标记为拒绝/移除；`outputPath` 顶层拒绝项 `CG-015` 已统一到 `current` 目标版本。
+- 风险：`security-report.json` 与真实安全扫描写入链路仍需下一阶段完成（当前为占位接入）。
+
+## 验证
+- 命令：
+  - `rg -n "author:|summary:|updatedAt:" examples/starter/content examples/starter/content-i18n examples/starter/content_extra -g "*.md"`
+  - `for f in $(rg --files examples/starter/content examples/starter/content-i18n examples/starter/content_extra); do awk 'BEGIN{in_fm=0;count=0;got_a=0;got_s=0;got_u=0} /^---$/{count++; if(count==1){in_fm=1;next} else if(count==2){in_fm=0}} in_fm==1 && /^author:/{got_a=1} in_fm==1 && /^summary:/{got_s=1} in_fm==1 && /^updatedAt:/{got_u=1} END{if(got_a&&got_s&&got_u) exit 0; printf \"%s\\n\",FILENAME; exit 1}' \"$f\" || true; done`
+  - `rg -n "(^|\\s)(seo_title:|cover_alt:|tableOfContents:)" examples/starter/content examples/starter/content-i18n examples/starter/content_extra`
+  - `dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter FullyQualifiedName~WriteIfEnabled_RoutesJson_GoldenSnapshot`
+- 结果：
+  - `rg` 命中：starter 三个内容树下每份 .md 已显示 author/summary/updatedAt。
+  - awk 验证：全量通过，无缺字段文件。
+  - `rg` 老字段命中：无 `seo_title`、`cover_alt`、`tableOfContents`。
+  - 路由 golden：`tests/Bukit.Engine.Tests/Snapshots/RouteInventory/route-inventory.golden.json` 已包含 content/derived/static/plugin 全量条目（`/archive/2024/`、`/blog/*`、`/plugin-output.json`、`/static-docs/`）。
+- 未运行原因：
+  - 未在本轮执行完整 `bash scripts/quality-gate.sh Release`，按当前窗口优先执行范围限制为关键缺口修复与证据闭环。 
+
+## 风险
+- 剩余风险：`starter` schema 字段收口已收束，当前仅剩 `security` 与发布流程链路的外部决策窗口。
+- 需要 DeepSeek 审核：`security-report.json` 与安全扫描数据链路。
+
+## 下一步
+- 建议继续任务：按 Trae + DeepSeek 的决策结果提交 `CG`/`contract` 版本升级与新测试断言收敛。

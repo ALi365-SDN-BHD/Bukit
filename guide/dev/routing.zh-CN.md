@@ -56,8 +56,8 @@ site:
 | `/docs/{slug}/` | page 类型 | `/docs/my-post/` |
 
 优先级（从高到低）：
-1. 全量路由覆盖（url + outputPath + template）← 最高
-2. 部分路由覆盖（仅 url 或 url + template）
+1. 路由覆盖（`route.url`，可选 `route.template`）← 最高
+2. 顶层 `url` 覆盖（可选 `template`）
 3. Collection 规则 — `site.collections`
 4. Permalink 模式 — `site.permalinks`
 5. 无匹配规则时抛出配置错误，提示补充 collection、route 或模板配置
@@ -66,18 +66,24 @@ site:
 
 ## 路由覆盖（Route Override）
 
-### 全量覆盖
+### 路由覆盖
 
-当内容中存在路由字段（`route.url` + `route.outputPath` + `route.template`，或兼容的顶层 `url/outputPath/template`）并同时完整时，会完全覆盖默认路由：
+使用 `route.url` 控制公开 URL，可选 `route.template` 覆盖模板。输出路径始终从最终 URL 派生。
 
 ```yaml
 route:
   url: /custom/
-  outputPath: custom/index.html
   template: pages/page.html
 ```
 
-或者同级扁平字段：`url:`、`outputPath:`、`template:`。
+顶层 `url:` 和 `template:` 也可作为路由覆盖字段。
+
+Bukit 1.0 已移除：
+
+- 顶层 `outputPath`
+- 嵌套 `route.outputPath`
+
+两者都会以 `BKT-0209` 拒绝。请使用 `route.url`；Bukit 会为 HTML、sitemap、search、RSS、审计报告和回滚产物一致派生输出路径。
 
 ### 部分覆盖（仅 url）
 
@@ -93,30 +99,27 @@ url: /my-slug/
 
 规则：
 - `url` 必须提供（自动补齐前后斜杠）
-- `outputPath` 自动推导，手动提供的值会被忽略
+- `outputPath` 自动推导，手动提供会被拒绝
 - `template` 可选，省略时继承 collection/permalinks/default
 - 仅提供 `outputPath` 的半覆盖**不支持**
 
 ## Notion 内容如何覆盖路由
 
-Notion 内容通过数据库属性映射到 `fields`，引擎会将以下字段用于路由与语义决策：
-- `url`（文本）
-- `outputPath`（文本）
-- `template`（文本）
+Notion 内容源可通过规范化后的 `route.url` / `route.template` 字段覆盖 URL 和模板。`outputPath` 不是 1.0 输入字段。
 
 填写示例：
 ```
-url: /asdfasdf/
-outputPath: asdfasdf/index.html
-template: pages/page.html
+route:
+  url: /asdfasdf/
+  template: pages/page.html
 ```
 
-注意：Notion 属性名会被标准化（忽略大小写、空格、符号），例如 `Output Path` 会识别为 `outputpath`。
+注意：Notion 属性名会被标准化（忽略大小写、空格、符号）。
 补充：Notion 的 `formula` 字段也会被解析为文本/数值/布尔/日期，可用于路由覆盖。
 
 ## outputPath 编码策略（处理中文与符号）
 
-当 `outputPath` 含中文或符号时，可在 `site.yaml` 使用：
+当 URL 派生出的输出路径需要处理中文或符号时，可在 `site.yaml` 使用：
 
 ```yaml
 site:

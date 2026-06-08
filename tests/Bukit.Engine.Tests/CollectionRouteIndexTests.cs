@@ -28,7 +28,7 @@ public sealed class CollectionRouteIndexTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = Path.GetTempPath(),
             OutputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N")),

@@ -94,9 +94,10 @@ site:
       template: pages/page.html
 
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      markdown:
+        dir: content
 
 build:
   output: dist
@@ -144,7 +145,6 @@ site:
   languages: [zh-CN, en]
   defaultLanguage: zh-CN
   sitemapMode: merged
-  rssMode: merged
   searchMode: merged
 ```
 
@@ -162,11 +162,12 @@ site:
       listRoute: /blog/
 
 content:
-  provider: notion
-  notion:
-    databaseId: "your-database-id"
-    filterProperty: Published
-    filterType: checkbox_true
+  sources:
+    - type: notion
+      notion:
+        databaseId: "your-database-id"
+        filterProperty: Published
+        filterType: checkbox_true
 
 theme:
   name: starter
@@ -189,7 +190,7 @@ theme:
 | `defaultLanguage` | string | First language | Default language in multilingual mode |
 | `outputPathEncoding` | string | `none` | Output path encoding: `none`/`slug`/`urlencode`/`sanitize`. Applies to both content and derived pages (pagination, archive, taxonomy). |
 | `sitemapMode` | string | `split` | Sitemap mode: `split`/`merged`/`index` |
-| `rssMode` | string | `split` | RSS mode: `split`/`merged` |
+| `rssMode` | string | `split` | **Deprecated in 1.0: removed**; use `site.feed.formats` for feed outputs |
 | `searchMode` | string | `split` | Search index mode: `split`/`merged`/`index` |
 | `autoSummary` | bool | false | Auto-generate summaries |
 | `autoSummaryMaxLength` | int | 200 | Max auto-summary length (1-5000) |
@@ -783,7 +784,7 @@ These overrides only affect the current build and do not modify site.yaml.
 | `site.collections.xxx.permalink must include {slug}` | Permalink missing {slug} placeholder | Add `{slug}`, e.g., `/blog/{slug}/` |
 | `site.collections.xxx.template is required` | Collection has no template | Add template: pages/post.html |
 | `site.collections.xxx.listRoute must start with '/'` | listRoute format incorrect | Change to `/blog/` |
-| `content.provider is required` | Content source not specified | Set `provider: markdown` or `provider: notion` |
+| `content.sources is required in Bukit 1.0` | Content source not specified | Add `content.sources[]` with a `markdown` or `notion` source |
 | `NOTION_TOKEN is required...` | Notion API key not set | Set env var `NOTION_TOKEN` |
 | `content.notion.databaseId is required` | Database ID not filled | Enter Notion database ID |
 | `site.timezone '...' is not a valid time zone identifier` | Invalid timezone | Use IANA timezone name, e.g., `Asia/Shanghai` |
@@ -792,7 +793,7 @@ These overrides only affect the current build and do not modify site.yaml.
 | `site.collections keys must be non-empty` | Collection name is empty string | Ensure collection names are non-empty |
 | `site.languages has duplicate language` | Language list has duplicates | Remove duplicates |
 | `site.defaultLanguage must be included in site.languages` | Default language not in list | Add defaultLanguage to languages |
-| `Plugin 'xxx' is missing required capability 'yyy' for hook 'zzz'` | Plugin declares capabilities but is missing one needed for its hooks | Add the missing capability to the plugin's `capabilities` list or remove `capabilities` to allow all hooks |
+| `Plugin 'xxx' is missing required capability 'yyy' for hook 'zzz'` | Plugin declares capabilities but is missing one needed for its hooks | Add the missing capability to the plugin's `capabilities` list |
 
 ---
 
@@ -886,7 +887,7 @@ SSRF protection is also applied to `CloneCommand` (theme asset downloads) and `S
 | `content.notion.rootPageId` | `content.notion.rootBlockId` | PageId→BlockId |
 | `content.markdown.rootPageId` | `content.markdown.rootBlockId` | PageId→BlockId |
 | `theme.sourceRef` | `theme.source` with `@` version | SourceRef→Source |
-| `site.rssMode` | `site.plugins.feed.enabled` | RssMode→Plugin toggle |
+| `site.rssMode` | `site.feed.formats` | RssMode→Feed formats |
 | `build.outputPath` | `build.output` | OutputPath→Output |
 
 ## JSON Schema (P3-2)
@@ -901,7 +902,7 @@ Use `bukit doctor` to auto-check most items. After config, verify each:
 - [ ] `site.baseUrl` starts with `/`
 - [ ] `site.url` (if set) starts with `http://` or `https://`
 - [ ] Each collection in `site.collections` has a permalink (with `{slug}`) and template
-- [ ] `content.provider` is set with corresponding sub-config filled in
+- [ ] `content.sources[]` is set with each source's matching sub-config filled in
 - [ ] In Notion mode, `NOTION_TOKEN` env var is set
 - [ ] `build.output` is a valid relative path
 - [ ] `theme` node points to an existing theme directory

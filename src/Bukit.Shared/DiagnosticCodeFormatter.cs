@@ -25,6 +25,7 @@ public static class DiagnosticCodeFormatter
             DiagnosticCode.RouteDuplicateOutputPath => "Route: duplicate output path",
             DiagnosticCode.RouteInvalidPattern => "Route: invalid permalink pattern",
             DiagnosticCode.RouteListRouteInvalid => "Route: list route is invalid",
+            DiagnosticCode.RouteOutputPathRejected => "Route: outputPath front matter is removed in Bukit 1.0",
 
             DiagnosticCode.RenderTemplateNotFound => "Render: template not found",
             DiagnosticCode.RenderTemplateParseError => "Render: template parse error",

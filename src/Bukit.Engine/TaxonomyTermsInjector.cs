@@ -121,10 +121,6 @@ internal static class TaxonomyTermsInjector
                 }
             }
         }
-        else if (context.Config.Content.Provider.Equals("notion", StringComparison.OrdinalIgnoreCase) && context.Config.Content.Notion is not null)
-        {
-            notionConfigs.Add(context.Config.Content.Notion);
-        }
 
         if (notionConfigs.Count == 0)
         {

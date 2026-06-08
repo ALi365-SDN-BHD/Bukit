@@ -21,7 +21,6 @@ Pelaksanaan: `src/Bukit.Config/AppConfig.cs`, `src/Bukit.Config/ConfigLoader.cs`
 | `site.timezone` | string | `UTC` | Zon waktu |
 | `site.pluginFailMode` | string | `strict` | `strict` atau `warn` |
 | `site.sitemapMode` | string | `split` | `split`/`merged`/`index` |
-| `site.rssMode` | string | `split` | `split`/`merged` |
 | `site.searchMode` | string | `split` | `split`/`merged`/`index` |
 | `site.outputPathEncoding` | string | `none` | Pengekodan laluan: `none`/`slug`/`urlencode`/`sanitize`. Digunakan untuk halaman kandungan dan terbitan. |
 | `site.deriveConflictPolicy` | string | `fail` | Konflik laluan terbitan: `fail`/`warn`/`last-wins`. Konflik kandungan sentiasa gagal. |
@@ -29,9 +28,9 @@ Pelaksanaan: `src/Bukit.Config/AppConfig.cs`, `src/Bukit.Config/ConfigLoader.cs`
 | `site.plugins` | dict | - | Togol dan parameter plugin |
 
 ## Medan content.*
-- `content.provider`: `markdown`, `notion`, atau `sources`
-- Markdown: `content.markdown.dir`, `defaultType`, `maxItems`
-- Notion: `databaseId`, `filterProperty`, `sortProperty`, `fieldPolicy`
+- `content.sources[]`: satu-satunya entri kandungan Bukit 1.0; `content.provider` telah dibuang dan akan ditolak
+- Markdown: `content.sources[].markdown.dir`, `defaultType`, `maxItems`
+- Notion: `content.sources[].notion.databaseId`, `filterProperty`, `sortProperty`, `fieldPolicy`
 - Media: `content.media.downloadToLocal`, `downloadDir`, `urlBase`
 
 ## Medan build.*

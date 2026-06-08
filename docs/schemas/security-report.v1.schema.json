@@ -34,7 +34,7 @@
       "type": "object",
       "required": ["status", "severity"],
       "properties": {
-        "status": { "enum": ["passed", "warning", "failed"] },
+        "status": { "enum": ["passed", "warning", "failed", "not_checked", "not_applicable"] },
         "severity": { "enum": ["info", "warning", "error"] }
       },
       "additionalProperties": false

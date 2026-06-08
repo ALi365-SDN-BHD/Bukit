@@ -737,7 +737,7 @@ Options:
 In high-fidelity mode (`--page` or `--sections`), the CLI also generates:
 - `content/index.md` — editable page metadata and fallback body
 - `data/clone-*.md` — one data module per visible section
-- `site.yaml` source updates — switches to `provider: sources`
+- `site.yaml` source updates — writes `content.sources[]`
 
 The CLI generates files under `themes/<name>/`:
 - `assets/style.css` — Full CSS with custom variables + behavior enhancements + state section styles
@@ -912,7 +912,7 @@ When `useLenis: true` in `behaviors.json`:
 | `behaviors.json` all fields `false` | Target site has no detectable JS behaviors OR browser scripts ran on wrong page | Verify the extraction scripts ran on the correct URL; manually inspect behaviors and hardcode expected values if automation misses them |
 | `No paired screenshots found` in VERIFY_REPORT | Local screenshots not yet captured | After build, capture browser screenshots at each viewport into `docs/research/local-screenshots/local-{viewport}.png` |
 | Build fails with "template not found" | Clone generated incomplete theme directory | Check `tokens.json` has required fields; verify `--tokens` path is correct; re-run with `--force` |
-| `site.collections` migration warning | Clone wrote `provider: sources` but collections not configured | Run `bukit doctor` — it provides the exact migration instructions |
+| `site.collections` warning | Clone wrote `content.sources[]` but collections are not configured | Run `bukit doctor` — it provides the exact instructions |
 | `doctor` reports manifest mismatch | `bukit.templates.yaml` missing or stale vs actual template files | Run `bukit template sync` to auto-generate; or re-run clone with `--force` |
 | Behaviors not working in preview | `behaviors.js` not loaded or browser cached old version | Check `base.html` includes `<script src="{{ site.base_url }}/assets/behaviors.js">`; hard-refresh browser (Cmd+Shift+R) |
 

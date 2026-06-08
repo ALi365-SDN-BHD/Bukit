@@ -41,6 +41,11 @@ public sealed class FileTemplateLoader : ITemplateLoader
             }
 
             var primary = Path.GetFullPath(Path.Combine(_rootDir, normalized));
+            if (File.Exists(primary))
+            {
+                resolved = primary;
+                goto safetyCheck;
+            }
 
             if (_fallbackDir is not null)
             {
@@ -50,12 +55,6 @@ public sealed class FileTemplateLoader : ITemplateLoader
                     resolved = fallback;
                     goto safetyCheck;
                 }
-            }
-
-            if (File.Exists(primary))
-            {
-                resolved = primary;
-                goto safetyCheck;
             }
 
             resolved = primary;

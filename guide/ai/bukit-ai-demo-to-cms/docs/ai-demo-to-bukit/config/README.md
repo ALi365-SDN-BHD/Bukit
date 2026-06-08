@@ -35,8 +35,8 @@ schemas/
 
 1. AI must not invent `site.yaml` fields.
 2. AI must select a standard Profile before generating `site.yaml`.
-3. `content.provider` and `content.sources` must not appear together.
+3. `content.sources[]` must be used; `content.provider` must not appear.
 4. `--build-source notion` requires `--content-source notion`.
-5. Notion multi-database mode must use `content.sources`.
+5. Every content mode must use `content.sources[]`.
 6. Generated configuration must pass schema validation, `bukit doctor`, and `bukit build`.
 7. If validation fails, AI must repair the configuration.

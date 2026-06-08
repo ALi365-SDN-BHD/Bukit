@@ -33,7 +33,6 @@ public static class BuildCommand
         };
 
         var logger = new ConsoleLogger(ParseLogLevel(config.Logging.Level, overrides.IsCI), command.GetString("--log-format") ?? "text");
-        ConfigDeprecationScanner.RejectRemovedFields(resolved.FullConfigPath);
 
         var engine = new SiteEngine(logger);
         await engine.BuildAsync(config, resolved.RootDir, overrides, cancellationToken);

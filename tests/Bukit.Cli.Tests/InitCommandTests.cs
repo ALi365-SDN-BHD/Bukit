@@ -127,7 +127,9 @@ public sealed class InitCommandTests : IDisposable
         await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--provider", "markdown" }));
 
         var yaml = File.ReadAllText(Path.Combine(target, "site.yaml"));
-        Assert.Contains("provider: markdown", yaml);
+        Assert.Contains("sources:", yaml);
+        Assert.Contains("type: markdown", yaml);
+        Assert.DoesNotContain("provider: markdown", yaml);
     }
 
     [Fact]
@@ -138,7 +140,9 @@ public sealed class InitCommandTests : IDisposable
         await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", target, "--provider", "notion" }));
 
         var yaml = File.ReadAllText(Path.Combine(target, "site.yaml"));
-        Assert.Contains("provider: notion", yaml);
+        Assert.Contains("sources:", yaml);
+        Assert.Contains("type: notion", yaml);
+        Assert.DoesNotContain("provider: notion", yaml);
         Assert.Contains("databaseId: xxxxx", yaml);
     }
 

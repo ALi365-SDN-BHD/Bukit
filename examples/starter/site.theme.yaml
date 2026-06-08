@@ -4,15 +4,28 @@ site:
   baseUrl: /
   language: zh-CN
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
+      listRoute: /pages/
+      output:
+        rss: false
+        sitemap: true
+        archive: false
 
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 
 build:
   output: dist_theme
-  clean: true
+  clean: false
 
 theme:
   name: alt

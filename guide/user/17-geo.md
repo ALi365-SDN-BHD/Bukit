@@ -60,7 +60,7 @@ Add `geo:` fields in your content front matter to generate rich Schema.org JSON-
 ```yaml
 ---
 title: Frequently Asked Questions
-type: page
+collection: page
 geo:
   schema_type: FAQPage
   faq:
@@ -76,7 +76,7 @@ geo:
 ```yaml
 ---
 title: How to Build a Blog with Bukit
-type: post
+collection: post
 geo:
   schema_type: HowTo
   about: Static Site Generation
@@ -98,7 +98,7 @@ geo:
 ```yaml
 ---
 title: The Future of Static Sites
-type: post
+collection: post
 geo:
   schema_type: Article
   about: Web Development

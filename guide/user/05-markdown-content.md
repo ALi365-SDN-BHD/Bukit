@@ -23,12 +23,16 @@ site:
       permalink: /pages/{slug}/
       template: pages/page.html
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 ```
 
-The engine will recursively read all `*.md` files under `content/`. Routed content must declare a `collection` or `type` that matches site routing config.
+The engine will recursively read all `*.md` files under `content/`. Routed content should declare `collection`, or the source should set `collection`, and the site must declare matching routing config.
 
 ## Limits and Scoped Reading (Large Repositories / Single-Page Debugging)
 
@@ -36,16 +40,20 @@ When your repository contains many Markdown files, or you only want to debug a f
 
 ```yaml
 content:
-  provider: markdown
-  markdown:
-    dir: content
-    maxItems: 5000
-    includePaths:
-      - hello-world.md
-      - blog/2026-01-update.md
-    includeGlobs:
-      - blog/*.md
-      - "**/pages/*.md"
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
+        maxItems: 5000
+        includePaths:
+          - hello-world.md
+          - blog/2026-01-update.md
+        includeGlobs:
+          - blog/*.md
+          - "**/pages/*.md"
 ```
 
 For fully explicit routing, prefer `collection` in front matter over `content.markdown.defaultType`.
@@ -72,7 +80,7 @@ Each Markdown file may optionally include a YAML Front Matter block:
 
 ```yaml
 ---
-type: page
+collection: page
 title: About Us
 slug: about
 publishAt: 2026-01-01T00:00:00Z
@@ -92,7 +100,7 @@ Note: Front Matter field names are case-insensitive (e.g. `Title` and `title` ar
 | Field | Common Values | Purpose |
 |---|---|---|
 | `collection` | string | Corresponds to a collection key in site.collections, determines routing and template (recommended to use first) |
-| `type` | string | Optional metadata and matching key. It only affects routing/templates when `site.collections.<type>`, `site.permalinks.<type>`, or theme `templates.accepts.type` declares how to use it. |
+| `type` | string | Optional content metadata for templates or integrations; it is not the 1.0 starter routing field. Use `collection` for routing. |
 | `title` | text | Page title (default can be extracted from the first `#` heading in the body) |
 | `slug` | `hello-world` | Core URL segment (defaults to filename) |
 | `publishAt` | ISO time string | Publish date (default may use file modification time) |
@@ -171,7 +179,7 @@ Example (bilingual pages for the same topic):
 
 ```markdown
 ---
-type: page
+collection: page
 title: Hello
 slug: greeting
 language: zh-CN
@@ -184,7 +192,7 @@ language: zh-CN
 
 ```markdown
 ---
-type: page
+collection: page
 title: Hello
 slug: greeting
 language: en-US

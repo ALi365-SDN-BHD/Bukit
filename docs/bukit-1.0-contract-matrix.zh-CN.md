@@ -1,96 +1,134 @@
 # Bukit 1.0 契约矩阵
 
 日期：2026-06-08
-基线：全新项目契约，不保留历史兼容模式
+版本：1.0
 
 ## 支持等级定义
 
 | 等级 | 含义 |
 |------|------|
-| `GA-locked` | 1.0 后仅允许对全新契约做非破坏性演进；breaking change 必须进入未来 major |
+| `GA-locked` | 1.0 后只允许对全新 1.0 契约做非破坏性演进；breaking change 必须进入未来 major |
 | `GA-limited` | 正式可用，但边界窄、约束明确，不承诺生态完整性 |
 | `Experimental` | 可随 public preview 演进，不进入 1.0 稳定承诺 |
 | `Out of scope` | 不属于 Bukit 1.0 |
 
 ## 能力矩阵
 
-### 配置
+### 配置系统
 
-| 能力 | 等级 | 允许配置 | 拒绝行为 | 测试要求 |
-|------|------|----------|----------|----------|
-| `site.yaml` 七大节点（site/content/build/theme/taxonomy/logging/deploy） | GA-locked | 全部 1.0 字段 | 旧字段拒绝 + BKT-000x + 新写法提示 | ConfigValidator tests, rejection suite |
-| `content.provider` 单源入口 | GA-locked | markdown / notion | 缺失或无效值拒绝 | ConfigValidator tests |
-| `content.sources` 多源/复合入口 | GA-locked | notion / markdown source 列表 | type 缺失/无效拒绝 | ConfigValidator tests |
-| `build.report.enabled` | GA-locked | release/profile 默认 true | N/A | BuildReporter tests |
-| ~~`site.rssMode`~~ | **Removed** | — | 拒绝 + BKT-0001 + 迁移到 `site.feed.formats` | rejection suite |
-| ~~`site.plugins.rss`~~ | **Removed** | — | 拒绝 + BKT-0001 + 迁移到 `site.plugins.feed` | rejection suite |
-| ~~顶层 `outputPath`~~ | **Removed** | — | 拒绝 + BKT-0201 + 迁移到 `route.outputPath` | rejection suite |
-| ~~`collections.*.rss`~~ | **Removed** | — | 拒绝 + BKT-0001 + 迁移到 `collections.*.feed` | rejection suite |
-| ~~`site.collection`~~ | **Removed** | — | 拒绝 + BKT-0001 + 迁移到 `site.collections` | rejection suite |
-| ~~`content.notion.rootPageId`~~ | **Removed** | — | 拒绝 + BKT-0001 + 迁移到 `rootBlockId` | rejection suite |
+| 能力 | 1.0 等级 | 允许配置 | 拒绝行为 | 测试要求 |
+|------|----------|----------|----------|----------|
+| `site.yaml` 核心字段（site/content/build/theme/taxonomy/logging/deploy） | `GA-locked` | 仅 1.0 新字段 | 旧字段 rejected-with-message + BKT-000x | ConfigValidator 全覆盖 |
+| `content.sources`（多源配置） | `GA-locked` | 唯一入口 | 无 sources 时 rejected | provider parity 测试 |
+| `content.provider`（旧单源字段） | **Removed** | 不允许 | rejected-with-message，引导迁移到 sources | 拒绝测试 |
+| `site.rssMode` | **Removed** | 不允许 | rejected-with-message | 拒绝测试 |
+| `site.searchMode` | **Removed** | 不允许 | rejected-with-message | 拒绝测试 |
+| `build.report.enabled` | `GA-locked` | 默认 true | N/A | BuildReporter 测试 |
+| 环境变量覆盖 | `GA-locked` | 允许 | N/A | ConfigEnvironmentOverrides 测试 |
 
-### 内容
+### 内容模型
 
-| 能力 | 等级 | 允许配置 | 拒绝行为 | 测试要求 |
-|------|------|----------|----------|----------|
-| Markdown 内容源 | GA-locked | dir/includePaths/includeGlobs/defaultType | N/A | Markdown provider tests |
-| Notion 内容源 | **GA-limited** | DatabaseId/PropertyMap/FieldPolicy/缓存/媒体下载 | API 错误友好提示 | Notion provider tests |
-| Composite 内容源 | GA-limited | sources 列表合并 | source 配置错误拒绝 | Composite provider tests |
-| 内容模型 schema（reserved meta/field normalization） | GA-locked | ModelSchema 全部字段 | strict 模式下 schema 违规拒绝 | Schema validator tests |
-| ~~type 双声明~~ | **Removed** | 唯一写法：`collection` | `type` 声明产生 warning，推荐 `collection` | starter content audit |
+| 能力 | 1.0 等级 | 允许配置 | 拒绝行为 | 测试要求 |
+|------|----------|----------|----------|----------|
+| Markdown 内容源 | `GA-locked` | 正式网站基础路径 | N/A | MarkdownFolderProvider 测试 |
+| Notion 内容源 | `GA-limited` | API/缓存/媒体下载/field policy 边界明确 | 无 Notion 配置时 rejected | NotionContentProvider 测试 |
+| Composite content sources | `GA-limited` | 仅 1.0 新语义 | 旧 provider 行为 rejected | Composite 测试 |
+| 内容模型 schema | `GA-locked` | reserved meta keys 冻结 | strict 模式 rejected | Schema 测试 |
+| `collection` 字段（推荐写法） | `GA-locked` | 唯一推荐 | N/A | RouteGenerator 测试 |
+| `type` 字段 | **Removed from starter contract** | 不作为路由/模板选择依据；starter 不声明 | 若内容模型 strict 开启则按未知/移除字段处理 | StarterContentAudit + RouteGenerator 测试 |
+| `seo_title`、`cover`、`cover_alt`、`tableOfContents` | `GA-locked` | starter schema 正式字段 | N/A | Schema 测试 |
 
-### 路由
+### 路由系统
 
-| 能力 | 等级 | 允许配置 | 拒绝行为 | 测试要求 |
-|------|------|----------|----------|----------|
-| 路由优先级（full override > collection/permalink > partial） | GA-locked | route.url/route.template/route.outputPath | conflict 拒绝 + BKT-0202 | route inventory golden tests |
-| nested `route.outputPath` | **GA-locked（正式契约）** | route.outputPath 允许在 collection 下 | 不安全路径拒绝 + BKT-0206 | RouteGenerator tests |
-| 顶层 `outputPath` | **Removed** | — | 拒绝 + BKT-0201 | rejection suite |
-| collection/type 匹配规则 | GA-locked | collection 匹配优先 | 无匹配拒绝 | RouteGenerator tests |
-| 派生路由（list/taxonomy/pagination/archive/static/plugin） | GA-locked | 按 collection output 配置 | conflict 拒绝 + BKT-0202 | route inventory golden tests |
-| 派生路由进入 search/rss/sitemap 默认策略 | GA-locked | list/taxonomy 默认进入 | N/A | route inventory golden tests |
-| outputPathEncoding（none/slug/urlencode/sanitize） | GA-locked | 四种模式 | 无效值拒绝 | RoutePathBuilder tests |
+| 能力 | 1.0 等级 | 允许配置 | 拒绝行为 | 测试要求 |
+|------|----------|----------|----------|----------|
+| 路由优先级（FullOverride > PartialOverride > Collection > Permalink） | `GA-locked` | 冻结 | N/A | Golden tests |
+| `route.url`（嵌套路由 URL） | `GA-locked` | 允许 | N/A | Golden tests |
+| `route.outputPath`（嵌套路由输出路径） | **Removed** | 不允许 | rejected-with-message + BKT-0209 | 拒绝测试 |
+| 顶层 `outputPath` | **Removed** | 不允许 | rejected-with-message + BKT-0209 | 拒绝测试 |
+| `route.template`（嵌套路由模板） | `GA-locked` | 允许 | N/A | Golden tests |
+| collection/permalink 匹配规则 | `GA-locked` | 冻结 | 无匹配时 rejected | Golden tests |
+| 派生路由（list/taxonomy/pagination/archive/alias/static） | `GA-locked` | 冻结 | N/A | Golden tests |
+| `outputPathEncoding` | `GA-locked` | none/slug/urlencode/sanitize | 非法值 rejected | 编码测试 |
+| 路由安全校验 | `GA-locked` | 冻结 | 不安全路径 rejected + BKT-02xx | RouteSecurityValidator 测试 |
+| SEO/GEO publish projection | `GA-limited` | 输出和审计 schema 稳定 | N/A | SEO/GEO 测试 |
 
-### 主题
+### 主题系统
 
-| 能力 | 等级 | 允许配置 | 拒绝行为 | 测试要求 |
-|------|------|----------|----------|----------|
-| `theme.yaml` manifest | GA-locked | name/version/engine/min_engine_version 必填 | 无 manifest 拒绝 + BKT-0100 | theme doctor tests |
-| `extends` 继承 | GA-locked | 单继承链 | 继承循环/缺失拒绝 | ThemeManifest tests |
-| `fallbackDir` 回退目录 | GA-limited | 本地 fallback 目录 | 路径穿越拒绝 | ThemePathResolver tests |
-| template capabilities 声明 | GA-locked | bukit.templates.yaml 中声明 | 缺失声明拒绝 | TemplateCapabilities tests |
-| Starter theme | GA-locked | 作为官方样板 | N/A | smoke.sh + doctor 通过 |
-| Remote theme source/lock | GA-limited | 远程获取 + lock 文件 | 无 lock/无 network 拒绝 | ThemeSourceManager tests |
-| Theme registry/search/install | **Experimental** | — | 不承诺生态可用性 | 基础功能测试 |
-| ~~无 theme.yaml 的主题兼容~~ | **Removed** | — | 拒绝 + BKT-0100 + 要求生成 manifest | doctor rejection tests |
+| 能力 | 1.0 等级 | 允许配置 | 拒绝行为 | 测试要求 |
+|------|----------|----------|----------|----------|
+| `theme.yaml` 必填字段（name/version/engine） | `GA-locked` | 必填 | 缺失 rejected + BKT-0100 | ValidateThemeYaml 测试 |
+| `theme.yaml` version 字段 | `GA-locked` | 必填，semver | 无效 rejected + BKT-0100 | ValidateThemeYaml 测试 |
+| `requires_bukit` / engine range | `GA-locked` | 必填 | 不兼容 rejected + BKT-0100 | ValidateThemeYaml 测试 |
+| `extends` 主题继承 | `GA-locked` | 允许 | 继承链断裂 rejected | ThemeManifestLoader 测试 |
+| Starter theme | `GA-locked` | 官方信任样板 | N/A | smoke.sh 通过 |
+| Remote theme source/lock | `GA-limited` | 远程获取与 lock 行为稳定 | 无 lock 时 warning | ThemeSourceManager 测试 |
+| Theme registry/search/install 生态 | `Experimental` | 不承诺生态可用性 | N/A | N/A |
+| 无 `theme.yaml` 主题 | **Removed** | 不允许 | rejected + BKT-0100 | ValidateThemeYaml 测试 |
 
-### 插件
+### 插件系统
 
-| 能力 | 等级 | 允许配置 | 拒绝行为 | 测试要求 |
-|------|------|----------|----------|----------|
-| Built-in plugin lifecycle | GA-locked | derive-pages -> render -> after-build | 失败按 failMode 处理 | PluginPipeline tests |
-| External process protocol v2 | GA-limited | handshake v2 + capabilities 必填 | v1 拒绝 + BKT-0700 | ProtocolEchoPlugin tests |
-| capabilities 声明 | GA-limited | derive-pages / emit-outputs | 缺失/不匹配拒绝 + BKT-0701 | PluginCapabilityEnforcer tests |
-| env isolation / timeout / stdout-stderr limits | GA-limited | timeoutMs/maxStdoutBytes/maxStderrBytes/allowEnvironment | 超时拒绝 + BKT-0702 | ProtocolEchoPlugin tests |
-| stale output cleanup | GA-limited | 自动清理 | N/A | ProtocolEchoPlugin tests |
-| ~~plugin protocol v1 fallback~~ | **Removed** | — | 拒绝 + BKT-0700 | handshake rejection tests |
-| ~~缺失 capabilities 的默认放行~~ | **Removed** | — | 拒绝 + BKT-0701 | PluginCapabilityEnforcer tests |
+| 能力 | 1.0 等级 | 允许配置 | 拒绝行为 | 测试要求 |
+|------|----------|----------|----------|----------|
+| Built-in plugin lifecycle | `GA-locked` | 内建插件顺序/失败策略/输出归属冻结 | N/A | PluginRunner 测试 |
+| External process protocol plugin | `GA-limited` | 协议 v2、capability、env/output 边界稳定 | 无 capability rejected + BKT-0704 | ProtocolEchoPlugin 测试 |
+| Protocol handshake v2 | `GA-locked` | 仅 v2 | v1 rejected + BKT-0705 | ProtocolHandshakeNegotiator 测试 |
+| Plugin capabilities 声明 | `GA-locked` | 必填 | 缺失 rejected + BKT-0704 | PluginCapabilityEnforcer 测试 |
+| Plugin env isolation | `GA-locked` | 冻结 | N/A | ProcessPluginInvoker 测试 |
+| Plugin timeout | `GA-locked` | 冻结 | 超时 rejected + BKT-0702 | ProcessPluginInvoker 测试 |
+| Plugin stdout/stderr limits | `GA-locked` | 冻结 | 超限 rejected + BKT-0703 | ProcessPluginInvoker 测试 |
+| Plugin output traversal | `GA-locked` | 冻结 | 路径逃逸 rejected + BKT-0706 | ProcessPluginInvoker 测试 |
+| Plugin stale output cleanup | `GA-locked` | 冻结 | 清理失败 + BKT-0707 | ProcessPluginInvoker 测试 |
+| Plugin SHA256 校验 | `GA-locked` | 冻结 | 不匹配 rejected + BKT-0701 | ExternalProtocolPluginSource 测试 |
+| Source-generated plugin SDK | `GA-limited` | 若对外暴露需独立版本说明 | N/A | PluginSourceGenerator 测试 |
 
 ### 构建与审计
 
-| 能力 | 等级 | 允许配置 | 拒绝行为 | 测试要求 |
-|------|------|----------|----------|----------|
-| `.bukit/build-report.json` | GA-locked | 自动生成 | N/A | schema validation |
-| `.bukit/routes.json` | GA-locked | 自动生成 | N/A | schema validation + golden tests |
-| `.bukit/assets.json` | GA-locked | 自动生成 | N/A | schema validation |
-| `.bukit/security-report.json` | GA-locked | 包含真实检查结果 | N/A | schema validation + security-regression 集成 |
-| 可复现构建 | GA-locked | clean build 两次一致 | N/A | deterministic build compare |
+| 能力 | 1.0 等级 | 允许配置 | 拒绝行为 | 测试要求 |
+|------|----------|----------|----------|----------|
+| `.bukit/build-report.json` | `GA-locked` | schema 冻结 | N/A | Schema validation |
+| `.bukit/routes.json` | `GA-locked` | schema 冻结 | N/A | Schema validation |
+| `.bukit/assets.json` | `GA-locked` | 覆盖完整 public output | N/A | Schema validation |
+| `.bukit/incremental-manifest.json` | `GA-locked` | schema 冻结 | N/A | Schema validation |
+| `.bukit/security-report.json` | `GA-locked` | 真实检查结果 | N/A | Schema validation |
+| 确定性构建（clean twice） | `GA-locked` | 冻结 | N/A | build-repro.sh |
+| Clean vs incremental 一致性 | `GA-locked` | 冻结 | N/A | CI 验证 |
 
-### AI / 导入 / 其他
+### 其他能力
 
-| 能力 | 等级 | 允许配置 | 拒绝行为 | 测试要求 |
-|------|------|----------|----------|----------|
-| AI Intent / samples/intent | Experimental | — | 不纳入核心信任链 | 基础功能测试 |
-| clone（项目克隆） | GA-limited | 重新生成 1.0 新项目的工具 | 非 Bukit 项目拒绝 | CloneCommand tests |
-| import（HTML 导入） | GA-limited | html-demo / seed 子命令 | 无效输入拒绝 | ImportCommand tests |
-| BukitJalil | **Out of scope** | — | 不进入 Bukit 1.0 | 确保不被引用 |
+| 能力 | 1.0 等级 | 允许配置 | 拒绝行为 | 测试要求 |
+|------|----------|----------|----------|----------|
+| AI Intent / samples/intent | `Experimental` | 不纳入核心 1.0 信任链 | N/A | N/A |
+| clone/import | `Experimental` | 不进入 1.0 稳定承诺 | N/A | N/A |
+| BukitJalil | `Out of scope` | 不进入 Bukit 1.0 | N/A | N/A |
+
+## 诊断码范围
+
+| 范围 | 类别 | 状态 |
+|------|------|------|
+| BKT-000x | Config | 已分配 0001-0007 |
+| BKT-010x | Theme | 已分配 0100-0104 |
+| BKT-020x | Route | 已分配 0201-0209 |
+| BKT-030x | Render | 已分配 0301-0399 |
+| BKT-040x | Schema | 已分配 0401-0402 |
+| BKT-050x | Content | 已分配 0501-0503 |
+| BKT-060x | Build | 已分配 0601-0603 |
+| BKT-070x | Plugin | 已分配 0701-0707 |
+| BKT-080x | SEO/GEO | 已分配 0801-0812 |
+| BKT-090x | Media | 已分配 0901-0904 |
+
+## 旧行为处理策略
+
+| 旧行为 | 处理方式 | 诊断码 |
+|--------|----------|--------|
+| `content.provider` | rejected-with-message → 迁移到 `content.sources` | BKT-0007 |
+| `site.rssMode` | rejected-with-message | BKT-0005 |
+| `site.searchMode` | rejected-with-message | BKT-0005 |
+| 顶层 `outputPath` | rejected-with-message → 使用 `route.url` | BKT-0209 |
+| nested `route.outputPath` | rejected-with-message → 使用 `route.url` | BKT-0209 |
+| 同时声明 `type` + `collection` | 1.0 starter 禁止；路由/模板只读取 `collection` | N/A |
+| 仅声明 `type` | 不匹配 1.0 starter 契约；不会驱动路由 | N/A |
+| 无 `theme.yaml` 主题 | rejected + BKT-0100 | BKT-0100 |
+| Plugin protocol v1 | rejected + BKT-0705 | BKT-0705 |
+| 无 `capabilities` 外部插件 | rejected + BKT-0704 | BKT-0704 |
+| Warning-only 运行路径 | 全部升级为 rejected-with-message | 各对应 BKT-xxxx |

@@ -198,7 +198,7 @@ public sealed class PluginRunnerTests
             Config = new AppConfig
             {
                 Site = site,
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = root,
             OutputDir = outputDir,

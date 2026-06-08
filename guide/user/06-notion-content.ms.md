@@ -31,13 +31,15 @@ Dalam GitHub Actions, gunakan Secrets repositori (lihat: [13 Terap GitHub Pages]
 
 Anda perlu mencipta Integrasi dalam Notion dan berkongsi pangkalan data sasaran dengan Integrasi tersebut, jika tidak, anda akan menghadapi ralat "tiada kebenaran / pangkalan data tidak ditemui."
 
-## Konfigurasi Minimum (Notion provider)
+## Konfigurasi Minimum (Notion source)
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 ```
 
 Adalah disyorkan untuk bermula dengan "konfigurasi minimum", jalankannya, kemudian tambah filter/sort/fieldPolicy secara beransur-ansur.
@@ -47,18 +49,20 @@ Adalah disyorkan untuk bermula dengan "konfigurasi minimum", jalankannya, kemudi
 Bermula dari versi semasa, konfigurasi penyetempatan imej disatukan di bawah `content.media` dan tidak lagi membaca medan media khusus Notion.
 
 Dialih keluar (tiada keserasian):
-- `content.notion.downloadImagesToLocal`
-- `content.notion.imageDownloadDir`
-- `content.notion.imageUrlBase`
-- `content.notion.defaultImageUrl`
+- `content.sources[].notion.downloadImagesToLocal`
+- `content.sources[].notion.imageDownloadDir`
+- `content.sources[].notion.imageUrlBase`
+- `content.sources[].notion.defaultImageUrl`
 
 Sila tukar kepada:
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
   media:
     downloadToLocal: true
     downloadDir: assets/uploads
@@ -129,22 +133,26 @@ Nota:
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    filterProperty: Published
-    filterType: checkbox_true
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        filterProperty: Published
+        filterType: checkbox_true
 ```
 
 ### Isih mengikut tarikh terbit menurun
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    sortProperty: PublishAt
-    sortDirection: descending
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        sortProperty: PublishAt
+        sortDirection: descending
 ```
 
 ## Had, Pengambilan Berskop & Caching (Pangkalan Data Besar / Mengurangkan Permintaan Notion)
@@ -153,44 +161,52 @@ content:
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    maxItems: 5000
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        maxItems: 5000
 ```
 
 ### 2) includeSlugs: Hanya ambil halaman dengan slug yang ditentukan
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    includeSlugProperty: Slug
-    includeSlugs: [about, first-post]
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        includeSlugProperty: Slug
+        includeSlugs: [about, first-post]
 ```
 
 ### 3) cacheMode/cacheDir: Cache hasil render badan kandungan
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    cacheMode: readwrite   # off | readwrite | readonly
-    cacheDir: .cache/notion
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        cacheMode: readwrite   # off | readwrite | readonly
+        cacheDir: .cache/notion
 ```
 
 ### 4) renderConcurrency/maxRps/maxRetries: Render serentak & had kadar
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    renderConcurrency: 4
-    maxRps: 3
-    maxRetries: 5
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        renderConcurrency: 4
+        maxRps: 3
+        maxRetries: 5
 ```
 
 ### 5) notion.stats: Log statistik permintaan/sekatan semasa pembinaan
@@ -205,28 +221,32 @@ event=notion.stats requests=1234 throttle_wait_count=56 throttle_wait_ms=7890
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    fieldPolicy:
-      mode: whitelist
-      allowed:
-        - seo_title
-        - seo_desc
-        - cover
-        - reading_time
-        - my_link
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        fieldPolicy:
+          mode: whitelist
+          allowed:
+            - seo_title
+            - seo_desc
+            - cover
+            - reading_time
+            - my_link
 ```
 
 ### Semua (mudah untuk penyahpepijatan, tetapi perubahan medan lebih mudah mempengaruhi templat)
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    fieldPolicy:
-      mode: all
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        fieldPolicy:
+          mode: all
 ```
 
 ## Ralat Lazim dan Pembaikan

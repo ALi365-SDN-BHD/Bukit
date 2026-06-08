@@ -43,9 +43,13 @@ For example, if you write:
 
 ```yaml
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 build:
   output: dist
 theme:
@@ -148,11 +152,11 @@ For multilingual output and SEO, see: [11 Multilingual & SEO](./11-i18n-seo.md).
 
 ## Advanced: Route Override Fields (Use with Caution)
 
-If you truly need to output a certain page to a custom path, you can use the following fields (they are mapped to meta across different content sources):
+If you truly need a custom public URL, use route override fields:
 
-- `route` or `url`: Specifies the output URL
-- `outputPath`: Directly specifies the output file path (e.g., `pages/about/index.html`)
-- `template`: Specifies which template to use
+- `route.url` or top-level `url`: Specifies the public URL
+- `route.template` or top-level `template`: Specifies which template to use
+- `outputPath`: Removed in Bukit 1.0; it is derived from the final URL and manual values are rejected
 
 Common consequences of misconfiguring these fields:
 
@@ -160,4 +164,4 @@ Common consequences of misconfiguring these fields:
 - Incorrect links in sitemap/rss/search
 - GitHub Pages 404 errors (baseUrl/path mismatch)
 
-It is recommended to solve routing needs through `slug/type` first; consult [14 Troubleshooting](./14-troubleshooting.md) when you truly need overrides.
+It is recommended to solve routing needs through `collection` and `slug` first; consult [14 Troubleshooting](./14-troubleshooting.md) when you truly need overrides.

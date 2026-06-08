@@ -133,7 +133,7 @@ site:
 实现：`src/Bukit.Engine/Plugins/PluginCapability.cs`、`src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs`。
 
 **执行规则：**
-- `capabilities` 未声明 → 所有 hook 允许（向后兼容）
+- `capabilities` 未声明 → 报错（`ConfigException` / `BKT-0701`）
 - `capabilities` 已声明 → 运行时检查每个 hook 是否匹配能力列表
 - Hook 缺少所需能力 → `ConfigException`，错误码 `BKT-0701`
 - 无效能力名称 → 配置验证时 `ConfigException`

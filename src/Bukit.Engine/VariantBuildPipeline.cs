@@ -287,6 +287,7 @@ internal sealed class VariantBuildPipeline
             BaseUrl = ctx.BaseUrl,
             LayoutsDir = ctx.LayoutsDir,
             RoutedDocuments = routeResult.RoutedDocuments,
+            StaticHtmlRoutes = Array.Empty<RouteInfo>(),
             ContentGraph = ctx.ContentGraph,
             BodyStore = bodyStore,
             TemplateResolver = templateResolver.ResolveKindTemplate,
@@ -314,6 +315,8 @@ internal sealed class VariantBuildPipeline
         {
             logger.Warn("Static HTML files in static dir are skipped because no static template is configured (theme.staticTemplate).");
         }
+
+        pluginContext.StaticHtmlRoutes = staticHtmlRoutes;
 
         RouteInventoryValidator.ValidateFinalRoutes(routeResult.RoutedDocuments, pluginContext.DerivedDocuments, routeResult.ListRoutes, staticHtmlRoutes);
 
@@ -501,12 +504,25 @@ internal sealed class VariantBuildPipeline
             SeoIndex: seoResult.SeoIndex.Entries,
             SeoModels: seoResult.SeoIndex.Models,
             PluginExecutions: pluginContext.PluginExecutions.ToList(),
+            StaticRoutes: pluginContext.StaticHtmlRoutes,
+            PluginOutputs: GetPluginOutputs(pluginContext),
             RenderedCount: renderedCount, SkippedCount: skippedCount,
             RenderReasons: renderReasons,
             StageMetrics: variantStageMetrics.Snapshot(),
             Logger: logger,
             DefaultLanguage: defaultLanguage,
             ContentGraph: contentGraph)));
+    }
+
+    private static IReadOnlyList<PluginOutputTrackingInfo> GetPluginOutputs(BuildContext pluginContext)
+    {
+        if (!pluginContext.Data.TryGetValue("__plugin_outputs", out var outputsObj) ||
+            outputsObj is not HashSet<PluginOutputTrackingInfo> outputs)
+        {
+            return Array.Empty<PluginOutputTrackingInfo>();
+        }
+
+        return outputs.ToList();
     }
 
     private static IReadOnlyDictionary<string, object>? MergeSiteData(

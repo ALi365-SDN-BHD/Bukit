@@ -131,7 +131,7 @@ public sealed class AliasPluginTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/t",
             OutputDir = "/t/out",

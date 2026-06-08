@@ -34,45 +34,23 @@ Halaman ini adalah untuk carian pantas. Untuk rujukan medan berwibawa yang lebih
 | `site.pluginFailMode` | Strategi kegagalan plugin | `strict` / `warn` |
 | `site.plugins` | Suis dan parameter plugin | `sitemap: false` / `path-report: { enabled: true, options: {...} }` |
 | `site.sitemapMode` | Mod output sitemap | `split` / `merged` / `index` |
-| `site.rssMode` | Mod output RSS | `split` / `merged` |
 | `site.searchMode` | Mod output carian | `split` / `merged` / `index` |
 | `site.autoSummary` | Auto-ekstrak ringkasan dari badan apabila tidak disediakan | `true` / `false` |
 | `site.autoSummaryMaxLength` | Panjang maks ringkasan auto (aksara) | `200` |
 
 ## content.* (Sistem Kandungan)
 
-### provider=markdown
+### content.sources[] (Markdown / Notion / Data)
 
 | Medan | Maksud | Contoh |
 |---|---|---|
-| `content.provider` | Jenis sumber kandungan | `markdown` |
-| `content.markdown.dir` | Direktori akar Markdown | `content` |
-| `content.markdown.defaultType` | Jenis lalai | `page` |
-
-### provider=notion
-
-| Medan | Maksud | Contoh |
-|---|---|---|
-| `content.provider` | Jenis sumber kandungan | `notion` |
-| `content.notion.databaseId` | ID Pangkalan Data | `xxxxxxxx-xxxx-...` |
-| `content.notion.pageSize` | Saiz halaman (pilihan) | `50` |
-| `content.notion.filterProperty` | Nama medan penapis | `Published` |
-| `content.notion.filterType` | Jenis penapis | `checkbox_true` |
-| `content.notion.sortProperty` | Nama medan isihan | `PublishAt` |
-| `content.notion.sortDirection` | Arah isihan | `descending` |
-| `content.notion.fieldPolicy.mode` | Dasar medan | `whitelist` / `all` |
-| `content.notion.fieldPolicy.allowed` | Medan senarai putih (kunci ternormal) | `[seo_title, seo_desc]` |
-
-### provider=sources (Mod Komposit)
-
-| Medan | Maksud | Contoh |
-|---|---|---|
-| `content.provider` | Jenis sumber kandungan | `sources` |
 | `content.sources[].type` | Jenis sumber | `markdown` / `notion` |
 | `content.sources[].name` | Nama sumber | `pages` / `posts` / `modules` |
 | `content.sources[].mode` | Mod tingkah laku | `content` / `data` |
-| `content.sources[].markdown` | Sub-konfigurasi Markdown | `{ dir: content }` |
-| `content.sources[].notion` | Sub-konfigurasi Notion | `{ databaseId: "...", fieldPolicy: { mode: all } }` |
+| `content.sources[].collection` | Koleksi lalai untuk laluan kandungan | `page` / `post` |
+| `content.sources[].markdown.dir` | Direktori akar Markdown | `content` |
+| `content.sources[].notion.databaseId` | ID Pangkalan Data | `xxxxxxxx-xxxx-...` |
+| `content.sources[].notion.fieldPolicy.mode` | Dasar medan Notion | `whitelist` / `all` |
 
 ## build.* (Output Binaan)
 

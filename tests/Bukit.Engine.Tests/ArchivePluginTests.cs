@@ -48,7 +48,7 @@ public sealed class ArchivePluginTests
                         }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test",
             OutputDir = "/test/out",
@@ -201,7 +201,7 @@ public sealed class ArchivePluginTests
                         }
                     }
                 },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = "/test",
             OutputDir = "/test/out",

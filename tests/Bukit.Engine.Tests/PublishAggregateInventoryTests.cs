@@ -135,6 +135,6 @@ public sealed class PublishAggregateInventoryTests : IDisposable
                     RobotsTxt = new SeoRobotsTxtConfig { Enabled = true }
                 }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 }

@@ -10,7 +10,7 @@
 
 ## 触发条件：sourceMode=data
 
-当 `content.provider: sources` 且某个 source 的 `mode: data` 时，引擎会在加载后将其标记为 data item（Meta 中带 `sourceMode=data`），并在渲染前：
+当 `content.sources[]` 中某个 source 的 `mode: data` 时，引擎会在加载后将其标记为 data item（Meta 中带 `sourceMode=data`），并在渲染前：
 
 1. 从全部 items 中分离 dataItems
 2. 对 dataItems 做过滤/分组/排序
@@ -54,17 +54,15 @@ dataItems 会按字段 `locale` 做过滤：
 
 ```yaml
 content:
-  provider: sources
   sources:
-    - type: notion
-      name: pages
+    - name: pages
       mode: content
+      collection: page
       notion:
         databaseId: "..."
         filterProperty: Published
         filterType: checkbox_true
-    - type: notion
-      name: modules
+    - name: modules
       mode: data
       notion:
         databaseId: "..."

@@ -43,6 +43,7 @@ public sealed class CollectionWarningStageTests
                 Content = new ContentConfig
                 {
                     Provider = "markdown",
+                    Sources = TestContent.Markdown().Sources,
                     Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
@@ -92,20 +93,19 @@ public sealed class CollectionWarningStageTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_HasCollection_NoWarning()
+    public async Task ExecuteAsync_CollectionWithoutExplicitType_NoWarning()
     {
         var logger = new TestLogger();
         var document = CreateDocument("with-col", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["collection"] = "blog",
-            ["type"] = "custom"
+            ["collection"] = "blog"
         });
         var stage = new CollectionWarningStage();
         var input = CreateInput(new[] { document }, logger);
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
-        Assert.NotEmpty(logger.Warnings);
+        Assert.Empty(logger.Warnings);
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public sealed class CollectionWarningStageTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_TypeWithNonPostPageCollection_NoWarning()
+    public async Task ExecuteAsync_CustomTypeWithCollection_EmitsConflictWarning()
     {
         var logger = new TestLogger();
         var document = CreateDocument("my-custom", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -182,6 +182,32 @@ public sealed class CollectionWarningStageTests
         await stage.ExecuteAsync(input, CancellationToken.None);
 
         Assert.NotEmpty(logger.Warnings);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_InternalRecordTypeWithSourceCollection_NoWarning()
+    {
+        var logger = new TestLogger();
+        var fieldMap = ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["collection"] = "post"
+        });
+        var document = ContentDocumentNormalizer.ToDocument(new RawContentDocument(
+            Id: "source-post",
+            Title: "Source Post",
+            Slug: "source-post",
+            PublishAt: DateTimeOffset.UtcNow,
+            Body: new RawBody(InlineHtml: "<p>hi</p>"),
+            Properties: RawContentValue.FromFields(fieldMap),
+            CustomFields: fieldMap));
+        var stage = new CollectionWarningStage();
+        var input = CreateInput(new[] { document }, logger);
+
+        await stage.ExecuteAsync(input, CancellationToken.None);
+
+        Assert.Equal("post", ContentFieldReader.GetContentType(document));
+        Assert.Equal("post", ContentFieldReader.GetCollection(document));
+        Assert.Empty(logger.Warnings);
     }
 
     [Fact]

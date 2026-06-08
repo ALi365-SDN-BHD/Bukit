@@ -45,7 +45,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
                 - zh-CN
                 - ja
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -66,7 +69,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               title: My Blog
               languages: []
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -83,7 +89,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               title: My Blog
               defaultLanguage: en
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -101,7 +110,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               autoSummary: true
               autoSummaryMaxLength: 150
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -118,7 +130,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -141,7 +156,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
                 PluginA: v1.0
                 PluginB: v2.3
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -164,7 +182,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               searchIncludeDerived: true
               externalProtocolIncludeRoutedPages: true
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -184,7 +205,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               rssMode: off
               searchMode: flat
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -204,7 +228,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               pluginFailMode: warn
               deriveConflictPolicy: skip
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -221,7 +248,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             theme:
               name: my-custom-theme
               source: "https://example.com/themes.git@v1.2.3"
@@ -251,7 +281,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             theme:
               params:
                 primaryColor: "#3498db"
@@ -292,7 +325,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             logging:
               level: debug
             """;
@@ -310,7 +346,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             logging:
               level: warn
             """;
@@ -328,7 +367,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             logging:
               level: error
             """;
@@ -351,7 +393,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
                 feed: true
                 openGraph: false
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -384,7 +429,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
                     provider: disqus
                     shortname: mysite
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -413,7 +461,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
               templates:
                 tags:
@@ -447,7 +498,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
               itemFields:
                 - tags
@@ -472,7 +526,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
               pinField: featured
               pinOrderField: priority
@@ -492,7 +549,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
               pinFieldBySource:
                 notion: NotionPinned
@@ -515,7 +575,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
               pinOrderFieldBySource:
                 notion: NotionOrder
@@ -538,28 +601,30 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: notion
-              notion:
-                databaseId: abc123
-                fieldPolicy:
-                  mode: whitelist
-                  allowed:
-                    - title
-                    - slug
-                    - tags
-                    - published
+              sources:
+                - type: notion
+                  notion:
+                    databaseId: abc123
+                    fieldPolicy:
+                      mode: whitelist
+                      allowed:
+                        - title
+                        - slug
+                        - tags
+                        - published
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
+        var source = config.Content.Sources![0].Notion;
 
-        Assert.NotNull(config.Content.Notion);
-        Assert.Equal("whitelist", config.Content.Notion.FieldPolicy.Mode);
-        Assert.NotNull(config.Content.Notion.FieldPolicy.Allowed);
-        Assert.Equal(4, config.Content.Notion.FieldPolicy.Allowed.Count);
-        Assert.Contains("title", config.Content.Notion.FieldPolicy.Allowed);
-        Assert.Contains("slug", config.Content.Notion.FieldPolicy.Allowed);
-        Assert.Contains("tags", config.Content.Notion.FieldPolicy.Allowed);
-        Assert.Contains("published", config.Content.Notion.FieldPolicy.Allowed);
+        Assert.NotNull(source);
+        Assert.Equal("whitelist", source.FieldPolicy.Mode);
+        Assert.NotNull(source.FieldPolicy.Allowed);
+        Assert.Equal(4, source.FieldPolicy.Allowed!.Count);
+        Assert.Contains("title", source.FieldPolicy.Allowed);
+        Assert.Contains("slug", source.FieldPolicy.Allowed);
+        Assert.Contains("tags", source.FieldPolicy.Allowed);
+        Assert.Contains("published", source.FieldPolicy.Allowed);
     }
 
     [Fact]
@@ -570,18 +635,20 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: notion
-              notion:
-                databaseId: abc123
-                fieldPolicy:
-                  mode: all
+              sources:
+                - type: notion
+                  notion:
+                    databaseId: abc123
+                    fieldPolicy:
+                      mode: all
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
+        var source = config.Content.Sources![0].Notion;
 
-        Assert.NotNull(config.Content.Notion);
-        Assert.Equal("all", config.Content.Notion.FieldPolicy.Mode);
-        Assert.Null(config.Content.Notion.FieldPolicy.Allowed);
+        Assert.NotNull(source);
+        Assert.Equal("all", source.FieldPolicy.Mode);
+        Assert.Null(source.FieldPolicy.Allowed);
     }
 
     [Fact]
@@ -650,7 +717,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             deploy:
               provider: custom
               branch: release
@@ -689,20 +759,22 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: notion
-              notion:
-                databaseId: abc123
-                renderConcurrency: 4
-                maxRps: 2
-                maxRetries: 8
+              sources:
+                - type: notion
+                  notion:
+                    databaseId: abc123
+                    renderConcurrency: 4
+                    maxRps: 2
+                    maxRetries: 8
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
+        var source = config.Content.Sources![0].Notion;
 
-        Assert.NotNull(config.Content.Notion);
-        Assert.Equal(4, config.Content.Notion.RenderConcurrency);
-        Assert.Equal(2, config.Content.Notion.MaxRps);
-        Assert.Equal(8, config.Content.Notion.MaxRetries);
+        Assert.NotNull(source);
+        Assert.Equal(4, source.RenderConcurrency);
+        Assert.Equal(2, source.MaxRps);
+        Assert.Equal(8, source.MaxRetries);
     }
 
     [Fact]
@@ -713,7 +785,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             build:
               report:
                 enabled: true
@@ -725,19 +800,22 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
     }
 
     [Fact]
-    public void Load_BuildReportEnabled_DefaultsToFalse()
+    public void Load_BuildReportEnabled_DefaultsToTrue()
     {
         var yaml = """
             site:
               name: myblog
               title: My Blog
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
 
-        Assert.False(config.Build.Report.Enabled);
+        Assert.True(config.Build.Report.Enabled);
     }
 
     [Fact]
@@ -748,18 +826,20 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: notion
-              notion:
-                databaseId: abc123
-                cacheMode: memory
-                cacheDir: /var/cache/bukit
+              sources:
+                - type: notion
+                  notion:
+                    databaseId: abc123
+                    cacheMode: memory
+                    cacheDir: /var/cache/bukit
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
+        var source = config.Content.Sources![0].Notion;
 
-        Assert.NotNull(config.Content.Notion);
-        Assert.Equal("memory", config.Content.Notion.CacheMode);
-        Assert.Equal("/var/cache/bukit", config.Content.Notion.CacheDir);
+        Assert.NotNull(source);
+        Assert.Equal("memory", source.CacheMode);
+        Assert.Equal("/var/cache/bukit", source.CacheDir);
     }
 
     [Fact]
@@ -770,25 +850,27 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: notion
-              notion:
-                databaseId: abc123
-                includeSlugs:
-                  - about
-                  - contact
-                  - privacy
-                includeSlugProperty: CustomSlug
+              sources:
+                - type: notion
+                  notion:
+                    databaseId: abc123
+                    includeSlugs:
+                      - about
+                      - contact
+                      - privacy
+                    includeSlugProperty: CustomSlug
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
+        var source = config.Content.Sources![0].Notion;
 
-        Assert.NotNull(config.Content.Notion);
-        Assert.NotNull(config.Content.Notion.IncludeSlugs);
-        Assert.Equal(3, config.Content.Notion.IncludeSlugs.Count);
-        Assert.Contains("about", config.Content.Notion.IncludeSlugs);
-        Assert.Contains("contact", config.Content.Notion.IncludeSlugs);
-        Assert.Contains("privacy", config.Content.Notion.IncludeSlugs);
-        Assert.Equal("CustomSlug", config.Content.Notion.IncludeSlugProperty);
+        Assert.NotNull(source);
+        Assert.NotNull(source.IncludeSlugs);
+        Assert.Equal(3, source.IncludeSlugs.Count);
+        Assert.Contains("about", source.IncludeSlugs);
+        Assert.Contains("contact", source.IncludeSlugs);
+        Assert.Contains("privacy", source.IncludeSlugs);
+        Assert.Equal("CustomSlug", source.IncludeSlugProperty);
     }
 
     [Fact]
@@ -799,23 +881,25 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
             content:
-              provider: notion
-              notion:
-                databaseId: abc123
-                filterProperty: Status
-                filterType: select_equals
-                filterValue: Published
-                sortProperty: Updated
-                sortDirection: descending
+              sources:
+                - type: notion
+                  notion:
+                    databaseId: abc123
+                    filterProperty: Status
+                    filterType: select_equals
+                    filterValue: Published
+                    sortProperty: Updated
+                    sortDirection: descending
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
+        var source = config.Content.Sources![0].Notion;
 
-        Assert.NotNull(config.Content.Notion);
-        Assert.Equal("Status", config.Content.Notion.FilterProperty);
-        Assert.Equal("select_equals", config.Content.Notion.FilterType);
-        Assert.Equal("Published", config.Content.Notion.FilterValue);
-        Assert.Equal("Updated", config.Content.Notion.SortProperty);
-        Assert.Equal("descending", config.Content.Notion.SortDirection);
+        Assert.NotNull(source);
+        Assert.Equal("Status", source.FilterProperty);
+        Assert.Equal("select_equals", source.FilterType);
+        Assert.Equal("Published", source.FilterValue);
+        Assert.Equal("Updated", source.SortProperty);
+        Assert.Equal("descending", source.SortDirection);
     }
 }

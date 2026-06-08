@@ -1,0 +1,38 @@
+{
+  "schema": "https://bukit.dev/schemas/routes.v1.json",
+  "schemaVersion": "1.0",
+  "routes": [
+    {
+      "url": "/blog/collection-route/",
+      "outputPath": "blog/collection-route/index.html",
+      "template": "pages/post.html",
+      "routeSource": "Collection",
+      "collection": "article",
+      "type": null
+    },
+    {
+      "url": "/full/",
+      "outputPath": "full/index.html",
+      "template": "pages/full.html",
+      "routeSource": "FullOverride",
+      "collection": "page",
+      "type": null
+    },
+    {
+      "url": "/partial/",
+      "outputPath": "partial/index.html",
+      "template": "pages/partial.html",
+      "routeSource": "FullOverride",
+      "collection": "article",
+      "type": null
+    },
+    {
+      "url": "/special/permalink-route/",
+      "outputPath": "special/permalink-route/index.html",
+      "template": "",
+      "routeSource": "Permalink",
+      "collection": "special",
+      "type": null
+    }
+  ]
+}

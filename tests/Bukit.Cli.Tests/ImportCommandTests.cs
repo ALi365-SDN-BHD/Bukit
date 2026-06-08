@@ -592,7 +592,9 @@ databases:
         Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "notion-default-test", "content", "index.md")));
         Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "notion-default-test", "notion-seed", "pages.json")));
         var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-default-test", "site.yaml"));
-        Assert.Contains("provider: markdown", siteYaml);
+        Assert.Contains("sources:", siteYaml);
+        Assert.Contains("type: markdown", siteYaml);
+        Assert.DoesNotContain("provider: markdown", siteYaml);
         Assert.DoesNotContain("provider: notion", siteYaml);
         Assert.True(File.Exists(Path.Combine(_tempDir, "dist", "index.html")));
     }

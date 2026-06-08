@@ -75,7 +75,7 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = _rootDir,
             OutputDir = _outputDir,

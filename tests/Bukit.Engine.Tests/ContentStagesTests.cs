@@ -22,7 +22,7 @@ public sealed class ContentStagesTests
     private static AppConfig Config(bool draft = false) => new()
     {
         Site = new SiteConfig { Name = "test", Title = "Test" },
-        Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } },
+        Content = TestContent.Markdown(),
         Build = new BuildConfig { Draft = draft }
     };
 
@@ -855,7 +855,7 @@ public sealed class ContentStagesTests
                 Name = "test",
                 Title = "Test"
             },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() },
+            Content = TestContent.Markdown(),
             Build = new BuildConfig { SchemaFailMode = "warn" }
         };
         var stage = new ContentGraphValidateStage();
@@ -883,7 +883,7 @@ public sealed class ContentStagesTests
                 Name = "test",
                 Title = "Test"
             },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() },
+            Content = TestContent.Markdown(),
             Build = new BuildConfig { SchemaFailMode = "strict" }
         };
         var stage = new ContentGraphValidateStage();

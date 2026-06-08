@@ -107,8 +107,8 @@ Untuk sempadan medan dan kekangan implementasi yang lebih autoritatif, rujuk:
 ## Istilah Pantas
 
 - Konfigurasi tapak: `site.yaml` (atau `sites/<name>.yaml` untuk multi-site).
-- Content provider: membaca kandungan daripada Markdown/Notion.
-- Page/Post: ditentukan oleh `type: page|post` (atau medan `Type` di Notion).
+- Content sources: `content.sources[]` membaca kandungan daripada Markdown/Notion.
+- Page/Post: ditentukan oleh `collection: page|post` (atau medan `Collection` di Notion).
 - Theme: templat + aset + direktori statik.
 - Data Modules: dimuatkan melalui `content.sources[].mode: data`; hanya disuntik ke `site.modules.*`.
 - Output terbina dalam: `sitemap.xml`, `rss.xml`, `search.json`, dan lain-lain.

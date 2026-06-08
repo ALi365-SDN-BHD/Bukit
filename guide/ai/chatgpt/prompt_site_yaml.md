@@ -4,7 +4,7 @@ Copy this entire file starting from "User Requirements" to ChatGPT, filling in t
 
 ## User Requirements (replace placeholders with your real info)
 
-I want to build a static site using Bukit v2. Please ask questions first to fill in missing info (do not output YAML). When info is complete, output only `site.yaml` (pure YAML, no explanations), ensuring it passes `bukit doctor --config site.yaml`.
+I want to build a static site using Bukit 1.0. Please ask questions first to fill in missing info (do not output YAML). When info is complete, output only `site.yaml` (pure YAML, no explanations), ensuring it passes `bukit doctor --config site.yaml`.
 
 Summary:
 - site.name: {starter}
@@ -13,7 +13,7 @@ Summary:
 - site.url (optional, for sitemap/rss): {https://example.com or leave empty}
 - Content source:
   - Single: {markdown|notion}
-  - Multi: use `content.sources[]`: {yes/no}; need Modules (mode=data): {yes/no}
+  - Use `content.sources[]` for all content sources. Need Modules (mode=data): {yes/no}
 - Multilingual: {yes/no} (if yes: languages list and defaultLanguage)
 - Theme: theme.name {alt/...}, theme.params {optional}
 
@@ -27,8 +27,7 @@ Output requirements:
 Rules:
 - Single language: keep `site.language`, delete `site.languages` and `site.defaultLanguage`
 - Multilingual: fill in `site.languages` and `site.defaultLanguage`, set `site.language` to default language
-- Single source: use `content.provider: markdown|notion` with corresponding section
-- Multi-source/Modules: use `content.provider: sources` + `content.sources[]` (see snippet at end)
+- Always use `content.sources[]`. `content.provider` is removed in Bukit 1.0 and must never be generated.
 
 site:
   name: "{site_name}"
@@ -42,21 +41,24 @@ site:
   timezone: Asia/Shanghai
 
 content:
-  provider: "{markdown|notion|sources}"
-  markdown:
-    dir: "{content_dir}"
-    defaultType: page
-  notion:
-    databaseId: "{database_id}"
-    pageSize: 50
-    # sort/filter (optional, uncomment as needed)
-    # sortProperty: "Date"
-    # sortDirection: "descending" # ascending | descending
-    # filterProperty: "Status"
-    # filterType: "checkbox_true" # checkbox_true | none
-    fieldPolicy:
-      mode: whitelist
-      allowed: [{allowed_fields}]
+  sources:
+    - type: "{markdown|notion}"
+      name: "{source_name}"
+      mode: content
+      collection: "{collection_key}"
+      markdown:
+        dir: "{content_dir}"
+      notion:
+        databaseId: "{database_id}"
+        pageSize: 50
+        # sort/filter (optional, uncomment as needed)
+        # sortProperty: "Date"
+        # sortDirection: "descending" # ascending | descending
+        # filterProperty: "Status"
+        # filterType: "checkbox_true" # checkbox_true | none
+        fieldPolicy:
+          mode: whitelist
+          allowed: [{allowed_fields}]
 
 build:
   output: dist
@@ -76,15 +78,14 @@ logging:
 ## content.sources[] snippet (for multi-source / Modules, replace the content section above)
 
 content:
-  provider: sources
   sources:
     # 1. Page content source (generates routes)
     - type: markdown
       name: content
       mode: content
+      collection: page
       markdown:
         dir: content
-        defaultType: page
     # 2. Structured data source (Modules, no routes)
     - type: markdown
       name: modules
@@ -93,10 +94,11 @@ content:
         dir: data
         defaultType: module
     # 3. Notion supplementary source (example: as news section)
-    # - type: notion
-    #   name: news
-    #   mode: content
-    #   notion:
+# - type: notion
+#   name: news
+#   mode: content
+#   collection: post
+#   notion:
     #     databaseId: "xxxx"
     #     fieldPolicy: { mode: whitelist, allowed: [title, date] }
 

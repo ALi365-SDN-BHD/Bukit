@@ -60,7 +60,7 @@ site:
 ```yaml
 ---
 title: 常见问题
-type: page
+collection: page
 geo:
   schema_type: FAQPage
   faq:
@@ -76,7 +76,7 @@ geo:
 ```yaml
 ---
 title: 如何用 Bukit 搭建博客
-type: post
+collection: post
 geo:
   schema_type: HowTo
   about: 静态站点生成
@@ -96,7 +96,7 @@ geo:
 ```yaml
 ---
 title: 静态站点的未来
-type: post
+collection: post
 geo:
   schema_type: Article
   about: Web 开发

@@ -28,9 +28,13 @@ site:
       permalink: /pages/{slug}/
       template: pages/page.html
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 build:
   output: dist
   clean: true
@@ -75,7 +79,6 @@ logging:
 | 字段 | 作用 | 常见值 |
 |---|---|---|
 | `site.sitemapMode` | sitemap 输出模式 | `merged` / `split` / `index` |
-| `site.rssMode` | rss 输出模式 | `merged` / `split` |
 | `site.searchMode` | search 输出模式 | `merged` / `split` / `index` |
 
 这些模式怎么选见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md)。
@@ -202,65 +205,69 @@ site:
     page: "/docs/{slug}/"
 ```
 
-注意：如果某篇文章通过 Meta 或 Notion 字段设置了路由覆盖（url/outputPath/template），路由覆盖的优先级高于 permalinks。
+注意：如果某篇文章设置了 `route.url` 和可选 `route.template`，路由覆盖的优先级高于 permalinks。`outputPath` 始终从最终 URL 派生；顶层 `outputPath` 和嵌套 `route.outputPath` 在 Bukit 1.0 中都会被拒绝。
 
 ### content：内容来源（Markdown / Notion / 多源）
 
-你只能选一种 provider：
+Bukit 1.0 对单源和多源项目都统一使用 `content.sources[]`。
 
-- `markdown`：从本地文件夹读取 Markdown
-- `notion`：从 Notion 数据库读取
-- `sources`：组合多个来源（推荐用在 pages + posts + modules 分库）
-
-#### provider=markdown
+#### Markdown source
 
 ```yaml
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 ```
 
 | 字段 | 作用 | 说明 |
 |---|---|---|
-| `content.markdown.dir` | Markdown 根目录 | 递归读取 `*.md` |
-| `content.markdown.defaultType` | 未声明 type 时注入的可选元数据 | 不建议依赖它做路由；优先用 Front Matter `collection` 匹配 `site.collections` |
-| `content.markdown.maxItems` | 最多读取多少篇 | 正整数；用于大仓库限额 |
-| `content.markdown.includePaths` | 只读取指定路径 | 相对 `content.markdown.dir`；可省略 `.md` |
-| `content.markdown.includeGlobs` | 只读取匹配的 glob | 匹配相对路径，分隔符使用 `/` |
+| `content.sources[].markdown.dir` | Markdown 根目录 | 递归读取 `*.md` |
+| `content.sources[].collection` | 该 source 的默认 collection | 同一目录都属于同一 collection 时使用 |
+| `content.sources[].markdown.maxItems` | 最多读取多少篇 | 正整数；用于大仓库限额 |
+| `content.sources[].markdown.includePaths` | 只读取指定路径 | 相对 `markdown.dir`；可省略 `.md` |
+| `content.sources[].markdown.includeGlobs` | 只读取匹配的 glob | 匹配相对路径，分隔符使用 `/` |
 
 Markdown 内容写法见：[05-内容-Markdown](./05-markdown-content.zh-CN.md)。
 
-#### provider=notion
+#### Notion source
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "xxxx"
-    pageSize: 50
-    filterProperty: Published
-    filterType: checkbox_true
-    sortProperty: PublishAt
-    sortDirection: descending
-    fieldPolicy:
-      mode: whitelist
-      allowed:
-        - seo_title
-        - seo_desc
-        - cover
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "xxxx"
+        pageSize: 50
+        filterProperty: Published
+        filterType: checkbox_true
+        sortProperty: PublishAt
+        sortDirection: descending
+        fieldPolicy:
+          mode: whitelist
+          allowed:
+            - seo_title
+            - seo_desc
+            - cover
 ```
 
 | 字段 | 作用 | 说明 |
 |---|---|---|
-| `content.notion.maxItems` | 最多拉取多少条 | 正整数；用于大库限额 |
-| `content.notion.includeSlugs` | 只拉取指定 slug | 数据库 query 过滤（便于单篇调试） |
-| `content.notion.includeSlugProperty` | includeSlugs 对应字段 | 默认 `Slug`；建议 rich_text |
-| `content.notion.cacheMode` | Notion 渲染缓存模式 | `off`/`readwrite`/`readonly` |
-| `content.notion.cacheDir` | 缓存目录 | 相对 config 所在目录；不填时默认 `<rootDir>/.cache/notion` |
-| `content.notion.renderConcurrency` | 正文渲染并发度 | 正整数；默认本地 4、CI 2 |
-| `content.notion.maxRps` | Notion 请求全局限速 | 正整数；默认 3（包含数据库 query + blocks children） |
-| `content.notion.maxRetries` | 429 最大重试次数 | 非负整数；遵循 `Retry-After` 退避 |
+| `content.sources[].notion.maxItems` | 最多拉取多少条 | 正整数；用于大库限额 |
+| `content.sources[].notion.includeSlugs` | 只拉取指定 slug | 数据库 query 过滤（便于单篇调试） |
+| `content.sources[].notion.includeSlugProperty` | includeSlugs 对应字段 | 默认 `Slug`；建议 rich_text |
+| `content.sources[].notion.cacheMode` | Notion 渲染缓存模式 | `off`/`readwrite`/`readonly` |
+| `content.sources[].notion.cacheDir` | 缓存目录 | 相对 config 所在目录；不填时默认 `<rootDir>/.cache/notion` |
+| `content.sources[].notion.renderConcurrency` | 正文渲染并发度 | 正整数；默认本地 4、CI 2 |
+| `content.sources[].notion.maxRps` | Notion 请求全局限速 | 正整数；默认 3（包含数据库 query + blocks children） |
+| `content.sources[].notion.maxRetries` | 429 最大重试次数 | 非负整数；遵循 `Retry-After` 退避 |
 
 Notion 模式的前提：
 
@@ -281,15 +288,15 @@ BUKIT_BUILD__CLEAN=false
 
 这些覆盖会在读取 `site.yaml` 后、配置校验前应用。适合 CI/CD 注入部署 URL、输出开关或内容目录。
 
-#### provider=sources（多源组合，支持 mode=data）
+#### 多源组合，支持 `mode: data`
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: pages
       mode: content
+      collection: page
       markdown:
         dir: content
     - type: markdown
@@ -497,11 +504,11 @@ site:
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: content
       mode: content
+      collection: page
       markdown: { dir: content }
     - type: markdown
       name: modules

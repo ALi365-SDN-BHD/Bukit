@@ -276,6 +276,6 @@ public sealed class GeoDiagnosticsTests
                 Url = "https://example.com",
                 Seo = new SeoConfig { Diagnostics = diagnostics }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 }

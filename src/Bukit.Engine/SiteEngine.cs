@@ -100,7 +100,8 @@ public sealed class SiteEngine
             MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, contentResult.BodyCacheMetrics);
             plan.Stopwatch.Stop();
             var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, plan.OutputDir, overrides, plan.StartedAt, DateTimeOffset.UtcNow, plan.Stopwatch.ElapsedMilliseconds, new[] { result }, contentResult.SchemaErrors);
-            BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger);
+            var securityData = BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result });
+            BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData);
             WriteOutputMarker(plan.OutputDir);
             BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
             return singleLanguageBuildResult;
@@ -204,7 +205,8 @@ public sealed class SiteEngine
         MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, documents.Count, variantResults, bodyCacheMetrics);
         buildStopwatch.Stop();
         var buildResult = BuildResultFactory.Create(config, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, variantResults, schemaErrors);
-        BuildReporter.WriteIfEnabled(config, rootDir, outputDir, buildResult, variantResults, _logger);
+        var securityData = BuildReporter.CreateSecurityReportData(config, rootDir, outputDir, variantResults);
+        BuildReporter.WriteIfEnabled(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData);
         WriteOutputMarker(outputDir);
         BuildRecoveryTracker.MarkCompleted(outputDir);
         return buildResult;

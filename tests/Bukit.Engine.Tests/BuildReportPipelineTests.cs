@@ -22,7 +22,7 @@ public sealed class BuildReportPipelineTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test", Language = "en" },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
         var pipeline = new BuildReportPipeline();
         var stageMetrics = new BuildStageMetricsCollector().Snapshot();

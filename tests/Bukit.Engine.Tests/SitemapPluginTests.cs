@@ -39,7 +39,7 @@ public sealed class SitemapPluginTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "n", Title = "t", Url = "https://example.com" },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 
         var context = new BuildContext
@@ -98,7 +98,7 @@ public sealed class SitemapPluginTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "n", Title = "t", Url = "https://example.com" },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 
         var context = new BuildContext

@@ -11,33 +11,33 @@ internal static class ExternalPluginsValidator
         {
             if (string.IsNullOrWhiteSpace(name))
             {
-                throw new ConfigException("site.externalPlugins keys must be non-empty strings.");
+                throw new ConfigException("site.externalPlugins keys must be non-empty strings.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (string.IsNullOrWhiteSpace(plugin.Runtime))
             {
-                throw new ConfigException($"site.externalPlugins.{name}.runtime is required.");
+                throw new ConfigException($"site.externalPlugins.{name}.runtime is required.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             var runtime = plugin.Runtime.Trim().ToLowerInvariant();
             if (runtime != "process")
             {
-                throw new ConfigException($"site.externalPlugins.{name}.runtime must be process.");
+                throw new ConfigException($"site.externalPlugins.{name}.runtime must be process.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (string.IsNullOrWhiteSpace(plugin.Entry))
             {
-                throw new ConfigException($"site.externalPlugins.{name}.entry is required.");
+                throw new ConfigException($"site.externalPlugins.{name}.entry is required.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (Path.IsPathRooted(plugin.Entry) && !plugin.AllowAbsoluteEntry)
             {
-                throw new ConfigException($"site.externalPlugins.{name}: plugin entry must be within project directory. Set allowAbsoluteEntry: true to allow absolute paths.");
+                throw new ConfigException($"site.externalPlugins.{name}: plugin entry must be within project directory. Set allowAbsoluteEntry: true to allow absolute paths.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (plugin.Hooks is null || plugin.Hooks.Count == 0)
             {
-                throw new ConfigException($"site.externalPlugins.{name}.hooks must contain at least one hook.");
+                throw new ConfigException($"site.externalPlugins.{name}.hooks must contain at least one hook.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             for (var i = 0; i < plugin.Hooks.Count; i++)
@@ -45,28 +45,28 @@ internal static class ExternalPluginsValidator
                 var hook = plugin.Hooks[i]?.Trim().ToLowerInvariant();
                 if (string.IsNullOrWhiteSpace(hook))
                 {
-                    throw new ConfigException($"site.externalPlugins.{name}.hooks[{i}] must be a non-empty string.");
+                    throw new ConfigException($"site.externalPlugins.{name}.hooks[{i}] must be a non-empty string.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
 
                 if (hook != "after-build" && hook != "derive-pages")
                 {
-                    throw new ConfigException($"site.externalPlugins.{name}.hooks[{i}] must be after-build or derive-pages.");
+                    throw new ConfigException($"site.externalPlugins.{name}.hooks[{i}] must be after-build or derive-pages.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
             }
 
             if (plugin.TimeoutMs <= 0)
             {
-                throw new ConfigException($"site.externalPlugins.{name}.timeoutMs must be a positive integer.");
+                throw new ConfigException($"site.externalPlugins.{name}.timeoutMs must be a positive integer.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (plugin.MaxStdoutBytes <= 0)
             {
-                throw new ConfigException($"site.externalPlugins.{name}.maxStdoutBytes must be a positive integer.");
+                throw new ConfigException($"site.externalPlugins.{name}.maxStdoutBytes must be a positive integer.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (plugin.MaxStderrBytes <= 0)
             {
-                throw new ConfigException($"site.externalPlugins.{name}.maxStderrBytes must be a positive integer.");
+                throw new ConfigException($"site.externalPlugins.{name}.maxStderrBytes must be a positive integer.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             if (plugin.Capabilities is { Count: > 0 })
@@ -76,14 +76,21 @@ internal static class ExternalPluginsValidator
                     var cap = plugin.Capabilities[i]?.Trim().ToLowerInvariant();
                     if (string.IsNullOrWhiteSpace(cap))
                     {
-                        throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be a non-empty string.");
+                        throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be a non-empty string.", DiagnosticCode.ConfigRequiredFieldMissing);
                     }
 
                     if (cap is not ("emit-outputs" or "derive-pages"))
                     {
-                        throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be emit-outputs or derive-pages.");
+                        throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be emit-outputs or derive-pages.", DiagnosticCode.ConfigRequiredFieldMissing);
                     }
                 }
+            }
+            else
+            {
+                throw new ConfigException(
+                    $"site.externalPlugins.{name}.capabilities is required in Bukit 1.0. " +
+                    $"Declare at least one capability (emit-outputs or derive-pages).",
+                    DiagnosticCode.PluginCapabilityMissing);
             }
 
             if (plugin.TemplateRequirements is { Count: > 0 })
@@ -92,7 +99,7 @@ internal static class ExternalPluginsValidator
                 {
                     if (string.IsNullOrWhiteSpace(plugin.TemplateRequirements[i]))
                     {
-                        throw new ConfigException($"site.externalPlugins.{name}.templateRequirements[{i}] must be a non-empty string.");
+                        throw new ConfigException($"site.externalPlugins.{name}.templateRequirements[{i}] must be a non-empty string.", DiagnosticCode.ConfigRequiredFieldMissing);
                     }
                 }
             }
@@ -107,28 +114,28 @@ internal static class ExternalPluginsValidator
             {
                 if (!string.Equals(plugin.WasmProfile?.Trim(), "wasi-preview1", StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new ConfigException($"site.externalPlugins.{name}.wasmProfile must be wasi-preview1.");
+                    throw new ConfigException($"site.externalPlugins.{name}.wasmProfile must be wasi-preview1.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
 
                 if (plugin.MaxMemoryMb <= 0)
                 {
-                    throw new ConfigException($"site.externalPlugins.{name}.maxMemoryMb must be a positive integer.");
+                    throw new ConfigException($"site.externalPlugins.{name}.maxMemoryMb must be a positive integer.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
 
                 if (plugin.MaxMemoryMb > 512)
                 {
-                    throw new ConfigException($"site.externalPlugins.{name}.maxMemoryMb must be <= 512.");
+                    throw new ConfigException($"site.externalPlugins.{name}.maxMemoryMb must be <= 512.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
 
                 var wasmFsMode = (plugin.WasmFsMode ?? "output-only").Trim().ToLowerInvariant();
                 if (wasmFsMode is not ("none" or "output-only"))
                 {
-                    throw new ConfigException($"site.externalPlugins.{name}.wasmFsMode must be none|output-only.");
+                    throw new ConfigException($"site.externalPlugins.{name}.wasmFsMode must be none|output-only.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
 
                 if (plugin.WasmAllowNetwork)
                 {
-                    throw new ConfigException($"site.externalPlugins.{name}.wasmAllowNetwork must be false in current sandbox policy.");
+                    throw new ConfigException($"site.externalPlugins.{name}.wasmAllowNetwork must be false in current sandbox policy.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
 
                 if (plugin.Capabilities is not null)
@@ -138,12 +145,12 @@ internal static class ExternalPluginsValidator
                         var capability = plugin.Capabilities[i]?.Trim().ToLowerInvariant();
                         if (string.IsNullOrWhiteSpace(capability))
                         {
-                            throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be a non-empty string.");
+                            throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be a non-empty string.", DiagnosticCode.ConfigRequiredFieldMissing);
                         }
 
                         if (capability != "emit-outputs")
                         {
-                            throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be emit-outputs.");
+                            throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be emit-outputs.", DiagnosticCode.ConfigRequiredFieldMissing);
                         }
                     }
                 }
@@ -161,7 +168,7 @@ internal static class ExternalPluginsValidator
 
         if (options.ContainsKey("arguments"))
         {
-            throw new ConfigException($"site.externalPlugins.{pluginName}.options.arguments is not allowed. Use options.processArgs.");
+            throw new ConfigException($"site.externalPlugins.{pluginName}.options.arguments is not allowed. Use options.processArgs.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (!options.TryGetValue("processArgs", out var processArgsObj) || processArgsObj is null)
@@ -172,14 +179,14 @@ internal static class ExternalPluginsValidator
         var processArgs = ProviderValidators.AsObjectMap(processArgsObj);
         if (processArgs is null)
         {
-            throw new ConfigException($"site.externalPlugins.{pluginName}.options.processArgs must be a mapping.");
+            throw new ConfigException($"site.externalPlugins.{pluginName}.options.processArgs must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (processArgs.TryGetValue("positionals", out var positionalsObj) && positionalsObj is not null)
         {
             if (positionalsObj is string || positionalsObj is not IEnumerable<object> positionals)
             {
-                throw new ConfigException($"site.externalPlugins.{pluginName}.options.processArgs.positionals must be a sequence.");
+                throw new ConfigException($"site.externalPlugins.{pluginName}.options.processArgs.positionals must be a sequence.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             var index = 0;
@@ -187,7 +194,7 @@ internal static class ExternalPluginsValidator
             {
                 if (positional is null)
                 {
-                    throw new ConfigException($"site.externalPlugins.{pluginName}.options.processArgs.positionals[{index}] must be non-null.");
+                    throw new ConfigException($"site.externalPlugins.{pluginName}.options.processArgs.positionals[{index}] must be non-null.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
 
                 index++;
@@ -199,14 +206,14 @@ internal static class ExternalPluginsValidator
             var named = ProviderValidators.AsObjectMap(namedObj);
             if (named is null)
             {
-                throw new ConfigException($"site.externalPlugins.{pluginName}.options.processArgs.named must be a mapping.");
+                throw new ConfigException($"site.externalPlugins.{pluginName}.options.processArgs.named must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             foreach (var key in named.Keys)
             {
                 if (string.IsNullOrWhiteSpace(key) || !Regex.IsMatch(key, "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"))
                 {
-                    throw new ConfigException($"site.externalPlugins.{pluginName}.options.processArgs.named contains illegal key: {key}");
+                    throw new ConfigException($"site.externalPlugins.{pluginName}.options.processArgs.named contains illegal key: {key}", DiagnosticCode.ConfigInvalidValue);
                 }
             }
         }

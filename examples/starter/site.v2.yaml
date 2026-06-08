@@ -15,7 +15,6 @@ site:
         archive: false
 
 content:
-  provider: sources
   sources:
     - type: markdown
       dir: content

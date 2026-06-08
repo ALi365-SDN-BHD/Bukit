@@ -49,7 +49,7 @@ site:
 Implementation: `src/Bukit.Engine/Plugins/PluginCapability.cs`, `src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs`.
 
 **Enforcement rules:**
-- `capabilities` not declared → all hooks allowed (backward compatible)
+- `capabilities` not declared → config validation fails (`ConfigException` / `BKT-0701`)
 - `capabilities` declared → each hook execution checked against capability list at runtime
 - Hook missing required capability → `ConfigException` with `BKT-0701`
 - Invalid capability names → `ConfigException` during config validation

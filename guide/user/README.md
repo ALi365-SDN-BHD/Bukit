@@ -116,8 +116,8 @@ For authoritative field boundaries and implementation constraints, cross-check:
 ## Quick Terms
 
 - Site config: `site.yaml` (or `sites/<name>.yaml` for multi-site).
-- Content provider: reads content from Markdown/Notion.
-- Page/Post: controlled by `type: page|post` (or Notion `Type` field).
+- Content sources: `content.sources[]` reads content from Markdown/Notion.
+- Page/Post: controlled by `collection: page|post` (or Notion `Collection` field).
 - Theme: template + assets + static directories.
 - Modules data: loaded with `content.sources[].mode: data`; injected to `site.modules.*` only.
 - Built-in outputs: `sitemap.xml`, `rss.xml`, `search.json`, etc.

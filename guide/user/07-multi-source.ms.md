@@ -1,6 +1,6 @@
 # 07 Kandungan (Pelbagai Sumber): Menggabungkan pages / posts / modules
 
-Apabila kandungan tapak anda datang dari lebih daripada satu sumber (contohnya: halaman dari Markdown, blog dari Notion, modul halaman utama dari data), anda harus menggunakan `content.provider: sources`.
+Apabila kandungan tapak anda datang dari lebih daripada satu sumber (contohnya: halaman dari Markdown, blog dari Notion, modul halaman utama dari data), gunakan `content.sources[]`.
 
 Halaman ini menerangkan struktur sources, maksud `mode=content|data`, dan contoh lengkap gabungan lazim.
 
@@ -14,11 +14,11 @@ Halaman ini menerangkan struktur sources, maksud `mode=content|data`, dan contoh
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: pages
       mode: content
+      collection: page
       markdown:
         dir: content
 ```
@@ -49,11 +49,11 @@ Lihat contoh boleh laku: `examples/starter/site.modules.yaml`.
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: content
       mode: content
+      collection: page
       markdown:
         dir: content
     - type: markdown
@@ -90,11 +90,11 @@ Kes penggunaan:
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: notion
       name: pages
       mode: content
+      collection: page
       notion:
         databaseId: "db_pages"
         filterProperty: Published
@@ -103,6 +103,7 @@ content:
     - type: notion
       name: posts
       mode: content
+      collection: post
       notion:
         databaseId: "db_posts"
         filterProperty: Published
@@ -145,16 +146,17 @@ Kes penggunaan:
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: pages
       mode: content
+      collection: page
       markdown:
         dir: content/pages
     - type: notion
       name: posts
       mode: content
+      collection: post
       notion:
         databaseId: "db_posts"
         filterProperty: Published

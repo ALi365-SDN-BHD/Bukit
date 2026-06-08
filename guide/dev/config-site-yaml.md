@@ -28,7 +28,6 @@ Final effective priority (high to low):
 | `site.timezone` | string | `UTC` | Timezone for dates |
 | `site.pluginFailMode` | string | `strict` | `strict` or `warn` |
 | `site.sitemapMode` | string | `split` | `split`/`merged`/`index` |
-| `site.rssMode` | string | `split` | `split`/`merged` |
 | `site.searchMode` | string | `split` | `split`/`merged`/`index` |
 | `site.autoSummary` | bool | false | Auto-extract summary from body |
 | `site.autoSummaryMaxLength` | int | 200 | Max auto summary characters |
@@ -99,38 +98,48 @@ Notes:
 
 ## content.* Fields
 
-### provider=markdown
+### content.sources[]
+
+`content.sources[]` is the only legal content entry in Bukit 1.0. `content.provider` is removed and rejected.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `content.provider` | string | `markdown` | Content source type |
-| `content.markdown.dir` | string | `content` | Markdown root directory |
-| `content.markdown.defaultType` | string | `page` | Default type |
-| `content.markdown.maxItems` | int | 0 | Max items (0=unlimited) |
-| `content.markdown.includePaths` | string[] | - | Only read specified paths |
-| `content.markdown.includeGlobs` | string[] | - | Only read matching globs |
+| `content.sources[].name` | string | - | Optional unique source name |
+| `content.sources[].mode` | string | `content` | `content` renders routed pages; `data` injects modules |
+| `content.sources[].collection` | string | - | Default collection for routed content from this source |
+| `content.sources[].markdown` | object | - | Markdown source config |
+| `content.sources[].notion` | object | - | Notion source config |
 
-### provider=notion
+### content.sources[].markdown
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `content.provider` | string | - | Content source type |
-| `content.notion.databaseId` | string | - | Database ID |
-| `content.notion.pageSize` | int | 50 | Page size |
-| `content.notion.filterProperty` | string | - | Filter field name |
-| `content.notion.filterType` | string | - | Filter type |
-| `content.notion.sortProperty` | string | - | Sort field name |
-| `content.notion.sortDirection` | string | - | Sort direction |
-| `content.notion.fieldPolicy.mode` | string | - | `whitelist`/`all` |
-| `content.notion.fieldPolicy.allowed` | string[] | - | Whitelist fields |
-| `content.notion.maxItems` | int | 0 | Max items |
-| `content.notion.includeSlugs` | string[] | - | Only fetch specified slugs |
-| `content.notion.includeSlugProperty` | string | `Slug` | Field for includeSlugs |
-| `content.notion.cacheMode` | string | `off` | `off`/`readwrite`/`readonly` |
-| `content.notion.cacheDir` | string | `.cache/notion` | Cache directory |
-| `content.notion.renderConcurrency` | int | 4 | Render concurrency |
-| `content.notion.maxRps` | int | 3 | Rate limit |
-| `content.notion.maxRetries` | int | 5 | 429 retry count |
+| `content.sources[].markdown.dir` | string | `content` | Markdown root directory |
+| `content.sources[].markdown.defaultType` | string | `page` | Default module type for `mode: data`; not a routing field |
+| `content.sources[].markdown.maxItems` | int | 0 | Max items (0=unlimited) |
+| `content.sources[].markdown.includePaths` | string[] | - | Only read specified paths |
+| `content.sources[].markdown.includeGlobs` | string[] | - | Only read matching globs |
+
+### content.sources[].notion
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `content.sources[].notion.databaseId` | string | - | Database ID |
+| `content.sources[].notion.pageSize` | int | 50 | Page size |
+| `content.sources[].notion.filterProperty` | string | - | Filter field name |
+| `content.sources[].notion.filterType` | string | - | Filter type |
+| `content.sources[].notion.sortProperty` | string | - | Sort field name |
+| `content.sources[].notion.sortDirection` | string | - | Sort direction |
+| `content.sources[].notion.fieldPolicy.mode` | string | - | `whitelist`/`all` |
+| `content.sources[].notion.fieldPolicy.allowed` | string[] | - | Whitelist fields |
+| `content.sources[].notion.maxItems` | int | 0 | Max items |
+| `content.sources[].notion.includeSlugs` | string[] | - | Only fetch specified slugs |
+| `content.sources[].notion.includeSlugProperty` | string | `Slug` | Field for includeSlugs |
+| `content.sources[].notion.cacheMode` | string | `off` | `off`/`readwrite`/`readonly` |
+| `content.sources[].notion.cacheDir` | string | `.cache/notion` | Cache directory |
+| `content.sources[].notion.renderConcurrency` | int | 4 | Render concurrency |
+| `content.sources[].notion.maxRps` | int | 3 | Rate limit |
+| `content.sources[].notion.maxRetries` | int | 5 | 429 retry count |
 
 ### content.media (image localization)
 
@@ -194,9 +203,8 @@ Notes:
 
 ### Notes
 
-- Without `taxonomy.kinds`: legacy behavior, generates only tags/categories derived pages.
-- With `taxonomy.kinds`: generates arbitrary taxonomy per the kinds list; `taxonomy.kinds[]` template fields have highest priority.
-  If `kind` is `tags/categories`, `taxonomy.templates.<kind>.*` still serves as fallback (only applies when not specified in kinds).
+- `taxonomy.kinds` is the 1.0 canonical way to define taxonomy behavior. In 1.0 docs and starters, include needed kinds explicitly (for example `tags` / `categories`).
+- Legacy `taxonomy.templates.<kind>.*` fallback is not part of the 1.0 run-time contract and should be treated as a migration-only path.
 - `taxonomy.kinds[]` validation: `key` is required; `kind`, `title`, `singularTitlePrefix`, `template`, `indexTemplate`, `termTemplate` are optional but must be non-empty strings if set.
 - `taxonomy.kinds[].hierarchical`: when enabled, automatically computes hierarchy. Terms associate with parent via `parent` metadata (data source or `_index.md`); terms without `parent` are root nodes.
 - **Term metadata** supports two loading sources:
@@ -269,7 +277,7 @@ taxonomy:
 | `content.notion.rootPageId` | `content.notion.rootBlockId` | PageId→BlockId |
 | `content.markdown.rootPageId` | `content.markdown.rootBlockId` | PageId→BlockId |
 | `theme.sourceRef` (old ref syntax) | `theme.source` with `@` version | SourceRef→Source |
-| `site.rssMode` (old toggle) | `site.plugins.feed.enabled` | RssMode→Plugin toggle |
+| `site.rssMode` (old toggle) | `site.feed.formats` | RssMode→Feed formats |
 | `build.outputPath` (old output) | `build.output` | OutputPath→Output |
 
 Deprecation warnings appear during `bukit doctor` and at build start. Use `bukit config check` to validate fixes.

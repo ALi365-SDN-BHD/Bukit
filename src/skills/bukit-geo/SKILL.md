@@ -125,7 +125,7 @@ Add structured data in content front matter under the `geo` key to generate rich
 ```yaml
 ---
 title: How to Build a Blog with Bukit
-type: post
+collection: post
 geo:
   schema_type: HowTo          # BlogPosting | Article | NewsArticle | FAQPage | HowTo
   about: Static Site Generator

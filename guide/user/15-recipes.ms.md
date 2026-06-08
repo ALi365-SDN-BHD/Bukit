@@ -27,9 +27,12 @@ site:
       listRoute: /blog/
       listTemplate: pages/list.html
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - name: pages
+      mode: content
+      collection: post
+      markdown:
+        dir: content
 build:
   output: dist
   clean: true
@@ -93,9 +96,12 @@ site:
       permalink: /{slug}/
       template: pages/page.html
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 build:
   output: dist
   clean: true
@@ -211,16 +217,18 @@ site:
   language: zh-CN
   timezone: Asia/Shanghai
 content:
-  provider: notion
-  notion:
-    databaseId: "id-pangkalan-data-anda"
-    filterProperty: Published
-    filterType: checkbox_true
-    sortProperty: PublishAt
-    sortDirection: descending
-    fieldPolicy:
-      mode: whitelist
-      allowed: [seo_title, seo_desc, cover, reading_time]
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "id-pangkalan-data-anda"
+        filterProperty: Published
+        filterType: checkbox_true
+        sortProperty: PublishAt
+        sortDirection: descending
+        fieldPolicy:
+          mode: whitelist
+          allowed: [seo_title, seo_desc, cover, reading_time]
 build:
   output: dist
   clean: true

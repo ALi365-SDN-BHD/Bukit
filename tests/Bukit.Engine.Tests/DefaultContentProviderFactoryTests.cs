@@ -19,7 +19,7 @@ public sealed class DefaultContentProviderFactoryTests
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
             Content = new ContentConfig
             {
-                Provider = "markdown",
+                Provider = "sources",
                 Sources = new List<ContentSourceConfig>
                 {
                     new ContentSourceConfig { Type = "markdown", Name = "content" }
@@ -42,7 +42,7 @@ public sealed class DefaultContentProviderFactoryTests
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
             Content = new ContentConfig
             {
-                Provider = "markdown",
+                Provider = "sources",
                 Sources = new List<ContentSourceConfig>
                 {
                     new ContentSourceConfig { Type = "markdown", Name = "content" },
@@ -58,7 +58,7 @@ public sealed class DefaultContentProviderFactoryTests
     }
 
     [Fact]
-    public void Create_WithEmptySources_ReturnsProvider()
+    public void Create_WithEmptySources_ThrowsConfigException()
     {
         var factory = new DefaultContentProviderFactory();
         var config = new AppConfig
@@ -66,15 +66,14 @@ public sealed class DefaultContentProviderFactoryTests
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
             Content = new ContentConfig
             {
-                Provider = "markdown",
+                Provider = "sources",
                 Sources = new List<ContentSourceConfig>()
             }
         };
         var logger = new ConsoleLogger(LogLevel.Debug);
 
-        var provider = factory.Create(config, "/tmp/test", false, logger);
-
-        Assert.NotNull(provider);
+        var ex = Assert.Throws<ConfigException>(() => factory.Create(config, "/tmp/test", false, logger));
+        Assert.Contains("content.sources is required", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -86,7 +85,7 @@ public sealed class DefaultContentProviderFactoryTests
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
             Content = new ContentConfig
             {
-                Provider = "markdown",
+                Provider = "sources",
                 Sources = new List<ContentSourceConfig>
                 {
                     new ContentSourceConfig { Type = "markdown", Name = "content" }

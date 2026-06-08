@@ -1,5 +1,8 @@
 ---
 collection: page
+author: Bukit Team
+summary: 这是一个用 MarkdownFolderProvider 生成的示例页面。
+updatedAt: 2026-06-08T00:00:00Z
 ---
 
 # Hello World

@@ -1,6 +1,7 @@
 using Bukit.Cli.Cli.Binding;
 using Bukit.Config;
 using Bukit.Shared;
+using System.Linq;
 
 namespace Bukit.Cli.Commands;
 
@@ -14,7 +15,6 @@ public static class LintCommand
             var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
             var config = ConfigLoader.Load(resolved.FullConfigPath);
             ConfigValidator.Validate(config);
-            ConfigDeprecationScanner.RejectRemovedFields(resolved.FullConfigPath);
 
             LintMarkdown(config, resolved.RootDir, issues);
         }
@@ -40,12 +40,12 @@ public static class LintCommand
 
     private static void LintMarkdown(AppConfig config, string rootDir, List<string> issues)
     {
-        if (!string.Equals(config.Content.Provider, "markdown", StringComparison.OrdinalIgnoreCase))
+        if (!HasMarkdownSource(config.Content))
         {
             return;
         }
 
-        var contentDir = Path.Combine(rootDir, config.Content.Markdown?.Dir ?? "content");
+        var contentDir = Path.Combine(rootDir, GetFirstMarkdownDir(config.Content) ?? "content");
         if (!Directory.Exists(contentDir))
         {
             issues.Add($"Markdown content directory not found: {contentDir}");
@@ -83,5 +83,22 @@ public static class LintCommand
         }
 
         return normalized.Split('\n').Any(line => line.TrimStart().StartsWith("# ", StringComparison.Ordinal));
+    }
+
+    private static bool HasMarkdownSource(ContentConfig content)
+    {
+        if (content.Sources is null) return false;
+        return content.Sources.Any(s =>
+            s.Type.Equals("markdown", StringComparison.OrdinalIgnoreCase) ||
+            s.Markdown is not null);
+    }
+
+    private static string? GetFirstMarkdownDir(ContentConfig content)
+    {
+        if (content.Sources is null) return null;
+        var source = content.Sources.FirstOrDefault(s =>
+            s.Type.Equals("markdown", StringComparison.OrdinalIgnoreCase) ||
+            s.Markdown is not null);
+        return source?.Markdown?.Dir;
     }
 }

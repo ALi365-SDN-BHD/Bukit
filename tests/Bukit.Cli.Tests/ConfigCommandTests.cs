@@ -47,7 +47,12 @@ public sealed class ConfigCommandTests : IDisposable
                                          title: Test
                                          url: https://example.com
                                        content:
-                                         provider: markdown
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
                                        """);
 
         using var writer = new StringWriter(new StringBuilder());
@@ -77,7 +82,12 @@ public sealed class ConfigCommandTests : IDisposable
                                          title: Test
                                          baseUrl: relative
                                        content:
-                                         provider: markdown
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
                                        """);
 
         using var writer = new StringWriter(new StringBuilder());
@@ -128,7 +138,12 @@ public sealed class ConfigCommandTests : IDisposable
                                          title: Test
                                          url: not-a-url
                                        content:
-                                         provider: markdown
+                                         sources:
+                                           - type: markdown
+                                             name: page
+                                             collection: page
+                                             markdown:
+                                               dir: content
                                        """);
 
         using var writer = new StringWriter(new StringBuilder());

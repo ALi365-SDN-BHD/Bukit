@@ -1,0 +1,46 @@
+{
+  "schema": "https://bukit.dev/schemas/routes.v1.json",
+  "schemaVersion": "1.0",
+  "routes": [
+    {
+      "url": "/archive/2024/",
+      "outputPath": "archive/2024/index.html",
+      "template": "pages/archive.html",
+      "source": null,
+      "kind": "derived",
+      "language": "zh-CN"
+    },
+    {
+      "url": "/blog/alpha/",
+      "outputPath": "blog/alpha/index.html",
+      "template": "pages/post.html",
+      "source": null,
+      "kind": "post",
+      "language": "zh-CN"
+    },
+    {
+      "url": "/blog/zeta/",
+      "outputPath": "blog/zeta/index.html",
+      "template": "pages/post.html",
+      "source": null,
+      "kind": "post",
+      "language": "zh-CN"
+    },
+    {
+      "url": "/plugin-output.json",
+      "outputPath": "plugin-output.json",
+      "template": "",
+      "source": "mock-plugin",
+      "kind": "plugin",
+      "language": "zh-CN"
+    },
+    {
+      "url": "/static-docs/",
+      "outputPath": "static-docs/index.html",
+      "template": "pages/static.html",
+      "source": null,
+      "kind": "static",
+      "language": "zh-CN"
+    }
+  ]
+}

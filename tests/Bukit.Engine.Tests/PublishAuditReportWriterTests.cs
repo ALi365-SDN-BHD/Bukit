@@ -539,7 +539,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
                 Title = "Test",
                 Url = "https://example.com"
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 
     private static AppConfig ConfigWithRssPostCollection()
@@ -555,7 +555,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
                     ["post"] = new() { Permalink = "/post/{slug}/", Output = new CollectionOutputConfig { Rss = true } }
                 }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 
     private static AppConfig ConfigWithJsonFeed()
@@ -568,7 +568,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
                 Url = "https://example.com",
                 Feed = new FeedConfig { Formats = ["json"] }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 
     private static AppConfig ConfigWithAtomFeed()
@@ -581,6 +581,6 @@ public sealed class PublishAuditReportWriterTests : IDisposable
                 Url = "https://example.com",
                 Feed = new FeedConfig { Formats = ["atom"] }
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 }

@@ -43,9 +43,13 @@ Contohnya, jika anda menulis:
 
 ```yaml
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 build:
   output: dist
 theme:
@@ -129,14 +133,11 @@ Contoh yang boleh dijalankan:
 - Cadangan: kekalkan slug selaras dengan nama fail (contohnya, `hello-world.md` → slug `hello-world`)
 - Jika anda memerlukan penghubungan pelbagai bahasa dan i18n, adalah juga disyorkan untuk menyelenggara `i18n_key` yang stabil (terutamanya biasa dalam Notion)
 
-### type (page / post) — Lapisan Keserasian
+### collection / type (Medan Padanan Routing)
 
 > Adalah disyorkan untuk mengutamakan penggunaan `site.collections` untuk mentakrifkan koleksi kandungan dan peraturan penghalaan (lihat [04 Konfigurasi YAML Tapak](./04-site-yaml-config.ms.md)).
 
-Apabila collections tidak dikonfigurasikan, enjin menggunakan medan type sebagai sandaran keserasian:
-
-- `page`: Halaman (perihal, bantuan, pengenalan produk, dll.)
-- `post`: Catatan (blog, berita, log perubahan, dll.)
+Kandungan yang perlu dijana sebagai halaman harus mengisytiharkan `collection` yang sepadan dengan `site.collections`. Medan `type` boleh kekal sebagai metadata kandungan atau padanan tema, tetapi ia bukan medan routing starter 1.0.
 
 Tema biasanya membezakan templat dan halaman senarai mengikut type atau collection; tidak disyorkan untuk menambah terlalu banyak jenis tersuai secara sambil lewa melainkan tema anda sudah menyokong templat yang sepadan.
 
@@ -151,11 +152,11 @@ Untuk output pelbagai bahasa dan SEO, lihat: [11 Pelbagai Bahasa & SEO](./11-i18
 
 ## Lanjutan: Medan Penggantian Laluan (Gunakan dengan Berhati-hati)
 
-Jika anda benar-benar perlu mengoutputkan halaman tertentu ke laluan tersuai, anda boleh menggunakan medan berikut (ia dipetakan kepada meta merentasi sumber kandungan yang berbeza):
+Jika anda benar-benar perlu URL awam tersuai, gunakan medan tindihan laluan berikut:
 
-- `route` atau `url`: Menentukan URL output
-- `outputPath`: Secara langsung menentukan laluan fail output (contohnya, `pages/about/index.html`)
-- `template`: Menentukan templat mana yang akan digunakan
+- `route.url` atau `url` aras atas: Menentukan URL awam
+- `route.template` atau `template` aras atas: Menentukan templat
+- `outputPath`: Dibuang dalam Bukit 1.0; laluan output diterbitkan daripada URL akhir dan nilai manual ditolak
 
 Akibat biasa daripada salah konfigurasi medan ini:
 
@@ -163,4 +164,4 @@ Akibat biasa daripada salah konfigurasi medan ini:
 - Pautan tidak betul dalam sitemap/rss/search
 - Ralat 404 GitHub Pages (ketidakpadanan baseUrl/laluan)
 
-Adalah disyorkan untuk menyelesaikan keperluan penghalaan melalui `slug/type` dahulu; rujuk [14 Penyelesaian Masalah](./14-troubleshooting.ms.md) apabila anda benar-benar memerlukan penggantian.
+Adalah disyorkan untuk menyelesaikan keperluan penghalaan melalui `collection` dan `slug` dahulu; rujuk [14 Penyelesaian Masalah](./14-troubleshooting.ms.md) apabila anda benar-benar memerlukan penggantian.

@@ -32,8 +32,8 @@ site:
 Placeholders: `{slug}`, `{year}`, `{month}`, `{day}`, `{type}`
 
 Priority (high to low):
-1. Full route override (url + outputPath + template) 
-2. Partial route override (url only or url + template)
+1. Route override (`route.url` with optional `route.template`)
+2. Top-level `url` override with optional `template`
 3. Collection Rules (`site.collections`)
 4. Permalink Patterns (`site.permalinks`)
 
@@ -41,18 +41,24 @@ There is no built-in `post`/`page` route fallback. If none of these rules match,
 
 ## Route Override
 
-### Full Override
+### Route Override
 
-When all three of `url`, `outputPath`, `template` are present in route fields (or compatible top-level fields), routing is completely overridden.
+Use `route.url` to control the public URL. `route.template` may override the template. The output path is derived from the final URL.
 
 ```yaml
 route:
   url: /custom/
-  outputPath: custom/index.html
   template: pages/page.html
 ```
 
-Or top-level fields: `url:`, `outputPath:`, `template:`.
+Top-level `url:` and `template:` are also accepted as route override fields.
+
+Removed in Bukit 1.0:
+
+- top-level `outputPath`
+- nested `route.outputPath`
+
+Both are rejected with `BKT-0209`. Use `route.url`; Bukit derives the output path consistently for HTML, sitemap, search, RSS, audit reports, and rollback artifacts.
 
 ### Partial Override (url-only)
 
@@ -66,7 +72,7 @@ url: /my-slug/
 
 Rules:
 - `url` must be present (normalized with leading/trailing slashes)
-- `outputPath` is auto-derived; any manually-supplied value is ignored
+- `outputPath` is auto-derived; manually supplied values are rejected
 - `template` if omitted, inherits from collection/permalink/theme template resolution rules
 - `outputPath`-only override is **not supported**
 

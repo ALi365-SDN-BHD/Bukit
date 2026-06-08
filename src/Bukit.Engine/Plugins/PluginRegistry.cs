@@ -122,7 +122,7 @@ public sealed class ExternalAssemblyPluginSource : IPluginSource
                 return true;
             }
 
-            throw new InvalidOperationException("site.externalAssemblyAllowlist is required when site.externalAssemblyTrustMode is strict.");
+            throw new ConfigException("site.externalAssemblyAllowlist is required when site.externalAssemblyTrustMode is strict.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         var fileName = Path.GetFileName(path);
@@ -135,7 +135,7 @@ public sealed class ExternalAssemblyPluginSource : IPluginSource
                 return false;
             }
 
-            throw new InvalidOperationException(message);
+            throw new ConfigException(message, DiagnosticCode.PluginExecutionFailed);
         }
 
         var actualHash = ComputeSha256Hex(path);
@@ -148,7 +148,7 @@ public sealed class ExternalAssemblyPluginSource : IPluginSource
                 return false;
             }
 
-            throw new InvalidOperationException(message);
+            throw new ConfigException(message, DiagnosticCode.PluginExecutionFailed);
         }
 
         return true;

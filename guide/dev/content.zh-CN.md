@@ -25,7 +25,7 @@
 - `type`：可选内容分类或主题模板匹配键；不触发核心默认路由
 - `draft`：草稿标记（见下方"草稿过滤"一节）
 - `language`：多语言过滤（内容项的语言归属）
-- `route` 或 `url/outputPath/template`：路由覆盖（见 [路由](./routing.zh-CN.md)）
+- `route.url` 或 `route.template`：URL/模板覆盖（见 [路由](./routing.zh-CN.md)）；`outputPath` 由 URL 派生，不是输入字段
 - `source` / `sourcePath` / `notionPageId`：来源信息
 - `sourceMode`：当启用 sources 时，用于区分 `content` / `data`
 
@@ -73,7 +73,7 @@ draft: true
 
 ### 文件与目录
 
-`content.provider: markdown` 时，从 `content.markdown.dir`（默认 `content/`）递归读取 `*.md` 文件。
+Markdown source 会从 `content.sources[].markdown.dir`（默认 `content/`）递归读取 `*.md` 文件。
 
 ### Front Matter
 
@@ -81,7 +81,7 @@ draft: true
 
 ```yaml
 ---
-type: page
+collection: page
 title: 关于我们
 slug: about
 publishAt: 2026-01-01T00:00:00Z
@@ -102,7 +102,7 @@ seo_title: 自定义 SEO 标题
 
 以下键会被视为保留键，不会作为一般字段进入 `page.fields`（但 tags/categories/summary 会以固定方式写入 fields）：
 - `title/slug/type/publishAt/language/tags/categories/summary`
-- `route/url/outputPath/template`
+- `route/url/template`
 
 ## Notion 模式
 
@@ -147,15 +147,13 @@ Notion provider 会把以下 fields（若存在）保留为字段语义供引擎
 
 ```yaml
 content:
-  provider: sources
   sources:
-    - type: notion
-      name: pages
+    - name: pages
       mode: content
+      collection: page
       notion:
         databaseId: "..."
-    - type: notion
-      name: modules
+    - name: modules
       mode: data
       notion:
         databaseId: "..."

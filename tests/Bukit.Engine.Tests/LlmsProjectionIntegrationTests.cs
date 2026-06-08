@@ -44,7 +44,12 @@ public sealed class LlmsProjectionIntegrationTests
                       llmsTxt: true
                       llmsFullTxt: true
                 content:
-                  provider: markdown
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
                   markdown:
                     dir: content
                 build:

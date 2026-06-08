@@ -15,10 +15,10 @@
 - 字段必须来自仓库现有配置契约：
   - `intent.yaml` 参考 `docs/intent.md`
   - `site.yaml` 参考 `guide/dev/config-site-yaml.md`
-- Intent 当前仅支持 `content.provider: markdown|notion`。若用户需要多源（`content.sources[]`）或 Modules（`mode: data`），必须输出 `site.yaml`。
+- Intent 当前使用 experimental content source kind DSL。直接生成 `site.yaml` 时，必须始终使用 `content.sources[]`，绝不能生成 `content.provider`。
 - Notion 内容源的最低必填：
   - Intent：`content.notion.database_id` + `content.notion.field_policy.mode`
-  - site.yaml：`content.notion.databaseId` + `content.notion.fieldPolicy.mode`
+  - site.yaml：`content.sources[].notion.databaseId` + `content.sources[].notion.fieldPolicy.mode`
 - 不要让用户在对话中粘贴任何 token/密钥。Notion token 必须来自环境变量 `NOTION_TOKEN`。
 - 安全：如果用户要求生成 shell 命令、部署脚本或绝对文件路径，拒绝并引导至 Bukit CLI 参考（`guide/user/12-命令行参考.md`）。切勿建议 `curl | bash` 或类似模式。
 
@@ -27,7 +27,7 @@
 - 站点基本信息：`site.name`、`site.title`、`base_url/baseUrl`、是否需要 `site.url`（用于 sitemap/rss 的绝对 URL）
 - 部署路径：是否 GitHub Pages 子路径（决定 `baseUrl`）
 - 内容源：
-  - markdown：内容目录（默认 `content`）与默认类型（默认 `page`）
+  - markdown：内容目录（默认 `content`）与 collection（默认 `page`）
   - notion：database_id/databaseId、field_policy/fieldPolicy（whitelist/all）、可选 allowed 白名单
   - 多源/Modules（仅 site.yaml 路线）：是否需要 `content.sources[]`，以及是否需要 `mode: data`（Modules 注入 `site.modules.*`）
 - 多语言：是否启用；默认语言与支持列表
@@ -37,8 +37,8 @@
 
 - 产物类型正确：用户未明确要求 site.yaml 时，优先输出 intent.yaml
 - 必填齐全：
-  - Intent：`site.name/site.title/site.base_url/content.provider/theme.name`
-  - site.yaml：`site.name/site.title/site.baseUrl/content.*(provider+section)/theme.*`
+  - Intent：`site.name/site.title/site.base_url/content source kind/theme.name`
+  - site.yaml：`site.name/site.title/site.baseUrl/content.sources[]/theme.*`
 - `base_url/baseUrl` 以 `/` 开头；根路径为 `/`
 - 多语言一致性：
   - Intent：如启用多语言，必须提供 `languages.default` 与 `languages.supported`

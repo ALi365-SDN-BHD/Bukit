@@ -181,7 +181,7 @@ public static class SeoAlternatesService
 
         if (templateResolver is null)
         {
-            throw new ConfigException("No list template was configured. Add site.collections.*.listTemplate or a matching theme.yaml templates entry.");
+            throw new ConfigException("No list template was configured. Add site.collections.*.listTemplate or a matching theme.yaml templates entry.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         return templateResolver.ResolveKindTemplate("list");

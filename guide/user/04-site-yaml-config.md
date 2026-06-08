@@ -28,9 +28,13 @@ site:
       permalink: /pages/{slug}/
       template: pages/page.html
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 build:
   output: dist
   clean: true
@@ -75,7 +79,6 @@ Output-related modes (especially important for multilingual sites):
 | Field | Purpose | Common Values |
 |---|---|---|
 | `site.sitemapMode` | Sitemap output mode | `merged` / `split` / `index` |
-| `site.rssMode` | RSS output mode | `merged` / `split` |
 | `site.searchMode` | Search output mode | `merged` / `split` / `index` |
 
 For how to choose these modes, see: [11 Multilingual and SEO](./11-i18n-seo.md).
@@ -202,26 +205,26 @@ site:
     page: "/docs/{slug}/"
 ```
 
-Note: if an article sets route overrides (url/outputPath/template) through record fields or Notion fields, route overrides take priority over permalinks.
+Note: if an article sets `route.url` and optionally `route.template`, route overrides take priority over permalinks. `outputPath` is always derived from the final URL; top-level `outputPath` and nested `route.outputPath` are rejected in Bukit 1.0.
 
 ### content: Content Source (Markdown / Notion / Multiple Sources)
 
-You can only choose one provider:
+Bukit 1.0 uses `content.sources[]` for every project, including single-source Markdown or Notion sites.
 
-- `markdown`: read Markdown from a local folder
-- `notion`: read from a Notion database
-- `sources`: combine multiple sources (recommended for splitting pages + posts + modules into separate stores)
-
-#### provider=markdown
+#### Markdown source
 
 ```yaml
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 ```
 
-Each routed Markdown file should declare `collection` (recommended) or `type`, and the site must declare a matching route/template rule:
+Each routed Markdown file should declare `collection`, or the source should set `collection`, and the site must declare a matching route/template rule:
 
 ```yaml
 site:
@@ -233,44 +236,48 @@ site:
 
 | Field | Purpose | Description |
 |---|---|---|
-| `content.markdown.dir` | Markdown root directory | Recursively reads `*.md` |
-| `content.markdown.defaultType` | Optional type injected when neither `collection` nor `type` is declared | Omit for explicit front matter; set only when all files in the source share one configured collection/type |
-| `content.markdown.maxItems` | Maximum number of items to read | Positive integer; used to limit large repositories |
-| `content.markdown.includePaths` | Only read specified paths | Relative to `content.markdown.dir`; `.md` may be omitted |
-| `content.markdown.includeGlobs` | Only read matching globs | Matches relative paths; separator uses `/` |
+| `content.sources[].markdown.dir` | Markdown root directory | Recursively reads `*.md` |
+| `content.sources[].collection` | Default collection for this source | Use when all files in the source belong to one collection |
+| `content.sources[].markdown.maxItems` | Maximum number of items to read | Positive integer; used to limit large repositories |
+| `content.sources[].markdown.includePaths` | Only read specified paths | Relative to `markdown.dir`; `.md` may be omitted |
+| `content.sources[].markdown.includeGlobs` | Only read matching globs | Matches relative paths; separator uses `/` |
 
 For Markdown content authoring, see: [05 Content Markdown](./05-markdown-content.md).
 
-#### provider=notion
+#### Notion source
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "xxxx"
-    pageSize: 50
-    filterProperty: Published
-    filterType: checkbox_true
-    sortProperty: PublishAt
-    sortDirection: descending
-    fieldPolicy:
-      mode: whitelist
-      allowed:
-        - seo_title
-        - seo_desc
-        - cover
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "xxxx"
+        pageSize: 50
+        filterProperty: Published
+        filterType: checkbox_true
+        sortProperty: PublishAt
+        sortDirection: descending
+        fieldPolicy:
+          mode: whitelist
+          allowed:
+            - seo_title
+            - seo_desc
+            - cover
 ```
 
 | Field | Purpose | Description |
 |---|---|---|
-| `content.notion.maxItems` | Maximum number of items to fetch | Positive integer; used to limit large databases |
-| `content.notion.includeSlugs` | Only fetch specified slugs | Database query filter (useful for debugging a single page) |
-| `content.notion.includeSlugProperty` | Field corresponding to `includeSlugs` | Default `Slug`; rich_text is recommended |
-| `content.notion.cacheMode` | Notion render cache mode | `off`/`readwrite`/`readonly` |
-| `content.notion.cacheDir` | Cache directory | Relative to the config directory; defaults to `<rootDir>/.cache/notion` when omitted |
-| `content.notion.renderConcurrency` | Body render concurrency | Positive integer; default local 4, CI 2 |
-| `content.notion.maxRps` | Global Notion request rate limit | Positive integer; default 3 (includes database query + blocks children) |
-| `content.notion.maxRetries` | Maximum retries for 429 | Non-negative integer; follows `Retry-After` backoff |
+| `content.sources[].notion.maxItems` | Maximum number of items to fetch | Positive integer; used to limit large databases |
+| `content.sources[].notion.includeSlugs` | Only fetch specified slugs | Database query filter (useful for debugging a single page) |
+| `content.sources[].notion.includeSlugProperty` | Field corresponding to `includeSlugs` | Default `Slug`; rich_text is recommended |
+| `content.sources[].notion.cacheMode` | Notion render cache mode | `off`/`readwrite`/`readonly` |
+| `content.sources[].notion.cacheDir` | Cache directory | Relative to the config directory; defaults to `<rootDir>/.cache/notion` when omitted |
+| `content.sources[].notion.renderConcurrency` | Body render concurrency | Positive integer; default local 4, CI 2 |
+| `content.sources[].notion.maxRps` | Global Notion request rate limit | Positive integer; default 3 (includes database query + blocks children) |
+| `content.sources[].notion.maxRetries` | Maximum retries for 429 | Non-negative integer; follows `Retry-After` backoff |
 
 Prerequisite for Notion mode:
 
@@ -291,15 +298,15 @@ BUKIT_BUILD__CLEAN=false
 
 Overrides are applied after loading `site.yaml` and before config validation. This is useful for CI/CD deployment URLs, output switches, or content directories.
 
-#### provider=sources (Multiple Source Composition, Supports mode=data)
+#### Multiple sources and `mode: data`
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: pages
       mode: content
+      collection: page
       markdown:
         dir: content
     - type: markdown
@@ -507,11 +514,11 @@ Compare with the example: `examples/starter/site.i18n.yaml`.
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: content
       mode: content
+      collection: page
       markdown: { dir: content }
     - type: markdown
       name: modules

@@ -141,11 +141,6 @@ internal static class PagesIndexConfigHelper
 
     public static bool HasNotionContent(AppConfig config)
     {
-        if (string.Equals(config.Content.Provider, "notion", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
         if (config.Content.Sources is null || config.Content.Sources.Count == 0)
         {
             return false;

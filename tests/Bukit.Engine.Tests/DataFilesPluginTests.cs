@@ -21,7 +21,7 @@ public sealed class DataFilesPluginTests
             Config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = new ContentConfig { Provider = "markdown" }
+                Content = TestContent.Markdown()
             },
             RootDir = Path.Combine(Path.GetTempPath(), "bukit_nonexistent_" + Guid.NewGuid().ToString("N")),
             OutputDir = "/t/out",
@@ -51,7 +51,7 @@ public sealed class DataFilesPluginTests
                 Config = new AppConfig
                 {
                     Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 RootDir = root,
                 OutputDir = "/t/out",
@@ -92,7 +92,7 @@ public sealed class DataFilesPluginTests
                 Config = new AppConfig
                 {
                     Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 RootDir = root,
                 OutputDir = "/t/out",
@@ -139,7 +139,7 @@ public sealed class DataFilesPluginTests
                         Title = "t",
                         Languages = new[] { "zh-CN", "en" }
                     },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 RootDir = root,
                 OutputDir = "/t/out",
@@ -177,7 +177,7 @@ public sealed class DataFilesPluginTests
                 Config = new AppConfig
                 {
                     Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 RootDir = root,
                 OutputDir = "/t/out",

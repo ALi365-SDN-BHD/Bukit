@@ -37,7 +37,6 @@ site:
   languages: [zh-CN, en]       # Language list
   defaultLanguage: zh-CN       # Default language (unmarked content belongs here)
   sitemapMode: merged          # merged | split | index
-  rssMode: merged              # merged | split
   searchMode: merged           # merged | split | index
 ```
 
@@ -46,7 +45,7 @@ site:
 | `languages` | Languages to build, at least 1, no duplicates |
 | `defaultLanguage` | Default language, must be in languages. Content without `language` metadata belongs here |
 | `sitemapMode` | `merged`=merged sitemap (with hreflang); `split`=one per language; `index`=generate index sitemap |
-| `rssMode` | `merged`=merged RSS; `split`=one per language |
+| `rssMode` | Legacy 1.0 field removed from user config. Feed output uses `site.feed.formats` and feed plugin defaults. Migrated 1.0-incompatible `rssMode` behavior is not part of the 1.0 run contract. |
 | `searchMode` | `merged`=merged search index; `split`=one per language; `index`=generate index |
 
 ## Content Organization
@@ -109,7 +108,7 @@ i18n_key: about
       → output to dist/zh-CN/ and dist/en/
 4. Root-level merge:
    - Sitemap: per sitemapMode strategy
-   - RSS: per rssMode strategy
+   - Feed: controlled by `site.feed.formats` and feed plugin defaults
    - Search index: per searchMode strategy
 ```
 
@@ -134,7 +133,6 @@ dist/
       style.css
     sitemap.xml
   sitemap.xml       ← generated only in merged mode
-  rss.xml           ← generated only in merged mode
   search.json       ← generated only in merged mode
 ```
 
@@ -146,10 +144,9 @@ dist/
 - `split`: One per language at `dist/<lang>/sitemap.xml`
 - `index`: Generate `dist/sitemap.xml` as an index pointing to per-language sitemaps
 
-### RSS Merge
+### Feed Merge
 
-- `merged`: Generate merged RSS at `dist/rss.xml`
-- `split`: One per language (independent output not currently implemented)
+- `1.0`: Feed output follows `site.feed.formats` and plugin defaults (typically per-language outputs unless configured otherwise). Old `site.rssMode` modes are not a supported 1.0 path.
 
 ### Search Index Merge
 

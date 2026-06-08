@@ -25,7 +25,7 @@ public sealed class ConfigValidatorCapabilityTests
                     }
                 }
             },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig() }
+            Content = TestContent.Markdown()
         };
         return mutate != null ? mutate(config) : config;
     }
@@ -62,7 +62,7 @@ public sealed class ConfigValidatorCapabilityTests
     }
 
     [Fact]
-    public void ValidateExternalPlugins_NullCapabilities_Passes()
+    public void ValidateExternalPlugins_NullCapabilities_Throws()
     {
         var config = ValidConfig(c => c with
         {
@@ -80,7 +80,8 @@ public sealed class ConfigValidatorCapabilityTests
             }
         });
 
-        ConfigValidator.Validate(config);
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("capabilities is required", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -102,7 +103,12 @@ public sealed class ConfigValidatorCapabilityTests
                     - emit-outputs
                     - derive-pages
             content:
-              provider: markdown
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
             """;
 
         var tmpDir = Path.Combine(Path.GetTempPath(), "bukit-cap-test-" + Guid.NewGuid().ToString("N"));

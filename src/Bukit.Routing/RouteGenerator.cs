@@ -40,15 +40,11 @@ public static class RouteGenerator
         IReadOnlyDictionary<string, string>? permalinks = null,
         IReadOnlyDictionary<string, CollectionRouteRule>? collections = null)
     {
+        RejectRemovedOutputPathFields(source);
+
         if (TryReadFullRouteOverride(source, outputPathEncoding, out var overridden))
         {
             return new RouteGenerationResult(ValidateRoute(overridden, source), RouteSource.FullOverride);
-        }
-
-        var topOutputPath = ContentFieldReader.GetText(source.Fields, "outputPath");
-        if (!HasNestedRouteMap(source.Fields) && !string.IsNullOrWhiteSpace(topOutputPath))
-        {
-            throw new ConfigException($"Top-level outputPath is removed in 1.0. Use route.outputPath instead. Found in front matter: outputPath: '{topOutputPath}'", DiagnosticCode.RouteInvalidPattern);
         }
 
         var (baseRoute, baseSource) = GenerateBaseRouteWithSource(source, outputPathEncoding, permalinks, collections);
@@ -118,7 +114,8 @@ public static class RouteGenerator
 
         throw new ConfigException(
             $"No route rule matches content document '{source.Id}' (collection='{collectionKey}', type='{type}'). " +
-            "Add an explicit collection rule, site.permalinks.<type>, or route front matter.");
+            "Add an explicit collection rule, site.permalinks.<type>, or route front matter.",
+            DiagnosticCode.ConfigRequiredFieldMissing);
     }
 
     private static bool TryReadFullRouteOverride(RouteContentSource source, string outputPathEncoding, out RouteInfo route)
@@ -126,15 +123,13 @@ public static class RouteGenerator
         if (TryGetRouteFields(source.Fields, out var url, out var outputPath, out var template))
         {
             if (!string.IsNullOrWhiteSpace(url) &&
-                !string.IsNullOrWhiteSpace(outputPath) &&
                 !string.IsNullOrWhiteSpace(template))
             {
                 RouteSecurityValidator.ValidateInternalUrl(url, $"route.url for {source.Slug}");
-                var normalizedOutputPath = RoutePathBuilder.NormalizeOutputPath(outputPath, outputPathEncoding);
-                RouteSecurityValidator.ValidateOutputPath(normalizedOutputPath, $"route.outputPath for {source.Slug}");
+                var normalizedUrl = RoutePathBuilder.NormalizeUrl(url);
                 route = new RouteInfo(
-                    RoutePathBuilder.NormalizeUrl(url),
-                    normalizedOutputPath,
+                    normalizedUrl,
+                    RoutePathBuilder.BuildOutputPathFromUrl(normalizedUrl, outputPathEncoding),
                     template.Trim());
                 return true;
             }
@@ -152,15 +147,12 @@ public static class RouteGenerator
             return false;
         }
 
-        var useOutputPathOverride = !string.IsNullOrWhiteSpace(outputPathOverride) && HasNestedRouteMap(source.Fields);
         var normalizedUrl = string.IsNullOrWhiteSpace(url)
             ? baseRoute.Url
             : RoutePathBuilder.NormalizeUrl(url);
-        var outputPath = useOutputPathOverride
-            ? RoutePathBuilder.NormalizeOutputPath(outputPathOverride, outputPathEncoding)
-            : string.IsNullOrWhiteSpace(url)
-                ? baseRoute.OutputPath
-                : RoutePathBuilder.BuildOutputPathFromUrl(normalizedUrl, outputPathEncoding);
+        var outputPath = string.IsNullOrWhiteSpace(url)
+            ? baseRoute.OutputPath
+            : RoutePathBuilder.BuildOutputPathFromUrl(normalizedUrl, outputPathEncoding);
         var effectiveTemplate = string.IsNullOrWhiteSpace(template) ? baseRoute.Template : template.Trim();
         route = new RouteInfo(normalizedUrl, outputPath, effectiveTemplate);
         return true;
@@ -181,14 +173,14 @@ public static class RouteGenerator
             url = GetOptionalString(routeMap, "url");
             outputPath = GetOptionalString(routeMap, "outputPath");
             template = GetOptionalString(routeMap, "template");
-            return !(string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(outputPath) || string.IsNullOrWhiteSpace(template));
+            return !(string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(template));
         }
 
         url = ContentFieldReader.GetText(fields, "url") ?? string.Empty;
         outputPath = ContentFieldReader.GetText(fields, "outputPath") ?? string.Empty;
         template = ContentFieldReader.GetText(fields, "template") ?? string.Empty;
 
-        return !(string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(outputPath) || string.IsNullOrWhiteSpace(template));
+        return !(string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(template));
     }
 
     private static bool TryGetPartialRouteFields(
@@ -234,14 +226,39 @@ public static class RouteGenerator
                (routeMap = map) is not null;
     }
 
+    private static void RejectRemovedOutputPathFields(RouteContentSource source)
+    {
+        var topOutputPath = ContentFieldReader.GetText(source.Fields, "outputPath");
+        if (!string.IsNullOrWhiteSpace(topOutputPath))
+        {
+            throw new ConfigException(
+                $"Top-level outputPath is removed in Bukit 1.0. Use route.url instead. Found in front matter: outputPath: '{topOutputPath}'",
+                DiagnosticCode.RouteOutputPathRejected);
+        }
+
+        if (TryGetRouteMap(source.Fields, out var routeMap) &&
+            !string.IsNullOrWhiteSpace(GetOptionalString(routeMap, "outputPath")))
+        {
+            throw new ConfigException(
+                "route.outputPath is removed in Bukit 1.0. Use route.url instead. Found in front matter: route.outputPath",
+                DiagnosticCode.RouteOutputPathRejected);
+        }
+    }
+
     private static string GetType(RouteContentSource source)
     {
-        return ContentFieldReader.GetText(source.Fields, "type") ?? source.ContentType;
+        return GetCollection(source);
     }
 
     private static string GetCollection(RouteContentSource source)
     {
-        return ContentFieldReader.GetText(source.Fields, "collection") ?? source.Collection;
+        var collectionField = ContentFieldReader.GetText(source.Fields, "collection");
+        if (!string.IsNullOrWhiteSpace(collectionField))
+        {
+            return collectionField;
+        }
+
+        return source.Collection;
     }
 
     private static RouteContentSource ToSource(ContentDocument document)

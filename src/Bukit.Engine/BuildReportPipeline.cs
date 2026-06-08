@@ -26,10 +26,14 @@ internal sealed record BuildReportPipelineContext(
     ILogger Logger,
     string? DefaultLanguage,
     IReadOnlyList<RoutedContentDocument> RoutedDocuments,
+    IReadOnlyList<RouteInfo>? StaticRoutes = null,
+    IReadOnlyList<PluginOutputTrackingInfo>? PluginOutputs = null,
     CanonicalContentGraph? ContentGraph = null,
     IReadOnlyList<RoutedContentDocument>? DerivedDocuments = null)
 {
     public IReadOnlyList<RoutedContentDocument> DerivedDocuments { get; init; } = DerivedDocuments ?? Array.Empty<RoutedContentDocument>();
+    public IReadOnlyList<RouteInfo> StaticRoutes { get; init; } = StaticRoutes ?? Array.Empty<RouteInfo>();
+    public IReadOnlyList<PluginOutputTrackingInfo> PluginOutputs { get; init; } = PluginOutputs ?? Array.Empty<PluginOutputTrackingInfo>();
 }
 
 internal sealed class BuildReportPipeline
@@ -87,6 +91,8 @@ internal sealed class BuildReportPipeline
             StageMetrics: ctx.StageMetrics,
             RoutedDocuments: ctx.RoutedDocuments,
             ContentGraph: ctx.ContentGraph,
+            StaticRoutes: ctx.StaticRoutes,
+            PluginOutputs: ctx.PluginOutputs,
             DerivedDocuments: ctx.DerivedDocuments,
             ProjectionResults: projectionResults);
     }

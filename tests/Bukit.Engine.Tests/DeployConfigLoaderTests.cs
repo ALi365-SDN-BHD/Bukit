@@ -5,10 +5,13 @@ namespace Bukit.Engine.Tests;
 
 public sealed class DeployConfigLoaderTests
 {
+    private const string MinimalSiteYaml =
+        "site:\n  name: x\n  title: x\ncontent:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\n";
+
     [Fact]
     public void Load_DeploySectionMissing_ReturnsNull()
     {
-        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\n";
+        var siteYaml = MinimalSiteYaml;
         var path = WriteTempYaml(siteYaml);
         try
         {
@@ -24,7 +27,7 @@ public sealed class DeployConfigLoaderTests
     [Fact]
     public void Load_DeploySectionEmpty_ReturnsNull()
     {
-        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\ndeploy:\n";
+        var siteYaml = MinimalSiteYaml + "deploy:\n";
         var path = WriteTempYaml(siteYaml);
         try
         {
@@ -40,7 +43,7 @@ public sealed class DeployConfigLoaderTests
     [Fact]
     public void Load_DeployWithOnlyProvider_ReturnsDefaultsForOthers()
     {
-        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\ndeploy:\n  provider: github-pages\n";
+        var siteYaml = MinimalSiteYaml + "deploy:\n  provider: github-pages\n";
         var path = WriteTempYaml(siteYaml);
         try
         {
@@ -61,7 +64,7 @@ public sealed class DeployConfigLoaderTests
     [Fact]
     public void Load_DeployWithProvider_ReturnsProvider()
     {
-        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\ndeploy:\n  provider: github-pages\n";
+        var siteYaml = MinimalSiteYaml + "deploy:\n  provider: github-pages\n";
         var path = WriteTempYaml(siteYaml);
         try
         {
@@ -83,7 +86,12 @@ site:
   name: x
   title: x
 content:
-  provider: markdown
+  sources:
+    - type: markdown
+      name: page
+      collection: page
+      markdown:
+        dir: content
 deploy:
   provider: github-pages
   branch: pages
@@ -111,7 +119,7 @@ deploy:
     [Fact]
     public void Load_DeployBranchMissing_UsesDefault()
     {
-        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\ndeploy:\n  provider: github-pages\n  message: test\n";
+        var siteYaml = MinimalSiteYaml + "deploy:\n  provider: github-pages\n  message: test\n";
         var path = WriteTempYaml(siteYaml);
         try
         {
@@ -128,7 +136,7 @@ deploy:
     [Fact]
     public void Load_DeployMessageMissing_UsesDefault()
     {
-        var siteYaml = "site:\n  name: x\n  title: x\ncontent:\n  provider: markdown\ndeploy:\n  provider: github-pages\n  branch: pages\n";
+        var siteYaml = MinimalSiteYaml + "deploy:\n  provider: github-pages\n  branch: pages\n";
         var path = WriteTempYaml(siteYaml);
         try
         {

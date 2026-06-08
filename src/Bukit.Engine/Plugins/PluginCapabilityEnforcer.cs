@@ -21,7 +21,7 @@ public static class PluginCapabilityEnforcer
                 $"Plugin '{plugin.Entry}' is missing required capability metadata for hook '{hook}'. " +
                 $"Declared capabilities: <none>. " +
                 $"How to fix: add '{requiredCapability}' to the plugin's capabilities list in site.yaml.",
-                DiagnosticCode.PluginExecutionFailed);
+                DiagnosticCode.PluginCapabilityMissing);
         }
 
         var hasCapability = false;
@@ -40,7 +40,7 @@ public static class PluginCapabilityEnforcer
                 $"Plugin '{plugin.Entry}' is missing required capability '{requiredCapability}' for hook '{hook}'. " +
                 $"Declared capabilities: [{string.Join(", ", plugin.Capabilities)}]. " +
                 $"How to fix: add '{requiredCapability}' to the plugin's capabilities list in site.yaml.",
-                DiagnosticCode.PluginExecutionFailed);
+                DiagnosticCode.PluginCapabilityMissing);
         }
     }
 

@@ -25,7 +25,7 @@ public sealed class MenuPluginTests
                 Config = new AppConfig
                 {
                     Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 RootDir = "/t",
                 OutputDir = outDir,
@@ -67,7 +67,7 @@ public sealed class MenuPluginTests
                             }
                         }
                     },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 RootDir = "/t",
                 OutputDir = outDir,
@@ -122,7 +122,7 @@ public sealed class MenuPluginTests
                             }
                         }
                     },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 RootDir = "/t",
                 OutputDir = outDir,
@@ -164,7 +164,7 @@ public sealed class MenuPluginTests
                             ["footer"] = new[] { new MenuConfig { Identifier = "about", Name = "About", Url = "/about/", Weight = 1 } }
                         }
                     },
-                    Content = new ContentConfig { Provider = "markdown" }
+                    Content = TestContent.Markdown()
                 },
                 RootDir = "/t",
                 OutputDir = outDir,

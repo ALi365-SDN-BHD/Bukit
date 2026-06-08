@@ -159,6 +159,64 @@ public sealed class FileTemplateLoaderTests : IDisposable
     }
 
     [Fact]
+    public void GetPath_PrioritizesOverride_WhenChildAndParentExist()
+    {
+        var parentDir = Path.Combine(_rootDir, "parent");
+        var overrideDir = Path.Combine(_rootDir, "override");
+        var childTemplate = Path.Combine(_rootDir, "pages", "home.html");
+        var parentTemplate = Path.Combine(parentDir, "pages", "home.html");
+        var overrideTemplate = Path.Combine(overrideDir, "pages", "home.html");
+
+        Directory.CreateDirectory(Path.GetDirectoryName(childTemplate)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(parentTemplate)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(overrideTemplate)!);
+
+        File.WriteAllText(childTemplate, "child");
+        File.WriteAllText(parentTemplate, "parent");
+        File.WriteAllText(overrideTemplate, "override");
+
+        var loader = new FileTemplateLoader(_rootDir, parentDir, overrideDir);
+        var result = loader.GetPath(null!, default, "pages/home.html");
+
+        Assert.Equal(Path.GetFullPath(overrideTemplate), result, ignoreCase: true);
+    }
+
+    [Fact]
+    public void GetPath_FallsBackToChildWhenOverrideMissing()
+    {
+        var parentDir = Path.Combine(_rootDir, "parent");
+        var childTemplate = Path.Combine(_rootDir, "pages", "home.html");
+        var parentTemplate = Path.Combine(parentDir, "pages", "home.html");
+
+        Directory.CreateDirectory(Path.GetDirectoryName(childTemplate)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(parentTemplate)!);
+
+        File.WriteAllText(childTemplate, "child");
+        File.WriteAllText(parentTemplate, "parent");
+
+        var loader = new FileTemplateLoader(_rootDir, parentDir, overrideDir: null);
+        var result = loader.GetPath(null!, default, "pages/home.html");
+
+        Assert.Equal(Path.GetFullPath(childTemplate), result, ignoreCase: true);
+    }
+
+    [Fact]
+    public void GetPath_FallsBackToParentWhenChildMissing()
+    {
+        var parentDir = Path.Combine(_rootDir, "parent");
+        var parentTemplate = Path.Combine(parentDir, "pages", "home.html");
+
+        Directory.CreateDirectory(Path.GetDirectoryName(parentTemplate)!);
+        File.WriteAllText(parentTemplate, "parent");
+
+        var loader = new FileTemplateLoader(_rootDir, parentDir, overrideDir: null);
+        var result = loader.GetPath(null!, default, "pages/home.html");
+
+        var expected = Path.GetFullPath(parentTemplate);
+        Assert.Equal(expected, result, ignoreCase: true);
+    }
+
+    [Fact]
     public void GetPath_ForwardSlashNormalization_Works()
     {
         var loader = new FileTemplateLoader(_rootDir);

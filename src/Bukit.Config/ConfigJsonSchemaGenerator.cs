@@ -46,8 +46,6 @@ public static class ConfigJsonSchemaGenerator
             ("languages", StringArraySchema()),
             ("defaultLanguage", StringSchema()),
             ("sitemapMode", EnumSchema("split", "root")),
-            ("rssMode", EnumSchema("split", "root")),
-            ("searchMode", EnumSchema("split", "root")),
             ("searchIncludeDerived", BoolSchema()),
             ("externalProtocolIncludeRoutedPages", BoolSchema()),
             ("pluginFailMode", EnumSchema("strict", "warn", "ignore")),
@@ -69,9 +67,8 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject ContentSchema()
     {
         var schema = Obj(("type", "object"));
-        schema["required"] = Arr("provider");
+        schema["required"] = Arr("sources");
         schema["properties"] = Obj(
-            ("provider", EnumSchema("markdown", "notion", "sources")),
             ("markdown", Obj(("type", "object"), ("properties", Obj(
                 ("dir", StringSchema()),
                 ("defaultType", StringSchema()),

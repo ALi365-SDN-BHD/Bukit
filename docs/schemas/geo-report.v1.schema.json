@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/geo-report.v1.json",
+  "title": "Bukit GEO Report",
+  "type": "object",
+  "required": [
+    "schema",
+    "schemaVersion",
+    "generatedAt",
+    "geoScore",
+    "llmsTxtGenerated",
+    "llmsFullTxtGenerated",
+    "geoEnhancedCount",
+    "geoEnhancedRoutes"
+  ],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/geo-report.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "geoScore": { "type": "integer", "minimum": 0 },
+    "llmsTxtGenerated": { "type": "boolean" },
+    "llmsFullTxtGenerated": { "type": "boolean" },
+    "geoEnhancedCount": { "type": "integer", "minimum": 0 },
+    "geoEnhancedRoutes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/geoRoute" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "geoRoute": {
+      "type": "object",
+      "required": ["url", "schemaTypes"],
+      "properties": {
+        "url": { "type": "string" },
+        "schemaTypes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

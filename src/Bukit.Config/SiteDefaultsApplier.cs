@@ -185,7 +185,7 @@ internal static class SiteDefaultsApplier
 
             if (kv.Value is not YamlMappingNode pluginNode)
             {
-                throw new ConfigException($"site.externalPlugins.{keyNode.Value} must be a mapping.");
+                throw new ConfigException($"site.externalPlugins.{keyNode.Value} must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             IReadOnlyDictionary<string, object>? options = null;
@@ -193,7 +193,7 @@ internal static class SiteDefaultsApplier
             {
                 if (optionsRaw is not YamlMappingNode optionsNode)
                 {
-                    throw new ConfigException($"site.externalPlugins.{keyNode.Value}.options must be a mapping.");
+                    throw new ConfigException($"site.externalPlugins.{keyNode.Value}.options must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
 
                 options = ConfigYamlHelpers.ReadObjectMap(optionsNode);
@@ -255,7 +255,7 @@ internal static class SiteDefaultsApplier
         {
             if (n is not YamlMappingNode m)
             {
-                throw new ConfigException("taxonomy.kinds items must be mappings.");
+                throw new ConfigException("taxonomy.kinds items must be mappings.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             kinds.Add(new TaxonomyKindConfig
@@ -482,7 +482,7 @@ internal static class SiteDefaultsApplier
                 {
                     if (optionsRaw is not YamlMappingNode optionsNode)
                     {
-                        throw new ConfigException($"site.plugins.{name}.options must be a mapping.");
+                        throw new ConfigException($"site.plugins.{name}.options must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
                     }
 
                     options = ConfigYamlHelpers.ReadObjectMap(optionsNode);
@@ -497,7 +497,7 @@ internal static class SiteDefaultsApplier
             }
             else
             {
-                throw new ConfigException($"site.plugins.{name} must be a mapping or boolean.");
+                throw new ConfigException($"site.plugins.{name} must be a mapping or boolean.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             plugins[name] = new PluginToggleConfig { Enabled = enabled };
@@ -519,7 +519,7 @@ internal static class SiteDefaultsApplier
         {
             if (n is not YamlMappingNode m)
             {
-                throw new ConfigException("site.seo.geo.llmsTxtOptionalLinks items must be mappings.");
+                throw new ConfigException("site.seo.geo.llmsTxtOptionalLinks items must be mappings.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
             var title = ConfigYamlHelpers.GetRequiredString(m, "title");

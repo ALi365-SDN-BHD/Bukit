@@ -13,9 +13,10 @@ site:
       listTemplate: pages/list.html
 
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      markdown:
+        dir: content
 
 taxonomy:
   template: pages/taxonomy-term.html

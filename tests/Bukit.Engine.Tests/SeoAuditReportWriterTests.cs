@@ -682,7 +682,7 @@ public sealed class SeoAuditReportWriterTests : IDisposable
                 Title = "Test",
                 Url = "https://example.com"
             },
-            Content = new ContentConfig { Provider = "markdown" }
+            Content = TestContent.Markdown()
         };
 
 }
