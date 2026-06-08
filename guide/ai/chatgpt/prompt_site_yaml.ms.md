@@ -30,16 +30,19 @@ site:
   timezone: Asia/Shanghai
 
 content:
-  provider: "{markdown|notion|sources}"
-  markdown:
-    dir: "{content_dir}"
-    defaultType: page
-  notion:
-    databaseId: "{database_id}"
-    pageSize: 50
-    fieldPolicy:
-      mode: whitelist
-      allowed: [{allowed_fields}]
+  sources:
+    - type: "{markdown|notion}"
+      name: "{source_name}"
+      mode: content
+      collection: "{collection_key}"
+      markdown:
+        dir: "{content_dir}"
+      notion:
+        databaseId: "{database_id}"
+        pageSize: 50
+        fieldPolicy:
+          mode: whitelist
+          allowed: [{allowed_fields}]
 
 build:
   output: dist
@@ -59,14 +62,13 @@ logging:
 ## Coretan content.sources[] (untuk pelbagai sumber / Modules)
 
 content:
-  provider: sources
   sources:
     - type: markdown
       name: content
       mode: content
+      collection: page
       markdown:
         dir: content
-        defaultType: page
     - type: markdown
       name: modules
       mode: data

@@ -40,7 +40,7 @@ The `capabilities` field declares which hooks the plugin is authorized to execut
 | `emit-outputs` | `after-build` | Write files to output directory |
 
 **Enforcement rules:**
-- **Not declared** (`capabilities: null` or absent): All hooks allowed (backward compatible)
+- **Not declared** (`capabilities: null` or absent): Invalid config; build fails with `ConfigException` (`BKT-0701`) because capability enforcement is required for all external protocol plugins
 - **Declared but incomplete**: Build fails with `[BKT-0701]` — the engine checks each hook against declared capabilities at runtime
 - Config validation rejects invalid capability names (`ConfigException`)
 

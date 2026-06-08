@@ -670,10 +670,12 @@ site:
   language: zh
 
 content:
-  provider: markdown
-  markdown:
-    dir: content
-    defaultType: page
+  sources:
+    - name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 
 build:
   output: dist

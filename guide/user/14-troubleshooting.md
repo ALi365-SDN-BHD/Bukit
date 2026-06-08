@@ -75,7 +75,7 @@ Symptom: `doctor` or `build` fails with `Route conflict on url` or `Route confli
 
 Fix checklist:
 - Two content pages have the same slug → rename slugs or use different collection routes
-- Two content pages have the same `route.outputPath` override → ensure uniqueness
+- Two content pages resolve to the same URL/output path → change `collection` routes, slugs, or `route.url`
 - A content page URL collides with a derived page (pagination/archive/taxonomy) → change `deriveConflictPolicy` to `warn` or `last-wins`, or adjust the conflicting URL
 
 Run `bukit doctor` first to detect conflicts without a full build.
@@ -108,8 +108,8 @@ Symptom: You think a page is at `/pages/about/`, but it actually outputs elsewhe
 
 Fix:
 
-- Confirm the content's `type` and `slug`
-- Do not casually use `route/url/outputPath/template` override fields (unless you clearly know the output path)
+- Confirm the content's `collection` and `slug`
+- Do not casually use route overrides; when needed, use `route.url` and let Bukit derive the output path
 
 ### B) Multilingual filtering excludes content
 
@@ -256,4 +256,3 @@ Fix:
           - derive-pages   # Added: matches hooks list
           - emit-outputs
   ```
-- Or remove the `capabilities` field entirely to allow all hooks (backward compatible).

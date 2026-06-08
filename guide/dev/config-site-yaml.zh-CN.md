@@ -46,7 +46,6 @@ logging: {}
 | `site.languages` | string[] | 否 | null | 多语言输出（例如 `["zh-CN","en-US"]`）；数组非空时至少包含一项非空字符串；不可重复（忽略大小写） |
 | `site.defaultLanguage` | string | 否 | `site.languages[0]` | 必须包含在 `site.languages` 中 |
 | `site.sitemapMode` | string | 否 | `split` | `split` \| `merged` \| `index` |
-| `site.rssMode` | string | 否 | `split` | `split` \| `merged` |
 | `site.searchMode` | string | 否 | `split` | `split` \| `merged` \| `index` |
 | `site.searchIncludeDerived` | bool | 否 | false | 是否把插件派生页纳入搜索索引（语义见 SearchIndex 插件） |
 | `site.pluginFailMode` | string | 否 | `strict` | `strict`（插件失败中断构建）\| `warn`（记录错误继续） |
@@ -125,32 +124,21 @@ site:
 
 ## content
 
-content 支持两种模式：
-
-1. 单一 provider：`content.provider: markdown|notion`
-2. 多源组合：`content.provider: sources` + `content.sources[]`
-
-### content.provider
-
-| 值 | 说明 |
-|---|---|
-| `markdown` | 从本地 Markdown 加载内容 |
-| `notion` | 从 Notion 数据库加载内容 |
-| `sources` | 组合多个内容源（Notion/Markdown），并支持 mode=content/data |
+content 在 Bukit 1.0 只支持 `content.sources[]`。`content.provider` 是移除字段，出现时会被拒绝。
 
 ### content.sources[]
 
-当存在 `content.sources` 时，`content.provider` 会被视为 `sources`（即使未显式填写）。
+`content.sources[]` 是唯一内容入口。即使只有一个 Markdown 或 Notion 来源，也必须写成 sources 列表。
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |---|---:|---:|---|---|
-| `content.sources[].type` | string | 是 | - | `notion` \| `markdown` |
+| `content.sources[].type` | string | 否 | - | 可选兼容字段；1.0 starter 不写，推荐通过 `markdown` 或 `notion` 子对象表达来源 |
 | `content.sources[].name` | string | 否 | null | 可选名称；若填写必须唯一 |
 | `content.sources[].mode` | string | 否 | `content` | `content`（生成路由并渲染）\| `data`（不生成路由，只注入 `site.modules`） |
 | `content.sources[].notion` | object | 视 type | - | type=notion 必填 |
 | `content.sources[].markdown` | object | 视 type | - | type=markdown 必填 |
 
-### content.notion / content.sources[].notion
+### content.sources[].notion
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |---|---:|---:|---|---|
@@ -189,7 +177,7 @@ content 支持两种模式：
   - `requests`：Notion HTTP 请求总数（包含 query、blocks、429 重试）
   - `throttle_wait_count` / `throttle_wait_ms`：因 `maxRps` 节流带来的等待次数/累计毫秒
 
-### content.markdown / content.sources[].markdown
+### content.sources[].markdown
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |---|---:|---:|---|---|
@@ -221,9 +209,10 @@ content 支持两种模式：
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
+  sources:
+    - type: notion
+      notion:
+        databaseId: "..."
   media:
     downloadToLocal: true
     downloadDir: assets/uploads
@@ -306,9 +295,8 @@ content:
 | `taxonomy.pinOrderFieldBySource` | object | 否 | null | 多数据源置顶排序字段映射（键为 sourceKey，值为字段名）；未配置时使用全局 `pinOrderField` |
 
 说明：
-- 未配置 `taxonomy.kinds`：保持旧行为，仅生成 tags/categories 两套派生页。
-- 配置了 `taxonomy.kinds`：按 kinds 列表生成任意 taxonomy；`taxonomy.kinds[]` 上的模板字段优先级最高。
-  若 `kind` 为 `tags/categories`，`taxonomy.templates.<kind>.*` 仍作为 fallback（未在 kinds 内指定时才会生效）。
+- `taxonomy.kinds` 是 1.0 的标准 taxonomy 配置方式。1.0 文档与示例应显式列出所需 kind（例如 `tags` / `categories`）。
+- `taxonomy.templates.<kind>.*` 的旧 fallback 已改为迁移语境；在 1.0 运行口径中不再作为默认行为。
 - `taxonomy.kinds[]` 校验：`key` 必填；`kind`, `title`, `singularTitlePrefix`, `template`, `indexTemplate`, `termTemplate` 均为可选，但设置时必须为非空字符串。
 - `taxonomy.kinds[].hierarchical`：启用后自动计算层次关系。term 通过 `parent` 元数据（data 源或 `_index.md`）关联父级；无 `parent` 的 term 为根节点。
 - term 元数据支持两种加载源：

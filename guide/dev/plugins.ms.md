@@ -41,7 +41,7 @@ site:
 Pelaksanaan: `src/Bukit.Engine/Plugins/PluginCapability.cs`, `src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs`.
 
 **Peraturan penguatkuasaan:**
-- `capabilities` tidak diisytiharkan → semua hook dibenarkan (serasi ke belakang)
+- `capabilities` tidak diisytiharkan → konfigurasi tidak sah (`ConfigException` / `BKT-0701`)
 - `capabilities` diisytiharkan → setiap pelaksanaan hook diperiksa terhadap senarai keupayaan pada masa jalan
 - Hook kekurangan keupayaan diperlukan → `ConfigException` dengan `BKT-0701`
 - Nama keupayaan tidak sah → `ConfigException` semasa pengesahan konfigurasi

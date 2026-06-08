@@ -82,9 +82,13 @@ site:
       permalink: /pages/{slug}/
       template: pages/page.html
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 build:
   output: dist
   clean: true
@@ -114,7 +118,7 @@ Untuk penjelasan yang lebih lengkap tentang medan dan lalai, lihat: [04 Konfigur
 
 ```markdown
 ---
-type: page
+collection: page
 title: Hello World
 slug: hello-world
 tags: [demo, first]

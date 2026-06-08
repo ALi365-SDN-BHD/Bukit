@@ -21,7 +21,7 @@ site:
 
 ```yaml
 ---
-type: page
+collection: page
 title: Hello
 slug: greeting
 language: en-US
@@ -50,7 +50,6 @@ dist/
 ```yaml
 site:
   sitemapMode: split
-  rssMode: split
   searchMode: split
 ```
 
@@ -59,7 +58,6 @@ site:
 ```yaml
 site:
   sitemapMode: merged
-  rssMode: merged
   searchMode: merged
 ```
 
@@ -71,7 +69,7 @@ site:
   searchMode: index
 ```
 
-> **Nota**: `rssMode` hanya menyokong `split` / `merged`.
+> **Nota**: `site.rssMode` adalah legacy dalam 1.0 dan tidak lagi boleh dikonfigurasi; output feed mengikuti tingkah laku lalai `site.plugins.feed`.
 
 ## Tritunggal SEO: site.url, baseUrl, Coretan SEO Tema
 
@@ -208,7 +206,7 @@ Tambahkan data berstruktur ke front matter kandungan anda di bawah kunci `geo`:
 ```yaml
 ---
 title: Cara Membina Blog dengan Bukit
-type: post
+collection: post
 geo:
   schema_type: HowTo         # BlogPosting | Article | NewsArticle | FAQPage | HowTo
   about: Penjana laman statik

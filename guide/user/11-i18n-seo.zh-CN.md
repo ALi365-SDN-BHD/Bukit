@@ -43,7 +43,7 @@ site:
 
 ```yaml
 ---
-type: page
+collection: page
 title: Hello
 slug: greeting
 language: en-US
@@ -87,7 +87,6 @@ dist/
 ```yaml
 site:
   sitemapMode: split
-  rssMode: split
   searchMode: split
 ```
 
@@ -101,7 +100,6 @@ site:
 ```yaml
 site:
   sitemapMode: merged
-  rssMode: merged
   searchMode: merged
 ```
 
@@ -118,7 +116,7 @@ site:
   searchMode: index
 ```
 
-> **注意**：`rssMode` 仅支持 `split` / `merged`，不支持 `index`。
+> **注意**：`site.rssMode` 在 1.0 为遗留字段，用户配置中不再支持；Feed 输出遵循 `site.plugins.feed` 的默认多语言行为。
 
 适合：
 
@@ -152,7 +150,7 @@ Bukit 会在引擎层统一计算 `page.seo`，主题只需要负责渲染。这
 2. 内容常规字段：`summary`、`cover`、`image`、`publishAt`
 3. 站点字段：`site.title`、`site.description`、`site.seo.defaultImage`
 
-`type: post` 或 collection 为 `post` 的内容会额外输出 `BlogPosting` JSON-LD。
+collection 为 `post` 的内容会额外输出 `BlogPosting` JSON-LD。
 
 ### 配置 site.seo
 
@@ -334,7 +332,7 @@ PerplexityBot, Cohere-AI, CCBot, Diffbot, FacebookBot, OAI-SearchBot
 ```yaml
 ---
 title: 如何用 Bukit 构建博客
-type: post
+collection: post
 geo:
   schema_type: HowTo         # BlogPosting | Article | NewsArticle | FAQPage | HowTo
   about: 静态站点生成器

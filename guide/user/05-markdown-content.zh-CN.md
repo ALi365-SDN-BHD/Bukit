@@ -16,9 +16,13 @@
 
 ```yaml
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 ```
 
 引擎会递归读取 `content/` 下的所有 `*.md`。需要生成路由的内容应在 Front Matter 中声明 `collection`，并与 `site.collections` 中的路由/模板规则匹配。
@@ -29,16 +33,20 @@ content:
 
 ```yaml
 content:
-  provider: markdown
-  markdown:
-    dir: content
-    maxItems: 5000
-    includePaths:
-      - hello-world.md
-      - blog/2026-01-update.md
-    includeGlobs:
-      - blog/*.md
-      - "**/pages/*.md"
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
+        maxItems: 5000
+        includePaths:
+          - hello-world.md
+          - blog/2026-01-update.md
+        includeGlobs:
+          - blog/*.md
+          - "**/pages/*.md"
 ```
 
 说明：

@@ -82,9 +82,13 @@ site:
       permalink: /pages/{slug}/
       template: pages/page.html
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 build:
   output: dist
   clean: true
@@ -118,7 +122,7 @@ For a more complete explanation of fields and defaults, see: [04 Site YAML Confi
 
 ```markdown
 ---
-type: page
+collection: page
 title: Hello World
 slug: hello-world
 tags: [demo, first]

@@ -59,8 +59,8 @@ Sumber: adapter `PublishRepresentationRegistry` melalui helper generator RSS, At
 - Key suis plugin: `site.plugins.feed` (tidak lagi menggunakan `rss`)
 
 Tingkah laku pelbagai bahasa:
-- Apabila `site.languages` tidak kosong dan `site.rssMode == merged`: output akar dijana oleh adapter i18n root projection
-- Mod lain: setiap direktori output bahasa menjana fail feed masing-masing
+- `site.rssMode` sudah dikeluarkan dalam 1.0 dan tidak lagi digunakan untuk mengawal mod feed.
+- Untuk projek lama yang masih melalui laluan migrasi, tingkah laku output akar mungkin masih mengikuti `site.rssMode` legacy; bagi konfigurasi 1.0 baharu, feed dijana per bahasa mengikut lalai dan kendali `site.plugins.feed`.
 
 ## search-index (publish projection adapter)
 

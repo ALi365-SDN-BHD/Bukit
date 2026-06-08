@@ -34,45 +34,23 @@ This page is for quick lookup. For more complete authoritative field references 
 | `site.pluginFailMode` | Plugin failure strategy | `strict` / `warn` |
 | `site.plugins` | Plugin switches and parameters | `sitemap: false` / `path-report: { enabled: true, options: {...} }` |
 | `site.sitemapMode` | Sitemap output mode | `split` / `merged` / `index` |
-| `site.rssMode` | RSS output mode | `split` / `merged` |
 | `site.searchMode` | Search output mode | `split` / `merged` / `index` |
 | `site.autoSummary` | Auto-extract summary from body when not provided | `true` / `false` |
 | `site.autoSummaryMaxLength` | Max length of auto summary (characters) | `200` |
 
 ## content.* (Content System)
 
-### provider=markdown
+### content.sources[] (Markdown / Notion / Data)
 
 | Field | Meaning | Example |
 |---|---|---|
-| `content.provider` | Content source type | `markdown` |
-| `content.markdown.dir` | Markdown root directory | `content` |
-| `content.markdown.defaultType` | Default type | `page` |
-
-### provider=notion
-
-| Field | Meaning | Example |
-|---|---|---|
-| `content.provider` | Content source type | `notion` |
-| `content.notion.databaseId` | Database ID | `xxxxxxxx-xxxx-...` |
-| `content.notion.pageSize` | Page size (optional) | `50` |
-| `content.notion.filterProperty` | Filter field name | `Published` |
-| `content.notion.filterType` | Filter type | `checkbox_true` |
-| `content.notion.sortProperty` | Sort field name | `PublishAt` |
-| `content.notion.sortDirection` | Sort direction | `descending` |
-| `content.notion.fieldPolicy.mode` | Field policy | `whitelist` / `all` |
-| `content.notion.fieldPolicy.allowed` | Whitelist fields (normalized keys) | `[seo_title, seo_desc]` |
-
-### provider=sources (Composite Mode)
-
-| Field | Meaning | Example |
-|---|---|---|
-| `content.provider` | Content source type | `sources` |
 | `content.sources[].type` | Source type | `markdown` / `notion` |
 | `content.sources[].name` | Source name | `pages` / `posts` / `modules` |
 | `content.sources[].mode` | Behavior mode | `content` / `data` |
-| `content.sources[].markdown` | Markdown sub-config | `{ dir: content }` |
-| `content.sources[].notion` | Notion sub-config | `{ databaseId: "...", fieldPolicy: { mode: all } }` |
+| `content.sources[].collection` | Default collection for content routes | `page` / `post` |
+| `content.sources[].markdown.dir` | Markdown root directory | `content` |
+| `content.sources[].notion.databaseId` | Database ID | `xxxxxxxx-xxxx-...` |
+| `content.sources[].notion.fieldPolicy.mode` | Notion field policy | `whitelist` / `all` |
 
 ## build.* (Build Output)
 

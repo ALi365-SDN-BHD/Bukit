@@ -31,13 +31,17 @@ In GitHub Actions, use repository Secrets (see: [13 Deploy GitHub Pages](./13-de
 
 You need to create an Integration in Notion and share the target database with that Integration, otherwise you will encounter "no permission / database not found" errors.
 
-## Minimal Config (Notion provider)
+## Minimal Config (Notion source)
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 ```
 
 It is recommended to start with the "minimal config", get it working, then gradually add filter/sort/fieldPolicy.
@@ -56,9 +60,13 @@ Please switch to:
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
   media:
     downloadToLocal: true
     downloadDir: assets/uploads
@@ -129,22 +137,30 @@ Notes:
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    filterProperty: Published
-    filterType: checkbox_true
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "..."
+        filterProperty: Published
+        filterType: checkbox_true
 ```
 
 ### Sort by publish date descending
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    sortProperty: PublishAt
-    sortDirection: descending
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "..."
+        sortProperty: PublishAt
+        sortDirection: descending
 ```
 
 ## Limits, Scoped Fetching & Caching (Large Databases / Reducing Notion Requests)
@@ -153,21 +169,29 @@ content:
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    maxItems: 5000
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "..."
+        maxItems: 5000
 ```
 
 ### 2) includeSlugs: Only fetch pages with the specified slugs
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    includeSlugProperty: Slug
-    includeSlugs: [about, first-post]
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "..."
+        includeSlugProperty: Slug
+        includeSlugs: [about, first-post]
 ```
 
 Notes:
@@ -181,11 +205,15 @@ When `renderContent=true`, the engine reads Notion blocks and renders HTML. For 
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    cacheMode: readwrite   # off | readwrite | readonly
-    cacheDir: .cache/notion
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "..."
+        cacheMode: readwrite   # off | readwrite | readonly
+        cacheDir: .cache/notion
 ```
 
 Behavior:
@@ -200,12 +228,16 @@ When there are many pages and body content needs to be rendered (blocks API call
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    renderConcurrency: 4
-    maxRps: 3
-    maxRetries: 5
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "..."
+        renderConcurrency: 4
+        maxRps: 3
+        maxRetries: 5
 ```
 
 Notes:
@@ -327,28 +359,36 @@ When the target page of a relation is not in the current `databaseId` query resu
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    fieldPolicy:
-      mode: whitelist
-      allowed:
-        - seo_title
-        - seo_desc
-        - cover
-        - reading_time
-        - my_link
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "..."
+        fieldPolicy:
+          mode: whitelist
+          allowed:
+            - seo_title
+            - seo_desc
+            - cover
+            - reading_time
+            - my_link
 ```
 
 ### All (convenient for debugging, but field changes more easily affect templates)
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    fieldPolicy:
-      mode: all
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "..."
+        fieldPolicy:
+          mode: all
 ```
 
 Field names are normalized (e.g., `SEO Title` → `seo_title`), so it is recommended to:
@@ -359,7 +399,7 @@ Field names are normalized (e.g., `SEO Title` → `seo_title`), so it is recomme
 Note:
 
 - Notion's `url` type fields enter `page.fields.<key>.value`, the value is a string URL.
-- If you name a field `Url` (normalized to `url`), it will simultaneously be used as a "route override field" (affecting the final URL of that page). If you just want to access a link in a template, it is recommended to use another name (e.g., `My Link`).
+- If you need a route override, use the canonical `route.url` field shape. If you just want to access a link in a template, use another property name (e.g., `My Link`) so it remains ordinary content data.
 
 ## Common Errors and Fixes
 

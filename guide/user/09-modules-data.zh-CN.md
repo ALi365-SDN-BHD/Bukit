@@ -20,11 +20,11 @@ Modules 的定位是：**把“页面里的一块块结构化内容”从模板�
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: content
       mode: content
+      collection: page
       markdown:
         dir: content
     - type: markdown
@@ -169,7 +169,6 @@ Modules 没有强制 schema（它由你的主题决定），但为了可维护�
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: notion
       name: modules
@@ -207,7 +206,6 @@ content:
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: modules_marketing

@@ -18,16 +18,18 @@ site:
 Pemegang tempat: `{slug}`, `{year}`, `{month}`, `{day}`, `{type}`
 
 Keutamaan (tinggi ke rendah):
-1. Tindihan penuh (url + outputPath + template)
-2. Tindihan separa (url sahaja atau url + template)
+1. Tindihan laluan (`route.url` dengan `route.template` pilihan)
+2. Tindihan `url` aras atas dengan `template` pilihan
 3. Peraturan Koleksi (`site.collections`)
 4. Corak Permalink (`site.permalinks`)
 5. Penghalaan lalai dibuang kerana laluan kini dikawal oleh peraturan koleksi/permalink/rute terarah.
 
 ## Tindihan Laluan
 
-### Tindihan Penuh
-Apabila ketiga-tiga `url`, `outputPath`, `template` hadir dalam meta — penghalaan lalai ditindih sepenuhnya.
+### Tindihan Laluan
+Gunakan `route.url` untuk mengawal URL awam. `route.template` boleh menukar templat. `outputPath` sentiasa diterbitkan daripada URL akhir.
+
+`outputPath` aras atas dan `route.outputPath` telah dibuang dalam Bukit 1.0 dan ditolak dengan `BKT-0209`.
 
 ### Tindihan Separa (url sahaja)
 Apabila hanya `url` disediakan, `outputPath` diterbitkan secara automatik daripada URL. `template` diwarisi daripada peraturan koleksi/permalinks/lalai.

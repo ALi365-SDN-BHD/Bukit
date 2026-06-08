@@ -29,12 +29,9 @@
 - `site.url` 为空时无法生成绝对 URL，因此 merged/index 相关策略可能被跳过或退化
 - merged alternates 依赖内容项的 `meta.i18nKey`（Notion 提升字段 i18n_key/i18nkey）来建立跨语言同一内容的关联
 
-## rssMode
+## feedMode（1.0 约定）
 
-| 值 | 行为 |
-|---|---|
-| `split` | 各语言独立 RSS |
-| `merged` | 合并生成 RSS（会尝试合并 tags/categories） |
+`site.rssMode` 在 Bukit 1.0 的用户配置中已移除。Feed 模式由 `site.feed`（尤其是 `site.feed.formats`）和 feed 插件配置控制。旧的 merged/split 行为不属于 1.0 运行兼容范围。
 
 ## searchMode
 

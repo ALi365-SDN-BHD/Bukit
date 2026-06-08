@@ -43,9 +43,13 @@ Bukit 里绝大多数相对路径都按 **配置文件所在目录**（`site.yam
 
 ```yaml
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 build:
   output: dist
 theme:
@@ -148,11 +152,11 @@ themes/
 
 ## 高级：路由覆盖字段（谨慎使用）
 
-如果你确实需要把某个页面输出到自定义路径，可以使用以下字段（不同内容源都会映射到 meta）：
+如果你确实需要自定义公开 URL，可以使用以下路由覆盖字段：
 
-- `route` 或 `url`：指定输出 URL
-- `outputPath`：直接指定输出文件路径（例如 `pages/about/index.html`）
-- `template`：指定使用哪个模板
+- `route.url` 或顶层 `url`：指定公开 URL
+- `route.template` 或顶层 `template`：指定使用哪个模板
+- `outputPath`：Bukit 1.0 已移除；输出路径从最终 URL 派生，手写值会被拒绝
 
 这些字段一旦配错，常见后果是：
 
@@ -160,4 +164,4 @@ themes/
 - sitemap/rss/search 里链接不正确
 - GitHub Pages 出现 404（baseUrl/路径不一致）
 
-建议优先通过 `slug/type` 解决，确需覆盖时再查：[14-故障排查](./14-troubleshooting.zh-CN.md)。
+建议优先通过 `collection` 和 `slug` 解决，确需覆盖时再查：[14-故障排查](./14-troubleshooting.zh-CN.md)。

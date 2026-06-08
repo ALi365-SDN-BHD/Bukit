@@ -7,7 +7,7 @@ Halaman ini menerangkan objek teras Bukit dari "perspektif pengguna": fail apa y
 ```text
 site.yaml
   │
-  ├─ content (Markdown / Notion / sources)
+  ├─ content.sources[] (Markdown / Notion / data sources)
   │     └─ membaca kandungan → menormalkan ke dalam ContentDocument
   │
   ├─ routing (ditentukan oleh route/template eksplisit, site.collections, dan theme templates.accepts)
@@ -21,7 +21,7 @@ site.yaml
 
 Hanya tiga perkara yang perlu diingat:
 
-1. **Dari mana kandungan datang** (content.provider / sources)
+1. **Dari mana kandungan datang** (`content.sources[]`)
 2. **Ke mana setiap kandungan dioutputkan** (melalui route/front matter atau site.collections secara eksplisit)
 3. **Templat apa yang digunakan untuk rendering** (template eksplisit, collection template/listTemplate, atau theme templates.accepts)
 
@@ -48,7 +48,7 @@ Kunci Record lazim (anda menyediakannya dalam Markdown Front Matter atau medan N
 - `slug`: Komponen teras URL (secara amnya disyorkan untuk kekal stabil)
 - `language`: Gabungan bahasa kandungan (digunakan untuk penapisan dan pautan dalam persediaan pelbagai bahasa)
 - `tags` / `categories`: Teg/kategori (digunakan untuk menghasilkan halaman senarai)
-- `route` / `url` / `outputPath` / `template`: Penggunaan lanjutan untuk menentukan laluan/templat secara eksplisit (gunakan dengan berhati-hati)
+- `route` / `url` / `template`: Penggunaan lanjutan untuk menentukan URL/templat secara eksplisit. `outputPath` diterbitkan daripada URL akhir dan tidak boleh dikonfigurasikan.
 
 ### 2) Fields: Medan tersuai yang dimaksudkan untuk penggunaan templat (tambah apa sahaja yang anda mahu)
 
@@ -76,8 +76,8 @@ Anda boleh mengawal hasil melalui kaedah berikut:
 - Isytiharkan peraturan collection dalam site.collections (disyorkan)
 - Tentukan `collection` dalam meta kandungan yang sepadan dengan kunci collection (disyorkan)
 - Ubah `slug`: mengubah satu segmen laluan
-- Ubah `type`: hanya mempengaruhi logik padanan yang anda isytiharkan dalam konfigurasi atau theme `templates.accepts.type`
-- Gunakan penggantian `route/url/outputPath`: lebih kuat, tetapi lebih mudah tersalah konfigurasi (lihat: [03 Struktur Projek](./03-project-structure.ms.md) dan [14 Penyelesaian Masalah](./14-troubleshooting.ms.md))
+- Ubah `type`: metadata pilihan atau kunci padanan tema; jangan gunakannya untuk penghalaan
+- Gunakan penggantian `route.url` / `route.template`: lebih kuat, tetapi lebih mudah tersalah konfigurasi (lihat: [03 Struktur Projek](./03-project-structure.ms.md) dan [14 Penyelesaian Masalah](./14-troubleshooting.ms.md))
 
 ## Tema & Templat: Bagaimana Rupa Halaman
 
@@ -100,7 +100,7 @@ Selepas pembinaan selesai, enjin menjana artifak tambahan berdasarkan konfiguras
 
 Dari perspektif pengguna, anda hanya perlu tahu:
 
-- Anda boleh menggunakan `site.sitemapMode/rssMode/searchMode` untuk mengawal mod output pelbagai bahasa
+- Anda boleh menggunakan `site.sitemapMode` dan `site.searchMode` untuk mengawal mod output pelbagai bahasa; `site.rssMode` ialah medan legasi (1.0).
 - Anda boleh menggunakan `site.pluginFailMode` untuk memutuskan sama ada kegagalan plugin mengganggu pembinaan
 
 Lihat: [10 Ciri & Output Terbina Dalam](./10-built-in-features.ms.md) dan [11 Pelbagai Bahasa & SEO](./11-i18n-seo.ms.md).

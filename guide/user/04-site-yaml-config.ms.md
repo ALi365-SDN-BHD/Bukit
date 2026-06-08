@@ -28,9 +28,13 @@ site:
       permalink: /pages/{slug}/
       template: pages/page.html
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 build:
   output: dist
   clean: true
@@ -74,7 +78,6 @@ Mod yang berkaitan dengan output (sangat penting untuk berbilang bahasa):
 | Medan | Fungsi | Nilai Lazim |
 |---|---|---|
 | `site.sitemapMode` | Mod output sitemap | `merged` / `split` / `index` |
-| `site.rssMode` | Mod output rss | `merged` / `split` |
 | `site.searchMode` | Mod output search | `merged` / `split` / `index` |
 
 Cara memilih mod ini: [11-Berbilang Bahasa dan SEO](./11-i18n-seo.ms.md).
@@ -201,23 +204,23 @@ site:
     page: "/docs/{slug}/"
 ```
 
-Perhatian: jika sesebuah artikel menetapkan tindihan routing (`url/outputPath/template`) melalui medan rekod (record) atau medan Notion, tindihan routing mempunyai keutamaan lebih tinggi daripada permalinks.
+Perhatian: jika sesebuah artikel menetapkan `route.url` dan `route.template` pilihan, tindihan routing mempunyai keutamaan lebih tinggi daripada permalinks. `outputPath` sentiasa diterbitkan daripada URL akhir; `outputPath` aras atas dan `route.outputPath` ditolak dalam Bukit 1.0.
 
 ### content: Sumber Kandungan (Markdown / Notion / Pelbagai Sumber)
 
-Anda hanya boleh memilih satu provider:
+Bukit 1.0 menggunakan `content.sources[]` untuk projek satu sumber dan pelbagai sumber.
 
-- `markdown`: membaca Markdown daripada folder setempat
-- `notion`: membaca daripada pangkalan data Notion
-- `sources`: menggabungkan beberapa sumber (disyorkan untuk pemisahan pangkalan pages + posts + modules)
-
-#### provider=markdown
+#### Markdown source
 
 ```yaml
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: content
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 ```
 
 | Medan | Fungsi | Penerangan |
@@ -230,24 +233,28 @@ content:
 
 Cara menulis kandungan Markdown: [05-Kandungan Markdown](./05-markdown-content.md).
 
-#### provider=notion
+#### Notion source
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "xxxx"
-    pageSize: 50
-    filterProperty: Published
-    filterType: checkbox_true
-    sortProperty: PublishAt
-    sortDirection: descending
-    fieldPolicy:
-      mode: whitelist
-      allowed:
-        - seo_title
-        - seo_desc
-        - cover
+  sources:
+    - type: notion
+      name: pages
+      mode: content
+      collection: page
+      notion:
+        databaseId: "xxxx"
+        pageSize: 50
+        filterProperty: Published
+        filterType: checkbox_true
+        sortProperty: PublishAt
+        sortDirection: descending
+        fieldPolicy:
+          mode: whitelist
+          allowed:
+            - seo_title
+            - seo_desc
+            - cover
 ```
 
 | Medan | Fungsi | Penerangan |
@@ -267,15 +274,15 @@ Prasyarat mod Notion:
 
 Lihat butiran: [06-Kandungan Notion](./06-notion-content.ms.md).
 
-#### provider=sources (gabungan pelbagai sumber, menyokong mode=data)
+#### Gabungan pelbagai sumber, menyokong `mode: data`
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: pages
       mode: content
+      collection: page
       markdown:
         dir: content
     - type: markdown
@@ -477,14 +484,12 @@ Bandingkan dengan contoh: `examples/starter/site.i18n.yaml`.
 
 ```yaml
 content:
-  provider: sources
   sources:
-    - type: markdown
-      name: content
+    - name: content
       mode: content
+      collection: page
       markdown: { dir: content }
-    - type: markdown
-      name: modules
+    - name: modules
       mode: data
       markdown: { dir: data, defaultType: module }
 ```

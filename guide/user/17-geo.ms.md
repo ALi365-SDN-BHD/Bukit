@@ -49,7 +49,7 @@ site:
 ```yaml
 ---
 title: Soalan Lazim
-type: page
+collection: page
 geo:
   schema_type: FAQPage
   faq:
@@ -63,7 +63,7 @@ geo:
 ```yaml
 ---
 title: Cara Membina Blog dengan Bukit
-type: post
+collection: post
 geo:
   schema_type: HowTo
   about: Penjanaan Laman Statik

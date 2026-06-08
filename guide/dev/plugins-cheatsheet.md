@@ -39,7 +39,9 @@ site:
 ## feed Projection
 - Output: `rss.xml` (requires `site.url`)
 - Input: routed content only
-- Multilingual: controlled by `site.rssMode`
+- Multilingual feed behavior:
+  - `site.rssMode` is legacy and removed in 1.0
+  - New 1.0 configs use per-language feed output with `site.plugins.feed` defaults
 
 ## search Projection
 - Output: `search.json` (does not require `site.url`)

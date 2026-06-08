@@ -27,8 +27,8 @@ Template content skeletons:
 - `landing`: `content/pages/overview.md` plus `content/pages/contact.md`, homepage feature/CTA modules, explicit `collection: page`, flat page routes
 - `portfolio`: `content/work/sample-project.md` plus `content/pages/about.md`, data modules for the homepage, explicit `collection: work/page`, `/work/{slug}/` routes
 
-Non-minimal Markdown templates use `content.provider: sources`: content
-sources are assigned to their collection, while `data/` is loaded with
+Non-minimal Markdown templates use `content.sources[]`: content sources are
+assigned to their collection, while `data/` is loaded with
 `mode: data` and injected into `site.modules` for the first screen.
 
 Generated `site.yaml` includes `site.url: https://example.com` as a safe

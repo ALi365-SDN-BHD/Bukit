@@ -93,14 +93,11 @@ components:
       summary: string
 ```
 
-## 向后兼容性
+## 1.0 主题约束
 
-旧主题（仅通过目录约定工作，没有 `theme.yaml`）仍然可以正常构建。引擎在渲染时检测 `theme.yaml` 是否存在：
+1.0 项目要求主题必须有 `theme.yaml`。如果项目未提供 `theme.yaml`，doctor 与 build 应给出明确错误，提示补齐 manifest 或切换到支持的主题源。
 
-- **无 theme.yaml**：回退到传统渲染路径，`theme.zh-CN.md` 中描述的行为完全保留
-- **有 theme.yaml**：启用组件化渲染路径，额外获得 `render_section`、`comp.render`（组件化版）等能力
-
-旧主题可以渐进式迁移：添加一个 `theme.yaml` 并逐步声明 sections/components，不需要一次性完成。
+迁移路径：无 `theme.yaml` 的历史主题需要先补齐 `theme.yaml`，再逐步补齐 `sections`、`components` 等字段，不需要一次性完成全部配置。
 
 ## 命名约定（下划线 → PascalCase）
 

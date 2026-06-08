@@ -72,7 +72,7 @@ Gejala: `doctor` atau `build` gagal dengan `Route conflict on url` atau `Route c
 
 Senarai semak pembaikan:
 - Dua halaman kandungan mempunyai slug yang sama → namakan semula slug atau gunakan laluan koleksi berbeza
-- Dua halaman kandungan mempunyai `route.outputPath` yang sama → pastikan keunikan
+- Dua halaman kandungan menghasilkan URL/laluan output yang sama → ubah laluan koleksi, slug, atau `route.url`
 - URL halaman kandungan bertembung dengan halaman terbitan (pagination/arkib/taksonomi) → tukar `deriveConflictPolicy` ke `warn` atau `last-wins`, atau laraskan URL yang bertembung
 
 Jalankan `bukit doctor` dahulu untuk mengesan konflik tanpa binaan penuh.
@@ -85,8 +85,8 @@ Gejala: Anda fikir halaman berada di `/pages/about/`, tetapi ia sebenarnya dikel
 
 Pembaikan:
 
-- Sahkan `type` dan `slug` kandungan
-- Jangan gunakan medan tindihan `route/url/outputPath/template` secara sambil lewa (melainkan anda benar-benar tahu laluan output)
+- Sahkan `collection` dan `slug` kandungan
+- Jangan gunakan tindihan laluan secara sambil lewa; jika perlu, gunakan `route.url` dan biarkan Bukit menerbitkan laluan output
 
 ### B) Penapisan pelbagai bahasa mengecualikan kandungan
 
@@ -233,5 +233,3 @@ Pembetulan:
           - derive-pages   # Ditambah: sepadan dengan senarai hooks
           - emit-outputs
   ```
-- Atau padamkan sepenuhnya medan `capabilities` untuk membenarkan semua hook (serasi ke belakang).
-

@@ -44,7 +44,7 @@ Write `language` in Front Matter:
 
 ```yaml
 ---
-type: page
+collection: page
 title: Hello
 slug: greeting
 language: en-US
@@ -88,7 +88,6 @@ All three artifact types support the same mode selection (using sitemap as an ex
 ```yaml
 site:
   sitemapMode: split
-  rssMode: split
   searchMode: split
 ```
 
@@ -102,7 +101,6 @@ Suitable for:
 ```yaml
 site:
   sitemapMode: merged
-  rssMode: merged
   searchMode: merged
 ```
 
@@ -119,7 +117,7 @@ site:
   searchMode: index
 ```
 
-> **Note**: `rssMode` only supports `split` / `merged`, does not support `index`.
+> **Note**: `site.rssMode` is removed from user config in 1.0. Feed behavior follows `site.feed` / plugin settings (including `site.feed.formats`). Legacy `rssMode` merge/split semantics may still appear for migrated configs.
 
 Suitable for:
 
@@ -153,7 +151,7 @@ Page fields win first, then regular content fields, then site-level fallbacks:
 2. Regular content fields: `summary`, `cover`, `image`, `publishAt`
 3. Site fields: `site.title`, `site.description`, `site.seo.defaultImage`
 
-Content with `type: post` or collection `post` also emits `BlogPosting` JSON-LD.
+Content in collection `post` also emits `BlogPosting` JSON-LD.
 
 ### Configure site.seo
 
@@ -337,7 +335,7 @@ Add structured data to your content front matter under the `geo` key:
 ```yaml
 ---
 title: How to Build a Blog with Bukit
-type: post
+collection: post
 geo:
   schema_type: HowTo         # BlogPosting | Article | NewsArticle | FAQPage | HowTo
   about: Static site generators

@@ -177,7 +177,7 @@ Content Front Matter  >  Content Metadata  >  Site Config
 ```yaml
 ---
 title: My Blog Post
-type: post
+collection: post
 seo_title: Better SEO Title for Search Engines
 seo_desc: A custom meta description that appears in search snippets.
 canonical: https://example.com/blog/custom-canonical/
@@ -204,7 +204,7 @@ Bukit generates Schema.org JSON-LD on every page. The generated types depend on 
 | 3 | **WebPage** | Per-route | `seo.schema.webPage: true` (default) |
 | 4 | **CollectionPage** | Per-route (list) | `seo.schema.collectionPage: true` + page is a list/taxonomy/pagination page |
 | 5 | **BreadcrumbList** | Per-route | Route path has at least one segment beyond root |
-| 6 | **BlogPosting** | Per-route (post) | Content `type: post` (default article type) |
+| 6 | **BlogPosting** | Per-route (post) | Content `collection: post` or explicit article schema configuration |
 
 ### BlogPosting / Article Fields
 

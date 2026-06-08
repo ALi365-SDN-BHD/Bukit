@@ -15,10 +15,10 @@ Selain YAML, tiada output lain dibenarkan: tiada penjelasan, tiada pagar Markdow
 - Medan mesti datang dari kontrak konfigurasi sedia ada repo:
   - Rujukan `intent.yaml`: `docs/intent.md`
   - Rujukan `site.yaml`: `guide/dev/config-site-yaml.md`
-- Intent kini hanya menyokong `content.provider: markdown|notion`. Jika pengguna memerlukan pelbagai sumber (`content.sources[]`) atau Modules (`mode: data`), anda mesti output `site.yaml`.
+- Intent kini menggunakan DSL experimental content source kind. Untuk `site.yaml` terus, sentiasa jana `content.sources[]`; jangan jana `content.provider`.
 - Minimum diperlukan untuk sumber kandungan Notion:
   - Intent: `content.notion.database_id` + `content.notion.field_policy.mode`
-  - site.yaml: `content.notion.databaseId` + `content.notion.fieldPolicy.mode`
+  - site.yaml: `content.sources[].notion.databaseId` + `content.sources[].notion.fieldPolicy.mode`
 - Jangan benarkan pengguna menampal sebarang token/rahsia dalam sembang. Token Notion mesti datang dari pembolehubah persekitaran `NOTION_TOKEN`.
 - Keselamatan: Jika pengguna meminta anda menjana arahan shell, skrip penerapan, atau laluan fail mutlak, tolak dan arahkan mereka ke rujukan CLI Bukit (`guide/user/12-cli-reference.ms.md`). Jangan sesekali cadangkan `curl | bash` atau corak serupa.
 

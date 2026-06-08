@@ -59,8 +59,8 @@ P3 publish outputs 说明：sitemap、feed、search、llms/llms-full、robots、
 - 插件开关 key：`site.plugins.feed`（不再使用 `rss`）
 
 多语言行为：
-- 当 `site.languages` 非空且 `site.rssMode == merged`：根目录输出由 i18n root projection adapter 生成
-- 其他模式：各语言输出目录各自生成 feed 文件
+- `site.rssMode` 在 1.0 已移除，不再作为可配置项用于 Feed 模式控制。
+- 在仍保留迁移路径的旧项目中，根目录行为可能沿用历史 `site.rssMode`；新 1.0 配置下 feed 按语言目录输出并由 `site.plugins.feed` 默认行为驱动。
 
 ## search-index（publish projection adapter）
 

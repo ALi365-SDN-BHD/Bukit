@@ -31,13 +31,15 @@ GitHub Actions 里建议用仓库 Secrets（见：[13-部署-GitHub-Pages](./13-
 
 你需要在 Notion 创建一个 Integration，并把目标数据库分享给该 Integration，否则会出现“无权限/找不到数据库”等错误。
 
-## 最小配置（Notion provider）
+## 最小配置（Notion source）
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 ```
 
 建议你从“最小配置”开始跑通，再逐步增加 filter/sort/fieldPolicy。
@@ -47,18 +49,20 @@ content:
 从当前版本开始，图片本地化配置统一放在 `content.media`，不再读取 Notion 专属媒体字段。
 
 已移除（且无兼容）：
-- `content.notion.downloadImagesToLocal`
-- `content.notion.imageDownloadDir`
-- `content.notion.imageUrlBase`
-- `content.notion.defaultImageUrl`
+- `content.sources[].notion.downloadImagesToLocal`
+- `content.sources[].notion.imageDownloadDir`
+- `content.sources[].notion.imageUrlBase`
+- `content.sources[].notion.defaultImageUrl`
 
 请改用：
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
   media:
     downloadToLocal: true
     downloadDir: assets/uploads
@@ -129,22 +133,26 @@ content:
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    filterProperty: Published
-    filterType: checkbox_true
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        filterProperty: Published
+        filterType: checkbox_true
 ```
 
 ### 按发布时间倒序
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    sortProperty: PublishAt
-    sortDirection: descending
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        sortProperty: PublishAt
+        sortDirection: descending
 ```
 
 ## 限额、指定拉取与缓存（大库/减少 Notion 请求）
@@ -153,21 +161,25 @@ content:
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    maxItems: 5000
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        maxItems: 5000
 ```
 
 ### 2）includeSlugs：只拉取指定 slug 的页面
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    includeSlugProperty: Slug
-    includeSlugs: [about, first-post]
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        includeSlugProperty: Slug
+        includeSlugs: [about, first-post]
 ```
 
 说明：
@@ -181,11 +193,13 @@ content:
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    cacheMode: readwrite   # off | readwrite | readonly
-    cacheDir: .cache/notion
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        cacheMode: readwrite   # off | readwrite | readonly
+        cacheDir: .cache/notion
 ```
 
 行为说明：
@@ -200,12 +214,14 @@ content:
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    renderConcurrency: 4
-    maxRps: 3
-    maxRetries: 5
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        renderConcurrency: 4
+        maxRps: 3
+        maxRetries: 5
 ```
 
 说明：
@@ -327,28 +343,32 @@ taxonomy 插件只读取 `meta.tags` / `meta.categories` 来生成 `/tags/` 与 
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    fieldPolicy:
-      mode: whitelist
-      allowed:
-        - seo_title
-        - seo_desc
-        - cover
-        - reading_time
-        - my_link
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        fieldPolicy:
+          mode: whitelist
+          allowed:
+            - seo_title
+            - seo_desc
+            - cover
+            - reading_time
+            - my_link
 ```
 
 ### 全量（调试方便，但字段变化更容易影响模板）
 
 ```yaml
 content:
-  provider: notion
-  notion:
-    databaseId: "..."
-    fieldPolicy:
-      mode: all
+  sources:
+    - name: notion
+      mode: content
+      notion:
+        databaseId: "..."
+        fieldPolicy:
+          mode: all
 ```
 
 字段名会做归一化（例如 `SEO Title` → `seo_title`），所以建议：

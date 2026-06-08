@@ -66,7 +66,7 @@ site:
 | `emit-outputs` | `after-build` | 写入文件到输出目录 |
 
 **强制执行规则：**
-- **未声明**（`capabilities: null` 或不存在）：允许所有 hook（向后兼容）
+- **未声明**（`capabilities: null` 或不存在）：无效配置，构建失败（`ConfigException` / `BKT-0701`），外部协议插件必须声明能力才能运行
 - **已声明但不完整**：构建失败，错误码 `[BKT-0701]` — 引擎在运行时检查每个 hook 与声明能力的匹配
 - 配置验证拒绝无效的能力名称（`ConfigException`）
 

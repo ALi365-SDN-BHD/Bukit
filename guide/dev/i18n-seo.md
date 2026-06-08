@@ -21,7 +21,9 @@ Without `site.languages`: single-language mode, `dist/...`
 
 Constraints: `site.url` must be set for absolute URLs; merged alternates rely on `meta.i18nKey`.
 
-## rssMode: `split` (per language) or `merged`
+## feedMode (1.0)
+
+`site.rssMode` was removed from user config in Bukit 1.0. Feed strategy is now controlled by `site.feed` (notably `site.feed.formats` and plugin options). 1.0 does not promise migrated-project compatibility for old `rssMode` merged/split behavior.
 
 ## searchMode: `split`, `merged`, or `index`
 

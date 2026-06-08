@@ -20,11 +20,11 @@ See runnable examples:
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: content
       mode: content
+      collection: page
       markdown:
         dir: content
     - type: markdown
@@ -169,7 +169,6 @@ Matching sources config example:
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: notion
       name: modules
@@ -207,7 +206,6 @@ Example: 3 data sources (2 markdown data + 1 notion data)
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: modules_marketing

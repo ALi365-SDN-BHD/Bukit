@@ -59,8 +59,8 @@ Source: `PublishRepresentationRegistry` adapter via RSS, Atom, and JSON Feed gen
 - Plugin switch key: `site.plugins.feed`; `rss` is no longer used
 
 Multilingual behavior:
-- When `site.languages` is non-empty and `site.rssMode == merged`, root generation is driven by the i18n root projection adapter
-- In other modes, each language output directory generates its own feed files
+- Feed mode in multilingual builds is no longer configured via `site.rssMode` in 1.0.
+- In migrated legacy projects, root projection behavior may follow previous `site.rssMode` settings; for new 1.0 configs, feeds are generated per language using `site.plugins.feed` defaults.
 
 ## search-index (publish projection adapter)
 

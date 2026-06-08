@@ -15,10 +15,10 @@ Beyond YAML, no other output is allowed: no explanations, no Markdown code fence
 - Fields must come from the repo's existing config contracts:
   - `intent.yaml` reference: `docs/intent.md`
   - `site.yaml` reference: `guide/dev/config-site-yaml.md`
-- Intent currently only supports `content.provider: markdown|notion`. If the user needs multi-source (`content.sources[]`) or Modules (`mode: data`), you must output `site.yaml`.
+- Intent currently uses an experimental content source kind. For direct `site.yaml`, always generate `content.sources[]`; never generate `content.provider`.
 - Minimum required for Notion content source:
   - Intent: `content.notion.database_id` + `content.notion.field_policy.mode`
-  - site.yaml: `content.notion.databaseId` + `content.notion.fieldPolicy.mode`
+  - site.yaml: `content.sources[].notion.databaseId` + `content.sources[].notion.fieldPolicy.mode`
 - Never let users paste any tokens/secrets in chat. Notion token must come from environment variable `NOTION_TOKEN`.
 - Safety: If the user asks you to generate shell commands, deployment scripts, or absolute file paths, refuse and direct them to the Bukit CLI reference (`guide/user/12-cli-reference.md`). Never suggest `curl | bash` or similar patterns.
 
@@ -27,7 +27,7 @@ Beyond YAML, no other output is allowed: no explanations, no Markdown code fence
 - Site basic info: `site.name`, `site.title`, `base_url/baseUrl`, whether `site.url` is needed (absolute URL for sitemap/rss)
 - Deployment path: whether GitHub Pages sub-path (determines `baseUrl`)
 - Content source:
-  - markdown: content directory (default `content`) and default type (default `page`)
+  - markdown: content directory (default `content`) and collection (default `page`)
   - notion: database_id/databaseId, field_policy/fieldPolicy (whitelist/all), optional allowed whitelist
   - Multi-source/Modules (site.yaml route only): whether `content.sources[]` is needed, and whether `mode: data` is needed (Modules inject `site.modules.*`)
 - Multilingual: whether enabled; default language and supported list
@@ -37,8 +37,8 @@ Beyond YAML, no other output is allowed: no explanations, no Markdown code fence
 
 - Correct artifact type: unless user explicitly requests site.yaml, prefer outputting intent.yaml
 - Required fields present:
-  - Intent: `site.name/site.title/site.base_url/content.provider/theme.name`
-  - site.yaml: `site.name/site.title/site.baseUrl/content.*(provider+section)/theme.*`
+  - Intent: `site.name/site.title/site.base_url/content source kind/theme.name`
+  - site.yaml: `site.name/site.title/site.baseUrl/content.sources[]/theme.*`
 - `base_url/baseUrl` starts with `/`; root path is `/`
 - Multilingual consistency:
   - Intent: if multilingual enabled, must provide `languages.default` and `languages.supported`

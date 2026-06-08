@@ -20,7 +20,7 @@ guide_chapters:
 
 ## Overview
 
-The componentized theme system (`ThemeManifestV2`) is Bukit's beta componentized theme architecture. It extends and coexists with the flat `theme.yaml` V1 format, adding a structured approach where themes define **sections**, **components**, **pageTemplates**, **data bindings**, and **design tokens** in a structured, machine-readable format. This enables AI Agents to understand theme capabilities through `theme-catalog.json` and empowers the Page Composer to assemble pages from modular building blocks.
+The componentized theme system (`ThemeManifestV2`) is the 1.0 theme contract model. A theme manifest defines **sections**, **components**, **pageTemplates**, **data bindings**, and **design tokens** in a structured, machine-readable format. This enables AI Agents to understand theme capabilities through `theme-catalog.json` and empowers the Page Composer to assemble pages from modular building blocks.
 
 ## Capability Status
 
@@ -544,15 +544,13 @@ data:
 
 Boolean values match boolean fields or string `"true"`/`"false"`.
 
-## Backward Compatibility
+## 1.0 Theme Support
 
-The V2 componentized theme system coexists with V1 themes:
+The 1.0 engine expects theme manifest loading through `ThemeManifestLoader` and `ThemeManifestV2` semantics. For 1.0 projects, `theme.yaml` defines manifest shape (`name`, `sections`, `components`, `page_templates`, `tokens`, etc.), and build behavior follows that contract.
 
-- **V1 themes** (`name`, `version`, `params`) continue to work. They are loaded by `ThemeManifest.Load()` from `Bukit.Cli.Commands`.
-- **V2 themes** (`name`, `sections`, `components`, `page_templates`, `tokens`) are loaded by `ThemeManifestLoader.Load()` from `Bukit.Theme`.
-- Both formats use `theme.yaml` as the manifest file. The loader determines the format based on the presence of V2-specific keys.
-- **Templates**: Scriban `{{ include }}` and `{% layout %}` directives work the same in both systems.
-- **Components**: The V1 `theme.components` in `site.yaml` (PostCard) is separate from V2 `components` in `theme.yaml`.
+- **1.0 baseline**: no documented runtime fallback to legacy V1 manifest modes.
+- **Templates**: Scriban `{% layout %}` and `{{ include }}` are supported under the 1.0 manifest pipeline.
+- **Components**: component configuration is declared in `theme.yaml` (`components`) for V2-compatible themes.
 - **Theme inheritance** (`extends`) is a V2-only feature.
 - **Section schemas** and **data bindings** are V2-only.
 

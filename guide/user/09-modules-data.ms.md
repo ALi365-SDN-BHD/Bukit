@@ -20,11 +20,11 @@ Lihat contoh boleh laku:
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: content
       mode: content
+      collection: page
       markdown:
         dir: content
     - type: markdown
@@ -144,7 +144,6 @@ Konfigurasi sources yang sepadan:
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: notion
       name: modules
@@ -172,7 +171,6 @@ Anda boleh mengkonfigurasi pelbagai sumber `mode: data`. Enjin akan memuatkan se
 
 ```yaml
 content:
-  provider: sources
   sources:
     - type: markdown
       name: modules_marketing

@@ -291,6 +291,14 @@ theme:
 - **静态文件**：子主题 `static/` 先复制 → 父主题 `static/` 后复制（子覆盖父）
 - **资源文件**：子主题 `assets/` 先复制 → 父主题 `assets/` 后复制
 
+### 回退目录（fallbackDir）与安全边界
+
+引擎在模板加载时会应用回退目录（内部 `fallbackDir`）进行级联查找：当子主题里找不到模板时，回退到父/默认模板位置。`fallbackDir` 仅用于模板查找链，不会越过主题内的安全根。
+
+- 子主题模板优先，其次回退目录，再到当前主题主目录。
+- 回退模板路径会做安全校验，必须在 `layouts`、`assets`、`static` 的有效目录树内，越界会报 `ConfigPathTraversal`（`ConfigException`）。
+- `theme.extends` 和 `theme.name` 都经过 `ThemeNameSanitizer` 校验：无效值会导致 `theme.name` 直接拒绝，`theme.extends` 则跳过父主题并给出警告。
+
 ### 使用场景
 
 - 基于官方主题自定义少量模板
