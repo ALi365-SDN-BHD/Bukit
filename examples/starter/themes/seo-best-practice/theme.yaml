@@ -1,5 +1,6 @@
 name: seo-best-practice
 version: 1.0.0
+engine: bukit
 description: SEO-focused starter theme variant.
 author: Bukit
 license: MIT
@@ -20,6 +21,14 @@ templates:
     template: pages/list.html
     accepts:
       collection: page
+  taxonomy_index:
+    template: pages/taxonomy-index.html
+    accepts:
+      kind: taxonomy_index
+  taxonomy_term:
+    template: pages/taxonomy-term.html
+    accepts:
+      kind: taxonomy_term
 params:
   - key: brand
     label: Site Brand

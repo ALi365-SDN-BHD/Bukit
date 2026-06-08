@@ -11,9 +11,13 @@ site:
   timezone: Asia/Shanghai
 
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 
 build:
   output: dist_i18n_index

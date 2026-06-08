@@ -13,10 +13,11 @@ site:
       output:
         sitemap: true
 content:
-  provider: notion
-  notion:
-    tokenEnv: BUKIT_NOTION_TOKEN
-    databaseIdEnv: BUKIT_NOTION_DATABASE_ID
+  sources:
+    - type: notion
+      notion:
+        tokenEnv: BUKIT_NOTION_TOKEN
+        databaseIdEnv: BUKIT_NOTION_DATABASE_ID
 build:
   output: dist
   clean: true

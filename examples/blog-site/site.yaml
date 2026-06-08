@@ -26,9 +26,10 @@ site:
         sitemap: true
   timezone: Asia/Shanghai
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      markdown:
+        dir: content
 build:
   output: dist
   clean: true

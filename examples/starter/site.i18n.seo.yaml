@@ -8,14 +8,23 @@ site:
     - en-US
   defaultLanguage: zh-CN
   sitemapMode: merged
-  searchMode: index
   timezone: Asia/Shanghai
+  collections:
+    page:
+      permalink: /pages/{slug}/
+      template: pages/page.html
+      listRoute: /pages/
+      listTemplate: pages/list.html
+      output:
+        rss: true
+        sitemap: true
+        archive: false
 content:
-  provider: sources
   sources:
     - type: markdown
       name: content
       mode: content
+      collection: page
       markdown:
         dir: content
     - type: markdown
@@ -26,7 +35,7 @@ content:
         defaultType: module
 build:
   output: .bukit_test/dist
-  clean: true
+  clean: false
 theme:
   layouts: layouts
   assets: assets

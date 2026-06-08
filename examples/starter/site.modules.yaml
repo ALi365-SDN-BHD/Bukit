@@ -32,7 +32,6 @@ site:
         sitemap: true
         archive: false
 content:
-  provider: sources
   sources:
     - type: markdown
       name: content

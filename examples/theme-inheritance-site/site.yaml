@@ -11,9 +11,10 @@ site:
       output:
         sitemap: true
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      markdown:
+        dir: content
 build:
   output: dist
   clean: true

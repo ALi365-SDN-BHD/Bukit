@@ -22,9 +22,13 @@ site:
         archive: false
 
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content
 
 build:
   output: dist_blog

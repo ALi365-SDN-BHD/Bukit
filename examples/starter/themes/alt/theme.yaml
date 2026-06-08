@@ -1,5 +1,6 @@
 name: alt
 version: 1.0.0
+engine: bukit
 description: Alternate starter theme for smoke tests
 author: Bukit
 license: MIT

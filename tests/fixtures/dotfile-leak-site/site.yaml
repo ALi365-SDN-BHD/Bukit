@@ -7,7 +7,10 @@ site:
       permalink: /{slug}/
       template: pages/page.html
 content:
-  provider: markdown
+  sources:
+    - type: markdown
+      markdown:
+        dir: content
   markdown:
     dir: content
 build:
