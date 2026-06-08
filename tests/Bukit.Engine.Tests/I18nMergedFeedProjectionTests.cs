@@ -38,7 +38,6 @@ public sealed class I18nMergedFeedProjectionTests
                   language: en
                   languages: [en, zh]
                   defaultLanguage: en
-                  rssMode: merged
                   feed:
                     formats: [rss, atom, json]
                   collections:
@@ -85,6 +84,7 @@ public sealed class I18nMergedFeedProjectionTests
                 """);
 
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            config = config with { Site = config.Site with { RssMode = "merged" } };
             var logger = new TestLogger();
             var engine = new SiteEngine(logger);
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);

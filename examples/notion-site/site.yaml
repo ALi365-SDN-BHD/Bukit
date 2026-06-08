@@ -15,6 +15,8 @@ site:
 content:
   sources:
     - type: notion
+      name: pages
+      collection: page
       notion:
         tokenEnv: BUKIT_NOTION_TOKEN
         databaseIdEnv: BUKIT_NOTION_DATABASE_ID

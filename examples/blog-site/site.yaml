@@ -28,8 +28,21 @@ site:
 content:
   sources:
     - type: markdown
+      name: posts
+      collection: post
       markdown:
         dir: content
+        includePaths:
+          - first-post.md
+          - second-post.md
+          - third-post.md
+    - type: markdown
+      name: pages
+      collection: page
+      markdown:
+        dir: content
+        includePaths:
+          - index.md
 build:
   output: dist
   clean: true

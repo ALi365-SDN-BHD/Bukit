@@ -9,16 +9,16 @@ site:
     page:
       permalink: /{slug}/
       template: pages/page.html
-  sitemap: merged
-  rss: merged
-  search: merged
+  sitemapMode: merged
+  search:
+    mode: merged
 content:
   sources:
     - type: markdown
+      name: pages
+      collection: page
       markdown:
         dir: content
-  markdown:
-    dir: content
 build:
   output: dist
   clean: false

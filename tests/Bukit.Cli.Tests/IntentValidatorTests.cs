@@ -30,7 +30,7 @@ public sealed class IntentValidatorTests : IDisposable
             },
             Content = new SiteIntentContent
             {
-                Provider = "markdown",
+                Kind = "markdown",
                 Markdown = new SiteIntentMarkdownContent { Dir = "content" }
             },
             Theme = new SiteIntentTheme { Name = "starter" }
@@ -105,17 +105,17 @@ public sealed class IntentValidatorTests : IDisposable
     }
 
     [Fact]
-    public void Validate_InvalidProviderValue_Fails()
+    public void Validate_InvalidContentKindValue_Fails()
     {
         var intent = CreateValidMarkdownIntent() with
         {
-            Content = new SiteIntentContent { Provider = "wordpress" }
+            Content = new SiteIntentContent { Kind = "wordpress" }
         };
 
         var result = IntentValidator.Validate(intent, _tempDir);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Contains("content.provider"));
+        Assert.Contains(result.Errors, e => e.Contains("content.kind"));
     }
 
     [Fact]
@@ -133,14 +133,14 @@ public sealed class IntentValidatorTests : IDisposable
     }
 
     [Fact]
-    public void Validate_NotionProvider_MissingDatabaseId_Fails()
+    public void Validate_NotionContentKind_MissingDatabaseId_Fails()
     {
         var intent = new SiteIntent
         {
             Site = new SiteIntentSite { Name = "test", Title = "Test", BaseUrl = "/" },
             Content = new SiteIntentContent
             {
-                Provider = "notion",
+                Kind = "notion",
                 Notion = new SiteIntentNotionContent { DatabaseId = "" }
             },
             Theme = new SiteIntentTheme { Name = "starter" }
@@ -159,7 +159,7 @@ public sealed class IntentValidatorTests : IDisposable
         {
             Content = new SiteIntentContent
             {
-                Provider = "markdown",
+                Kind = "markdown",
                 Markdown = new SiteIntentMarkdownContent { Dir = "nonexistent" }
             }
         };
@@ -205,7 +205,7 @@ public sealed class IntentValidatorTests : IDisposable
             Site = new SiteIntentSite { Name = "test", Title = "Test", BaseUrl = "/" },
             Content = new SiteIntentContent
             {
-                Provider = "notion",
+                Kind = "notion",
                 Notion = new SiteIntentNotionContent
                 {
                     DatabaseId = "abc123",

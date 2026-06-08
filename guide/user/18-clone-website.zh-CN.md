@@ -18,7 +18,7 @@ Clone 抓取网站的视觉设计——颜色、排版、间距、布局——�
 |------|------|
 | 克隆现有在线站点的设计 | `bukit clone`（本页） |
 | 从预设创建新主题 | `bukit theme wizard --preset blog` |
-| 安装社区主题 | `bukit theme install --registry <name>` |
+| 安装社区主题 | `bukit theme install --registry <name>`（Experimental registry） |
 | 复制内置 starter 主题 | `bukit theme create <name>` |
 
 ## 工作原理

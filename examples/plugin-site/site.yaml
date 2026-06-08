@@ -16,6 +16,8 @@ site:
 content:
   sources:
     - type: markdown
+      name: pages
+      collection: page
       markdown:
         dir: content
 build:

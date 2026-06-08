@@ -28,7 +28,7 @@ site:
   title: Test Site
   base_url: /
 content:
-  provider: markdown
+  kind: markdown
   markdown:
     dir: content
 theme:
@@ -40,7 +40,7 @@ theme:
         Assert.Equal("test-site", intent.Site.Name);
         Assert.Equal("Test Site", intent.Site.Title);
         Assert.Equal("/", intent.Site.BaseUrl);
-        Assert.Equal("markdown", intent.Content.Provider);
+        Assert.Equal("markdown", intent.Content.Kind);
         Assert.Equal("content", intent.Content.Markdown?.Dir);
         Assert.Equal("starter", intent.Theme.Name);
     }
@@ -55,7 +55,7 @@ site:
   title: Notion Site
   base_url: /
 content:
-  provider: notion
+  kind: notion
   notion:
     database_id: abc-123
     field_policy:
@@ -69,7 +69,7 @@ theme:
 
         var intent = IntentLoader.Load(path);
 
-        Assert.Equal("notion", intent.Content.Provider);
+        Assert.Equal("notion", intent.Content.Kind);
         Assert.Equal("abc-123", intent.Content.Notion?.DatabaseId);
         Assert.Equal("whitelist", intent.Content.Notion?.FieldPolicy.Mode);
         Assert.Equal(2, intent.Content.Notion?.FieldPolicy.Allowed?.Count);
@@ -90,7 +90,7 @@ languages:
     - zh-CN
     - en-US
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 """);
@@ -112,7 +112,7 @@ site:
   title: Test
   base_url: /
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 features:
@@ -139,7 +139,7 @@ site:
   title: Test
   base_url: /
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 deployment:
@@ -186,7 +186,7 @@ deployment:
         var path = Path.Combine(_tempDir, "intent.yaml");
         File.WriteAllText(path, """
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 """);
@@ -213,7 +213,7 @@ theme:
     }
 
     [Fact]
-    public void Load_MissingThemeSection_ThrowsInvalidOperationException()
+    public void Load_ContentProvider_ThrowsRemovedFieldError()
     {
         var path = Path.Combine(_tempDir, "intent.yaml");
         File.WriteAllText(path, """
@@ -223,6 +223,26 @@ site:
   base_url: /
 content:
   provider: markdown
+theme:
+  name: starter
+""");
+
+        var ex = Assert.Throws<InvalidOperationException>(() => IntentLoader.Load(path));
+        Assert.Contains("content.provider is removed", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("content.kind", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_MissingThemeSection_ThrowsInvalidOperationException()
+    {
+        var path = Path.Combine(_tempDir, "intent.yaml");
+        File.WriteAllText(path, """
+site:
+  name: test
+  title: Test
+  base_url: /
+content:
+  kind: markdown
 """);
 
         var ex = Assert.Throws<InvalidOperationException>(() => IntentLoader.Load(path));
@@ -238,7 +258,7 @@ site:
   title: Test
   base_url: /
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 """);
@@ -256,7 +276,7 @@ site:
   name: test
   title: Test
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 """);
@@ -276,14 +296,14 @@ site:
   title: Test
   base_url: /
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 """);
 
         var intent = IntentLoader.Load(path);
 
-        Assert.Equal("markdown", intent.Content.Provider);
+        Assert.Equal("markdown", intent.Content.Kind);
         Assert.Equal("content", intent.Content.Markdown?.Dir);
     }
 
@@ -297,7 +317,7 @@ site:
   title: Test
   base_url: /
 content:
-  provider: notion
+  kind: notion
   notion:
     database_id: abc
 theme:
@@ -306,7 +326,7 @@ theme:
 
         var intent = IntentLoader.Load(path);
 
-        Assert.Equal("notion", intent.Content.Provider);
+        Assert.Equal("notion", intent.Content.Kind);
         Assert.Equal("whitelist", intent.Content.Notion?.FieldPolicy.Mode);
     }
 }

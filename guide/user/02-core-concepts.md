@@ -105,7 +105,7 @@ After the build completes, the engine generates additional artifacts based on co
 
 From a user perspective, you only need to know:
 
-- You can use `site.sitemapMode` and `site.searchMode` to control multilingual output modes (feed output follows 1.0 plugin feed defaults)
+- You can use `site.sitemapMode` and `site.search.mode` to control multilingual output modes (feed output follows 1.0 plugin feed defaults)
 - You can use `site.pluginFailMode` to decide whether a plugin failure interrupts the build
 
 See: [10 Built-in Features & Output](./10-built-in-features.md) and [11 Multilingual & SEO](./11-i18n-seo.md).

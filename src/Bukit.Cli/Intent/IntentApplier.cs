@@ -31,7 +31,7 @@ public static class IntentApplier
 
     private static string ResolveRootDir(string fullOutPath)
     {
-        var cwd = Directory.GetCurrentDirectory();
+        var cwd = GetCurrentDirectoryOrFallback(fullOutPath);
         var sitesDir = Path.GetFullPath(Path.Combine(cwd, "sites"));
 
         if (fullOutPath.StartsWith(sitesDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
@@ -41,6 +41,18 @@ public static class IntentApplier
 
         var dir = Path.GetDirectoryName(fullOutPath);
         return string.IsNullOrWhiteSpace(dir) ? cwd : dir;
+    }
+
+    private static string GetCurrentDirectoryOrFallback(string fullOutPath)
+    {
+        try
+        {
+            return Directory.GetCurrentDirectory();
+        }
+        catch (FileNotFoundException)
+        {
+            return Path.GetDirectoryName(fullOutPath) ?? AppContext.BaseDirectory;
+        }
     }
 
     private static AppConfig ConvertToConfig(SiteIntent intent)
@@ -68,8 +80,8 @@ public static class IntentApplier
             site = site with { Language = intent.Site.Language.Trim() };
         }
 
-        var contentProvider = intent.Content.Provider.Trim().ToLowerInvariant();
-        var content = contentProvider switch
+        var contentKind = intent.Content.Kind.Trim().ToLowerInvariant();
+        var content = contentKind switch
         {
             "markdown" => new ContentConfig
             {

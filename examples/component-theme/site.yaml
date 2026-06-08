@@ -15,8 +15,19 @@ site:
 content:
   sources:
     - type: markdown
+      name: pages
+      collection: page
       markdown:
         dir: content
+        includePaths:
+          - index.md
+    - type: markdown
+      name: posts
+      collection: posts
+      markdown:
+        dir: content
+        includeGlobs:
+          - posts/*.md
 
 taxonomy:
   template: pages/taxonomy-term.html

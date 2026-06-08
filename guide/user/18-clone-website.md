@@ -18,7 +18,7 @@ Related docs: [docs/clone.md](../../docs/clone.md)
 |---------|------|
 | Clone an existing live site's design | `bukit clone` (this page) |
 | Create a fresh theme from presets | `bukit theme wizard --preset blog` |
-| Install a community theme | `bukit theme install --registry <name>` |
+| Install a community theme | `bukit theme install --registry <name>` (Experimental registry) |
 | Copy built-in starter theme | `bukit theme create <name>` |
 
 ## How It Works

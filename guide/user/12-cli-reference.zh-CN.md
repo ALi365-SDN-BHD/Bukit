@@ -260,11 +260,11 @@ bukit theme install ./my-blog-1.0.0.tar.gz
 # 从 URL 安装
 bukit theme install https://github.com/user/theme/releases/download/v1.0/theme.tar.gz
 
-# 搜索社区主题仓库
-bukit theme search               # 列出全部
+# 搜索社区主题仓库（Experimental）
+bukit theme search               # 列出 Experimental registry 条目
 bukit theme search blog          # 按名称/标签过滤
 
-# 从仓库安装
+# 从仓库安装（Experimental）
 bukit theme install --registry blog-clean
 ```
 

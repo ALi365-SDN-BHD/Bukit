@@ -60,7 +60,7 @@ Sumber: adapter `PublishRepresentationRegistry` melalui helper generator RSS, At
 
 Tingkah laku pelbagai bahasa:
 - `site.rssMode` sudah dikeluarkan dalam 1.0 dan tidak lagi digunakan untuk mengawal mod feed.
-- Untuk projek lama yang masih melalui laluan migrasi, tingkah laku output akar mungkin masih mengikuti `site.rssMode` legacy; bagi konfigurasi 1.0 baharu, feed dijana per bahasa mengikut lalai dan kendali `site.plugins.feed`.
+- Untuk konfigurasi 1.0, feed dijana per bahasa mengikut `site.feed` dan lalai `site.plugins.feed`.
 
 ## search-index (publish projection adapter)
 
@@ -88,7 +88,7 @@ Sama ada memasukkan halaman derived:
 
 Tingkah laku pelbagai bahasa:
 - Setiap direktori varian bahasa menjana `search.json` masing-masing
-- Jika `site.searchMode == index`, enjin turut menjana `search.index.json` di direktori akar (agregat yang menunjuk kepada indeks setiap bahasa)
+- Jika `site.search.mode == index`, enjin turut menjana `search.index.json` di direktori akar (agregat yang menunjuk kepada indeks setiap bahasa)
 
 ## taxonomy (IDerivePagesPlugin + IAfterBuildPlugin)
 

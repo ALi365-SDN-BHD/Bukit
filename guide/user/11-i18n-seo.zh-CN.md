@@ -87,7 +87,8 @@ dist/
 ```yaml
 site:
   sitemapMode: split
-  searchMode: split
+  search:
+    mode: split
 ```
 
 适合：
@@ -100,7 +101,8 @@ site:
 ```yaml
 site:
   sitemapMode: merged
-  searchMode: merged
+  search:
+    mode: merged
 ```
 
 适合：
@@ -113,10 +115,11 @@ site:
 ```yaml
 site:
   sitemapMode: index
-  searchMode: index
+  search:
+    mode: index
 ```
 
-> **注意**：`site.rssMode` 在 1.0 为遗留字段，用户配置中不再支持；Feed 输出遵循 `site.plugins.feed` 的默认多语言行为。
+> **注意**：`site.rssMode` 在 1.0 已移除，用户配置中不再支持；Feed 输出遵循 `site.feed` 与 `site.plugins.feed` 的默认多语言行为。
 
 适合：
 

@@ -34,7 +34,7 @@ This page is for quick lookup. For more complete authoritative field references 
 | `site.pluginFailMode` | Plugin failure strategy | `strict` / `warn` |
 | `site.plugins` | Plugin switches and parameters | `sitemap: false` / `path-report: { enabled: true, options: {...} }` |
 | `site.sitemapMode` | Sitemap output mode | `split` / `merged` / `index` |
-| `site.searchMode` | Search output mode | `split` / `merged` / `index` |
+| `site.search.mode` | Search output mode | `split` / `merged` / `index` |
 | `site.autoSummary` | Auto-extract summary from body when not provided | `true` / `false` |
 | `site.autoSummaryMaxLength` | Max length of auto summary (characters) | `200` |
 

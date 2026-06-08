@@ -2649,7 +2649,8 @@ public sealed class SiteEngineIntegrationTests
                   languages: [en, zh]
                   defaultLanguage: en
                   sitemapMode: merged
-                  searchMode: merged
+                  search:
+                    mode: merged
                   collections:
                     page:
                       permalink: /pages/{slug}/
@@ -2781,7 +2782,8 @@ public sealed class SiteEngineIntegrationTests
                   languages: [en, zh]
                   defaultLanguage: en
                   sitemapMode: merged
-                  searchMode: merged
+                  search:
+                    mode: merged
                   collections:
                     page:
                       permalink: /pages/{slug}/

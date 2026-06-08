@@ -45,7 +45,7 @@ src/skills/
 | `using-bukit` | Gateway skill that identifies Bukit work and routes to sub-skills | The user explicitly says "using bukit" or the task is clearly Bukit-specific |
 | `bukit-cli-reference` | CLI detection, installation guidance, command reference, output and exit-code interpretation | Running any `bukit` command including `theme wizard/pack/install/search`, `template create/list/show/validate/snippets/hints/sync` |
 | `bukit-config` | `site.yaml` structure, scenario templates, and field explanations | Creating or editing config, explaining fields, fixing validation errors |
-| `bukit-theme` | Theme directory structure, static assets, wizard-based creation, theme distribution (pack/install), registry search, template snippets | Creating themes via wizard/preset, listing theme info/params, packaging themes for sharing, installing from registry, browsing template snippets |
+| `bukit-theme` | Theme directory structure, static assets, wizard-based creation, theme distribution (pack/install), registry search (Experimental), template snippets | Creating themes via wizard/preset, listing theme info/params, packaging themes for sharing, installing from Experimental registry, browsing template snippets |
 | `bukit-templating` | Scriban syntax, layout inheritance, data access, and template patterns | Writing page templates, list pages, pagination, or fixing template rendering errors |
 | `bukit-design-tokens` | Design token systems for Bukit themes: CSS variables, color palettes, typography scales, spacing systems, and dark mode configuration | Creating a consistent visual identity, defining `:root {}` CSS variables, setting up dark mode, choosing color palettes |
 | `bukit-content-to-template` | Schema-driven template generation: maps content content model field scopes to precise Scriban template patterns | Generating post/page/list/card templates from `site.yaml` content model field scope definitions, ensuring every field is correctly rendered |
@@ -296,7 +296,7 @@ The basic validate script checks:
 2. `bukit-theme` (wizard + presets)
 3. `bukit-cli-reference`
 
-### Install a theme from the community registry
+### Install a theme from the community registry (Experimental)
 
 1. `using-bukit`
 2. `bukit-theme` (search + install)

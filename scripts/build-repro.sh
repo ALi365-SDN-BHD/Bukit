@@ -19,10 +19,12 @@ run_clean_build() {
     local run_id="$1"
     local output_path="$smoke_root/$run_id/dist"
     local full_output_path="$config_root/$output_path"
+    local cache_path="$run_dir/cache-${run_id//\//-}"
     mkdir -p "$(dirname "$full_output_path")"
     dotnet run --project src/Bukit.Cli -c "$configuration" -- build \
         --config "$build_config" \
         --output "$output_path" \
+        --cache-dir "$cache_path" \
         --clean \
         --site-url https://example.com \
         --allow-external-plugins >&2
@@ -33,10 +35,12 @@ run_incremental_build() {
     local run_id="$1"
     local output_path="$smoke_root/$run_id/dist"
     local full_output_path="$config_root/$output_path"
+    local cache_path="$run_dir/cache-${run_id//\//-}"
     mkdir -p "$(dirname "$full_output_path")"
     dotnet run --project src/Bukit.Cli -c "$configuration" -- build \
         --config "$build_config" \
         --output "$output_path" \
+        --cache-dir "$cache_path" \
         --no-clean \
         --incremental \
         --site-url https://example.com \

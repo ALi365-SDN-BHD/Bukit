@@ -40,7 +40,7 @@ public sealed class IntentWizardTests : IDisposable
             var yaml = File.ReadAllText(outPath);
             Assert.Contains("name: my-site", yaml);
             Assert.Contains("title: My Site", yaml);
-            Assert.Contains("provider: markdown", yaml);
+            Assert.Contains("kind: markdown", yaml);
             Assert.Contains("name: starter", yaml);
             Assert.Contains("sitemap: true", yaml);
         }
@@ -82,7 +82,7 @@ public sealed class IntentWizardTests : IDisposable
     }
 
     [Fact]
-    public void RunInteractive_NotionProvider_WritesNotionConfig()
+    public void RunInteractive_NotionContentKind_WritesNotionConfig()
     {
         var outPath = Path.Combine(_tempDir, "intent.yaml");
         var originalIn = Console.In;
@@ -100,7 +100,7 @@ public sealed class IntentWizardTests : IDisposable
 
             Assert.True(File.Exists(outPath));
             var yaml = File.ReadAllText(outPath);
-            Assert.Contains("provider: notion", yaml);
+            Assert.Contains("kind: notion", yaml);
             Assert.Contains("database_id: my-db-id", yaml);
         }
         finally

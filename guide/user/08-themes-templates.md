@@ -91,11 +91,13 @@ bukit theme install ./my-blog-1.0.0.tar.gz
 bukit theme install https://github.com/user/bukit-theme/releases/download/v1.0/theme.tar.gz
 ```
 
-### Search the community theme registry
+### Search the community theme registry (Experimental)
+Registry search/install is Experimental in Bukit 1.0 and is not covered by the GA compatibility promise.
+
 ```bash
-bukit theme search               # list all themes in registry
+bukit theme search               # list Experimental registry entries
 bukit theme search blog          # filter by name/tags/description
-bukit theme install --registry blog-clean  # install from registry
+bukit theme install --registry blog-clean  # Experimental registry install
 ```
 
 ## Template-level Commands

@@ -44,7 +44,7 @@ languages:
   supported: [{supported_languages}]
 
 content:
-  provider: "{markdown|notion}"
+  kind: "{markdown|notion}"
   markdown:
     dir: "{content_dir}"
   notion:

@@ -62,18 +62,18 @@ public static class IntentValidator
             }
         }
 
-        if (string.IsNullOrWhiteSpace(intent.Content.Provider))
+        if (string.IsNullOrWhiteSpace(intent.Content.Kind))
         {
-            result.Errors.Add("content.provider is required.");
+            result.Errors.Add("content.kind is required.");
         }
         else
         {
-            var provider = intent.Content.Provider.Trim().ToLowerInvariant();
-            if (provider is not ("markdown" or "notion"))
+            var kind = intent.Content.Kind.Trim().ToLowerInvariant();
+            if (kind is not ("markdown" or "notion"))
             {
-                result.Errors.Add("content.provider must be markdown|notion.");
+                result.Errors.Add("content.kind must be markdown|notion.");
             }
-            else if (provider == "markdown")
+            else if (kind == "markdown")
             {
                 var dir = intent.Content.Markdown?.Dir ?? "content";
                 if (string.IsNullOrWhiteSpace(dir))
@@ -89,11 +89,11 @@ public static class IntentValidator
                     }
                 }
             }
-            else if (provider == "notion")
+            else if (kind == "notion")
             {
                 if (intent.Content.Notion is null || string.IsNullOrWhiteSpace(intent.Content.Notion.DatabaseId))
                 {
-                    result.Errors.Add("content.notion.database_id is required when provider is notion.");
+                    result.Errors.Add("content.notion.database_id is required when content.kind is notion.");
                 }
 
                 var mode = (intent.Content.Notion?.FieldPolicy.Mode ?? "whitelist").Trim().ToLowerInvariant();
@@ -105,7 +105,7 @@ public static class IntentValidator
                 var token = Bukit.Shared.EnvironmentHelper.GetNotionToken();
                 if (string.IsNullOrWhiteSpace(token))
                 {
-                    result.Warnings.Add("NOTION_TOKEN is required for notion provider at build time (doctor/build will fail without it).");
+                    result.Warnings.Add("NOTION_TOKEN is required for notion content kind at build time (doctor/build will fail without it).");
                 }
             }
         }
@@ -140,4 +140,3 @@ public static class IntentValidator
         return result;
     }
 }
-

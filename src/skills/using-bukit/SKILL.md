@@ -252,8 +252,8 @@ bukit plugin list                # List plugins
 bukit theme list                 # List themes
 bukit theme wizard <name> --preset blog  # Interactive theme with presets
 bukit theme pack <name>          # Package theme for sharing
-bukit theme install --registry <name>    # Install from registry
-bukit theme search [query]       # Search community themes
+bukit theme install --registry <name>    # Experimental registry install
+bukit theme search [query]       # Experimental community theme search
 bukit template list              # List all templates
 bukit template snippets          # Browse snippet library
 bukit template sync              # Auto-generate bukit.templates.yaml

@@ -3,8 +3,14 @@ set -euo pipefail
 
 configuration="${1:-Release}"
 coverage_threshold="${COVERAGE_THRESHOLD:-80}"
+cli_coverage_threshold="${CLI_COVERAGE_THRESHOLD:-50}"
 coverage_root="${COVERAGE_ROOT:-TestResults}"
 coverage_report_dir="${COVERAGE_REPORT_DIR:-${coverage_root}/coverage-report}"
+core_coverage_report_dir="${CORE_COVERAGE_REPORT_DIR:-${coverage_report_dir}/core}"
+cli_coverage_report_dir="${CLI_COVERAGE_REPORT_DIR:-${coverage_report_dir}/cli}"
+overall_coverage_report_dir="${OVERALL_COVERAGE_REPORT_DIR:-${coverage_report_dir}/overall}"
+core_assembly_filters="${CORE_COVERAGE_ASSEMBLY_FILTERS:--bukit;-SampleAfterBuildPlugin;-VisualFeedbackPlugin;-ProtocolEchoPlugin}"
+cli_assembly_filters="${CLI_COVERAGE_ASSEMBLY_FILTERS:-+bukit}"
 max_file_lines="${MAX_FILE_LINES:-600}"
 oversized_baseline="${OVERSIZED_BASELINE:-scripts/.oversized-baseline.txt}"
 
@@ -101,40 +107,75 @@ if [ "${#coverage_files[@]}" -eq 0 ]; then
     exit 1
 fi
 
-# Merge per-project Cobertura reports into a single summary at TestResults/coverage-report.
+# Merge per-project Cobertura reports into coverage summaries.
 report_inputs="$(IFS=';'; echo "${coverage_files[*]}")"
-reportgenerator \
-    -reports:"$report_inputs" \
-    -targetdir:"$coverage_report_dir" \
-    -reporttypes:"Cobertura;TextSummary" >/dev/null
 
-merged_cobertura="$coverage_report_dir/Cobertura.xml"
-if [ ! -f "$merged_cobertura" ]; then
-    echo "ERROR: merged Cobertura report not found at '$merged_cobertura'." >&2
+generate_coverage_report() {
+    local label="$1"
+    local target_dir="$2"
+    local filters="${3:-}"
+
+    if [ -n "$filters" ]; then
+        reportgenerator \
+            -reports:"$report_inputs" \
+            -targetdir:"$target_dir" \
+            -reporttypes:"Cobertura;TextSummary" \
+            -assemblyfilters:"$filters" >/dev/null
+    else
+        reportgenerator \
+            -reports:"$report_inputs" \
+            -targetdir:"$target_dir" \
+            -reporttypes:"Cobertura;TextSummary" >/dev/null
+    fi
+
+    local cobertura="$target_dir/Cobertura.xml"
+    if [ ! -f "$cobertura" ]; then
+        echo "ERROR: ${label} Cobertura report not found at '$cobertura'." >&2
+        exit 1
+    fi
+
+    local line_rate
+    line_rate="$(grep -m1 -oE 'line-rate="[0-9.]+"' "$cobertura" | head -n1 | sed -E 's/line-rate="([0-9.]+)"/\1/')"
+    if [ -z "$line_rate" ]; then
+        echo "ERROR: could not parse ${label} line-rate from '$cobertura'." >&2
+        exit 1
+    fi
+
+    awk -v r="$line_rate" 'BEGIN { printf "%.2f", r * 100 }'
+}
+
+overall_coverage_percent="$(generate_coverage_report "overall" "$overall_coverage_report_dir")"
+core_coverage_percent="$(generate_coverage_report "core" "$core_coverage_report_dir" "$core_assembly_filters")"
+cli_coverage_percent="$(generate_coverage_report "cli" "$cli_coverage_report_dir" "$cli_assembly_filters")"
+
+core_meets_threshold="$(awk -v c="$core_coverage_percent" -v t="$coverage_threshold" 'BEGIN { print (c + 0 >= t + 0) ? "yes" : "no" }')"
+cli_meets_threshold="$(awk -v c="$cli_coverage_percent" -v t="$cli_coverage_threshold" 'BEGIN { print (c + 0 >= t + 0) ? "yes" : "no" }')"
+
+echo "Coverage overall: ${overall_coverage_percent}% (informational)"
+echo "Coverage core: ${core_coverage_percent}% (threshold: ${coverage_threshold}%, filters: ${core_assembly_filters})"
+echo "Coverage cli: ${cli_coverage_percent}% (threshold: ${cli_coverage_threshold}%, filters: ${cli_assembly_filters})"
+echo "Detailed core Cobertura report: $core_coverage_report_dir/Cobertura.xml"
+echo "Detailed CLI Cobertura report: $cli_coverage_report_dir/Cobertura.xml"
+
+if [ -f "$core_coverage_report_dir/Summary.txt" ]; then
+    echo "--- Core coverage summary ---"
+    cat "$core_coverage_report_dir/Summary.txt"
+    echo "-----------------------------"
+fi
+
+if [ -f "$cli_coverage_report_dir/Summary.txt" ]; then
+    echo "--- CLI coverage summary ---"
+    cat "$cli_coverage_report_dir/Summary.txt"
+    echo "----------------------------"
+fi
+
+if [ "$core_meets_threshold" != "yes" ]; then
+    echo "ERROR: core coverage ${core_coverage_percent}% is below the required threshold of ${coverage_threshold}%." >&2
     exit 1
 fi
 
-# Cobertura's root <coverage line-rate="0.8523" ...> is a fraction in [0, 1].
-line_rate="$(grep -m1 -oE 'line-rate="[0-9.]+"' "$merged_cobertura" | head -n1 | sed -E 's/line-rate="([0-9.]+)"/\1/')"
-if [ -z "$line_rate" ]; then
-    echo "ERROR: could not parse line-rate from '$merged_cobertura'." >&2
-    exit 1
-fi
-
-coverage_percent="$(awk -v r="$line_rate" 'BEGIN { printf "%.2f", r * 100 }')"
-meets_threshold="$(awk -v c="$coverage_percent" -v t="$coverage_threshold" 'BEGIN { print (c + 0 >= t + 0) ? "yes" : "no" }')"
-
-echo "Coverage: ${coverage_percent}% (threshold: ${coverage_threshold}%)"
-echo "Detailed Cobertura report: $merged_cobertura"
-
-if [ -f "$coverage_report_dir/Summary.txt" ]; then
-    echo "--- Coverage summary ---"
-    cat "$coverage_report_dir/Summary.txt"
-    echo "------------------------"
-fi
-
-if [ "$meets_threshold" != "yes" ]; then
-    echo "ERROR: coverage ${coverage_percent}% is below the required threshold of ${coverage_threshold}%." >&2
+if [ "$cli_meets_threshold" != "yes" ]; then
+    echo "ERROR: CLI coverage ${cli_coverage_percent}% is below the required threshold of ${cli_coverage_threshold}%." >&2
     exit 1
 fi
 

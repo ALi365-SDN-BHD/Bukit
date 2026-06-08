@@ -70,15 +70,20 @@ public static class IntentLoader
 
     private static SiteIntentContent ReadContent(YamlMappingNode node)
     {
-        var provider = GetRequiredString(node, "provider");
-        var normalized = provider.Trim().ToLowerInvariant();
+        if (GetOptionalString(node, "provider") is not null)
+        {
+            throw new InvalidOperationException("content.provider is removed in Bukit 1.0 intent files. Use content.kind instead.");
+        }
+
+        var kind = GetRequiredString(node, "kind");
+        var normalized = kind.Trim().ToLowerInvariant();
 
         if (normalized == "markdown")
         {
             var md = GetOptionalMapping(node, "markdown");
             return new SiteIntentContent
             {
-                Provider = "markdown",
+                Kind = "markdown",
                 Markdown = new SiteIntentMarkdownContent
                 {
                     Dir = GetOptionalString(md, "dir") ?? "content"
@@ -92,7 +97,7 @@ public static class IntentLoader
             var fpNode = GetOptionalMapping(notion, "field_policy");
             return new SiteIntentContent
             {
-                Provider = "notion",
+                Kind = "notion",
                 Notion = new SiteIntentNotionContent
                 {
                     DatabaseId = GetRequiredString(notion, "database_id"),
@@ -109,7 +114,7 @@ public static class IntentLoader
 
         return new SiteIntentContent
         {
-            Provider = provider
+            Kind = kind
         };
     }
 
@@ -247,4 +252,3 @@ public static class IntentLoader
         };
     }
 }
-

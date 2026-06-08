@@ -23,9 +23,9 @@ Constraints: `site.url` must be set for absolute URLs; merged alternates rely on
 
 ## feedMode (1.0)
 
-`site.rssMode` was removed from user config in Bukit 1.0. Feed strategy is now controlled by `site.feed` (notably `site.feed.formats` and plugin options). 1.0 does not promise migrated-project compatibility for old `rssMode` merged/split behavior.
+`site.rssMode` was removed from user config in Bukit 1.0. Feed strategy is controlled by `site.feed` (notably `site.feed.formats` and plugin options); old `rssMode` merged/split behavior is not supported in 1.0 configs.
 
-## searchMode: `split`, `merged`, or `index`
+## site.search.mode: `split`, `merged`, or `index`
 
 `searchIncludeDerived` controls whether derived pages are in the search index.
 

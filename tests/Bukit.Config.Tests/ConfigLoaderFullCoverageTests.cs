@@ -195,15 +195,19 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
     }
 
     [Fact]
-    public void Load_SiteSitemapRssSearchMode_CustomValues()
+    public void Load_SiteSitemapFeedSearchConfig_CustomValues()
     {
         var yaml = """
             site:
               name: myblog
               title: My Blog
               sitemapMode: full
-              rssMode: off
-              searchMode: flat
+              feed:
+                formats: [rss, atom]
+                limit: 7
+                path: feeds
+              search:
+                mode: merged
             content:
               sources:
                 - type: markdown
@@ -214,8 +218,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         var config = ConfigLoader.Load(path);
 
         Assert.Equal("full", config.Site.SitemapMode);
-        Assert.Equal("off", config.Site.RssMode);
-        Assert.Equal("flat", config.Site.SearchMode);
+        Assert.Equal(["rss", "atom"], config.Site.Feed.Formats);
+        Assert.Equal(7, config.Site.Feed.Limit);
+        Assert.Equal("feeds", config.Site.Feed.Path);
+        Assert.Equal("merged", config.Site.SearchMode);
     }
 
     [Fact]

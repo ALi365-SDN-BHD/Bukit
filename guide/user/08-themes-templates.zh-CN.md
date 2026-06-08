@@ -160,11 +160,11 @@ dotnet run --project src/Bukit.Cli -c Release -- theme install /path/to/theme.ta
 dotnet run --project src/Bukit.Cli -c Release -- theme install https://example.com/themes/my-theme.tar.gz
 ```
 
-从注册表搜索并安装：
+从注册表搜索并安装（Experimental；不属于 Bukit 1.0 GA 兼容承诺）：
 
 ```bash
 dotnet run --project src/Bukit.Cli -c Release -- theme search blog
-dotnet run --project src/Bukit.Cli -c Release -- theme install my-theme --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- theme install --registry my-theme --config site.yaml
 ```
 
 ## 模板级命令

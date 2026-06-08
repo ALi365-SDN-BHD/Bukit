@@ -34,7 +34,7 @@ public sealed class IntentApplierExtendedTests : IDisposable
                                         title: Test Site
                                         base_url: no-leading-slash
                                       content:
-                                        provider: unknown-provider
+                                        kind: unknown-provider
                                       theme:
                                         name: starter
                                       """);
@@ -46,7 +46,7 @@ public sealed class IntentApplierExtendedTests : IDisposable
     }
 
     [Fact]
-    public void Apply_NotionProviderIntent_WritesNotionSection()
+    public void Apply_NotionContentKindIntent_WritesNotionSection()
     {
         var intentPath = Path.Combine(_rootDir, "intent.yaml");
         var outPath = Path.Combine(_rootDir, "site.yaml");
@@ -56,7 +56,7 @@ public sealed class IntentApplierExtendedTests : IDisposable
                                         title: Test Site
                                         base_url: /
                                       content:
-                                        provider: notion
+                                        kind: notion
                                         notion:
                                           database_id: abc-123
                                           field_policy:
@@ -79,7 +79,7 @@ public sealed class IntentApplierExtendedTests : IDisposable
             var yaml = File.ReadAllText(outPath);
             Assert.Contains("sources:", yaml, StringComparison.Ordinal);
             Assert.Contains("type: notion", yaml, StringComparison.Ordinal);
-            Assert.DoesNotContain("provider: notion", yaml, StringComparison.Ordinal);
+            Assert.DoesNotContain("kind: notion", yaml, StringComparison.Ordinal);
             Assert.Contains("databaseId: abc-123", yaml, StringComparison.Ordinal);
             Assert.Contains("mode: whitelist", yaml, StringComparison.Ordinal);
             Assert.Contains("title", yaml, StringComparison.Ordinal);
@@ -107,7 +107,7 @@ public sealed class IntentApplierExtendedTests : IDisposable
                                           - en
                                           - zh-CN
                                       content:
-                                        provider: markdown
+                                        kind: markdown
                                       theme:
                                         name: starter
                                       """);
@@ -136,7 +136,7 @@ public sealed class IntentApplierExtendedTests : IDisposable
                                         title: Test Site
                                         base_url: /
                                       content:
-                                        provider: markdown
+                                        kind: markdown
                                         markdown:
                                           dir: posts
                                       theme:
@@ -164,7 +164,7 @@ public sealed class IntentApplierExtendedTests : IDisposable
                                         base_url: /
                                         url: https://example.com
                                       content:
-                                        provider: markdown
+                                        kind: markdown
                                       theme:
                                         name: starter
                                       """);
@@ -189,7 +189,7 @@ public sealed class IntentApplierExtendedTests : IDisposable
                                         title: Test Site
                                         base_url: /
                                       content:
-                                        provider: markdown
+                                        kind: markdown
                                       theme:
                                         name: starter
                                         params:
@@ -221,7 +221,7 @@ public sealed class IntentApplierExtendedTests : IDisposable
                                         title: Test Site
                                         base_url: /
                                       content:
-                                        provider: notion
+                                        kind: notion
                                         notion:
                                           database_id: db-456
                                           field_policy:

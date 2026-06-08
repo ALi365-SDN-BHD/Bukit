@@ -78,7 +78,7 @@ Mod yang berkaitan dengan output (sangat penting untuk berbilang bahasa):
 | Medan | Fungsi | Nilai Lazim |
 |---|---|---|
 | `site.sitemapMode` | Mod output sitemap | `merged` / `split` / `index` |
-| `site.searchMode` | Mod output search | `merged` / `split` / `index` |
+| `site.search.mode` | Mod output search | `merged` / `split` / `index` |
 
 Cara memilih mod ini: [11-Berbilang Bahasa dan SEO](./11-i18n-seo.ms.md).
 

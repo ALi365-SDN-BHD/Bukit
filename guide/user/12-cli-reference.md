@@ -286,11 +286,11 @@ bukit theme install ./my-blog-1.0.0.tar.gz
 # Install from URL
 bukit theme install https://github.com/user/theme/releases/download/v1.0/theme.tar.gz
 
-# Search community theme registry
-bukit theme search               # list all
+# Search community theme registry (Experimental)
+bukit theme search               # list Experimental registry entries
 bukit theme search blog          # filter by name/tags
 
-# Install from registry
+# Install from registry (Experimental)
 bukit theme install --registry blog-clean
 ```
 

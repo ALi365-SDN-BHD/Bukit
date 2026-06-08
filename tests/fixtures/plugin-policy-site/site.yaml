@@ -9,10 +9,10 @@ site:
 content:
   sources:
     - type: markdown
+      name: pages
+      collection: page
       markdown:
         dir: content
-  markdown:
-    dir: content
 build:
   output: dist
   clean: false

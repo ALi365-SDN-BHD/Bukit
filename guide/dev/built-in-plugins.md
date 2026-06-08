@@ -60,7 +60,7 @@ Source: `PublishRepresentationRegistry` adapter via RSS, Atom, and JSON Feed gen
 
 Multilingual behavior:
 - Feed mode in multilingual builds is no longer configured via `site.rssMode` in 1.0.
-- In migrated legacy projects, root projection behavior may follow previous `site.rssMode` settings; for new 1.0 configs, feeds are generated per language using `site.plugins.feed` defaults.
+- In 1.0 configs, feeds are generated per language using `site.feed` and `site.plugins.feed` defaults.
 
 ## search-index (publish projection adapter)
 
@@ -88,7 +88,7 @@ Whether derived pages are included:
 
 Multilingual behavior:
 - Each language variant directory generates its own `search.json`
-- If `site.searchMode == index`, the engine additionally generates `search.index.json` at the root, aggregating references to each language index
+- If `site.search.mode == index`, the engine additionally generates `search.index.json` at the root, aggregating references to each language index
 
 ## taxonomy (IDerivePagesPlugin + IAfterBuildPlugin)
 

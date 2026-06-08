@@ -28,7 +28,7 @@ Final effective priority (high to low):
 | `site.timezone` | string | `UTC` | Timezone for dates |
 | `site.pluginFailMode` | string | `strict` | `strict` or `warn` |
 | `site.sitemapMode` | string | `split` | `split`/`merged`/`index` |
-| `site.searchMode` | string | `split` | `split`/`merged`/`index` |
+| `site.search.mode` | string | `split` | `split`/`merged`/`index` |
 | `site.autoSummary` | bool | false | Auto-extract summary from body |
 | `site.autoSummaryMaxLength` | int | 200 | Max auto summary characters |
 | `site.outputPathEncoding` | string | `none` | Path encoding: `none`/`slug`/`urlencode`/`sanitize`. Applies to both content and derived pages. |
@@ -204,7 +204,7 @@ Notes:
 ### Notes
 
 - `taxonomy.kinds` is the 1.0 canonical way to define taxonomy behavior. In 1.0 docs and starters, include needed kinds explicitly (for example `tags` / `categories`).
-- Legacy `taxonomy.templates.<kind>.*` fallback is not part of the 1.0 run-time contract and should be treated as a migration-only path.
+- Legacy `taxonomy.templates.<kind>.*` fallback is not part of the 1.0 run-time contract and should not be used in 1.0 configs.
 - `taxonomy.kinds[]` validation: `key` is required; `kind`, `title`, `singularTitlePrefix`, `template`, `indexTemplate`, `termTemplate` are optional but must be non-empty strings if set.
 - `taxonomy.kinds[].hierarchical`: when enabled, automatically computes hierarchy. Terms associate with parent via `parent` metadata (data source or `_index.md`); terms without `parent` are root nodes.
 - **Term metadata** supports two loading sources:
@@ -266,13 +266,13 @@ taxonomy:
 
 `bukit config schema` generates a complete `site.yaml` JSON Schema file. In vNext, collection routing fields stay under `site.collections`, while scoped content validation lives under `content.modelSchema.fieldScopes`; the old collection-level `schema` key is no longer part of the config contract.
 
-## Config Deprecation Scanner (P3-3)
+## Removed Config Field Scanner (P3-3)
 
-`ConfigDeprecationScanner` detects 7 legacy config patterns and emits migration warnings:
+`ConfigDeprecationScanner` detects 7 removed config patterns and rejects them before build:
 
-| Legacy Pattern | Replacement | Rule |
+| Removed Pattern | Replacement | Rule |
 |---|---|---|
-| `site.rss` (old RSS config) | `site.feed` | RSS→Feed migration |
+| `site.rss` (old RSS config) | `site.feed` | RSS→Feed |
 | `site.collections.<k>.outputPath` | `site.collections.<k>.permalink` | OutputPath→Permalink |
 | `content.notion.rootPageId` | `content.notion.rootBlockId` | PageId→BlockId |
 | `content.markdown.rootPageId` | `content.markdown.rootBlockId` | PageId→BlockId |
@@ -280,4 +280,4 @@ taxonomy:
 | `site.rssMode` (old toggle) | `site.feed.formats` | RssMode→Feed formats |
 | `build.outputPath` (old output) | `build.output` | OutputPath→Output |
 
-Deprecation warnings appear during `bukit doctor` and at build start. Use `bukit config check` to validate fixes.
+Removed-field errors appear during `bukit doctor` and at build start. Use `bukit config check` to validate fixes.

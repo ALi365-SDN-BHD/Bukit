@@ -79,7 +79,7 @@ logging:
 | 字段 | 作用 | 常见值 |
 |---|---|---|
 | `site.sitemapMode` | sitemap 输出模式 | `merged` / `split` / `index` |
-| `site.searchMode` | search 输出模式 | `merged` / `split` / `index` |
+| `site.search.mode` | search 输出模式 | `merged` / `split` / `index` |
 
 这些模式怎么选见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md)。
 

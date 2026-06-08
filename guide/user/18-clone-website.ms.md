@@ -18,7 +18,7 @@ Dokumen berkaitan: [docs/clone.md](../../docs/clone.md)
 |---------|------|
 | Klon reka bentuk laman langsung | `bukit clone` (halaman ini) |
 | Cipta tema baharu dari praset | `bukit theme wizard --preset blog` |
-| Pasang tema komuniti | `bukit theme install --registry <name>` |
+| Pasang tema komuniti | `bukit theme install --registry <name>` (registry Experimental) |
 
 ## Cara Ia Berfungsi
 

@@ -25,13 +25,13 @@ public static class IntentWizard
             siteLanguage = Ask("site.language", defaultValue: "zh-CN", required: true);
         }
 
-        var provider = AskChoice("content.provider", defaultValue: "markdown", choices: new[] { "markdown", "notion" });
+        var kind = AskChoice("content.kind", defaultValue: "markdown", choices: new[] { "markdown", "notion" });
         string mdDir = "content";
         string notionDatabaseId = string.Empty;
         string fieldPolicyMode = "whitelist";
         IReadOnlyList<string>? allowedFields = null;
 
-        if (provider == "markdown")
+        if (kind == "markdown")
         {
             mdDir = Ask("content.markdown.dir", defaultValue: "content", required: true);
         }
@@ -59,7 +59,7 @@ public static class IntentWizard
             root.Add("languages", BuildLanguagesNode(defaultLanguage, supportedLanguages));
         }
 
-        root.Add("content", BuildContentNode(provider, mdDir, notionDatabaseId, fieldPolicyMode, allowedFields));
+        root.Add("content", BuildContentNode(kind, mdDir, notionDatabaseId, fieldPolicyMode, allowedFields));
         root.Add("theme", BuildThemeNode(themeName));
         root.Add("features", BuildFeaturesNode(enableSitemap, enableRss, enableSearch));
 
@@ -103,12 +103,12 @@ public static class IntentWizard
         return node;
     }
 
-    private static YamlMappingNode BuildContentNode(string provider, string mdDir, string notionDatabaseId, string fieldPolicyMode, IReadOnlyList<string>? allowedFields)
+    private static YamlMappingNode BuildContentNode(string kind, string mdDir, string notionDatabaseId, string fieldPolicyMode, IReadOnlyList<string>? allowedFields)
     {
         var node = new YamlMappingNode();
-        node.Add("provider", provider);
+        node.Add("kind", kind);
 
-        if (provider == "markdown")
+        if (kind == "markdown")
         {
             var md = new YamlMappingNode();
             md.Add("dir", mdDir);
@@ -212,4 +212,3 @@ public static class IntentWizard
         return list.Count == 0 ? defaultValue : list;
     }
 }
-

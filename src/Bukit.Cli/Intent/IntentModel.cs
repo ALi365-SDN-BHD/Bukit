@@ -28,7 +28,7 @@ public sealed record SiteIntentLanguages
 
 public sealed record SiteIntentContent
 {
-    public required string Provider { get; init; }
+    public required string Kind { get; init; }
     public SiteIntentMarkdownContent? Markdown { get; init; }
     public SiteIntentNotionContent? Notion { get; init; }
 }
@@ -67,4 +67,3 @@ public sealed record SiteIntentDeployment
 {
     public string? Target { get; init; }
 }
-

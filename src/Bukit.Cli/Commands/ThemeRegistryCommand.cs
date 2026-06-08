@@ -12,6 +12,8 @@ public static class ThemeRegistryCommand
 
     public static async Task<int> SearchAsync(CliBoundCommand command)
     {
+        Console.WriteLine("Experimental: theme registry/search/install is not covered by the Bukit 1.0 GA compatibility promise.");
+
         var query = command.GetArgument(1);
         if (!string.IsNullOrWhiteSpace(query) && query.StartsWith('-'))
             query = null;
@@ -63,7 +65,7 @@ public static class ThemeRegistryCommand
         }
 
         Console.WriteLine();
-        Console.WriteLine($"{list.Count} theme(s) found. Install: bukit theme install --registry <name>");
+        Console.WriteLine($"{list.Count} theme(s) found. Experimental install: bukit theme install --registry <name>");
 
         if (index.Registry?.Updated is not null)
             Console.WriteLine($"Registry updated: {index.Registry.Updated}");

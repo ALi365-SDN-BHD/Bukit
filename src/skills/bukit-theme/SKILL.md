@@ -18,7 +18,7 @@ guide_chapters:
 
 A Bukit theme = `layouts/` + `assets/` + `static/` + `theme.yaml` + `theme` config section, working together to form the complete visual layer. Division of labor with `bukit-templating`: this skill covers "how to organize a theme, where to put CSS, how to reference assets, how to create/share/install themes"; `bukit-templating` covers "how to write Scriban syntax".
 
-This skill also covers theme eco-system operations: **theme creation** (`create`, `wizard`), **theme discovery** (`list`, `info`, `params`), **theme distribution** (`pack`, `install`), **theme registry** (`search`), and **template-level management** (`template create/list/show/validate/snippets/hints/sync`).
+This skill also covers theme eco-system operations: **theme creation** (`create`, `wizard`), **theme discovery** (`list`, `info`, `params`), **theme distribution** (`pack`, `install`), **theme registry** (`search`, Experimental), and **template-level management** (`template create/list/show/validate/snippets/hints/sync`).
 
 **REQUIRED BACKGROUND:** The theme config section is in site.yaml's `theme` node — you must understand the Theme configuration model in bukit-config first.
 **REQUIRED SUB-SKILL:** Verify theme integrity with `bukit doctor`. CLI commands reference bukit-cli-reference.
@@ -428,15 +428,15 @@ bukit theme install ./my-blog-1.0.0.tar.gz
 # From URL
 bukit theme install https://github.com/user/bukit-theme/releases/download/v1.0/theme.tar.gz
 
-# From community registry
+# From community registry (Experimental; not covered by Bukit 1.0 GA compatibility)
 bukit theme install --registry blog-clean
 ```
 
 ### Search community themes
 ```bash
-bukit theme search                 # list all
-bukit theme search blog            # filter by name/tags/description
-bukit theme search --refresh       # force refresh cache
+bukit theme search                 # list all Experimental registry entries
+bukit theme search blog            # filter Experimental registry by name/tags/description
+bukit theme search --refresh       # force refresh Experimental registry cache
 ```
 
 ## Template Snippet Library
