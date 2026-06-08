@@ -20,59 +20,59 @@ internal static class ProviderValidators
         return null;
     }
 
-    internal static void ValidateNotion(NotionConfig notion)
+    internal static void ValidateNotion(NotionConfig notion, string pathPrefix = "content.notion")
     {
         if (string.IsNullOrWhiteSpace(notion.DatabaseId))
         {
-            throw new ConfigException("content.notion.databaseId is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.databaseId is required.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (notion.PageSize is < 1 or > 100)
         {
-            throw new ConfigException("content.notion.pageSize must be between 1 and 100.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.pageSize must be between 1 and 100.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (notion.MaxItems is not null && notion.MaxItems.Value <= 0)
         {
-            throw new ConfigException("content.notion.maxItems must be a positive integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.maxItems must be a positive integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (notion.RenderConcurrency is not null && notion.RenderConcurrency.Value <= 0)
         {
-            throw new ConfigException("content.notion.renderConcurrency must be a positive integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.renderConcurrency must be a positive integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (notion.MaxRps is not null && notion.MaxRps.Value <= 0)
         {
-            throw new ConfigException("content.notion.maxRps must be a positive integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.maxRps must be a positive integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (notion.MaxRetries is not null && notion.MaxRetries.Value < 0)
         {
-            throw new ConfigException("content.notion.maxRetries must be a non-negative integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.maxRetries must be a non-negative integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         var mode = (notion.FieldPolicy.Mode ?? "whitelist").Trim().ToLowerInvariant();
         if (mode is not ("whitelist" or "all"))
         {
-            throw new ConfigException("content.notion.fieldPolicy.mode must be whitelist|all.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.fieldPolicy.mode must be whitelist|all.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         var filterType = (notion.FilterType ?? "checkbox_true").Trim().ToLowerInvariant();
         if (filterType is not ("checkbox_true" or "checkbox_false" or "select_equals" or "status_equals" or "rich_text_equals" or "none"))
         {
-            throw new ConfigException("content.notion.filterType must be checkbox_true|checkbox_false|select_equals|status_equals|rich_text_equals|none.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.filterType must be checkbox_true|checkbox_false|select_equals|status_equals|rich_text_equals|none.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (filterType != "none" && string.IsNullOrWhiteSpace(notion.FilterProperty))
         {
-            throw new ConfigException("content.notion.filterProperty is required when filterType is not none.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.filterProperty is required when filterType is not none.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (filterType is "select_equals" or "status_equals" or "rich_text_equals" &&
             string.IsNullOrWhiteSpace(notion.FilterValue))
         {
-            throw new ConfigException("content.notion.filterValue is required for select_equals|status_equals|rich_text_equals filters.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.filterValue is required for select_equals|status_equals|rich_text_equals filters.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (!string.IsNullOrWhiteSpace(notion.SortProperty))
@@ -80,7 +80,7 @@ internal static class ProviderValidators
             var dir = (notion.SortDirection ?? "ascending").Trim().ToLowerInvariant();
             if (dir is not ("ascending" or "descending"))
             {
-                throw new ConfigException("content.notion.sortDirection must be ascending|descending.", DiagnosticCode.ConfigRequiredFieldMissing);
+                throw new ConfigException($"{pathPrefix}.sortDirection must be ascending|descending.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
         }
 
@@ -88,19 +88,19 @@ internal static class ProviderValidators
         {
             if (string.IsNullOrWhiteSpace(notion.IncludeSlugProperty))
             {
-                throw new ConfigException("content.notion.includeSlugProperty is required when includeSlugs is set.", DiagnosticCode.ConfigRequiredFieldMissing);
+                throw new ConfigException($"{pathPrefix}.includeSlugProperty is required when includeSlugs is set.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
         }
 
         var cacheMode = (notion.CacheMode ?? "off").Trim().ToLowerInvariant();
         if (cacheMode is not ("off" or "readwrite" or "readonly"))
         {
-            throw new ConfigException("content.notion.cacheMode must be off|readwrite|readonly.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.cacheMode must be off|readwrite|readonly.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (notion.CacheDir is not null && string.IsNullOrWhiteSpace(notion.CacheDir))
         {
-            throw new ConfigException("content.notion.cacheDir must be a non-empty string when set.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.cacheDir must be a non-empty string when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         var token = EnvironmentHelper.GetNotionToken();
@@ -180,18 +180,18 @@ internal static class ProviderValidators
         }
     }
 
-    internal static void ValidateMarkdown(MarkdownConfig markdown)
+    internal static void ValidateMarkdown(MarkdownConfig markdown, string pathPrefix = "content.markdown")
     {
         if (string.IsNullOrWhiteSpace(markdown.Dir))
         {
-            throw new ConfigException("content.markdown.dir is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.dir is required.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
-        RejectPathTraversal("content.markdown.dir", markdown.Dir);
+        RejectPathTraversal($"{pathPrefix}.dir", markdown.Dir);
 
         if (markdown.MaxItems is not null && markdown.MaxItems.Value <= 0)
         {
-            throw new ConfigException("content.markdown.maxItems must be a positive integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException($"{pathPrefix}.maxItems must be a positive integer when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (markdown.IncludePaths is { Count: > 0 } includePaths)
@@ -200,10 +200,10 @@ internal static class ProviderValidators
             {
                 if (string.IsNullOrWhiteSpace(includePaths[i]))
                 {
-                    throw new ConfigException($"content.markdown.includePaths[{i}] must be a non-empty string.", DiagnosticCode.ConfigRequiredFieldMissing);
+                    throw new ConfigException($"{pathPrefix}.includePaths[{i}] must be a non-empty string.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
 
-                RejectPathTraversal($"content.markdown.includePaths[{i}]", includePaths[i]);
+                RejectPathTraversal($"{pathPrefix}.includePaths[{i}]", includePaths[i]);
             }
         }
 
@@ -213,7 +213,7 @@ internal static class ProviderValidators
             {
                 if (string.IsNullOrWhiteSpace(includeGlobs[i]))
                 {
-                    throw new ConfigException($"content.markdown.includeGlobs[{i}] must be a non-empty string.", DiagnosticCode.ConfigRequiredFieldMissing);
+                    throw new ConfigException($"{pathPrefix}.includeGlobs[{i}] must be a non-empty string.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
             }
         }

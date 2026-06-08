@@ -22,7 +22,9 @@ public static class ThemeRegistryCommand
         var refresh = command.GetBool("--refresh");
         var registryUrl = command.GetString("--registry-url") ?? DefaultRegistryUrl;
 
-        var index = await LoadRegistryAsync(registryUrl, refresh);
+        var load = await LoadRegistryDetailedAsync(registryUrl, refresh);
+        PrintDiagnostics(load.Diagnostics);
+        var index = load.Index;
         if (index is null)
         {
             Console.Error.WriteLine("Failed to load theme registry.");
@@ -78,7 +80,9 @@ public static class ThemeRegistryCommand
     {
         var registryUrl = command.GetString("--registry-url") ?? DefaultRegistryUrl;
         var refresh = command.GetBool("--refresh");
-        var index = await LoadRegistryAsync(registryUrl, refresh);
+        var load = await LoadRegistryDetailedAsync(registryUrl, refresh);
+        PrintDiagnostics(load.Diagnostics);
+        var index = load.Index;
         if (index is null) return null;
 
         return index.Themes.FirstOrDefault(
@@ -86,6 +90,9 @@ public static class ThemeRegistryCommand
     }
 
     internal static async Task<RegistryIndex?> LoadRegistryAsync(string registryUrl, bool forceRefresh)
+        => (await LoadRegistryDetailedAsync(registryUrl, forceRefresh)).Index;
+
+    internal static async Task<ThemeRegistryLoadResult> LoadRegistryDetailedAsync(string registryUrl, bool forceRefresh)
     {
         var cacheDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -97,13 +104,10 @@ public static class ThemeRegistryCommand
             var age = DateTime.UtcNow - File.GetLastWriteTimeUtc(cacheFile);
             if (age < TimeSpan.FromHours(CacheTtlHours))
             {
-                try
+                var cached = await TryLoadCacheAsync(cacheFile);
+                if (cached is not null)
                 {
-                    var cached = await File.ReadAllTextAsync(cacheFile);
-                    return RegistryIndex.Parse(cached);
-                }
-                catch
-                {
+                    return new ThemeRegistryLoadResult(cached, []);
                 }
             }
         }
@@ -114,29 +118,98 @@ public static class ThemeRegistryCommand
 
             var response = await http.GetStringAsync(registryUrl);
             var index = RegistryIndex.Parse(response);
-            if (index is not null)
+            if (index is null)
             {
-                Directory.CreateDirectory(cacheDir);
-                await File.WriteAllTextAsync(cacheFile, response);
+                return await TryLoadCacheFallbackAsync(
+                    cacheFile,
+                    new ThemeRegistryDiagnostic(
+                        "BKT-THEME-REGISTRY-0003",
+                        "yaml_invalid",
+                        "Theme registry YAML is invalid. Falling back to cached registry if available.",
+                        IsWarning: false));
             }
 
-            return index;
+            Directory.CreateDirectory(cacheDir);
+            await File.WriteAllTextAsync(cacheFile, response);
+            return new ThemeRegistryLoadResult(index, []);
+        }
+        catch (HttpRequestException ex)
+        {
+            var diagnostic = CreateHttpDiagnostic(ex);
+            return await TryLoadCacheFallbackAsync(cacheFile, diagnostic);
+        }
+        catch (TaskCanceledException)
+        {
+            return await TryLoadCacheFallbackAsync(
+                cacheFile,
+                new ThemeRegistryDiagnostic(
+                    "BKT-THEME-REGISTRY-0001",
+                    "network_blocked",
+                    "Theme registry request timed out. Falling back to cached registry if available.",
+                    IsWarning: false));
+        }
+    }
+
+    private static async Task<RegistryIndex?> TryLoadCacheAsync(string cacheFile)
+    {
+        try
+        {
+            var cached = await File.ReadAllTextAsync(cacheFile);
+            return RegistryIndex.Parse(cached);
         }
         catch
         {
-            if (File.Exists(cacheFile))
-            {
-                try
-                {
-                    var cached = await File.ReadAllTextAsync(cacheFile);
-                    return RegistryIndex.Parse(cached);
-                }
-                catch
-                {
-                }
-            }
-
             return null;
+        }
+    }
+
+    private static async Task<ThemeRegistryLoadResult> TryLoadCacheFallbackAsync(string cacheFile, ThemeRegistryDiagnostic failure)
+    {
+        if (File.Exists(cacheFile))
+        {
+            var cached = await TryLoadCacheAsync(cacheFile);
+            if (cached is not null)
+            {
+                return new ThemeRegistryLoadResult(
+                    cached,
+                    [
+                        failure,
+                        new ThemeRegistryDiagnostic(
+                            "BKT-THEME-REGISTRY-0004",
+                            "cache_fallback_used",
+                            $"Using cached theme registry from {NormalizePath(cacheFile)}.",
+                            IsWarning: true)
+                    ]);
+            }
+        }
+
+        return new ThemeRegistryLoadResult(failure);
+    }
+
+    private static ThemeRegistryDiagnostic CreateHttpDiagnostic(HttpRequestException ex)
+    {
+        if (ex.Message.Contains("SSRF blocked:", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ThemeRegistryDiagnostic(
+                "BKT-THEME-REGISTRY-0002",
+                "ssrf_blocked",
+                ex.Message,
+                IsWarning: false);
+        }
+
+        return new ThemeRegistryDiagnostic(
+            "BKT-THEME-REGISTRY-0001",
+            "network_blocked",
+            $"Theme registry request failed: {ex.Message}",
+            IsWarning: false);
+    }
+
+    private static void PrintDiagnostics(IReadOnlyList<ThemeRegistryDiagnostic> diagnostics)
+    {
+        foreach (var diagnostic in diagnostics)
+        {
+            var writer = diagnostic.IsWarning ? Console.Out : Console.Error;
+            writer.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
         }
     }
 
@@ -173,4 +246,23 @@ public static class ThemeRegistryCommand
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".bukit", "registry", "themes.yaml");
+
+    private static string NormalizePath(string path)
+        => path.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
 }
+
+internal sealed record ThemeRegistryLoadResult(
+    RegistryIndex? Index,
+    IReadOnlyList<ThemeRegistryDiagnostic> Diagnostics)
+{
+    internal ThemeRegistryLoadResult(params ThemeRegistryDiagnostic[] diagnostics)
+        : this(null, diagnostics)
+    {
+    }
+}
+
+internal sealed record ThemeRegistryDiagnostic(
+    string Code,
+    string Kind,
+    string Message,
+    bool IsWarning);

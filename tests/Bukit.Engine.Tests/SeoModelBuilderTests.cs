@@ -33,12 +33,7 @@ public sealed class SeoModelBuilderTests
                     }
                 }
             },
-            Content = new ContentConfig
-            {
-                Provider = "markdown",
-                Sources = TestContent.Markdown().Sources,
-                Markdown = new MarkdownConfig()
-            }
+            Content = TestContent.Markdown()
         };
     }
 

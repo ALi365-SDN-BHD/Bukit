@@ -102,6 +102,7 @@ public sealed class SiteEngine
             var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, plan.OutputDir, overrides, plan.StartedAt, DateTimeOffset.UtcNow, plan.Stopwatch.ElapsedMilliseconds, new[] { result }, contentResult.SchemaErrors);
             var securityData = BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result });
             BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData);
+            BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI);
             WriteOutputMarker(plan.OutputDir);
             BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
             return singleLanguageBuildResult;
@@ -207,6 +208,7 @@ public sealed class SiteEngine
         var buildResult = BuildResultFactory.Create(config, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, variantResults, schemaErrors);
         var securityData = BuildReporter.CreateSecurityReportData(config, rootDir, outputDir, variantResults);
         BuildReporter.WriteIfEnabled(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData);
+        BuildReporter.EnforceSecurityGate(config, securityData, overrides.IsCI);
         WriteOutputMarker(outputDir);
         BuildRecoveryTracker.MarkCompleted(outputDir);
         return buildResult;

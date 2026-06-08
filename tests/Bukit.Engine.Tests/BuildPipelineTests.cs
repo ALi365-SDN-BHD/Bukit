@@ -15,11 +15,7 @@ public sealed class BuildPipelineTests
                 Name = "test",
                 Title = "Test"
             },
-            Content = new ContentConfig
-            {
-                Provider = "sources",
-                Sources = TestContent.Markdown().Sources
-            }
+            Content = TestContent.Markdown()
         };
         var overrides = new ConfigOverrides { Incremental = false };
         var context = new BuildPipelineContext(config, "/tmp/site", overrides);
@@ -65,11 +61,7 @@ public sealed class BuildPipelineTests
                 Name = "test",
                 Title = "Test"
             },
-            Content = new ContentConfig
-            {
-                Provider = "sources",
-                Sources = TestContent.Markdown().Sources
-            }
+            Content = TestContent.Markdown()
         };
     }
 

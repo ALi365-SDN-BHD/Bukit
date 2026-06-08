@@ -102,6 +102,18 @@ public static class ConfigRemovedFieldScanner
             removed.Add(new ConfigRemovedField("content.notion.rootPageId", "content.notion.rootBlockId", DiagnosticCode.ConfigRemovedField));
         }
 
+        if (TryGetMapping(root, "content", out var contentNodeForLegacyMarkdown) &&
+            contentNodeForLegacyMarkdown.Children.ContainsKey(new YamlScalarNode("markdown")))
+        {
+            removed.Add(new ConfigRemovedField("content.markdown", "content.sources[].markdown", DiagnosticCode.ConfigRemovedField));
+        }
+
+        if (TryGetMapping(root, "content", out var contentNodeForLegacyNotion) &&
+            contentNodeForLegacyNotion.Children.ContainsKey(new YamlScalarNode("notion")))
+        {
+            removed.Add(new ConfigRemovedField("content.notion", "content.sources[].notion", DiagnosticCode.ConfigRemovedField));
+        }
+
         if (TryGetMapping(root, "content", out var contentWithSources) &&
             contentWithSources.Children.TryGetValue(new YamlScalarNode("sources"), out var sourcesNode) &&
             sourcesNode is YamlSequenceNode sources)

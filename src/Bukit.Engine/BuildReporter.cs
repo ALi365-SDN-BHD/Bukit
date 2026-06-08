@@ -20,6 +20,9 @@ internal static class BuildReporter
     internal const string AssetsReportSchema = "https://bukit.dev/schemas/assets.v1.json";
     internal const string IncrementalManifestSchema = "https://bukit.dev/schemas/incremental-manifest.v1.json";
     internal const string SecurityReportSchema = "https://bukit.dev/schemas/security-report.v1.json";
+    internal const string ArtifactManifestSchema = "https://bukit.dev/schemas/artifact-manifest.v1.json";
+    internal const string ReleaseBundleChecksumsSchema = "https://bukit.dev/schemas/release-bundle-checksums.v1.json";
+    internal const string BuildManifestDigestSchema = "https://bukit.dev/schemas/build-manifest-digest.v1.json";
 
     internal static void WriteIfEnabled(
         AppConfig config,
@@ -32,10 +35,13 @@ internal static class BuildReporter
     {
         var reportDir = Path.Combine(outputDir, ReportDirectoryName);
         Directory.CreateDirectory(reportDir);
-        WriteSecurityReport(Path.Combine(reportDir, "security-report.json"), securityData);
+        WriteSecurityReport(Path.Combine(reportDir, "security-report.json"), config, securityData);
 
         if (!config.Build.Report.Enabled)
         {
+            WriteReleaseBundleChecksums(reportDir, outputDir);
+            WriteArtifactManifest(reportDir);
+            WriteBuildManifestDigest(reportDir);
             logger.Debug($"event=build.security_report.write dir={reportDir} root={rootDir}");
             return;
         }
@@ -44,7 +50,39 @@ internal static class BuildReporter
         WriteRoutes(Path.Combine(reportDir, "routes.json"), variants);
         WriteAssets(Path.Combine(reportDir, "assets.json"), outputDir);
         WriteIncrementalManifest(Path.Combine(reportDir, "incremental-manifest.json"), result, variants);
+        WriteReleaseBundleChecksums(reportDir, outputDir);
+        WriteArtifactManifest(reportDir);
+        WriteBuildManifestDigest(reportDir);
         logger.Debug($"event=build.report.write dir={reportDir} root={rootDir}");
+    }
+
+    internal static void EnforceSecurityGate(AppConfig config, SecurityReportData? securityData, bool isCi)
+    {
+        if (securityData is null)
+        {
+            return;
+        }
+
+        var mode = ResolveSecurityFailMode(config.Build.Report, isCi);
+        if (mode == "off")
+        {
+            return;
+        }
+
+        var status = ResolveSecurityStatus(securityData);
+        if (!string.Equals(status, "failed", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var message = $"BKT-BUILD-SECURITY-0001: security-report.json contains failed checks (mode={mode}).";
+        if (mode == "warn")
+        {
+            Console.Error.WriteLine(message);
+            return;
+        }
+
+        throw new InvalidOperationException(message);
     }
 
     private static void WriteBuildReport(string path, BuildResult result)
@@ -180,7 +218,122 @@ internal static class BuildReporter
         writer.WriteEndObject();
     }
 
-    private static void WriteSecurityReport(string path, SecurityReportData? data)
+    private static void WriteArtifactManifest(string reportDir)
+    {
+        var manifestPath = Path.Combine(reportDir, "artifact-manifest.json");
+        var artifactFiles = Directory.EnumerateFiles(reportDir, "*.json", SearchOption.TopDirectoryOnly)
+            .Where(path => !string.Equals(Path.GetFileName(path), "artifact-manifest.json", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        using var stream = File.Create(manifestPath);
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+        writer.WriteStartObject();
+        WriteArtifactContract(writer, ArtifactManifestSchema);
+        writer.WriteString("generatedAt", DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+        var artifactEntries = artifactFiles
+            .Select(path => new ReleaseBundleFileEntry(
+                NormalizePath(Path.GetRelativePath(reportDir, path)),
+                ComputeSha256(path),
+                new FileInfo(path).Length))
+            .ToList();
+        writer.WriteNumber("artifactCount", artifactEntries.Count);
+        writer.WriteString("artifactSetHash", ComputeBundleHash(artifactEntries));
+        writer.WritePropertyName("artifacts");
+        writer.WriteStartArray();
+        foreach (var artifact in artifactEntries)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("path", artifact.Path);
+            writer.WriteString("hash", artifact.Hash);
+            writer.WriteNumber("size", artifact.Size);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+        writer.WriteEndObject();
+    }
+
+    private static void WriteReleaseBundleChecksums(string reportDir, string outputDir)
+    {
+        var bundlePath = Path.Combine(reportDir, "release-bundle-checksums.json");
+        var files = Directory.Exists(outputDir)
+            ? Directory.EnumerateFiles(outputDir, "*", SearchOption.AllDirectories)
+                .Where(path => !IsUnderReportDirectory(path, reportDir))
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .Select(path => new ReleaseBundleFileEntry(
+                    NormalizePath(Path.GetRelativePath(outputDir, path)),
+                    ComputeSha256(path),
+                    new FileInfo(path).Length))
+                .ToList()
+            : new List<ReleaseBundleFileEntry>();
+
+        using var stream = File.Create(bundlePath);
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+        writer.WriteStartObject();
+        WriteArtifactContract(writer, ReleaseBundleChecksumsSchema);
+        writer.WriteNumber("fileCount", files.Count);
+        writer.WriteString("bundleHash", ComputeBundleHash(files));
+        writer.WritePropertyName("files");
+        writer.WriteStartArray();
+        foreach (var file in files)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("path", file.Path);
+            writer.WriteString("hash", file.Hash);
+            writer.WriteNumber("size", file.Size);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+        writer.WriteEndObject();
+    }
+
+    private static void WriteBuildManifestDigest(string reportDir)
+    {
+        var digestPath = Path.Combine(reportDir, "build-manifest-digest.json");
+        var reportFiles = Directory.EnumerateFiles(reportDir, "*.json", SearchOption.TopDirectoryOnly)
+            .Where(path => !string.Equals(Path.GetFileName(path), "build-manifest-digest.json", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .Select(path => new ReleaseBundleFileEntry(
+                NormalizePath(Path.GetRelativePath(reportDir, path)),
+                ComputeSha256(path),
+                new FileInfo(path).Length))
+            .ToList();
+
+        var releaseBundle = reportFiles.FirstOrDefault(x =>
+            string.Equals(x.Path, "release-bundle-checksums.json", StringComparison.OrdinalIgnoreCase));
+        var artifactManifest = reportFiles.FirstOrDefault(x =>
+            string.Equals(x.Path, "artifact-manifest.json", StringComparison.OrdinalIgnoreCase));
+        var securityReport = reportFiles.FirstOrDefault(x =>
+            string.Equals(x.Path, "security-report.json", StringComparison.OrdinalIgnoreCase));
+
+        using var stream = File.Create(digestPath);
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+        writer.WriteStartObject();
+        WriteArtifactContract(writer, BuildManifestDigestSchema);
+        writer.WriteString("generatedAt", DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+        writer.WriteNumber("reportCount", reportFiles.Count);
+        writer.WriteString("reportSetHash", ComputeBundleHash(reportFiles));
+        writer.WriteString("artifactManifestHash", artifactManifest?.Hash);
+        writer.WriteString("releaseBundleHash", releaseBundle?.Hash);
+        writer.WriteString("securityReportHash", securityReport?.Hash);
+        writer.WritePropertyName("reports");
+        writer.WriteStartArray();
+        foreach (var report in reportFiles)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("path", report.Path);
+            writer.WriteString("hash", report.Hash);
+            writer.WriteNumber("size", report.Size);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+        writer.WriteEndObject();
+    }
+
+    private static void WriteSecurityReport(string path, AppConfig config, SecurityReportData? data)
     {
         data ??= new SecurityReportData(
             RouteTraversal: "not_checked",
@@ -216,6 +369,7 @@ internal static class BuildReporter
         WriteSecurityCheck(writer, "pluginOutputPath", data.PluginOutputPath, "error");
         WriteSecurityCheck(writer, "remoteThemeLock", data.RemoteThemeLock, "warning");
         writer.WriteEndObject();
+        WriteExternalPluginGovernance(writer, config);
         writer.WriteEndObject();
     }
 
@@ -226,6 +380,70 @@ internal static class BuildReporter
         writer.WriteString("status", status);
         writer.WriteString("severity", severity);
         writer.WriteEndObject();
+    }
+
+    private static void WriteExternalPluginGovernance(Utf8JsonWriter writer, AppConfig config)
+    {
+        writer.WritePropertyName("externalPlugins");
+        writer.WriteStartObject();
+        writer.WriteString("policy", config.Site.ExternalPluginPolicy.ToString().ToLowerInvariant());
+
+        var plugins = config.Site.ExternalPlugins?
+            .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .ToArray()
+            ?? Array.Empty<KeyValuePair<string, ExternalPluginConfig>>();
+
+        writer.WriteNumber("pluginCount", plugins.Length);
+        writer.WritePropertyName("plugins");
+        writer.WriteStartArray();
+        foreach (var (name, plugin) in plugins)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("name", name);
+            writer.WriteBoolean("enabled", plugin.Enabled);
+            writer.WriteString("runtime", plugin.Runtime);
+            writer.WritePropertyName("hooks");
+            WriteStringArray(writer, plugin.Hooks);
+            writer.WritePropertyName("capabilities");
+            WriteStringArray(writer, plugin.Capabilities);
+            writer.WritePropertyName("templateRequirements");
+            WriteStringArray(writer, plugin.TemplateRequirements);
+            writer.WritePropertyName("allowEnvironment");
+            WriteStringArray(writer, plugin.AllowEnvironment);
+            writer.WriteBoolean("allowAbsoluteEntry", plugin.AllowAbsoluteEntry);
+            writer.WriteBoolean("sha256Pinned", !string.IsNullOrWhiteSpace(plugin.Sha256));
+            writer.WritePropertyName("declaredContract");
+            writer.WriteStartObject();
+            writer.WriteBoolean("spawnsProcess", string.Equals(plugin.Runtime, "process", StringComparison.OrdinalIgnoreCase));
+            writer.WriteBoolean("absoluteEntryOptIn", plugin.AllowAbsoluteEntry);
+            writer.WriteBoolean("declaresExtraEnvironment", plugin.AllowEnvironment is { Count: > 0 });
+            writer.WriteBoolean("declaresTemplateRequirements", plugin.TemplateRequirements is { Count: > 0 });
+            writer.WriteBoolean("declaresIntegrityPin", !string.IsNullOrWhiteSpace(plugin.Sha256));
+            writer.WriteEndObject();
+            writer.WritePropertyName("enforcedBoundaries");
+            writer.WriteStartObject();
+            writer.WriteString("entryScope", plugin.AllowAbsoluteEntry ? "absolute-opt-in-or-project-relative" : "project-relative-only");
+            writer.WriteString("outputScope", "outputDir-only");
+            writer.WriteString("networkAccess", "not-declared-by-contract");
+            writer.WriteNumber("timeoutMs", plugin.TimeoutMs);
+            writer.WriteNumber("maxStdoutBytes", plugin.MaxStdoutBytes);
+            writer.WriteNumber("maxStderrBytes", plugin.MaxStderrBytes);
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+        writer.WriteEndObject();
+    }
+
+    private static void WriteStringArray(Utf8JsonWriter writer, IReadOnlyList<string>? values)
+    {
+        writer.WriteStartArray();
+        foreach (var value in values ?? Array.Empty<string>())
+        {
+            writer.WriteStringValue(value);
+        }
+        writer.WriteEndArray();
     }
 
     internal static SecurityReportData CreateSecurityReportData(
@@ -280,6 +498,45 @@ internal static class BuildReporter
     private static bool IsWarning(string status)
         => string.Equals(status, "warning", StringComparison.OrdinalIgnoreCase) ||
            string.Equals(status, "not_checked", StringComparison.OrdinalIgnoreCase);
+
+    private static string ResolveSecurityFailMode(BuildReportConfig report, bool isCi)
+    {
+        var mode = (report.SecurityFailMode ?? "auto").Trim().ToLowerInvariant();
+        if (mode == "auto")
+        {
+            return IsStrictSecurityContext(isCi) ? "strict" : "warn";
+        }
+
+        return mode;
+    }
+
+    private static bool IsStrictSecurityContext(bool isCi)
+    {
+        return isCi || IsReleaseProfileContext();
+    }
+
+    private static bool IsReleaseProfileContext()
+    {
+        var buildMode = Environment.GetEnvironmentVariable("BUKIT_BUILD_MODE")?.Trim().ToLowerInvariant();
+        if (buildMode is "release" or "profile")
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BUKIT_PROFILE")))
+        {
+            return true;
+        }
+
+        var releaseFlag = Environment.GetEnvironmentVariable("BUKIT_RELEASE")?.Trim();
+        if (string.IsNullOrWhiteSpace(releaseFlag))
+        {
+            return false;
+        }
+
+        return !string.Equals(releaseFlag, "0", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(releaseFlag, "false", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string CheckRoutes(IReadOnlyList<BuildVariantResult> variants, List<string> errors)
     {
@@ -349,6 +606,29 @@ internal static class BuildReporter
             return "failed";
         }
     }
+
+    private static bool IsUnderReportDirectory(string path, string reportDir)
+    {
+        var reportRoot = Path.GetFullPath(reportDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var fullPath = Path.GetFullPath(path);
+        return fullPath.StartsWith(reportRoot, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ComputeBundleHash(IReadOnlyList<ReleaseBundleFileEntry> files)
+    {
+        using var sha = SHA256.Create();
+        foreach (var file in files)
+        {
+            var line = $"{file.Path}|{file.Hash}|{file.Size}\n";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(line);
+            sha.TransformBlock(bytes, 0, bytes.Length, null, 0);
+        }
+
+        sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+        return $"sha256:{Convert.ToHexStringLower(sha.Hash!)}";
+    }
+
+    private sealed record ReleaseBundleFileEntry(string Path, string Hash, long Size);
 
     private static string CheckRemoteThemeLock(AppConfig config, string rootDir, List<string> warnings, List<string> errors)
     {

@@ -265,16 +265,11 @@ public sealed class SiteEngineIntegrationTests
                     Language = "en",
                     Collections = TestCollections()
                 },
-                Content = new ContentConfig
-                {
-                    Provider = "sources",
-                    Sources = new[]
-                    {
-                        TestContent.MarkdownSource(collection: "post", includePaths: new[] { "hello.md" }),
-                        TestContent.MarkdownSource(collection: "page", includePaths: new[] { "about.md" })
-                    },
-                    Markdown = new MarkdownConfig { Dir = "content" },
-                },
+                Content = ContentConfigFactory.FromSources(
+                [
+                    TestContent.MarkdownSource(collection: "post", includePaths: new[] { "hello.md" }),
+                    TestContent.MarkdownSource(collection: "page", includePaths: new[] { "about.md" })
+                ]),
                 Build = new BuildConfig
                 {
                     Output = "dist",
@@ -402,12 +397,7 @@ public sealed class SiteEngineIntegrationTests
                     Language = "en",
                     Collections = TestCollections()
                 },
-                Content = new ContentConfig
-                {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown(collection: "post").Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
-                },
+                Content = TestContent.Markdown(collection: "post"),
                 Build = new BuildConfig
                 {
                     Output = "dist",
@@ -597,12 +587,7 @@ public sealed class SiteEngineIntegrationTests
                     Language = "en",
                     Collections = TestCollections()
                 },
-                Content = new ContentConfig
-                {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown(collection: "post").Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
-                },
+                Content = TestContent.Markdown(collection: "post"),
                 Build = new BuildConfig { Output = "dist", Clean = true, Report = new BuildReportConfig { Enabled = false } },
             };
 
@@ -1157,11 +1142,8 @@ public sealed class SiteEngineIntegrationTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/", Collections = TestCollections() },
-                Content = new ContentConfig
+                Content = TestContent.Markdown(collection: "post") with
                 {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown(collection: "post").Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
                 Build = new BuildConfig { Output = "dist", Clean = true },
@@ -1223,11 +1205,8 @@ public sealed class SiteEngineIntegrationTests
                     BaseUrl = "/",
                     Collections = TestCollections()
                 },
-                Content = new ContentConfig
+                Content = TestContent.Markdown() with
                 {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown().Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
                 Build = new BuildConfig { Output = "dist", Clean = true },
@@ -1320,11 +1299,8 @@ public sealed class SiteEngineIntegrationTests
                     BaseUrl = "/",
                     Collections = TestCollections()
                 },
-                Content = new ContentConfig
+                Content = TestContent.Markdown() with
                 {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown().Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
                 Build = new BuildConfig { Output = "dist", Clean = true, LanguageJobs = 1 },
@@ -1745,11 +1721,8 @@ public sealed class SiteEngineIntegrationTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
-                Content = new ContentConfig
+                Content = TestContent.Markdown() with
                 {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown().Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
                 Build = new BuildConfig { Output = "dist", Clean = true },
@@ -1805,11 +1778,8 @@ public sealed class SiteEngineIntegrationTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
-                Content = new ContentConfig
+                Content = TestContent.Markdown() with
                 {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown().Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
                 Build = new BuildConfig { Output = "dist", Clean = true },
@@ -1921,11 +1891,8 @@ public sealed class SiteEngineIntegrationTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
-                Content = new ContentConfig
+                Content = TestContent.Markdown() with
                 {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown().Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
                 Build = new BuildConfig { Output = "dist", Clean = true },
@@ -2000,11 +1967,8 @@ public sealed class SiteEngineIntegrationTests
                         }
                     }
                 },
-                Content = new ContentConfig
+                Content = TestContent.Markdown(collection: "post") with
                 {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown(collection: "post").Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
                 Build = new BuildConfig { Output = "dist", Clean = true },
@@ -2058,11 +2022,8 @@ public sealed class SiteEngineIntegrationTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "T", BaseUrl = "/", Language = "en", Collections = TestCollections() },
-                Content = new ContentConfig
+                Content = TestContent.Markdown() with
                 {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown().Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
                 Build = new BuildConfig { Output = "dist", Clean = true },
@@ -2139,22 +2100,18 @@ public sealed class SiteEngineIntegrationTests
                         }
                     }
                 },
-                Content = new ContentConfig
-                {
-                    Provider = "sources",
-                    Sources = new[]
+                Content = ContentConfigFactory.FromSources(
+                [
+                    new ContentSourceConfig
                     {
-                        new ContentSourceConfig
-                        {
-                            Type = "markdown",
-                            Name = "companies",
-                            Collection = "companies",
-                            AddToCollections = new[] { "china_companies" },
-                            Markdown = new MarkdownConfig { Dir = "companies" }
-                        }
-                    },
-                    Media = new MediaConfig { DownloadToLocal = false }
-                },
+                        Type = "markdown",
+                        Name = "companies",
+                        Collection = "companies",
+                        AddToCollections = new[] { "china_companies" },
+                        Markdown = new MarkdownConfig { Dir = "companies" }
+                    }
+                ],
+                media: new MediaConfig { DownloadToLocal = false }),
                 Build = new BuildConfig { Output = "dist", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
@@ -2204,21 +2161,17 @@ public sealed class SiteEngineIntegrationTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
-                Content = new ContentConfig
-                {
-                    Provider = "sources",
-                    Sources = new[]
+                Content = ContentConfigFactory.FromSources(
+                [
+                    new ContentSourceConfig
                     {
-                        new ContentSourceConfig
-                        {
-                            Type = "markdown",
-                            Name = "menu",
-                            Mode = "data",
-                            Markdown = new MarkdownConfig { Dir = "data" }
-                        }
-                    },
-                    Media = new MediaConfig { DownloadToLocal = false }
-                },
+                        Type = "markdown",
+                        Name = "menu",
+                        Mode = "data",
+                        Markdown = new MarkdownConfig { Dir = "data" }
+                    }
+                ],
+                media: new MediaConfig { DownloadToLocal = false }),
                 Build = new BuildConfig { Output = "dist", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
@@ -2521,17 +2474,12 @@ public sealed class SiteEngineIntegrationTests
                         }
                     }
                 },
-                Content = new ContentConfig
-                {
-                    Provider = "sources",
-                    Sources = new[]
-                    {
-                        TestContent.MarkdownSource(collection: "post", includePaths: new[] { "post1.md", "post2.md", "post3.md" }),
-                        TestContent.MarkdownSource(collection: "page", includePaths: new[] { "conflict.md" })
-                    },
-                    Markdown = new MarkdownConfig { Dir = "content" },
-                    Media = new MediaConfig { DownloadToLocal = false }
-                },
+                Content = ContentConfigFactory.FromSources(
+                [
+                    TestContent.MarkdownSource(collection: "post", includePaths: new[] { "post1.md", "post2.md", "post3.md" }),
+                    TestContent.MarkdownSource(collection: "page", includePaths: new[] { "conflict.md" })
+                ],
+                media: new MediaConfig { DownloadToLocal = false }),
                 Build = new BuildConfig { Output = "dist", Clean = true },
                 Theme = new ThemeConfig { Layouts = "layouts" }
             };
@@ -2599,11 +2547,8 @@ public sealed class SiteEngineIntegrationTests
                         }
                     }
                 },
-                Content = new ContentConfig
+                Content = TestContent.Markdown(collection: "post") with
                 {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown(collection: "post").Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
                 Build = new BuildConfig { Output = "dist", Clean = true },
@@ -3112,11 +3057,8 @@ public sealed class SiteEngineIntegrationTests
                     }
                 }
             },
-            Content = new ContentConfig
+            Content = TestContent.Markdown() with
             {
-                Provider = "sources",
-                Sources = TestContent.Markdown().Sources,
-                Markdown = new MarkdownConfig { Dir = "content" },
                 Media = new MediaConfig { DownloadToLocal = false }
             },
             Build = new BuildConfig { Output = "dist", Clean = true },
@@ -3127,11 +3069,8 @@ public sealed class SiteEngineIntegrationTests
         => new()
         {
             Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
-            Content = new ContentConfig
+            Content = TestContent.Markdown() with
             {
-                Provider = "sources",
-                Sources = TestContent.Markdown().Sources,
-                Markdown = new MarkdownConfig { Dir = "content" },
                 Media = new MediaConfig { DownloadToLocal = false }
             },
             Build = new BuildConfig { Output = "dist", Clean = true },
@@ -3155,11 +3094,8 @@ public sealed class SiteEngineIntegrationTests
         => new()
         {
             Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
-            Content = new ContentConfig
+            Content = TestContent.Markdown(collection: "post") with
             {
-                Provider = "sources",
-                Sources = TestContent.Markdown(collection: "post").Sources,
-                Markdown = new MarkdownConfig { Dir = "content" },
                 Media = new MediaConfig { DownloadToLocal = false }
             },
             Build = new BuildConfig { Output = "dist", Clean = true },

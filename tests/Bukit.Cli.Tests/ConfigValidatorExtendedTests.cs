@@ -9,20 +9,7 @@ public sealed class ConfigValidatorExtendedTests
     private static AppConfig CreateMinimalConfig(Action<SiteConfig>? siteOverride = null, Action<ContentConfig>? contentOverride = null)
     {
         var site = new SiteConfig { Name = "test", Title = "Test" };
-        var content = new ContentConfig
-        {
-            Provider = "sources",
-            Sources = new List<ContentSourceConfig>
-            {
-                new()
-                {
-                    Type = "markdown",
-                    Name = "page",
-                    Collection = "page",
-                    Markdown = new MarkdownConfig { Dir = "content" }
-                }
-            }
-        };
+        var content = ContentConfigFactory.SingleMarkdown();
 
         if (siteOverride is not null)
         {
@@ -53,20 +40,7 @@ public sealed class ConfigValidatorExtendedTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test" },
-            Content = new ContentConfig
-            {
-                Provider = "sources",
-                Sources = new List<ContentSourceConfig>
-                {
-                    new()
-                    {
-                        Type = "markdown",
-                        Name = "page",
-                        Collection = "page",
-                        Markdown = new MarkdownConfig { Dir = "content" }
-                    }
-                }
-            },
+            Content = ContentConfigFactory.SingleMarkdown(),
             Build = new BuildConfig { Output = output }
         };
 
@@ -79,7 +53,7 @@ public sealed class ConfigValidatorExtendedTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test" },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } },
+            Content = ContentConfigFactory.SingleMarkdown(),
             Build = new BuildConfig { Output = "/var/www" }
         };
 
@@ -92,11 +66,7 @@ public sealed class ConfigValidatorExtendedTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test" },
-            Content = new ContentConfig
-            {
-                Provider = "markdown",
-                Markdown = new MarkdownConfig { Dir = "../../../etc" }
-            }
+            Content = ContentConfigFactory.SingleMarkdown(dir: "../../../etc")
         };
 
         Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
@@ -110,7 +80,7 @@ public sealed class ConfigValidatorExtendedTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test" },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } },
+            Content = ContentConfigFactory.SingleMarkdown(),
             Theme = new ThemeConfig { Layouts = layouts }
         };
 
@@ -126,11 +96,16 @@ public sealed class ConfigValidatorExtendedTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "Test" },
-                Content = new ContentConfig
-                {
-                    Provider = "notion",
-                    Notion = new NotionConfig { DatabaseId = "abc", PageSize = 200 }
-                }
+                Content = ContentConfigFactory.FromSources(
+                    [
+                        new ContentSourceConfig
+                        {
+                            Type = "notion",
+                            Name = "page",
+                            Collection = "page",
+                            Notion = new NotionConfig { DatabaseId = "abc", PageSize = 200 }
+                        }
+                    ])
             };
 
             Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
@@ -147,7 +122,7 @@ public sealed class ConfigValidatorExtendedTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test", Timezone = "Invalid/Timezone_XYZ" },
-            Content = new ContentConfig { Provider = "markdown", Markdown = new MarkdownConfig { Dir = "content" } }
+            Content = ContentConfigFactory.SingleMarkdown()
         };
 
         Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
@@ -159,12 +134,8 @@ public sealed class ConfigValidatorExtendedTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test" },
-            Content = new ContentConfig
-            {
-                Provider = "markdown",
-                Markdown = new MarkdownConfig { Dir = "content" },
-                Media = new MediaConfig { DownloadDir = "../../../tmp" }
-            }
+            Content = ContentConfigFactory.SingleMarkdown(
+                media: new MediaConfig { DownloadDir = "../../../tmp" })
         };
 
         Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));

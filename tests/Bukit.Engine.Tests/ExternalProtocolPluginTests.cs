@@ -822,11 +822,7 @@ public sealed class ExternalProtocolPluginTests
                         }
                     }
                 },
-                Content = new ContentConfig
-                {
-                    Provider = "sources",
-                    Sources = TestContent.Markdown().Sources
-                }
+                Content = TestContent.Markdown()
             },
             RootDir = rootDir,
             OutputDir = outputDir,

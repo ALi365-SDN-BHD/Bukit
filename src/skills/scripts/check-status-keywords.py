@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
-"""Check that SKILL.md body keywords don't contradict Front Matter status"""
+"""Check that SKILL.md body phrases don't contradict Front Matter status.
+
+This intentionally ignores casual mentions like "Experimental registry install"
+inside otherwise stable skills, and only flags phrases that imply the skill
+itself is planned/experimental or not implemented.
+"""
 import os, sys, glob, re
 
 skills_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-WARNING_KEYWORDS = [
-    'planned', 'future', 'not yet implemented',
-    'experimental', 'not implemented',
+WARNING_PATTERNS = [
+    r'\bthis skill is experimental\b',
+    r'\bthis skill is planned\b',
+    r'\bthis workflow is experimental\b',
+    r'\bthis workflow is planned\b',
+    r'\bstatus\s*[:=]\s*(experimental|planned)\b',
+    r'\bnot yet implemented\b',
+    r'\bnot implemented\b',
 ]
 
 warnings = 0
@@ -29,9 +39,9 @@ for skill_file in sorted(glob.glob(os.path.join(skills_dir, '*/SKILL.md'))):
     # Check body content
     body = parts[2].lower()
     found_keywords = []
-    for kw in WARNING_KEYWORDS:
-        if re.search(r'\b' + re.escape(kw) + r'\b', body):
-            found_keywords.append(kw)
+    for pattern in WARNING_PATTERNS:
+        if re.search(pattern, body):
+            found_keywords.append(pattern)
     
     if found_keywords and md_status == 'stable':
         print(f'  WARNING: [{skill_name}] status=stable but body contains: {found_keywords}')

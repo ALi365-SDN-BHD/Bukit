@@ -90,15 +90,22 @@ internal static class SiteDefaultsApplier
         };
     }
 
-    internal static string ReadSearchMode(YamlMappingNode siteNode)
+    internal static SearchDetailConfig ReadSearchConfig(YamlMappingNode siteNode)
     {
         var searchNode = ConfigYamlHelpers.GetOptionalMapping(siteNode, "search");
         if (searchNode is null)
         {
-            return "split";
+            return new SearchDetailConfig();
         }
 
-        return ConfigYamlHelpers.GetOptionalString(searchNode, "mode") ?? "split";
+        return new SearchDetailConfig
+        {
+            Mode = ConfigYamlHelpers.GetOptionalString(searchNode, "mode") ?? "split",
+            Ui = ConfigYamlHelpers.GetOptionalString(searchNode, "ui") ?? "default",
+            UiTheme = ConfigYamlHelpers.GetOptionalString(searchNode, "uiTheme") ?? "light",
+            PlaceholderText = ConfigYamlHelpers.GetOptionalString(searchNode, "placeholderText"),
+            MaxContentLength = ConfigYamlHelpers.GetOptionalInt(searchNode, "maxContentLength") ?? 8000
+        };
     }
 
     internal static NotionConfig ReadNotionConfigFrom(YamlMappingNode contentNode)

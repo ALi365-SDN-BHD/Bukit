@@ -9,4 +9,5 @@ public sealed record SeoIndexEntry(
     bool Indexable,
     DateTimeOffset LastModified,
     string? SourceItemId,
-    string? ContentType);
+    string? ContentType,
+    bool IsDerived = false);

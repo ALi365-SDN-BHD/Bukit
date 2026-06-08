@@ -16,8 +16,8 @@ public sealed class ConfigApplierTests
             Language = "en",
             Timezone = "Asia/Shanghai",
             SitemapMode = "split",
-            RssMode = "split",
-            SearchMode = "split",
+            Feed = new FeedConfig { Mode = "split" },
+            Search = new SearchDetailConfig { Mode = "split" },
             PluginFailMode = "strict",
             DeriveConflictPolicy = "fail"
             // DESKTOP-REMOVED: ExternalAssemblyTrustMode disabled (AOT-only).
@@ -30,12 +30,7 @@ public sealed class ConfigApplierTests
             Draft = false,
             ListPageContentMode = "auto"
         },
-        Content = new ContentConfig
-        {
-            Provider = "markdown",
-            Sources = TestContent.Markdown().Sources,
-            Markdown = new MarkdownConfig()
-        }
+        Content = TestContent.Markdown()
     };
 
     [Fact]

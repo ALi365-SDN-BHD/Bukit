@@ -40,24 +40,28 @@ public static class LintCommand
 
     private static void LintMarkdown(AppConfig config, string rootDir, List<string> issues)
     {
-        if (!HasMarkdownSource(config.Content))
+        var markdownDirs = ContentSourceInspector.GetMarkdownDirs(config.Content);
+        if (markdownDirs.Count == 0)
         {
             return;
         }
 
-        var contentDir = Path.Combine(rootDir, GetFirstMarkdownDir(config.Content) ?? "content");
-        if (!Directory.Exists(contentDir))
+        foreach (var relativeDir in markdownDirs)
         {
-            issues.Add($"Markdown content directory not found: {contentDir}");
-            return;
-        }
-
-        foreach (var file in Directory.GetFiles(contentDir, "*.md", SearchOption.AllDirectories))
-        {
-            var markdown = File.ReadAllText(file);
-            if (!HasTitle(markdown))
+            var contentDir = Path.Combine(rootDir, relativeDir);
+            if (!Directory.Exists(contentDir))
             {
-                issues.Add($"{Path.GetRelativePath(rootDir, file)} is missing front matter title and first-level heading.");
+                issues.Add($"Markdown content directory not found: {contentDir}");
+                continue;
+            }
+
+            foreach (var file in Directory.GetFiles(contentDir, "*.md", SearchOption.AllDirectories))
+            {
+                var markdown = File.ReadAllText(file);
+                if (!HasTitle(markdown))
+                {
+                    issues.Add($"{Path.GetRelativePath(rootDir, file)} is missing front matter title and first-level heading.");
+                }
             }
         }
     }
@@ -83,22 +87,5 @@ public static class LintCommand
         }
 
         return normalized.Split('\n').Any(line => line.TrimStart().StartsWith("# ", StringComparison.Ordinal));
-    }
-
-    private static bool HasMarkdownSource(ContentConfig content)
-    {
-        if (content.Sources is null) return false;
-        return content.Sources.Any(s =>
-            s.Type.Equals("markdown", StringComparison.OrdinalIgnoreCase) ||
-            s.Markdown is not null);
-    }
-
-    private static string? GetFirstMarkdownDir(ContentConfig content)
-    {
-        if (content.Sources is null) return null;
-        var source = content.Sources.FirstOrDefault(s =>
-            s.Type.Equals("markdown", StringComparison.OrdinalIgnoreCase) ||
-            s.Markdown is not null);
-        return source?.Markdown?.Dir;
     }
 }

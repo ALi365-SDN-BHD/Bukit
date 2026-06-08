@@ -66,8 +66,6 @@ public static class ConfigLoader
             Languages = ConfigYamlHelpers.ReadStringList(siteNode, "languages"),
             DefaultLanguage = ConfigYamlHelpers.GetOptionalString(siteNode, "defaultLanguage"),
             SitemapMode = ConfigYamlHelpers.GetOptionalString(siteNode, "sitemapMode") ?? "split",
-            RssMode = ConfigYamlHelpers.GetOptionalString(siteNode, "rssMode") ?? "split",
-            SearchMode = SiteDefaultsApplier.ReadSearchMode(siteNode),
             SearchIncludeDerived = ConfigYamlHelpers.GetOptionalBool(siteNode, "searchIncludeDerived") ?? false,
             ExternalProtocolIncludeRoutedPages = ConfigYamlHelpers.GetOptionalBool(siteNode, "externalProtocolIncludeRoutedPages") ?? false,
             PluginFailMode = ConfigYamlHelpers.GetOptionalString(siteNode, "pluginFailMode") ?? "strict",
@@ -78,7 +76,8 @@ public static class ConfigLoader
             ExternalPlugins = SiteDefaultsApplier.ReadExternalPlugins(siteNode),
             ExternalPluginPolicy = ReadExternalPluginPolicy(siteNode),
             Plugins = SiteDefaultsApplier.ReadPluginToggles(siteNode),
-            Feed = SiteDefaultsApplier.ReadFeedConfig(siteNode)
+            Feed = SiteDefaultsApplier.ReadFeedConfig(siteNode),
+            Search = SiteDefaultsApplier.ReadSearchConfig(siteNode)
         };
 
         var sources = ConfigCollectionReader.ReadSources(contentNode);
@@ -102,16 +101,10 @@ public static class ConfigLoader
                 DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
-        provider = "sources";
-        var content = new ContentConfig
-        {
-            Provider = provider,
-            Sources = sources,
-            Notion = null,
-            Markdown = null,
-            Media = SiteDefaultsApplier.ReadMediaConfigFrom(contentNode),
-            ModelSchema = ConfigCollectionReader.ReadContentModelSchema(contentNode)
-        };
+        var content = ContentConfigFactory.FromSources(
+            sources,
+            SiteDefaultsApplier.ReadMediaConfigFrom(contentNode),
+            ConfigCollectionReader.ReadContentModelSchema(contentNode));
 
         var buildReportNode = buildNode is null ? null : ConfigYamlHelpers.GetOptionalMapping(buildNode, "report");
         var build = new BuildConfig
@@ -128,7 +121,8 @@ public static class ConfigLoader
             LanguageJobs = buildNode is null ? 1 : ConfigYamlHelpers.GetOptionalIntStrict(buildNode, "languageJobs") ?? 1,
             Report = new BuildReportConfig
             {
-                Enabled = buildReportNode is null || (ConfigYamlHelpers.GetOptionalBool(buildReportNode, "enabled") ?? true)
+                Enabled = buildReportNode is null || (ConfigYamlHelpers.GetOptionalBool(buildReportNode, "enabled") ?? true),
+                SecurityFailMode = buildReportNode is null ? "auto" : ConfigYamlHelpers.GetOptionalString(buildReportNode, "securityFailMode") ?? "auto"
             }
         };
 

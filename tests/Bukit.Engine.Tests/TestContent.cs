@@ -5,14 +5,7 @@ namespace Bukit.Engine.Tests;
 internal static class TestContent
 {
     internal static ContentConfig Markdown(string dir = "content", string collection = "page")
-        => new()
-        {
-            Provider = "sources",
-            Sources = new[]
-            {
-                MarkdownSource(dir, collection)
-            }
-        };
+        => ContentConfigFactory.FromSources([MarkdownSource(dir, collection)]);
 
     internal static ContentSourceConfig MarkdownSource(
         string dir = "content",
@@ -27,18 +20,17 @@ internal static class TestContent
         };
 
     internal static ContentConfig Notion(string databaseId = "db")
+        => ContentConfigFactory.FromSources([NotionSource(databaseId)]);
+
+    internal static ContentSourceConfig NotionSource(
+        string databaseId = "db",
+        string name = "page",
+        string collection = "page")
         => new()
         {
-            Provider = "sources",
-            Sources = new[]
-            {
-                new ContentSourceConfig
-                {
-                    Type = "notion",
-                    Name = "page",
-                    Collection = "page",
-                    Notion = new NotionConfig { DatabaseId = databaseId }
-                }
-            }
+            Type = "notion",
+            Name = name,
+            Collection = collection,
+            Notion = new NotionConfig { DatabaseId = databaseId }
         };
 }

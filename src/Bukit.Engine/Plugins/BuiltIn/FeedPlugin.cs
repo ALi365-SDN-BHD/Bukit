@@ -22,7 +22,7 @@ public sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
         var collections = context.Config.Site.Collections;
 
         var isMergedMode = context.Config.Site.Languages is { Count: > 0 }
-            && context.Config.Site.RssMode.Equals("merged", StringComparison.OrdinalIgnoreCase);
+            && SiteModeResolver.ResolveFeedMode(context.Config.Site) == "merged";
 
         if (isMergedMode)
         {

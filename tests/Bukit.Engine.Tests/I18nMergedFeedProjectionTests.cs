@@ -84,7 +84,7 @@ public sealed class I18nMergedFeedProjectionTests
                 """);
 
             var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
-            config = config with { Site = config.Site with { RssMode = "merged" } };
+            config = config with { Site = config.Site with { Feed = config.Site.Feed with { Mode = "merged" } } };
             var logger = new TestLogger();
             var engine = new SiteEngine(logger);
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);

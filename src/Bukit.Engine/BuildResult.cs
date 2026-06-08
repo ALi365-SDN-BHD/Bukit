@@ -82,7 +82,7 @@ internal static class BuildResultFactory
             Project: new BuildProjectInfo(
                 Root: Path.GetFullPath(rootDir),
                 Output: config.Build.Output,
-                ContentSource: config.Content.Provider,
+                ContentSource: ContentConfigResolver.Describe(config.Content),
                 ThemeName: config.Theme.Name,
                 ThemeSource: config.Theme.Source),
             Summary: new BuildSummary(

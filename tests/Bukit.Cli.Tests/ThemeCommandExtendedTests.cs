@@ -900,6 +900,46 @@ themes:
     }
 
     [Fact]
+    public async Task ThemeRegistryCommand_LoadRegistryDetailedAsync_UsesCacheFallbackWithDiagnostic()
+    {
+        var cacheFile = ThemeRegistryCommand.CacheFilePath;
+        var cacheDir = Path.GetDirectoryName(cacheFile)!;
+        Directory.CreateDirectory(cacheDir);
+        var previous = File.Exists(cacheFile) ? await File.ReadAllTextAsync(cacheFile) : null;
+
+        try
+        {
+            await File.WriteAllTextAsync(cacheFile, """
+                registry:
+                  updated: "2026-01-01T00:00:00Z"
+                themes:
+                  - name: cached-theme
+                    version: 1.0.0
+                    download:
+                      url: https://example.com/cached.tar.gz
+                """);
+
+            var result = await ThemeRegistryCommand.LoadRegistryDetailedAsync("https://invalid.url/registry.yaml", forceRefresh: true);
+
+            Assert.NotNull(result.Index);
+            Assert.Contains(result.Diagnostics, x => x.Code == "BKT-THEME-REGISTRY-0004");
+            Assert.Contains(result.Diagnostics, x => x.Code == "BKT-THEME-REGISTRY-0001" || x.Code == "BKT-THEME-REGISTRY-0002");
+            Assert.Equal("cached-theme", Assert.Single(result.Index!.Themes).Name);
+        }
+        finally
+        {
+            if (previous is null)
+            {
+                TestCleanup.DeleteFile(cacheFile);
+            }
+            else
+            {
+                await File.WriteAllTextAsync(cacheFile, previous);
+            }
+        }
+    }
+
+    [Fact]
     public async Task ThemePreview_PrintsPreviewMetadata()
     {
         var themeRoot = Path.Combine(_rootDir, "themes", "previewable");

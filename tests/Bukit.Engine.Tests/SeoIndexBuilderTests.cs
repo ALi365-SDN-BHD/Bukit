@@ -102,6 +102,7 @@ public sealed class SeoIndexBuilderTests
         Assert.Equal("https://example.com/blog/first-post/", postEntry.Canonical);
         Assert.Equal("post-1", postEntry.SourceItemId);
         Assert.Equal("post", postEntry.ContentType);
+        Assert.False(postEntry.IsDerived);
 
         Assert.True(result.Entries.ContainsKey("pages/about/index.html"));
         var pageEntry = result.Entries["pages/about/index.html"];
@@ -142,9 +143,38 @@ public sealed class SeoIndexBuilderTests
         var homeEntry = result.Entries["index.html"];
         Assert.Equal("list", homeEntry.ContentType);
         Assert.Null(homeEntry.SourceItemId);
+        Assert.True(homeEntry.IsDerived);
 
         var blogEntry = result.Entries["blog/index.html"];
         Assert.Equal("list", blogEntry.ContentType);
+        Assert.True(blogEntry.IsDerived);
+    }
+
+    [Fact]
+    public void Build_DerivedDocuments_AreMarkedExplicitly()
+    {
+        var config = CreateConfig();
+        var routed = new (ContentDocument, RouteInfo)[]
+        {
+            (ContentDocument.Create(
+                id: "tags-index",
+                title: "Tags",
+                slug: "tags",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+                fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+                {
+                    ["type"] = "derived",
+                    ["collection"] = "taxonomy"
+                })),
+             new RouteInfo("/tags/", "tags/index.html", "pages/taxonomy-index.html"))
+        };
+
+        var result = SeoIndexBuilder.Build(config, "/", routed.ToRoutedDocuments(), Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+
+        var entry = result.Entries["tags/index.html"];
+        Assert.True(entry.IsDerived);
+        Assert.Equal("taxonomy", entry.ContentType);
     }
 
     [Fact]

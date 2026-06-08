@@ -135,11 +135,7 @@ public sealed class RoutePipelineTests
                     }
                 }
             },
-            Content = new ContentConfig
-            {
-                Provider = "sources",
-                Sources = TestContent.Markdown().Sources
-            }
+            Content = TestContent.Markdown()
         };
     }
 

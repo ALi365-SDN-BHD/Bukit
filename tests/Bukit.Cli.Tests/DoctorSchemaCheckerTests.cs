@@ -84,9 +84,8 @@ public sealed class DoctorSchemaCheckerTests
                     }
                 }
             },
-            Content = new ContentConfig
+            Content = ContentConfigFactory.SingleMarkdown() with
             {
-                Provider = "markdown",
                 ModelSchema = new ContentModelSchemaConfig
                 {
                     FieldScopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>(StringComparer.OrdinalIgnoreCase)

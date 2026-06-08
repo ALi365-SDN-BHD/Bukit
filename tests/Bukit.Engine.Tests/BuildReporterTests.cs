@@ -129,6 +129,84 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
+    public void WriteIfEnabled_WritesArtifactManifestWithHashes()
+    {
+        var tempDir = CreateTempDir();
+        File.WriteAllText(Path.Combine(tempDir, "index.html"), "<html>home</html>");
+        var config = CreateConfig(enabled: true);
+        var variant = CreateVariant(tempDir);
+        var result = CreateResult(config, tempDir, variant);
+
+        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+
+        var manifestPath = Path.Combine(tempDir, ".bukit", "artifact-manifest.json");
+        Assert.True(File.Exists(manifestPath));
+        using var doc = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        var root = doc.RootElement;
+        AssertArtifactContract(root, "https://bukit.dev/schemas/artifact-manifest.v1.json");
+        Assert.StartsWith("sha256:", root.GetProperty("artifactSetHash").GetString());
+        var artifacts = root.GetProperty("artifacts").EnumerateArray().ToList();
+        Assert.Equal(root.GetProperty("artifactCount").GetInt32(), artifacts.Count);
+        Assert.Contains(artifacts, x => x.GetProperty("path").GetString() == "build-report.json");
+        Assert.Contains(artifacts, x => x.GetProperty("path").GetString() == "routes.json");
+        Assert.Contains(artifacts, x => x.GetProperty("path").GetString() == "assets.json");
+        Assert.Contains(artifacts, x => x.GetProperty("path").GetString() == "incremental-manifest.json");
+        Assert.Contains(artifacts, x => x.GetProperty("path").GetString() == "release-bundle-checksums.json");
+        Assert.Contains(artifacts, x => x.GetProperty("path").GetString() == "security-report.json");
+        Assert.All(artifacts, x => Assert.StartsWith("sha256:", x.GetProperty("hash").GetString()));
+    }
+
+    [Fact]
+    public void WriteIfEnabled_WritesBuildManifestDigest()
+    {
+        var tempDir = CreateTempDir();
+        File.WriteAllText(Path.Combine(tempDir, "index.html"), "<html>home</html>");
+        var config = CreateConfig(enabled: true);
+        var variant = CreateVariant(tempDir);
+        var result = CreateResult(config, tempDir, variant);
+
+        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+
+        var digestPath = Path.Combine(tempDir, ".bukit", "build-manifest-digest.json");
+        Assert.True(File.Exists(digestPath));
+        using var doc = JsonDocument.Parse(File.ReadAllText(digestPath));
+        var root = doc.RootElement;
+        AssertArtifactContract(root, "https://bukit.dev/schemas/build-manifest-digest.v1.json");
+        Assert.StartsWith("sha256:", root.GetProperty("reportSetHash").GetString());
+        Assert.True(root.GetProperty("reportCount").GetInt32() >= 3);
+        var reports = root.GetProperty("reports").EnumerateArray().ToList();
+        Assert.Contains(reports, x => x.GetProperty("path").GetString() == "artifact-manifest.json");
+        Assert.Contains(reports, x => x.GetProperty("path").GetString() == "release-bundle-checksums.json");
+        Assert.Contains(reports, x => x.GetProperty("path").GetString() == "security-report.json");
+    }
+
+    [Fact]
+    public void WriteIfEnabled_WritesReleaseBundleChecksums()
+    {
+        var tempDir = CreateTempDir();
+        Directory.CreateDirectory(Path.Combine(tempDir, "assets", "css"));
+        File.WriteAllText(Path.Combine(tempDir, "index.html"), "<html>home</html>");
+        File.WriteAllText(Path.Combine(tempDir, "assets", "css", "main.css"), "body{color:#111}");
+        var config = CreateConfig(enabled: true);
+        var variant = CreateVariant(tempDir);
+        var result = CreateResult(config, tempDir, variant);
+
+        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+
+        var checksumsPath = Path.Combine(tempDir, ".bukit", "release-bundle-checksums.json");
+        Assert.True(File.Exists(checksumsPath));
+        using var doc = JsonDocument.Parse(File.ReadAllText(checksumsPath));
+        var root = doc.RootElement;
+        AssertArtifactContract(root, "https://bukit.dev/schemas/release-bundle-checksums.v1.json");
+        Assert.StartsWith("sha256:", root.GetProperty("bundleHash").GetString());
+        var files = root.GetProperty("files").EnumerateArray().ToList();
+        Assert.Equal(root.GetProperty("fileCount").GetInt32(), files.Count);
+        Assert.Contains(files, x => x.GetProperty("path").GetString() == "index.html");
+        Assert.Contains(files, x => x.GetProperty("path").GetString() == "assets/css/main.css");
+        Assert.DoesNotContain(files, x => x.GetProperty("path").GetString()!.StartsWith(".bukit/", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void WriteIfEnabled_WritesSecurityReport()
     {
         var tempDir = CreateTempDir();
@@ -149,6 +227,9 @@ public sealed class BuildReporterTests
         Assert.Equal("error", routeTraversal.GetProperty("severity").GetString());
         Assert.Equal(1, root.GetProperty("warnings").GetArrayLength());
         Assert.Equal(0, root.GetProperty("errors").GetArrayLength());
+        var externalPlugins = root.GetProperty("externalPlugins");
+        Assert.Equal("warn", externalPlugins.GetProperty("policy").GetString());
+        Assert.Equal(0, externalPlugins.GetProperty("pluginCount").GetInt32());
     }
 
     [Fact]
@@ -176,6 +257,50 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
+    public void WriteIfEnabled_WithExternalPlugins_WritesExecutionContractSummary()
+    {
+        var tempDir = CreateTempDir();
+        var config = CreateConfig(enabled: true) with
+        {
+            Site = CreateConfig(enabled: true).Site with
+            {
+                ExternalPluginPolicy = ExternalPluginPolicy.Warn,
+                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sample"] = new()
+                    {
+                        Runtime = "process",
+                        Entry = "plugins/sample.dll",
+                        Hooks = new[] { "after-build" },
+                        Capabilities = new[] { "emit-outputs" },
+                        AllowEnvironment = new[] { "MY_API_KEY" },
+                        TemplateRequirements = new[] { "taxonomy_index" },
+                        TimeoutMs = 7000,
+                        MaxStdoutBytes = 4096,
+                        MaxStderrBytes = 2048,
+                        Sha256 = "abc123"
+                    }
+                }
+            }
+        };
+        var variant = CreateVariant(tempDir);
+        var result = CreateResult(config, tempDir, variant);
+
+        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+
+        var securityPath = Path.Combine(tempDir, ".bukit", "security-report.json");
+        using var doc = JsonDocument.Parse(File.ReadAllText(securityPath));
+        var plugin = Assert.Single(doc.RootElement.GetProperty("externalPlugins").GetProperty("plugins").EnumerateArray());
+        Assert.Equal("sample", plugin.GetProperty("name").GetString());
+        Assert.Equal("process", plugin.GetProperty("runtime").GetString());
+        Assert.True(plugin.GetProperty("sha256Pinned").GetBoolean());
+        Assert.Equal("outputDir-only", plugin.GetProperty("enforcedBoundaries").GetProperty("outputScope").GetString());
+        Assert.Equal("not-declared-by-contract", plugin.GetProperty("enforcedBoundaries").GetProperty("networkAccess").GetString());
+        Assert.True(plugin.GetProperty("declaredContract").GetProperty("spawnsProcess").GetBoolean());
+        Assert.True(plugin.GetProperty("declaredContract").GetProperty("declaresExtraEnvironment").GetBoolean());
+    }
+
+    [Fact]
     public void WriteIfEnabled_WhenDisabled_WritesSecurityReportOnly()
     {
         var tempDir = CreateTempDir();
@@ -186,7 +311,69 @@ public sealed class BuildReporterTests
         BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         Assert.False(File.Exists(Path.Combine(tempDir, ".bukit", "build-report.json")));
+        Assert.True(File.Exists(Path.Combine(tempDir, ".bukit", "release-bundle-checksums.json")));
         Assert.True(File.Exists(Path.Combine(tempDir, ".bukit", "security-report.json")));
+        Assert.True(File.Exists(Path.Combine(tempDir, ".bukit", "artifact-manifest.json")));
+        Assert.True(File.Exists(Path.Combine(tempDir, ".bukit", "build-manifest-digest.json")));
+    }
+
+    [Fact]
+    public void EnforceSecurityGate_AutoModeInCi_ThrowsOnFailedSecurityReport()
+    {
+        var config = CreateConfig(enabled: true);
+        var securityData = new SecurityReportData(
+            RouteTraversal: "failed",
+            UnsafeSlug: "passed",
+            PluginOutputPath: "not_applicable",
+            RemoteThemeLock: "not_applicable",
+            Warnings: Array.Empty<string>(),
+            Errors: new[] { "route traversal detected" });
+
+        var ex = Assert.Throws<InvalidOperationException>(() => BuildReporter.EnforceSecurityGate(config, securityData, isCi: true));
+        Assert.Contains("BKT-BUILD-SECURITY-0001", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EnforceSecurityGate_StrictModeOutsideCi_ThrowsOnFailedSecurityReport()
+    {
+        var config = CreateConfig(enabled: true) with
+        {
+            Build = CreateConfig(enabled: true).Build with
+            {
+                Report = new BuildReportConfig { Enabled = true, SecurityFailMode = "strict" }
+            }
+        };
+        var securityData = new SecurityReportData(
+            RouteTraversal: "failed",
+            UnsafeSlug: "passed",
+            PluginOutputPath: "not_applicable",
+            RemoteThemeLock: "not_applicable",
+            Warnings: Array.Empty<string>(),
+            Errors: new[] { "route traversal detected" });
+
+        Assert.Throws<InvalidOperationException>(() => BuildReporter.EnforceSecurityGate(config, securityData, isCi: false));
+    }
+
+    [Fact]
+    public void EnforceSecurityGate_WarnMode_DoesNotThrow()
+    {
+        var config = CreateConfig(enabled: true) with
+        {
+            Build = CreateConfig(enabled: true).Build with
+            {
+                Report = new BuildReportConfig { Enabled = true, SecurityFailMode = "warn" }
+            }
+        };
+        var securityData = new SecurityReportData(
+            RouteTraversal: "failed",
+            UnsafeSlug: "passed",
+            PluginOutputPath: "not_applicable",
+            RemoteThemeLock: "not_applicable",
+            Warnings: Array.Empty<string>(),
+            Errors: new[] { "route traversal detected" });
+
+        var ex = Record.Exception(() => BuildReporter.EnforceSecurityGate(config, securityData, isCi: true));
+        Assert.Null(ex);
     }
 
     private static string CreateTempDir()
@@ -213,11 +400,7 @@ public sealed class BuildReporterTests
                 BaseUrl = "/",
                 Language = "zh-CN"
             },
-            Content = new ContentConfig
-            {
-                Provider = "sources",
-                Sources = TestContent.Markdown().Sources
-            },
+            Content = TestContent.Markdown(),
             Build = new BuildConfig
             {
                 Output = "dist",

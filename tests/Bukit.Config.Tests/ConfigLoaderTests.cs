@@ -53,7 +53,6 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.NotNull(config);
         Assert.Equal("myblog", config.Site.Name);
         Assert.Equal("My Blog", config.Site.Title);
-        Assert.Equal("sources", config.Content.Provider);
         Assert.NotNull(config.Content.Sources![0].Markdown);
     }
 
@@ -85,7 +84,7 @@ public sealed class ConfigLoaderTests : IDisposable
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "myblog", Title = "My Blog" },
-            Content = new ContentConfig { Provider = "sources", Sources = new List<ContentSourceConfig> { new ContentSourceConfig { Type = "markdown", Markdown = new MarkdownConfig() } } },
+            Content = ContentConfigFactory.FromSources([new ContentSourceConfig { Type = "markdown", Markdown = new MarkdownConfig() }]),
             Build = new BuildConfig { AssetHashMode = "bad" }
         };
 
@@ -214,7 +213,6 @@ public sealed class ConfigLoaderTests : IDisposable
         var config = ConfigLoader.Load(path);
         var source = config.Content.Sources![0].Notion;
 
-        Assert.Equal("sources", config.Content.Provider);
         Assert.NotNull(source);
         Assert.Equal("abc123def456", source.DatabaseId);
         Assert.Equal(100, source.PageSize);
@@ -253,7 +251,6 @@ public sealed class ConfigLoaderTests : IDisposable
         var config = ConfigLoader.Load(path);
         var md = config.Content.Sources![0].Markdown!;
 
-        Assert.Equal("sources", config.Content.Provider);
         Assert.NotNull(md);
         Assert.Equal("docs", md.Dir);
         Assert.Equal("article", md.DefaultType);

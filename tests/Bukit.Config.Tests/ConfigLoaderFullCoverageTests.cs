@@ -221,7 +221,7 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         Assert.Equal(["rss", "atom"], config.Site.Feed.Formats);
         Assert.Equal(7, config.Site.Feed.Limit);
         Assert.Equal("feeds", config.Site.Feed.Path);
-        Assert.Equal("merged", config.Site.SearchMode);
+        Assert.Equal("merged", config.Site.Search.Mode);
     }
 
     [Fact]
@@ -687,7 +687,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
 
-        Assert.Equal("sources", config.Content.Provider);
         Assert.NotNull(config.Content.Sources);
         Assert.Equal(3, config.Content.Sources.Count);
 
