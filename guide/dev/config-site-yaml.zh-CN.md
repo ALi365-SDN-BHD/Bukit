@@ -46,7 +46,7 @@ logging: {}
 | `site.languages` | string[] | 否 | null | 多语言输出（例如 `["zh-CN","en-US"]`）；数组非空时至少包含一项非空字符串；不可重复（忽略大小写） |
 | `site.defaultLanguage` | string | 否 | `site.languages[0]` | 必须包含在 `site.languages` 中 |
 | `site.sitemapMode` | string | 否 | `split` | `split` \| `merged` \| `index` |
-| `site.searchMode` | string | 否 | `split` | `split` \| `merged` \| `index` |
+| `site.search.mode` | string | 否 | `split` | `split` \| `merged` \| `index` |
 | `site.searchIncludeDerived` | bool | 否 | false | 是否把插件派生页纳入搜索索引（语义见 SearchIndex 插件） |
 | `site.pluginFailMode` | string | 否 | `strict` | `strict`（插件失败中断构建）\| `warn`（记录错误继续） |
 | `site.plugins` | object | 否 | null | 插件开关与配置；支持 `site.plugins.<name>: bool` 或 `site.plugins.<name>.enabled/options` |

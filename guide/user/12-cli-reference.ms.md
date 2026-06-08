@@ -208,11 +208,11 @@ bukit theme install ./my-blog-1.0.0.tar.gz
 # Pasang dari URL
 bukit theme install https://github.com/user/theme/releases/download/v1.0/theme.tar.gz
 
-# Cari pendaftaran tema komuniti
-bukit theme search               # senaraikan semua
+# Cari pendaftaran tema komuniti (Experimental)
+bukit theme search               # senaraikan entri registry Experimental
 bukit theme search blog          # tapis mengikut nama/tag
 
-# Pasang dari pendaftaran
+# Pasang dari pendaftaran (Experimental)
 bukit theme install --registry blog-clean
 ```
 

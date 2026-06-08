@@ -37,7 +37,8 @@ site:
   languages: [zh-CN, en]       # Language list
   defaultLanguage: zh-CN       # Default language (unmarked content belongs here)
   sitemapMode: merged          # merged | split | index
-  searchMode: merged           # merged | split | index
+  search:
+    mode: merged               # merged | split | index
 ```
 
 | Field | Description |
@@ -46,7 +47,7 @@ site:
 | `defaultLanguage` | Default language, must be in languages. Content without `language` metadata belongs here |
 | `sitemapMode` | `merged`=merged sitemap (with hreflang); `split`=one per language; `index`=generate index sitemap |
 | `rssMode` | Legacy 1.0 field removed from user config. Feed output uses `site.feed.formats` and feed plugin defaults. Migrated 1.0-incompatible `rssMode` behavior is not part of the 1.0 run contract. |
-| `searchMode` | `merged`=merged search index; `split`=one per language; `index`=generate index |
+| `search.mode` | `merged`=merged search index; `split`=one per language; `index`=generate index |
 
 ## Content Organization
 
@@ -109,7 +110,7 @@ i18n_key: about
 4. Root-level merge:
    - Sitemap: per sitemapMode strategy
    - Feed: controlled by `site.feed.formats` and feed plugin defaults
-   - Search index: per searchMode strategy
+   - Search index: per `site.search.mode` strategy
 ```
 
 ## Output Structure
@@ -191,7 +192,7 @@ Not needed for single-language. For multilingual, create a root `index.html` for
 | Multilingual content mixed in same page | language metadata value doesn't exactly match languages list | Ensure metadata matches site.yaml (e.g., `zh-CN` not `zh_CN`) |
 | Sitemap hreflang not appearing | i18n_key not set | Set same `i18n_key` for corresponding cross-language content |
 | `defaultLanguage must be included in site.languages` | Config error | Add defaultLanguage to languages |
-| Search index only contains one language | searchMode is split | Change to `merged` or `index` |
+| Search index only contains one language | `site.search.mode` is split | Change to `merged` or `index` |
 | Merged RSS content duplicated | Language versions share same i18n_key but have different content | Normal behavior; RSS includes articles from all languages |
 
 ## Multi-Language Data Files (DataFilesPlugin)

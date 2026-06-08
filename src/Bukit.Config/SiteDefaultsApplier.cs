@@ -90,6 +90,17 @@ internal static class SiteDefaultsApplier
         };
     }
 
+    internal static string ReadSearchMode(YamlMappingNode siteNode)
+    {
+        var searchNode = ConfigYamlHelpers.GetOptionalMapping(siteNode, "search");
+        if (searchNode is null)
+        {
+            return "split";
+        }
+
+        return ConfigYamlHelpers.GetOptionalString(searchNode, "mode") ?? "split";
+    }
+
     internal static NotionConfig ReadNotionConfigFrom(YamlMappingNode contentNode)
     {
         var notionNode = ConfigYamlHelpers.GetOptionalMapping(contentNode, "notion") ?? contentNode;

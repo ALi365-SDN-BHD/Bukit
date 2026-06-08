@@ -22,7 +22,7 @@ public static class ThemeInstallCommand
         var source = command.GetArgument(1);
         if (string.IsNullOrWhiteSpace(source) || source.StartsWith('-'))
         {
-            Console.Error.WriteLine("Missing source. Usage: bukit theme install <path|url>  or  bukit theme install --registry <name>");
+            Console.Error.WriteLine("Missing source. Usage: bukit theme install <path|url>  or  bukit theme install --registry <name> (Experimental)");
             return 2;
         }
 
@@ -39,6 +39,7 @@ public static class ThemeInstallCommand
 
     private static async Task<int> InstallFromRegistryAsync(string name, string themesDir, bool force, CliBoundCommand command)
     {
+        Console.WriteLine("Experimental: theme registry/search/install is not covered by the Bukit 1.0 GA compatibility promise.");
         Console.WriteLine($"Looking up '{name}' in registry...");
 
         var entry = await ThemeRegistryCommand.ResolveAsync(name, command);

@@ -123,7 +123,7 @@ Ini akan menyenaraikan semua nama kunci yang tersedia dalam `theme.params` bersa
 
 ## Pengedaran & Perkongsian Tema
 
-Bukit menyokong pembungkusan, perkongsian, dan pemasangan tema dari registry.
+Bukit menyokong pembungkusan dan perkongsian tema. Carian/pemasangan dari registry adalah Experimental dalam Bukit 1.0 dan tidak diliputi janji keserasian GA.
 
 Bungkus tema ke dalam fail `.tar.gz` yang boleh diedarkan:
 
@@ -145,11 +145,11 @@ Pasang dari URL:
 dotnet run --project src/Bukit.Cli -c Release -- theme install https://example.com/themes/my-theme.tar.gz
 ```
 
-Cari dan pasang dari registry:
+Cari dan pasang dari registry (Experimental):
 
 ```bash
 dotnet run --project src/Bukit.Cli -c Release -- theme search blog
-dotnet run --project src/Bukit.Cli -c Release -- theme install my-theme --config site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- theme install --registry my-theme --config site.yaml
 ```
 
 ## Perintah Peringkat Templat

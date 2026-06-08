@@ -37,7 +37,7 @@ src/skills/
 | `using-bukit` | Bukit skill 总入口，识别任务并路由到子 skill | 用户明确说"using bukit / 使用 bukit"，或任务已确定采用 Bukit |
 | `bukit-cli-reference` | CLI 检测、安装、命令速查、输出与退出码解读 | 需要执行 `bukit build`、`doctor`、`preview`、`theme`、`webhook` 等命令 |
 | `bukit-config` | `site.yaml` 六大顶级节点、场景模板、字段解释 | 创建或修改站点配置、解释字段含义、修复配置校验错误 |
-| `bukit-theme` | `layouts/`、`assets/`、`static/` 的分工、wizard 创建、主题分发 (pack/install)、注册表搜索、模板片段 | 通过 wizard/preset 创建主题、列出主题信息/参数、打包分享主题、从注册表安装、浏览模板片段 |
+| `bukit-theme` | `layouts/`、`assets/`、`static/` 的分工、wizard 创建、主题分发 (pack/install)、注册表搜索（Experimental）、模板片段 | 通过 wizard/preset 创建主题、列出主题信息/参数、打包分享主题、从 Experimental 注册表安装、浏览模板片段 |
 | `bukit-templating` | Scriban 语法、layout 继承、数据访问与常见模板模式 | 编写页面模板、列表页、分页组件、排查模板渲染错误 |
 | `bukit-design-tokens` | 主题设计令牌体系：CSS 变量、调色板、排版尺度、间距系统、深色模式 | 建立统一的视觉标识、定义 `:root {}` CSS 变量、配置深色模式、选择配色方案 |
 | `bukit-content-to-template` | Schema 驱动模板生成：将 content content model field scope 映射为精准的 Scriban 模板 | 根据 `site.yaml` content model fieldScopes 生成 post/page/list/card 模板，确保每个字段正确渲染 |
@@ -277,7 +277,7 @@ bash src/skills/scripts/generate-index-json.sh
 2. `bukit-theme`（wizard + presets）
 3. `bukit-cli-reference`
 
-### 场景 10：从社区注册表安装主题
+### 场景 10：从社区注册表安装主题（Experimental）
 
 1. `using-bukit`
 2. `bukit-theme`（search + install）

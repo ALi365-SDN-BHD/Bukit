@@ -34,7 +34,7 @@ Halaman ini adalah untuk carian pantas. Untuk rujukan medan berwibawa yang lebih
 | `site.pluginFailMode` | Strategi kegagalan plugin | `strict` / `warn` |
 | `site.plugins` | Suis dan parameter plugin | `sitemap: false` / `path-report: { enabled: true, options: {...} }` |
 | `site.sitemapMode` | Mod output sitemap | `split` / `merged` / `index` |
-| `site.searchMode` | Mod output carian | `split` / `merged` / `index` |
+| `site.search.mode` | Mod output carian | `split` / `merged` / `index` |
 | `site.autoSummary` | Auto-ekstrak ringkasan dari badan apabila tidak disediakan | `true` / `false` |
 | `site.autoSummaryMaxLength` | Panjang maks ringkasan auto (aksara) | `200` |
 

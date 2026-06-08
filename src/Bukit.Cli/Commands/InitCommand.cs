@@ -88,7 +88,6 @@ public static class InitCommand
 
     private static void WriteTheme(string rootDir, string templateName)
     {
-        // For "none", skip theme generation entirely.
         if (templateName.Equals("none", StringComparison.OrdinalIgnoreCase))
             return;
 
@@ -103,7 +102,6 @@ public static class InitCommand
         {
             if (templateScope == TemplateScope.Bare)
             {
-                // Bare mode: use CloneThemeGenerator with bare scope (no StarterThemeScaffold)
                 CloneThemeGenerator.WriteTo(rootDir, "starter", CloneTokens.Default, CloneLayoutInfo.Default,
                     brand: "My Site", templateScope: TemplateScope.Bare);
                 Directory.CreateDirectory(Path.Combine(rootDir, "themes", "starter", "static"));
@@ -599,5 +597,4 @@ logging:
         string? HeroCtaUrl,
         bool HasFeatureModules,
         bool HasCallToActionModule);
-
 }

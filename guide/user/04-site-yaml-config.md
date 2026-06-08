@@ -79,7 +79,7 @@ Output-related modes (especially important for multilingual sites):
 | Field | Purpose | Common Values |
 |---|---|---|
 | `site.sitemapMode` | Sitemap output mode | `merged` / `split` / `index` |
-| `site.searchMode` | Search output mode | `merged` / `split` / `index` |
+| `site.search.mode` | Search output mode | `merged` / `split` / `index` |
 
 For how to choose these modes, see: [11 Multilingual and SEO](./11-i18n-seo.md).
 

@@ -21,7 +21,7 @@ This document defines which Bukit capabilities are ready for public preview and 
 
 | Capability | Status |
 |---|---|
-| Theme registry | Preview — theme discovery and distribution |
+| Theme registry | Experimental — theme discovery, search, and registry install are not covered by the Bukit 1.0 GA compatibility promise |
 | Clone-to-theme workflow | Preview — browser extraction to theme generation |
 | External plugin ecosystem (non-AOT) | Experimental — dynamic plugin loading |
 | Advanced AI automation | Experimental — multi-step AI build pipelines |

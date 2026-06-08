@@ -826,13 +826,25 @@ themes:
     [Fact]
     public async Task ThemeInstall_RegistryUnknownTheme_ReturnsTwo()
     {
-        var exitCode = await ThemeInstallCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
+        var output = new StringWriter();
+        var originalOut = Console.Out;
+        try
         {
-            "theme", "install", "--registry", "totally-fake-theme-xyz",
-            "--config", _configPath,
-            "--registry-url", "https://invalid.url/registry.yaml"
-        }));
-        Assert.Equal(2, exitCode);
+            Console.SetOut(output);
+            var exitCode = await ThemeInstallCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
+            {
+                "theme", "install", "--registry", "totally-fake-theme-xyz",
+                "--config", _configPath,
+                "--registry-url", "https://invalid.url/registry.yaml"
+            }));
+            Assert.Equal(2, exitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        Assert.Contains("Experimental: theme registry/search/install", output.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]

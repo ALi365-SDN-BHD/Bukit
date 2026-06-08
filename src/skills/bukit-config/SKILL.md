@@ -33,7 +33,7 @@ guide_chapters:
 | Node | Responsibility | Key Fields |
 |------|------|---------|
 | `site` | Site metadata and global behavior | name, title, url, baseUrl, language, collections, plugins, externalPlugins, feed, sitemapDetail, related, menus, search, pagination |
-| `content` | Content source definition | provider (notion/markdown), sources, media |
+| `content` | Content source definition | sources, media |
 | `build` | Build behavior | output, clean, draft, listPageContentMode, assetHashMode |
 | `theme` | Theme configuration | name, layouts, assets, static, params |
 | `taxonomy` | Taxonomy configuration | template, kinds, pageSize, outputMode |
@@ -145,7 +145,8 @@ site:
   languages: [zh-CN, en]
   defaultLanguage: zh-CN
   sitemapMode: merged
-  searchMode: merged
+  search:
+    mode: merged
 ```
 
 ### Notion-Driven Site
@@ -191,7 +192,7 @@ theme:
 | `outputPathEncoding` | string | `none` | Output path encoding: `none`/`slug`/`urlencode`/`sanitize`. Applies to both content and derived pages (pagination, archive, taxonomy). |
 | `sitemapMode` | string | `split` | Sitemap mode: `split`/`merged`/`index` |
 | `rssMode` | string | `split` | **Deprecated in 1.0: removed**; use `site.feed.formats` for feed outputs |
-| `searchMode` | string | `split` | Search index mode: `split`/`merged`/`index` |
+| `search.mode` | string | `split` | Search index mode: `split`/`merged`/`index` |
 | `autoSummary` | bool | false | Auto-generate summaries |
 | `autoSummaryMaxLength` | int | 200 | Max auto-summary length (1-5000) |
 | `pluginFailMode` | string | `strict` | Plugin failure policy: `strict`/`warn` |
@@ -217,11 +218,10 @@ SEO-oriented configs should include both `site.url` and `site.description`. With
 
 | Field | Type | Default | Description |
 |------|------|--------|------|
-| `provider` | string | **Required** | Content provider: `notion` or `markdown` |
-| `sources` | array | — | Multi-source content config (mutually exclusive with provider) |
-| `notion` | map | — | Notion content source config |
-| `markdown` | map | — | Markdown content source config |
+| `sources` | array | **Required** | Bukit 1.0 content sources. Each item declares `type`, optional `name`/`collection`, and source-specific config. |
 | `media` | map | — | Media file handling (download, URL rewriting) |
+
+`content.provider`, `content.markdown`, and `content.notion` at the root of `content` are removed in Bukit 1.0. Generate `content.sources[]` only.
 
 #### content.notion
 
@@ -288,7 +288,7 @@ content:
         dir: data/faq
 ```
 
-`sources` is mutually exclusive with `provider`. When `mode` is `data`, content goes to `site.data.<name>` or `site.data` and does not generate page routes.
+When a source `mode` is `data`, content goes to `site.data.<name>` or `site.data` and does not generate page routes.
 
 ### build Node
 
@@ -864,7 +864,7 @@ These stages can be extended or reordered via `IContentStage` (plugin developmen
 | Theme templates or assets cannot be found | `theme.name`, `theme.layouts`, `theme.assets`, or `theme.static` does not match the active theme directory | Verify `themes/<theme.name>/` exists and keep layout paths relative to the theme root conventions |
 | Schema validation warnings appear for fields that exist | Schema `type`, `format`, or `enum` does not match actual Markdown front matter or Notion property values | Normalize content values, add `default` where safe, or temporarily use `build.schemaFailMode: warn` while migrating content |
 | Image downloads fail silently or images appear broken | `content.media.blockPrivateNetworks` is blocking internal image hosts (default: `true`) | If images are on a private network, add the host to the allowlist or use a public CDN; see SSRF Protection below |
-| Deprecation warnings about old config fields | Config uses legacy field names (e.g., `rss` → `feed`, `outputPath` → `permalink`) | Run `bukit doctor` to see migration suggestions; follow the Config Deprecation Scanner table below |
+| Removed-field errors about old config fields | Config uses removed field names (e.g., `rss` → `feed`, `outputPath` → `permalink`) | Replace the field with the 1.0 key and follow the Removed Config Field Scanner table below |
 
 ## SSRF Protection (P1-3/P1-6)
 
@@ -876,13 +876,13 @@ These stages can be extended or reordered via `IContentStage` (plugin developmen
 
 SSRF protection is also applied to `CloneCommand` (theme asset downloads) and `SeoExternalAuditor` (SEO external link audits) via `SsrfGuard.SsrfSafeConnectAsync`.
 
-## Config Deprecation Scanner (P3-3)
+## Removed Config Field Scanner (P3-3)
 
-`ConfigDeprecationScanner` detects legacy config patterns and emits migration warnings during `bukit doctor` and build:
+`ConfigDeprecationScanner` detects removed config patterns and rejects them during `bukit doctor` and build:
 
-| Legacy Pattern | Replacement | Rule |
+| Removed Pattern | Replacement | Rule |
 |---|---|---|
-| `site.rss` | `site.feed` | RSS→Feed migration |
+| `site.rss` | `site.feed` | RSS→Feed |
 | `site.collections.<k>.outputPath` | `site.collections.<k>.permalink` | OutputPath→Permalink |
 | `content.notion.rootPageId` | `content.notion.rootBlockId` | PageId→BlockId |
 | `content.markdown.rootPageId` | `content.markdown.rootBlockId` | PageId→BlockId |

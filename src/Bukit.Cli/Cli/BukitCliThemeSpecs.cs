@@ -96,12 +96,12 @@ public static class BukitCliThemeSpecs
 
     internal static readonly CliCommandSpec ThemeInstallSpec = new(
         Name: "install",
-        Description: "安装主题 (本地/URL/注册表)",
+        Description: "安装主题 (本地/URL；注册表为 Experimental)",
         Arguments: new[] { new CliArgumentSpec("source", "路径或 URL") },
         Options: new[]
         {
-            new CliOptionSpec("--registry", "注册表中的主题名"),
-            new CliOptionSpec("--registry-url", "注册表 URL"),
+            new CliOptionSpec("--registry", "注册表中的主题名（Experimental）"),
+            new CliOptionSpec("--registry-url", "注册表 URL（Experimental）"),
             new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
             new CliOptionSpec("--config", "配置文件路径"),
             new CliOptionSpec("--site", "多站点名")
@@ -109,12 +109,12 @@ public static class BukitCliThemeSpecs
 
     internal static readonly CliCommandSpec ThemeSearchSpec = new(
         Name: "search",
-        Description: "搜索社区主题注册表",
+        Description: "搜索社区主题注册表（Experimental）",
         Arguments: new[] { new CliArgumentSpec("query", "搜索关键词") },
         Options: new[]
         {
             new CliOptionSpec("--refresh", "强制刷新缓存", CliOptionType.Flag),
-            new CliOptionSpec("--registry-url", "注册表 URL"),
+            new CliOptionSpec("--registry-url", "注册表 URL（Experimental）"),
             new CliOptionSpec("--config", "配置文件路径"),
             new CliOptionSpec("--site", "多站点名")
         });

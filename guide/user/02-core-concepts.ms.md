@@ -100,7 +100,7 @@ Selepas pembinaan selesai, enjin menjana artifak tambahan berdasarkan konfiguras
 
 Dari perspektif pengguna, anda hanya perlu tahu:
 
-- Anda boleh menggunakan `site.sitemapMode` dan `site.searchMode` untuk mengawal mod output pelbagai bahasa; `site.rssMode` ialah medan legasi (1.0).
+- Anda boleh menggunakan `site.sitemapMode` dan `site.search.mode` untuk mengawal mod output pelbagai bahasa; `site.rssMode` ialah medan legasi (1.0).
 - Anda boleh menggunakan `site.pluginFailMode` untuk memutuskan sama ada kegagalan plugin mengganggu pembinaan
 
 Lihat: [10 Ciri & Output Terbina Dalam](./10-built-in-features.ms.md) dan [11 Pelbagai Bahasa & SEO](./11-i18n-seo.ms.md).

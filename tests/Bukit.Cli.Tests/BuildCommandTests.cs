@@ -206,9 +206,9 @@ public sealed class BuildCommandTests : IDisposable
                                       """);
 
         var cmd = new CliBoundCommand(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["--config"] = siteYaml
-            },
+        {
+            ["--config"] = siteYaml
+        },
             Array.Empty<string>());
 
         var ex = await Assert.ThrowsAsync<ConfigException>(() => BuildCommand.RunAsync(cmd));

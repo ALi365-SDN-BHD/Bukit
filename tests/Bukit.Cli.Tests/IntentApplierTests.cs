@@ -33,7 +33,7 @@ public sealed class IntentApplierTests : IDisposable
                                          title: Test
                                          base_url: /
                                        content:
-                                         provider: markdown
+                                         kind: markdown
                                          markdown:
                                            dir: content
                                        theme:
@@ -62,7 +62,7 @@ public sealed class IntentApplierTests : IDisposable
                                          title: Test
                                          base_url: /
                                        content:
-                                         provider: markdown
+                                         kind: markdown
                                          markdown:
                                            dir: content
                                        theme:

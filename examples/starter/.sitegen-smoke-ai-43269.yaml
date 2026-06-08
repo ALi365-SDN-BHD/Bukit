@@ -18,9 +18,10 @@ site:
       permalink: /{slug}/
       template: pages/page.html
 content:
-  provider: markdown
-  markdown:
-    dir: content
+  sources:
+  - type: markdown
+    markdown:
+      dir: content
 build:
   output: dist
   clean: true

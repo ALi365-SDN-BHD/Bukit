@@ -34,7 +34,7 @@ Clone any website's visual design and visible content as a theme plus content/da
 **Related commands (simpler alternatives):**
 - `bukit theme wizard <name> --preset blog|docs|landing|minimal|portfolio` — interactive theme creation with 5 presets
 - `bukit theme create <name>` — copy from built-in starter
-- `bukit theme install --registry <name>` — install community theme from registry
+- `bukit theme install --registry <name>` — install community theme from Experimental registry
 
 Use `bukit clone` when you need an exact visual replica of an existing live site. Use wizard/presets when you want a fresh theme in a known design style.
 

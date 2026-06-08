@@ -105,7 +105,7 @@ Notion 模式下字段是否进入 `page.fields` 由 `fieldPolicy` 控制（见�
 
 用户视角你只需要知道：
 
-- 你能用 `site.sitemapMode/searchMode` 控制多语言输出模式；`rssMode` 为 1.0 遗留字段，Feed 按默认方式处理
+- 你能用 `site.sitemapMode` 和 `site.search.mode` 控制多语言输出模式；`rssMode` 为 1.0 遗留字段，Feed 按默认方式处理
 - 你能用 `site.pluginFailMode` 决定插件失败是否中断构建
 
 详见：[10-内置功能与输出](./10-built-in-features.zh-CN.md) 与 [11-多语言与SEO](./11-i18n-seo.zh-CN.md)。

@@ -641,7 +641,7 @@ workflows:
     chain: [using-bukit, bukit-theme, bukit-cli-reference]
 
   install_theme:
-    description: "Install a theme from community registry"
+    description: "Install a theme from Experimental community registry"
     chain: [using-bukit, bukit-theme, bukit-cli-reference]
 
   build_design_system:

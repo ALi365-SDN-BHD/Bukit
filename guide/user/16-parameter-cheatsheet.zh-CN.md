@@ -34,7 +34,7 @@
 | `site.pluginFailMode` | 插件失败策略 | `strict` / `warn` |
 | `site.plugins` | 插件开关与参数 | `sitemap: false` / `path-report: { enabled: true, options: {...} }` |
 | `site.sitemapMode` | sitemap 输出模式 | `split` / `merged` / `index` |
-| `site.searchMode` | search 输出模式 | `split` / `merged` / `index` |
+| `site.search.mode` | search 输出模式 | `split` / `merged` / `index` |
 | `site.autoSummary` | 未提供 summary 时自动从正文提取摘要 | `true` / `false` |
 | `site.autoSummaryMaxLength` | 自动摘要最大长度（字符数） | `200` |
 

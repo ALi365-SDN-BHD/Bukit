@@ -50,7 +50,8 @@ dist/
 ```yaml
 site:
   sitemapMode: split
-  searchMode: split
+  search:
+    mode: split
 ```
 
 ### merged: Satu Digabungkan
@@ -58,7 +59,8 @@ site:
 ```yaml
 site:
   sitemapMode: merged
-  searchMode: merged
+  search:
+    mode: merged
 ```
 
 ### index: Output Indeks Akar
@@ -66,10 +68,11 @@ site:
 ```yaml
 site:
   sitemapMode: index
-  searchMode: index
+  search:
+    mode: index
 ```
 
-> **Nota**: `site.rssMode` adalah legacy dalam 1.0 dan tidak lagi boleh dikonfigurasi; output feed mengikuti tingkah laku lalai `site.plugins.feed`.
+> **Nota**: `site.rssMode` telah dibuang dalam 1.0 dan tidak lagi boleh dikonfigurasi; output feed mengikuti `site.feed` dan tingkah laku lalai `site.plugins.feed`.
 
 ## Tritunggal SEO: site.url, baseUrl, Coretan SEO Tema
 

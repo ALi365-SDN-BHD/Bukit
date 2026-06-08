@@ -60,7 +60,7 @@ P3 publish outputs 说明：sitemap、feed、search、llms/llms-full、robots、
 
 多语言行为：
 - `site.rssMode` 在 1.0 已移除，不再作为可配置项用于 Feed 模式控制。
-- 在仍保留迁移路径的旧项目中，根目录行为可能沿用历史 `site.rssMode`；新 1.0 配置下 feed 按语言目录输出并由 `site.plugins.feed` 默认行为驱动。
+- 1.0 配置下，feed 按语言目录输出，并由 `site.feed` 与 `site.plugins.feed` 默认行为驱动。
 
 ## search-index（publish projection adapter）
 
@@ -88,7 +88,7 @@ P3 publish outputs 说明：sitemap、feed、search、llms/llms-full、robots、
 
 多语言行为：
 - 每个语言变体目录都会生成各自的 `search.json`
-- 如果 `site.searchMode == index`，引擎会在根目录额外生成 `search.index.json`（聚合指向各语言索引）
+- 如果 `site.search.mode == index`，引擎会在根目录额外生成 `search.index.json`（聚合指向各语言索引）
 
 ## taxonomy（IDerivePagesPlugin + IAfterBuildPlugin）
 

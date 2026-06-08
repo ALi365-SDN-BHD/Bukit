@@ -63,7 +63,7 @@ site:
   title: Test
   base_url: /
 content:
-  provider: invalid
+  kind: invalid
 theme:
   name: starter
 """);
@@ -83,7 +83,7 @@ site:
   title: Test
   base_url: /
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 """);
@@ -112,7 +112,7 @@ site:
   title: Test
   base_url: /
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 """);
@@ -134,7 +134,7 @@ site:
   title: Test
   base_url: /
 content:
-  provider: invalid
+  kind: invalid
 theme:
   name: starter
 """);
@@ -155,7 +155,7 @@ site:
   title: Test
   base_url: /
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 """);
@@ -181,7 +181,7 @@ site:
   title: Test
   base_url: /
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 """);
@@ -208,7 +208,7 @@ site:
   title: Test
   base_url: /
 content:
-  provider: markdown
+  kind: markdown
 theme:
   name: starter
 """);

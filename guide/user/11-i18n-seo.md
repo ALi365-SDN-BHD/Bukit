@@ -88,7 +88,8 @@ All three artifact types support the same mode selection (using sitemap as an ex
 ```yaml
 site:
   sitemapMode: split
-  searchMode: split
+  search:
+    mode: split
 ```
 
 Suitable for:
@@ -101,7 +102,8 @@ Suitable for:
 ```yaml
 site:
   sitemapMode: merged
-  searchMode: merged
+  search:
+    mode: merged
 ```
 
 Suitable for:
@@ -114,10 +116,11 @@ Suitable for:
 ```yaml
 site:
   sitemapMode: index
-  searchMode: index
+  search:
+    mode: index
 ```
 
-> **Note**: `site.rssMode` is removed from user config in 1.0. Feed behavior follows `site.feed` / plugin settings (including `site.feed.formats`). Legacy `rssMode` merge/split semantics may still appear for migrated configs.
+> **Note**: `site.rssMode` is removed from user config in 1.0. Feed behavior follows `site.feed` / plugin settings (including `site.feed.formats`); legacy `rssMode` merge/split semantics are not supported.
 
 Suitable for:
 

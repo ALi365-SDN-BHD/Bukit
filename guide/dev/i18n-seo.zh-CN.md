@@ -31,9 +31,9 @@
 
 ## feedMode（1.0 约定）
 
-`site.rssMode` 在 Bukit 1.0 的用户配置中已移除。Feed 模式由 `site.feed`（尤其是 `site.feed.formats`）和 feed 插件配置控制。旧的 merged/split 行为不属于 1.0 运行兼容范围。
+`site.rssMode` 在 Bukit 1.0 的用户配置中已移除。Feed 模式由 `site.feed`（尤其是 `site.feed.formats`）和 feed 插件配置控制；旧的 merged/split 行为在 1.0 配置中不支持。
 
-## searchMode
+## site.search.mode
 
 | 值 | 行为 |
 |---|---|

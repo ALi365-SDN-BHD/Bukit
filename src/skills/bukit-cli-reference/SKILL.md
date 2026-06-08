@@ -81,8 +81,8 @@ After downloading, place the binary in a PATH directory or the project root.
 | `theme params` | List customizable theme parameters (from theme.yaml) | `[name]` `--config` `--site` |
 | `theme wizard` | Interactive Q&A theme creation + 5 presets | `<name>` `--preset`(blog\|docs\|landing\|minimal\|portfolio) `--use` `--force` `--config` `--site` |
 | `theme pack` | Package theme as `<name>-<version>.tar.gz` | `[name]` `--output` `--config` `--site` |
-| `theme install` | Install theme from local file, URL, or registry | `<path\|url>` `--registry <name>` `--registry-url` `--force` `--config` `--site` |
-| `theme search` | Query community theme registry | `[query]` `--refresh` `--registry-url <url>` `--config` `--site` |
+| `theme install` | Install theme from local file or URL; registry install is Experimental | `<path\|url>` `--registry <name>` `--registry-url` `--force` `--config` `--site` |
+| `theme search` | Query community theme registry (Experimental) | `[query]` `--refresh` `--registry-url <url>` `--config` `--site` |
 | `theme preview` | Display detailed theme anatomy | `[name]` `--config` `--site` |
 | `template create` | Interactive template file creation | `<path>` `--force` `--config` `--site` |
 | `template list` | List all templates in active theme | `--config` `--site` |
@@ -346,8 +346,8 @@ bukit theme search [query] [--refresh] [--registry-url <url>] [--config <path>] 
 `theme params` lists customizable parameters declared in `theme.yaml`.
 `theme wizard` runs an interactive Q&A to create a custom theme. `--preset` applies one of 5 pre-defined designs (blog/docs/landing/minimal/portfolio) as defaults; without `--preset`, an interactive preset picker appears.
 `theme pack` packages a theme into `<name>-<version>.tar.gz` for distribution. `<name>` defaults to the active theme.
-`theme install` installs a theme from a local `.tar.gz`, HTTP URL, or `--registry <name>` (community theme registry with SHA256 verification).
-`theme search` queries the community theme index (cached locally for 24h). `--refresh` forces a fresh fetch.
+`theme install` installs a theme from a local `.tar.gz` or HTTP URL. `--registry <name>` uses the Experimental community theme registry with SHA256 verification.
+`theme search` queries the Experimental community theme index (cached locally for 24h). `--refresh` forces a fresh fetch. Registry/search/install ecosystem availability is not covered by the Bukit 1.0 GA compatibility promise.
 
 ### theme preview
 

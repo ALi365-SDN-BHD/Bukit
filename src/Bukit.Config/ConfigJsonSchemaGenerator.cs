@@ -218,6 +218,7 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject SearchDetailSchema()
         => Obj(("type", "object"), ("properties", Obj(
+            ("mode", EnumSchema("split", "merged", "index")),
             ("enabled", BoolSchema()),
             ("template", StringSchema()),
             ("preload", StringArraySchema()),

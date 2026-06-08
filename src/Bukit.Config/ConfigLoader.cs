@@ -67,7 +67,7 @@ public static class ConfigLoader
             DefaultLanguage = ConfigYamlHelpers.GetOptionalString(siteNode, "defaultLanguage"),
             SitemapMode = ConfigYamlHelpers.GetOptionalString(siteNode, "sitemapMode") ?? "split",
             RssMode = ConfigYamlHelpers.GetOptionalString(siteNode, "rssMode") ?? "split",
-            SearchMode = ConfigYamlHelpers.GetOptionalString(siteNode, "searchMode") ?? "split",
+            SearchMode = SiteDefaultsApplier.ReadSearchMode(siteNode),
             SearchIncludeDerived = ConfigYamlHelpers.GetOptionalBool(siteNode, "searchIncludeDerived") ?? false,
             ExternalProtocolIncludeRoutedPages = ConfigYamlHelpers.GetOptionalBool(siteNode, "externalProtocolIncludeRoutedPages") ?? false,
             PluginFailMode = ConfigYamlHelpers.GetOptionalString(siteNode, "pluginFailMode") ?? "strict",

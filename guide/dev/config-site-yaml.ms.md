@@ -21,7 +21,7 @@ Pelaksanaan: `src/Bukit.Config/AppConfig.cs`, `src/Bukit.Config/ConfigLoader.cs`
 | `site.timezone` | string | `UTC` | Zon waktu |
 | `site.pluginFailMode` | string | `strict` | `strict` atau `warn` |
 | `site.sitemapMode` | string | `split` | `split`/`merged`/`index` |
-| `site.searchMode` | string | `split` | `split`/`merged`/`index` |
+| `site.search.mode` | string | `split` | `split`/`merged`/`index` |
 | `site.outputPathEncoding` | string | `none` | Pengekodan laluan: `none`/`slug`/`urlencode`/`sanitize`. Digunakan untuk halaman kandungan dan terbitan. |
 | `site.deriveConflictPolicy` | string | `fail` | Konflik laluan terbitan: `fail`/`warn`/`last-wins`. Konflik kandungan sentiasa gagal. |
 | `site.collections` | dict | - | Penghalaan dipacu collection |
