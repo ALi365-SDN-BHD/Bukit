@@ -631,13 +631,13 @@ version: 1.0.0
 """);
         await File.WriteAllTextAsync(Path.Combine(themeRoot, "layouts", "pages", "index.html"), "test");
 
+        var outputFile = Path.Combine(_rootDir, "packable-1.0.0.tar.gz");
         var exitCode = await ThemePackCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
         {
-            "theme", "pack", "packable", "--config", _configPath
+            "theme", "pack", "packable", "--config", _configPath, "--output", outputFile
         }));
         Assert.Equal(0, exitCode);
 
-        var outputFile = Path.Combine(Directory.GetCurrentDirectory(), "packable-1.0.0.tar.gz");
         Assert.True(File.Exists(outputFile));
         TestCleanup.DeleteFile(outputFile);
     }
