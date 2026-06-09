@@ -31,8 +31,6 @@ public sealed class LintCommandTests : IDisposable
                                             collection: page
                                             markdown:
                                               dir: content
-                                        markdown:
-                                          dir: content
                                       """);
     }
 

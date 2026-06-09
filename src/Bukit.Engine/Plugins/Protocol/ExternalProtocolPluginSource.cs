@@ -160,7 +160,16 @@ internal sealed class ExternalProtocolPluginSource : IPluginSource
                 return config;
             }
 
-            var combined = Path.Combine(rootDir, config.Entry.Replace('/', Path.DirectorySeparatorChar));
+            var rootFullPath = Path.GetFullPath(rootDir);
+            var combined = Path.GetFullPath(Path.Combine(rootDir, config.Entry.Replace('/', Path.DirectorySeparatorChar)));
+            if (!combined.StartsWith(rootFullPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(combined, rootFullPath, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ConfigException(
+                    $"External plugin entry resolves outside the project root: '{config.Entry}'.",
+                    DiagnosticCode.ConfigPathTraversal);
+            }
+
             if (File.Exists(combined))
             {
                 return config with { Entry = combined };

@@ -26,11 +26,8 @@ public sealed class RenderDependencyHasherTests
                 Name = "test",
                 Title = "Test Site"
             },
-            Content = new ContentConfig
+            Content = TestContent.Markdown() with
             {
-                Provider = "markdown",
-                Sources = TestContent.Markdown().Sources,
-                Markdown = new MarkdownConfig { Dir = "content" },
                 Media = new MediaConfig { DownloadToLocal = false }
             },
             Build = new BuildConfig { Output = "dist" },
@@ -176,12 +173,12 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
-    public void Compute_DifferentRssMode_ProducesDifferentHash()
+    public void Compute_DifferentFeedMode_ProducesDifferentHash()
     {
         var config1 = CreateBaseConfig();
         var config2 = CreateBaseConfig() with
         {
-            Site = CreateBaseConfig().Site with { RssMode = "merged" }
+            Site = CreateBaseConfig().Site with { Feed = CreateBaseConfig().Site.Feed with { Mode = "merged" } }
         };
 
         var hash1 = RenderDependencyHasher.Compute(config1, s_emptySiteModel);
@@ -196,7 +193,7 @@ public sealed class RenderDependencyHasherTests
         var config1 = CreateBaseConfig();
         var config2 = CreateBaseConfig() with
         {
-            Site = CreateBaseConfig().Site with { SearchMode = "merged" }
+            Site = CreateBaseConfig().Site with { Search = CreateBaseConfig().Site.Search with { Mode = "merged" } }
         };
 
         var hash1 = RenderDependencyHasher.Compute(config1, s_emptySiteModel);

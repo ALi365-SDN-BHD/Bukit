@@ -43,8 +43,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -53,7 +51,6 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.NotNull(config);
         Assert.Equal("myblog", config.Site.Name);
         Assert.Equal("My Blog", config.Site.Title);
-        Assert.Equal("sources", config.Content.Provider);
         Assert.NotNull(config.Content.Sources![0].Markdown);
     }
 
@@ -67,8 +64,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             build:
               assetHashMode: sha256
             """;
@@ -85,7 +80,7 @@ public sealed class ConfigLoaderTests : IDisposable
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "myblog", Title = "My Blog" },
-            Content = new ContentConfig { Provider = "sources", Sources = new List<ContentSourceConfig> { new ContentSourceConfig { Type = "markdown", Markdown = new MarkdownConfig() } } },
+            Content = ContentConfigFactory.FromSources([new ContentSourceConfig { Type = "markdown", Markdown = new MarkdownConfig() }]),
             Build = new BuildConfig { AssetHashMode = "bad" }
         };
 
@@ -161,8 +156,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -179,8 +172,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -214,7 +205,6 @@ public sealed class ConfigLoaderTests : IDisposable
         var config = ConfigLoader.Load(path);
         var source = config.Content.Sources![0].Notion;
 
-        Assert.Equal("sources", config.Content.Provider);
         Assert.NotNull(source);
         Assert.Equal("abc123def456", source.DatabaseId);
         Assert.Equal(100, source.PageSize);
@@ -253,7 +243,6 @@ public sealed class ConfigLoaderTests : IDisposable
         var config = ConfigLoader.Load(path);
         var md = config.Content.Sources![0].Markdown!;
 
-        Assert.Equal("sources", config.Content.Provider);
         Assert.NotNull(md);
         Assert.Equal("docs", md.Dir);
         Assert.Equal("article", md.DefaultType);
@@ -296,8 +285,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -363,8 +350,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
               modelSchema:
                 rejectUnknownRawKeys: true
                 requireAuthor: true
@@ -513,8 +498,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -537,8 +520,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -561,8 +542,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             deploy:
               provider: github-pages
               branch: main
@@ -609,8 +588,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -670,8 +647,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -722,8 +697,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             taxonomy:
               template: pages/taxonomy.html
               indexTemplate: pages/index.html
@@ -790,8 +763,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
               media:
                 downloadToLocal: true
                 downloadDir: static/images
@@ -954,8 +925,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -977,8 +946,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -999,8 +966,6 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 

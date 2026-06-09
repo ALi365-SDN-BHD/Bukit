@@ -83,17 +83,9 @@ public static class IntentApplier
         var contentKind = intent.Content.Kind.Trim().ToLowerInvariant();
         var content = contentKind switch
         {
-            "markdown" => new ContentConfig
-            {
-                Provider = "sources",
-                Sources = BuildMarkdownSources(intent.Content.Markdown?.Dir ?? "content")
-            },
-            "notion" => new ContentConfig
-            {
-                Provider = "sources",
-                Sources = BuildNotionSources(intent.Content.Notion!)
-            },
-            _ => new ContentConfig { Provider = "sources", Sources = new List<ContentSourceConfig>() }
+            "markdown" => ContentConfigFactory.FromSources(BuildMarkdownSources(intent.Content.Markdown?.Dir ?? "content")),
+            "notion" => ContentConfigFactory.FromSources(BuildNotionSources(intent.Content.Notion!)),
+            _ => ContentConfigFactory.FromSources(new List<ContentSourceConfig>())
         };
 
         return new AppConfig

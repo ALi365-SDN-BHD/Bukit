@@ -40,11 +40,8 @@ public sealed class CollectionWarningStageTests
             new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "T" },
-                Content = new ContentConfig
+                Content = TestContent.Markdown() with
                 {
-                    Provider = "markdown",
-                    Sources = TestContent.Markdown().Sources,
-                    Markdown = new MarkdownConfig { Dir = "content" },
                     Media = new MediaConfig { DownloadToLocal = false }
                 },
                 Build = new BuildConfig { Output = "dist" },

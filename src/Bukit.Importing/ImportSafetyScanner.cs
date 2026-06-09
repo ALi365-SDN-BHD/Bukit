@@ -2,27 +2,6 @@ namespace Bukit.Importing;
 
 internal static partial class ImportSafetyScanner
 {
-    private static readonly string[] SensitiveFileNames =
-    [
-        ".env", ".npmrc", ".git", "node_modules", ".vscode", "dist", "build",
-        "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519"
-    ];
-
-    private static readonly string[] SensitiveFilePatterns =
-    [
-        ".env.*"
-    ];
-
-    private static readonly string[] SensitiveExtensions =
-    [
-        ".key", ".pfx", ".p12", ".pem", ".crt", ".cert"
-    ];
-
-    private static readonly string[] DangerousProtocols =
-    [
-        "javascript:", "vbscript:", "file:", "data:"
-    ];
-
     internal static List<ImportDiagnostic> Scan(
         HtmlDemoImportOptions options, List<DiscoveredPage> pages)
     {
@@ -44,7 +23,7 @@ internal static partial class ImportSafetyScanner
 
     private static void ScanSensitiveFiles(string inputPath, List<ImportDiagnostic> diagnostics)
     {
-        foreach (var pattern in SensitiveFileNames)
+        foreach (var pattern in ImportSafetyPatterns.SensitiveFileNames)
         {
             var fileMatches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
             foreach (var match in fileMatches)
@@ -67,7 +46,7 @@ internal static partial class ImportSafetyScanner
             }
         }
 
-        foreach (var pattern in SensitiveFilePatterns)
+        foreach (var pattern in ImportSafetyPatterns.SensitiveFilePatterns)
         {
             var matches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
             foreach (var match in matches)
@@ -84,7 +63,7 @@ internal static partial class ImportSafetyScanner
         foreach (var file in allFiles)
         {
             var ext = Path.GetExtension(file);
-            if (SensitiveExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+            if (ImportSafetyPatterns.SensitiveExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
             {
                 diagnostics.Add(new ImportDiagnostic(
                     ImportDiagnosticSeverity.Error,
@@ -136,7 +115,7 @@ internal static partial class ImportSafetyScanner
                 page.FilePath));
         }
 
-        foreach (var protocol in DangerousProtocols)
+        foreach (var protocol in ImportSafetyPatterns.DangerousProtocols)
         {
             if (html.Contains(protocol, StringComparison.OrdinalIgnoreCase))
             {

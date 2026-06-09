@@ -2,7 +2,17 @@
 
 All notable changes to Bukit will be documented in this file.
 
-## [Unreleased]
+## [1.0.0] - 2026-06-09
+### 1.0 Trust Hardening
+- **Config strict mode**: `ConfigRemovedFieldScanner` rejects all pre-1.0 config fields (`content.markdown`, `content.provider`, `site.rssMode`, etc.) with migration hints.
+- **Publish audit**: `MachineReadabilityTrustAuditBuilder` generates comprehensive SEO/GEO trust reports with multi-format coverage validation.
+- **Import safety**: `ImportSafetyScanner` and `HtmlDemoImporter` share a unified `ImportSafetyPatterns` module for consistent sensitive-file detection.
+- **Test migration**: All test fixtures migrated from `content.markdown` to `content.sources[].markdown` 1.0 schema.
+- **Audit rule fix**: `PublishDocumentAuditScope.IsContentBacked` correctly excludes generated list routes from content-quality audit checks.
+- **DevFileWatcher**: Tests now run in serial collection to avoid parallel-execution timing issues.
+- **Schema alignment**: Root `site.yaml` updated to 1.0 schema (`content.sources[]` instead of `content.provider`).
+
+
 
 ### Breaking
 - **Content meta ABI removed**: `ContentItem.Meta` is no longer part of the runtime content ABI. Providers normalize front matter / Notion properties into typed `ContentField` values and canonical content records.
@@ -74,7 +84,7 @@ All notable changes to Bukit will be documented in this file.
 - **BuildVariantContext** extended with `ParentLayoutsDir`, `ParentAssetsDir`, `ParentStaticDir` for inherited themes
 - **ConfigLoader** extended with new YAML deserialization helpers: `ReadComponents`, `ReadImageOptimizationConfig`, `ReadScssConfig`, `ReadSchema`
 
-## [1.0.0] - 2026-05-05
+## [0.10.0] - 2026-05-05
 
 ### Added
 - Initial release of Bukit, a .NET 10 Native AOT static site generator

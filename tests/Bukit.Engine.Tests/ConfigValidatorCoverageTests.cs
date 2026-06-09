@@ -17,52 +17,39 @@ public sealed class ConfigValidatorCoverageTests
     }
 
     private static AppConfig ConfigWithContent(Func<ContentConfig, ContentConfig> content) =>
-        ValidConfig(c => c with { Content = NormalizeContentForSources(content(c.Content)) });
+        ValidConfig(c => c with { Content = content(c.Content) });
 
-    private static ContentConfig NormalizeContentForSources(ContentConfig content)
-    {
-        if (content.Notion is not null ||
-            content.Provider.Equals("notion", StringComparison.OrdinalIgnoreCase))
+    private static AppConfig ConfigWithMarkdown(Func<MarkdownConfig, MarkdownConfig> markdown) =>
+        ConfigWithContent(c =>
         {
-            return content with
+            var source = c.Sources![0];
+            return c with
             {
-                Provider = "sources",
-                Sources = new[]
-                {
-                    new ContentSourceConfig
+                Sources =
+                [
+                    source with
                     {
-                        Type = "notion",
-                        Name = "page",
-                        Collection = "page",
-                        Notion = content.Notion ?? new NotionConfig { DatabaseId = "test-db" }
+                        Markdown = markdown(source.Markdown ?? new MarkdownConfig())
                     }
-                }
+                ]
             };
-        }
+        });
 
-        if (content.Markdown is not null)
+    private static AppConfig ConfigWithNotion(Func<NotionConfig, NotionConfig> notion) =>
+        new AppConfig
         {
-            return content with
-            {
-                Provider = "sources",
-                Sources = new[]
+            Site = new SiteConfig { Name = "x", Title = "x" },
+            Content = ContentConfigFactory.FromSources(
+            [
+                TestContent.NotionSource() with
                 {
-                    new ContentSourceConfig
-                    {
-                        Type = "markdown",
-                        Name = "page",
-                        Collection = "page",
-                        Markdown = content.Markdown
-                    }
+                    Notion = notion(TestContent.NotionSource().Notion!)
                 }
-            };
-        }
-
-        return content;
-    }
+            ])
+        };
 
     private static void Validate(AppConfig config)
-        => ConfigValidator.Validate(config with { Content = NormalizeContentForSources(config.Content) });
+        => ConfigValidator.Validate(config);
 
     private static AppConfig ConfigWithSite(Func<SiteConfig, SiteConfig> site) =>
         ValidConfig(c => c with { Site = site(c.Site) });
@@ -238,40 +225,34 @@ public sealed class ConfigValidatorCoverageTests
     [Fact]
     public void Validate_Markdown_DirEmpty_Throws()
     {
-        var config = ConfigWithContent(c => c with { Markdown = new MarkdownConfig { Dir = "" } });
+        var config = ConfigWithMarkdown(m => m with { Dir = "" });
 
         var ex = Assert.Throws<ConfigException>(() => Validate(config));
-        Assert.Contains("content.markdown.dir", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("content.sources[0].markdown.dir", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void Validate_Markdown_DirPathTraversal_Throws()
     {
-        var config = ConfigWithContent(c => c with { Markdown = new MarkdownConfig { Dir = "../escaped" } });
+        var config = ConfigWithMarkdown(m => m with { Dir = "../escaped" });
 
         var ex = Assert.Throws<ConfigException>(() => Validate(config));
-        Assert.Contains("content.markdown.dir", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("content.sources[0].markdown.dir", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void Validate_Markdown_IncludePathsWithTraversal_Throws()
     {
-        var config = ConfigWithContent(c => c with
-        {
-            Markdown = new MarkdownConfig { IncludePaths = new[] { "posts/../../secret" } }
-        });
+        var config = ConfigWithMarkdown(m => m with { IncludePaths = new[] { "posts/../../secret" } });
 
         var ex = Assert.Throws<ConfigException>(() => Validate(config));
-        Assert.Contains("content.markdown.includePaths", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("content.sources[0].markdown.includePaths", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void Validate_Markdown_IncludeGlobsValid_Passes()
     {
-        var config = ConfigWithContent(c => c with
-        {
-            Markdown = new MarkdownConfig { IncludeGlobs = new[] { "**/*.md", "posts/**/*.html" } }
-        });
+        var config = ConfigWithMarkdown(m => m with { IncludeGlobs = new[] { "**/*.md", "posts/**/*.html" } });
 
         var ex = Record.Exception(() => Validate(config));
         Assert.Null(ex);
@@ -280,43 +261,49 @@ public sealed class ConfigValidatorCoverageTests
     [Fact]
     public void Validate_Markdown_IncludeGlobsEmptyElement_Throws()
     {
-        var config = ConfigWithContent(c => c with
-        {
-            Markdown = new MarkdownConfig { IncludeGlobs = new[] { "**/*.md", "" } }
-        });
+        var config = ConfigWithMarkdown(m => m with { IncludeGlobs = new[] { "**/*.md", "" } });
 
         var ex = Assert.Throws<ConfigException>(() => Validate(config));
-        Assert.Contains("content.markdown.includeGlobs", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("content.sources[0].markdown.includeGlobs", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void Validate_Markdown_IncludePathsEmptyElement_Throws()
     {
-        var config = ConfigWithContent(c => c with
-        {
-            Markdown = new MarkdownConfig { IncludePaths = new[] { "  " } }
-        });
+        var config = ConfigWithMarkdown(m => m with { IncludePaths = new[] { "  " } });
 
         var ex = Assert.Throws<ConfigException>(() => Validate(config));
-        Assert.Contains("content.markdown.includePaths", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("content.sources[0].markdown.includePaths", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void Validate_Markdown_MaxItemsZero_Throws()
     {
-        var config = ConfigWithContent(c => c with { Markdown = new MarkdownConfig { MaxItems = 0 } });
+        var config = ConfigWithMarkdown(m => m with { MaxItems = 0 });
 
         var ex = Assert.Throws<ConfigException>(() => Validate(config));
-        Assert.Contains("content.markdown.maxItems", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("content.sources[0].markdown.maxItems", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void Validate_Markdown_MaxItemsNegative_Throws()
     {
-        var config = ConfigWithContent(c => c with { Markdown = new MarkdownConfig { MaxItems = -5 } });
+        var config = ConfigWithMarkdown(m => m with { MaxItems = -5 });
 
         var ex = Assert.Throws<ConfigException>(() => Validate(config));
-        Assert.Contains("content.markdown.maxItems", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("content.sources[0].markdown.maxItems", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_MarkdownSource_ErrorUsesNestedSourcePath()
+    {
+        var config = ValidConfig(c => c with
+        {
+            Content = ContentConfigFactory.FromSources([TestContent.MarkdownSource() with { Markdown = new MarkdownConfig { Dir = "" } }])
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => Validate(config));
+        Assert.Contains("content.sources[0].markdown.dir", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── Notion validation ─────────────────────────────────────────
@@ -324,173 +311,120 @@ public sealed class ConfigValidatorCoverageTests
     [Fact]
     public void Validate_Notion_DatabaseIdEmpty_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "" }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { DatabaseId = "" });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.databaseId", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.databaseId", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_DatabaseIdWhitespace_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "   " }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { DatabaseId = "   " });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.databaseId", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.databaseId", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_PageSizeZero_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db", PageSize = 0 }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { PageSize = 0 });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.pageSize", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.pageSize", ex.Message, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    [Fact]
+    public void Validate_NotionSource_ErrorUsesNestedSourcePath()
+    {
+        var config = ValidConfig(c => c with
+        {
+            Content = ContentConfigFactory.FromSources(
+            [
+                TestContent.NotionSource(name: "posts", collection: "post") with
+                {
+                    Notion = new NotionConfig { DatabaseId = "" }
+                }
+            ])
+        });
+
+        WithoutNotionToken(() =>
+        {
+            var ex = Assert.Throws<ConfigException>(() => Validate(config));
+            Assert.Contains("content.sources[0].notion.databaseId", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_PageSizeNegative_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db", PageSize = -1 }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { PageSize = -1 });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.pageSize", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.pageSize", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_PageSizeExceedsMax_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db", PageSize = 101 }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { PageSize = 101 });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.pageSize", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.pageSize", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_FilterTypeInvalid_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db", FilterType = "invalid" }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { FilterType = "invalid" });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.filterType", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.filterType", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_SortDirectionInvalid_Throws()
     {
-        var config = new AppConfig
+        var config = ConfigWithNotion(n => n with
         {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig
-                {
-                    DatabaseId = "test-db",
-                    SortProperty = "Created",
-                    SortDirection = "random"
-                }
-            }
-        };
+            SortProperty = "Created",
+            SortDirection = "random"
+        });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.sortDirection", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.sortDirection", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_SortDirectionAscending_Passes()
     {
-        var config = new AppConfig
+        var config = ConfigWithNotion(n => n with
         {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig
-                {
-                    DatabaseId = "test-db",
-                    SortProperty = "Created",
-                    SortDirection = "ascending"
-                }
-            }
-        };
+            SortProperty = "Created",
+            SortDirection = "ascending"
+        });
 
         WithNotionToken(() =>
         {
@@ -502,37 +436,19 @@ public sealed class ConfigValidatorCoverageTests
     [Fact]
     public void Validate_Notion_CacheModeInvalid_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db", CacheMode = "memory" }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { CacheMode = "memory" });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.cacheMode", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.cacheMode", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_CacheModeReadwrite_Passes()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db", CacheMode = "readwrite" }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { CacheMode = "readwrite" });
 
         WithNotionToken(() =>
         {
@@ -544,37 +460,19 @@ public sealed class ConfigValidatorCoverageTests
     [Fact]
     public void Validate_Notion_CacheDirWhitespace_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db", CacheDir = "  " }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { CacheDir = "  " });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.cacheDir", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.cacheDir", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_NotionTokenMissing_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db" }
-            }
-        };
+        var config = ConfigWithNotion(n => n);
 
         WithoutNotionToken(() =>
         {
@@ -586,16 +484,7 @@ public sealed class ConfigValidatorCoverageTests
     [Fact]
     public void Validate_Notion_WithToken_Passes()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db" }
-            }
-        };
+        var config = ConfigWithNotion(n => n);
 
         WithNotionToken(() =>
         {
@@ -607,156 +496,90 @@ public sealed class ConfigValidatorCoverageTests
     [Fact]
     public void Validate_Notion_MaxItemsZero_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db", MaxItems = 0 }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { MaxItems = 0 });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.maxItems", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.maxItems", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_MaxRetriesNegative_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db", MaxRetries = -1 }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { MaxRetries = -1 });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.maxRetries", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.maxRetries", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_RenderConcurrencyZero_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db", RenderConcurrency = 0 }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { RenderConcurrency = 0 });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.renderConcurrency", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.renderConcurrency", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_MaxRpsZero_Throws()
     {
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig { DatabaseId = "test-db", MaxRps = 0 }
-            }
-        };
+        var config = ConfigWithNotion(n => n with { MaxRps = 0 });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.maxRps", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.maxRps", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_FieldPolicyModeInvalid_Throws()
     {
-        var config = new AppConfig
+        var config = ConfigWithNotion(n => n with
         {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig
-                {
-                    DatabaseId = "test-db",
-                    FieldPolicy = new NotionFieldPolicyConfig { Mode = "blacklist" }
-                }
-            }
-        };
+            FieldPolicy = new NotionFieldPolicyConfig { Mode = "blacklist" }
+        });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.fieldPolicy.mode", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.fieldPolicy.mode", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_IncludeSlugsWithoutSlugProperty_Throws()
     {
-        var config = new AppConfig
+        var config = ConfigWithNotion(n => n with
         {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig
-                {
-                    DatabaseId = "test-db",
-                    IncludeSlugs = new[] { "my-slug" },
-                    IncludeSlugProperty = ""
-                }
-            }
-        };
+            IncludeSlugs = new[] { "my-slug" },
+            IncludeSlugProperty = ""
+        });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.includeSlugProperty", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.includeSlugProperty", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     [Fact]
     public void Validate_Notion_FilterTypeNoneWithoutFilterProperty_Passes()
     {
-        var config = new AppConfig
+        var config = ConfigWithNotion(n => n with
         {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig
-                {
-                    DatabaseId = "test-db",
-                    FilterType = "none",
-                    FilterProperty = ""
-                }
-            }
-        };
+            FilterType = "none",
+            FilterProperty = ""
+        });
 
         WithNotionToken(() =>
         {
@@ -768,26 +591,16 @@ public sealed class ConfigValidatorCoverageTests
     [Fact]
     public void Validate_Notion_CheckboxTrueWithoutFilterProperty_Throws()
     {
-        var config = new AppConfig
+        var config = ConfigWithNotion(n => n with
         {
-            Site = new SiteConfig { Name = "x", Title = "x" },
-            Content = new ContentConfig
-            {
-                Provider = "notion",
-                Sources = TestContent.Notion().Sources,
-                Notion = new NotionConfig
-                {
-                    DatabaseId = "test-db",
-                    FilterType = "checkbox_true",
-                    FilterProperty = ""
-                }
-            }
-        };
+            FilterType = "checkbox_true",
+            FilterProperty = ""
+        });
 
         WithoutNotionToken(() =>
         {
             var ex = Assert.Throws<ConfigException>(() => Validate(config));
-            Assert.Contains("content.notion.filterProperty", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("content.sources[0].notion.filterProperty", ex.Message, StringComparison.OrdinalIgnoreCase);
         });
     }
 

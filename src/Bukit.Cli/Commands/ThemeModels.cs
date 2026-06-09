@@ -75,6 +75,7 @@ public sealed record RegistryThemeEntry
 public sealed record RegistryMeta
 {
     public string? Updated { get; set; }
+    public string? Version { get; set; }
     public string? BukitMinVersion { get; set; }
 }
 

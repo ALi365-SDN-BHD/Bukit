@@ -107,8 +107,6 @@ public sealed class ConfigValidatorCapabilityTests
                 - type: markdown
                   name: page
                   collection: page
-                  markdown:
-                    dir: content
             """;
 
         var tmpDir = Path.Combine(Path.GetTempPath(), "bukit-cap-test-" + Guid.NewGuid().ToString("N"));

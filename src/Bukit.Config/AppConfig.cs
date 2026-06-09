@@ -34,8 +34,6 @@ public sealed record SiteConfig
     public IReadOnlyList<string>? Languages { get; init; }
     public string? DefaultLanguage { get; init; }
     public string SitemapMode { get; init; } = "split";
-    public string RssMode { get; init; } = "split";
-    public string SearchMode { get; init; } = "split";
     public bool SearchIncludeDerived { get; init; }
     public bool ExternalProtocolIncludeRoutedPages { get; init; }
     public string PluginFailMode { get; init; } = "strict";
@@ -191,10 +189,7 @@ public sealed record ExternalPluginConfig
 
 public sealed record ContentConfig
 {
-    public required string Provider { get; init; }
     public IReadOnlyList<ContentSourceConfig>? Sources { get; init; }
-    public NotionConfig? Notion { get; init; }
-    public MarkdownConfig? Markdown { get; init; }
     public MediaConfig Media { get; init; } = new();
     public ContentModelSchemaConfig? ModelSchema { get; init; }
 }
@@ -387,6 +382,7 @@ public sealed record BuildConfig
 public sealed record BuildReportConfig
 {
     public bool Enabled { get; init; } = true;
+    public string SecurityFailMode { get; init; } = "auto";
 }
 
 public sealed record ThemeConfig
@@ -483,6 +479,7 @@ public sealed record PluginToggleConfig
 
 public sealed record FeedConfig
 {
+    public string Mode { get; init; } = "split";
     public IReadOnlyList<string> Formats { get; init; } = new[] { "rss" };
     public int Limit { get; init; } = 20;
     public string Path { get; init; } = "feed";
@@ -498,6 +495,7 @@ public sealed record SitemapDetailConfig
 
 public sealed record SearchDetailConfig
 {
+    public string Mode { get; init; } = "split";
     public string Ui { get; init; } = "default";
     public string UiTheme { get; init; } = "light";
     public string? PlaceholderText { get; init; }

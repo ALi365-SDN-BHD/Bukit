@@ -142,7 +142,7 @@ internal static class I18nOutputMerger
 
                 break;
             case "feed" or "atom" or "jsonfeed" when !string.IsNullOrWhiteSpace(siteUrl):
-                var rssMode = (config.Site.RssMode ?? "split").Trim().ToLowerInvariant();
+                var rssMode = SiteModeResolver.ResolveFeedMode(config.Site);
                 if (rssMode == "merged")
                 {
                     GenerateMergedFeeds(config, outputDir, siteUrl, rootBaseUrl, results);
@@ -150,7 +150,7 @@ internal static class I18nOutputMerger
 
                 break;
             case "search":
-                var searchMode = (config.Site.SearchMode ?? "split").Trim().ToLowerInvariant();
+                var searchMode = SiteModeResolver.ResolveSearchMode(config.Site);
                 if (searchMode == "merged")
                 {
                     SearchIndexBuilder.GenerateMergedSearchIndex(outputDir, results, config.Site.SearchIncludeDerived);

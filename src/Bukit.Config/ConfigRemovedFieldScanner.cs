@@ -7,7 +7,7 @@ namespace Bukit.Config;
 /// 1.0 config rejection scanner. Old fields are rejected with stable diagnostic codes
 /// and a migration hint. No warning-only fallback.
 /// </summary>
-public static class ConfigDeprecationScanner
+public static class ConfigRemovedFieldScanner
 {
     /// <summary>
     /// Scans a site.yaml file for removed 1.0 fields. Throws ConfigException if any are found.
@@ -100,6 +100,18 @@ public static class ConfigDeprecationScanner
             notionNode.Children.ContainsKey(new YamlScalarNode("rootPageId")))
         {
             removed.Add(new ConfigRemovedField("content.notion.rootPageId", "content.notion.rootBlockId", DiagnosticCode.ConfigRemovedField));
+        }
+
+        if (TryGetMapping(root, "content", out var contentNodeForLegacyMarkdown) &&
+            contentNodeForLegacyMarkdown.Children.ContainsKey(new YamlScalarNode("markdown")))
+        {
+            removed.Add(new ConfigRemovedField("content.markdown", "content.sources[].markdown", DiagnosticCode.ConfigRemovedField));
+        }
+
+        if (TryGetMapping(root, "content", out var contentNodeForLegacyNotion) &&
+            contentNodeForLegacyNotion.Children.ContainsKey(new YamlScalarNode("notion")))
+        {
+            removed.Add(new ConfigRemovedField("content.notion", "content.sources[].notion", DiagnosticCode.ConfigRemovedField));
         }
 
         if (TryGetMapping(root, "content", out var contentWithSources) &&

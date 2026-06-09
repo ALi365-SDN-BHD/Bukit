@@ -90,8 +90,6 @@ content:
     - type: markdown
       name: page
       collection: page
-      markdown:
-        dir: content
 deploy:
   provider: github-pages
   branch: pages

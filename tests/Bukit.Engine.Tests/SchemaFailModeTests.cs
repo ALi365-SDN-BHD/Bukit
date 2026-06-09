@@ -64,8 +64,6 @@ public sealed class SchemaFailModeTests : IDisposable
                 - type: markdown
                   name: page
                   collection: page
-                  markdown:
-                    dir: content
             """;
 
         var configPath = Path.Combine(_rootDir, "site.yaml");
@@ -92,8 +90,6 @@ public sealed class SchemaFailModeTests : IDisposable
                 - type: markdown
                   name: page
                   collection: page
-                  markdown:
-                    dir: content
             """;
 
         var collectionsYaml = """

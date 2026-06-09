@@ -20,7 +20,7 @@ internal static class SeoCompatibilityAuditRules
         string? robotsText,
         List<PublishAuditIssue> issues)
     {
-        if (!document.Indexable)
+        if (!document.Indexable || !PublishDocumentAuditScope.IsContentBacked(document))
         {
             return;
         }

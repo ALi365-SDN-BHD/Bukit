@@ -48,7 +48,8 @@ internal static class SeoIndexBuilder
                 IsIndexableContent(document, model.Robots),
                 SitemapPolicy.ResolveLastModified(document),
                 document.Id,
-                ResolveExplicitCollection(document));
+                ResolveExplicitCollection(document),
+                IsDerived(document));
         }
 
         foreach (var route in listRoutes)
@@ -69,7 +70,8 @@ internal static class SeoIndexBuilder
                 SeoModelBuilder.IsIndexable(model.Robots),
                 ResolveListLastModified(config, route, routed),
                 SourceItemId: null,
-                ContentType: "list");
+                ContentType: "list",
+                IsDerived: true);
         }
 
         return new SeoIndexBuildResult(entries, models);
@@ -262,4 +264,8 @@ internal static class SeoIndexBuilder
 
         return string.IsNullOrWhiteSpace(collection) ? null : collection;
     }
+
+    private static bool IsDerived(ContentDocument document)
+        => string.Equals(document.Record.Identity.ContentType, "derived", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(ContentFieldReader.GetContentType(document), "derived", StringComparison.OrdinalIgnoreCase);
 }

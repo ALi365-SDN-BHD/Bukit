@@ -181,8 +181,6 @@ content:
     - type: markdown
       name: page
       collection: page
-      markdown:
-        dir: content
 """);
     }
 

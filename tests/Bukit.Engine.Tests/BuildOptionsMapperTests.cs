@@ -32,7 +32,6 @@ public sealed class BuildOptionsMapperTests
         Assert.Equal("unicode", config.Site.OutputPathEncoding);
         Assert.Equal("public", config.Build.Output);
         Assert.False(config.Build.Clean);
-        Assert.Equal("sources", config.Content.Provider);
         var source = Assert.Single(config.Content.Sources!);
         Assert.Equal("markdown", source.Type);
         Assert.Equal("page", source.Collection);

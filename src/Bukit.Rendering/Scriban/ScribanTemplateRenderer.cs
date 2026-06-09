@@ -28,13 +28,14 @@ public sealed class ScribanTemplateRenderer
     private readonly IReadOnlyDictionary<string, ISectionPlugin>? _sectionPlugins;
     private readonly ConcurrentDictionary<string, CachedSectionTemplate> _sectionTemplateCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly TemplateContextBuilder _contextBuilder;
+    private readonly IReadOnlyList<ITemplateContextContributor>? _contributors;
 
-    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null)
-        : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, null, null, null, "off", null, null)
+    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null, IReadOnlyList<ITemplateContextContributor>? contributors = null)
+        : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, null, null, null, "off", null, null, contributors)
     {
     }
 
-    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentDocument, RouteInfo?)>? allPages = null, IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null)
+    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentDocument, RouteInfo?)>? allPages = null, IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null, IReadOnlyList<ITemplateContextContributor>? contributors = null)
     {
         _layoutsDir = layoutsDir;
         _templateLoader = new FileTemplateLoader(_layoutsDir, parentLayoutsDir, userLayoutsDir);
@@ -46,10 +47,12 @@ public sealed class ScribanTemplateRenderer
         _componentValidation = componentValidation;
         _allPages = allPages;
         _sectionPlugins = sectionPlugins;
+        _contributors = contributors!;
         _contextBuilder = new TemplateContextBuilder(
             _templateLoader, _shortcodes, _components,
             _themeRegistry, _schemaValidator, _componentValidation,
-            _allPages, _sectionPlugins, TryGetCachedSectionTemplate);
+            _allPages, _sectionPlugins, TryGetCachedSectionTemplate,
+            _contributors);
     }
 
     public string RenderPage(string templateRelativePath, PageModel model)
@@ -97,12 +100,20 @@ public sealed class ScribanTemplateRenderer
         }
         catch (Exception ex)
         {
+            var lineInfo = ExtractScribanLineInfo(ex);
+            var suffix = lineInfo is not null ? $" at {lineInfo}" : string.Empty;
+
             if (TryFindRenderException(ex, out var renderException))
             {
+                if (lineInfo is not null && !renderException.Message.Contains(lineInfo))
+                {
+                    throw new RenderException($"{renderException.Message}{suffix}", renderException.InnerException!, renderException.Code ?? DiagnosticCode.RenderFailed);
+                }
+
                 throw renderException;
             }
 
-            throw new RenderException($"Render failed: {templateRelativePath}", ex, DiagnosticCode.RenderFailed);
+            throw new RenderException($"Render failed: {templateRelativePath}{suffix}", ex, DiagnosticCode.RenderFailed);
         }
     }
 
@@ -119,6 +130,18 @@ public sealed class ScribanTemplateRenderer
 
         renderException = null!;
         return false;
+    }
+
+    private static string? ExtractScribanLineInfo(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is global::Scriban.Syntax.ScriptRuntimeException sre)
+            {
+                return $"{sre.Span.Start}";
+            }
+        }
+        return null;
     }
 
     private CachedTemplate GetCachedTemplate(string templateRelativePath)

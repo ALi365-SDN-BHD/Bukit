@@ -27,8 +27,6 @@ public sealed class ConfigFeedConfigTests : IDisposable
             content:
               sources:
                 - type: markdown
-                  markdown:
-                    dir: content
             """);
 
         var config = ConfigLoader.Load(path);

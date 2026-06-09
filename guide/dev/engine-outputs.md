@@ -60,7 +60,7 @@ When `build.report.enabled` is `true`, the engine writes these files:
 | `routes.json` | All routes with url, outputPath, template, source, kind, language |
 | `assets.json` | All static assets with path, source, sha256 hash, size |
 | `incremental-manifest.json` | Cache hit/miss counts, per-variant render counts, render reason breakdowns |
-| `security-report.json` | Security checks (route traversal, unsafe slug, plugin output path, remote theme lock) |
+| `artifact-manifest.json` | Top-level checksum index for `.bukit/*.json` reports with per-file sha256 and size |
 
 ---
 
@@ -71,8 +71,11 @@ Always generated (not gated by `build.report.enabled`):
 | File | Content |
 |------|---------|
 | `publish-audit-report.json` | Primary machine-readability and trust audit: semantic HTML, provenance, review status, entity metadata, representation coverage, and aggregate output consistency |
+| `security-report.json` | Security checks (route traversal, unsafe slug, plugin output path, remote theme lock) |
 | `seo-report.json` | SEO schema audit (`seo-report.v1`) checks per route: metadata completeness, canonical correctness, sitemap/rss inclusion, schema types, GEO indicators |
 | `geo-report.json` | Derived GEO report: GEO Score (0-100), llms.txt/llms-full.txt status, geo-enhanced route list with schema types |
+
+`artifact-manifest.json` is always generated inside `.bukit` and acts as the reader-facing checksum index for report artifacts. Even when `build.report.enabled` is `false`, it still records the security report so release bundles can be audited and compared.
 
 `seo-report.json` is generated under `.bukit` only. `bukit seo audit` resolves `.bukit/seo-report.json` by default; pass `--report` for explicit compatibility paths (for example `dist/.bukit/publish-audit-report.json`). `bukit publish audit` resolves `.bukit/publish-audit-report.json` by default and does not fall back to root paths.
 

@@ -73,4 +73,50 @@ public sealed class PageComposerTests
         Assert.Single(result);
         Assert.Equal("unknown", result[0].Type);
     }
+
+    [Fact]
+    public void Compose_MergesFilterAndSort()
+    {
+        var pageSections = new List<PageSectionDefinition>
+        {
+            new()
+            {
+                Type = "posts",
+                Filter = new Dictionary<string, object?> { ["category"] = "news" },
+                Sort = "publishAt asc"
+            }
+        };
+        var themeSections = new Dictionary<string, ThemeSectionDefinition>
+        {
+            ["posts"] = new()
+            {
+                Data = new ThemeDataBindingDefinition { Source = "posts", Limit = 5, Filters = new Dictionary<string, object?> { ["featured"] = true } }
+            }
+        };
+        var result = PageComposer.Compose(pageSections, themeSections);
+        Assert.Single(result);
+        Assert.Equal("posts", result[0].Type);
+        Assert.Equal(5, result[0].Limit);
+    }
+
+    [Fact]
+    public void ParseSections_SingleObject_WrapsInList()
+    {
+        var json = """{ "type": "hero", "props": { "title": "Solo" } }""";
+        var result = PageComposer.ParseSections(json);
+        Assert.Single(result);
+        Assert.Equal("hero", result[0].Type);
+    }
+
+    [Fact]
+    public void Compose_MultipleSections_ReturnsAll()
+    {
+        var pageSections = new List<PageSectionDefinition>
+        {
+            new() { Type = "hero" }, new() { Type = "cta" }, new() { Type = "footer" }
+        };
+        var result = PageComposer.Compose(pageSections, new Dictionary<string, ThemeSectionDefinition>());
+        Assert.Equal(3, result.Count);
+    }
 }
+

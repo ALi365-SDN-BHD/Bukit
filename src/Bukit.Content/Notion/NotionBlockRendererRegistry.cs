@@ -117,8 +117,8 @@ public sealed class NotionBlockRendererRegistry
         registry.Register("column", new BlockRenderers.ColumnBlockRenderer());
         registry.Register("table_of_contents", new BlockRenderers.TableOfContentsBlockRenderer());
         registry.Register("link_to_page", new BlockRenderers.LinkToPageBlockRenderer());
-        registry.Register("breadcrumb", new BlockRenderers.NoOpBlockRenderer());
-        registry.Register("template", new BlockRenderers.NoOpBlockRenderer());
+        registry.Register("breadcrumb", INotionBlockRenderer.NoOp);
+        registry.Register("template", INotionBlockRenderer.NoOp);
 
         return registry;
     }

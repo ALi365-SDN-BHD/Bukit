@@ -28,11 +28,7 @@ public sealed class MetricsWriterTests
                 BaseUrl = "/",
                 Language = "zh-CN"
             },
-            Content = new ContentConfig
-            {
-                Provider = "sources",
-                Sources = TestContent.Markdown().Sources
-            }
+            Content = TestContent.Markdown()
         };
 
         var variantMetrics = new BuildStageMetrics(

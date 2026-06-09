@@ -11,7 +11,11 @@ site:
       template: 'pages/page.html'
       listRoute: '/'
 content:
-  provider: markdown
-  contentDir: content
+  sources:
+    - type: markdown
+      name: page
+      collection: page
+      markdown:
+        dir: content
 theme:
   name: smoke-test

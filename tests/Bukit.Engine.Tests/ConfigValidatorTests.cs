@@ -255,19 +255,19 @@ public sealed class ConfigValidatorTests
     }
 
     [Fact]
-    public void Validate_RssModeInvalid_Throws()
+    public void Validate_FeedModeInvalid_Throws()
     {
-        var config = ConfigWithSite(s => s with { RssMode = "index" });
+        var config = ConfigWithSite(s => s with { Feed = s.Feed with { Mode = "index" } });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Equal("site.rssMode must be split|merged.", ex.Message);
+        Assert.Equal("site.feed configuration produced an invalid feed mode; expected split|merged.", ex.Message);
     }
 
     [Theory]
     [InlineData("split")]
     [InlineData("merged")]
-    public void Validate_RssModeValid_Passes(string mode)
+    public void Validate_FeedModeValid_Passes(string mode)
     {
-        var config = ConfigWithSite(s => s with { RssMode = mode });
+        var config = ConfigWithSite(s => s with { Feed = s.Feed with { Mode = mode } });
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);
     }
@@ -289,20 +289,20 @@ public sealed class ConfigValidatorTests
     }
 
     [Fact]
-    public void Validate_SearchModeInvalid_Throws()
+    public void Validate_SearchConfigModeInvalid_Throws()
     {
-        var config = ConfigWithSite(s => s with { SearchMode = "invalid" });
+        var config = ConfigWithSite(s => s with { Search = s.Search with { Mode = "invalid" } });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Equal("site.searchMode must be split|merged|index.", ex.Message);
+        Assert.Equal("site.search.mode must be split|merged|index.", ex.Message);
     }
 
     [Theory]
     [InlineData("split")]
     [InlineData("merged")]
     [InlineData("index")]
-    public void Validate_SearchModeValid_Passes(string mode)
+    public void Validate_SearchConfigModeValid_Passes(string mode)
     {
-        var config = ConfigWithSite(s => s with { SearchMode = mode });
+        var config = ConfigWithSite(s => s with { Search = s.Search with { Mode = mode } });
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);
     }
@@ -357,8 +357,6 @@ public sealed class ConfigValidatorTests
                 - type: markdown
                   name: page
                   collection: page
-                  markdown:
-                    dir: content
             build:
               output: dist
             """;
@@ -393,8 +391,6 @@ public sealed class ConfigValidatorTests
                 - type: markdown
                   name: page
                   collection: page
-                  markdown:
-                    dir: content
             build:
               output: dist
             """;
@@ -447,8 +443,6 @@ public sealed class ConfigValidatorTests
                 - type: markdown
                   name: page
                   collection: page
-                  markdown:
-                    dir: content
             build:
               output: dist
             """;
@@ -1207,6 +1201,31 @@ public sealed class ConfigValidatorTests
 
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);
+    }
+
+    [Fact]
+    public void Validate_ExternalPlugins_RelativeEntryPathTraversal_Rejected()
+    {
+        var config = ValidConfig() with
+        {
+            Site = ValidConfig().Site with
+            {
+                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sample"] = new()
+                    {
+                        Runtime = "process",
+                        Entry = "plugins/../outside/plugin.js",
+                        Hooks = new[] { "after-build" },
+                        Capabilities = new[] { "emit-outputs" },
+                        TimeoutMs = 5000
+                    }
+                }
+            }
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("must not contain '..' path traversal segments", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

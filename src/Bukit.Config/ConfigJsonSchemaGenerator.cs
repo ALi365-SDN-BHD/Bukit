@@ -45,11 +45,11 @@ public static class ConfigJsonSchemaGenerator
             ("language", StringSchema()),
             ("languages", StringArraySchema()),
             ("defaultLanguage", StringSchema()),
-            ("sitemapMode", EnumSchema("split", "root")),
+            ("sitemapMode", EnumSchema("split", "merged", "index")),
             ("searchIncludeDerived", BoolSchema()),
             ("externalProtocolIncludeRoutedPages", BoolSchema()),
-            ("pluginFailMode", EnumSchema("strict", "warn", "ignore")),
-            ("deriveConflictPolicy", EnumSchema("fail", "warn", "first", "last")),
+            ("pluginFailMode", EnumSchema("strict", "warn")),
+            ("deriveConflictPolicy", EnumSchema("fail", "warn", "last-wins")),
             ("timezone", StringSchema()),
             ("collections", CollectionSchema()),
             ("permalinks", Obj(("type", "object"))),
@@ -69,16 +69,10 @@ public static class ConfigJsonSchemaGenerator
         var schema = Obj(("type", "object"));
         schema["required"] = Arr("sources");
         schema["properties"] = Obj(
-            ("markdown", Obj(("type", "object"), ("properties", Obj(
-                ("dir", StringSchema()),
-                ("defaultType", StringSchema()),
-                ("maxItems", IntSchema(1)),
-                ("includePaths", StringArraySchema()),
-                ("includeGlobs", StringArraySchema()))))),
             ("media", MediaSchema()),
             ("modelSchema", ContentModelSchemaSchema()),
-            ("sources", Obj(("type", "array"), ("items", ContentSourceItemSchema()))),
-            ("notion", NotionSchema()));
+            ("sources", Obj(("type", "array"), ("items", ContentSourceItemSchema())))
+            );
         return schema;
     }
 
@@ -87,10 +81,10 @@ public static class ConfigJsonSchemaGenerator
             ("output", StringSchema()),
             ("clean", BoolSchema()),
             ("draft", BoolSchema()),
-            ("listPageContentMode", EnumSchema("auto", "summary", "none", "full")),
+            ("listPageContentMode", EnumSchema("auto", "always", "never")),
             ("schemaFailMode", EnumSchema("off", "warn", "strict")),
             ("report", BuildReportSchema()),
-            ("assetHashMode", EnumSchema("none", "query", "shortName", "size-time", "sha256")),
+            ("assetHashMode", EnumSchema("size-time", "sha256")),
             ("fingerprintMode", EnumSchema("size-time", "sha256")),
             ("publishDotFiles", BoolSchema()),
             ("followSymlinks", BoolSchema()),
@@ -219,11 +213,10 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject SearchDetailSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("mode", EnumSchema("split", "merged", "index")),
-            ("enabled", BoolSchema()),
-            ("template", StringSchema()),
-            ("preload", StringArraySchema()),
-            ("fields", StringArraySchema()),
-            ("minTermLength", IntSchema(1)))));
+            ("ui", StringSchema()),
+            ("uiTheme", EnumSchema("light", "dark", "auto")),
+            ("placeholderText", StringSchema()),
+            ("maxContentLength", IntSchema(1)))));
 
     private static JsonObject RelatedSchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -270,7 +263,8 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject BuildReportSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("outputPath", StringSchema()),
-            ("enabled", BoolSchema()))));
+            ("enabled", BoolSchema()),
+            ("securityFailMode", EnumSchema("auto", "off", "warn", "strict")))));
 
     private static JsonObject ComponentDefinitionSchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -314,13 +308,19 @@ public static class ConfigJsonSchemaGenerator
             ("allowHosts", StringArraySchema()))));
 
     private static JsonObject ContentSourceItemSchema()
-        => Obj(("type", "object"), ("required", Arr("provider")), ("properties", Obj(
-            ("provider", StringSchema()),
+        => Obj(("type", "object"), ("required", Arr("type")), ("properties", Obj(
+            ("type", EnumSchema("markdown", "notion")),
             ("name", StringSchema()),
-            ("dir", Obj(("type", "object"), ("properties", Obj(
-                ("maxItems", IntSchema(1)))))),
-            ("remote", Obj(("type", "object"))),
-            ("notion", Obj(("type", "object"))))));
+            ("mode", EnumSchema("content", "data")),
+            ("collection", StringSchema()),
+            ("addToCollections", StringArraySchema()),
+            ("markdown", Obj(("type", "object"), ("properties", Obj(
+                ("dir", StringSchema()),
+                ("defaultType", StringSchema()),
+                ("maxItems", IntSchema(1)),
+                ("includePaths", StringArraySchema()),
+                ("includeGlobs", StringArraySchema()))))),
+            ("notion", NotionSchema()))));
 
     private static JsonObject NotionSchema()
         => Obj(("type", "object"), ("properties", Obj(

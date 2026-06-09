@@ -17,14 +17,10 @@ public sealed class DefaultContentProviderFactoryTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-            Content = new ContentConfig
-            {
-                Provider = "sources",
-                Sources = new List<ContentSourceConfig>
-                {
-                    new ContentSourceConfig { Type = "markdown", Name = "content" }
-                }
-            }
+            Content = ContentConfigFactory.FromSources(
+            [
+                TestContent.MarkdownSource()
+            ])
         };
         var logger = new ConsoleLogger(LogLevel.Debug);
 
@@ -40,15 +36,11 @@ public sealed class DefaultContentProviderFactoryTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-            Content = new ContentConfig
-            {
-                Provider = "sources",
-                Sources = new List<ContentSourceConfig>
-                {
-                    new ContentSourceConfig { Type = "markdown", Name = "content" },
-                    new ContentSourceConfig { Type = "markdown", Name = "docs" }
-                }
-            }
+            Content = ContentConfigFactory.FromSources(
+            [
+                TestContent.MarkdownSource(collection: "content"),
+                TestContent.MarkdownSource(collection: "docs")
+            ])
         };
         var logger = new ConsoleLogger(LogLevel.Debug);
 
@@ -64,11 +56,7 @@ public sealed class DefaultContentProviderFactoryTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-            Content = new ContentConfig
-            {
-                Provider = "sources",
-                Sources = new List<ContentSourceConfig>()
-            }
+            Content = ContentConfigFactory.FromSources([])
         };
         var logger = new ConsoleLogger(LogLevel.Debug);
 
@@ -83,14 +71,10 @@ public sealed class DefaultContentProviderFactoryTests
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-            Content = new ContentConfig
-            {
-                Provider = "sources",
-                Sources = new List<ContentSourceConfig>
-                {
-                    new ContentSourceConfig { Type = "markdown", Name = "content" }
-                }
-            }
+            Content = ContentConfigFactory.FromSources(
+            [
+                TestContent.MarkdownSource()
+            ])
         };
         var logger = new ConsoleLogger(LogLevel.Debug);
 

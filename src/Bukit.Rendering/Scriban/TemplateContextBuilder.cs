@@ -20,6 +20,7 @@ internal sealed class TemplateContextBuilder
     private readonly IReadOnlyList<(ContentDocument Document, RouteInfo? Route)>? _allPages;
     private readonly IReadOnlyDictionary<string, ISectionPlugin>? _sectionPlugins;
     private readonly SectionRenderHelper.GetCachedSectionTemplate _getCachedSectionTemplate;
+    private readonly IReadOnlyList<ITemplateContextContributor> _contributors;
 
     public TemplateContextBuilder(
         FileTemplateLoader templateLoader,
@@ -30,7 +31,8 @@ internal sealed class TemplateContextBuilder
         string componentValidation,
         IReadOnlyList<(ContentDocument Document, RouteInfo? Route)>? allPages,
         IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins,
-        SectionRenderHelper.GetCachedSectionTemplate getCachedSectionTemplate)
+        SectionRenderHelper.GetCachedSectionTemplate getCachedSectionTemplate,
+        IReadOnlyList<ITemplateContextContributor>? contributors = null)
     {
         _templateLoader = templateLoader;
         _shortcodes = shortcodes;
@@ -41,6 +43,7 @@ internal sealed class TemplateContextBuilder
         _allPages = allPages;
         _sectionPlugins = sectionPlugins;
         _getCachedSectionTemplate = getCachedSectionTemplate;
+        _contributors = contributors ?? Array.Empty<ITemplateContextContributor>();
     }
 
     public TemplateContext BuildContext(ScriptObject globals)
@@ -113,6 +116,14 @@ internal sealed class TemplateContextBuilder
         utilObj.SetValue("titleize", new Func<string, string>(ComponentUtilityFunctions.Titleize), readOnly: true);
         utilObj.SetValue("slugify", new Func<string, string>(ComponentUtilityFunctions.Slugify), readOnly: true);
         context.PushGlobal(new ScriptObject { ["util"] = utilObj });
+
+        // Run all registered contributors before pushing model globals.
+        // This lets plugins inject custom template functions/objects without
+        // modifying this builder.
+        foreach (var contributor in _contributors)
+        {
+            contributor.Contribute(context, globals);
+        }
 
         context.PushGlobal(globals);
 

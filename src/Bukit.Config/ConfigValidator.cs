@@ -33,8 +33,10 @@ public static class ConfigValidator
         if (config.Content.Sources is { Count: > 0 })
         {
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var source in config.Content.Sources)
+            for (var i = 0; i < config.Content.Sources.Count; i++)
             {
+                var source = config.Content.Sources[i];
+                var sourcePath = $"content.sources[{i}]";
                 if (string.IsNullOrWhiteSpace(source.Type))
                 {
                     throw new ConfigException("content.sources[].type is required.", DiagnosticCode.ConfigRequiredFieldMissing);
@@ -67,7 +69,7 @@ public static class ConfigValidator
                         throw new ConfigException("content.sources[].notion is required when type is notion.", DiagnosticCode.ConfigRequiredFieldMissing);
                     }
 
-                    ProviderValidators.ValidateNotion(source.Notion);
+                    ProviderValidators.ValidateNotion(source.Notion, $"{sourcePath}.notion");
                     continue;
                 }
 
@@ -78,7 +80,7 @@ public static class ConfigValidator
                         throw new ConfigException("content.sources[].markdown is required when type is markdown.", DiagnosticCode.ConfigRequiredFieldMissing);
                     }
 
-                    ProviderValidators.ValidateMarkdown(source.Markdown);
+                    ProviderValidators.ValidateMarkdown(source.Markdown, $"{sourcePath}.markdown");
                     continue;
                 }
 
@@ -132,6 +134,12 @@ public static class ConfigValidator
         if (fingerprintMode is not ("size-time" or "sha256"))
         {
             throw new ConfigException("build.fingerprintMode must be size-time|sha256.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        var securityFailMode = (config.Build.Report.SecurityFailMode ?? "auto").Trim().ToLowerInvariant();
+        if (securityFailMode is not ("auto" or "off" or "warn" or "strict"))
+        {
+            throw new ConfigException("build.report.securityFailMode must be auto|off|warn|strict.", DiagnosticCode.ConfigInvalidValue);
         }
 
         var loggingLevel = (config.Logging.Level ?? "info").Trim().ToLowerInvariant();

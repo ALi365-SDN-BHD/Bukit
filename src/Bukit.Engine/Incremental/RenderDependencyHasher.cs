@@ -37,9 +37,9 @@ internal static class RenderDependencyHasher
         hasher.AppendData(newline);
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.SitemapMode);
         hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.RssMode);
+        IncrementalBuildEngine.AppendUtf8(hasher, SiteModeResolver.ResolveFeedMode(config.Site));
         hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.SearchMode);
+        IncrementalBuildEngine.AppendUtf8(hasher, SiteModeResolver.ResolveSearchMode(config.Site));
         hasher.AppendData(newline);
 
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Analytics.Enabled.ToString());

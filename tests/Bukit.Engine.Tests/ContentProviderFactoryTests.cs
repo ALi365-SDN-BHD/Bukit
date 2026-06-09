@@ -21,14 +21,10 @@ public sealed class ContentProviderFactoryTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-                Content = new ContentConfig
-                {
-                    Provider = "sources",
-                    Sources = new List<ContentSourceConfig>
-                    {
-                        new ContentSourceConfig { Type = "markdown", Name = "content" }
-                    }
-                }
+                Content = ContentConfigFactory.FromSources(
+                [
+                    TestContent.MarkdownSource()
+                ])
             };
             var logger = new ConsoleLogger(LogLevel.Debug);
 
@@ -60,15 +56,11 @@ public sealed class ContentProviderFactoryTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-                Content = new ContentConfig
-                {
-                    Provider = "sources",
-                    Sources = new List<ContentSourceConfig>
-                    {
-                        new ContentSourceConfig { Type = "markdown", Name = "posts", Markdown = new MarkdownConfig { Dir = "content/posts" } },
-                        new ContentSourceConfig { Type = "markdown", Name = "pages", Markdown = new MarkdownConfig { Dir = "content/pages" } }
-                    }
-                }
+                Content = ContentConfigFactory.FromSources(
+                [
+                    TestContent.MarkdownSource("content/posts", "posts"),
+                    TestContent.MarkdownSource("content/pages", "pages")
+                ])
             };
             var logger = new ConsoleLogger(LogLevel.Debug);
 
@@ -96,11 +88,7 @@ public sealed class ContentProviderFactoryTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-                Content = new ContentConfig
-                {
-                    Provider = "sources",
-                    Sources = new List<ContentSourceConfig>()
-                }
+                Content = ContentConfigFactory.FromSources([])
             };
             var logger = new ConsoleLogger(LogLevel.Debug);
 
@@ -183,19 +171,10 @@ public sealed class ContentProviderFactoryTests
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-                Content = new ContentConfig
-                {
-                    Provider = "sources",
-                    Sources = new List<ContentSourceConfig>
-                    {
-                        new ContentSourceConfig
-                        {
-                            Type = "notion",
-                            Name = "db",
-                            Notion = new NotionConfig { DatabaseId = "test-db-id" }
-                        }
-                    }
-                }
+                Content = ContentConfigFactory.FromSources(
+                [
+                    TestContent.NotionSource("test-db-id", "db")
+                ])
             };
             var logger = new ConsoleLogger(LogLevel.Debug);
 

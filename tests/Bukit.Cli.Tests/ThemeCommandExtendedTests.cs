@@ -676,6 +676,29 @@ version: 1.0.0
     }
 
     [Fact]
+    public async Task ThemeInstall_UrlToLoopback_IsBlockedBeforeDownload()
+    {
+        var error = new StringWriter();
+        var originalError = Console.Error;
+        try
+        {
+            Console.SetError(error);
+            var exitCode = await ThemeInstallCommand.RunAsync(CliTestHelper.CreateCommand("theme", new[]
+            {
+                "theme", "install", "http://127.0.0.1:1/theme.tar.gz", "--config", _configPath
+            }));
+
+            Assert.Equal(2, exitCode);
+        }
+        finally
+        {
+            Console.SetError(originalError);
+        }
+
+        Assert.Contains("SSRF blocked", error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ThemeInstall_UnsafeManifestName_ReturnsTwoAndDoesNotWriteOutsideThemes()
     {
         var archive = Path.Combine(_rootDir, "unsafe.tar.gz");
@@ -873,6 +896,46 @@ themes:
         finally
         {
             TestCleanup.DeleteFile(path);
+        }
+    }
+
+    [Fact]
+    public async Task ThemeRegistryCommand_LoadRegistryDetailedAsync_UsesCacheFallbackWithDiagnostic()
+    {
+        var cacheFile = ThemeRegistryCommand.CacheFilePath;
+        var cacheDir = Path.GetDirectoryName(cacheFile)!;
+        Directory.CreateDirectory(cacheDir);
+        var previous = File.Exists(cacheFile) ? await File.ReadAllTextAsync(cacheFile) : null;
+
+        try
+        {
+            await File.WriteAllTextAsync(cacheFile, """
+                registry:
+                  updated: "2026-01-01T00:00:00Z"
+                themes:
+                  - name: cached-theme
+                    version: 1.0.0
+                    download:
+                      url: https://example.com/cached.tar.gz
+                """);
+
+            var result = await ThemeRegistryCommand.LoadRegistryDetailedAsync("https://invalid.url/registry.yaml", forceRefresh: true);
+
+            Assert.NotNull(result.Index);
+            Assert.Contains(result.Diagnostics, x => x.Code == "BKT-THEME-REGISTRY-0004");
+            Assert.Contains(result.Diagnostics, x => x.Code == "BKT-THEME-REGISTRY-0001" || x.Code == "BKT-THEME-REGISTRY-0002");
+            Assert.Equal("cached-theme", Assert.Single(result.Index!.Themes).Name);
+        }
+        finally
+        {
+            if (previous is null)
+            {
+                TestCleanup.DeleteFile(cacheFile);
+            }
+            else
+            {
+                await File.WriteAllTextAsync(cacheFile, previous);
+            }
         }
     }
 

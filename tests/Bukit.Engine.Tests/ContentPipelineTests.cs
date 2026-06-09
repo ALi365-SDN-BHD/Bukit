@@ -225,10 +225,8 @@ public sealed class ContentPipelineTests
                     }
                 }
             },
-            Content = new ContentConfig
+            Content = TestContent.Markdown() with
             {
-                Provider = "markdown",
-                Sources = TestContent.Markdown().Sources,
                 ModelSchema = new ContentModelSchemaConfig
                 {
                     FieldScopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>(StringComparer.OrdinalIgnoreCase)
