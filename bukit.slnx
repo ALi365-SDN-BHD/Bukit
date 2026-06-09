@@ -21,6 +21,7 @@
     <Project Path="tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj" />
     <Project Path="tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj" />
     <Project Path="tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj" />
+    <Project Path="tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj" />
     <Project Path="tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj" />
     <Project Path="tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj" />
     <Project Path="tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj" />

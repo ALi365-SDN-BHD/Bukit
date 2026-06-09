@@ -21,4 +21,10 @@
     <InternalsVisibleTo Include="Bukit.Theme.Benchmarks" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Bukit.Routing.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>
