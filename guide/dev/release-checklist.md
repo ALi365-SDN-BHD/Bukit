@@ -26,10 +26,10 @@ Run this checklist before every public release (preview, beta, or stable).
 - [ ] Webhook token examples use placeholders only (e.g., `YOUR_WEBHOOK_SECRET`)
 - [ ] All image URLs are relative or from allowed domains
 
-## Public Preview
+## Stability Scope
 
 - [ ] `public-preview-scope.md` is up to date
-- [ ] Experimental features are clearly marked as such
+- [ ] Preview features are clearly marked
 - [ ] Roadmap does not over-promise undelivered capabilities
 - [ ] Project status section (in root README) is accurate
 

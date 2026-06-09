@@ -26,10 +26,10 @@
 - [ ] Webhook token 示例只使用占位符（如 `YOUR_WEBHOOK_SECRET`）
 - [ ] 所有图片 URL 为相对路径或来自允许的域名
 
-## 公开测试
+## 稳定性范围
 
 - [ ] `public-preview-scope.zh-CN.md` 保持最新
-- [ ] 实验性功能已明确标注
+- [ ] 预览功能已明确标注
 - [ ] Roadmap 未过度承诺未交付的能力
 - [ ] 根 README 中的项目状态章节准确
 

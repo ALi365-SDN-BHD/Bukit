@@ -68,7 +68,7 @@ If you maintain Bukit in a skill-aware environment such as Trae, Claude Code, Co
 - [Testing and smoke acceptance](./testing-smoke.md)
 - [Documentation governance](./documentation-governance.md)
 - [Release checklist](./release-checklist.md)
-- [Public preview scope](./public-preview-scope.md)
+- [Stability scope](./public-preview-scope.md)
 
 ## How to Use Other Docs in This Repository
 

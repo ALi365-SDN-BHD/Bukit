@@ -26,10 +26,10 @@ Jalankan senarai semak ini sebelum setiap terbitan awam (preview, beta, atau sta
 - [ ] Contoh token webhook menggunakan pemegang tempat sahaja (cth. `YOUR_WEBHOOK_SECRET`)
 - [ ] Semua URL imej adalah relatif atau dari domain yang dibenarkan
 
-## Pratonton Awam
+## Skop Kestabilan
 
 - [ ] `public-preview-scope.ms.md` adalah terkini
-- [ ] Ciri eksperimen ditandakan dengan jelas
+- [ ] Ciri pratonton ditandakan dengan jelas
 - [ ] Peta jalan tidak terlalu menjanjikan keupayaan yang belum dihantar
 - [ ] Bahagian status projek (dalam README akar) adalah tepat
 

@@ -68,7 +68,7 @@
 - [测试与 smoke 验收](./testing-smoke.zh-CN.md)
 - [文档治理规则](./documentation-governance.zh-CN.md)
 - [发布检查清单](./release-checklist.zh-CN.md)
-- [公开测试范围](./public-preview-scope.zh-CN.md)
+- [稳定性范围](./public-preview-scope.zh-CN.md)
 
 ## 如何使用仓库中的其他文档
 

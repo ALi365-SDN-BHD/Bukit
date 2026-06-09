@@ -9,7 +9,17 @@ permissions:
   contents: write
 
 jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: bash scripts/release-gate.sh Release
+
   build:
+    needs: release-gate
     strategy:
       fail-fast: false
       matrix:
@@ -78,19 +88,10 @@ jobs:
         with:
           name: bukit-${{ matrix.rid }}
           path: bukit-${{ steps.version.outputs.version }}-${{ matrix.rid }}${{ matrix.ext }}
-  release-gate:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-      - run: bash scripts/release-gate.sh Release
 
   release:
     if: github.ref_type == 'tag'
-    needs: [build, release-gate]
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

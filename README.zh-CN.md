@@ -84,7 +84,7 @@ dotnet run --project src/Bukit.Cli -c Release -- preview --dir examples/starter/
 
 ## Notion CMS 工作流
 
-- 在 `site.yaml` 中设置 `content.provider: notion`
+- 在 `content.sources[]` 中添加 `notion` 源（参见[配置参考](guide/user/04-site-yaml-config.zh-CN.md)）
 - 通过环境变量提供 Token：`NOTION_TOKEN`（切勿写在 `site.yaml` 中）
 - 默认数据库字段：`Published`（checkbox）、`Title`、`Slug`、`Type`（post/page）、`PublishAt`
 - 完整指南：[`guide/user/06-notion-content.zh-CN.md`](guide/user/06-notion-content.zh-CN.md)

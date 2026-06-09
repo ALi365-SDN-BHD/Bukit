@@ -84,7 +84,7 @@ For a full walkthrough, see the [Quick Start guide](guide/user/01-quick-start.md
 
 ## Notion CMS Workflow
 
-- Set `content.provider: notion` in `site.yaml`
+- Add a `notion` source in `content.sources[]` (see [config reference](guide/user/04-site-yaml-config.md))
 - Provide your token as an environment variable: `NOTION_TOKEN` (never in `site.yaml`)
 - Default database fields: `Published` (checkbox), `Title`, `Slug`, `Type` (post/page), `PublishAt`
 - Full guide: [`guide/user/06-notion-content.md`](guide/user/06-notion-content.md)

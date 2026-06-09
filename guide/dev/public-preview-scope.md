@@ -1,8 +1,8 @@
-# Public Preview Scope
+# Bukit Core 1.0 Stability Scope
 
-This document defines which Bukit capabilities are ready for public preview and which remain experimental.
+This document defines the stability commitment for Bukit Core 1.0 and which capabilities remain in preview.
 
-## Recommended for Public Preview
+## Stable in Bukit Core 1.0
 
 | Capability | Description |
 |---|---|
@@ -17,15 +17,16 @@ This document defines which Bukit capabilities are ready for public preview and 
 | External plugins (AOT-safe) | Plugin protocol for built-in style extensions |
 | Incremental build | `--incremental` flag with manifest-based skipping |
 
-## Preview / Experimental
+## Preview / Next Stage
 
 | Capability | Status |
 |---|---|
-| Theme registry | Experimental — theme discovery, search, and registry install are not covered by the Bukit 1.0 GA compatibility promise |
+| Theme registry | Preview — theme discovery, search, and registry install are not covered by the Bukit Core 1.0 stability commitment |
 | Clone-to-theme workflow | Preview — browser extraction to theme generation |
-| External plugin ecosystem (non-AOT) | Experimental — dynamic plugin loading |
-| Advanced AI automation | Experimental — multi-step AI build pipelines |
-| BukitJalil local control panel | Experimental — local web UI for site management |
+| Import html-demo workflow | Preview — HTML import to theme generation |
+| External plugin ecosystem (non-AOT) | Preview — dynamic plugin loading |
+| Advanced AI automation | Preview — multi-step AI build pipelines |
+| BukitJalil local control panel | Preview — local web UI for site management |
 
 ## Not Included (Not on Roadmap)
 

@@ -84,7 +84,7 @@ Untuk panduan lengkap, lihat [Panduan Mula Pantas](guide/user/01-quick-start.ms.
 
 ## Aliran Kerja Notion CMS
 
-- Tetapkan `content.provider: notion` dalam `site.yaml`
+- Tambah sumber `notion` dalam `content.sources[]` (lihat [rujukan konfigurasi](guide/user/04-site-yaml-config.ms.md))
 - Sediakan token anda sebagai pemboleh ubah persekitaran: `NOTION_TOKEN` (jangan letak dalam `site.yaml`)
 - Medan pangkalan data lalai: `Published` (checkbox), `Title`, `Slug`, `Type` (post/page), `PublishAt`
 - Panduan penuh: [`guide/user/06-notion-content.ms.md`](guide/user/06-notion-content.ms.md)

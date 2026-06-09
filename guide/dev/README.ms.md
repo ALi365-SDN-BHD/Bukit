@@ -68,7 +68,7 @@ Jika anda menyelenggara Bukit dalam persekitaran yang menyokong skill seperti Tr
 - [Pengujian dan smoke acceptance](./testing-smoke.ms.md)
 - [Tadbir urus dokumentasi](./documentation-governance.ms.md)
 - [Senarai semak terbitan](./release-checklist.ms.md)
-- [Skop pratonton awam](./public-preview-scope.ms.md)
+- [Skop kestabilan](./public-preview-scope.ms.md)
 
 ## Cara Menggunakan Dokumen Lain Dalam Repositori Ini
 
