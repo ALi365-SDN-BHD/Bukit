@@ -111,15 +111,36 @@ See [`guide/user/13-deploy-github-pages.md`](guide/user/13-deploy-github-pages.m
 
 ## Project Status
 
-**Bukit is in public preview.** It is suitable for:
+**Bukit Core 1.0 Stable**
 
-- Local static site generation from Markdown and Notion
+Stability commitments:
+
+- CLI: build / doctor / config / preview / clean
+- `content.sources[]` config contract
+- Markdown source
+- Notion source
+- `content.media`
+- collection-based routing
+- Scriban rendering
+- safe output filesystem
+- SEO / RSS / sitemap / JSON Feed
+- GEO / `llms.txt` / publish audit
+- build reports
+- incremental build
+- Native AOT CLI
 - GitHub Pages deployment
-- Theme development and customization
-- SEO/GEO output validation
-- AI Agent-assisted site building
 
-**Still evolving:** theme registry, clone-to-theme workflow, external plugin ecosystem, BukitJalil local control panel, and advanced AI intent workflows. These features are not yet stable.
+**Next Stage / Preview**
+
+Not in the 1.0 stability commitment:
+
+- theme registry
+- clone-to-theme
+- import html-demo workflow
+- external plugin ecosystem
+- plugin marketplace
+- BukitJalil
+- advanced AI automation
 
 ## Roadmap
 

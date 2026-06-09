@@ -111,15 +111,36 @@ Lihat [`guide/user/13-deploy-github-pages.ms.md`](guide/user/13-deploy-github-pa
 
 ## Status Projek
 
-**Bukit kini dalam pratonton awam.** Ia sesuai untuk:
+**Bukit Core 1.0 Stable**
 
-- Penjanaan tapak statik setempat daripada Markdown dan Notion
+Komitmen kestabilan:
+
+- CLI: build / doctor / config / preview / clean
+- Kontrak konfigurasi `content.sources[]`
+- Sumber Markdown
+- Sumber Notion
+- `content.media`
+- Penghalaan berasaskan koleksi
+- Rendering Scriban
+- Sistem fail output selamat
+- SEO / RSS / sitemap / JSON Feed
+- GEO / `llms.txt` / audit terbitan
+- Laporan binaan
+- Binaan inkremental
+- CLI Native AOT
 - Deployan GitHub Pages
-- Pembangunan dan penyesuaian tema
-- Pengesahan output SEO/GEO
-- Pembinaan tapak berbantu Ejen AI
 
-**Masih berkembang:** pendaftaran tema, aliran kerja klon-ke-tema, ekosistem plugin luaran, panel kawalan BukitJalil, dan aliran kerja intent AI lanjutan. Ciri-ciri ini belum stabil.
+**Next Stage / Preview**
+
+Tidak termasuk dalam komitmen kestabilan 1.0:
+
+- Pendaftaran tema
+- clone-to-theme
+- Aliran kerja import html-demo
+- Ekosistem plugin luaran
+- Pasaran plugin
+- BukitJalil
+- Automasi AI lanjutan
 
 ## Pelan Hala Tuju
 

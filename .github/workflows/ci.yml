@@ -58,6 +58,8 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - run: dotnet publish src/Bukit.Cli/Bukit.Cli.csproj -c Release -p:PublishAot=true
+      - if: matrix.os == 'ubuntu-latest'
+        run: bash scripts/check-aot-warnings.sh linux-x64
 
   stress-cli:
     if: github.event_name == 'workflow_dispatch'
