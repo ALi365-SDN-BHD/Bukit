@@ -111,15 +111,36 @@ GitHub Actions 工作流模板位于 [`.github/workflows/release.yml`](.github/w
 
 ## 项目状态
 
-**Bukit 当前处于公开预览阶段。** 适用于：
+**Bukit Core 1.0 Stable**
 
-- 基于 Markdown 和 Notion 的本地静态站点生成
+稳定承诺：
+
+- CLI: build / doctor / config / preview / clean
+- `content.sources[]` 配置契约
+- Markdown 内容源
+- Notion 内容源
+- `content.media`
+- 基于集合的路由
+- Scriban 渲染
+- 安全输出文件系统
+- SEO / RSS / sitemap / JSON Feed
+- GEO / `llms.txt` / publish audit
+- 构建报告
+- 增量构建
+- Native AOT CLI
 - GitHub Pages 部署
-- 主题开发与定制
-- SEO/GEO 输出验证
-- AI Agent 辅助建站
 
-**仍在演进中：** 主题注册表、克隆主题工作流、外部插件生态、BukitJalil 本地控制面板、高级 AI 意图工作流。这些功能尚未稳定。
+**Next Stage / Preview**
+
+不纳入 1.0 稳定承诺：
+
+- 主题注册表
+- clone-to-theme
+- import html-demo 工作流
+- 外部插件生态
+- 插件市场
+- BukitJalil
+- 高级 AI 自动化
 
 ## 路线图
 
