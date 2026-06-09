@@ -1,1 +1,0 @@
-[{"id":"index","title":"Safe URL Test","url":"/index/","content":"This page contains URLs that should be tested for safety.   javascript:alert(1) data:text/html file:///etc/passwd vbscript:msgbox(1) //evil.com  https://safe.example.com  /assets/local.png","type":"page","language":null,"sourceKey":"markdown","publishAt":"2026-05-30T13:36:02.8203541\u002B00:00"}]

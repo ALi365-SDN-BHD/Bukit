@@ -1,5 +1,0 @@
-﻿# Basic Test
-## Pages
-
-- [Hello Bukit](https://example.com/index/)
-

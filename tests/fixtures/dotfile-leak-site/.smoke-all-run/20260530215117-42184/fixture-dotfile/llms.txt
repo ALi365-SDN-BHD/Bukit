@@ -1,5 +1,0 @@
-﻿# Dotfile Leak Test
-## Pages
-
-- [Dotfile Leak Test](https://example.com/index/)
-

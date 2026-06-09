@@ -1,5 +1,0 @@
-﻿# Incremental Test
-## Pages
-
-- [Incremental Test](https://example.com/index/)
-

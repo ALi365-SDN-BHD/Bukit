@@ -1,5 +1,0 @@
-﻿# Component Test
-## Pages
-
-- [Component Test](https://example.com/index/)
-

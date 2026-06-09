@@ -1,5 +1,0 @@
-﻿# Output Safety
-## Pages
-
-- [Output Safety Test](https://example.com/index/)
-

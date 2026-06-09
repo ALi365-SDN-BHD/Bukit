@@ -1,5 +1,0 @@
-﻿# I18N Test
-## Pages
-
-- [Chinese Page](https://example.com/index/)
-

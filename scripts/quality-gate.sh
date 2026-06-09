@@ -62,6 +62,9 @@ if [ -n "$new_oversized" ]; then
     exit 1
 fi
 
+# --- Repo hygiene (no smoke/debug build artifacts tracked) ---
+bash scripts/check-repo-hygiene.sh
+
 # --- Encoding check (UTF-8 validity + mojibake detection) ---
 bash scripts/check-encoding.sh
 

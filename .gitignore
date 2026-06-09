@@ -44,6 +44,11 @@ publish/
 /examples/docs-site/.smoke-all-run/
 /examples/plugin-site/.smoke-all-run/
 /examples/theme-inheritance-site/.smoke-all-run/
+**/.smoke-all-run-debug/
+tests/fixtures/**/.smoke-all-run/
+examples/starter/.sitegen-smoke-ai-*.yaml
+**/.bukit-build-state.json
+**/.bukit-output-marker
 /sites/
 /themes/
 /tmp-smoke-input/
