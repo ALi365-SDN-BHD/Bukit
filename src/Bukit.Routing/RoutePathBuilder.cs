@@ -51,7 +51,6 @@ public static class RoutePathBuilder
             outputPath = outputPath.TrimEnd('/') + "/index.html";
         }
 
-        outputPath = outputPath.Replace('/', Path.DirectorySeparatorChar);
         return NormalizeOutputPath(outputPath, outputPathEncoding);
     }
 

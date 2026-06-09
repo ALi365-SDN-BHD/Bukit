@@ -30,7 +30,7 @@ public sealed class RoutePathBuilderTests
     public void BuildOutputPathFromUrl_DefaultEncoding(string url, string expected)
     {
         var result = RoutePathBuilder.BuildOutputPathFromUrl(url);
-        Assert.EndsWith(expected.Replace('/', System.IO.Path.DirectorySeparatorChar), result);
+        Assert.EndsWith(expected, result);
     }
 
     [Theory]
@@ -40,7 +40,7 @@ public sealed class RoutePathBuilderTests
     {
         var url = "/hello-world/";
         var result = RoutePathBuilder.BuildOutputPathFromUrl(url, encoding);
-        Assert.EndsWith(expected.Replace('/', System.IO.Path.DirectorySeparatorChar), result);
+        Assert.EndsWith(expected, result);
     }
 
     [Fact]
