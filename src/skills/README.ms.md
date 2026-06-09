@@ -99,10 +99,10 @@ src/skills/
 | Platform | Cara Memuatkan | Perintah Contoh |
 |----------|---------------|----------------|
 | **Trae** | Auto-penemuan melalui `.trae/rules/project_rules.md` | `"using bukit, bantu saya bina blog"` |
-| **Claude Code** | `CLAUDE.md` akar auto-dimuat; atau `claude plugins install src/skills` | `"using bukit, deploy ke GitHub Pages"` |
-| **Codex CLI** | Baca fail kemahiran secara natif; mulakan dengan `AGENTS.md` | `"tolong konfigurasi site.yaml untuk blog"` |
+| **Claude Code** | `claude plugins install src/skills` | `"using bukit, deploy ke GitHub Pages"` |
+| **Codex CLI** | Baca fail kemahiran secara natif; lihat `src/skills/AGENTS.md` | `"tolong konfigurasi site.yaml untuk blog"` |
 | **Copilot CLI** | `copilot plugin install src/skills` | `"using bukit, cipta tema tersuai"` |
-| **Gemini CLI** | `activate_skill("using-bukit")` melalui `GEMINI.md` | `"sediakan tapak berbilang bahasa"` |
+| **Gemini CLI** | `activate_skill("using-bukit")` melalui `src/skills/GEMINI.md` | `"sediakan tapak berbilang bahasa"` |
 
 ### Mulakan Dengan Pantas
 

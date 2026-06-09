@@ -96,8 +96,6 @@ src/skills/
     └── generate-index-json.sh   ← CI：YAML → JSON 转换
 ```
 
-仓库根目录也放置了轻量引用文件（`CLAUDE.md`、`AGENTS.md`、`GEMINI.md`、`.github/copilot-instructions.md`），用于满足各平台在根目录查找入口文件的约定，内容指向 `src/skills/` 中的完整版本。
-
 ### 各平台使用方式
 
 #### Trae
@@ -111,10 +109,7 @@ Trae 通过 `.trae/rules/project_rules.md` 自动发现技能。无需额外配�
 
 #### Claude Code
 
-**方式 A — 项目级加载（自动）：**
-根目录的 `CLAUDE.md` 会在会话启动时自动加载，它重定向到 `src/skills/CLAUDE.md`（完整规则）。无需任何操作——在 Claude Code 中打开此仓库即可。
-
-**方式 B — 插件安装（推荐给 Bukit 用户）：**
+**插件安装（推荐给 Bukit 用户）：**
 ```bash
 # 以 Claude Code 插件方式安装
 claude plugins install src/skills
@@ -127,7 +122,7 @@ claude plugins install github.com/ALi365-SDN-BHD/Bukit
 
 #### Codex CLI
 
-Codex 原生加载技能文件——没有 `Skill` 工具。根目录的 `AGENTS.md` 会被自动检测，它告诉 Codex 读取 `src/skills/AGENTS.md` 的完整内容。
+Codex 原生加载技能文件——没有 `Skill` 工具。读取 `src/skills/AGENTS.md` 了解完整加载规则。
 
 ```bash
 # 在 Codex CLI 会话中，直接提到 Bukit：
@@ -139,7 +134,7 @@ Codex 原生加载技能文件——没有 `Skill` 工具。根目录的 `AGENTS
 
 #### Copilot CLI
 
-Copilot 通过 `plugin.json` 发现技能。根目录 `.github/copilot-instructions.md` 重定向到 `src/skills/copilot-instructions.md`。
+Copilot 通过 `plugin.json` 发现技能。参见 `src/skills/copilot-instructions.md` 了解 Copilot 特有指引。
 
 ```bash
 # 安装插件
@@ -151,7 +146,7 @@ copilot "using bukit，帮我把站点部署到 GitHub Pages"
 
 #### Gemini CLI
 
-Gemini CLI 通过 `activate_skill` 激活技能。根目录的 `GEMINI.md` 重定向到 `src/skills/GEMINI.md`，其中列出了所有可用技能和触发关键词。
+Gemini CLI 通过 `activate_skill` 激活技能。参见 `src/skills/GEMINI.md` 获取全部技能列表与触发关键词。
 
 ```bash
 # 在 Gemini CLI 会话中，直接提到 Bukit：
@@ -164,7 +159,7 @@ Gemini CLI 通过 `activate_skill` 激活技能。根目录的 `GEMINI.md` 重�
 
 - **查询技能元数据**：名称、类型、触发条件、依赖关系、用户指南章节对照
 - **解析依赖链**：每个技能声明了 `requires` 列表；`workflows` 章节定义了常见任务链
-- **生成平台入口**：该目录驱动所有平台入口文件（CLAUDE.md、AGENTS.md 等）
+- **生成平台入口**：该目录驱动所有平台入口文件
 
 ```bash
 # 用 yq 解析

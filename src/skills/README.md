@@ -110,8 +110,6 @@ src/skills/
     └── generate-index-json.sh   ← CI: YAML → JSON conversion
 ```
 
-The root of the repository also contains lightweight redirect files (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`) that satisfy each platform's root-level convention and point to the full files here.
-
 ### Per-Platform Usage
 
 #### Trae
@@ -125,10 +123,7 @@ Trae auto-discovers skills via `.trae/rules/project_rules.md`. No extra configur
 
 #### Claude Code
 
-**Option A — Project-level (automatic):**
-The root `CLAUDE.md` file is auto-loaded at session start. It redirects to `src/skills/CLAUDE.md` which contains the full loading rules. No action needed — just open this repository in Claude Code.
-
-**Option B — Plugin installation (recommended for Bukit users):**
+**Plugin installation:**
 ```bash
 # Install the skills as a Claude Code plugin
 claude plugins install src/skills
@@ -141,7 +136,7 @@ After installation, all 20 Bukit skills become available via the `Skill` tool wh
 
 #### Codex CLI
 
-Codex loads skills natively — there is no `Skill` tool. The root `AGENTS.md` is auto-detected. It tells Codex to read the full file at `src/skills/AGENTS.md`.
+Codex loads skills natively — there is no `Skill` tool. Read `src/skills/AGENTS.md` for the full loading rules.
 
 ```bash
 # In a Codex CLI session, just mention Bukit:
@@ -153,7 +148,7 @@ Codex loads skills natively — there is no `Skill` tool. The root `AGENTS.md` i
 
 #### Copilot CLI
 
-Copilot discovers skills via `plugin.json`. The root `.github/copilot-instructions.md` redirects to `src/skills/copilot-instructions.md`.
+Copilot discovers skills via `plugin.json`. See `src/skills/copilot-instructions.md` for Copilot-specific instructions.
 
 ```bash
 # Install the plugin
@@ -165,7 +160,7 @@ copilot "using bukit, deploy my site to GitHub Pages"
 
 #### Gemini CLI
 
-Gemini CLI activates skills via `activate_skill`. The root `GEMINI.md` redirects to `src/skills/GEMINI.md` which lists all available skills and trigger keywords.
+Gemini CLI activates skills via `activate_skill`. See `src/skills/GEMINI.md` for the full skill list and trigger keywords.
 
 ```bash
 # In a Gemini CLI session, just mention Bukit:
