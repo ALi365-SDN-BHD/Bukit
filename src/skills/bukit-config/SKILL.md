@@ -33,7 +33,7 @@ guide_chapters:
 | Node | Responsibility | Key Fields |
 |------|------|---------|
 | `site` | Site metadata and global behavior | name, title, url, baseUrl, language, collections, plugins, externalPlugins, feed, sitemapDetail, related, menus, search, pagination |
-| `content` | Content source definition | sources, media |
+| `content` | Content source definition | sources, media, modelSchema |
 | `build` | Build behavior | output, clean, draft, listPageContentMode, assetHashMode |
 | `theme` | Theme configuration | name, layouts, assets, static, params |
 | `taxonomy` | Taxonomy configuration | template, kinds, pageSize, outputMode |
@@ -201,7 +201,7 @@ theme:
 | `externalProtocolIncludeRoutedPages` | bool | false | Whether external protocol plugins receive routed pages |
 | `collections` | map | — | Collection route definitions |
 | `plugins` | map | — | Plugin toggles (`{pluginName: {enabled: false}}`). Key `feed` replaces old `rss` |
-| `externalPlugins` | map | — | External plugin configuration. Each entry supports `runtime`, `entry`, `hooks`, `timeoutMs`, `maxStdoutBytes`/`maxStderrBytes` (output byte limits), `allowEnvironment` (list of host env vars to expose), and `capabilities` (list of required capabilities: `emit-outputs`, `derive-pages`). When `capabilities` is declared, the plugin is **enforced** at runtime — if its hooks don't match declared capabilities, the build fails. |
+| `externalPlugins` | map | — | External plugin configuration. Each entry supports `runtime`, `entry`, `hooks`, `timeoutMs`, `maxStdoutBytes`/`maxStderrBytes` (output byte limits), `allowEnvironment` (list of host env vars to expose), `capabilities` (list of required capabilities: `emit-outputs`, `derive-pages`), `templateRequirements` (list of template file paths the plugin requires), and `allowAbsoluteEntry`/`sha256`/`options`. When `capabilities` is declared, the plugin is **enforced** at runtime — if its hooks don't match declared capabilities, the build fails. |
 | `externalPluginPolicy` | string | `warn` | External plugin safety policy: `deny` (block all), `warn` (load with warning, default), `allow` (load silently). Invalid values throw `ConfigException` with `BKT-0002`. |
 | `feed` | map | — | Feed config: `formats`, `limit`, `path` |
 | `sitemapDetail` | map | — | Sitemap detail: `defaultPriority`, `defaultChangefreq`, `imageEnabled`, `videoEnabled` |
@@ -713,6 +713,35 @@ content:
 ```
 
 Scoped fields now live under `content.modelSchema.fieldScopes.<collection>`; the old collection-level `schema` key is removed in vNext. Supported field keys: `name`, `type`/`fieldType`, `label`, `required`, `default`, `enum`, `format`, `min`, `max`, `semanticType`, `sourcePolicy`, and `reference`. Type values include `string|text`, `number`, `bool`, `date`, and `array`; formats include `url`/`uri`, `email`, `date`/`datetime`, and `slug`; defaults are applied before schema validation.
+
+### Content Model Schema Field Reference
+
+The full `content.modelSchema` surface from `ContentModelSchemaConfig`:
+
+| Field | Type | Default | Description |
+|------|------|--------|-------------|
+| `contentTypes` | string[] | — | Allowed content types |
+| `statuses` | string[] | — | Allowed status values |
+| `reviewStatuses` | string[] | — | Allowed review status values |
+| `syncStatuses` | string[] | — | Allowed sync status values |
+| `canonicalMappings` | array | — | Maps raw keys to canonical field names |
+| `customFields` | array | — | Custom field definitions with type, enum, format, range |
+| `fieldScopes` | map | — | Per-collection custom field definitions |
+| `entityMappings` | array | — | Maps raw entity keys to canonical entity references |
+| `relationMappings` | array | — | Maps raw relation keys to canonical relation references |
+| `media` | map | — | Media policy config (alt, description, license requirements) |
+| `rejectUnknownRawKeys` | bool | false | Reject raw keys not declared in any mapping |
+| `requireSummary` | bool | false | Require summary field on all items |
+| `requireAuthor` | bool | false | Require author field on all items |
+| `requireOrganization` | bool | false | Require organization field on all items |
+| `requireUpdatedAt` | bool | false | Require updatedAt field on all items |
+| `requireProvenance` | bool | false | Require provenance field on all items |
+| `requireReviewedAt` | bool | false | Require reviewedAt field on all items |
+| `requireMediaAlt` | bool | true | Require alt text on media fields |
+| `requireMediaDescription` | bool | false | Require description on media fields |
+| `requireMediaLicense` | bool | false | Require license on media fields |
+| `requireEntityIds` | bool | false | Require entity ID references |
+| `requireRelationTargets` | bool | true | Require relation target references |
 
 ### Schema Validation Error Codes
 

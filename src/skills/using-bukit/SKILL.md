@@ -51,6 +51,10 @@ Bukit skills are organized into five layers. Load skills in layer order:
 
 Skills marked **(beta)** have stable implementations but APIs may evolve. **(exp.)** skills (if any) are not production-ready. **Do NOT** treat pre-release capabilities as available.
 
+> **bukit-import vs bukit-clone distinction**:
+> - `bukit-clone` (beta) — extracts design from a **live URL / Browser MCP** to generate a Bukit theme and content structure.
+> - `bukit-import` (beta) — converts a **local HTML demo directory** into a buildable Bukit theme/site draft, with optional seed generation and Notion push.
+
 ## Bukit Skill Overview
 
 | No. | Skill | Responsibility | When to Load |

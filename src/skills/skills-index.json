@@ -1,6 +1,6 @@
 {
   "version": "3.0.0",
-  "updated": "2026-06-02",
+  "updated": "2026-06-09",
   "skill_count": 20,
   "skills": [
     {
@@ -192,6 +192,46 @@
       }
     },
     {
+      "name": "bukit-templating",
+      "status": "stable",
+      "since": "v3.0.0",
+      "source_anchors": [
+        "src/Bukit.Engine/Plugins/BuiltIn/PagesIndexPlugin.cs"
+      ],
+      "verified_by": [
+        "src/Bukit.Engine/Plugins/BuiltIn/PagesIndexPlugin.cs"
+      ],
+      "guide_chapters": [
+        "guide/user/08-themes-templates.md"
+      ],
+      "type": "technique",
+      "priority": 5,
+      "path": "src/skills/bukit-templating/SKILL.md",
+      "description": "Scriban template development — layout inheritance, data model (site/page/pages), common patterns, shortcode/component mechanism, SEO template best practices.\n",
+      "triggers": [
+        {
+          "pattern": "Scriban|scriban|template render|layout inheritance|{{ page|{{ site|{% layout|{% block|shortcode|templat Scriban|pewarisan layout",
+          "languages": [
+            "en",
+            "zh-CN",
+            "ms"
+          ]
+        }
+      ],
+      "requires": [
+        "bukit-theme",
+        "bukit-cli-reference"
+      ],
+      "guide_chapter": "08 Themes & Templates",
+      "platform_loading": {
+        "trae": "Skill tool",
+        "claude_code": "Skill tool",
+        "codex": "Native read",
+        "copilot": "skill tool",
+        "gemini": "activate_skill"
+      }
+    },
+    {
       "name": "bukit-design-tokens",
       "status": "stable",
       "since": "v3.0.0",
@@ -205,7 +245,7 @@
         "guide/user/08-themes-templates.md"
       ],
       "type": "pattern",
-      "priority": 5,
+      "priority": 6,
       "path": "src/skills/bukit-design-tokens/SKILL.md",
       "description": "Design token systems — CSS custom properties, 8 preset color palettes, typography scales, spacing systems, dark mode configuration.\n",
       "triggers": [
@@ -244,7 +284,7 @@
         "guide/user/08-themes-templates.md"
       ],
       "type": "technique",
-      "priority": 6,
+      "priority": 7,
       "path": "src/skills/bukit-content-to-template/SKILL.md",
       "description": "Schema-driven template generation — maps content model field scope definitions to precise Scriban templates ensuring every field is correctly rendered.\n",
       "triggers": [
@@ -263,46 +303,6 @@
         "bukit-design-tokens"
       ],
       "guide_chapter": "08 Themes & Templates (schema section)",
-      "platform_loading": {
-        "trae": "Skill tool",
-        "claude_code": "Skill tool",
-        "codex": "Native read",
-        "copilot": "skill tool",
-        "gemini": "activate_skill"
-      }
-    },
-    {
-      "name": "bukit-templating",
-      "status": "stable",
-      "since": "v3.0.0",
-      "source_anchors": [
-        "src/Bukit.Engine/Plugins/BuiltIn/PagesIndexPlugin.cs"
-      ],
-      "verified_by": [
-        "src/Bukit.Engine/Plugins/BuiltIn/PagesIndexPlugin.cs"
-      ],
-      "guide_chapters": [
-        "guide/user/08-themes-templates.md"
-      ],
-      "type": "technique",
-      "priority": 7,
-      "path": "src/skills/bukit-templating/SKILL.md",
-      "description": "Scriban template development — layout inheritance, data model (site/page/pages), common patterns, shortcode/component mechanism, SEO template best practices.\n",
-      "triggers": [
-        {
-          "pattern": "Scriban|scriban|template render|layout inheritance|{{ page|{{ site|{% layout|{% block|shortcode|templat Scriban|pewarisan layout",
-          "languages": [
-            "en",
-            "zh-CN",
-            "ms"
-          ]
-        }
-      ],
-      "requires": [
-        "bukit-theme",
-        "bukit-cli-reference"
-      ],
-      "guide_chapter": "08 Themes & Templates",
       "platform_loading": {
         "trae": "Skill tool",
         "claude_code": "Skill tool",

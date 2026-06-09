@@ -20,7 +20,8 @@ guide_chapters:
 
 Bukit converts Notion database pages into raw content documents and then normalizes them into canonical `ContentDocument` records, supporting HTML rendering for 26 block types and field mapping for 18 property types.
 
-**REQUIRED BACKGROUND:** Notion-related config is in site.yaml's `content.notion` and `content.media` nodes — you must understand bukit-config first.
+**REQUIRED BACKGROUND:** Notion-related config is in site.yaml's `content.sources[].notion` and `content.media` nodes — you must understand bukit-config first.
+**⚠️ Deprecation:** The old root-level `content.notion` / `content.provider` format is no longer supported in Bukit 1.0. Use `content.sources[].notion` instead (see example below).
 **REQUIRED SUB-SKILL:** Verify Notion connectivity with `bukit doctor`, build with `bukit build`. CLI commands reference bukit-cli-reference.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
@@ -84,7 +85,7 @@ This checks Notion API connectivity and database reachability.
 
 ## Block Rendering Support
 
-**Property name mapping** (`propertyMap`): When your Notion database uses custom property names, map them to Bukit internal fields via `content.notion.propertyMap`. Supports 12 fields: `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, `Canonical`. Example: `propertyMap: { Title: "Page Name", Slug: "URL Slug" }`.
+**Property name mapping** (`propertyMap`): When your Notion database uses custom property names, map them to Bukit internal fields via `content.sources[].notion.propertyMap`. Supports 12 fields: `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, `Canonical`. Example: `propertyMap: { Title: "Page Name", Slug: "URL Slug" }`.
 
 **Filter value** (`filterValue`): Required when `filterType` is `select_equals`, `status_equals`, or `rich_text_equals`. Specifies the value to match against the filter property.
 
@@ -139,6 +140,30 @@ content:
     blockPrivateNetworks: true   # Block internal network addresses
 ```
 
+## Bukit 1.0 Configuration Example
+
+In Bukit 1.0, Notion content sources are defined under `content.sources[]` with `type: notion`:
+
+```yaml
+content:
+  sources:
+    - type: notion
+      mode: content
+      collection: post
+      notion:
+        databaseId: "your-database-id"
+        filterProperty: Published
+        filterType: checkbox_true
+        sortProperty: PublishAt
+        sortDirection: descending
+  media:
+    downloadToLocal: true
+    downloadDir: assets/uploads
+    urlBase: /assets/uploads
+```
+
+> **Note:** The old `content.notion` / `content.provider` root-level format is deprecated in Bukit 1.0. Using it will cause build/config check to fail. Migrate to `content.sources[].notion` with `type: notion`.
+
 ## Common Issues
 
 | Issue | Cause | Solution |
@@ -154,3 +179,4 @@ content:
 | Build is slow | Too many Notion API calls | Enable `cacheMode: readwrite` for caching |
 | Related page content missing | Relation resolution incomplete | Ensure the related database is also authorized for the Integration |
 | filterProperty filter not working | Property name mismatch or wrong type | Confirm `filterProperty` is a checkbox type and `filterType: checkbox_true` |
+| Build fails with "content.notion is not supported" | Using old `content.notion` root-level config | Migrate to `content.sources[].notion` with `type: notion` |

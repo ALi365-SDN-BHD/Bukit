@@ -79,6 +79,17 @@ try:
         if expected and ps != expected:
             print(f'PATH_MISMATCH: plugin.json has {ps}, index has {expected}')
             errors += 1
+    # Order match
+    idx_order = [s['name'] for s in idx.get('skills',[])]
+    pj_order = [s.replace('/SKILL.md','') for s in pj.get('skills',[])]
+    if idx_order != pj_order:
+        print(f'ORDER_MISMATCH: plugin.json order differs from skills-index.yaml')
+        print(f'  plugin.json order: {pj_order}')
+        print(f'  index order:       {idx_order}')
+        errors += 1
+    # Skills count check
+    if len(pj.get('skills',[])) != idx.get('skill_count', 0):
+        print(f'COUNT_MISMATCH: plugin.json has {len(pj.get("skills",[]))} skills, index says {idx.get("skill_count", 0)}')
     # Version match
     if pj.get('version') != idx.get('version'):
         print(f'VERSION_MISMATCH: plugin.json={pj.get(\"version\")} vs index={idx.get(\"version\")}')

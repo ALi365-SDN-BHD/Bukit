@@ -79,7 +79,7 @@ After downloading, place the binary in a PATH directory or the project root.
 | `theme use` | Switch current theme | `<name>` `--config` `--site` |
 | `theme info` | Show full theme information (name, version, author, params, template files) | `<name>` `--config` `--site` |
 | `theme params` | List customizable theme parameters (from theme.yaml) | `[name]` `--config` `--site` |
-| `theme wizard` | Interactive Q&A theme creation + 5 presets | `<name>` `--preset`(blog\|docs\|landing\|minimal\|portfolio) `--use` `--force` `--config` `--site` |
+| `theme wizard` | Interactive Q&A theme creation + 5 presets | `<name>` `--template` `--preset`(blog\|docs\|landing\|minimal\|portfolio) `--use` `--force` `--config` `--site` |
 | `theme pack` | Package theme as `<name>-<version>.tar.gz` | `[name]` `--output` `--config` `--site` |
 | `theme install` | Install theme from local file or URL; registry install is Experimental | `<path\|url>` `--registry <name>` `--registry-url` `--force` `--config` `--site` |
 | `theme search` | Query community theme registry (Experimental) | `[query]` `--refresh` `--registry-url <url>` `--config` `--site` |
@@ -97,9 +97,9 @@ After downloading, place the binary in a PATH directory or the project root.
 | `deploy` | Build and deploy to GitHub Pages | `--config` `--site` `--output` `--base-url` `--site-url` `--branch` `--message` `--ci` `--dry-run` `--skip-build` |
 | `webhook` | Webhook server (Notion trigger → GitHub repository_dispatch) — note: `start` arg in help is not CLI-registered | `--host` `--port` `--path` `--repo` `--event` |
 | `clone` (beta) | Generate Bukit theme and content from target website | `--tokens` `--theme` `--layout` `--page` `--sections` `--behaviors` `--icons` `--assets` `--brand` `--use` `--force` `--verify` `--visual-threshold` `--fail-on-visual-diff` `--fidelity` `--config` `--site` |
-| `import html-demo` | Convert an HTML demo directory into a buildable Bukit theme/site draft | `<demo-dir>` `--theme` `--force` `--verify` `--content-source`(notion\|json\|yaml) `--build-source`(markdown\|notion) `--site-path` `--strict` `--push-notion` `--notion-database-id` `--notion-database-map` `--create-missing-notion-databases` |
-| `import seed` | Convert generated JSON/YAML seed into local Markdown content | `<seed-dir>` `--output` `--force` |
-| `notion push` | Push generated seed records to one or more Notion databases; validates target schema by default; use `--dry-run` for a reviewable local plan | `--input` `--database-id` `--database-map` `--create-missing-databases` `--parent-page-id` `--no-validate-schema` `--dry-run` `--report` `--token-env` |
+| `import html-demo` | Convert an HTML demo directory into a buildable Bukit theme/site draft | `<demo-dir>` `--theme` `--force` `--use` `--verify` `--extract-content` / `--no-extract-content` `--generate-seed` / `--no-seed` `--content-source`(notion\|json\|yaml) `--build-source`(markdown\|notion) `--route-map` `--site-path` `--language` `--dry-run` `--strict` `--overwrite` `--preserve-html` / `--no-preserve-html` `--report` / `--no-report` `--base-url` `--push-notion` `--notion-database-id` `--notion-database-map` `--create-missing-notion-databases` `--notion-parent-page-id` `--notion-generated-database-map` `--notion-token-env` `--notion-report` `--no-validate-notion-schema` `--config` `--site` |
+| `import seed` | Convert generated JSON/YAML seed into local Markdown content | `<seed-dir>` `--output` `--force` `--config` `--site` |
+| `notion push` | Push generated seed records to one or more Notion databases; validates target schema by default; use `--dry-run` for a reviewable local plan | `--input` `--database-id` `--database-map` `--create-missing-databases` `--parent-page-id` `--generated-database-map` `--dry-run` `--report` `--token-env` `--mode`(create\|update) `--unique-field` `--update-content` `--no-validate-schema` |
 | `notion validate-schema` | Validate that a Notion database has the fields required by Bukit seed push | `--database-id` `--token-env` `--report` |
 | `geo audit` | GEO audit on dist output | `--dir` |
 | `seo audit` | Audit SEO health from build report | `--dir` `--report` `--strict` `--external` |

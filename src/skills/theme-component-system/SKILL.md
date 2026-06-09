@@ -354,11 +354,13 @@ Child themes extend parent themes via `extends` in theme.yaml. The `ThemeCompone
 
 ### `theme doctor` (planned)
 
+> **⚠️ Planned**: Handler exists in ThemeCommand.cs, but command is not registered in BukitCliSpecs, so it is not considered public CLI yet.
+
 Validates the componentized theme:
 
 ```bash
-theme doctor              # (planned - not yet available in CLI)
-theme doctor my-theme     # (planned - not yet available in CLI)
+theme doctor              # (planned - handler exists, not in public CLI)
+theme doctor my-theme     # (planned - handler exists, not in public CLI)
 ```
 
 Checks performed:
@@ -373,7 +375,7 @@ Checks performed:
 ### `theme list-components` (planned)
 
 
-> **⚠️ Planned**: This command has internal implementation but is not yet registered in the CLI. It may not be available. See ThemeCommand.cs for current status.
+> **⚠️ Planned**: This command has internal implementation in ThemeCommand.cs, but is not registered in BukitCliSpecs. It may not be available as a public CLI command.
 
 Lists all sections and components available in a theme:
 
@@ -397,7 +399,7 @@ Components:
 
 ### `theme export-catalog` (planned)
 
-> **⚠️ Planned**: This command has internal implementation but is not yet registered in the CLI. It may not be available. See ThemeCommand.cs for current status.
+> **⚠️ Planned**: This command has internal implementation in ThemeCommand.cs, but is not registered in BukitCliSpecs. It may not be available as a public CLI command.
 
 Exports `theme-catalog.json` to the `.cache/` directory for AI Agent consumption:
 
