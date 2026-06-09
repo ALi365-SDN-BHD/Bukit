@@ -8,8 +8,6 @@ namespace Bukit.Routing.Tests;
 public sealed class RouteGeneratorTests
 {
     [Fact]
-
-    [Fact]
     public void Generate_WithCollectionPermalink()
     {
         var record = new ContentRecord(
