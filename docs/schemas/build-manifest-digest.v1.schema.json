@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/build-manifest-digest.v1.json",
+  "title": "Bukit Build Manifest Digest",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "generatedAt", "reportCount", "reportSetHash", "artifactManifestHash", "releaseBundleHash", "securityReportHash", "reports"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/build-manifest-digest.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "reportCount": { "type": "integer", "minimum": 0 },
+    "reportSetHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "artifactManifestHash": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "releaseBundleHash": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "securityReportHash": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "reports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "hash", "size"],
+        "properties": {
+          "path": { "type": "string" },
+          "hash": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          },
+          "size": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

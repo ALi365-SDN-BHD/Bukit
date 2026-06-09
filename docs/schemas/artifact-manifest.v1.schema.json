@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/artifact-manifest.v1.json",
+  "title": "Bukit Artifact Manifest",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "generatedAt", "artifactCount", "artifactSetHash", "artifacts"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/artifact-manifest.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "artifactCount": { "type": "integer", "minimum": 0 },
+    "artifactSetHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "hash", "size"],
+        "properties": {
+          "path": { "type": "string" },
+          "hash": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          },
+          "size": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

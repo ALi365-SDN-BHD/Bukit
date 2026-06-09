@@ -3,7 +3,7 @@
   "$id": "https://bukit.dev/schemas/security-report.v1.json",
   "title": "Bukit Security Report",
   "type": "object",
-  "required": ["schema", "schemaVersion", "status", "warnings", "errors", "checks"],
+  "required": ["schema", "schemaVersion", "status", "warnings", "errors", "checks", "externalPlugins"],
   "properties": {
     "schema": { "const": "https://bukit.dev/schemas/security-report.v1.json" },
     "schemaVersion": { "const": "1.0" },
@@ -26,6 +26,58 @@
         "remoteThemeLock": { "$ref": "#/$defs/check" }
       },
       "additionalProperties": false
+    },
+    "externalPlugins": {
+      "type": "object",
+      "required": ["policy", "pluginCount", "plugins"],
+      "properties": {
+        "policy": { "enum": ["allow", "deny", "warn"] },
+        "pluginCount": { "type": "integer", "minimum": 0 },
+        "plugins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "enabled", "runtime", "hooks", "capabilities", "templateRequirements", "allowEnvironment", "allowAbsoluteEntry", "sha256Pinned", "declaredContract", "enforcedBoundaries"],
+            "properties": {
+              "name": { "type": "string" },
+              "enabled": { "type": "boolean" },
+              "runtime": { "type": "string" },
+              "hooks": { "type": "array", "items": { "type": "string" } },
+              "capabilities": { "type": "array", "items": { "type": "string" } },
+              "templateRequirements": { "type": "array", "items": { "type": "string" } },
+              "allowEnvironment": { "type": "array", "items": { "type": "string" } },
+              "allowAbsoluteEntry": { "type": "boolean" },
+              "sha256Pinned": { "type": "boolean" },
+              "declaredContract": {
+                "type": "object",
+                "required": ["spawnsProcess", "absoluteEntryOptIn", "declaresExtraEnvironment", "declaresTemplateRequirements", "declaresIntegrityPin"],
+                "properties": {
+                  "spawnsProcess": { "type": "boolean" },
+                  "absoluteEntryOptIn": { "type": "boolean" },
+                  "declaresExtraEnvironment": { "type": "boolean" },
+                  "declaresTemplateRequirements": { "type": "boolean" },
+                  "declaresIntegrityPin": { "type": "boolean" }
+                },
+                "additionalProperties": false
+              },
+              "enforcedBoundaries": {
+                "type": "object",
+                "required": ["entryScope", "outputScope", "networkAccess", "timeoutMs", "maxStdoutBytes", "maxStderrBytes"],
+                "properties": {
+                  "entryScope": { "type": "string" },
+                  "outputScope": { "type": "string" },
+                  "networkAccess": { "type": "string" },
+                  "timeoutMs": { "type": "integer", "minimum": 0 },
+                  "maxStdoutBytes": { "type": "integer", "minimum": 0 },
+                  "maxStderrBytes": { "type": "integer", "minimum": 0 }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
     }
   },
   "additionalProperties": false,
