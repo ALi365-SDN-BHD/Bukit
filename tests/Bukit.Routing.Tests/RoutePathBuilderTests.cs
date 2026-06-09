@@ -33,8 +33,6 @@ public sealed class RoutePathBuilderTests
         Assert.EndsWith(expected.Replace('/', System.IO.Path.DirectorySeparatorChar), result);
     }
 
-    [Fact]
-
     [Theory]
     [InlineData("none", "hello-world/index.html")]
     [InlineData("url", "hello-world/index.html")]
