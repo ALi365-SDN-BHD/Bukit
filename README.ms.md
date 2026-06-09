@@ -46,7 +46,7 @@ Bukit **bukan** platform SaaS, backend CMS penuh, pembina halaman visual, atau p
 - **Sokongan pelbagai bahasa** — binaan mengikut bahasa, gabungan sitemap/RSS/carian
 - **SEO** — sitemap, RSS/Atom/JSON Feed, JSON-LD, Open Graph, Twitter Cards, URL kanonik, hreflang
 - **GEO** — `llms.txt`, peraturan robots.txt perangkak AI, data berstruktur FAQ/HowTo, audit Skor GEO
-- **Sistem tema** dengan token reka bentuk, tema berkomponen, pengedaran tema, dan pendaftaran
+- **Sistem tema** dengan token reka bentuk dan tema berkomponen; pendaftaran tema dirancang untuk peringkat seterusnya
 - **Pelayan pembangunan HMR** dengan muat semula langsung WebSocket; pelayan pratonton untuk output binaan
 - **Sistem plugin** — cangkuk `derive-pages` dan `after-build`; sokongan plugin WASM dan proses
 - **Binaan inkremental** — pengesanan perubahan sedar kandungan; pilihan pengecaman aset SHA256

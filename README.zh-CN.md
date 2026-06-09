@@ -46,7 +46,7 @@ Bukit **不是** SaaS 平台、全功能 CMS 后端、可视化页面构建器�
 - **多语言支持** — 按语言构建，合并 sitemap/RSS/搜索
 - **SEO** — sitemap、RSS/Atom/JSON Feed、JSON-LD、Open Graph、Twitter Cards、canonical URL、hreflang
 - **GEO** — `llms.txt`、AI 爬虫 robots.txt 规则、FAQ/HowTo 结构化数据、GEO 评分审计
-- **主题系统**，含设计令牌、组件化主题、主题分发和注册表
+- **主题系统**，含设计令牌和组件化主题；主题注册表计划在下一阶段推出
 - **HMR 开发服务器**（WebSocket 实时刷新）；构建产物的本地预览服务器
 - **插件系统** — `derive-pages` 和 `after-build` 钩子；支持 WASM 和进程插件
 - **增量构建** — 内容感知变更检测；可选 SHA256 资源哈希
