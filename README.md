@@ -137,6 +137,8 @@ Not in the 1.0 stability commitment:
 - theme registry
 - clone-to-theme
 - import html-demo workflow
+- import seed
+- notion push / Notion migration
 - external plugin ecosystem
 - plugin marketplace
 - BukitJalil

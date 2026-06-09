@@ -137,6 +137,8 @@ Tidak termasuk dalam komitmen kestabilan 1.0:
 - Pendaftaran tema
 - clone-to-theme
 - Aliran kerja import html-demo
+- import seed
+- notion push / migrasi Notion
 - Ekosistem plugin luaran
 - Pasaran plugin
 - BukitJalil

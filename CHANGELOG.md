@@ -12,7 +12,9 @@ All notable changes to Bukit will be documented in this file.
 - **DevFileWatcher**: Tests now run in serial collection to avoid parallel-execution timing issues.
 - **Schema alignment**: Root `site.yaml` updated to 1.0 schema (`content.sources[]` instead of `content.provider`).
 
+### Preview
 
+HTML Demo import (`bukit import html-demo`), import seed (`bukit import seed`), and Notion migration (`bukit notion push`) are Preview features and are **not** part of the Bukit 1.0 stable core contract. These commands may change without notice in future releases.
 
 ### Breaking
 - **Content meta ABI removed**: `ContentItem.Meta` is no longer part of the runtime content ABI. Providers normalize front matter / Notion properties into typed `ContentField` values and canonical content records.

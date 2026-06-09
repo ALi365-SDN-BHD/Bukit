@@ -137,6 +137,8 @@ GitHub Actions 工作流模板位于 [`.github/workflows/release.yml`](.github/w
 - 主题注册表
 - clone-to-theme
 - import html-demo 工作流
+- import seed
+- notion push / Notion 迁移
 - 外部插件生态
 - 插件市场
 - BukitJalil

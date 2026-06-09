@@ -49,6 +49,10 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [1.0.0] - 2026-05-05
 
+### Preview
+
+HTML Demo 导入（`bukit import html-demo`）、seed 导入（`bukit import seed`）和 Notion 迁移（`bukit notion push`）属于 Preview 功能，不纳入 Bukit 1.0 核心稳定性承诺。这些命令在后续版本中可能发生变化。
+
 ### 新增
 - Bukit 首发版本，基于 .NET 10 Native AOT 的静态站点生成器
 - Markdown 内容源，支持 Front Matter

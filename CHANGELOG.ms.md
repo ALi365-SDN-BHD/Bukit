@@ -49,6 +49,10 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [1.0.0] - 2026-05-05
 
+### Preview
+
+Perintah import HTML Demo (`bukit import html-demo`), import seed (`bukit import seed`), dan migrasi Notion (`bukit notion push`) adalah ciri Preview dan bukan sebahagian daripada kontrak stabil teras Bukit 1.0. Perintah ini mungkin berubah tanpa notis pada keluaran akan datang.
+
 ### Ditambah
 - Keluaran pertama Bukit, penjana tapak statik Native AOT .NET 10
 - Sumber kandungan Markdown dengan sokongan Front Matter
