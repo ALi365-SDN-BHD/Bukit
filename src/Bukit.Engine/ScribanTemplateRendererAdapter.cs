@@ -14,12 +14,12 @@ internal sealed class ScribanTemplateRendererAdapter : ITemplateRenderer
 {
     private readonly ScribanTemplateRenderer _inner;
 
-    internal ScribanTemplateRendererAdapter(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null)
+    internal ScribanTemplateRendererAdapter(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null, IReadOnlyList<ITemplateContextContributor>? contributors = null)
     {
-        _inner = new ScribanTemplateRenderer(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir);
+        _inner = new ScribanTemplateRenderer(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, contributors: contributors);
     }
 
-    internal ScribanTemplateRendererAdapter(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? registry, SectionSchemaValidator? validator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentDocument, RouteInfo?)>? allPages = null, IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null)
+    internal ScribanTemplateRendererAdapter(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? registry, SectionSchemaValidator? validator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentDocument, RouteInfo?)>? allPages = null, IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null, IReadOnlyList<ITemplateContextContributor>? contributors = null)
     {
         _inner = new ScribanTemplateRenderer(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, registry, validator, dataResolver, componentValidation, allPages, sectionPlugins);
     }

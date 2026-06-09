@@ -18,4 +18,19 @@ public interface INotionBlockRenderer
     /// <param name="context">Provides access to child-block rendering and the Notion API client.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     Task<string?> RenderAsync(JsonElement block, NotionRenderContext context, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Shared no-op renderer that produces an empty string.
+    /// Used for Notion-only interactive blocks that have no meaningful static HTML
+    /// representation, such as <c>breadcrumb</c> and <c>template</c>.
+    /// </summary>
+    public static INotionBlockRenderer NoOp { get; } = new NoOpBlockRenderer();
+
+    private sealed class NoOpBlockRenderer : INotionBlockRenderer
+    {
+        public Task<string?> RenderAsync(JsonElement block, NotionRenderContext context, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<string?>(string.Empty);
+        }
+    }
 }
