@@ -389,7 +389,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
         };
 
         var report = SeoAuditReportWriter.Build(ConfigWithRssPostCollection(), _outputDir, index, models, CanonicalContentGraph.Empty);
-                // Generated list routes should not report content-quality gaps.
+        // Generated list routes should not report content-quality gaps.
         // Instead of enumerating every possible code, verify that the only reported
         // issues for these routes are structural (feed/manifest/llms) rather than content-quality.
         var contentQualityCodes = new[]
