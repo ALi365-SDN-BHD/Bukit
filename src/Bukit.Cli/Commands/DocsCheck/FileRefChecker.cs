@@ -56,6 +56,16 @@ public static class FileRefChecker
         return issues;
     }
 
+    private static readonly HashSet<string> ThemeRelativePrefixes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "layouts/", "partials/", "pages/",
+    };
+
+    private static readonly HashSet<string> BuildOutputPrefixes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "dist/", "feed/",
+    };
+
     private static bool IsFilePath(string path)
     {
         return path.Contains('/') && Path.HasExtension(path);
@@ -67,8 +77,34 @@ public static class FileRefChecker
             || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool ShouldSkipReferencedPath(string path)
+    {
+        if (path.Contains('<') || path.Contains('{'))
+            return true;
+
+        if (path.StartsWith('/'))
+            return true;
+
+        foreach (var prefix in ThemeRelativePrefixes)
+        {
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        foreach (var prefix in BuildOutputPrefixes)
+        {
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
     private static void CheckPath(string repoRoot, string docFilePath, int lineNumber, string path, List<DocsIssue> issues)
     {
+        if (ShouldSkipReferencedPath(path))
+            return;
+
         var resolvedPath = Path.GetFullPath(Path.Combine(repoRoot, path));
         if (!File.Exists(resolvedPath))
         {

@@ -70,6 +70,7 @@ public static class ConfigFieldExtractor
 
             if (IsRecordType(propType))
             {
+                paths.Add(fullPath);
                 WalkType(propType, fullPath, paths, visited);
             }
         }
@@ -115,6 +116,12 @@ public static class ConfigFieldExtractor
         "site", "content", "build", "theme", "taxonomy", "logging", "deploy"
     };
 
+    private static readonly HashSet<string> FileExtensionSuffixes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".yaml", ".yml", ".json", ".md", ".git", ".tar.gz", ".lock.json",
+        ".html", ".css", ".xml", ".txt", ".csv", ".js", ".ts",
+    };
+
     public static IReadOnlyList<string> ExtractYamlReferences(string text)
     {
         var matches = YamlRefPattern.Matches(text);
@@ -134,11 +141,26 @@ public static class ConfigFieldExtractor
                 continue;
             }
 
+            if (HasFileExtensionSuffix(value))
+            {
+                continue;
+            }
+
             refs.Add(value);
         }
 
         var list = new List<string>(refs);
         list.Sort(StringComparer.Ordinal);
         return list;
+    }
+
+    private static bool HasFileExtensionSuffix(string value)
+    {
+        foreach (var suffix in FileExtensionSuffixes)
+        {
+            if (value.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 }
