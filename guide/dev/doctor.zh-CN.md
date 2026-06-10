@@ -43,7 +43,7 @@ doctor 的检查顺序基本如下：
    - 提取所有变量引用（`page.title`、`site.params.theme` 等）
    - 与已知字段白名单交叉比对
    - 发现未知变量时输出警告（不会失败，仅 ⚠）
-   - 白名单定义：`src/Bukit.Rendering/Scriban/ScribanModelKnownFields.cs`
+   - 白名单定义：`src/Bukit.Engine/ScribanModelKnownFields.cs`
 10. **Extra fields 报告**
     - 检查内容 front matter 中的字段是否在 content model field scope 中声明
     - 发现未声明字段时输出警告

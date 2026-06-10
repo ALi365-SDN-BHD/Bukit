@@ -163,4 +163,105 @@ public static class ConfigFieldExtractor
         }
         return false;
     }
+
+    private static readonly HashSet<string> DynamicMapPrefixes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "site.menus",
+        "site.plugins",
+        "site.external_plugins",
+        "site.collections",
+        "site.permalinks",
+        "theme.params",
+        "theme.shortcodes",
+        "theme.components",
+        "content.model_schema.field_scopes",
+    };
+
+    private static readonly HashSet<string> KnownTemplateVariables = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "site.data",
+        "site.modules",
+        "site.params",
+        "site.data_files",
+        "site.related_pages",
+        "site.rss",
+        "content.custom_field_enum_mismatch",
+        "content.custom_field_format_mismatch",
+        "content.custom_field_range_mismatch",
+        "content.custom_field_type_mismatch",
+        "content.unknown_raw_key",
+        "content.required_custom_field_missing",
+        "content.required_collection_field_missing",
+        "taxonomy.templates.categories.template",
+        "taxonomy.templates.categories.index_template",
+        "taxonomy.templates.categories.term_template",
+        "taxonomy.templates.tags.index_template",
+        "taxonomy.templates.tags.term_template",
+    };
+
+    public static bool IsKnownTemplateVariable(string path)
+    {
+        if (KnownTemplateVariables.Contains(path))
+            return true;
+
+        foreach (var prefix in KnownTemplateVariablePrefixes)
+        {
+            if (path.StartsWith(prefix + ".", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static readonly HashSet<string> KnownTemplateVariablePrefixes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "site.data",
+        "site.modules",
+        "site.params",
+    };
+
+    public static bool IsDynamicMapChild(string path)
+    {
+        foreach (var prefix in DynamicMapPrefixes)
+        {
+            if (path.StartsWith(prefix + ".", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    public static IReadOnlyList<string> ExtractYamlReferencesFromDoc(string text)
+    {
+        var refs = new HashSet<string>();
+
+        var yamlBlockRegex = new Regex(@"```ya?ml\s*\n(.*?)```", RegexOptions.Singleline);
+        foreach (Match block in yamlBlockRegex.Matches(text))
+        {
+            var yamlContent = block.Groups[1].Value;
+            foreach (var r in ExtractYamlReferences(yamlContent))
+                refs.Add(r);
+        }
+
+        var tableRegex = new Regex(@"\|\s*`([a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+)`\s*\|");
+        foreach (Match m in tableRegex.Matches(text))
+        {
+            var value = m.Groups[1].Value;
+            var firstDot = value.IndexOf('.');
+            if (firstDot < 0)
+                continue;
+
+            var prefix = value[..firstDot];
+            if (!KnownTopLevelKeys.Contains(prefix))
+                continue;
+
+            if (HasFileExtensionSuffix(value))
+                continue;
+
+            refs.Add(value);
+        }
+
+        var list = new List<string>(refs);
+        list.Sort(StringComparer.Ordinal);
+        return list;
+    }
 }

@@ -23,7 +23,7 @@
 
 当 `EnableRelaxedMemberAccess` 启用时（默认），Scriban 会对拼写错误的变量（如 `{{ page.titel }}`）静默返回 `null`。Bukit 的 `doctor` 命令现在通过 `ScribanTemplateLinter` 包含模板变量拼写检查，使用 Scriban 的 AST 解析所有 `.html` 模板并与已知模型字段白名单进行交叉比对。
 
-实现：`src/Bukit.Rendering/Scriban/ScribanTemplateLinter.cs`
+实现：`src/Bukit.Engine/ScribanTemplateLinter.cs`
 
 ## 目录约定（theme.layouts / assets / static）
 

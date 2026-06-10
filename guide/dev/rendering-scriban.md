@@ -20,7 +20,7 @@ All three share the same incremental build skip logic, SEO injection, and error 
 
 When `EnableRelaxedMemberAccess` is enabled (default), Scriban silently returns `null` for typo variables like `{{ page.titel }}`. Bukit's `doctor` command now includes template variable spell check via `ScribanTemplateLinter` that parses all `.html` templates using Scriban's AST and cross-references against a whitelist of known model fields.
 
-Implementation: `src/Bukit.Rendering/Scriban/ScribanTemplateLinter.cs`
+Implementation: `src/Bukit.Engine/ScribanTemplateLinter.cs`
 
 ## Directory Conventions
 

@@ -27,12 +27,16 @@ Implementation references: `src/Bukit.Cli/Cli/BukitCliSpecs.cs`, `src/Bukit.Cli/
 | `seo` | SEO audit and regression detection |
 | `geo` | GEO (Generative Engine Optimization) audit |
 | `clone` | Extract data from target website to generate theme and content |
+| `import` | Import HTML demos or seed files into Bukit theme/content drafts |
+| `notion` | Generate Notion seed push plans and validate push prerequisites |
 | `webhook` | Webhook trigger |
 | `data` | Data module inspection and export |
 | `completion` | Generate shell auto-completion script |
 | `lint` | Check config and Markdown content |
 | `visual` | Generate Playwright visual regression test scripts |
 | `docs` | Documentation consistency check |
+| `publish` | Machine-readability and trust audit |
+| `route` | Route resolution inspection |
 | `version` | Version info |
 
 Note: When executing most commands, the CLI outputs a `bukit <version>` line first.
@@ -108,6 +112,8 @@ For detailed parameter information on the following commands, refer to the corre
 - `seo`: `src/Bukit.Cli/Commands/SeoCommand.cs`
 - `geo`: `src/Bukit.Cli/Commands/GeoCommand.cs`
 - `clone`: `src/Bukit.Cli/Commands/Clone/` (CloneInputLoader, CloneAssetDownloader, CloneContentWriter, CloneFidelityRunner, CloneThemeGenerator, CloneVerifier)
+- `import`: `src/Bukit.Cli/Commands/ImportCommand.cs`
+- `notion`: `src/Bukit.Cli/Commands/NotionCommand.cs`
 - `plugin`: `src/Bukit.Cli/Commands/PluginCommand.cs`
 - `intent`: `src/Bukit.Cli/Commands/IntentCommand.cs`
 - `webhook`: `src/Bukit.Cli/Commands/WebhookCommand.cs`
@@ -116,6 +122,8 @@ For detailed parameter information on the following commands, refer to the corre
 - `lint`: `src/Bukit.Cli/Commands/LintCommand.cs`
 - `visual`: `src/Bukit.Cli/Commands/VisualCommand.cs`
 - `docs`: `src/Bukit.Cli/Commands/DocsCheck/DocsCheckCommand.cs`
+- `publish`: `src/Bukit.Cli/Commands/PublishCommand.cs`
+- `route`: `src/Bukit.Cli/Commands/RouteCommand.cs`
 
 See also:
 - init/create scaffolding output and directory structure: [init/create](./init-create.md)

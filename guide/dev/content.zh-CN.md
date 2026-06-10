@@ -3,8 +3,8 @@
 本页描述内容系统的输入、输出与约定：`ContentDocument`（`CustomFields`）、Markdown Front Matter、Notion 字段归一化、以及 `sources` 组合模式。
 
 实现参考：
-- `src/Bukit.Content/ContentDocument.cs`
-- `src/Bukit.Content/ContentField.cs`
+- `src/Bukit.Engine.Abstractions/ContentDocument.cs`
+- `src/Bukit.Engine.Abstractions/ContentField.cs`
 - `src/Bukit.Content/Markdown/MarkdownFolderProvider.cs`
 - `src/Bukit.Content/Notion/NotionContentProvider.cs`
 - `src/Bukit.Engine/SiteEngine.cs`（mode=data 的处理与 modules 注入）
@@ -120,7 +120,7 @@ Notion provider 会从数据库 properties 中解析以下字段（字段名大�
 - `Slug`（rich_text 或 formula.string）：slug
 - `Type`（select/multi_select）：类型（默认 `post`）
 - `PublishAt` 或 `Date`（date）：发布时间（默认 now）
-- 过滤与排序：由 `content.notion.filter*`、`content.notion.sort*` 控制
+- 过滤与排序：由 `content.sources[].notion.filter*`、`content.sources[].notion.sort*` 控制
 
 ### 自定义字段进入 page.fields：fieldPolicy
 

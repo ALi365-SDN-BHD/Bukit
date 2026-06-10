@@ -154,7 +154,7 @@ Notes:
 | `content.media.maxRetries` | int | 3 | Download retries |
 | `content.media.timeoutMs` | int | 10000 | Download timeout |
 | `content.media.maxFileSizeBytes` | int | 52428800 | Max file size (50MB) |
-| `content.media.blockPrivateNetworks` | bool | **true** | **P1-3**：阻止下载内网地址图片（127.0.0.0/8、10.0.0.0/8、172.16.0.0/12、192.168.0.0/16、link-local）。默认已启用 SSRF 防护。实现：`src/Bukit.Engine/Content/SsrfGuard.cs` |
+| `content.media.blockPrivateNetworks` | bool | **true** | **P1-3**：阻止下载内网地址图片（127.0.0.0/8、10.0.0.0/8、172.16.0.0/12、192.168.0.0/16、link-local）。默认已启用 SSRF 防护。实现：`src/Bukit.Shared/SsrfGuard.cs` |
 
 > **SSRF 防护**：`SsrfGuard.cs` 覆盖 loopback、RFC1918 私有网络、link-local 地址。`CloneCommand` 和 `SeoExternalAuditor` 也已添加 `SsrfGuard.SsrfSafeConnectAsync` 保护（P1-6）。
 

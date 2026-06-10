@@ -402,6 +402,92 @@ Menjana skrip ujian Playwright yang mengambil tangkapan skrin penuh bagi setiap 
 
 Lihat juga: `VisualFeedbackPlugin` (plugin selepas binaan untuk analisis tangkapan skrin berkuasa AI dengan pemarkahan visual 5 dimensi).
 
+## data: Pemeriksaan Sumber Kandungan
+
+> **Lanjutan.** Periksa atau eksport data sumber kandungan untuk penyahpepijatan.
+
+```bash
+bukit data inspect --source page --config site.yaml
+bukit data dump --source page --format json --config site.yaml
+```
+
+## docs: Semakan Konsistensi Dokumentasi
+
+> **Penyelenggara.** Sahkan konsistensi dokumentasi (liputan CLI, rujukan medan konfigurasi, rujukan fail).
+
+```bash
+bukit docs check
+```
+
+## geo: Audit GEO
+
+> **Pratonton.** Audit kesediaan GEO (Generative Engine Optimization).
+
+```bash
+bukit geo audit --dir dist --config site.yaml
+```
+
+## intent: Pengurusan Intent AI
+
+> **Pratonton.** Mulakan, gunakan, atau sahkan intent tapak.
+
+```bash
+bukit intent init
+bukit intent apply
+bukit intent validate
+```
+
+## route: Pemeriksaan Laluan
+
+> **Lanjutan.** Periksa resolusi laluan untuk penyahpepijatan.
+
+```bash
+bukit route inspect --url /blog/hello-world/ --config site.yaml
+```
+
+## dev: Pelayan Pembangunan HMR
+
+> **Lanjutan.** Mulakan pelayan pembangunan HMR dengan muat semula langsung.
+
+```bash
+bukit dev --config site.yaml
+```
+
+## plugin: Pengurusan Plugin
+
+> **Lanjutan.** Senaraikan plugin yang dipasang.
+
+```bash
+bukit plugin list --config site.yaml
+```
+
+## deploy: Deploy ke GitHub Pages
+
+Deploy tapak yang dibina ke penyedia yang dikonfigurasi (cth. GitHub Pages).
+
+```bash
+bukit deploy --config site.yaml
+```
+
+Lihat [13 Deploy GitHub Pages](./13-deploy-github-pages.md) untuk persediaan dan konfigurasi.
+
+## completion: Pelengkapan Shell
+
+> **Lanjutan.** Jana skrip pelengkapan shell.
+
+```bash
+bukit completion bash
+bukit completion zsh
+```
+
+## lint: Pemeriksaan Kandungan
+
+> **Lanjutan.** Periksa fail kandungan untuk pematuhan skema.
+
+```bash
+bukit lint --config site.yaml
+```
+
 ## version: Semak Versi
 
 ```bash

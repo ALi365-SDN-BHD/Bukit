@@ -800,12 +800,12 @@ bukit clone --tokens tokens.json --page page.json --sections sections.json --beh
 
 Produces:
 - `docs/research/VERIFY_REPORT.md` — human-readable markdown report
-- `docs/research/VERIFY_REPORT.json` — machine-readable JSON with `comparisons`, `missingScreenshots`, `affectedSections`, `passed`
-- `docs/research/BEHAVIORS_VERIFY.js` — interactive behavior check script
+- A machine-readable JSON report is written to `docs/research/VERIFY_REPORT.json` with `comparisons`, `missingScreenshots`, `affectedSections`, `passed`
+- An interactive behavior check script is written to `docs/research/BEHAVIORS_VERIFY.js`
 
 ### Behavior Verification
 
-After `--verify`, run `docs/research/BEHAVIORS_VERIFY.js` in the browser console or via automation:
+After `--verify`, run the generated behavior verification script in the browser console or via automation:
 
 | Check | What it tests |
 |-------|--------------|

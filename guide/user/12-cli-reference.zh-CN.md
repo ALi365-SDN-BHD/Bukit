@@ -454,6 +454,92 @@ bukit visual generate [--config site.yaml] [--dir dist] [--site-url http://local
 
 另见: `VisualFeedbackPlugin`（构建后插件，通过 AI 进行 5 维度视觉质量评分分析）。
 
+## data：内容源检查
+
+> **高级。** 检查或导出内容源数据，用于调试。
+
+```bash
+bukit data inspect --source page --config site.yaml
+bukit data dump --source page --format json --config site.yaml
+```
+
+## docs：文档一致性检查
+
+> **维护者。** 验证文档一致性（CLI 覆盖率、配置字段引用、文件引用）。
+
+```bash
+bukit docs check
+```
+
+## geo：GEO 审计
+
+> **预览。** 审计 GEO（生成引擎优化）就绪状态。
+
+```bash
+bukit geo audit --dir dist --config site.yaml
+```
+
+## intent：AI 意图管理
+
+> **预览。** 初始化、应用或验证站点意图。
+
+```bash
+bukit intent init
+bukit intent apply
+bukit intent validate
+```
+
+## route：路由检查
+
+> **高级。** 检查路由解析，用于调试。
+
+```bash
+bukit route inspect --url /blog/hello-world/ --config site.yaml
+```
+
+## dev：HMR 开发服务器
+
+> **高级。** 启动 HMR 开发服务器，支持实时重载。
+
+```bash
+bukit dev --config site.yaml
+```
+
+## plugin：插件管理
+
+> **高级。** 列出已安装的插件。
+
+```bash
+bukit plugin list --config site.yaml
+```
+
+## deploy：部署到 GitHub Pages
+
+将构建后的站点部署到配置的提供商（如 GitHub Pages）。
+
+```bash
+bukit deploy --config site.yaml
+```
+
+详见 [13 部署 GitHub Pages](./13-deploy-github-pages.md)。
+
+## completion：Shell 补全
+
+> **高级。** 生成 Shell 自动补全脚本。
+
+```bash
+bukit completion bash
+bukit completion zsh
+```
+
+## lint：内容检查
+
+> **高级。** 检查内容文件的 schema 合规性。
+
+```bash
+bukit lint --config site.yaml
+```
+
 ## version：查看版本
 
 ```bash

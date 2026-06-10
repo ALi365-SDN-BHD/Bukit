@@ -465,6 +465,92 @@ Generates a Playwright test script that takes full-page screenshots of every HTM
 
 Also see: `VisualFeedbackPlugin` (after-build plugin for AI-powered screenshot analysis with 5-dimension visual scoring).
 
+## data: Content Source Inspection
+
+> **Advanced.** Inspect or dump content source data for debugging.
+
+```bash
+bukit data inspect --source page --config site.yaml
+bukit data dump --source page --format json --config site.yaml
+```
+
+## docs: Documentation Consistency Check
+
+> **Maintainer.** Validate documentation consistency (CLI coverage, config field references, file references).
+
+```bash
+bukit docs check
+```
+
+## geo: GEO Audit
+
+> **Preview.** Audit GEO (Generative Engine Optimization) readiness.
+
+```bash
+bukit geo audit --dir dist --config site.yaml
+```
+
+## intent: AI Intent Management
+
+> **Preview.** Initialize, apply, or validate site intents.
+
+```bash
+bukit intent init
+bukit intent apply
+bukit intent validate
+```
+
+## route: Route Inspection
+
+> **Advanced.** Inspect route resolution for debugging.
+
+```bash
+bukit route inspect --url /blog/hello-world/ --config site.yaml
+```
+
+## dev: HMR Development Server
+
+> **Advanced.** Start the HMR development server with live reload.
+
+```bash
+bukit dev --config site.yaml
+```
+
+## plugin: Plugin Management
+
+> **Advanced.** List installed plugins.
+
+```bash
+bukit plugin list --config site.yaml
+```
+
+## deploy: Deploy to GitHub Pages
+
+Deploy the built site to a configured provider (e.g., GitHub Pages).
+
+```bash
+bukit deploy --config site.yaml
+```
+
+See [13 Deploy GitHub Pages](./13-deploy-github-pages.md) for setup and configuration.
+
+## completion: Shell Completion
+
+> **Advanced.** Generate shell completion scripts.
+
+```bash
+bukit completion bash
+bukit completion zsh
+```
+
+## lint: Content Linting
+
+> **Advanced.** Lint content files for schema compliance.
+
+```bash
+bukit lint --config site.yaml
+```
+
 ## version: Check Version
 
 ```bash

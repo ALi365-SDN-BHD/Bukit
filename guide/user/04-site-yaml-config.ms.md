@@ -225,11 +225,11 @@ content:
 
 | Medan | Fungsi | Penerangan |
 |---|---|---|
-| `content.markdown.dir` | Direktori akar Markdown | Membaca `*.md` secara rekursif |
-| `content.markdown.defaultType` | Jenis lalai apabila `type` tidak diisytiharkan | Lazimnya `page` |
-| `content.markdown.maxItems` | Bilangan maksimum artikel untuk dibaca | Integer positif; digunakan sebagai had untuk repo besar |
-| `content.markdown.includePaths` | Hanya membaca laluan tertentu | Relatif kepada `content.markdown.dir`; `.md` boleh ditinggalkan |
-| `content.markdown.includeGlobs` | Hanya membaca glob yang sepadan | Memadankan laluan relatif, pemisah menggunakan `/` |
+| `content.sources[].markdown.dir` | Direktori akar Markdown | Membaca `*.md` secara rekursif |
+| `content.sources[].markdown.defaultType` | Jenis lalai apabila `type` tidak diisytiharkan | Lazimnya `page` |
+| `content.sources[].markdown.maxItems` | Bilangan maksimum artikel untuk dibaca | Integer positif; digunakan sebagai had untuk repo besar |
+| `content.sources[].markdown.includePaths` | Hanya membaca laluan tertentu | Relatif kepada `content.sources[].markdown.dir`; `.md` boleh ditinggalkan |
+| `content.sources[].markdown.includeGlobs` | Hanya membaca glob yang sepadan | Memadankan laluan relatif, pemisah menggunakan `/` |
 
 Cara menulis kandungan Markdown: [05-Kandungan Markdown](./05-markdown-content.md).
 
@@ -259,14 +259,14 @@ content:
 
 | Medan | Fungsi | Penerangan |
 |---|---|---|
-| `content.notion.maxItems` | Bilangan maksimum item untuk ditarik | Integer positif; digunakan sebagai had untuk pangkalan data besar |
-| `content.notion.includeSlugs` | Hanya menarik slug tertentu | Penapisan query pangkalan data (memudahkan debug satu artikel) |
-| `content.notion.includeSlugProperty` | Medan yang sepadan dengan `includeSlugs` | Lalai `Slug`; disyorkan rich_text |
-| `content.notion.cacheMode` | Mod cache render Notion | `off`/`readwrite`/`readonly` |
-| `content.notion.cacheDir` | Direktori cache | Relatif kepada direktori tempat config berada; jika kosong, lalai ialah `<rootDir>/.cache/notion` |
-| `content.notion.renderConcurrency` | Konkurensi render kandungan badan | Integer positif; lalai setempat 4, CI 2 |
-| `content.notion.maxRps` | Had kadar global permintaan Notion | Integer positif; lalai 3 (termasuk query pangkalan data + blocks children) |
-| `content.notion.maxRetries` | Bilangan maksimum cuba semula untuk 429 | Integer bukan negatif; mematuhi backoff `Retry-After` |
+| `content.sources[].notion.maxItems` | Bilangan maksimum item untuk ditarik | Integer positif; digunakan sebagai had untuk pangkalan data besar |
+| `content.sources[].notion.includeSlugs` | Hanya menarik slug tertentu | Penapisan query pangkalan data (memudahkan debug satu artikel) |
+| `content.sources[].notion.includeSlugProperty` | Medan yang sepadan dengan `includeSlugs` | Lalai `Slug`; disyorkan rich_text |
+| `content.sources[].notion.cacheMode` | Mod cache render Notion | `off`/`readwrite`/`readonly` |
+| `content.sources[].notion.cacheDir` | Direktori cache | Relatif kepada direktori tempat config berada; jika kosong, lalai ialah `<rootDir>/.cache/notion` |
+| `content.sources[].notion.renderConcurrency` | Konkurensi render kandungan badan | Integer positif; lalai setempat 4, CI 2 |
+| `content.sources[].notion.maxRps` | Had kadar global permintaan Notion | Integer positif; lalai 3 (termasuk query pangkalan data + blocks children) |
+| `content.sources[].notion.maxRetries` | Bilangan maksimum cuba semula untuk 429 | Integer bukan negatif; mematuhi backoff `Retry-After` |
 
 Prasyarat mod Notion:
 

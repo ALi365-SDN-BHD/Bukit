@@ -52,7 +52,7 @@ content:
 说明：
 
 - `maxItems`：最多读取多少篇（按路径排序后截断）。
-- `includePaths`：只读取指定路径（相对 `content.markdown.dir`；可省略 `.md`）。
+- `includePaths`：只读取指定路径（相对 `content.sources[].markdown.dir`；可省略 `.md`）。
 - `includeGlobs`：只读取匹配 glob 的文件（匹配相对路径，分隔符使用 `/`；`**` 表示跨目录）。
 
 ## Markdown 渲染能力

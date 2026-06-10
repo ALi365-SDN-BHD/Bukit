@@ -33,12 +33,16 @@
 | `seo` | SEO 审计与回归检测 |
 | `geo` | GEO（生成式引擎优化）审计 |
 | `clone` | 从目标网站提取数据生成主题与内容 |
+| `import` | 导入 HTML 演示或种子文件到 Bukit 主题/内容草稿 |
+| `notion` | 生成 Notion 种子推送计划并验证推送前置条件 |
 | `webhook` | Webhook 触发器 |
 | `data` | 数据模块查看与导出 |
 | `completion` | 生成 shell 自动补全脚本 |
 | `lint` | 检查配置和 Markdown 内容 |
 | `visual` | 生成 Playwright 视觉回归测试脚本 |
 | `docs` | 文档一致性检查 |
+| `publish` | 机器可读性与信任审计 |
+| `route` | 路由解析检查 |
 | `version` | 版本信息 |
 
 说明：
@@ -118,7 +122,7 @@ bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--o
 | `--port <port\|auto>` | `4173` | `auto` 自动选择可用端口 |
 | `--strict-port` | false | 端口占用则失败（默认会递增重试） |
 
-## doctor / clean / config / theme / template / deploy / seo / geo / clone / plugin / intent / webhook / data / completion / lint / visual / docs
+## doctor / clean / config / theme / template / deploy / seo / geo / clone / import / notion / plugin / intent / webhook / data / completion / lint / visual / docs / publish / route
 
 这些命令的参数细节随版本演进，优先以对应 `*Command.cs` 为准：
 
@@ -131,6 +135,8 @@ bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--o
 - `src/Bukit.Cli/Commands/SeoCommand.cs`
 - `src/Bukit.Cli/Commands/GeoCommand.cs`
 - `src/Bukit.Cli/Commands/Clone/`（CloneInputLoader、CloneAssetDownloader、CloneContentWriter、CloneFidelityRunner、CloneThemeGenerator、CloneVerifier）
+- `src/Bukit.Cli/Commands/ImportCommand.cs`
+- `src/Bukit.Cli/Commands/NotionCommand.cs`
 - `src/Bukit.Cli/Commands/PluginCommand.cs`
 - `src/Bukit.Cli/Commands/IntentCommand.cs`
 - `src/Bukit.Cli/Commands/WebhookCommand.cs`
@@ -139,6 +145,8 @@ bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--o
 - `src/Bukit.Cli/Commands/LintCommand.cs`
 - `src/Bukit.Cli/Commands/VisualCommand.cs`
 - `src/Bukit.Cli/Commands/DocsCheck/DocsCheckCommand.cs`
+- `src/Bukit.Cli/Commands/PublishCommand.cs`
+- `src/Bukit.Cli/Commands/RouteCommand.cs`
 
 补充说明：
 

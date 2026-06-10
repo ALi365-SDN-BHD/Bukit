@@ -56,12 +56,12 @@ content:
           - "**/pages/*.md"
 ```
 
-For fully explicit routing, prefer `collection` in front matter over `content.markdown.defaultType`.
+For fully explicit routing, prefer `collection` in front matter over `content.sources[].markdown.defaultType`.
 
 Notes:
 
 - `maxItems`: Maximum number of items to read (truncated after sorting by path).
-- `includePaths`: Only read the specified paths (relative to `content.markdown.dir`; `.md` can be omitted).
+- `includePaths`: Only read the specified paths (relative to `content.sources[].markdown.dir`; `.md` can be omitted).
 - `includeGlobs`: Only read files matching the given glob patterns (matches relative paths, separator is `/`; `**` means cross-directory).
 
 ## Markdown Rendering Features

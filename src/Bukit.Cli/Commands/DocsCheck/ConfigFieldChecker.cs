@@ -19,7 +19,7 @@ public static class ConfigFieldChecker
 
             var text = File.ReadAllText(docFile.Path);
 
-            var references = ConfigFieldExtractor.ExtractYamlReferences(text);
+            var references = ConfigFieldExtractor.ExtractYamlReferencesFromDoc(text);
 
             foreach (var reference in references)
             {
@@ -27,6 +27,12 @@ public static class ConfigFieldChecker
 
                 if (!canonicalPaths.Contains(reference))
                 {
+                    if (ConfigFieldExtractor.IsDynamicMapChild(reference) ||
+                        ConfigFieldExtractor.IsKnownTemplateVariable(reference))
+                    {
+                        continue;
+                    }
+
                     issues.Add(new DocsIssue(
                         docFile.Path,
                         0,

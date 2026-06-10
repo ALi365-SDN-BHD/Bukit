@@ -20,7 +20,7 @@ Ketiga-tiganya berkongsi logik langkauan binaan tambahan, suntikan SEO, dan peng
 
 Apabila `EnableRelaxedMemberAccess` didayakan (lalai), Scriban secara senyap mengembalikan `null` untuk pemboleh ubah salah eja seperti `{{ page.titel }}`. Perintah `doctor` Bukit kini merangkumi pemeriksaan ejaan pemboleh ubah templat melalui `ScribanTemplateLinter` yang menghuraikan semua templat `.html` menggunakan AST Scriban dan membandingkan silang dengan senarai putih medan model yang diketahui.
 
-Pelaksanaan: `src/Bukit.Rendering/Scriban/ScribanTemplateLinter.cs`
+Pelaksanaan: `src/Bukit.Engine/ScribanTemplateLinter.cs`
 
 ## Konvensyen Direktori
 ```yaml

@@ -26,7 +26,7 @@ logging: {}
 - 必须为相对路径（不能以 `/` 或驱动器号开头）
 - 不能包含 `..` 路径遍历段
 
-适用字段：`build.output`, `theme.layouts`, `theme.assets`, `theme.static`, `theme.name`, `content.media.downloadDir`, `content.markdown.dir`, `content.markdown.includePaths[]`
+适用字段：`build.output`, `theme.layouts`, `theme.assets`, `theme.static`, `theme.name`, `content.media.downloadDir`, `content.sources[].markdown.dir`, `content.sources[].markdown.includePaths[]`
 
 违反时报错示例：`"{fieldName} must be a relative path."` 或 `"{fieldName} must not contain '..' path traversal segments."`
 

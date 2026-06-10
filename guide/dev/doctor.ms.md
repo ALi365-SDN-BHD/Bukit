@@ -19,7 +19,7 @@ Pelaksanaan: `src/Bukit.Cli/Commands/DoctorCommand.cs`
     - Mengekstrak semua rujukan pemboleh ubah (`page.title`, `site.params.theme`, dll.)
     - Membandingkan silang dengan senarai putih medan yang diketahui
     - Mengeluarkan amaran apabila menemui pemboleh ubah tidak diketahui (tidak gagal, hanya ⚠)
-    - Senarai putih ditakrifkan dalam: `src/Bukit.Rendering/Scriban/ScribanModelKnownFields.cs`
+    - Senarai putih ditakrifkan dalam: `src/Bukit.Engine/ScribanModelKnownFields.cs`
 11. **Laporan medan tambahan** (baharu)
     - Memeriksa sama ada medan front matter kandungan diisytiharkan dalam skema koleksi
     - Mengeluarkan amaran apabila menemui medan yang tidak diisytiharkan
