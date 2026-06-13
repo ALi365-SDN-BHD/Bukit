@@ -1,12 +1,5 @@
 namespace Bukit.Config;
 
-public enum ExternalPluginPolicy
-{
-    Deny,
-    Warn,
-    Allow
-}
-
 public sealed record AppConfig
 {
     public required SiteConfig Site { get; init; }
@@ -35,14 +28,11 @@ public sealed record SiteConfig
     public string? DefaultLanguage { get; init; }
     public string SitemapMode { get; init; } = "split";
     public bool SearchIncludeDerived { get; init; }
-    public bool ExternalProtocolIncludeRoutedPages { get; init; }
     public string PluginFailMode { get; init; } = "strict";
     public string DeriveConflictPolicy { get; init; } = "fail";
     public string Timezone { get; init; } = "Asia/Shanghai";
     public IReadOnlyDictionary<string, string>? Permalinks { get; init; }
     public IReadOnlyDictionary<string, CollectionConfig>? Collections { get; init; }
-    public IReadOnlyDictionary<string, ExternalPluginConfig>? ExternalPlugins { get; init; }
-    public ExternalPluginPolicy ExternalPluginPolicy { get; init; } = ExternalPluginPolicy.Warn;
     public IReadOnlyDictionary<string, PluginToggleConfig>? Plugins { get; init; }
     public FeedConfig Feed { get; init; } = new();
     public SitemapDetailConfig SitemapDetail { get; init; } = new();
@@ -160,23 +150,6 @@ public sealed record FilteredListConfig
     public required string Value { get; init; }
     public required string ListRoute { get; init; }
     public string? ListTemplate { get; init; }
-}
-
-public sealed record ExternalPluginConfig
-{
-    public required string Runtime { get; init; }
-    public required string Entry { get; init; }
-    public IReadOnlyList<string> Hooks { get; init; } = Array.Empty<string>();
-    public bool Enabled { get; init; } = true;
-    public int TimeoutMs { get; init; } = 5000;
-    public int MaxStdoutBytes { get; init; } = 1048576;
-    public int MaxStderrBytes { get; init; } = 1048576;
-    public IReadOnlyList<string>? AllowEnvironment { get; init; }
-    public IReadOnlyList<string>? Capabilities { get; init; }
-    public IReadOnlyList<string>? TemplateRequirements { get; init; }
-    public bool AllowAbsoluteEntry { get; init; }
-    public string? Sha256 { get; init; }
-    public IReadOnlyDictionary<string, object>? Options { get; init; }
 }
 
 public sealed record ContentConfig

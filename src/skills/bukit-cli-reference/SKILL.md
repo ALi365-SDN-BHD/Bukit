@@ -64,7 +64,7 @@ After downloading, place the binary in a PATH directory or the project root.
 
 | Command | Purpose | Key Parameters |
 |------|------|---------|
-| `build` | Build static site | `--config` `--output` `--base-url` `--draft` `--ci` `--incremental` / `--no-incremental` `--jobs` `--metrics` `--log-format` `--allow-external-plugins` |
+| `build` | Build static site | `--config` `--output` `--base-url` `--draft` `--ci` `--incremental` / `--no-incremental` `--jobs` `--metrics` `--log-format` |
 | `preview` | Static preview of dist/ | `--dir` `--host` `--port` `--strict-port` `--config` `--site` |
 | `clean` | Clean output and cache directories | `--config` `--site` `--dir` |
 | `config check` | Validate site.yaml without building | `--config` `--site` `--site-url` |
@@ -97,7 +97,6 @@ bukit build [--config <path>] [--output <dir>] [--base-url <url>] [--draft] [--c
 | `--metrics` | Output JSON build metrics to specified file |
 | `--jobs` | Parallel rendering concurrency (positive integer) |
 | `--log-format` | Log format: `text` (default) or `json` |
-| `--allow-external-plugins` | Allow loading external protocol plugins (overrides `site.externalPluginPolicy`) |
 
 **Working directory requirement:** Must be run from the site root containing `site.yaml`.
 

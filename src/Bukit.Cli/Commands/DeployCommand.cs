@@ -32,6 +32,7 @@ public static class DeployCommand
 
         var dryRun = command.GetBool("--dry-run");
         var skipBuild = command.GetBool("--skip-build");
+        var force = command.GetBool("--force");
 
         var cliBaseUrl = command.GetString("--base-url");
         var cliSiteUrl = command.GetString("--site-url");
@@ -113,6 +114,7 @@ public static class DeployCommand
             Message = cliMessage ?? deployConfig.Message,
             Cname = deployConfig.Cname,
             KeepHistory = deployConfig.KeepHistory,
+            Force = force,
             Logger = logger
         };
 

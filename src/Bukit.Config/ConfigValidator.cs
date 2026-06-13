@@ -20,11 +20,6 @@ public static class ConfigValidator
             CollectionsValidator.ValidateSourcesToCollections(config.Content.Sources, config.Site.Collections);
         }
 
-        if (config.Site.ExternalPlugins is not null)
-        {
-            ExternalPluginsValidator.ValidateExternalPlugins(config.Site.ExternalPlugins);
-        }
-
         if (config.Content.Sources is not { Count: > 0 })
         {
             throw new ConfigException("content.sources is required in Bukit 1.0.", DiagnosticCode.ConfigRequiredFieldMissing);

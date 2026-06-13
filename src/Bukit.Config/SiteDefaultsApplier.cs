@@ -185,58 +185,6 @@ internal static class SiteDefaultsApplier
         };
     }
 
-    internal static IReadOnlyDictionary<string, ExternalPluginConfig>? ReadExternalPlugins(YamlMappingNode siteNode)
-    {
-        var pluginsNode = ConfigYamlHelpers.GetOptionalMapping(siteNode, "externalPlugins");
-        if (pluginsNode is null)
-        {
-            return null;
-        }
-
-        var plugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kv in pluginsNode.Children)
-        {
-            if (kv.Key is not YamlScalarNode keyNode || string.IsNullOrWhiteSpace(keyNode.Value))
-            {
-                continue;
-            }
-
-            if (kv.Value is not YamlMappingNode pluginNode)
-            {
-                throw new ConfigException($"site.externalPlugins.{keyNode.Value} must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
-            }
-
-            IReadOnlyDictionary<string, object>? options = null;
-            if (pluginNode.Children.TryGetValue(new YamlScalarNode("options"), out var optionsRaw))
-            {
-                if (optionsRaw is not YamlMappingNode optionsNode)
-                {
-                    throw new ConfigException($"site.externalPlugins.{keyNode.Value}.options must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
-                }
-
-                options = ConfigYamlHelpers.ReadObjectMap(optionsNode);
-            }
-
-            plugins[keyNode.Value.Trim()] = new ExternalPluginConfig
-            {
-                Runtime = ConfigYamlHelpers.GetRequiredString(pluginNode, "runtime"),
-                Entry = ConfigYamlHelpers.GetRequiredString(pluginNode, "entry"),
-                Hooks = ConfigYamlHelpers.ReadStringList(pluginNode, "hooks") ?? Array.Empty<string>(),
-                Enabled = ConfigYamlHelpers.GetOptionalBool(pluginNode, "enabled") ?? true,
-                TimeoutMs = ConfigYamlHelpers.GetOptionalIntStrict(pluginNode, "timeoutMs") ?? 5000,
-                MaxStdoutBytes = ConfigYamlHelpers.GetOptionalIntStrict(pluginNode, "maxStdoutBytes") ?? 1048576,
-                MaxStderrBytes = ConfigYamlHelpers.GetOptionalIntStrict(pluginNode, "maxStderrBytes") ?? 1048576,
-                AllowEnvironment = ConfigYamlHelpers.ReadStringList(pluginNode, "allowEnvironment"),
-                Capabilities = ConfigYamlHelpers.ReadStringList(pluginNode, "capabilities"),
-                TemplateRequirements = ConfigYamlHelpers.ReadStringList(pluginNode, "templateRequirements"),
-                AllowAbsoluteEntry = ConfigYamlHelpers.GetOptionalBool(pluginNode, "allowAbsoluteEntry") ?? false,
-                Options = options
-            };
-        }
-
-        return plugins.Count == 0 ? null : plugins;
-    }
-
     internal static DeployConfig? ReadDeployConfig(YamlMappingNode? deployNode)
     {
         if (deployNode is null)

@@ -629,7 +629,7 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
-    public void Load_ExternalPlugins_ParsesPluginConfigs()
+    public void Load_ExternalPlugins_ThrowsConfigException()
     {
         var yaml = """
             site:
@@ -660,28 +660,8 @@ public sealed class ConfigLoaderTests : IDisposable
             """;
         var path = WriteTempYaml(yaml);
 
-        var config = ConfigLoader.Load(path);
-
-        Assert.NotNull(config.Site.ExternalPlugins);
-        Assert.Single(config.Site.ExternalPlugins);
-
-        var sitemap = config.Site.ExternalPlugins["sitemap-generator"];
-        Assert.Equal("process", sitemap.Runtime);
-        Assert.Equal("plugins/sitemap.exe", sitemap.Entry);
-        Assert.NotNull(sitemap.Hooks);
-        Assert.Contains("after-build", sitemap.Hooks);
-        Assert.True(sitemap.Enabled);
-        Assert.Equal(10000, sitemap.TimeoutMs);
-        Assert.Equal(2048, sitemap.MaxStdoutBytes);
-        Assert.Equal(4096, sitemap.MaxStderrBytes);
-        Assert.NotNull(sitemap.AllowEnvironment);
-        Assert.Contains("PATH", sitemap.AllowEnvironment);
-        Assert.NotNull(sitemap.TemplateRequirements);
-        Assert.Contains("widget", sitemap.TemplateRequirements);
-        Assert.NotNull(sitemap.Options);
-        Assert.Equal("full", sitemap.Options["mode"]);
-        Assert.Equal("true", sitemap.Options["pretty"]);
-
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+        Assert.Contains("site.externalPlugins", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -789,32 +769,10 @@ public sealed class ConfigLoaderTests : IDisposable
 
     [Theory]
     [InlineData("alow")]
-    [InlineData("denyy")]
-    [InlineData("denyallow")]
-    public void Load_InvalidExternalPluginPolicy_ThrowsConfigException(string invalidPolicy)
-    {
-        var yaml = $"""
-            site:
-              name: test
-              title: Test
-              externalPluginPolicy: {invalidPolicy}
-            content:
-              sources:
-                - type: markdown
-                  markdown:
-                    dir: content
-            """;
-        var path = WriteTempYaml(yaml);
-
-        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
-        Assert.Contains("externalPluginPolicy", ex.Message);
-    }
-
-    [Theory]
     [InlineData("deny")]
     [InlineData("warn")]
     [InlineData("allow")]
-    public void Load_ValidExternalPluginPolicy_ReturnsPolicy(string policy)
+    public void Load_ExternalPluginPolicy_ThrowsConfigException(string policy)
     {
         var yaml = $"""
             site:
@@ -829,8 +787,8 @@ public sealed class ConfigLoaderTests : IDisposable
             """;
         var path = WriteTempYaml(yaml);
 
-        var config = ConfigLoader.Load(path);
-        Assert.Equal(policy, config.Site.ExternalPluginPolicy.ToString(), StringComparer.OrdinalIgnoreCase);
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+        Assert.Contains("site.externalPluginPolicy", ex.Message, StringComparison.Ordinal);
     }
 
     [Theory]

@@ -32,7 +32,7 @@ guide_chapters:
 
 | Node | Responsibility | Key Fields |
 |------|------|---------|
-| `site` | Site metadata and global behavior | name, title, url, baseUrl, language, collections, plugins, externalPlugins, feed, sitemapDetail, related, menus, search, pagination |
+| `site` | Site metadata and global behavior | name, title, url, baseUrl, language, collections, plugins, feed, sitemapDetail, related, menus, search, pagination |
 | `content` | Content source definition | sources, media, modelSchema |
 | `build` | Build behavior | output, clean, draft, listPageContentMode, fingerprintMode |
 | `theme` | Theme configuration | name, layouts, assets, static, params |
@@ -198,11 +198,8 @@ theme:
 | `pluginFailMode` | string | `strict` | Plugin failure policy: `strict`/`warn` |
 | `deriveConflictPolicy` | string | `fail` | Derived page route conflict policy: `fail`/`warn`/`last-wins`. Content-page conflicts always fail regardless of this setting. |
 | `searchIncludeDerived` | bool | false | Whether search index includes derived pages |
-| `externalProtocolIncludeRoutedPages` | bool | false | Whether external protocol plugins receive routed pages |
 | `collections` | map | — | Collection route definitions |
 | `plugins` | map | — | Plugin toggles (`{pluginName: {enabled: false}}`). Key `feed` replaces old `rss` |
-| `externalPlugins` | map | — | External plugin configuration. Each entry supports `runtime`, `entry`, `hooks`, `timeoutMs`, `maxStdoutBytes`/`maxStderrBytes` (output byte limits), `allowEnvironment` (list of host env vars to expose), `capabilities` (list of required capabilities: `emit-outputs`, `derive-pages`), `templateRequirements` (list of template file paths the plugin requires), and `allowAbsoluteEntry`/`sha256`/`options`. When `capabilities` is declared, the plugin is **enforced** at runtime — if its hooks don't match declared capabilities, the build fails. |
-| `externalPluginPolicy` | string | `warn` | External plugin safety policy: `deny` (block all), `warn` (load with warning, default), `allow` (load silently). Invalid values throw `ConfigException` with `BKT-0002`. |
 | `feed` | map | — | Feed config: `formats`, `limit`, `path` |
 | `sitemapDetail` | map | — | Sitemap detail: `defaultPriority`, `defaultChangefreq`, `imageEnabled`, `videoEnabled` |
 | `related` | map | — | Related content: `enabled`, `threshold`, `limit`, `indices` |

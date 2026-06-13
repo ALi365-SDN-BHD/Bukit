@@ -334,7 +334,7 @@ public static class ThemeCommand
         return SetThemeAsync(name, resolvedForSet.FullConfigPath, resolvedForSet.RootDir, brand: null, primaryColor: null, accentColor: null);
     }
 
-    internal static Task<int> SetThemeAsync(
+    public static Task<int> SetThemeAsync(
         string name,
         string fullConfigPath,
         string rootDir,

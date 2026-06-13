@@ -80,6 +80,10 @@ public sealed class CompletionCommandTests
         Assert.NotNull(registry.Resolve("clean"));
         Assert.NotNull(registry.Resolve("version"));
         Assert.NotNull(registry.Resolve("completion"));
+        Assert.NotNull(registry.Resolve("seo"));
+        Assert.NotNull(registry.Resolve("geo"));
+        Assert.NotNull(registry.Resolve("publish"));
+        Assert.NotNull(registry.Resolve("deploy"));
         Assert.Null(registry.Resolve("lint"));
     }
 }

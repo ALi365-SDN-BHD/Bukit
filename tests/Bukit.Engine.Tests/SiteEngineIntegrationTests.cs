@@ -1680,48 +1680,6 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
-    public async Task BuildAsync_IncrementalBuildDeletesRemovedPluginOutputs()
-    {
-        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-plugin-output-delete", Guid.NewGuid().ToString("N"));
-
-        try
-        {
-            Directory.CreateDirectory(Path.Combine(root, "content"));
-            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
-            File.WriteAllText(Path.Combine(root, "content", "a.md"), """
-                ---
-                type: page
-                collection: page
-                markdown:
-                  dir: content
-                title: A
-                slug: a
-                ---
-                # A
-                """);
-            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
-            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
-            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
-
-            var config = CreatePluginOutputConfig("success");
-            WriteTestThemeTemplates(root);
-            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides { AllowExternalPlugins = true }, CancellationToken.None);
-            var pluginOutput = Path.Combine(root, "dist", "plugin-output.json");
-            Assert.True(File.Exists(pluginOutput));
-
-            var incrementalConfig = CreatePluginOutputConfig("no-output") with { Build = config.Build with { Clean = false } };
-
-            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false, AllowExternalPlugins = true }, CancellationToken.None);
-
-            Assert.False(File.Exists(pluginOutput));
-        }
-        finally
-        {
-            CleanupDir(root);
-        }
-    }
-
-    [Fact]
     public async Task BuildAsync_IncrementalBuildDeletesRemovedStaticFiles()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-integration-static-delete", Guid.NewGuid().ToString("N"));
@@ -3101,45 +3059,6 @@ public sealed class SiteEngineIntegrationTests
             """);
         return root;
     }
-
-    private static AppConfig CreatePluginOutputConfig(string mode)
-        => new()
-        {
-            Site = new SiteConfig
-            {
-                Name = "t",
-                Title = "T",
-                BaseUrl = "/",
-                Language = "en",
-                Collections = TestCollections(),
-                PluginFailMode = "strict",
-                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["sample"] = new()
-                    {
-                        Runtime = "process",
-                        Entry = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet",
-                        AllowAbsoluteEntry = true,
-                        Hooks = new[] { "after-build" },
-                        Capabilities = new[] { "emit-outputs" },
-                        TimeoutMs = 5000,
-                        Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                        {
-                            ["processArgs"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                            {
-                                ["positionals"] = new object[] { Path.Combine(AppContext.BaseDirectory, "ProtocolEchoPlugin.dll"), mode }
-                            }
-                        }
-                    }
-                }
-            },
-            Content = TestContent.Markdown() with
-            {
-                Media = new MediaConfig { DownloadToLocal = false }
-            },
-            Build = new BuildConfig { Output = "dist", Clean = true },
-            Theme = new ThemeConfig { Layouts = "layouts" }
-        };
 
     private static AppConfig CreateThemeInheritanceConfig()
         => new()

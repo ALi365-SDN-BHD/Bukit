@@ -150,7 +150,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               name: myblog
               title: My Blog
               searchIncludeDerived: true
-              externalProtocolIncludeRoutedPages: true
             content:
               sources:
                 - type: markdown
@@ -161,7 +160,26 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         var config = ConfigLoader.Load(path);
 
         Assert.True(config.Site.SearchIncludeDerived);
-        Assert.True(config.Site.ExternalProtocolIncludeRoutedPages);
+    }
+
+    [Fact]
+    public void Load_ExternalProtocolIncludeRoutedPages_ThrowsConfigException()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              externalProtocolIncludeRoutedPages: true
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+        Assert.Contains("site.externalProtocolIncludeRoutedPages", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -16,9 +16,7 @@
     <ProjectReference Include="..\..\src\Bukit.Rendering\Bukit.Rendering.csproj" />
     <ProjectReference Include="..\..\src\Bukit.Engine\Bukit.Engine.csproj" />
     <ProjectReference Include="..\..\src\Bukit.Cli\Bukit.Cli.csproj" />
-    <ProjectReference Include="..\..\src\plugins\PathReportPlugin\PathReportPlugin.csproj" />
-    <ProjectReference Include="..\..\src\plugins\SampleAfterBuildPlugin\SampleAfterBuildPlugin.csproj" />
-    <ProjectReference Include="..\..\src\plugins\VisualFeedbackPlugin\VisualFeedbackPlugin.csproj" />
+    <ProjectReference Include="..\..\experimental\Bukit.Labs.Cli\Bukit.Labs.Cli.csproj" />
   </ItemGroup>
 
   <ItemGroup>
