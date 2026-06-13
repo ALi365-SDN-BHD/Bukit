@@ -115,7 +115,7 @@ See [`guide/user/13-deploy-github-pages.md`](guide/user/13-deploy-github-pages.m
 
 Stability commitments:
 
-- CLI: build / doctor / config / preview / clean
+- CLI: build / clean / config / doctor / preview / deploy / seo / geo / publish
 - `content.sources[]` config contract
 - Markdown source
 - Notion source

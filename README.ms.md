@@ -115,7 +115,7 @@ Lihat [`guide/user/13-deploy-github-pages.ms.md`](guide/user/13-deploy-github-pa
 
 Komitmen kestabilan:
 
-- CLI: build / doctor / config / preview / clean
+- CLI: build / clean / config / doctor / preview / deploy / seo / geo / publish
 - Kontrak konfigurasi `content.sources[]`
 - Sumber Markdown
 - Sumber Notion

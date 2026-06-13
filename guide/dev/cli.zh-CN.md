@@ -1,158 +1,148 @@
-# 命令行（CLI）参数参考
+# CLI 参数参考（维护者）
 
-本文档面向维护者，目标是把 CLI 的命令、参数、覆盖关系与常见用法说清楚。
+本文档面向维护者，要求与实现保持一致：`src/Bukit.Cli/Cli/BukitCliSpecs.cs` 与 `src/Bukit.Cli/Cli/BukitCliDescriptors.cs`。
 
-实现参考：
-- `src/Bukit.Cli/Cli/BukitCliSpecs.cs`
-- `src/Bukit.Cli/Cli/Parsing/CliParser.cs`
-- `src/Bukit.Cli/Commands/*Command.cs`
+## 当前支持的顶层命令
 
-说明：
-- 顶层命令与首批命令 help 已由元数据层统一生成
-- `--jobs` 已进入统一 help 口径
-- 参数定义现在以 `BukitCliSpecs.CreateRegistry()` 中的 `CliCommandSpec` / `CliOptionSpec` 声明为准
-
-## 命令总览
-
-| 命令 | 作用 |
-|---|---|
-| `create <dir>` | 从零创建站点工程（等价 `init`） |
-| `init <dir>` | 初始化站点工程骨架 |
-| `build` | 生成静态站点 |
-| `dev` | HMR 开发服务器（文件监控 + 增量构建 + 浏览器实时刷新） |
-| `preview` | 本地预览输出目录 |
-| `clean` | 清理输出与缓存 |
-| `config check` | 验证配置但不构建站点 |
-| `config schema` | 生成 site.yaml JSON Schema |
-| `doctor` | 环境与配置诊断 |
-| `plugin` | 插件相关命令 |
-| `theme` | 主题相关命令 |
-| `template` | 模板相关命令 |
-| `intent` | AI Intent 相关命令 |
-| `deploy` | 构建并部署到 GitHub Pages |
-| `seo` | SEO 审计与回归检测 |
-| `geo` | GEO（生成式引擎优化）审计 |
-| `clone` | 从目标网站提取数据生成主题与内容 |
-| `import` | 导入 HTML 演示或种子文件到 Bukit 主题/内容草稿 |
-| `notion` | 生成 Notion 种子推送计划并验证推送前置条件 |
-| `webhook` | Webhook 触发器 |
-| `data` | 数据模块查看与导出 |
-| `completion` | 生成 shell 自动补全脚本 |
-| `lint` | 检查配置和 Markdown 内容 |
-| `visual` | 生成 Playwright 视觉回归测试脚本 |
-| `docs` | 文档一致性检查 |
-| `publish` | 机器可读性与信任审计 |
-| `route` | 路由解析检查 |
-| `version` | 版本信息 |
-
-说明：
-- 执行大多数命令时，CLI 会先输出一行 `bukit <version>`（用于确认当前运行版本；`help/version` 例外）
-- 版本号来自 `src/Bukit.Cli/Bukit.Cli.csproj` 的 `BuildInfoVersionBase`，也可通过 `VersionPrefix` 或 `Version` 覆盖
-
-## 关键覆盖关系
-
-构建相关的覆盖顺序（从高到低）：
-
-1. CLI 参数（例如 `--output` / `--base-url` / `--clean` / `--draft` / `--site-url`）
-2. `site.yaml`
-3. 代码默认值（见 `Bukit.Config` 的默认值与 `ConfigLoader`）
-
-## 通用构建参数（build/doctor 等共用）
-
-来源：`BukitCliSpecs` 与 `BuildCommand`
-
-| 参数 | 作用 | 覆盖字段/行为 |
+| 命令 | 用途 | 实现文件 |
 |---|---|---|
-| `--config <path>` | 指定配置文件路径 | 作为 config rootDir 与默认相对路径基准 |
-| `--site <name>` | 多站点读取 `sites/<name>.yaml` | rootDir 仍为当前目录 |
-| `--output <dir>` | 覆盖输出目录 | 覆盖 `build.output` |
-| `--base-url <path>` | 覆盖 baseUrl | 覆盖 `site.baseUrl` |
-| `--site-url <url>` | 覆盖站点绝对 URL | 覆盖 `site.url`（用于 sitemap/rss） |
-| `--clean` | 构建前清理 | 覆盖 `build.clean=true` |
-| `--no-clean` | 禁用构建前清理 | 覆盖 `build.clean=false` |
-| `--draft` | 渲染草稿 | 覆盖 `build.draft=true` |
-| `--ci` | CI 模式 | 会影响日志等级等策略（示例：build 默认 WARN） |
-| `--incremental` | 启用增量构建 | 覆盖增量开关（默认启用） |
-| `--no-incremental` | 关闭增量构建 | 覆盖增量开关 |
-| `--cache-dir <dir>` | 覆盖缓存目录 | 默认 `<rootDir>/.cache` |
-| `--jobs <n>` | 并行渲染并发度 | 正整数；默认 CPU 核心数 |
-| `--metrics <path>` | 输出构建指标 JSON | 相对路径按 rootDir 解析 |
-| `--log-format <text|json>` | 控制日志输出格式 | 默认 `text` |
+| `build` | 生成静态站点 | `src/Bukit.Cli/Commands/BuildCommand.cs` |
+| `config` | 配置校验/Schema 生成 | `src/Bukit.Cli/Commands/ConfigCommand.cs` |
+| `clean` | 清理构建输出和 `.cache/.bukit` | `src/Bukit.Cli/Commands/CleanCommand.cs` |
+| `completion` | 生成 shell 自动补全脚本 | `src/Bukit.Cli/Commands/CompletionCommand.cs` |
+| `deploy` | 构建并部署到 GitHub Pages | `src/Bukit.Cli/Commands/DeployCommand.cs` |
+| `doctor` | 配置 / 主题 / 模板诊断 | `src/Bukit.Cli/Commands/DoctorCommand.cs` |
+| `geo` | GEO 质量门禁（` .bukit/geo-report.json`） | `src/Bukit.Cli/Commands/GeoCommand.cs` |
+| `preview` | 本地静态预览服务器 | `src/Bukit.Cli/Commands/PreviewCommand.cs` |
+| `publish` | 发布质量门禁（`.bukit/publish-audit-report.json`） | `src/Bukit.Cli/Commands/PublishCommand.cs` |
+| `seo` | SEO 质量门禁（`.bukit/seo-report.json`） | `src/Bukit.Cli/Commands/SeoCommand.cs` |
+| `version` | 输出版本与运行时 | `src/Bukit.Cli/Commands/VersionCommand.cs` |
+
+子命令：
+- `config check`
+- `config schema`
+- `seo audit`
+- `seo diff`
+- `geo audit`
+- `publish audit`
+- `publish diff`
+
+## 覆盖优先级
+
+对于可覆盖配置字段的参数，优先级为：
+
+1. CLI 入口参数（如 `--output`/`--base-url`/`--site-url`/`--clean` 等）
+2. 配置文件值
+3. 运行时默认值
 
 ## build
 
-实现参考：`src/Bukit.Cli/Commands/BuildCommand.cs`
+```bash
+bukit build --config site.yaml --clean --site-url https://example.com
+```
 
-常用示例：
+常见参数：
+- `--output <dir>`，`--base-url <path>`，`--site-url <url>`
+- `--clean` / `--no-clean`
+- `--draft`
+- `--incremental` / `--no-incremental`
+- `--cache-dir <dir>`
+- `--metrics <path>`
+- `--jobs <n>`
+- `--log-format text|json`
+
+## config
+
+### `config check`
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --clean
+bukit config check --config site.yaml --site demo --site-url https://example.com
 ```
 
-多站点：
+### `config schema`
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --site blog --clean
+bukit config schema --output site.schema.json
 ```
 
-覆盖输出与 baseUrl（GitHub Pages 子路径）：
+省略 `--output` 时输出到 stdout。
+
+## doctor
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --output dist --base-url /my-repo --site-url https://user.github.io/my-repo --clean
+bukit doctor --config site.yaml
 ```
 
-## dev
-
-实现参考：`src/Bukit.Cli/Commands/Dev/`（DevServerHost、DevWebSocketHub、DevFileWatcher、DevRequestHandler、DevPathGuard）
-
-```
-bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--output <dir>] [--no-watch]
-```
-
-开发用途：监控 content/themes/layouts/assets/static 目录的文件变更，自动增量重构建，通过 WebSocket 实时刷新浏览器。端口默认 35729，`--no-watch` 禁用文件监控（纯静态服务）。
+包括：
+- 配置合法性
+- 主题 manifest 与必需模板
+- Scriban 语法与变量引用链条
+- 模板能力清单校验
+- Markdown front matter / 语法 / 空文档检查
+- 硬编码 URL、插件连通性、主题目录检查
+- Notion token 与可选 schema 检查
 
 ## preview
 
-实现参考：`src/Bukit.Cli/Commands/PreviewCommand.cs`
+```bash
+bukit preview --dir dist --port auto
+```
 
-| 参数 | 默认值 | 说明 |
-|---|---|---|
-| `--dir <path>` | `dist` | 预览目录 |
-| `--host <host>` | `localhost` | 监听地址 |
-| `--port <port\|auto>` | `4173` | `auto` 自动选择可用端口 |
-| `--strict-port` | false | 端口占用则失败（默认会递增重试） |
+参数：
+- `--dir <path>`（默认 `dist`）
+- `--host <host>`（默认 `localhost`）
+- `--port <port|auto>`（默认 `4173`，`auto` 自动取空闲端口）
+- `--strict-port`（端口冲突直接失败）
 
-## doctor / clean / config / theme / template / deploy / seo / geo / clone / import / notion / plugin / intent / webhook / data / completion / lint / visual / docs / publish / route
+## clean
 
-这些命令的参数细节随版本演进，优先以对应 `*Command.cs` 为准：
+```bash
+bukit clean --config site.yaml
+```
 
-- `src/Bukit.Cli/Commands/DoctorCommand.cs`
-- `src/Bukit.Cli/Commands/CleanCommand.cs`
-- `src/Bukit.Cli/Commands/ConfigCommand.cs`
-- `src/Bukit.Cli/Commands/ThemeCommand.cs`
-- `src/Bukit.Cli/Commands/TemplateCommand.cs`
-- `src/Bukit.Cli/Commands/DeployCommand.cs`
-- `src/Bukit.Cli/Commands/SeoCommand.cs`
-- `src/Bukit.Cli/Commands/GeoCommand.cs`
-- `src/Bukit.Cli/Commands/Clone/`（CloneInputLoader、CloneAssetDownloader、CloneContentWriter、CloneFidelityRunner、CloneThemeGenerator、CloneVerifier）
-- `src/Bukit.Cli/Commands/ImportCommand.cs`
-- `src/Bukit.Cli/Commands/NotionCommand.cs`
-- `src/Bukit.Cli/Commands/PluginCommand.cs`
-- `src/Bukit.Cli/Commands/IntentCommand.cs`
-- `src/Bukit.Cli/Commands/WebhookCommand.cs`
-- `src/Bukit.Cli/Commands/DataCommand.cs`
-- `src/Bukit.Cli/Commands/CompletionCommand.cs`
-- `src/Bukit.Cli/Commands/LintCommand.cs`
-- `src/Bukit.Cli/Commands/VisualCommand.cs`
-- `src/Bukit.Cli/Commands/DocsCheck/DocsCheckCommand.cs`
-- `src/Bukit.Cli/Commands/PublishCommand.cs`
-- `src/Bukit.Cli/Commands/RouteCommand.cs`
+清理：
+- 目标输出目录（配置值或 `--dir`）
+- `.cache/`
+- `.bukit/`
 
-补充说明：
+## deploy
 
-- init/create 的脚手架输出与目录结构见 [init/create](./init-create.md)。
-- doctor 的检查项与常见失败修复见 [doctor](./doctor.md)。
-- clean 与缓存目录语义见 [缓存与清理](./cache-clean.md)。
-- theme 的开发与参数使用见 [主题开发](./theme.md)。
-- intent 的 CLI 落地与 rootDir 推断规则见 [Intent](./intent-cli.md)。
-- webhook 的安全约束与环境变量说明见 [Webhook](./webhook.md)。
+```bash
+bukit deploy --config site.yaml --dry-run
+```
+
+关键参数：
+- `--dry-run`
+- `--skip-build`
+- `--force`
+- `--base-url`、`--site-url`、`--output`
+- `--branch`、`--message`
+- `--ci`
+
+默认会先执行 `build`，除非传 `--skip-build`。
+
+## seo / geo / publish
+
+- `seo audit [--dir dist] [--report file] [--strict] [--external]`
+- `seo diff --baseline <old> --current <new> ...`
+- `geo audit [--dir dist]`
+- `publish audit [--dir dist] [--report file] [--strict] [--external]`
+- `publish diff --baseline <old> --current <new> ...`
+
+## completion
+
+```bash
+bukit completion bash
+bukit completion zsh
+bukit completion fish
+```
+
+## version
+
+```bash
+bukit version
+```
+
+输出：
+- `bukit <version>`
+- `runtime: native-aot`

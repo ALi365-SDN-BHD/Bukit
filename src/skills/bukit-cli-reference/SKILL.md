@@ -1,6 +1,6 @@
 ---
 name: bukit-cli-reference
-description: Use when using bukit CLI — agent needs to execute Bukit commands (build, deploy, init, preview, clean, doctor, plugin, theme, intent, webhook, version), detect whether the Bukit CLI tool is installed, install or upgrade bukit, or interpret bukit build output and exit codes
+description: Use when using bukit CLI — agent needs to execute Bukit commands (build, clean, completion, config, doctor, geo, preview, publish, seo, deploy, version), detect whether the Bukit CLI tool is installed, install or upgrade bukit, or interpret bukit build output and exit codes
 
 status: stable
 since: "v3.0.0"
@@ -17,7 +17,7 @@ guide_chapters:
 
 ## Overview
 
-Bukit is a .NET single-file executable CLI tool. Agents execute `bukit` commands through their native shell to initialize sites, build, preview, and more. This skill is the single source of truth for all CLI operations — other Bukit skills reference this skill for command execution guidance and do not duplicate command instructions.
+Bukit is a .NET single-file executable CLI tool. Agents execute `bukit` commands through their native shell to build, clean, preview, audit, and deploy sites. This skill is the single source of truth for all CLI operations — other Bukit skills reference this skill for command execution guidance and do not duplicate command instructions.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
 
@@ -64,12 +64,16 @@ After downloading, place the binary in a PATH directory or the project root.
 
 | Command | Purpose | Key Parameters |
 |------|------|---------|
-| `build` | Build static site | `--config` `--output` `--base-url` `--draft` `--ci` `--incremental` / `--no-incremental` `--jobs` `--metrics` `--log-format` |
+| `build` | Build static site | `--config` `--site` `--output` `--base-url` `--site-url` `--clean`/`--no-clean` `--draft` `--ci` `--incremental`/`--no-incremental` `--cache-dir` `--metrics` `--jobs` `--log-format` |
 | `preview` | Static preview of dist/ | `--dir` `--host` `--port` `--strict-port` `--config` `--site` |
-| `clean` | Clean output and cache directories | `--config` `--site` `--dir` |
+| `clean` | Clean output and cache directories | `--dir` `--config` `--site` |
 | `config check` | Validate site.yaml without building | `--config` `--site` `--site-url` |
 | `config schema` | Generate site.yaml JSON Schema | `--output` |
 | `doctor` | Diagnose config and templates | `--config` `--site` `--site-url` |
+| `seo` | SEO quality gate | `audit`, `diff`, `--dir`, `--report`, `--strict`, `--external` |
+| `geo` | GEO quality gate | `audit`, `--dir` |
+| `publish` | Publish/readiness quality gate | `audit`, `diff`, `--dir`, `--report`, `--strict`, `--external` |
+| `deploy` | Deploy to GitHub Pages | `--config` `--site` `--dry-run` `--skip-build` `--base-url` `--site-url` `--output` `--branch` `--message` `--ci` `--force` |
 | `completion` | Generate shell auto-completion script | `<shell>` (bash|zsh|fish) |
 | `version` | Output version number | No parameters |
 ## Key Command Details
@@ -201,6 +205,65 @@ Template variable spell check output:
 --- Template variable spell check ---
 ⚠ pages/index.html: Unknown variable 'site.settings' — did you mean 'site.params'?
 ✔ No unknown template variables detected
+```
+
+### seo
+
+Run SEO checks from a build output.
+
+```
+bukit seo [audit|diff]
+```
+
+`bukit seo audit` validates `--dir/.bukit/seo-report.json` and returns non-zero on configured threshold violations.
+
+```
+bukit seo audit [--dir <dir>] [--report <path>] [--strict] [--external]
+```
+
+`bukit seo diff` compares two SEO reports and fails when threshold breaches are detected.
+
+```
+bukit seo diff --baseline <old.json> --current <new.json> [--max-new-errors <n>] [--max-new-warnings <n>] [--max-new-issues <n>] [--fail-on-new-code <code>] [--fail-on-route-removed] [--fail-on-indexable-drop]
+```
+
+### geo
+
+Run GEO checks from a build output.
+
+```
+bukit geo audit [--dir <dir>]
+```
+
+### publish
+
+Run publish/readiness checks from a build output.
+
+```
+bukit publish [audit|diff]
+```
+
+`bukit publish audit` validates `--dir/.bukit/publish-audit-report.json`.
+
+```
+bukit publish audit [--dir <dir>] [--report <path>] [--strict] [--external]
+```
+
+`bukit publish diff` compares two publish reports and fails when threshold breaches are detected.
+
+```
+bukit publish diff --baseline <old.json> --current <new.json> [--max-new-errors <n>] [--max-new-warnings <n>] [--max-new-issues <n>] [--fail-on-new-code <code>] [--fail-on-route-removed] [--fail-on-indexable-drop]
+```
+
+### deploy
+
+Deploy output to GitHub Pages.
+
+```
+bukit deploy [--config <path>] [--site <name>] [--dry-run] [--skip-build] [--base-url <url>] [--site-url <url>] [--output <dir>] [--branch <branch>] [--message <msg>] [--ci] [--force]
+```
+
+When `--skip-build` is omitted, `deploy` runs `bukit build` before pushing by default.
 
 ### completion
 
@@ -250,19 +313,12 @@ User says "help me build a Bukit blog":
    → CLI unavailable → guide installation
    → CLI available → continue
 
-2. Initialize: bukit init ./my-blog --provider markdown
-
-3. Load bukit-config skill → modify site.yaml as needed
-
-4. Load bukit-theme skill → adjust theme as needed
-
-5. Load bukit-templating skill → write templates as needed
-
-6. Build: bukit build
-
-7. Dev server: bukit dev → HMR with live reload during development
-
-8. Deploy (optional): bukit deploy → refer user to bukit-deploy skill and guide/user/13-deploy-github-pages.md
+2. Load bukit-config skill → modify site.yaml as needed
+3. Build: bukit build
+4. Validate: bukit config check and/or bukit doctor
+5. Preview: bukit preview --dir dist
+6. Optional: bukit seo audit / bukit geo audit / bukit publish audit
+7. Optional deploy: bukit deploy → refer user to bukit-deploy skill and guide/user/13-deploy-github-pages.md
 ```
 
 ## Common Errors
@@ -270,7 +326,6 @@ User says "help me build a Bukit blog":
 | Symptom | Cause | Fix |
 |---------|------|------|
 | `Unknown command: xxx` | Command name typo | Check command name; run `bukit` or `bukit help` for full list |
-| `init requires a target directory` | No target directory specified | `bukit init ./my-site` |
 | `Directory not found: dist` | Not built before preview or output cleaned | Run `bukit build` first |
 | `Failed to listen on ... (port conflict)` | Port occupied and strict-port mode | Change port `--port 8080` or use `--port auto` |
 | Config loading failed | site.yaml missing or YAML syntax error | Check path, ensure valid YAML syntax |
@@ -286,10 +341,7 @@ User says "help me build a Bukit blog":
 | Variable | Purpose | Related Commands |
 |------|------|---------|
 | `NOTION_TOKEN` | Notion API key | build, doctor |
-| `BUKIT_WEBHOOK_TOKEN` | Webhook authentication token | webhook |
-| `BUKIT_GITHUB_REPO` | GitHub repo name (owner/repo) | webhook |
-| `BUKIT_GITHUB_TOKEN` | GitHub PAT | webhook |
-| `GITHUB_TOKEN` | GitHub PAT (fallback) | webhook, deploy |
+| `GITHUB_TOKEN` | GitHub PAT (fallback) | deploy |
 | `BUKIT_<SECTION>__<FIELD>` | Generic scalar config override, e.g. `BUKIT_SITE__URL` | config check, build, doctor |
 | `BUKIT_AUTO_SUMMARY` | Auto summary toggle (internal) | build |
 | `BUKIT_AUTO_SUMMARY_MAXLEN` | Auto summary max length (internal) | build |
