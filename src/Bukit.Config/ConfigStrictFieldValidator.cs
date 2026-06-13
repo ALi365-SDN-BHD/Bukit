@@ -18,11 +18,11 @@ internal static class ConfigStrictFieldValidator
         "publishDotFiles", "followSymlinks", "languageJobs", "report");
     private static readonly HashSet<string> BuildReportKeys = Set("enabled", "securityFailMode");
     private static readonly HashSet<string> ThemeKeys = Set(
-        "name", "source", "extends", "layouts", "assets", "static", "staticTemplate", "params", "shortcodes",
+        "name", "layouts", "assets", "static", "staticTemplate", "params", "shortcodes",
         "components", "scss", "images", "componentValidation");
     private static readonly HashSet<string> TaxonomyKeys = Set("kinds");
     private static readonly HashSet<string> LoggingKeys = Set("level");
-    private static readonly HashSet<string> DeployKeys = Set("provider", "branch", "message", "cname", "keepHistory", "options");
+    private static readonly HashSet<string> DeployKeys = Set("provider", "branch", "message", "cname", "keepHistory");
 
     internal static void Validate(YamlMappingNode root)
     {

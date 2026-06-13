@@ -352,8 +352,6 @@ public sealed record BuildReportConfig
 public sealed record ThemeConfig
 {
     public string? Name { get; init; }
-    public string? Source { get; init; }
-    public string? Extends { get; init; }
     public string Layouts { get; init; } = "layouts";
     public string Assets { get; init; } = "assets";
     public string Static { get; init; } = "static";

@@ -90,8 +90,6 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject ThemeSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("name", StringSchema()),
-            ("source", StringSchema()),
-            ("extends", StringSchema()),
             ("layouts", StringSchema()),
             ("assets", StringSchema()),
             ("static", StringSchema()),
@@ -118,12 +116,11 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject DeploySchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("provider", StringSchema()),
+            ("provider", EnumSchema("github-pages")),
             ("branch", StringSchema()),
             ("message", StringSchema()),
             ("cname", StringSchema()),
-            ("keepHistory", BoolSchema()),
-            ("options", Obj(("type", "object"))))));
+            ("keepHistory", BoolSchema()))));
 
     private static JsonObject SeoSchema()
         => Obj(("type", "object"), ("properties", Obj(

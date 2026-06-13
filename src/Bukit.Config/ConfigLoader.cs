@@ -122,8 +122,6 @@ public static class ConfigLoader
         var theme = new ThemeConfig
         {
             Name = themeNode is null ? null : ConfigYamlHelpers.GetOptionalString(themeNode, "name"),
-            Source = themeNode is null ? null : ConfigYamlHelpers.GetOptionalString(themeNode, "source"),
-            Extends = themeNode is null ? null : ConfigYamlHelpers.GetOptionalString(themeNode, "extends"),
             Layouts = themeNode is null ? "layouts" : ConfigYamlHelpers.GetOptionalString(themeNode, "layouts") ?? "layouts",
             Assets = themeNode is null ? "assets" : ConfigYamlHelpers.GetOptionalString(themeNode, "assets") ?? "assets",
             Static = themeNode is null ? "static" : ConfigYamlHelpers.GetOptionalString(themeNode, "static") ?? "static",

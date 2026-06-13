@@ -88,7 +88,6 @@ internal static class BuildReporter
         writer.WriteString("output", result.Project.Output);
         writer.WriteString("contentSource", result.Project.ContentSource);
         writer.WriteString("themeName", result.Project.ThemeName);
-        writer.WriteString("themeSource", result.Project.ThemeSource);
         writer.WriteEndObject();
         writer.WritePropertyName("summary");
         writer.WriteStartObject();

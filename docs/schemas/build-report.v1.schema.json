@@ -23,13 +23,12 @@
     },
     "project": {
       "type": "object",
-      "required": ["root", "output", "contentSource", "themeName", "themeSource"],
+      "required": ["root", "output", "contentSource", "themeName"],
       "properties": {
         "root": { "type": "string" },
         "output": { "type": "string" },
         "contentSource": { "type": "string" },
-        "themeName": { "type": ["string", "null"] },
-        "themeSource": { "type": ["string", "null"] }
+        "themeName": { "type": ["string", "null"] }
       },
       "additionalProperties": false
     },

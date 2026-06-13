@@ -73,7 +73,7 @@ public sealed class BuildPipelineTests
             EndedAt: DateTimeOffset.UnixEpoch,
             DurationMs: 0,
             Environment: new BuildEnvironmentInfo("test", "test", false),
-            Project: new BuildProjectInfo("/tmp/site", "dist", "markdown", null, null),
+            Project: new BuildProjectInfo("/tmp/site", "dist", "markdown", null),
             Summary: new BuildSummary(0, 0, 0, 0, 0, 0, 0, 0),
             Incremental: new BuildIncrementalSummary(false, 0, 0),
             Variants: Array.Empty<BuildVariantSummary>(),

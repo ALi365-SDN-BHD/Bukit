@@ -471,13 +471,13 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
-    public async Task BuildAsync_ThemeSource_UsesResolvedThemeLayoutsAndAssets()
+    public async Task BuildAsync_LocalThemeName_UsesResolvedThemeLayoutsAndAssets()
     {
-        var root = Path.Combine(Path.GetTempPath(), "bukit-theme-source-build-test", Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(Path.GetTempPath(), "bukit-theme-name-build-test", Guid.NewGuid().ToString("N"));
 
         try
         {
-            var themeRoot = Path.Combine(root, ".cache", "themes", "local-theme");
+            var themeRoot = Path.Combine(root, "themes", "local-theme");
             Directory.CreateDirectory(Path.Combine(themeRoot, "layouts", "pages"));
             Directory.CreateDirectory(Path.Combine(themeRoot, "assets"));
             Directory.CreateDirectory(Path.Combine(themeRoot, "static"));
@@ -520,7 +520,7 @@ public sealed class SiteEngineIntegrationTests
                 },
                 Content = TestContent.Markdown(),
                 Build = new BuildConfig { Output = "dist", Clean = true, Report = new BuildReportConfig { Enabled = false } },
-                Theme = new ThemeConfig { Source = "local-theme" }
+                Theme = new ThemeConfig { Name = "local-theme" }
             };
 
             var logger = new TestLogger();
@@ -3053,6 +3053,9 @@ public sealed class SiteEngineIntegrationTests
         File.WriteAllText(Path.Combine(root, "themes", "parent", "layouts", "pages", "page.html"), "{{ page.title }}");
         File.WriteAllText(Path.Combine(root, "themes", "parent", "layouts", "pages", "index.html"), "Index");
         File.WriteAllText(Path.Combine(root, "themes", "parent", "layouts", "pages", "list.html"), "List");
+        File.WriteAllText(Path.Combine(root, "themes", "parent", "theme.yaml"), """
+            name: parent
+            """);
         File.WriteAllText(Path.Combine(root, "themes", "child", "theme.yaml"), """
             name: child
             extends: parent
@@ -3069,7 +3072,7 @@ public sealed class SiteEngineIntegrationTests
                 Media = new MediaConfig { DownloadToLocal = false }
             },
             Build = new BuildConfig { Output = "dist", Clean = true },
-            Theme = new ThemeConfig { Name = "child", Extends = "parent" }
+            Theme = new ThemeConfig { Name = "child" }
         };
 
     private static string CreateRouteConflictSite()

@@ -7,5 +7,4 @@ public sealed record DeployConfig
     public string Message { get; init; } = "bukit deploy";
     public string? Cname { get; init; }
     public bool KeepHistory { get; init; }
-    public IReadOnlyDictionary<string, object>? Options { get; init; }
 }

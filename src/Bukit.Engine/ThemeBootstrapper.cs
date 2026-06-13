@@ -36,7 +36,7 @@ public static class ThemeBootstrapper
         SectionSchemaValidator? schemaValidator = null;
         IReadOnlyDictionary<string, ISectionPlugin>? resolvedSectionPlugins = null;
 
-        if ((string.IsNullOrWhiteSpace(config.Theme.Name) && string.IsNullOrWhiteSpace(config.Theme.Source)))
+        if (string.IsNullOrWhiteSpace(config.Theme.Name))
         {
             themeManifest = ThemeManifestLoader.Load(resolved.LayoutsDir, required: false);
             if (themeManifest is null)
@@ -61,29 +61,26 @@ public static class ThemeBootstrapper
         {
             if (!ThemeNameSanitizer.TrySanitize(themeManifest.Extends, out var safeExtends, out var sanitizeError))
             {
-                log.Warn($"theme.manifest.extends '{themeManifest.Extends}' rejected: {sanitizeError}. Parent theme will not be loaded.");
+                throw new ConfigException(
+                    $"theme.yaml extends '{themeManifest.Extends}' is invalid: {sanitizeError}",
+                    DiagnosticCode.ConfigPathTraversal);
             }
-            else
-            {
-                parentThemeRoot = Path.Combine(rootDir, "themes", safeExtends);
-                if (resolved.IsRemote)
-                {
-                    var remoteSibling = Path.Combine(Path.GetDirectoryName(themeRoot)!, safeExtends);
-                    if (Directory.Exists(remoteSibling))
-                    {
-                        parentThemeRoot = remoteSibling;
-                    }
-                }
-            }
+
+            parentThemeRoot = Path.Combine(rootDir, "themes", safeExtends);
         }
 
         if (!string.IsNullOrWhiteSpace(parentThemeRoot))
         {
-            var parentManifest = ThemeManifestLoader.Load(parentThemeRoot);
-            if (parentManifest is not null)
+            var parentManifestPath = Path.Combine(parentThemeRoot, "theme.yaml");
+            if (!File.Exists(parentManifestPath))
             {
-                parentRegistry = new ThemeComponentRegistry(parentThemeRoot, parentManifest, null);
+                throw new ConfigException(
+                    $"theme.yaml extends '{themeManifest.Extends}' but parent theme manifest was not found at '{parentManifestPath}'.",
+                    DiagnosticCode.ThemeSourceUnavailable);
             }
+
+            var parentManifest = ThemeManifestLoader.Load(parentThemeRoot, required: true)!;
+            parentRegistry = new ThemeComponentRegistry(parentThemeRoot, parentManifest, null);
         }
 
         themeRegistry = new ThemeComponentRegistry(themeRoot, themeManifest, parentRegistry);

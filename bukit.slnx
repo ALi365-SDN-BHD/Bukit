@@ -9,6 +9,7 @@
     <Project Path="src/Bukit.Rendering/Bukit.Rendering.csproj" />
     <Project Path="src/Bukit.Routing/Bukit.Routing.csproj" />
     <Project Path="src/Bukit.Shared/Bukit.Shared.csproj" />
+    <Project Path="src/Bukit.Theme/Bukit.Theme.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj" />
