@@ -29,9 +29,16 @@ public static class DeployCommand
         }
 
         var deployConfig = config.Deploy ?? new DeployConfig();
+        var providerName = deployConfig.Provider ?? "github-pages";
+        if (!providerName.Equals("github-pages", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine("deploy.provider must be 'github-pages' in Bukit 1.0.");
+            return 2;
+        }
 
         var dryRun = command.GetBool("--dry-run");
         var skipBuild = command.GetBool("--skip-build");
+        var force = command.GetBool("--force");
 
         var cliBaseUrl = command.GetString("--base-url");
         var cliSiteUrl = command.GetString("--site-url");
@@ -113,6 +120,7 @@ public static class DeployCommand
             Message = cliMessage ?? deployConfig.Message,
             Cname = deployConfig.Cname,
             KeepHistory = deployConfig.KeepHistory,
+            Force = force,
             Logger = logger
         };
 

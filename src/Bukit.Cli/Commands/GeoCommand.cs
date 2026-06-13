@@ -23,21 +23,10 @@ public static class GeoCommand
         Console.Error.WriteLine("Usage: bukit geo audit [--dir dist]");
     }
 
-    private static string? ResolveSeoReportPath(string outputDir)
+    private static string? ResolveGeoReportPath(string outputDir)
     {
-        var preferred = Path.Combine(outputDir, ".bukit", "seo-report.json");
-        if (File.Exists(preferred))
-        {
-            return preferred;
-        }
-
-        var compatible = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
-        if (File.Exists(compatible))
-        {
-            return compatible;
-        }
-
-        return null;
+        var path = Path.Combine(outputDir, ".bukit", "geo-report.json");
+        return File.Exists(path) ? path : null;
     }
 
     private static async Task<int> AuditAsync(string outputDir)
@@ -49,7 +38,7 @@ public static class GeoCommand
             return 2;
         }
 
-        var reportPath = ResolveSeoReportPath(fullDir);
+        var reportPath = ResolveGeoReportPath(fullDir);
         var geoEnhanced = 0;
         var geoTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var llmsTxtExists = File.Exists(Path.Combine(fullDir, "llms.txt"));
@@ -59,16 +48,15 @@ public static class GeoCommand
 
         if (reportPath is null)
         {
-            Console.Error.WriteLine($"Audit report not found under {fullDir} (looked for .bukit/seo-report.json). Run a full build first.");
+            Console.Error.WriteLine($"GEO report not found under {fullDir} (looked for .bukit/geo-report.json). Run a full build first.");
             return 1;
         }
 
         try
         {
             using var doc = await JsonDocument.ParseAsync(File.OpenRead(reportPath));
-            SeoReportValidator.ValidateReportContract(doc.RootElement, SeoReportValidator.AuditReportContract.SeoOrPublish);
 
-            foreach (var document in EnumerateAuditDocuments(doc.RootElement))
+            foreach (var document in EnumerateGeoEnhancedRoutes(doc.RootElement))
             {
                 if (document.TryGetProperty("schemaTypes", out var types))
                 {
@@ -163,19 +151,9 @@ public static class GeoCommand
         return 0;
     }
 
-    private static IEnumerable<JsonElement> EnumerateAuditDocuments(JsonElement root)
+    private static IEnumerable<JsonElement> EnumerateGeoEnhancedRoutes(JsonElement root)
     {
-        if (root.TryGetProperty("documents", out var documents))
-        {
-            foreach (var document in documents.EnumerateArray())
-            {
-                yield return document;
-            }
-
-            yield break;
-        }
-
-        if (root.TryGetProperty("routes", out var routes))
+        if (root.TryGetProperty("geoEnhancedRoutes", out var routes))
         {
             foreach (var route in routes.EnumerateArray())
             {

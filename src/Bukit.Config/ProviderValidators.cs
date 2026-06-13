@@ -226,7 +226,7 @@ internal static class ProviderValidators
             var provider = deploy.Provider.Trim().ToLowerInvariant();
             if (provider is not ("github-pages"))
             {
-                throw new ConfigException($"deploy.provider must be github-pages (got: {deploy.Provider}).", DiagnosticCode.ConfigRequiredFieldMissing);
+                throw new ConfigException("deploy.provider must be 'github-pages' in Bukit 1.0.", DiagnosticCode.ConfigInvalidValue);
             }
         }
 

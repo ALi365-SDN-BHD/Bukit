@@ -431,7 +431,7 @@ public static class DoctorCommand
             var factory = new DefaultContentProviderFactory();
             var contentPipeline = new ContentPipeline(factory, new ConsoleLogger(LogLevel.Error));
             var contentResult = await contentPipeline.ExecuteAsync(config, rootDir, new ConfigOverrides(), Path.Combine(rootDir, ".cache", "media"));
-            DataCommand.PrintModuleSummary(contentResult.Documents);
+            PrintDataModuleSummary(contentResult.Documents);
         }
         catch (Exception ex)
         {
@@ -440,6 +440,70 @@ public static class DoctorCommand
 
         Console.WriteLine("✔ Doctor passed");
         return 0;
+    }
+
+    private static void PrintDataModuleSummary(IReadOnlyList<ContentDocument> documents)
+    {
+        if (documents.Count == 0)
+        {
+            Console.WriteLine("Data modules: (none)");
+            return;
+        }
+
+        var byType = new Dictionary<string, List<ContentDocument>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var document in documents)
+        {
+            if (!ContentFieldReader.IsDataItem(document))
+            {
+                continue;
+            }
+
+            var type = ContentFieldReader.GetContentType(document, "module");
+            if (!byType.ContainsKey(type))
+            {
+                byType[type] = new List<ContentDocument>();
+            }
+
+            byType[type].Add(document);
+        }
+
+        if (byType.Count == 0)
+        {
+            Console.WriteLine("Data modules: (none)");
+            return;
+        }
+
+        Console.WriteLine("Data modules:");
+        foreach (var (type, moduleItems) in byType.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            var source = ContentFieldReader.GetText(moduleItems.First().CustomFields, "sourceKey") ?? "unknown";
+            var sourceMode = ContentFieldReader.GetText(moduleItems.First().CustomFields, "sourceMode") ?? "unknown";
+
+            var languages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in moduleItems)
+            {
+                var language = ContentFieldReader.GetText(item, "language");
+                if (!string.IsNullOrWhiteSpace(language))
+                {
+                    languages.Add(language);
+                }
+            }
+
+            var languageText = languages.Count == 0 ? "-" : languages.Count == 1 ? languages.First() : "mixed";
+            var fieldCount = moduleItems
+                .Select(item => item.CustomFields?.Count ?? 0)
+                .DefaultIfEmpty(0)
+                .Max();
+
+            var fields = moduleItems
+                .SelectMany(item => item.CustomFields?.Keys ?? Array.Empty<string>())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(field => field, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var fieldsText = fields.Length > 0 ? $"[{string.Join(", ", fields)}]" : "";
+
+            Console.WriteLine($"  {type,-14} ×{moduleItems.Count}  source={source,-10}  mode={sourceMode,-8}  lang={languageText,-6}  fields={fieldCount}  {fieldsText}");
+        }
     }
 
     private static void CheckFollowSymlinksSafety(AppConfig config)

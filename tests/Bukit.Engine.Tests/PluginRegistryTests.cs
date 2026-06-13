@@ -224,7 +224,7 @@ public sealed class PluginRegistryTests
 
         var validSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "built-in", "generated", "external", "external-protocol"
+            "built-in"
         };
         Assert.All(plugins, x => Assert.True(validSources.Contains(x.Source), $"Source '{x.Source}' is not valid for plugin '{x.Plugin.Name}'"));
     }

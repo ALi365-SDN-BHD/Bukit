@@ -18,6 +18,10 @@ public static class BukitCliDescriptors
             new(registry.Commands.First(c => c.Name == "preview"), PreviewCommand.RunAsync),
             new(registry.Commands.First(c => c.Name == "version"), VersionCommand.RunAsync),
             new(registry.Commands.First(c => c.Name == "config"), ConfigCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "seo"), SeoCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "geo"), GeoCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "publish"), PublishCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "deploy"), DeployCommand.RunAsync),
         };
     }
 

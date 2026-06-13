@@ -134,7 +134,16 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
                 var pushMsg = pushEx.Message;
                 if (pushMsg.Contains("non-fast-forward") || pushMsg.Contains("fetch first") || pushMsg.Contains("updates were rejected"))
                 {
-                    logger.Warn("Non-fast-forward push detected. The remote branch has diverged. Force-pushing to overwrite...");
+                    if (!context.Force)
+                    {
+                        return new DeployResult
+                        {
+                            Success = false,
+                            Error = "Non-fast-forward push detected. The remote branch has diverged. Re-run with --force to overwrite it."
+                        };
+                    }
+
+                    logger.Warn("Non-fast-forward push detected. The remote branch has diverged. Force-pushing because --force was specified...");
                     await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "--force", "origin", branch);
                 }
                 else

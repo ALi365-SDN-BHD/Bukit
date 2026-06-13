@@ -658,45 +658,27 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
     }
 
     [Fact]
-    public void Load_DeployOptions_GenericMapping()
+    public void Load_DeployOptions_RejectsUnsupportedProvider()
     {
-        var yaml = """
-            site:
-              name: myblog
-              title: My Blog
-            content:
-              sources:
-                - type: markdown
-                  markdown:
-                    dir: content
-            deploy:
-              provider: custom
-              branch: release
-              options:
-                server: production.example.com
-                port: 22
-                path: /var/www/mysite
-                flags:
-                  - "--delete"
-                  - "--exclude=.git"
-            """;
-        var path = WriteTempYaml(yaml);
-        var config = ConfigLoader.Load(path);
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "myblog", Title = "My Blog" },
+            Content = new ContentConfig
+            {
+                Sources =
+                [
+                    new ContentSourceConfig
+                    {
+                        Type = "markdown",
+                        Markdown = new MarkdownConfig { Dir = "content" }
+                    }
+                ]
+            },
+            Deploy = new DeployConfig { Provider = "custom" }
+        };
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
 
-        Assert.NotNull(config.Deploy);
-        Assert.Equal("custom", config.Deploy.Provider);
-        Assert.Equal("release", config.Deploy.Branch);
-        Assert.NotNull(config.Deploy.Options);
-
-        var optionsMap = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(config.Deploy.Options["options"]);
-        Assert.Equal("production.example.com", optionsMap["server"]);
-        Assert.Equal("22", optionsMap["port"]);
-        Assert.Equal("/var/www/mysite", optionsMap["path"]);
-
-        var flags = Assert.IsAssignableFrom<List<object>>(optionsMap["flags"]);
-        Assert.Equal(2, flags.Count);
-        Assert.Contains("--delete", flags);
-        Assert.Contains("--exclude=.git", flags);
+        Assert.Contains("deploy.provider must be 'github-pages' in Bukit 1.0.", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

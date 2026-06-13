@@ -101,6 +101,110 @@ public static partial class BukitCliSpecs
             Description: "生成 shell 自动补全脚本",
             Arguments: new[] { new CliArgumentSpec("shell", "bash|zsh|fish") });
 
-        return new CliCommandRegistry(new[] { build, doctor, config, preview, clean, version, completion });
+        var seo = new CliCommandSpec(
+            Name: "seo",
+            Description: "SEO 审计报告工具",
+            Options: new[]
+            {
+                new CliOptionSpec("--dir", "构建输出目录"),
+                new CliOptionSpec("--report", "SEO 报告路径"),
+                new CliOptionSpec("--strict", "警告也视为失败", CliOptionType.Flag),
+                new CliOptionSpec("--external", "运行外部 SEO 检查", CliOptionType.Flag)
+            },
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "audit",
+                    Description: "读取 seo-report.json 并输出审计结果",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--dir", "构建输出目录"),
+                        new CliOptionSpec("--report", "SEO 报告路径"),
+                        new CliOptionSpec("--strict", "警告也视为失败", CliOptionType.Flag),
+                        new CliOptionSpec("--external", "运行外部 SEO 检查", CliOptionType.Flag)
+                    }),
+                new CliCommandSpec(
+                    Name: "diff",
+                    Description: "比较两个 SEO 报告",
+                    Options: DiffOptions())
+            });
+
+        var geo = new CliCommandSpec(
+            Name: "geo",
+            Description: "GEO 审计报告工具",
+            Options: new[]
+            {
+                new CliOptionSpec("--dir", "构建输出目录")
+            },
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "audit",
+                    Description: "读取 geo-report.json 并输出审计结果",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--dir", "构建输出目录")
+                    })
+            });
+
+        var publish = new CliCommandSpec(
+            Name: "publish",
+            Description: "发布前审计报告工具",
+            Options: new[]
+            {
+                new CliOptionSpec("--dir", "构建输出目录"),
+                new CliOptionSpec("--report", "发布审计报告路径"),
+                new CliOptionSpec("--strict", "警告也视为失败", CliOptionType.Flag),
+                new CliOptionSpec("--external", "运行外部检查", CliOptionType.Flag)
+            },
+            Subcommands: new[]
+            {
+                new CliCommandSpec(
+                    Name: "audit",
+                    Description: "读取 publish-audit-report.json 并输出审计结果",
+                    Options: new[]
+                    {
+                        new CliOptionSpec("--dir", "构建输出目录"),
+                        new CliOptionSpec("--report", "发布审计报告路径"),
+                        new CliOptionSpec("--strict", "警告也视为失败", CliOptionType.Flag),
+                        new CliOptionSpec("--external", "运行外部检查", CliOptionType.Flag)
+                    }),
+                new CliCommandSpec(
+                    Name: "diff",
+                    Description: "比较两个发布审计报告",
+                    Options: DiffOptions())
+            });
+
+        var deploy = new CliCommandSpec(
+            Name: "deploy",
+            Description: "部署到 GitHub Pages",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名"),
+                new CliOptionSpec("--dry-run", "仅输出部署计划", CliOptionType.Flag),
+                new CliOptionSpec("--skip-build", "跳过部署前构建", CliOptionType.Flag),
+                new CliOptionSpec("--base-url", "覆盖 site.baseUrl"),
+                new CliOptionSpec("--site-url", "覆盖 site.url"),
+                new CliOptionSpec("--output", "覆盖输出目录"),
+                new CliOptionSpec("--branch", "部署分支"),
+                new CliOptionSpec("--message", "提交消息"),
+                new CliOptionSpec("--ci", "CI 模式", CliOptionType.Flag),
+                new CliOptionSpec("--force", "允许强制推送", CliOptionType.Flag)
+            });
+
+        return new CliCommandRegistry(new[] { build, doctor, config, preview, clean, version, completion, seo, geo, publish, deploy });
     }
+
+    private static CliOptionSpec[] DiffOptions() =>
+    [
+        new CliOptionSpec("--baseline", "基线报告路径"),
+        new CliOptionSpec("--current", "当前报告路径"),
+        new CliOptionSpec("--max-new-errors", "允许新增错误数", CliOptionType.Integer, ValueName: "n"),
+        new CliOptionSpec("--max-new-warnings", "允许新增警告数", CliOptionType.Integer, ValueName: "n"),
+        new CliOptionSpec("--max-new-issues", "允许新增问题数", CliOptionType.Integer, ValueName: "n"),
+        new CliOptionSpec("--fail-on-new-code", "新增指定问题代码时失败"),
+        new CliOptionSpec("--fail-on-route-removed", "路由删除时失败", CliOptionType.Flag),
+        new CliOptionSpec("--fail-on-indexable-drop", "可索引路由变为不可索引时失败", CliOptionType.Flag)
+    ];
 }

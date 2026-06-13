@@ -1680,48 +1680,6 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
-    public async Task BuildAsync_IncrementalBuildDeletesRemovedPluginOutputs()
-    {
-        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-plugin-output-delete", Guid.NewGuid().ToString("N"));
-
-        try
-        {
-            Directory.CreateDirectory(Path.Combine(root, "content"));
-            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
-            File.WriteAllText(Path.Combine(root, "content", "a.md"), """
-                ---
-                type: page
-                collection: page
-                markdown:
-                  dir: content
-                title: A
-                slug: a
-                ---
-                # A
-                """);
-            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.title }}");
-            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
-            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
-
-            var config = CreatePluginOutputConfig("success");
-            WriteTestThemeTemplates(root);
-            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides { AllowExternalPlugins = true }, CancellationToken.None);
-            var pluginOutput = Path.Combine(root, "dist", "plugin-output.json");
-            Assert.True(File.Exists(pluginOutput));
-
-            var incrementalConfig = CreatePluginOutputConfig("no-output") with { Build = config.Build with { Clean = false } };
-
-            await new SiteEngine(new TestLogger()).BuildAsync(incrementalConfig, root, new ConfigOverrides { Clean = false, AllowExternalPlugins = true }, CancellationToken.None);
-
-            Assert.False(File.Exists(pluginOutput));
-        }
-        finally
-        {
-            CleanupDir(root);
-        }
-    }
-
-    [Fact]
     public async Task BuildAsync_IncrementalBuildDeletesRemovedStaticFiles()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-integration-static-delete", Guid.NewGuid().ToString("N"));

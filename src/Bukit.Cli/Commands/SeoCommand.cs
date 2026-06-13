@@ -16,7 +16,7 @@ public static class SeoCommand
         var compatible = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
         if (File.Exists(compatible))
         {
-            return compatible;
+            return null;
         }
 
         return null;
@@ -42,26 +42,18 @@ public static class SeoCommand
                     return 1;
                 }
             }
-            var contract = reportSpecified
-                ? SeoReportValidator.AuditReportContract.SeoOrPublish
-                : SeoReportValidator.AuditReportContract.SeoOnly;
-
             return await AuditAsync(
                 reportPath,
                 dir,
                 strict: command.GetBool("--strict"),
                 external: command.GetBool("--external"),
                 label: label,
-                contract: contract,
+                contract: SeoReportValidator.AuditReportContract.SeoOnly,
                 reportSpecified: reportSpecified);
         }
 
         if (string.Equals(subcommand, "diff", StringComparison.OrdinalIgnoreCase))
         {
-            var allowCrossSchema = command.GetBool("--allow-cross-schema");
-            var contract = allowCrossSchema
-                ? SeoReportValidator.AuditReportContract.SeoOrPublish
-                : SeoReportValidator.AuditReportContract.SeoOnly;
             try
             {
                 var baseline = command.GetString("--baseline") ?? command.GetArgument(1);
@@ -75,7 +67,7 @@ public static class SeoCommand
                     failOnNewCodes: SeoReportValidator.SplitCsv(command.GetString("--fail-on-new-code")),
                     failOnRouteRemoved: command.GetBool("--fail-on-route-removed"),
                     failOnIndexableDrop: command.GetBool("--fail-on-indexable-drop"),
-                    contract: contract,
+                    contract: SeoReportValidator.AuditReportContract.SeoOnly,
                     label: label,
                     commandName: commandName);
             }
@@ -87,7 +79,7 @@ public static class SeoCommand
         }
 
         Console.Error.WriteLine($"Usage: bukit {commandName} audit [--dir dist] [--report seo-report.json] [--strict] [--external]");
-        Console.Error.WriteLine($"       bukit {commandName} diff --baseline old-report.json --current new-report.json [--max-new-errors n] [--max-new-warnings n] [--max-new-issues n] [--fail-on-new-code code1,code2] [--fail-on-route-removed] [--fail-on-indexable-drop] [--allow-cross-schema]");
+        Console.Error.WriteLine($"       bukit {commandName} diff --baseline old-report.json --current new-report.json [--max-new-errors n] [--max-new-warnings n] [--max-new-issues n] [--fail-on-new-code code1,code2] [--fail-on-route-removed] [--fail-on-indexable-drop]");
         return 2;
     }
 
@@ -114,11 +106,6 @@ public static class SeoCommand
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(fullPath));
             var actualContract = AuditReportContractValidator.ValidateReportContract(doc.RootElement, contract);
-            if (reportSpecified && actualContract == SeoReportValidator.AuditReportContract.PublishOnly)
-            {
-                Console.Error.WriteLine("warning: publish-audit-report schema detected for SEO audit; this is compatibility mode.");
-            }
-
             var summary = doc.RootElement.GetProperty("summary");
             var errorCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "errorCount");
             var warningCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "warningCount");
@@ -197,7 +184,7 @@ public static class SeoCommand
             {
                 throw new InvalidDataException(
                     $"Cannot diff different report schema kinds: baseline uses {baselineContract} and current uses {currentContract}. " +
-                    "Pass --allow-cross-schema to compare compatible schemas.");
+                    "SEO diff only supports seo-report schema.");
             }
 
             var baseline = AuditReportContractValidator.ReadDiffSnapshot(baselineDoc.RootElement);

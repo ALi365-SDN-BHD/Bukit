@@ -51,9 +51,7 @@ public static class PublishCommand
                     failOnNewCodes: SeoReportValidator.SplitCsv(command.GetString("--fail-on-new-code")),
                     failOnRouteRemoved: command.GetBool("--fail-on-route-removed"),
                     failOnIndexableDrop: command.GetBool("--fail-on-indexable-drop"),
-                    contract: command.GetBool("--allow-cross-schema")
-                        ? SeoReportValidator.AuditReportContract.SeoOrPublish
-                        : SeoReportValidator.AuditReportContract.PublishOnly,
+                    contract: SeoReportValidator.AuditReportContract.PublishOnly,
                     label: "Publish",
                     commandName: "publish");
             }
@@ -65,7 +63,7 @@ public static class PublishCommand
         }
 
         Console.Error.WriteLine("Usage: bukit publish audit [--dir dist] [--report publish-audit-report.json] [--strict] [--external]");
-        Console.Error.WriteLine("       bukit publish diff --baseline old-report.json --current new-report.json [--max-new-errors n] [--max-new-warnings n] [--max-new-issues n] [--fail-on-new-code code1,code2] [--fail-on-route-removed] [--fail-on-indexable-drop] [--allow-cross-schema]");
+        Console.Error.WriteLine("       bukit publish diff --baseline old-report.json --current new-report.json [--max-new-errors n] [--max-new-warnings n] [--max-new-issues n] [--fail-on-new-code code1,code2] [--fail-on-route-removed] [--fail-on-indexable-drop]");
         return 2;
     }
 }

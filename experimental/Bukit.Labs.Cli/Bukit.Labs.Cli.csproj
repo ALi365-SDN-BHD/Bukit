@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>bukit-labs</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseAppHost>false</UseAppHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bukit.Cli\Bukit.Cli.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Importing\Bukit.Importing.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Theme\Bukit.Theme.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\Bukit.Cli\Commands\Clone*.cs" Link="Commands\Clone*.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\Notion*.cs" Link="Commands\Notion*.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\IntentCommand.cs" Link="Commands\IntentCommand.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Intent\**\*.cs" Link="Intent\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\VisualCommand.cs" Link="Commands\VisualCommand.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\WebhookCommand.cs" Link="Commands\WebhookCommand.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\DataCommand.cs" Link="Commands\DataCommand.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\Theme*.cs" Link="Commands\Theme*.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\WizardPresets.cs" Link="Commands\WizardPresets.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\InitCommand.cs" Link="Commands\InitCommand.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\TemplateCommand.cs" Link="Commands\TemplateCommand.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\TemplateScope.cs" Link="Commands\TemplateScope.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\TemplateSnippets.cs" Link="Commands\TemplateSnippets.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\PngImageReader.cs" Link="Commands\PngImageReader.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\StarterThemeScaffold.cs" Link="Commands\StarterThemeScaffold.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\ImportCommand.cs" Link="Commands\ImportCommand.cs" />
+    <Compile Include="..\..\src\Bukit.Cli\Commands\ImportSeed*.cs" Link="Commands\ImportSeed*.cs" />
+  </ItemGroup>
+
+</Project>

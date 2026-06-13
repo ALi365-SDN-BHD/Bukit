@@ -5,9 +5,14 @@
     <Project Path="src/Bukit.Content/Bukit.Content.csproj" />
     <Project Path="src/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj" />
     <Project Path="src/Bukit.Engine/Bukit.Engine.csproj" />
+    <Project Path="src/Bukit.Importing/Bukit.Importing.csproj" />
     <Project Path="src/Bukit.Rendering/Bukit.Rendering.csproj" />
     <Project Path="src/Bukit.Routing/Bukit.Routing.csproj" />
     <Project Path="src/Bukit.Shared/Bukit.Shared.csproj" />
+    <Project Path="src/Bukit.Theme/Bukit.Theme.csproj" />
+  </Folder>
+  <Folder Name="/experimental/">
+    <Project Path="experimental/Bukit.Labs.Cli/Bukit.Labs.Cli.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj" />
@@ -15,6 +20,7 @@
     <Project Path="tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj" />
     <Project Path="tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj" />
     <Project Path="tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj" />
+    <Project Path="tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj" />
     <Project Path="tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj" />
     <Project Path="tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj" />
     <Project Path="tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj" />

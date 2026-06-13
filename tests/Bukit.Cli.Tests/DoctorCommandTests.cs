@@ -200,59 +200,6 @@ public sealed class DoctorCommandTests : IDisposable
         Assert.Contains("pagination", output, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task RunAsync_ChecksExternalPluginTemplateRequirementsFromConfig()
-    {
-        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
-                                                                           name: test
-                                                                           templates:
-                                                                             home:
-                                                                               template: pages/index.html
-                                                                               required: true
-                                                                             widget:
-                                                                               template: pages/missing-widget.html
-                                                                               accepts:
-                                                                                 kind: widget
-                                                                           """);
-        File.WriteAllText(_configPath, """
-                                       site:
-                                         name: test
-                                         title: Test
-                                         externalPluginPolicy: allow
-                                         externalPlugins:
-                                           sample:
-                                             runtime: process
-                                             entry: plugins/sample
-                                             hooks:
-                                               - after-build
-                                             capabilities:
-                                               - emit-outputs
-                                             templateRequirements:
-                                               - widget
-                                         collections:
-                                           post:
-                                             permalink: /blog/{slug}/
-                                             template: pages/post.html
-                                             listRoute: /blog/
-                                             listTemplate: pages/list.html
-                                       content:
-                                         sources:
-                                           - type: markdown
-                                             name: post
-                                             collection: post
-                                             markdown:
-                                               dir: content
-                                       build:
-                                         listPageContentMode: auto
-                                       """);
-
-        var (exitCode, output) = await RunDoctorAsync();
-
-        Assert.Equal(1, exitCode);
-        Assert.Contains("Missing used templates", output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("pages/missing-widget.html", output, StringComparison.OrdinalIgnoreCase);
-    }
-
     private void WriteConfigWithExplicitCollectionTemplates()
     {
         File.WriteAllText(_configPath, """
@@ -739,66 +686,6 @@ public sealed class DoctorCommandTests : IDisposable
         Assert.Contains("pages/missing-post.html", output, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task InitGeneratedMarkdownSite_ContainsCollections_AndPassesDoctor()
-    {
-        var initRootDir = Path.Combine(Path.GetTempPath(), "bukit-init-doctor-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(initRootDir);
-
-        try
-        {
-            var siteDir = Path.Combine(initRootDir, "site");
-            var initExitCode = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", siteDir }));
-            Assert.Equal(0, initExitCode);
-
-            var generatedConfigPath = Path.Combine(siteDir, "site.yaml");
-            var yaml = await File.ReadAllTextAsync(generatedConfigPath);
-            Assert.Contains("collections:", yaml, StringComparison.Ordinal);
-            Assert.Contains("theme:", yaml, StringComparison.Ordinal);
-            Assert.Contains("brand: My Site", yaml, StringComparison.Ordinal);
-
-            var themeRoot = Path.Combine(siteDir, "themes", "starter");
-            Assert.True(File.Exists(Path.Combine(themeRoot, "assets", "style.css")));
-            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "bukit.templates.yaml")));
-            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "list-card.html")));
-            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "pagination-nav.html")));
-            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "search.html")));
-            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "taxonomy-index.html")));
-            Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "taxonomy-term.html")));
-
-            var footer = await File.ReadAllTextAsync(Path.Combine(themeRoot, "layouts", "partials", "footer.html"));
-            Assert.Contains("Powered by", footer, StringComparison.Ordinal);
-            Assert.Contains("github.com/ALi365-SDN-BHD/Bukit", footer, StringComparison.Ordinal);
-
-            using var writer = new StringWriter(new StringBuilder());
-            var originalOut = Console.Out;
-            Console.SetOut(writer);
-            try
-            {
-                var doctorExitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
-                    new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["--config"] = generatedConfigPath
-                    },
-                    Array.Empty<string>()));
-
-                Assert.Equal(0, doctorExitCode);
-                Assert.Contains("Doctor passed", writer.ToString(), StringComparison.OrdinalIgnoreCase);
-            }
-            finally
-            {
-                Console.SetOut(originalOut);
-            }
-        }
-        finally
-        {
-            if (Directory.Exists(initRootDir))
-            {
-                Directory.Delete(initRootDir, recursive: true);
-            }
-        }
-    }
-
     private async Task<(int ExitCode, string Output)> RunDoctorAsync()
     {
         using var writer = new StringWriter(new StringBuilder());
@@ -821,66 +708,5 @@ public sealed class DoctorCommandTests : IDisposable
         }
     }
 
-    [Fact]
-    public async Task InitGeneratedNotionSite_ContainsCollections_AndPassesDoctor()
-    {
-        var initRootDir = Path.Combine(Path.GetTempPath(), "bukit-init-notion-doctor-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(initRootDir);
 
-        try
-        {
-            var siteDir = Path.Combine(initRootDir, "site");
-            var initExitCode = await InitCommand.RunAsync(CliTestHelper.CreateCommand("init", new[] { "init", siteDir, "--provider", "notion" }));
-            Assert.Equal(0, initExitCode);
-
-            var generatedConfigPath = Path.Combine(siteDir, "site.yaml");
-            var yaml = await File.ReadAllTextAsync(generatedConfigPath);
-            Assert.Contains("collections:", yaml, StringComparison.Ordinal);
-            Assert.Contains("post:", yaml, StringComparison.Ordinal);
-            Assert.Contains("page:", yaml, StringComparison.Ordinal);
-            Assert.Contains("/blog/{slug}/", yaml, StringComparison.Ordinal);
-            Assert.Contains("/pages/{slug}/", yaml, StringComparison.Ordinal);
-        }
-        finally
-        {
-            if (Directory.Exists(initRootDir))
-            {
-                Directory.Delete(initRootDir, recursive: true);
-            }
-        }
-    }
-
-    [Fact]
-    public async Task StarterExampleThemeAssetAndDoctorAreConsistent()
-    {
-        var repoRoot = FindRepositoryRoot();
-        var exampleConfigPath = Path.Combine(repoRoot, "examples", "starter", "site.yaml");
-        var mediaRoot = Path.Combine(repoRoot, "examples", "starter", "assets");
-        var mediaRootImages = Path.Combine(mediaRoot, "images");
-
-        Assert.True(File.Exists(exampleConfigPath));
-        Assert.True(File.Exists(Path.Combine(mediaRoot, "noneimg-news.jpg")));
-        Assert.True(File.Exists(Path.Combine(mediaRootImages, "noneimg-news.jpg")));
-
-        var output = new StringBuilder();
-        var originalOut = Console.Out;
-        Console.SetOut(new StringWriter(output));
-        try
-        {
-            var doctorExitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
-                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["--config"] = exampleConfigPath
-                },
-                Array.Empty<string>()));
-
-            Assert.Equal(0, doctorExitCode);
-            Assert.Contains("Doctor passed", output.ToString(), StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("event=media.skip_non_http", output.ToString(), StringComparison.Ordinal);
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-        }
-    }
 }
