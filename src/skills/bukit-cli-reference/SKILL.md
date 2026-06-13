@@ -1,6 +1,6 @@
 ---
 name: bukit-cli-reference
-description: Use when using bukit CLI — agent needs to execute Bukit commands (build, clean, completion, config, doctor, geo, preview, publish, seo, deploy, version), detect whether the Bukit CLI tool is installed, install or upgrade bukit, or interpret bukit build output and exit codes
+description: Use when using bukit CLI — agent needs to execute Bukit commands (build, clean, completion, config, dev, doctor, geo, preview, publish, seo, deploy, version), detect whether the Bukit CLI tool is installed, install or upgrade bukit, or interpret bukit build output and exit codes
 
 status: stable
 since: "v3.0.0"
@@ -17,7 +17,7 @@ guide_chapters:
 
 ## Overview
 
-Bukit is a .NET single-file executable CLI tool. Agents execute `bukit` commands through their native shell to build, clean, preview, audit, and deploy sites. This skill is the single source of truth for all CLI operations — other Bukit skills reference this skill for command execution guidance and do not duplicate command instructions.
+Bukit is a .NET single-file executable CLI tool. Agents execute `bukit` commands through their native shell to build, clean, preview, develop, audit, and deploy sites. This skill is the single source of truth for all CLI operations — other Bukit skills reference this skill for command execution guidance and do not duplicate command instructions.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
 
@@ -70,12 +70,14 @@ After downloading, place the binary in a PATH directory or the project root.
 | `config check` | Validate site.yaml without building | `--config` `--site` `--site-url` |
 | `config schema` | Generate site.yaml JSON Schema | `--output` |
 | `doctor` | Diagnose config and templates | `--config` `--site` `--site-url` |
+| `dev` | HMR development preview server | `--config` `--site` `--host` `--port` `--output` `--no-watch` |
 | `seo` | SEO quality gate | `audit`, `diff`, `--dir`, `--report`, `--strict`, `--external` |
 | `geo` | GEO quality gate | `audit`, `--dir` |
 | `publish` | Publish/readiness quality gate | `audit`, `diff`, `--dir`, `--report`, `--strict`, `--external` |
 | `deploy` | Deploy to GitHub Pages | `--config` `--site` `--dry-run` `--skip-build` `--base-url` `--site-url` `--output` `--branch` `--message` `--ci` `--force` |
 | `completion` | Generate shell auto-completion script | `<shell>` (bash|zsh|fish) |
 | `version` | Output version number | No parameters |
+
 ## Key Command Details
 
 ### build
@@ -129,6 +131,29 @@ bukit preview [--dir <dir>] [--host <host>] [--port <port>] [--strict-port]
 - `--strict-port` mode: error on port conflict
 
 **MIME type support:** HTML, CSS, JS, JSON, XML, SVG, PNG, JPG, GIF, TXT
+
+### dev
+
+Start a development preview server with live reload.
+
+```
+bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--output <dir>] [--no-watch]
+```
+
+| Parameter | Default | Description |
+|------|--------|------|
+| `--config` | `site.yaml` | Config file path |
+| `--site` | — | Multi-site name |
+| `--host` | `localhost` | Listen address |
+| `--port` | `35729` | Listen port; auto-increments if occupied |
+| `--output` | config `build.output` | Output directory override |
+| `--no-watch` | false | Serve only, without file watching or live reload |
+
+Behavior:
+- Runs an initial clean incremental build
+- Serves the output directory over HTTP
+- Watches content/theme/layout/assets/static directories
+- Rebuilds incrementally after changes and broadcasts reload over WebSocket
 
 ### clean
 
@@ -316,9 +341,10 @@ User says "help me build a Bukit blog":
 2. Load bukit-config skill → modify site.yaml as needed
 3. Build: bukit build
 4. Validate: bukit config check and/or bukit doctor
-5. Preview: bukit preview --dir dist
-6. Optional: bukit seo audit / bukit geo audit / bukit publish audit
-7. Optional deploy: bukit deploy → refer user to bukit-deploy skill and guide/user/13-deploy-github-pages.md
+5. Develop locally: bukit dev
+6. Static preview when needed: bukit preview --dir dist
+7. Optional: bukit seo audit / bukit geo audit / bukit publish audit
+8. Optional deploy: bukit deploy → refer user to bukit-deploy skill and guide/user/13-deploy-github-pages.md
 ```
 
 ## Common Errors

@@ -81,6 +81,19 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--site", "多站点名")
             });
 
+        var dev = new CliCommandSpec(
+            Name: "dev",
+            Description: "HMR 实时预览开发服务器",
+            Options: new[]
+            {
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名"),
+                new CliOptionSpec("--host", "监听地址"),
+                new CliOptionSpec("--port", "监听端口", CliOptionType.Integer, ValueName: "port"),
+                new CliOptionSpec("--output", "覆盖构建输出目录"),
+                new CliOptionSpec("--no-watch", "禁用文件监控，仅作为静态服务器", CliOptionType.Flag)
+            });
+
         var clean = new CliCommandSpec(
             Name: "clean",
             Description: "清理构建输出和缓存",
@@ -192,7 +205,7 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--force", "允许 non-fast-forward 时强制覆盖远端分支", CliOptionType.Flag)
             });
 
-        return new CliCommandRegistry(new[] { build, doctor, config, preview, clean, version, completion, seo, geo, publish, deploy });
+        return new CliCommandRegistry(new[] { build, doctor, config, preview, dev, clean, version, completion, seo, geo, publish, deploy });
     }
 
     private static CliOptionSpec[] DiffOptions() =>

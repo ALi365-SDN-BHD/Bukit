@@ -15,6 +15,7 @@ For the full implementation-oriented reference, see [guide/dev/cli](./../dev/cli
 | `config schema` | Generate JSON Schema for `site.yaml` | `--output` |
 | `doctor` | Configuration and template diagnostics | `--config`, `--site`, `--site-url` |
 | `preview` | Preview a built output directory | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site` |
+| `dev` | Live development preview with file watching and browser reload | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch` |
 | `clean` | Remove output/cache directories | `--config`, `--site`, `--dir` |
 | `seo audit` | Validate `seo-report.json` | `--dir`, `--report`, `--strict`, `--external` |
 | `seo diff` | Compare two SEO reports | `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
@@ -112,6 +113,23 @@ Parameters:
 - `--port <port|auto>`: default `4173`, `auto` auto-selects a free port
 - `--strict-port`: fail on port conflict instead of auto-incrementing
 - `--config` / `--site`: if provided, output directory is inferred from config
+
+## dev
+
+Run an initial build, serve the output, watch files, and live-reload connected browsers.
+
+```bash
+bukit dev --config site.yaml
+bukit dev --port 3000
+bukit dev --no-watch
+```
+
+Parameters:
+- `--config <path>` / `--site <name>`: choose the site config
+- `--host <host>`: default `localhost`
+- `--port <port>`: default `35729`, auto-increments if occupied
+- `--output <dir>`: override output directory
+- `--no-watch`: serve only, without file watching or live reload
 
 ## clean
 

@@ -6,11 +6,12 @@ namespace Bukit.Cli.Tests;
 public sealed class CliProgramFlowTests
 {
     [Fact]
-    public void Specs_IncludeBuild_AndPreview()
+    public void Specs_IncludeBuild_Preview_AndDev()
     {
         var registry = BukitCliSpecs.CreateRegistry();
         Assert.NotNull(registry.Resolve("build"));
         Assert.NotNull(registry.Resolve("preview"));
+        Assert.NotNull(registry.Resolve("dev"));
     }
 
     [Fact]
@@ -33,6 +34,7 @@ public sealed class CliProgramFlowTests
         Assert.NotNull(BukitCliDescriptors.ResolveDescriptor(descriptors, "geo"));
         Assert.NotNull(BukitCliDescriptors.ResolveDescriptor(descriptors, "publish"));
         Assert.NotNull(BukitCliDescriptors.ResolveDescriptor(descriptors, "deploy"));
+        Assert.NotNull(BukitCliDescriptors.ResolveDescriptor(descriptors, "dev"));
     }
 
     [Fact]

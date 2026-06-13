@@ -43,7 +43,7 @@ src/skills/
 | Skill | Responsibility | Typical use case |
 |---|---|---|
 | `using-bukit` | Gateway skill that identifies Bukit work and routes to sub-skills | The user explicitly says "using bukit" or the task is clearly Bukit-specific |
-| `bukit-cli-reference` | CLI detection, installation guidance, command reference, output and exit-code interpretation | Running any `bukit` command including `build`, `clean`, `config`, `doctor`, `preview`, `seo`, `geo`, `publish`, `deploy`, `completion`, and `version` |
+| `bukit-cli-reference` | CLI detection, installation guidance, command reference, output and exit-code interpretation | Running any `bukit` command including `build`, `clean`, `config`, `doctor`, `preview`, `dev`, `seo`, `geo`, `publish`, `deploy`, `completion`, and `version` |
 | `bukit-config` | `site.yaml` structure, scenario templates, and field explanations | Creating or editing config, explaining fields, fixing validation errors |
 | `bukit-theme` | Theme directory structure, static assets, wizard-based creation, theme distribution (pack/install), registry search (Experimental), template snippets | Creating themes via wizard/preset, listing theme info/params, packaging themes for sharing, installing from Experimental registry, browsing template snippets |
 | `bukit-templating` | Scriban syntax, layout inheritance, data access, and template patterns | Writing page templates, list pages, pagination, or fixing template rendering errors |

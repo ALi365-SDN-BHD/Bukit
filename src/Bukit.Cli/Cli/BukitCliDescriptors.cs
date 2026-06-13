@@ -16,6 +16,7 @@ public static class BukitCliDescriptors
             new(registry.Commands.First(c => c.Name == "completion"), CompletionCommand.RunAsync),
             new(registry.Commands.First(c => c.Name == "doctor"), DoctorCommand.RunAsync),
             new(registry.Commands.First(c => c.Name == "preview"), PreviewCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "dev"), DevCommand.RunAsync),
             new(registry.Commands.First(c => c.Name == "version"), VersionCommand.RunAsync),
             new(registry.Commands.First(c => c.Name == "config"), ConfigCommand.RunAsync),
             new(registry.Commands.First(c => c.Name == "seo"), SeoCommand.RunAsync),

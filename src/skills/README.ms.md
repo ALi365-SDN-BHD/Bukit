@@ -27,6 +27,9 @@ src/skills/
   bukit-clone/            # Klon reka bentuk laman web → tema Bukit
   bukit-seo/              # Pengoptimuman enjin carian tradisional (SEO)
   bukit-geo/              # Pengoptimuman enjin generatif (GEO)
+  bukit-preview/          # Server pratonton setempat
+  bukit-dev/              # Server pembangunan HMR
+  bukit-webhook/          # Binaan automatik dicetus webhook
 ```
 
 ## Tanggungjawab Skill
@@ -34,7 +37,7 @@ src/skills/
 | Skill | Tanggungjawab | Kes penggunaan biasa |
 |---|---|---|
 | `using-bukit` | Skill pintu masuk yang mengenal pasti kerja Bukit dan menghala ke sub-skill | Pengguna secara jelas menyebut "using bukit" atau tugasan jelas khusus Bukit |
-| `bukit-cli-reference` | Pengesanan CLI, panduan pemasangan, rujukan arahan, tafsiran output dan kod keluar | Menjalankan sebarang arahan `bukit` termasuk `build`, `clean`, `config`, `doctor`, `preview`, `seo`, `geo`, `publish`, `deploy`, `completion`, `version` |
+| `bukit-cli-reference` | Pengesanan CLI, panduan pemasangan, rujukan arahan, tafsiran output dan kod keluar | Menjalankan sebarang arahan `bukit` termasuk `build`, `clean`, `config`, `doctor`, `preview`, `dev`, `seo`, `geo`, `publish`, `deploy`, `completion`, `version` |
 | `bukit-config` | Struktur `site.yaml`, templat senario, dan penjelasan medan | Mencipta atau mengedit konfigurasi, menjelaskan medan, membetulkan ralat pengesahan |
 | `bukit-theme` | Struktur direktori tema, aset statik, penciptaan berasaskan wizard, pengedaran tema (pack/install), carian registri, coretan templat | Mencipta tema melalui wizard/preset, menyenaraikan info/params tema, membungkus tema untuk perkongsian, memasang dari registri, melayari coretan templat |
 | `bukit-templating` | Sintaks Scriban, pewarisan layout, akses data, dan corak templat | Menulis templat halaman, halaman senarai, penomboran, atau membetulkan ralat render templat |
@@ -48,6 +51,8 @@ src/skills/
 | `bukit-clone` | Pengekstrakan MCP pelayar → `bukit clone` CLI → saluran paip pengesahan untuk mengklon reka bentuk visual mana-mana laman web ke dalam tema Bukit | Mengklon penampilan laman web, meniru reka bentuk, mencipta tema dari tapak langsung sedia ada |
 | `bukit-seo` | Konfigurasi SEO tradisional (nod site.seo), mod render inject/theme, medan SEO front matter, 6 jenis JSON-LD Schema.org, diagnostik masa bina (11 kod), audit pasca bina (~40 kod), CLI seo audit/diff | Mengkonfigurasi SEO, menjalankan seo audit/diff, mentafsir kod diagnostik seo.*, menyediakan OG/Twitter/JSON-LD/sitemap |
 | `bukit-geo` | Pengoptimuman enjin generatif untuk enjin carian AI: penjanaan llms.txt/llms-full.txt, peraturan robots.txt crawler AI, data berstruktur FAQ/HowTo, audit geo dengan Skor GEO (7 kod diagnostik) | Mengoptimumkan untuk carian AI (ChatGPT Search/Perplexity/Google AI Overviews), menjana llms.txt, menambah skema FAQ/HowTo, menjalankan geo audit |
+| `bukit-preview` | Server pratonton setempat untuk `dist/`, MIME, konflik port, dan penyahpepijatan pratonton | Pratonton output binaan sebelum deploy atau menyelesaikan konflik port |
+| `bukit-dev` | Server pembangunan HMR dengan debounce 300ms, binaan semula incremental, dan WebSocket browser reload | Pembangunan aktif dengan binaan semula automatik dan live browser refresh |
 
 ## Peraturan Muatkan
 

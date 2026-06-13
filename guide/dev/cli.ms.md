@@ -14,6 +14,7 @@ Dokumen ini adalah rujukan pelaksanaan untuk penyelenggara; ia mesti seiring den
 | `doctor` | Pemeriksaan diagnostik konfigurasi & tema | `src/Bukit.Cli/Commands/DoctorCommand.cs` |
 | `geo` | Audit kualiti GEO (`.bukit/geo-report.json`) | `src/Bukit.Cli/Commands/GeoCommand.cs` |
 | `preview` | Server pratonton output bina | `src/Bukit.Cli/Commands/PreviewCommand.cs` |
+| `dev` | Server pembangunan HMR dengan live reload | `src/Bukit.Cli/Commands/DevCommand.cs` |
 | `publish` | Audit kualiti publish (`.bukit/publish-audit-report.json`) | `src/Bukit.Cli/Commands/PublishCommand.cs` |
 | `seo` | Audit kualiti SEO (`.bukit/seo-report.json`) | `src/Bukit.Cli/Commands/SeoCommand.cs` |
 | `version` | Cetak versi dan runtime | `src/Bukit.Cli/Commands/VersionCommand.cs` |
@@ -82,6 +83,21 @@ bukit preview --dir dist --port auto
 - `--host <host>` (default: `localhost`)
 - `--port <port|auto>` (default: `4173`, `auto` akan memilih yang kosong)
 - `--strict-port`
+
+## dev
+
+```bash
+bukit dev --config site.yaml --port 35729
+```
+
+Memulakan server pratonton pembangunan: bina awal, serve direktori output, pantau perubahan kandungan/tema/aset statik, bina semula secara incremental, dan muat semula browser melalui WebSocket.
+
+- `--config <path>` (default: `site.yaml`)
+- `--site <name>`
+- `--host <host>` (default: `localhost`)
+- `--port <port>` (default: `35729`, auto-increment jika sibuk)
+- `--output <dir>` (ganti `build.output`)
+- `--no-watch` (serve sahaja, tanpa file watching/live reload)
 
 ## clean
 

@@ -12,8 +12,9 @@
 | `completion` | 生成 shell 自动补全脚本 | `src/Bukit.Cli/Commands/CompletionCommand.cs` |
 | `deploy` | 构建并部署到 GitHub Pages | `src/Bukit.Cli/Commands/DeployCommand.cs` |
 | `doctor` | 配置 / 主题 / 模板诊断 | `src/Bukit.Cli/Commands/DoctorCommand.cs` |
-| `geo` | GEO 质量门禁（` .bukit/geo-report.json`） | `src/Bukit.Cli/Commands/GeoCommand.cs` |
+| `geo` | GEO 质量门禁（`.bukit/geo-report.json`） | `src/Bukit.Cli/Commands/GeoCommand.cs` |
 | `preview` | 本地静态预览服务器 | `src/Bukit.Cli/Commands/PreviewCommand.cs` |
+| `dev` | HMR 实时预览开发服务器 | `src/Bukit.Cli/Commands/DevCommand.cs` |
 | `publish` | 发布质量门禁（`.bukit/publish-audit-report.json`） | `src/Bukit.Cli/Commands/PublishCommand.cs` |
 | `seo` | SEO 质量门禁（`.bukit/seo-report.json`） | `src/Bukit.Cli/Commands/SeoCommand.cs` |
 | `version` | 输出版本与运行时 | `src/Bukit.Cli/Commands/VersionCommand.cs` |
@@ -93,6 +94,22 @@ bukit preview --dir dist --port auto
 - `--host <host>`（默认 `localhost`）
 - `--port <port|auto>`（默认 `4173`，`auto` 自动取空闲端口）
 - `--strict-port`（端口冲突直接失败）
+
+## dev
+
+```bash
+bukit dev --config site.yaml --port 35729
+```
+
+启动开发预览服务器：先执行一次构建，随后服务输出目录，监控内容、主题和静态资源变更，增量重构建并通过 WebSocket 刷新浏览器。
+
+参数：
+- `--config <path>`（默认 `site.yaml`）
+- `--site <name>`
+- `--host <host>`（默认 `localhost`）
+- `--port <port>`（默认 `35729`，端口占用时自动递增）
+- `--output <dir>`（覆盖 `build.output`）
+- `--no-watch`（只作为静态服务器，不监控文件、不实时刷新）
 
 ## clean
 

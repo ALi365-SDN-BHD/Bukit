@@ -13,6 +13,7 @@
 | `config schema` | 生成 `site.yaml` JSON Schema | `--output` |
 | `doctor` | 配置与模板健康检查 | `--config`、`--site`、`--site-url` |
 | `preview` | 预览已构建目录 | `--dir`、`--host`、`--port`、`--strict-port`、`--config`、`--site` |
+| `dev` | 实时开发预览，支持文件监控和浏览器刷新 | `--config`、`--site`、`--host`、`--port`、`--output`、`--no-watch` |
 | `clean` | 清理输出与缓存目录 | `--config`、`--site`、`--dir` |
 | `seo audit` | 校验 `seo-report.json` | `--dir`、`--report`、`--strict`、`--external` |
 | `seo diff` | 对比两份 SEO 报告 | `--baseline`、`--current`、`--max-new-errors`、`--max-new-warnings`、`--max-new-issues`、`--fail-on-new-code`、`--fail-on-route-removed`、`--fail-on-indexable-drop` |
@@ -104,6 +105,23 @@ bukit preview --dir dist --port auto
 - `--port <port|auto>`：默认 `4173`，`auto` 自动选空闲端口
 - `--strict-port`：冲突则直接失败，不自动切换端口
 - `--config`/`--site`：若提供则按配置推断输出目录
+
+## dev
+
+先构建一次站点，然后启动开发预览服务；文件变更时会增量重构建，并通过 WebSocket 刷新已连接的浏览器。
+
+```bash
+bukit dev --config site.yaml
+bukit dev --port 3000
+bukit dev --no-watch
+```
+
+参数：
+- `--config <path>` / `--site <name>`：选择站点配置
+- `--host <host>`：默认 `localhost`
+- `--port <port>`：默认 `35729`，占用时自动递增
+- `--output <dir>`：覆盖输出目录
+- `--no-watch`：只作为静态服务器，不监控文件、不实时刷新
 
 ## clean
 

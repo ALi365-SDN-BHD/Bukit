@@ -115,7 +115,7 @@ GitHub Actions 工作流模板位于 [`.github/workflows/release.yml`](.github/w
 
 稳定承诺：
 
-- CLI: build / clean / config / doctor / preview / deploy / seo / geo / publish
+- CLI: build / clean / config / doctor / preview / dev / deploy / seo / geo / publish
 - `content.sources[]` 配置契约
 - Markdown 内容源
 - Notion 内容源

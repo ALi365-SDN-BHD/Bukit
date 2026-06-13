@@ -228,7 +228,7 @@ NON_SPEC_COMMANDS = {
     # Theme scope - utility spec command not yet in reference
     'theme scope',
     # SEO/GEO commands use nested registration - parser can't reliably match
-    'seo audit', 'seo diff', 'geo audit',
+    'seo', 'seo audit', 'seo diff', 'geo', 'geo audit',
 }
 
 # --- Phase 3: Command path cross-check ---

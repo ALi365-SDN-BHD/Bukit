@@ -28,6 +28,9 @@ src/skills/
   bukit-import/           # 本地 HTML demo 导入 → Bukit 站点草稿
   bukit-seo/              # 传统搜索引擎优化 (SEO)
   bukit-geo/              # 生成式引擎优化 (GEO)
+  bukit-preview/          # 本地预览服务器
+  bukit-dev/              # HMR 开发服务器
+  bukit-webhook/          # Webhook 触发自动构建
 ```
 
 ## Skills 分工
@@ -35,7 +38,7 @@ src/skills/
 | Skill | 主要职责 | 适用场景 |
 |---|---|---|
 | `using-bukit` | Bukit skill 总入口，识别任务并路由到子 skill | 用户明确说"using bukit / 使用 bukit"，或任务已确定采用 Bukit |
-| `bukit-cli-reference` | CLI 检测、安装、命令速查、输出与退出码解读 | 需要执行 `build`、`clean`、`config`、`doctor`、`preview`、`seo`、`geo`、`publish`、`deploy`、`completion`、`version` 等命令 |
+| `bukit-cli-reference` | CLI 检测、安装、命令速查、输出与退出码解读 | 需要执行 `build`、`clean`、`config`、`doctor`、`preview`、`dev`、`seo`、`geo`、`publish`、`deploy`、`completion`、`version` 等命令 |
 | `bukit-config` | `site.yaml` 六大顶级节点、场景模板、字段解释 | 创建或修改站点配置、解释字段含义、修复配置校验错误 |
 | `bukit-theme` | `layouts/`、`assets/`、`static/` 的分工、wizard 创建、主题分发 (pack/install)、注册表搜索（Experimental）、模板片段 | 通过 wizard/preset 创建主题、列出主题信息/参数、打包分享主题、从 Experimental 注册表安装、浏览模板片段 |
 | `bukit-templating` | Scriban 语法、layout 继承、数据访问与常见模板模式 | 编写页面模板、列表页、分页组件、排查模板渲染错误 |
@@ -50,6 +53,8 @@ src/skills/
 | `bukit-import` | 本地 HTML demo 导入、seed 审核、`import-report.md` 与可选 Notion seed 推送 | 把离线 HTML demo 目录转换成 Bukit 主题/站点草稿 |
 | `bukit-seo` | 传统 SEO 配置、inject/theme 渲染模式、front matter SEO 字段、6 种 JSON-LD 类型、构建诊断 (11 码)、构建后审计 (~40 码)、CLI seo audit/diff | 配置 SEO、运行 seo audit/diff、解读 SEO 诊断码、设置 OG/Twitter/JSON-LD/sitemap |
 | `bukit-geo` | 面向 AI 搜索引擎的优化：llms.txt/llms-full.txt 生成、AI 爬虫 robots.txt 规则、FAQ/HowTo 结构化数据、GEO Score (7 诊断码) | 优化 AI 搜索 (ChatGPT Search/Perplexity/Google AI Overviews)、生成 llms.txt、添加 FAQ/HowTo schema、运行 geo audit |
+| `bukit-preview` | 本地预览服务器，服务 `dist/`，处理 MIME、端口冲突与预览排障 | 部署前本地预览构建产物，排查端口冲突 |
+| `bukit-dev` | HMR 开发服务器，300ms 去抖文件监控、增量重构建、WebSocket 浏览器实时刷新 | 开发阶段自动重构建并实时刷新浏览器 |
 
 ## 加载与依赖规则
 
