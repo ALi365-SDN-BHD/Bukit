@@ -109,6 +109,24 @@ public sealed class SeoReportValidatorTests
     }
     """;
 
+    private static string ValidGeoReportJson() => """
+    {
+      "schema": "https://bukit.dev/schemas/geo-report.v1.json",
+      "schemaVersion": "1.0",
+      "generatedAt": "2026-01-01T00:00:00Z",
+      "geoScore": 80,
+      "llmsTxtGenerated": true,
+      "llmsFullTxtGenerated": false,
+      "geoEnhancedCount": 1,
+      "geoEnhancedRoutes": [
+        {
+          "url": "/post/",
+          "schemaTypes": ["Article"]
+        }
+      ]
+    }
+    """;
+
     [Fact]
     public void ValidateReportContract_ValidReport_Passes()
     {
@@ -147,6 +165,71 @@ public sealed class SeoReportValidatorTests
     {
         AuditReportContractValidator.ValidateReportContract(Parse(ValidReportJson()), SeoReportValidator.AuditReportContract.SeoOrPublish);
         AuditReportContractValidator.ValidateReportContract(Parse(ValidPublishReportJson()), SeoReportValidator.AuditReportContract.SeoOrPublish);
+    }
+
+    [Fact]
+    public void SeoResolveAuditReportPath_DoesNotFallbackToPublishReport()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-seo-resolve-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var reportDir = Path.Combine(root, ".bukit");
+            Directory.CreateDirectory(reportDir);
+            File.WriteAllText(Path.Combine(reportDir, "publish-audit-report.json"), ValidPublishReportJson());
+
+            Assert.Null(SeoCommand.ResolveAuditReportPath(root));
+
+            var seoPath = Path.Combine(reportDir, "seo-report.json");
+            File.WriteAllText(seoPath, ValidReportJson());
+            Assert.Equal(seoPath, SeoCommand.ResolveAuditReportPath(root));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void GeoResolveReportPath_DoesNotFallbackToPublishOrSeoReport()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-geo-resolve-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var reportDir = Path.Combine(root, ".bukit");
+            Directory.CreateDirectory(reportDir);
+            File.WriteAllText(Path.Combine(reportDir, "seo-report.json"), ValidReportJson());
+            File.WriteAllText(Path.Combine(reportDir, "publish-audit-report.json"), ValidPublishReportJson());
+
+            Assert.Null(GeoCommand.ResolveGeoReportPath(root));
+
+            var geoPath = Path.Combine(reportDir, "geo-report.json");
+            File.WriteAllText(geoPath, ValidGeoReportJson());
+            Assert.Equal(geoPath, GeoCommand.ResolveGeoReportPath(root));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void GeoValidateReportContract_ValidGeoReport_Passes()
+    {
+        GeoCommand.ValidateGeoReportContract(Parse(ValidGeoReportJson()));
+    }
+
+    [Fact]
+    public void GeoValidateReportContract_SeoReport_Throws()
+    {
+        var ex = Assert.Throws<InvalidDataException>(() => GeoCommand.ValidateGeoReportContract(Parse(ValidReportJson())));
+
+        Assert.Contains("geo-report.v1.json", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

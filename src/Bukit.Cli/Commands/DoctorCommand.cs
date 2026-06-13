@@ -292,7 +292,6 @@ public static class DoctorCommand
 
         var discoveredPluginNames = plugins
             .Select(p => p.Name)
-            .Concat(config.Site.ExternalPlugins?.Keys ?? Array.Empty<string>())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (config.Site.Plugins is { Count: > 0 })
         {

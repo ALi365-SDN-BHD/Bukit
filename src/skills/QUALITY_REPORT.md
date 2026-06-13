@@ -13,7 +13,7 @@ Completed a systematic upgrade of Bukit's `src/skills/` agent knowledge system f
 This round focused on code-fact-source alignment:
 - **CLI Reference**: Completed `import html-demo`, `import seed`, `notion push`, `notion validate-schema`, `publish audit`, `publish diff` parameters; fixed missing `--allow-cross-schema`, `--template`, `--mode`, `--preserve-html`, `--extract-content`, `--route-map`, `--report`, `--config`, `--site`, and 25+ other parameters
 - **Notion Config**: Migrated `content.notion` to `content.sources[].notion` with deprecation warnings; added Bukit 1.0 example and common issue
-- **bukit-config**: Added `content.modelSchema` complete field reference (22+ fields), added `externalPlugins.templateRequirements`
+- **bukit-config**: Added `content.modelSchema` complete field reference (22+ fields); later 1.0 Core cleanup removed external protocol plugin fields from the config skill.
 - **using-bukit**: Added explicit bukit-import vs bukit-clone distinction note
 - **theme-component-system**: Clarified CLI command registration status (handler exists in ThemeCommand.cs but not in BukitCliSpecs)
 - **Validator Enhancement**: Added plugin.json order/count check; upgraded check-cli-commands.py with option-level validation
@@ -36,7 +36,7 @@ This round focused on code-fact-source alignment:
 | `src/skills/bukit-cli-reference/SKILL.md` | 14→13 plugins, webhook desc fix, GEO exit codes, MIME+gzip, duplicate geo command removed |
 | `src/skills/bukit-cli-reference/SKILL.md` (v3.1) | Completed import/notion/publish params (25+ added), fixed template/allow-cross-schema/clone |
 | `src/skills/bukit-config/SKILL.md` | Six→Seven nodes, filterType 2→6 values, deploy field fix |
-| `src/skills/bukit-config/SKILL.md` (v3.1) | Added modelSchema field reference, externalPlugins.templateRequirements |
+| `src/skills/bukit-config/SKILL.md` (v3.1) | Added modelSchema field reference; 1.0 Core cleanup removed external protocol plugin field guidance |
 | `src/skills/bukit-notion/SKILL.md` (v3.1) | Migrated content.notion → content.sources[].notion, deprecation warning, Bukit 1.0 example |
 | `src/skills/bukit-geo/SKILL.md` | GEO diagnostic count 7→10 |
 | `src/skills/bukit-dev/SKILL.md` | Added Bahasa Melayu multilingual triggers |

@@ -9,8 +9,8 @@ internal static class ConfigStrictFieldValidator
     private static readonly HashSet<string> SiteKeys = Set(
         "name", "title", "url", "description", "seo", "analytics", "autoSummary", "autoSummaryMaxLength",
         "baseUrl", "outputPathEncoding", "language", "languages", "defaultLanguage", "sitemapMode",
-        "searchIncludeDerived", "externalProtocolIncludeRoutedPages", "pluginFailMode", "deriveConflictPolicy",
-        "timezone", "permalinks", "collections", "externalPlugins", "externalPluginPolicy", "plugins", "feed",
+        "searchIncludeDerived", "pluginFailMode", "deriveConflictPolicy",
+        "timezone", "permalinks", "collections", "plugins", "feed",
         "sitemapDetail", "pagination", "search", "related", "menus");
     private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema");
     private static readonly HashSet<string> BuildKeys = Set(
@@ -73,7 +73,6 @@ internal static class ConfigStrictFieldValidator
         if (Map(site, "related") is { } related) RequireOnly(related, Set("enabled", "template", "maxResults", "scoreThreshold", "fields"), "site.related");
         if (Map(site, "sitemapDetail") is { } sitemap) RequireOnly(sitemap, Set("changefreq", "priority", "lastmod", "priorityMode"), "site.sitemapDetail");
         if (Map(site, "pagination") is { } pagination) RequireOnly(pagination, Set("pageSize", "pagerTemplate", "pagePathPrefix"), "site.pagination");
-        if (Map(site, "externalPlugins") is { } externalPlugins) ValidateExternalPlugins(externalPlugins);
     }
 
     private static void ValidateSeo(YamlMappingNode seo)
@@ -83,17 +82,6 @@ internal static class ConfigStrictFieldValidator
         if (Map(seo, "robotsTxt") is { } robots) RequireOnly(robots, Set("enabled"), "site.seo.robotsTxt");
         if (Map(seo, "schema") is { } schema) RequireOnly(schema, Set("webPage", "collectionPage", "searchAction"), "site.seo.schema");
         if (Map(seo, "geo") is { } geo) RequireOnly(geo, Set("enabled", "llmsTxt", "llmsFullTxt", "llmsTxtMaxArticles", "aiBotMode"), "site.seo.geo");
-    }
-
-    private static void ValidateExternalPlugins(YamlMappingNode externalPlugins)
-    {
-        foreach (var (name, plugin) in MappingChildren(externalPlugins, "site.externalPlugins"))
-        {
-            RequireOnly(plugin, Set(
-                "runtime", "entry", "hooks", "enabled", "timeoutMs", "maxStdoutBytes", "maxStderrBytes",
-                "allowEnvironment", "capabilities", "templateRequirements", "allowAbsoluteEntry", "sha256", "options"),
-                $"site.externalPlugins.{name}");
-        }
     }
 
     private static void ValidateContent(YamlMappingNode content)

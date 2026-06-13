@@ -66,14 +66,11 @@ public static class ConfigLoader
             DefaultLanguage = ConfigYamlHelpers.GetOptionalString(siteNode, "defaultLanguage"),
             SitemapMode = ConfigYamlHelpers.GetOptionalString(siteNode, "sitemapMode") ?? "split",
             SearchIncludeDerived = ConfigYamlHelpers.GetOptionalBool(siteNode, "searchIncludeDerived") ?? false,
-            ExternalProtocolIncludeRoutedPages = ConfigYamlHelpers.GetOptionalBool(siteNode, "externalProtocolIncludeRoutedPages") ?? false,
             PluginFailMode = ConfigYamlHelpers.GetOptionalString(siteNode, "pluginFailMode") ?? "strict",
             DeriveConflictPolicy = ConfigYamlHelpers.GetOptionalString(siteNode, "deriveConflictPolicy") ?? "fail",
             Timezone = ConfigYamlHelpers.GetOptionalString(siteNode, "timezone") ?? "Asia/Shanghai",
             Permalinks = ConfigYamlHelpers.ReadStringMap(siteNode, "permalinks"),
             Collections = collections,
-            ExternalPlugins = SiteDefaultsApplier.ReadExternalPlugins(siteNode),
-            ExternalPluginPolicy = ReadExternalPluginPolicy(siteNode),
             Plugins = SiteDefaultsApplier.ReadPluginToggles(siteNode),
             Feed = SiteDefaultsApplier.ReadFeedConfig(siteNode),
             Search = SiteDefaultsApplier.ReadSearchConfig(siteNode)
@@ -161,25 +158,6 @@ public static class ConfigLoader
             Taxonomy = taxonomy,
             Logging = logging,
             Deploy = deploy
-        };
-    }
-
-    private static ExternalPluginPolicy ReadExternalPluginPolicy(YamlMappingNode siteNode)
-    {
-        var policy = ConfigYamlHelpers.GetOptionalString(siteNode, "externalPluginPolicy");
-        if (string.IsNullOrWhiteSpace(policy))
-        {
-            return ExternalPluginPolicy.Warn;
-        }
-
-        return policy.Trim().ToLowerInvariant() switch
-        {
-            "deny" => ExternalPluginPolicy.Deny,
-            "warn" => ExternalPluginPolicy.Warn,
-            "allow" => ExternalPluginPolicy.Allow,
-            _ => throw new ConfigException(
-                $"site.externalPluginPolicy must be 'deny', 'warn', or 'allow'. Got: '{policy.Trim()}'.",
-                DiagnosticCode.ConfigInvalidValue)
         };
     }
 

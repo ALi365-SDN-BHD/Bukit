@@ -75,7 +75,6 @@ internal static class BuildReporterSecurity
         WriteSecurityCheck(writer, "pluginOutputPath", data.PluginOutputPath, "error");
         WriteSecurityCheck(writer, "remoteThemeLock", data.RemoteThemeLock, "warning");
         writer.WriteEndObject();
-        WriteExternalPluginGovernance(writer, config);
         writer.WriteEndObject();
     }
 
@@ -85,60 +84,6 @@ internal static class BuildReporterSecurity
         writer.WriteStartObject();
         writer.WriteString("status", status);
         writer.WriteString("severity", severity);
-        writer.WriteEndObject();
-    }
-
-    private static void WriteExternalPluginGovernance(Utf8JsonWriter writer, AppConfig config)
-    {
-        writer.WritePropertyName("externalPlugins");
-        writer.WriteStartObject();
-        writer.WriteString("policy", config.Site.ExternalPluginPolicy.ToString().ToLowerInvariant());
-
-        var plugins = config.Site.ExternalPlugins?
-            .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
-            .ToArray()
-            ?? Array.Empty<KeyValuePair<string, ExternalPluginConfig>>();
-
-        writer.WriteNumber("pluginCount", plugins.Length);
-        writer.WritePropertyName("plugins");
-        writer.WriteStartArray();
-        foreach (var (name, plugin) in plugins)
-        {
-            writer.WriteStartObject();
-            writer.WriteString("name", name);
-            writer.WriteBoolean("enabled", plugin.Enabled);
-            writer.WriteString("runtime", plugin.Runtime);
-            writer.WritePropertyName("hooks");
-            BuildReporter.WriteStringArray(writer, plugin.Hooks);
-            writer.WritePropertyName("capabilities");
-            BuildReporter.WriteStringArray(writer, plugin.Capabilities);
-            writer.WritePropertyName("templateRequirements");
-            BuildReporter.WriteStringArray(writer, plugin.TemplateRequirements);
-            writer.WritePropertyName("allowEnvironment");
-            BuildReporter.WriteStringArray(writer, plugin.AllowEnvironment);
-            writer.WriteBoolean("allowAbsoluteEntry", plugin.AllowAbsoluteEntry);
-            writer.WriteBoolean("sha256Pinned", !string.IsNullOrWhiteSpace(plugin.Sha256));
-            writer.WritePropertyName("declaredContract");
-            writer.WriteStartObject();
-            writer.WriteBoolean("spawnsProcess", string.Equals(plugin.Runtime, "process", StringComparison.OrdinalIgnoreCase));
-            writer.WriteBoolean("absoluteEntryOptIn", plugin.AllowAbsoluteEntry);
-            writer.WriteBoolean("declaresExtraEnvironment", plugin.AllowEnvironment is { Count: > 0 });
-            writer.WriteBoolean("declaresTemplateRequirements", plugin.TemplateRequirements is { Count: > 0 });
-            writer.WriteBoolean("declaresIntegrityPin", !string.IsNullOrWhiteSpace(plugin.Sha256));
-            writer.WriteEndObject();
-            writer.WritePropertyName("enforcedBoundaries");
-            writer.WriteStartObject();
-            writer.WriteString("entryScope", plugin.AllowAbsoluteEntry ? "absolute-opt-in-or-project-relative" : "project-relative-only");
-            writer.WriteString("outputScope", "outputDir-only");
-            writer.WriteString("networkAccess", "not-declared-by-contract");
-            writer.WriteNumber("timeoutMs", plugin.TimeoutMs);
-            writer.WriteNumber("maxStdoutBytes", plugin.MaxStdoutBytes);
-            writer.WriteNumber("maxStderrBytes", plugin.MaxStderrBytes);
-            writer.WriteEndObject();
-            writer.WriteEndObject();
-        }
-
-        writer.WriteEndArray();
         writer.WriteEndObject();
     }
 

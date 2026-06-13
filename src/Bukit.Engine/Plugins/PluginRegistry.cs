@@ -1,7 +1,5 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
-using Bukit.Engine.Abstractions.Plugins.Protocol;
-using Bukit.Engine.Plugins.Protocol;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins;
@@ -75,8 +73,7 @@ public static class PluginRegistry
 
         var sources = new (IPluginSource Source, string Name)[]
         {
-            (new BuiltInPluginSource(), "built-in"),
-            (new ExternalProtocolPluginSource(context), "external-protocol")
+            (new BuiltInPluginSource(), "built-in")
         };
 
         foreach (var (source, name) in sources)

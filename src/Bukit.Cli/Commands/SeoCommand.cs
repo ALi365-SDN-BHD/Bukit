@@ -13,12 +13,6 @@ public static class SeoCommand
             return preferred;
         }
 
-        var compatible = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
-        if (File.Exists(compatible))
-        {
-            return compatible;
-        }
-
         return null;
     }
 
@@ -42,17 +36,13 @@ public static class SeoCommand
                     return 1;
                 }
             }
-            var contract = reportSpecified
-                ? SeoReportValidator.AuditReportContract.SeoOrPublish
-                : SeoReportValidator.AuditReportContract.SeoOnly;
-
             return await AuditAsync(
                 reportPath,
                 dir,
                 strict: command.GetBool("--strict"),
                 external: command.GetBool("--external"),
                 label: label,
-                contract: contract,
+                contract: SeoReportValidator.AuditReportContract.SeoOnly,
                 reportSpecified: reportSpecified);
         }
 
@@ -113,11 +103,7 @@ public static class SeoCommand
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(fullPath));
-            var actualContract = AuditReportContractValidator.ValidateReportContract(doc.RootElement, contract);
-            if (reportSpecified && actualContract == SeoReportValidator.AuditReportContract.PublishOnly)
-            {
-                Console.Error.WriteLine("warning: publish-audit-report schema detected for SEO audit; this is compatibility mode.");
-            }
+            AuditReportContractValidator.ValidateReportContract(doc.RootElement, contract);
 
             var summary = doc.RootElement.GetProperty("summary");
             var errorCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "errorCount");

@@ -227,9 +227,7 @@ public sealed class BuildReporterTests
         Assert.Equal("error", routeTraversal.GetProperty("severity").GetString());
         Assert.Equal(1, root.GetProperty("warnings").GetArrayLength());
         Assert.Equal(0, root.GetProperty("errors").GetArrayLength());
-        var externalPlugins = root.GetProperty("externalPlugins");
-        Assert.Equal("warn", externalPlugins.GetProperty("policy").GetString());
-        Assert.Equal(0, externalPlugins.GetProperty("pluginCount").GetInt32());
+        Assert.False(root.TryGetProperty("externalPlugins", out _));
     }
 
     [Fact]
@@ -254,50 +252,6 @@ public sealed class BuildReporterTests
         Assert.Equal("not_applicable", checks.GetProperty("remoteThemeLock").GetProperty("status").GetString());
         Assert.Equal(0, root.GetProperty("warnings").GetArrayLength());
         Assert.Equal(0, root.GetProperty("errors").GetArrayLength());
-    }
-
-    [Fact]
-    public void WriteIfEnabled_WithExternalPlugins_WritesExecutionContractSummary()
-    {
-        var tempDir = CreateTempDir();
-        var config = CreateConfig(enabled: true) with
-        {
-            Site = CreateConfig(enabled: true).Site with
-            {
-                ExternalPluginPolicy = ExternalPluginPolicy.Warn,
-                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["sample"] = new()
-                    {
-                        Runtime = "process",
-                        Entry = "plugins/sample.dll",
-                        Hooks = new[] { "after-build" },
-                        Capabilities = new[] { "emit-outputs" },
-                        AllowEnvironment = new[] { "MY_API_KEY" },
-                        TemplateRequirements = new[] { "taxonomy_index" },
-                        TimeoutMs = 7000,
-                        MaxStdoutBytes = 4096,
-                        MaxStderrBytes = 2048,
-                        Sha256 = "abc123"
-                    }
-                }
-            }
-        };
-        var variant = CreateVariant(tempDir);
-        var result = CreateResult(config, tempDir, variant);
-
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
-
-        var securityPath = Path.Combine(tempDir, ".bukit", "security-report.json");
-        using var doc = JsonDocument.Parse(File.ReadAllText(securityPath));
-        var plugin = Assert.Single(doc.RootElement.GetProperty("externalPlugins").GetProperty("plugins").EnumerateArray());
-        Assert.Equal("sample", plugin.GetProperty("name").GetString());
-        Assert.Equal("process", plugin.GetProperty("runtime").GetString());
-        Assert.True(plugin.GetProperty("sha256Pinned").GetBoolean());
-        Assert.Equal("outputDir-only", plugin.GetProperty("enforcedBoundaries").GetProperty("outputScope").GetString());
-        Assert.Equal("not-declared-by-contract", plugin.GetProperty("enforcedBoundaries").GetProperty("networkAccess").GetString());
-        Assert.True(plugin.GetProperty("declaredContract").GetProperty("spawnsProcess").GetBoolean());
-        Assert.True(plugin.GetProperty("declaredContract").GetProperty("declaresExtraEnvironment").GetBoolean());
     }
 
     [Fact]

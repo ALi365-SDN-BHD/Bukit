@@ -111,21 +111,6 @@ internal static class RenderDependencyHasher
             }
         }
 
-        if (config.Site.ExternalPlugins is { Count: > 0 })
-        {
-            foreach (var kv in config.Site.ExternalPlugins.OrderBy(x => x.Key, StringComparer.Ordinal))
-            {
-                hasher.AppendData(newline);
-                IncrementalBuildEngine.AppendUtf8(hasher, kv.Key);
-                hasher.AppendData(newline);
-                IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.Runtime);
-                hasher.AppendData(newline);
-                IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.Entry);
-                hasher.AppendData(newline);
-                IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.Enabled.ToString());
-            }
-        }
-
         AppendModuleSummary(hasher, siteModel.Modules);
         AppendDataSummary(hasher, siteModel.Data);
 

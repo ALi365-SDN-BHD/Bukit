@@ -35,6 +35,10 @@ public sealed class HelpPrinterTests
             HelpPrinter.Print();
             var output = writer.ToString();
             Assert.Contains("bukit", output);
+            Assert.Contains("seo", output, StringComparison.Ordinal);
+            Assert.Contains("geo", output, StringComparison.Ordinal);
+            Assert.Contains("publish", output, StringComparison.Ordinal);
+            Assert.Contains("deploy", output, StringComparison.Ordinal);
         }
         finally
         {

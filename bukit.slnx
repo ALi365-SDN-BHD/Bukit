@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="experimental/Bukit.Labs.Cli/Bukit.Labs.Cli.csproj" />
     <Project Path="src/Bukit.Cli/Bukit.Cli.csproj" />
     <Project Path="src/Bukit.Config/Bukit.Config.csproj" />
     <Project Path="src/Bukit.Content/Bukit.Content.csproj" />
@@ -9,13 +10,9 @@
     <Project Path="src/Bukit.Rendering/Bukit.Rendering.csproj" />
     <Project Path="src/Bukit.Routing/Bukit.Routing.csproj" />
     <Project Path="src/Bukit.Shared/Bukit.Shared.csproj" />
-    <Project Path="src/plugins/SampleAfterBuildPlugin/SampleAfterBuildPlugin.csproj" />
-    <Project Path="src/plugins/PathReportPlugin/PathReportPlugin.csproj" />
-    <Project Path="src/plugins/VisualFeedbackPlugin/VisualFeedbackPlugin.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ThrowingPlugin/ThrowingPlugin.csproj" />
-    <Project Path="tests/ProtocolEchoPlugin/ProtocolEchoPlugin.csproj" />
     <Project Path="tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj" />
     <Project Path="tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj" />
     <Project Path="tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj" />

@@ -9,8 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Bukit.Engine\Bukit.Engine.csproj" />
     <ProjectReference Include="..\ThrowingPlugin\ThrowingPlugin.csproj" />
-    <ProjectReference Include="..\..\src\plugins\PathReportPlugin\PathReportPlugin.csproj" />
-    <ProjectReference Include="..\ProtocolEchoPlugin\ProtocolEchoPlugin.csproj" />
   </ItemGroup>
 
   <ItemGroup>

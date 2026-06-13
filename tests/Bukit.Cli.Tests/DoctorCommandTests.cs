@@ -2,6 +2,7 @@ using System.Text;
 using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Tests;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -201,7 +202,7 @@ public sealed class DoctorCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task RunAsync_ChecksExternalPluginTemplateRequirementsFromConfig()
+    public async Task RunAsync_ExternalPluginConfig_ReportsConfigError()
     {
         File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
                                                                            name: test
@@ -246,11 +247,8 @@ public sealed class DoctorCommandTests : IDisposable
                                          listPageContentMode: auto
                                        """);
 
-        var (exitCode, output) = await RunDoctorAsync();
-
-        Assert.Equal(1, exitCode);
-        Assert.Contains("Missing used templates", output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("pages/missing-widget.html", output, StringComparison.OrdinalIgnoreCase);
+        var ex = await Assert.ThrowsAsync<ConfigException>(RunDoctorAsync);
+        Assert.Contains("site.externalPluginPolicy", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private void WriteConfigWithExplicitCollectionTemplates()
