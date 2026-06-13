@@ -1,6 +1,6 @@
 using YamlDotNet.RepresentationModel;
 
-namespace Bukit.Cli.Intent;
+namespace Bukit.Labs.Cli.Commands;
 
 public static class IntentWizard
 {

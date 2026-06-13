@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 internal static class CloneJson
 {

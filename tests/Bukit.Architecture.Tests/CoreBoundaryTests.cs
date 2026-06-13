@@ -2,6 +2,7 @@ using System.Reflection;
 using Bukit.Cli;
 using Bukit.Cli.Commands;
 using Bukit.Config;
+using Bukit.Labs.Cli;
 using Bukit.Shared;
 using Xunit;
 
@@ -55,6 +56,20 @@ public sealed class CoreBoundaryTests
         {
             Assert.Null(assembly.GetType(typeName));
         }
+    }
+
+    [Fact]
+    public void LabsCliAssembly_DoesNotUseCoreCliCommandNamespaces()
+    {
+        var offenders = typeof(LabsCliAssemblyMarker).Assembly
+            .GetTypes()
+            .Where(t => t.Namespace is not null &&
+                t.Namespace.StartsWith("Bukit.Cli.", StringComparison.Ordinal))
+            .Select(t => t.FullName)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(offenders);
     }
 
     [Fact]

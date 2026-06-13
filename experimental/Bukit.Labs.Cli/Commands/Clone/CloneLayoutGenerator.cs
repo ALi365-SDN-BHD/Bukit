@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 internal static class CloneLayoutGenerator
 {

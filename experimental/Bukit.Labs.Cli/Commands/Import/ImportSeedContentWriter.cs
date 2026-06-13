@@ -1,7 +1,7 @@
 using System.Text;
 using Bukit.Shared;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 internal static class ImportSeedContentWriter
 {

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 internal sealed record ScreenshotComparison(string Name, string Status, int ComparedPixels, int MismatchedPixels, double DiffRatio, int TargetWidth, int TargetHeight, int LocalWidth, int LocalHeight, int? MismatchMinX, int? MismatchMinY, int? MismatchMaxX, int? MismatchMaxY)
 {

@@ -1,4 +1,4 @@
-namespace Bukit.Cli.Intent;
+namespace Bukit.Labs.Cli.Commands;
 
 public static class IntentValidator
 {

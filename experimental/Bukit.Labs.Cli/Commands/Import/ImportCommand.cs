@@ -1,8 +1,9 @@
+using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
 using Bukit.Importing;
 using YamlDotNet.RepresentationModel;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 public static class ImportCommand
 {
@@ -357,13 +358,13 @@ public static class ImportCommand
             : result.SitePath;
         var siteConfig = Path.Combine(siteDir, "site.yaml");
 
-        var doctorResult = await DoctorCommand.RunAsync(new CliBoundCommand(new Dictionary<string, string?>
+        var doctorResult = await Bukit.Cli.Commands.DoctorCommand.RunAsync(new CliBoundCommand(new Dictionary<string, string?>
         {
             ["--config"] = siteConfig
         }, []));
         if (doctorResult != 0) return doctorResult;
 
-        return await BuildCommand.RunAsync(new CliBoundCommand(new Dictionary<string, string?>
+        return await Bukit.Cli.Commands.BuildCommand.RunAsync(new CliBoundCommand(new Dictionary<string, string?>
         {
             ["--config"] = siteConfig
         }, []));

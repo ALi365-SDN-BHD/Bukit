@@ -1,8 +1,9 @@
 using YamlDotNet.RepresentationModel;
 using Bukit.Theme;
+using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 public static class ThemeCommand
 {

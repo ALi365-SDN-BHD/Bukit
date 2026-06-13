@@ -1,7 +1,7 @@
+using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
-using Bukit.Cli.Intent;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 public static class IntentCommand
 {
@@ -27,7 +27,7 @@ public static class IntentCommand
     {
         var outPath = command.GetString("--out") ?? "intent.yaml";
         var fullOutPath = Path.GetFullPath(outPath);
-        Bukit.Cli.Intent.IntentWizard.RunInteractive(fullOutPath);
+        IntentWizard.RunInteractive(fullOutPath);
         Console.WriteLine($"Wrote intent: {fullOutPath}");
         Console.WriteLine("Next:");
         Console.WriteLine($"  bukit intent validate \"{fullOutPath}\"");

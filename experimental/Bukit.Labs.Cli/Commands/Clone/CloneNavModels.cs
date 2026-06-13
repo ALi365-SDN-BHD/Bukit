@@ -1,4 +1,4 @@
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 public sealed record NavLinkInfo
 {

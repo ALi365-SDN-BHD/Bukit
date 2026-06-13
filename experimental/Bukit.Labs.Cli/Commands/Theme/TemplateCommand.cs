@@ -1,8 +1,9 @@
 using System.Text;
+using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
 using Scriban;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 public static class TemplateCommand
 {

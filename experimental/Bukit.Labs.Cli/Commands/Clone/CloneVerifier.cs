@@ -1,10 +1,11 @@
 using System.Text;
+using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
 using Bukit.Config;
 using Bukit.Engine;
 using Scriban;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 internal static class CloneVerifier
 {
@@ -55,7 +56,7 @@ internal static class CloneVerifier
         {
             ["--config"] = configPath
         };
-        var buildResult = await BuildCommand.RunAsync(new CliBoundCommand(buildOptions, Array.Empty<string>()));
+        var buildResult = await Bukit.Cli.Commands.BuildCommand.RunAsync(new CliBoundCommand(buildOptions, Array.Empty<string>()));
         Console.WriteLine(buildResult == 0 ? "  Verify build: passed" : "  Verify build: failed");
         var sections = command.GetString("--sections") is { } sectionsPath
             ? await CloneInputLoader.LoadSectionsAsync(sectionsPath)

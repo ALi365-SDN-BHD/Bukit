@@ -1,8 +1,9 @@
 using System.Formats.Tar;
 using System.IO.Compression;
+using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 public static class ThemeInstallCommand
 {

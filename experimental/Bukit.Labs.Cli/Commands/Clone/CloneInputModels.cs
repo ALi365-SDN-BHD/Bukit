@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 public sealed record CloneTokens
 {

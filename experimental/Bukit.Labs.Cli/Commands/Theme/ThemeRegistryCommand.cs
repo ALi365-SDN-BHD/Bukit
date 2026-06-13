@@ -1,8 +1,9 @@
 using System.Security.Cryptography;
+using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
 using Bukit.Shared;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 public static class ThemeRegistryCommand
 {

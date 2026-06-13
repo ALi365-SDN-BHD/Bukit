@@ -1,3 +1,4 @@
+using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
 using Bukit.Shared.Notion;
 using System.Net.Http.Headers;
@@ -5,7 +6,7 @@ using System.Text;
 using System.Text.Json;
 using YamlDotNet.RepresentationModel;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 public static class NotionCommand
 {

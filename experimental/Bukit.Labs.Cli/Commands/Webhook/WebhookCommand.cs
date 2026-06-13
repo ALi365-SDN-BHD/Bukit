@@ -4,9 +4,10 @@ using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 public static class WebhookCommand
 {

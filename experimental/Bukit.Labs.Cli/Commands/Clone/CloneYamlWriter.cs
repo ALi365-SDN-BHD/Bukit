@@ -1,7 +1,7 @@
 using System.Text;
 using YamlDotNet.RepresentationModel;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 internal static class CloneYamlWriter
 {

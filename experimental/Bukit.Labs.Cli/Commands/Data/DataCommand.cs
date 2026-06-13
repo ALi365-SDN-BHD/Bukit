@@ -1,12 +1,13 @@
 using System.Text;
 using System.Text.Json;
+using Bukit.Cli;
 using Bukit.Cli.Cli.Binding;
 using Bukit.Config;
 using Bukit.Engine;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 public static class DataCommand
 {

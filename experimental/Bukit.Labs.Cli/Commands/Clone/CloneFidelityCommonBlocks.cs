@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 internal sealed record CommonBlocks(string Header, string Nav, string Footer);
 

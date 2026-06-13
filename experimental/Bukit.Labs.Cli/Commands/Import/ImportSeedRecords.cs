@@ -1,7 +1,7 @@
 using System.Text.Json;
 using YamlDotNet.RepresentationModel;
 
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 internal sealed record ImportSeedRecord(
     string Collection,

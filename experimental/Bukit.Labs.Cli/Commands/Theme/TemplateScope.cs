@@ -1,4 +1,4 @@
-namespace Bukit.Cli.Commands;
+namespace Bukit.Labs.Cli.Commands;
 
 /// <summary>
 /// Controls which templates are written during theme generation.
