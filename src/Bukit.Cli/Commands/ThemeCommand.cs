@@ -1,49 +1,13 @@
 using YamlDotNet.RepresentationModel;
 using Bukit.Theme;
 using Bukit.Cli.Cli.Binding;
-using Bukit.Cli.Cli.Metadata;
 
 namespace Bukit.Cli.Commands;
 
 public static class ThemeCommand
 {
     public static Task<int> RunAsync(CliBoundCommand command)
-    {
-        var sub = command.GetArgument(0);
-        if (string.IsNullOrWhiteSpace(sub))
-        {
-            return Task.FromResult(2);
-        }
-
-        var child = ThemeDescriptors.FirstOrDefault(c =>
-            string.Equals(c.Spec.Name, sub, StringComparison.OrdinalIgnoreCase));
-        if (child?.Handler is null)
-            return Task.FromResult(Unknown(sub));
-
-        return child.Handler(command);
-    }
-
-    internal static IReadOnlyList<CommandDescriptor> ThemeDescriptors => CreateDescriptors();
-
-    internal static IReadOnlyList<CommandDescriptor> CreateDescriptors()
-    {
-        return new CommandDescriptor[]
-        {
-            new(BukitCliThemeSpecs.ThemeCreateSpec, CreateAsync),
-            new(BukitCliThemeSpecs.ThemeListSpec, ListAsync),
-            new(BukitCliThemeSpecs.ThemeUseSpec, UseAsync),
-            new(BukitCliThemeSpecs.ThemeInfoSpec, InfoAsync),
-            new(BukitCliThemeSpecs.ThemeParamsSpec, ParamsAsync),
-            new(BukitCliThemeSpecs.ThemePreviewSpec, PreviewAsync),
-            new(BukitCliThemeSpecs.ThemeWizardSpec, ThemeWizardCommand.RunAsync),
-            new(BukitCliThemeSpecs.ThemePackSpec, ThemePackCommand.RunAsync),
-            new(BukitCliThemeSpecs.ThemeInstallSpec, ThemeInstallCommand.RunAsync),
-            new(BukitCliThemeSpecs.ThemeSearchSpec, ThemeRegistryCommand.SearchAsync),
-            new(BukitCliThemeSpecs.ThemeDoctorSpec, DoctorAsync),
-            new(BukitCliThemeSpecs.ThemeListComponentsSpec, ListComponentsAsync),
-            new(BukitCliThemeSpecs.ThemeExportCatalogSpec, ExportCatalogAsync),
-        };
-    }
+        => Task.FromResult(Unknown(command.GetArgument(0) ?? string.Empty));
 
     internal static async Task<int> CreateAsync(CliBoundCommand command)
     {

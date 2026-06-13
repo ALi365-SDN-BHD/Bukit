@@ -84,9 +84,6 @@
 
 | 字段 | 含义 | 示例 |
 |---|---|---|
-| `taxonomy.template` | 默认 term 模板 | `pages/taxonomy-term.html` |
-| `taxonomy.indexTemplate` | 索引页模板 | `pages/taxonomy-index.html` |
-| `taxonomy.termTemplate` | Term 页模板（覆盖全局） | `pages/taxonomy-term-alt.html` |
 | `taxonomy.outputMode` | 输出模式 | `both` / `pages` / `data` / `fields_only` |
 | `taxonomy.pageSize` | 每 term 分页大小（默认 10） | `20` |
 | `taxonomy.indexEnabled` | 是否生成索引页（默认 true） | `false` |

@@ -124,12 +124,6 @@ public static class ConfigValidator
             throw new ConfigException("build.listPageContentMode must be auto|always|never.", DiagnosticCode.ConfigInvalidValue);
         }
 
-        var assetHashMode = (config.Build.AssetHashMode ?? "size-time").Trim().ToLowerInvariant();
-        if (assetHashMode is not ("size-time" or "sha256"))
-        {
-            throw new ConfigException("build.assetHashMode must be size-time|sha256.", DiagnosticCode.ConfigInvalidValue);
-        }
-
         var fingerprintMode = (config.Build.FingerprintMode ?? "size-time").Trim().ToLowerInvariant();
         if (fingerprintMode is not ("size-time" or "sha256"))
         {
@@ -153,11 +147,6 @@ public static class ConfigValidator
             ProviderValidators.ValidateDeployConfig(config.Deploy);
         }
 
-        if (config.Taxonomy.Template is not null && string.IsNullOrWhiteSpace(config.Taxonomy.Template))
-        {
-            throw new ConfigException("taxonomy.template must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
-        }
-
         var taxonomyOutputMode = (config.Taxonomy.OutputMode ?? "both").Trim().ToLowerInvariant();
         if (taxonomyOutputMode is not ("both" or "pages" or "data" or "fields_only"))
         {
@@ -167,16 +156,6 @@ public static class ConfigValidator
         if (config.Taxonomy.PageSize <= 0)
         {
             throw new ConfigException("taxonomy.pageSize must be a positive integer.", DiagnosticCode.ConfigInvalidValue);
-        }
-
-        if (config.Taxonomy.IndexTemplate is not null && string.IsNullOrWhiteSpace(config.Taxonomy.IndexTemplate))
-        {
-            throw new ConfigException("taxonomy.indexTemplate must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
-        }
-
-        if (config.Taxonomy.TermTemplate is not null && string.IsNullOrWhiteSpace(config.Taxonomy.TermTemplate))
-        {
-            throw new ConfigException("taxonomy.termTemplate must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (config.Taxonomy.ItemFields is { Count: > 0 } itemFields)
@@ -189,9 +168,6 @@ public static class ConfigValidator
                 }
             }
         }
-
-        ValidateTaxonomyKind("taxonomy.templates.tags", config.Taxonomy.Templates.Tags);
-        ValidateTaxonomyKind("taxonomy.templates.categories", config.Taxonomy.Templates.Categories);
 
         if (config.Taxonomy.Kinds is { Count: > 0 } kinds)
         {
@@ -263,24 +239,6 @@ public static class ConfigValidator
         }
 
         return issues;
-    }
-
-    private static void ValidateTaxonomyKind(string prefix, TaxonomyKindTemplateConfig kind)
-    {
-        if (kind.Template is not null && string.IsNullOrWhiteSpace(kind.Template))
-        {
-            throw new ConfigException($"{prefix}.template must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
-        }
-
-        if (kind.IndexTemplate is not null && string.IsNullOrWhiteSpace(kind.IndexTemplate))
-        {
-            throw new ConfigException($"{prefix}.indexTemplate must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
-        }
-
-        if (kind.TermTemplate is not null && string.IsNullOrWhiteSpace(kind.TermTemplate))
-        {
-            throw new ConfigException($"{prefix}.termTemplate must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
-        }
     }
 
     private static void ValidateTaxonomyKindConfig(string prefix, TaxonomyKindConfig kind)

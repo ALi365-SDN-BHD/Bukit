@@ -103,8 +103,6 @@ P3 publish outputs 说明：sitemap、feed、search、llms/llms-full、robots、
 
 说明：
 - 派生页使用模板：默认 `pages/page.html`
-- 可配置：`taxonomy.template` / `taxonomy.indexTemplate` / `taxonomy.termTemplate`
-- 支持按 kind 覆盖：`taxonomy.templates.tags.*` / `taxonomy.templates.categories.*`
 - 优先级：kind 级别 index/term > 全局 index/term > kind 级别 template > 全局 template > 默认 `pages/page.html`
 - 页面内容为插件生成的简单 HTML（ul/li 列表），仍会写入 `page.content`（兼容旧主题）
 - 同时注入结构化字段（便于主题直接渲染列表，而不是解析 HTML）：

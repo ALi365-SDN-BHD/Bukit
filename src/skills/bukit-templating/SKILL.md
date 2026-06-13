@@ -477,7 +477,7 @@ The `doctor` command now includes a **template variable spell check** section (`
 
 ### Known Fields Whitelist
 
-**`site` root fields:** `name`, `title`, `url`, `description`, `base_url`, `language`, `params`, `modules`, `data`, `menus`, `related_pages`, `data_files`, `seo` → `og`/`twitter`/`article`, `analytics` → `enabled`/`google_analytics_id`
+**`site` root fields:** `name`, `title`, `url`, `description`, `base_url`, `language`, `params`, `modules`, `data`, `menus`, `related_pages`, `data_files`, `seo` → `og`/`twitter`/`article`, `analytics` → `enabled`/`googleAnalyticsId`
 
 **`page` root fields:** `title`, `url`, `content`, `summary`, `publish_date`, `fields`, `seo` → `title`/`desc`/`canonical`/`og` → `title`/`description`/`image`/`url`/`type`/`site_name`/`locale`, `twitter` → `card`/`title`/`description`/`image`, `article` → `published_time`/`modified_time`/`author`/`tag`, `robots`/`schema_type`/`alternates`/`json_ld`, `table_of_contents`
 
@@ -844,4 +844,4 @@ Image tags generated via `image.img` and `image.srcset` helpers use `WebUtility.
 For user-supplied content in templates, always use Scriban's built-in filters:
 - `{{ value | html.escape }}` — HTML attribute/value context
 - `{{ value | object.format "json" }}` — JSON/script context
-- `{{ site.analytics.google_analytics_id | html.escape }}` — IDs in script contexts
+- `{{ site.analytics.googleAnalyticsId | html.escape }}` — IDs in script contexts

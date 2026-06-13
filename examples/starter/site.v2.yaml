@@ -17,9 +17,13 @@ site:
 content:
   sources:
     - type: markdown
+      markdown:
+        dir: content
       dir: content
       collection: page
     - type: markdown
+      markdown:
+        dir: content
       dir: content_extra
       collection: page
 

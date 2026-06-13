@@ -338,12 +338,6 @@ internal static class RenderDependencyHasher
         Span<byte> newline = stackalloc byte[1];
         newline[0] = (byte)'\n';
         hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Template);
-        hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.IndexTemplate);
-        hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.TermTemplate);
-        hasher.AppendData(newline);
         IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.OutputMode);
         hasher.AppendData(newline);
         IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.PageSize.ToString());
@@ -381,18 +375,6 @@ internal static class RenderDependencyHasher
                 IncrementalBuildEngine.AppendUtf8(hasher, kvPair.Value);
             }
         }
-        hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Tags.Template);
-        hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Tags.IndexTemplate);
-        hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Tags.TermTemplate);
-        hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Categories.Template);
-        hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Categories.IndexTemplate);
-        hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, taxonomy.Templates.Categories.TermTemplate);
         if (taxonomy.Kinds is { Count: > 0 })
         {
             foreach (var kind in taxonomy.Kinds.OrderBy(x => x.Key, StringComparer.Ordinal))

@@ -184,12 +184,18 @@ internal static class DoctorTemplateChecker
         }
 
         var taxonomyTemplates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (!string.IsNullOrWhiteSpace(ctx.Config.Taxonomy.Template))
-            taxonomyTemplates.Add(ctx.Config.Taxonomy.Template);
-        if (!string.IsNullOrWhiteSpace(ctx.Config.Taxonomy.TermTemplate))
-            taxonomyTemplates.Add(ctx.Config.Taxonomy.TermTemplate);
-        if (!string.IsNullOrWhiteSpace(ctx.Config.Taxonomy.IndexTemplate))
-            taxonomyTemplates.Add(ctx.Config.Taxonomy.IndexTemplate);
+        if (ctx.Config.Taxonomy.Kinds is { Count: > 0 })
+        {
+            foreach (var kind in ctx.Config.Taxonomy.Kinds)
+            {
+                if (!string.IsNullOrWhiteSpace(kind.Template))
+                    taxonomyTemplates.Add(kind.Template);
+                if (!string.IsNullOrWhiteSpace(kind.TermTemplate))
+                    taxonomyTemplates.Add(kind.TermTemplate);
+                if (!string.IsNullOrWhiteSpace(kind.IndexTemplate))
+                    taxonomyTemplates.Add(kind.IndexTemplate);
+            }
+        }
 
         foreach (var file in ctx.AllHtmlFiles)
         {

@@ -124,7 +124,7 @@ site:
 
 ## content
 
-content 在 Bukit 1.0 只支持 `content.sources[]`。`content.provider` 是移除字段，出现时会被拒绝。
+content 在 Bukit 1.0 只支持 `content.sources[]`。`legacy content provider field` 是移除字段，出现时会被拒绝。
 
 ### content.sources[]
 
@@ -274,17 +274,8 @@ content:
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |---|---:|---:|---|---|
-| `taxonomy.template` | string | 否 | `pages/page.html` | taxonomy 派生页模板默认值（用于 index/term） |
-| `taxonomy.indexTemplate` | string | 否 | null | taxonomy 索引页模板（例如 `/tags/`、`/categories/`）；为空时回退到 `taxonomy.template` |
-| `taxonomy.termTemplate` | string | 否 | null | taxonomy 具体项页模板（例如 `/tags/<slug>/`、`/categories/<slug>/`）；为空时回退到 `taxonomy.template` |
 | `taxonomy.kinds` | list | 否 | null | 通用化 taxonomy 定义列表；配置后将按列表循环生成任意 kind（不再仅限 tags/categories）。每项至少包含 `key`，可选 `kind/title/singularTitlePrefix/template/indexTemplate/termTemplate/indexEnabled/hierarchical` |
 | `taxonomy.kinds[].hierarchical` | bool | 否 | false | (v3.0.0+) 是否启用层次化分类。启用后自动计算每个 term 的 `children` 和 `ancestors`，写入模板变量和 JSON 输出 |
-| `taxonomy.templates.tags.template` | string | 否 | null | tags 派生页默认模板（为空时回退到 `taxonomy.template`） |
-| `taxonomy.templates.tags.indexTemplate` | string | 否 | null | tags 索引页模板（为空时回退到 `taxonomy.indexTemplate` 或 `taxonomy.templates.tags.template`） |
-| `taxonomy.templates.tags.termTemplate` | string | 否 | null | tags 具体项页模板（为空时回退到 `taxonomy.termTemplate` 或 `taxonomy.templates.tags.template`） |
-| `taxonomy.templates.categories.template` | string | 否 | null | categories 派生页默认模板（为空时回退到 `taxonomy.template`） |
-| `taxonomy.templates.categories.indexTemplate` | string | 否 | null | categories 索引页模板（为空时回退到 `taxonomy.indexTemplate` 或 `taxonomy.templates.categories.template`） |
-| `taxonomy.templates.categories.termTemplate` | string | 否 | null | categories 具体项页模板（为空时回退到 `taxonomy.termTemplate` 或 `taxonomy.templates.categories.template`） |
 | `taxonomy.outputMode` | string | 否 | `both` | taxonomy 输出模式：`both`（同时生成页面和结构化数据）\| `pages`（仅生成 HTML 页面）\| `data`（仅生成 JSON 数据）\| `fields_only`（仅注入 fields，不生成任何文件） |
 | `taxonomy.itemFields` | string[] | 否 | null | term 页条目暴露哪些 fields（如 `[cover, image, date]`）；每项必须为非空字符串；未配置时条目仅包含基础信息（title/url/summary 等） |
 | `taxonomy.pageSize` | int | 否 | 10 | taxonomy term 页分页大小（分类/标签详情页） |
@@ -296,7 +287,6 @@ content:
 
 说明：
 - `taxonomy.kinds` 是 1.0 的标准 taxonomy 配置方式。1.0 文档与示例应显式列出所需 kind（例如 `tags` / `categories`）。
-- `taxonomy.templates.<kind>.*` 的旧 fallback 已改为迁移语境；在 1.0 运行口径中不再作为默认行为。
 - `taxonomy.kinds[]` 校验：`key` 必填；`kind`, `title`, `singularTitlePrefix`, `template`, `indexTemplate`, `termTemplate` 均为可选，但设置时必须为非空字符串。
 - `taxonomy.kinds[].hierarchical`：启用后自动计算层次关系。term 通过 `parent` 元数据（data 源或 `_index.md`）关联父级；无 `parent` 的 term 为根节点。
 - term 元数据支持两种加载源：
@@ -340,10 +330,6 @@ taxonomy:
 ```
 
 优先级规则（从高到低）：
-1. `taxonomy.templates.<kind>.indexTemplate` / `taxonomy.templates.<kind>.termTemplate`
-2. `taxonomy.indexTemplate` / `taxonomy.termTemplate`
-3. `taxonomy.templates.<kind>.template`
-4. `taxonomy.template`
 5. 默认 `pages/page.html`
 
 ## logging

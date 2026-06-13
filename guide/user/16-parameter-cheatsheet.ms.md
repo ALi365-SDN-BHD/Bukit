@@ -74,9 +74,6 @@ Halaman ini adalah untuk carian pantas. Untuk rujukan medan berwibawa yang lebih
 
 | Medan | Maksud | Contoh |
 |---|---|---|
-| `taxonomy.template` | Templat term lalai | `pages/taxonomy-term.html` |
-| `taxonomy.indexTemplate` | Templat halaman indeks | `pages/taxonomy-index.html` |
-| `taxonomy.termTemplate` | Templat halaman term (ganti global) | `pages/taxonomy-term-alt.html` |
 | `taxonomy.outputMode` | Mod output | `both` / `pages` / `data` / `fields_only` |
 | `taxonomy.pageSize` | Saiz penomboran setiap term (lalai 10) | `20` |
 | `taxonomy.indexEnabled` | Jana halaman indeks (lalai true) | `false` |

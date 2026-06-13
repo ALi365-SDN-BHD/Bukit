@@ -61,22 +61,9 @@ internal static class ConfigYamlHelpers
             return null;
         }
 
-        if (bool.TryParse(value, out var b))
-        {
-            return b;
-        }
+        if (bool.TryParse(value, out var b)) return b;
 
-        if (value.Equals("yes", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (value.Equals("no", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return null;
+        throw new ConfigException($"Invalid config value: {key} expected boolean true|false, got '{value}'", DiagnosticCode.ConfigInvalidValue);
     }
 
     internal static bool? GetOptionalBoolStrict(YamlMappingNode node, string key)
@@ -85,10 +72,8 @@ internal static class ConfigYamlHelpers
         if (value is null) return null;
 
         if (bool.TryParse(value, out var b)) return b;
-        if (value.Equals("yes", StringComparison.OrdinalIgnoreCase)) return true;
-        if (value.Equals("no", StringComparison.OrdinalIgnoreCase)) return false;
 
-        throw new ConfigException($"Invalid config value: {key} expected boolean, got '{value}'", DiagnosticCode.ConfigInvalidValue);
+        throw new ConfigException($"Invalid config value: {key} expected boolean true|false, got '{value}'", DiagnosticCode.ConfigInvalidValue);
     }
 
     internal static int? GetOptionalInt(YamlMappingNode node, string key)
@@ -99,12 +84,9 @@ internal static class ConfigYamlHelpers
             return null;
         }
 
-        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i))
-        {
-            return i;
-        }
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i)) return i;
 
-        return null;
+        throw new ConfigException($"Invalid config value: {key} expected integer, got '{value}'", DiagnosticCode.ConfigInvalidValue);
     }
 
     internal static int? GetOptionalIntStrict(YamlMappingNode node, string key)
@@ -126,12 +108,9 @@ internal static class ConfigYamlHelpers
             return null;
         }
 
-        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l))
-        {
-            return l;
-        }
+        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l)) return l;
 
-        return null;
+        throw new ConfigException($"Invalid config value: {key} expected long integer, got '{value}'", DiagnosticCode.ConfigInvalidValue);
     }
 
     internal static long? GetOptionalLongStrict(YamlMappingNode node, string key)
@@ -153,12 +132,9 @@ internal static class ConfigYamlHelpers
             return null;
         }
 
-        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
-        {
-            return d;
-        }
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var d)) return d;
 
-        return null;
+        throw new ConfigException($"Invalid config value: {key} expected double, got '{value}'", DiagnosticCode.ConfigInvalidValue);
     }
 
     internal static double? GetOptionalDoubleStrict(YamlMappingNode node, string key)

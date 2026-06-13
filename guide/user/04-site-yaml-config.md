@@ -72,7 +72,7 @@ Common fields (the ones users edit most often):
 | `site.permalinks` | Customize URL structure by type | `post: "/{year}/{month}/{slug}/"` |
 | `site.collections` | Collection-driven routing configuration (recommended) | `post: { permalink, template, listRoute }` |
 | `site.seo` | Engine-level SEO model configuration | `enabled/defaultImage/twitterSite/organization` |
-| `site.analytics` | Analytics code configuration (GA4) | `google_analytics_id: G-...` |
+| `site.analytics` | Analytics code configuration (GA4) | `googleAnalyticsId: G-...` |
 
 Output-related modes (especially important for multilingual sites):
 
@@ -122,7 +122,7 @@ site:
       url: https://example.com/about
       logo: https://example.com/logo.png
   analytics:
-    google_analytics_id: G-XXXXXXXXXX
+    googleAnalyticsId: G-XXXXXXXXXX
 ```
 
 Field descriptions:
@@ -134,9 +134,9 @@ Field descriptions:
 | `site.seo.twitterSite` | Empty | Outputs `twitter:site`, for example `@your_account` |
 | `site.seo.organization.name/url/logo` | Empty | Used for Organization JSON-LD |
 | `site.analytics.enabled` | `true` | Whether analytics code output is allowed |
-| `site.analytics.google_analytics_id` | Empty | GA4 Measurement ID, for example `G-XXXXXXXXXX` |
+| `site.analytics.googleAnalyticsId` | Empty | GA4 Measurement ID, for example `G-XXXXXXXXXX` |
 
-Analytics only supports GA4 `gtag`. As long as `site.analytics.google_analytics_id` is configured and `enabled: false` is not set, the new starter partial will output Google Analytics code.
+Analytics only supports GA4 `gtag`. As long as `site.analytics.googleAnalyticsId` is configured and `enabled: false` is not set, the new starter partial will output Google Analytics code.
 
 To disable analytics code:
 
@@ -144,7 +144,7 @@ To disable analytics code:
 site:
   analytics:
     enabled: false
-    google_analytics_id: G-XXXXXXXXXX
+    googleAnalyticsId: G-XXXXXXXXXX
 ```
 
 Note: the engine is only responsible for calculating `page.seo` and `site.analytics`; it does not forcibly rewrite HTML. The theme must explicitly include the SEO/Analytics partial in `<head>`. For details, see: [08 Themes and Templates](./08-themes-templates.md).

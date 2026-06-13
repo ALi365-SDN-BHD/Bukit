@@ -15,7 +15,7 @@ Selain YAML, tiada output lain dibenarkan: tiada penjelasan, tiada pagar Markdow
 - Medan mesti datang dari kontrak konfigurasi sedia ada repo:
   - Rujukan `intent.yaml`: `docs/intent.md`
   - Rujukan `site.yaml`: `guide/dev/config-site-yaml.md`
-- Intent kini menggunakan DSL experimental content source kind. Untuk `site.yaml` terus, sentiasa jana `content.sources[]`; jangan jana `content.provider`.
+- Intent kini menggunakan DSL experimental content source kind. Untuk `site.yaml` terus, sentiasa jana `content.sources[]`; jangan jana `legacy content provider field`.
 - Minimum diperlukan untuk sumber kandungan Notion:
   - Intent: `content.notion.database_id` + `content.notion.field_policy.mode`
   - site.yaml: `content.sources[].notion.databaseId` + `content.sources[].notion.fieldPolicy.mode`

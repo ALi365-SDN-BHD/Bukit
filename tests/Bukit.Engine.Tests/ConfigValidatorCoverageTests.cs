@@ -607,24 +607,6 @@ public sealed class ConfigValidatorCoverageTests
     // ── Taxonomy validation ───────────────────────────────────────
 
     [Fact]
-    public void Validate_Taxonomy_TemplateEmpty_Throws()
-    {
-        var config = ValidConfig(c => c with { Taxonomy = new TaxonomyConfig { Template = "" } });
-
-        var ex = Assert.Throws<ConfigException>(() => Validate(config));
-        Assert.Contains("taxonomy.template", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Validate_Taxonomy_TemplateWhitespace_Throws()
-    {
-        var config = ValidConfig(c => c with { Taxonomy = new TaxonomyConfig { Template = "  " } });
-
-        var ex = Assert.Throws<ConfigException>(() => Validate(config));
-        Assert.Contains("taxonomy.template", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public void Validate_Taxonomy_OutputModeInvalid_Throws()
     {
         var config = ValidConfig(c => c with { Taxonomy = new TaxonomyConfig { OutputMode = "invalid" } });
@@ -662,42 +644,6 @@ public sealed class ConfigValidatorCoverageTests
 
         var ex = Assert.Throws<ConfigException>(() => Validate(config));
         Assert.Contains("taxonomy.pageSize", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Validate_Taxonomy_IndexTemplateWhitespace_Throws()
-    {
-        var config = ValidConfig(c => c with { Taxonomy = new TaxonomyConfig { IndexTemplate = "  " } });
-
-        var ex = Assert.Throws<ConfigException>(() => Validate(config));
-        Assert.Contains("taxonomy.indexTemplate", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Validate_Taxonomy_IndexTemplateNull_Passes()
-    {
-        var config = ValidConfig(c => c with { Taxonomy = new TaxonomyConfig { IndexTemplate = null } });
-
-        var ex = Record.Exception(() => Validate(config));
-        Assert.Null(ex);
-    }
-
-    [Fact]
-    public void Validate_Taxonomy_TermTemplateWhitespace_Throws()
-    {
-        var config = ValidConfig(c => c with { Taxonomy = new TaxonomyConfig { TermTemplate = "  " } });
-
-        var ex = Assert.Throws<ConfigException>(() => Validate(config));
-        Assert.Contains("taxonomy.termTemplate", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Validate_Taxonomy_TermTemplateNull_Passes()
-    {
-        var config = ValidConfig(c => c with { Taxonomy = new TaxonomyConfig { TermTemplate = null } });
-
-        var ex = Record.Exception(() => Validate(config));
-        Assert.Null(ex);
     }
 
     [Fact]

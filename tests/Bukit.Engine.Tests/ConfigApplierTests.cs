@@ -20,8 +20,6 @@ public sealed class ConfigApplierTests
             Search = new SearchDetailConfig { Mode = "split" },
             PluginFailMode = "strict",
             DeriveConflictPolicy = "fail"
-            // DESKTOP-REMOVED: ExternalAssemblyTrustMode disabled (AOT-only).
-            // ExternalAssemblyTrustMode = "warn"
         },
         Build = new BuildConfig
         {

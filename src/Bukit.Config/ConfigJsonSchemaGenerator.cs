@@ -84,7 +84,6 @@ public static class ConfigJsonSchemaGenerator
             ("listPageContentMode", EnumSchema("auto", "always", "never")),
             ("schemaFailMode", EnumSchema("off", "warn", "strict")),
             ("report", BuildReportSchema()),
-            ("assetHashMode", EnumSchema("size-time", "sha256")),
             ("fingerprintMode", EnumSchema("size-time", "sha256")),
             ("publishDotFiles", BoolSchema()),
             ("followSymlinks", BoolSchema()),
@@ -108,18 +107,6 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject TaxonomySchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("template", StringSchema()),
-            ("indexTemplate", StringSchema()),
-            ("termTemplate", StringSchema()),
-            ("templates", Obj(("type", "object"), ("properties", Obj(
-                ("tags", Obj(("type", "object"), ("properties", Obj(
-                    ("template", StringSchema()),
-                    ("indexTemplate", StringSchema()),
-                    ("termTemplate", StringSchema()))))),
-                ("categories", Obj(("type", "object"), ("properties", Obj(
-                    ("template", StringSchema()),
-                    ("indexTemplate", StringSchema()),
-                    ("termTemplate", StringSchema()))))))))),
             ("kinds", Obj(("type", "array"), ("items", Obj(("type", "object"), ("properties", Obj(
                 ("key", StringSchema()),
                 ("kind", StringSchema()),
@@ -129,15 +116,7 @@ public static class ConfigJsonSchemaGenerator
                 ("indexTemplate", StringSchema()),
                 ("termTemplate", StringSchema()),
                 ("indexEnabled", BoolSchema()),
-                ("hierarchical", BoolSchema()))))))),
-            ("outputMode", EnumSchema("both", "index", "term")),
-            ("itemFields", StringArraySchema()),
-            ("pageSize", IntSchema(1)),
-            ("indexEnabled", BoolSchema()),
-            ("pinField", StringSchema()),
-            ("pinOrderField", StringSchema()),
-            ("pinFieldBySource", Obj(("type", "object"))),
-            ("pinOrderFieldBySource", Obj(("type", "object"))))));
+                ("hierarchical", BoolSchema()))))))))));
 
     private static JsonObject DeploySchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -186,9 +165,9 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject AnalyticsSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("measurementId", StringSchema()),
-            ("provider", StringSchema()),
-            ("template", StringSchema()))));
+            ("enabled", BoolSchema()),
+            ("googleAnalyticsId", StringSchema()),
+            ("disableInPreview", BoolSchema()))));
 
     private static JsonObject FeedSchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -434,7 +413,6 @@ public static class ConfigJsonSchemaGenerator
             ("canonicalMappings", Obj(("type", "array"), ("items", CanonicalFieldMappingSchema()))),
             ("customFields", Obj(("type", "array"), ("items", ContentModelFieldSchema()))),
             ("fieldScopes", Obj(("type", "object"), ("additionalProperties", Obj(("type", "array"), ("items", ContentModelFieldSchema()))))),
-            ("scopedFields", Obj(("type", "object"), ("additionalProperties", Obj(("type", "array"), ("items", ContentModelFieldSchema()))))),
             ("entityMappings", Obj(("type", "array"), ("items", EntityMappingSchema()))),
             ("relationMappings", Obj(("type", "array"), ("items", RelationMappingSchema()))),
             ("media", ContentModelMediaPolicySchema()),
@@ -454,7 +432,6 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject CanonicalFieldMappingSchema()
         => Obj(("type", "object"), ("required", Arr("canonicalField")), ("properties", Obj(
             ("canonicalField", StringSchema()),
-            ("field", StringSchema()),
             ("rawKey", StringSchema()),
             ("semanticType", StringSchema()),
             ("required", BoolSchema()))));
@@ -465,7 +442,6 @@ public static class ConfigJsonSchemaGenerator
         schema["required"] = Arr("name");
         schema["properties"] = Obj(
             ("name", StringSchema()),
-            ("type", StringSchema()),
             ("fieldType", StringSchema()),
             ("label", StringSchema()),
             ("semanticType", StringSchema()),
@@ -476,8 +452,7 @@ public static class ConfigJsonSchemaGenerator
             ("required", BoolSchema()),
             ("default", Obj()),
             ("sourcePolicy", StringSchema()),
-            ("reference", ContentReferenceRuleSchema()),
-            ("referenceRule", ContentReferenceRuleSchema()));
+            ("reference", ContentReferenceRuleSchema()));
         return schema;
     }
 
@@ -485,36 +460,29 @@ public static class ConfigJsonSchemaGenerator
         => Obj(("type", "object"), ("required", Arr("rawKey", "entityType")), ("properties", Obj(
             ("rawKey", StringSchema()),
             ("entityType", StringSchema()),
-            ("type", StringSchema()),
             ("idField", StringSchema()),
             ("nameField", StringSchema()),
             ("descriptionField", StringSchema()),
             ("urlField", StringSchema()),
             ("sameAsField", StringSchema()),
             ("required", BoolSchema()),
-            ("reference", ContentReferenceRuleSchema()),
-            ("referenceRule", ContentReferenceRuleSchema()))));
+            ("reference", ContentReferenceRuleSchema()))));
 
     private static JsonObject RelationMappingSchema()
         => Obj(("type", "object"), ("required", Arr("rawKey", "relationType")), ("properties", Obj(
             ("rawKey", StringSchema()),
             ("relationType", StringSchema()),
-            ("type", StringSchema()),
             ("targetType", StringSchema()),
             ("targetField", StringSchema()),
-            ("labelField", StringSchema()),
             ("targetIdField", StringSchema()),
-            ("idField", StringSchema()),
             ("required", BoolSchema()),
-            ("reference", ContentReferenceRuleSchema()),
-            ("referenceRule", ContentReferenceRuleSchema()))));
+            ("reference", ContentReferenceRuleSchema()))));
 
     private static JsonObject ContentReferenceRuleSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("targetType", StringSchema()),
             ("idField", StringSchema()),
             ("labelField", StringSchema()),
-            ("nameField", StringSchema()),
             ("urlField", StringSchema()),
             ("required", BoolSchema()))));
 

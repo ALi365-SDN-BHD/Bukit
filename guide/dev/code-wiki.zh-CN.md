@@ -19,7 +19,7 @@ Bukit
 │  ├─ Bukit.Rendering/           # 模板输入模型与 Scriban 绑定
 │  ├─ Bukit.Routing/             # 内容到路由的映射
 │  ├─ Bukit.Shared/              # 日志、异常、通用基础设施
-│  ├─ Bukit.PluginSourceGenerator/ # 插件注册相关源码生成
+│  ├─ Bukit source generation/ # 插件注册相关源码生成
 │  └─ plugins/                     # 可选插件实现
 ├─ tests/                          # Bukit 测试
 ├─ examples/starter/               # 可直接运行的示例站点

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Check CLI commands and options: compare BukitCliSpecs.cs / BukitCliThemeSpecs.cs
-with bukit-cli-reference/SKILL.md.
+"""Check CLI commands and options: compare BukitCliSpecs.cs with bukit-cli-reference/SKILL.md.
 
 Parses full command paths + option names from the source specs and compares
 against the Quick Reference table in the CLI reference skill.
@@ -62,9 +61,8 @@ def parse_options_from_specs(lines, start_idx):
 
 
 def extract_spec_commands_and_options():
-    """Parse BukitCliSpecs.cs and BukitCliThemeSpecs.cs for commands and their options."""
-    spec_pattern = os.path.join(repo_root, 'src', 'Bukit.Cli', 'Cli', 'BukitCliSpecs*.cs')
-    spec_paths = sorted(glob.glob(spec_pattern))
+    """Parse BukitCliSpecs.cs for commands and their options."""
+    spec_paths = [os.path.join(repo_root, 'src', 'Bukit.Cli', 'Cli', 'BukitCliSpecs.cs')]
 
     if not spec_paths:
         print(f'ERROR: {spec_pattern} not found — cannot verify CLI consistency', file=sys.stderr)
@@ -142,34 +140,6 @@ def extract_spec_commands_and_options():
                         j += 1
                     if not opt_found:
                         commands[full_path] = []
-
-    # Now parse BukitCliThemeSpecs.cs for theme subcommands
-    theme_spec_path = os.path.join(repo_root, 'src', 'Bukit.Cli', 'Cli', 'BukitCliThemeSpecs.cs')
-    if os.path.exists(theme_spec_path):
-        with open(theme_spec_path) as f:
-            theme_lines = f.readlines()
-
-        for i, line in enumerate(theme_lines):
-            stripped = line.strip()
-            name_m = re.search(r'Name:\s*"([^"]+)"', stripped)
-            if not name_m:
-                continue
-            cmd_name = name_m.group(1)
-            if cmd_name.startswith('--') or cmd_name in ('dir', 'n', 'name', 'port', 'ratio', 'output', 'host'):
-                continue
-            full_path = f'theme {cmd_name}'
-            # Look ahead for Options:
-            j = i + 1
-            while j < len(theme_lines):
-                if '};' in theme_lines[j]:
-                    break
-                if 'Options: new[]' in theme_lines[j]:
-                    opts, _ = parse_options_from_specs(theme_lines, j + 1)
-                    commands[full_path] = opts
-                    break
-                j += 1
-            if full_path not in commands:
-                commands[full_path] = []
 
     return commands
 

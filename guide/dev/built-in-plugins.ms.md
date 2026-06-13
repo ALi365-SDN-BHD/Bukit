@@ -103,8 +103,6 @@ Menjana halaman derived berdasarkan `meta.tags` / `meta.categories` kandungan:
 
 Nota:
 - Halaman derived menggunakan templat: lalai `pages/page.html`
-- Boleh dikonfigurasi: `taxonomy.template` / `taxonomy.indexTemplate` / `taxonomy.termTemplate`
-- Menyokong penindihan mengikut kind: `taxonomy.templates.tags.*` / `taxonomy.templates.categories.*`
 - Keutamaan: index/term peringkat kind > index/term global > template peringkat kind > template global > lalai `pages/page.html`
 - Kandungan halaman ialah HTML ringkas yang dijana plugin (senarai ul/li), dan masih ditulis ke `page.content` (serasi dengan tema lama)
 - Pada masa yang sama menyuntik medan berstruktur (memudahkan tema merender senarai secara langsung tanpa menghuraikan HTML):

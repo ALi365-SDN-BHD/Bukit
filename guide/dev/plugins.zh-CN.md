@@ -6,7 +6,7 @@
 - 插件接口：`src/Bukit.Engine.Abstractions/Plugins/*`
 - 执行器：`src/Bukit.Engine/Plugins/PluginRunner.cs`
 - 注册与加载：`src/Bukit.Engine/Plugins/PluginRegistry.cs`
-- 插件源生成：`src/Bukit.PluginSourceGenerator/PluginSourceGenerator.cs`
+- 插件源生成：`src/Bukit source generation`
 
 ## 生命周期与能力边界
 

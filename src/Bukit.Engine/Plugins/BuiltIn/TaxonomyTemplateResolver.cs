@@ -13,14 +13,10 @@ internal static class TaxonomyTemplateResolver
         Func<string, string> resolveTemplateKind,
         TaxonomyKindConfig? kindConfig = null)
     {
-        var legacyKindConfig = kind.Equals("tags", StringComparison.OrdinalIgnoreCase)
-            ? config.Templates.Tags
-            : (kind.Equals("categories", StringComparison.OrdinalIgnoreCase) ? config.Templates.Categories : new TaxonomyKindTemplateConfig());
-        var baseTemplate = string.IsNullOrWhiteSpace(config.Template) ? null : config.Template;
-        var kindBaseTemplate = FirstNonEmpty(kindConfig?.Template, legacyKindConfig.Template, baseTemplate);
-        var indexTemplate = FirstNonEmpty(kindConfig?.IndexTemplate, legacyKindConfig.IndexTemplate, config.IndexTemplate, kindBaseTemplate)
+        var kindBaseTemplate = FirstNonEmpty(kindConfig?.Template);
+        var indexTemplate = FirstNonEmpty(kindConfig?.IndexTemplate, kindBaseTemplate)
             ?? resolveTemplateKind("taxonomy_index");
-        var termTemplate = FirstNonEmpty(kindConfig?.TermTemplate, legacyKindConfig.TermTemplate, config.TermTemplate, kindBaseTemplate)
+        var termTemplate = FirstNonEmpty(kindConfig?.TermTemplate, kindBaseTemplate)
             ?? resolveTemplateKind("taxonomy_term");
 
         indexTemplate = EnsureTemplateExists(indexTemplate, layoutsDir);

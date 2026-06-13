@@ -105,7 +105,7 @@ internal static class I18nValidator
         if (!string.IsNullOrWhiteSpace(site.Analytics.GoogleAnalyticsId) &&
             !Regex.IsMatch(site.Analytics.GoogleAnalyticsId.Trim(), "^G-[A-Z0-9]+$", RegexOptions.CultureInvariant))
         {
-            throw new ConfigException("site.analytics.google_analytics_id must be a GA4 id starting with G-.");
+            throw new ConfigException("site.analytics.googleAnalyticsId must be a GA4 id starting with G-.");
         }
 
         var pluginFailMode = (site.PluginFailMode ?? "strict").Trim().ToLowerInvariant();
@@ -119,16 +119,6 @@ internal static class I18nValidator
         {
             throw new ConfigException("site.deriveConflictPolicy must be fail|warn|last-wins.");
         }
-
-#if false
-        var externalAssemblyTrustMode = (site.ExternalAssemblyTrustMode ?? "warn").Trim().ToLowerInvariant();
-        if (externalAssemblyTrustMode is not ("strict" or "warn"))
-        {
-            throw new ConfigException("site.externalAssemblyTrustMode must be strict|warn.");
-        }
-
-        ValidateExternalAssemblyAllowlist(site, externalAssemblyTrustMode);
-#endif
 
         if (site.Plugins is not null)
         {

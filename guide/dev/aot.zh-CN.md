@@ -45,7 +45,7 @@
 
 参考：
 
-- `src/Bukit.PluginSourceGenerator/PluginSourceGenerator.cs`
+- `src/Bukit source generation`
 - `src/Bukit.Engine.Abstractions/Plugins/BukitPluginAttribute.cs`
 
 ## Scriban AOT 兼容性

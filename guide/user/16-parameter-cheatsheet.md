@@ -74,9 +74,6 @@ This page is for quick lookup. For more complete authoritative field references 
 
 | Field | Meaning | Example |
 |---|---|---|
-| `taxonomy.template` | Default term template | `pages/taxonomy-term.html` |
-| `taxonomy.indexTemplate` | Index page template | `pages/taxonomy-index.html` |
-| `taxonomy.termTemplate` | Term page template (overrides global) | `pages/taxonomy-term-alt.html` |
 | `taxonomy.outputMode` | Output mode | `both` / `pages` / `data` / `fields_only` |
 | `taxonomy.pageSize` | Per-term pagination size (default 10) | `20` |
 | `taxonomy.indexEnabled` | Generate index pages (default true) | `false` |

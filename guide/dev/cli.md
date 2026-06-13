@@ -67,7 +67,6 @@ Build-related override order (highest to lowest):
 | `--jobs <n>` | Parallel rendering concurrency | Positive integer; default CPU core count |
 | `--metrics <path>` | Output build metrics JSON | Relative path resolved against rootDir |
 | `--log-format <text|json>` | Control log output format | Default `text` |
-| `--json` | JSON error output mode alias for global execution errors |
 
 ## build
 

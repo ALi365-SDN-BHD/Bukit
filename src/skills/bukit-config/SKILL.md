@@ -34,7 +34,7 @@ guide_chapters:
 |------|------|---------|
 | `site` | Site metadata and global behavior | name, title, url, baseUrl, language, collections, plugins, externalPlugins, feed, sitemapDetail, related, menus, search, pagination |
 | `content` | Content source definition | sources, media, modelSchema |
-| `build` | Build behavior | output, clean, draft, listPageContentMode, assetHashMode |
+| `build` | Build behavior | output, clean, draft, listPageContentMode, fingerprintMode |
 | `theme` | Theme configuration | name, layouts, assets, static, params |
 | `taxonomy` | Taxonomy configuration | template, kinds, pageSize, outputMode |
 | `logging` | Log level | level (debug/info/warn/error) |
@@ -209,7 +209,7 @@ theme:
 | `menus` | map | — | Multi-menu navigation definitions |
 | `search` | map | — | Search UI: `ui`, `uiTheme`, `placeholderText` |
 | `pagination` | map | — | Global pagination defaults: `pageSize` |
-| `analytics` | map | — | Analytics configuration: `enabled`, `google_analytics_id`, `disableInPreview` |
+| `analytics` | map | — | Analytics configuration: `enabled`, `googleAnalyticsId`, `disableInPreview` |
 
 SEO-oriented configs should include both `site.url` and `site.description`. Without `site.url`, canonical and schema URLs fall back to relative paths and audit emits warnings. Without `site.description`, generated home/list/taxonomy/pagination routes usually emit `seo.description_missing` unless the route has its own summary.
 | `permalinks` | map | — | Global permalink custom placeholders |
@@ -221,7 +221,7 @@ SEO-oriented configs should include both `site.url` and `site.description`. With
 | `sources` | array | **Required** | Bukit 1.0 content sources. Each item declares `type`, optional `name`/`collection`, and source-specific config. |
 | `media` | map | — | Media file handling (download, URL rewriting) |
 
-`content.provider`, `content.markdown`, and `content.notion` at the root of `content` are removed in Bukit 1.0. Generate `content.sources[]` only.
+`legacy content provider field`, `content.markdown`, and `content.notion` at the root of `content` are removed in Bukit 1.0. Generate `content.sources[]` only.
 
 #### content.notion
 
@@ -282,6 +282,8 @@ content:
       notion:
         databaseId: "xxx"
     - type: markdown
+      markdown:
+        dir: content
       mode: data           # data type goes to site.data for template use
       name: faq            # Optional data module name
       markdown:
@@ -299,7 +301,7 @@ When a source `mode` is `data`, content goes to `site.data.<name>` or `site.data
 | `draft` | bool | false | Whether to render drafts (pages with draft: true) |
 | `listPageContentMode` | string | `auto` | List page content mode: `auto`/`always`/`never` |
 | `schemaFailMode` | string | `warn` | Schema validation failure behavior: `warn` or `strict` |
-| `assetHashMode` | string | — | Asset copy comparison mode. `"sha256"` uses SHA256 content hashing to decide whether a file needs re-copying (recommended for CI and network/remote filesystems). Default (empty/omitted) uses file size + last-write-time comparison. |
+| `fingerprintMode` | string | — | Asset copy comparison mode. `"sha256"` uses SHA256 content hashing to decide whether a file needs re-copying (recommended for CI and network/remote filesystems). Default (empty/omitted) uses file size + last-write-time comparison. |
 
 ### theme Node
 
@@ -592,27 +594,27 @@ Controls Google Analytics (GA4) gtag output via the analytics partial.
 | Field | Type | Default | Description |
 |------|------|--------|------|
 | `analytics.enabled` | bool | true | Whether analytics code output is allowed |
-| `analytics.google_analytics_id` | string | — | GA4 Measurement ID (e.g., `G-XXXXXXXXXX`); must start with `G-` |
+| `analytics.googleAnalyticsId` | string | — | GA4 Measurement ID (e.g., `G-XXXXXXXXXX`); must start with `G-` |
 | `analytics.disableInPreview` | bool | true | Disable analytics during `bukit preview`. Set `false` to enable analytics in preview mode. |
 
 ```yaml
 site:
   analytics:
     enabled: true
-    google_analytics_id: "G-XXXXXXXXXX"
+    googleAnalyticsId: "G-XXXXXXXXXX"
 ```
 
-When `google_analytics_id` is configured and `enabled` is not `false`, the starter theme's analytics partial outputs the GA4 gtag snippet. To disable, set `enabled: false`.
+When `googleAnalyticsId` is configured and `enabled` is not `false`, the starter theme's analytics partial outputs the GA4 gtag snippet. To disable, set `enabled: false`.
 
 Template usage:
 ```scriban
-{{ if site.analytics && site.analytics.enabled && site.analytics.google_analytics_id }}
-  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analytics.google_analytics_id | html.escape }}"></script>
+{{ if site.analytics && site.analytics.enabled && site.analytics.googleAnalyticsId }}
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analytics.googleAnalyticsId | html.escape }}"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-    gtag('config', '{{ site.analytics.google_analytics_id | html.escape }}');
+    gtag('config', '{{ site.analytics.googleAnalyticsId | html.escape }}');
   </script>
 {{ end }}
 ```
@@ -907,7 +909,7 @@ SSRF protection is also applied to `CloneCommand` (theme asset downloads) and `S
 
 ## Removed Config Field Scanner (P3-3)
 
-`ConfigRemovedFieldScanner` detects removed 1.0 config fields and rejects them during `bukit doctor` and build:
+`ConfigStrictFieldValidator` detects removed 1.0 config fields and rejects them during `bukit doctor` and build:
 
 | Removed Pattern | Replacement | Rule |
 |---|---|---|

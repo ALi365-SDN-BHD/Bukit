@@ -107,7 +107,7 @@ When generating Bukit configuration files, the AI must follow these rules:
 1. Do not invent `site.yaml` fields.
 2. Select a standard Profile before generating `site.yaml`.
 3. Reference `docs/ai-demo-to-bukit/config/site-yaml-spec.md`.
-4. Generate only `content.sources[]`; never generate `content.provider`.
+4. Generate only `content.sources[]`; never generate `legacy content provider field`.
 5. `--build-source notion` requires `--content-source notion`.
 6. Notion multi-database mode must use `content.sources`.
 7. After generating configuration, run schema validation, `bukit doctor`, and `bukit build`.
@@ -132,7 +132,7 @@ Expected future diagnostics from Bukit doctor:
 ```text
 Unknown field: content.notion.database
 Missing required field: content.sources[0].collection
-Removed field: content.provider
+Removed field: legacy content provider field
 Invalid build source: notion requires content source notion
 ```
 

@@ -41,6 +41,8 @@ public sealed class BuildPipelinePerformanceTests
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 theme:
@@ -53,6 +55,8 @@ public sealed class BuildPipelinePerformanceTests
                     ---
                     type: post
                     collection: post
+                    markdown:
+                      dir: content
                     title: Page {i}
                     slug: page-{i}
                     publishAt: 2024-01-{i:D2}T00:00:00Z
@@ -206,6 +210,8 @@ public sealed class BuildPipelinePerformanceTests
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 theme:
@@ -216,6 +222,8 @@ public sealed class BuildPipelinePerformanceTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Hello World
                 slug: hello-world
                 publishAt: 2024-01-01T00:00:00Z

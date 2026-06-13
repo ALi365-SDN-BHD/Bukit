@@ -15,7 +15,7 @@ Beyond YAML, no other output is allowed: no explanations, no Markdown code fence
 - Fields must come from the repo's existing config contracts:
   - `intent.yaml` reference: `docs/intent.md`
   - `site.yaml` reference: `guide/dev/config-site-yaml.md`
-- Intent currently uses an experimental content source kind. For direct `site.yaml`, always generate `content.sources[]`; never generate `content.provider`.
+- Intent currently uses an experimental content source kind. For direct `site.yaml`, always generate `content.sources[]`; never generate `legacy content provider field`.
 - Minimum required for Notion content source:
   - Intent: `content.notion.database_id` + `content.notion.field_policy.mode`
   - site.yaml: `content.sources[].notion.databaseId` + `content.sources[].notion.fieldPolicy.mode`

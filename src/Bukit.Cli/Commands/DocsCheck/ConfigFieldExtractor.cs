@@ -192,11 +192,6 @@ public static class ConfigFieldExtractor
         "content.unknown_raw_key",
         "content.required_custom_field_missing",
         "content.required_collection_field_missing",
-        "taxonomy.templates.categories.template",
-        "taxonomy.templates.categories.index_template",
-        "taxonomy.templates.categories.term_template",
-        "taxonomy.templates.tags.index_template",
-        "taxonomy.templates.tags.term_template",
     };
 
     public static bool IsKnownTemplateVariable(string path)

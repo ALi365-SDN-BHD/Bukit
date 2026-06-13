@@ -47,6 +47,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -69,6 +71,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -87,6 +91,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -106,6 +112,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -124,6 +132,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -131,34 +141,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         Assert.False(config.Site.AutoSummary);
         Assert.Equal(200, config.Site.AutoSummaryMaxLength);
     }
-
-    // DESKTOP-REMOVED: ExternalAssembly loading disabled (AOT-only).
-#if false
-    [Fact]
-    public void Load_SiteExternalAssemblyTrustModeAndAllowlist()
-    {
-        var yaml = """
-            site:
-              name: myblog
-              title: My Blog
-              externalAssemblyTrustMode: strict
-              externalAssemblyAllowlist:
-                PluginA: v1.0
-                PluginB: v2.3
-            content:
-              sources:
-                - type: markdown
-            """;
-        var path = WriteTempYaml(yaml);
-        var config = ConfigLoader.Load(path);
-
-        Assert.Equal("strict", config.Site.ExternalAssemblyTrustMode);
-        Assert.NotNull(config.Site.ExternalAssemblyAllowlist);
-        Assert.Equal(2, config.Site.ExternalAssemblyAllowlist.Count);
-        Assert.Equal("v1.0", config.Site.ExternalAssemblyAllowlist["PluginA"]);
-        Assert.Equal("v2.3", config.Site.ExternalAssemblyAllowlist["PluginB"]);
-    }
-#endif
 
     [Fact]
     public void Load_SiteSearchIncludeDerived_True()
@@ -172,6 +154,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -197,6 +181,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -220,6 +206,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -238,6 +226,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             theme:
               name: my-custom-theme
               source: "https://example.com/themes.git@v1.2.3"
@@ -269,6 +259,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             theme:
               params:
                 primaryColor: "#3498db"
@@ -311,6 +303,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             logging:
               level: debug
             """;
@@ -330,6 +324,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             logging:
               level: warn
             """;
@@ -349,6 +345,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             logging:
               level: error
             """;
@@ -373,6 +371,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -407,6 +407,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);
@@ -428,7 +430,7 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
     }
 
     [Fact]
-    public void Load_TaxonomyTemplates_TagsAndCategories()
+    public void Load_TaxonomyTemplates_ThrowsUnknownField()
     {
         var yaml = """
             site:
@@ -437,33 +439,19 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
-              templates:
-                tags:
-                  template: pages/tag.html
-                  indexTemplate: pages/tag-list.html
-                  termTemplate: pages/tag-term.html
-                categories:
-                  template: pages/category.html
-                  indexTemplate: pages/cat-list.html
-                  termTemplate: pages/cat-term.html
+              unexpectedField: pages/tag.html
             """;
         var path = WriteTempYaml(yaml);
-        var config = ConfigLoader.Load(path);
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
 
-        Assert.NotNull(config.Taxonomy.Templates.Tags);
-        Assert.Equal("pages/tag.html", config.Taxonomy.Templates.Tags.Template);
-        Assert.Equal("pages/tag-list.html", config.Taxonomy.Templates.Tags.IndexTemplate);
-        Assert.Equal("pages/tag-term.html", config.Taxonomy.Templates.Tags.TermTemplate);
-
-        Assert.NotNull(config.Taxonomy.Templates.Categories);
-        Assert.Equal("pages/category.html", config.Taxonomy.Templates.Categories.Template);
-        Assert.Equal("pages/cat-list.html", config.Taxonomy.Templates.Categories.IndexTemplate);
-        Assert.Equal("pages/cat-term.html", config.Taxonomy.Templates.Categories.TermTemplate);
+        Assert.Contains("taxonomy.unexpectedField", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Load_TaxonomyItemFields_ParsesStringList()
+    public void Load_TaxonomyItemFields_ThrowsUnknownField()
     {
         var yaml = """
             site:
@@ -472,6 +460,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
               itemFields:
                 - tags
@@ -479,17 +469,13 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
                 - series
             """;
         var path = WriteTempYaml(yaml);
-        var config = ConfigLoader.Load(path);
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
 
-        Assert.NotNull(config.Taxonomy.ItemFields);
-        Assert.Equal(3, config.Taxonomy.ItemFields.Count);
-        Assert.Contains("tags", config.Taxonomy.ItemFields);
-        Assert.Contains("categories", config.Taxonomy.ItemFields);
-        Assert.Contains("series", config.Taxonomy.ItemFields);
+        Assert.Contains("taxonomy.itemFields", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Load_TaxonomyPinFieldAndPinOrderField_CustomValues()
+    public void Load_TaxonomyPinFieldAndPinOrderField_ThrowsUnknownField()
     {
         var yaml = """
             site:
@@ -498,19 +484,20 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
               pinField: featured
               pinOrderField: priority
             """;
         var path = WriteTempYaml(yaml);
-        var config = ConfigLoader.Load(path);
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
 
-        Assert.Equal("featured", config.Taxonomy.PinField);
-        Assert.Equal("priority", config.Taxonomy.PinOrderField);
+        Assert.Contains("taxonomy.pinField", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Load_TaxonomyPinFieldBySource_StringMap()
+    public void Load_TaxonomyPinFieldBySource_ThrowsUnknownField()
     {
         var yaml = """
             site:
@@ -519,22 +506,21 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
               pinFieldBySource:
                 notion: NotionPinned
                 markdown: frontmatter_pinned
             """;
         var path = WriteTempYaml(yaml);
-        var config = ConfigLoader.Load(path);
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
 
-        Assert.NotNull(config.Taxonomy.PinFieldBySource);
-        Assert.Equal(2, config.Taxonomy.PinFieldBySource.Count);
-        Assert.Equal("NotionPinned", config.Taxonomy.PinFieldBySource["notion"]);
-        Assert.Equal("frontmatter_pinned", config.Taxonomy.PinFieldBySource["markdown"]);
+        Assert.Contains("taxonomy.pinFieldBySource", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Load_TaxonomyPinOrderFieldBySource_StringMap()
+    public void Load_TaxonomyPinOrderFieldBySource_ThrowsUnknownField()
     {
         var yaml = """
             site:
@@ -543,18 +529,17 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
               pinOrderFieldBySource:
                 notion: NotionOrder
                 markdown: weight
             """;
         var path = WriteTempYaml(yaml);
-        var config = ConfigLoader.Load(path);
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
 
-        Assert.NotNull(config.Taxonomy.PinOrderFieldBySource);
-        Assert.Equal(2, config.Taxonomy.PinOrderFieldBySource.Count);
-        Assert.Equal("NotionOrder", config.Taxonomy.PinOrderFieldBySource["notion"]);
-        Assert.Equal("weight", config.Taxonomy.PinOrderFieldBySource["markdown"]);
+        Assert.Contains("taxonomy.pinOrderFieldBySource", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -682,6 +667,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             deploy:
               provider: custom
               branch: release
@@ -748,6 +735,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             build:
               report:
                 enabled: true
@@ -768,6 +757,8 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
         var config = ConfigLoader.Load(path);

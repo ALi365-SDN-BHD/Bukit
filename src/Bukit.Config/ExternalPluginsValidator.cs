@@ -114,53 +114,6 @@ internal static class ExternalPluginsValidator
                 ValidateProcessPluginOptions(name, plugin.Options);
             }
 
-#if false
-            if (runtime == "wasm")
-            {
-                if (!string.Equals(plugin.WasmProfile?.Trim(), "wasi-preview1", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new ConfigException($"site.externalPlugins.{name}.wasmProfile must be wasi-preview1.", DiagnosticCode.ConfigRequiredFieldMissing);
-                }
-
-                if (plugin.MaxMemoryMb <= 0)
-                {
-                    throw new ConfigException($"site.externalPlugins.{name}.maxMemoryMb must be a positive integer.", DiagnosticCode.ConfigRequiredFieldMissing);
-                }
-
-                if (plugin.MaxMemoryMb > 512)
-                {
-                    throw new ConfigException($"site.externalPlugins.{name}.maxMemoryMb must be <= 512.", DiagnosticCode.ConfigRequiredFieldMissing);
-                }
-
-                var wasmFsMode = (plugin.WasmFsMode ?? "output-only").Trim().ToLowerInvariant();
-                if (wasmFsMode is not ("none" or "output-only"))
-                {
-                    throw new ConfigException($"site.externalPlugins.{name}.wasmFsMode must be none|output-only.", DiagnosticCode.ConfigRequiredFieldMissing);
-                }
-
-                if (plugin.WasmAllowNetwork)
-                {
-                    throw new ConfigException($"site.externalPlugins.{name}.wasmAllowNetwork must be false in current sandbox policy.", DiagnosticCode.ConfigRequiredFieldMissing);
-                }
-
-                if (plugin.Capabilities is not null)
-                {
-                    for (var i = 0; i < plugin.Capabilities.Count; i++)
-                    {
-                        var capability = plugin.Capabilities[i]?.Trim().ToLowerInvariant();
-                        if (string.IsNullOrWhiteSpace(capability))
-                        {
-                            throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be a non-empty string.", DiagnosticCode.ConfigRequiredFieldMissing);
-                        }
-
-                        if (capability != "emit-outputs")
-                        {
-                            throw new ConfigException($"site.externalPlugins.{name}.capabilities[{i}] must be emit-outputs.", DiagnosticCode.ConfigRequiredFieldMissing);
-                        }
-                    }
-                }
-        }
-#endif
         }
     }
 

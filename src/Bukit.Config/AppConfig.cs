@@ -43,9 +43,6 @@ public sealed record SiteConfig
     public IReadOnlyDictionary<string, CollectionConfig>? Collections { get; init; }
     public IReadOnlyDictionary<string, ExternalPluginConfig>? ExternalPlugins { get; init; }
     public ExternalPluginPolicy ExternalPluginPolicy { get; init; } = ExternalPluginPolicy.Warn;
-    // DESKTOP-REMOVED: ExternalAssembly loading disabled (AOT-only).
-    // public string ExternalAssemblyTrustMode { get; init; } = "warn";
-    // public IReadOnlyDictionary<string, string>? ExternalAssemblyAllowlist { get; init; }
     public IReadOnlyDictionary<string, PluginToggleConfig>? Plugins { get; init; }
     public FeedConfig Feed { get; init; } = new();
     public SitemapDetailConfig SitemapDetail { get; init; } = new();
@@ -179,11 +176,6 @@ public sealed record ExternalPluginConfig
     public IReadOnlyList<string>? TemplateRequirements { get; init; }
     public bool AllowAbsoluteEntry { get; init; }
     public string? Sha256 { get; init; }
-    // DESKTOP-REMOVED: wasm runtime disabled (AOT-only).
-    // public string WasmProfile { get; init; } = "wasi-preview1";
-    // public int MaxMemoryMb { get; init; } = 64;
-    // public string WasmFsMode { get; init; } = "output-only";
-    // public bool WasmAllowNetwork { get; init; }
     public IReadOnlyDictionary<string, object>? Options { get; init; }
 }
 
@@ -372,7 +364,6 @@ public sealed record BuildConfig
     public string ListPageContentMode { get; init; } = "auto";
     public string SchemaFailMode { get; init; } = "warn";
     public BuildReportConfig Report { get; init; } = new();
-    public string AssetHashMode { get; init; } = "size-time";
     public string FingerprintMode { get; init; } = "size-time";
     public bool PublishDotFiles { get; init; }
     public bool FollowSymlinks { get; init; }
@@ -425,10 +416,6 @@ public sealed record ImageOptimizationConfig
 
 public sealed record TaxonomyConfig
 {
-    public string? Template { get; init; }
-    public string? IndexTemplate { get; init; }
-    public string? TermTemplate { get; init; }
-    public TaxonomyTemplatesConfig Templates { get; init; } = new();
     public IReadOnlyList<TaxonomyKindConfig>? Kinds { get; init; }
     public string OutputMode { get; init; } = "both";
     public IReadOnlyList<string>? ItemFields { get; init; }
@@ -438,12 +425,6 @@ public sealed record TaxonomyConfig
     public string? PinOrderField { get; init; }
     public IReadOnlyDictionary<string, string>? PinFieldBySource { get; init; }
     public IReadOnlyDictionary<string, string>? PinOrderFieldBySource { get; init; }
-}
-
-public sealed record TaxonomyTemplatesConfig
-{
-    public TaxonomyKindTemplateConfig Tags { get; init; } = new();
-    public TaxonomyKindTemplateConfig Categories { get; init; } = new();
 }
 
 public sealed record TaxonomyKindConfig
@@ -457,13 +438,6 @@ public sealed record TaxonomyKindConfig
     public string? TermTemplate { get; init; }
     public bool? IndexEnabled { get; init; }
     public bool Hierarchical { get; init; }
-}
-
-public sealed record TaxonomyKindTemplateConfig
-{
-    public string? Template { get; init; }
-    public string? IndexTemplate { get; init; }
-    public string? TermTemplate { get; init; }
 }
 
 public sealed record LoggingConfig

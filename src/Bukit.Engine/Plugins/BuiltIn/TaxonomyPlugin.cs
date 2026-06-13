@@ -276,13 +276,9 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         TaxonomyKindConfig? kindConfig,
         ISet<string> requirements)
     {
-        var legacyKindConfig = kind.Equals("tags", StringComparison.OrdinalIgnoreCase)
-            ? config.Templates.Tags
-            : (kind.Equals("categories", StringComparison.OrdinalIgnoreCase) ? config.Templates.Categories : new TaxonomyKindTemplateConfig());
-        var baseTemplate = string.IsNullOrWhiteSpace(config.Template) ? null : config.Template;
-        var kindBaseTemplate = TaxonomyTemplateResolver.FirstNonEmpty(kindConfig?.Template, legacyKindConfig.Template, baseTemplate);
-        var indexTemplate = TaxonomyTemplateResolver.FirstNonEmpty(kindConfig?.IndexTemplate, legacyKindConfig.IndexTemplate, config.IndexTemplate, kindBaseTemplate);
-        var termTemplate = TaxonomyTemplateResolver.FirstNonEmpty(kindConfig?.TermTemplate, legacyKindConfig.TermTemplate, config.TermTemplate, kindBaseTemplate);
+        var kindBaseTemplate = TaxonomyTemplateResolver.FirstNonEmpty(kindConfig?.Template);
+        var indexTemplate = TaxonomyTemplateResolver.FirstNonEmpty(kindConfig?.IndexTemplate, kindBaseTemplate);
+        var termTemplate = TaxonomyTemplateResolver.FirstNonEmpty(kindConfig?.TermTemplate, kindBaseTemplate);
 
         if (string.IsNullOrWhiteSpace(indexTemplate))
         {

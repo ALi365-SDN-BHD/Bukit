@@ -197,7 +197,7 @@ public sealed class ScribanModelBinderTests
         var analytics = Assert.IsType<ScriptObject>(site["analytics"]);
 
         Assert.True((bool)analytics["enabled"]!);
-        Assert.Equal("G-XXXXXXXXXX", analytics["google_analytics_id"]);
+        Assert.Equal("G-XXXXXXXXXX", analytics["googleAnalyticsId"]);
     }
 
     [Fact]
@@ -254,7 +254,7 @@ public sealed class ScribanModelBinderTests
         var analytics = Assert.IsType<ScriptObject>(site["analytics"]);
 
         Assert.True((bool)analytics["enabled"]!);
-        Assert.Null(analytics["google_analytics_id"]);
+        Assert.Null(analytics["googleAnalyticsId"]);
     }
 
     [Fact]

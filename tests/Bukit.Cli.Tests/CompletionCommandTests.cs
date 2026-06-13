@@ -12,7 +12,7 @@ public sealed class CompletionCommandTests
         var script = CompletionCommand.Render("bash");
 
         Assert.Contains("build", script, StringComparison.Ordinal);
-        Assert.Contains("lint", script, StringComparison.Ordinal);
+        Assert.Contains("doctor", script, StringComparison.Ordinal);
         Assert.Contains("config", script, StringComparison.Ordinal);
     }
 
@@ -69,11 +69,17 @@ public sealed class CompletionCommandTests
     }
 
     [Fact]
-    public void Registry_IncludesLintAndCompletionCommands()
+    public void Registry_IncludesCoreCommands()
     {
         var registry = BukitCliSpecs.CreateRegistry();
 
-        Assert.NotNull(registry.Resolve("lint"));
+        Assert.NotNull(registry.Resolve("build"));
+        Assert.NotNull(registry.Resolve("doctor"));
+        Assert.NotNull(registry.Resolve("config"));
+        Assert.NotNull(registry.Resolve("preview"));
+        Assert.NotNull(registry.Resolve("clean"));
+        Assert.NotNull(registry.Resolve("version"));
         Assert.NotNull(registry.Resolve("completion"));
+        Assert.Null(registry.Resolve("lint"));
     }
 }

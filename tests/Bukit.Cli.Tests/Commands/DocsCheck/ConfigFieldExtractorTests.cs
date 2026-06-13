@@ -24,7 +24,7 @@ public class ConfigFieldExtractorTests
         var text = """
             ## Migration Notes
 
-            The old `content.provider` field is removed in Bukit 1.0.
+            The old `legacy content provider field` field is removed in Bukit 1.0.
             Use `content.sources` instead.
 
             ```yaml
@@ -38,8 +38,8 @@ public class ConfigFieldExtractorTests
 
         var refs = ConfigFieldExtractor.ExtractYamlReferencesFromDoc(text);
 
-        // Should not extract content.provider from prose — YAML keys are multiline w/o dots
-        Assert.DoesNotContain("content.provider", refs);
+        // Should not extract legacy content provider field from prose — YAML keys are multiline w/o dots
+        Assert.DoesNotContain("legacy content provider field", refs);
     }
 
     [Fact]

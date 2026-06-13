@@ -23,6 +23,7 @@ examples/**/.sitegen_test/
 *.user
 *.suo
 *.swp
+*.lscache
 
 # Test artifacts
 TestResults/

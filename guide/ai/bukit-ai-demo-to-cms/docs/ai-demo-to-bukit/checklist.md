@@ -100,7 +100,7 @@
 
 - [ ] Standard `site.yaml` Profile selected
 - [ ] No invented `site.yaml` fields
-- [ ] `content.sources[]` is present and `content.provider` is absent
+- [ ] `content.sources[]` is present and `legacy content provider field` is absent
 - [ ] `--build-source notion` only used with `--content-source notion`
 - [ ] Notion multi-database mode uses `content.sources`
 - [ ] `demo.routes.yaml` follows the route spec

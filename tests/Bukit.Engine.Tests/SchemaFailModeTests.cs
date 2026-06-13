@@ -64,6 +64,8 @@ public sealed class SchemaFailModeTests : IDisposable
                 - type: markdown
                   name: page
                   collection: page
+                  markdown:
+                    dir: content
             """;
 
         var configPath = Path.Combine(_rootDir, "site.yaml");
@@ -77,7 +79,7 @@ public sealed class SchemaFailModeTests : IDisposable
     }
 
     [Fact]
-    public void ConfigLoader_CollectionsFile_ReadsSchemaFailModeFromYaml()
+    public void ConfigLoader_SiteCollections_ReadsSchemaFailModeFromYaml()
     {
         var siteYaml = """
             site:
@@ -85,23 +87,21 @@ public sealed class SchemaFailModeTests : IDisposable
               title: Test
               language: en
               baseUrl: /
+              collections:
+                posts:
+                  permalink: /posts/{slug}/
+                  template: post.html
+                  schemaFailMode: strict
             content:
               sources:
                 - type: markdown
                   name: page
                   collection: page
-            """;
-
-        var collectionsYaml = """
-            collections:
-              posts:
-                permalink: /posts/{slug}/
-                template: post.html
-                schemaFailMode: strict
+                  markdown:
+                    dir: content
             """;
 
         File.WriteAllText(Path.Combine(_rootDir, "site.yaml"), siteYaml);
-        File.WriteAllText(Path.Combine(_rootDir, "collections.yaml"), collectionsYaml);
 
         var config = ConfigLoader.Load(Path.Combine(_rootDir, "site.yaml"));
 

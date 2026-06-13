@@ -436,7 +436,6 @@ internal sealed class VariantBuildPipeline
             ThemeRoot: themeRootForTokens, ParentThemeRoot: parentThemeRootForTokens,
             OutputDir: outputDir,
             Manifest: manifestSetup.Manifest, IncrementalEnabled: manifestSetup.IncrementalEnabled,
-            AssetHashMode: config.Build.AssetHashMode,
             FingerprintMode: config.Build.FingerprintMode,
             ScssConfig: config.Theme.Scss, ImageConfig: config.Theme.Images,
             Logger: logger,

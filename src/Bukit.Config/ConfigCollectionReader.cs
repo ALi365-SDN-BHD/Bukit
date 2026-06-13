@@ -54,83 +54,6 @@ internal static class ConfigCollectionReader
         return collections.Count == 0 ? null : collections;
     }
 
-    internal static IReadOnlyDictionary<string, CollectionConfig>? TryReadCollectionsFile(string siteYamlPath)
-    {
-        var dir = Path.GetDirectoryName(Path.GetFullPath(siteYamlPath)) ?? ".";
-        var collectionsPath = Path.Combine(dir, "collections.yaml");
-        if (!File.Exists(collectionsPath))
-        {
-            return null;
-        }
-
-        using var reader = File.OpenText(collectionsPath);
-        var yaml = new YamlStream();
-        try
-        {
-            yaml.Load(reader);
-        }
-        catch (YamlDotNet.Core.YamlException ex)
-        {
-            throw new ConfigException($"Invalid YAML syntax in collections.yaml: {collectionsPath}", ex, DiagnosticCode.ConfigInvalidValue);
-        }
-
-        if (yaml.Documents.Count == 0)
-        {
-            return null;
-        }
-
-        if (yaml.Documents[0].RootNode is not YamlMappingNode root)
-        {
-            return null;
-        }
-
-        var collectionsNode = ConfigYamlHelpers.GetOptionalMapping(root, "collections") ?? root;
-        if (collectionsNode is null || collectionsNode.Children.Count == 0)
-        {
-            return null;
-        }
-
-        var collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kv in collectionsNode.Children)
-        {
-            if (kv.Key is not YamlScalarNode keyNode || string.IsNullOrWhiteSpace(keyNode.Value))
-            {
-                continue;
-            }
-
-            if (kv.Value is not YamlMappingNode collectionNode)
-            {
-                throw new ConfigException($"collections.yaml: entry '{keyNode.Value}' must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
-            }
-
-            var paginationNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "pagination");
-            var outputNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "output");
-            ThrowIfCollectionSchemaDeclared($"collections.yaml:{keyNode.Value}.schema", collectionNode);
-            collections[keyNode.Value.Trim()] = new CollectionConfig
-            {
-                Permalink = ConfigYamlHelpers.GetRequiredString(collectionNode, "permalink"),
-                Template = ConfigYamlHelpers.GetOptionalString(collectionNode, "template"),
-                ListRoute = ConfigYamlHelpers.GetOptionalString(collectionNode, "listRoute"),
-                ListTemplate = ConfigYamlHelpers.GetOptionalString(collectionNode, "listTemplate"),
-                SchemaFailMode = ConfigYamlHelpers.GetOptionalString(collectionNode, "schemaFailMode"),
-                Pagination = new CollectionPaginationConfig
-                {
-                    Enabled = paginationNode is not null && (ConfigYamlHelpers.GetOptionalBool(paginationNode, "enabled") ?? false),
-                    PageSize = paginationNode is null ? 10 : ConfigYamlHelpers.GetOptionalIntStrict(paginationNode, "pageSize") ?? 10
-                },
-                Output = new CollectionOutputConfig
-                {
-                    Rss = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "rss") ?? true,
-                    Sitemap = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "sitemap") ?? true,
-                    Archive = outputNode is not null && (ConfigYamlHelpers.GetOptionalBool(outputNode, "archive") ?? false)
-                },
-                FilteredLists = ReadFilteredLists(collectionNode)
-            };
-        }
-
-        return collections.Count == 0 ? null : collections;
-    }
-
     internal static IReadOnlyList<FilteredListConfig>? ReadFilteredLists(YamlMappingNode collectionNode)
     {
         var filteredListNode = ConfigYamlHelpers.GetOptionalSequence(collectionNode, "filteredLists");
@@ -238,8 +161,7 @@ internal static class ConfigCollectionReader
         var mappings = new List<CanonicalFieldMappingConfig>();
         foreach (var child in seq.Children.OfType<YamlMappingNode>())
         {
-            var canonicalField = ConfigYamlHelpers.GetOptionalString(child, "canonicalField")
-                ?? ConfigYamlHelpers.GetOptionalString(child, "field");
+            var canonicalField = ConfigYamlHelpers.GetOptionalString(child, "canonicalField");
             if (string.IsNullOrWhiteSpace(canonicalField))
             {
                 continue;
@@ -271,8 +193,7 @@ internal static class ConfigCollectionReader
 
     private static IReadOnlyDictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>? ReadFieldScopes(YamlMappingNode node)
     {
-        var scopesNode = ConfigYamlHelpers.GetOptionalMapping(node, "fieldScopes")
-            ?? ConfigYamlHelpers.GetOptionalMapping(node, "scopedFields");
+        var scopesNode = ConfigYamlHelpers.GetOptionalMapping(node, "fieldScopes");
         if (scopesNode is null || scopesNode.Children.Count == 0)
         {
             return null;
@@ -315,9 +236,7 @@ internal static class ConfigCollectionReader
             fields.Add(new CustomFieldDefinitionConfig
             {
                 Name = name,
-                FieldType = ConfigYamlHelpers.GetOptionalString(child, "fieldType")
-                    ?? ConfigYamlHelpers.GetOptionalString(child, "type")
-                    ?? "string",
+                FieldType = ConfigYamlHelpers.GetOptionalString(child, "fieldType") ?? "string",
                 Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
                 SemanticType = ConfigYamlHelpers.GetOptionalString(child, "semanticType"),
                 Label = ConfigYamlHelpers.GetOptionalString(child, "label"),
@@ -340,8 +259,7 @@ internal static class ConfigCollectionReader
         => ReadSchemaMappings(node, "entityMappings", child =>
         {
             var rawKey = ConfigYamlHelpers.GetOptionalString(child, "rawKey");
-            var entityType = ConfigYamlHelpers.GetOptionalString(child, "entityType")
-                ?? ConfigYamlHelpers.GetOptionalString(child, "type");
+            var entityType = ConfigYamlHelpers.GetOptionalString(child, "entityType");
             return string.IsNullOrWhiteSpace(rawKey) || string.IsNullOrWhiteSpace(entityType)
                 ? null
                 : new EntityMappingConfig
@@ -362,8 +280,7 @@ internal static class ConfigCollectionReader
         => ReadSchemaMappings(node, "relationMappings", child =>
         {
             var rawKey = ConfigYamlHelpers.GetOptionalString(child, "rawKey");
-            var relationType = ConfigYamlHelpers.GetOptionalString(child, "relationType")
-                ?? ConfigYamlHelpers.GetOptionalString(child, "type");
+            var relationType = ConfigYamlHelpers.GetOptionalString(child, "relationType");
             return string.IsNullOrWhiteSpace(rawKey) || string.IsNullOrWhiteSpace(relationType)
                 ? null
                 : new RelationMappingConfig
@@ -371,10 +288,8 @@ internal static class ConfigCollectionReader
                     RawKey = rawKey,
                     RelationType = relationType,
                     TargetType = ConfigYamlHelpers.GetOptionalString(child, "targetType"),
-                    TargetField = ConfigYamlHelpers.GetOptionalString(child, "targetField")
-                        ?? ConfigYamlHelpers.GetOptionalString(child, "labelField"),
-                    TargetIdField = ConfigYamlHelpers.GetOptionalString(child, "targetIdField")
-                        ?? ConfigYamlHelpers.GetOptionalString(child, "idField"),
+                    TargetField = ConfigYamlHelpers.GetOptionalString(child, "targetField"),
+                    TargetIdField = ConfigYamlHelpers.GetOptionalString(child, "targetIdField"),
                     Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
                     Reference = ReadReferenceRule(child)
                 };
@@ -382,8 +297,7 @@ internal static class ConfigCollectionReader
 
     private static ContentReferenceRuleConfig? ReadReferenceRule(YamlMappingNode node)
     {
-        var refNode = ConfigYamlHelpers.GetOptionalMapping(node, "reference")
-            ?? ConfigYamlHelpers.GetOptionalMapping(node, "referenceRule");
+        var refNode = ConfigYamlHelpers.GetOptionalMapping(node, "reference");
         if (refNode is null)
         {
             return null;
@@ -393,8 +307,7 @@ internal static class ConfigCollectionReader
         {
             TargetType = ConfigYamlHelpers.GetOptionalString(refNode, "targetType"),
             IdField = ConfigYamlHelpers.GetOptionalString(refNode, "idField"),
-            LabelField = ConfigYamlHelpers.GetOptionalString(refNode, "labelField")
-                ?? ConfigYamlHelpers.GetOptionalString(refNode, "nameField"),
+            LabelField = ConfigYamlHelpers.GetOptionalString(refNode, "labelField"),
             UrlField = ConfigYamlHelpers.GetOptionalString(refNode, "urlField"),
             Required = ConfigYamlHelpers.GetOptionalBool(refNode, "required") ?? false
         };

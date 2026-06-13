@@ -72,7 +72,7 @@ logging:
 | `site.permalinks` | 按类型自定义 URL 结构 | `post: "/{year}/{month}/{slug}/"` |
 | `site.collections` | collection 驱动路由配置（推荐） | `post: { permalink, template, listRoute }` |
 | `site.seo` | 引擎级 SEO 模型配置 | `enabled/defaultImage/twitterSite/organization` |
-| `site.analytics` | 统计代码配置（GA4） | `google_analytics_id: G-...` |
+| `site.analytics` | 统计代码配置（GA4） | `googleAnalyticsId: G-...` |
 
 与输出相关的模式（多语言时很关键）：
 
@@ -122,7 +122,7 @@ site:
       url: https://example.com/about
       logo: https://example.com/logo.png
   analytics:
-    google_analytics_id: G-XXXXXXXXXX
+    googleAnalyticsId: G-XXXXXXXXXX
 ```
 
 字段说明：
@@ -134,9 +134,9 @@ site:
 | `site.seo.twitterSite` | 空 | 输出 `twitter:site`，例如 `@your_account` |
 | `site.seo.organization.name/url/logo` | 空 | 用于 Organization JSON-LD |
 | `site.analytics.enabled` | `true` | 是否允许输出统计代码 |
-| `site.analytics.google_analytics_id` | 空 | GA4 Measurement ID，例如 `G-XXXXXXXXXX` |
+| `site.analytics.googleAnalyticsId` | 空 | GA4 Measurement ID，例如 `G-XXXXXXXXXX` |
 
-Analytics 只支持 GA4 `gtag`。只要配置了 `site.analytics.google_analytics_id`，且没有设置 `enabled: false`，新版 starter partial 就会输出 Google Analytics 代码。
+Analytics 只支持 GA4 `gtag`。只要配置了 `site.analytics.googleAnalyticsId`，且没有设置 `enabled: false`，新版 starter partial 就会输出 Google Analytics 代码。
 
 如果要关闭统计代码：
 
@@ -144,7 +144,7 @@ Analytics 只支持 GA4 `gtag`。只要配置了 `site.analytics.google_analytic
 site:
   analytics:
     enabled: false
-    google_analytics_id: G-XXXXXXXXXX
+    googleAnalyticsId: G-XXXXXXXXXX
 ```
 
 注意：引擎只负责计算 `page.seo` 与 `site.analytics`，不会强行改写 HTML。主题需要在 `<head>` 显式 include SEO/Analytics partial，具体见：[08-主题与模板](./08-themes-templates.zh-CN.md)。

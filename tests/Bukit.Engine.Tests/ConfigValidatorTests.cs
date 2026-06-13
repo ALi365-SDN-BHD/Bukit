@@ -357,6 +357,8 @@ public sealed class ConfigValidatorTests
                 - type: markdown
                   name: page
                   collection: page
+                  markdown:
+                    dir: content
             build:
               output: dist
             """;
@@ -391,6 +393,8 @@ public sealed class ConfigValidatorTests
                 - type: markdown
                   name: page
                   collection: page
+                  markdown:
+                    dir: content
             build:
               output: dist
             """;
@@ -436,13 +440,15 @@ public sealed class ConfigValidatorTests
                   logo: https://example.com/logo.png
               analytics:
                 enabled: false
-                google_analytics_id: G-ABC123
+                googleAnalyticsId: G-ABC123
                 disableInPreview: false
             content:
               sources:
                 - type: markdown
                   name: page
                   collection: page
+                  markdown:
+                    dir: content
             build:
               output: dist
             """;
@@ -505,7 +511,7 @@ public sealed class ConfigValidatorTests
     {
         var config = ConfigWithSite(s => s with { Analytics = s.Analytics with { GoogleAnalyticsId = "UA-123" } });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Equal("site.analytics.google_analytics_id must be a GA4 id starting with G-.", ex.Message);
+        Assert.Equal("site.analytics.googleAnalyticsId must be a GA4 id starting with G-.", ex.Message);
     }
 
     [Fact]
@@ -712,32 +718,6 @@ public sealed class ConfigValidatorTests
         Assert.Contains("timeout", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    // DESKTOP-REMOVED: wasm runtime tests disabled (AOT-only).
-#if false
-    [Fact]
-    public void Validate_ExternalPlugins_RuntimeWasm_IsRecognized()
-    {
-        var config = ValidConfig() with
-        {
-            Site = ValidConfig().Site with
-            {
-                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["sample"] = new()
-                    {
-                        Runtime = "wasm",
-                        Entry = "plugins/sample-plugin.wasm",
-                        Hooks = new[] { "after-build" },
-                        TimeoutMs = 5000
-                    }
-                }
-            }
-        };
-
-        var ex = Record.Exception(() => ConfigValidator.Validate(config));
-        Assert.Null(ex);
-    }
-
     [Fact]
     public void Validate_ExternalPlugins_HookDerivePages_IsRecognized()
     {
@@ -752,6 +732,7 @@ public sealed class ConfigValidatorTests
                         Runtime = "process",
                         Entry = "plugins/sample-plugin.exe",
                         Hooks = new[] { "after-build", "derive-pages" },
+                        Capabilities = new[] { "emit-outputs", "derive-pages" },
                         TimeoutMs = 5000
                     }
                 }
@@ -785,160 +766,6 @@ public sealed class ConfigValidatorTests
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
         Assert.Contains("hooks", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
-
-    [Fact]
-    public void Validate_ExternalPlugins_WasmProfileInvalid_Throws()
-    {
-        var config = ValidConfig() with
-        {
-            Site = ValidConfig().Site with
-            {
-                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["sample"] = new()
-                    {
-                        Runtime = "wasm",
-                        Entry = "plugins/sample-plugin.wasm",
-                        Hooks = new[] { "after-build" },
-                        Capabilities = new[] { "emit-outputs" },
-                        TimeoutMs = 5000,
-                        WasmProfile = "unknown-profile"
-                    }
-                }
-            }
-        };
-
-        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Contains("wasmProfile", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Validate_ExternalPlugins_WasmMaxMemoryInvalid_Throws()
-    {
-        var config = ValidConfig() with
-        {
-            Site = ValidConfig().Site with
-            {
-                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["sample"] = new()
-                    {
-                        Runtime = "wasm",
-                        Entry = "plugins/sample-plugin.wasm",
-                        Hooks = new[] { "after-build" },
-                        Capabilities = new[] { "emit-outputs" },
-                        TimeoutMs = 5000,
-                        MaxMemoryMb = 0
-                    }
-                }
-            }
-        };
-
-        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Contains("maxMemoryMb", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Validate_ExternalPlugins_WasmMaxMemoryTooLarge_Throws()
-    {
-        var config = ValidConfig() with
-        {
-            Site = ValidConfig().Site with
-            {
-                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["sample"] = new()
-                    {
-                        Runtime = "wasm",
-                        Entry = "plugins/sample-plugin.wasm",
-                        Hooks = new[] { "after-build" },
-                        Capabilities = new[] { "emit-outputs" },
-                        TimeoutMs = 5000,
-                        MaxMemoryMb = 1024
-                    }
-                }
-            }
-        };
-
-        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Contains("maxMemoryMb", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Validate_ExternalPlugins_WasmFsModeInvalid_Throws()
-    {
-        var config = ValidConfig() with
-        {
-            Site = ValidConfig().Site with
-            {
-                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["sample"] = new()
-                    {
-                        Runtime = "wasm",
-                        Entry = "plugins/sample-plugin.wasm",
-                        Hooks = new[] { "after-build" },
-                        TimeoutMs = 5000,
-                        WasmFsMode = "full"
-                    }
-                }
-            }
-        };
-
-        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Contains("wasmFsMode", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Validate_ExternalPlugins_WasmAllowNetworkTrue_Throws()
-    {
-        var config = ValidConfig() with
-        {
-            Site = ValidConfig().Site with
-            {
-                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["sample"] = new()
-                    {
-                        Runtime = "wasm",
-                        Entry = "plugins/sample-plugin.wasm",
-                        Hooks = new[] { "after-build" },
-                        TimeoutMs = 5000,
-                        WasmAllowNetwork = true
-                    }
-                }
-            }
-        };
-
-        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Contains("wasmAllowNetwork", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Validate_ExternalPlugins_WasmCapabilityUnsupported_Throws()
-    {
-        var config = ValidConfig() with
-        {
-            Site = ValidConfig().Site with
-            {
-                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["sample"] = new()
-                    {
-                        Runtime = "wasm",
-                        Entry = "plugins/sample-plugin.wasm",
-                        Hooks = new[] { "after-build" },
-                        TimeoutMs = 5000,
-                        Capabilities = new[] { "emit-outputs", "network" }
-                    }
-                }
-            }
-        };
-
-        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Contains("capabilities", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-#endif
 
     [Fact]
     public void Validate_ExternalPlugins_ProcessOptionsArguments_Throws()
@@ -1040,63 +867,6 @@ public sealed class ConfigValidatorTests
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);
     }
-
-    // DESKTOP-REMOVED: ExternalAssembly validation tests disabled (AOT-only).
-#if false
-    [Fact]
-    public void Validate_Site_ExternalAssemblyTrustModeStrictWithoutAllowlist_Throws()
-    {
-        var config = ValidConfig() with
-        {
-            Site = ValidConfig().Site with
-            {
-                ExternalAssemblyTrustMode = "strict",
-                ExternalAssemblyAllowlist = null
-            }
-        };
-
-        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Contains("externalAssemblyAllowlist", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Validate_Site_ExternalAssemblyAllowlistHashInvalid_Throws()
-    {
-        var config = ValidConfig() with
-        {
-            Site = ValidConfig().Site with
-            {
-                ExternalAssemblyTrustMode = "warn",
-                ExternalAssemblyAllowlist = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["ThrowingPlugin.dll"] = "abc123"
-                }
-            }
-        };
-
-        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Contains("externalAssemblyAllowlist", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Validate_Site_ExternalAssemblyAllowlistValid_Passes()
-    {
-        var config = ValidConfig() with
-        {
-            Site = ValidConfig().Site with
-            {
-                ExternalAssemblyTrustMode = "strict",
-                ExternalAssemblyAllowlist = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["ThrowingPlugin.dll"] = new string('a', 64)
-                }
-            }
-        };
-
-        var ex = Record.Exception(() => ConfigValidator.Validate(config));
-        Assert.Null(ex);
-    }
-#endif
 
     [Fact]
     public void Validate_Site_DeriveConflictPolicy_LastWins_Passes()

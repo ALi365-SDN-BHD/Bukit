@@ -168,7 +168,7 @@ public static class ScribanModelBinder
     {
         var obj = new ScriptObject();
         obj.SetValue("enabled", model.Enabled, readOnly: true);
-        obj.SetValue("google_analytics_id", model.GoogleAnalyticsId, readOnly: true);
+        obj.SetValue("googleAnalyticsId", model.GoogleAnalyticsId, readOnly: true);
         return obj;
     }
 

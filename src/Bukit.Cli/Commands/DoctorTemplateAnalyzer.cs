@@ -31,9 +31,15 @@ internal static class DoctorTemplateAnalyzer
         }
 
         Add(config.Theme.StaticTemplate);
-        Add(config.Taxonomy.Template);
-        Add(config.Taxonomy.IndexTemplate);
-        Add(config.Taxonomy.TermTemplate);
+        if (config.Taxonomy.Kinds is not null)
+        {
+            foreach (var kind in config.Taxonomy.Kinds)
+            {
+                Add(kind.Template);
+                Add(kind.IndexTemplate);
+                Add(kind.TermTemplate);
+            }
+        }
 
         return templates.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
 

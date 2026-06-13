@@ -19,7 +19,6 @@ internal sealed record AssetPipelineContext(
     string OutputDir,
     BuildManifest Manifest,
     bool IncrementalEnabled,
-    string? AssetHashMode,
     ScssConfig? ScssConfig,
     ImageOptimizationConfig? ImageConfig,
     ILogger Logger,
@@ -107,9 +106,7 @@ internal sealed class AssetPipeline
             if (hasParentStaticDir)
             {
                 DirectoryCopy.Sync(ctx.ParentStaticDir!, ctx.OutputDir,
-                    !string.IsNullOrWhiteSpace(ctx.AssetHashMode)
-                        ? copyOptions with { HashMode = ctx.AssetHashMode }
-                        : copyOptions,
+                    copyOptions,
                     outputRoot: ctx.OutputDir);
             }
 
@@ -154,11 +151,8 @@ internal sealed class AssetPipeline
                 await ImageOptimizer.OptimizeIfEnabled(ctx.AssetsDir!, ctx.ImageConfig, ctx.Logger, cancellationToken);
             }
 
-            var assetHashOptions = !string.IsNullOrWhiteSpace(ctx.AssetHashMode)
-                ? copyOptions with { HashMode = ctx.AssetHashMode }
-                : copyOptions;
             await Task.Run(() =>
-                DirectoryCopy.Sync(ctx.AssetsDir!, assetsOutputDir, assetHashOptions, outputRoot: ctx.OutputDir),
+                DirectoryCopy.Sync(ctx.AssetsDir!, assetsOutputDir, copyOptions, outputRoot: ctx.OutputDir),
                 cancellationToken);
         }
 

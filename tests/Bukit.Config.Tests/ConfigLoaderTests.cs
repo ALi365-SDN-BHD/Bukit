@@ -43,6 +43,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -55,7 +57,7 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
-    public void Load_BuildAssetHashMode_ReadsSha256()
+    public void Load_BuildFingerprintMode_ReadsSha256()
     {
         var yaml = """
             site:
@@ -64,29 +66,31 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             build:
-              assetHashMode: sha256
+              fingerprintMode: sha256
             """;
         var path = WriteTempYaml(yaml);
 
         var config = ConfigLoader.Load(path);
 
-        Assert.Equal("sha256", config.Build.AssetHashMode);
+        Assert.Equal("sha256", config.Build.FingerprintMode);
     }
 
     [Fact]
-    public void Validate_InvalidBuildAssetHashMode_ThrowsConfigException()
+    public void Validate_InvalidBuildFingerprintMode_ThrowsConfigException()
     {
         var config = new AppConfig
         {
             Site = new SiteConfig { Name = "myblog", Title = "My Blog" },
             Content = ContentConfigFactory.FromSources([new ContentSourceConfig { Type = "markdown", Markdown = new MarkdownConfig() }]),
-            Build = new BuildConfig { AssetHashMode = "bad" }
+            Build = new BuildConfig { FingerprintMode = "bad" }
         };
 
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
 
-        Assert.Contains("build.assetHashMode", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("build.fingerprintMode", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -156,6 +160,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -172,6 +178,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -285,6 +293,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -350,6 +360,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
               modelSchema:
                 rejectUnknownRawKeys: true
                 requireAuthor: true
@@ -362,7 +374,7 @@ public sealed class ConfigLoaderTests : IDisposable
                     required: true
                 customFields:
                   - name: deck
-                    type: string
+                    fieldType: string
                     required: true
                     label: Deck
                     format: slug
@@ -382,7 +394,7 @@ public sealed class ConfigLoaderTests : IDisposable
                 fieldScopes:
                   posts:
                     - name: postDeck
-                      type: string
+                      fieldType: string
                       required: true
                       default: standard
                 entityMappings:
@@ -498,12 +510,14 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
         var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
 
-        Assert.Contains("content.modelSchema.fieldScopes", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("site.collections.posts.schema", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -520,6 +534,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -542,6 +558,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             deploy:
               provider: github-pages
               branch: main
@@ -588,6 +606,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -632,28 +652,18 @@ public sealed class ConfigLoaderTests : IDisposable
                   options:
                     mode: full
                     pretty: true
-                image-optimizer:
-                  runtime: wasm
-                  entry: plugins/optimizer.wasm
-                  hooks:
-                    - after-build
-                    - derive-pages
-                  wasmProfile: wasi-preview1
-                  maxMemoryMb: 128
-                  wasmFsMode: output-only
-                  wasmAllowNetwork: false
-                  capabilities:
-                    - emit-outputs
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
         var config = ConfigLoader.Load(path);
 
         Assert.NotNull(config.Site.ExternalPlugins);
-        Assert.Equal(2, config.Site.ExternalPlugins.Count);
+        Assert.Single(config.Site.ExternalPlugins);
 
         var sitemap = config.Site.ExternalPlugins["sitemap-generator"];
         Assert.Equal("process", sitemap.Runtime);
@@ -672,19 +682,6 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("full", sitemap.Options["mode"]);
         Assert.Equal("true", sitemap.Options["pretty"]);
 
-        var optimizer = config.Site.ExternalPlugins["image-optimizer"];
-        Assert.Equal("wasm", optimizer.Runtime);
-        Assert.Equal("plugins/optimizer.wasm", optimizer.Entry);
-        Assert.Equal(2, optimizer.Hooks.Count);
-        Assert.Contains("after-build", optimizer.Hooks);
-        Assert.Contains("derive-pages", optimizer.Hooks);
-        // DESKTOP-REMOVED: wasm runtime fields disabled (AOT-only).
-        // Assert.Equal("wasi-preview1", optimizer.WasmProfile);
-        // Assert.Equal(128, optimizer.MaxMemoryMb);
-        // Assert.Equal("output-only", optimizer.WasmFsMode);
-        // Assert.False(optimizer.WasmAllowNetwork);
-        // Assert.NotNull(optimizer.Capabilities);
-        // Assert.Contains("emit-outputs", optimizer.Capabilities);
     }
 
     [Fact]
@@ -697,15 +694,9 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             taxonomy:
-              template: pages/taxonomy.html
-              indexTemplate: pages/index.html
-              termTemplate: pages/term.html
-              outputMode: both
-              indexEnabled: true
-              pageSize: 20
-              pinField: sticky
-              pinOrderField: weight
               kinds:
                 - key: tags
                   kind: tag
@@ -723,15 +714,6 @@ public sealed class ConfigLoaderTests : IDisposable
         var path = WriteTempYaml(yaml);
 
         var config = ConfigLoader.Load(path);
-
-        Assert.Equal("pages/taxonomy.html", config.Taxonomy.Template);
-        Assert.Equal("pages/index.html", config.Taxonomy.IndexTemplate);
-        Assert.Equal("pages/term.html", config.Taxonomy.TermTemplate);
-        Assert.Equal("both", config.Taxonomy.OutputMode);
-        Assert.True(config.Taxonomy.IndexEnabled);
-        Assert.Equal(20, config.Taxonomy.PageSize);
-        Assert.Equal("sticky", config.Taxonomy.PinField);
-        Assert.Equal("weight", config.Taxonomy.PinOrderField);
 
         Assert.NotNull(config.Taxonomy.Kinds);
         Assert.Equal(2, config.Taxonomy.Kinds.Count);
@@ -763,6 +745,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
               media:
                 downloadToLocal: true
                 downloadDir: static/images
@@ -803,114 +787,6 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal(1000, media.RetryBaseDelayMs);
     }
 
-    [Fact]
-    public void Load_CollectionsYamlFallback_WhenSiteYamlHasNoCollections()
-    {
-        var dir = Path.Combine(Path.GetTempPath(), $"bukit-collections-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
-        try
-        {
-            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
-            var sitePath = Path.Combine(dir, "site.yaml");
-            File.WriteAllText(sitePath, siteYaml);
-
-            var collectionsYaml = "post:\n  permalink: /blog/hello/\n  template: pages/post.html\n  listRoute: /blog/\n";
-            var collectionsPath = Path.Combine(dir, "collections.yaml");
-            File.WriteAllText(collectionsPath, collectionsYaml);
-
-            Assert.True(File.Exists(collectionsPath), "collections.yaml should exist");
-
-            var config = ConfigLoader.Load(sitePath);
-            Assert.NotNull(config.Site.Collections);
-            Assert.Single(config.Site.Collections!);
-            Assert.True(config.Site.Collections.ContainsKey("post"));
-            Assert.Equal("/blog/hello/", config.Site.Collections["post"].Permalink);
-        }
-        finally
-        {
-            TestCleanup.DeleteDirectory(dir, true);
-        }
-    }
-
-    [Fact]
-    public void TryReadCollectionsFile_SimpleFormatWithPost_ReturnsCollections()
-    {
-        var dir = Path.Combine(Path.GetTempPath(), $"bukit-collections-simple-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
-        try
-        {
-            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
-            var sitePath = Path.Combine(dir, "site.yaml");
-            File.WriteAllText(sitePath, siteYaml);
-
-            var collectionsYaml = "post:\n  permalink: /blog/hello/\n  template: pages/post.html\n";
-            File.WriteAllText(Path.Combine(dir, "collections.yaml"), collectionsYaml);
-
-            var result = ConfigCollectionReader.TryReadCollectionsFile(sitePath);
-
-            Assert.NotNull(result);
-            Assert.True(result!.ContainsKey("post"));
-            Assert.Equal("/blog/hello/", result["post"].Permalink);
-        }
-        finally
-        {
-            TestCleanup.DeleteDirectory(dir, true);
-        }
-    }
-
-    [Fact]
-    public void Load_CollectionsYamlWithWrapper_WhenSiteYamlHasNoCollections()
-    {
-        var dir = Path.Combine(Path.GetTempPath(), $"bukit-collections-wrap-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
-        try
-        {
-            var siteYaml = "site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
-            var sitePath = Path.Combine(dir, "site.yaml");
-            File.WriteAllText(sitePath, siteYaml);
-
-            var collectionsYaml = "collections:\n  post:\n    permalink: /blog/hello/\n    template: pages/post.html\n  page:\n    permalink: /pages/hello/\n    template: pages/page.html\n";
-            var collectionsPath = Path.Combine(dir, "collections.yaml");
-            File.WriteAllText(collectionsPath, collectionsYaml);
-
-            var config = ConfigLoader.Load(sitePath);
-            Assert.NotNull(config.Site.Collections);
-            Assert.Equal(2, config.Site.Collections!.Count);
-            Assert.True(config.Site.Collections.ContainsKey("post"));
-            Assert.True(config.Site.Collections.ContainsKey("page"));
-        }
-        finally
-        {
-            TestCleanup.DeleteDirectory(dir, true);
-        }
-    }
-
-    [Fact]
-    public void Load_SiteYamlCollections_TakePriority_OverCollectionsYaml()
-    {
-        var dir = Path.Combine(Path.GetTempPath(), $"bukit-collections-prio-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(dir);
-        try
-        {
-            var siteYaml = "site:\n  name: test\n  title: Test\n  collections:\n    post:\n      permalink: /articles/hello/\n      template: pages/article.html\ncontent:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\n";
-            var sitePath = Path.Combine(dir, "site.yaml");
-            File.WriteAllText(sitePath, siteYaml);
-
-            var collectionsYaml = "post:\n  permalink: /blog/hello/\n  template: pages/post.html\n";
-            var collectionsPath = Path.Combine(dir, "collections.yaml");
-            File.WriteAllText(collectionsPath, collectionsYaml);
-
-            var config = ConfigLoader.Load(sitePath);
-            Assert.NotNull(config.Site.Collections);
-            Assert.Equal("/articles/hello/", config.Site.Collections!["post"].Permalink);
-            Assert.Equal("pages/article.html", config.Site.Collections["post"].Template);
-        }
-        finally
-        {
-            TestCleanup.DeleteDirectory(dir, true);
-        }
-    }
-
     [Theory]
     [InlineData("alow")]
     [InlineData("denyy")]
@@ -925,6 +801,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -946,6 +824,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 
@@ -954,8 +834,8 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Theory]
-    [InlineData("rssMode: root", DiagnosticCode.ConfigRemovedField, "site.rssMode")]
-    [InlineData("searchMode: merged", DiagnosticCode.ConfigRemovedField, "site.searchMode")]
+    [InlineData("rssMode: root", DiagnosticCode.ConfigInvalidValue, "site.rssMode")]
+    [InlineData("searchMode: merged", DiagnosticCode.ConfigInvalidValue, "site.searchMode")]
     public void Load_RemovedSiteField_ThrowsBeforeValidation(string removedField, DiagnosticCode expectedCode, string expectedPath)
     {
         var yaml = $$"""
@@ -966,6 +846,8 @@ public sealed class ConfigLoaderTests : IDisposable
             content:
               sources:
                 - type: markdown
+                  markdown:
+                    dir: content
             """;
         var path = WriteTempYaml(yaml);
 

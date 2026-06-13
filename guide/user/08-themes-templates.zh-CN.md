@@ -410,12 +410,12 @@ Notion relation 补全（可选）：
 Analytics partial 的输出条件是：
 
 ```scriban
-{{ if site.analytics && site.analytics.enabled && site.analytics.google_analytics_id }}
+{{ if site.analytics && site.analytics.enabled && site.analytics.googleAnalyticsId }}
   ...
 {{ end }}
 ```
 
-所以只要 `site.analytics.google_analytics_id` 存在且没有 `enabled: false`，就会输出 GA4 gtag 代码。
+所以只要 `site.analytics.googleAnalyticsId` 存在且没有 `enabled: false`，就会输出 GA4 gtag 代码。
 
 SEO 相关配置与多语言 hreflang 行为见：[11-多语言与SEO](./11-i18n-seo.zh-CN.md) 与示例主题 `seo-best-practice`。
 

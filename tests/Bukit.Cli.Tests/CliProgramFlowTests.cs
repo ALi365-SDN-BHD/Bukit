@@ -14,47 +14,28 @@ public sealed class CliProgramFlowTests
     }
 
     [Fact]
-    public void Specs_IncludePlugin_AndTheme()
+    public void Specs_ExcludePlugin_AndTheme()
     {
         var registry = BukitCliSpecs.CreateRegistry();
-        var plugin = registry.Resolve("plugin");
-        Assert.NotNull(plugin);
-        Assert.NotEmpty(plugin!.Subcommands!);
 
-        var theme = registry.Resolve("theme");
-        Assert.NotNull(theme);
-        Assert.NotEmpty(theme!.Subcommands!);
+        Assert.Null(registry.Resolve("plugin"));
+        Assert.Null(registry.Resolve("theme"));
     }
 
     [Fact]
-    public void Specs_IncludeImportSeed_AndNotionPush()
+    public void Specs_ExcludeImport_AndNotion()
     {
         var registry = BukitCliSpecs.CreateRegistry();
 
-        var import = registry.Resolve("import");
-        Assert.NotNull(import);
-        Assert.Contains(import!.Subcommands!, s => s.Name == "seed");
-
-        var notion = registry.Resolve("notion");
-        Assert.NotNull(notion);
-        Assert.Contains(notion!.Subcommands!, s => s.Name == "push");
+        Assert.Null(registry.Resolve("import"));
+        Assert.Null(registry.Resolve("notion"));
     }
 
     [Fact]
-    public void Specs_ImportHtmlDemo_IncludeDocumentedPositiveFlags()
+    public void Specs_ExcludeImportHtmlDemo()
     {
         var registry = BukitCliSpecs.CreateRegistry();
-        var import = registry.Resolve("import");
-        var htmlDemo = import!.Subcommands!.Single(s => s.Name == "html-demo");
-        var options = htmlDemo.Options!.Select(o => o.Name).ToHashSet(StringComparer.Ordinal);
 
-        Assert.Contains("--extract-content", options);
-        Assert.Contains("--generate-seed", options);
-        Assert.Contains("--preserve-html", options);
-        Assert.Contains("--report", options);
-        Assert.Contains("--push-notion", options);
-        Assert.Contains("--notion-database-id", options);
-        Assert.Contains("--build-source", options);
-        Assert.DoesNotContain("--no-markdown-draft", options);
+        Assert.Null(registry.Resolve("import"));
     }
 }

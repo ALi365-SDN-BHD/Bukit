@@ -76,7 +76,7 @@ internal static class ScribanModelKnownFields
     internal static class AnalyticsFields
     {
         public const string Enabled = "enabled";
-        public const string GoogleAnalyticsId = "google_analytics_id";
+        public const string GoogleAnalyticsId = "googleAnalyticsId";
     }
 
     private static readonly HashSet<string> _pageFields = new(StringComparer.OrdinalIgnoreCase)

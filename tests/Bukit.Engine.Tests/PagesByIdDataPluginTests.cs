@@ -147,6 +147,8 @@ public sealed class PagesByIdDataPluginTests
                                              slug: hello
                                              type: post
                                              collection: post
+                                             markdown:
+                                               dir: content
                                              ---
                                              Hi
                                              """);

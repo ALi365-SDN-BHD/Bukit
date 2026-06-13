@@ -51,6 +51,8 @@ public sealed class I18nMergedFeedProjectionTests
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 theme:
@@ -177,6 +179,8 @@ public sealed class I18nMergedFeedProjectionTests
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 theme:
@@ -230,6 +234,8 @@ public sealed class I18nMergedFeedProjectionTests
             ---
             type: post
             collection: post
+            markdown:
+              dir: content
             title: {{title}}
             slug: {{slug}}
             language: {{language}}

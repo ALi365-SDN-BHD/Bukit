@@ -143,7 +143,7 @@ Main template fields:
 | `page.seo.twitter.*` | Twitter Card title, description, image, site account |
 | `page.seo.alternates` | Data for HTML `<link rel="alternate" hreflang=...>` |
 | `page.seo.json_ld` | WebSite, Organization, BreadcrumbList, BlogPosting JSON-LD |
-| `site.analytics.google_analytics_id` | GA4 Measurement ID |
+| `site.analytics.googleAnalyticsId` | GA4 Measurement ID |
 | `site.analytics.enabled` | Analytics output switch |
 
 ### SEO Field Priority
@@ -223,12 +223,12 @@ If a theme already has custom SEO logic, avoid duplicate tags. Prefer removing h
 
 ## Google Analytics (GA4)
 
-Bukit supports GA4 `gtag` configuration only. The field name is `google_analytics_id`:
+Bukit supports GA4 `gtag` configuration only. The field name is `googleAnalyticsId`:
 
 ```yaml
 site:
   analytics:
-    google_analytics_id: G-XXXXXXXXXX
+    googleAnalyticsId: G-XXXXXXXXXX
 ```
 
 By default, once the ID is configured and `enabled` is not `false`, the new `partials/analytics.html` emits:
@@ -243,7 +243,7 @@ Disable Analytics:
 site:
   analytics:
     enabled: false
-    google_analytics_id: G-XXXXXXXXXX
+    googleAnalyticsId: G-XXXXXXXXXX
 ```
 
 ## SEO Trinity: site.url, baseUrl, Theme SEO Snippets

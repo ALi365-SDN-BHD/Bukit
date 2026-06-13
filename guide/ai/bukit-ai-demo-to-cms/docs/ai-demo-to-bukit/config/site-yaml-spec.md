@@ -125,10 +125,10 @@ Rules:
 Do not generate:
 
 ```text
-content.provider
+legacy content provider field
 ```
 
-`content.provider` is removed in Bukit 1.0. All generated configuration must use `content.sources[]`.
+`legacy content provider field` is removed in Bukit 1.0. All generated configuration must use `content.sources[]`.
 
 ## 9. Compatibility Matrix
 
@@ -199,6 +199,6 @@ Bukit doctor should ideally report precise errors:
 ```text
 Unknown field: content.notion.database
 Missing required field: content.sources[0].collection
-Removed field: content.provider
+Removed field: legacy content provider field
 Invalid build source: notion requires content source notion
 ```

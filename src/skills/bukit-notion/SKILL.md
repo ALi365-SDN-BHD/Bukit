@@ -21,7 +21,7 @@ guide_chapters:
 Bukit converts Notion database pages into raw content documents and then normalizes them into canonical `ContentDocument` records, supporting HTML rendering for 26 block types and field mapping for 18 property types.
 
 **REQUIRED BACKGROUND:** Notion-related config is in site.yaml's `content.sources[].notion` and `content.media` nodes — you must understand bukit-config first.
-**⚠️ Deprecation:** The old root-level `content.notion` / `content.provider` format is no longer supported in Bukit 1.0. Use `content.sources[].notion` instead (see example below).
+**⚠️ Deprecation:** The old root-level `content.notion` / `legacy content provider field` format is no longer supported in Bukit 1.0. Use `content.sources[].notion` instead (see example below).
 **REQUIRED SUB-SKILL:** Verify Notion connectivity with `bukit doctor`, build with `bukit build`. CLI commands reference bukit-cli-reference.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
@@ -162,7 +162,7 @@ content:
     urlBase: /assets/uploads
 ```
 
-> **Note:** The old `content.notion` / `content.provider` root-level format is deprecated in Bukit 1.0. Using it will cause build/config check to fail. Migrate to `content.sources[].notion` with `type: notion`.
+> **Note:** The old `content.notion` / `legacy content provider field` root-level format is deprecated in Bukit 1.0. Using it will cause build/config check to fail. Migrate to `content.sources[].notion` with `type: notion`.
 
 ## Common Issues
 

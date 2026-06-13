@@ -91,7 +91,7 @@ Notes:
 | `site.externalAssemblyTrustMode` | string | `warn` | DLL trust governance: `warn`/`strict` |
 | `site.externalAssemblyAllowlist` | dict | - | Filename → SHA256 allowlist |
 | `site.analytics.enabled` | bool | true | Whether analytics code output is allowed |
-| `site.analytics.google_analytics_id` | string | - | GA4 Measurement ID (e.g., `G-XXXXXXXXXX`); must start with `G-`. When configured and `enabled` is not `false`, the analytics partial outputs gtag. |
+| `site.analytics.googleAnalyticsId` | string | - | GA4 Measurement ID (e.g., `G-XXXXXXXXXX`); must start with `G-`. When configured and `enabled` is not `false`, the analytics partial outputs gtag. |
 | `site.searchIncludeDerived` | bool | false | Include derived pages in search |
 | `site.externalProtocolIncludeRoutedPages` | bool | false | Include full routedPages in after-build |
 | `site.deriveConflictPolicy` | string | `fail` | Derived page conflict: `fail`/`warn`/`last-wins`. Content-page conflicts always fail regardless. |
@@ -100,7 +100,7 @@ Notes:
 
 ### content.sources[]
 
-`content.sources[]` is the only legal content entry in Bukit 1.0. `content.provider` is removed and rejected.
+`content.sources[]` is the only legal content entry in Bukit 1.0. `legacy content provider field` is removed and rejected.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -181,17 +181,8 @@ Notes:
 
 | Field | Type | Required | Default | Description |
 |---|---:|---:|---|---|
-| `taxonomy.template` | string | No | null | Optional template for taxonomy derived pages (used for index/term). If omitted, the active theme must declare templates accepting `kind: taxonomy_index` / `kind: taxonomy_term`. |
-| `taxonomy.indexTemplate` | string | No | null | Taxonomy index page template (e.g., `/tags/`, `/categories/`); falls back to `taxonomy.template` when empty |
-| `taxonomy.termTemplate` | string | No | null | Taxonomy term page template (e.g., `/tags/<slug>/`); falls back to `taxonomy.template` when empty |
 | `taxonomy.kinds` | list | No | null | Generalized taxonomy definition list; generates arbitrary kinds (not just tags/categories). Each entry requires at least `key`, optional `kind/title/singularTitlePrefix/template/indexTemplate/termTemplate/indexEnabled/hierarchical` |
 | `taxonomy.kinds[].hierarchical` | bool | No | false | (v3.0.0+) Enable hierarchical taxonomy. When enabled, automatically computes `children` and `ancestors` per term, injected into template variables and JSON output |
-| `taxonomy.templates.tags.template` | string | No | null | tags derived page default template (falls back to `taxonomy.template`) |
-| `taxonomy.templates.tags.indexTemplate` | string | No | null | tags index page template (falls back to `taxonomy.indexTemplate` or `taxonomy.templates.tags.template`) |
-| `taxonomy.templates.tags.termTemplate` | string | No | null | tags term page template (falls back to `taxonomy.termTemplate` or `taxonomy.templates.tags.template`) |
-| `taxonomy.templates.categories.template` | string | No | null | categories derived page default template |
-| `taxonomy.templates.categories.indexTemplate` | string | No | null | categories index page template |
-| `taxonomy.templates.categories.termTemplate` | string | No | null | categories term page template |
 | `taxonomy.outputMode` | string | No | `both` | `both` (HTML + JSON) \| `pages` (HTML only) \| `data` (JSON only) \| `fields_only` (fields only, no files) |
 | `taxonomy.itemFields` | string[] | No | null | Extra fields exposed on term page items (e.g., `[cover, image, date]`); each must be non-empty string |
 | `taxonomy.pageSize` | int | No | 10 | Term page pagination size |
@@ -204,7 +195,6 @@ Notes:
 ### Notes
 
 - `taxonomy.kinds` is the 1.0 canonical way to define taxonomy behavior. In 1.0 docs and starters, include needed kinds explicitly (for example `tags` / `categories`).
-- Legacy `taxonomy.templates.<kind>.*` fallback is not part of the 1.0 run-time contract and should not be used in 1.0 configs.
 - `taxonomy.kinds[]` validation: `key` is required; `kind`, `title`, `singularTitlePrefix`, `template`, `indexTemplate`, `termTemplate` are optional but must be non-empty strings if set.
 - `taxonomy.kinds[].hierarchical`: when enabled, automatically computes hierarchy. Terms associate with parent via `parent` metadata (data source or `_index.md`); terms without `parent` are root nodes.
 - **Term metadata** supports two loading sources:
@@ -215,10 +205,6 @@ Notes:
 
 ### Template Priority (high to low)
 
-1. `taxonomy.templates.<kind>.indexTemplate` / `taxonomy.templates.<kind>.termTemplate`
-2. `taxonomy.indexTemplate` / `taxonomy.termTemplate`
-3. `taxonomy.templates.<kind>.template`
-4. `taxonomy.template`
 5. Theme template declaration via `theme.yaml templates.*.accepts.kind` (`taxonomy_index` / `taxonomy_term`)
 
 ### Complete Example
@@ -268,7 +254,7 @@ taxonomy:
 
 ## Removed Config Field Scanner (P3-3)
 
-`ConfigRemovedFieldScanner` detects removed 1.0 config patterns and rejects them before build:
+`ConfigStrictFieldValidator` detects removed 1.0 config patterns and rejects them before build:
 
 | Removed Pattern | Replacement | Rule |
 |---|---|---|

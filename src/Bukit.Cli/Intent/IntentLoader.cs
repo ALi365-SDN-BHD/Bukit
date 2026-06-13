@@ -70,11 +70,6 @@ public static class IntentLoader
 
     private static SiteIntentContent ReadContent(YamlMappingNode node)
     {
-        if (GetOptionalString(node, "provider") is not null)
-        {
-            throw new InvalidOperationException("content.provider is removed in Bukit 1.0 intent files. Use content.kind instead.");
-        }
-
         var kind = GetRequiredString(node, "kind");
         var normalized = kind.Trim().ToLowerInvariant();
 

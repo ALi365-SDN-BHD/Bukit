@@ -71,7 +71,7 @@ Medan lazim (yang paling kerap diubah oleh pengguna):
 | `site.permalinks` | Menyesuaikan struktur URL mengikut jenis | `post: "/{year}/{month}/{slug}/"` |
 | `site.collections` | Konfigurasi routing dipacu collection (disyorkan) | `post: { permalink, template, listRoute }` |
 | `site.seo` | Konfigurasi model SEO peringkat enjin | `enabled/defaultImage/twitterSite/organization` |
-| `site.analytics` | Konfigurasi kod analitik (GA4) | `google_analytics_id: G-...` |
+| `site.analytics` | Konfigurasi kod analitik (GA4) | `googleAnalyticsId: G-...` |
 
 Mod yang berkaitan dengan output (sangat penting untuk berbilang bahasa):
 
@@ -121,7 +121,7 @@ site:
       url: https://example.com/about
       logo: https://example.com/logo.png
   analytics:
-    google_analytics_id: G-XXXXXXXXXX
+    googleAnalyticsId: G-XXXXXXXXXX
 ```
 
 Penerangan medan:
@@ -133,9 +133,9 @@ Penerangan medan:
 | `site.seo.twitterSite` | kosong | Mengoutput `twitter:site`, contohnya `@your_account` |
 | `site.seo.organization.name/url/logo` | kosong | Untuk Organization JSON-LD |
 | `site.analytics.enabled` | `true` | Sama ada membenarkan output kod analitik |
-| `site.analytics.google_analytics_id` | kosong | GA4 Measurement ID, contohnya `G-XXXXXXXXXX` |
+| `site.analytics.googleAnalyticsId` | kosong | GA4 Measurement ID, contohnya `G-XXXXXXXXXX` |
 
-Analytics hanya menyokong GA4 `gtag`. Selagi `site.analytics.google_analytics_id` telah dikonfigurasi dan `enabled: false` tidak ditetapkan, starter partial versi baharu akan mengoutput kod Google Analytics.
+Analytics hanya menyokong GA4 `gtag`. Selagi `site.analytics.googleAnalyticsId` telah dikonfigurasi dan `enabled: false` tidak ditetapkan, starter partial versi baharu akan mengoutput kod Google Analytics.
 
 Jika mahu mematikan kod analitik:
 
@@ -143,7 +143,7 @@ Jika mahu mematikan kod analitik:
 site:
   analytics:
     enabled: false
-    google_analytics_id: G-XXXXXXXXXX
+    googleAnalyticsId: G-XXXXXXXXXX
 ```
 
 Perhatian: enjin hanya bertanggungjawab mengira `page.seo` dan `site.analytics`; ia tidak akan memaksa penulisan semula HTML. Tema perlu memasukkan SEO/Analytics partial secara eksplisit dalam `<head>`. Lihat: [08-Tema dan Templat](./08-themes-templates.ms.md).
@@ -308,7 +308,7 @@ Perkara penting:
 | `build.draft` | Sama ada merender kandungan draf | `false` (lalai) |
 | `build.listPageContentMode` | Strategi pemasangan `pages[*].content` dalam halaman senarai | `auto` |
 | `build.schemaFailMode` | Tingkah laku apabila pengesahan Schema gagal | `warn` / `strict` |
-| `build.assetHashMode` | Mod perbandingan salinan aset | `"sha256"` (gunakan hash kandungan SHA256) atau lalai (saiz + masa) |
+| `build.fingerprintMode` | Mod perbandingan salinan aset | `"sha256"` (gunakan hash kandungan SHA256) atau lalai (saiz + masa) |
 
 Parameter CLI setara:
 

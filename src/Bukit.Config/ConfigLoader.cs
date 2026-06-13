@@ -39,7 +39,7 @@ public static class ConfigLoader
         }
 
         ConfigEnvironmentOverrides.Apply(root);
-        ConfigRemovedFieldScanner.RejectRemovedFields(root);
+        ConfigStrictFieldValidator.Validate(root);
 
         var siteNode = ConfigYamlHelpers.GetMapping(root, "site");
         var contentNode = ConfigYamlHelpers.GetMapping(root, "content");
@@ -48,8 +48,7 @@ public static class ConfigLoader
         var taxonomyNode = ConfigYamlHelpers.GetOptionalMapping(root, "taxonomy");
         var loggingNode = ConfigYamlHelpers.GetOptionalMapping(root, "logging");
 
-        var collections = ConfigCollectionReader.ReadCollections(siteNode)
-            ?? ConfigCollectionReader.TryReadCollectionsFile(path);
+        var collections = ConfigCollectionReader.ReadCollections(siteNode);
         var site = new SiteConfig
         {
             Name = ConfigYamlHelpers.GetRequiredString(siteNode, "name"),
@@ -81,13 +80,6 @@ public static class ConfigLoader
         };
 
         var sources = ConfigCollectionReader.ReadSources(contentNode);
-        var provider = ConfigYamlHelpers.GetOptionalString(contentNode, "provider");
-        if (!string.IsNullOrWhiteSpace(provider))
-        {
-            throw new ConfigException(
-                "content.provider is removed in Bukit 1.0. Use content.sources[] instead.",
-                DiagnosticCode.ConfigProviderRemoved);
-        }
 
         if (sources is null || sources.Count == 0)
         {
@@ -114,7 +106,6 @@ public static class ConfigLoader
             Draft = buildNode is null ? false : ConfigYamlHelpers.GetOptionalBool(buildNode, "draft") ?? false,
             ListPageContentMode = buildNode is null ? "auto" : ConfigYamlHelpers.GetOptionalString(buildNode, "listPageContentMode") ?? "auto",
             SchemaFailMode = buildNode is null ? "warn" : ConfigYamlHelpers.GetOptionalString(buildNode, "schemaFailMode") ?? "warn",
-            AssetHashMode = buildNode is null ? "size-time" : ConfigYamlHelpers.GetOptionalString(buildNode, "assetHashMode") ?? "size-time",
             FingerprintMode = buildNode is null ? "size-time" : ConfigYamlHelpers.GetOptionalString(buildNode, "fingerprintMode") ?? "size-time",
             PublishDotFiles = buildNode is null ? false : ConfigYamlHelpers.GetOptionalBool(buildNode, "publishDotFiles") ?? false,
             FollowSymlinks = buildNode is null ? false : ConfigYamlHelpers.GetOptionalBool(buildNode, "followSymlinks") ?? false,
@@ -150,19 +141,7 @@ public static class ConfigLoader
 
         var taxonomy = new TaxonomyConfig
         {
-            Template = taxonomyNode is null ? null : ConfigYamlHelpers.GetOptionalString(taxonomyNode, "template"),
-            IndexTemplate = taxonomyNode is null ? null : ConfigYamlHelpers.GetOptionalString(taxonomyNode, "indexTemplate"),
-            TermTemplate = taxonomyNode is null ? null : ConfigYamlHelpers.GetOptionalString(taxonomyNode, "termTemplate"),
-            Templates = SiteDefaultsApplier.ReadTaxonomyTemplates(taxonomyNode),
             Kinds = SiteDefaultsApplier.ReadTaxonomyKinds(taxonomyNode),
-            OutputMode = taxonomyNode is null ? "both" : ConfigYamlHelpers.GetOptionalString(taxonomyNode, "outputMode") ?? "both",
-            ItemFields = taxonomyNode is null ? null : ConfigYamlHelpers.ReadStringList(taxonomyNode, "itemFields"),
-            PageSize = taxonomyNode is null ? 10 : ConfigYamlHelpers.GetOptionalIntStrict(taxonomyNode, "pageSize") ?? 10,
-            IndexEnabled = taxonomyNode is null ? true : ConfigYamlHelpers.GetOptionalBool(taxonomyNode, "indexEnabled") ?? true,
-            PinField = taxonomyNode is null ? "pinned" : ConfigYamlHelpers.GetOptionalString(taxonomyNode, "pinField") ?? "pinned",
-            PinOrderField = taxonomyNode is null ? null : ConfigYamlHelpers.GetOptionalString(taxonomyNode, "pinOrderField"),
-            PinFieldBySource = ConfigYamlHelpers.ReadStringMap(taxonomyNode, "pinFieldBySource"),
-            PinOrderFieldBySource = ConfigYamlHelpers.ReadStringMap(taxonomyNode, "pinOrderFieldBySource")
         };
 
         var logging = new LoggingConfig

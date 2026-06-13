@@ -27,7 +27,7 @@
 规则：
 - 单语言：保留 `site.language`，删除 `site.languages` 与 `site.defaultLanguage`
 - 多语言：填写 `site.languages` 与 `site.defaultLanguage`，并把 `site.language` 设为默认语言
-- 始终使用 `content.sources[]`。`content.provider` 在 Bukit 1.0 已移除，绝不能生成。
+- 始终使用 `content.sources[]`。`legacy content provider field` 在 Bukit 1.0 已移除，绝不能生成。
 
 site:
   name: "{site_name}"

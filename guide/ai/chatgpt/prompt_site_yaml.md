@@ -27,7 +27,7 @@ Output requirements:
 Rules:
 - Single language: keep `site.language`, delete `site.languages` and `site.defaultLanguage`
 - Multilingual: fill in `site.languages` and `site.defaultLanguage`, set `site.language` to default language
-- Always use `content.sources[]`. `content.provider` is removed in Bukit 1.0 and must never be generated.
+- Always use `content.sources[]`. `legacy content provider field` is removed in Bukit 1.0 and must never be generated.
 
 site:
   name: "{site_name}"

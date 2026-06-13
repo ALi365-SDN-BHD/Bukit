@@ -29,11 +29,11 @@ public sealed class ScribanVariableCollectorTests
     [Fact]
     public void Collect_NestedMemberAccess_ExtractsFullPath()
     {
-        var template = Template.Parse("{{ page.fields.author }} {{ site.analytics.google_analytics_id }}");
+        var template = Template.Parse("{{ page.fields.author }} {{ site.analytics.googleAnalyticsId }}");
         var vars = ScribanVariableCollector.Collect(template);
 
         Assert.Contains("page.fields.author", vars);
-        Assert.Contains("site.analytics.google_analytics_id", vars);
+        Assert.Contains("site.analytics.googleAnalyticsId", vars);
     }
 
     [Fact]

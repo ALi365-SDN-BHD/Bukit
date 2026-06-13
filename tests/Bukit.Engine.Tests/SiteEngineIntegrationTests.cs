@@ -155,6 +155,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                 build:
@@ -167,6 +169,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Hello World
                 slug: hello-world
                 publishAt: 2024-06-01T00:00:00Z
@@ -184,6 +188,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: About
                 slug: about
                 publishAt: 2024-06-02T00:00:00Z
@@ -340,6 +346,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Hello World
                 slug: hello-world
                 publishAt: 2024-06-01T00:00:00Z
@@ -550,6 +558,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Hello World
                 slug: hello-world
                 publishAt: 2024-06-01T00:00:00Z
@@ -634,12 +644,14 @@ public sealed class SiteEngineIntegrationTests
                       url: https://example.com/about
                       logo: https://example.com/logo.png
                   analytics:
-                    google_analytics_id: G-ABC123
+                    googleAnalyticsId: G-ABC123
                 content:
                   sources:
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                 build:
@@ -652,6 +664,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Hello World
                 slug: hello-world
                 publishAt: 2024-06-01T00:00:00Z
@@ -680,9 +694,9 @@ public sealed class SiteEngineIntegrationTests
                   <meta property="og:image" content="{{ page.seo.og.image }}" />
                   <meta name="twitter:site" content="{{ page.seo.twitter.site }}" />
                   {{ for json in page.seo.json_ld }}<script type="application/ld+json">{{ json }}</script>{{ end }}
-                  {{ if site.analytics.enabled && site.analytics.google_analytics_id }}
-                  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analytics.google_analytics_id }}"></script>
-                  <script>gtag('config', '{{ site.analytics.google_analytics_id }}');</script>
+                  {{ if site.analytics.enabled && site.analytics.googleAnalyticsId }}
+                  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analytics.googleAnalyticsId }}"></script>
+                  <script>gtag('config', '{{ site.analytics.googleAnalyticsId }}');</script>
                   {{ end }}
                 </head>
                 <body>{{ content }}</body>
@@ -759,12 +773,14 @@ public sealed class SiteEngineIntegrationTests
                     robotsTxt:
                       enabled: true
                   analytics:
-                    google_analytics_id: G-ABC123
+                    googleAnalyticsId: G-ABC123
                 content:
                   sources:
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                 build:
@@ -777,6 +793,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Visible "Post" & News
                 slug: visible
                 publishAt: 2024-06-01T00:00:00Z
@@ -789,6 +807,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Hidden Post
                 slug: hidden
                 publishAt: 2024-06-02T00:00:00Z
@@ -801,6 +821,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Expired Post
                 slug: expired
                 publishAt: 2024-06-03T00:00:00Z
@@ -920,25 +942,27 @@ public sealed class SiteEngineIntegrationTests
                       collectionPage: true
                       searchAction: true
                   analytics:
-                    google_analytics_id: G-ABC123
+                    googleAnalyticsId: G-ABC123
                 content:
                   sources:
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                 build:
                   output: dist
                 theme:
                   layouts: layouts
-                taxonomy:
-                  pageSize: 1
                 """);
 
             File.WriteAllText(Path.Combine(root, "content", "one.md"), """
                 ---
                 collection: post
+                markdown:
+                  dir: content
                 title: One
                 slug: one
                 publishAt: 2024-06-01T00:00:00Z
@@ -949,6 +973,8 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "two.md"), """
                 ---
                 collection: post
+                markdown:
+                  dir: content
                 title: Two
                 slug: two
                 publishAt: 2024-06-02T00:00:00Z
@@ -959,6 +985,8 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "content", "hidden.md"), """
                 ---
                 collection: post
+                markdown:
+                  dir: content
                 title: Hidden
                 slug: hidden
                 publishAt: 2024-06-03T00:00:00Z
@@ -1006,15 +1034,15 @@ public sealed class SiteEngineIntegrationTests
             Assert.Contains("\"@type\":\"CollectionPage\"", listHtml, StringComparison.Ordinal);
             Assert.Contains("\"@type\":\"ItemList\"", listHtml, StringComparison.Ordinal);
 
-            var taxonomyHtml = File.ReadAllText(Path.Combine(root, "dist", "tags", "seo", "page", "2", "index.html"));
-            Assert.Contains("<link rel=\"canonical\" href=\"https://example.com/docs/tags/seo/page/2/\"", taxonomyHtml, StringComparison.Ordinal);
+            var taxonomyHtml = File.ReadAllText(Path.Combine(root, "dist", "tags", "seo", "index.html"));
+            Assert.Contains("<link rel=\"canonical\" href=\"https://example.com/docs/tags/seo/\"", taxonomyHtml, StringComparison.Ordinal);
             Assert.Contains("\"@type\":\"CollectionPage\"", taxonomyHtml, StringComparison.Ordinal);
             Assert.Contains("\"@type\":\"ItemList\"", taxonomyHtml, StringComparison.Ordinal);
 
             var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
             Assert.Contains("https://example.com/docs/", sitemap, StringComparison.Ordinal);
             Assert.Contains("https://example.com/docs/articles/", sitemap, StringComparison.Ordinal);
-            Assert.Contains("https://example.com/docs/tags/seo/page/2/", sitemap, StringComparison.Ordinal);
+            Assert.Contains("https://example.com/docs/tags/seo/", sitemap, StringComparison.Ordinal);
             Assert.DoesNotContain("https://example.com/docs/articles/hidden/", sitemap, StringComparison.Ordinal);
 
             var search = File.ReadAllText(Path.Combine(root, "dist", "search.json"));
@@ -1057,6 +1085,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                 build:
@@ -1068,6 +1098,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: One
                 slug: one
                 ---
@@ -1111,6 +1143,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: A
                 slug: a
                 ---
@@ -1223,6 +1257,8 @@ public sealed class SiteEngineIntegrationTests
                     ---
                     type: page
                     collection: page
+                    markdown:
+                      dir: content
                     title: Hello
                     slug: hello
                     language: en
@@ -1236,6 +1272,8 @@ public sealed class SiteEngineIntegrationTests
                     ---
                     type: page
                     collection: page
+                    markdown:
+                      dir: content
                     title: Bonjour
                     slug: bonjour
                     language: fr
@@ -1248,6 +1286,8 @@ public sealed class SiteEngineIntegrationTests
                     ---
                     type: page
                     collection: page
+                    markdown:
+                      dir: content
                     title: Hallo
                     slug: hallo
                     language: de
@@ -1346,6 +1386,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: page
                       collection: page
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                 build:
@@ -1357,6 +1399,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: Hello
                 slug: hello
                 language: en-US
@@ -1369,6 +1413,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: Helo
                 slug: helo
                 language: ms-MY
@@ -1381,6 +1427,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: Solo
                 slug: solo
                 language: en-US
@@ -1458,6 +1506,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                 build:
@@ -1469,6 +1519,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: This is a deliberately long SEO title that should be reported because it is over the normal search result length
                 slug: visible
                 summary: Visible post summary
@@ -1481,6 +1533,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Hidden
                 slug: hidden
                 robots: noindex
@@ -1550,6 +1604,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: Home
                 slug: home
                 ---
@@ -1588,6 +1644,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 theme:
@@ -1634,6 +1692,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: A
                 slug: a
                 ---
@@ -1675,6 +1735,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: A
                 slug: a
                 ---
@@ -1732,6 +1794,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: A
                 slug: a
                 ---
@@ -1846,6 +1910,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: A
                 slug: a
                 ---
@@ -1899,6 +1965,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: A
                 slug: a
                 ---
@@ -1908,6 +1976,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: B
                 slug: b
                 ---
@@ -1976,6 +2046,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: A
                 slug: a
                 ---
@@ -2168,6 +2240,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: One
                 slug: same
                 ---
@@ -2177,6 +2251,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Two
                 slug: same
                 ---
@@ -2208,6 +2284,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: One
                 slug: one
                 route:
@@ -2221,6 +2299,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: Two
                 slug: two
                 route:
@@ -2256,6 +2336,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: About Content
                 slug: about-content
                 route:
@@ -2294,6 +2376,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: About Content
                 slug: about-content
                 route:
@@ -2401,6 +2485,8 @@ public sealed class SiteEngineIntegrationTests
                     ---
                     type: post
                     collection: post
+                    markdown:
+                      dir: content
                     title: Post {{i}}
                     slug: post-{{i}}
                     publishAt: 2024-06-0{{i}}:00:00:00Z
@@ -2413,6 +2499,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: Conflict Page
                 slug: conflict-page
                 url: /blog/page/2/
@@ -2489,6 +2577,8 @@ public sealed class SiteEngineIntegrationTests
                     ---
                     type: post
                     collection: post
+                    markdown:
+                      dir: content
                     title: Post {{i}}
                     slug: post-{{i}}
                     publishAt: 2024-06-0{{i}}:00:00:00Z
@@ -2574,6 +2664,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: page
                       collection: page
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                 build:
@@ -2585,6 +2677,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: About
                 slug: about
                 language: en
@@ -2596,6 +2690,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: 关于
                 slug: guanyu
                 language: zh
@@ -2607,6 +2703,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: Solo
                 slug: solo
                 language: en
@@ -2618,6 +2716,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: 孤儿
                 slug: orphan
                 language: zh
@@ -2703,6 +2803,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: page
                       collection: page
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                 build:
@@ -2714,6 +2816,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: Alpha
                 slug: alpha
                 language: en
@@ -2725,6 +2829,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: 阿尔法
                 slug: a-er-fa
                 language: zh
@@ -2737,6 +2843,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: page
                 collection: page
+                markdown:
+                  dir: content
                 title: 贝塔
                 slug: beta
                 language: zh
@@ -2816,6 +2924,8 @@ public sealed class SiteEngineIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                   media:
                     downloadToLocal: false
                 build:
@@ -2828,6 +2938,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Alpha
                 slug: a
                 language: en
@@ -2839,6 +2951,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: Beta
                 slug: b
                 language: en
@@ -2850,6 +2964,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: 查理
                 slug: c
                 language: zh
@@ -2861,6 +2977,8 @@ public sealed class SiteEngineIntegrationTests
                 ---
                 type: post
                 collection: post
+                markdown:
+                  dir: content
                 title: 德尔塔
                 slug: d
                 language: zh
@@ -2967,6 +3085,8 @@ public sealed class SiteEngineIntegrationTests
             ---
             type: page
             collection: page
+            markdown:
+              dir: content
             title: Hello
             slug: hello
             ---
@@ -3143,11 +3263,15 @@ templates:
     accepts:
       type: post
       collection: post
+      markdown:
+        dir: content
   page:
     template: pages/page.html
     accepts:
       type: page
       collection: page
+      markdown:
+        dir: content
   detail:
     template: pages/page.html
     accepts:

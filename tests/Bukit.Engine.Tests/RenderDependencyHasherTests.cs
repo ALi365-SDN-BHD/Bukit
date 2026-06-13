@@ -313,22 +313,20 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
-    public void Compute_DifferentTaxonomyTemplates_ProducesDifferentHash()
+    public void Compute_DifferentTaxonomyKindTemplates_ProducesDifferentHash()
     {
         var baseConfig = CreateBaseConfig() with
         {
             Taxonomy = new TaxonomyConfig
             {
-                Kinds = new[] { new TaxonomyKindConfig { Key = "tags" } },
-                Templates = new TaxonomyTemplatesConfig { Tags = new TaxonomyKindTemplateConfig { Template = "pages/tag.html" } }
+                Kinds = new[] { new TaxonomyKindConfig { Key = "tags", Template = "pages/tag.html" } }
             }
         };
         var config2 = baseConfig with
         {
             Taxonomy = new TaxonomyConfig
             {
-                Kinds = new[] { new TaxonomyKindConfig { Key = "tags" } },
-                Templates = new TaxonomyTemplatesConfig { Tags = new TaxonomyKindTemplateConfig { Template = "pages/tag-alt.html" } }
+                Kinds = new[] { new TaxonomyKindConfig { Key = "tags", Template = "pages/tag-alt.html" } }
             }
         };
         Assert.NotEqual(RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel), RenderDependencyHasher.Compute(config2, s_emptySiteModel));

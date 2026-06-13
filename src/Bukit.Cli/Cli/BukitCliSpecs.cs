@@ -25,507 +25,18 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--cache-dir", "覆盖缓存目录"),
                 new CliOptionSpec("--metrics", "输出构建指标"),
                 new CliOptionSpec("--jobs", "并行渲染并发度", CliOptionType.Integer, ValueName: "n"),
-                new CliOptionSpec("--allow-external-plugins", "在 CI 环境中启���外部协议插件", CliOptionType.Flag),
+                new CliOptionSpec("--allow-external-plugins", "在 CI 环境中启用外部协议插件", CliOptionType.Flag),
                 new CliOptionSpec("--log-format", "日志格式", CliOptionType.String, AllowedValues: new[] { "text", "json" })
             });
 
-        var preview = new CliCommandSpec(
-            Name: "preview",
-            Description: "本地预览 dist",
-            Options: new[]
-            {
-                new CliOptionSpec("--dir", "预览目录"),
-                new CliOptionSpec("--host", "监听地址"),
-                new CliOptionSpec("--port", "监听端口", CliOptionType.String, ValueName: "port"),
-                new CliOptionSpec("--strict-port", "严格端口模式", CliOptionType.Flag),
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名")
-            });
-
-        var dev = new CliCommandSpec(
-            Name: "dev",
-            Description: "启动 HMR 开发服务器 (文件变更自动重构建 + 浏览器实时刷新)",
+        var doctor = new CliCommandSpec(
+            Name: "doctor",
+            Description: "诊断站点配置和模板",
             Options: new[]
             {
                 new CliOptionSpec("--config", "配置文件路径"),
                 new CliOptionSpec("--site", "多站点名"),
-                new CliOptionSpec("--host", "监听地址"),
-                new CliOptionSpec("--port", "监听端口", CliOptionType.Integer, ValueName: "port"),
-                new CliOptionSpec("--output", "输出目录", CliOptionType.String, ValueName: "dir"),
-                new CliOptionSpec("--no-watch", "禁用文件监控", CliOptionType.Flag)
-            });
-
-        var plugin = new CliCommandSpec(
-            Name: "plugin",
-            Description: "插件相关命令",
-            Options: new[]
-            {
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名")
-            },
-            Subcommands: new[]
-            {
-                new CliCommandSpec(
-                    Name: "list",
-                    Description: "列出插件",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    })
-            });
-
-        var clone = new CliCommandSpec(
-            Name: "clone",
-            Description: "从目标网站提取数据生成 Bukit 主题与内容",
-            Options: new[]
-            {
-                new CliOptionSpec("--tokens", "设计令牌 JSON 文件", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--theme", "目标主题名", CliOptionType.String, ValueName: "name"),
-                new CliOptionSpec("--layout", "页面布局 JSON 文件", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--page", "页面元数据 JSON 文件", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--sections", "页面区块 JSON 文件", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--behaviors", "交互行为 JSON 文件", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--icons", "SVG 图标 JSON 文件", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--assets", "静态资源 JSON 文件 (自动下载图片)", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--brand", "品牌名 (用于导航栏和页脚)"),
-                new CliOptionSpec("--use", "创建后切换到该主题", CliOptionType.Flag),
-                new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
-                new CliOptionSpec("--verify", "生成后执行 doctor/build 验证", CliOptionType.Flag),
-                new CliOptionSpec("--visual-threshold", "视觉截图 diff 阈值 (0-1)", CliOptionType.String, ValueName: "ratio"),
-                new CliOptionSpec("--fail-on-visual-diff", "截图 diff 超过阈值时失败", CliOptionType.Flag),
-                new CliOptionSpec("--fidelity", "保真模式：直接迁移 HTML 目录为模板 (值为 HTML 目录路径)", CliOptionType.String, ValueName: "dir"),
-                new CliOptionSpec("--template", "模板范围 (full|bare|none)，默认 bare", CliOptionType.String, ValueName: "scope"),
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名")
-            });
-
-        var importCmd = new CliCommandSpec(
-            Name: "import",
-            Description: "导入外部资源以创建 Bukit 主题或内容",
-            Options: new[]
-            {
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名")
-            },
-            Subcommands: new[]
-            {
-                new CliCommandSpec(
-                    Name: "html-demo",
-                    Description: "将静态 HTML demo 目录迁移为 Bukit 主题",
-                    Arguments: new[] { new CliArgumentSpec("demo-dir", "HTML demo 目录路径", Required: true) },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--theme", "目标主题名", CliOptionType.String, ValueName: "name", Required: true),
-                new CliOptionSpec("--force", "覆盖已有主题", CliOptionType.Flag),
-                new CliOptionSpec("--use", "创建后切换到该主题", CliOptionType.Flag),
-                new CliOptionSpec("--verify", "生成后执行 doctor/build 验证", CliOptionType.Flag),
-                new CliOptionSpec("--extract-content", "抽取业务内容 (默认开启)", CliOptionType.Flag),
-                new CliOptionSpec("--no-extract-content", "跳过内容抽取", CliOptionType.Flag),
-                new CliOptionSpec("--generate-seed", "生成 seed 数据 (默认开启)", CliOptionType.Flag),
-                new CliOptionSpec("--no-seed", "跳过种子数据生成", CliOptionType.Flag),
-                new CliOptionSpec("--content-source", "seed 输出类型 (notion|json|yaml)，默认 notion", CliOptionType.String, ValueName: "type"),
-                new CliOptionSpec("--build-source", "构建内容源 (markdown|notion)，默认 markdown；notion 会跳过 content/*.md 草稿", CliOptionType.String, ValueName: "type"),
-                new CliOptionSpec("--route-map", "显式页面路由映射 YAML 文件路径", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--site-path", "目标站点目录路径 (默认 sites/<theme>)"),
-                new CliOptionSpec("--language", "默认语言 (默认 zh)"),
-                new CliOptionSpec("--dry-run", "只分析不写入文件", CliOptionType.Flag),
-                new CliOptionSpec("--strict", "严格模式: fail (检测到残留则失败) | warn (仅警告)。默认 fail", CliOptionType.String, ValueName: "mode"),
-                new CliOptionSpec("--overwrite", "覆盖已有组件文件", CliOptionType.Flag),
-                new CliOptionSpec("--preserve-html", "保留原始 HTML 快照 (默认开启)", CliOptionType.Flag),
-                new CliOptionSpec("--no-preserve-html", "不保留原始 HTML 快照", CliOptionType.Flag),
-                new CliOptionSpec("--report", "生成 import-report.md 文件 (默认开启)", CliOptionType.Flag),
-                new CliOptionSpec("--no-report", "不生成 import-report.md 文件", CliOptionType.Flag),
-                new CliOptionSpec("--base-url", "设置 site.baseUrl"),
-                new CliOptionSpec("--push-notion", "导入后直接将生成的 seed 写入 Notion（推送前默认校验 database schema）", CliOptionType.Flag),
-                new CliOptionSpec("--notion-database-id", "Notion database ID，用于 --push-notion", CliOptionType.String, ValueName: "id"),
-                new CliOptionSpec("--notion-database-map", "多 Notion database 映射 YAML 文件，用于 --push-notion", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--create-missing-notion-databases", "缺少 databaseId 时自动创建 Notion databases", CliOptionType.Flag),
-                new CliOptionSpec("--notion-parent-page-id", "自动创建 Notion database 的父页面 ID", CliOptionType.String, ValueName: "id"),
-                new CliOptionSpec("--notion-generated-database-map", "自动创建后写出的 Notion database map 路径", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--notion-token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),
-                new CliOptionSpec("--notion-report", "Notion push 报告输出路径", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--no-validate-notion-schema", "--push-notion 时跳过 schema 校验（用于本地 smoke test 或 mock 环境）", CliOptionType.Flag),
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "seed",
-                    Description: "将 import 生成的 JSON/YAML seed 转为本地 markdown content",
-                    Arguments: new[] { new CliArgumentSpec("seed-dir", "seed 目录路径", Required: true) },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--output", "目标 content 目录", CliOptionType.String, ValueName: "dir", Required: true),
-                        new CliOptionSpec("--force", "覆盖已有 markdown 文件", CliOptionType.Flag),
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    })
-            });
-
-        var notion = new CliCommandSpec(
-            Name: "notion",
-            Description: "Notion 迁移与内容同步命令",
-            Options: new[]
-            {
-                new CliOptionSpec("--input", "seed 输入目录", CliOptionType.String, ValueName: "dir"),
-                new CliOptionSpec("--database-id", "Notion database ID", CliOptionType.String, ValueName: "id"),
-                new CliOptionSpec("--database-map", "多 database 映射 YAML 文件", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--create-missing-databases", "缺少 databaseId 时按 seed collection 自动创建 Notion database", CliOptionType.Flag),
-                new CliOptionSpec("--parent-page-id", "自动创建 Notion database 的父页面 ID", CliOptionType.String, ValueName: "id"),
-                new CliOptionSpec("--generated-database-map", "自动创建后写出的 database map 路径", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--dry-run", "只生成推送计划，不调用 Notion API；不传则实际写入", CliOptionType.Flag),
-                new CliOptionSpec("--report", "推送计划/结果报告输出路径", CliOptionType.String, ValueName: "file"),
-                new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name")
-            },
-            Subcommands: new[]
-            {
-                new CliCommandSpec(
-                    Name: "push",
-                    Description: "将 seed 内容写入 Notion；传 --dry-run 时仅输出推送计划",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--input", "seed 输入目录", CliOptionType.String, ValueName: "dir", Required: true),
-                        new CliOptionSpec("--database-id", "Notion database ID；不传时进入多 database map/自动创建模式", CliOptionType.String, ValueName: "id"),
-                        new CliOptionSpec("--database-map", "多 database 映射 YAML 文件", CliOptionType.String, ValueName: "file"),
-                        new CliOptionSpec("--create-missing-databases", "缺少 databaseId 时按 seed collection 自动创建 Notion database", CliOptionType.Flag),
-                        new CliOptionSpec("--parent-page-id", "自动创建 Notion database 的父页面 ID", CliOptionType.String, ValueName: "id"),
-                        new CliOptionSpec("--generated-database-map", "自动创建后写出的 database map 路径", CliOptionType.String, ValueName: "file"),
-                        new CliOptionSpec("--dry-run", "只生成推送计划，不调用 Notion API；不传则实际写入", CliOptionType.Flag),
-                        new CliOptionSpec("--report", "推送计划/结果报告输出路径", CliOptionType.String, ValueName: "file"),
-                        new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),
-                        new CliOptionSpec("--mode", "推送模式: create (仅创建) | upsert (创建或更新，默认 create)", CliOptionType.String, ValueName: "mode"),
-                        new CliOptionSpec("--unique-field", "判断记录是否已存在的唯一字段名 (默认 Slug)", CliOptionType.String, ValueName: "name"),
-                        new CliOptionSpec("--update-content", "upsert 时更新页面正文 blocks: append (追加) | replace (替换)", CliOptionType.String, ValueName: "strategy"),
-                        new CliOptionSpec("--no-validate-schema", "跳过推送前 Notion database schema 校验", CliOptionType.Flag)
-                    }),
-                new CliCommandSpec(
-                    Name: "validate-schema",
-                    Description: "校验 Notion database schema 是否包含 Bukit 所需字段",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--database-id", "Notion database ID", CliOptionType.String, ValueName: "id", Required: true),
-                        new CliOptionSpec("--token-env", "Notion token 环境变量名 (默认 NOTION_TOKEN)", CliOptionType.String, ValueName: "name"),
-                        new CliOptionSpec("--report", "校验报告输出路径", CliOptionType.String, ValueName: "file")
-                    })
-            });
-
-        var theme = new CliCommandSpec(
-            Name: "theme",
-            Description: "主题相关命令",
-            Options: new[]
-            {
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名")
-            },
-            Subcommands: new[]
-            {
-                BukitCliThemeSpecs.ThemeCreateSpec,
-                BukitCliThemeSpecs.ThemeListSpec,
-                BukitCliThemeSpecs.ThemeUseSpec,
-                BukitCliThemeSpecs.ThemeInfoSpec,
-                BukitCliThemeSpecs.ThemeParamsSpec,
-                BukitCliThemeSpecs.ThemePreviewSpec,
-                BukitCliThemeSpecs.ThemeWizardSpec,
-                BukitCliThemeSpecs.ThemePackSpec,
-                BukitCliThemeSpecs.ThemeInstallSpec,
-                BukitCliThemeSpecs.ThemeSearchSpec
-            });
-
-        var template = new CliCommandSpec(
-            Name: "template",
-            Description: "模板级别操作命令",
-            Options: new[]
-            {
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名"),
-                new CliOptionSpec("--force", "覆盖已有文件", CliOptionType.Flag)
-            },
-            Subcommands: new[]
-            {
-                new CliCommandSpec(
-                    Name: "create",
-                    Description: "交互式创建模板文件",
-                    Arguments: new[] { new CliArgumentSpec("path", "模板路径") },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--force", "覆盖已有模板", CliOptionType.Flag),
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "list",
-                    Description: "列出当前主题所有模板",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "show",
-                    Description: "查看模板内容",
-                    Arguments: new[] { new CliArgumentSpec("path", "模板路径") },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "validate",
-                    Description: "校验所有模板语法",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "snippets",
-                    Description: "浏览模板/CSS 片段库",
-                    Arguments: new[] { new CliArgumentSpec("name", "片段名") },
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    }),
-                new CliCommandSpec(
-                    Name: "hints",
-                    Description: "模板变量智能提示"),
-                new CliCommandSpec(
-                    Name: "sync",
-                    Description: "自动生成 bukit.templates.yaml",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--force", "覆盖已有文件", CliOptionType.Flag),
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site", "多站点名")
-                    })
-            });
-
-        var seo = new CliCommandSpec(
-            Name: "seo",
-            Description: "SEO 审计命令",
-            Options: new[]
-            {
-                new CliOptionSpec("--dir", "构建输出目录"),
-                new CliOptionSpec("--report", "审计报告路径"),
-                new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag),
-                new CliOptionSpec("--external", "联网检查 canonical、链接和图片", CliOptionType.Flag),
-                new CliOptionSpec("--baseline", "基线 seo-report.json 路径"),
-                new CliOptionSpec("--current", "当前 seo-report.json 路径"),
-                new CliOptionSpec("--max-new-errors", "允许新增 error 数量", CliOptionType.Integer, ValueName: "n"),
-                new CliOptionSpec("--max-new-warnings", "允许新增 warning 数量", CliOptionType.Integer, ValueName: "n"),
-                new CliOptionSpec("--max-new-issues", "允许新增 issue 总数", CliOptionType.Integer, ValueName: "n"),
-                new CliOptionSpec("--fail-on-new-code", "逗号分隔的新增 issue code 黑名单"),
-                new CliOptionSpec("--fail-on-route-removed", "route 删除时失败", CliOptionType.Flag),
-                new CliOptionSpec("--fail-on-indexable-drop", "indexable route 变成 noindex 时失败", CliOptionType.Flag)
-            },
-            Subcommands: new[]
-            {
-                new CliCommandSpec(
-                    Name: "audit",
-                    Description: "读取 .bukit/seo-report.json 并返回 CI 状态",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--dir", "构建输出目录"),
-                        new CliOptionSpec("--report", "审计报告路径"),
-                        new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag),
-                        new CliOptionSpec("--external", "联网检查 canonical、链接和图片", CliOptionType.Flag)
-                    }),
-                new CliCommandSpec(
-                    Name: "diff",
-                    Description: "比较两个 seo-report.json 并执行回归预算",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--allow-cross-schema", "允许比较 SEO 与 publish 审计报告", CliOptionType.Flag),
-                        new CliOptionSpec("--baseline", "基线 seo-report.json 路径"),
-                        new CliOptionSpec("--current", "当前 seo-report.json 路径"),
-                        new CliOptionSpec("--max-new-errors", "允许新增 error 数量", CliOptionType.Integer, ValueName: "n"),
-                        new CliOptionSpec("--max-new-warnings", "允许新增 warning 数量", CliOptionType.Integer, ValueName: "n"),
-                        new CliOptionSpec("--max-new-issues", "允许新增 issue 总数", CliOptionType.Integer, ValueName: "n"),
-                        new CliOptionSpec("--fail-on-new-code", "逗号分隔的新增 issue code 黑名单"),
-                        new CliOptionSpec("--fail-on-route-removed", "route 删除时失败", CliOptionType.Flag),
-                        new CliOptionSpec("--fail-on-indexable-drop", "indexable route 变成 noindex 时失败", CliOptionType.Flag)
-                    })
-            });
-
-        var deploy = new CliCommandSpec(
-            Name: "deploy",
-            Description: "部署静态站点",
-            Options: new[]
-            {
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名"),
-                new CliOptionSpec("--output", "输出目录"),
-                new CliOptionSpec("--base-url", "覆盖 site.baseUrl"),
-                new CliOptionSpec("--site-url", "覆盖 site.url"),
-                new CliOptionSpec("--branch", "目标分支"),
-                new CliOptionSpec("--message", "提交信息"),
-                new CliOptionSpec("--ci", "CI 模式", CliOptionType.Flag),
-                new CliOptionSpec("--dry-run", "仅预览，不实际部署", CliOptionType.Flag),
-                new CliOptionSpec("--skip-build", "跳过构建步骤", CliOptionType.Flag)
-            });
-
-        var geo = new CliCommandSpec(
-            Name: "geo",
-            Description: "GEO (生成式引擎优化) 审计",
-            Options: new[]
-            {
-                new CliOptionSpec("--dir", "构建输出目录")
-            },
-            Subcommands: new[]
-            {
-                new CliCommandSpec(
-                    Name: "audit",
-                    Description: "检查 GEO 指标，读取 .bukit/seo-report.json",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--dir", "构建输出目录")
-                    })
-            });
-
-        var publish = new CliCommandSpec(
-            Name: "publish",
-            Description: "机器可读与可信发布审计命令",
-            Options: new[]
-            {
-                new CliOptionSpec("--dir", "构建输出目录"),
-                new CliOptionSpec("--report", "publish-audit-report.json 路径"),
-                new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag),
-                new CliOptionSpec("--external", "联网检查 canonical、链接和图片", CliOptionType.Flag),
-                new CliOptionSpec("--baseline", "基线报告路径"),
-                new CliOptionSpec("--current", "当前报告路径"),
-                new CliOptionSpec("--max-new-errors", "允许新增 error 数量", CliOptionType.Integer, ValueName: "n"),
-                new CliOptionSpec("--max-new-warnings", "允许新增 warning 数量", CliOptionType.Integer, ValueName: "n"),
-                new CliOptionSpec("--max-new-issues", "允许新增 issue 总数", CliOptionType.Integer, ValueName: "n"),
-                new CliOptionSpec("--fail-on-new-code", "逗号分隔的新增 issue code 黑名单"),
-                new CliOptionSpec("--fail-on-route-removed", "route 删除时失败", CliOptionType.Flag),
-                new CliOptionSpec("--fail-on-indexable-drop", "indexable route 变成 noindex 时失败", CliOptionType.Flag)
-            },
-            Subcommands: new[]
-            {
-                new CliCommandSpec(
-                    Name: "audit",
-                    Description: "读取 publish-audit-report.json 并返回 CI 状态",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--dir", "构建输出目录"),
-                        new CliOptionSpec("--report", "publish-audit-report.json 路径"),
-                        new CliOptionSpec("--strict", "warning 也返回失败", CliOptionType.Flag),
-                        new CliOptionSpec("--external", "联网检查 canonical、链接和图片", CliOptionType.Flag)
-                    }),
-                new CliCommandSpec(
-                    Name: "diff",
-                    Description: "比较两个 publish audit 报告并执行回归预算",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--allow-cross-schema", "允许比较 SEO 与 publish 审计报告", CliOptionType.Flag),
-                        new CliOptionSpec("--baseline", "基线报告路径"),
-                        new CliOptionSpec("--current", "当前报告路径"),
-                        new CliOptionSpec("--max-new-errors", "允许新增 error 数量", CliOptionType.Integer, ValueName: "n"),
-                        new CliOptionSpec("--max-new-warnings", "允许新增 warning 数量", CliOptionType.Integer, ValueName: "n"),
-                        new CliOptionSpec("--max-new-issues", "允许新增 issue 总数", CliOptionType.Integer, ValueName: "n"),
-                        new CliOptionSpec("--fail-on-new-code", "逗号分隔的新增 issue code 黑名单"),
-                        new CliOptionSpec("--fail-on-route-removed", "route 删除时失败", CliOptionType.Flag),
-                        new CliOptionSpec("--fail-on-indexable-drop", "indexable route 变成 noindex 时失败", CliOptionType.Flag)
-                    })
-            });
-
-        var visual = new CliCommandSpec(
-            Name: "visual",
-            Description: "视觉回归测试",
-            Options: new[]
-            {
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site-url", "站点 URL"),
-                new CliOptionSpec("--dir", "构建输出目录"),
-                new CliOptionSpec("--out", "输出文件名")
-            },
-            Subcommands: new[]
-            {
-                new CliCommandSpec(
-                    Name: "generate",
-                    Description: "生成 Playwright 视觉测试脚本",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--config", "配置文件路径"),
-                        new CliOptionSpec("--site-url", "站点 URL"),
-                        new CliOptionSpec("--dir", "构建输出目录"),
-                        new CliOptionSpec("--out", "输出文件名")
-                    })
-            });
-
-        var version = new CliCommandSpec(
-            Name: "version",
-            Description: "显示版本信息");
-
-        var intent = new CliCommandSpec(
-            Name: "intent",
-            Description: "意图驱动的站点创建",
-            Options: new[]
-            {
-                new CliOptionSpec("--out", "输出路径"),
-                new CliOptionSpec("--root-dir", "根目录")
-            },
-            Subcommands: new[]
-            {
-                new CliCommandSpec(
-                    Name: "init",
-                    Description: "交互式生成 intent.yaml",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--out", "输出路径")
-                    }),
-                new CliCommandSpec(
-                    Name: "apply",
-                    Description: "应用 intent.yaml 生成站点",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--out", "输出路径"),
-                        new CliOptionSpec("--root-dir", "根目录")
-                    }),
-                new CliCommandSpec(
-                    Name: "validate",
-                    Description: "校验 intent.yaml",
-                    Options: new[]
-                    {
-                        new CliOptionSpec("--out", "输出路径"),
-                        new CliOptionSpec("--root-dir", "根目录")
-                    })
-            });
-
-        var webhook = new CliCommandSpec(
-            Name: "webhook",
-            Description: "启动 Notion → GitHub Actions Webhook 服务",
-            Options: new[]
-            {
-                new CliOptionSpec("--host", "监听地址"),
-                new CliOptionSpec("--port", "监听端口", CliOptionType.String, ValueName: "port"),
-                new CliOptionSpec("--path", "回调路径"),
-                new CliOptionSpec("--repo", "GitHub 仓库 (owner/repo)"),
-                new CliOptionSpec("--event", "GitHub dispatch event_type")
-            });
-
-        var clean = new CliCommandSpec(
-            Name: "clean",
-            Description: "清理构建输出和缓存",
-            Options: new[]
-            {
-                new CliOptionSpec("--dir", "清理目录"),
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名")
-            });
-
-        var completion = new CliCommandSpec(
-            Name: "completion",
-            Description: "生成 shell 自动补全脚本",
-            Arguments: new[] { new CliArgumentSpec("shell", "bash|zsh|fish") });
-
-        var lint = new CliCommandSpec(
-            Name: "lint",
-            Description: "检查配置和 Markdown 内容",
-            Options: new[]
-            {
-                new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名")
+                new CliOptionSpec("--site-url", "覆盖 site.url")
             });
 
         var config = new CliCommandSpec(
@@ -558,22 +69,38 @@ public static partial class BukitCliSpecs
                     })
             });
 
-        var doctor = new CliCommandSpec(
-            Name: "doctor",
-            Description: "诊断站点配置和模板",
+        var preview = new CliCommandSpec(
+            Name: "preview",
+            Description: "本地预览 dist",
             Options: new[]
             {
+                new CliOptionSpec("--dir", "预览目录"),
+                new CliOptionSpec("--host", "监听地址"),
+                new CliOptionSpec("--port", "监听端口", CliOptionType.String, ValueName: "port"),
+                new CliOptionSpec("--strict-port", "严格端口模式", CliOptionType.Flag),
                 new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名"),
-                new CliOptionSpec("--site-url", "覆盖 site.url")
+                new CliOptionSpec("--site", "多站点名")
             });
 
-        var init = CreateInitSpec();
-        var route = CreateRouteSpec();
-        var data = CreateDataSpec();
-        var docs = CreateDocsSpec();
+        var clean = new CliCommandSpec(
+            Name: "clean",
+            Description: "清理构建输出和缓存",
+            Options: new[]
+            {
+                new CliOptionSpec("--dir", "清理目录"),
+                new CliOptionSpec("--config", "配置文件路径"),
+                new CliOptionSpec("--site", "多站点名")
+            });
 
-        return new CliCommandRegistry(new[] { build, clone, importCmd, notion, completion, deploy, dev, docs, preview, plugin, theme, template, seo, geo, publish, version, intent, visual, webhook, clean, config, doctor, lint, init, route, data });
+        var version = new CliCommandSpec(
+            Name: "version",
+            Description: "显示版本信息");
+
+        var completion = new CliCommandSpec(
+            Name: "completion",
+            Description: "生成 shell 自动补全脚本",
+            Arguments: new[] { new CliArgumentSpec("shell", "bash|zsh|fish") });
+
+        return new CliCommandRegistry(new[] { build, doctor, config, preview, clean, version, completion });
     }
-
 }

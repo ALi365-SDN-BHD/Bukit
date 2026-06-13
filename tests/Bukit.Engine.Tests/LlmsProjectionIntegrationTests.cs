@@ -48,6 +48,8 @@ public sealed class LlmsProjectionIntegrationTests
                     - type: markdown
                       name: post
                       collection: post
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 theme:
@@ -108,6 +110,8 @@ public sealed class LlmsProjectionIntegrationTests
             ---
             type: post
             collection: post
+            markdown:
+              dir: content
             title: {{title}}
             slug: {{slug}}
             publishAt: 2026-06-05T00:00:00Z

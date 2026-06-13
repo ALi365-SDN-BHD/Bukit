@@ -107,28 +107,14 @@ internal static class DoctorManifestChecker
             }
         }
 
-        if (config.Taxonomy.Template is not null)
+        if (config.Taxonomy.Kinds is not null)
         {
-            usedTemplates.Add(config.Taxonomy.Template);
-        }
-        if (config.Taxonomy.IndexTemplate is not null)
-        {
-            usedTemplates.Add(config.Taxonomy.IndexTemplate);
-        }
-
-        if (config.Taxonomy.TermTemplate is not null)
-        {
-            usedTemplates.Add(config.Taxonomy.TermTemplate);
-        }
-
-        if (config.Taxonomy.Templates.Tags.Template is not null)
-        {
-            usedTemplates.Add(config.Taxonomy.Templates.Tags.Template);
-        }
-
-        if (config.Taxonomy.Templates.Categories.Template is not null)
-        {
-            usedTemplates.Add(config.Taxonomy.Templates.Categories.Template);
+            foreach (var kind in config.Taxonomy.Kinds)
+            {
+                Add(kind.Template);
+                Add(kind.IndexTemplate);
+                Add(kind.TermTemplate);
+            }
         }
 
         foreach (var listRoute in listRoutes)
@@ -136,6 +122,14 @@ internal static class DoctorManifestChecker
             if (!string.IsNullOrWhiteSpace(listRoute.Template))
             {
                 usedTemplates.Add(listRoute.Template);
+            }
+        }
+
+        void Add(string? template)
+        {
+            if (!string.IsNullOrWhiteSpace(template))
+            {
+                usedTemplates.Add(template.Trim());
             }
         }
 

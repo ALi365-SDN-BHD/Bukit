@@ -476,7 +476,7 @@ content/_taxonomy/tags/dl/_index.md:
 | **插件环境隔离** | 外部插件在干净环境中运行，仅暴露 `BUKIT_PLUGIN_NAME`、`BUKIT_PLUGIN_HOOK`、`BUKIT_PROJECT_ROOT`、`BUKIT_OUTPUT_DIR`。使用 `allowEnvironment` 可显式透传宿主变量。 | 插件开发者需读取这些变量，而不是依赖宿主环境 |
 | **插件输出限制** | `externalPlugins.<name>.maxStdoutBytes` / `maxStderrBytes` 限制插件输出量。超出则 kill 进程。 | 防止失控插件消耗资源 |
 | **插件输出清单 + stale 清理** | 所有插件输出以 plugin/hook/path/hash 记录在 `build-manifest.json` 中。增量构建时自动删除不再产生的旧输出。 | 跨构建保持输出目录干净 |
-| **资源哈希模式** | `build.assetHashMode: "sha256"` 启用 SHA256 内容哈希的资源复制检测（推荐 CI 和网络文件系统使用）。 | 避免不必要的资源重复复制 |
+| **资源哈希模式** | `build.fingerprintMode: "sha256"` 启用 SHA256 内容哈希的资源复制检测（推荐 CI 和网络文件系统使用）。 | 避免不必要的资源重复复制 |
 | **路由安全校验** | 所有生成的路由和输出路径都经过路径穿越（`../`）、绝对路径、跨盘符路径和 Windows 保留名校验。 | 防止输出文件越界 |
 | **静态 HTML 路由冲突检测** | `static/` 目录下的 `.html` 文件现在纳入路由冲突检测，与内容页和派生页一起校验。 | 防止静默路由冲突 |
 | **Clean marker 保护** | `build.clean` 现在需要输出目录中存在 `.bukit-output-marker` 文件才允许清理。拒绝清除非 Bukit 目录。 | 防止误删除 |

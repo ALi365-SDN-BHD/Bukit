@@ -28,7 +28,7 @@ Pelaksanaan: `src/Bukit.Config/AppConfig.cs`, `src/Bukit.Config/ConfigLoader.cs`
 | `site.plugins` | dict | - | Togol dan parameter plugin |
 
 ## Medan content.*
-- `content.sources[]`: satu-satunya entri kandungan Bukit 1.0; `content.provider` telah dibuang dan akan ditolak
+- `content.sources[]`: satu-satunya entri kandungan Bukit 1.0; `legacy content provider field` telah dibuang dan akan ditolak
 - Markdown: `content.sources[].markdown.dir`, `defaultType`, `maxItems`
 - Notion: `content.sources[].notion.databaseId`, `filterProperty`, `sortProperty`, `fieldPolicy`
 - Media: `content.media.downloadToLocal`, `downloadDir`, `urlBase`
@@ -43,17 +43,8 @@ Pelaksanaan: `src/Bukit.Config/AppConfig.cs`, `src/Bukit.Config/ConfigLoader.cs`
 
 | Medan | Jenis | Wajib | Lalai | Penerangan |
 |---|---:|---:|---|---|
-| `taxonomy.template` | string | Tidak | `pages/page.html` | Templat lalai untuk halaman terbitan taksonomi (digunakan untuk indeks/term) |
-| `taxonomy.indexTemplate` | string | Tidak | null | Templat halaman indeks taksonomi (cth., `/tags/`, `/categories/`); sandar ke `taxonomy.template` apabila kosong |
-| `taxonomy.termTemplate` | string | Tidak | null | Templat halaman term taksonomi (cth., `/tags/<slug>/`); sandar ke `taxonomy.template` apabila kosong |
 | `taxonomy.kinds` | list | Tidak | null | Senarai definisi taksonomi teritlak; menjana jenis sewenang-wenangnya (bukan hanya tags/categories). Setiap entri memerlukan sekurang-kurangnya `key`, pilihan `kind/title/singularTitlePrefix/template/indexTemplate/termTemplate/indexEnabled/hierarchical` |
 | `taxonomy.kinds[].hierarchical` | bool | Tidak | false | (v3.0.0+) Dayakan taksonomi hierarki. Apabila didayakan, mengira `children` dan `ancestors` setiap term secara automatik, disuntik ke dalam pembolehubah templat dan output JSON |
-| `taxonomy.templates.tags.template` | string | Tidak | null | Templat lalai halaman terbitan tags (sandar ke `taxonomy.template`) |
-| `taxonomy.templates.tags.indexTemplate` | string | Tidak | null | Templat halaman indeks tags |
-| `taxonomy.templates.tags.termTemplate` | string | Tidak | null | Templat halaman term tags |
-| `taxonomy.templates.categories.template` | string | Tidak | null | Templat lalai halaman terbitan categories |
-| `taxonomy.templates.categories.indexTemplate` | string | Tidak | null | Templat halaman indeks categories |
-| `taxonomy.templates.categories.termTemplate` | string | Tidak | null | Templat halaman term categories |
 | `taxonomy.outputMode` | string | Tidak | `both` | `both` (HTML + JSON) \| `pages` (HTML sahaja) \| `data` (JSON sahaja) \| `fields_only` (medan sahaja, tiada fail) |
 | `taxonomy.itemFields` | string[] | Tidak | null | Medan tambahan yang didedahkan pada item halaman term (cth., `[cover, image, date]`) |
 | `taxonomy.pageSize` | int | Tidak | 10 | Saiz penomboran halaman term |
@@ -76,10 +67,6 @@ Pelaksanaan: `src/Bukit.Config/AppConfig.cs`, `src/Bukit.Config/ConfigLoader.cs`
 
 ### Keutamaan Templat (tinggi ke rendah)
 
-1. `taxonomy.templates.<kind>.indexTemplate` / `taxonomy.templates.<kind>.termTemplate`
-2. `taxonomy.indexTemplate` / `taxonomy.termTemplate`
-3. `taxonomy.templates.<kind>.template`
-4. `taxonomy.template`
 5. Sandar `pages/page.html`
 
 ### Contoh Lengkap

@@ -69,7 +69,7 @@ internal static class SiteDefaultsApplier
         return new AnalyticsConfig
         {
             Enabled = ConfigYamlHelpers.GetOptionalBool(analyticsNode, "enabled") ?? true,
-            GoogleAnalyticsId = ConfigYamlHelpers.GetOptionalString(analyticsNode, "google_analytics_id"),
+            GoogleAnalyticsId = ConfigYamlHelpers.GetOptionalString(analyticsNode, "googleAnalyticsId"),
             DisableInPreview = ConfigYamlHelpers.GetOptionalBool(analyticsNode, "disableInPreview") ?? true
         };
     }
@@ -110,7 +110,7 @@ internal static class SiteDefaultsApplier
 
     internal static NotionConfig ReadNotionConfigFrom(YamlMappingNode contentNode)
     {
-        var notionNode = ConfigYamlHelpers.GetOptionalMapping(contentNode, "notion") ?? contentNode;
+        var notionNode = ConfigYamlHelpers.GetMapping(contentNode, "notion");
         var policyNode = ConfigYamlHelpers.GetOptionalMapping(notionNode, "fieldPolicy");
         return new NotionConfig
         {
@@ -174,7 +174,7 @@ internal static class SiteDefaultsApplier
 
     internal static MarkdownConfig ReadMarkdownConfigFrom(YamlMappingNode contentNode)
     {
-        var mdNode = ConfigYamlHelpers.GetOptionalMapping(contentNode, "markdown") ?? contentNode;
+        var mdNode = ConfigYamlHelpers.GetMapping(contentNode, "markdown");
         return new MarkdownConfig
         {
             Dir = ConfigYamlHelpers.GetOptionalString(mdNode, "dir") ?? "content",
@@ -291,41 +291,6 @@ internal static class SiteDefaultsApplier
         }
 
         return kinds;
-    }
-
-    internal static TaxonomyTemplatesConfig ReadTaxonomyTemplates(YamlMappingNode? taxonomyNode)
-    {
-        if (taxonomyNode is null)
-        {
-            return new TaxonomyTemplatesConfig();
-        }
-
-        var templatesNode = ConfigYamlHelpers.GetOptionalMapping(taxonomyNode, "templates");
-        if (templatesNode is null)
-        {
-            return new TaxonomyTemplatesConfig();
-        }
-
-        return new TaxonomyTemplatesConfig
-        {
-            Tags = ReadTaxonomyKindTemplate(ConfigYamlHelpers.GetOptionalMapping(templatesNode, "tags")),
-            Categories = ReadTaxonomyKindTemplate(ConfigYamlHelpers.GetOptionalMapping(templatesNode, "categories"))
-        };
-    }
-
-    internal static TaxonomyKindTemplateConfig ReadTaxonomyKindTemplate(YamlMappingNode? kindNode)
-    {
-        if (kindNode is null)
-        {
-            return new TaxonomyKindTemplateConfig();
-        }
-
-        return new TaxonomyKindTemplateConfig
-        {
-            Template = ConfigYamlHelpers.GetOptionalString(kindNode, "template"),
-            IndexTemplate = ConfigYamlHelpers.GetOptionalString(kindNode, "indexTemplate"),
-            TermTemplate = ConfigYamlHelpers.GetOptionalString(kindNode, "termTemplate")
-        };
     }
 
     internal static IReadOnlyDictionary<string, ComponentDefinition>? ReadComponents(YamlMappingNode? themeNode)

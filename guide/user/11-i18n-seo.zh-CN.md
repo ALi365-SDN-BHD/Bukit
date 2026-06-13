@@ -142,7 +142,7 @@ Bukit 会在引擎层统一计算 `page.seo`，主题只需要负责渲染。这
 | `page.seo.twitter.*` | Twitter Card 标题、描述、图片、站点账号 |
 | `page.seo.alternates` | HTML `<link rel="alternate" hreflang=...>` 数据 |
 | `page.seo.json_ld` | WebSite、Organization、BreadcrumbList、BlogPosting JSON-LD |
-| `site.analytics.google_analytics_id` | GA4 Measurement ID |
+| `site.analytics.googleAnalyticsId` | GA4 Measurement ID |
 | `site.analytics.enabled` | Analytics 输出开关 |
 
 ### SEO 字段优先级
@@ -222,12 +222,12 @@ site:
 
 ## Google Analytics（GA4）
 
-Bukit 只支持 GA4 `gtag` 配置，不支持旧版 Universal Analytics。字段名是 `google_analytics_id`：
+Bukit 只支持 GA4 `gtag` 配置，不支持旧版 Universal Analytics。字段名是 `googleAnalyticsId`：
 
 ```yaml
 site:
   analytics:
-    google_analytics_id: G-XXXXXXXXXX
+    googleAnalyticsId: G-XXXXXXXXXX
 ```
 
 默认只要配置了 ID，且没有 `enabled: false`，新版 `partials/analytics.html` 就会输出：
@@ -242,7 +242,7 @@ site:
 site:
   analytics:
     enabled: false
-    google_analytics_id: G-XXXXXXXXXX
+    googleAnalyticsId: G-XXXXXXXXXX
 ```
 
 ## SEO 三件套：site.url、baseUrl、主题 SEO 片段

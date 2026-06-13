@@ -90,33 +90,17 @@ static (string? LogFormat, string[] Args) NormalizeGlobalLogFormat(string[] args
 {
     var output = new List<string>(args.Length);
     var keepLogFormat = descriptor?.Spec.Options is not null && descriptor.Spec.Options.Any(o => o.Name == "--log-format");
-    var keepJsonOption = descriptor?.Spec.Options is not null && descriptor.Spec.Options.Any(o => o.Name == "--json");
-    var logFormat = ReadGlobalLogFormat(args, output, keepLogFormat, keepJsonOption);
+    var logFormat = ReadGlobalLogFormat(args, output, keepLogFormat);
     return (logFormat, output.ToArray());
 }
 
-static string? ReadGlobalLogFormat(string[] args, List<string> outputArgs, bool keepLogFormat, bool keepRawJsonOption)
+static string? ReadGlobalLogFormat(string[] args, List<string> outputArgs, bool keepLogFormat)
 {
     string? detected = null;
 
     for (var i = 0; i < args.Length; i++)
     {
         var token = args[i];
-
-        if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
-        {
-            detected = "json";
-            if (keepLogFormat)
-            {
-                outputArgs.Add("--log-format");
-                outputArgs.Add("json");
-            }
-            else if (keepRawJsonOption)
-            {
-                outputArgs.Add("--json");
-            }
-            continue;
-        }
 
         if (token.StartsWith("--log-format=", StringComparison.OrdinalIgnoreCase))
         {

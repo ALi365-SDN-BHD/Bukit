@@ -212,7 +212,7 @@ public sealed class BuildCommandTests : IDisposable
             Array.Empty<string>());
 
         var ex = await Assert.ThrowsAsync<ConfigException>(() => BuildCommand.RunAsync(cmd));
-        Assert.Contains("Removed configuration fields", ex.Message);
+        Assert.Contains("Unknown config field 'site.rssMode'", ex.Message);
     }
 
     [Fact]
@@ -319,6 +319,8 @@ public sealed class BuildCommandTests : IDisposable
                     - type: markdown
                       name: page
                       collection: page
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 """);
@@ -364,6 +366,8 @@ public sealed class BuildCommandTests : IDisposable
                     - type: markdown
                       name: page
                       collection: page
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 """);
@@ -411,6 +415,8 @@ public sealed class BuildCommandTests : IDisposable
                     - type: markdown
                       name: page
                       collection: page
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 """);
@@ -458,6 +464,8 @@ public sealed class BuildCommandTests : IDisposable
                     - type: markdown
                       name: page
                       collection: page
+                      markdown:
+                        dir: content
                 build:
                   output: dist
                 """);

@@ -49,83 +49,6 @@ public sealed class PluginRunnerTests
         });
     }
 
-    // DESKTOP-REMOVED: ExternalAssembly plugin tests disabled (AOT-only).
-#if false
-    [Fact]
-    public void FailedPlugin_InWarnMode_LogsButDoesNotThrow()
-    {
-#if AOT
-        return; // ExternalAssemblyPluginSource not available in AOT
-#endif
-        var (root, pluginsDir) = SetupThrowingPlugin();
-        Assert.NotNull(pluginsDir); // ThrowingPlugin.dll must be copied to test output
-
-        var allowlist = BuildAllowlist(pluginsDir!);
-        var ctx = CreateContext(root!, siteUrl: "https://example.com", pluginFailMode: "warn", plugins: DisableDerivePlugins(), externalAssemblyTrustMode: "strict", externalAssemblyAllowlist: allowlist);
-
-        PluginRunner.RunAfterBuild(ctx);
-
-        var throwingExec = ctx.PluginExecutions.FirstOrDefault(e => e.Name == "throwing-test");
-        Assert.NotNull(throwingExec);
-        Assert.False(throwingExec.Success);
-        Assert.NotNull(throwingExec.Error);
-        Assert.Contains("intentionally fails", throwingExec.Error);
-    }
-
-    [Fact]
-    public void FailedPlugin_InStrictMode_Throws()
-    {
-#if AOT
-        return; // ExternalAssemblyPluginSource not available in AOT
-#endif
-        var (root, pluginsDir) = SetupThrowingPlugin();
-        Assert.NotNull(pluginsDir);
-
-        var allowlist = BuildAllowlist(pluginsDir!);
-        var ctx = CreateContext(root!, siteUrl: "https://example.com", pluginFailMode: "strict", plugins: DisableDerivePlugins(), externalAssemblyTrustMode: "strict", externalAssemblyAllowlist: allowlist);
-
-        var ex = Assert.Throws<InvalidOperationException>(() => PluginRunner.RunAfterBuild(ctx));
-        Assert.Contains("intentionally fails", ex.Message);
-    }
-
-    [Fact]
-    public void ExternalAssemblyPlugin_DisallowedHash_InWarnMode_SkipsPlugin()
-    {
-#if AOT
-        return;
-#endif
-        var (root, pluginsDir) = SetupThrowingPlugin();
-        Assert.NotNull(pluginsDir);
-        var allowlist = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["ThrowingPlugin.dll"] = new string('f', 64)
-        };
-        var ctx = CreateContext(root!, siteUrl: "https://example.com", pluginFailMode: "warn", plugins: DisableDerivePlugins(), externalAssemblyTrustMode: "warn", externalAssemblyAllowlist: allowlist);
-
-        PluginRunner.RunAfterBuild(ctx);
-
-        Assert.DoesNotContain(ctx.PluginExecutions, x => x.Name == "throwing-test");
-    }
-
-    [Fact]
-    public void ExternalAssemblyPlugin_DisallowedHash_InStrictMode_Throws()
-    {
-#if AOT
-        return;
-#endif
-        var (root, pluginsDir) = SetupThrowingPlugin();
-        Assert.NotNull(pluginsDir);
-        var allowlist = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["ThrowingPlugin.dll"] = new string('f', 64)
-        };
-        var ctx = CreateContext(root!, siteUrl: "https://example.com", pluginFailMode: "warn", plugins: DisableDerivePlugins(), externalAssemblyTrustMode: "strict", externalAssemblyAllowlist: allowlist);
-
-        var ex = Assert.Throws<InvalidOperationException>(() => PluginRunner.RunAfterBuild(ctx));
-        Assert.Contains("hash", ex.Message, StringComparison.OrdinalIgnoreCase);
-    }
-#endif
-
     [Fact]
     public void Plugins_OrderedByOrderThenNameThenVersion()
     {
@@ -208,40 +131,6 @@ public sealed class PluginRunnerTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
     }
-
-    // DESKTOP-REMOVED: ExternalAssembly tests disabled (AOT-only).
-#if false
-    private static (string root, string? pluginsDir) SetupThrowingPlugin()
-    {
-#if AOT
-        return (CreateTempRoot(), null);
-#else
-        var root = CreateTempRoot();
-        var pluginsDir = Path.Combine(root, "plugins");
-        Directory.CreateDirectory(pluginsDir);
-
-        var baseDir = AppContext.BaseDirectory;
-        var dllPath = Path.Combine(baseDir, "ThrowingPlugin.dll");
-        if (!File.Exists(dllPath))
-            return (root, null);
-
-        File.Copy(dllPath, Path.Combine(pluginsDir, "ThrowingPlugin.dll"), overwrite: true);
-        return (root, pluginsDir);
-#endif
-    }
-
-    private static IReadOnlyDictionary<string, string> BuildAllowlist(string pluginsDir)
-    {
-        var pluginPath = Path.Combine(pluginsDir, "ThrowingPlugin.dll");
-        using var stream = File.OpenRead(pluginPath);
-        using var sha = SHA256.Create();
-        var hash = Convert.ToHexString(sha.ComputeHash(stream)).ToLowerInvariant();
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["ThrowingPlugin.dll"] = hash
-        };
-    }
-#endif
 
     private static string CreateTempRoot()
     {

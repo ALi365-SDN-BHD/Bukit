@@ -15,7 +15,7 @@
 - 字段必须来自仓库现有配置契约：
   - `intent.yaml` 参考 `docs/intent.md`
   - `site.yaml` 参考 `guide/dev/config-site-yaml.md`
-- Intent 当前使用 experimental content source kind DSL。直接生成 `site.yaml` 时，必须始终使用 `content.sources[]`，绝不能生成 `content.provider`。
+- Intent 当前使用 experimental content source kind DSL。直接生成 `site.yaml` 时，必须始终使用 `content.sources[]`，绝不能生成 `legacy content provider field`。
 - Notion 内容源的最低必填：
   - Intent：`content.notion.database_id` + `content.notion.field_policy.mode`
   - site.yaml：`content.sources[].notion.databaseId` + `content.sources[].notion.fieldPolicy.mode`

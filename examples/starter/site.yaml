@@ -93,12 +93,9 @@ theme:
     pagination_prev_label: ←
     pagination_next_label: →
 taxonomy:
-  itemFields:
-    - cover
-    - image
-    - date
-  templates:
-    categories:
+  kinds:
+    - key: categories
+      title: Categories
       termTemplate: pages/taxonomy-term.html
 logging:
   level: info

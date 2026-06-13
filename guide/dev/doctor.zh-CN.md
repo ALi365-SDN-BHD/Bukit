@@ -61,7 +61,7 @@ doctor 的检查顺序基本如下：
     - 检查 `includeSlugs` 指定的 slug 是否可查找到对应页面
     - 检查 `cacheDir` 是否可写（如果启用缓存）
 14. **配置废弃警告扫描（P3-3 新增）**
-    - `ConfigRemovedFieldScanner` 检测并拒绝 1.0 已移除配置字段
+    - `ConfigStrictFieldValidator` 检测并拒绝 1.0 已移除配置字段
     - 发现旧字段时输出迁移建议（如 `rss` → `feed`、`outputPath` → `permalink`）
 
 通过后输出 “Doctor passed”，返回码 0。
