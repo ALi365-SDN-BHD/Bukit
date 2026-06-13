@@ -17,10 +17,10 @@ guide_chapters:
 
 ## Overview
 
-Bukit has 13 core built-in plugins plus support for external process protocol plugins. Plugin lifecycle: `derivePages` (derive pages) → parallel rendering → `afterBuild` (post-processing). Build debugging requires understanding plugin ordering, incremental skip logic, and configuration conflicts.
+Bukit 1.0 Core has built-in plugins only. Plugin lifecycle: `derivePages` (derive pages) -> parallel rendering -> `afterBuild` (post-processing). Build debugging requires understanding plugin ordering, incremental skip logic, and configuration conflicts.
 
-**REQUIRED BACKGROUND:** Plugin config depends on `site.plugins` and `site.externalPlugins` in site.yaml — you must understand the plugin config section in bukit-config first.
-**REQUIRED SUB-SKILL:** List registered plugins with `bukit plugin list`, diagnose performance with `bukit build --metrics`. CLI commands reference bukit-cli-reference.
+**REQUIRED BACKGROUND:** Core plugin config depends on `site.plugins` in site.yaml; understand the plugin config section in bukit-config first.
+**REQUIRED SUB-SKILL:** Diagnose performance with `bukit build --metrics`. CLI commands reference bukit-cli-reference.
 
 ## Multilingual Triggers / Pencetus Berbilang Bahasa
 
@@ -66,131 +66,7 @@ Bukit has 13 core built-in plugins plus support for external process protocol pl
 | Source | Description | Config |
 |------|------|------|
 | **BuiltIn** | 13 framework built-in plugins, always loaded | None, toggle via `site.plugins` |
-| **ExternalProtocol** | Standalone process plugins | `site.externalPlugins` config |
-| **Policy** | Global external plugin safety control | `site.externalPluginPolicy`: `deny` (block all), `warn` (load with warning, default), `allow` (load silently). Invalid values throw `ConfigException` with `BKT-0002`. |
-
-### External Protocol Plugins
-
-Current AOT-focused builds support external protocol plugins through standalone processes. External assembly loading and WASM protocol plugins are disabled.
-
-```yaml
-site:
-  externalPlugins:
-    my-plugin:
-      runtime: process
-      entry: ./tools/my-plugin  # Executable path
-      hooks: [derive-pages, after-build]
-      enabled: true
-      timeoutMs: 5000
-      maxStdoutBytes: 1048576   # optional: cap stdout at 1 MB
-      maxStderrBytes: 262144    # optional: cap stderr at 256 KB
-      allowEnvironment:         # optional: host env vars to expose
-        - PATH
-      capabilities:             # required: declared permissions (enforced at runtime)
-        - derive-pages
-        - emit-outputs
-```
-
-#### Plugin Capability System
-
-Each external plugin can declare a `capabilities` list to limit what hooks it can execute. This is a **sandbox mechanism** — the engine enforces it at runtime.
-
-| Capability | Required For | Description |
-|---|---|---|
-| `derive-pages` | `hooks: [derive-pages]` | Allows the plugin to generate new pages |
-| `emit-outputs` | `hooks: [after-build]` | Allows the plugin to write files to the output directory |
-
-**Enforcement rules:**
-- When `capabilities` is **not declared** (`null` or absent): plugin execution fails with `ConfigException` (`BKT-0701`) and clear migration guidance.
-- When `capabilities` is **declared**: each hook execution is checked against the capability list.
-- If a hook requires a capability the plugin doesn't declare, build fails with `ConfigException` + `BKT-0701`
-
-```yaml
-# This will FAIL because "derive-pages" hook is declared but the plugin
-# only has "emit-outputs" capability:
-site:
-  externalPlugins:
-    bad-plugin:
-      runtime: process
-      entry: ./tools/bad-plugin
-      hooks: [derive-pages, after-build]
-      capabilities: [emit-outputs]             # missing: derive-pages
-```
-
-Error output:
-```
-[BKT-0701] Plugin './tools/bad-plugin' is missing required capability 'derive-pages'
-            for hook 'derive-pages'. Declared capabilities: [emit-outputs].
-            How to fix: add 'derive-pages' to the plugin's capabilities list in site.yaml.
-```
-
-#### Config Validation for Capabilities
-
-`bukit config check` (and build-time validation) rejects invalid capability names:
-- Valid: `emit-outputs`, `derive-pages`
-- Invalid: any other string → `ConfigException: site.externalPlugins.<name>.capabilities[i] must be emit-outputs or derive-pages.`
-
-#### Plugin Environment Isolation
-
-When Bukit invokes a process plugin, the environment is **isolated** (host environment variables are cleared). Only the following variables are injected by default:
-
-| Variable | Description |
-|----------|-------------|
-| `BUKIT_PLUGIN_NAME` | Plugin name (from `site.externalPlugins` key) |
-| `BUKIT_PLUGIN_HOOK` | Current hook: `derive-pages` or `after-build` |
-| `BUKIT_PROJECT_ROOT` | Absolute path to the site project root |
-| `BUKIT_OUTPUT_DIR` | Absolute path to the build output directory |
-
-To expose additional host environment variables, use `allowEnvironment` as shown above.
-
-#### Output Limits
-
-| Field | Type | Default | Description |
-|------|------|--------|------|
-| `maxStdoutBytes` | int | unlimited | Max bytes to read from plugin stdout; exceeding kills the process |
-| `maxStderrBytes` | int | unlimited | Max bytes to read from plugin stderr; exceeding kills the process |
-
-#### Plugin Output Manifest
-
-Bukit tracks every file produced by external protocol plugins in the build manifest (`build-manifest.json`) under `pluginOutputs`. Each entry records `plugin`, `hook`, `path`, and `hash`. During incremental builds, files from a previous build that are no longer produced are automatically deleted from the output directory (stale output cleanup).
-
-## External Plugin Environment Debugging
-
-When an external protocol plugin fails to start or produces unexpected output:
-
-### Check Environment Isolation
-
-The `ProcessPluginInvoker` clears host environment and only preserves a minimal runtime allowlist:
-- `PATH`, `HOME`, `USER`, `SHELL`, `TMPDIR` (POSIX)
-- `USERPROFILE`, `SystemRoot`, `WINDIR`, `COMSPEC`, `PATHEXT` (Windows)
-- `TEMP`, `TMP`, `DOTNET_ROOT`, `DOTNET_ROOT_X64`, `DOTNET_ROOT_X86`, `DOTNET_CLI_HOME`
-
-If the plugin entry is a command like `dotnet`, `node`, or `python3` that requires `PATH`, ensure the host environment has the correct path.
-
-To pass custom variables, list them in `site.externalPlugins.<name>.allowEnvironment`.
-
-### Trace Plugin Execution
-
-The build context records every plugin execution in `context.PluginExecutions`:
-
-```
-PluginName/Hook: success=True/False, error=<message>, ms=<duration>
-```
-
-Use this to identify which plugin failed and why:
-- `success=False` → exception caught, check `error` for the exception message
-- `success=True, ms=<N>` but output missing → plugin returned ok=true with empty results
-- `Timeout` → plugin exceeded `timeoutMs`
-
-### Use ProtocolEchoPlugin for Testing
-
-For integration tests, `ProtocolEchoPlugin` (`tests/ProtocolEchoPlugin/Program.cs`) provides deterministic modes:
-- `derive-success`, `derive-conflict`, `derive-lastwins` — derive-pages hook
-- `derive-plugin-a`, `derive-plugin-b` — produce conflicting derived pages (URL `/plugin-conflict/page/`)
-- `env-allowlist` — reports environment variables to `env-report.json`
-- `env` — reports BUKIT_* context and sensitive vars to file
-- `error` — returns ok=false for error path testing
-- `traversal` — outputs path traversal attempt for security validation
+| **ExternalProtocol** | Labs/legacy only, not part of Bukit 1.0 Core | Isolated under `experimental/` |
 
 ## Plugin Execution Order
 
@@ -525,29 +401,12 @@ public class AfterPlugin : IAfterBuildPlugin
 }
 ```
 
-### External Process Deployment
-
-For site-level custom plugins, expose the plugin as a standalone process protocol plugin and configure it through `site.externalPlugins`:
-
-```yaml
-site:
-  externalPlugins:
-    my-plugin:
-      runtime: process
-      entry: ./tools/my-plugin
-      hooks: [derive-pages, after-build]
-      enabled: true
-```
-
-Use `bukit plugin list` to verify the plugin is registered.
-
 ## Common Error Quick Reference
 
 | Error | Cause | Fix |
 |------|------|------|
-| Plugin list empty (`plugin list`) | Config not loaded or plugin directory doesn't exist | Check `--config` parameter and working directory |
-| External plugin not loaded | Process entry missing, disabled, or invalid config | Verify `site.externalPlugins` and run `bukit config check` |
-| WASM plugin errors | WASM not supported under AOT | Switch to a process protocol plugin |
+| Built-in plugin disabled | `site.plugins.<name>.enabled: false` | Re-enable the built-in plugin or remove the override |
+| Legacy external plugin config rejected | Old external protocol fields are not in Core 1.0 | Move that workflow to Labs/experimental before re-enabling it |
 | `deriveConflictPolicy` conflict | Derived page route duplicates existing route (stage 1: per-plugin; stage 2: final inventory validation) | Change policy to `warn` or `last-wins`, or adjust source routing |
 | Taxonomy pages not generated | TaxonomyPlugin disabled or taxonomy config incomplete | Check plugin toggle and taxonomy config |
 | Pagination not working | PaginationPlugin OK but collection pagination not enabled | Set `pagination.enabled: true` in collection config |
@@ -559,9 +418,9 @@ Use `bukit plugin list` to verify the plugin is registered.
 
 ## Plugin Security (P1-6)
 
-### SSRF Protection for External Plugins
+### SSRF Protection For Networked Core Features
 
-External plugin entries that access network resources are validated via `SsrfGuard.SsrfSafeConnectAsync`. The host rejects connections to:
+Networked Core features that access remote resources are validated via `SsrfGuard.SsrfSafeConnectAsync`. The host rejects connections to:
 
 - Loopback: 127.0.0.0/8, ::1
 - RFC1918 private: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
@@ -572,9 +431,6 @@ This applies to:
 - `SeoExternalAuditor` — SEO external link audits
 - `ImageAssetLocalizer` — remote image downloads (governed by `content.media.blockPrivateNetworks: true` by default)
 
-### Process Plugin Sandbox
+### External Process Plugins
 
-External process plugins (`runtime: process`) run with the host's process permissions. They are **not sandboxed** — treat them as trusted local commands:
-- `allowEnvironment` only exposes explicitly listed variables
-- Plugin `entry` paths are validated against `SsrfGuard`
-- Use `--allow-external-plugins` in CI to explicitly enable
+External process plugins are intentionally outside the Bukit 1.0 Core contract. Do not use Core CLI flags or Core site.yaml fields to enable them.

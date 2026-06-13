@@ -23,7 +23,7 @@ public static class GeoCommand
         Console.Error.WriteLine("Usage: bukit geo audit [--dir dist]");
     }
 
-    private static string? ResolveGeoReportPath(string outputDir)
+    internal static string? ResolveGeoReportPath(string outputDir)
     {
         var path = Path.Combine(outputDir, ".bukit", "geo-report.json");
         return File.Exists(path) ? path : null;
@@ -39,12 +39,9 @@ public static class GeoCommand
         }
 
         var reportPath = ResolveGeoReportPath(fullDir);
-        var geoEnhanced = 0;
-        var geoTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var llmsTxtExists = File.Exists(Path.Combine(fullDir, "llms.txt"));
         var llmsFullTxtExists = File.Exists(Path.Combine(fullDir, "llms-full.txt"));
         var robotsTxtExists = File.Exists(Path.Combine(fullDir, "robots.txt"));
-        var geoReportExists = File.Exists(Path.Combine(fullDir, ".bukit", "geo-report.json"));
 
         if (reportPath is null)
         {
@@ -55,29 +52,20 @@ public static class GeoCommand
         try
         {
             using var doc = await JsonDocument.ParseAsync(File.OpenRead(reportPath));
+            ValidateGeoReportContract(doc.RootElement);
 
-            foreach (var document in EnumerateGeoEnhancedRoutes(doc.RootElement))
+            var geoScore = doc.RootElement.GetProperty("geoScore").GetInt32();
+            var llmsTxtGenerated = doc.RootElement.GetProperty("llmsTxtGenerated").GetBoolean();
+            var llmsFullTxtGenerated = doc.RootElement.GetProperty("llmsFullTxtGenerated").GetBoolean();
+            var geoEnhanced = doc.RootElement.GetProperty("geoEnhancedCount").GetInt32();
+            var geoTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var route in doc.RootElement.GetProperty("geoEnhancedRoutes").EnumerateArray())
             {
-                if (document.TryGetProperty("schemaTypes", out var types))
+                foreach (var type in route.GetProperty("schemaTypes").EnumerateArray())
                 {
-                    var routeHasGeoType = false;
-                    foreach (var type in types.EnumerateArray())
+                    if (type.GetString() is { } value)
                     {
-                        if (type.GetString() is not { } t)
-                        {
-                            continue;
-                        }
-
-                        geoTypes.Add(t);
-                        if (IsGeoSchemaType(t))
-                        {
-                            routeHasGeoType = true;
-                        }
-                    }
-
-                    if (routeHasGeoType)
-                    {
-                        geoEnhanced++;
+                        geoTypes.Add(value);
                     }
                 }
             }
@@ -86,27 +74,12 @@ public static class GeoCommand
             Console.WriteLine($"  llms.txt: {(llmsTxtExists ? "present" : "missing")}");
             Console.WriteLine($"  llms-full.txt: {(llmsFullTxtExists ? "present" : "missing")}");
             Console.WriteLine($"  robots.txt: {(robotsTxtExists ? "present" : "missing")}");
-            Console.WriteLine($"  geo-report.json: {(geoReportExists ? "present" : "missing")}");
+            Console.WriteLine("  geo-report.json: present");
             Console.WriteLine($"  Geo-enhanced routes: {geoEnhanced}");
             Console.WriteLine($"  Schema types: {string.Join(", ", geoTypes.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))}");
-
-            if (doc.RootElement.TryGetProperty("summary", out var summary))
-            {
-                if (summary.TryGetProperty("llmsTxtGenerated", out var llmsField) && llmsField.GetBoolean())
-                {
-                    Console.WriteLine($"  Report confirms llms.txt generated.");
-                }
-
-                if (summary.TryGetProperty("geoEnhancedCount", out var geoCountField) && geoCountField.TryGetInt32(out var geoCount))
-                {
-                    Console.WriteLine($"  Report geoEnhancedCount: {geoCount}");
-                }
-
-                if (summary.TryGetProperty("geoScore", out var geoScoreField) && geoScoreField.TryGetInt32(out var score))
-                {
-                    Console.WriteLine($"  GEO Score: {score}/100");
-                }
-            }
+            Console.WriteLine($"  Report llms.txt generated: {llmsTxtGenerated}");
+            Console.WriteLine($"  Report llms-full.txt generated: {llmsFullTxtGenerated}");
+            Console.WriteLine($"  GEO Score: {geoScore}/100");
 
             if (!llmsTxtExists)
             {
@@ -117,51 +90,47 @@ public static class GeoCommand
             {
                 Console.WriteLine("  Recommendation: Use geo.schema_type, geo.faq, or geo.steps in content front matter.");
             }
-
-            var issues = 0;
-            if (doc.RootElement.TryGetProperty("issues", out var issuesArray))
-            {
-                foreach (var issue in issuesArray.EnumerateArray())
-                {
-                    var code = issue.TryGetProperty("code", out var c) ? c.GetString() : null;
-                    if (code is not null && code.StartsWith("geo.", StringComparison.OrdinalIgnoreCase))
-                    {
-                        Console.WriteLine($"  {issue.GetProperty("severity").GetString()} {code} {issue.GetProperty("message").GetString()}");
-                        issues++;
-                    }
-                }
-            }
-
-            if (issues > 0)
-            {
-                Console.WriteLine($"  Total GEO issues: {issues}");
-            }
         }
         catch (JsonException ex)
         {
-            Console.Error.WriteLine($"Invalid audit report JSON: {ex.Message}");
+            Console.Error.WriteLine($"Invalid GEO report JSON: {ex.Message}");
             return 1;
         }
         catch (InvalidDataException ex)
         {
-            Console.Error.WriteLine($"Invalid audit report: {ex.Message}");
+            Console.Error.WriteLine($"Invalid GEO report: {ex.Message}");
             return 1;
         }
 
         return 0;
     }
 
-    private static IEnumerable<JsonElement> EnumerateGeoEnhancedRoutes(JsonElement root)
+    internal static void ValidateGeoReportContract(JsonElement root)
     {
-        if (root.TryGetProperty("geoEnhancedRoutes", out var routes))
+        var schema = root.TryGetProperty("schema", out var schemaElement) ? schemaElement.GetString() : null;
+        if (!string.Equals(schema, "https://bukit.dev/schemas/geo-report.v1.json", StringComparison.Ordinal))
         {
-            foreach (var route in routes.EnumerateArray())
-            {
-                yield return route;
-            }
+            throw new InvalidDataException("Expected 'https://bukit.dev/schemas/geo-report.v1.json' in schema.");
         }
+
+        var schemaVersion = root.TryGetProperty("schemaVersion", out var versionElement) ? versionElement.GetString() : null;
+        if (!string.Equals(schemaVersion, "1.0", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Expected schemaVersion '1.0'.");
+        }
+
+        RequireProperty(root, "geoScore", JsonValueKind.Number);
+        RequireProperty(root, "llmsTxtGenerated", JsonValueKind.True, JsonValueKind.False);
+        RequireProperty(root, "llmsFullTxtGenerated", JsonValueKind.True, JsonValueKind.False);
+        RequireProperty(root, "geoEnhancedCount", JsonValueKind.Number);
+        RequireProperty(root, "geoEnhancedRoutes", JsonValueKind.Array);
     }
 
-    private static bool IsGeoSchemaType(string value)
-        => value is "FAQPage" or "HowTo" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification";
+    private static void RequireProperty(JsonElement root, string name, params JsonValueKind[] allowedKinds)
+    {
+        if (!root.TryGetProperty(name, out var value) || !allowedKinds.Contains(value.ValueKind))
+        {
+            throw new InvalidDataException($"{name} is required.");
+        }
+    }
 }

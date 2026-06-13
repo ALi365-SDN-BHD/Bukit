@@ -27,11 +27,6 @@ internal static class BuildPlanner
         var effectiveConfig = ConfigApplier.Apply(config, overrides);
         ConfigValidator.Validate(effectiveConfig);
 
-        if (IsCI(overrides) && !overrides.AllowExternalPlugins && effectiveConfig.Site.ExternalPlugins is { Count: > 0 })
-        {
-            throw new ConfigException("External plugins are disabled in CI environments. Use --allow-external-plugins to enable.", DiagnosticCode.ConfigInvalidValue);
-        }
-
         var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);
         var resolved = ThemePathResolver.Resolve(rootDir, effectiveConfig.Theme, logger);
 
@@ -46,13 +41,6 @@ internal static class BuildPlanner
             resolved.LayoutsDir, resolved.AssetsDir, resolved.StaticDir,
             resolved.ParentLayoutsDir, resolved.ParentAssetsDir, resolved.ParentStaticDir, resolved.UserLayoutsDir,
             mediaCacheDir, startedAt, stopwatch);
-    }
-
-    private static bool IsCI(ConfigOverrides overrides)
-    {
-        return overrides.IsCI
-            || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI"))
-            || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("BUKIT_CI"));
     }
 
     private static void PrepareOutputDirectory(AppConfig config, string rootDir, string outputDir, ILogger logger)

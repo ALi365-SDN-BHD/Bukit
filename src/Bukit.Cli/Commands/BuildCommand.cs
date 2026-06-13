@@ -25,7 +25,6 @@ public static class BuildCommand
             Clean = command.GetBool("--clean") ? true : command.GetBool("--no-clean") ? false : null,
             Draft = command.GetBool("--draft") ? true : null,
             IsCI = command.GetBool("--ci"),
-            AllowExternalPlugins = command.GetBool("--allow-external-plugins"),
             Incremental = command.GetBool("--incremental") ? true : command.GetBool("--no-incremental") ? false : null,
             CacheDir = command.GetString("--cache-dir"),
             MetricsPath = command.GetString("--metrics"),

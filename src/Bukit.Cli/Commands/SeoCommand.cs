@@ -13,12 +13,6 @@ public static class SeoCommand
             return preferred;
         }
 
-        var compatible = Path.Combine(outputDir, ".bukit", "publish-audit-report.json");
-        if (File.Exists(compatible))
-        {
-            return null;
-        }
-
         return null;
     }
 
@@ -105,7 +99,7 @@ public static class SeoCommand
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(fullPath));
-            var actualContract = AuditReportContractValidator.ValidateReportContract(doc.RootElement, contract);
+            AuditReportContractValidator.ValidateReportContract(doc.RootElement, contract);
             var summary = doc.RootElement.GetProperty("summary");
             var errorCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "errorCount");
             var warningCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "warningCount");

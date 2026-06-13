@@ -293,195 +293,37 @@ public sealed class BuildCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task RunAsync_CIEnvWithoutAllowExternalPlugins_ThrowsConfigException()
+    public async Task RunAsync_ExternalPluginsConfig_ThrowsConfigException()
     {
-        var oldCI = Environment.GetEnvironmentVariable("CI");
-        var oldBukitCI = Environment.GetEnvironmentVariable("BUKIT_CI");
-        try
-        {
-            Environment.SetEnvironmentVariable("CI", "true");
-            Environment.SetEnvironmentVariable("BUKIT_CI", null);
+        var siteYaml = Path.Combine(_testDir, "site.yaml");
+        File.WriteAllText(siteYaml, """
+            site:
+              name: test
+              title: Test
+              externalPlugins:
+                sample:
+                  runtime: process
+                  entry: plugins/sample.sh
+                  hooks: [after-build]
+                  capabilities: [emit-outputs]
+                  timeoutMs: 5000
+            content:
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
+            build:
+              output: dist
+            """);
 
-            var siteYaml = Path.Combine(_testDir, "site.yaml");
-            File.WriteAllText(siteYaml, """
-                site:
-                  name: test
-                  title: Test
-                  externalPlugins:
-                    sample:
-                      runtime: process
-                      entry: plugins/sample.sh
-                      hooks: [after-build]
-                      capabilities: [emit-outputs]
-                      timeoutMs: 5000
-                content:
-                  sources:
-                    - type: markdown
-                      name: page
-                      collection: page
-                      markdown:
-                        dir: content
-                build:
-                  output: dist
-                """);
+        var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml });
 
-            var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml });
+        var ex = await Assert.ThrowsAsync<ConfigException>(
+            () => BuildCommand.RunAsync(command));
 
-            var ex = await Assert.ThrowsAsync<ConfigException>(
-                () => BuildCommand.RunAsync(command));
-
-            Assert.Contains("External plugins are disabled in CI", ex.Message);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("CI", oldCI);
-            Environment.SetEnvironmentVariable("BUKIT_CI", oldBukitCI);
-        }
-    }
-
-    [Fact]
-    public async Task RunAsync_CIEnvWithAllowExternalPlugins_BuildSucceeds()
-    {
-        var oldCI = Environment.GetEnvironmentVariable("CI");
-        var oldBukitCI = Environment.GetEnvironmentVariable("BUKIT_CI");
-        try
-        {
-            Environment.SetEnvironmentVariable("CI", "true");
-            Environment.SetEnvironmentVariable("BUKIT_CI", null);
-
-            var siteYaml = Path.Combine(_testDir, "site.yaml");
-            File.WriteAllText(siteYaml, """
-                site:
-                  name: test
-                  title: Test
-                  externalPlugins:
-                    sample:
-                      runtime: process
-                      entry: plugins/sample.sh
-                      hooks: [after-build]
-                      capabilities: [emit-outputs]
-                      timeoutMs: 5000
-                content:
-                  sources:
-                    - type: markdown
-                      name: page
-                      collection: page
-                      markdown:
-                        dir: content
-                build:
-                  output: dist
-                """);
-
-            var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml, "--allow-external-plugins" });
-
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var buildTask = BuildCommand.RunAsync(command);
-            var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
-            Assert.Same(buildTask, completed);
-            try { await buildTask; }
-            catch (Exception ex) { Assert.DoesNotContain("External plugins are disabled in CI", ex.Message); }
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("CI", oldCI);
-            Environment.SetEnvironmentVariable("BUKIT_CI", oldBukitCI);
-        }
-    }
-
-    [Fact]
-    public async Task RunAsync_NonCIEnv_ExternalPluginsWorkNormally()
-    {
-        var oldCI = Environment.GetEnvironmentVariable("CI");
-        var oldBukitCI = Environment.GetEnvironmentVariable("BUKIT_CI");
-        try
-        {
-            Environment.SetEnvironmentVariable("CI", null);
-            Environment.SetEnvironmentVariable("BUKIT_CI", null);
-
-            var siteYaml = Path.Combine(_testDir, "site.yaml");
-            File.WriteAllText(siteYaml, """
-                site:
-                  name: test
-                  title: Test
-                  externalPlugins:
-                    sample:
-                      runtime: process
-                      entry: plugins/sample.sh
-                      hooks: [after-build]
-                      capabilities: [emit-outputs]
-                      timeoutMs: 5000
-                content:
-                  sources:
-                    - type: markdown
-                      name: page
-                      collection: page
-                      markdown:
-                        dir: content
-                build:
-                  output: dist
-                """);
-
-            var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml });
-
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var buildTask = BuildCommand.RunAsync(command);
-            var completed = await Task.WhenAny(buildTask, Task.Delay(Timeout.Infinite, cts.Token));
-            Assert.Same(buildTask, completed);
-            try { await buildTask; }
-            catch (Exception ex) { Assert.DoesNotContain("External plugins are disabled in CI", ex.Message); }
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("CI", oldCI);
-            Environment.SetEnvironmentVariable("BUKIT_CI", oldBukitCI);
-        }
-    }
-
-    [Fact]
-    public async Task RunAsync_BukitCIEnvWithoutAllowExternalPlugins_ThrowsConfigException()
-    {
-        var oldCI = Environment.GetEnvironmentVariable("CI");
-        var oldBukitCI = Environment.GetEnvironmentVariable("BUKIT_CI");
-        try
-        {
-            Environment.SetEnvironmentVariable("CI", null);
-            Environment.SetEnvironmentVariable("BUKIT_CI", "1");
-
-            var siteYaml = Path.Combine(_testDir, "site.yaml");
-            File.WriteAllText(siteYaml, """
-                site:
-                  name: test
-                  title: Test
-                  externalPlugins:
-                    sample:
-                      runtime: process
-                      entry: plugins/sample.sh
-                      hooks: [after-build]
-                      capabilities: [emit-outputs]
-                      timeoutMs: 5000
-                content:
-                  sources:
-                    - type: markdown
-                      name: page
-                      collection: page
-                      markdown:
-                        dir: content
-                build:
-                  output: dist
-                """);
-
-            var command = CliTestHelper.CreateCommand("build", new[] { "--config", siteYaml });
-
-            var ex = await Assert.ThrowsAsync<ConfigException>(
-                () => BuildCommand.RunAsync(command));
-
-            Assert.Contains("External plugins are disabled in CI", ex.Message);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("CI", oldCI);
-            Environment.SetEnvironmentVariable("BUKIT_CI", oldBukitCI);
-        }
+        Assert.Contains("site.externalPlugins", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -514,18 +356,11 @@ public sealed class BuildCommandTests : IDisposable
     }
 
     [Fact]
-    public void AllowExternalPluginsFlag_DefaultsToFalse()
+    public void BuildSpec_DoesNotExposeAllowExternalPluginsFlag()
     {
-        var command = CliTestHelper.CreateCommand("build", Array.Empty<string>());
+        var build = BukitCliSpecs.CreateRegistry().Resolve("build");
 
-        Assert.False(command.GetBool("--allow-external-plugins"));
-    }
-
-    [Fact]
-    public void AllowExternalPluginsFlag_True_WhenSet()
-    {
-        var command = CliTestHelper.CreateCommand("build", new[] { "--allow-external-plugins" });
-
-        Assert.True(command.GetBool("--allow-external-plugins"));
+        Assert.NotNull(build);
+        Assert.DoesNotContain(build!.Options!, option => option.Name == "--allow-external-plugins");
     }
 }

@@ -1,27 +1,35 @@
 using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Commands;
 
-var command = args.Length > 0 ? args[0] : null;
-var commandArgs = args.Skip(1).ToArray();
-
-if (command is null || command is "help" or "--help" or "-h")
+if (args.Length == 0 || args[0] is "help" or "--help" or "-h")
 {
     PrintHelp();
     return 0;
 }
 
-return command.ToLowerInvariant() switch
+var command = args[0];
+var commandArgs = args.Skip(1).ToArray();
+
+try
 {
-    "import" => await ImportCommand.RunAsync(BindPermissive(commandArgs)),
-    "clone" => await CloneCommand.RunAsync(BindPermissive(commandArgs)),
-    "notion" => await NotionCommand.RunAsync(BindPermissive(commandArgs)),
-    "intent" => await IntentCommand.RunAsync(BindPermissive(commandArgs)),
-    "visual" => await VisualCommand.RunAsync(BindPermissive(commandArgs)),
-    "webhook" => await WebhookCommand.RunAsync(BindPermissive(commandArgs)),
-    "data" => await DataCommand.RunAsync(BindPermissive(commandArgs)),
-    "theme" => await ThemeCommand.RunAsync(BindPermissive(commandArgs)),
-    _ => UnknownCommand(command)
-};
+    return command.ToLowerInvariant() switch
+    {
+        "import" => await ImportCommand.RunAsync(BindPermissive(commandArgs)),
+        "clone" => await CloneCommand.RunAsync(BindPermissive(commandArgs)),
+        "notion" => await NotionCommand.RunAsync(BindPermissive(commandArgs)),
+        "intent" => await IntentCommand.RunAsync(BindPermissive(commandArgs)),
+        "visual" => await VisualCommand.RunAsync(BindPermissive(commandArgs)),
+        "webhook" => await WebhookCommand.RunAsync(BindPermissive(commandArgs)),
+        "data" => await DataCommand.RunAsync(BindPermissive(commandArgs)),
+        "theme" => await ThemeCommand.RunAsync(BindPermissive(commandArgs)),
+        _ => UnknownCommand(command)
+    };
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine(ex.Message);
+    return 1;
+}
 
 static CliBoundCommand BindPermissive(IReadOnlyList<string> args)
 {
@@ -38,27 +46,19 @@ static CliBoundCommand BindPermissive(IReadOnlyList<string> args)
         }
 
         var optionName = token;
-        string? inlineValue = null;
+        string? value = "true";
         var eqIndex = token.IndexOf('=');
         if (eqIndex >= 0)
         {
             optionName = token[..eqIndex];
-            inlineValue = token[(eqIndex + 1)..];
+            value = token[(eqIndex + 1)..];
         }
-
-        if (inlineValue is not null)
+        else if (i + 1 < args.Count && !args[i + 1].StartsWith("-", StringComparison.Ordinal))
         {
-            options[optionName] = inlineValue;
-            continue;
+            value = args[++i];
         }
 
-        if (i + 1 < args.Count && !args[i + 1].StartsWith("-", StringComparison.Ordinal))
-        {
-            options[optionName] = args[++i];
-            continue;
-        }
-
-        options[optionName] = "true";
+        options[optionName] = value;
     }
 
     return new CliBoundCommand(options, arguments);
@@ -67,21 +67,23 @@ static CliBoundCommand BindPermissive(IReadOnlyList<string> args)
 static int UnknownCommand(string command)
 {
     Console.Error.WriteLine($"Unknown labs command: {command}");
-    Console.Error.WriteLine("Run 'bukit-labs help' to view supported labs commands.");
+    Console.Error.WriteLine("Run 'bukit-labs --help' to view supported commands.");
     return 2;
 }
 
 static void PrintHelp()
 {
-    Console.WriteLine("bukit-labs");
+    Console.WriteLine("bukit-labs - experimental Bukit tooling");
     Console.WriteLine();
-    Console.WriteLine("Experimental commands:");
-    Console.WriteLine("  import");
-    Console.WriteLine("  clone");
-    Console.WriteLine("  notion");
-    Console.WriteLine("  intent");
-    Console.WriteLine("  visual");
-    Console.WriteLine("  webhook");
-    Console.WriteLine("  data");
-    Console.WriteLine("  theme");
+    Console.WriteLine("Usage: bukit-labs <command> [options]");
+    Console.WriteLine();
+    Console.WriteLine("Commands:");
+    Console.WriteLine("  import       HTML demo and seed import workflows");
+    Console.WriteLine("  clone        Clone/import website experiments");
+    Console.WriteLine("  notion       Notion push and schema validation experiments");
+    Console.WriteLine("  intent       Intent-driven site config experiments");
+    Console.WriteLine("  visual       Visual feedback experiments");
+    Console.WriteLine("  webhook      Webhook service experiments");
+    Console.WriteLine("  data         Data module diagnostics");
+    Console.WriteLine("  theme        Theme tooling experiments");
 }

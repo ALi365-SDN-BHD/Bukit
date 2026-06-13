@@ -2,6 +2,7 @@ using System.Text;
 using Bukit.Cli.Cli.Binding;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Tests;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -198,6 +199,56 @@ public sealed class DoctorCommandTests : IDisposable
         Assert.Equal(1, exitCode);
         Assert.Contains("Plugin template requirement error", output, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("pagination", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_ExternalPluginConfig_ReportsConfigError()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
+                                                                           name: test
+                                                                           templates:
+                                                                             home:
+                                                                               template: pages/index.html
+                                                                               required: true
+                                                                             widget:
+                                                                               template: pages/missing-widget.html
+                                                                               accepts:
+                                                                                 kind: widget
+                                                                           """);
+        File.WriteAllText(_configPath, """
+                                       site:
+                                         name: test
+                                         title: Test
+                                         externalPluginPolicy: allow
+                                         externalPlugins:
+                                           sample:
+                                             runtime: process
+                                             entry: plugins/sample
+                                             hooks:
+                                               - after-build
+                                             capabilities:
+                                               - emit-outputs
+                                             templateRequirements:
+                                               - widget
+                                         collections:
+                                           post:
+                                             permalink: /blog/{slug}/
+                                             template: pages/post.html
+                                             listRoute: /blog/
+                                             listTemplate: pages/list.html
+                                       content:
+                                         sources:
+                                           - type: markdown
+                                             name: post
+                                             collection: post
+                                             markdown:
+                                               dir: content
+                                       build:
+                                         listPageContentMode: auto
+                                       """);
+
+        var ex = await Assert.ThrowsAsync<ConfigException>(RunDoctorAsync);
+        Assert.Contains("site.externalPluginPolicy", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private void WriteConfigWithExplicitCollectionTemplates()

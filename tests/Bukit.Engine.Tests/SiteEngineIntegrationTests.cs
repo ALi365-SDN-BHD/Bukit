@@ -3060,45 +3060,6 @@ public sealed class SiteEngineIntegrationTests
         return root;
     }
 
-    private static AppConfig CreatePluginOutputConfig(string mode)
-        => new()
-        {
-            Site = new SiteConfig
-            {
-                Name = "t",
-                Title = "T",
-                BaseUrl = "/",
-                Language = "en",
-                Collections = TestCollections(),
-                PluginFailMode = "strict",
-                ExternalPlugins = new Dictionary<string, ExternalPluginConfig>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["sample"] = new()
-                    {
-                        Runtime = "process",
-                        Entry = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet",
-                        AllowAbsoluteEntry = true,
-                        Hooks = new[] { "after-build" },
-                        Capabilities = new[] { "emit-outputs" },
-                        TimeoutMs = 5000,
-                        Options = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                        {
-                            ["processArgs"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                            {
-                                ["positionals"] = new object[] { Path.Combine(AppContext.BaseDirectory, "ProtocolEchoPlugin.dll"), mode }
-                            }
-                        }
-                    }
-                }
-            },
-            Content = TestContent.Markdown() with
-            {
-                Media = new MediaConfig { DownloadToLocal = false }
-            },
-            Build = new BuildConfig { Output = "dist", Clean = true },
-            Theme = new ThemeConfig { Layouts = "layouts" }
-        };
-
     private static AppConfig CreateThemeInheritanceConfig()
         => new()
         {

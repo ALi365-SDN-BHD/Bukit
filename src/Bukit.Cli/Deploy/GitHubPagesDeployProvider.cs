@@ -132,18 +132,18 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
             catch (Exception pushEx)
             {
                 var pushMsg = pushEx.Message;
-                if (pushMsg.Contains("non-fast-forward") || pushMsg.Contains("fetch first") || pushMsg.Contains("updates were rejected"))
+                if (IsNonFastForwardPush(pushMsg))
                 {
                     if (!context.Force)
                     {
                         return new DeployResult
                         {
                             Success = false,
-                            Error = "Non-fast-forward push detected. The remote branch has diverged. Re-run with --force to overwrite it."
+                            Error = "Non-fast-forward push rejected. The remote branch has diverged; rerun with --force to overwrite it."
                         };
                     }
 
-                    logger.Warn("Non-fast-forward push detected. The remote branch has diverged. Force-pushing because --force was specified...");
+                    logger.Warn("Non-fast-forward push detected. --force was provided; force-pushing to overwrite the remote branch...");
                     await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "--force", "origin", branch);
                 }
                 else
@@ -236,6 +236,11 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
 
         return message;
     }
+
+    internal static bool IsNonFastForwardPush(string message)
+        => message.Contains("non-fast-forward", StringComparison.OrdinalIgnoreCase) ||
+           message.Contains("fetch first", StringComparison.OrdinalIgnoreCase) ||
+           message.Contains("updates were rejected", StringComparison.OrdinalIgnoreCase);
 
     private static async Task EnsureGitIdentityAsync(string gitPath, string tempDir, CancellationToken ct)
     {

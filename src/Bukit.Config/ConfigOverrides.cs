@@ -7,7 +7,6 @@ public sealed record ConfigOverrides
     public bool? Clean { get; init; }
     public bool? Draft { get; init; }
     public bool IsCI { get; init; }
-    public bool AllowExternalPlugins { get; init; }
     public bool? Incremental { get; init; }
     public string? CacheDir { get; init; }
     public string? MetricsPath { get; init; }
@@ -43,13 +42,7 @@ public static class ConfigApplier
 
         if (overrides.IsCI)
         {
-            site = site with { ExternalPluginPolicy = ExternalPluginPolicy.Deny };
             build = build with { FollowSymlinks = false };
-        }
-
-        if (overrides.AllowExternalPlugins && site.ExternalPluginPolicy == ExternalPluginPolicy.Deny && !overrides.IsCI)
-        {
-            site = site with { ExternalPluginPolicy = ExternalPluginPolicy.Allow };
         }
 
         return config with

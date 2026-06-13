@@ -47,13 +47,11 @@ public static class ConfigJsonSchemaGenerator
             ("defaultLanguage", StringSchema()),
             ("sitemapMode", EnumSchema("split", "merged", "index")),
             ("searchIncludeDerived", BoolSchema()),
-            ("externalProtocolIncludeRoutedPages", BoolSchema()),
             ("pluginFailMode", EnumSchema("strict", "warn")),
             ("deriveConflictPolicy", EnumSchema("fail", "warn", "last-wins")),
             ("timezone", StringSchema()),
             ("collections", CollectionSchema()),
             ("permalinks", Obj(("type", "object"))),
-            ("externalPlugins", ExternalPluginsSchema()),
             ("plugins", Obj(("type", "object"))),
             ("feed", FeedSchema()),
             ("sitemapDetail", SitemapDetailSchema()),
@@ -217,27 +215,6 @@ public static class ConfigJsonSchemaGenerator
             ("target", StringSchema()),
             ("weight", IntSchema(0)),
             ("children", Obj(("type", "object"))))));
-
-    private static JsonObject ExternalPluginsSchema()
-        => Obj(
-            ("type", "object"),
-            ("additionalProperties", ExternalPluginItemSchema()));
-
-    private static JsonObject ExternalPluginItemSchema()
-        => Obj(("type", "object"), ("properties", Obj(
-            ("runtime", EnumSchema("process")),
-            ("entry", StringSchema()),
-            ("hooks", Obj(("type", "array"), ("items", EnumSchema("after-build", "derive-pages")))),
-            ("enabled", BoolSchema()),
-            ("timeoutMs", IntSchema(1)),
-            ("maxStdoutBytes", IntSchema(1)),
-            ("maxStderrBytes", IntSchema(1)),
-            ("allowEnvironment", StringArraySchema()),
-            ("capabilities", Obj(("type", "array"), ("items", EnumSchema("emit-outputs", "derive-pages")))),
-            ("templateRequirements", StringArraySchema()),
-            ("allowAbsoluteEntry", BoolSchema()),
-            ("sha256", StringSchema()),
-            ("options", Obj(("type", "object"))))));
 
     private static JsonObject BuildReportSchema()
         => Obj(("type", "object"), ("properties", Obj(

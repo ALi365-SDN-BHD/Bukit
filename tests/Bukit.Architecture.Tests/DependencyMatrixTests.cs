@@ -15,6 +15,7 @@ public class DependencyMatrixTests
     private static readonly Assembly RenderingAssembly = typeof(Bukit.Rendering.SiteModel).Assembly;
     private static readonly Assembly EngineAssembly = typeof(Bukit.Engine.SiteEngine).Assembly;
     private static readonly Assembly CliAssembly = typeof(Bukit.Cli.ConfigPathResolver).Assembly;
+    private static readonly Assembly LabsCliAssembly = typeof(Bukit.Labs.Cli.LabsCliAssemblyMarker).Assembly;
 
     // ── Layer isolation ──────────────────────────────────────────
 
@@ -102,31 +103,35 @@ public class DependencyMatrixTests
             .ShouldBeSuccessful();
     }
 
-    // ── Plugin isolation ─────────────────────────────────────────
+    [Fact]
+    public void Cli_MustNotDependOn_ExperimentalImporting()
+    {
+        Types.InAssembly(CliAssembly)
+            .ShouldNot()
+            .HaveDependencyOn("Bukit.Importing")
+            .GetResult()
+            .ShouldBeSuccessful();
+    }
 
     [Fact]
-    public void Plugins_MustOnlyDependOn_Abstractions()
+    public void CoreCli_MustNotDependOn_LabsCli()
     {
-        var pluginAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a =>
-            {
-                var name = a.GetName().Name ?? "";
-                return name is "PathReportPlugin" or "SampleAfterBuildPlugin" or "VisualFeedbackPlugin";
-            })
-            .ToList();
+        Types.InAssembly(CliAssembly)
+            .ShouldNot()
+            .HaveDependencyOn("Bukit.Labs")
+            .GetResult()
+            .ShouldBeSuccessful();
+    }
 
-        if (pluginAssemblies.Count == 0)
-            return;
+    [Fact]
+    public void LabsCli_MayDependOn_CoreCli_AndImporting()
+    {
+        var references = LabsCliAssembly.GetReferencedAssemblies()
+            .Select(a => a.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var plugin in pluginAssemblies)
-        {
-            Types.InAssembly(plugin)
-                .ShouldNot()
-                .HaveDependencyOnAny(["Bukit.Engine.", "Bukit.Cli", "Bukit.Content",
-                    "Bukit.Rendering", "Bukit.Routing", "Bukit.Config"])
-                .GetResult()
-                .ShouldBeSuccessful();
-        }
+        Assert.Contains(CliAssembly.GetName().Name, references);
+        Assert.Contains("Bukit.Importing", references);
     }
 
     // ── Naming conventions ───────────────────────────────────────
@@ -141,32 +146,6 @@ public class DependencyMatrixTests
             .HaveNameStartingWith("I")
             .GetResult()
             .ShouldBeSuccessful();
-    }
-
-    [Fact]
-    public void PluginTypes_MustImplement_IBukitPlugin()
-    {
-        var pluginAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a =>
-            {
-                var name = a.GetName().Name ?? "";
-                return name is "PathReportPlugin" or "SampleAfterBuildPlugin" or "VisualFeedbackPlugin";
-            })
-            .ToList();
-
-        if (pluginAssemblies.Count == 0)
-            return;
-
-        foreach (var plugin in pluginAssemblies)
-        {
-            Types.InAssembly(plugin)
-                .That()
-                .HaveNameEndingWith("Plugin")
-                .Should()
-                .ImplementInterface(typeof(Bukit.Engine.Abstractions.Plugins.IBukitPlugin))
-                .GetResult()
-                .ShouldBeSuccessful();
-        }
     }
 
     // ── InternalsVisibleTo guard ──────────────────────────────────
