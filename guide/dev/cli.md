@@ -14,6 +14,7 @@ This document is for maintainers and keeps command metadata aligned with impleme
 | `doctor` | Diagnostics for config, theme and templates | `src/Bukit.Cli/Commands/DoctorCommand.cs` |
 | `geo` | GEO quality gate (`.bukit/geo-report.json`) | `src/Bukit.Cli/Commands/GeoCommand.cs` |
 | `preview` | Serve built output as static preview server | `src/Bukit.Cli/Commands/PreviewCommand.cs` |
+| `dev` | HMR development server with live reload | `src/Bukit.Cli/Commands/DevCommand.cs` |
 | `publish` | Publish quality gate (`.bukit/publish-audit-report.json`) | `src/Bukit.Cli/Commands/PublishCommand.cs` |
 | `seo` | SEO quality gate (`.bukit/seo-report.json`) | `src/Bukit.Cli/Commands/SeoCommand.cs` |
 | `version` | Print version + runtime | `src/Bukit.Cli/Commands/VersionCommand.cs` |
@@ -105,6 +106,22 @@ Options:
 - `--host <host>` (default: `localhost`)
 - `--port <port|auto>` (default: `4173`, `auto` picks free port)
 - `--strict-port` (fail on conflict)
+
+## dev
+
+```bash
+bukit dev --config site.yaml --port 35729
+```
+
+Starts a development preview server that runs an initial build, serves the output directory, watches source/theme/static files, rebuilds incrementally, and reloads connected browsers over WebSocket.
+
+Options:
+- `--config <path>` (default: `site.yaml`)
+- `--site <name>`
+- `--host <host>` (default: `localhost`)
+- `--port <port>` (default: `35729`, auto-increments when occupied)
+- `--output <dir>` (overrides `build.output`)
+- `--no-watch` (serve only, no file watching or live reload)
 
 ## clean
 

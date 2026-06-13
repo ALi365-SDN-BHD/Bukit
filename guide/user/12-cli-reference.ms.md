@@ -15,6 +15,7 @@ Rujuk [guide/dev/cli](./../dev/cli.md) untuk maklumat pengesanan dan perincian p
 | `config schema` | Jana JSON Schema untuk `site.yaml` | `--output` |
 | `doctor` | Diagnostik konfigurasi dan templat | `--config`, `--site`, `--site-url` |
 | `preview` | Pratonton direktori keluaran | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site` |
+| `dev` | Pratonton pembangunan langsung dengan file watching dan browser reload | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch` |
 | `clean` | Padam output dan cache | `--config`, `--site`, `--dir` |
 | `seo audit` | Audit `seo-report.json` | `--dir`, `--report`, `--strict`, `--external` |
 | `seo diff` | Bandingkan dua laporan SEO | `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
@@ -86,6 +87,23 @@ Parameter:
 - `--port <port|auto>`: lalai `4173`, `auto` auto-pilih port
 - `--strict-port`: gagal jika port sibuk (tanpa auto-shift)
 - `--config`/`--site`: jika diberi, output dir diambil dari config
+
+## dev
+
+Jalankan binaan awal, serve output, pantau perubahan fail, dan reload browser yang bersambung.
+
+```bash
+bukit dev --config site.yaml
+bukit dev --port 3000
+bukit dev --no-watch
+```
+
+Parameter:
+- `--config <path>` / `--site <name>`: pilih config tapak
+- `--host <host>`: default `localhost`
+- `--port <port>`: default `35729`, auto-increment jika sibuk
+- `--output <dir>`: ganti direktori output
+- `--no-watch`: serve sahaja, tanpa file watching atau live reload
 
 ## clean
 

@@ -21,6 +21,7 @@ public sealed class CoreBoundaryTests
                 "doctor",
                 "config",
                 "preview",
+                "dev",
                 "clean",
                 "version",
                 "completion",
