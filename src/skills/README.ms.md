@@ -34,7 +34,7 @@ src/skills/
 | Skill | Tanggungjawab | Kes penggunaan biasa |
 |---|---|---|
 | `using-bukit` | Skill pintu masuk yang mengenal pasti kerja Bukit dan menghala ke sub-skill | Pengguna secara jelas menyebut "using bukit" atau tugasan jelas khusus Bukit |
-| `bukit-cli-reference` | Pengesanan CLI, panduan pemasangan, rujukan arahan, tafsiran output dan kod keluar | Menjalankan sebarang arahan `bukit` termasuk `theme wizard/pack/install/search`, `template create/list/show/validate/snippets/hints/sync` |
+| `bukit-cli-reference` | Pengesanan CLI, panduan pemasangan, rujukan arahan, tafsiran output dan kod keluar | Menjalankan sebarang arahan `bukit` termasuk `build`, `clean`, `config`, `doctor`, `preview`, `seo`, `geo`, `publish`, `deploy`, `completion`, `version` |
 | `bukit-config` | Struktur `site.yaml`, templat senario, dan penjelasan medan | Mencipta atau mengedit konfigurasi, menjelaskan medan, membetulkan ralat pengesahan |
 | `bukit-theme` | Struktur direktori tema, aset statik, penciptaan berasaskan wizard, pengedaran tema (pack/install), carian registri, coretan templat | Mencipta tema melalui wizard/preset, menyenaraikan info/params tema, membungkus tema untuk perkongsian, memasang dari registri, melayari coretan templat |
 | `bukit-templating` | Sintaks Scriban, pewarisan layout, akses data, dan corak templat | Menulis templat halaman, halaman senarai, penomboran, atau membetulkan ralat render templat |
@@ -109,7 +109,7 @@ src/skills/
 1. Buka repositori ini dalam AI Agent anda
 2. Sebut: **"using bukit, bantu saya bina blog"**
 3. Agent akan membaca kemahiran berkaitan dan membina tapak secara automatik
-4. Sebut: **"bukit dev"** untuk pratonton langsung
+4. Sebut: **"bukit preview"** untuk memulakan pelayan pratonton
 
 ### Pengesahan CI
 

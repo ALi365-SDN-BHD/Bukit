@@ -1,133 +1,169 @@
 # CLI Parameter Reference
 
-This document is for maintainers, explaining CLI commands, parameters, override relationships, and common usage.
+This document is for maintainers and keeps command metadata aligned with implementation (`src/Bukit.Cli/Cli/BukitCliSpecs.cs` and `src/Bukit.Cli/Cli/BukitCliDescriptors.cs`).
 
-Implementation references: `src/Bukit.Cli/Cli/BukitCliSpecs.cs`, `src/Bukit.Cli/Cli/Parsing/CliParser.cs`
+## Supported top-level commands (current)
 
-## Command Overview
-
-> **P3-7 修复**：旧 CLI 解析器 `ArgReader.cs` 已完全移除。所有命令已统一迁移至 `BukitCliSpecs` + `CliParser`（`CliBoundCommandFactory` 模式），不再存在新旧解析器并存的问题。
-
-| Command | Purpose |
-|---|---|
-| `create <dir>` | Create a new site project (equivalent to `init`) |
-| `init <dir>` | Initialize site project scaffold |
-| `build` | Generate static site |
-| `dev` | HMR dev server (file watch + incremental build + live reload) |
-| `preview` | Local preview of output directory |
-| `clean` | Clean output and cache |
-| `config check` | Validate configuration without building |
-| `config schema` | Generate site.yaml JSON Schema |
-| `doctor` | Environment and configuration diagnostics |
-| `plugin` | Plugin-related commands |
-| `theme` | Theme-related commands |
-| `template` | Template-related commands |
-| `intent` | AI Intent related commands |
-| `deploy` | Build and deploy to GitHub Pages |
-| `seo` | SEO audit and regression detection |
-| `geo` | GEO (Generative Engine Optimization) audit |
-| `clone` | Extract data from target website to generate theme and content |
-| `import` | Import HTML demos or seed files into Bukit theme/content drafts |
-| `notion` | Generate Notion seed push plans and validate push prerequisites |
-| `webhook` | Webhook trigger |
-| `data` | Data module inspection and export |
-| `completion` | Generate shell auto-completion script |
-| `lint` | Check config and Markdown content |
-| `visual` | Generate Playwright visual regression test scripts |
-| `docs` | Documentation consistency check |
-| `publish` | Machine-readability and trust audit |
-| `route` | Route resolution inspection |
-| `version` | Version info |
-
-Note: When executing most commands, the CLI outputs a `bukit <version>` line first.
-
-## Key Override Relationships
-
-Build-related override order (highest to lowest):
-1. CLI parameters (e.g. `--output/--base-url/--clean/--draft/--site-url`)
-2. `site.yaml`
-3. Code defaults (see `Bukit.Config` defaults and `ConfigLoader`)
-
-## Common Build Parameters (shared by build/doctor etc.)
-
-| Parameter | Purpose | Overrides |
+| Command | Purpose | Implementation |
 |---|---|---|
-| `--config <path>` | Specify config file path | Becomes config rootDir and relative path base |
-| `--site <name>` | Multi-site reads `sites/<name>.yaml` | rootDir remains current directory |
-| `--output <dir>` | Override output directory | Overrides `build.output` |
-| `--base-url <path>` | Override baseUrl | Overrides `site.baseUrl` |
-| `--site-url <url>` | Override site absolute URL | Overrides `site.url` (for sitemap/rss) |
-| `--clean` | Clean before build | Overrides `build.clean=true` |
-| `--no-clean` | Disable clean before build | Overrides `build.clean=false` |
-| `--draft` | Render drafts | Overrides `build.draft=true` |
-| `--ci` | CI mode | Affects log level policies |
-| `--incremental` | Enable incremental build | Overrides incremental switch |
-| `--no-incremental` | Disable incremental build | Overrides incremental switch |
-| `--cache-dir <dir>` | Override cache directory | Default `<rootDir>/.cache` |
-| `--jobs <n>` | Parallel rendering concurrency | Positive integer; default CPU core count |
-| `--metrics <path>` | Output build metrics JSON | Relative path resolved against rootDir |
-| `--log-format <text|json>` | Control log output format | Default `text` |
+| `build` | Generate static site output | `src/Bukit.Cli/Commands/BuildCommand.cs` |
+| `config` | Config validation/schema generation | `src/Bukit.Cli/Commands/ConfigCommand.cs` |
+| `clean` | Remove build output and `.cache/.bukit` | `src/Bukit.Cli/Commands/CleanCommand.cs` |
+| `completion` | Generate shell completion scripts | `src/Bukit.Cli/Commands/CompletionCommand.cs` |
+| `deploy` | Build and deploy to GitHub Pages | `src/Bukit.Cli/Commands/DeployCommand.cs` |
+| `doctor` | Diagnostics for config, theme and templates | `src/Bukit.Cli/Commands/DoctorCommand.cs` |
+| `geo` | GEO quality gate (`.bukit/geo-report.json`) | `src/Bukit.Cli/Commands/GeoCommand.cs` |
+| `preview` | Serve built output as static preview server | `src/Bukit.Cli/Commands/PreviewCommand.cs` |
+| `publish` | Publish quality gate (`.bukit/publish-audit-report.json`) | `src/Bukit.Cli/Commands/PublishCommand.cs` |
+| `seo` | SEO quality gate (`.bukit/seo-report.json`) | `src/Bukit.Cli/Commands/SeoCommand.cs` |
+| `version` | Print version + runtime | `src/Bukit.Cli/Commands/VersionCommand.cs` |
+
+Subcommands:
+- `config check`
+- `config schema`
+- `seo audit`
+- `seo diff`
+- `geo audit`
+- `publish audit`
+- `publish diff`
+
+## Override order (runtime)
+
+For command options that map to config fields, overrides apply in this order:
+
+1. CLI flags (`--output`, `--base-url`, `--site-url`, `--clean`, etc.)
+2. Config file values
+3. Runtime defaults
+
+## Shared command options
+
+| Flag | Effect |
+|---|---|
+| `--config <path>` | Path to entry config (default `site.yaml`) |
+| `--site <name>` | Resolve from `sites/<name>.yaml` |
+| `--ci` | CI logging mode; currently used by build/deploy |
 
 ## build
 
-Implementation: `src/Bukit.Cli/Commands/BuildCommand.cs`
+Implementation: `BuildCommand.RunAsync`.
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --clean
-dotnet run --project src/Bukit.Cli -c Release -- build --site blog --clean
+bukit build --config site.yaml --clean --site-url https://example.com --draft
 ```
 
-## dev
+Options:
+- `--output <dir>`
+- `--base-url <path>`
+- `--site-url <url>`
+- `--clean` / `--no-clean`
+- `--draft`
+- `--incremental` / `--no-incremental`
+- `--cache-dir <dir>`
+- `--metrics <path>`
+- `--jobs <n>`
+- `--log-format text|json`
 
-Implementation: `src/Bukit.Cli/Commands/Dev/` (DevServerHost, DevWebSocketHub, DevFileWatcher, DevRequestHandler, DevPathGuard)
+## config
 
+### `config check`
+
+```bash
+bukit config check --config site.yaml --site demo --site-url https://example.com
 ```
-bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--output <dir>] [--no-watch]
+
+### `config schema`
+
+```bash
+bukit config schema --output site.schema.json
 ```
 
-Starts an HMR development server that watches content/themes/layouts/assets/static for changes, triggers incremental rebuilds, and pushes live reload via WebSocket. Default port is 35729. Use `--no-watch` for static serving without file monitoring.
+If `--output` is omitted, schema is printed to stdout.
+
+## doctor
+
+```bash
+bukit doctor --config site.yaml
+```
+
+Loads and validates:
+- `site.yaml` schema
+- theme manifest and required templates
+- template syntax + variable usage + include references
+- template capabilities completeness
+- markdown checks (front matter, syntax, empty bodies)
+- hardcoded URL checks and config/plugin wiring
+- optional Notion connection checks when Notion source is configured
 
 ## preview
 
-Implementation: `src/Bukit.Cli/Commands/PreviewCommand.cs`
+```bash
+bukit preview --dir dist --port auto
+```
 
-| Parameter | Default | Description |
-|---|---|---|
-| `--dir <path>` | `dist` | Directory to preview |
-| `--host <host>` | `localhost` | Listen address |
-| `--port <port\|auto>` | `4173` | `auto` auto-selects free port |
-| `--strict-port` | false | Fail on port conflict (default retries incrementally) |
+Options:
+- `--dir <path>` (default: `dist`)
+- `--host <host>` (default: `localhost`)
+- `--port <port|auto>` (default: `4173`, `auto` picks free port)
+- `--strict-port` (fail on conflict)
 
-## Other Commands
+## clean
 
-For detailed parameter information on the following commands, refer to the corresponding `*Command.cs` implementation files and the [bukit-cli-reference skill](../../src/skills/bukit-cli-reference/SKILL.md):
+```bash
+bukit clean --config site.yaml
+```
 
-- `config check` / `config schema`: `src/Bukit.Cli/Commands/ConfigCommand.cs`
-- `doctor`: `src/Bukit.Cli/Commands/DoctorCommand.cs`
-- `clean`: `src/Bukit.Cli/Commands/CleanCommand.cs`
-- `theme`: `src/Bukit.Cli/Commands/ThemeCommand.cs`
-- `template`: `src/Bukit.Cli/Commands/TemplateCommand.cs`
-- `deploy`: `src/Bukit.Cli/Commands/DeployCommand.cs`
-- `seo`: `src/Bukit.Cli/Commands/SeoCommand.cs`
-- `geo`: `src/Bukit.Cli/Commands/GeoCommand.cs`
-- `clone`: `src/Bukit.Cli/Commands/Clone/` (CloneInputLoader, CloneAssetDownloader, CloneContentWriter, CloneFidelityRunner, CloneThemeGenerator, CloneVerifier)
-- `import`: `src/Bukit.Cli/Commands/ImportCommand.cs`
-- `notion`: `src/Bukit.Cli/Commands/NotionCommand.cs`
-- `plugin`: `src/Bukit.Cli/Commands/PluginCommand.cs`
-- `intent`: `src/Bukit.Cli/Commands/IntentCommand.cs`
-- `webhook`: `src/Bukit.Cli/Commands/WebhookCommand.cs`
-- `data`: `src/Bukit.Cli/Commands/DataCommand.cs`
-- `completion`: `src/Bukit.Cli/Commands/CompletionCommand.cs`
-- `lint`: `src/Bukit.Cli/Commands/LintCommand.cs`
-- `visual`: `src/Bukit.Cli/Commands/VisualCommand.cs`
-- `docs`: `src/Bukit.Cli/Commands/DocsCheck/DocsCheckCommand.cs`
-- `publish`: `src/Bukit.Cli/Commands/PublishCommand.cs`
-- `route`: `src/Bukit.Cli/Commands/RouteCommand.cs`
+Deletes:
+- configured output dir or `--dir` (default `dist`)
+- `.cache/`
+- `.bukit/`
 
-See also:
-- init/create scaffolding output and directory structure: [init/create](./init-create.md)
-- doctor checks and common failures: [doctor](./doctor.md)
-- clean and cache directory semantics: [cache-clean](./cache-clean.md)
-- theme development and parameters: [theme](./theme.md)
-- intent CLI and rootDir inference: [intent-cli](./intent-cli.md)
-- webhook security constraints and environment variables: [webhook](./webhook.md)
+## deploy
+
+```bash
+bukit deploy --config site.yaml --dry-run
+```
+
+Important options:
+- `--dry-run`
+- `--skip-build`
+- `--force`
+- `--base-url`
+- `--site-url`
+- `--output`
+- `--branch`
+- `--message`
+- `--ci`
+
+Deploys only after invoking `build` unless `--skip-build` is set.
+
+## seo / geo / publish
+
+All three commands are report readers for outputs produced by the build:
+
+- `seo audit [--dir dist] [--report file] [--strict] [--external]`
+- `seo diff --baseline <old> --current <new> [--max-new-issues n] [--fail-on-route-removed] ...`
+- `geo audit [--dir dist]`
+- `publish audit [--dir dist] [--report file] [--strict] [--external]`
+- `publish diff --baseline <old> --current <new> [--max-new-issues n] [--fail-on-indexable-drop] ...`
+
+See [dev/seo.md](./seo.md) / [dev/geo.md](./geo.md) / [dev/publish-deploy.md](./publish-deploy.md) for the corresponding behavioral rationale.
+
+## completion
+
+```bash
+bukit completion bash
+bukit completion zsh
+bukit completion fish
+```
+
+Argument contract: `bukit completion <shell>`.
+
+## version
+
+```bash
+bukit version
+```
+
+Output:
+- `bukit <version>`
+- `runtime: native-aot`

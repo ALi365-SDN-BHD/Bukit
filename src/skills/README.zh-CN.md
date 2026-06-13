@@ -35,7 +35,7 @@ src/skills/
 | Skill | 主要职责 | 适用场景 |
 |---|---|---|
 | `using-bukit` | Bukit skill 总入口，识别任务并路由到子 skill | 用户明确说"using bukit / 使用 bukit"，或任务已确定采用 Bukit |
-| `bukit-cli-reference` | CLI 检测、安装、命令速查、输出与退出码解读 | 需要执行 `bukit build`、`doctor`、`preview`、`theme`、`webhook` 等命令 |
+| `bukit-cli-reference` | CLI 检测、安装、命令速查、输出与退出码解读 | 需要执行 `build`、`clean`、`config`、`doctor`、`preview`、`seo`、`geo`、`publish`、`deploy`、`completion`、`version` 等命令 |
 | `bukit-config` | `site.yaml` 六大顶级节点、场景模板、字段解释 | 创建或修改站点配置、解释字段含义、修复配置校验错误 |
 | `bukit-theme` | `layouts/`、`assets/`、`static/` 的分工、wizard 创建、主题分发 (pack/install)、注册表搜索（Experimental）、模板片段 | 通过 wizard/preset 创建主题、列出主题信息/参数、打包分享主题、从 Experimental 注册表安装、浏览模板片段 |
 | `bukit-templating` | Scriban 语法、layout 继承、数据访问与常见模板模式 | 编写页面模板、列表页、分页组件、排查模板渲染错误 |
@@ -203,7 +203,7 @@ bash src/skills/scripts/generate-index-json.sh
    - 生成 `site.yaml`（`bukit-config`）
    - 创建主题和模板（`bukit-theme` + `bukit-templating`）
    - 构建站点
-4. 说：**"bukit dev"** 启动 HMR 开发服务器进行实时预览
+4. 说：**"bukit preview"** 启动本地预览服务器
 
 ---
 
