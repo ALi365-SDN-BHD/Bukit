@@ -32,8 +32,7 @@ public sealed record BuildProjectInfo(
     string Root,
     string Output,
     string ContentSource,
-    string? ThemeName,
-    string? ThemeSource);
+    string? ThemeName);
 
 public sealed record BuildSummary(
     int PageCount,
@@ -83,8 +82,7 @@ internal static class BuildResultFactory
                 Root: Path.GetFullPath(rootDir),
                 Output: config.Build.Output,
                 ContentSource: ContentConfigResolver.Describe(config.Content),
-                ThemeName: config.Theme.Name,
-                ThemeSource: config.Theme.Source),
+                ThemeName: config.Theme.Name),
             Summary: new BuildSummary(
                 PageCount: pageCount,
                 RouteCount: routeCount,

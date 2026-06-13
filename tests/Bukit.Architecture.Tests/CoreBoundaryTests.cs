@@ -103,6 +103,41 @@ public sealed class CoreBoundaryTests
     }
 
     [Fact]
+    public void DeployConfig_DoesNotExposeOptionsBag()
+    {
+        Assert.Null(typeof(DeployConfig).GetProperty("Options"));
+    }
+
+    [Fact]
+    public void ThemeConfig_DoesNotExposeRemoteSourceOrSiteLevelExtends()
+    {
+        Assert.Null(typeof(ThemeConfig).GetProperty("Source"));
+        Assert.Null(typeof(ThemeConfig).GetProperty("Extends"));
+    }
+
+    [Fact]
+    public void CoreEngine_DoesNotContainRemoteThemeSourceTooling()
+    {
+        var engineDir = Path.Combine(FindRepoRoot(), "src", "Bukit.Engine");
+        var sourceText = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(engineDir, "*.cs", SearchOption.AllDirectories)
+                .Select(File.ReadAllText));
+
+        Assert.DoesNotContain("ThemeSourceManager", sourceText, StringComparison.Ordinal);
+        Assert.DoesNotContain("ProcessGitRunner", sourceText, StringComparison.Ordinal);
+        Assert.DoesNotContain("IGitRunner", sourceText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CoreSolution_IncludesThemeRuntimeProject()
+    {
+        var solutionText = File.ReadAllText(Path.Combine(FindRepoRoot(), "bukit.slnx"));
+
+        Assert.Contains("src/Bukit.Theme/Bukit.Theme.csproj", solutionText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SeoAndPublishDiff_DoNotExposeAllowCrossSchema()
     {
         var registry = BukitCliSpecs.CreateRegistry();

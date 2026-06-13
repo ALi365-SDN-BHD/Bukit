@@ -250,36 +250,6 @@ internal static class BuildReporterSecurity
 
     private static string CheckRemoteThemeLock(AppConfig config, string rootDir, List<string> warnings, List<string> errors)
     {
-        var source = config.Theme.Source;
-        if (string.IsNullOrWhiteSpace(source))
-        {
-            return "not_applicable";
-        }
-
-        var trimmed = source.Trim();
-        if (!LooksRemoteThemeSource(trimmed))
-        {
-            return "not_applicable";
-        }
-
-        if (!trimmed.Contains('@', StringComparison.Ordinal))
-        {
-            warnings.Add($"Remote theme source '{trimmed}' is not pinned with an explicit ref.");
-            return "warning";
-        }
-
-        var lockPath = Path.Combine(rootDir, ".bukit-cache", "themes", "bukit-theme.lock.json");
-        if (!File.Exists(lockPath))
-        {
-            warnings.Add($"Remote theme source '{trimmed}' has no theme lock file at {BuildReporter.NormalizePath(lockPath)}.");
-            return "warning";
-        }
-
-        return "passed";
+        return "not_applicable";
     }
-
-    private static bool LooksRemoteThemeSource(string source)
-        => source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-           source.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-           source.StartsWith("git@", StringComparison.OrdinalIgnoreCase);
 }

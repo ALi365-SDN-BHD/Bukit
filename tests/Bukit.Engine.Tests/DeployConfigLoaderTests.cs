@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -109,6 +110,27 @@ deploy:
             Assert.Equal("custom deploy message", config.Deploy.Message);
             Assert.Equal("example.com", config.Deploy.Cname);
             Assert.True(config.Deploy.KeepHistory);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_DeployOptions_ThrowsUnknownField()
+    {
+        var siteYaml = MinimalSiteYaml + """
+            deploy:
+              provider: github-pages
+              options:
+                foo: bar
+            """;
+        var path = WriteTempYaml(siteYaml);
+        try
+        {
+            var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+            Assert.Contains("Unknown config field 'deploy.options'.", ex.Message, StringComparison.Ordinal);
         }
         finally
         {

@@ -29,6 +29,8 @@ internal static class BuildPlanner
 
         var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);
         var resolved = ThemePathResolver.Resolve(rootDir, effectiveConfig.Theme, logger);
+        var bootstrap = ThemeBootstrapper.Bootstrap(effectiveConfig, rootDir, logger, resolved);
+        var (parentLayoutsDir, parentAssetsDir, parentStaticDir) = ResolveParentThemeDirs(bootstrap.ParentThemeRoot);
 
         PrepareOutputDirectory(effectiveConfig, rootDir, outputDir, logger);
 
@@ -39,8 +41,21 @@ internal static class BuildPlanner
         return new BuildPlan(
             effectiveConfig, outputDir,
             resolved.LayoutsDir, resolved.AssetsDir, resolved.StaticDir,
-            resolved.ParentLayoutsDir, resolved.ParentAssetsDir, resolved.ParentStaticDir, resolved.UserLayoutsDir,
+            parentLayoutsDir, parentAssetsDir, parentStaticDir, resolved.UserLayoutsDir,
             mediaCacheDir, startedAt, stopwatch);
+    }
+
+    private static (string? LayoutsDir, string? AssetsDir, string? StaticDir) ResolveParentThemeDirs(string? parentThemeRoot)
+    {
+        if (string.IsNullOrWhiteSpace(parentThemeRoot))
+        {
+            return (null, null, null);
+        }
+
+        return (
+            Path.Combine(parentThemeRoot, "layouts"),
+            Path.Combine(parentThemeRoot, "assets"),
+            Path.Combine(parentThemeRoot, "static"));
     }
 
     private static void PrepareOutputDirectory(AppConfig config, string rootDir, string outputDir, ILogger logger)

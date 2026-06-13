@@ -23,9 +23,9 @@ public sealed class ThemePathResolverTests : IDisposable
     }
 
     [Fact]
-    public void Resolve_NoThemeNameOrSource_ReturnsMinimalPaths()
+    public void Resolve_NoThemeName_ReturnsMinimalPaths()
     {
-        var theme = new ThemeConfig { Name = null, Source = null };
+        var theme = new ThemeConfig { Name = null };
         var result = ThemePathResolver.Resolve(_rootDir, theme, _logger);
 
         Assert.NotNull(result);
@@ -38,7 +38,6 @@ public sealed class ThemePathResolverTests : IDisposable
         Assert.Null(result.ParentLayoutsDir);
         Assert.Null(result.ParentAssetsDir);
         Assert.Null(result.ParentStaticDir);
-        Assert.False(result.IsRemote);
     }
 
     [Fact]
@@ -61,11 +60,10 @@ public sealed class ThemePathResolverTests : IDisposable
         Assert.Null(result.ParentLayoutsDir);
         Assert.Null(result.ParentAssetsDir);
         Assert.Null(result.ParentStaticDir);
-        Assert.False(result.IsRemote);
     }
 
     [Fact]
-    public void Resolve_LocalThemeWithExtends_ResolvesParentPaths()
+    public void Resolve_LocalTheme_DoesNotResolveManifestParentPaths()
     {
         var childRoot = Path.Combine(_rootDir, "themes", "child");
         var parentRoot = Path.Combine(_rootDir, "themes", "parent");
@@ -74,28 +72,11 @@ public sealed class ThemePathResolverTests : IDisposable
         Directory.CreateDirectory(Path.Combine(parentRoot, "assets"));
         Directory.CreateDirectory(Path.Combine(parentRoot, "static"));
 
-        var theme = new ThemeConfig { Name = "child", Extends = "parent" };
+        var theme = new ThemeConfig { Name = "child" };
         var result = ThemePathResolver.Resolve(_rootDir, theme, _logger);
 
         Assert.Equal("child", result.ThemeName);
         Assert.EndsWith(Path.Combine("themes", "child"), result.ThemeRoot);
-        Assert.NotNull(result.ParentThemeRoot);
-        Assert.EndsWith(Path.Combine("themes", "parent"), result.ParentThemeRoot);
-        Assert.EndsWith(Path.Combine("themes", "parent", "layouts"), result.ParentLayoutsDir);
-        Assert.EndsWith(Path.Combine("themes", "parent", "assets"), result.ParentAssetsDir);
-        Assert.EndsWith(Path.Combine("themes", "parent", "static"), result.ParentStaticDir);
-        Assert.False(result.IsRemote);
-    }
-
-    [Fact]
-    public void Resolve_LocalThemeWithExtends_NoExtends_ReturnsNoParent()
-    {
-        var childRoot = Path.Combine(_rootDir, "themes", "standalone");
-        Directory.CreateDirectory(Path.Combine(childRoot, "layouts"));
-
-        var theme = new ThemeConfig { Name = "standalone", Extends = null };
-        var result = ThemePathResolver.Resolve(_rootDir, theme, _logger);
-
         Assert.Null(result.ParentThemeRoot);
         Assert.Null(result.ParentLayoutsDir);
         Assert.Null(result.ParentAssetsDir);
@@ -103,28 +84,18 @@ public sealed class ThemePathResolverTests : IDisposable
     }
 
     [Fact]
-    public void Resolve_RemoteSourceWithoutName_ResolvesToCache()
+    public void Resolve_LocalTheme_ReturnsNoParent()
     {
-        var fakeGit = new SimpleFakeGitRunner(pretendClone: true);
-        var theme = new ThemeConfig { Name = null, Source = "https://github.com/org/theme-repo" };
-        var result = ThemePathResolver.Resolve(_rootDir, theme, _logger, fakeGit);
+        var childRoot = Path.Combine(_rootDir, "themes", "standalone");
+        Directory.CreateDirectory(Path.Combine(childRoot, "layouts"));
 
-        Assert.True(result.IsRemote);
-        Assert.Contains(".cache", result.ThemeRoot);
-        Assert.EndsWith(Path.Combine("layouts"), result.LayoutsDir);
-        Assert.EndsWith(Path.Combine("assets"), result.AssetsDir);
-        Assert.EndsWith(Path.Combine("static"), result.StaticDir);
-    }
+        var theme = new ThemeConfig { Name = "standalone" };
+        var result = ThemePathResolver.Resolve(_rootDir, theme, _logger);
 
-    [Fact]
-    public void Resolve_RemoteSourceWithName_AppendsNameToThemeRoot()
-    {
-        var fakeGit = new SimpleFakeGitRunner(pretendClone: true);
-        var theme = new ThemeConfig { Name = "my-sub-theme", Source = "https://github.com/org/repo" };
-        var result = ThemePathResolver.Resolve(_rootDir, theme, _logger, fakeGit);
-
-        Assert.True(result.IsRemote);
-        Assert.EndsWith(Path.Combine("my-sub-theme"), result.ThemeRoot);
+        Assert.Null(result.ParentThemeRoot);
+        Assert.Null(result.ParentLayoutsDir);
+        Assert.Null(result.ParentAssetsDir);
+        Assert.Null(result.ParentStaticDir);
     }
 
     [Fact]
@@ -176,27 +147,6 @@ public sealed class ThemePathResolverTests : IDisposable
         var result = ThemePathResolver.Resolve(_rootDir, theme, _logger);
 
         Assert.Null(result.UserLayoutsDir);
-    }
-
-    [Fact]
-    public void Resolve_RemoteSourceWithExtends_ResolvesBothRemoteAndParent()
-    {
-        var fakeGit = new SimpleFakeGitRunner(pretendClone: true);
-        var parentRoot = Path.Combine(_rootDir, "themes", "parent");
-        Directory.CreateDirectory(Path.Combine(parentRoot, "layouts"));
-
-        var theme = new ThemeConfig
-        {
-            Name = "remote-child",
-            Source = "https://github.com/org/repo",
-            Extends = "parent"
-        };
-
-        var result = ThemePathResolver.Resolve(_rootDir, theme, _logger, fakeGit);
-
-        Assert.True(result.IsRemote);
-        Assert.NotNull(result.ParentThemeRoot);
-        Assert.EndsWith(Path.Combine("themes", "parent"), result.ParentThemeRoot);
     }
 
     [Fact]
@@ -262,18 +212,4 @@ public sealed class ThemePathResolverTests : IDisposable
         public void Error(string message) { }
     }
 
-    private sealed class SimpleFakeGitRunner : IGitRunner
-    {
-        private readonly bool _pretendClone;
-
-        public SimpleFakeGitRunner(bool pretendClone = false)
-        {
-            _pretendClone = pretendClone;
-        }
-
-        public Task<GitResult> RunAsync(string args, string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken)
-        {
-            return Task.FromResult(new GitResult(true, "fake-commit-hash", string.Empty, 0, false));
-        }
-    }
 }

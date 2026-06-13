@@ -38,48 +38,79 @@ public sealed class ThemeBootstrapperSanitizationTests : IDisposable
     }
 
     [Fact]
-    public void Resolve_Should_WarnAndSkipParent_When_ExtendsIsMalicious()
+    public void Bootstrap_Should_ThrowConfigException_When_ManifestExtendsIsMalicious()
     {
         var themeRoot = Path.Combine(_rootDir, "themes", "child");
         Directory.CreateDirectory(Path.Combine(themeRoot, "layouts"));
+        File.WriteAllText(Path.Combine(themeRoot, "theme.yaml"), """
+            name: child
+            extends: ../../etc
+            """);
 
-        var theme = new ThemeConfig { Name = "child", Extends = "../../etc" };
+        var config = CreateConfig("child");
 
-        var result = ThemePathResolver.Resolve(_rootDir, theme, _logger);
-
-        Assert.Null(result.ParentThemeRoot);
-        Assert.Null(result.ParentLayoutsDir);
-        Assert.Contains(_logger.Warnings, w => w.Contains("theme.extends", StringComparison.OrdinalIgnoreCase));
+        Assert.Throws<ConfigException>(() => ThemeBootstrapper.Bootstrap(config, _rootDir, _logger));
     }
 
     [Fact]
-    public void Resolve_Should_WarnAndSkipParent_When_ExtendsContainsPathSeparator()
+    public void Bootstrap_Should_ThrowConfigException_When_ManifestExtendsContainsPathSeparator()
     {
         var themeRoot = Path.Combine(_rootDir, "themes", "child");
         Directory.CreateDirectory(Path.Combine(themeRoot, "layouts"));
+        File.WriteAllText(Path.Combine(themeRoot, "theme.yaml"), """
+            name: child
+            extends: foo/bar
+            """);
 
-        var theme = new ThemeConfig { Name = "child", Extends = "foo/bar" };
+        var config = CreateConfig("child");
 
-        var result = ThemePathResolver.Resolve(_rootDir, theme, _logger);
-
-        Assert.Null(result.ParentThemeRoot);
-        Assert.Contains(_logger.Warnings, w => w.Contains("theme.extends", StringComparison.OrdinalIgnoreCase));
+        Assert.Throws<ConfigException>(() => ThemeBootstrapper.Bootstrap(config, _rootDir, _logger));
     }
 
     [Fact]
-    public void Resolve_Should_AcceptValidExtends()
+    public void Bootstrap_Should_AcceptValidManifestExtends()
     {
         var childRoot = Path.Combine(_rootDir, "themes", "child");
         var parentRoot = Path.Combine(_rootDir, "themes", "parent");
         Directory.CreateDirectory(Path.Combine(childRoot, "layouts"));
         Directory.CreateDirectory(Path.Combine(parentRoot, "layouts"));
+        File.WriteAllText(Path.Combine(childRoot, "theme.yaml"), """
+            name: child
+            extends: parent
+            """);
+        File.WriteAllText(Path.Combine(parentRoot, "theme.yaml"), """
+            name: parent
+            """);
 
-        var theme = new ThemeConfig { Name = "child", Extends = "parent" };
-        var result = ThemePathResolver.Resolve(_rootDir, theme, _logger);
+        var result = ThemeBootstrapper.Bootstrap(CreateConfig("child"), _rootDir, _logger);
 
         Assert.NotNull(result.ParentThemeRoot);
         Assert.EndsWith(Path.Combine("themes", "parent"), result.ParentThemeRoot);
     }
+
+    [Fact]
+    public void Bootstrap_Should_ThrowConfigException_When_ManifestExtendsParentManifestMissing()
+    {
+        var childRoot = Path.Combine(_rootDir, "themes", "child");
+        var parentRoot = Path.Combine(_rootDir, "themes", "parent");
+        Directory.CreateDirectory(Path.Combine(childRoot, "layouts"));
+        Directory.CreateDirectory(Path.Combine(parentRoot, "layouts"));
+        File.WriteAllText(Path.Combine(childRoot, "theme.yaml"), """
+            name: child
+            extends: parent
+            """);
+
+        var ex = Assert.Throws<ConfigException>(() => ThemeBootstrapper.Bootstrap(CreateConfig("child"), _rootDir, _logger));
+
+        Assert.Contains("parent theme manifest was not found", ex.Message, StringComparison.Ordinal);
+    }
+
+    private static AppConfig CreateConfig(string themeName) => new()
+    {
+        Site = new SiteConfig { Name = "test", Title = "Test" },
+        Content = TestContent.Markdown(),
+        Theme = new ThemeConfig { Name = themeName }
+    };
 
     private sealed class CapturingLogger : ILogger
     {

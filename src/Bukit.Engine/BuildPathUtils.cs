@@ -104,13 +104,6 @@ public static class BuildPathUtils
             userLayoutsDir = null;
         }
 
-        if (!string.IsNullOrWhiteSpace(theme.Extends))
-        {
-            var parentTheme = new ThemeConfig { Name = theme.Extends };
-            var (parentLayouts, parentAssets, parentStatic) = ResolveThemeDirInternal(rootDir, parentTheme);
-            return (childLayouts, childAssets, childStatic, parentLayouts, parentAssets, parentStatic, userLayoutsDir);
-        }
-
         return (childLayouts, childAssets, childStatic, null, null, null, userLayoutsDir);
     }
 

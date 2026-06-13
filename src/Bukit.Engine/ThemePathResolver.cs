@@ -1,12 +1,12 @@
 using Bukit.Config;
 using Bukit.Shared;
+using Bukit.Theme;
 
 namespace Bukit.Engine;
 
 internal sealed record ResolvedThemePaths(
     string ThemeName,
     string ThemeRoot,
-    bool IsRemote,
     string LayoutsDir,
     string AssetsDir,
     string StaticDir,
@@ -18,11 +18,8 @@ internal sealed record ResolvedThemePaths(
 
 internal static class ThemePathResolver
 {
-    internal static ResolvedThemePaths Resolve(string rootDir, ThemeConfig theme, ILogger logger, IGitRunner? gitRunner = null)
+    internal static ResolvedThemePaths Resolve(string rootDir, ThemeConfig theme, ILogger logger)
     {
-        string? resolvedThemeRoot = null;
-        var isRemote = false;
-
         if (!string.IsNullOrWhiteSpace(theme.Name) &&
             !ThemeNameSanitizer.TrySanitize(theme.Name, out _, out var nameError))
         {
@@ -31,58 +28,15 @@ internal static class ThemePathResolver
                 DiagnosticCode.ConfigPathTraversal);
         }
 
-        if (!string.IsNullOrWhiteSpace(theme.Source))
-        {
-            var themesCacheDir = Path.Combine(rootDir, ".cache", "themes");
-            Directory.CreateDirectory(themesCacheDir);
-            var resolved = ThemeSourceManager.Resolve(theme.Source, themesCacheDir, msg => logger.Warn(msg), gitRunner);
-            if (resolved is not null)
-            {
-                resolvedThemeRoot = string.IsNullOrWhiteSpace(theme.Name)
-                    ? resolved.ThemeRoot
-                    : Path.Combine(resolved.ThemeRoot, theme.Name);
-                isRemote = true;
-            }
-        }
-
-        var hasTheme = !string.IsNullOrWhiteSpace(theme.Name) || isRemote;
+        var hasTheme = !string.IsNullOrWhiteSpace(theme.Name);
         var themeName = theme.Name ?? "default";
         var themeRoot = hasTheme
-            ? (resolvedThemeRoot ?? Path.Combine(rootDir, "themes", themeName))
+            ? Path.Combine(rootDir, "themes", themeName)
             : rootDir;
 
         var (layoutsDir, assetsDir, staticDir) = ResolveThemeDirs(rootDir, theme, themeRoot, hasTheme);
-
-        string? parentThemeRoot = null;
-        string? parentLayoutsDir = null;
-        string? parentAssetsDir = null;
-        string? parentStaticDir = null;
-
-        if (!string.IsNullOrWhiteSpace(theme.Extends))
-        {
-            if (!ThemeNameSanitizer.TrySanitize(theme.Extends, out var safeExtends, out var extendsError))
-            {
-                logger.Warn($"theme.extends '{theme.Extends}' rejected: {extendsError}. Parent theme will not be loaded.");
-            }
-            else
-            {
-                parentThemeRoot = Path.Combine(rootDir, "themes", safeExtends);
-                if (isRemote)
-                {
-                    var remoteSibling = Path.Combine(Path.GetDirectoryName(themeRoot)!, safeExtends);
-                    if (Directory.Exists(remoteSibling))
-                    {
-                        parentThemeRoot = remoteSibling;
-                    }
-                }
-
-                var parentTheme = new ThemeConfig { Name = safeExtends };
-                var (pLayouts, pAssets, pStatic) = ResolveThemeDirs(rootDir, parentTheme, parentThemeRoot, true);
-                parentLayoutsDir = pLayouts;
-                parentAssetsDir = pAssets;
-                parentStaticDir = pStatic;
-            }
-        }
+        var (parentThemeRoot, parentLayoutsDir, parentAssetsDir, parentStaticDir) =
+            ResolveParentThemeDirs(rootDir, themeRoot, hasTheme);
 
         var userLayoutsDir = Path.Combine(rootDir, "layouts");
         if (!Directory.Exists(userLayoutsDir))
@@ -93,7 +47,6 @@ internal static class ThemePathResolver
         return new ResolvedThemePaths(
             themeName,
             themeRoot,
-            isRemote,
             layoutsDir,
             assetsDir,
             staticDir,
@@ -128,5 +81,34 @@ internal static class ThemePathResolver
             : BuildPathUtils.MakeAbsolute(rootDir, theme.Static, enforceWithinRoot: true);
 
         return (layouts, assets, stat);
+    }
+
+    private static (string? ThemeRoot, string? LayoutsDir, string? AssetsDir, string? StaticDir) ResolveParentThemeDirs(
+        string rootDir,
+        string themeRoot,
+        bool hasTheme)
+    {
+        if (!hasTheme)
+        {
+            return (null, null, null, null);
+        }
+
+        var manifest = ThemeManifestLoader.Load(themeRoot, required: false);
+        if (manifest is null || string.IsNullOrWhiteSpace(manifest.Extends))
+        {
+            return (null, null, null, null);
+        }
+
+        if (!ThemeNameSanitizer.TrySanitize(manifest.Extends, out var safeExtends, out var extendsError))
+        {
+            throw new ConfigException(
+                $"theme.yaml extends '{manifest.Extends}' is invalid: {extendsError}",
+                DiagnosticCode.ConfigPathTraversal);
+        }
+
+        var parentThemeRoot = Path.Combine(rootDir, "themes", safeExtends);
+        var parentTheme = new ThemeConfig { Name = safeExtends };
+        var (parentLayoutsDir, parentAssetsDir, parentStaticDir) = ResolveThemeDirs(rootDir, parentTheme, parentThemeRoot, hasTheme: true);
+        return (parentThemeRoot, parentLayoutsDir, parentAssetsDir, parentStaticDir);
     }
 }

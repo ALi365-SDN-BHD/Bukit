@@ -198,8 +198,7 @@ internal static class SiteDefaultsApplier
             Branch = ConfigYamlHelpers.GetOptionalString(deployNode, "branch") ?? "gh-pages",
             Message = ConfigYamlHelpers.GetOptionalString(deployNode, "message") ?? "bukit deploy",
             Cname = ConfigYamlHelpers.GetOptionalString(deployNode, "cname"),
-            KeepHistory = ConfigYamlHelpers.GetOptionalBool(deployNode, "keepHistory") ?? false,
-            Options = ConfigYamlHelpers.ReadObjectMap(deployNode)
+            KeepHistory = ConfigYamlHelpers.GetOptionalBool(deployNode, "keepHistory") ?? false
         };
     }
 

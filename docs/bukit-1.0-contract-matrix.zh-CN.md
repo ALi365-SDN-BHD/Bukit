@@ -60,9 +60,10 @@
 | `theme.yaml` 必填字段（name/version/engine） | `GA-locked` | 必填 | 缺失 rejected + BKT-0100 | ValidateThemeYaml 测试 |
 | `theme.yaml` version 字段 | `GA-locked` | 必填，semver | 无效 rejected + BKT-0100 | ValidateThemeYaml 测试 |
 | `requires_bukit` / engine range | `GA-locked` | 必填 | 不兼容 rejected + BKT-0100 | ValidateThemeYaml 测试 |
-| `extends` 主题继承 | `GA-locked` | 允许 | 继承链断裂 rejected | ThemeManifestLoader 测试 |
+| `theme.yaml extends` 本地主题继承 | `GA-locked` | 父主题必须已存在于本地 `themes/<name>` 且含 `theme.yaml` | 非法父主题名/继承链断裂 rejected | ThemeBootstrapper 测试 |
 | Starter theme | `GA-locked` | 官方信任样板 | N/A | smoke.sh 通过 |
-| Remote theme source/lock | `GA-limited` | 远程获取与 lock 行为稳定 | 无 lock 时 warning | ThemeSourceManager 测试 |
+| `site.yaml theme.source` / `theme.extends` | **Removed** | 不允许 | unknown field rejected | ConfigLoader 测试 |
+| Remote theme source/lock | `Experimental` | 仅 Labs/tooling 获取并安装为本地主题 | Core 不 clone/lock/联网 | CoreBoundary 测试 |
 | Theme registry/search/install 生态 | `Experimental` | 不承诺生态可用性 | N/A | N/A |
 | 无 `theme.yaml` 主题 | **Removed** | 不允许 | rejected + BKT-0100 | ValidateThemeYaml 测试 |
 

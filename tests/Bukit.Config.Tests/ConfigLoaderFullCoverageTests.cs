@@ -248,7 +248,6 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
                     dir: content
             theme:
               name: my-custom-theme
-              source: "https://example.com/themes.git@v1.2.3"
               layouts: _layouts
               assets: _assets
               static: public
@@ -259,12 +258,55 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         var config = ConfigLoader.Load(path);
 
         Assert.Equal("my-custom-theme", config.Theme.Name);
-        Assert.Equal("https://example.com/themes.git@v1.2.3", config.Theme.Source);
         Assert.Equal("_layouts", config.Theme.Layouts);
         Assert.Equal("_assets", config.Theme.Assets);
         Assert.Equal("public", config.Theme.Static);
         Assert.Equal("pages/static.html", config.Theme.StaticTemplate);
         Assert.Equal("strict", config.Theme.ComponentValidation);
+    }
+
+    [Fact]
+    public void Load_ThemeSource_ThrowsUnknownField()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            theme:
+              source: "https://example.com/themes.git@v1.2.3"
+        """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Contains("Unknown config field 'theme.source'.", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_SiteLevelThemeExtends_ThrowsUnknownField()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            theme:
+              extends: base-theme
+        """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Contains("Unknown config field 'theme.extends'.", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

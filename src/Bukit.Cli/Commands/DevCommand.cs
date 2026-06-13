@@ -133,12 +133,6 @@ public static class DevCommand
         {
             var themeDir = Path.Combine(rootDir, "themes", config.Theme.Name);
             if (Directory.Exists(themeDir)) dirs.Add(themeDir);
-
-            if (!string.IsNullOrWhiteSpace(config.Theme.Extends))
-            {
-                var parentDir = Path.Combine(rootDir, "themes", config.Theme.Extends);
-                if (Directory.Exists(parentDir)) dirs.Add(parentDir);
-            }
         }
 
         void AddIfNotUnderTheme(string relPath)
