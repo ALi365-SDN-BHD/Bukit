@@ -26,24 +26,6 @@
 
   <ItemGroup>
     <Compile Include="$(IntermediateOutputPath)CliBuildInfo.g.cs" />
-    <Compile Remove="Commands\Clone*.cs" />
-    <Compile Remove="Commands\Notion*.cs" />
-    <Compile Remove="Commands\IntentCommand.cs" />
-    <Compile Remove="Intent\**\*.cs" />
-    <Compile Remove="Commands\VisualCommand.cs" />
-    <Compile Remove="Commands\WebhookCommand.cs" />
-    <Compile Remove="Commands\DataCommand.cs" />
-    <Compile Remove="Commands\Theme*.cs" />
-    <Compile Remove="Commands\WizardPresets.cs" />
-    <Compile Remove="Commands\InitCommand.cs" />
-    <Compile Remove="Commands\TemplateCommand.cs" />
-    <Compile Remove="Commands\StarterThemeScaffold.cs" />
-    <Compile Remove="Commands\TemplateScope.cs" />
-    <Compile Remove="Commands\TemplateSnippets.cs" />
-    <Compile Remove="Commands\PngImageReader.cs" />
-    <Compile Remove="Commands\ImportCommand.cs" />
-    <Compile Remove="Commands\ImportSeed*.cs" />
-    <Compile Remove="Commands\PluginCommand.cs" />
   </ItemGroup>
 
   <ItemGroup>

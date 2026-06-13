@@ -221,13 +221,15 @@ internal static class ProviderValidators
 
     internal static void ValidateDeployConfig(DeployConfig deploy)
     {
-        if (!string.IsNullOrWhiteSpace(deploy.Provider))
+        if (string.IsNullOrWhiteSpace(deploy.Provider))
         {
-            var provider = deploy.Provider.Trim().ToLowerInvariant();
-            if (provider is not ("github-pages"))
-            {
-                throw new ConfigException("deploy.provider must be 'github-pages' in Bukit 1.0.", DiagnosticCode.ConfigInvalidValue);
-            }
+            throw new ConfigException("deploy.provider is required when deploy section is present. Bukit 1.0 supports only 'github-pages'.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        var provider = deploy.Provider.Trim().ToLowerInvariant();
+        if (provider is not ("github-pages"))
+        {
+            throw new ConfigException("deploy.provider must be 'github-pages' in Bukit 1.0.", DiagnosticCode.ConfigInvalidValue);
         }
 
         if (!string.IsNullOrWhiteSpace(deploy.Branch) && deploy.Branch.Contains('/'))

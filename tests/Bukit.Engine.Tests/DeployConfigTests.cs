@@ -17,11 +17,11 @@ public sealed class DeployConfigTests
     }
 
     [Fact]
-    public void Validate_DefaultDeployConfig_Passes()
+    public void Validate_DeployWithoutProvider_Throws()
     {
         var config = ValidConfig(c => c with { Deploy = new DeployConfig() });
-        var ex = Record.Exception(() => ConfigValidator.Validate(config));
-        Assert.Null(ex);
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("deploy.provider is required when deploy section is present.", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class DeployConfigTests
     [Fact]
     public void Validate_DeployWithBranchSlash_Throws()
     {
-        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Branch = "feature/pages" } });
+        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Provider = "github-pages", Branch = "feature/pages" } });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
         Assert.Contains("deploy.branch", ex.Message);
     }
@@ -68,7 +68,7 @@ public sealed class DeployConfigTests
     [Fact]
     public void Validate_DeployWithInvalidDomain_Throws()
     {
-        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Cname = "not a domain!" } });
+        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Provider = "github-pages", Cname = "not a domain!" } });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
         Assert.Contains("deploy.cname", ex.Message);
     }
@@ -76,7 +76,7 @@ public sealed class DeployConfigTests
     [Fact]
     public void Validate_DeployWithLongMessage_Throws()
     {
-        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Message = new string('x', 5000) } });
+        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Provider = "github-pages", Message = new string('x', 5000) } });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
         Assert.Contains("deploy.message", ex.Message);
     }
@@ -84,7 +84,7 @@ public sealed class DeployConfigTests
     [Fact]
     public void Validate_DeployBranchEmpty_Passes()
     {
-        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Branch = "" } });
+        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Provider = "github-pages", Branch = "" } });
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);
     }
@@ -92,7 +92,7 @@ public sealed class DeployConfigTests
     [Fact]
     public void Validate_DeployBranchLetters_Passes()
     {
-        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Branch = "gh-pages" } });
+        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Provider = "github-pages", Branch = "gh-pages" } });
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);
     }
@@ -100,7 +100,7 @@ public sealed class DeployConfigTests
     [Fact]
     public void Validate_DeployCnameCustomDomain_Passes()
     {
-        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Cname = "blog.example.co.uk" } });
+        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Provider = "github-pages", Cname = "blog.example.co.uk" } });
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);
     }
@@ -108,7 +108,7 @@ public sealed class DeployConfigTests
     [Fact]
     public void Validate_DeployCnameSubdomain_Passes()
     {
-        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Cname = "www.example.com" } });
+        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Provider = "github-pages", Cname = "www.example.com" } });
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);
     }

@@ -14,7 +14,7 @@ internal static class ThemeTemplateResource
 
     private static void LoadEmbeddedResources()
     {
-        var assembly = Assembly.GetExecutingAssembly();
+        var assembly = typeof(Bukit.Cli.BukitCliSpecs).Assembly;
         var resourceNames = assembly.GetManifestResourceNames();
         const string prefix = "Bukit.Cli.Resources.StarterTheme.";
         foreach (var name in resourceNames)

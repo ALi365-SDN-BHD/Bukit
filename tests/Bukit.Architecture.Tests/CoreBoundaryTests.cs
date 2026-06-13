@@ -46,6 +46,7 @@ public sealed class CoreBoundaryTests
             "Bukit.Cli.Commands.DataCommand",
             "Bukit.Cli.Commands.ThemeCommand",
             "Bukit.Cli.Commands.ThemeInstallCommand",
+            "Bukit.Cli.Commands.ThemePackCommand",
             "Bukit.Cli.Commands.ThemeRegistryCommand",
             "Bukit.Cli.Commands.PluginCommand"
         };
@@ -74,9 +75,11 @@ public sealed class CoreBoundaryTests
     }
 
     [Fact]
-    public void DeployProvider_AllowsEmptyOrGitHubPagesOnly()
+    public void DeployProvider_RequiresExplicitGitHubPagesWhenDeploySectionPresent()
     {
-        ConfigValidator.Validate(CreateConfig(provider: null));
+        var missingProvider = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(CreateConfig(provider: null)));
+        Assert.Contains("deploy.provider is required when deploy section is present.", missingProvider.Message, StringComparison.Ordinal);
+
         ConfigValidator.Validate(CreateConfig(provider: "github-pages"));
         ConfigValidator.Validate(CreateConfig(provider: "GitHub-Pages"));
 

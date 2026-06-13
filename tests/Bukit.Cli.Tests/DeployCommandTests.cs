@@ -63,4 +63,54 @@ public sealed class DeployCommandTests
             }
         }
     }
+
+    [Fact]
+    public async Task RunAsync_UnsupportedProvider_ReturnsParameterError()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-command-" + Guid.NewGuid().ToString("N"));
+        var originalError = Console.Error;
+        var writer = new StringWriter();
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            var siteYaml = Path.Combine(root, "site.yaml");
+            File.WriteAllText(siteYaml, """
+            site:
+              name: test
+              title: Test
+            content:
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
+            deploy:
+              provider: custom
+            """);
+
+            Console.SetError(writer);
+
+            var exitCode = await DeployCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = siteYaml,
+                    ["--dry-run"] = "true",
+                    ["--skip-build"] = "true"
+                },
+                Array.Empty<string>()));
+
+            Assert.Equal(2, exitCode);
+            Assert.Contains("deploy.provider must be 'github-pages' in Bukit 1.0.", writer.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
 }
