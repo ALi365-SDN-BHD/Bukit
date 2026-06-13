@@ -1,4 +1,0 @@
-name: child
-display_name: Child Theme
-version: 1.0.0
-extends: parent

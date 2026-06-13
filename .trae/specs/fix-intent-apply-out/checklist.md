@@ -1,8 +1,0 @@
-- [x] `apply` subcommand spec declares `--out` and `--root-dir` options
-- [x] `validate` subcommand spec declares `--out` and `--root-dir` options
-- [x] `intent apply --out custom.yaml` writes to custom.yaml, not root site.yaml
-- [x] `intent apply` without --out writes to site.yaml (default preserved)
-- [x] `intent validate --out custom.yaml` resolves root-dir correctly (spec declares options)
-- [x] CLI tests pass for intent apply/validate --out behavior (12 passed, 0 failed)
-- [x] `smoke.sh` includes `test -f "$intent_out"` after intent apply
-- [x] `bash scripts/smoke.sh Release` passes — **Smoke OK**

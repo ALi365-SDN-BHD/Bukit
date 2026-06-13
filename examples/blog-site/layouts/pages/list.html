@@ -1,9 +1,0 @@
-{% layout "layouts/base.html" %}
-<h1>Blog</h1>
-{{ for p in pages }}
-<article>
-<h2><a href="{{ p.url }}">{{ p.title }}</a></h2>
-<time>{{ p.publish_date }}</time>
-<p>{{ p.summary }}</p>
-</article>
-{{ end }}

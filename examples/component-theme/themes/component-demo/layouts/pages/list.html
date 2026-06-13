@@ -1,9 +1,0 @@
-{% layout "base.html" %}
-
-<h1>Content</h1>
-
-{{ for p in pages }}
-  <div>
-    <a href="{{ p.url }}">{{ p.title }}</a>
-  </div>
-{{ end }}

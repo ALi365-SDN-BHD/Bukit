@@ -1,4 +1,0 @@
-- [x] `RoutePathBuilder.BuildOutputPathFromUrl` 不再包含 `Replace('/', Path.DirectorySeparatorChar)` 调用
-- [x] `RoutePathBuilderTests` 中 `BuildOutputPathFromUrl_DefaultEncoding` 和 `OutputPathEncoding_PreservesAsciiChars` 直接使用 `/` 比较
-- [x] `dotnet test tests/Bukit.Routing.Tests/` 全部 23 个测试通过
-- [x] `dotnet build bukit.slnx -c Release -warnaserror` 无错误

@@ -1,5 +1,0 @@
-- [x] ProtocolEchoPlugin "env" mode uses `JsonSerializer.Serialize` for inner JSON object
-- [x] `projectRoot` and `outputDir` appear properly JSON-escaped in the `text` field
-- [x] `text` field content is valid JSON on all platforms (parsable by `JsonDocument.Parse`)
-- [x] ExternalProtocolPluginTests uses `JsonDocument.Parse` + `Assert.Equal` for all assertions
-- [x] `dotnet test tests/Bukit.Engine.Tests -c Release --filter "DefaultEnvironmentDoesNotExpose"` passes on macOS
