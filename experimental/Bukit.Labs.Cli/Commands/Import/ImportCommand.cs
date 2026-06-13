@@ -1,6 +1,9 @@
-using Bukit.Cli;
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared;
+using Bukit.Cli.Shared.Cli.Binding;
+using Bukit.Config;
+using Bukit.Engine;
 using Bukit.Importing;
+using Bukit.Shared;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Labs.Cli.Commands;
@@ -358,16 +361,21 @@ public static class ImportCommand
             : result.SitePath;
         var siteConfig = Path.Combine(siteDir, "site.yaml");
 
-        var doctorResult = await Bukit.Cli.Commands.DoctorCommand.RunAsync(new CliBoundCommand(new Dictionary<string, string?>
+        var resolved = ConfigPathResolver.Resolve(siteConfig, site: null);
+        var config = ConfigLoader.Load(resolved.FullConfigPath);
+        try
         {
-            ["--config"] = siteConfig
-        }, []));
-        if (doctorResult != 0) return doctorResult;
+            ConfigValidator.Validate(config);
+        }
+        catch (ConfigException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
 
-        return await Bukit.Cli.Commands.BuildCommand.RunAsync(new CliBoundCommand(new Dictionary<string, string?>
-        {
-            ["--config"] = siteConfig
-        }, []));
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Warn));
+        await engine.BuildAsync(config, resolved.RootDir, new ConfigOverrides { IsCI = true });
+        return 0;
     }
 
     private static int Unknown(string sub)

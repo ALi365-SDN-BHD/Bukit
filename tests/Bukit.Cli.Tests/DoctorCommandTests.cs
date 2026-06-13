@@ -1,5 +1,5 @@
 using System.Text;
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Tests;
 using Bukit.Shared;

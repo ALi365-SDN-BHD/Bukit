@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 

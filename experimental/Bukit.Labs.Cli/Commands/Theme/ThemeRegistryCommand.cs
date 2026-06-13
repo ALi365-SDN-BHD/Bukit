@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
-using Bukit.Cli;
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared;
+using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Shared;
 
 namespace Bukit.Labs.Cli.Commands;

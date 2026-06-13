@@ -1,7 +1,7 @@
 using System.Text;
-using Bukit.Cli.Cli.Metadata;
+using Bukit.Cli.Shared.Cli.Metadata;
 
-namespace Bukit.Cli.Cli.Rendering;
+namespace Bukit.Cli.Shared.Cli.Rendering;
 
 public static class CliHelpRenderer
 {

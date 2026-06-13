@@ -1,8 +1,8 @@
 using System.Linq;
-using Bukit.Cli.Cli.Binding;
-using Bukit.Cli.Cli.Metadata;
+using Bukit.Cli.Shared.Cli.Binding;
+using Bukit.Cli.Shared.Cli.Metadata;
 
-namespace Bukit.Cli.Cli.Parsing;
+namespace Bukit.Cli.Shared.Cli.Parsing;
 
 public static class CliParser
 {

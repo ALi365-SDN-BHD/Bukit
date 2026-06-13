@@ -1,6 +1,6 @@
-using Bukit.Cli.Cli.Metadata;
+using Bukit.Cli.Shared.Cli.Metadata;
 
-namespace Bukit.Cli.Cli.Binding;
+namespace Bukit.Cli.Shared.Cli.Binding;
 
 public static class CliBoundCommandFactory
 {

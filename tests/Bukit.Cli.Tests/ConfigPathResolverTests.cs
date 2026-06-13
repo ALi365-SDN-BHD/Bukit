@@ -1,3 +1,4 @@
+using Bukit.Cli.Shared;
 using Bukit.Shared;
 using Xunit;
 

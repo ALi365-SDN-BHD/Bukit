@@ -1,4 +1,4 @@
-namespace Bukit.Cli.Cli.Binding;
+namespace Bukit.Cli.Shared.Cli.Binding;
 
 public sealed class CliBoundCommand
 {

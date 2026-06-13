@@ -1,6 +1,6 @@
 using System.Text;
-using Bukit.Cli;
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared;
+using Bukit.Cli.Shared.Cli.Binding;
 using Scriban;
 
 namespace Bukit.Labs.Cli.Commands;

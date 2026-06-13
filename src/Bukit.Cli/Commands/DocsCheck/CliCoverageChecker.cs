@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Bukit.Cli.Cli.Metadata;
+using Bukit.Cli.Shared.Cli.Metadata;
 
 namespace Bukit.Cli.Commands.DocsCheck;
 

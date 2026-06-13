@@ -1,5 +1,5 @@
-using Bukit.Cli;
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared;
+using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Shared.Notion;
 using System.Net.Http.Headers;
 using System.Text;

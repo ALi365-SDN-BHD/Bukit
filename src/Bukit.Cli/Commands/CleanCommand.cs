@@ -1,4 +1,5 @@
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared;
+using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Config;
 
 namespace Bukit.Cli.Commands;

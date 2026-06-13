@@ -14,7 +14,8 @@ public class DependencyMatrixTests
     private static readonly Assembly ContentAssembly = typeof(Bukit.Content.IContentProvider).Assembly;
     private static readonly Assembly RenderingAssembly = typeof(Bukit.Rendering.SiteModel).Assembly;
     private static readonly Assembly EngineAssembly = typeof(Bukit.Engine.SiteEngine).Assembly;
-    private static readonly Assembly CliAssembly = typeof(Bukit.Cli.ConfigPathResolver).Assembly;
+    private static readonly Assembly CliSharedAssembly = typeof(Bukit.Cli.Shared.ConfigPathResolver).Assembly;
+    private static readonly Assembly CliAssembly = typeof(Bukit.Cli.BukitCliSpecs).Assembly;
     private static readonly Assembly LabsCliAssembly = typeof(Bukit.Labs.Cli.LabsCliAssemblyMarker).Assembly;
 
     // ── Layer isolation ──────────────────────────────────────────
@@ -26,6 +27,17 @@ public class DependencyMatrixTests
             .ShouldNot()
             .HaveDependencyOnAny(["Bukit.Config", "Bukit.Engine.", "Bukit.Cli",
                 "Bukit.Content", "Bukit.Rendering", "Bukit.Routing"])
+            .GetResult()
+            .ShouldBeSuccessful();
+    }
+
+    [Fact]
+    public void CliShared_MustOnlyDependOn_Shared()
+    {
+        Types.InAssembly(CliSharedAssembly)
+            .ShouldNot()
+            .HaveDependencyOnAny(["Bukit.Config", "Bukit.Engine.", "Bukit.Content",
+                "Bukit.Rendering", "Bukit.Routing", "Bukit.Cli.Commands", "Bukit.Labs"])
             .GetResult()
             .ShouldBeSuccessful();
     }
@@ -124,13 +136,27 @@ public class DependencyMatrixTests
     }
 
     [Fact]
-    public void LabsCli_MayDependOn_CoreCli_AndImporting()
+    public void CliAndLabsCli_MustDependOn_CliShared()
+    {
+        Assert.Contains(CliSharedAssembly.GetName().Name, CliAssembly.GetReferencedAssemblies().Select(a => a.Name));
+        Assert.Contains(CliSharedAssembly.GetName().Name, LabsCliAssembly.GetReferencedAssemblies().Select(a => a.Name));
+    }
+
+    [Fact]
+    public void LabsCli_MustNotDependOn_CoreCli()
+    {
+        Assert.DoesNotContain(
+            CliAssembly.GetName().Name,
+            LabsCliAssembly.GetReferencedAssemblies().Select(a => a.Name));
+    }
+
+    [Fact]
+    public void LabsCli_MayDependOn_Importing()
     {
         var references = LabsCliAssembly.GetReferencedAssemblies()
             .Select(a => a.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Assert.Contains(CliAssembly.GetName().Name, references);
         Assert.Contains("Bukit.Importing", references);
     }
 
@@ -172,7 +198,7 @@ public class DependencyMatrixTests
         {
             SharedAssembly, ConfigAssembly, AbstractionsAssembly,
             RoutingAssembly, ContentAssembly, RenderingAssembly,
-            EngineAssembly, CliAssembly
+            EngineAssembly, CliSharedAssembly, CliAssembly
         };
 
         foreach (var asm in allAssemblies)

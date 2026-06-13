@@ -1,6 +1,6 @@
 using System.Text;
-using Bukit.Cli;
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared;
+using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Config;
 using Bukit.Engine;
 using Scriban;
@@ -52,11 +52,19 @@ internal static class CloneVerifier
             return 1;
         }
 
-        var buildOptions = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        var resolved = ConfigPathResolver.Resolve(configPath, site: null);
+        var buildConfig = ConfigLoader.Load(resolved.FullConfigPath);
+        var engine = new SiteEngine(new Bukit.Shared.ConsoleLogger(Bukit.Shared.LogLevel.Warn));
+        var buildResult = 0;
+        try
         {
-            ["--config"] = configPath
-        };
-        var buildResult = await Bukit.Cli.Commands.BuildCommand.RunAsync(new CliBoundCommand(buildOptions, Array.Empty<string>()));
+            await engine.BuildAsync(buildConfig, resolved.RootDir, new ConfigOverrides { IsCI = true });
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  Verify build failed: {ex.Message}");
+            buildResult = 1;
+        }
         Console.WriteLine(buildResult == 0 ? "  Verify build: passed" : "  Verify build: failed");
         var sections = command.GetString("--sections") is { } sectionsPath
             ? await CloneInputLoader.LoadSectionsAsync(sectionsPath)

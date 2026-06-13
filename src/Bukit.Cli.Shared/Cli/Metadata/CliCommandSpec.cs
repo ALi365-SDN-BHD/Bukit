@@ -1,4 +1,4 @@
-namespace Bukit.Cli.Cli.Metadata;
+namespace Bukit.Cli.Shared.Cli.Metadata;
 
 public sealed record CliCommandSpec(
     string Name,

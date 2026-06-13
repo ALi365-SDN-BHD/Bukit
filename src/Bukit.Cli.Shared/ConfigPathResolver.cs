@@ -1,6 +1,6 @@
 using Bukit.Shared;
 
-namespace Bukit.Cli;
+namespace Bukit.Cli.Shared;
 
 public sealed record ResolvedConfigPath(string FullConfigPath, string RootDir);
 

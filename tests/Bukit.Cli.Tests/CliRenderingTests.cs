@@ -1,6 +1,6 @@
-using Bukit.Cli.Cli.Metadata;
-using Bukit.Cli.Cli.Parsing;
-using Bukit.Cli.Cli.Rendering;
+using Bukit.Cli.Shared.Cli.Metadata;
+using Bukit.Cli.Shared.Cli.Parsing;
+using Bukit.Cli.Shared.Cli.Rendering;
 using Xunit;
 
 namespace Bukit.Cli.Tests;

@@ -1,7 +1,7 @@
-using Bukit.Cli.Cli.Binding;
-using Bukit.Cli.Cli.Parsing;
+using Bukit.Cli.Shared.Cli.Binding;
+using Bukit.Cli.Shared.Cli.Parsing;
 
-namespace Bukit.Cli.Cli.Metadata;
+namespace Bukit.Cli.Shared.Cli.Metadata;
 
 public sealed record CommandDescriptor(
     CliCommandSpec Spec,

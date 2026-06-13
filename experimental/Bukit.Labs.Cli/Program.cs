@@ -1,4 +1,4 @@
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Labs.Cli.Commands;
 
 if (args.Length == 0 || args[0] is "help" or "--help" or "-h")

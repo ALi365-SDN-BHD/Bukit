@@ -1,4 +1,4 @@
-using Bukit.Cli.Cli.Rendering;
+using Bukit.Cli.Shared.Cli.Rendering;
 
 namespace Bukit.Cli.Commands;
 

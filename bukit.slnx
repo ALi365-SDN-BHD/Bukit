@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Bukit.Cli/Bukit.Cli.csproj" />
+    <Project Path="src/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj" />
     <Project Path="src/Bukit.Config/Bukit.Config.csproj" />
     <Project Path="src/Bukit.Content/Bukit.Content.csproj" />
     <Project Path="src/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj" />

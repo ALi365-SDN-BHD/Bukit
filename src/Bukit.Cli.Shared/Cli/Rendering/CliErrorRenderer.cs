@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bukit.Shared;
-using Bukit.Cli.Cli.Parsing;
+using Bukit.Cli.Shared.Cli.Parsing;
 
-namespace Bukit.Cli.Cli.Rendering;
+namespace Bukit.Cli.Shared.Cli.Rendering;
 
 public static class CliErrorRenderer
 {

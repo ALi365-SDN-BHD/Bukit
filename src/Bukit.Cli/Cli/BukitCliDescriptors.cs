@@ -1,4 +1,4 @@
-using Bukit.Cli.Cli.Metadata;
+using Bukit.Cli.Shared.Cli.Metadata;
 using Bukit.Cli.Commands;
 
 namespace Bukit.Cli;

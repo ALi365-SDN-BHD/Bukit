@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
+using Bukit.Cli.Shared;
 
 namespace Bukit.Labs.Cli.Commands;
 
@@ -14,9 +15,9 @@ internal static class ThemeTemplateResource
 
     private static void LoadEmbeddedResources()
     {
-        var assembly = typeof(Bukit.Cli.BukitCliSpecs).Assembly;
+        var assembly = typeof(ConfigPathResolver).Assembly;
         var resourceNames = assembly.GetManifestResourceNames();
-        const string prefix = "Bukit.Cli.Resources.StarterTheme.";
+        const string prefix = "Bukit.Cli.Shared.Resources.StarterTheme.";
         foreach (var name in resourceNames)
         {
             if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))

@@ -1,4 +1,4 @@
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared.Cli.Binding;
 using Xunit;
 
 namespace Bukit.Cli.Tests;

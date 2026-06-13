@@ -1,6 +1,7 @@
+using Bukit.Cli.Shared;
 using System.Text.Json;
 using Scriban;
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine;

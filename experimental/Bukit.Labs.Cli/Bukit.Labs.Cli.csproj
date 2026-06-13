@@ -10,8 +10,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Cli\Bukit.Cli.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Cli.Shared\Bukit.Cli.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Config\Bukit.Config.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Engine\Bukit.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Bukit.Importing\Bukit.Importing.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.Shared\Bukit.Shared.csproj" />
     <ProjectReference Include="..\..\src\Bukit.Theme\Bukit.Theme.csproj" />
   </ItemGroup>
 

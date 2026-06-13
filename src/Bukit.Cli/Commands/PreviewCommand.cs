@@ -2,9 +2,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
-using Bukit.Cli;
+using Bukit.Cli.Shared;
 using Bukit.Config;
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared.Cli.Binding;
 
 namespace Bukit.Cli.Commands;
 

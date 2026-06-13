@@ -1,7 +1,7 @@
 using System.Formats.Tar;
 using System.IO.Compression;
-using Bukit.Cli;
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared;
+using Bukit.Cli.Shared.Cli.Binding;
 
 namespace Bukit.Labs.Cli.Commands;
 

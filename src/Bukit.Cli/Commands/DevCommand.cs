@@ -1,5 +1,6 @@
+using Bukit.Cli.Shared;
 using System.Diagnostics;
-using Bukit.Cli.Cli.Binding;
+using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Cli.Commands.Dev;
 using Bukit.Config;
 using Bukit.Engine;
