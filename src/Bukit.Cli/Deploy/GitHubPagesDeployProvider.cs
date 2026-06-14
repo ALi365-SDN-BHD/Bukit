@@ -127,29 +127,23 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
 
             try
             {
-                await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "origin", branch);
+                var pushArgs = context.Force
+                    ? new[] { "push", "--force", "origin", branch }
+                    : new[] { "push", "origin", branch };
+                await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, pushArgs[0], pushArgs[1], pushArgs[2], pushArgs[3]);
             }
             catch (Exception pushEx)
             {
-                var pushMsg = pushEx.Message;
-                if (IsNonFastForwardPush(pushMsg))
+                if (!context.Force && IsNonFastForwardPush(pushEx.Message))
                 {
-                    if (!context.Force)
+                    return new DeployResult
                     {
-                        return new DeployResult
-                        {
-                            Success = false,
-                            Error = "Non-fast-forward push rejected. The remote branch has diverged; rerun with --force to overwrite it."
-                        };
-                    }
+                        Success = false,
+                        Error = "Non-fast-forward push rejected. The remote branch has diverged; rerun with --force to overwrite it."
+                    };
+                }
 
-                    logger.Warn("Non-fast-forward push detected. --force was provided; force-pushing to overwrite the remote branch...");
-                    await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "--force", "origin", branch);
-                }
-                else
-                {
-                    throw;
-                }
+                throw;
             }
 
             logger.Info("Deployment successful.");

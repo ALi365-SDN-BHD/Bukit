@@ -64,7 +64,7 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
-    public async Task DeployAsync_NonFastForwardWithForce_RetriesForcePush()
+    public async Task DeployAsync_NonFastForwardWithForce_PushesWithForce()
     {
         using var scope = new GitHubPagesDeployTestScope();
         scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
@@ -76,10 +76,8 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(force: true), CancellationToken.None);
 
         Assert.True(result.Success, result.Error);
-        Assert.Contains(scope.Logger.Warnings, message => message.Contains("--force", StringComparison.Ordinal));
 
         var log = scope.FakeGit.ReadLog();
-        Assert.Contains("push origin gh-pages", log, StringComparison.Ordinal);
         Assert.Contains("push --force origin gh-pages", log, StringComparison.Ordinal);
     }
 
