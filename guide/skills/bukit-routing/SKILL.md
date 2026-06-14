@@ -17,7 +17,7 @@ guide_chapters:
 
 # Bukit Routing
 
-Routing is controlled by content front matter plus `site.collections` and related list-page settings.
+Routing is controlled by content front matter plus `site.collections`, `site.permalinks`, and related list-page settings.
 
 ## Collection Permalinks
 
@@ -32,6 +32,24 @@ site:
 ```
 
 Common tokens include `{slug}`, date parts, language, and collection-aware fields supported by the route builder.
+
+## Global Permalink Fallback
+
+`site.permalinks` provides lightweight global fallback rules by content type when no collection rule matches.
+
+Resolution order is:
+
+1. Front matter route override
+2. `site.collections` rule
+3. `site.permalinks` rule
+
+Example:
+
+```yaml
+site:
+  permalinks:
+    post: "/{year}/{month}/{slug}/"
+```
 
 ## Pagination
 

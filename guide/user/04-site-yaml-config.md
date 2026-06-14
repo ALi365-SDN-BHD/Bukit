@@ -79,10 +79,30 @@ Common fields:
 | `site.timezone` | IANA timezone | `Asia/Kuala_Lumpur` |
 | `site.sitemapMode` | Sitemap mode | `split`, `merged`, `index` |
 | `site.search.mode` | Search mode | `split`, `merged`, `index` |
+| `site.permalinks` | Optional advanced fallback URL rules by content type | `post: "/{year}/{month}/{slug}/"` |
 | `site.feed.formats` | Feed formats | `[rss, atom, json]` |
 | `site.collections` | Route and template rules | see below |
 | `site.menus` | Menu records for templates | `main: [...]` |
 | `site.seo` | SEO and GEO config | see [11](./11-i18n-seo.md) and [17](./17-geo.md) |
+
+## `site.permalinks`
+
+`site.permalinks` is a lightweight global routing branch that applies when a content item does not match a collection rule and has no route override.
+
+```yaml
+site:
+  permalinks:
+    post: "/{year}/{month}/{slug}/"
+    page: "/{type}/{slug}/"
+```
+
+Lookup precedence is:
+
+1. Front matter route override
+2. `site.collections.<type>`
+3. `site.permalinks.<type>` (advanced global fallback)
+
+The pattern supports placeholders such as `{slug}`, `{year}`, `{month}`, `{day}`, `{type}`, and `{collection}`.
 
 ## Collections
 
@@ -261,4 +281,3 @@ bukit deploy --dry-run
 | Notion token missing | Set `NOTION_TOKEN` in the environment |
 | Collection without source assignment | Add `collection: <name>` to relevant content sources |
 | Output path rejected | Use a relative safe path such as `dist` |
-

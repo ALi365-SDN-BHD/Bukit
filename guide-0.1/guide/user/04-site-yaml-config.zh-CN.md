@@ -64,8 +64,6 @@ logging:
 | `site.timezone` | 时区（影响日期展示与一些默认行为） | `Asia/Shanghai` |
 | `site.pluginFailMode` | 插件失败策略 | `strict` / `warn` |
 | `site.plugins` | 插件开关与插件参数 | `sitemap: false` 或 `path-report: { enabled: true, options: {...} }` |
-| `site.externalPlugins` | 外部进程插件配置 | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`。同时支持 `maxStdoutBytes`/`maxStderrBytes`（输出限制）、`allowEnvironment`（环境变量透传）、`timeoutMs`、`capabilities`（沙箱：`emit-outputs` / `derive-pages`）、`options`。 |
-| `site.externalPluginPolicy` | 外部插件安全策略 | `deny` / `warn` / `allow`（默认：`warn`）。`deny` 阻止所有外部插件；`warn` 加载但记录警告；`allow` 静默加载。无效值会导致构建错误（`BKT-0002`）。 |
 | `site.autoSummary` | 未提供 summary 时是否从正文提取摘要 | `true` / `false` |
 | `site.autoSummaryMaxLength` | 自动摘要最大长度（字符数） | `200` |
 | `site.outputPathEncoding` | 输出路径编码策略（处理中文/特殊字符） | `none` / `slug` / `urlencode` / `sanitize` |
@@ -161,7 +159,7 @@ site:
 
 ### site：自定义 URL 结构（Permalinks）
 
-推荐优先使用 `site.collections`，`site.permalinks` 主要用于兼容。
+推荐优先使用 `site.collections`。当内容未命中集合规则时，`site.permalinks` 作为轻量级高级回退规则。
 
 ```yaml
 site:
@@ -337,7 +335,7 @@ content:
 
 它不会影响详情页 `page.content`，只控制列表页中 `pages[*].content` 是否预先带正文：
 
-- `auto`：主题已显式声明需要正文时才带；未声明时再走兼容逻辑
+- `auto`：主题显式声明需要正文时才带；未声明时不带入正文
 - `always`：总是带正文
 - `never`：不带正文，`pages[*].content` 为空字符串
 
@@ -394,7 +392,6 @@ logging:
   level: info
 ```
 
-CI 场景下建议配合 `--log-format json`，便于收集与排查（见：[12-命令行参考](./12-cli-reference.zh-CN.md)）。
 
 ### deploy：部署配置（可选）
 

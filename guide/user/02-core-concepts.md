@@ -23,7 +23,7 @@ The config file controls:
 
 - Site identity: `site.name`, `site.title`, `site.url`, `site.baseUrl`
 - Content inputs: `content.sources`
-- Routing: `site.collections`, `site.permalinks`, filtered lists
+- Routing: `site.collections` (primary), `site.permalinks` (global fallback), filtered lists
 - Build output: `build.output`, `build.clean`, incremental settings
 - Theme lookup: `theme.name`, `theme.layouts`, `theme.assets`, `theme.static`
 - SEO, GEO, feeds, search, taxonomy, and deployment
@@ -114,4 +114,3 @@ bukit seo audit --dir dist
 bukit geo audit --dir dist
 bukit publish audit --dir dist
 ```
-

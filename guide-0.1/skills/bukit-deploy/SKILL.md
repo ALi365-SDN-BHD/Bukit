@@ -72,10 +72,10 @@ bukit deploy --branch pages --message "Release v2.0.0"
 ### CI Mode
 
 ```bash
-bukit deploy --ci --log-format json
+bukit deploy --ci
 ```
 
-Reduces log verbosity and outputs structured logs suitable for CI systems.
+Reduces log verbosity and uses CI mode suitable for CI systems.
 
 ### Full Options Reference
 
@@ -168,14 +168,5 @@ This is usually caused by incorrect `baseUrl`. For project pages, set `baseUrl: 
 
 ## Architecture (for extending)
 
-The deployment system uses a provider interface for extensibility:
-
-```
-IDeployProvider (interface)
-  └── GitHubPagesDeployProvider (current implementation)
-  └── NetlifyDeployProvider (upcoming)
-  └── VercelDeployProvider (upcoming)
-  └── OssDeployProvider (upcoming)
-```
-
-To add a new provider, implement `IDeployProvider` and register it in `DeployCommand`.
+The deployment surface is Core 1.0 stable for GitHub Pages only.
+New providers must be introduced and hardened in Labs, then promoted to Core through normal compatibility review.

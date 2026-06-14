@@ -1,4 +1,4 @@
-# 路由系统（Collections 主路径与兼容规则）
+# 路由系统（Collections 主路径与备选规则）
 
 路由系统负责把 `ContentDocument` 映射为 `RouteInfo(url, outputPath, template)`，供渲染阶段使用。
 

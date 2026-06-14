@@ -95,7 +95,7 @@ CLI (bukit build/doctor/...)
 - 将 `ContentDocument` 转换为 `RouteInfo`（url/outputPath/template）
 - 支持从字段与路由策略读取路由覆盖（route/url/outputPath/template）
 - 支持 `site.permalinks` 自定义 URL 模式（`{year}/{month}/{slug}` 等占位符）
-- 支持 `site.collections` 按集合定义 permalink/template/list 策略（并保留默认兼容规则）
+- 支持 `site.collections` 按集合定义 permalink/template/list 策略（并保留默认路由回退链）
 
 关键入口：
 - `src/Bukit.Routing/RouteGenerator.cs`

@@ -64,7 +64,6 @@ Medan lazim (yang paling kerap diubah oleh pengguna):
 | `site.timezone` | Zon waktu (mempengaruhi paparan tarikh dan beberapa tingkah laku lalai) | `Asia/Shanghai` |
 | `site.pluginFailMode` | Strategi kegagalan plugin | `strict` / `warn` |
 | `site.plugins` | Suis plugin dan parameter plugin | `sitemap: false` atau `path-report: { enabled: true, options: {...} }` |
-| `site.externalPlugins` | Konfigurasi plugin proses luaran | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`. Juga menyokong `maxStdoutBytes`/`maxStderrBytes` (had output), `allowEnvironment` (laluan pemboleh ubah persekitaran), `timeoutMs`, `capabilities` (kotak pasir: `emit-outputs` / `derive-pages`), `options`. |
 | `site.autoSummary` | Sama ada mengekstrak ringkasan daripada kandungan badan apabila `summary` tidak disediakan | `true` / `false` |
 | `site.autoSummaryMaxLength` | Panjang maksimum ringkasan automatik (bilangan aksara) | `200` |
 | `site.outputPathEncoding` | Strategi pengekodan laluan output (mengendalikan aksara Cina/khas) | `none` / `slug` / `urlencode` / `sanitize` |
@@ -160,7 +159,7 @@ site:
 
 ### site: Struktur URL Tersuai (Permalinks)
 
-Disyorkan untuk mengutamakan `site.collections`; `site.permalinks` terutamanya untuk keserasian.
+Disyorkan mengutamakan `site.collections`。Sekiranya kandungan tidak sepadan dengan peraturan collection, `site.permalinks` bertindak sebagai fallback global lanjutan yang ringan.
 
 ```yaml
 site:
@@ -324,7 +323,7 @@ Parameter CLI setara:
 
 Ia tidak mempengaruhi `page.content` halaman butiran; ia hanya mengawal sama ada `pages[*].content` dalam halaman senarai membawa kandungan badan lebih awal:
 
-- `auto`: hanya membawa kandungan badan apabila tema telah menyatakan secara eksplisit bahawa ia diperlukan; jika belum dinyatakan, gunakan logik keserasian
+- `auto`: hanya membawa kandungan badan apabila tema telah menyatakan secara eksplisit bahawa ia diperlukan；jika tidak dinyatakan, kandungan tidak dibawa
 - `always`: sentiasa membawa kandungan badan
 - `never`: tidak membawa kandungan badan; `pages[*].content` ialah rentetan kosong
 
@@ -381,7 +380,6 @@ logging:
   level: info
 ```
 
-Dalam senario CI, disyorkan untuk digabungkan dengan `--log-format json` supaya pengumpulan dan penyelesaian masalah lebih mudah (lihat: [12-Rujukan Baris Perintah](./12-cli-reference.ms.md)).
 
 ### deploy: Konfigurasi Deployment (Pilihan)
 

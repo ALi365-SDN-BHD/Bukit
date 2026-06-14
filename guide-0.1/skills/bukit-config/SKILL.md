@@ -16,7 +16,7 @@ guide_chapters:
 
 ## Overview
 
-`site.yaml` is Bukit's single configuration entry point. Seven top-level nodes: `site`, `content`, `build`, `theme`, `taxonomy`, `logging`, `deploy` (planned). Routing and templates are explicit: content must match `site.collections`, `site.permalinks`, route front matter, or theme `templates.accepts`; otherwise doctor/build fails with an actionable config error.
+`site.yaml` is Bukit's single configuration entry point. Seven top-level nodes: `site`, `content`, `build`, `theme`, `taxonomy`, `logging`, `deploy`. Routing and templates are explicit: content must match `site.collections`, `site.permalinks`, route front matter, or theme `templates.accepts`; otherwise doctor/build fails with an actionable config error.
 
 **REQUIRED SUB-SKILL:** Verify config changes with `bukit build`. CLI commands reference bukit-cli-reference.
 
@@ -38,7 +38,7 @@ guide_chapters:
 | `theme` | Theme configuration | name, layouts, assets, static, params |
 | `taxonomy` | Taxonomy configuration | kinds, pageSize, outputMode, itemFields, pinField |
 | `logging` | Log level | level (debug/info/warn/error) |
-| `deploy` | Deployment configuration (planned — not yet shown in examples) | provider, branch, message, cname, keepHistory |
+| `deploy` | Deployment configuration (GitHub Pages) | provider, branch, message, cname, keepHistory |
 
 ## Scenario Templates
 
@@ -383,8 +383,6 @@ Example data file (`content/data/tags.yaml`):
 | Field | Type | Default | Description |
 |------|------|--------|------|
 | `level` | string | `info` | Log level: `debug`/`info`/`warn`/`error` |
-
-Use `--log-format json` via CLI to switch to JSON format output.
 
 ## Collection Configuration (site.collections)
 
@@ -914,7 +912,7 @@ SSRF protection is also applied to `CloneCommand` (theme asset downloads) and `S
 | `site.collections.<k>.outputPath` | `site.collections.<k>.permalink` | OutputPath→Permalink |
 | `content.notion.rootPageId` | `content.notion.rootBlockId` | PageId→BlockId |
 | `content.markdown.rootPageId` | `content.markdown.rootBlockId` | PageId→BlockId |
-| `theme.sourceRef` | `theme.source` with `@` version | SourceRef→Source |
+| `theme.sourceRef` | Removed in Core 1.0 | Use Labs docs for theme source workflows |
 | `site.rssMode` | `site.feed.formats` | RssMode→Feed formats |
 | `build.outputPath` | `build.output` | OutputPath→Output |
 

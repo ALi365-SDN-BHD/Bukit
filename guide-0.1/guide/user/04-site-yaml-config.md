@@ -64,8 +64,6 @@ Common fields (the ones users edit most often):
 | `site.timezone` | Time zone (affects date display and some default behavior) | `Asia/Shanghai` |
 | `site.pluginFailMode` | Plugin failure policy | `strict` / `warn` |
 | `site.plugins` | Plugin switches and plugin parameters | `sitemap: false` or `path-report: { enabled: true, options: {...} }` |
-| `site.externalPlugins` | External process plugin config | `my-plugin: { runtime: process, entry: ..., hooks: [...] }`. Also supports `maxStdoutBytes`/`maxStderrBytes` (output limits), `allowEnvironment` (env passthrough), `timeoutMs`, `capabilities` (sandbox: `emit-outputs` / `derive-pages`), `options`. |
-| `site.externalPluginPolicy` | External plugin safety policy | `deny` / `warn` / `allow` (default: `warn`). `deny` blocks all external plugins; `warn` loads them but logs a warning; `allow` loads silently. Invalid values cause a build error (`BKT-0002`). |
 | `site.autoSummary` | Whether to extract a summary from the body when `summary` is not provided | `true` / `false` |
 | `site.autoSummaryMaxLength` | Maximum auto-summary length (characters) | `200` |
 | `site.outputPathEncoding` | Output path encoding strategy (for Chinese/special characters) | `none` / `slug` / `urlencode` / `sanitize` |
@@ -161,7 +159,7 @@ site:
 
 ### site: Custom URL Structure (Permalinks)
 
-Prefer using `site.collections`; `site.permalinks` is mainly for compatibility.
+Prefer using `site.collections`; `site.permalinks` is the advanced global fallback when collection-based matching is unavailable.
 
 ```yaml
 site:
@@ -347,7 +345,7 @@ Equivalent CLI parameters:
 
 It does not affect detail-page `page.content`; it only controls whether `pages[*].content` in list pages carries body content in advance:
 
-- `auto`: include body content only when the theme has explicitly declared that it needs it; if not declared, fall back to compatibility logic
+- `auto`: include body content only when the theme declares that list pages need it
 - `always`: always include body content
 - `never`: do not include body content; `pages[*].content` is an empty string
 
@@ -384,7 +382,6 @@ Complete fields supported by `theme`:
 | Field | Type | Example | Description |
 |---|---|---|---|
 | `name` | String | `alt` | Theme name (corresponds to `themes/<name>/`) |
-| `source` | String | `https://github.com/user/theme.git@v1.0.0` | Remote theme Git URL with optional version tag. Cached locally; subsequent builds do NOT auto-pull (reproducible). A `bukit-theme.lock.json` records the resolved commit. |
 | `params` | Map | `{brand: my-site}` | Custom parameters passed to the theme |
 | `layouts` | String | `layouts` | Custom layout template directory |
 | `assets` | String | `assets` | Custom asset directory (SCSS/JS/images) |
@@ -393,7 +390,6 @@ Complete fields supported by `theme`:
 | `components` | Map | `name: {template, props}` | Template components with props (Scriban `{{ comp.render }}`) |
 | `scss` | Object | `{enabled, entryPoint, outputDir}` | Automatic SCSS → CSS compilation (requires sass installed on the system) |
 | `images` | Object | `{enabled, formats, sizes, quality}` | Automatic image optimization and conversion to WebP/AVIF (requires cwebp/magick) |
-| `extends` | String | Parent theme name | Theme inheritance (child theme cascades parent theme templates, static files, and assets) |
 
 For theme and template variables, see: [08 Themes and Templates](./08-themes-templates.md).
 
@@ -404,7 +400,6 @@ logging:
   level: info
 ```
 
-In CI scenarios, it is recommended to use this with `--log-format json` to make collection and troubleshooting easier (see: [12 CLI Reference](./12-cli-reference.md)).
 
 ### deploy: Deployment Configuration (Optional)
 

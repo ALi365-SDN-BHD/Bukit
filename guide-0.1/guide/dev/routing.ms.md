@@ -14,7 +14,7 @@ site:
       listRoute: /blog/
 ```
 
-## Corak Permalink (Keserasian)
+## Corak Permalink (Jalur Alternatif)
 Pemegang tempat: `{slug}`, `{year}`, `{month}`, `{day}`, `{type}`
 
 Keutamaan (tinggi ke rendah):
