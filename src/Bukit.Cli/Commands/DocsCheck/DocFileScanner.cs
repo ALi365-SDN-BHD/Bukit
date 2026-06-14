@@ -8,7 +8,7 @@ public static class DocFileScanner
 
         foreach (var path in Directory.GetFiles(repoRoot, "README*.md", SearchOption.TopDirectoryOnly))
         {
-            files.Add(new DocFile(path, DocCategory.Readme));
+            files.Add(new DocFile(NormalizePathForOutput(path), DocCategory.Readme));
         }
 
         var guideDir = Path.Combine(repoRoot, "guide");
@@ -16,8 +16,7 @@ public static class DocFileScanner
         {
             foreach (var path in Directory.GetFiles(guideDir, "*.md", SearchOption.AllDirectories))
             {
-                var relative = Path.GetRelativePath(repoRoot, path).Replace('\\', '/');
-                files.Add(new DocFile(path, DocCategory.Guide));
+                files.Add(new DocFile(NormalizePathForOutput(path), DocCategory.Guide));
             }
         }
 
@@ -26,7 +25,7 @@ public static class DocFileScanner
         {
             foreach (var path in Directory.GetFiles(skillsDir, "SKILL.md", SearchOption.AllDirectories))
             {
-                files.Add(new DocFile(path, DocCategory.Skills));
+                files.Add(new DocFile(NormalizePathForOutput(path), DocCategory.Skills));
             }
 
             foreach (var name in new[] { "AGENTS.md", "CLAUDE.md", "GEMINI.md", "copilot-instructions.md" })
@@ -34,19 +33,22 @@ public static class DocFileScanner
                 var agentPath = Path.Combine(skillsDir, name);
                 if (File.Exists(agentPath))
                 {
-                    files.Add(new DocFile(agentPath, DocCategory.Skills));
+                    files.Add(new DocFile(NormalizePathForOutput(agentPath), DocCategory.Skills));
                 }
             }
 
             var readmeMdPath = Path.Combine(skillsDir, "README.md");
             if (File.Exists(readmeMdPath))
             {
-                files.Add(new DocFile(readmeMdPath, DocCategory.Skills));
+                files.Add(new DocFile(NormalizePathForOutput(readmeMdPath), DocCategory.Skills));
             }
         }
 
         return files;
     }
+
+    private static string NormalizePathForOutput(string path)
+        => path.Replace('\\', '/');
 }
 
 public sealed record DocFile(string Path, DocCategory Category);
