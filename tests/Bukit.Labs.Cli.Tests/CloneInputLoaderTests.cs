@@ -3,6 +3,7 @@ using Xunit;
 
 namespace Bukit.Labs.Cli.Tests;
 
+[Collection("Console")]
 public sealed class CloneInputLoaderTests : IDisposable
 {
     private readonly string _tempDir;
