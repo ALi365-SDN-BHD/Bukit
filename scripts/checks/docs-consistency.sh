@@ -33,6 +33,7 @@ required_paths=(
   "bukit.slnx"
   "guide/dev"
   "guide/user"
+  "guide/skills"
 )
 
 root_readmes=(
@@ -110,9 +111,11 @@ while IFS= read -r -d '' file; do
   scan_files+=("$file")
 done < <(find . -maxdepth 1 -type f -name 'README*.md' -print0)
 
-while IFS= read -r -d '' file; do
-  scan_files+=("$file")
-done < <(find guide -type f -name '*.md' -print0)
+for guide_dir in guide/user guide/dev; do
+  while IFS= read -r -d '' file; do
+    scan_files+=("$file")
+  done < <(find "$guide_dir" -type f -name '*.md' -print0)
+done
 
 for file in "${scan_files[@]}"; do
   for token in "${rules[@]}"; do
@@ -131,13 +134,14 @@ done
 for file in "${root_readmes[@]}"; do
   if [ ! -f "$file" ]; then
     doc_error "missing root README: $file"
-    continue
   fi
+done
 
+for file in "${scan_files[@]}"; do
   for token in "${forbidden_root_readme_patterns[@]}"; do
     while IFS=: read -r line_no line_text; do
       [ -z "${line_no:-}" ] && continue
-      doc_error "$file:$line_no contains root README forbidden token '$token'"
+      doc_error "$file:$line_no contains forbidden token '$token'"
     done < <(grep -nF "$token" "$file" || true)
   done
 

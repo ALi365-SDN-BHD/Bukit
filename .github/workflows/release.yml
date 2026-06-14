@@ -125,7 +125,7 @@ jobs:
 
       - name: Package skills
         run: |
-          cd src
+          cd guide
           zip -r ../bukit-skills.zip skills/
 
       - uses: actions/download-artifact@v4

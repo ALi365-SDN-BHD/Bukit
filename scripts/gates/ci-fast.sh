@@ -18,7 +18,7 @@ echo "=== checks: Core CLI script contract ==="
 bash scripts/checks/core-cli-contract.sh
 
 echo "=== checks: skills strict validation ==="
-bash src/skills/scripts/validate-skills-strict.sh
+bash guide/skills/scripts/validate-skills-strict.sh
 
 echo "=== restore ==="
 dotnet restore bukit.slnx
