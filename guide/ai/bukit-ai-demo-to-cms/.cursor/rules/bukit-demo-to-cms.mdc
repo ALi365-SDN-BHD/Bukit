@@ -1,0 +1,56 @@
+---
+description: Bukit AI Demo-to-CMS workflow rules
+globs:
+  - "**/*.html"
+  - "**/*.yaml"
+  - "**/*.yml"
+  - "**/*.json"
+  - "**/*.md"
+alwaysApply: false
+---
+
+# Bukit Demo-to-CMS Rules
+
+When generating or modifying a website intended for Bukit:
+
+1. Use a two-stage process:
+   - Generate a visual, migratable HTML Demo
+   - Convert the confirmed Demo into a Bukit project
+
+2. Every Demo must include:
+   - Independent HTML pages
+   - Local assets under `assets/`
+   - `demo.routes.yaml`
+   - Semantic HTML
+   - Separate list and detail pages
+
+3. Use stable classes:
+   - `article-card`
+   - `company-card`
+   - `service-card`
+   - `faq-item`
+
+4. Use `data-field` markers for content extraction.
+
+5. Convert shared structures into:
+   - `layouts/partials/header.html`
+   - `layouts/partials/nav.html`
+   - `layouts/partials/footer.html`
+
+6. Convert repeated UI into `layouts/components/*.html`.
+
+7. Keep business content out of long-lived templates.
+
+8. Default content workflow:
+   - `--content-source notion`
+   - `--build-source markdown`
+   - `--strict warn`
+
+9. Validate with:
+
+```bash
+bukit doctor --config sites/<site-name>/site.yaml
+bukit build --config sites/<site-name>/site.yaml
+```
+
+10. Review `import-report.md` before completion.
