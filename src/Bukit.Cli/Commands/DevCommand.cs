@@ -10,13 +10,14 @@ namespace Bukit.Cli.Commands;
 
 public static class DevCommand
 {
-    internal static (string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride, bool allowLan) ExtractOptions(CliBoundCommand command)
+    internal static (string? configPath, string? site, string host, int port, int? livereloadPort, bool noWatch, string? outputOverride, bool allowLan) ExtractOptions(CliBoundCommand command)
     {
         return (
             command.GetString("--config"),
             command.GetString("--site"),
             command.GetString("--host") ?? "localhost",
             command.GetInt("--port") ?? 35729,
+            command.GetInt("--livereload-port"),
             command.GetBool("--no-watch"),
             command.GetString("--output"),
             command.GetBool("--allow-lan") || command.GetBool("--public")
@@ -25,12 +26,12 @@ public static class DevCommand
 
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
-        var (configPath, site, host, port, noWatch, outputOverride, allowLan) = ExtractOptions(command);
-        return await RunCoreAsync(configPath, site, host, port, noWatch, outputOverride, allowLan);
+        var (configPath, site, host, port, livereloadPort, noWatch, outputOverride, allowLan) = ExtractOptions(command);
+        return await RunCoreAsync(configPath, site, host, port, livereloadPort, noWatch, outputOverride, allowLan);
     }
 
     private static async Task<int> RunCoreAsync(
-        string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride, bool allowLan)
+        string? configPath, string? site, string host, int port, int? livereloadPort, bool noWatch, string? outputOverride, bool allowLan)
     {
         var logger = new ConsoleLogger(LogLevel.Info);
         if (IsLanExposureHost(host))
@@ -73,9 +74,9 @@ public static class DevCommand
         Console.WriteLine($"[build] done in {sw.ElapsedMilliseconds}ms, serving {outputDir}\n");
 
         using var serverHost = DevServerHost.Start(host, port, logger);
-        var hub = new DevWebSocketHub(logger, new DevWebSocketAccessPolicy(host, serverHost.Port, allowLan));
-        var handler = new DevRequestHandler(outputDir, serverHost.Port,
-            ResolveDisableAnalytics(config.Site.Analytics), logger);
+        var liveReloadPortForPolicy = livereloadPort ?? serverHost.Port;
+        var hub = new DevWebSocketHub(logger, new DevWebSocketAccessPolicy(host, liveReloadPortForPolicy, allowLan));
+        var handler = new DevRequestHandler(outputDir, livereloadPort, ResolveDisableAnalytics(config.Site.Analytics), logger);
 
         var watchedDirs = ResolveWatchDirs(rootDir, config);
         var excludedDirs = ResolveExcludedWatchDirs(rootDir, outputDir, cacheDir);
@@ -97,7 +98,9 @@ public static class DevCommand
         Console.WriteLine($"  dev server: {serverHost.Prefix}");
         if (!noWatch)
         {
-            Console.WriteLine($"  live reload: ws://{host}:{serverHost.Port}/__ws__");
+            var liveReloadPort = livereloadPort ?? serverHost.Port;
+            var wsPrefix = liveReloadPort > 0 ? $":{liveReloadPort}" : string.Empty;
+            Console.WriteLine($"  live reload: ws://{host}{wsPrefix}/__ws__");
             Console.WriteLine($"  watching: {watchedDirs.Count} directorie(s)");
         }
         Console.WriteLine("  Press Ctrl+C to stop.\n");

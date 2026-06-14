@@ -65,6 +65,113 @@ public sealed class DeployCommandTests
     }
 
     [Fact]
+    public async Task RunAsync_DryRunSkipBuildWithNotionSourceWithoutNotionToken_ReturnsZero()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-command-" + Guid.NewGuid().ToString("N"));
+        var originalError = Console.Error;
+        var originalToken = Environment.GetEnvironmentVariable("NOTION_TOKEN");
+        var writer = new StringWriter();
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            var siteYaml = Path.Combine(root, "site.yaml");
+            File.WriteAllText(siteYaml, """
+            site:
+              name: test
+              title: Test
+              url: https://example.com
+            content:
+              sources:
+                - type: notion
+                  name: page
+                  notion:
+                    databaseId: abc
+            deploy:
+              provider: github-pages
+            """);
+
+            Environment.SetEnvironmentVariable("NOTION_TOKEN", null);
+            Console.SetError(writer);
+
+            var exitCode = await DeployCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = siteYaml,
+                    ["--dry-run"] = "true",
+                    ["--skip-build"] = "true"
+                },
+                Array.Empty<string>()));
+
+            Assert.Equal(0, exitCode);
+            var output = writer.ToString();
+            Assert.Contains("--dry-run", output, StringComparison.Ordinal);
+            Assert.Contains("Would deploy", output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("NOTION_TOKEN", originalToken);
+            Console.SetError(originalError);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_DryRunWithoutSkipBuildAndNotionToken_ReturnsConfigError()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-command-" + Guid.NewGuid().ToString("N"));
+        var originalError = Console.Error;
+        var originalToken = Environment.GetEnvironmentVariable("NOTION_TOKEN");
+        var writer = new StringWriter();
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            var siteYaml = Path.Combine(root, "site.yaml");
+            File.WriteAllText(siteYaml, """
+            site:
+              name: test
+              title: Test
+              url: https://example.com
+            content:
+              sources:
+                - type: notion
+                  name: page
+                  notion:
+                    databaseId: abc
+            deploy:
+              provider: github-pages
+            """);
+
+            Environment.SetEnvironmentVariable("NOTION_TOKEN", null);
+            Console.SetError(writer);
+
+            var exitCode = await DeployCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = siteYaml,
+                    ["--dry-run"] = "true"
+                },
+                Array.Empty<string>()));
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("NOTION_TOKEN is required for notion provider", writer.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("NOTION_TOKEN", originalToken);
+            Console.SetError(originalError);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_DryRunWithDeployMissingProvider_ReturnsConfigError()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-command-" + Guid.NewGuid().ToString("N"));

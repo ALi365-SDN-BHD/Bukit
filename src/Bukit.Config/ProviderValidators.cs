@@ -20,7 +20,7 @@ internal static class ProviderValidators
         return null;
     }
 
-    internal static void ValidateNotion(NotionConfig notion, string pathPrefix = "content.notion")
+    internal static void ValidateNotion(NotionConfig notion, string pathPrefix = "content.notion", bool validateToken = true)
     {
         if (string.IsNullOrWhiteSpace(notion.DatabaseId))
         {
@@ -103,10 +103,13 @@ internal static class ProviderValidators
             throw new ConfigException($"{pathPrefix}.cacheDir must be a non-empty string when set.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
-        var token = EnvironmentHelper.GetNotionToken();
-        if (string.IsNullOrWhiteSpace(token))
+        if (validateToken)
         {
-            throw new ConfigException("NOTION_TOKEN is required for notion provider and must come from environment variables.", DiagnosticCode.ConfigRequiredFieldMissing);
+            var token = EnvironmentHelper.GetNotionToken();
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                throw new ConfigException("NOTION_TOKEN is required for notion provider and must come from environment variables.", DiagnosticCode.ConfigRequiredFieldMissing);
+            }
         }
     }
 

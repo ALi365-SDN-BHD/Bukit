@@ -9,16 +9,26 @@ internal sealed class DevRequestHandler
 private const string LivereloadScript =
 """
 <script>
-(function(){const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';const host = location.hostname || 'localhost';const socketHost = host.indexOf(':') >= 0 ? '[' + host + ']' : host;const port = location.port ? ':' + location.port : '';var s=new WebSocket(protocol+socketHost+port+'/__ws__');s.onclose=function(){console.log('[bukit] livereload disconnected, retrying in 1s...');setTimeout(function(){location.reload();},1000);};s.onmessage=function(e){if(e.data==='reload'){console.log('[bukit] change detected, reloading...');location.reload();}};s.onerror=function(){}})();
+(function(){
+const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+const host = location.hostname || 'localhost';
+const socketHost = host.indexOf(':') >= 0 ? '[' + host + ']' : host;
+const configuredPort = "__LIVERELOAD_PORT__";
+const wsPort = configuredPort.length > 0 ? ':' + configuredPort : (location.port ? ':' + location.port : '');
+var s=new WebSocket(protocol+socketHost+wsPort+'/__ws__');
+s.onclose=function(){console.log('[bukit] livereload disconnected, retrying in 1s...');setTimeout(function(){location.reload();},1000);};
+s.onmessage=function(e){if(e.data==='reload'){console.log('[bukit] change detected, reloading...');location.reload();}};
+s.onerror=function(){}
+})();
 </script>
 """;
 
     private readonly string _outputDir;
-    private readonly int _livereloadPort;
+    private readonly int? _livereloadPort;
     private readonly bool _disableAnalytics;
     private readonly ILogger _logger;
 
-    public DevRequestHandler(string outputDir, int livereloadPort, bool disableAnalytics, ILogger logger)
+    public DevRequestHandler(string outputDir, int? livereloadPort, bool disableAnalytics, ILogger logger)
     {
         _outputDir = outputDir ?? throw new ArgumentNullException(nameof(outputDir));
         _livereloadPort = livereloadPort;
@@ -125,9 +135,11 @@ private const string LivereloadScript =
     /// Pure helper exposed for unit tests: injects the livereload script into
     /// <paramref name="html"/> (before <c>&lt;/head&gt;</c> when present, else appended).
     /// </summary>
-    internal static string InjectLivereload(string html, int port)
+    internal static string InjectLivereload(string html, int? livereloadPort = null)
     {
-        var script = LivereloadScript.Replace("__PORT__", port.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        var script = livereloadPort.HasValue
+            ? LivereloadScript.Replace("__LIVERELOAD_PORT__", livereloadPort.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            : LivereloadScript.Replace("__LIVERELOAD_PORT__", string.Empty);
         var idx = html.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
         return idx >= 0 ? html.Insert(idx, script) : html + script;
     }

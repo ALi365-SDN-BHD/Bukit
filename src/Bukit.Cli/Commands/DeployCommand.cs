@@ -12,12 +12,15 @@ public static class DeployCommand
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
+        var skipBuild = command.GetBool("--skip-build");
+        var dryRun = command.GetBool("--dry-run");
+        var force = command.GetBool("--force");
 
         AppConfig config;
         try
         {
             config = ConfigLoader.Load(resolved.FullConfigPath);
-            ConfigValidator.Validate(config);
+            ConfigValidator.Validate(config, new ConfigValidationOptions { ValidateProviderSecrets = !skipBuild });
         }
         catch (ConfigException ex)
         {
@@ -31,10 +34,6 @@ public static class DeployCommand
         }
 
         var deployConfig = config.Deploy ?? new DeployConfig { Provider = "github-pages" };
-
-        var dryRun = command.GetBool("--dry-run");
-        var skipBuild = command.GetBool("--skip-build");
-        var force = command.GetBool("--force");
 
         var cliBaseUrl = command.GetString("--base-url");
         var cliSiteUrl = command.GetString("--site-url");

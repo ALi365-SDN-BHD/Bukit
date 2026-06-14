@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using Xunit;
 
@@ -5,6 +6,21 @@ namespace Bukit.Config.Tests;
 
 public sealed class ConfigJsonSchemaGeneratorTests
 {
+    private static readonly IReadOnlySet<string> AllowedOpenMapObjectSchemaPaths = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "$/properties/site/properties/permalinks",
+        "$/properties/site/properties/collections",
+        "$/properties/site/properties/plugins",
+        "$/properties/theme/properties/params",
+        "$/properties/theme/properties/shortcodes",
+        "$/properties/theme/properties/components",
+        "$/properties/theme/properties/components/additionalProperties/properties/props",
+        "$/properties/site/properties/menus",
+        "$/properties/taxonomy/properties/pinFieldBySource",
+        "$/properties/taxonomy/properties/pinOrderFieldBySource",
+        "$/properties/content/properties/modelSchema/properties/fieldScopes"
+    };
+
     [Fact]
     public void Generate_ReturnsObjectSchemaForAppConfigWithRequiredRoots()
     {
@@ -83,5 +99,93 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.True(taxonomy.TryGetProperty("pinOrderField", out _));
         Assert.True(taxonomy.TryGetProperty("pinFieldBySource", out _));
         Assert.True(taxonomy.TryGetProperty("pinOrderFieldBySource", out _));
+    }
+
+    [Fact]
+    public void Generate_AllObjectSchemasDeclareAdditionalProperties()
+    {
+        var json = ConfigJsonSchemaGenerator.Generate();
+        using var doc = JsonDocument.Parse(json);
+
+        AssertObjectSchemasDeclareAdditionalProperties(doc.RootElement, "$");
+    }
+
+    [Fact]
+    public void Generate_ExplicitlyAllowsDynamicMapLocations()
+    {
+        var json = ConfigJsonSchemaGenerator.Generate();
+        using var doc = JsonDocument.Parse(json);
+        var properties = doc.RootElement.GetProperty("properties");
+
+        var site = properties.GetProperty("site").GetProperty("properties");
+        var permalinks = site.GetProperty("permalinks").GetProperty("additionalProperties");
+        Assert.Equal("string", permalinks.GetProperty("type").GetString());
+
+        var plugins = site.GetProperty("plugins").GetProperty("additionalProperties");
+        Assert.Equal(JsonValueKind.True, plugins.ValueKind);
+
+        var theme = properties.GetProperty("theme").GetProperty("properties");
+        var themeParams = theme.GetProperty("params").GetProperty("additionalProperties");
+        Assert.Equal(JsonValueKind.True, themeParams.ValueKind);
+
+        var shortcodes = theme.GetProperty("shortcodes").GetProperty("additionalProperties");
+        Assert.Equal("string", shortcodes.GetProperty("type").GetString());
+
+        var componentProps = theme.GetProperty("components").GetProperty("additionalProperties")
+            .GetProperty("properties").GetProperty("props")
+            .GetProperty("additionalProperties");
+        Assert.Equal("string", componentProps.GetProperty("type").GetString());
+
+        var menus = site.GetProperty("menus").GetProperty("additionalProperties");
+        Assert.Equal("array", menus.GetProperty("type").GetString());
+        Assert.Equal("object", menus.GetProperty("items").GetProperty("type").GetString());
+
+        var taxonomy = properties.GetProperty("taxonomy").GetProperty("properties");
+        Assert.Equal("string", taxonomy.GetProperty("pinFieldBySource").GetProperty("additionalProperties").GetProperty("type").GetString());
+        Assert.Equal("string", taxonomy.GetProperty("pinOrderFieldBySource").GetProperty("additionalProperties").GetProperty("type").GetString());
+
+        var fieldScopes = properties
+            .GetProperty("content").GetProperty("properties")
+            .GetProperty("modelSchema").GetProperty("properties")
+            .GetProperty("fieldScopes");
+        var fieldScopesAddl = fieldScopes.GetProperty("additionalProperties");
+        Assert.Equal("array", fieldScopesAddl.GetProperty("type").GetString());
+        Assert.Equal("object", fieldScopesAddl.GetProperty("items").GetProperty("type").GetString());
+    }
+
+    private static void AssertObjectSchemasDeclareAdditionalProperties(JsonElement node, string path)
+    {
+        if (node.ValueKind == JsonValueKind.Object)
+        {
+            if (node.TryGetProperty("type", out var type) &&
+                type.ValueKind == JsonValueKind.String &&
+                type.GetString() == "object")
+            {
+                Assert.True(node.TryGetProperty("additionalProperties", out var additionalProperties), $"Object schema at {path} must declare additionalProperties");
+
+                if (!AllowedOpenMapObjectSchemaPaths.Contains(path) &&
+                    additionalProperties.ValueKind != JsonValueKind.False)
+                {
+                    Assert.Fail($"Object schema at {path} must be additionalProperties=false");
+                }
+            }
+
+            foreach (var property in node.EnumerateObject())
+            {
+                AssertObjectSchemasDeclareAdditionalProperties(property.Value, $"{path}/{property.Name}");
+            }
+
+            return;
+        }
+
+        if (node.ValueKind == JsonValueKind.Array)
+        {
+            var index = 0;
+            foreach (var item in node.EnumerateArray())
+            {
+                AssertObjectSchemasDeclareAdditionalProperties(item, $"{path}[{index}]");
+                index++;
+            }
+        }
     }
 }

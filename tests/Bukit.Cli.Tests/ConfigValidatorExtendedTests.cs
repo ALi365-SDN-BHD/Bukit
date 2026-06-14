@@ -207,4 +207,163 @@ version: not-a-version
         }
         finally { TestCleanup.DeleteDirectory(tempDir, true); }
     }
+
+    [Fact]
+    public void ValidateThemeYaml_RejectsUnknownRootField()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "theme.yaml"), """
+name: test
+version: 1.0.0
+engine: bukit
+requires_bukit: ^2.0.0
+""");
+
+            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            Assert.NotNull(result);
+            Assert.Contains(result!, w => w.Contains("requires_bukit"));
+            Assert.Contains(result!, w => w.Contains("unknown field"));
+        }
+        finally { TestCleanup.DeleteDirectory(tempDir, true); }
+    }
+
+    [Fact]
+    public void ValidateThemeYaml_RejectsUnknownSectionField()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "theme.yaml"), """
+name: test
+version: 1.0.0
+engine: bukit
+sections:
+  hero:
+    template: sections/hero.html
+    unknown: should-fail
+""");
+
+            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            Assert.NotNull(result);
+            Assert.Contains(result!, w => w.Contains("theme.yaml.sections.hero"));
+            Assert.Contains(result!, w => w.Contains("unknown field"));
+        }
+        finally { TestCleanup.DeleteDirectory(tempDir, true); }
+    }
+
+    [Fact]
+    public void ValidateThemeYaml_RejectsUnknownComponentField()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "theme.yaml"), """
+name: test
+version: 1.0.0
+engine: bukit
+components:
+  card:
+    template: components/card.html
+    bad: value
+""");
+
+            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            Assert.NotNull(result);
+            Assert.Contains(result!, w => w.Contains("theme.yaml.components.card"));
+            Assert.Contains(result!, w => w.Contains("unknown field"));
+        }
+        finally { TestCleanup.DeleteDirectory(tempDir, true); }
+    }
+
+    [Fact]
+    public void ValidateThemeYaml_RejectsInvalidTemplatePath()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "theme.yaml"), """
+name: test
+version: 1.0.0
+engine: bukit
+sections:
+  hero:
+    template: ../../malicious.html
+""");
+
+            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            Assert.NotNull(result);
+            Assert.Contains(result!, w => w.Contains("has path traversal") || w.Contains("outside theme scope"));
+        }
+        finally { TestCleanup.DeleteDirectory(tempDir, true); }
+    }
+
+    [Fact]
+    public void ValidateThemeYaml_RejectsInvalidExtendsName()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "theme.yaml"), """
+name: test
+version: 1.0.0
+engine: bukit
+extends: ../invalid
+""");
+
+            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            Assert.NotNull(result);
+            Assert.Contains(result!, w => w.Contains("extends") && w.Contains("invalid"));
+        }
+        finally { TestCleanup.DeleteDirectory(tempDir, true); }
+    }
+
+    [Fact]
+    public void ValidateThemeYaml_RejectsNonStringExtends()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "theme.yaml"), """
+name: test
+version: 1.0.0
+engine: bukit
+extends:
+  - parent
+""");
+
+            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            Assert.NotNull(result);
+            Assert.Contains(result!, w => w.Contains("theme.yaml.extends") && w.Contains("must be a string"));
+        }
+        finally { TestCleanup.DeleteDirectory(tempDir, true); }
+    }
+
+    [Fact]
+    public void ValidateThemeYaml_RejectsMissingParentTheme()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "theme.yaml"), """
+name: test
+version: 1.0.0
+engine: bukit
+extends: parent
+""");
+
+            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            Assert.NotNull(result);
+            Assert.Contains(result!, w => w.Contains("not found") || w.Contains("parent theme"));
+        }
+        finally { TestCleanup.DeleteDirectory(tempDir, true); }
+    }
 }

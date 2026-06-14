@@ -51,8 +51,8 @@ public static class ConfigJsonSchemaGenerator
             ("deriveConflictPolicy", EnumSchema("fail", "warn", "last-wins")),
             ("timezone", StringSchema()),
             ("collections", CollectionSchema()),
-            ("permalinks", Obj(("type", "object"))),
-            ("plugins", Obj(("type", "object"))),
+            ("permalinks", StringMapSchema()),
+            ("plugins", Obj(("type", "object"), ("additionalProperties", true))),
             ("feed", FeedSchema()),
             ("sitemapDetail", SitemapDetailSchema()),
             ("pagination", PaginationGlobalSchema()),
@@ -94,8 +94,8 @@ public static class ConfigJsonSchemaGenerator
             ("assets", StringSchema()),
             ("static", StringSchema()),
             ("staticTemplate", StringSchema()),
-            ("params", Obj(("type", "object"))),
-            ("shortcodes", Obj(("type", "object"))),
+            ("params", Obj(("type", "object"), ("additionalProperties", true))),
+            ("shortcodes", StringMapSchema()),
             ("components", Obj(("type", "object"), ("additionalProperties", ComponentDefinitionSchema()))),
             ("scss", ScssSchema()),
             ("images", ImageOptimizationSchema()),
@@ -527,6 +527,15 @@ public static class ConfigJsonSchemaGenerator
                 double d => d,
                 _ => value.ToString()
             };
+        }
+
+        if (
+            obj.TryGetPropertyValue("type", out var type)
+            && type is JsonValue typeValue
+            && typeValue.GetValue<string>() == "object"
+            && !obj.ContainsKey("additionalProperties"))
+        {
+            obj["additionalProperties"] = false;
         }
 
         return obj;

@@ -1,12 +1,19 @@
 using Bukit.Shared;
-using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Config;
 
+public sealed record ConfigValidationOptions
+{
+    public bool ValidateProviderSecrets { get; init; } = true;
+}
+
 public static class ConfigValidator
 {
     public static void Validate(AppConfig config)
+        => Validate(config, new ConfigValidationOptions());
+
+    public static void Validate(AppConfig config, ConfigValidationOptions options)
     {
         I18nValidator.ValidateSite(config.Site);
 
@@ -64,7 +71,7 @@ public static class ConfigValidator
                         throw new ConfigException("content.sources[].notion is required when type is notion.", DiagnosticCode.ConfigRequiredFieldMissing);
                     }
 
-                    ProviderValidators.ValidateNotion(source.Notion, $"{sourcePath}.notion");
+                    ProviderValidators.ValidateNotion(source.Notion, $"{sourcePath}.notion", options.ValidateProviderSecrets);
                     continue;
                 }
 
@@ -216,17 +223,8 @@ public static class ConfigValidator
             else if (!engine.Equals("bukit", StringComparison.OrdinalIgnoreCase))
                 issues.Add($"BKT-0100: theme.yaml: 'engine' must be 'bukit', got '{engine}'.");
 
-            GetStringValue(root, "requires_bukit", out var requires);
-            if (!string.IsNullOrWhiteSpace(requires) &&
-                !requires.StartsWith(">=", StringComparison.Ordinal) &&
-                !requires.StartsWith("^", StringComparison.Ordinal) &&
-                !requires.StartsWith("~", StringComparison.Ordinal))
-                issues.Add($"BKT-0100: theme.yaml: 'requires_bukit' '{requires}' should use semver range like '>=2.0.0'.");
 
-            if (root.Children.TryGetValue(new YamlScalarNode("tags"), out var tagsNode) &&
-                tagsNode is YamlSequenceNode tagsSeq &&
-                tagsSeq.Children.Count == 0)
-                issues.Add("BKT-0100: theme.yaml: 'tags' is an empty list.");
+            ThemeManifestStrictValidator.Validate(root, themeRoot, issues);
         }
         catch (Exception ex)
         {

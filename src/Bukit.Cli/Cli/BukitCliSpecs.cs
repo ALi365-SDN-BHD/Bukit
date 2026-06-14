@@ -90,6 +90,7 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--site", "多站点名"),
                 new CliOptionSpec("--host", "监听地址"),
                 new CliOptionSpec("--port", "监听端口", CliOptionType.Integer, ValueName: "port"),
+                new CliOptionSpec("--livereload-port", "LiveReload WebSocket 端口", CliOptionType.Integer, ValueName: "port"),
                 new CliOptionSpec("--output", "覆盖构建输出目录"),
                 new CliOptionSpec("--no-watch", "禁用文件监控，仅作为静态服务器", CliOptionType.Flag),
                 new CliOptionSpec("--allow-lan", "允许开发服务器监听非本机地址", CliOptionType.Flag),
