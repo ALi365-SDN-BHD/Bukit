@@ -7,17 +7,19 @@ namespace Bukit.Cli.Tests;
 [Collection("Console")]
 public sealed class DocsCheckCommandTests : IDisposable
 {
+    private readonly string _originalDirectory;
     private readonly string _tempDir;
 
     public DocsCheckCommandTests()
     {
+        _originalDirectory = Directory.GetCurrentDirectory();
         _tempDir = Path.Combine(Path.GetTempPath(), "bukit-docs-check-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
     }
 
     public void Dispose()
     {
-        Directory.SetCurrentDirectory("/Users/ali/mydev/Git/Github/Bukit");
+        Directory.SetCurrentDirectory(_originalDirectory);
         TestCleanup.DeleteDirectory(_tempDir, recursive: true);
     }
 
