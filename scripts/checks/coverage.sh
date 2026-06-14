@@ -14,19 +14,39 @@ cli_coverage_report_dir="${CLI_COVERAGE_REPORT_DIR:-${coverage_report_dir}/cli}"
 overall_coverage_report_dir="${OVERALL_COVERAGE_REPORT_DIR:-${coverage_report_dir}/overall}"
 core_assembly_filters="${CORE_COVERAGE_ASSEMBLY_FILTERS:--bukit;-SampleAfterBuildPlugin;-VisualFeedbackPlugin;-ProtocolEchoPlugin}"
 cli_assembly_filters="${CLI_COVERAGE_ASSEMBLY_FILTERS:-+bukit}"
+coverage_no_build="${COVERAGE_NO_BUILD:-}"
+
+if [ -z "$coverage_no_build" ]; then
+  if [ "${CI_FULL_SKIP_FAST:-0}" = "1" ]; then
+    coverage_no_build=0
+  else
+    coverage_no_build=1
+  fi
+fi
 
 rm -rf "$coverage_root"
 mkdir -p "$coverage_root"
 
-dotnet test bukit.slnx \
-  -c "$configuration" \
-  --no-build \
-  -maxcpucount:1 \
-  -nodeReuse:false \
-  --collect:"XPlat Code Coverage" \
-  --settings coverage.runsettings \
-  --logger trx \
-  --results-directory "$coverage_root"
+if [ "$coverage_no_build" = "1" ]; then
+  dotnet test bukit.slnx \
+    -c "$configuration" \
+    --no-build \
+    -maxcpucount:1 \
+    -nodeReuse:false \
+    --collect:"XPlat Code Coverage" \
+    --settings coverage.runsettings \
+    --logger trx \
+    --results-directory "$coverage_root"
+else
+  dotnet test bukit.slnx \
+    -c "$configuration" \
+    -maxcpucount:1 \
+    -nodeReuse:false \
+    --collect:"XPlat Code Coverage" \
+    --settings coverage.runsettings \
+    --logger trx \
+    --results-directory "$coverage_root"
+fi
 
 if ! command -v reportgenerator >/dev/null 2>&1; then
   echo "ReportGenerator not found; installing dotnet-reportgenerator-globaltool ..."

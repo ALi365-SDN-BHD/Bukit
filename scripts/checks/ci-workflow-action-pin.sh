@@ -4,6 +4,13 @@ set -euo pipefail
 
 workflows_dir="${1:-.github/workflows}"
 
+if command -v rg >/dev/null 2>&1; then
+  search_cmd=(rg -n --no-heading --pcre2 'uses:' "$workflows_dir" --glob '*.yml' --glob '*.yaml')
+else
+  echo "WARN: rg is required for regex-aware workflow scanning; fallback to grep -R."
+  search_cmd=(grep -R -n --include='*.yml' --include='*.yaml' 'uses:' "$workflows_dir")
+fi
+
 if [ ! -d "$workflows_dir" ]; then
   echo "workflow directory not found: $workflows_dir" >&2
   exit 2
@@ -35,7 +42,7 @@ while IFS= read -r entry; do
 
   has_violations=1
   echo "${file}:${line}: unpinned action reference -> ${uses_ref}" >&2
-done < <(rg -n --no-heading --pcre2 'uses:' "$workflows_dir" --glob '*.yml' --glob '*.yaml')
+done < <("${search_cmd[@]}")
 
 if [ "$has_violations" -eq 1 ]; then
   echo "GitHub Action pin compliance check failed: found unpinned action references (must use full commit SHA)." >&2

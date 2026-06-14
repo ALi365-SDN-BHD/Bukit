@@ -98,33 +98,6 @@ report = {
 with open(output_path, "w", encoding="utf-8") as handle:
     json.dump(report, handle, ensure_ascii=False, indent=2, sort_keys=True)
 
-if require_success_value and not successful_runs:
-    latest_runs = ", ".join(str(run.get("id")) for run in runs[:5]) or "(none)"
-    print(
-        "workflow evidence check failed: commit has no completed successful workflow runs.",
-        file=sys.stderr,
-    )
-    print(f"repo: {repo}", file=sys.stderr)
-    print(f"sha: {sha}", file=sys.stderr)
-    print(f"workflow: {workflow}", file=sys.stderr)
-    print(f"latest run ids: {latest_runs}", file=sys.stderr)
-    print("Evidence file has been written to:", output_path, file=sys.stderr)
-    sys.exit(1)
-
-if (not require_success_value) and not runs:
-    latest_runs = ", ".join(str(run.get("id")) for run in runs[:5]) or "(none)"
-    print(
-        "workflow evidence check failed: commit has no workflow runs.",
-        file=sys.stderr,
-    )
-    print(f"repo: {repo}", file=sys.stderr)
-    print(f"sha: {sha}", file=sys.stderr)
-    print(f"workflow: {workflow}", file=sys.stderr)
-    print(f"latest run ids: {latest_runs}", file=sys.stderr)
-    print("Evidence file has been written to:", output_path, file=sys.stderr)
-    sys.exit(1)
-
-pass_msg = "passed"
 if successful_runs:
     print(
         "workflow evidence check passed: "
@@ -192,3 +165,33 @@ if report_path:
 
     with open(report_path, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
+
+if require_success_value and not successful_runs:
+    latest_runs = ", ".join(str(run.get("id")) for run in runs[:5]) or "(none)"
+    print(
+        "workflow evidence check failed: commit has no completed successful workflow runs.",
+        file=sys.stderr,
+    )
+    print(f"repo: {repo}", file=sys.stderr)
+    print(f"sha: {sha}", file=sys.stderr)
+    print(f"workflow: {workflow}", file=sys.stderr)
+    print(f"latest run ids: {latest_runs}", file=sys.stderr)
+    print("Evidence file has been written to:", output_path, file=sys.stderr)
+    if report_path:
+        print("Markdown report has been written to:", report_path, file=sys.stderr)
+    sys.exit(1)
+
+if (not require_success_value) and not runs:
+    latest_runs = ", ".join(str(run.get("id")) for run in runs[:5]) or "(none)"
+    print(
+        "workflow evidence check failed: commit has no workflow runs.",
+        file=sys.stderr,
+    )
+    print(f"repo: {repo}", file=sys.stderr)
+    print(f"sha: {sha}", file=sys.stderr)
+    print(f"workflow: {workflow}", file=sys.stderr)
+    print(f"latest run ids: {latest_runs}", file=sys.stderr)
+    print("Evidence file has been written to:", output_path, file=sys.stderr)
+    if report_path:
+        print("Markdown report has been written to:", report_path, file=sys.stderr)
+    sys.exit(1)

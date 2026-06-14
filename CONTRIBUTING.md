@@ -65,7 +65,8 @@ This project publishes as Native AOT. All new code must be AOT-compatible:
 
 1. Update documentation if your change affects user-facing behavior
 2. Run `bash scripts/quality-gate.sh` locally and ensure it passes (build + test + coverage + format + smoke)
-3. Rebase onto the main branch before creating a PR
+3. CI `full` gate runs with `CI_FULL_SKIP_FAST=1` in an isolated job, so the `coverage` stage now runs with its own build path to avoid relying on `ci-fast` artifacts.
+4. Rebase onto the main branch before creating a PR
 
 ### Recommended Commit Sequence (TDD)
 

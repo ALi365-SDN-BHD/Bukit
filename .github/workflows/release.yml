@@ -18,8 +18,8 @@ jobs:
     name: Release Gate
     runs-on: ubuntu-latest
     env:
-      COVERAGE_THRESHOLD: "35"
-      CLI_COVERAGE_THRESHOLD: "45"
+      COVERAGE_THRESHOLD: "65"
+      CLI_COVERAGE_THRESHOLD: "50"
       RELEASE_GATE_RIDS: linux-x64
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5

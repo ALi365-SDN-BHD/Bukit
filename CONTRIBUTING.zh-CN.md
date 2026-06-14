@@ -65,8 +65,8 @@ dotnet format bukit.slnx --verify-no-changes
 
 1. 若变更影响用户行为，请更新文档
 2. 运行 `scripts/check-doc-asset-consistency.ps1` 验证文档一致性
-3. 运行完整测试套件和冒烟测试
-4. 确保代码格式化通过
+3. 运行 `bash scripts/quality-gate.sh`，确认完整门禁通过（build + test + coverage + format + smoke）
+4. CI 的 `full` Job 使用 `CI_FULL_SKIP_FAST=1` 在独立环境中执行，覆盖率阶段会走独立构建路径，不依赖 `ci-fast` 的构建产物。
 5. 创建 PR 前 rebase 到 main 分支
 
 ## 许可证

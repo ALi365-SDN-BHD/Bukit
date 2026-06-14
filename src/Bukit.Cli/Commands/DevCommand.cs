@@ -58,7 +58,7 @@ public static class DevCommand
             cts.Cancel();
         };
 
-        Console.WriteLine($"bukit dev \u2014 HMR development server");
+        Console.WriteLine("bukit dev - LiveReload development server");
         Console.WriteLine($"  root: {rootDir}");
 
         var engine = new SiteEngine(logger);
