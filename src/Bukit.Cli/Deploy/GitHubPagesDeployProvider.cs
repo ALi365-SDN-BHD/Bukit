@@ -127,10 +127,14 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
 
             try
             {
-                var pushArgs = context.Force
-                    ? new[] { "push", "--force", "origin", branch }
-                    : new[] { "push", "origin", branch };
-                await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, pushArgs[0], pushArgs[1], pushArgs[2], pushArgs[3]);
+                if (context.Force)
+                {
+                    await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "--force", "origin", branch);
+                }
+                else
+                {
+                    await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "origin", branch);
+                }
             }
             catch (Exception pushEx)
             {
@@ -143,27 +147,7 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
                     };
                 }
 
-                if (IsNonFastForwardPush(pushEx.Message))
-                {
-                    logger.Warn("Non-fast-forward push detected. --force was provided; force-pushing to overwrite the remote branch...");
-                    try
-                    {
-                        await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "--force", "origin", branch);
-                    }
-                    catch (Exception forcePushEx)
-                    {
-                        if (!IsNonFastForwardPush(forcePushEx.Message) && !string.IsNullOrWhiteSpace(forcePushEx.Message))
-                        {
-                            throw;
-                        }
-
-                        await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "origin", "--force", branch);
-                    }
-                }
-                else
-                {
-                    throw;
-                }
+                throw;
             }
 
             logger.Info("Deployment successful.");
