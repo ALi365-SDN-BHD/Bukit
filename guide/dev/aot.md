@@ -1,36 +1,25 @@
-﻿# AOT and Non-AOT Build Modes
+# Native AOT
 
-This project supports both Non-AOT (JIT) and NativeAOT modes with clear differences in plugin capabilities, publish paths, and runtime characteristics.
+Bukit release artifacts may be built as Native AOT binaries. AOT work is a release and compatibility concern, not a separate user workflow.
 
-## Mode Selection
-- Non-AOT (JIT): Development, fast iteration, external DLL plugin loading.
-- AOT: Production deployment, cold-start/memory optimization, portable single-file artifacts.
+## Maintainer Focus
 
-Switch via `src/Bukit.Cli/Bukit.Cli.csproj`: `Configuration=AOT` enables `PublishAot=true`.
+- Keep command registration static and discoverable from `BukitCliSpecs.cs`.
+- Avoid runtime reflection paths that cannot be rooted by tests or source generation.
+- Keep config, schema, and report serialization explicit.
+- Treat trimming warnings as release blockers unless a documented baseline says otherwise.
+- Verify provider paths that depend on environment variables, especially Notion validation.
 
-## Plugin Behavioral Differences
-`src/Bukit.Engine/Plugins/PluginRegistry.cs`:
-- AOT: `built-in` + `generated` + `external-protocol`.
-- Non-AOT: `built-in` + `generated` + `external` (scans `<rootDir>/plugins/*.dll`) + `external-protocol`.
+## Proof Points
 
-Conclusion: external DLL plugins require Non-AOT. Under AOT, use `external-protocol` for dynamic extensions.
+Run the normal test suite first:
 
-## AOT external-protocol
-`external-protocol` is the AOT-friendly dynamic extension: main program loads no external DLLs, uses `stdin/stdout + JSON`. Currently supports `runtime: process|wasm` and `after-build|derive-pages`.
-
-See: [external-plugin-protocol.md](./external-plugin-protocol.md)
-
-## Custom Plugins Under AOT
-Plugins implementing `IBukitPlugin`, namespace prefix `Bukit.Plugins.`, with `[BukitPlugin]` attribute are source-generated into the `generated` plugin source.
-
-## Scriban AOT Compatibility
-Scriban vendored source (`tools/scriban/`) has been fully AOT-patched: 101 `Type.GetMethod` reflection calls removed, `dynamic` dispatch eliminated, `IsAotCompatible=true`. Zero AOT warnings remain.
-
-## Publish Dependencies
-Linux targets with NativeAOT symbol stripping require `llvm-objcopy` or `objcopy`. Default: `BukitStripSymbols=false`. Override: `-p:BukitStripSymbols=true`.
-
-## Verification
 ```bash
-dotnet publish src/Bukit.Cli/Bukit.Cli.csproj -c AOT -r linux-x64 -o out/bukit-linux
+dotnet test
 ```
 
+Then run the repository release or AOT gate used by the current branch. The exact command belongs to the release scripts, not this guide, because RID and artifact targets are branch and platform dependent.
+
+## Documentation Rule
+
+If an AOT fix changes CLI options, config fields, report shape, or runtime behavior, update the matching guide and skill file in the same change.

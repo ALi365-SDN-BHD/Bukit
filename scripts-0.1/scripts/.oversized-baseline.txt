@@ -1,0 +1,10 @@
+# Oversized file baseline — grandfathered technical debt.
+# Files listed here are known to exceed the 600-line cohesion limit
+# and are exempt from the quality-gate hard failure.
+#
+# Rules:
+# 1. Do NOT add new files here without a PR discussion.
+# 2. When a file is split below 600 lines, remove its entry.
+# 3. Each entry should include a brief justification.
+#
+# Format: one path per line (relative to repo root). Lines starting with # are ignored.

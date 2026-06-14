@@ -1,4 +1,4 @@
-# Bukit — Enjin Tapak Statik .NET Native AOT
+# Bukit - Enjin Tapak Statik .NET Native AOT
 
 <p align="center">
   <img src="docs/bukit-logo.svg" alt="bukit logo" width="400">
@@ -6,162 +6,234 @@
 
 Versi bahasa: [English](./README.md) | [简体中文](./README.zh-CN.md) | Bahasa Melayu (semasa)
 
-Bukit ialah enjin penjanaan tapak statik .NET Native AOT untuk **Nota-sebagai-CMS**, **aliran kerja Ejen AI**, dan **laman web sedia GEO**. Tukar pangkalan data Notion dan Markdown kepada tapak statik yang pantas dan boleh dideploy.
+Bukit ialah enjin penjanaan tapak statik .NET Native AOT untuk **Nota-sebagai-CMS**, **aliran kerja ejen AI**, dan **laman web sedia GEO**. Ia menukar kandungan Markdown dan Notion kepada laman statik yang pantas dan boleh dideploy.
 
-## Apa itu Bukit?
+## Apa Itu Bukit
 
-```
- Bukit
- = Enjin Tapak Statik
- = Teras Binaan
- = Penghamilan kandungan, penjanaan laluan, pemaparan templat Scriban, output SEO/GEO
+Bukit ialah runtime dan enjin binaan:
 
- BukitJalil
- = Aplikasi Tempatan / Panel Kawalan
- = Pengurusan projek, pengurusan tema, aliran kerja perbualan AI, kawalan bina & deploy
+- pengambilan kandungan
+- penjanaan laluan
+- pemaparan templat Scriban
+- output SEO, GEO, feed, sitemap, dan audit
+- penjanaan HTML statik
+- deploy ke GitHub Pages melalui Core CLI
 
- Nota-sebagai-CMS
- = Penghasilan Kandungan
- = Notion / Markdown / Obsidian / Feishu / Yuque / pangkalan pengetahuan lain
-```
+BukitJalil ialah panel kawalan tempatan yang berasingan. Ia bukan sebahagian daripada runtime Bukit, dan tidak diperlukan untuk membina laman dengan Bukit.
 
-Bukit mengendalikan penghamilan kandungan, penjanaan laluan, pemaparan templat Scriban, output SEO/GEO, dan penjanaan HTML statik. Ia sesuai untuk laman web syarikat, laman dokumentasi, laman kandungan, halaman pendaratan, dan aliran kerja penerbitan berbantu AI.
+Bukit bukan platform SaaS, backend CMS penuh, pembina halaman visual, atau pengganti BukitJalil.
 
-**BukitJalil** ialah panel kawalan tempatan yang berasingan — bukan sebahagian daripada enjin runtime Bukit, dan tidak diperlukan untuk membina tapak dengan Bukit.
+## Keupayaan Core 1.0
 
-Bukit **bukan** platform SaaS, backend CMS penuh, pembina halaman visual, atau pengganti untuk BukitJalil.
-
-## Kenapa Bukit?
-
-- **Native AOT** — permulaan bawah 50ms, memori rendah, deployan binari tunggal di Linux, macOS, dan Windows
-- **Nota-sebagai-CMS** — tulis kandungan dalam Notion atau Markdown; Bukit menukarnya menjadi tapak statik
-- **Ejen AI asli** — `src/skills/` menyediakan lapisan pengetahuan untuk ejen pengekodan AI
-- **Sedia GEO** — pengoptimuman enjin carian AI terbina dengan `llms.txt`, data berstruktur FAQ/HowTo, dan audit GEO
-
-## Ciri Teras
-
-- **Penyedia kandungan Markdown & Notion** dengan pemetaan medan boleh konfigurasi
-- **Enjin templat Scriban** dengan pewarisan susun atur, separa, dan pustaka coretan
-- **Penghalaan berasaskan koleksi** dengan pautan kekal, halaman senarai, penomboran, dan taksonomi
-- **Sokongan pelbagai bahasa** — binaan mengikut bahasa, gabungan sitemap/RSS/carian
-- **SEO** — sitemap, RSS/Atom/JSON Feed, JSON-LD, Open Graph, Twitter Cards, URL kanonik, hreflang
-- **GEO** — `llms.txt`, peraturan robots.txt perangkak AI, data berstruktur FAQ/HowTo, audit Skor GEO
-- **Sistem tema** dengan token reka bentuk dan tema berkomponen; pendaftaran tema dirancang untuk peringkat seterusnya
-- **Pelayan pembangunan HMR** dengan muat semula langsung WebSocket; pelayan pratonton untuk output binaan
-- **Sistem plugin** — cangkuk terbina `derive-pages` dan `after-build`; ekosistem plugin proses / WASM dirancang untuk masa hadapan dan bukan sebahagian daripada Core 1.0.
-- **Binaan inkremental** — pengesanan perubahan sedar kandungan; pilihan pengecaman aset SHA256
-- **Deployan GitHub Pages** melalui CLI atau aliran kerja GitHub Actions
+- **Native AOT CLI**: permulaan pantas, memori rendah, dan edaran binari tunggal untuk Linux, macOS, dan Windows.
+- **Sumber kandungan**: provider langsung Core hanyalah Markdown dan Notion.
+- **Nota-sebagai-CMS**: Obsidian dan aplikasi nota lain disokong melalui eksport serasi Markdown. Integrasi langsung Feishu, Yuque, dan pangkalan pengetahuan lain ialah kerja masa depan.
+- **Templat Scriban**: layout, partial, snippet, halaman koleksi, penomboran, taksonomi, dan output berbilang bahasa.
+- **Tema filesystem**: direktori tempatan `themes/<name>/` dengan layouts, assets, static files, dan pilihan `theme.yaml`.
+- **Output SEO dan GEO**: sitemap, RSS/Atom/JSON Feed, JSON-LD, Open Graph, Twitter Cards, URL canonical, hreflang, `llms.txt`, `robots.txt`, audit SEO, audit GEO, dan laporan audit penerbitan.
+- **Pelayan pembangunan LiveReload**: memantau fail kandungan dan tema, membina semula secara incremental, menyiarkan melalui WebSocket, dan menyegar semula pelayar.
+- **Pelayan pratonton statik**: menyajikan direktori output yang telah dibina.
+- **Deploy GitHub Pages**: `deploy.provider: github-pages` bersama arahan `bukit deploy`.
 
 ## Mula Pantas
 
+Apabila membangunkan Bukit daripada repositori ini:
+
 ```bash
-# Bina CLI
 dotnet build bukit.slnx -c Release
-
-# Sahkan konfigurasi tapak contoh
-dotnet run --project src/Bukit.Cli -c Release -- doctor --config examples/starter/site.yaml
-
-# Bina tapak contoh
-dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter/site.yaml --clean --site-url https://example.com
-
-# Pratonton setempat
-dotnet run --project src/Bukit.Cli -c Release -- preview --dir examples/starter/dist --port auto
+dotnet run --project src/Bukit.Cli -c Release -- config check --config path/to/site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- doctor --config path/to/site.yaml
+dotnet run --project src/Bukit.Cli -c Release -- build --config path/to/site.yaml --clean --site-url https://example.com
 ```
 
-Untuk panduan lengkap, lihat [Panduan Mula Pantas](guide/user/01-quick-start.ms.md).
+Apabila menggunakan binari Bukit yang telah dipasang atau dimuat turun dari direktori laman:
+
+```bash
+bukit config check
+bukit doctor
+bukit build --clean
+bukit dev
+```
+
+Gunakan `bukit preview --dir dist` apabila anda hanya mahu menyajikan output binaan sedia ada.
+
+## Arahan Core CLI
+
+Bukit Core 1.0 hanya mendedahkan permukaan arahan stabil ini:
+
+| Arahan | Tujuan |
+|---|---|
+| `build` | Membina laman statik |
+| `doctor` | Mendiagnosis konfigurasi, templat, provider, dan kesediaan binaan |
+| `config` | Mengesahkan konfigurasi atau menjana schema konfigurasi |
+| `preview` | Menyajikan direktori output yang telah dibina |
+| `dev` | Menjalankan pelayan pembangunan LiveReload |
+| `clean` | Memadam direktori output dan cache |
+| `version` | Mencetak maklumat versi |
+| `completion` | Menjana shell completion |
+| `seo` | Mengaudit atau membandingkan laporan SEO |
+| `geo` | Mengaudit output GEO dan `llms.txt` |
+| `publish` | Mengaudit atau membandingkan laporan kesediaan terbit |
+| `deploy` | Mendeploy laman yang telah dibina ke GitHub Pages |
+
+Subcommand stabil ialah `config check`, `config schema`, `seo audit`, `seo diff`, `geo audit`, `publish audit`, dan `publish diff`.
+
+## `site.yaml` Minimum
+
+```yaml
+site:
+  name: my-site
+  title: My Site
+  url: https://example.com
+  baseUrl: /
+  language: en
+  collections:
+    page:
+      permalink: /{slug}/
+      template: pages/page.html
+      listRoute: /
+      listTemplate: pages/index.html
+content:
+  sources:
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content
+build:
+  output: dist
+  clean: true
+theme:
+  name: starter
+logging:
+  level: info
+```
+
+Notion juga provider kandungan Core. Tambah sumber `notion` di bawah `content.sources[]` dan sediakan `NOTION_TOKEN` melalui persekitaran, bukan di dalam `site.yaml`.
+
+## Asas Tema
+
+Tema Core ialah direktori filesystem tempatan:
+
+```text
+themes/<name>/
+  layouts/
+    layouts/base.html
+    pages/page.html
+    pages/post.html
+    pages/index.html
+    pages/list.html
+    partials/
+  assets/
+  static/
+  theme.yaml
+```
+
+Gunakan `theme.name` dalam `site.yaml` untuk memilih tema. Sumber tema jauh, pendaftaran tema, pemasangan tema, dan aliran kerja pasaran tema bukan sebahagian daripada Core 1.0.
+
+## Pembangunan Dan Pratonton
+
+`bukit dev` ialah pelayan pembangunan LiveReload. Ia menjalankan binaan awal, memantau fail kandungan, layout, aset, statik, dan tema aktif, membina semula secara incremental, dan menyegar semula pelayar yang bersambung. Ia tidak menampal komponen framework secara langsung di tempatnya.
+
+`bukit preview` ialah pelayan fail statik untuk output binaan. Gunakannya selepas `bukit build` apabila anda tidak memerlukan pemantauan fail.
+
+## Deploy
+
+Untuk deploy GitHub Pages, konfigurasikan laman:
+
+```yaml
+deploy:
+  provider: github-pages
+  branch: gh-pages
+```
+
+Kemudian sahkan dan deploy:
+
+```bash
+bukit config check
+bukit doctor
+bukit build --clean
+bukit publish audit --dir dist
+bukit deploy
+```
+
+Untuk deploy CI, cipta workflow GitHub Pages khusus untuk laman anda. Contoh di [`examples/github-pages-workflow.yml`](examples/github-pages-workflow.yml) boleh menjadi titik mula workflow laman. Jangan salin release workflow repositori ini; ia menerbitkan binari Bukit, bukan laman pengguna.
 
 ## Dokumentasi
 
-| Khalayak | Mula di sini |
+| Kawasan | Mula di sini |
 |---|---|
-| Pengguna baharu | [`guide/user`](guide/user/README.ms.md) — Mula Pantas, konfigurasi, kandungan, deployan, penyelesaian masalah |
-| Penyelenggara / penyumbang | [`guide/dev`](guide/dev/README.ms.md) — seni bina, kontrak CLI, pemaparan, plugin, kebolehcerapan |
-| Pengguna Ejen AI | [`src/skills`](src/skills/README.ms.md) — fail kemahiran untuk Codex, Claude Code, Copilot, Gemini CLI |
-| Bina tapak dengan AI | [`guide/ai/chatgpt`](guide/ai/chatgpt/README.ms.md) — pek dorongan ChatGPT dan kontrak intent |
-| Rujukan CLI | [`guide/user/12-cli-reference.ms.md`](guide/user/12-cli-reference.ms.md) |
-| Rujukan konfigurasi | [`guide/user/04-site-yaml-config.ms.md`](guide/user/04-site-yaml-config.ms.md) |
-| Deployan | [`guide/user/13-deploy-github-pages.ms.md`](guide/user/13-deploy-github-pages.ms.md) |
+| Panduan pengguna Core | [`guide/user`](guide/user/README.md) |
+| Panduan pembangun Core | [`guide/dev`](guide/dev/README.md) |
+| Agent skills selaras Core | [`guide/skills`](guide/skills/README.md) |
+| Labs dan workflow preview | [`guide/labs`](guide/labs/README.md) dan [`guide/labs-skills`](guide/labs-skills/README.md) |
+| Dokumen sejarah yang diarkib | [`guide/archive`](guide/archive/README.md) |
+| Rujukan CLI | [`guide/user/12-cli-reference.md`](guide/user/12-cli-reference.md) |
+| Rujukan konfigurasi | [`guide/user/04-site-yaml-config.md`](guide/user/04-site-yaml-config.md) |
+| Deploy GitHub Pages | [`guide/user/13-deploy-github-pages.md`](guide/user/13-deploy-github-pages.md) |
 
-## Aliran Kerja Notion CMS
+Jika panduan menerangkan clone, import, intent, webhook, sumber tema jauh, pendaftaran tema, atau pasaran plugin luaran, anggap ia sebagai Labs, preview, atau bahan sejarah kecuali ia dinaikkan secara jelas ke dalam senarai putih arahan Core.
 
-- Tambah sumber `notion` dalam `content.sources[]` (lihat [rujukan konfigurasi](guide/user/04-site-yaml-config.ms.md))
-- Sediakan token anda sebagai pemboleh ubah persekitaran: `NOTION_TOKEN` (jangan letak dalam `site.yaml`)
-- Medan pangkalan data lalai: `Published` (checkbox), `Title`, `Slug`, `Type` (post/page), `PublishAt`
-- Panduan penuh: [`guide/user/06-notion-content.ms.md`](guide/user/06-notion-content.ms.md)
-- Rujukan skema: [`guide/dev/content.ms.md`](guide/dev/content.ms.md)
+## AI Agent Skills
 
-## Aliran Kerja AI / Ejen
+Arahan untuk ejen berada di [`guide/skills`](guide/skills/README.md). Pek itu selaras dengan Core 1.0 dan hanya patut mengajar arahan serta kontrak Core yang stabil.
 
-`src/skills/` ialah lapisan pengetahuan Ejen AI — bukan kod runtime. Ia membantu ejen pengekodan memahami CLI Bukit, konfigurasi, tema, templat, Notion, penghalaan, i18n, deployan, SEO/GEO, dan penyahpepijatan.
+Labs skills berada di [`guide/labs-skills`](guide/labs-skills/README.md). Ia bersifat opt-in dan tidak boleh dianggap sebagai kelakuan Core lalai.
 
-- Sesuai untuk: Codex CLI, Claude Code, Copilot CLI, Gemini CLI, dan alat serupa
-- Pengguna biasa: mula dari [`guide/user`](guide/user/README.ms.md)
-- Pengguna ejen: mula dari [`src/skills/using-bukit/SKILL.md`](src/skills/using-bukit/SKILL.md) atau [`src/skills/bukit-cli-reference/SKILL.md`](src/skills/bukit-cli-reference/SKILL.md)
-- Katalog kemahiran: [`src/skills/README.ms.md`](src/skills/README.ms.md)
+## Skop Kestabilan
 
-## Penerapan (Deployment)
+**Bukit Core 1.0 Stable** merangkumi:
 
-Templat aliran kerja GitHub Actions tersedia di [`.github/workflows/release.yml`](.github/workflows/release.yml).
-
-1. Pergi ke GitHub **Settings → Pages** dan pilih "GitHub Actions"
-2. Jika menggunakan Notion, tambah `NOTION_TOKEN` dalam rahsia repositori
-3. Tolak ke `main` — aliran kerja akan membina dan menerapkan tapak anda
-
-Lihat [`guide/user/13-deploy-github-pages.ms.md`](guide/user/13-deploy-github-pages.ms.md) untuk panduan terperinci.
-
-## Status Projek
-
-**Bukit Core 1.0 Stable**
-
-Komitmen kestabilan:
-
-- CLI: build / clean / config / doctor / preview / dev / deploy / seo / geo / publish
-- Kontrak konfigurasi `content.sources[]`
-- Sumber Markdown
-- Sumber Notion
+- arahan CLI yang disenaraikan dalam [Arahan Core CLI](#arahan-core-cli)
+- kontrak konfigurasi `content.sources[]`
+- provider Markdown dan Notion
+- eksport nota serasi Markdown melalui provider Markdown
 - `content.media`
-- Penghalaan berasaskan koleksi
-- Rendering Scriban
-- Sistem fail output selamat
-- SEO / RSS / sitemap / JSON Feed
-- GEO / `llms.txt` / audit terbitan
-- Laporan binaan
-- Binaan inkremental
-- CLI Native AOT
-- Deployan GitHub Pages
+- penghalaan koleksi
+- pemaparan Scriban
+- tema filesystem tempatan
+- kelakuan filesystem output yang selamat
+- output SEO, RSS, sitemap, JSON Feed, dan carian
+- output GEO, `llms.txt`, dan audit penerbitan
+- laporan binaan
+- binaan incremental
+- Native AOT CLI
+- deploy GitHub Pages
 
-**Next Stage / Preview**
+**Tidak termasuk dalam Core 1.0**:
 
-Tidak termasuk dalam komitmen kestabilan 1.0:
-
-- Pendaftaran tema
 - clone-to-theme
-- Aliran kerja import html-demo
-- import seed
-- notion push / migrasi Notion
-- Ekosistem plugin luaran
-- Pasaran plugin
-- BukitJalil
-- Automasi AI lanjutan
+- import demo HTML
+- workflow import seed
+- Notion push atau migrasi Notion
+- pendaftaran tema, pasaran tema, sumber tema jauh, atau workflow pemasangan tema
+- ekosistem plugin luaran atau pasaran plugin
+- workflow AI intent
+- automasi webhook
+- panel kawalan BukitJalil
+- integrasi langsung yang lebih luas untuk Feishu, Yuque, dan pangkalan pengetahuan lain
 
 ## Pelan Hala Tuju
 
-| Bidang | Status |
+| Kawasan | Status |
 |---|---|
-| Bina, pratonton, penghalaan, templat | Stabil |
-| Markdown, Notion, SEO/GEO | Stabil |
-| Ekosistem tema, perkakasan templat | Diperbaiki |
-| Aliran kerja intent AI | Diperbaiki |
-| Panel kawalan BukitJalil | Akan datang |
-| Pasaran / pendaftaran plugin | Akan datang |
-| Integrasi sumber pengetahuan lebih luas | Akan datang |
+| Bina, pratonton, dev, penghalaan, templat | Stable |
+| Markdown, Notion, SEO/GEO, audit penerbitan | Stable |
+| Deploy GitHub Pages | Stable |
+| Ekosistem tema dan perkakasan templat | Labs / Future |
+| Workflow AI intent | Labs / Future |
+| Ekosistem plugin luaran dan pasaran | Future |
+| Panel kawalan BukitJalil | Future |
+| Integrasi sumber pengetahuan langsung yang lebih luas | Future |
 
 ## Menyumbang
 
-Sumbangan dialu-alukan. Lihat panduan pembangun untuk dokumen seni bina, prosedur pengujian, dan aliran kerja sumbangan:
+Sumbangan dialu-alukan. Lihat:
 
-- [`guide/dev/README.ms.md`](guide/dev/README.ms.md)
-- [`guide/dev/testing-smoke.ms.md`](guide/dev/testing-smoke.ms.md)
+- [`guide/dev/README.md`](guide/dev/README.md)
+- [`guide/dev/testing.md`](guide/dev/testing.md)
+- [`guide/dev/documentation-governance.md`](guide/dev/documentation-governance.md)
 
 ## Lesen
 

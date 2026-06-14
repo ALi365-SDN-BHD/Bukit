@@ -1,21 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-configuration="${1:-Release}"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
 
-echo "=== release gate: test all ==="
-bash scripts/test-all.sh "$configuration"
-
-echo "=== release gate: security regression ==="
-bash scripts/security-regression.sh "$configuration"
-
-echo "=== release gate: AOT zero warning ==="
-bash scripts/check-aot-warnings.sh linux-x64
-
-echo "=== release gate: docs check ==="
-dotnet run --project src/Bukit.Cli -c "$configuration" -- docs check
-
-echo "=== release gate: config schema ==="
-dotnet run --project src/Bukit.Cli -c "$configuration" -- config schema --output /tmp/bukit-site.schema.json
-
-echo "=== release gate OK ==="
+bash scripts/gates/release.sh "${1:-Release}"

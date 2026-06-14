@@ -1,56 +1,63 @@
-# Cache and Clean (cache-dir / .cache / clean)
+# Cache and Clean
 
-The project's "cache" primarily serves incremental builds (skipping unchanged pages), while "clean" clears the output and cache directories to prevent stale state in local/CI environments.
+Cache supports incremental rendering. Clean removes generated state while
+protecting source directories and non-Bukit paths.
 
-Related docs:
-- [Incremental Build](./incremental-build.md)
-- [CLI Command Reference](./cli.md)
+Source anchors:
 
-## Cache Directory Definition
+- `src/Bukit.Cli/Commands/CleanCommand.cs`
+- `src/Bukit.Engine/BuildPipeline.cs`
+- `src/Bukit.Engine/BuildOutputCleaner.cs`
 
-### Default: `.cache/`
+## Cache Directory
 
-The build engine defaults to `<rootDir>/.cache/` for storing incremental build manifests:
-- Single language: `build-manifest.json`
-- Multi-language: `build-manifest.<lang>.json`
+Default: `.cache/`
 
-`doctor` also checks that the manifest JSON in this directory is parseable (see [doctor.zh-CN.md](./doctor.zh-CN.md)).
+Used for:
 
-### Override: `--cache-dir <dir>`
+- incremental build manifests;
+- provider caches such as Notion page index data;
+- runtime state that can be regenerated.
 
-You can override the cache directory via CLI (useful for CI isolation or parallel builds):
-- The manifest will be written to the specified directory
-- Multi-language manifests are still separated by `<lang>` suffix
+Override with:
 
-## What `clean` Cleans
+```bash
+bukit build --cache-dir .cache-ci
+```
 
-`bukit clean` behavior:
+## Clean Command
 
-1. Deletes the output directory (specified by `--dir`, or resolved from `--config/--site` → `build.output`)
-2. Deletes `<rootDir>/.cache/` (incremental manifest cache)
-3. Compatibility cleanup: deletes `<rootDir>/.bukit/` (legacy cache directory)
+```bash
+bukit clean
+bukit clean --dir dist
+bukit clean --config site.yaml
+```
 
-Note: `clean` will never delete your content directories (`content/`, `data/`), theme directories (`layouts/themes`), or any config files.
+`clean` removes:
 
-## Clean Marker Protection
+- the resolved output directory;
+- `.cache/`;
+- `.bukit/` compatibility state.
 
-Since v3.x, `build --clean` and `build.clean: true` require a `.bukit-output-marker` file to exist in the output directory before deleting it. This marker is written on every successful build and serves as a safety guard:
+It does not remove content, data, themes, config, or source files.
 
-- Directories without the marker are **never cleaned** — this prevents accidental deletion of non-Bukit directories.
-- Bukit also refuses to clean the project root, home directory, filesystem root, or `.git` directories.
+## Build-Time Clean
 
-If `clean` is refused:
-- If the directory was created by Bukit: run a full build first (it writes the marker), then clean.
-- If the directory is not a Bukit output: delete it manually or choose a different output directory.
+```bash
+bukit build --clean
+bukit build --no-clean
+```
 
-## When to Clean
+`build.clean` controls default build-time cleaning, and CLI flags override it.
 
-- "I changed templates/routes/content but the output looks unchanged": check if incremental is on first, then consider clean
-- "Output is wrong after switching languages/default language": clean is recommended to avoid cross-variant artifact conflicts
-- CI wants fully reproducible builds: use `build --clean`; if cache interference remains, use `clean`
+## Safety Rails
 
-## FAQ
+- Bukit refuses to clean project root, home, filesystem root, and `.git`.
+- Output cleaning uses a marker file to avoid deleting non-Bukit directories.
+- Interrupted builds are detected and recovered on the next build.
 
-1. Difference between `build --clean` and `clean`?
-   - `build --clean`: cleans only the output directory (`build.output`), then builds
-   - `clean`: cleans output directory + cache directory (`.cache`, etc.)
+## CI Guidance
+
+Use `build --clean` for reproducible release output. Use an isolated
+`--cache-dir` when parallel jobs build the same workspace.
+

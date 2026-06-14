@@ -1,10 +1,16 @@
-# Routing System (Configuration-Driven Paths)
+# Routing
 
-Maps `ContentDocument` to `RouteInfo(url, outputPath, template)`.
+Routing maps `ContentDocument` instances to `RouteInfo(url, outputPath,
+template)`.
 
-Implementation: `src/Bukit.Routing/RouteGenerator.cs`, `src/Bukit.Routing/RoutePathBuilder.cs`, `src/Bukit.Engine/RouteInventoryValidator.cs`
+Source anchors:
 
-## Collection-Driven Routing (Primary Model)
+- `src/Bukit.Routing/RouteGenerator.cs`
+- `src/Bukit.Routing/RoutePathBuilder.cs`
+- `src/Bukit.Routing/RouteSecurityValidator.cs`
+- `src/Bukit.Engine/RouteInventoryValidator.cs`
+
+## Collection Rules
 
 ```yaml
 site:
@@ -13,101 +19,67 @@ site:
       permalink: /blog/{slug}/
       template: pages/post.html
       listRoute: /blog/
-    page:
-      permalink: /pages/{slug}/
-      template: pages/page.html
-      listRoute: /pages/
+      listTemplate: pages/list.html
 ```
 
-Each collection requires `permalink` (must contain `{slug}`) and `template`.
+Each collection needs a deterministic permalink. `template`, `listRoute`, and
+`listTemplate` make list and page output explicit.
 
-## Permalink Patterns
+## Route Overrides
 
-```yaml
-site:
-  permalinks:
-    post: "/{year}/{month}/{slug}/"
-```
-
-Placeholders: `{slug}`, `{year}`, `{month}`, `{day}`, `{type}`
-
-Priority (high to low):
-1. Route override (`route.url` with optional `route.template`)
-2. Top-level `url` override with optional `template`
-3. Collection Rules (`site.collections`)
-4. Permalink Patterns (`site.permalinks`)
-
-There is no built-in `post`/`page` route fallback. If none of these rules match, route generation throws a `ConfigException` and doctor/build asks the site to add explicit routing config.
-
-## Route Override
-
-### Route Override
-
-Use `route.url` to control the public URL. `route.template` may override the template. The output path is derived from the final URL.
+Content can override its public URL:
 
 ```yaml
+---
+title: Custom URL
 route:
   url: /custom/
   template: pages/page.html
+---
 ```
 
-Top-level `url:` and `template:` are also accepted as route override fields.
+Output paths are derived from URLs. Manual output-path overrides are not part
+of the Core 1.0 route contract.
 
-Removed in Bukit 1.0:
+## Output Path Encoding
 
-- top-level `outputPath`
-- nested `route.outputPath`
+`site.outputPathEncoding` supports:
 
-Both are rejected with `BKT-0209`. Use `route.url`; Bukit derives the output path consistently for HTML, sitemap, search, RSS, audit reports, and rollback artifacts.
+| Value | Behavior |
+|---|---|
+| `none` | Preserve normalized path segments |
+| `slug` | Slugify output path segments |
+| `urlencode` | URL-encode output path segments |
+| `sanitize` | Sanitize filesystem path segments |
 
-### Partial Override (url-only)
+The same encoding path applies to content pages and built-in derived pages.
 
-When only `url` is provided, Bukit auto-derives `outputPath` from the URL using `RoutePathBuilder.BuildOutputPathFromUrl`. The `template` inherits from collection/permalink/theme template resolution rules.
+## Conflict Detection
 
-```yaml
-url: /my-slug/
-# outputPath → my-slug/index.html (auto-derived)
-# template   → follows collection rule
+Route conflicts can happen between:
+
+- two content pages;
+- content pages and static HTML routes;
+- content pages and built-in derived pages;
+- two built-in derived pages.
+
+`RouteInventoryValidator` validates content routes before rendering and final
+routes before output is accepted.
+
+`site.deriveConflictPolicy` applies to derived-page conflicts:
+
+- `fail`: fail the build;
+- `warn`: log and skip the conflicting derived page;
+- `last-wins`: allow later derived output.
+
+Content-page conflicts always fail.
+
+## Verification
+
+```bash
+bukit doctor
+bukit build
 ```
 
-Rules:
-- `url` must be present (normalized with leading/trailing slashes)
-- `outputPath` is auto-derived; manually supplied values are rejected
-- `template` if omitted, inherits from collection/permalink/theme template resolution rules
-- `outputPath`-only override is **not supported**
+Doctor is the fastest route inventory check before a full build.
 
-## outputPath Encoding: `none`/`slug`/`urlencode`/`sanitize`
-
-`site.outputPathEncoding` controls output directory name encoding. Applies to both content pages and derived pages (pagination, archive, taxonomy).
-
-## Route Path Utilities
-
-All routing logic shares `RoutePathBuilder` (`src/Bukit.Routing/RoutePathBuilder.cs`):
-
-| Method | Purpose |
-|--------|---------|
-| `NormalizeUrl(url)` | Ensure leading/trailing slashes |
-| `NormalizeListRoute(url)` | List route normalization (defaults to `/`) |
-| `BuildOutputPathFromUrl(url, encoding)` | URL → output path with `index.html` |
-| `NormalizeOutputPath(path, encoding)` | Apply encoding to path segments |
-
-Used by: `RouteGenerator`, `PaginationPlugin`, `ArchivePlugin`, `TaxonomyPlugin`, `PageRenderDispatcher`, `SeoAlternatesService.BuildListRoutesCore`, `I18nOutputMerger`.
-
-## Route Conflict Detection
-
-`RouteInventoryValidator` (`src/Bukit.Engine/RouteInventoryValidator.cs`) validates route uniqueness at two points:
-
-1. **After content route generation** — `ValidateContentRoutes` checks content-page URL/outputPath conflicts. Throws `ConfigException` on duplicate.
-2. **Before rendering** — `ValidateFinalRoutes` checks the complete inventory (content + derived + list routes).
-
-`bukit doctor` also runs content route validation without a full build.
-
-### Derived Page Conflicts
-
-Controlled by `site.deriveConflictPolicy`: `fail` (default, throws `InvalidOperationException`), `warn` (skip + log), `last-wins` (accept derived page). Detection runs per-plugin in `PluginRunner.ApplyDeriveConflictPolicy` and in final `ValidateFinalRoutes`.
-
-Content-page-vs-content-page conflicts **always fail** — `deriveConflictPolicy` does not apply to them.
-
-## Fixed Aggregation Pages
-
-The engine generates `/`, `/blog/`, `/pages/` (and any configured `listRoute`) regardless of content.

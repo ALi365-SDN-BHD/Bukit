@@ -1,45 +1,66 @@
-﻿# Publish and Deploy
+# Publish and Deploy
 
-Two layers: 1) Publish the bukit CLI (optional AOT); 2) Use bukit to build and deploy static sites.
+Core has two separate concerns:
 
-Related: [CLI](./cli.md), [AOT](./aot.md), [i18n & SEO](./i18n-seo.md), [Webhook](./webhook.md)
+1. publish-quality gates over generated static output;
+2. GitHub Pages deployment through `bukit deploy`.
 
-## Site Artifacts
+Source anchors:
 
-`bukit build` output directory priority:
-1. CLI `--output <dir>`
-2. `build.output` in `site.yaml`
-3. Default `dist`
+- `src/Bukit.Cli/Commands/SeoCommand.cs`
+- `src/Bukit.Cli/Commands/GeoCommand.cs`
+- `src/Bukit.Cli/Commands/PublishCommand.cs`
+- `src/Bukit.Cli/Commands/DeployCommand.cs`
+- `src/Bukit.Cli/Deploy/GitHubPagesDeployProvider.cs`
+- `src/Bukit.Config/DeployConfig.cs`
 
-## CLI Artifacts
+## Publish Gates
 
-**AOT** (Linux x64):
 ```bash
-dotnet publish src/Bukit.Cli -c Release -r linux-x64 -o out/bukit /p:PublishAot=true
+bukit build
+bukit seo audit --dir dist
+bukit geo audit --dir dist
+bukit publish audit --dir dist
 ```
 
-**Non-AOT**:
-```bash
-dotnet publish src/Bukit.Cli -c Release -o out/bukit
+Use `--strict` when warnings should fail CI. Use `diff` subcommands to compare
+current reports with a baseline.
+
+## Deploy Config
+
+```yaml
+deploy:
+  provider: github-pages
+  branch: gh-pages
+  message: "Deploy site"
+  cname: example.com
+  keepHistory: true
 ```
 
-## GitHub Pages Deployment
+`deploy.provider` must be `github-pages` when `deploy` exists.
 
-Template workflow: [`.github/workflows/release.yml`](../../.github/workflows/release.yml)
+## Deploy Commands
 
-Key: auto-compute `BASE_URL` and `SITE_URL`, then `bukit build --base-url "$BASE_URL" --site-url "$SITE_URL"`.
+```bash
+bukit deploy --dry-run
+bukit deploy --branch gh-pages --message "Deploy site"
+bukit deploy --skip-build --output dist
+```
 
-### baseUrl Rules
-- User/org site (`owner.github.io`): `baseUrl=/`, `siteUrl=https://owner.github.io`
-- Repo site (`owner.github.io/repo`): `baseUrl=/repo`, `siteUrl=https://owner.github.io/repo`
+By default, `deploy` runs a build first. `--skip-build` deploys existing output
+after config validation.
 
-## Other Static Hosts (Nginx/OSS/Netlify/Vercel)
+## URL Overrides
 
-As long as `build.output` is published as the static root. Set `site.baseUrl` for sub-paths, `site.url` for absolute URLs.
+Use `--base-url` and `--site-url` to match the destination:
 
-## FAQ
+```bash
+bukit deploy --base-url /repo --site-url https://owner.github.io/repo
+```
 
-1. Pages 404 after deployment: Check baseUrl
-2. Incorrect sitemap/rss links: Check `site.url`/`--site-url`
-3. Plugin works locally but not after publish: AOT disables external DLL plugin loading
+## Repository Workflow Note
+
+The Bukit repository's own release workflow publishes Bukit CLI binaries. It is
+not a ready-to-copy workflow for a user's static site. Site deployment examples
+should be written as site-owned GitHub Pages workflows.
 

@@ -2,30 +2,36 @@
 set -euo pipefail
 
 configuration="${1:-Release}"
-rid="${2:-osx-arm64}"
-sample_config="${3:-examples/starter/site.yaml}"
+rid="${2:-$(uname -s | tr '[:upper:]' '[:lower:]')}"
+sample_config="${3:-tests/fixtures/basic-markdown-site/site.yaml}"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
 
-jit_out="${4:-/tmp/bukit-perf-jit}"
-aot_out="${5:-/tmp/bukit-perf-aot}"
+if [ "$rid" = "darwin" ]; then
+  rid="osx-arm64"
+elif [ "$rid" = "linux" ]; then
+  rid="linux-x64"
+fi
 
-jit_metrics="${jit_out}-metrics.json"
-aot_metrics="${aot_out}-metrics.json"
-aot_publish_dir="/tmp/bukit-aot-bench-${rid}"
+jit_output=".smoke-all-run/perf-jit-$$/dist"
+aot_output=".smoke-all-run/perf-aot-$$/dist"
+aot_publish_dir="TestResults/perf-aot/$rid"
 
-echo "== Build (${configuration}) =="
-dotnet build bukit.slnx -c "${configuration}" -maxcpucount:1 -nodeReuse:false
+dotnet build bukit.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
+CONFIGURATION="$configuration" bash scripts/build/native-aot.sh "$rid" "$aot_publish_dir"
 
-echo "== Publish AOT (${rid}) =="
-dotnet publish src/Bukit.Cli/Bukit.Cli.csproj -c AOT -r "${rid}" -o "${aot_publish_dir}" -maxcpucount:1 -nodeReuse:false
+config_dir="$(dirname "$sample_config")"
+trap 'rm -rf "$config_dir/.smoke-all-run/perf-jit-$$" "$config_dir/.smoke-all-run/perf-aot-$$"' EXIT
 
 echo "== JIT baseline =="
-/usr/bin/time -l dotnet src/Bukit.Cli/bin/${configuration}/net10.0/bukit.dll \
-  build --config "${sample_config}" --output "${jit_out}" --clean --metrics "${jit_metrics}" --log-format json
+/usr/bin/time dotnet run --project src/Bukit.Cli -c "$configuration" -- \
+  build --config "$sample_config" --output "$jit_output" --clean --metrics "$jit_output-metrics.json" --site-url https://example.com
+
+binary="$aot_publish_dir/bukit"
+if [ -f "$aot_publish_dir/bukit.exe" ]; then
+  binary="$aot_publish_dir/bukit.exe"
+fi
 
 echo "== AOT baseline =="
-/usr/bin/time -l "${aot_publish_dir}/bukit" \
-  build --config "${sample_config}" --output "${aot_out}" --clean --metrics "${aot_metrics}" --log-format json
-
-echo "== Metrics files =="
-echo "JIT: ${jit_metrics}"
-echo "AOT: ${aot_metrics}"
+/usr/bin/time "$binary" \
+  build --config "$sample_config" --output "$aot_output" --clean --metrics "$aot_output-metrics.json" --site-url https://example.com

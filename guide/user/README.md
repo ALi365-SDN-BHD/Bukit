@@ -1,125 +1,58 @@
-# Bukit User Guide
+# Bukit Core 1.0 User Guide
 
-Language versions: English (current) | [简体中文](./README.zh-CN.md) | [Bahasa Melayu](./README.ms.md)
+This guide is for people building and publishing sites with Bukit Core 1.0. It
+focuses on the stable Core surface: Markdown and Notion content sources,
+filesystem themes, Scriban templates, built-in outputs, local preview,
+LiveReload development, SEO/GEO reports, and GitHub Pages deployment.
 
-This directory is for site users (not engine maintainers). It helps you build and deploy static websites from Markdown/Notion content, with practical setup and troubleshooting guidance.
+## Core Reading Path
 
-If you need internals, extension points, or contribution details, read the developer guide: [guide/dev](../dev/README.md).
+| Goal | Read |
+|---|---|
+| Build your first site | [01 Quick Start](./01-quick-start.md) |
+| Understand the model | [02 Core Concepts](./02-core-concepts.md) |
+| Lay out a project | [03 Project Structure](./03-project-structure.md) |
+| Configure `site.yaml` | [04 Site YAML Config](./04-site-yaml-config.md) |
+| Author Markdown content | [05 Markdown Content](./05-markdown-content.md) |
+| Use Notion as CMS | [06 Notion Content](./06-notion-content.md) |
+| Combine multiple sources | [07 Multi-Source Data](./07-multi-source-data.md) |
+| Work with themes and templates | [08 Themes and Templates](./08-themes-templates.md) |
+| Use data modules | [09 Modules Data](./09-modules-data.md) |
+| Understand generated outputs | [10 Built-in Outputs](./10-built-in-outputs.md) |
+| Configure i18n and SEO | [11 I18n and SEO](./11-i18n-seo.md) |
+| Look up commands | [12 CLI Reference](./12-cli-reference.md) |
+| Deploy to GitHub Pages | [13 Deploy GitHub Pages](./13-deploy-github-pages.md) |
+| Diagnose problems | [14 Troubleshooting](./14-troubleshooting.md) |
+| Copy common patterns | [15 Recipes](./15-recipes.md) |
+| Find field and option names quickly | [16 Parameter Cheatsheet](./16-parameter-cheatsheet.md) |
+| Prepare AI-readable outputs | [17 GEO](./17-geo.md) |
 
-## Choose Your Path
+## Stable Core Commands
 
-| Goal | Start here | Then read |
-|---|---|---|
-| Try Bukit locally | [01 Quick Start](./01-quick-start.md) | [12 CLI Reference](./12-cli-reference.md) |
-| Use Notion as CMS | [06 Notion Content](./06-notion-content.md) | [13 Deploy GitHub Pages](./13-deploy-github-pages.md) |
-| Build a company website | [07 Multi-Source](./07-multi-source.zh-CN.md) + [09 Modules](./09-modules-data.md) | [08 Themes & Templates](./08-themes-templates.md) |
-| Build with AI / ChatGPT | [ChatGPT Prompt Pack](../ai/chatgpt/README.md) | [Intent CLI](../dev/intent-cli.md) |
-| Import a local HTML demo | [21 Import HTML Demo](./21-import-html-demo.md) | [12 CLI Reference](./12-cli-reference.md) |
-| Deploy a site | [13 Deploy GitHub Pages](./13-deploy-github-pages.md) | [14 Troubleshooting](./14-troubleshooting.md) |
-| Optimize for SEO/GEO | [11 I18n & SEO](./11-i18n-seo.md) + [17 GEO](./17-geo.md) | [12 CLI Reference](./12-cli-reference.md) |
-| Develop a theme | [08 Themes & Templates](./08-themes-templates.md) | [Theme (dev)](../dev/theme.md) |
-| Troubleshoot a build | [14 Troubleshooting](./14-troubleshooting.md) | [Doctor (dev)](../dev/doctor.zh-CN.md) |
+Bukit Core 1.0 exposes these commands:
 
-## Recommended Reading Paths
+`build`, `doctor`, `config`, `preview`, `dev`, `clean`, `version`,
+`completion`, `seo`, `geo`, `publish`, and `deploy`.
 
-### First-time setup (local Markdown)
+Subcommands in the stable surface are `config check`, `config schema`,
+`seo audit`, `seo diff`, `geo audit`, `publish audit`, and `publish diff`.
 
-1. [01 Quick Start](./01-quick-start.md)
-2. [04 Site YAML Config](./04-site-yaml-config.md)
-3. [05 Content Markdown](./05-markdown-content.md)
-4. [08 Themes & Templates](./08-themes-templates.md) (includes wizard, pack, install, search, snippets)
-5. [12 CLI Reference](./12-cli-reference.md)
-6. [13 Deploy GitHub Pages](./13-deploy-github-pages.md)
+## What This Guide Does Not Treat as Core
 
-### Using Notion as CMS
+Historical and Labs workflows are not part of the default Core user path. They
+are intentionally kept outside this guide's main reading sequence. If you use a
+Labs workflow, verify its own Labs document and do not assume it is available in
+the Core CLI.
 
-1. [01 Quick Start](./01-quick-start.md)
-2. [06 Content Notion](./06-notion-content.md)
-3. [10 Built-in Features & Output](./10-built-in-features.md)
-4. [13 Deploy GitHub Pages](./13-deploy-github-pages.md)
-5. [14 Troubleshooting](./14-troubleshooting.md)
+## Good Default Workflow
 
-### Company website / landing page (Modules data)
+```bash
+bukit config check
+bukit doctor
+bukit build
+bukit dev
+```
 
-1. [07 Multi-Source](./07-multi-source.zh-CN.md) (currently available in Chinese and Malay)
-2. [09 Modules Structured Data](./09-modules-data.md)
-3. [08 Themes & Templates](./08-themes-templates.md)
-4. [15 Recipes](./15-recipes.md)
+Use `preview` when you only want to serve an already-built output directory.
+Use `dev` when you want file watching, incremental rebuilds, and browser reload.
 
-### Conversational site building (ChatGPT / official GPT)
-
-1. Prompt Pack: [ai/chatgpt](../ai/chatgpt/README.md)
-2. Intent contract (AI ↔ Bukit): [guide/dev/intent-cli](../dev/intent-cli.md)
-3. Required commands (`validate/doctor/build`): [12 CLI Reference](./12-cli-reference.md)
-
-### Optimize for AI search engines (GEO)
-
-1. [11 I18n & SEO](./11-i18n-seo.md) (traditional SEO basics)
-2. [17 GEO](./17-geo.md) (llms.txt, AI crawlers, FAQ/HowTo structured data)
-3. [12 CLI Reference](./12-cli-reference.md) (for `bukit geo audit`)
-
-### Clone a website's design
-
-1. [18 Clone Website](./18-clone-website.md) (browser extraction → theme generation)
-2. [08 Themes & Templates](./08-themes-templates.md) (theme customization)
-3. [12 CLI Reference](./12-cli-reference.md) (for `bukit clone`)
-
-### Import a local HTML demo
-
-1. [21 Import HTML Demo](./21-import-html-demo.md) (local HTML files → Bukit theme/site draft)
-2. [08 Themes & Templates](./08-themes-templates.md) (review generated templates)
-3. [12 CLI Reference](./12-cli-reference.md) (for `bukit import html-demo`, `import seed`, and `notion push`)
-
-### Multilingual site
-
-1. [11 I18n & SEO](./11-i18n-seo.md) (i18n setup, language tagging, sitemap merging)
-2. [04 Site YAML Config](./04-site-yaml-config.md) (`site.languages` config)
-3. [12 CLI Reference](./12-cli-reference.md)
-
-### Explore v3.0 features
-
-1. [19 New Features in v3.0](./19-new-features-v3.md) (feeds, sitemap details, search UI, taxonomy upgrades, related content, menus, data files, aliases, image processing)
-2. [10 Built-in Features & Output](./10-built-in-features.md)
-3. [04 Site YAML Config](./04-site-yaml-config.md)
-
-## If You Use Bukit Through AI / Agents
-
-If you use Bukit in a skill-aware environment such as Trae, Claude Code, Copilot CLI, Codex CLI, or Gemini CLI, treat `src/skills/` as the agent-facing navigation entry and this directory as the user-facing operating guide.
-
-- Agent skills overview: [`src/skills`](../../src/skills/README.md)
-- Unified entry: [`using-bukit`](../../src/skills/using-bukit/SKILL.md)
-- Command execution reference: [`bukit-cli-reference`](../../src/skills/bukit-cli-reference/SKILL.md)
-- HTML demo import workflow: [`bukit-import`](../../src/skills/bukit-import/SKILL.md)
-- This user guide still covers the complete operational path for setup, configuration, theming, content organization, deployment, and troubleshooting
-
-## Where to Find Runnable Examples
-
-Most examples in this guide have runnable counterparts in `examples/starter/`:
-
-- Minimal Markdown config: [examples/starter/site.yaml](../../examples/starter/site.yaml)
-- I18n config: [examples/starter/site.i18n.yaml](../../examples/starter/site.i18n.yaml)
-- Modules (`mode=data`) config: [examples/starter/site.modules.yaml](../../examples/starter/site.modules.yaml)
-- Modules mock data: [examples/starter/data](../../examples/starter/data)
-- Multi-site examples: [examples/starter/sites](../../examples/starter/sites)
-
-## Developer Cross-Reference
-
-For authoritative field boundaries and implementation constraints, cross-check:
-
-- CLI behavior: [guide/dev/cli](../dev/cli.md)
-- `site.yaml` contract: [guide/dev/config-site-yaml](../dev/config-site-yaml.md)
-- Content modeling: [guide/dev/content](../dev/content.md)
-- Theme/template internals: [guide/dev/theme](../dev/theme.md), [guide/dev/rendering-scriban](../dev/rendering-scriban.md)
-- Modules injection rules: [guide/dev/modules-data](../dev/modules-data.md)
-- Built-in outputs and plugins: [guide/dev/built-in-plugins](../dev/built-in-plugins.md), [guide/dev/plugins](../dev/plugins.md)
-
-## Quick Terms
-
-- Site config: `site.yaml` (or `sites/<name>.yaml` for multi-site).
-- Content sources: `content.sources[]` reads content from Markdown/Notion.
-- Page/Post: controlled by `collection: page|post` (or Notion `Collection` field).
-- Theme: template + assets + static directories.
-- Modules data: loaded with `content.sources[].mode: data`; injected to `site.modules.*` only.
-- Built-in outputs: `sitemap.xml`, `rss.xml`, `search.json`, etc.
-
-Canonical reference: [README.zh-CN.md](./README.zh-CN.md)

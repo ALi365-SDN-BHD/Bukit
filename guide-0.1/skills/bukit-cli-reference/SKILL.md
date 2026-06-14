@@ -75,7 +75,7 @@ After downloading, place the binary in a PATH directory or the project root.
 | `geo` | GEO quality gate | `audit`, `--dir` |
 | `publish` | Publish/readiness quality gate | `audit`, `diff`, `--dir`, `--report`, `--strict`, `--external` |
 | `deploy` | Deploy to GitHub Pages | `--config` `--site` `--dry-run` `--skip-build` `--base-url` `--site-url` `--output` `--branch` `--message` `--ci` `--force` |
-| `completion` | Generate shell auto-completion script | `<shell>` (bash|zsh|fish) |
+| `completion` | Generate shell auto-completion script | `<shell>` (bash\|zsh\|fish) |
 | `version` | Output version number | No parameters |
 
 ## Key Command Details

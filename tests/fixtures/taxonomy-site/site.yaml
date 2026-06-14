@@ -19,11 +19,10 @@ build:
 theme:
   layouts: layouts
 taxonomy:
-  template: pages/taxonomy-term.html
-  indexTemplate: pages/taxonomy-term.html
-  termTemplate: pages/taxonomy-term.html
   itemFields:
     - date
-  templates:
-    categories:
+  kinds:
+    - key: categories
+      kind: categories
+      indexTemplate: pages/taxonomy-index.html
       termTemplate: pages/taxonomy-term.html

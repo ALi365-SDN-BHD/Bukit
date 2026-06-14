@@ -3,13 +3,13 @@ set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
   echo "Usage: $0 <input-json> <output-json>" >&2
-  exit 1
+  exit 2
 fi
 
 input_path="$1"
 output_path="$2"
 
-if ! [ -f "$input_path" ]; then
+if [ ! -f "$input_path" ]; then
   echo "ERROR: input file not found: $input_path" >&2
   exit 1
 fi
@@ -38,6 +38,5 @@ if command -v jq >/dev/null 2>&1; then
     normalize
   ' "$input_path" > "$output_path"
 else
-  # Fallback to raw copy when jq is unavailable in the environment.
-  cp "$input_path" "$output_path"
+  python3 -m json.tool "$input_path" "$output_path"
 fi

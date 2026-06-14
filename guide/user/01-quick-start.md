@@ -1,90 +1,69 @@
-# 01 Quick Start: From Zero to Preview (10 Minutes)
+# 01 Quick Start: Build a Minimal Core Site
 
-This page walks you through the complete pipeline using a "copy-paste" approach: initialize a site →write content →build →local preview →prepare for deployment.
-
-## What You Will Get
-
-- A static site that can be previewed locally (output in `dist/`)
-- A minimal, working `site.yaml` (all subsequent features extend from it)
-- A set of the most commonly used CLI commands (build/preview/doctor/clean)
+This quick start uses only Bukit Core 1.0 features. You create the files
+manually, validate the config, run diagnostics, build static output, and open a
+local preview.
 
 ## Prerequisites
 
-- .NET installed (the project targets .NET 10; if you run from repository source, the corresponding SDK must be available on your machine)
-- Comfortable using the command line (PowerShell / bash)
-- Basic understanding of YAML/Markdown syntax
+- A `bukit` executable on `PATH`, or a local executable you can call as
+  `./bukit`.
+- Basic command-line, YAML, Markdown, and HTML familiarity.
 
-## Path A: Run the In-Repo Example Site Directly (Recommended)
-
-The example site is at: `examples/starter/`, which comes with content, themes, and variant configurations for multilingual/modules, suitable for verifying your environment is set up correctly.
-
-### 1) Build and Self-Check (doctor)
-
-Run from the repository root:
+Check the CLI:
 
 ```bash
-dotnet build bukit.slnx -c Release
-dotnet run --project src/Bukit.Cli -c Release -- doctor --config examples/starter/site.yaml
+bukit version
 ```
 
-If doctor reports errors, check first: [14 Troubleshooting](./14-troubleshooting.md) (and the developer version of the doctor guide: [guide/dev/doctor](../dev/doctor.zh-CN.md); currently available in Chinese and Malay).
-
-### 2) Build the Site (build)
-
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- build --config examples/starter/site.yaml --clean --site-url https://example.com
-```
-
-The build output goes to `build.output` in the example config (default: `examples/starter/dist/`).
-
-### 3) Local Preview (preview)
-
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- preview --dir examples/starter/dist --port auto
-```
-
-The console will print a local URL 鈥?open it in your browser.
-
-## Path B: Create Your Own Site (Markdown Mode)
-
-If you are starting a real website project, it is recommended to run `create` in a new directory, which will generate the base directory structure and default configuration.
-
-### 1) Create Site Scaffold
-
-```bash
-dotnet run --project src/Bukit.Cli -c Release -- create my-site
-```
-
-You will get a structure similar to this (illustrative; actual output depends on the scaffold):
+## 1. Create the Project Directories
 
 ```text
 my-site/
   site.yaml
   content/
-  layouts/    # or themes/ (depending on scaffold and theme choice)
-  assets/
-  static/
+    hello.md
+  themes/
+    starter/
+      theme.yaml
+      layouts/
+        layouts/
+          base.html
+        pages/
+          index.html
+          page.html
+          post.html
+          list.html
+      assets/
+        style.css
+      static/
 ```
 
-### 2) Edit the Minimal Config (site.yaml)
-
-A minimal working `site.yaml` (Markdown site) looks like this:
+## 2. Add `site.yaml`
 
 ```yaml
 site:
   name: my-site
   title: My Site
+  description: A small Bukit Core site.
+  url: https://example.com
   baseUrl: /
-  language: zh-CN
-  timezone: Asia/Shanghai
+  language: en
   collections:
     page:
-      permalink: /pages/{slug}/
+      permalink: /{slug}/
       template: pages/page.html
+      listRoute: /
+      listTemplate: pages/index.html
+    post:
+      permalink: /blog/{slug}/
+      template: pages/post.html
+      listRoute: /blog/
+      listTemplate: pages/list.html
 content:
   sources:
     - type: markdown
-      name: content
+      name: pages
       mode: content
       collection: page
       markdown:
@@ -93,67 +72,167 @@ build:
   output: dist
   clean: true
 theme:
-  layouts: layouts
-  assets: assets
-  static: static
-  name: alt
+  name: starter
 logging:
   level: info
 ```
 
-> **Routing is explicit.** Each routed content item must match `site.collections`, `site.permalinks`, or a `route` override. Add more collections as your content model grows:
->
-> ```yaml
-> site:
->   collections:
->     page:
->       permalink: /pages/{slug}/
->       template: pages/page.html
->       listRoute: /pages/
->     post:
->       permalink: /blog/{slug}/
->       template: pages/post.html
->       listRoute: /blog/
-> ```
+## 3. Add a Minimal Theme Manifest
 
-For a more complete explanation of fields and defaults, see: [04 Site YAML Config](./04-site-yaml-config.md).
+File: `themes/starter/theme.yaml`
 
-### 3) Write Your First Piece of Content (content/hello-world.md)
+```yaml
+name: starter
+version: 1.0.0
+engine: bukit
+description: Minimal starter theme.
+capabilities:
+  seo: true
+  geo: true
+  i18n: true
+templates:
+  home:
+    template: pages/index.html
+    required: true
+  page:
+    template: pages/page.html
+    accepts:
+      collection: page
+  post:
+    template: pages/post.html
+    accepts:
+      collection: post
+  list:
+    template: pages/list.html
+    accepts:
+      kind: list
+assets:
+  css:
+    - assets/style.css
+```
+
+## 4. Add Minimal Templates
+
+File: `themes/starter/layouts/layouts/base.html`
+
+```html
+{{ base_url = site.base_url }}
+{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+<!doctype html>
+<html lang="{{ page.language | default site.language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ if page.seo }}{{ page.seo.title }}{{ else }}{{ page.title }}{{ end }}</title>
+  <link rel="stylesheet" href="{{ base_url }}/assets/style.css">
+</head>
+<body>
+  <main>
+    {{ content }}
+  </main>
+</body>
+</html>
+```
+
+File: `themes/starter/layouts/pages/page.html`
+
+```html
+{% layout "layouts/base.html" %}
+<article>
+  <h1>{{ page.title }}</h1>
+  {{ page.content }}
+</article>
+```
+
+File: `themes/starter/layouts/pages/post.html`
+
+```html
+{% layout "layouts/base.html" %}
+<article>
+  <h1>{{ page.title }}</h1>
+  {{ if page.publish_date }}<time>{{ page.publish_date }}</time>{{ end }}
+  {{ page.content }}
+</article>
+```
+
+File: `themes/starter/layouts/pages/index.html`
+
+```html
+{% layout "layouts/base.html" %}
+<h1>{{ site.title }}</h1>
+{{ for item in page.items }}
+  <article>
+    <h2><a href="{{ item.url }}">{{ item.title }}</a></h2>
+    {{ if item.summary }}<p>{{ item.summary }}</p>{{ end }}
+  </article>
+{{ end }}
+```
+
+File: `themes/starter/layouts/pages/list.html`
+
+```html
+{% layout "layouts/base.html" %}
+<h1>{{ page.title }}</h1>
+{{ for item in page.items }}
+  <article>
+    <h2><a href="{{ item.url }}">{{ item.title }}</a></h2>
+  </article>
+{{ end }}
+```
+
+File: `themes/starter/assets/style.css`
+
+```css
+body {
+  font-family: system-ui, sans-serif;
+  line-height: 1.6;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2rem;
+}
+```
+
+## 5. Add Content
+
+File: `content/hello.md`
 
 ```markdown
 ---
 collection: page
-title: Hello World
-slug: hello-world
-tags: [demo, first]
-summary: This is my first page
+title: Hello Bukit
+slug: hello
+summary: My first Core page.
+language: en
 ---
 
-# Hello World
+# Hello Bukit
 
-If you can see this text, the build and rendering pipeline has run successfully.
+This page is rendered from Markdown.
 ```
 
-### 4) Self-Check (doctor)
+## 6. Validate, Build, and Preview
 
-Run from the site directory:
+Run from the `my-site` directory:
 
 ```bash
-dotnet run --project ../src/Bukit.Cli -c Release -- doctor --config site.yaml
+bukit config check
+bukit doctor
+bukit build
+bukit preview --dir dist --port auto
 ```
 
-### 5) Build and Preview
+During active editing, use the LiveReload development server:
 
 ```bash
-dotnet run --project ../src/Bukit.Cli -c Release -- build --config site.yaml --clean --site-url https://example.com
-dotnet run --project ../src/Bukit.Cli -c Release -- preview --dir dist --port auto
+bukit dev
 ```
 
-## Next Steps (by Site Type)
+`dev` performs an initial build, watches content and active theme inputs,
+rebuilds incrementally, and reloads connected browsers.
 
-- Writing content (Markdown): [05 Content Markdown](./05-markdown-content.md)
-- Using Notion: [06 Content Notion](./06-notion-content.md)
-- Multi-source composition (pages/posts/modules): [07 Multi Source](./07-multi-source.zh-CN.md) (currently available in Chinese and Malay)
-- Company site modules (Modules): [09 Modules Structured Data](./09-modules-data.md)
-- Multilingual & SEO: [11 Multilingual & SEO](./11-i18n-seo.md)
-- Deploying to GitHub Pages: [13 Deploy GitHub Pages](./13-deploy-github-pages.md)
+## Next
+
+- Add more Markdown: [05 Markdown Content](./05-markdown-content.md)
+- Use Notion: [06 Notion Content](./06-notion-content.md)
+- Configure deployment: [13 Deploy GitHub Pages](./13-deploy-github-pages.md)
+

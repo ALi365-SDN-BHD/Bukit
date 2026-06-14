@@ -1,40 +1,45 @@
 # Documentation Governance
 
-## Directory Responsibilities
+Core docs must follow the current source contract. When source and docs
+disagree, docs are wrong until proven otherwise.
 
-| Directory | Purpose |
+## Source of Truth
+
+| Topic | Source |
 |---|---|
-| `README.*` | Public project landing pages |
-| `guide/user/*` | User-facing operating manual |
-| `guide/dev/*` | Maintainer and contributor reference |
-| `guide/ai/*` | Human-facing AI prompt packs |
-| `src/skills/*` | AI Agent knowledge layer |
-| `docs/*` | Product proposals, audit reports, governance notes, long-form analysis |
+| Commands and options | `src/Bukit.Cli/Cli/BukitCliSpecs.cs` |
+| Command handlers | `src/Bukit.Cli/Cli/BukitCliDescriptors.cs` |
+| Config fields | `src/Bukit.Config/AppConfig.cs` |
+| Strict field validation | `src/Bukit.Config/ConfigStrictFieldValidator.cs` |
+| Generated schema | `src/Bukit.Config/ConfigJsonSchemaGenerator.cs` |
+| Built-in plugins | `src/Bukit.Engine/Plugins/PluginRegistry.cs` |
+| Theme manifest | `src/Bukit.Theme/ThemeManifestLoader.cs` |
+| Boundary tests | `tests/Bukit.Architecture.Tests/CoreBoundaryTests.cs` |
 
-## Rules
+## Update Order
 
-1. **README must stay concise.** It is the project entry, not the manual.
-2. **Full CLI reference belongs in `guide/user` or `guide/dev`.** Do not replicate in README.
-3. **Full config schema belongs in `guide/dev`.** Do not replicate in README or `guide/user`.
-4. **Skills documentation must not be duplicated in README or guide.** `src/skills/*` is the single source of truth for agent knowledge.
-5. **All root README language versions must share the same section order.**
-6. **All guide README language versions should share the same information hierarchy.**
-7. **Secret values must never appear in documentation examples.** Always use placeholder names like `NOTION_TOKEN` or `YOUR_KEY`.
-8. **Notion token must always be documented as `NOTION_TOKEN`.** Never show a real token value.
+1. Change source contract.
+2. Update or add tests.
+3. Update guide/skills.
+4. Update guide/dev.
+5. Move experimental or historical material to Labs or Archive.
+6. Run focused tests and doc checks.
 
-## Language Fallback Rules
+## Core Docs Rules
 
-When a localized document does not exist:
+- Only document Core commands that exist in `BukitCliSpecs.cs`.
+- Only document `site.yaml` fields allowed by strict validation.
+- Describe `dev` as LiveReload or browser reload.
+- Describe plugins as built-in runtime unless explicitly writing Labs docs.
+- Keep Labs and Archive opt-in.
+- Do not keep compatibility language for removed fields or commands.
 
-- **English**: "Currently available in [language] only"
-- **Chinese (zh-CN)**: No fallback note needed unless linking to non-Chinese material
-- **Malay (ms)**: "Pada masa ini hanya tersedia dalam bahasa [language]"
+## Labs and Archive
 
-Use consistent wording. Do not use ad-hoc labels like "(Chinese)" in navigation titles.
+Use `guide/labs/` when a workflow may return as an explicit experimental path.
+Use `guide/archive/` when material is retired, historical, or no longer
+buildable.
 
-## Cross-Reference Principles
+The Core guide may link to Labs/Archive only as boundary context. It must not
+make those workflows part of the default maintainer path.
 
-- `guide/user` may reference `guide/dev` for authoritative field/contract details
-- `guide/dev` may reference `docs/` for product-level context
-- `guide/ai` should reference `guide/user` and `guide/dev` for validation workflows
-- `src/skills` should never reference temporary/provisional documentation

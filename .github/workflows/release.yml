@@ -8,17 +8,34 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release-gate:
+    name: Release Gate
     runs-on: ubuntu-latest
+    env:
+      COVERAGE_THRESHOLD: "35"
+      CLI_COVERAGE_THRESHOLD: "45"
+      RELEASE_GATE_RIDS: linux-x64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - run: bash scripts/release-gate.sh Release
+      - run: bash scripts/gates/release.sh Release
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-gate-results
+          path: TestResults/release-gate
+          if-no-files-found: ignore
+          retention-days: 30
 
   build:
+    name: Build ${{ matrix.rid }}
     needs: release-gate
     strategy:
       fail-fast: false
@@ -53,9 +70,10 @@ jobs:
           else
             VERSION="0.0.0-dev+${{ github.sha }}"
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Publish Native AOT
+        shell: bash
         run: >
           dotnet publish src/Bukit.Cli/Bukit.Cli.csproj
           -c Release
@@ -63,14 +81,19 @@ jobs:
           -o out/bukit-${{ matrix.rid }}
           -p:VersionPrefix=${{ steps.version.outputs.version }}
           -p:BukitStripSymbols=true
+          -p:TrimmerSingleWarn=false
 
-      - name: 复制用户文档到输出目录
+      - name: Smoke release artifact
+        shell: bash
+        run: bash scripts/smoke/release-artifacts.sh out/bukit-${{ matrix.rid }}
+
+      - name: Copy user guide
         shell: bash
         run: |
           mkdir -p out/bukit-${{ matrix.rid }}/guide
-          cp -r guide/user out/bukit-${{ matrix.rid }}/guide/user
+          cp -R guide/user out/bukit-${{ matrix.rid }}/guide/user
 
-      - name: Package (Windows)
+      - name: Package Windows
         if: matrix.rid == 'win-x64'
         shell: pwsh
         run: >
@@ -78,8 +101,9 @@ jobs:
           -Path out/bukit-${{ matrix.rid }}/*
           -DestinationPath bukit-${{ steps.version.outputs.version }}-${{ matrix.rid }}.zip
 
-      - name: Package (Linux/macOS)
+      - name: Package Linux/macOS
         if: matrix.rid != 'win-x64'
+        shell: bash
         run: >
           tar -czf bukit-${{ steps.version.outputs.version }}-${{ matrix.rid }}.tar.gz
           -C out/bukit-${{ matrix.rid }} .
@@ -88,15 +112,18 @@ jobs:
         with:
           name: bukit-${{ matrix.rid }}
           path: bukit-${{ steps.version.outputs.version }}-${{ matrix.rid }}${{ matrix.ext }}
+          if-no-files-found: error
+          retention-days: 30
 
   release:
+    name: GitHub Release
     if: github.ref_type == 'tag'
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: 打包 skills
+      - name: Package skills
         run: |
           cd src
           zip -r ../bukit-skills.zip skills/

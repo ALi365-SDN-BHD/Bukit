@@ -3185,15 +3185,11 @@ templates:
     accepts:
       type: post
       collection: post
-      markdown:
-        dir: content
   page:
     template: pages/page.html
     accepts:
       type: page
       collection: page
-      markdown:
-        dir: content
   detail:
     template: pages/page.html
     accepts:

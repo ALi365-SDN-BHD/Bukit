@@ -141,6 +141,51 @@ public sealed class SeoReportValidatorTests
     }
 
     [Fact]
+    public void ValidateReportContract_PublishRepresentationWithoutGeneratedFile_Passes()
+    {
+        var json = ValidPublishReportJson().Replace(
+            "\"representations\": []",
+            """
+            "representations": [
+              {
+                "kind": "jsonld",
+                "url": "https://example.com/post/",
+                "path": "",
+                "generated": false,
+                "indexable": true
+              }
+            ]
+            """,
+            StringComparison.Ordinal);
+
+        AuditReportContractValidator.ValidateReportContract(Parse(json), SeoReportValidator.AuditReportContract.PublishOnly);
+    }
+
+    [Fact]
+    public void ValidateReportContract_PublishGeneratedRepresentationWithoutPath_Throws()
+    {
+        var json = ValidPublishReportJson().Replace(
+            "\"representations\": []",
+            """
+            "representations": [
+              {
+                "kind": "json",
+                "url": "/content/post.json",
+                "path": "",
+                "generated": true,
+                "indexable": true
+              }
+            ]
+            """,
+            StringComparison.Ordinal);
+
+        var ex = Assert.Throws<InvalidDataException>(() =>
+            AuditReportContractValidator.ValidateReportContract(Parse(json), SeoReportValidator.AuditReportContract.PublishOnly));
+
+        Assert.Contains("path must be a non-empty string when generated is true", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ValidateReportContract_PublishReport_WhenSeoOnly_Throws()
     {
         var ex = Assert.Throws<InvalidDataException>(() => AuditReportContractValidator.ValidateReportContract(

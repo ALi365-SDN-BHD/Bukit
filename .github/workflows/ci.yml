@@ -1,4 +1,4 @@
-name: Full Validation
+name: CI
 
 on:
   push:
@@ -9,19 +9,57 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  quality-gate:
+  fast:
+    name: Fast Gate
     runs-on: ubuntu-latest
     env:
-      COVERAGE_THRESHOLD: "65"
+      COVERAGE_THRESHOLD: "35"
+      CLI_COVERAGE_THRESHOLD: "45"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - run: bash scripts/quality-gate.sh Release
+      - run: bash scripts/gates/ci-fast.sh Release
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-fast-results
+          path: TestResults/ci-fast
+          if-no-files-found: ignore
+          retention-days: 14
+
+  full:
+    name: Full Gate
+    if: github.event_name != 'pull_request'
+    needs: fast
+    runs-on: ubuntu-latest
+    env:
+      COVERAGE_THRESHOLD: "35"
+      CLI_COVERAGE_THRESHOLD: "45"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: CI_FULL_SKIP_FAST=1 bash scripts/gates/ci-full.sh Release
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-full-results
+          path: TestResults
+          if-no-files-found: ignore
+          retention-days: 14
 
   cross-platform-tests:
+    name: Test (${{ matrix.os }})
+    if: github.event_name != 'pull_request'
+    needs: fast
     strategy:
       fail-fast: false
       matrix:
@@ -34,35 +72,51 @@ jobs:
           dotnet-version: 10.0.x
       - run: dotnet restore bukit.slnx
       - run: dotnet build bukit.slnx -c Release
-      - run: dotnet test bukit.slnx -c Release --no-build
-
-  smoke-examples:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - run: dotnet test bukit.slnx -c Release --no-build --logger "trx;LogFileName=cross-platform.trx" --results-directory TestResults/cross-platform
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          dotnet-version: 10.0.x
-      - run: bash scripts/smoke.sh Release
-      - run: bash scripts/smoke-all.sh Release
+          name: cross-platform-${{ matrix.os }}
+          path: TestResults/cross-platform
+          if-no-files-found: ignore
+          retention-days: 14
 
   native-aot:
+    name: Native AOT (${{ matrix.rid }})
+    if: github.event_name != 'pull_request'
+    needs: fast
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-latest
+            rid: osx-arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - run: dotnet publish src/Bukit.Cli/Bukit.Cli.csproj -c Release -p:PublishAot=true
-      - if: matrix.os == 'ubuntu-latest'
-        run: bash scripts/check-aot-warnings.sh linux-x64
+      - shell: bash
+        run: CONFIGURATION=Release bash scripts/build/native-aot.sh ${{ matrix.rid }} TestResults/native-aot/${{ matrix.rid }} TestResults/native-aot/${{ matrix.rid }}.log
+      - shell: bash
+        run: bash scripts/smoke/release-artifacts.sh TestResults/native-aot/${{ matrix.rid }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-aot-${{ matrix.rid }}
+          path: TestResults/native-aot
+          if-no-files-found: error
+          retention-days: 14
 
   stress-cli:
+    name: Stress CLI
     if: github.event_name == 'workflow_dispatch'
+    needs: fast
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

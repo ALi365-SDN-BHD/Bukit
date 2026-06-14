@@ -1,100 +1,87 @@
-# Rendering and Templates (Scriban)
+# Rendering With Scriban
 
-The rendering layer is responsible for rendering engine-generated models into HTML using Scriban.
+Bukit renders content, list pages, and static HTML through the Scriban runtime.
 
-Implementation: `src/Bukit.Rendering/Models.cs`, `src/Bukit.Rendering/Scriban/` (10 files: ScribanTemplateRenderer, RenderSectionFunction, RenderComponentFunction, TemplateContextBuilder, FileTemplateLoader, ImageFunctions, ComponentFunctions, SectionRenderHelper, SectionDataResolverAccessor, ScribanModelBinder)
+Source anchors:
 
-## Unified Rendering Pipeline
+- `src/Bukit.Rendering/Scriban/`
+- `src/Bukit.Engine/PageRenderDispatcher.cs`
+- `src/Bukit.Engine/ScribanTemplateLinter.cs`
+- `src/Bukit.Engine/TemplateCapabilitiesResolver.cs`
 
-Page, list, and static HTML rendering now share a single dispatch loop in `PageRenderDispatcher.DispatchAsync()` (implementation: `src/Bukit.Engine/PageRenderDispatcher.cs`). Three entry kinds are defined in `RenderEntry.cs`:
+## Render Entry Kinds
 
-| Kind | Source | Rendering Method |
+| Kind | Source | Render path |
 |---|---|---|
-| `Page` | Content items with routes | `renderer.RenderPage(template, pageModel)` |
-| `List` | Special list routes (homepage, taxonomy, pagination) | `renderer.RenderList(template, listModel)` |
-| `Static` | `.html` files in `static/` when `theme.staticTemplate` is set | `renderer.RenderPage(template, pageModel)` |
+| `Page` | Routed content documents | page template |
+| `List` | homepage, collection lists, taxonomy, pagination, archive | list or derived template |
+| `Static` | `.html` files in `theme.static` when `theme.staticTemplate` is configured | static template path |
 
-All three share the same incremental build skip logic, SEO injection, and error handling.
+All three share route security, incremental skip logic, SEO injection, and
+write safety.
 
-## Template Variable Spell Check
+## Template Variables
 
-When `EnableRelaxedMemberAccess` is enabled (default), Scriban silently returns `null` for typo variables like `{{ page.titel }}`. Bukit's `doctor` command now includes template variable spell check via `ScribanTemplateLinter` that parses all `.html` templates using Scriban's AST and cross-references against a whitelist of known model fields.
-
-Implementation: `src/Bukit.Engine/ScribanTemplateLinter.cs`
-
-## Directory Conventions
-
-```yaml
-theme:
-  layouts: layouts
-  assets: assets
-  static: static
-```
-
-- `static/`: Static assets. Non-HTML files copied as-is. When `theme.staticTemplate` is set, `.html` files are rendered through Scriban using the unified dispatch loop (same pipeline as content pages). Implementation: `src/Bukit.Engine/RenderEntry.cs` → `ForStaticDir()`.
-- `assets/`: Copied to output `assets/`
-- `layouts/`: Template root directory
-
-## Template Variable Structure
-
-### site: `site.name`, `site.title`, `site.url`, `site.description`, `site.base_url`, `site.language`, `site.params`, `site.modules`, `site.data`
-
-### page: `page.title`, `page.url`, `page.content`, `page.summary`, `page.publish_date`, `page.fields`
-
-### pages (list pages): Each entry has same structure as page
-
-Whether `pages[*].content` is populated is controlled by `build.listPageContentMode`.
-
-## fields Usage Convention
-
-```scriban
-<title>
-  {{ if page.fields.seo_title }}
-    {{ page.fields.seo_title.value }}
-  {{ else }}
-    {{ page.title }}
-  {{ end }}
-  - {{ site.title }}
-</title>
-```
-
-- Markdown reserved keys don't enter fields; tags/categories/summary are written into fields
-- Notion: fields keys normalized to `lowercase_with_underscores`, controlled by `fieldPolicy`
-
-## Template Security
-
-### Shortcode HTML Encoding (P1-1)
-
-Shortcode parameter values are HTML-encoded via `WebUtility.HtmlEncode` before template substitution in `ShortcodeProcessor.cs`. This prevents stored XSS attacks where content authors could inject `<script>` tags through shortcode parameters like `{% card "<script>alert(1)</script>" %}`.
-
-When defining custom shortcodes in `theme.shortcodes`, use Scriban's `html.escape` filter in parameter output:
-```yaml
-theme:
-  shortcodes:
-    card: '<div class="card">{{ $1 | html.escape }}</div>'
-```
-
-### Block Renderer Color Safety (P1-2)
-
-All Notion block renderers (Callout, ToDo, Toggle, Bookmark, Equation) now use manually HTML-encoded color values when constructing `class="notion-{color}"` CSS attributes. This prevents HTML injection through Notion's color property values.
-
-### Image Tag Safety
-
-All image tags generated via `BuildImgTag`/`BuildSrcset` in `ImageHelper` use `WebUtility.HtmlEncode` on attribute values combined with an `IsSafeImageSource` protocol whitelist.
-
-## Rendering Module Structure (P2-3)
-
-The rendering module has been decomposed from a single `ScribanTemplateRenderer.cs` (~422 lines) into 10 independent files under `src/Bukit.Rendering/Scriban/`:
-
-| File | Responsibility |
+| Variable | Meaning |
 |---|---|
-| `ScribanTemplateRenderer.cs` | Core rendering orchestrator |
-| `RenderSectionFunction.cs` | `render_section` Scriban function |
-| `RenderComponentFunction.cs` | `render_component` Scriban function |
-| `TemplateContextBuilder.cs` | Template context and model construction |
-| `FileTemplateLoader.cs` | Template file resolution with path safety |
-| `ImageFunctions.cs` | Image processing Scriban functions |
-| `ComponentFunctions.cs` | Component system Scriban functions (instance-based, all readonly) |
-| `SectionRenderHelper.cs` | Section rendering logic |
-| `SectionDataResolverAccessor.cs` | Section data resolver bridge |
-| `ScribanModelBinder.cs` | Model-to-Scriban binding logic |
+| `site` | Site metadata, base URL, params, modules, menus, data |
+| `page` | Current page or list model |
+| `pages` | Page collections available to the renderer |
+| `data` | Data-mode source output and generated data |
+| `content` | Layout body content |
+
+## Base Layout
+
+```html
+<!doctype html>
+<html lang="{{ page.language | default site.language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.title }} - {{ site.title }}</title>
+  <link rel="stylesheet" href="{{ site.base_url }}/assets/style.css">
+</head>
+<body>
+  {{ content }}
+</body>
+</html>
+```
+
+## Page Template
+
+```html
+{% layout "layouts/base.html" %}
+<main>
+  <h1>{{ page.title }}</h1>
+  <article>{{ page.content }}</article>
+</main>
+```
+
+## List Template
+
+```html
+{% layout "layouts/base.html" %}
+<main>
+  <h1>{{ page.title }}</h1>
+  {{ for item in page.items }}
+    <article>
+      <h2><a href="{{ item.url }}">{{ item.title }}</a></h2>
+      {{ if item.summary }}<p>{{ item.summary }}</p>{{ end }}
+    </article>
+  {{ end }}
+</main>
+```
+
+## Linting and Diagnostics
+
+`bukit doctor` parses templates, checks includes/layouts, validates capability
+metadata, and reports suspicious template variables. Use it before changing
+renderer behavior.
+
+## Safety Rules
+
+- Keep path resolution inside the theme root.
+- Escape user-facing fields unless the field is intentionally sanitized HTML.
+- Keep SEO ownership aligned with `site.seo.renderMode`.
+- Add `theme.yaml.templates` metadata when a template has a runtime role.
+

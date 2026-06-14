@@ -245,10 +245,23 @@ internal static partial class SeoReportValidator
             EnsureAllowedProperties(representation, itemPath, "kind", "url", "path", "generated", "indexable");
             ReadRequiredString(representation, itemPath, "kind");
             ReadRequiredString(representation, itemPath, "url");
-            ReadRequiredString(representation, itemPath, "path");
-            ReadRequiredBool(representation, itemPath, "generated");
+            var generated = ReadRequiredBool(representation, itemPath, "generated");
+            ReadRepresentationPath(representation, itemPath, generated);
             ReadRequiredBool(representation, itemPath, "indexable");
             index++;
+        }
+    }
+
+    private static void ReadRepresentationPath(JsonElement element, string path, bool generated)
+    {
+        if (!element.TryGetProperty("path", out var value) || value.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidDataException($"{path}.path must be a string.");
+        }
+
+        if (generated && string.IsNullOrWhiteSpace(value.GetString()))
+        {
+            throw new InvalidDataException($"{path}.path must be a non-empty string when generated is true.");
         }
     }
 

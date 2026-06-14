@@ -6,12 +6,12 @@ namespace Bukit.Cli.Commands.Dev;
 
 internal sealed class DevRequestHandler
 {
-private const string LivereloadScript =
-"""
-<script>
-(function(){const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';const host = location.hostname || 'localhost';const socketHost = host.indexOf(':') >= 0 ? '[' + host + ']' : host;const port = location.port ? ':' + location.port : '';var s=new WebSocket(protocol+socketHost+port+'/__ws__');s.onclose=function(){console.log('[bukit] livereload disconnected, retrying in 1s...');setTimeout(function(){location.reload();},1000);};s.onmessage=function(e){if(e.data==='reload'){console.log('[bukit] change detected, reloading...');location.reload();}};s.onerror=function(){}})();
-</script>
-""";
+    private const string LivereloadScript =
+        """
+        <script>
+        (function(){const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';const host = location.hostname || 'localhost';const socketHost = host.indexOf(':') >= 0 ? '[' + host + ']' : host;const port = location.port ? ':' + location.port : '';var s=new WebSocket(protocol+socketHost+port+'/__ws__');s.onclose=function(){console.log('[bukit] livereload disconnected, retrying in 1s...');setTimeout(function(){location.reload();},1000);};s.onmessage=function(e){if(e.data==='reload'){console.log('[bukit] change detected, reloading...');location.reload();}};s.onerror=function(){}})();
+        </script>
+        """;
 
     private readonly string _outputDir;
     private readonly bool _disableAnalytics;

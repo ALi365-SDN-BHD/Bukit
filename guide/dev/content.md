@@ -1,61 +1,108 @@
-# Content System (Markdown / Notion / sources)
+# Content
 
-This document is the developer reference for the content system, covering uniform models, provider implementations, and field normalization rules.
+Core 1.0 content starts at `content.sources`. Legacy single-provider fields are
+not part of the contract.
 
-Implementation: `src/Bukit.Content/*`, `src/Bukit.Engine.Abstractions/ContentDocument.cs`
+Source anchors:
 
-## Unified Model: ContentDocument
+- `src/Bukit.Config/AppConfig.cs`
+- `src/Bukit.Engine/ContentProviderFactory.cs`
+- `src/Bukit.Content/Markdown/MarkdownFolderProvider.cs`
 
-All content sources ultimately land on `ContentDocument`:
-- `Id`: Unique identifier
-- `Title`: Content title
-- `Slug`: URL slug
-- `PublishAt`: Publish date
-- `Language`: Content language
-- `Record`: Canonical semantic record (identity/presentation/classification/lifecycle/ownership/media/relation info)
-- `CustomFields`: Custom fields for template consumption (`page.fields.<key>`)
-- `Route`: Route policy (`url`, `outputPath`, `template`, `permalink`, `listGroup`)
-- `ContentHtml`: HTML body (may be null with BodyKey)
-- `BodyKey`: Deferred body lookup key
+## Source Shape
 
-## Record vs Fields Division
+```yaml
+content:
+  sources:
+    - type: markdown
+      name: pages
+      mode: content
+      collection: page
+      markdown:
+        dir: content/pages
+    - type: markdown
+      name: navigation
+      mode: data
+      markdown:
+        dir: data/navigation
+```
 
-- **Record/Policy**: Engine decisions — `type`, `language`, `draft`, `route`, `sourceMode`, `tags`, `categories`, `collection`, `i18nKey`
-- **Fields**: Template consumption — SEO fields, business fields, images, reading time, etc.
+Supported `type` values are `markdown` and `notion`. Supported `mode` values
+are `content` and `data`.
 
-## Markdown Provider
+## Markdown Source
 
-`MarkdownFolderProvider.cs`: Recursively reads `*.md` files, parses YAML front matter, extracts body.
+| Field | Purpose |
+|---|---|
+| `dir` | Source directory |
+| `defaultType` | Type used when content omits one |
+| `maxItems` | Positive item limit |
+| `includePaths` | Explicit relative paths |
+| `includeGlobs` | Glob filters |
 
-Front matter normalization:
-- Reserved keys map to canonical record/policy fields: `title`, `slug`, `type`, `language`, `draft`, `publishAt`, `tags`, `categories`, `summary`, `collection`, `route`, `url`, `outputPath`, `template`, `permalink`, `listGroup`, `sourceMode`
-- Everything else goes to Fields
-- Field names are case-insensitive
+## Notion Source
 
-## Notion Provider
+Notion sources are Core, but require provider configuration and `NOTION_TOKEN`
+for real validation and build access.
 
-`NotionContentProvider.cs`: Fetches pages from Notion database, renders blocks, maps properties.
+```yaml
+content:
+  sources:
+    - type: notion
+      name: cms
+      collection: post
+      notion:
+        databaseId: "${NOTION_DATABASE_ID}"
+        filterProperty: Published
+        filterType: checkbox_true
+        sortProperty: PublishAt
+        sortDirection: descending
+        propertyMap:
+          Title: Title
+          Slug: Slug
+          PublishAt: PublishAt
+```
 
-Property mapping:
-- `Published` (checkbox) → filter
-- `Title` → `ContentDocument.Title`
-- `Slug` → `ContentDocument.Slug`
-- `Type` → `ContentDocument.Record.Identity.ContentType`
-- `PublishAt` → `ContentDocument.PublishAt`
-- `language` → `ContentDocument.Record.Presentation.Language`
-- `i18n_key` → `ContentDocument.Record.Identity.CanonicalUrlKey`
-- `tags`/`categories` → `ContentDocument.Record.Classification.Sections`（`categories` 兼容映射）及 `ContentDocument.Record.Classification.Tags`
-- `Collection` → `ContentDocument.Record.Classification.Collection`
-- Custom fields → `page.fields.*` (controlled by `fieldPolicy`)
+## Content vs Data
 
-Field normalization: `SEO Title` → `seo_title`, etc.
+`mode: content` creates pages and participates in routing. `mode: data` feeds
+structured data into rendering models and does not create public pages by
+itself.
 
-## Composite Provider (sources mode)
+## Front Matter
 
-`CompositeContentProvider.cs`: Concurrently aggregates multiple sources. Each source item gets a prefix `<sourceKey>:<sourceId>`.
+Common Markdown front matter:
 
-`mode: content` items generate routes; `mode: data` items are injected into `site.modules`.
+```yaml
+---
+title: Hello
+slug: hello
+type: post
+collection: post
+date: 2026-06-14
+summary: Short summary
+tags: [release]
+categories: [news]
+draft: false
+seoTitle: Hello - Example
+canonical: https://example.com/blog/hello/
+---
+```
 
-## Image Localization (`content.media`)
+Route behavior should be solved through `site.collections`, route fields, and
+permalink rules before template changes.
 
-Unified across all providers: downloads remote images locally, replaces URLs.
+## Media Policy
+
+`content.media` controls localization of remote media. Keep
+`blockPrivateNetworks: true` unless the deployment environment has an explicit
+trusted local-media workflow.
+
+## Verification
+
+```bash
+bukit config check
+bukit doctor
+bukit build
+```
+

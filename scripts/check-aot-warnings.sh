@@ -1,33 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-rid="${1:-linux-x64}"
-out_dir="${2:-/tmp/bukit-aot-check-${rid}}"
-log_file="${3:-/tmp/bukit-aot-check-${rid}.log}"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
 
-host_os="$(uname -s)"
-if [[ "${rid}" == linux-* && "${host_os}" != "Linux" ]]; then
-  echo "Skip: RID '${rid}' requires Linux host for native linking. Current host is ${host_os}."
-  exit 0
+rid="${1:-}"
+out_dir="${2:-}"
+log_file="${3:-}"
+
+if [ -n "$rid" ] && [ -n "$out_dir" ] && [ -n "$log_file" ]; then
+  bash scripts/build/native-aot.sh "$rid" "$out_dir" "$log_file"
+elif [ -n "$rid" ] && [ -n "$out_dir" ]; then
+  bash scripts/build/native-aot.sh "$rid" "$out_dir"
+elif [ -n "$rid" ]; then
+  bash scripts/build/native-aot.sh "$rid"
+else
+  bash scripts/build/native-aot.sh
 fi
-
-rm -f "${log_file}"
-
-dotnet publish src/Bukit.Cli/Bukit.Cli.csproj \
-  -c Release \
-  -r "${rid}" \
-  -o "${out_dir}" \
-  -maxcpucount:1 \
-  -nodeReuse:false \
-  -p:TrimmerSingleWarn=false \
-  2>&1 | tee "${log_file}"
-
-warn_lines="$(grep -E "ILC : .*warning IL[0-9]{4}" "${log_file}" || true)"
-if [[ -z "${warn_lines}" ]]; then
-  echo "No NativeAOT/trim warnings."
-  exit 0
-fi
-
-echo "Fail: found AOT/trim warnings:" >&2
-echo "${warn_lines}" >&2
-exit 1
