@@ -130,7 +130,14 @@ public sealed record CloneLayoutInfo
             return Default;
         }
 
-        return Normalize(JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneLayoutInfo) ?? Default);
+        try
+        {
+            return Normalize(JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneLayoutInfo) ?? Default);
+        }
+        catch (JsonException)
+        {
+            return Default;
+        }
     }
 
     internal static CloneLayoutInfo Normalize(CloneLayoutInfo layout)
@@ -170,7 +177,14 @@ public sealed record ClonePageInfo
             return Default;
         }
 
-        return Normalize(JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.ClonePageInfo) ?? Default);
+        try
+        {
+            return Normalize(JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.ClonePageInfo) ?? Default);
+        }
+        catch (JsonException)
+        {
+            return Default;
+        }
     }
 
     internal static ClonePageInfo Normalize(ClonePageInfo page)
@@ -199,14 +213,21 @@ public sealed record CloneSectionsDocument
             return [];
         }
 
-        using var doc = JsonDocument.Parse(json);
-        if (doc.RootElement.ValueKind == JsonValueKind.Array)
+        try
         {
-            return NormalizeSections(JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.ListCloneSectionInfo));
-        }
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                return NormalizeSections(JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.ListCloneSectionInfo));
+            }
 
-        var wrapped = JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneSectionsDocument);
-        return NormalizeSections(wrapped?.Sections);
+            var wrapped = JsonSerializer.Deserialize(json, CloneInputJsonContext.Default.CloneSectionsDocument);
+            return NormalizeSections(wrapped?.Sections);
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
 
     private static IReadOnlyList<CloneSectionInfo> NormalizeSections(IEnumerable<CloneSectionInfo>? sections)

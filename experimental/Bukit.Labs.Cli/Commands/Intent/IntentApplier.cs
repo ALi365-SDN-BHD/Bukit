@@ -18,7 +18,7 @@ public static class IntentApplier
             return (validation, rootDir);
         }
 
-        var config = ConvertToConfig(intent);
+        var config = ConvertToConfig(intent, rootDir);
         ValidateConfig(config, validation);
         if (!validation.IsValid)
         {
@@ -32,14 +32,20 @@ public static class IntentApplier
     private static string ResolveRootDir(string fullOutPath)
     {
         var cwd = GetCurrentDirectoryOrFallback(fullOutPath);
+        var dir = Path.GetDirectoryName(fullOutPath);
+        var sitesAncestor = FindAncestorNamed(dir, "sites");
+        if (!string.IsNullOrWhiteSpace(sitesAncestor))
+        {
+            return Path.GetDirectoryName(sitesAncestor) ?? cwd;
+        }
+
         var sitesDir = Path.GetFullPath(Path.Combine(cwd, "sites"));
 
-        if (fullOutPath.StartsWith(sitesDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        if (PathUtils.IsSubPathOf(fullOutPath, sitesDir))
         {
             return cwd;
         }
 
-        var dir = Path.GetDirectoryName(fullOutPath);
         return string.IsNullOrWhiteSpace(dir) ? cwd : dir;
     }
 
@@ -55,7 +61,29 @@ public static class IntentApplier
         }
     }
 
-    private static AppConfig ConvertToConfig(SiteIntent intent)
+    private static string? FindAncestorNamed(string? path, string name)
+    {
+        while (!string.IsNullOrWhiteSpace(path))
+        {
+            var current = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (string.Equals(Path.GetFileName(current), name, PlatformPathHelper.PathComparison))
+            {
+                return current;
+            }
+
+            var parent = Path.GetDirectoryName(current);
+            if (string.IsNullOrWhiteSpace(parent) || string.Equals(parent, current, PlatformPathHelper.PathComparison))
+            {
+                break;
+            }
+
+            path = parent;
+        }
+
+        return null;
+    }
+
+    private static AppConfig ConvertToConfig(SiteIntent intent, string rootDir)
     {
         var site = new SiteConfig
         {
@@ -83,7 +111,7 @@ public static class IntentApplier
         var contentKind = intent.Content.Kind.Trim().ToLowerInvariant();
         var content = contentKind switch
         {
-            "markdown" => ContentConfigFactory.FromSources(BuildMarkdownSources(intent.Content.Markdown?.Dir ?? "content")),
+            "markdown" => ContentConfigFactory.FromSources(BuildMarkdownSources(rootDir, intent.Content.Markdown?.Dir ?? "content")),
             "notion" => ContentConfigFactory.FromSources(BuildNotionSources(intent.Content.Notion!)),
             _ => ContentConfigFactory.FromSources(new List<ContentSourceConfig>())
         };
@@ -302,14 +330,15 @@ public static class IntentApplier
         };
     }
 
-    private static List<ContentSourceConfig> BuildMarkdownSources(string dir)
+    private static List<ContentSourceConfig> BuildMarkdownSources(string rootDir, string dir)
     {
+        var normalizedDir = NormalizeConfigPath(rootDir, dir);
         return BuildDefaultCollections().Keys.Select(collection => new ContentSourceConfig
         {
             Type = "markdown",
             Name = collection,
             Collection = collection,
-            Markdown = new MarkdownConfig { Dir = dir }
+            Markdown = new MarkdownConfig { Dir = normalizedDir }
         }).ToList();
     }
 
@@ -346,6 +375,89 @@ public static class IntentApplier
 
         var rel = Path.GetRelativePath(rootDir, path);
         return rel.Replace('\\', '/');
+    }
+
+    private static string NormalizeConfigPath(string rootDir, string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return path;
+        }
+
+        if (!Path.IsPathRooted(path))
+        {
+            return path.Replace('\\', '/');
+        }
+
+        var normalizedRoot = NormalizeExistingFullPath(rootDir);
+        var normalizedPath = NormalizeExistingFullPath(path);
+        return Path.GetRelativePath(normalizedRoot, normalizedPath).Replace('\\', '/');
+    }
+
+    private static string NormalizeExistingFullPath(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var root = Path.GetPathRoot(fullPath);
+        if (string.IsNullOrEmpty(root))
+        {
+            return fullPath;
+        }
+
+        var current = TrimTrailingSeparators(root);
+        var remainder = fullPath[root.Length..]
+            .Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+
+        for (var i = 0; i < remainder.Length; i++)
+        {
+            var candidate = Path.Combine(current, remainder[i]);
+            var resolved = ResolveLinkTarget(candidate);
+            if (resolved is null)
+            {
+                for (var j = i; j < remainder.Length; j++)
+                {
+                    current = Path.Combine(current, remainder[j]);
+                }
+
+                return TrimTrailingSeparators(Path.GetFullPath(current));
+            }
+
+            current = resolved;
+        }
+
+        return TrimTrailingSeparators(Path.GetFullPath(current));
+    }
+
+    private static string? ResolveLinkTarget(string path)
+    {
+        FileSystemInfo info;
+        if (Directory.Exists(path))
+        {
+            info = new DirectoryInfo(path);
+        }
+        else if (File.Exists(path))
+        {
+            info = new FileInfo(path);
+        }
+        else
+        {
+            return null;
+        }
+
+        var target = info.ResolveLinkTarget(returnFinalTarget: true);
+        return TrimTrailingSeparators(Path.GetFullPath(target?.FullName ?? info.FullName));
+    }
+
+    private static string TrimTrailingSeparators(string path)
+    {
+        var root = Path.GetPathRoot(path);
+        if (!string.IsNullOrEmpty(root) &&
+            string.Equals(path, root, PlatformPathHelper.PathComparison))
+        {
+            return root;
+        }
+
+        var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return string.IsNullOrEmpty(trimmed) && !string.IsNullOrEmpty(root) ? root : trimmed;
     }
 
     private static YamlNode ToYamlNode(object? value)

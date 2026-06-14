@@ -5,6 +5,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests;
 
+[Collection("Console")]
 public sealed class SeoExternalAuditorTests
 {
     private static readonly MethodInfo s_extractImageUrls = typeof(SeoExternalAuditor)
@@ -178,6 +179,88 @@ public sealed class SeoExternalAuditorTests
         Assert.False(result);
     }
 
+    [Fact]
+    public async Task RunExternalAuditAsync_PrivateUrls_ReturnsCanonicalErrorAndDeduplicatedWarnings()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-seo-external-audit-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "index.html"), """
+                <html>
+                  <head>
+                    <meta property="og:image" content="http://127.0.0.1:9/shared.png">
+                  </head>
+                  <body>
+                    <img src="http://127.0.0.1:9/shared.png" alt="shared">
+                    <a href="http://127.0.0.1:9/about">About</a>
+                    <a href="http://127.0.0.1:9/about">About again</a>
+                  </body>
+                </html>
+                """);
+
+            using var doc = JsonDocument.Parse("""
+                {
+                  "routes": [
+                    {
+                      "url": "/",
+                      "canonical": "http://127.0.0.1:9/",
+                      "outputPath": "index.html"
+                    }
+                  ]
+                }
+                """);
+
+            var result = await CaptureAsync(() => SeoExternalAuditor.RunExternalAuditAsync(doc.RootElement, root));
+
+            Assert.Equal(1, result.Value.Errors);
+            Assert.Equal(2, result.Value.Warnings);
+            Assert.Contains("external error seo.external_fetch_failed - canonical / http://127.0.0.1:9/", result.StdOut, StringComparison.Ordinal);
+            Assert.Contains("external warning seo.external_fetch_failed - image / http://127.0.0.1:9/shared.png", result.StdOut, StringComparison.Ordinal);
+            Assert.Contains("external warning seo.external_fetch_failed - link / http://127.0.0.1:9/about", result.StdOut, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RunExternalAuditAsync_MissingOutputFile_OnlyChecksCanonical()
+    {
+        using var doc = JsonDocument.Parse("""
+            {
+              "routes": [
+                {
+                  "url": "/",
+                  "canonical": "http://127.0.0.1:9/",
+                  "outputPath": "missing.html"
+                }
+              ]
+            }
+            """);
+
+        var root = Path.Combine(Path.GetTempPath(), "bukit-seo-external-audit-missing-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            var result = await CaptureAsync(() => SeoExternalAuditor.RunExternalAuditAsync(doc.RootElement, root));
+
+            Assert.Equal(1, result.Value.Errors);
+            Assert.Equal(0, result.Value.Warnings);
+            Assert.Contains("external error seo.external_fetch_failed - canonical / http://127.0.0.1:9/", result.StdOut, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static IReadOnlyList<string> InvokeExtractImageUrls(string html)
     {
         return (IReadOnlyList<string>)s_extractImageUrls.Invoke(null, new object[] { html })!;
@@ -186,5 +269,23 @@ public sealed class SeoExternalAuditorTests
     private static IReadOnlyList<string> InvokeExtractLinks(string html, string canonical)
     {
         return (IReadOnlyList<string>)s_extractLinks.Invoke(null, new object[] { html, canonical })!;
+    }
+
+    private static async Task<((int Errors, int Warnings) Value, string StdOut)> CaptureAsync(
+        Func<Task<(int Errors, int Warnings)>> action)
+    {
+        using var stdout = new StringWriter();
+        var originalOut = Console.Out;
+
+        try
+        {
+            Console.SetOut(stdout);
+            var value = await action();
+            return (value, stdout.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
     }
 }

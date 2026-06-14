@@ -118,6 +118,15 @@ public static class HtmlToNotionBlockConverter
                     continue;
                 }
 
+                if (tagName == "div" && HasClass(attrs, "callout"))
+                {
+                    i++;
+                    var textContent = CollectTextUntilClose(tokens, ref i, "div");
+                    if (!string.IsNullOrWhiteSpace(textContent))
+                        blocks.Add(new CalloutBlock(textContent));
+                    continue;
+                }
+
                 if (tagName == "p" || tagName == "div" || tagName == "span")
                 {
                     var hasFaqClass = HasClass(attrs, "faq-item");
@@ -198,15 +207,6 @@ public static class HtmlToNotionBlockConverter
                     }
                     if (!string.IsNullOrWhiteSpace(codeText))
                         blocks.Add(new CodeBlock(codeText, lang ?? "plain text"));
-                    continue;
-                }
-
-                if (tagName == "div" && HasClass(attrs, "callout"))
-                {
-                    i++;
-                    var textContent = CollectTextUntilClose(tokens, ref i, "div");
-                    if (!string.IsNullOrWhiteSpace(textContent))
-                        blocks.Add(new CalloutBlock(textContent));
                     continue;
                 }
 
@@ -432,6 +432,13 @@ public static class HtmlToNotionBlockConverter
             {
                 i++;
             }
+        }
+
+        if (i < tokens.Count &&
+            tokens[i].Type == HtmlTokenizer.HtmlTokenType.CloseTag &&
+            (tokens[i].TagName == "div" || tokens[i].TagName == "p" || tokens[i].TagName == "section"))
+        {
+            i++;
         }
 
         if (string.IsNullOrWhiteSpace(question))

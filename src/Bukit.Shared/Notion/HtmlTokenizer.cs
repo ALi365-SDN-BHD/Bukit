@@ -40,10 +40,12 @@ public static class HtmlTokenizer
                 }
                 else if (tagContent.EndsWith('/'))
                 {
+                    var selfClosingContent = tagContent[..^1].TrimEnd();
                     tokens.Add(new HtmlToken
                     {
                         Type = HtmlTokenType.SelfClosingTag,
-                        TagName = ExtractTagName(tagContent[..^1])
+                        TagName = ExtractTagName(selfClosingContent),
+                        Attributes = selfClosingContent
                     });
                 }
                 else
@@ -80,6 +82,7 @@ public static class HtmlTokenizer
 
     public static string ExtractTagName(string tagContent)
     {
+        tagContent = tagContent.Trim();
         var space = tagContent.IndexOf(' ');
         var name = space >= 0 ? tagContent[..space] : tagContent;
         return name.Trim().ToLowerInvariant();

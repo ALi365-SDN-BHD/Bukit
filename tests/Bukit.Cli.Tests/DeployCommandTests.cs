@@ -322,4 +322,125 @@ public sealed class DeployCommandTests
             }
         }
     }
+
+    [Fact]
+    public async Task RunAsync_DryRun_AppliesCliBaseUrlAndSiteUrlOverrides()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-command-" + Guid.NewGuid().ToString("N"));
+        var originalError = Console.Error;
+        var writer = new StringWriter();
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            var siteYaml = Path.Combine(root, "site.yaml");
+            File.WriteAllText(siteYaml, """
+            site:
+              name: test
+              title: Test
+              url: https://example.com
+              baseUrl: /
+            content:
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
+            deploy:
+              provider: github-pages
+            """);
+
+            Console.SetError(writer);
+
+            var exitCode = await DeployCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = siteYaml,
+                    ["--dry-run"] = "true",
+                    ["--skip-build"] = "true",
+                    ["--base-url"] = "docs",
+                    ["--site-url"] = "https://docs.example.com",
+                    ["--branch"] = "pages",
+                    ["--message"] = "override deploy"
+                },
+                Array.Empty<string>()));
+
+            Assert.Equal(0, exitCode);
+            var output = writer.ToString();
+            Assert.Contains("baseUrl: /docs", output, StringComparison.Ordinal);
+            Assert.Contains("siteUrl: https://docs.example.com", output, StringComparison.Ordinal);
+            Assert.Contains("branch: pages", output, StringComparison.Ordinal);
+            Assert.Contains("message: override deploy", output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_SkipBuild_WhenProviderFails_ReturnsOne()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-command-" + Guid.NewGuid().ToString("N"));
+        var originalError = Console.Error;
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        var originalToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+        var writer = new StringWriter();
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "dist"));
+            File.WriteAllText(Path.Combine(root, "dist", "index.html"), "<h1>Hello</h1>");
+
+            var siteYaml = Path.Combine(root, "site.yaml");
+            File.WriteAllText(siteYaml, """
+            site:
+              name: test
+              title: Test
+              url: https://example.com
+            content:
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
+            deploy:
+              provider: github-pages
+            build:
+              output: dist
+            """);
+
+            Environment.SetEnvironmentVariable("PATH", string.Empty);
+            Environment.SetEnvironmentVariable("GITHUB_TOKEN", "secret-token");
+            Console.SetError(writer);
+
+            var exitCode = await DeployCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = siteYaml,
+                    ["--skip-build"] = "true"
+                },
+                Array.Empty<string>()));
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("Deployment failed: git command not found.", writer.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            Environment.SetEnvironmentVariable("GITHUB_TOKEN", originalToken);
+            Console.SetError(originalError);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
 }

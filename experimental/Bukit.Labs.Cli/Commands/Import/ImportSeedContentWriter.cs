@@ -12,25 +12,20 @@ internal static class ImportSeedContentWriter
 
         foreach (var record in records)
         {
-            var path = ResolvePath(outputDir, record);
+            var slug = GetEffectiveSlug(record);
+            var path = ResolvePath(outputDir, record, slug);
             if (File.Exists(path) && !overwrite) continue;
 
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, BuildMarkdown(record));
+            File.WriteAllText(path, BuildMarkdown(record, slug));
             written++;
         }
 
         return written;
     }
 
-    private static string ResolvePath(string outputDir, ImportSeedRecord record)
+    private static string ResolvePath(string outputDir, ImportSeedRecord record, string slug)
     {
-        var slug = string.IsNullOrWhiteSpace(record.Slug)
-            ? SlugHelper.Slugify(record.Title)
-            : SlugHelper.Slugify(record.Slug);
-        if (string.IsNullOrWhiteSpace(slug))
-            slug = "index";
-
         return record.Collection switch
         {
             "navigation" => Path.Combine(outputDir, "navigation", $"{slug}.md"),
@@ -43,12 +38,23 @@ internal static class ImportSeedContentWriter
         };
     }
 
-    private static string BuildMarkdown(ImportSeedRecord record)
+    private static string GetEffectiveSlug(ImportSeedRecord record)
+    {
+        var slug = string.IsNullOrWhiteSpace(record.Slug)
+            ? SlugHelper.Slugify(record.Title)
+            : SlugHelper.Slugify(record.Slug);
+        if (string.IsNullOrWhiteSpace(slug))
+            slug = "index";
+
+        return slug;
+    }
+
+    private static string BuildMarkdown(ImportSeedRecord record, string slug)
     {
         var sb = new StringBuilder();
         sb.AppendLine("---");
         sb.AppendLine($"title: \"{EscapeYaml(record.Title)}\"");
-        sb.AppendLine($"slug: \"{EscapeYaml(record.Slug)}\"");
+        sb.AppendLine($"slug: \"{EscapeYaml(slug)}\"");
         sb.AppendLine($"type: \"{record.Collection}\"");
         if (!string.IsNullOrWhiteSpace(record.Summary))
             sb.AppendLine($"summary: \"{EscapeYaml(record.Summary)}\"");

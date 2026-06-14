@@ -48,19 +48,18 @@ internal static partial class ThemeGenerator
         WriteBaseLayout(themeDir, layout, cssLinks, scriptTags, pathMappings);
 
         var templateCount = 0;
+        var usedTemplateNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var page in pages)
         {
             var templateName = GetTemplateFileName(page, routeMap);
             var templatePath = Path.Combine(themeDir, "layouts", "pages", templateName);
-            var existingPage = pages.FirstOrDefault(p =>
-                GetTemplateFileName(p, routeMap) == templateName && p != page);
-
-            if (existingPage != null)
+            if (!usedTemplateNames.Add(templateName))
             {
                 templateName = SanitizeTemplateName(page.Slug) + ".html";
                 if (templateName is "index.html" or "list.html")
                     templateName = "page-" + templateName;
                 templatePath = Path.Combine(themeDir, "layouts", "pages", templateName);
+                usedTemplateNames.Add(templateName);
             }
 
             WritePageTemplate(templatePath, page, pathMappings);

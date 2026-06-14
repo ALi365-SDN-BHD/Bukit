@@ -157,8 +157,6 @@ internal static class NotionBlockJsonWriter
             writer.WriteEndObject();
         }
         writer.WriteEndObject();
-        if (seg.Bold)
-            writer.WriteStartObject("annotations");
         if (seg.Bold || seg.Italic)
         {
             writer.WriteStartObject("annotations");

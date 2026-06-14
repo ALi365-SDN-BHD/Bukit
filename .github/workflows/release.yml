@@ -18,7 +18,7 @@ jobs:
     name: Release Gate
     runs-on: ubuntu-latest
     env:
-      COVERAGE_THRESHOLD: "65"
+      CORE_COVERAGE_THRESHOLD: "65"
       CLI_COVERAGE_THRESHOLD: "50"
       RELEASE_GATE_RIDS: linux-x64
     steps:

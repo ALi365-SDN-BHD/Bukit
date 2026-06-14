@@ -47,10 +47,18 @@ public static class IntentCommand
 
         var full = Path.GetFullPath(intentPath);
         var rootDir = ResolveRootDir(command);
-        var intent = IntentLoader.Load(full);
-        var validation = IntentValidator.Validate(intent, rootDir);
-        Print(validation);
-        return Task.FromResult(validation.IsValid ? 0 : 1);
+        try
+        {
+            var intent = IntentLoader.Load(full);
+            var validation = IntentValidator.Validate(intent, rootDir);
+            Print(validation);
+            return Task.FromResult(validation.IsValid ? 0 : 1);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return Task.FromResult(1);
+        }
     }
 
     private static Task<int> ApplyAsync(CliBoundCommand command)
@@ -64,20 +72,28 @@ public static class IntentCommand
         }
 
         var outPath = command.GetString("--out") ?? "site.yaml";
-        var (validation, rootDir) = IntentApplier.Apply(intentPath, outPath);
-        Print(validation);
-        if (!validation.IsValid)
+        try
         {
+            var (validation, rootDir) = IntentApplier.Apply(intentPath, outPath);
+            Print(validation);
+            if (!validation.IsValid)
+            {
+                return Task.FromResult(1);
+            }
+
+            Console.WriteLine($"Wrote config: {Path.GetFullPath(outPath)}");
+            if (Path.GetFullPath(outPath).StartsWith(Path.GetFullPath(Path.Combine(rootDir, "sites")) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("Tip: use `bukit build --site <name>` for sites/<name>.yaml");
+            }
+
+            return Task.FromResult(0);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine(ex.Message);
             return Task.FromResult(1);
         }
-
-        Console.WriteLine($"Wrote config: {Path.GetFullPath(outPath)}");
-        if (Path.GetFullPath(outPath).StartsWith(Path.GetFullPath(Path.Combine(rootDir, "sites")) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-        {
-            Console.WriteLine("Tip: use `bukit build --site <name>` for sites/<name>.yaml");
-        }
-
-        return Task.FromResult(0);
     }
 
     private static string ResolveRootDir(CliBoundCommand command)
@@ -98,7 +114,7 @@ public static class IntentCommand
         var cwd = Directory.GetCurrentDirectory();
         var sitesDir = Path.GetFullPath(Path.Combine(cwd, "sites"));
 
-        if (fullOutPath.StartsWith(sitesDir + Path.DirectorySeparatorChar, Bukit.Shared.PlatformPathHelper.PathComparison))
+        if (Bukit.Shared.PathUtils.IsSubPathOf(fullOutPath, sitesDir))
         {
             return cwd;
         }

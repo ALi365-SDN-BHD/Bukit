@@ -353,7 +353,7 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
             }
 
             url = url.Trim();
-            var match = Regex.Match(url, @"github\.com[:/]([^/]+)/([^/\s.]+?)(\.git)?$", RegexOptions.IgnoreCase);
+            var match = Regex.Match(url, @"github\.com[:/]([^/]+)/([^/\s]+?)(\.git)?$", RegexOptions.IgnoreCase);
             if (!match.Success)
             {
                 return null;

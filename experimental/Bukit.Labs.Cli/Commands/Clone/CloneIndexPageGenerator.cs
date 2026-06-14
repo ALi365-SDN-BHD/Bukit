@@ -90,7 +90,7 @@ internal static class CloneIndexPageGenerator
         sb.AppendLine("  </ul>");
         sb.AppendLine("</section>");
 
-        if (layout.ExtraSections.Any(s => s.HasStates))
+        if (layout.ExtraSections.Any(s => s.States.Count >= 2))
         {
             sb.AppendLine();
             sb.AppendLine("<script>(function(){document.querySelectorAll('.state-section').forEach(function(sec){var tabs=sec.querySelectorAll('.state-tab');tabs.forEach(function(tab){tab.addEventListener('click',function(){var panelId=tab.getAttribute('aria-controls');tabs.forEach(function(t){t.setAttribute('aria-selected','false');});tab.setAttribute('aria-selected','true');sec.querySelectorAll('.state-panel').forEach(function(p){p.classList.add('hidden');});var panel=document.getElementById(panelId);if(panel)panel.classList.remove('hidden');});});});})();</script>");

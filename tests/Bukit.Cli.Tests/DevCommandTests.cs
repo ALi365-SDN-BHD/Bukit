@@ -3,6 +3,7 @@ using Bukit.Cli.Commands.Dev;
 using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Config;
 using Bukit.Shared;
+using System.Net;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -208,6 +209,124 @@ public sealed class DevCommandTests
         Assert.Equal(expected, ResolveMimeType(extension));
     }
 
+    [Fact]
+    public async Task DevRequestHandler_HandleAsync_ServesHtmlWithLivereload()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(outputDir, "index.html"), """
+            <html><head>
+              <script async src="https://www.googletagmanager.com/gtag/js?id=G-123"></script>
+              <script>gtag('config', 'G-123');</script>
+            </head><body>ok</body></html>
+            """);
+
+        try
+        {
+            var handler = new DevRequestHandler(outputDir, disableAnalytics: true, new TestLogger());
+            var response = await ProcessSingleRequestAsync(
+                "/",
+                (context, ct) => handler.HandleAsync(context, ct));
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("ok", response.Body, StringComparison.Ordinal);
+            Assert.Contains("new WebSocket", response.Body, StringComparison.Ordinal);
+            Assert.DoesNotContain("googletagmanager.com/gtag/js", response.Body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task DevRequestHandler_HandleAsync_ReturnsNotFoundForMissingFile()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-missing-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+
+        try
+        {
+            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var response = await ProcessSingleRequestAsync(
+                "/missing",
+                (context, ct) => handler.HandleAsync(context, ct));
+
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task DevServerHost_RunAcceptLoopAsync_DispatchesIncomingRequest()
+    {
+        using var logger = new BufferingLogger();
+        using var host = DevServerHost.Start("localhost", 0, logger);
+        using var cts = new CancellationTokenSource();
+        var requestHandled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var loopTask = host.RunAcceptLoopAsync(context =>
+        {
+            context.Response.StatusCode = 204;
+            context.Response.Close();
+            requestHandled.TrySetResult(true);
+            return Task.CompletedTask;
+        }, cts.Token);
+
+        using var client = new HttpClient();
+        using var response = await client.GetAsync(host.Prefix);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await requestHandled.Task;
+
+        cts.Cancel();
+        await loopTask;
+    }
+
+    [Fact]
+    public async Task DevWebSocketHub_HandleUpgradeAsync_RejectsWhenConnectionLimitReached()
+    {
+        using var listener = StartListener(out var prefix, out var port);
+        using var logger = new BufferingLogger();
+        var hub = new DevWebSocketHub(logger, DevWebSocketAccessPolicy.Loopback(port), maxConnections: 0);
+
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        var contextTask = listener.GetContextAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Get, prefix);
+        request.Headers.TryAddWithoutValidation("Origin", prefix.TrimEnd('/'));
+        var responseTask = client.SendAsync(request);
+
+        var context = await contextTask.WaitAsync(TimeSpan.FromSeconds(5));
+        await hub.HandleUpgradeAsync(context, CancellationToken.None);
+
+        using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal((HttpStatusCode)429, response.StatusCode);
+        Assert.Contains(logger.Warnings, warning => warning.Contains("too many dev WebSocket clients", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DevWebSocketHub_HandleUpgradeAsync_RejectsMissingOrigin()
+    {
+        using var listener = StartListener(out var prefix, out var port);
+        using var logger = new BufferingLogger();
+        var hub = new DevWebSocketHub(logger, DevWebSocketAccessPolicy.Loopback(port), maxConnections: 1);
+
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        var contextTask = listener.GetContextAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Get, prefix);
+        var responseTask = client.SendAsync(request);
+
+        var context = await contextTask.WaitAsync(TimeSpan.FromSeconds(5));
+        await hub.HandleUpgradeAsync(context, CancellationToken.None);
+
+        using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains(logger.Warnings, warning => warning.Contains("missing or invalid Origin header", StringComparison.Ordinal));
+    }
+
     private static AppConfig MinimalConfig()
         => new()
         {
@@ -235,11 +354,56 @@ public sealed class DevCommandTests
         return (string)method.Invoke(null, [extension])!;
     }
 
-    private sealed class TestLogger : ILogger
+    private static async Task<(HttpStatusCode StatusCode, string Body)> ProcessSingleRequestAsync(
+        string path,
+        Func<HttpListenerContext, CancellationToken, Task> handleAsync)
+    {
+        using var listener = StartListener(out var prefix, out _);
+        using var client = new HttpClient();
+        var contextTask = listener.GetContextAsync();
+        var responseTask = client.GetAsync(new Uri(new Uri(prefix), path));
+
+        var context = await contextTask;
+        await handleAsync(context, CancellationToken.None);
+
+        using var response = await responseTask;
+        var body = await response.Content.ReadAsStringAsync();
+        return (response.StatusCode, body);
+    }
+
+    private static HttpListener StartListener(out string prefix, out int port)
+    {
+        using var tcp = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        tcp.Start();
+        port = ((System.Net.IPEndPoint)tcp.LocalEndpoint).Port;
+        tcp.Stop();
+
+        prefix = $"http://localhost:{port}/";
+        var listener = new HttpListener();
+        listener.Prefixes.Add(prefix);
+        listener.Start();
+        return listener;
+    }
+
+    private class TestLogger : ILogger
     {
         public void Debug(string message) { }
         public void Info(string message) { }
         public void Warn(string message) { }
         public void Error(string message) { }
+    }
+
+    private sealed class BufferingLogger : ILogger, IDisposable
+    {
+        public List<string> Warnings { get; } = [];
+
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Add(message);
+        public void Error(string message) { }
+
+        public void Dispose()
+        {
+        }
     }
 }

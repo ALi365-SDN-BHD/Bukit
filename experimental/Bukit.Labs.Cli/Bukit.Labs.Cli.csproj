@@ -19,4 +19,8 @@
     <ProjectReference Include="..\..\src\Bukit.Theme\Bukit.Theme.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bukit.Labs.Cli.Tests" />
+  </ItemGroup>
+
 </Project>

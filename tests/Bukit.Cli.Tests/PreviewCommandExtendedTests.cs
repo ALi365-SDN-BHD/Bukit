@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using Bukit.Cli.Commands;
 using Xunit;
@@ -23,6 +24,9 @@ public sealed class PreviewCommandExtendedTests : IDisposable
 
     private static readonly MethodInfo s_isPortConflict = typeof(PreviewCommand)
         .GetMethod("IsPortConflict", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+    private static readonly MethodInfo s_handleRequest = typeof(PreviewCommand)
+        .GetMethod("HandleRequest", BindingFlags.NonPublic | BindingFlags.Static)!;
 
     public PreviewCommandExtendedTests()
     {
@@ -169,5 +173,87 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         var ex = new HttpListenerException(0, "some other error");
         var result = (bool)s_isPortConflict.Invoke(null, new object[] { ex })!;
         Assert.False(result);
+    }
+
+    [Fact]
+    public async Task HandleRequest_RootIndexHtml_StripsAnalyticsWhenDisabled()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"), """
+            <html><head>
+              <script async src="https://www.googletagmanager.com/gtag/js?id=G-ABC123"></script>
+              <script>gtag('config', 'G-ABC123');</script>
+            </head><body>root</body></html>
+            """);
+
+        var response = await SendRequestAsync("/", disableAnalytics: true);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/html; charset=utf-8", response.ContentType);
+        Assert.Contains("root", response.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("googletagmanager.com/gtag/js", response.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("gtag('config'", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task HandleRequest_DirectoryWithoutExtension_FallsBackToNestedIndex()
+    {
+        var postsDir = Path.Combine(_tempDir, "posts");
+        Directory.CreateDirectory(postsDir);
+        File.WriteAllText(Path.Combine(postsDir, "index.html"), "<html><body>nested</body></html>");
+
+        var response = await SendRequestAsync("/posts", disableAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("nested", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task HandleRequest_StaticAsset_ReturnsFileBytes()
+    {
+        var assetsDir = Path.Combine(_tempDir, "assets");
+        Directory.CreateDirectory(assetsDir);
+        File.WriteAllText(Path.Combine(assetsDir, "site.css"), "body{color:red;}");
+
+        var response = await SendRequestAsync("/assets/site.css", disableAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/css; charset=utf-8", response.ContentType);
+        Assert.Equal("body{color:red;}", response.Body);
+    }
+
+    [Fact]
+    public async Task HandleRequest_MissingFile_ReturnsNotFound()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"), "<html></html>");
+
+        var response = await SendRequestAsync("/missing", disableAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    private async Task<(HttpStatusCode StatusCode, string Body, string? ContentType)> SendRequestAsync(string path, bool disableAnalytics)
+    {
+        var result = s_createAndStartListener.Invoke(null, new object[] { "localhost", 0, false })!;
+        var tupleType = result.GetType();
+        var listener = (HttpListener)tupleType.GetField("Item1")!.GetValue(result)!;
+        var prefix = (string)tupleType.GetField("Item2")!.GetValue(result)!;
+
+        try
+        {
+            var contextTask = listener.GetContextAsync();
+            using var client = new HttpClient();
+            var responseTask = client.GetAsync(new Uri(new Uri(prefix), path));
+
+            var context = await contextTask;
+            s_handleRequest.Invoke(null, new object[] { _tempDir, context, disableAnalytics });
+
+            using var response = await responseTask;
+            var body = await response.Content.ReadAsStringAsync();
+            return (response.StatusCode, body, response.Content.Headers.ContentType?.ToString());
+        }
+        finally
+        {
+            listener.Close();
+        }
     }
 }
