@@ -8,5 +8,3 @@
 # 3. Each entry should include a brief justification.
 #
 # Format: one path per line relative to repo root. Lines starting with # are ignored.
-src/Bukit.Config/SiteDefaultsApplier.cs
-src/Bukit.Config/ThemeManifestStrictValidator.cs

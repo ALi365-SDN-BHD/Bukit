@@ -12,7 +12,7 @@ coverage_report_dir="${COVERAGE_REPORT_DIR:-${coverage_root}/report}"
 core_coverage_report_dir="${CORE_COVERAGE_REPORT_DIR:-${coverage_report_dir}/core}"
 cli_coverage_report_dir="${CLI_COVERAGE_REPORT_DIR:-${coverage_report_dir}/cli}"
 overall_coverage_report_dir="${OVERALL_COVERAGE_REPORT_DIR:-${coverage_report_dir}/overall}"
-core_assembly_filters="${CORE_COVERAGE_ASSEMBLY_FILTERS:--bukit;-SampleAfterBuildPlugin;-VisualFeedbackPlugin;-ProtocolEchoPlugin}"
+core_assembly_filters="${CORE_COVERAGE_ASSEMBLY_FILTERS:--bukit;-bukit-labs;-Bukit.Importing;-SampleAfterBuildPlugin;-VisualFeedbackPlugin;-ProtocolEchoPlugin}"
 cli_assembly_filters="${CLI_COVERAGE_ASSEMBLY_FILTERS:-+bukit}"
 coverage_no_build="${COVERAGE_NO_BUILD:-}"
 
