@@ -153,4 +153,35 @@ public sealed class ThemeManifestLoaderTests : IDisposable
         Assert.Equal("articles", result.Templates["article"].Accepts?.Collection);
         Assert.Equal("detail", result.Templates["article"].Accepts?.Kind);
     }
+
+    [Fact]
+    public void Load_WithUnknownRootField_Throws()
+    {
+        File.WriteAllText(Path.Combine(_testDir, "theme.yaml"), """
+            name: test-theme
+            version: 1.0.0
+            unknown_field: should-fail
+            """);
+
+        var ex = Assert.Throws<ThemeManifestException>(() => ThemeManifestLoader.Load(_testDir));
+        Assert.Contains("theme.yaml: unknown field 'theme.yaml.unknown_field'.", ex.Message);
+    }
+
+    [Fact]
+    public void Load_WithUnknownTemplateAcceptField_Throws()
+    {
+        File.WriteAllText(Path.Combine(_testDir, "theme.yaml"), """
+            name: test-theme
+            templates:
+              article:
+                template: content/article.html
+                accepts:
+                  type: post
+                  collection: articles
+                  unknown_accept: yes
+            """);
+
+        var ex = Assert.Throws<ThemeManifestException>(() => ThemeManifestLoader.Load(_testDir));
+        Assert.Contains("theme.yaml.templates.article.accepts.unknown_accept", ex.Message);
+    }
 }

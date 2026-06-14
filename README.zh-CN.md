@@ -48,7 +48,7 @@ Bukit **不是** SaaS 平台、全功能 CMS 后端、可视化页面构建器�
 - **GEO** — `llms.txt`、AI 爬虫 robots.txt 规则、FAQ/HowTo 结构化数据、GEO 评分审计
 - **主题系统**，含设计令牌和组件化主题；主题注册表计划在下一阶段推出
 - **HMR 开发服务器**（WebSocket 实时刷新）；构建产物的本地预览服务器
-- **插件系统** — `derive-pages` 和 `after-build` 钩子；支持 WASM 和进程插件
+- **插件系统** — 内置 `derive-pages` 与 `after-build` 钩子；外部进程 / WASM 插件生态为计划特性，不属于 Core 1.0。
 - **增量构建** — 内容感知变更检测；可选 SHA256 资源哈希
 - **GitHub Pages 部署**，通过 CLI 或 GitHub Actions 工作流
 

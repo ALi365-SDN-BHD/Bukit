@@ -41,8 +41,11 @@ Starts at `http://localhost:35729/`, watching content/, themes/, layouts/, asset
 ### Custom Port and Host
 
 ```bash
-bukit dev --port 3000 --host 0.0.0.0
+bukit dev --port 3000
+bukit dev --host 0.0.0.0 --allow-lan
 ```
+
+`--host` defaults to `localhost`. Binding a non-loopback host such as `0.0.0.0` requires `--allow-lan` (or `--public`) and prints a warning because the dev server becomes reachable from the local network.
 
 ### Disable File Watching (static server only)
 
@@ -74,7 +77,7 @@ bukit dev
   │     └─ Browser connects → waits for "reload" broadcast
   └─ 4. File watchers (FileSystemWatcher)
         ├─ Watches: content/ + themes/ + layouts/ + assets/ + static/
-        ├─ Excludes: .cache/ + dist/ + dot-prefixed files
+        ├─ Excludes: effective output dir + cache dir + .git/node_modules/.bukit/bin/obj + dot-prefixed files
         ├─ Debounce: 300ms (batches rapid changes)
         └─ On change → incremental rebuild → WebSocket broadcast "reload"
 ```
@@ -89,6 +92,8 @@ bukit dev
 | `--port` | int | 35729 | Listen port (auto-increment if occupied) |
 | `--output` | string | dist | Output directory override |
 | `--no-watch` | flag | false | Disable file watching (serve only) |
+| `--allow-lan` | flag | false | Allow binding a non-loopback host such as `0.0.0.0` |
+| `--public` | flag | false | Alias for `--allow-lan` |
 
 ## Live Reload Injection
 
@@ -96,7 +101,11 @@ The dev server automatically injects a WebSocket-based live reload script before
 
 ```javascript
 // Autoinjected into every HTML page served:
-var s = new WebSocket('ws://localhost:35729/__ws__');
+const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+const host = location.hostname || 'localhost';
+const socketHost = host.indexOf(':') >= 0 ? '[' + host + ']' : host;
+const port = location.port ? ':' + location.port : '';
+var s = new WebSocket(protocol + socketHost + port + '/__ws__');
 s.onmessage = function(e) {
   if (e.data === 'reload') location.reload();
 };
@@ -115,7 +124,7 @@ When a file change triggers a rebuild, all connected browsers receive a "reload"
 | `assets/` | CSS/JS/SCSS changes |
 | `static/` | Static file changes |
 
-Excluded: `.cache/`, `dist/`, dot-prefixed files (`.DS_Store`, etc.).
+Excluded: the effective build output directory, effective cache directory, `.git/`, `node_modules/`, `.bukit/`, `bin/`, `obj/`, and dot-prefixed files (`.DS_Store`, etc.).
 
 ## Common Issues
 
@@ -129,7 +138,7 @@ If port 3000 is busy, bukit auto-increments to 3001, 3002, etc.
 ### Changes not detected
 
 - Check that the changed file is in a watched directory (content/, themes/, layouts/, assets/, static/)
-- Ensure the file is not ignored (dot-prefixed files, .cache/, dist/ are excluded)
+- Ensure the file is not ignored (dot-prefixed files, cache/output directories, `.git/`, `node_modules/`, `.bukit/`, `bin/`, and `obj/` are excluded)
 - For theme inheritance, ensure parent theme directories are accessible
 
 ### Hot reload not working

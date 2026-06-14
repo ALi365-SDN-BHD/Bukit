@@ -6,6 +6,7 @@ internal sealed class DevFileWatcher : IDisposable
 {
     private readonly List<FileSystemWatcher> _watchers = new();
     private readonly string _rootDir;
+    private readonly IReadOnlyList<string> _excludedDirs;
     private readonly ILogger _logger;
     private readonly Func<string, CancellationToken, Task> _onRebuildAsync;
     private readonly int _debounceMs;
@@ -20,9 +21,15 @@ internal sealed class DevFileWatcher : IDisposable
         string rootDir,
         ILogger logger,
         Func<string, CancellationToken, Task> onRebuildAsync,
+        IReadOnlyList<string>? excludedDirs = null,
         int debounceMs = 300)
     {
-        _rootDir = rootDir ?? throw new ArgumentNullException(nameof(rootDir));
+        _rootDir = Path.GetFullPath(rootDir ?? throw new ArgumentNullException(nameof(rootDir)));
+        _excludedDirs = (excludedDirs ?? Array.Empty<string>())
+            .Where(static d => !string.IsNullOrWhiteSpace(d))
+            .Select(Path.GetFullPath)
+            .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+            .ToArray();
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _onRebuildAsync = onRebuildAsync ?? throw new ArgumentNullException(nameof(onRebuildAsync));
         _debounceMs = debounceMs;
@@ -50,7 +57,13 @@ internal sealed class DevFileWatcher : IDisposable
             watcher.Changed += OnChange;
             watcher.Created += OnChange;
             watcher.Deleted += OnChange;
-            watcher.Renamed += (_, e) => _ = ScheduleRebuildAsync(e.FullPath);
+            watcher.Renamed += (_, e) =>
+            {
+                if (!ShouldIgnore(e.FullPath, e.Name))
+                {
+                    _ = ScheduleRebuildAsync(e.FullPath);
+                }
+            };
             watcher.Error += (_, e) => _logger.Warn($"dev.filewatcher: {e.GetException().Message}");
 
             watcher.EnableRaisingEvents = true;
@@ -74,16 +87,72 @@ internal sealed class DevFileWatcher : IDisposable
 
     private void OnChange(object sender, FileSystemEventArgs e)
     {
-        var name = e.Name ?? string.Empty;
-        if (e.FullPath.Contains($"{Path.DirectorySeparatorChar}.cache{Path.DirectorySeparatorChar}") ||
-            e.FullPath.Contains($"{Path.DirectorySeparatorChar}dist{Path.DirectorySeparatorChar}") ||
-            name.StartsWith('.'))
+        if (ShouldIgnore(e.FullPath, e.Name))
         {
             return;
         }
 
         _ = ScheduleRebuildAsync(e.FullPath);
     }
+
+    internal bool ShouldIgnore(string fullPath, string? eventName)
+    {
+        if (string.IsNullOrWhiteSpace(fullPath))
+        {
+            return true;
+        }
+
+        if (IsDotPrefixed(eventName))
+        {
+            return true;
+        }
+
+        try
+        {
+            foreach (var excluded in _excludedDirs)
+            {
+                if (PathUtils.IsSameOrSubPathOf(fullPath, excluded))
+                {
+                    return true;
+                }
+            }
+
+            var relative = Path.GetRelativePath(_rootDir, Path.GetFullPath(fullPath));
+            if (relative.StartsWith("..", PlatformPathHelper.PathComparison) || Path.IsPathRooted(relative))
+            {
+                return false;
+            }
+
+            foreach (var segment in relative.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (IsExcludedSegment(segment) || segment.StartsWith(".", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            _logger.Warn($"dev.filewatcher.path_filter: {ex.Message}");
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsDotPrefixed(string? eventName)
+    {
+        if (string.IsNullOrWhiteSpace(eventName))
+        {
+            return false;
+        }
+
+        var name = Path.GetFileName(eventName);
+        return name.StartsWith(".", StringComparison.Ordinal);
+    }
+
+    private static bool IsExcludedSegment(string segment)
+        => segment is ".cache" or ".git" or "node_modules" or ".bukit" or "bin" or "obj";
 
     private async Task ScheduleRebuildAsync(string file)
     {

@@ -49,6 +49,8 @@ bukit deploy --ci
 
 **部署配置（site.yaml，可选）：**
 
+`deploy` section 可选；如果写了该 section，必须显式设置 `provider: github-pages`。Bukit 1.0 不支持其它 deploy provider。
+
 ```yaml
 deploy:
   provider: github-pages

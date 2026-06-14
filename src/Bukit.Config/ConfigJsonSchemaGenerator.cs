@@ -103,6 +103,14 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject TaxonomySchema()
         => Obj(("type", "object"), ("properties", Obj(
+            ("outputMode", EnumSchema("both", "pages", "data", "fields_only")),
+            ("itemFields", StringArraySchema()),
+            ("pageSize", IntSchema(1)),
+            ("indexEnabled", BoolSchema()),
+            ("pinField", StringSchema()),
+            ("pinOrderField", StringSchema()),
+            ("pinFieldBySource", StringMapSchema()),
+            ("pinOrderFieldBySource", StringMapSchema()),
             ("kinds", Obj(("type", "array"), ("items", Obj(("type", "object"), ("properties", Obj(
                 ("key", StringSchema()),
                 ("kind", StringSchema()),
@@ -124,39 +132,53 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject SeoSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("title", StringSchema()),
-            ("titleTemplate", StringSchema()),
-            ("description", StringSchema()),
-            ("ogImage", StringSchema()),
-            ("favicon", StringSchema()),
-            ("authorName", StringSchema()),
+            ("enabled", BoolSchema()),
+            ("renderMode", EnumSchema("theme", "inject", "off")),
+            ("diagnostics", EnumSchema("off", "warn", "strict")),
+            ("defaultImage", StringSchema()),
+            ("twitterSite", StringSchema()),
+            ("organization", SeoOrganizationSchema()),
             ("robotsTxt", SeoRobotsTxtSchema()),
             ("schema", SeoSchemaDetailSchema()),
-            ("organization", SeoOrganizationSchema()),
             ("geo", SeoGeoSchema()))));
 
     private static JsonObject SeoRobotsTxtSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("disallow", StringSchema()),
-            ("userAgent", StringSchema()),
-            ("sitemapUrl", StringSchema()))));
+            ("enabled", BoolSchema()))));
 
     private static JsonObject SeoSchemaDetailSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("type", StringSchema()),
-            ("mode", StringSchema()))));
+            ("webPage", BoolSchema()),
+            ("collectionPage", BoolSchema()),
+            ("searchAction", BoolSchema()))));
 
     private static JsonObject SeoOrganizationSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("name", StringSchema()),
-            ("url", StringSchema()))));
+            ("url", StringSchema()),
+            ("logo", StringSchema()))));
 
     private static JsonObject SeoGeoSchema()
         => Obj(("type", "object"), ("properties", Obj(
+            ("enabled", BoolSchema()),
             ("llmsTxt", BoolSchema()),
             ("llmsFullTxt", BoolSchema()),
-            ("faqSchema", BoolSchema()),
-            ("howToSchema", BoolSchema()))));
+            ("llmsTxtMaxArticles", IntSchema(1)),
+            ("aiBotMode", EnumSchema("allow", "block", "selective")),
+            ("aiBotAllowList", StringArraySchema()),
+            ("aiBotBlockList", StringArraySchema()),
+            ("llmsTxtOptionalLinks", Obj(("type", "array"), ("items", LlmsTxtOptionalLinkSchema()))))));
+
+    private static JsonObject LlmsTxtOptionalLinkSchema()
+    {
+        var schema = Obj(("type", "object"));
+        schema["required"] = Arr("title", "url");
+        schema["properties"] = Obj(
+            ("title", StringSchema()),
+            ("url", StringSchema()),
+            ("description", StringSchema()));
+        return schema;
+    }
 
     private static JsonObject AnalyticsSchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -166,23 +188,22 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject FeedSchema()
         => Obj(("type", "object"), ("properties", Obj(
+            ("mode", EnumSchema("split", "merged")),
             ("formats", StringArraySchema()),
             ("limit", IntSchema(1)),
-            ("language", StringSchema()),
-            ("authorName", StringSchema()))));
+            ("path", StringSchema()))));
 
     private static JsonObject SitemapDetailSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("changefreq", StringSchema()),
-            ("priority", Obj(("type", "number"), ("minimum", 0.0), ("maximum", 1.0))),
-            ("lastmod", StringSchema()),
-            ("priorityMode", EnumSchema("auto", "manual", "default")))));
+            ("defaultPriority", Obj(("type", "number"), ("minimum", 0.0), ("maximum", 1.0))),
+            ("defaultChangefreq", StringSchema()),
+            ("imageEnabled", BoolSchema()),
+            ("videoEnabled", BoolSchema()))));
 
     private static JsonObject PaginationGlobalSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("pageSize", IntSchema(1)),
-            ("pagerTemplate", StringSchema()),
-            ("pagePathPrefix", StringSchema()))));
+            ("enabled", BoolSchema()),
+            ("pageSize", IntSchema(1)))));
 
     private static JsonObject SearchDetailSchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -193,12 +214,18 @@ public static class ConfigJsonSchemaGenerator
             ("maxContentLength", IntSchema(1)))));
 
     private static JsonObject RelatedSchema()
-        => Obj(("type", "object"), ("properties", Obj(
+    {
+        var indexSchema = Obj(("type", "object"));
+        indexSchema["properties"] = Obj(
+            ("name", StringSchema()),
+            ("weight", IntSchema(0)));
+
+        return Obj(("type", "object"), ("properties", Obj(
             ("enabled", BoolSchema()),
-            ("template", StringSchema()),
-            ("maxResults", IntSchema(1)),
-            ("scoreThreshold", Obj(("type", "number"))),
-            ("fields", StringArraySchema()))));
+            ("threshold", IntSchema(0)),
+            ("limit", IntSchema(1)),
+            ("indices", Obj(("type", "array"), ("items", indexSchema))))));
+    }
 
     private static JsonObject MenusSchema()
         => Obj(
@@ -207,58 +234,52 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject MenuConfigItemSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("label", StringSchema()),
+            ("identifier", StringSchema()),
+            ("name", StringSchema()),
             ("url", StringSchema()),
-            ("target", StringSchema()),
             ("weight", IntSchema(0)),
-            ("children", Obj(("type", "object"))))));
+            ("children", Obj(("type", "array"), ("items", Obj(("type", "object"), ("properties", Obj(
+                ("identifier", StringSchema()),
+                ("name", StringSchema()),
+                ("url", StringSchema()),
+                ("weight", IntSchema(0)))))))))));
 
     private static JsonObject BuildReportSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("outputPath", StringSchema()),
             ("enabled", BoolSchema()),
             ("securityFailMode", EnumSchema("auto", "off", "warn", "strict")))));
 
     private static JsonObject ComponentDefinitionSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("template", StringSchema()),
-            ("fields", StringArraySchema()),
-            ("description", StringSchema()),
-            ("schema", Obj(("type", "object"))),
-            ("contextModes", StringArraySchema()))));
+            ("props", StringMapSchema()))));
 
     private static JsonObject ScssSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("enabled", BoolSchema()),
-            ("path", StringSchema()),
             ("entryPoint", StringSchema()),
-            ("outDir", StringSchema()),
-            ("includePaths", StringArraySchema()))));
+            ("outputDir", StringSchema()))));
 
     private static JsonObject ImageOptimizationSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("enabled", BoolSchema()),
             ("formats", StringArraySchema()),
-            ("sizes", StringArraySchema()),
-            ("quality", IntSchema(0)),
-            ("lazy", BoolSchema()),
-            ("resolutions", Obj(("type", "array"), ("items", IntSchema(1)))),
-            ("concurrency", IntSchema(1)),
-            ("contextConditional", StringSchema()))));
+            ("sizes", Obj(("type", "array"), ("items", IntSchema(1)))),
+            ("quality", IntSchema(0)))));
 
     private static JsonObject MediaSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("downloadImages", BoolSchema()),
+            ("downloadToLocal", BoolSchema()),
+            ("downloadDir", StringSchema()),
+            ("urlBase", StringSchema()),
+            ("defaultImageUrl", StringSchema()),
+            ("fieldKeys", StringArraySchema()),
+            ("maxConcurrency", IntSchema(1)),
+            ("maxRetries", IntSchema(0)),
+            ("timeoutMs", IntSchema(1)),
+            ("maxFileSizeBytes", IntSchema(1)),
             ("blockPrivateNetworks", BoolSchema()),
-            ("imageRootPath", StringSchema()),
-            ("maxImageSize", IntSchema(1)),
-            ("concurrency", IntSchema(1)),
-            ("contextConditional", StringSchema()),
-            ("remoteProxyUrl", StringSchema()),
-            ("retryCount", IntSchema(0)),
-            ("timeoutSeconds", IntSchema(1)),
-            ("cacheDir", StringSchema()),
-            ("allowHosts", StringArraySchema()))));
+            ("retryBaseDelayMs", IntSchema(0)))));
 
     private static JsonObject ContentSourceItemSchema()
         => Obj(("type", "object"), ("required", Arr("type")), ("properties", Obj(
@@ -277,18 +298,14 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject NotionSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("token", StringSchema()),
-            ("rootBlockId", StringSchema()),
             ("databaseId", StringSchema()),
-            ("textOnly", BoolSchema()),
-            ("propertyMap", NotionPropertyMapSchema()),
-            ("fieldPolicies", NotionFieldPoliciesSchema()),
             ("pageSize", IntSchema(1)),
             ("maxItems", IntSchema(1)),
             ("renderContent", BoolSchema()),
             ("renderConcurrency", IntSchema(1)),
             ("maxRps", IntSchema(1)),
             ("maxRetries", IntSchema(0)),
+            ("fieldPolicy", NotionFieldPolicySchema()),
             ("filterProperty", StringSchema()),
             ("filterType", StringSchema()),
             ("filterValue", StringSchema()),
@@ -297,30 +314,28 @@ public static class ConfigJsonSchemaGenerator
             ("includeSlugs", StringArraySchema()),
             ("includeSlugProperty", StringSchema()),
             ("cacheMode", EnumSchema("off", "readwrite", "readonly")),
-            ("cacheDir", StringSchema()))));
+            ("cacheDir", StringSchema()),
+            ("propertyMap", NotionPropertyMapSchema()))));
 
     private static JsonObject NotionPropertyMapSchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("slug", StringSchema()),
-            ("lang", StringSchema()),
-            ("body", StringSchema()),
-            ("draft", StringSchema()),
-            ("date", StringSchema()),
-            ("type", StringSchema()),
-            ("image", StringSchema()),
-            ("tags", StringSchema()),
-            ("categories", StringSchema()),
-            ("pinned", StringSchema()),
-            ("i18nKey", StringSchema()),
-            ("summary", StringSchema()),
-            ("commitMessage", StringSchema()),
-            ("archive", StringSchema()),
-            ("translations", StringSchema()),
-            ("link", StringSchema()))));
+            ("Title", StringSchema()),
+            ("Slug", StringSchema()),
+            ("Type", StringSchema()),
+            ("PublishAt", StringSchema()),
+            ("Language", StringSchema()),
+            ("I18nKey", StringSchema()),
+            ("Summary", StringSchema()),
+            ("Collection", StringSchema()),
+            ("SeoTitle", StringSchema()),
+            ("SeoDescription", StringSchema()),
+            ("SeoImage", StringSchema()),
+            ("Canonical", StringSchema()))));
 
-    private static JsonObject NotionFieldPoliciesSchema()
+    private static JsonObject NotionFieldPolicySchema()
         => Obj(("type", "object"), ("properties", Obj(
-            ("mode", EnumSchema("auto", "discard", "lax")))));
+            ("mode", EnumSchema("whitelist", "all")),
+            ("allowed", StringArraySchema()))));
 
     private static JsonObject CollectionSchema()
         => Obj(
@@ -483,6 +498,9 @@ public static class ConfigJsonSchemaGenerator
     }
 
     private static JsonObject StringArraySchema() => Obj(("type", "array"), ("items", StringSchema()));
+
+    private static JsonObject StringMapSchema()
+        => Obj(("type", "object"), ("additionalProperties", StringSchema()));
 
     private static JsonObject EnumSchema(params string[] values)
     {

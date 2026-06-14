@@ -7,13 +7,17 @@ namespace Bukit.Cli.Commands.Dev;
 internal sealed class DevServerHost : IDevServerHost
 {
     private const int MaxPortAttempts = 20;
+    private const int MaxConcurrentRequests = 64;
 
     private readonly HttpListener _listener;
+    private readonly ILogger _logger;
+    private readonly SemaphoreSlim _requestGate = new(MaxConcurrentRequests, MaxConcurrentRequests);
     private bool _disposed;
 
-    private DevServerHost(HttpListener listener, string host, int port)
+    private DevServerHost(HttpListener listener, string host, int port, ILogger logger)
     {
         _listener = listener;
+        _logger = logger;
         Port = port;
         Prefix = $"http://{host}:{port}/";
     }
@@ -40,7 +44,7 @@ internal sealed class DevServerHost : IDevServerHost
                 {
                     logger.Info($"Port {chosen} unavailable, using {candidate}.");
                 }
-                return new DevServerHost(listener, host, candidate);
+                return new DevServerHost(listener, host, candidate, logger);
             }
             catch (HttpListenerException)
             {
@@ -77,7 +81,35 @@ internal sealed class DevServerHost : IDevServerHost
                 break;
             }
 
-            _ = Task.Run(() => dispatchAsync(context), ct);
+            try
+            {
+                await _requestGate.WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                CloseResponseBestEffort(context);
+                break;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await dispatchAsync(context).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"dev.request.dispatch: {ex.Message}");
+                    CloseResponseBestEffort(context);
+                }
+                finally
+                {
+                    _requestGate.Release();
+                }
+            }, CancellationToken.None);
         }
     }
 
@@ -92,6 +124,8 @@ internal sealed class DevServerHost : IDevServerHost
         catch (ObjectDisposedException)
         {
         }
+
+        _requestGate.Dispose();
     }
 
     private static int PickFreePort()
@@ -105,6 +139,25 @@ internal sealed class DevServerHost : IDevServerHost
         finally
         {
             tcp.Stop();
+        }
+    }
+
+    private static void CloseResponseBestEffort(HttpListenerContext context)
+    {
+        try
+        {
+            if (context.Response.OutputStream.CanWrite)
+            {
+                context.Response.StatusCode = 500;
+            }
+
+            context.Response.Close();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
         }
     }
 }

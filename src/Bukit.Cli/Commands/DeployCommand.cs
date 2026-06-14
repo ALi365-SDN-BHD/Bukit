@@ -17,6 +17,7 @@ public static class DeployCommand
         try
         {
             config = ConfigLoader.Load(resolved.FullConfigPath);
+            ConfigValidator.Validate(config);
         }
         catch (ConfigException ex)
         {
@@ -29,13 +30,7 @@ public static class DeployCommand
             return 1;
         }
 
-        var deployConfig = config.Deploy ?? new DeployConfig();
-        var providerName = deployConfig.Provider ?? "github-pages";
-        if (!providerName.Equals("github-pages", StringComparison.OrdinalIgnoreCase))
-        {
-            Console.Error.WriteLine("deploy.provider must be 'github-pages' in Bukit 1.0.");
-            return 2;
-        }
+        var deployConfig = config.Deploy ?? new DeployConfig { Provider = "github-pages" };
 
         var dryRun = command.GetBool("--dry-run");
         var skipBuild = command.GetBool("--skip-build");

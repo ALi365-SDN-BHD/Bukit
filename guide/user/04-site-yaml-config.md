@@ -410,6 +410,8 @@ In CI scenarios, it is recommended to use this with `--log-format json` to make 
 
 Controls the deployment behavior of the `bukit deploy` command:
 
+The `deploy` section is optional. If it is present, `deploy.provider` must be explicitly set to `github-pages`; Bukit 1.0 does not accept any other deployment provider.
+
 ```yaml
 deploy:
   provider: github-pages
@@ -420,7 +422,7 @@ deploy:
 
 | Field | Description | Default |
 |------|------|--------|
-| `deploy.provider` | Deployment target platform (currently only `github-pages`) | — |
+| `deploy.provider` | Required when `deploy` is present. Deployment target platform (currently only `github-pages`) | — |
 | `deploy.branch` | Target Git branch | `gh-pages` |
 | `deploy.message` | Git commit message | `bukit deploy` |
 | `deploy.cname` | Custom domain (writes a CNAME file) | — |

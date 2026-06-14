@@ -10,7 +10,7 @@ namespace Bukit.Cli.Commands;
 
 public static class DevCommand
 {
-    internal static (string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride) ExtractOptions(CliBoundCommand command)
+    internal static (string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride, bool allowLan) ExtractOptions(CliBoundCommand command)
     {
         return (
             command.GetString("--config"),
@@ -18,27 +18,38 @@ public static class DevCommand
             command.GetString("--host") ?? "localhost",
             command.GetInt("--port") ?? 35729,
             command.GetBool("--no-watch"),
-            command.GetString("--output")
+            command.GetString("--output"),
+            command.GetBool("--allow-lan") || command.GetBool("--public")
         );
     }
 
     public static async Task<int> RunAsync(CliBoundCommand command)
     {
-        var (configPath, site, host, port, noWatch, outputOverride) = ExtractOptions(command);
-        return await RunCoreAsync(configPath, site, host, port, noWatch, outputOverride);
+        var (configPath, site, host, port, noWatch, outputOverride, allowLan) = ExtractOptions(command);
+        return await RunCoreAsync(configPath, site, host, port, noWatch, outputOverride, allowLan);
     }
 
     private static async Task<int> RunCoreAsync(
-        string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride)
+        string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride, bool allowLan)
     {
+        var logger = new ConsoleLogger(LogLevel.Info);
+        if (IsLanExposureHost(host))
+        {
+            if (!allowLan)
+            {
+                logger.Error("bukit dev refused to bind a non-loopback host. Use --allow-lan to expose the development server to your LAN.");
+                return 2;
+            }
+
+            logger.Warn($"bukit dev is listening on non-loopback host '{host}'. Only use --allow-lan on trusted networks.");
+        }
+
         var resolved = ConfigPathResolver.Resolve(configPath, site);
         var config = ConfigLoader.Load(resolved.FullConfigPath);
         var rootDir = resolved.RootDir;
-        var outputDir = outputOverride is not null
-            ? Path.GetFullPath(outputOverride)
-            : Path.GetFullPath(Path.Combine(rootDir, config.Build.Output));
+        var outputDir = BuildPathUtils.MakeAbsolute(rootDir, outputOverride ?? config.Build.Output);
 
-        var cacheDir = Path.Combine(rootDir, ".cache");
+        var cacheDir = Path.GetFullPath(Path.Combine(rootDir, ".cache"));
 
         var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) =>
@@ -50,7 +61,6 @@ public static class DevCommand
         Console.WriteLine($"bukit dev \u2014 HMR development server");
         Console.WriteLine($"  root: {rootDir}");
 
-        var logger = new ConsoleLogger(LogLevel.Info);
         var engine = new SiteEngine(logger);
 
         Console.WriteLine("\n[build] initial full build...");
@@ -63,11 +73,12 @@ public static class DevCommand
         Console.WriteLine($"[build] done in {sw.ElapsedMilliseconds}ms, serving {outputDir}\n");
 
         using var serverHost = DevServerHost.Start(host, port, logger);
-        var hub = new DevWebSocketHub(logger);
+        var hub = new DevWebSocketHub(logger, new DevWebSocketAccessPolicy(host, serverHost.Port, allowLan));
         var handler = new DevRequestHandler(outputDir, serverHost.Port,
-            ResolveDisableAnalytics(rootDir), logger);
+            ResolveDisableAnalytics(config.Site.Analytics), logger);
 
         var watchedDirs = ResolveWatchDirs(rootDir, config);
+        var excludedDirs = ResolveExcludedWatchDirs(rootDir, outputDir, cacheDir);
         DevFileWatcher? watcher = null;
         if (!noWatch && watchedDirs.Count > 0)
         {
@@ -78,7 +89,8 @@ public static class DevCommand
                         CreateBuildOverrides(clean: false, outputOverride, cacheDir),
                         rebuildCt);
                     await hub.BroadcastReloadAsync();
-                });
+                },
+                excludedDirs);
             watcher.Start(cts.Token);
         }
 
@@ -122,23 +134,23 @@ public static class DevCommand
         };
     }
 
-    private static List<string> ResolveWatchDirs(string rootDir, AppConfig config)
+    internal static List<string> ResolveWatchDirs(string rootDir, AppConfig config)
     {
         var dirs = new List<string>();
 
-        var contentDir = Path.Combine(rootDir, "content");
+        var contentDir = Path.GetFullPath(Path.Combine(rootDir, "content"));
         if (Directory.Exists(contentDir)) dirs.Add(contentDir);
 
         if (!string.IsNullOrWhiteSpace(config.Theme.Name))
         {
-            var themeDir = Path.Combine(rootDir, "themes", config.Theme.Name);
+            var themeDir = Path.GetFullPath(Path.Combine(rootDir, "themes", config.Theme.Name));
             if (Directory.Exists(themeDir)) dirs.Add(themeDir);
         }
 
         void AddIfNotUnderTheme(string relPath)
         {
-            var full = Path.Combine(rootDir, relPath);
-            if (Directory.Exists(full) && !dirs.Any(d => full.StartsWith(d, Bukit.Shared.PlatformPathHelper.PathComparison)))
+            var full = Path.GetFullPath(Path.Combine(rootDir, relPath));
+            if (Directory.Exists(full) && !dirs.Any(d => PathUtils.IsSameOrSubPathOf(full, d)))
                 dirs.Add(full);
         }
 
@@ -149,29 +161,24 @@ public static class DevCommand
         return dirs;
     }
 
-    private static bool ResolveDisableAnalytics(string dir)
-    {
-        var current = new DirectoryInfo(Path.GetFullPath(dir));
-        while (current is not null)
+    internal static IReadOnlyList<string> ResolveExcludedWatchDirs(string rootDir, string outputDir, string cacheDir)
+        => new[]
         {
-            var configPath = Path.Combine(current.FullName, "site.yaml");
-            if (File.Exists(configPath))
-            {
-                try
-                {
-                    var c = ConfigLoader.Load(configPath);
-                    return c.Site.Analytics.DisableInPreview &&
-                           !string.IsNullOrWhiteSpace(c.Site.Analytics.GoogleAnalyticsId);
-                }
-                catch (Exception)
-                {
-                    return false;
-                }
-            }
-
-            current = current.Parent;
+            outputDir,
+            cacheDir,
+            Path.Combine(rootDir, ".git"),
+            Path.Combine(rootDir, "node_modules"),
+            Path.Combine(rootDir, ".bukit"),
+            Path.Combine(rootDir, "bin"),
+            Path.Combine(rootDir, "obj")
         }
+        .Select(Path.GetFullPath)
+        .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+        .ToArray();
 
-        return false;
-    }
+    internal static bool ResolveDisableAnalytics(AnalyticsConfig analytics)
+        => analytics.DisableInPreview && !string.IsNullOrWhiteSpace(analytics.GoogleAnalyticsId);
+
+    internal static bool IsLanExposureHost(string host)
+        => !DevWebSocketAccessPolicy.IsLoopbackHost(host);
 }

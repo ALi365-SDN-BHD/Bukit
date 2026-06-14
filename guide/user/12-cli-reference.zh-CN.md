@@ -114,6 +114,7 @@ bukit preview --dir dist --port auto
 bukit dev --config site.yaml
 bukit dev --port 3000
 bukit dev --no-watch
+bukit dev --host 0.0.0.0 --allow-lan
 ```
 
 参数：
@@ -122,6 +123,7 @@ bukit dev --no-watch
 - `--port <port>`：默认 `35729`，占用时自动递增
 - `--output <dir>`：覆盖输出目录
 - `--no-watch`：只作为静态服务器，不监控文件、不实时刷新
+- `--allow-lan` / `--public`：监听 `0.0.0.0` 等非本机地址时必填
 
 ## clean
 

@@ -1,9 +1,108 @@
+using System.Collections.Generic;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Theme;
 
 public static class ThemeManifestLoader
 {
+    private static readonly HashSet<string> KnownRootFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "name",
+        "display_name",
+        "version",
+        "engine",
+        "min_engine_version",
+        "description",
+        "extends",
+        "capabilities",
+        "layouts",
+        "templates",
+        "page_templates",
+        "sections",
+        "components",
+        "assets",
+        "tokens"
+    };
+
+    private static readonly HashSet<string> KnownCapabilitiesFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "i18n",
+        "seo",
+        "geo",
+        "dark_mode",
+        "search",
+        "taxonomy"
+    };
+
+    private static readonly HashSet<string> KnownTemplateDefinitionFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "template",
+        "required",
+        "label",
+        "accepts",
+        "required_fields"
+    };
+
+    private static readonly HashSet<string> KnownTemplateAcceptFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "type",
+        "collection",
+        "kind"
+    };
+
+    private static readonly HashSet<string> KnownPageTemplateDefinitionFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "template",
+        "label",
+        "accepts",
+        "required_fields"
+    };
+
+    private static readonly HashSet<string> KnownPageTemplateAcceptFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "type",
+        "collection"
+    };
+
+    private static readonly HashSet<string> KnownSectionDefinitionFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "template",
+        "schema",
+        "preview",
+        "description",
+        "variants",
+        "data",
+        "plugin"
+    };
+
+    private static readonly HashSet<string> KnownSectionVariantFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "template",
+        "label",
+        "description"
+    };
+
+    private static readonly HashSet<string> KnownDataBindingFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "source",
+        "mode",
+        "limit",
+        "sort",
+        "filters"
+    };
+
+    private static readonly HashSet<string> KnownComponentDefinitionFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "template",
+        "props"
+    };
+
+    private static readonly HashSet<string> KnownAssetFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "css",
+        "js"
+    };
+
     public static ThemeManifestV2? Load(string themeRoot, bool required = false)
     {
         var manifestPath = Path.Combine(themeRoot, "theme.yaml");
@@ -45,7 +144,10 @@ public static class ThemeManifestLoader
     }
 
     private static ThemeManifestV2 ParseManifest(YamlMappingNode root)
-        => new()
+    {
+        EnsureOnlyKnownFields(root, KnownRootFields, "theme.yaml");
+
+        return new()
         {
             Name = GetString(root, "name") ?? "",
             DisplayName = GetString(root, "display_name"),
@@ -63,9 +165,18 @@ public static class ThemeManifestLoader
             Assets = ParseAssets(GetMap(root, "assets")),
             Tokens = GetString(root, "tokens")
         };
+    }
 
     private static ThemeCapabilities ParseCapabilities(YamlMappingNode? map)
-        => new()
+    {
+        if (map is null)
+        {
+            return new();
+        }
+
+        EnsureOnlyKnownFields(map, KnownCapabilitiesFields, "theme.yaml.capabilities");
+
+        return new()
         {
             I18n = GetBool(map, "i18n"),
             Seo = GetBool(map, "seo"),
@@ -74,13 +185,23 @@ public static class ThemeManifestLoader
             Search = GetBool(map, "search"),
             Taxonomy = GetBool(map, "taxonomy")
         };
+    }
 
     private static ThemeAssetsConfig ParseAssets(YamlMappingNode? map)
-        => new()
+    {
+        if (map is null)
+        {
+            return new();
+        }
+
+        EnsureOnlyKnownFields(map, KnownAssetFields, "theme.yaml.assets");
+
+        return new()
         {
             Css = ParseStringList(ThemeYaml.GetNode(map, "css")),
             Js = ParseStringList(ThemeYaml.GetNode(map, "js"))
         };
+    }
 
     private static Dictionary<string, ThemePageTemplateDefinition>? ParsePageTemplates(YamlMappingNode? map)
     {
@@ -94,11 +215,14 @@ public static class ThemeManifestLoader
                 continue;
             }
 
+            var templatePath = $"theme.yaml.page_templates.{key}";
+            EnsureOnlyKnownFields(templateMap, KnownPageTemplateDefinitionFields, templatePath);
+
             result[key] = new ThemePageTemplateDefinition
             {
                 Template = GetString(templateMap, "template") ?? "",
                 Label = GetString(templateMap, "label"),
-                Accepts = ParseAccepts(GetMap(templateMap, "accepts")),
+                Accepts = ParseAccepts(GetMap(templateMap, "accepts"), $"{templatePath}.accepts"),
                 RequiredFields = ParseStringList(ThemeYaml.GetNode(templateMap, "required_fields"))
             };
         }
@@ -118,12 +242,15 @@ public static class ThemeManifestLoader
                 continue;
             }
 
+            var templatePath = $"theme.yaml.templates.{key}";
+            EnsureOnlyKnownFields(templateMap, KnownTemplateDefinitionFields, templatePath);
+
             result[key] = new ThemeTemplateDefinition
             {
                 Template = GetString(templateMap, "template") ?? "",
                 Required = GetBool(templateMap, "required"),
                 Label = GetString(templateMap, "label"),
-                Accepts = ParseTemplateAccepts(GetMap(templateMap, "accepts")),
+                Accepts = ParseTemplateAccept(GetMap(templateMap, "accepts"), $"{templatePath}.accepts"),
                 RequiredFields = ParseStringList(ThemeYaml.GetNode(templateMap, "required_fields"))
             };
         }
@@ -131,24 +258,36 @@ public static class ThemeManifestLoader
         return result.Count == 0 ? null : result;
     }
 
-    private static ThemeTemplateAccept? ParseTemplateAccepts(YamlMappingNode? map)
-        => map is null
-            ? null
-            : new ThemeTemplateAccept
-            {
-                Type = GetString(map, "type"),
-                Collection = GetString(map, "collection"),
-                Kind = GetString(map, "kind")
-            };
+    private static ThemeTemplateAccept? ParseTemplateAccept(YamlMappingNode? map, string path)
+    {
+        if (map is null)
+        {
+            return null;
+        }
 
-    private static ThemePageTemplateAccept? ParseAccepts(YamlMappingNode? map)
-        => map is null
-            ? null
-            : new ThemePageTemplateAccept
-            {
-                Type = GetString(map, "type"),
-                Collection = GetString(map, "collection")
-            };
+        EnsureOnlyKnownFields(map, KnownTemplateAcceptFields, path);
+        return new ThemeTemplateAccept
+        {
+            Type = GetString(map, "type"),
+            Collection = GetString(map, "collection"),
+            Kind = GetString(map, "kind")
+        };
+    }
+
+    private static ThemePageTemplateAccept? ParseAccepts(YamlMappingNode? map, string path)
+    {
+        if (map is null)
+        {
+            return null;
+        }
+
+        EnsureOnlyKnownFields(map, KnownPageTemplateAcceptFields, path);
+        return new ThemePageTemplateAccept
+        {
+            Type = GetString(map, "type"),
+            Collection = GetString(map, "collection")
+        };
+    }
 
     private static Dictionary<string, ThemeSectionDefinition>? ParseSections(YamlMappingNode? map)
     {
@@ -162,14 +301,17 @@ public static class ThemeManifestLoader
                 continue;
             }
 
+            var sectionPath = $"theme.yaml.sections.{key}";
+            EnsureOnlyKnownFields(sectionMap, KnownSectionDefinitionFields, sectionPath);
+
             result[key] = new ThemeSectionDefinition
             {
                 Template = GetString(sectionMap, "template") ?? "",
                 Schema = GetString(sectionMap, "schema"),
                 Preview = GetString(sectionMap, "preview"),
                 Description = GetString(sectionMap, "description"),
-                Variants = ParseVariants(GetMap(sectionMap, "variants")),
-                Data = ParseDataBinding(GetMap(sectionMap, "data")),
+                Variants = ParseVariants(GetMap(sectionMap, "variants"), sectionPath),
+                Data = ParseDataBinding(GetMap(sectionMap, "data"), $"{sectionPath}.data"),
                 Plugin = GetString(sectionMap, "plugin")
             };
         }
@@ -177,9 +319,12 @@ public static class ThemeManifestLoader
         return result.Count == 0 ? null : result;
     }
 
-    private static Dictionary<string, ThemeVariantDefinition>? ParseVariants(YamlMappingNode? map)
+    private static Dictionary<string, ThemeVariantDefinition>? ParseVariants(YamlMappingNode? map, string sectionPath)
     {
-        if (map is null) return null;
+        if (map is null)
+        {
+            return null;
+        }
 
         var result = new Dictionary<string, ThemeVariantDefinition>(StringComparer.OrdinalIgnoreCase);
         foreach (var (key, value) in ThemeYaml.EnumerateMap(map))
@@ -188,6 +333,9 @@ public static class ThemeManifestLoader
             {
                 continue;
             }
+
+            var variantPath = $"{sectionPath}.variants.{key}";
+            EnsureOnlyKnownFields(variantMap, KnownSectionVariantFields, variantPath);
 
             result[key] = new ThemeVariantDefinition
             {
@@ -199,18 +347,6 @@ public static class ThemeManifestLoader
 
         return result.Count == 0 ? null : result;
     }
-
-    private static ThemeDataBindingDefinition? ParseDataBinding(YamlMappingNode? map)
-        => map is null
-            ? null
-            : new ThemeDataBindingDefinition
-            {
-                Source = GetString(map, "source"),
-                Mode = GetString(map, "mode"),
-                Limit = GetInt(map, "limit"),
-                Sort = GetString(map, "sort"),
-                Filters = ParseObjectMap(GetMap(map, "filters"))
-            };
 
     private static Dictionary<string, ThemeComponentDefinition>? ParseComponents(YamlMappingNode? map)
     {
@@ -224,6 +360,8 @@ public static class ThemeManifestLoader
                 continue;
             }
 
+            EnsureOnlyKnownFields(componentMap, KnownComponentDefinitionFields, $"theme.yaml.components.{key}");
+
             result[key] = new ThemeComponentDefinition
             {
                 Template = GetString(componentMap, "template") ?? "",
@@ -232,6 +370,24 @@ public static class ThemeManifestLoader
         }
 
         return result.Count == 0 ? null : result;
+    }
+
+    private static ThemeDataBindingDefinition? ParseDataBinding(YamlMappingNode? map, string path)
+    {
+        if (map is null)
+        {
+            return null;
+        }
+
+        EnsureOnlyKnownFields(map, KnownDataBindingFields, path);
+        return new ThemeDataBindingDefinition
+        {
+            Source = GetString(map, "source"),
+            Mode = GetString(map, "mode"),
+            Limit = GetInt(map, "limit"),
+            Sort = GetString(map, "sort"),
+            Filters = ParseObjectMap(GetMap(map, "filters"))
+        };
     }
 
     private static Dictionary<string, string>? ParseStringMap(YamlMappingNode? map)
@@ -305,6 +461,19 @@ public static class ThemeManifestLoader
 
     private static int? GetInt(YamlMappingNode? map, string key)
         => int.TryParse(GetString(map, key), out var value) ? value : null;
+
+    private static void EnsureOnlyKnownFields(YamlMappingNode? map, HashSet<string> allowedFields, string path)
+    {
+        if (map is null) return;
+
+        foreach (var (key, _) in ThemeYaml.EnumerateMap(map))
+        {
+            if (!allowedFields.Contains(key))
+            {
+                throw new ThemeManifestException($"theme.yaml: unknown field '{path}.{key}'.");
+            }
+        }
+    }
 }
 
 public sealed class ThemeManifestException : Exception

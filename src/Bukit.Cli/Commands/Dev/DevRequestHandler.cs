@@ -6,10 +6,10 @@ namespace Bukit.Cli.Commands.Dev;
 
 internal sealed class DevRequestHandler
 {
-    private const string LivereloadScript =
+private const string LivereloadScript =
 """
 <script>
-(function(){var s=new WebSocket('ws://'+(location.host||'localhost:__PORT__').split(':')[0]+':__PORT__/__ws__');s.onclose=function(){console.log('[bukit] livereload disconnected, retrying in 1s...');setTimeout(function(){location.reload();},1000);};s.onmessage=function(e){if(e.data==='reload'){console.log('[bukit] change detected, reloading...');location.reload();}};s.onerror=function(){}})();
+(function(){const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';const host = location.hostname || 'localhost';const socketHost = host.indexOf(':') >= 0 ? '[' + host + ']' : host;const port = location.port ? ':' + location.port : '';var s=new WebSocket(protocol+socketHost+port+'/__ws__');s.onclose=function(){console.log('[bukit] livereload disconnected, retrying in 1s...');setTimeout(function(){location.reload();},1000);};s.onmessage=function(e){if(e.data==='reload'){console.log('[bukit] change detected, reloading...');location.reload();}};s.onerror=function(){}})();
 </script>
 """;
 
@@ -144,6 +144,13 @@ internal sealed class DevRequestHandler
         ".jpg" or ".jpeg" => "image/jpeg",
         ".gif" => "image/gif",
         ".webp" => "image/webp",
+        ".ico" => "image/x-icon",
+        ".avif" => "image/avif",
+        ".webmanifest" => "application/manifest+json; charset=utf-8",
+        ".woff" => "font/woff",
+        ".woff2" => "font/woff2",
+        ".map" => "application/json; charset=utf-8",
+        ".pdf" => "application/pdf",
         ".txt" => "text/plain; charset=utf-8",
         _ => "application/octet-stream"
     };

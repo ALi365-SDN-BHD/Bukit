@@ -93,7 +93,7 @@ internal static class ThemePathResolver
             return (null, null, null, null);
         }
 
-        var manifest = ThemeManifestLoader.Load(themeRoot, required: false);
+        var manifest = LoadThemeManifestForExtend(themeRoot);
         if (manifest is null || string.IsNullOrWhiteSpace(manifest.Extends))
         {
             return (null, null, null, null);
@@ -110,5 +110,17 @@ internal static class ThemePathResolver
         var parentTheme = new ThemeConfig { Name = safeExtends };
         var (parentLayoutsDir, parentAssetsDir, parentStaticDir) = ResolveThemeDirs(rootDir, parentTheme, parentThemeRoot, hasTheme: true);
         return (parentThemeRoot, parentLayoutsDir, parentAssetsDir, parentStaticDir);
+    }
+
+    private static ThemeManifestV2? LoadThemeManifestForExtend(string themeRoot)
+    {
+        try
+        {
+            return ThemeManifestLoader.Load(themeRoot, required: false);
+        }
+        catch (ThemeManifestException ex)
+        {
+            throw new ConfigException($"theme.yaml at '{themeRoot}' is invalid: {ex.Message}", ex, DiagnosticCode.ThemeManifestInvalid);
+        }
     }
 }

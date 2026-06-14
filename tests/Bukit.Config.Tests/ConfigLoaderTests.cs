@@ -226,6 +226,202 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_StableConfigContractFields_ParsesThroughStrictValidatorAndLoader()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              feed:
+                mode: merged
+                formats:
+                  - rss
+                  - atom
+                limit: 9
+                path: feeds
+              sitemapDetail:
+                defaultPriority: 0.8
+                defaultChangefreq: daily
+                imageEnabled: true
+                videoEnabled: true
+              pagination:
+                enabled: true
+                pageSize: 11
+              related:
+                enabled: true
+                threshold: 70
+                limit: 4
+                indices:
+                  - name: tags
+                    weight: 90
+              menus:
+                main:
+                  - identifier: home
+                    name: Home
+                    url: /
+                    weight: 1
+                    children:
+                      - identifier: blog
+                        name: Blog
+                        url: /blog/
+                        weight: 2
+              seo:
+                geo:
+                  enabled: true
+                  llmsTxt: true
+                  llmsFullTxt: true
+                  llmsTxtMaxArticles: 12
+                  aiBotMode: selective
+                  aiBotAllowList:
+                    - GPTBot
+                  aiBotBlockList:
+                    - BadBot
+                  llmsTxtOptionalLinks:
+                    - title: Docs
+                      url: https://example.com/docs
+                      description: Documentation
+            content:
+              sources:
+                - type: notion
+                  notion:
+                    databaseId: abc123def456
+                    propertyMap:
+                      Title: Headline
+                      Slug: URL Slug
+                      Type: Content Type
+                      PublishAt: Release Date
+                      Language: Locale
+                      I18nKey: Translation Key
+                      Summary: Abstract
+                      Collection: Section
+                      SeoTitle: SEO Title
+                      SeoDescription: SEO Description
+                      SeoImage: SEO Image
+                      Canonical: Canonical URL
+            theme:
+              scss:
+                enabled: true
+                entryPoint: styles/site.scss
+                outputDir: compiled-assets
+            taxonomy:
+              outputMode: pages
+              itemFields:
+                - tags
+                - categories
+              pageSize: 7
+              indexEnabled: false
+              pinField: featured
+              pinOrderField: featureRank
+              pinFieldBySource:
+                posts: pinned
+              pinOrderFieldBySource:
+                posts: pinnedRank
+              kinds:
+                - key: tags
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("merged", config.Site.Feed.Mode);
+        Assert.Equal(["rss", "atom"], config.Site.Feed.Formats);
+        Assert.Equal(9, config.Site.Feed.Limit);
+        Assert.Equal("feeds", config.Site.Feed.Path);
+        Assert.Equal(0.8, config.Site.SitemapDetail.DefaultPriority);
+        Assert.Equal("daily", config.Site.SitemapDetail.DefaultChangefreq);
+        Assert.True(config.Site.SitemapDetail.ImageEnabled);
+        Assert.True(config.Site.SitemapDetail.VideoEnabled);
+        Assert.True(config.Site.Pagination.Enabled);
+        Assert.Equal(11, config.Site.Pagination.PageSize);
+        Assert.True(config.Site.Related.Enabled);
+        Assert.Equal(70, config.Site.Related.Threshold);
+        Assert.Equal(4, config.Site.Related.Limit);
+        var relatedIndex = Assert.Single(config.Site.Related.Indices);
+        Assert.Equal("tags", relatedIndex.Name);
+        Assert.Equal(90, relatedIndex.Weight);
+        var menuItem = Assert.Single(config.Site.Menus!["main"]);
+        Assert.Equal("home", menuItem.Identifier);
+        Assert.Equal("Home", menuItem.Name);
+        Assert.Equal("/", menuItem.Url);
+        Assert.Equal(1, menuItem.Weight);
+        var childMenuItem = Assert.Single(menuItem.Children!);
+        Assert.Equal("blog", childMenuItem.Identifier);
+        Assert.Equal("Blog", childMenuItem.Name);
+
+        Assert.Equal("selective", config.Site.Seo.Geo.AiBotMode);
+        Assert.Equal(["GPTBot"], config.Site.Seo.Geo.AiBotAllowList);
+        Assert.Equal(["BadBot"], config.Site.Seo.Geo.AiBotBlockList);
+        var optionalLink = Assert.Single(config.Site.Seo.Geo.LlmsTxtOptionalLinks!);
+        Assert.Equal("Docs", optionalLink.Title);
+        Assert.Equal("https://example.com/docs", optionalLink.Url);
+        Assert.Equal("Documentation", optionalLink.Description);
+
+        var propertyMap = config.Content.Sources![0].Notion!.PropertyMap;
+        Assert.NotNull(propertyMap);
+        Assert.Equal("Headline", propertyMap.Title);
+        Assert.Equal("URL Slug", propertyMap.Slug);
+        Assert.Equal("Content Type", propertyMap.Type);
+        Assert.Equal("Release Date", propertyMap.PublishAt);
+        Assert.Equal("Locale", propertyMap.Language);
+        Assert.Equal("Translation Key", propertyMap.I18nKey);
+        Assert.Equal("Abstract", propertyMap.Summary);
+        Assert.Equal("Section", propertyMap.Collection);
+        Assert.Equal("SEO Title", propertyMap.SeoTitle);
+        Assert.Equal("SEO Description", propertyMap.SeoDescription);
+        Assert.Equal("SEO Image", propertyMap.SeoImage);
+        Assert.Equal("Canonical URL", propertyMap.Canonical);
+
+        Assert.NotNull(config.Theme.Scss);
+        Assert.True(config.Theme.Scss.Enabled);
+        Assert.Equal("styles/site.scss", config.Theme.Scss.EntryPoint);
+        Assert.Equal("compiled-assets", config.Theme.Scss.OutputDir);
+
+        Assert.Equal("pages", config.Taxonomy.OutputMode);
+        Assert.Equal(["tags", "categories"], config.Taxonomy.ItemFields);
+        Assert.Equal(7, config.Taxonomy.PageSize);
+        Assert.False(config.Taxonomy.IndexEnabled);
+        Assert.Equal("featured", config.Taxonomy.PinField);
+        Assert.Equal("featureRank", config.Taxonomy.PinOrderField);
+        Assert.Equal("pinned", config.Taxonomy.PinFieldBySource!["posts"]);
+        Assert.Equal("pinnedRank", config.Taxonomy.PinOrderFieldBySource!["posts"]);
+
+        var previousToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "test-token-for-validation");
+            ConfigValidator.Validate(config);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, previousToken);
+        }
+    }
+
+    [Fact]
+    public void Load_ThemeScssOutDir_ThrowsUnknownField()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            theme:
+              scss:
+                enabled: true
+                outDir: assets
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Contains("theme.scss.outDir", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Load_MarkdownProvider_PopulatesMarkdownConfig()
     {
         var yaml = """
@@ -283,10 +479,19 @@ public sealed class ConfigLoaderTests : IDisposable
                   pagination:
                     enabled: true
                     pageSize: 15
+                    urlPattern: p/:num/
+                    firstPageUsesListRoute: false
                   output:
                     rss: true
                     sitemap: true
                     archive: true
+                    feedPath: blog-feed
+                    feedTitle: Blog Feed
+                    feedDescription: Latest posts
+                    archiveDetail:
+                      depth: yearly
+                      template: pages/archive.html
+                      routePrefix: archives
                 pages:
                   permalink: /{slug}/
                   template: pages/page.html
@@ -310,9 +515,18 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("pages/blog-list.html", posts.ListTemplate);
         Assert.True(posts.Pagination.Enabled);
         Assert.Equal(15, posts.Pagination.PageSize);
+        Assert.Equal("p/:num/", posts.Pagination.UrlPattern);
+        Assert.False(posts.Pagination.FirstPageUsesListRoute);
         Assert.True(posts.Output.Rss);
         Assert.True(posts.Output.Sitemap);
         Assert.True(posts.Output.Archive);
+        Assert.Equal("blog-feed", posts.Output.FeedPath);
+        Assert.Equal("Blog Feed", posts.Output.FeedTitle);
+        Assert.Equal("Latest posts", posts.Output.FeedDescription);
+        Assert.NotNull(posts.Output.ArchiveDetail);
+        Assert.Equal("yearly", posts.Output.ArchiveDetail.Depth);
+        Assert.Equal("pages/archive.html", posts.Output.ArchiveDetail.Template);
+        Assert.Equal("archives", posts.Output.ArchiveDetail.RoutePrefix);
 
         var pages = config.Site.Collections["pages"];
         Assert.Equal("/{slug}/", pages.Permalink);

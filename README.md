@@ -48,7 +48,7 @@ Bukit is **not** a SaaS platform, a full CMS backend, a visual page builder, or 
 - **GEO** — `llms.txt`, AI crawler `robots.txt` rules, FAQ/HowTo structured data, GEO Score audit
 - **Theme system** with design tokens and componentized themes; theme registry is planned for the next stage
 - **HMR dev server** with WebSocket live reload; preview server for build output
-- **Plugin system** — `derive-pages` and `after-build` hooks; WASM and process plugin support
+- **Plugin system** — built-in `derive-pages` and `after-build` hooks. External process / WASM plugin ecosystem is planned and not part of Core 1.0.
 - **Incremental builds** — content-aware change detection; optional SHA256 asset hashing
 - **GitHub Pages deployment** via CLI or GitHub Actions workflow
 

@@ -268,6 +268,51 @@ public sealed class ConfigValidatorCoverageTests
     }
 
     [Fact]
+    public void Validate_Markdown_IncludeGlobsTraversal_Throws()
+    {
+        var config = ConfigWithMarkdown(m => m with { IncludeGlobs = new[] { "../**/*.md" } });
+
+        var ex = Assert.Throws<ConfigException>(() => Validate(config));
+        Assert.Contains("content.sources[0].markdown.includeGlobs", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_Markdown_IncludeGlobsAbsolutePath_Throws()
+    {
+        var config = ConfigWithMarkdown(m => m with { IncludeGlobs = new[] { "/abs/**/*.md" } });
+
+        var ex = Assert.Throws<ConfigException>(() => Validate(config));
+        Assert.Contains("content.sources[0].markdown.includeGlobs", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_Markdown_IncludeGlobsWindowsAbsolutePath_Throws()
+    {
+        var config = ConfigWithMarkdown(m => m with { IncludeGlobs = new[] { "C:/abs/**/*.md" } });
+
+        var ex = Assert.Throws<ConfigException>(() => Validate(config));
+        Assert.Contains("content.sources[0].markdown.includeGlobs", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_Markdown_IncludeGlobsUncPath_Throws()
+    {
+        var config = ConfigWithMarkdown(m => m with { IncludeGlobs = new[] { @"\\server\share\*.md" } });
+
+        var ex = Assert.Throws<ConfigException>(() => Validate(config));
+        Assert.Contains("content.sources[0].markdown.includeGlobs", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_Markdown_IncludeGlobsUncNetworkPath_Throws()
+    {
+        var config = ConfigWithMarkdown(m => m with { IncludeGlobs = new[] { "//server/share/*.md" } });
+
+        var ex = Assert.Throws<ConfigException>(() => Validate(config));
+        Assert.Contains("content.sources[0].markdown.includeGlobs", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Validate_Markdown_IncludePathsEmptyElement_Throws()
     {
         var config = ConfigWithMarkdown(m => m with { IncludePaths = new[] { "  " } });

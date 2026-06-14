@@ -1,3 +1,5 @@
+using Bukit.Shared;
+
 namespace Bukit.Cli.Commands.Dev;
 
 internal static class DevPathGuard
@@ -21,7 +23,7 @@ internal static class DevPathGuard
             .Replace('/', Path.DirectorySeparatorChar)
             .TrimStart(Path.DirectorySeparatorChar);
 
-        var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar);
+        var fullRoot = Path.GetFullPath(rootDir);
 
         string candidate;
         try
@@ -33,9 +35,7 @@ internal static class DevPathGuard
             return null;
         }
 
-        var safeRoot = fullRoot + Path.DirectorySeparatorChar;
-        if (candidate != fullRoot &&
-            !candidate.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
+        if (!PathUtils.IsSameOrSubPathOf(candidate, fullRoot))
         {
             return null;
         }

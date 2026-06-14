@@ -36,7 +36,7 @@ guide_chapters:
 | `content` | Content source definition | sources, media, modelSchema |
 | `build` | Build behavior | output, clean, draft, listPageContentMode, fingerprintMode |
 | `theme` | Theme configuration | name, layouts, assets, static, params |
-| `taxonomy` | Taxonomy configuration | template, kinds, pageSize, outputMode |
+| `taxonomy` | Taxonomy configuration | kinds, pageSize, outputMode, itemFields, pinField |
 | `logging` | Log level | level (debug/info/warn/error) |
 | `deploy` | Deployment configuration (planned — not yet shown in examples) | provider, branch, message, cname, keepHistory |
 
@@ -86,8 +86,8 @@ site:
         urlPattern: page/:num/
       output:
         rss: true
-        archive:
-          enabled: true
+        archive: true
+        archiveDetail:
           depth: monthly
     page:
       permalink: /{slug}/
@@ -110,7 +110,6 @@ theme:
   static: static
 
 taxonomy:
-  template: pages/page.html
   pageSize: 10
   kinds:
     - key: tags
@@ -191,7 +190,6 @@ theme:
 | `defaultLanguage` | string | First language | Default language in multilingual mode |
 | `outputPathEncoding` | string | `none` | Output path encoding: `none`/`slug`/`urlencode`/`sanitize`. Applies to both content and derived pages (pagination, archive, taxonomy). |
 | `sitemapMode` | string | `split` | Sitemap mode: `split`/`merged`/`index` |
-| `rssMode` | string | `split` | **Deprecated in 1.0: removed**; use `site.feed.formats` for feed outputs |
 | `search.mode` | string | `split` | Search index mode: `split`/`merged`/`index` |
 | `autoSummary` | bool | false | Auto-generate summaries |
 | `autoSummaryMaxLength` | int | 200 | Max auto-summary length (1-5000) |
@@ -200,12 +198,12 @@ theme:
 | `searchIncludeDerived` | bool | false | Whether search index includes derived pages |
 | `collections` | map | — | Collection route definitions |
 | `plugins` | map | — | Plugin toggles (`{pluginName: {enabled: false}}`). Key `feed` replaces old `rss` |
-| `feed` | map | — | Feed config: `formats`, `limit`, `path` |
+| `feed` | map | — | Feed config: `mode`, `formats`, `limit`, `path` |
 | `sitemapDetail` | map | — | Sitemap detail: `defaultPriority`, `defaultChangefreq`, `imageEnabled`, `videoEnabled` |
 | `related` | map | — | Related content: `enabled`, `threshold`, `limit`, `indices` |
 | `menus` | map | — | Multi-menu navigation definitions |
 | `search` | map | — | Search UI: `ui`, `uiTheme`, `placeholderText` |
-| `pagination` | map | — | Global pagination defaults: `pageSize` |
+| `pagination` | map | — | Global pagination defaults: `enabled`, `pageSize` |
 | `analytics` | map | — | Analytics configuration: `enabled`, `googleAnalyticsId`, `disableInPreview` |
 
 SEO-oriented configs should include both `site.url` and `site.description`. Without `site.url`, canonical and schema URLs fall back to relative paths and audit emits warnings. Without `site.description`, generated home/list/taxonomy/pagination routes usually emit `seo.description_missing` unless the route has its own summary.
@@ -305,13 +303,11 @@ When a source `mode` is `data`, content goes to `site.data.<name>` or `site.data
 | Field | Type | Default | Description |
 |------|------|--------|------|
 | `name` | string | — | Theme name (corresponds to `themes/<name>/`) |
-| `source` | string | — | Remote theme Git URL with optional version, e.g., `https://github.com/user/theme.git@v1.0.0`. The theme is cloned to a local cache on first build and **not** automatically updated on subsequent builds (reproducible builds). A `bukit-theme.lock.json` file records the resolved commit for each `source@ref`. |
 | `layouts` | string | `layouts` | Template subdirectory name |
 | `assets` | string | `assets` | Asset subdirectory name (SCSS, etc. that need processing) |
 | `static` | string | `static` | Static file subdirectory name (copied directly) |
 | `staticTemplate` | string | — | When set, renders `static/` `.html` files through Scriban (injecting `page.content`); otherwise copies raw |
 | `params` | map | — | Theme parameters, accessed as `{{ site.params.xxx }}` in templates |
-| `extends` | string | — | Parent theme name (cascade lookup for theme inheritance) |
 | `shortcodes` | map | — | Reusable HTML snippets for Markdown/Scriban |
 | `components` | map | — | Reusable template components with typed props |
 | `scss` | map | — | SCSS compilation config |
@@ -321,14 +317,13 @@ When a source `mode` is `data`, content goes to `site.data.<name>` or `site.data
 
 | Field | Type | Default | Description |
 |------|------|--------|------|
-| `template` | string | — | Optional taxonomy template. If omitted, the active theme must declare matching `templates.*.accepts.kind` entries such as `taxonomy_index` / `taxonomy_term`. |
-| `indexTemplate` | string | — | Taxonomy index page template |
-| `termTemplate` | string | — | Taxonomy term page template (overrides template) |
 | `pageSize` | int | 10 | Entries per page |
 | `indexEnabled` | bool | true | Whether to generate taxonomy index pages |
 | `outputMode` | string | `both` | Output mode: `both`/`pages`/`data`/`fields_only` |
 | `pinField` | string | `pinned` | Pin field name |
 | `pinOrderField` | string | — | Pin ordering field |
+| `pinFieldBySource` | map | — | Source-specific pin field names |
+| `pinOrderFieldBySource` | map | — | Source-specific pin order field names |
 | `itemFields` | string[] | — | Fields extracted from page metadata as taxonomy basis |
 | `kinds` | array | — | Custom taxonomy definitions |
 
@@ -416,6 +411,7 @@ Controls multi-format feed generation (RSS 2.0, Atom, JSON Feed). Replaces the o
 
 | Field | Type | Default | Description |
 |------|------|--------|------|
+| `feed.mode` | string | `split` | Feed output mode: `split` or `merged` |
 | `feed.formats` | string[] | `["rss"]` | Feed formats: `rss`, `atom`, `json` |
 | `feed.limit` | int | 20 | Max items per feed |
 | `feed.path` | string | `feed` | Base path prefix for feed files |
@@ -432,17 +428,18 @@ Per-collection feed customization (in `site.collections.<key>.output`):
 ```yaml
 site:
   feed:
+    mode: split
     formats: ["rss", "atom", "json"]
     limit: 20
     path: feed
 
-collections:
-  post:
-    output:
-      rss: true
-      feedPath: blog-feed
-      feedTitle: "My Blog Posts"
-      feedDescription: "Latest blog articles"
+  collections:
+    post:
+      output:
+        rss: true
+        feedPath: blog-feed
+        feedTitle: "My Blog Posts"
+        feedDescription: "Latest blog articles"
 ```
 
 Plugin toggle: use key `feed` (replaces the old `rss` key):
@@ -622,6 +619,7 @@ Global pagination defaults.
 
 | Field | Type | Default | Description |
 |------|------|--------|------|
+| `pagination.enabled` | bool | false | Enable global pagination defaults where supported |
 | `pagination.pageSize` | int | 10 | Global default page size |
 
 Per-collection pagination enhancements (in `site.collections.<key>.pagination`):
@@ -782,6 +780,8 @@ theme:
 theme:
   scss:
     enabled: true
+    entryPoint: styles/site.scss
+    outputDir: assets
 ```
 
 ## CLI Parameter Overrides

@@ -64,8 +64,8 @@ public static class DoctorCommand
         }
         catch (ConfigException ex)
         {
-            Console.WriteLine("✖ Theme manifest missing");
-            Console.WriteLine(ex.Message);
+            Console.WriteLine("✖ Theme manifest invalid");
+            Console.WriteLine(Bukit.Shared.DiagnosticExceptionFormatter.Format(ex));
             return 1;
         }
 
@@ -213,6 +213,8 @@ public static class DoctorCommand
                 Console.WriteLine("✖ theme.yaml issues (1.0 requires a valid theme.yaml manifest):");
                 foreach (var issue in yamlIssues)
                     Console.WriteLine($"  - {issue}");
+
+                return 1;
             }
         }
 

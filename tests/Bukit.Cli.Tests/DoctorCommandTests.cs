@@ -111,6 +111,36 @@ public sealed class DoctorCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_ReturnsError_WhenThemeManifestHasUnknownField()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
+                                                                           name: test
+                                                                           unknown: should-fail
+                                                                           """);
+
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await DoctorCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = _configPath
+                },
+                Array.Empty<string>()));
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("Theme manifest invalid", writer.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("unknown", writer.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_ReturnsError_WhenDefaultHomePagesIndexHtmlIsMissing()
     {
         File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), "name: test\n");

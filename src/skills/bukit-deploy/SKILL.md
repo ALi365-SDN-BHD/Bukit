@@ -94,6 +94,8 @@ Reduces log verbosity and outputs structured logs suitable for CI systems.
 
 ## Configuration (site.yaml)
 
+The `deploy` section is optional. If it is present, `provider` is required and must be `github-pages`; Bukit 1.0 does not support other deploy providers.
+
 ```yaml
 deploy:
   provider: github-pages
@@ -105,7 +107,7 @@ deploy:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `provider` | string | — | Deployment provider (currently only `github-pages`) |
+| `provider` | string | — | Required when `deploy` is present; currently only `github-pages` |
 | `branch` | string | `gh-pages` | Target Git branch for deployment |
 | `message` | string | `bukit deploy` | Git commit message for each deploy |
 | `cname` | string | — | Custom domain (will write a `CNAME` file) |

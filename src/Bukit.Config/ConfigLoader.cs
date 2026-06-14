@@ -73,7 +73,11 @@ public static class ConfigLoader
             Collections = collections,
             Plugins = SiteDefaultsApplier.ReadPluginToggles(siteNode),
             Feed = SiteDefaultsApplier.ReadFeedConfig(siteNode),
-            Search = SiteDefaultsApplier.ReadSearchConfig(siteNode)
+            SitemapDetail = SiteDefaultsApplier.ReadSitemapDetailConfig(siteNode),
+            Pagination = SiteDefaultsApplier.ReadPaginationConfig(siteNode),
+            Search = SiteDefaultsApplier.ReadSearchConfig(siteNode),
+            Related = SiteDefaultsApplier.ReadRelatedConfig(siteNode),
+            Menus = SiteDefaultsApplier.ReadMenus(siteNode)
         };
 
         var sources = ConfigCollectionReader.ReadSources(contentNode);
@@ -134,10 +138,7 @@ public static class ConfigLoader
             ComponentValidation = themeNode is null ? "off" : ConfigYamlHelpers.GetOptionalString(themeNode, "componentValidation") ?? "off"
         };
 
-        var taxonomy = new TaxonomyConfig
-        {
-            Kinds = SiteDefaultsApplier.ReadTaxonomyKinds(taxonomyNode),
-        };
+        var taxonomy = SiteDefaultsApplier.ReadTaxonomyConfig(taxonomyNode);
 
         var logging = new LoggingConfig
         {

@@ -19,12 +19,14 @@ public static class ThemeBootstrapper
 {
     public static ThemeBootstrapResult Bootstrap(AppConfig config, string rootDir, ILogger log)
     {
-        return Bootstrap(config, rootDir, log, ThemePathResolver.Resolve(rootDir, config.Theme, log));
+        var resolved = ThemePathResolver.Resolve(rootDir, config.Theme, log);
+        return Bootstrap(config, rootDir, log, resolved);
     }
 
     public static ThemeBootstrapResult BootstrapRequired(AppConfig config, string rootDir, ILogger log)
     {
-        return Bootstrap(config, rootDir, log, ThemePathResolver.Resolve(rootDir, config.Theme, log), requireThemeManifest: true);
+        var resolved = ThemePathResolver.Resolve(rootDir, config.Theme, log);
+        return Bootstrap(config, rootDir, log, resolved, requireThemeManifest: true);
     }
 
     internal static ThemeBootstrapResult Bootstrap(AppConfig config, string rootDir, ILogger log, ResolvedThemePaths resolved, bool requireThemeManifest = false)
@@ -38,7 +40,7 @@ public static class ThemeBootstrapper
 
         if (string.IsNullOrWhiteSpace(config.Theme.Name))
         {
-            themeManifest = ThemeManifestLoader.Load(resolved.LayoutsDir, required: false);
+            themeManifest = LoadThemeManifest(resolved.LayoutsDir, required: false, logPathLabel: "theme.yaml");
             if (themeManifest is null)
             {
                 return new ThemeBootstrapResult(themeName, null, null, null, null, null, null);
@@ -48,7 +50,7 @@ public static class ThemeBootstrapper
         }
         else
         {
-            themeManifest = ThemeManifestLoader.Load(themeRoot, required: requireThemeManifest);
+            themeManifest = LoadThemeManifest(themeRoot, required: requireThemeManifest, logPathLabel: "theme.yaml");
             if (themeManifest is null)
             {
                 return new ThemeBootstrapResult(themeName, themeRoot, null, null, null, null, null);
@@ -79,8 +81,8 @@ public static class ThemeBootstrapper
                     DiagnosticCode.ThemeSourceUnavailable);
             }
 
-            var parentManifest = ThemeManifestLoader.Load(parentThemeRoot, required: true)!;
-            parentRegistry = new ThemeComponentRegistry(parentThemeRoot, parentManifest, null);
+            var parentManifest = LoadThemeManifest(parentThemeRoot, required: true, logPathLabel: "parent theme.yaml");
+            parentRegistry = new ThemeComponentRegistry(parentThemeRoot, parentManifest!, null);
         }
 
         themeRegistry = new ThemeComponentRegistry(themeRoot, themeManifest, parentRegistry);
@@ -110,5 +112,17 @@ public static class ThemeBootstrapper
         schemaValidator = new SectionSchemaValidator(validationMode, themeRoot, log);
 
         return new ThemeBootstrapResult(themeName, themeRoot, parentThemeRoot, themeManifest, themeRegistry, schemaValidator, resolvedSectionPlugins);
+    }
+
+    private static ThemeManifestV2? LoadThemeManifest(string themeRoot, bool required, string logPathLabel)
+    {
+        try
+        {
+            return ThemeManifestLoader.Load(themeRoot, required);
+        }
+        catch (ThemeManifestException ex)
+        {
+            throw new ConfigException($"Failed to parse {logPathLabel}: {ex.Message}", ex, DiagnosticCode.ThemeManifestInvalid);
+        }
     }
 }

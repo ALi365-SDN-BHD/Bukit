@@ -20,7 +20,9 @@ internal static class ConfigStrictFieldValidator
     private static readonly HashSet<string> ThemeKeys = Set(
         "name", "layouts", "assets", "static", "staticTemplate", "params", "shortcodes",
         "components", "scss", "images", "componentValidation");
-    private static readonly HashSet<string> TaxonomyKeys = Set("kinds");
+    private static readonly HashSet<string> TaxonomyKeys = Set(
+        "kinds", "outputMode", "itemFields", "pageSize", "indexEnabled", "pinField", "pinOrderField",
+        "pinFieldBySource", "pinOrderFieldBySource");
     private static readonly HashSet<string> LoggingKeys = Set("level");
     private static readonly HashSet<string> DeployKeys = Set("provider", "branch", "message", "cname", "keepHistory");
 
@@ -68,11 +70,20 @@ internal static class ConfigStrictFieldValidator
 
         if (Map(site, "seo") is { } seo) ValidateSeo(seo);
         if (Map(site, "analytics") is { } analytics) RequireOnly(analytics, Set("enabled", "googleAnalyticsId", "disableInPreview"), "site.analytics");
-        if (Map(site, "feed") is { } feed) RequireOnly(feed, Set("formats", "limit", "path", "title", "description"), "site.feed");
+        if (Map(site, "feed") is { } feed) RequireOnly(feed, Set("mode", "formats", "limit", "path"), "site.feed");
         if (Map(site, "search") is { } search) RequireOnly(search, Set("mode", "ui", "uiTheme", "placeholderText", "maxContentLength"), "site.search");
-        if (Map(site, "related") is { } related) RequireOnly(related, Set("enabled", "template", "maxResults", "scoreThreshold", "fields"), "site.related");
-        if (Map(site, "sitemapDetail") is { } sitemap) RequireOnly(sitemap, Set("changefreq", "priority", "lastmod", "priorityMode"), "site.sitemapDetail");
-        if (Map(site, "pagination") is { } pagination) RequireOnly(pagination, Set("pageSize", "pagerTemplate", "pagePathPrefix"), "site.pagination");
+        if (Map(site, "related") is { } related)
+        {
+            RequireOnly(related, Set("enabled", "threshold", "limit", "indices"), "site.related");
+            if (Seq(related, "indices") is { } indices)
+            {
+                ValidateSequenceMappings(indices, Set("name", "weight"), "site.related.indices");
+            }
+        }
+
+        if (Map(site, "sitemapDetail") is { } sitemap) RequireOnly(sitemap, Set("defaultPriority", "defaultChangefreq", "imageEnabled", "videoEnabled"), "site.sitemapDetail");
+        if (Map(site, "pagination") is { } pagination) RequireOnly(pagination, Set("enabled", "pageSize"), "site.pagination");
+        if (Map(site, "menus") is { } menus) ValidateMenus(menus);
     }
 
     private static void ValidateSeo(YamlMappingNode seo)
@@ -81,7 +92,16 @@ internal static class ConfigStrictFieldValidator
         if (Map(seo, "organization") is { } organization) RequireOnly(organization, Set("name", "url", "logo"), "site.seo.organization");
         if (Map(seo, "robotsTxt") is { } robots) RequireOnly(robots, Set("enabled"), "site.seo.robotsTxt");
         if (Map(seo, "schema") is { } schema) RequireOnly(schema, Set("webPage", "collectionPage", "searchAction"), "site.seo.schema");
-        if (Map(seo, "geo") is { } geo) RequireOnly(geo, Set("enabled", "llmsTxt", "llmsFullTxt", "llmsTxtMaxArticles", "aiBotMode"), "site.seo.geo");
+        if (Map(seo, "geo") is { } geo)
+        {
+            RequireOnly(geo, Set(
+                "enabled", "llmsTxt", "llmsFullTxt", "llmsTxtMaxArticles", "aiBotMode",
+                "aiBotAllowList", "aiBotBlockList", "llmsTxtOptionalLinks"), "site.seo.geo");
+            if (Seq(geo, "llmsTxtOptionalLinks") is { } optionalLinks)
+            {
+                ValidateSequenceMappings(optionalLinks, Set("title", "url", "description"), "site.seo.geo.llmsTxtOptionalLinks");
+            }
+        }
     }
 
     private static void ValidateContent(YamlMappingNode content)
@@ -121,10 +141,17 @@ internal static class ConfigStrictFieldValidator
         RequireOnly(notion, Set(
             "databaseId", "pageSize", "maxItems", "renderContent", "renderConcurrency", "maxRps", "maxRetries",
             "fieldPolicy", "filterProperty", "filterType", "filterValue", "sortProperty", "sortDirection",
-            "includeSlugs", "includeSlugProperty", "cacheMode", "cacheDir"), path);
+            "includeSlugs", "includeSlugProperty", "cacheMode", "cacheDir", "propertyMap"), path);
         if (Map(notion, "fieldPolicy") is { } fieldPolicy)
         {
             RequireOnly(fieldPolicy, Set("mode", "allowed"), $"{path}.fieldPolicy");
+        }
+
+        if (Map(notion, "propertyMap") is { } propertyMap)
+        {
+            RequireOnly(propertyMap, Set(
+                "Title", "Slug", "Type", "PublishAt", "Language", "I18nKey", "Summary", "Collection",
+                "SeoTitle", "SeoDescription", "SeoImage", "Canonical"), $"{path}.propertyMap");
         }
     }
 
@@ -180,8 +207,9 @@ internal static class ConfigStrictFieldValidator
     private static void ValidateTheme(YamlMappingNode theme)
     {
         RequireOnly(theme, ThemeKeys, "theme");
-        if (Map(theme, "scss") is { } scss) RequireOnly(scss, Set("enabled", "path", "entryPoint", "outDir", "includePaths"), "theme.scss");
-        if (Map(theme, "images") is { } images) RequireOnly(images, Set("enabled", "formats", "sizes", "quality", "lazy", "resolutions", "concurrency", "contextConditional"), "theme.images");
+        if (Map(theme, "components") is { } components) ValidateComponents(components);
+        if (Map(theme, "scss") is { } scss) RequireOnly(scss, Set("enabled", "entryPoint", "outputDir"), "theme.scss");
+        if (Map(theme, "images") is { } images) RequireOnly(images, Set("enabled", "formats", "sizes", "quality"), "theme.images");
     }
 
     private static void ValidateTaxonomy(YamlMappingNode taxonomy)
@@ -190,6 +218,48 @@ internal static class ConfigStrictFieldValidator
         if (Seq(taxonomy, "kinds") is { } kinds)
         {
             ValidateSequenceMappings(kinds, Set("key", "kind", "title", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical"), "taxonomy.kinds");
+        }
+    }
+
+    private static void ValidateMenus(YamlMappingNode menus)
+    {
+        foreach (var (name, menuItems) in SequenceChildren(menus, "site.menus"))
+        {
+            ValidateMenuItems(menuItems, $"site.menus.{name}");
+        }
+    }
+
+    private static void ValidateComponents(YamlMappingNode components)
+    {
+        foreach (var (name, component) in MappingChildren(components, "theme.components"))
+        {
+            RequireOnly(component, Set("template", "props"), $"theme.components.{name}");
+            if (Map(component, "props") is { } props)
+            {
+                foreach (var child in props.Children)
+                {
+                    KeyName(child.Key, $"theme.components.{name}.props");
+                }
+            }
+        }
+    }
+
+    private static void ValidateMenuItems(YamlSequenceNode items, string path)
+    {
+        var index = 0;
+        foreach (var child in items.Children)
+        {
+            if (child is YamlMappingNode item)
+            {
+                var itemPath = $"{path}[{index}]";
+                RequireOnly(item, Set("identifier", "name", "url", "weight", "children"), itemPath);
+                if (Seq(item, "children") is { } children)
+                {
+                    ValidateMenuItems(children, $"{itemPath}.children");
+                }
+            }
+
+            index++;
         }
     }
 

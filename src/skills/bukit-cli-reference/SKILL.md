@@ -70,7 +70,7 @@ After downloading, place the binary in a PATH directory or the project root.
 | `config check` | Validate site.yaml without building | `--config` `--site` `--site-url` |
 | `config schema` | Generate site.yaml JSON Schema | `--output` |
 | `doctor` | Diagnose config and templates | `--config` `--site` `--site-url` |
-| `dev` | HMR development preview server | `--config` `--site` `--host` `--port` `--output` `--no-watch` |
+| `dev` | HMR development preview server | `--config` `--site` `--host` `--port` `--output` `--no-watch` `--allow-lan` `--public` |
 | `seo` | SEO quality gate | `audit`, `diff`, `--dir`, `--report`, `--strict`, `--external` |
 | `geo` | GEO quality gate | `audit`, `--dir` |
 | `publish` | Publish/readiness quality gate | `audit`, `diff`, `--dir`, `--report`, `--strict`, `--external` |
@@ -137,7 +137,7 @@ bukit preview [--dir <dir>] [--host <host>] [--port <port>] [--strict-port]
 Start a development preview server with live reload.
 
 ```
-bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--output <dir>] [--no-watch]
+bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--output <dir>] [--no-watch] [--allow-lan|--public]
 ```
 
 | Parameter | Default | Description |
@@ -148,12 +148,15 @@ bukit dev [--config <path>] [--site <name>] [--host <host>] [--port <port>] [--o
 | `--port` | `35729` | Listen port; auto-increments if occupied |
 | `--output` | config `build.output` | Output directory override |
 | `--no-watch` | false | Serve only, without file watching or live reload |
+| `--allow-lan` | false | Allow binding a non-loopback host such as `0.0.0.0`; prints a warning |
+| `--public` | false | Alias for `--allow-lan` |
 
 Behavior:
 - Runs an initial clean incremental build
 - Serves the output directory over HTTP
 - Watches content/theme/layout/assets/static directories
 - Rebuilds incrementally after changes and broadcasts reload over WebSocket
+- WebSocket upgrades require same-origin Host/Origin headers and are capped to 64 clients
 
 ### clean
 

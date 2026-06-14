@@ -170,6 +170,19 @@ internal static class ProviderValidators
         }
 
         var normalized = value.Replace('\\', '/');
+        if (normalized.StartsWith('/'))
+        {
+            throw new ConfigException($"{fieldName} must be a relative path.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        if (normalized.Length >= 3 &&
+            char.IsLetter(normalized[0]) &&
+            normalized[1] == ':' &&
+            normalized[2] == '/')
+        {
+            throw new ConfigException($"{fieldName} must be a relative path.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
         var segments = normalized.Split('/');
         foreach (var segment in segments)
         {
@@ -215,6 +228,8 @@ internal static class ProviderValidators
                 {
                     throw new ConfigException($"{pathPrefix}.includeGlobs[{i}] must be a non-empty string.", DiagnosticCode.ConfigRequiredFieldMissing);
                 }
+
+                RejectPathTraversal($"{pathPrefix}.includeGlobs[{i}]", includeGlobs[i]);
             }
         }
     }

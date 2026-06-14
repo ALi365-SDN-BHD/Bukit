@@ -105,6 +105,22 @@ public sealed class ThemeBootstrapperSanitizationTests : IDisposable
         Assert.Contains("parent theme manifest was not found", ex.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Bootstrap_Should_ThrowConfigException_When_ManifestHasUnknownField()
+    {
+        var childRoot = Path.Combine(_rootDir, "themes", "child");
+        Directory.CreateDirectory(Path.Combine(childRoot, "layouts"));
+        File.WriteAllText(Path.Combine(childRoot, "theme.yaml"), """
+            name: child
+            unknown: should-fail
+            """);
+
+        var ex = Assert.Throws<ConfigException>(() => ThemeBootstrapper.Bootstrap(CreateConfig("child"), _rootDir, _logger));
+
+        Assert.Equal(DiagnosticCode.ThemeManifestInvalid, ex.Code);
+        Assert.Contains("theme.yaml", ex.Message, StringComparison.Ordinal);
+    }
+
     private static AppConfig CreateConfig(string themeName) => new()
     {
         Site = new SiteConfig { Name = "test", Title = "Test" },

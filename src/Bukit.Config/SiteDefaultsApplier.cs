@@ -84,9 +84,42 @@ internal static class SiteDefaultsApplier
 
         return new FeedConfig
         {
+            Mode = ConfigYamlHelpers.GetOptionalString(feedNode, "mode") ?? "split",
             Formats = ConfigYamlHelpers.ReadStringList(feedNode, "formats") ?? new[] { "rss" },
             Limit = ConfigYamlHelpers.GetOptionalInt(feedNode, "limit") ?? 20,
             Path = ConfigYamlHelpers.GetOptionalString(feedNode, "path") ?? "feed"
+        };
+    }
+
+    internal static SitemapDetailConfig ReadSitemapDetailConfig(YamlMappingNode siteNode)
+    {
+        var sitemapNode = ConfigYamlHelpers.GetOptionalMapping(siteNode, "sitemapDetail");
+        if (sitemapNode is null)
+        {
+            return new SitemapDetailConfig();
+        }
+
+        return new SitemapDetailConfig
+        {
+            DefaultPriority = ConfigYamlHelpers.GetOptionalDouble(sitemapNode, "defaultPriority") ?? 0.5,
+            DefaultChangefreq = ConfigYamlHelpers.GetOptionalString(sitemapNode, "defaultChangefreq") ?? "weekly",
+            ImageEnabled = ConfigYamlHelpers.GetOptionalBool(sitemapNode, "imageEnabled") ?? false,
+            VideoEnabled = ConfigYamlHelpers.GetOptionalBool(sitemapNode, "videoEnabled") ?? false
+        };
+    }
+
+    internal static PaginationGlobalConfig ReadPaginationConfig(YamlMappingNode siteNode)
+    {
+        var paginationNode = ConfigYamlHelpers.GetOptionalMapping(siteNode, "pagination");
+        if (paginationNode is null)
+        {
+            return new PaginationGlobalConfig();
+        }
+
+        return new PaginationGlobalConfig
+        {
+            Enabled = ConfigYamlHelpers.GetOptionalBool(paginationNode, "enabled") ?? false,
+            PageSize = ConfigYamlHelpers.GetOptionalIntStrict(paginationNode, "pageSize") ?? 10
         };
     }
 
@@ -108,10 +141,111 @@ internal static class SiteDefaultsApplier
         };
     }
 
+    internal static RelatedConfig ReadRelatedConfig(YamlMappingNode siteNode)
+    {
+        var relatedNode = ConfigYamlHelpers.GetOptionalMapping(siteNode, "related");
+        if (relatedNode is null)
+        {
+            return new RelatedConfig();
+        }
+
+        return new RelatedConfig
+        {
+            Enabled = ConfigYamlHelpers.GetOptionalBool(relatedNode, "enabled") ?? false,
+            Threshold = ConfigYamlHelpers.GetOptionalIntStrict(relatedNode, "threshold") ?? 80,
+            Limit = ConfigYamlHelpers.GetOptionalIntStrict(relatedNode, "limit") ?? 5,
+            Indices = ReadRelatedIndices(relatedNode) ?? new RelatedConfig().Indices
+        };
+    }
+
+    private static IReadOnlyList<RelatedIndexConfig>? ReadRelatedIndices(YamlMappingNode relatedNode)
+    {
+        var indicesNode = ConfigYamlHelpers.GetOptionalSequence(relatedNode, "indices");
+        if (indicesNode is null)
+        {
+            return null;
+        }
+
+        var indices = new List<RelatedIndexConfig>();
+        foreach (var n in indicesNode.Children)
+        {
+            if (n is not YamlMappingNode m)
+            {
+                throw new ConfigException("site.related.indices items must be mappings.", DiagnosticCode.ConfigRequiredFieldMissing);
+            }
+
+            indices.Add(new RelatedIndexConfig
+            {
+                Name = ConfigYamlHelpers.GetRequiredString(m, "name"),
+                Weight = ConfigYamlHelpers.GetOptionalIntStrict(m, "weight") ?? 100
+            });
+        }
+
+        return indices.Count == 0 ? null : indices;
+    }
+
+    internal static IReadOnlyDictionary<string, IReadOnlyList<MenuConfig>>? ReadMenus(YamlMappingNode siteNode)
+    {
+        var menusNode = ConfigYamlHelpers.GetOptionalMapping(siteNode, "menus");
+        if (menusNode is null)
+        {
+            return null;
+        }
+
+        var menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in menusNode.Children)
+        {
+            if (kv.Key is not YamlScalarNode keyNode || string.IsNullOrWhiteSpace(keyNode.Value))
+            {
+                continue;
+            }
+
+            if (kv.Value is not YamlSequenceNode itemsNode)
+            {
+                throw new ConfigException($"site.menus.{keyNode.Value} must be a sequence.", DiagnosticCode.ConfigRequiredFieldMissing);
+            }
+
+            var items = ReadMenuItems(itemsNode, $"site.menus.{keyNode.Value}");
+            if (items.Count > 0)
+            {
+                menus[keyNode.Value.Trim()] = items;
+            }
+        }
+
+        return menus.Count == 0 ? null : menus;
+    }
+
+    private static IReadOnlyList<MenuConfig> ReadMenuItems(YamlSequenceNode itemsNode, string path)
+    {
+        var items = new List<MenuConfig>();
+        var index = 0;
+        foreach (var n in itemsNode.Children)
+        {
+            if (n is not YamlMappingNode m)
+            {
+                throw new ConfigException($"{path}[{index}] must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
+            }
+
+            var childrenNode = ConfigYamlHelpers.GetOptionalSequence(m, "children");
+            items.Add(new MenuConfig
+            {
+                Identifier = ConfigYamlHelpers.GetRequiredString(m, "identifier"),
+                Name = ConfigYamlHelpers.GetRequiredString(m, "name"),
+                Url = ConfigYamlHelpers.GetRequiredString(m, "url"),
+                Weight = ConfigYamlHelpers.GetOptionalIntStrict(m, "weight") ?? 1,
+                Children = childrenNode is null ? null : ReadMenuItems(childrenNode, $"{path}[{index}].children")
+            });
+            index++;
+        }
+
+        return items;
+    }
+
     internal static NotionConfig ReadNotionConfigFrom(YamlMappingNode contentNode)
     {
         var notionNode = ConfigYamlHelpers.GetMapping(contentNode, "notion");
         var policyNode = ConfigYamlHelpers.GetOptionalMapping(notionNode, "fieldPolicy");
+        var propertyMapNode = ConfigYamlHelpers.GetOptionalMapping(notionNode, "propertyMap");
         return new NotionConfig
         {
             DatabaseId = ConfigYamlHelpers.GetRequiredString(notionNode, "databaseId"),
@@ -130,7 +264,8 @@ internal static class SiteDefaultsApplier
             IncludeSlugs = ConfigYamlHelpers.ReadStringList(notionNode, "includeSlugs"),
             IncludeSlugProperty = ConfigYamlHelpers.GetOptionalString(notionNode, "includeSlugProperty") ?? "Slug",
             CacheMode = ConfigYamlHelpers.GetOptionalString(notionNode, "cacheMode") ?? "off",
-            CacheDir = ConfigYamlHelpers.GetOptionalString(notionNode, "cacheDir")
+            CacheDir = ConfigYamlHelpers.GetOptionalString(notionNode, "cacheDir"),
+            PropertyMap = ReadNotionPropertyMap(propertyMapNode)
         };
     }
 
@@ -172,6 +307,30 @@ internal static class SiteDefaultsApplier
         };
     }
 
+    internal static NotionPropertyMapConfig? ReadNotionPropertyMap(YamlMappingNode? node)
+    {
+        if (node is null)
+        {
+            return null;
+        }
+
+        return new NotionPropertyMapConfig
+        {
+            Title = ConfigYamlHelpers.GetOptionalString(node, "Title"),
+            Slug = ConfigYamlHelpers.GetOptionalString(node, "Slug"),
+            Type = ConfigYamlHelpers.GetOptionalString(node, "Type"),
+            PublishAt = ConfigYamlHelpers.GetOptionalString(node, "PublishAt"),
+            Language = ConfigYamlHelpers.GetOptionalString(node, "Language"),
+            I18nKey = ConfigYamlHelpers.GetOptionalString(node, "I18nKey"),
+            Summary = ConfigYamlHelpers.GetOptionalString(node, "Summary"),
+            Collection = ConfigYamlHelpers.GetOptionalString(node, "Collection"),
+            SeoTitle = ConfigYamlHelpers.GetOptionalString(node, "SeoTitle"),
+            SeoDescription = ConfigYamlHelpers.GetOptionalString(node, "SeoDescription"),
+            SeoImage = ConfigYamlHelpers.GetOptionalString(node, "SeoImage"),
+            Canonical = ConfigYamlHelpers.GetOptionalString(node, "Canonical")
+        };
+    }
+
     internal static MarkdownConfig ReadMarkdownConfigFrom(YamlMappingNode contentNode)
     {
         var mdNode = ConfigYamlHelpers.GetMapping(contentNode, "markdown");
@@ -199,6 +358,27 @@ internal static class SiteDefaultsApplier
             Message = ConfigYamlHelpers.GetOptionalString(deployNode, "message") ?? "bukit deploy",
             Cname = ConfigYamlHelpers.GetOptionalString(deployNode, "cname"),
             KeepHistory = ConfigYamlHelpers.GetOptionalBool(deployNode, "keepHistory") ?? false
+        };
+    }
+
+    internal static TaxonomyConfig ReadTaxonomyConfig(YamlMappingNode? taxonomyNode)
+    {
+        if (taxonomyNode is null)
+        {
+            return new TaxonomyConfig();
+        }
+
+        return new TaxonomyConfig
+        {
+            Kinds = ReadTaxonomyKinds(taxonomyNode),
+            OutputMode = ConfigYamlHelpers.GetOptionalString(taxonomyNode, "outputMode") ?? "both",
+            ItemFields = ConfigYamlHelpers.ReadStringList(taxonomyNode, "itemFields"),
+            PageSize = ConfigYamlHelpers.GetOptionalIntStrict(taxonomyNode, "pageSize") ?? 10,
+            IndexEnabled = ConfigYamlHelpers.GetOptionalBool(taxonomyNode, "indexEnabled") ?? true,
+            PinField = ConfigYamlHelpers.GetOptionalString(taxonomyNode, "pinField") ?? "pinned",
+            PinOrderField = ConfigYamlHelpers.GetOptionalString(taxonomyNode, "pinOrderField"),
+            PinFieldBySource = ConfigYamlHelpers.ReadStringMap(taxonomyNode, "pinFieldBySource"),
+            PinOrderFieldBySource = ConfigYamlHelpers.ReadStringMap(taxonomyNode, "pinOrderFieldBySource")
         };
     }
 

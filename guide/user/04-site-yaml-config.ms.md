@@ -387,6 +387,8 @@ Dalam senario CI, disyorkan untuk digabungkan dengan `--log-format json` supaya 
 
 Mengawal tingkah laku deployment perintah `bukit deploy`:
 
+Seksyen `deploy` adalah pilihan. Jika seksyen ini wujud, `deploy.provider` mesti ditetapkan secara eksplisit kepada `github-pages`; Bukit 1.0 tidak menerima provider deployment lain.
+
 ```yaml
 deploy:
   provider: github-pages
@@ -397,7 +399,7 @@ deploy:
 
 | Medan | Penerangan | Nilai Lalai |
 |------|------|--------|
-| `deploy.provider` | Platform sasaran deployment (buat masa ini hanya `github-pages`) | — |
+| `deploy.provider` | Wajib jika `deploy` wujud. Platform sasaran deployment (buat masa ini hanya `github-pages`) | — |
 | `deploy.branch` | Cabang Git sasaran | `gh-pages` |
 | `deploy.message` | Mesej commit Git | `bukit deploy` |
 | `deploy.cname` | Domain tersuai (akan ditulis ke fail CNAME) | — |

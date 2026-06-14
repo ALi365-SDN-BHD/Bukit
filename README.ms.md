@@ -48,7 +48,7 @@ Bukit **bukan** platform SaaS, backend CMS penuh, pembina halaman visual, atau p
 - **GEO** — `llms.txt`, peraturan robots.txt perangkak AI, data berstruktur FAQ/HowTo, audit Skor GEO
 - **Sistem tema** dengan token reka bentuk dan tema berkomponen; pendaftaran tema dirancang untuk peringkat seterusnya
 - **Pelayan pembangunan HMR** dengan muat semula langsung WebSocket; pelayan pratonton untuk output binaan
-- **Sistem plugin** — cangkuk `derive-pages` dan `after-build`; sokongan plugin WASM dan proses
+- **Sistem plugin** — cangkuk terbina `derive-pages` dan `after-build`; ekosistem plugin proses / WASM dirancang untuk masa hadapan dan bukan sebahagian daripada Core 1.0.
 - **Binaan inkremental** — pengesanan perubahan sedar kandungan; pilihan pengecaman aset SHA256
 - **Deployan GitHub Pages** melalui CLI atau aliran kerja GitHub Actions
 

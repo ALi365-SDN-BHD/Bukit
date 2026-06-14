@@ -39,13 +39,19 @@ internal static class ConfigCollectionReader
                 Pagination = new CollectionPaginationConfig
                 {
                     Enabled = paginationNode is not null && (ConfigYamlHelpers.GetOptionalBool(paginationNode, "enabled") ?? false),
-                    PageSize = paginationNode is null ? 10 : ConfigYamlHelpers.GetOptionalIntStrict(paginationNode, "pageSize") ?? 10
+                    PageSize = paginationNode is null ? 10 : ConfigYamlHelpers.GetOptionalIntStrict(paginationNode, "pageSize") ?? 10,
+                    UrlPattern = paginationNode is null ? "page/:num/" : ConfigYamlHelpers.GetOptionalString(paginationNode, "urlPattern") ?? "page/:num/",
+                    FirstPageUsesListRoute = paginationNode is null || (ConfigYamlHelpers.GetOptionalBool(paginationNode, "firstPageUsesListRoute") ?? true)
                 },
                 Output = new CollectionOutputConfig
                 {
                     Rss = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "rss") ?? true,
                     Sitemap = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "sitemap") ?? true,
-                    Archive = outputNode is not null && (ConfigYamlHelpers.GetOptionalBool(outputNode, "archive") ?? false)
+                    Archive = outputNode is not null && (ConfigYamlHelpers.GetOptionalBool(outputNode, "archive") ?? false),
+                    FeedPath = outputNode is null ? null : ConfigYamlHelpers.GetOptionalString(outputNode, "feedPath"),
+                    FeedTitle = outputNode is null ? null : ConfigYamlHelpers.GetOptionalString(outputNode, "feedTitle"),
+                    FeedDescription = outputNode is null ? null : ConfigYamlHelpers.GetOptionalString(outputNode, "feedDescription"),
+                    ArchiveDetail = outputNode is null ? null : ReadArchiveDetail(outputNode)
                 },
                 FilteredLists = ReadFilteredLists(collectionNode)
             };
@@ -80,6 +86,22 @@ internal static class ConfigCollectionReader
         }
 
         return filteredLists.Count == 0 ? null : filteredLists;
+    }
+
+    private static ArchiveDetailConfig? ReadArchiveDetail(YamlMappingNode outputNode)
+    {
+        var archiveDetailNode = ConfigYamlHelpers.GetOptionalMapping(outputNode, "archiveDetail");
+        if (archiveDetailNode is null)
+        {
+            return null;
+        }
+
+        return new ArchiveDetailConfig
+        {
+            Depth = ConfigYamlHelpers.GetOptionalString(archiveDetailNode, "depth") ?? "monthly",
+            Template = ConfigYamlHelpers.GetOptionalString(archiveDetailNode, "template"),
+            RoutePrefix = ConfigYamlHelpers.GetOptionalString(archiveDetailNode, "routePrefix")
+        };
     }
 
     private static void ThrowIfCollectionSchemaDeclared(string path, YamlMappingNode collectionNode)

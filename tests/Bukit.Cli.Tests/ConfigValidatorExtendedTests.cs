@@ -162,9 +162,6 @@ name: test-theme
 version: 1.0.0
 engine: bukit
 description: A test
-author: Tester
-license: MIT
-tags: [blog]
 """);
 
             var result = ConfigValidator.ValidateThemeYaml(tempDir);

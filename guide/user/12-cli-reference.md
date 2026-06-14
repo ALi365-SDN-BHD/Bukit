@@ -122,6 +122,7 @@ Run an initial build, serve the output, watch files, and live-reload connected b
 bukit dev --config site.yaml
 bukit dev --port 3000
 bukit dev --no-watch
+bukit dev --host 0.0.0.0 --allow-lan
 ```
 
 Parameters:
@@ -130,6 +131,7 @@ Parameters:
 - `--port <port>`: default `35729`, auto-increments if occupied
 - `--output <dir>`: override output directory
 - `--no-watch`: serve only, without file watching or live reload
+- `--allow-lan` / `--public`: required when binding a non-loopback host such as `0.0.0.0`
 
 ## clean
 

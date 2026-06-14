@@ -400,6 +400,8 @@ CI 场景下建议配合 `--log-format json`，便于收集与排查（见：[12
 
 控制 `bukit deploy` 命令的部署行为：
 
+`deploy` section 是可选的。如果写了 `deploy` section，则必须显式设置 `deploy.provider: github-pages`；Bukit 1.0 不接受其它部署 provider。
+
 ```yaml
 deploy:
   provider: github-pages
@@ -410,7 +412,7 @@ deploy:
 
 | 字段 | 说明 | 默认值 |
 |------|------|--------|
-| `deploy.provider` | 部署目标平台（目前仅 `github-pages`） | — |
+| `deploy.provider` | 写了 `deploy` 时必填。部署目标平台（目前仅 `github-pages`） | — |
 | `deploy.branch` | 目标 Git 分支 | `gh-pages` |
 | `deploy.message` | Git 提交信息 | `bukit deploy` |
 | `deploy.cname` | 自定义域名（会写入 CNAME 文件） | — |

@@ -511,7 +511,7 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
     }
 
     [Fact]
-    public void Load_TaxonomyItemFields_ThrowsUnknownField()
+    public void Load_TaxonomyItemFields_ParsesValues()
     {
         var yaml = """
             site:
@@ -529,13 +529,13 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
                 - series
             """;
         var path = WriteTempYaml(yaml);
-        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+        var config = ConfigLoader.Load(path);
 
-        Assert.Contains("taxonomy.itemFields", ex.Message, StringComparison.Ordinal);
+        Assert.Equal(["tags", "categories", "series"], config.Taxonomy.ItemFields);
     }
 
     [Fact]
-    public void Load_TaxonomyPinFieldAndPinOrderField_ThrowsUnknownField()
+    public void Load_TaxonomyPinFieldAndPinOrderField_ParsesValues()
     {
         var yaml = """
             site:
@@ -551,13 +551,14 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
               pinOrderField: priority
             """;
         var path = WriteTempYaml(yaml);
-        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+        var config = ConfigLoader.Load(path);
 
-        Assert.Contains("taxonomy.pinField", ex.Message, StringComparison.Ordinal);
+        Assert.Equal("featured", config.Taxonomy.PinField);
+        Assert.Equal("priority", config.Taxonomy.PinOrderField);
     }
 
     [Fact]
-    public void Load_TaxonomyPinFieldBySource_ThrowsUnknownField()
+    public void Load_TaxonomyPinFieldBySource_ParsesValues()
     {
         var yaml = """
             site:
@@ -574,13 +575,14 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
                 markdown: frontmatter_pinned
             """;
         var path = WriteTempYaml(yaml);
-        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+        var config = ConfigLoader.Load(path);
 
-        Assert.Contains("taxonomy.pinFieldBySource", ex.Message, StringComparison.Ordinal);
+        Assert.Equal("NotionPinned", config.Taxonomy.PinFieldBySource!["notion"]);
+        Assert.Equal("frontmatter_pinned", config.Taxonomy.PinFieldBySource!["markdown"]);
     }
 
     [Fact]
-    public void Load_TaxonomyPinOrderFieldBySource_ThrowsUnknownField()
+    public void Load_TaxonomyPinOrderFieldBySource_ParsesValues()
     {
         var yaml = """
             site:
@@ -597,9 +599,10 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
                 markdown: weight
             """;
         var path = WriteTempYaml(yaml);
-        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+        var config = ConfigLoader.Load(path);
 
-        Assert.Contains("taxonomy.pinOrderFieldBySource", ex.Message, StringComparison.Ordinal);
+        Assert.Equal("NotionOrder", config.Taxonomy.PinOrderFieldBySource!["notion"]);
+        Assert.Equal("weight", config.Taxonomy.PinOrderFieldBySource!["markdown"]);
     }
 
     [Fact]

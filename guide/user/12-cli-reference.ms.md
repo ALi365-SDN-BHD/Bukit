@@ -96,6 +96,7 @@ Jalankan binaan awal, serve output, pantau perubahan fail, dan reload browser ya
 bukit dev --config site.yaml
 bukit dev --port 3000
 bukit dev --no-watch
+bukit dev --host 0.0.0.0 --allow-lan
 ```
 
 Parameter:
@@ -104,6 +105,7 @@ Parameter:
 - `--port <port>`: default `35729`, auto-increment jika sibuk
 - `--output <dir>`: ganti direktori output
 - `--no-watch`: serve sahaja, tanpa file watching atau live reload
+- `--allow-lan` / `--public`: wajib apabila bind host bukan loopback seperti `0.0.0.0`
 
 ## clean
 
