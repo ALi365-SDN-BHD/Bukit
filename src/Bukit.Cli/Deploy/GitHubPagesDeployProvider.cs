@@ -144,7 +144,19 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
                     }
 
                     logger.Warn("Non-fast-forward push detected. --force was provided; force-pushing to overwrite the remote branch...");
-                    await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "--force", "origin", branch);
+                    try
+                    {
+                        await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "--force", "origin", branch);
+                    }
+                    catch (Exception forcePushEx)
+                    {
+                        if (!IsNonFastForwardPush(forcePushEx.Message) && !string.IsNullOrWhiteSpace(forcePushEx.Message))
+                        {
+                            throw;
+                        }
+
+                        await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, ct, "push", "origin", "--force", branch);
+                    }
                 }
                 else
                 {

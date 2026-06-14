@@ -195,6 +195,7 @@ public static class HtmlToNotionBlockConverter
                 {
                     i++;
                     var codeText = CollectRawTextUntilClose(tokens, ref i, "pre");
+                    codeText = NormalizeLineEndings(codeText);
                     string? lang = null;
                     if (!string.IsNullOrWhiteSpace(codeText) && codeText.Length > 0)
                     {
@@ -255,6 +256,9 @@ public static class HtmlToNotionBlockConverter
 
         return (blocks, i);
     }
+
+    private static string NormalizeLineEndings(string value)
+        => value.Replace("\r\n", "\n").Replace('\r', '\n');
 
     private static bool IsHeadingTag(string tagName)
         => tagName.Length == 2 && tagName[0] == 'h' && tagName[1] >= '1' && tagName[1] <= '6';
