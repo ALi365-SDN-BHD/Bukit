@@ -139,6 +139,23 @@ public sealed class CoreBoundaryTests
     }
 
     [Fact]
+    public void TestSources_DoNotHardcodeAbsoluteCurrentDirectories()
+    {
+        var testsDir = Path.Combine(FindRepoRoot(), "tests");
+        var offenders = Directory
+            .EnumerateFiles(testsDir, "*.cs", SearchOption.AllDirectories)
+            .SelectMany(path => File.ReadLines(path)
+                .Select((line, index) => new { Path = path, Line = index + 1, Text = line }))
+            .Where(x => x.Text.Contains("Directory.SetCurrentDirectory(\"/", StringComparison.Ordinal) ||
+                x.Text.Contains("Environment.CurrentDirectory = \"/", StringComparison.Ordinal))
+            .Select(x => $"{Path.GetRelativePath(testsDir, x.Path)}:{x.Line}: {x.Text.Trim()}")
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
     public void SeoAndPublishDiff_DoNotExposeAllowCrossSchema()
     {
         var registry = BukitCliSpecs.CreateRegistry();

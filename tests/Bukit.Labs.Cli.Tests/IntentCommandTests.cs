@@ -7,17 +7,19 @@ namespace Bukit.Labs.Cli.Tests;
 [Collection(IntentApplierCollection.Name)]
 public sealed class IntentCommandTests : IDisposable
 {
+    private readonly string _originalDirectory;
     private readonly string _rootDir;
 
     public IntentCommandTests()
     {
+        _originalDirectory = Directory.GetCurrentDirectory();
         _rootDir = Path.Combine(Path.GetTempPath(), "bukit-labs-intent-command-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_rootDir);
     }
 
     public void Dispose()
     {
-        Directory.SetCurrentDirectory("/Users/ali/mydev/Git/Github/Bukit");
+        Directory.SetCurrentDirectory(_originalDirectory);
         TestCleanup.DeleteDirectory(_rootDir, recursive: true);
     }
 
