@@ -20,6 +20,14 @@ Preview features such as `import html-demo`, `import seed`, Notion push, and dem
 | native-aot macos-latest             | PASS   |
 | stress-cli                          | PASS   |
 
+## Workflow Evidence (GitHub Actions Ground Truth)
+
+| Check | Status |
+| :---- | :----- |
+| `actions/workflows/ci.yml` runs for target commit (`workflow_runs`) | ❌ BLOCKED (`workflow_runs` currently empty for last snapshot) |
+| Release gate precondition (completed success run required) | ❌ BLOCKED |
+| Evidence output file required | `TestResults/release-gate/ci-workflow-evidence.json` (required), `TestResults/release-gate/rc-gate-evidence.md` (for reviewer-visible proof) |
+
 ## Repository Hygiene
 
 | Check                                | Status |
@@ -32,4 +40,6 @@ Preview features such as `import html-demo`, `import seed`, Notion push, and dem
 
 ## Release Decision
 
-Bukit 1.0.0 Core is ready for RC1.
+Bukit 1.0.0 Core is **not ready** for RC1.
+
+Reason: 无法建立真实 CI 绿灯证据前，不能把静态检查通过等同于 RC 通过。

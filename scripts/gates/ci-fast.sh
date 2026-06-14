@@ -11,11 +11,17 @@ bash scripts/checks/file-size.sh
 echo "=== checks: repo hygiene ==="
 bash scripts/checks/repo-hygiene.sh
 
+echo "=== checks: github action pin compliance ==="
+bash scripts/checks/ci-workflow-action-pin.sh
+
 echo "=== checks: encoding ==="
 bash scripts/checks/encoding.sh
 
 echo "=== checks: Core CLI script contract ==="
 bash scripts/checks/core-cli-contract.sh
+
+echo "=== checks: skills python deps ==="
+bash scripts/checks/skills-python-deps.sh
 
 echo "=== checks: skills strict validation ==="
 bash guide/skills/scripts/validate-skills-strict.sh
