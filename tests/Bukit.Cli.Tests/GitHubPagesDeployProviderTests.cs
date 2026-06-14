@@ -351,38 +351,45 @@ public sealed class GitHubPagesDeployProviderTests
                 @echo off
                 setlocal EnableDelayedExpansion
                 echo %CD%^|%*>>"%BUKIT_FAKE_GIT_LOG%"
-                if "%~1"=="remote" if "%~2"=="get-url" if "%~3"=="origin" (
-                  if not "%BUKIT_FAKE_GIT_REMOTE_URL%"=="" echo %BUKIT_FAKE_GIT_REMOTE_URL%
-                  exit /b 0
-                )
-                if "%~1"=="ls-remote" (
-                  if not "%BUKIT_FAKE_GIT_REMOTE_HEADS%"=="" echo %BUKIT_FAKE_GIT_REMOTE_HEADS%
-                  exit /b 0
-                )
-                if "%~1"=="clone" (
-                  mkdir .git >nul 2>nul
-                  >old.txt echo stale
-                  exit /b 0
-                )
-                if "%~1"=="push" (
-                  if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="nonff-once" (
-                    if not exist "%BUKIT_FAKE_GIT_STATE%\nonff.marker" if not "%~2"=="--force" (
-                      >"%BUKIT_FAKE_GIT_STATE%\nonff.marker" echo 1
-                      1>&2 echo ! [rejected] gh-pages -^> gh-pages (non-fast-forward)
-                      exit /b 1
-                    )
-                  )
-                  if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="forbidden" (
-                    1>&2 echo remote: 403 Forbidden %GITHUB_TOKEN%
-                    exit /b 1
-                  )
-                  if exist ".nojekyll" echo SNAPSHOT nojekyll>>"%BUKIT_FAKE_GIT_LOG%"
-                  if exist "CNAME" set /p cname=<CNAME && echo SNAPSHOT cname=!cname!>>"%BUKIT_FAKE_GIT_LOG%"
-                  if exist "index.html" echo SNAPSHOT index>>"%BUKIT_FAKE_GIT_LOG%"
-                  if exist "old.txt" echo SNAPSHOT old>>"%BUKIT_FAKE_GIT_LOG%"
-                  exit /b 0
-                )
+                if "%~1"=="remote" if "%~2"=="get-url" if "%~3"=="origin" goto remote_get_url
+                if "%~1"=="ls-remote" goto ls_remote
+                if "%~1"=="clone" goto clone_repo
+                if "%~1"=="push" goto push_repo
                 exit /b 0
+
+                :remote_get_url
+                if not "%BUKIT_FAKE_GIT_REMOTE_URL%"=="" echo %BUKIT_FAKE_GIT_REMOTE_URL%
+                exit /b 0
+
+                :ls_remote
+                if not "%BUKIT_FAKE_GIT_REMOTE_HEADS%"=="" echo %BUKIT_FAKE_GIT_REMOTE_HEADS%
+                exit /b 0
+
+                :clone_repo
+                mkdir .git >nul 2>nul
+                >old.txt echo stale
+                exit /b 0
+
+                :push_repo
+                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="nonff-once" if not exist "%BUKIT_FAKE_GIT_STATE%\nonff.marker" if not "%~2"=="--force" goto push_nonff
+                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="forbidden" goto push_forbidden
+                if exist ".nojekyll" echo SNAPSHOT nojekyll>>"%BUKIT_FAKE_GIT_LOG%"
+                if exist "CNAME" (
+                  set /p cname=<CNAME
+                  echo SNAPSHOT cname=!cname!>>"%BUKIT_FAKE_GIT_LOG%"
+                )
+                if exist "index.html" echo SNAPSHOT index>>"%BUKIT_FAKE_GIT_LOG%"
+                if exist "old.txt" echo SNAPSHOT old>>"%BUKIT_FAKE_GIT_LOG%"
+                exit /b 0
+
+                :push_nonff
+                >"%BUKIT_FAKE_GIT_STATE%\nonff.marker" echo 1
+                1>&2 echo ^! [rejected] gh-pages -^> gh-pages ^(non-fast-forward^)
+                exit /b 1
+
+                :push_forbidden
+                1>&2 echo remote: 403 Forbidden %GITHUB_TOKEN%
+                exit /b 1
                 """);
                 return;
             }
