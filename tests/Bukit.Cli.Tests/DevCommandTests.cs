@@ -156,19 +156,6 @@ public sealed class DevCommandTests
     }
 
     [Fact]
-    public void ExtractOptions_RecognizesLivereloadPort()
-    {
-        var options = DevCommand.ExtractOptions(new CliBoundCommand(
-            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["--livereload-port"] = "42000"
-            },
-            Array.Empty<string>()));
-
-        Assert.Equal(42000, options.livereloadPort);
-    }
-
-    [Fact]
     public void CliRegistry_DevCommandIncludesLanExposureFlags()
     {
         var registry = BukitCliSpecs.CreateRegistry();
@@ -179,7 +166,6 @@ public sealed class DevCommandTests
 
         Assert.Contains("--allow-lan", optionNames);
         Assert.Contains("--public", optionNames);
-        Assert.Contains("--livereload-port", optionNames);
     }
 
     [Fact]
@@ -204,16 +190,9 @@ public sealed class DevCommandTests
 
         Assert.Contains("location.protocol === 'https:' ? 'wss://' : 'ws://'", html, StringComparison.Ordinal);
         Assert.Contains("location.hostname", html, StringComparison.Ordinal);
+        Assert.Contains("const port = location.port ? ':' + location.port : '';", html, StringComparison.Ordinal);
         Assert.DoesNotContain(".split(':')", html, StringComparison.Ordinal);
         Assert.DoesNotContain("'ws://'+", html, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void InjectLivereload_UsesConfiguredPortWhenProvided()
-    {
-        var html = DevRequestHandler.InjectLivereload("<html><head></head><body></body></html>", 42000);
-
-        Assert.Contains("const configuredPort = \"42000\"", html, StringComparison.Ordinal);
     }
 
     [Theory]
