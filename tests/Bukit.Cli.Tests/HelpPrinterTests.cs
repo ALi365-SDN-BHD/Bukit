@@ -63,4 +63,25 @@ public sealed class HelpPrinterTests
             Console.SetOut(originalOut);
         }
     }
+
+    [Fact]
+    public void Print_UsesLiveReloadTermForDevCommand()
+    {
+        var originalOut = Console.Out;
+        var writer = new StringWriter();
+        try
+        {
+            Console.SetOut(writer);
+            HelpPrinter.Print();
+            var output = writer.ToString();
+
+            Assert.Contains("LiveReload 实时预览开发服务器", output, StringComparison.Ordinal);
+            Assert.DoesNotContain("HMR", output, StringComparison.Ordinal);
+            Assert.DoesNotContain("Hot Module Replacement", output, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
 }

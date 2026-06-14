@@ -40,7 +40,7 @@ public sealed class CliRenderingTests
     {
         var registry = BukitCliSpecs.CreateRegistry();
         var dev = registry.Commands.Single(c => string.Equals(c.Name, "dev", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal("LiveReload development server", dev.Description);
+        Assert.Equal("LiveReload 实时预览开发服务器", dev.Description);
         var text = CliHelpRenderer.Render(dev, "bukit dev");
 
         Assert.DoesNotContain("HMR", text, StringComparison.Ordinal);
@@ -48,7 +48,7 @@ public sealed class CliRenderingTests
     }
 
     [Fact]
-    public void SourceFiles_DoNotContainUserVisibleHMRPhrasing()
+    public void SourceFiles_DoNotContainUserVisibleHmrPhrasing()
     {
         var cliRoot = FindRepoRoot();
         var sourceFiles = Directory.EnumerateFiles(
@@ -62,6 +62,18 @@ public sealed class CliRenderingTests
             Assert.DoesNotContain("HMR", text, StringComparison.Ordinal);
             Assert.DoesNotContain("Hot Module Replacement", text, StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    [Fact]
+    public void DevCommandSource_UsesLiveReloadBanner()
+    {
+        var cliRoot = FindRepoRoot();
+        var text = File.ReadAllText(Path.Combine(cliRoot, "src", "Bukit.Cli", "Commands", "DevCommand.cs"));
+
+        Assert.Contains("bukit dev — LiveReload development server", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("bukit dev - HMR development server", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("bukit dev — HMR development server", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Hot Module Replacement", text, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string FindRepoRoot()

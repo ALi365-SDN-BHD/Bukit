@@ -83,7 +83,7 @@ public static partial class BukitCliSpecs
 
         var dev = new CliCommandSpec(
             Name: "dev",
-            Description: "LiveReload development server",
+            Description: "LiveReload 实时预览开发服务器",
             Options: new[]
             {
                 new CliOptionSpec("--config", "配置文件路径"),

@@ -191,7 +191,7 @@ public static class ConfigValidator
 
         if (!File.Exists(yamlPath))
         {
-            issues.Add("BKT-0100: theme.yaml not found. Bukit Core 1.0 requires a theme.yaml manifest under the active theme root. Create one manually or use a Labs theme tool only if explicitly enabled.");
+            issues.Add("BKT-0100: theme.yaml not found. Bukit Core 1.0 requires a theme.yaml manifest under the active theme root.");
             return issues;
         }
 

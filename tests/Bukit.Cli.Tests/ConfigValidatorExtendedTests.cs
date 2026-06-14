@@ -147,7 +147,10 @@ public sealed class ConfigValidatorExtendedTests
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var result = ConfigValidator.ValidateThemeYaml(tempDir);
         Assert.NotEmpty(result);
-        Assert.Contains(result, w => w.Contains("theme.yaml not found"));
+        var issue = Assert.Single(result);
+        Assert.Equal("BKT-0100: theme.yaml not found. Bukit Core 1.0 requires a theme.yaml manifest under the active theme root.", issue);
+        Assert.DoesNotContain("bukit theme", issue, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Labs", issue, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
