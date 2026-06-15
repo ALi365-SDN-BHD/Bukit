@@ -9,6 +9,11 @@ public static class CliHelpRenderer
     {
         var builder = new StringBuilder();
         builder.AppendLine(commandPath);
+        if (!string.IsNullOrWhiteSpace(spec.Description))
+        {
+            builder.AppendLine(spec.Description);
+        }
+
         builder.AppendLine();
         builder.AppendLine("Usage:");
         builder.Append("  ").Append(commandPath);

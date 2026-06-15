@@ -51,6 +51,19 @@ public sealed class ProgramEntryPointTests : IDisposable
     }
 
     [Fact]
+    public async Task Main_DevHelp_PrintsLiveReloadDescription()
+    {
+        var result = await InvokeEntryPointAsync(["dev", "--help"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Usage:", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("bukit dev", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("LiveReload", result.StdOut, StringComparison.Ordinal);
+        Assert.DoesNotContain("HMR", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+    }
+
+    [Fact]
     public async Task Main_UnknownCommand_WithJsonLogFormat_PrintsJsonDiagnostic()
     {
         var result = await InvokeEntryPointAsync(["missing-command", "--log-format=json"]);

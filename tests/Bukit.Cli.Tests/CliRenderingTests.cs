@@ -43,6 +43,7 @@ public sealed class CliRenderingTests
         Assert.Equal("LiveReload 实时预览开发服务器", dev.Description);
         var text = CliHelpRenderer.Render(dev, "bukit dev");
 
+        Assert.Contains("LiveReload", text, StringComparison.Ordinal);
         Assert.DoesNotContain("HMR", text, StringComparison.Ordinal);
         Assert.DoesNotContain("Hot Module Replacement", text, StringComparison.OrdinalIgnoreCase);
     }
