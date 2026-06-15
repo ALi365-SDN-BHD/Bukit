@@ -32,7 +32,7 @@ echo "==> Full solution test"
 dotnet test bukit.slnx
 
 echo "==> Dev server rebuild regression tests"
-dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildException_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"
+dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildFailure_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"
 
 echo "==> Release artifact smoke"
 bash scripts/smoke/release-artifacts.sh "$abs_release_dir"

@@ -2,7 +2,17 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$repo_root/scripts/lib/common.sh"
+
+is_truthy_value() {
+  case "${1:-}" in
+    1|true|TRUE|True|yes|YES|Yes|on|ON|On)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
 
 repo="${1:-${GITHUB_REPOSITORY:-}}"
 sha="${2:-${GITHUB_SHA:-}}"
@@ -21,7 +31,7 @@ if [ -z "${repo}" ] || [ -z "${sha}" ]; then
   exit 2
 fi
 
-if ! is_truthy "${GITHUB_ACTIONS:-0}"; then
+if ! is_truthy_value "${GITHUB_ACTIONS:-0}"; then
   echo "Skipping workflow evidence check outside GitHub Actions context."
   exit 0
 fi
@@ -52,179 +62,19 @@ tmp_file="$(mktemp)"
 trap 'rm -f "$tmp_file"' EXIT
 
 query_url="https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&per_page=100"
-if [ "$require_success" = "1" ] || [ "${require_success,,}" = "true" ] || [ "${require_success,,}" = "yes" ] || [ "${require_success,,}" = "on" ]; then
+if is_truthy_value "$require_success"; then
   query_url="https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&status=completed&per_page=100"
 fi
 
 curl -fsSL "${headers[@]}" "$query_url" > "$tmp_file"
 
-python3 - "$tmp_file" "$output" "$repo" "$sha" "$workflow" "$require_success" "$query_url" "$report" "$required_branches" <<'PY'
-import json
-import sys
-
-input_path, output_path, repo, sha, workflow, require_success, query_url, report_path, required_branches = sys.argv[1:10]
-required_branches = (required_branches or "").strip()
-
-with open(input_path, "r", encoding="utf-8") as handle:
-    payload = json.load(handle)
-
-required_branch_set = {
-    branch.strip()
-    for branch in (required_branches.replace(" ", ",") or "").split(",")
-    if branch.strip()
-}
-
-runs = payload.get("workflow_runs", [])
-
-
-def _is_required_branch_run(run):
-    if not required_branch_set:
-        return True
-    return run.get("head_branch") in required_branch_set
-
-
-successful_runs = [
-    run for run in runs
-    if run.get("status") == "completed" and run.get("conclusion") == "success" and _is_required_branch_run(run)
-]
-
-latest = [
-    {
-        "id": run.get("id"),
-        "name": run.get("name"),
-        "status": run.get("status"),
-        "conclusion": run.get("conclusion"),
-        "head_branch": run.get("head_branch"),
-        "html_url": run.get("html_url"),
-        "run_started_at": run.get("run_started_at"),
-        "updated_at": run.get("updated_at"),
-    }
-    for run in runs[:10]
-]
-
-require_success_value = str(require_success).lower() not in {"0", "false", "no", "off"}
-required_branches_sorted = sorted(required_branch_set)
-required_branch_text = ", ".join(required_branches_sorted) if required_branches_sorted else "any branch"
-
-report = {
-    "repo": repo,
-    "sha": sha,
-    "workflow_file": workflow,
-    "query_url": query_url,
-    "require_success": bool(require_success_value),
-    "required_branches": required_branches_sorted,
-    "total_runs": len(runs),
-    "successful_runs": len(successful_runs),
-    "runs": latest,
-}
-
-with open(output_path, "w", encoding="utf-8") as handle:
-    json.dump(report, handle, ensure_ascii=False, indent=2, sort_keys=True)
-
-if successful_runs:
-    print(
-        "workflow evidence check passed: "
-        f"{len(successful_runs)} completed successful run(s) for {repo}@{sha[:7]}"
-    )
-else:
-    print(f"workflow evidence check passed: 0 completed successful run(s) for {repo}@{sha[:7]}")
-
-if successful_runs:
-    print("latest successful run:")
-    print(f"  - {successful_runs[0].get('html_url')}")
-elif runs:
-    print("latest run:")
-    print(f"  - {runs[0].get('html_url')}")
-else:
-    print("latest run: (none)")
-
-print(f"Evidence file written to: {output_path}")
-
-if report_path:
-    rc_pass = bool(successful_runs) if require_success_value else bool(runs)
-    status = "PASS" if rc_pass else "BLOCKED"
-    mode = (
-        f"require completed-success workflow run on branch(es): {required_branch_text}"
-        if require_success_value and required_branches_sorted
-        else "require completed-success workflow run"
-        if require_success_value
-        else "require any workflow run"
-    )
-    reason = (
-        "Found completed successful run(s)."
-        if rc_pass
-        else f"No completed successful run(s) on required branch(es): {required_branch_text}."
-        if require_success_value and required_branches_sorted
-        else "No completed successful run(s)."
-        if require_success_value
-        else "No workflow run found."
-    )
-
-    lines = [
-        "# Bukit RC Gate Evidence Report",
-        "",
-        "| Field | Value |",
-        "| --- | --- |",
-        f"| Repo | `{repo}` |",
-        f"| Workflow | `{workflow}` |",
-        f"| Commit | `{sha}` |",
-        f"| Mode | `{mode}` |",
-        f"| Decision | **{status}** |",
-        f"| Reason | {reason} |",
-        f"| Total Runs | `{len(runs)}` |",
-        f"| Successful Runs | `{len(successful_runs)}` |",
-        "",
-        "## Recent Runs",
-        "",
-        "| id | name | status | conclusion | branch | url |",
-        "| -- | ---- | ------ | ---------- | ------ | --- |",
-    ]
-
-    for run in latest:
-        lines.append(
-            f"| {run.get('id')} | {run.get('name')} | {run.get('status')} | {run.get('conclusion')} | {run.get('head_branch') or '-'} | {run.get('html_url')} |"
-        )
-
-    lines.extend(
-        [
-            "",
-            f"Evidence JSON: `{output_path}`",
-            "",
-            f"Query: `{query_url}`",
-        ]
-    )
-
-    with open(report_path, "w", encoding="utf-8") as handle:
-        handle.write("\n".join(lines) + "\n")
-
-if require_success_value and not successful_runs:
-    latest_runs = ", ".join(str(run.get("id")) for run in runs[:5]) or "(none)"
-    print(
-        f"workflow evidence check failed: commit has no completed successful workflow runs on required branch(es): {required_branch_text}.",
-        file=sys.stderr,
-    )
-    print(f"repo: {repo}", file=sys.stderr)
-    print(f"sha: {sha}", file=sys.stderr)
-    print(f"workflow: {workflow}", file=sys.stderr)
-    print(f"required branches: {required_branch_text}", file=sys.stderr)
-    print(f"latest run ids: {latest_runs}", file=sys.stderr)
-    print("Evidence file has been written to:", output_path, file=sys.stderr)
-    if report_path:
-        print("Markdown report has been written to:", report_path, file=sys.stderr)
-    sys.exit(1)
-
-if (not require_success_value) and not runs:
-    latest_runs = ", ".join(str(run.get("id")) for run in runs[:5]) or "(none)"
-    print(
-        "workflow evidence check failed: commit has no workflow runs.",
-        file=sys.stderr,
-    )
-    print(f"repo: {repo}", file=sys.stderr)
-    print(f"sha: {sha}", file=sys.stderr)
-    print(f"workflow: {workflow}", file=sys.stderr)
-    print(f"latest run ids: {latest_runs}", file=sys.stderr)
-    print("Evidence file has been written to:", output_path, file=sys.stderr)
-    if report_path:
-        print("Markdown report has been written to:", report_path, file=sys.stderr)
-    sys.exit(1)
-PY
+python3 "$repo_root/scripts/checks/ci-workflow-evidence-evaluate.py" \
+  "$tmp_file" \
+  "$repo" \
+  "$sha" \
+  "$workflow" \
+  "$require_success" \
+  "$required_branches" \
+  "$output" \
+  "$report" \
+  "$query_url"

@@ -10,7 +10,7 @@
 - `bash scripts/checks/ci-workflow-evidence.sh "$GITHUB_REPOSITORY" "$GITHUB_SHA" "ci.yml" TestResults/release-gate/ci-workflow-evidence.json 1 TestResults/release-gate/rc-gate-evidence.md main,master`
 - `python3 -m json.tool docs/coverage-baselines.json >/dev/null`
 - `dotnet test bukit.slnx`
-- `dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildException_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"`
+- `dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildFailure_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"`
 - `bash scripts/smoke/release-artifacts.sh TestResults/release-gate/native-aot/linux-x64`
 - `bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" <下载目录>`
 
@@ -164,7 +164,7 @@ bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMI
 - deploy dry-run
 - LiveReload wording（`bukit dev --help`）
 - non-Core command absence（help 中不得出现 Core 外命令）
-- Dev 重建回归测试（`DevFileWatcher_RebuildException_DoesNotDisposeWatcher`、`DevFileWatcher_RapidChanges_DebouncedToSingleRebuild`、`DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket`）
+- Dev 重建回归测试（`DevFileWatcher_RebuildFailure_DoesNotDisposeWatcher`、`DevFileWatcher_RapidChanges_DebouncedToSingleRebuild`、`DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket`）
 
 验收命令（脚本层）：
 
@@ -192,11 +192,11 @@ bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMI
 ## P2-2：dev 服务器回归测试补充（本轮建议）
 
 - 新增 `tests/Bukit.Cli.Tests/DevCommandTests.cs` 回归项（已落盘）：
-  - `DevFileWatcher_RebuildException_DoesNotDisposeWatcher`
+  - `DevFileWatcher_RebuildFailure_DoesNotDisposeWatcher`
   - `DevFileWatcher_RapidChanges_DebouncedToSingleRebuild`
   - `DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket`
 - 本地验收命令（建议）：
-  - `dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildException_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"`
+  - `dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildFailure_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"`
 
 ### 快速验证命令（可执行）
 

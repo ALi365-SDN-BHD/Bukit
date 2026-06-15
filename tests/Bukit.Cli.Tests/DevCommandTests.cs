@@ -110,7 +110,7 @@ public sealed class DevCommandTests
     }
 
     [Fact]
-    public async Task DevFileWatcher_RebuildException_DoesNotDisposeWatcher()
+    public async Task DevFileWatcher_RebuildFailure_DoesNotDisposeWatcher()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-dev-rebuild-error-" + Guid.NewGuid().ToString("N"));
         var watchDir = Path.Combine(root, "watch");
@@ -235,6 +235,38 @@ public sealed class DevCommandTests
 
         Assert.True(allowLan.allowLan);
         Assert.True(publicAlias.allowLan);
+    }
+
+    [Fact]
+    public void DevCommand_NonLoopbackHostRequiresAllowLan()
+    {
+        Assert.False(DevCommand.ShouldRefuseLanExposure("localhost", allowLan: false));
+        Assert.False(DevCommand.ShouldRefuseLanExposure("127.0.0.1", allowLan: false));
+        Assert.True(DevCommand.ShouldRefuseLanExposure("0.0.0.0", allowLan: false));
+        Assert.True(DevCommand.ShouldRefuseLanExposure("192.168.1.10", allowLan: false));
+        Assert.False(DevCommand.ShouldRefuseLanExposure("0.0.0.0", allowLan: true));
+    }
+
+    [Fact]
+    public void DevCommand_PublicAliasEnablesLanAccess()
+    {
+        var publicAlias = DevCommand.ExtractOptions(new CliBoundCommand(
+            new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["--public"] = "true"
+            },
+            Array.Empty<string>()));
+
+        Assert.True(publicAlias.allowLan);
+        Assert.False(DevCommand.ShouldRefuseLanExposure("0.0.0.0", publicAlias.allowLan));
+    }
+
+    [Fact]
+    public void DevCommand_NoWatch_DoesNotStartWatcher()
+    {
+        Assert.False(DevCommand.ShouldStartWatcher(noWatch: true, watchedDirsCount: 1));
+        Assert.False(DevCommand.ShouldStartWatcher(noWatch: false, watchedDirsCount: 0));
+        Assert.True(DevCommand.ShouldStartWatcher(noWatch: false, watchedDirsCount: 1));
     }
 
     [Fact]

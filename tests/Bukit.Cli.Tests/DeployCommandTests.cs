@@ -383,6 +383,74 @@ public sealed class DeployCommandTests
         }
     }
 
+    [Theory]
+    [InlineData(false, "Output directory not found:")]
+    [InlineData(true, "Output directory is empty:")]
+    public async Task Deploy_SkipBuild_ValidatesOutputDirectoryExists(bool createEmptyOutputDir, string expectedError)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-command-" + Guid.NewGuid().ToString("N"));
+        var originalError = Console.Error;
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        var originalToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+        var writer = new StringWriter();
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            if (createEmptyOutputDir)
+            {
+                Directory.CreateDirectory(Path.Combine(root, "dist"));
+            }
+
+            var siteYaml = Path.Combine(root, "site.yaml");
+            File.WriteAllText(siteYaml, """
+            site:
+              name: test
+              title: Test
+              url: https://example.com
+            content:
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
+            deploy:
+              provider: github-pages
+            build:
+              output: dist
+            """);
+
+            Environment.SetEnvironmentVariable("PATH", string.Empty);
+            Environment.SetEnvironmentVariable("GITHUB_TOKEN", null);
+            Console.SetError(writer);
+
+            var exitCode = await DeployCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = siteYaml,
+                    ["--skip-build"] = "true"
+                },
+                Array.Empty<string>()));
+
+            Assert.Equal(1, exitCode);
+            var output = writer.ToString();
+            Assert.Contains(expectedError, output, StringComparison.Ordinal);
+            Assert.DoesNotContain("git command not found", output, StringComparison.Ordinal);
+            Assert.DoesNotContain("GITHUB_TOKEN", output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            Environment.SetEnvironmentVariable("GITHUB_TOKEN", originalToken);
+            Console.SetError(originalError);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     [Fact]
     public async Task RunAsync_SkipBuild_WhenProviderFails_ReturnsOne()
     {

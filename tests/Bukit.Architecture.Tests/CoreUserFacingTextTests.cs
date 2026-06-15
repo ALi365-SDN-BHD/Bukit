@@ -7,22 +7,32 @@ namespace Bukit.Architecture.Tests;
 
 public sealed class CoreUserFacingTextTests
 {
-    private static readonly (string Term, StringComparison Comparison)[] ForbiddenTerms =
+    private static readonly (string Term, StringComparison Comparison)[] ForbiddenHmrTerms =
     [
         ("HMR", StringComparison.OrdinalIgnoreCase),
-        ("Hot Module Replacement", StringComparison.OrdinalIgnoreCase),
+        ("Hot Module Replacement", StringComparison.OrdinalIgnoreCase)
+    ];
+
+    private static readonly (string Term, StringComparison Comparison)[] ForbiddenNonCoreCommandTerms =
+    [
         ("bukit theme manifest", StringComparison.OrdinalIgnoreCase),
         ("bukit theme wizard", StringComparison.OrdinalIgnoreCase),
         ("bukit import", StringComparison.OrdinalIgnoreCase),
         ("bukit clone", StringComparison.OrdinalIgnoreCase),
-        ("bukit webhook", StringComparison.OrdinalIgnoreCase)
+        ("bukit webhook", StringComparison.OrdinalIgnoreCase),
+        ("bukit plugin", StringComparison.OrdinalIgnoreCase),
+        ("--allow-external-plugins", StringComparison.Ordinal)
     ];
 
     private static readonly HashSet<string> AllowedTextFileExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".cs",
+        ".css",
+        ".editorconfig",
+        ".html",
         ".md",
         ".mdc",
+        ".py",
         ".txt",
         ".csproj",
         ".props",
@@ -53,31 +63,68 @@ public sealed class CoreUserFacingTextTests
     ];
 
     [Fact]
-    public void CoreUserFacingText_DoesNotMentionNonCoreCommandsOrHmr()
+    public void CoreUserFacingText_DoesNotReferenceNonCoreCommands()
     {
-        var repoRoot = FindRepoRoot();
-        var files = ScanRoots
-            .Select(root => Path.Combine(repoRoot, root))
-            .Where(Directory.Exists)
-            .SelectMany(root => EnumerateTextFiles(root))
-            .Concat(Directory.EnumerateFiles(repoRoot, "README*.md", SearchOption.TopDirectoryOnly))
-            .Select(path => Path.GetFullPath(path))
-            .SelectMany(path => FindForbiddenMatches(path, repoRoot))
-            .OrderBy(x => x, StringComparer.Ordinal)
-            .ToArray();
+        var files = FindForbiddenMatches(ForbiddenNonCoreCommandTerms);
 
         Assert.Empty(files);
     }
 
-    private static IEnumerable<string> EnumerateTextFiles(string root)
+    [Fact]
+    public void CoreUserFacingText_UsesLiveReloadNotHmr()
     {
-        return Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
-            .Where(path => !IsExcludedByRelativePath(path))
-            .Where(path => !IsInBuildOutputDirectory(path))
-            .Where(IsProbablyTextFile);
+        var files = FindForbiddenMatches(ForbiddenHmrTerms);
+
+        Assert.Empty(files);
     }
 
-    private static IEnumerable<string> FindForbiddenMatches(string filePath, string repoRoot)
+    private static string[] FindForbiddenMatches((string Term, StringComparison Comparison)[] forbiddenTerms)
+    {
+        var repoRoot = FindRepoRoot();
+        return ScanRoots
+            .Select(root => Path.Combine(repoRoot, root))
+            .Where(Directory.Exists)
+            .SelectMany(root => EnumerateTextFiles(root, repoRoot))
+            .Concat(Directory.EnumerateFiles(repoRoot, "README*.md", SearchOption.TopDirectoryOnly))
+            .Select(path => Path.GetFullPath(path))
+            .SelectMany(path => FindForbiddenMatches(path, repoRoot, forbiddenTerms))
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static IEnumerable<string> EnumerateTextFiles(string root, string repoRoot)
+    {
+        var pending = new Stack<string>();
+        pending.Push(root);
+
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+            foreach (var directory in Directory.EnumerateDirectories(current))
+            {
+                if (!IsExcludedByRelativePath(directory, repoRoot) &&
+                    !IsInBuildOutputDirectory(directory))
+                {
+                    pending.Push(directory);
+                }
+            }
+
+            foreach (var file in Directory.EnumerateFiles(current))
+            {
+                if (!IsExcludedByRelativePath(file, repoRoot) &&
+                    !IsInBuildOutputDirectory(file) &&
+                    IsProbablyTextFile(file))
+                {
+                    yield return file;
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<string> FindForbiddenMatches(
+        string filePath,
+        string repoRoot,
+        (string Term, StringComparison Comparison)[] forbiddenTerms)
     {
         string[] lines;
         try
@@ -101,7 +148,7 @@ public sealed class CoreUserFacingTextTests
         var lineNumber = 1;
         foreach (var line in lines)
         {
-            foreach (var (term, comparison) in ForbiddenTerms)
+            foreach (var (term, comparison) in forbiddenTerms)
             {
                 if (line.Contains(term, comparison))
                 {
@@ -114,9 +161,9 @@ public sealed class CoreUserFacingTextTests
         }
     }
 
-    private static bool IsExcludedByRelativePath(string path)
+    private static bool IsExcludedByRelativePath(string path, string repoRoot)
     {
-        var relativePath = Path.GetRelativePath(FindRepoRoot(), path)
+        var relativePath = Path.GetRelativePath(repoRoot, path)
             .Replace(Path.DirectorySeparatorChar, '/')
             .ToLowerInvariant();
 
@@ -153,7 +200,10 @@ public sealed class CoreUserFacingTextTests
         var normalized = Path.GetFullPath(path)
             .Replace(Path.DirectorySeparatorChar, '/')
             .TrimEnd('/');
-        return normalized.Contains("/bin/", StringComparison.OrdinalIgnoreCase)
+        return normalized.EndsWith("/bin", StringComparison.OrdinalIgnoreCase)
+            || normalized.EndsWith("/obj", StringComparison.OrdinalIgnoreCase)
+            || normalized.EndsWith("/.git", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains("/bin/", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains("/obj/", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains("/.git/", StringComparison.OrdinalIgnoreCase);
     }
