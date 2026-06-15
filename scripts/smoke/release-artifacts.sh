@@ -50,6 +50,8 @@ record_step() {
 fixture="tests/fixtures/basic-markdown-site"
 run_id="$(date +%Y%m%d%H%M%S)-$$"
 smoke_root=".smoke-all-run/release-artifacts-$run_id"
+non_core_command_family='docs|intent|plugin|theme|import|clone|visual|webhook|data'
+non_core_help_re="bukit[[:space:]]+(${non_core_command_family})([[:space:]]|$)|docs[[:space:]]+check|--allow-external""-plugins"
 cleanup() {
   rm -rf "$fixture/$smoke_root"
 }
@@ -58,7 +60,7 @@ trap cleanup EXIT
 record_step "Binary startup" "$binary" version
 record_step "Version command returns version text" bash -c "\"$binary\" version | grep -Eq '[0-9]+\\.[0-9]+\\.[0-9]+'"
 record_step "CLI help includes core commands" bash -c "\"$binary\" --help | grep -qE '^  (build|config|doctor|deploy|dev|seo|geo|publish|version|clean)'"
-record_step "CLI help excludes non-Core command family" bash -c "! \"$binary\" --help | grep -Eq 'bukit[[:space:]]+(docs|intent|plugin|theme|import|clone|visual|webhook|data)([[:space:]]|$)|docs[[:space:]]+check|--allow-external-plugins'"
+record_step "CLI help excludes non-Core command family" bash -c '! "$1" --help | grep -Eq "$2"' bash "$binary" "$non_core_help_re"
 record_step "CLI dev help includes LiveReload wording" bash -c "\"$binary\" dev --help | grep -q 'LiveReload'"
 record_step "CLI dev help excludes HMR wording" bash -c "! \"$binary\" dev --help | grep -q 'HMR'"
 record_step "Dev server rebuild regression tests" dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildException_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"
