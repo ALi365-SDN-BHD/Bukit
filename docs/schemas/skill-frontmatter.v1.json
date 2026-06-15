@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/skill-frontmatter.v1.json",
+  "title": "Bukit Skill Front Matter",
+  "type": "object",
+  "required": [
+    "name",
+    "description",
+    "status",
+    "since",
+    "verified_by",
+    "source_anchors",
+    "guide_chapters"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "description": {
+      "type": "string",
+      "pattern": "^Use when .+"
+    },
+    "status": {
+      "enum": ["stable", "beta", "experimental", "planned"]
+    },
+    "since": {
+      "type": "string",
+      "minLength": 1
+    },
+    "verified_by": {
+      "$ref": "#/$defs/nonEmptyPathList"
+    },
+    "source_anchors": {
+      "$ref": "#/$defs/nonEmptyPathList"
+    },
+    "guide_chapters": {
+      "$ref": "#/$defs/nonEmptyPathList"
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "nonEmptyPathList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

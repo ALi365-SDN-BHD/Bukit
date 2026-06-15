@@ -59,6 +59,15 @@ def extract_options(block: str, diff_options: list[str]) -> list[str]:
     return sorted(set(options))
 
 
+def extract_arguments(block: str) -> list[str]:
+    arguments = re.findall(r'new\s+CliArgumentSpec\(\s*"([a-z0-9-]+)"', block, re.IGNORECASE)
+    return sorted({f"<{argument}>" for argument in arguments})
+
+
+def extract_parameters(block: str, diff_options: list[str]) -> list[str]:
+    return sorted(set(extract_options(block, diff_options)) | set(extract_arguments(block)))
+
+
 def extract_spec() -> tuple[dict[str, list[str]], set[str]]:
     spec_path = repo_root() / "src" / "Bukit.Cli" / "Cli" / "BukitCliSpecs.cs"
     if not spec_path.exists():
@@ -83,7 +92,7 @@ def extract_spec() -> tuple[dict[str, list[str]], set[str]]:
         parent = name_match.group(1)
 
         parent_part = block.split("Subcommands:", 1)[0]
-        commands[parent] = extract_options(parent_part, diff_options)
+        commands[parent] = extract_parameters(parent_part, diff_options)
 
         if "Subcommands:" not in block:
             continue
@@ -98,7 +107,7 @@ def extract_spec() -> tuple[dict[str, list[str]], set[str]]:
             if not sub_name_match:
                 continue
             command_path = f"{parent} {sub_name_match.group(1)}"
-            commands[command_path] = extract_options(sub_block, diff_options)
+            commands[command_path] = extract_parameters(sub_block, diff_options)
 
     return commands, parents_with_subcommands
 
@@ -126,7 +135,7 @@ def extract_reference() -> dict[str, list[str]]:
         if not match:
             continue
         command = match.group(1).strip()
-        params = sorted(set(re.findall(r"`(--[a-z0-9-]+)`", match.group(2), re.IGNORECASE)))
+        params = sorted(set(re.findall(r"`(--[a-z0-9-]+|<[^`]+>)`", match.group(2), re.IGNORECASE)))
         commands[command] = params
     return commands
 

@@ -39,6 +39,39 @@ def table_commands(path: Path) -> set[str]:
     return commands
 
 
+def expected_params(command: str) -> set[str]:
+    return set(spec_commands[command])
+
+
+def table_command_params(path: Path) -> dict[str, set[str]]:
+    commands: dict[str, set[str]] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line.startswith("| `"):
+            continue
+
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+
+        command = cells[0].strip("`")
+        if command not in all_commands:
+            continue
+
+        params_cell = cells[2]
+        if params_cell.lower() == "none":
+            commands[command] = set()
+            continue
+
+        if params_cell.startswith("same diff options"):
+            commands[command] = set(spec_commands["seo diff"])
+            continue
+
+        params = set(re.findall(r"`(--[a-z0-9-]+|<[^`]+>)`", params_cell, re.IGNORECASE))
+        commands[command] = params
+    return commands
+
+
 def compare_table(path_name: str, expected: set[str]) -> None:
     path = repo / path_name
     if not path.exists():
@@ -51,6 +84,45 @@ def compare_table(path_name: str, expected: set[str]) -> None:
         errors.append(f"{path_name}: missing commands: {', '.join(missing)}")
     if extra:
         errors.append(f"{path_name}: extra commands: {', '.join(extra)}")
+
+
+def compare_params_table(path_name: str) -> None:
+    path = repo / path_name
+    if not path.exists():
+        errors.append(f"{path_name}: missing file")
+        return
+
+    actual = table_command_params(path)
+    if not actual:
+        errors.append(f"{path_name}: missing command option/argument table")
+        return
+
+    missing_commands = sorted(all_commands - set(actual))
+    if missing_commands:
+        errors.append(f"{path_name}: missing option rows: {', '.join(missing_commands)}")
+
+    for command in sorted(all_commands & set(actual)):
+        expected = expected_params(command)
+        documented = actual[command]
+        missing = sorted(expected - documented)
+        extra = sorted(documented - expected)
+        if missing:
+            errors.append(f"{path_name}: {command}: missing parameters: {', '.join(missing)}")
+        if extra:
+            errors.append(f"{path_name}: {command}: extra parameters: {', '.join(extra)}")
+
+
+def reject_unknown_options(path_name: str) -> None:
+    path = repo / path_name
+    if not path.exists():
+        return
+
+    allowed_options = {option for options in spec_commands.values() for option in options}
+    text = path.read_text(encoding="utf-8")
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        for option in re.findall(r"`(--[a-z0-9-]+)`", line, re.IGNORECASE):
+            if option not in allowed_options:
+                errors.append(f"{path_name}:{line_no}: unknown option '{option}'")
 
 
 def command_mentions(path_name: str) -> None:
@@ -95,6 +167,19 @@ for readme in ("README.md", "README.zh-CN.md", "README.ms.md"):
 
 for guide in ("guide/user/12-cli-reference.md", "guide/dev/cli.md", "guide/skills/bukit-cli-reference/SKILL.md"):
     compare_table(guide, all_commands)
+
+for guide in ("guide/dev/cli.md", "guide/skills/bukit-cli-reference/SKILL.md"):
+    compare_params_table(guide)
+
+for path in (
+    "README.md",
+    "README.zh-CN.md",
+    "README.ms.md",
+    "guide/user/12-cli-reference.md",
+    "guide/dev/cli.md",
+    "guide/skills/bukit-cli-reference/SKILL.md",
+):
+    reject_unknown_options(path)
 
 for path in (
     "README.md",

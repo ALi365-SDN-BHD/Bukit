@@ -94,7 +94,7 @@ public static class DevCommand
         }
 
         Console.WriteLine($"  dev server: {serverHost.Prefix}");
-        if (!noWatch)
+        if (ShouldPrintWatchStatus(noWatch))
         {
             Console.WriteLine($"  live reload: ws://{host}:{serverHost.Port}/__ws__");
             Console.WriteLine($"  watching: {watchedDirs.Count} directorie(s)");
@@ -186,4 +186,7 @@ public static class DevCommand
 
     internal static bool ShouldStartWatcher(bool noWatch, int watchedDirsCount)
         => !noWatch && watchedDirsCount > 0;
+
+    internal static bool ShouldPrintWatchStatus(bool noWatch)
+        => !noWatch;
 }

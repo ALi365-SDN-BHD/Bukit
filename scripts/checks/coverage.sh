@@ -133,37 +133,57 @@ fi
 rm -rf "$coverage_root"
 mkdir -p "$coverage_root"
 
-if [ "$coverage_no_build" = "1" ]; then
-  dotnet test bukit.slnx \
-    -c "$configuration" \
-    --no-build \
-    -maxcpucount:1 \
-    -nodeReuse:false \
-    --collect:"XPlat Code Coverage" \
-    --settings coverage.runsettings \
-    --logger trx \
-    --results-directory "$coverage_root"
-else
-  dotnet test bukit.slnx \
-    -c "$configuration" \
-    -maxcpucount:1 \
-    -nodeReuse:false \
-    --collect:"XPlat Code Coverage" \
-    --settings coverage.runsettings \
-    --logger trx \
-    --results-directory "$coverage_root"
-fi
+coverage_solution_test_projects=(
+  tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj
+  tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj
+  tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj
+  tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj
+  tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj
+  tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj
+  tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj
+  tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj
+  tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj
+  tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj
+)
+coverage_extra_test_projects=(
+  tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj
+)
+# tests/Bukit.Theme.Tests is intentionally outside this gate until it is added
+# to bukit.slnx and restored to the current code contracts.
 
-# Bukit.Importing tests live outside bukit.slnx but still own the real coverage for
-# the Bukit.Importing assembly, so collect them into the same merged report set.
-dotnet test tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj \
-  -c "$configuration" \
-  -maxcpucount:1 \
-  -nodeReuse:false \
-  --collect:"XPlat Code Coverage" \
-  --settings coverage.runsettings \
-  --logger trx \
-  --results-directory "$coverage_root"
+run_coverage_project() {
+  local project="$1"
+  local use_no_build="${2:-0}"
+  local project_results_dir="$coverage_root/$(basename "$(dirname "$project")")"
+
+  echo "=== coverage: $project ==="
+  mkdir -p "$project_results_dir"
+
+  local args=(
+    "$project"
+    -c "$configuration"
+    -maxcpucount:1
+    -nodeReuse:false
+    --collect:"XPlat Code Coverage"
+    --settings coverage.runsettings
+    --logger trx
+    --results-directory "$project_results_dir"
+  )
+
+  if [ "$use_no_build" = "1" ]; then
+    args+=(--no-build)
+  fi
+
+  dotnet test "${args[@]}"
+}
+
+for project in "${coverage_solution_test_projects[@]}"; do
+  run_coverage_project "$project" "$coverage_no_build"
+done
+
+for project in "${coverage_extra_test_projects[@]}"; do
+  run_coverage_project "$project" 0
+done
 
 if ! command -v reportgenerator >/dev/null 2>&1; then
   echo "ReportGenerator not found; installing dotnet-reportgenerator-globaltool ..."
@@ -171,9 +191,15 @@ if ! command -v reportgenerator >/dev/null 2>&1; then
   export PATH="$PATH:$HOME/.dotnet/tools"
 fi
 
-IFS=$'\n' coverage_files=($(find "$coverage_root" -type f -name 'coverage.cobertura.xml' | sort))
+expected_coverage_file_count="$((${#coverage_solution_test_projects[@]} + ${#coverage_extra_test_projects[@]}))"
+IFS=$'\n' coverage_files=($(find "$coverage_root" -mindepth 3 -maxdepth 3 -type f -name 'coverage.cobertura.xml' | sort))
 if [ "${#coverage_files[@]}" -eq 0 ]; then
   echo "ERROR: no coverage.cobertura.xml files found under '$coverage_root'." >&2
+  exit 1
+fi
+if [ "${#coverage_files[@]}" -lt "$expected_coverage_file_count" ]; then
+  echo "ERROR: expected at least ${expected_coverage_file_count} coverage.cobertura.xml files under '$coverage_root', found ${#coverage_files[@]}." >&2
+  printf '%s\n' "${coverage_files[@]}" >&2
   exit 1
 fi
 

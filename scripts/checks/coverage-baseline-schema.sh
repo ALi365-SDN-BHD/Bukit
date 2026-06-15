@@ -55,5 +55,10 @@ expect_fail "importing-blocking-true" "obj['importing']['blocking'] = True" "$.i
 expect_fail "labs-blocking-true" "obj['labs']['blocking'] = True" "$.labs.blocking: expected const False"
 expect_fail "missing-core-minimum" "del obj['core']['minimum']" "$.core: missing required property 'minimum'"
 expect_fail "missing-cli-minimum" "del obj['cli']['minimum']" "$.cli: missing required property 'minimum'"
+expect_fail "missing-importing-baseline" "del obj['importing']['baseline']" "$.importing: missing required property 'baseline'"
+expect_fail "missing-labs-baseline" "del obj['labs']['baseline']" "$.labs: missing required property 'baseline'"
+expect_fail "core-minimum-above-100" "obj['core']['minimum'] = 101" "$.core.minimum: expected <= 100"
+expect_fail "labs-baseline-above-100" "obj['labs']['baseline'] = 101" "$.labs.baseline: expected <= 100"
+expect_fail "extra-core-property" "obj['core']['unexpected'] = 1" "$.core.unexpected: additional property is not allowed"
 
 echo "coverage baseline schema check OK"

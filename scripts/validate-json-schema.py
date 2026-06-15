@@ -58,6 +58,9 @@ def validate(value, node, root_schema, path, errors):
     if isinstance(value, (int, float)) and "minimum" in node and value < node["minimum"]:
         errors.append(f"{path}: expected >= {node['minimum']}, got {value}")
 
+    if isinstance(value, (int, float)) and "maximum" in node and value > node["maximum"]:
+        errors.append(f"{path}: expected <= {node['maximum']}, got {value}")
+
     if isinstance(value, str) and "pattern" in node and re.search(node["pattern"], value) is None:
         errors.append(f"{path}: expected pattern /{node['pattern']}/, got {value!r}")
 

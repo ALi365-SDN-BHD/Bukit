@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/skills-index.v1.json",
+  "title": "Bukit Skills Index",
+  "type": "object",
+  "required": [
+    "version",
+    "updated",
+    "scope",
+    "skill_count",
+    "core_commands",
+    "labs_not_core",
+    "skills",
+    "workflows"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "updated": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "scope": {
+      "const": "Bukit Core 1.0"
+    },
+    "skill_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "core_commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "uniqueItems": true
+    },
+    "labs_not_core": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/skill"
+      }
+    },
+    "workflows": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/workflow"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "pathList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "skill": {
+      "type": "object",
+      "required": [
+        "name",
+        "status",
+        "since",
+        "type",
+        "priority",
+        "path",
+        "requires",
+        "source_anchors",
+        "verified_by",
+        "guide_chapters",
+        "description"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "status": {
+          "enum": ["stable", "beta", "experimental", "planned"]
+        },
+        "since": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+/SKILL\\.md$"
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        },
+        "source_anchors": {
+          "$ref": "#/$defs/pathList"
+        },
+        "verified_by": {
+          "$ref": "#/$defs/pathList"
+        },
+        "guide_chapters": {
+          "$ref": "#/$defs/pathList"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "required": ["chain"],
+      "properties": {
+        "chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

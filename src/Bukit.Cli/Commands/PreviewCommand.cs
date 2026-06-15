@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using Bukit.Cli.Commands.Dev;
 using Bukit.Cli.Shared;
 using Bukit.Config;
 using Bukit.Cli.Shared.Cli.Binding;
@@ -170,13 +171,9 @@ public static partial class PreviewCommand
     {
         try
         {
-            var path = context.Request.Url?.AbsolutePath ?? "/";
-            var relative = path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-
-            var candidate = Path.GetFullPath(Path.Combine(rootDir, relative));
-            var safeRoot = Path.GetFullPath(rootDir) + Path.DirectorySeparatorChar;
-            if (!candidate.StartsWith(safeRoot, Bukit.Shared.PlatformPathHelper.PathComparison)
-                && candidate != Path.GetFullPath(rootDir))
+            var path = GetRawPath(context.Request);
+            var candidate = DevPathGuard.TryResolveWithinRoot(rootDir, path);
+            if (candidate is null)
             {
                 context.Response.StatusCode = 403;
                 return;
@@ -243,6 +240,13 @@ public static partial class PreviewCommand
             ".txt" => "text/plain; charset=utf-8",
             _ => "application/octet-stream"
         };
+    }
+
+    private static string GetRawPath(HttpListenerRequest request)
+    {
+        var raw = request.RawUrl ?? request.Url?.AbsolutePath ?? "/";
+        var queryIndex = raw.IndexOf('?', StringComparison.Ordinal);
+        return queryIndex >= 0 ? raw[..queryIndex] : raw;
     }
 
     private static bool ResolveDisableAnalyticsInPreview(string previewDir)

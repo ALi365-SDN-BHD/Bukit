@@ -126,15 +126,72 @@ public sealed class GitHubPagesDeployProviderTests
         using var scope = new GitHubPagesDeployTestScope();
         scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
         scope.FakeGit.PushMode = "forbidden";
-        scope.SetGithubToken("top-secret-token");
+        scope.SetGithubToken("ghp_TEST_SECRET_TOKEN_123");
         scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
         using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
 
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.DoesNotContain("top-secret-token", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", result.Error, StringComparison.Ordinal);
         Assert.Contains("***", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", string.Join('\n', scope.Logger.Errors), StringComparison.Ordinal);
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", scope.FakeGit.ReadLog(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Deploy_GitFailure_DoesNotLogToken()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "forbidden";
+        scope.SetGithubToken("ghp_TEST_SECRET_TOKEN_123");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        var allMessages = string.Join('\n', scope.Logger.Errors);
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", allMessages, StringComparison.Ordinal);
+        Assert.Contains("***", allMessages, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Deploy_PushFailure_SanitizesToken()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "forbidden";
+        scope.SetGithubToken("ghp_TEST_SECRET_TOKEN_123");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", result.Error, StringComparison.Ordinal);
+        Assert.Contains("***", result.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Deploy_AskpassScript_DoesNotLeakInError()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "askpass-leak";
+        scope.SetGithubToken("ghp_TEST_SECRET_TOKEN_123");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        var askpassPath = scope.FakeGit.ReadAskpassPath();
+        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain(askpassPath!, result.Error, StringComparison.Ordinal);
+        Assert.Contains("[redacted-path]", result.Error, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -156,6 +213,23 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
+    public async Task Deploy_AskpassFile_IsDeletedAfterSuccess()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        var askpassPath = scope.FakeGit.ReadAskpassPath();
+        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
+        Assert.False(File.Exists(askpassPath));
+    }
+
+    [Fact]
     public async Task Deploy_TempDir_IsDeletedAfterFailure()
     {
         using var scope = new GitHubPagesDeployTestScope();
@@ -168,6 +242,23 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
 
         Assert.False(result.Success);
+        var askpassPath = scope.FakeGit.ReadAskpassPath();
+        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(askpassPath)!));
+    }
+
+    [Fact]
+    public async Task Deploy_TempDir_IsDeletedAfterSuccess()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
         var askpassPath = scope.FakeGit.ReadAskpassPath();
         Assert.False(string.IsNullOrWhiteSpace(askpassPath));
         Assert.False(Directory.Exists(Path.GetDirectoryName(askpassPath)!));
@@ -231,6 +322,36 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
+    public async Task Deploy_GitHubRemoteUrlParser_SupportsSshScpStyle()
+    {
+        await AssertGitHubRemoteUrlDeploysAsync("git@github.com:ali/docs.git", "https://ali.github.io/docs");
+    }
+
+    [Fact]
+    public async Task Deploy_GitHubRemoteUrlParser_SupportsHttpsGit()
+    {
+        await AssertGitHubRemoteUrlDeploysAsync("https://github.com/ali/docs.git", "https://ali.github.io/docs");
+    }
+
+    [Fact]
+    public async Task Deploy_GitHubRemoteUrlParser_SupportsHttpsWithoutGitSuffix()
+    {
+        await AssertGitHubRemoteUrlDeploysAsync("https://github.com/ali/docs", "https://ali.github.io/docs");
+    }
+
+    [Fact]
+    public async Task Deploy_GitHubRemoteUrlParser_SupportsSshUrl()
+    {
+        await AssertGitHubRemoteUrlDeploysAsync("ssh://git@github.com/ali/docs.git", "https://ali.github.io/docs");
+    }
+
+    [Fact]
+    public async Task Deploy_GitHubRemoteUrlParser_SupportsHttpsTrailingSlash()
+    {
+        await AssertGitHubRemoteUrlDeploysAsync("https://github.com/ali/docs/", "https://ali.github.io/docs");
+    }
+
+    [Fact]
     public async Task Deploy_GitHubRemoteUrlParser_RejectsNonGitHubRemote()
     {
         using var scope = new GitHubPagesDeployTestScope();
@@ -246,14 +367,95 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
+    public async Task Deploy_GitHubRemoteUrlParser_RejectsEmbeddedGitHubHost()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://example.com/github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("Unable to determine GitHub repository. Ensure you are in a git repository with a remote 'origin' pointing to GitHub.", result.Error);
+    }
+
+    [Fact]
+    public async Task Deploy_GitHubRemoteUrlParser_RejectsMalformedRemote()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "not a remote url";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("Unable to determine GitHub repository. Ensure you are in a git repository with a remote 'origin' pointing to GitHub.", result.Error);
+    }
+
+    [Fact]
+    public async Task Deploy_NonFastForwardWithForce_UsesForcePush()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "nonff-once";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(force: true), CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Contains("push --force origin gh-pages", scope.FakeGit.ReadLog(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Deploy_ForceFlag_OnlyAffectsPush()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.RemoteHeads = "abc123\trefs/heads/gh-pages";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(force: true), CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        var log = scope.FakeGit.ReadLog();
+        Assert.Contains("clone --single-branch --branch gh-pages --depth 1 https://github.com/ali/docs.git .", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("clone --force", log, StringComparison.Ordinal);
+        Assert.Contains("push --force origin gh-pages", log, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SanitizeError_RedactsToken()
     {
         var result = InvokePrivateStatic<string>(
             nameof(GitHubPagesDeployProvider),
             "SanitizeError",
-            ["push failed for token-123", "token-123"]);
+            ["push failed for token-123", "token-123", Array.Empty<string?>()]);
 
         Assert.Equal("push failed for ***", result);
+    }
+
+    [Fact]
+    public void SanitizeError_RedactsSensitivePaths()
+    {
+        var result = InvokePrivateStatic<string>(
+            nameof(GitHubPagesDeployProvider),
+            "SanitizeError",
+            [
+                "cannot run /tmp/bukit-deploy-123/git-askpass from /tmp/bukit-deploy-123",
+                "token",
+                new[] { "/tmp/bukit-deploy-123/git-askpass", "/tmp/bukit-deploy-123" }
+            ]);
+
+        Assert.DoesNotContain("/tmp/bukit-deploy-123", result, StringComparison.Ordinal);
+        Assert.Contains("[redacted-path]", result, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -346,6 +548,20 @@ public sealed class GitHubPagesDeployProviderTests
 
         var result = method!.Invoke(null, args);
         return result is null ? default! : (T)result;
+    }
+
+    private static async Task AssertGitHubRemoteUrlDeploysAsync(string remoteUrl, string expectedUrl)
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = remoteUrl;
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal(expectedUrl, result.DeployedUrl);
     }
 
     private sealed class GitHubPagesDeployTestScope : IDisposable
@@ -511,6 +727,7 @@ public sealed class GitHubPagesDeployProviderTests
                 :push_repo
                 if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="nonff-once" if not exist "%BUKIT_FAKE_GIT_STATE%\nonff.marker" if not "%~2"=="--force" goto push_nonff
                 if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="forbidden" goto push_forbidden
+                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="askpass-leak" goto push_askpass_leak
                 if exist ".nojekyll" echo SNAPSHOT nojekyll>>"%BUKIT_FAKE_GIT_LOG%"
                 if exist "CNAME" (
                   set /p cname=<CNAME
@@ -527,6 +744,10 @@ public sealed class GitHubPagesDeployProviderTests
 
                 :push_forbidden
                 1>&2 echo remote: 403 Forbidden %GITHUB_TOKEN%
+                exit /b 1
+
+                :push_askpass_leak
+                1>&2 echo fatal: cannot run %GIT_ASKPASS% for token %GITHUB_TOKEN%
                 exit /b 1
                 """);
                 return;
@@ -567,6 +788,10 @@ public sealed class GitHubPagesDeployProviderTests
               fi
               if [ "$mode" = "forbidden" ]; then
                 printf 'remote: 403 Forbidden %s\n' "${GITHUB_TOKEN:-missing}" >&2
+                exit 1
+              fi
+              if [ "$mode" = "askpass-leak" ]; then
+                printf 'fatal: cannot run %s for token %s\n' "${GIT_ASKPASS:-missing}" "${GITHUB_TOKEN:-missing}" >&2
                 exit 1
               fi
               [ -f ".nojekyll" ] && printf 'SNAPSHOT nojekyll\n' >> "$BUKIT_FAKE_GIT_LOG"

@@ -23,6 +23,9 @@ bash scripts/checks/core-cli-contract.sh
 echo "=== checks: skills python deps ==="
 bash scripts/checks/skills-python-deps.sh
 
+echo "=== checks: skills schema ==="
+bash scripts/checks/skills-schema.sh
+
 echo "=== checks: skills strict validation ==="
 bash guide/skills/scripts/validate-skills-strict.sh
 
@@ -40,6 +43,9 @@ bash scripts/checks/release-artifact-smoke-contract.sh
 
 echo "=== checks: CLI docs sync ==="
 bash scripts/checks/cli-docs-sync.sh
+
+echo "=== checks: CLI docs sync fixtures ==="
+bash scripts/checks/test-cli-docs-sync-fixtures.sh
 
 echo "=== restore ==="
 dotnet restore bukit.slnx
