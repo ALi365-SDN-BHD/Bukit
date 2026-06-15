@@ -4,12 +4,12 @@ set -euo pipefail
 
 workflows_dir="${1:-.github/workflows}"
 
-if command -v rg >/dev/null 2>&1; then
-  search_cmd=(rg -n --no-heading --pcre2 'uses:' "$workflows_dir" --glob '*.yml' --glob '*.yaml')
-else
-  echo "WARN: rg is required for regex-aware workflow scanning; fallback to grep -R."
-  search_cmd=(grep -R -n --include='*.yml' --include='*.yaml' 'uses:' "$workflows_dir")
-fi
+command -v rg >/dev/null 2>&1 || {
+  echo "ERROR: rg is required for regex-aware workflow scanning." >&2
+  exit 2
+}
+
+search_cmd=(rg -n --no-heading --pcre2 'uses:' "$workflows_dir" --glob '*.yml' --glob '*.yaml')
 
 if [ ! -d "$workflows_dir" ]; then
   echo "workflow directory not found: $workflows_dir" >&2
