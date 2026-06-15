@@ -155,7 +155,7 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            var sanitized = SanitizeError(ex.Message, token);
+            var sanitized = SanitizeError(ex.Message, token, askpassScript, tempDir);
             var friendly = AugmentErrorHint(sanitized);
             logger.Error($"Deployment failed: {friendly}");
             return new DeployResult { Success = false, Error = friendly };
@@ -206,10 +206,21 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
         try { File.Delete(scriptPath); } catch (Exception delEx) { Console.Error.WriteLine($"Deploy: failed to clean up askpass script: {delEx.GetType().Name}"); }
     }
 
-    private static string SanitizeError(string message, string token)
+    private static string SanitizeError(string message, string token, params string?[] sensitivePaths)
     {
-        if (string.IsNullOrWhiteSpace(token)) return message;
-        return message.Replace(token, "***");
+        var sanitized = string.IsNullOrWhiteSpace(token)
+            ? message
+            : message.Replace(token, "***", StringComparison.Ordinal);
+
+        foreach (var path in sensitivePaths)
+        {
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                sanitized = sanitized.Replace(path, "[redacted-path]", StringComparison.Ordinal);
+            }
+        }
+
+        return sanitized;
     }
 
     private static string AugmentErrorHint(string message)
@@ -350,19 +361,64 @@ public sealed class GitHubPagesDeployProvider : IDeployProvider
                 return null;
             }
 
-            url = url.Trim();
-            var match = Regex.Match(url, @"github\.com[:/]([^/]+)/([^/\s]+?)(\.git)?$", RegexOptions.IgnoreCase);
-            if (!match.Success)
+            if (!TryParseGitHubRemoteUrl(url, out var repoInfo))
             {
                 return null;
             }
 
-            return new RepoInfo(match.Groups[1].Value, match.Groups[2].Value);
+            return repoInfo;
         }
         catch
         {
             return null;
         }
+    }
+
+    private static bool TryParseGitHubRemoteUrl(string remoteUrl, out RepoInfo? repoInfo)
+    {
+        repoInfo = null;
+        var url = remoteUrl.Trim().TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        var scpMatch = Regex.Match(
+            url,
+            @"^git@github\.com:(?<owner>[^/\s]+)/(?<repo>[^/\s]+?)(?:\.git)?$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (scpMatch.Success)
+        {
+            repoInfo = new RepoInfo(scpMatch.Groups["owner"].Value, scpMatch.Groups["repo"].Value);
+            return true;
+        }
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            !string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var parts = uri.AbsolutePath
+            .Trim('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2)
+        {
+            return false;
+        }
+
+        var owner = parts[0];
+        var repo = parts[1].EndsWith(".git", StringComparison.OrdinalIgnoreCase)
+            ? parts[1][..^4]
+            : parts[1];
+
+        if (string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(repo))
+        {
+            return false;
+        }
+
+        repoInfo = new RepoInfo(owner, repo);
+        return true;
     }
 
     private static async Task<bool> RemoteBranchExistsAsync(string gitPath, string token, string askpassScript, string remoteUrl, string branch, CancellationToken ct)

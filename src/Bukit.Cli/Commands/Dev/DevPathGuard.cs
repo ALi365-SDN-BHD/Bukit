@@ -1,4 +1,5 @@
 using Bukit.Shared;
+using System.Text;
 
 namespace Bukit.Cli.Commands.Dev;
 
@@ -19,16 +20,37 @@ internal static class DevPathGuard
             return null;
         }
 
-        var relative = (relativeUrlPath ?? string.Empty)
-            .Replace('/', Path.DirectorySeparatorChar)
-            .TrimStart(Path.DirectorySeparatorChar);
+        var relative = DecodePath(relativeUrlPath ?? string.Empty);
+        if (relative is null)
+        {
+            return null;
+        }
+
+        relative = relative
+            .Normalize(NormalizationForm.FormKC)
+            .Replace('\\', '/');
+
+        if (relative.IndexOf('\0') >= 0)
+        {
+            return null;
+        }
+
+        var segments = relative
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Where(static segment => segment != ".")
+            .ToArray();
+
+        if (segments.Any(static segment => segment == ".."))
+        {
+            return null;
+        }
 
         var fullRoot = Path.GetFullPath(rootDir);
 
         string candidate;
         try
         {
-            candidate = Path.GetFullPath(Path.Combine(fullRoot, relative));
+            candidate = Path.GetFullPath(Path.Combine(new[] { fullRoot }.Concat(segments).ToArray()));
         }
         catch (Exception)
         {
@@ -41,5 +63,36 @@ internal static class DevPathGuard
         }
 
         return candidate;
+    }
+
+    private static string? DecodePath(string path)
+    {
+        var current = path;
+        for (var i = 0; i < 3; i++)
+        {
+            if (current.IndexOf('\0') >= 0)
+            {
+                return null;
+            }
+
+            string decoded;
+            try
+            {
+                decoded = Uri.UnescapeDataString(current);
+            }
+            catch (UriFormatException)
+            {
+                return null;
+            }
+
+            if (string.Equals(decoded, current, StringComparison.Ordinal))
+            {
+                return decoded;
+            }
+
+            current = decoded;
+        }
+
+        return current.IndexOf('\0') >= 0 ? null : current;
     }
 }

@@ -17,6 +17,7 @@ public sealed class CoreUserFacingTextTests
     [
         ("bukit theme manifest", StringComparison.OrdinalIgnoreCase),
         ("bukit theme wizard", StringComparison.OrdinalIgnoreCase),
+        ("bukit theme", StringComparison.Ordinal),
         ("bukit import", StringComparison.OrdinalIgnoreCase),
         ("bukit clone", StringComparison.OrdinalIgnoreCase),
         ("bukit webhook", StringComparison.OrdinalIgnoreCase),

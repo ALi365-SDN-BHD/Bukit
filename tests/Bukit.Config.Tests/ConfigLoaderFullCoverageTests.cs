@@ -309,6 +309,94 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
         Assert.Contains("Unknown config field 'theme.extends'.", ex.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [MemberData(nameof(TopLevelContentProviderFieldCases))]
+    public void Load_TopLevelContentProviderFields_ThrowUnknownField(string yaml, string expectedField)
+    {
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Contains($"Unknown config field '{expectedField}'.", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_DeployOptions_ThrowsUnknownField()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            deploy:
+              provider: github-pages
+              options:
+                branchPolicy: protected
+        """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Contains("Unknown config field 'deploy.options'.", ex.Message, StringComparison.Ordinal);
+    }
+
+    public static IEnumerable<object[]> TopLevelContentProviderFieldCases()
+    {
+        yield return
+        [
+            """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              provider: markdown
+            """,
+            "content.provider"
+        ];
+
+        yield return
+        [
+            """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              notion:
+                databaseId: abc123
+            """,
+            "content.notion"
+        ];
+
+        yield return
+        [
+            """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              markdown:
+                dir: content
+            """,
+            "content.markdown"
+        ];
+    }
+
     [Fact]
     public void Load_ThemeParams_WithNestedObjectTreeAndArray()
     {

@@ -8,7 +8,7 @@
 ## 本轮验收执行序列（快速）
 
 - `bash scripts/checks/ci-workflow-evidence.sh "$GITHUB_REPOSITORY" "$GITHUB_SHA" "ci.yml" TestResults/release-gate/ci-workflow-evidence.json 1 TestResults/release-gate/rc-gate-evidence.md main,master`
-- `python3 -m json.tool docs/coverage-baselines.json >/dev/null`
+- `bash scripts/checks/coverage-baseline-schema.sh`
 - `dotnet test bukit.slnx`
 - `dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildFailure_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"`
 - `bash scripts/smoke/release-artifacts.sh TestResults/release-gate/native-aot/linux-x64`
@@ -68,7 +68,7 @@ bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMI
 | P0 | release artifact smoke report | `release-artifact-smoke.md` | `TestResults/release-gate/native-aot/linux-x64/release-artifact-smoke.md`（release-gate 产物） | 文件存在且包含步骤记录（至少 1 个 `PASS` 条目）。 |
 | P1 | config schema artifact | `site.schema.json` | `TestResults/release-gate/site.schema.json` | 文件存在且为有效 JSON（可解析）。 |
 | P1 | Coverage summary | `coverage-summary.txt` | `TestResults/release-gate/coverage-summary.txt` | 文件存在且包含覆盖率摘要字段。 |
-| P1 | Coverage baseline | `coverage-baselines.json` | `docs/coverage-baselines.json` | 文件存在且包含 `core`、`cli`、`importing`、`labs`。`core`/`cli` 要有 `blocking: true` + `minimum`；`importing`/`labs` 要有 `blocking: false` + `baseline`。 |
+| P1 | Coverage baseline | `coverage-baselines.json` | `docs/coverage-baselines.json` | 必须通过 `bash scripts/checks/coverage-baseline-schema.sh`。`core`/`cli` 要有 `blocking: true` + `minimum`；`importing`/`labs` 要有 `blocking: false` + `baseline`。 |
 | P1 | Native AOT 发布构建 | `linux-x64` native-aot 产物 | `TestResults/release-gate/native-aot/linux-x64/` | 目录存在并包含 release smoke 可追溯产物。 |
 
 ## 覆盖率基线维护说明（1.0.2）

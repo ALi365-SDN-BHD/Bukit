@@ -80,6 +80,12 @@ public sealed class ConfigContractDriftTests
         AssertSiteYamlFieldReferencesAreKnown(EnumerateMarkdownFiles("guide/skills"));
     }
 
+    [Fact]
+    public void Readmes_DoNotReferenceUnknownSiteYamlFields()
+    {
+        AssertSiteYamlFieldReferencesAreKnown(EnumerateReadmeFiles());
+    }
+
     [Theory]
     [InlineData("site", "SiteKeys")]
     [InlineData("content", "ContentKeys")]
@@ -437,6 +443,15 @@ public sealed class ConfigContractDriftTests
                     yield return file;
                 }
             }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateReadmeFiles()
+    {
+        var repoRoot = RepoRoot();
+        foreach (var fileName in new[] { "README.md", "README.zh-CN.md", "README.ms.md" })
+        {
+            yield return Path.Combine(repoRoot, fileName);
         }
     }
 
