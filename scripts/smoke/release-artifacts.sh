@@ -63,6 +63,7 @@ record_step "CLI help includes core commands" bash -c "\"$binary\" --help | grep
 record_step "CLI help excludes non-Core command family" bash -c '! "$1" --help | grep -Eq "$2"' bash "$binary" "$non_core_help_re"
 record_step "CLI dev help includes LiveReload wording" bash -c "\"$binary\" dev --help | grep -q 'LiveReload'"
 record_step "CLI dev help excludes HMR wording" bash -c "! \"$binary\" dev --help | grep -q 'HMR'"
+record_step "CLI deploy help includes github-pages provider" bash -c "\"$binary\" deploy --help | grep -q 'github-pages'"
 record_step "Dev server rebuild regression tests" dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildFailure_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"
 
 schema_path="$fixture/$smoke_root/site.schema.json"

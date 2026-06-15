@@ -49,6 +49,16 @@ public sealed class CliRenderingTests
     }
 
     [Fact]
+    public void RenderDeployHelp_IncludesGitHubPagesProvider()
+    {
+        var registry = BukitCliSpecs.CreateRegistry();
+        var deploy = registry.Commands.Single(c => string.Equals(c.Name, "deploy", StringComparison.OrdinalIgnoreCase));
+        var text = CliHelpRenderer.Render(deploy, "bukit deploy");
+
+        Assert.Contains("github-pages", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SourceFiles_DoNotContainUserVisibleHmrPhrasing()
     {
         var cliRoot = FindRepoRoot();

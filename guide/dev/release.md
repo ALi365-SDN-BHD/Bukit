@@ -6,6 +6,7 @@ with the Core 1.0 contract.
 ## Pre-Release Checks
 
 Before any repository release tagging, complete: [Release Precheck Template](../release/release-prerelease-template.md).
+For the final maintainer sequence, use [Release Checklist](release-checklist.md).
 
 ```bash
 dotnet test tests/Bukit.Architecture.Tests

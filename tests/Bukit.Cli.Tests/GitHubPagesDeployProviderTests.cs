@@ -64,6 +64,25 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
+    public async Task Deploy_NonFastForwardRequiresForce()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "nonff-once";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var first = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+        var second = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(force: true), CancellationToken.None);
+
+        Assert.False(first.Success);
+        Assert.Equal("Non-fast-forward push rejected. The remote branch has diverged; rerun with --force to overwrite it.", first.Error);
+        Assert.True(second.Success, second.Error);
+        Assert.Contains("push --force origin gh-pages", scope.FakeGit.ReadLog(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task DeployAsync_NonFastForwardWithForce_PushesWithForce()
     {
         using var scope = new GitHubPagesDeployTestScope();
@@ -102,6 +121,59 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
+    public async Task Deploy_ErrorMessage_DoesNotContainGitHubToken()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "forbidden";
+        scope.SetGithubToken("top-secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.DoesNotContain("top-secret-token", result.Error, StringComparison.Ordinal);
+        Assert.Contains("***", result.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Deploy_AskpassFile_IsDeletedAfterFailure()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "forbidden";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        var askpassPath = scope.FakeGit.ReadAskpassPath();
+        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
+        Assert.False(File.Exists(askpassPath));
+    }
+
+    [Fact]
+    public async Task Deploy_TempDir_IsDeletedAfterFailure()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "forbidden";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        var askpassPath = scope.FakeGit.ReadAskpassPath();
+        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(askpassPath)!));
+    }
+
+    [Fact]
     public async Task DeployAsync_MissingGitOnPath_ReturnsHelpfulError()
     {
         using var scope = new GitHubPagesDeployTestScope(includeFakeGitInPath: false);
@@ -112,6 +184,65 @@ public sealed class GitHubPagesDeployProviderTests
 
         Assert.False(result.Success);
         Assert.Equal("git command not found. Please install git and ensure it is in PATH.", result.Error);
+    }
+
+    [Fact]
+    public async Task Deploy_OutputDirMissing_ReturnsFriendlyError()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.SetGithubToken("secret-token");
+
+        var missingOutput = Path.Combine(scope.WorktreeDir, "missing-output");
+        var result = await new GitHubPagesDeployProvider().DeployAsync(
+            scope.CreateContext(outputDir: missingOutput),
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal($"Output directory not found: {missingOutput}", result.Error);
+    }
+
+    [Fact]
+    public async Task Deploy_OutputDirEmpty_ReturnsFriendlyError()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.SetGithubToken("secret-token");
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal($"Output directory is empty: {scope.OutputDir}", result.Error);
+    }
+
+    [Theory]
+    [InlineData("https://github.com/ali/docs.git", "https://ali.github.io/docs")]
+    [InlineData("git@github.com:ali/docs.git", "https://ali.github.io/docs")]
+    public async Task Deploy_GitHubRemoteUrlParser_SupportsHttpsAndSsh(string remoteUrl, string expectedUrl)
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = remoteUrl;
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal(expectedUrl, result.DeployedUrl);
+    }
+
+    [Fact]
+    public async Task Deploy_GitHubRemoteUrlParser_RejectsNonGitHubRemote()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://gitlab.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("Unable to determine GitHub repository. Ensure you are in a git repository with a remote 'origin' pointing to GitHub.", result.Error);
     }
 
     [Fact]
@@ -244,10 +375,10 @@ public sealed class GitHubPagesDeployProviderTests
         public RecordingLogger Logger { get; }
         public FakeGitHarness FakeGit { get; }
 
-        public DeployContext CreateContext(bool keepHistory = false, bool force = false, string? branch = null, string? message = null, string? cname = null)
+        public DeployContext CreateContext(bool keepHistory = false, bool force = false, string? branch = null, string? message = null, string? cname = null, string? outputDir = null)
             => new()
             {
-                OutputDir = OutputDir,
+                OutputDir = outputDir ?? OutputDir,
                 SiteUrl = "https://example.com",
                 BaseUrl = "/",
                 Branch = branch,
@@ -335,6 +466,12 @@ public sealed class GitHubPagesDeployProviderTests
         public string ReadLog()
             => File.Exists(LogPath) ? File.ReadAllText(LogPath) : string.Empty;
 
+        public string? ReadAskpassPath()
+            => File.ReadLines(LogPath)
+                .Where(line => line.StartsWith("ASKPASS ", StringComparison.Ordinal))
+                .Select(line => line["ASKPASS ".Length..])
+                .LastOrDefault();
+
         public void Dispose()
         {
             Environment.SetEnvironmentVariable("BUKIT_FAKE_GIT_REMOTE_URL", null);
@@ -351,6 +488,7 @@ public sealed class GitHubPagesDeployProviderTests
                 @echo off
                 setlocal EnableDelayedExpansion
                 echo %CD%^|%*>>"%BUKIT_FAKE_GIT_LOG%"
+                if not "%GIT_ASKPASS%"=="" echo ASKPASS %GIT_ASKPASS%>>"%BUKIT_FAKE_GIT_LOG%"
                 if "%~1"=="remote" if "%~2"=="get-url" if "%~3"=="origin" goto remote_get_url
                 if "%~1"=="ls-remote" goto ls_remote
                 if "%~1"=="clone" goto clone_repo
@@ -399,6 +537,9 @@ public sealed class GitHubPagesDeployProviderTests
             #!/bin/sh
             set -eu
             echo "$PWD|$*" >> "$BUKIT_FAKE_GIT_LOG"
+            if [ -n "${GIT_ASKPASS:-}" ]; then
+              printf 'ASKPASS %s\n' "$GIT_ASKPASS" >> "$BUKIT_FAKE_GIT_LOG"
+            fi
             if [ "${1:-}" = "remote" ] && [ "${2:-}" = "get-url" ] && [ "${3:-}" = "origin" ]; then
               if [ -n "${BUKIT_FAKE_GIT_REMOTE_URL:-}" ]; then
                 printf '%s\n' "$BUKIT_FAKE_GIT_REMOTE_URL"

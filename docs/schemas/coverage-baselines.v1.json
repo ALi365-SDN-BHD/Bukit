@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/coverage-baselines.v1.json",
+  "title": "Bukit Coverage Baselines",
+  "type": "object",
+  "required": ["version", "core", "cli", "importing", "labs"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "core": {
+      "$ref": "#/$defs/blockingModule"
+    },
+    "cli": {
+      "$ref": "#/$defs/blockingModule"
+    },
+    "importing": {
+      "$ref": "#/$defs/trackedModule"
+    },
+    "labs": {
+      "$ref": "#/$defs/trackedModule"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "blockingModule": {
+      "type": "object",
+      "required": ["blocking", "minimum"],
+      "properties": {
+        "blocking": {
+          "const": true
+        },
+        "minimum": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "trackedModule": {
+      "type": "object",
+      "required": ["blocking", "baseline"],
+      "properties": {
+        "blocking": {
+          "const": false
+        },
+        "trackedOnly": {
+          "const": true
+        },
+        "baseline": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

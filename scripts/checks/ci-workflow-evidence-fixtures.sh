@@ -71,8 +71,13 @@ expect_fail() {
 }
 
 expect_pass "success-main" "1" "main" "success-main"
-expect_fail "success-feature-only" "1" "main" "success-feature-only" "no completed successful workflow runs on required branch(es): main"
+expect_pass "success-master" "1" "master" "success-master"
+expect_pass "success-main" "1" "main,master" "success-main-with-required-main-master"
+expect_pass "success-master" "1" "main,master" "success-master-with-required-main-master"
+expect_pass "multiple-runs-latest-failed-older-success" "1" "main" "latest-failed-older-success"
+expect_fail "success-feature-only" "1" "main,master" "success-feature-only" "no completed successful workflow runs on required branch(es): main, master"
 expect_fail "failed-main" "1" "main" "failed-main" "no completed successful workflow runs on required branch(es): main"
+expect_fail "cancelled-main" "1" "main" "cancelled-main" "no completed successful workflow runs on required branch(es): main"
 expect_fail "no-runs" "1" "main" "no-runs-require-success" "no completed successful workflow runs on required branch(es): main"
 expect_pass "failed-main" "0" "main" "require-success-false-with-run"
 expect_fail "no-runs" "0" "main" "require-success-false-no-runs" "commit has no workflow runs"

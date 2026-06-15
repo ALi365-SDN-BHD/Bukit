@@ -14,9 +14,12 @@ Bukit Core 1.0 command metadata is defined in `src/Bukit.Cli/Cli/BukitCliSpecs.c
 | `clean` | Clean output and cache directories |
 | `version` | Print version information |
 | `completion` | Generate shell completion scripts |
+| `seo` | SEO quality gate parent |
 | `seo audit` | Validate `.bukit/seo-report.json` |
 | `seo diff` | Compare SEO reports |
+| `geo` | GEO quality gate parent |
 | `geo audit` | Validate `.bukit/geo-report.json` and GEO outputs |
+| `publish` | Publish-readiness gate parent |
 | `publish audit` | Validate publish readiness |
 | `publish diff` | Compare publish audit reports |
 | `deploy` | Build and deploy to GitHub Pages |
