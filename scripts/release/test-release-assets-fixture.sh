@@ -4,7 +4,6 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 version="1.0.3"
 commit="0123456789abcdef0123456789abcdef01234567"
-fixture_dir="${repo_root}/tests/fixtures/release-assets/valid"
 tmp_root="$(mktemp -d)"
 
 cleanup() {
@@ -36,10 +35,39 @@ prepare_valid_fixture() {
   local work_dir="$1"
 
   mkdir -p "$work_dir"
-  cp "${fixture_dir}/bukit-${version}-linux-x64.tar.gz" "$work_dir/"
-  cp "${fixture_dir}/bukit-${version}-osx-arm64.tar.gz" "$work_dir/"
-  cp "${fixture_dir}/bukit-${version}-win-x64.zip" "$work_dir/"
-  cp "${fixture_dir}/bukit-skills.zip" "$work_dir/"
+
+  python3 - "$work_dir" "$version" <<'PY'
+import sys
+import tarfile
+import zipfile
+from io import BytesIO
+from pathlib import Path
+
+work_dir = Path(sys.argv[1])
+version = sys.argv[2]
+
+artifacts = [
+    f"bukit-{version}-linux-x64.tar.gz",
+    f"bukit-{version}-osx-arm64.tar.gz",
+    f"bukit-{version}-win-x64.zip",
+    "bukit-skills.zip",
+]
+
+for name in artifacts:
+    path = work_dir / name
+    if name.endswith(".tar.gz"):
+        buf = BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+            info = tarfile.TarInfo(name="dummy.txt")
+            info.size = 10
+            tar.addfile(info, BytesIO(b"0123456789"))
+        path.write_bytes(buf.getvalue())
+    elif name.endswith(".zip"):
+        buf = BytesIO()
+        with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("dummy.txt", "0123456789")
+        path.write_bytes(buf.getvalue())
+PY
 
   (
     cd "$work_dir"
@@ -104,11 +132,6 @@ assert_contains "$valid_output" "release asset checks passed"
 assert_contains "$valid_output" "set_mode=exact-match"
 assert_contains "$valid_output" "manifest_rids=linux-x64,osx-arm64,skills,win-x64"
 echo "valid generated fixture passed"
-
-direct_valid_output="${tmp_root}/direct-valid.out"
-run_validator "${fixture_dir}" >"$direct_valid_output"
-assert_contains "$direct_valid_output" "release asset checks passed"
-echo "tracked valid fixture passed"
 
 missing_checksums="$(copy_valid_case missing-checksums)"
 rm "$missing_checksums/checksums.txt"
