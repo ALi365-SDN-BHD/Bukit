@@ -1,0 +1,25 @@
+{
+  "total_count": 2,
+  "workflow_runs": [
+    {
+      "id": 1007,
+      "name": "CI",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_branch": "main",
+      "html_url": "https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/1007",
+      "run_started_at": "2026-06-15T01:00:00Z",
+      "updated_at": "2026-06-15T01:02:00Z"
+    },
+    {
+      "id": 1006,
+      "name": "CI",
+      "status": "completed",
+      "conclusion": "success",
+      "head_branch": "main",
+      "html_url": "https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/1006",
+      "run_started_at": "2026-06-15T00:00:00Z",
+      "updated_at": "2026-06-15T00:02:00Z"
+    }
+  ]
+}

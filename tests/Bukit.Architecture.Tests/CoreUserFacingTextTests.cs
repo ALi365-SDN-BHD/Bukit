@@ -20,6 +20,9 @@ public sealed class CoreUserFacingTextTests
         ("bukit import", StringComparison.OrdinalIgnoreCase),
         ("bukit clone", StringComparison.OrdinalIgnoreCase),
         ("bukit webhook", StringComparison.OrdinalIgnoreCase),
+        ("bukit intent", StringComparison.OrdinalIgnoreCase),
+        ("bukit data", StringComparison.OrdinalIgnoreCase),
+        ("bukit visual", StringComparison.OrdinalIgnoreCase),
         ("bukit plugin", StringComparison.OrdinalIgnoreCase),
         ("--allow-external-plugins", StringComparison.Ordinal)
     ];
@@ -57,13 +60,14 @@ public sealed class CoreUserFacingTextTests
     [
         "src/Bukit.Cli",
         "src/Bukit.Config",
+        "src/Bukit.Engine",
         "guide/user",
         "guide/dev",
         "guide/skills"
     ];
 
     [Fact]
-    public void CoreUserFacingText_DoesNotReferenceNonCoreCommands()
+    public void CoreUserFacingText_DoesNotLeakNonCoreCommands()
     {
         var files = FindForbiddenMatches(ForbiddenNonCoreCommandTerms);
 

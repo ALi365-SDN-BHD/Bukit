@@ -8,6 +8,9 @@ cd "$repo_root"
 if [ "${CI_FULL_SKIP_FAST:-0}" != "1" ]; then
   echo "=== ci-full: fast gate ==="
   bash scripts/gates/ci-fast.sh "$configuration"
+else
+  echo "=== ci-full: coverage baseline schema ==="
+  bash scripts/checks/coverage-baseline-schema.sh
 fi
 
 echo "=== ci-full: coverage ==="

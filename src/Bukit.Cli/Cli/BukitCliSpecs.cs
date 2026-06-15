@@ -191,7 +191,7 @@ public static partial class BukitCliSpecs
 
         var deploy = new CliCommandSpec(
             Name: "deploy",
-            Description: "部署到 GitHub Pages",
+            Description: "部署到 GitHub Pages（provider: github-pages）",
             Options: new[]
             {
                 new CliOptionSpec("--config", "配置文件路径"),

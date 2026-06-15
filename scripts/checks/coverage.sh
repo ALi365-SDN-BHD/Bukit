@@ -15,27 +15,7 @@ coverage_baseline_value() {
     return
   fi
 
-  python3 - "$coverage_baseline_file" "$module" "$key" <<'PY'
-import json
-import sys
-
-path, module, key = sys.argv[1:4]
-
-try:
-    with open(path, encoding="utf-8") as handle:
-        data = json.load(handle)
-except FileNotFoundError:
-    raise SystemExit(0)
-
-value = data.get(module, {}).get(key)
-if value is None:
-    raise SystemExit(0)
-
-if isinstance(value, bool):
-    print("true" if value else "false")
-else:
-    print(value)
-PY
+  python3 scripts/checks/read-coverage-baseline.py "$coverage_baseline_file" "$module" "$key"
 }
 
 is_blocking() {

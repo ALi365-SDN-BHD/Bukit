@@ -1,0 +1,28 @@
+{
+  "schema": "https://bukit.dev/schemas/release-bundle-checksums.v1.json",
+  "schemaVersion": "1.0",
+  "fileCount": 4,
+  "bundleHash": "sha256:219a9b471ae71fe4b73f93cdb04c9a02f437e7d71025198d1b6e0055d36d1f3d",
+  "files": [
+    {
+      "path": "bukit-1.0.4-linux-x64.tar.gz",
+      "hash": "sha256:656da1cca826370e264c99edcd267e8131b97815dfb4f59eb32e39ccc5480513",
+      "size": 42
+    },
+    {
+      "path": "bukit-1.0.4-osx-arm64.tar.gz",
+      "hash": "sha256:b4ef1ff92b98661f10f24bf3ce0a7ab1888502e1168f1fd19bc8ec07e086340a",
+      "size": 42
+    },
+    {
+      "path": "bukit-1.0.4-win-x64.zip",
+      "hash": "sha256:5fc2de5f40f023da1bf9b0acefed6461ebc6d3d699acf23821fdbbc32f91fe5d",
+      "size": 40
+    },
+    {
+      "path": "bukit-skills.zip",
+      "hash": "sha256:ec391f12889952a9245a312ff53009e6bdda337f54786b74262c4caaa085e05a",
+      "size": 39
+    }
+  ]
+}
