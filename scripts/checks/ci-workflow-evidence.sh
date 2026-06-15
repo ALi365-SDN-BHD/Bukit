@@ -2,23 +2,15 @@
 
 set -euo pipefail
 
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$repo_root/scripts/lib/common.sh"
+
 repo="${1:-${GITHUB_REPOSITORY:-}}"
 sha="${2:-${GITHUB_SHA:-}}"
 workflow="${3:-ci.yml}"
 output="${4:-TestResults/release-gate/ci-workflow-evidence.json}"
 require_success="${5:-1}"
 report="${6:-}"
-
-is_truthy() {
-  case "${1,,}" in
-    1|true|yes|on)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
 
 if [ -z "${repo}" ] || [ -z "${sha}" ]; then
   echo "Usage: $0 <repo> <sha> [workflow-file] [output-json] [require-success] [report-md]" >&2

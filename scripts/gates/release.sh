@@ -9,17 +9,6 @@ source scripts/lib/common.sh
 artifact_dir="${RELEASE_GATE_ARTIFACT_DIR:-TestResults/release-gate}"
 rid_list="${RELEASE_GATE_RIDS:-$(bukit_host_rid)}"
 
-is_truthy() {
-  case "${1,,}" in
-    1|true|yes|on)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
 echo "=== checks: github action pin compliance ==="
 bash scripts/checks/ci-workflow-action-pin.sh
 

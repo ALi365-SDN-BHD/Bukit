@@ -52,3 +52,14 @@ bukit_find_binary() {
   fi
   return 1
 }
+
+is_truthy() {
+  case "${1,,}" in
+    1|true|yes|on)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}

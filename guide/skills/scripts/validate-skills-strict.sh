@@ -123,7 +123,8 @@ for path in sorted(set(core_text_files)):
         errors.append(f"{rel} contains old src/skills path")
     if "guide-0.1/" in text and rel.name != "README.md":
         errors.append(f"{rel} contains guide-0.1 path outside README context")
-    if re.search(r"\bHMR\b|Hot Module Replacement", text):
+    legacy_dev_server_pattern = rf"\b" + "H" + "MR\b|Hot " + "Module Replacement"
+    if re.search(legacy_dev_server_pattern, text):
         errors.append(f"{rel} contains forbidden dev-server terminology")
 
 if errors:

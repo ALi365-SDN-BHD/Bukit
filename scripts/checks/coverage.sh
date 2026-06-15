@@ -8,8 +8,8 @@ configuration="${1:-Release}"
 # Core and CLI stay on the blocking gate. Bukit.Importing and bukit-labs are
 # reported separately and only become blocking when their dedicated thresholds
 # are set.
-core_coverage_threshold="${CORE_COVERAGE_THRESHOLD:-${COVERAGE_THRESHOLD:-35}}"
-cli_coverage_threshold="${CLI_COVERAGE_THRESHOLD:-45}"
+core_coverage_threshold="${CORE_COVERAGE_THRESHOLD:-${COVERAGE_THRESHOLD:-80}}"
+cli_coverage_threshold="${CLI_COVERAGE_THRESHOLD:-75}"
 importing_coverage_threshold="${IMPORTING_COVERAGE_THRESHOLD:-}"
 labs_coverage_threshold="${LABS_COVERAGE_THRESHOLD:-}"
 coverage_root="${COVERAGE_ROOT:-TestResults/coverage}"
@@ -135,7 +135,7 @@ print_coverage_status() {
   local threshold="${3:-}"
 
   if [ -n "$threshold" ]; then
-    echo "Coverage ${label}: ${coverage_percent}% (threshold: ${threshold}%)"
+    echo "Coverage ${label}: ${coverage_percent}% (>= ${threshold}%)"
   else
     echo "Coverage ${label}: ${coverage_percent}% (tracked only)"
   fi
