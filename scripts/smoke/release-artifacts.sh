@@ -51,7 +51,7 @@ fixture="tests/fixtures/basic-markdown-site"
 run_id="$(date +%Y%m%d%H%M%S)-$$"
 smoke_root=".smoke-all-run/release-artifacts-$run_id"
 non_core_command_family='docs|intent|plugin|theme|import|clone|visual|webhook|data'
-non_core_help_re="bukit[[:space:]]+(${non_core_command_family})([[:space:]]|$)|docs[[:space:]]+check|--allow-external""-plugins"
+non_core_help_re="bukit[[:space:]]+(${non_core_command_family})([[:space:]]|$)|docs[[:space:]]+check|--allow-external-plugins"
 cleanup() {
   rm -rf "$fixture/$smoke_root"
 }
