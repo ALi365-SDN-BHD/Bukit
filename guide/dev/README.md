@@ -33,6 +33,9 @@ Source anchors:
 6. Use [Testing](./testing.md), [Release](./release.md), and
    [Documentation Governance](./documentation-governance.md) before publishing
    docs or binaries.
+7. Use [Agent Task Workflow](./agent-task-workflow.md) when Codex or other
+   agents need task sequencing, sub-agent boundaries, verification order, or
+   audit rules.
 
 ## Core Documents
 
@@ -56,6 +59,7 @@ Source anchors:
 | Release process | [release.md](./release.md) |
 | Native AOT release concerns | [aot.md](./aot.md) |
 | Documentation governance | [documentation-governance.md](./documentation-governance.md) |
+| Agent task execution rules | [agent-task-workflow.md](./agent-task-workflow.md) |
 | Public preview scope | [public-preview-scope.md](./public-preview-scope.md) |
 
 ## Boundary Rule
