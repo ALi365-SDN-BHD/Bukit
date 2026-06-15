@@ -20,6 +20,33 @@ if [ ! -x "$binary" ] && [ "${binary##*.}" != "exe" ]; then
   chmod +x "$binary"
 fi
 
+smoke_report="$publish_dir/release-artifact-smoke.md"
+{
+  echo "# Bukit Release Artifact Smoke Report"
+  echo "Binary: \`$binary\`"
+  echo "Publish dir: \`$publish_dir\`"
+  echo "Timestamp: $(date -u +%FT%TZ)"
+  echo ""
+} > "$smoke_report"
+
+record_step() {
+  local step_name="$1"
+  shift
+
+  set +e
+  "$@"
+  local status=$?
+  set -e
+
+  if [ $status -eq 0 ]; then
+    echo "- [PASS] $step_name" >> "$smoke_report"
+  else
+    echo "- [FAIL] $step_name (exit=$status)" >> "$smoke_report"
+    echo "Release artifact smoke failed at: $step_name (exit=$status)" >&2
+    exit $status
+  fi
+}
+
 fixture="tests/fixtures/basic-markdown-site"
 run_id="$(date +%Y%m%d%H%M%S)-$$"
 smoke_root=".smoke-all-run/release-artifacts-$run_id"
@@ -28,21 +55,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"$binary" version >/dev/null
-"$binary" --help | grep -q '^  build'
+record_step "Binary startup" "$binary" version
+record_step "CLI help includes build command" bash -c "\"$binary\" --help | grep -q '^  build'"
 
 schema_path="$fixture/$smoke_root/site.schema.json"
 mkdir -p "$(dirname "$schema_path")"
-"$binary" config schema --output "$schema_path"
-test -s "$schema_path"
-python3 -m json.tool "$schema_path" >/dev/null
-
-"$binary" config check --config "$fixture/site.yaml" --site-url https://example.com
-"$binary" doctor --config "$fixture/site.yaml" --site-url https://example.com
+record_step "Generate site schema" "$binary" config schema --output "$schema_path"
+record_step "Validate schema file exists" test -s "$schema_path"
+record_step "Validate schema JSON format" python3 -m json.tool "$schema_path"
+record_step "Config check fixture site" "$binary" config check --config "$fixture/site.yaml" --site-url https://example.com
+record_step "Doctor check fixture site" "$binary" doctor --config "$fixture/site.yaml" --site-url https://example.com
 
 output="$smoke_root/dist"
 cache="$smoke_root/cache"
-"$binary" build \
+record_step "Build fixture site" "$binary" build \
   --config "$fixture/site.yaml" \
   --output "$output" \
   --cache-dir "$cache" \
@@ -51,11 +77,12 @@ cache="$smoke_root/cache"
   --ci
 
 full_output="$fixture/$output"
-test -f "$full_output/index.html"
-test -f "$full_output/sitemap.xml"
-"$binary" seo audit --dir "$full_output"
-"$binary" geo audit --dir "$full_output"
-"$binary" publish audit --dir "$full_output"
-bash scripts/validate-artifacts-json.sh "$full_output"
+record_step "Build output contains index.html" test -f "$full_output/index.html"
+record_step "Build output contains sitemap.xml" test -f "$full_output/sitemap.xml"
+record_step "SEO audit" "$binary" seo audit --dir "$full_output"
+record_step "Geo audit" "$binary" geo audit --dir "$full_output"
+record_step "Publish audit" "$binary" publish audit --dir "$full_output"
+record_step "Validate .bukit artifacts JSON" bash scripts/validate-artifacts-json.sh "$full_output"
+record_step "Smoke report exists" test -s "$smoke_report"
 
 echo "Release artifact smoke OK: $binary"

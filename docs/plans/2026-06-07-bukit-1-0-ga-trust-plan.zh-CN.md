@@ -371,6 +371,9 @@ Bukit 1.0 应按“信任优先”发布，而不是按“功能完整”发布�
 9. rejection suite：历史/旧写法 fixtures 必须被 1.0 engine 明确拒绝，并给出诊断码或新项目重写提示
 10. no GA-locked failure path without diagnostic code
 
+1.0.2 的硬门槛与可追溯产物列表另见：
+   - [Bukit 1.0.2 Release Checklist（硬门槛）](./bukit-1.0.2-release-checklist.md)
+
 ## 6. 首批可拆 Issue
 
 ### P0

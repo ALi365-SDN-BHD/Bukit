@@ -9,15 +9,28 @@ source scripts/lib/common.sh
 artifact_dir="${RELEASE_GATE_ARTIFACT_DIR:-TestResults/release-gate}"
 rid_list="${RELEASE_GATE_RIDS:-$(bukit_host_rid)}"
 
+is_truthy() {
+  case "${1,,}" in
+    1|true|yes|on)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 echo "=== checks: github action pin compliance ==="
 bash scripts/checks/ci-workflow-action-pin.sh
 
 echo "=== release: full gate ==="
-bash scripts/gates/ci-full.sh "$configuration"
+COVERAGE_SUMMARY_FILE="${artifact_dir}/coverage-summary.txt" bash scripts/gates/ci-full.sh "$configuration"
 
-if [ "${GITHUB_ACTIONS:-0}" = "1" ]; then
+if is_truthy "${GITHUB_ACTIONS:-0}"; then
   echo "=== release: workflow evidence check ==="
   bash scripts/checks/ci-workflow-evidence.sh "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" "ci.yml" "$artifact_dir/ci-workflow-evidence.json" 1 "$artifact_dir/rc-gate-evidence.md"
+  test -s "$artifact_dir/ci-workflow-evidence.json"
+  test -s "$artifact_dir/rc-gate-evidence.md"
 fi
 
 echo "=== release: config schema artifact ==="

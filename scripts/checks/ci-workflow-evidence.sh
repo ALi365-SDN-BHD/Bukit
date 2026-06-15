@@ -9,6 +9,17 @@ output="${4:-TestResults/release-gate/ci-workflow-evidence.json}"
 require_success="${5:-1}"
 report="${6:-}"
 
+is_truthy() {
+  case "${1,,}" in
+    1|true|yes|on)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 if [ -z "${repo}" ] || [ -z "${sha}" ]; then
   echo "Usage: $0 <repo> <sha> [workflow-file] [output-json] [require-success] [report-md]" >&2
   echo "Example: $0 ALi365-SDN-BHD/Bukit <commit-sha> ci.yml TestResults/release-gate/ci-workflow-evidence.json 1 TestResults/release-gate/rc-gate-evidence.md" >&2
@@ -17,7 +28,7 @@ if [ -z "${repo}" ] || [ -z "${sha}" ]; then
   exit 2
 fi
 
-if [ "${GITHUB_ACTIONS:-0}" != "1" ]; then
+if ! is_truthy "${GITHUB_ACTIONS:-0}"; then
   echo "Skipping workflow evidence check outside GitHub Actions context."
   exit 0
 fi
