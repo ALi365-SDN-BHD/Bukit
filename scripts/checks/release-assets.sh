@@ -189,7 +189,12 @@ if not isinstance(artifacts, list) or not artifacts:
 if len(artifacts) != len(required_file_set):
     raise SystemExit("ERROR: manifest must contain exactly required artifact count")
 
-if len(artifacts) != len(set((item.get("file") for item in artifacts if isinstance(item, dict))):
+artifact_files = [
+    item.get("file")
+    for item in artifacts
+    if isinstance(item, dict)
+]
+if len(artifacts) != len(set(artifact_files)):
     raise SystemExit("ERROR: manifest contains duplicate artifact file names")
 
 expected_rids = {"linux-x64", "osx-arm64", "win-x64", "skills"}
