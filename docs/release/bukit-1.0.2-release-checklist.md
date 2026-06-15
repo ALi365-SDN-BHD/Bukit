@@ -12,9 +12,14 @@
 - `dotnet test bukit.slnx`
 - `dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildException_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"`
 - `bash scripts/smoke/release-artifacts.sh TestResults/release-gate/native-aot/linux-x64`
-- `bash scripts/checks/release-assets.sh <下载目录> <发布版本> <发布 Commit>`
+- `bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" <下载目录>`
 
 ## 一键验收脚本（可直接使用）
+
+```bash
+export RELEASE_VERSION="1.0.2"
+export RELEASE_COMMIT="${GITHUB_SHA}"
+```
 
 ```bash
 bash scripts/release/check-p1-2-1.0.2.sh
@@ -25,7 +30,17 @@ bash scripts/release/check-p1-2-1.0.2.sh
 示例：
 
 ```bash
-bash scripts/release/check-p1-2-1.0.2.sh TestResults/release-gate/native-aot/linux-x64 1.0.2 "$GITHUB_SHA" ./release-assets
+bash scripts/release/check-p1-2-1.0.2.sh \
+  TestResults/release-gate/native-aot/linux-x64 \
+  "$RELEASE_VERSION" \
+  "$RELEASE_COMMIT" \
+  ./release-assets
+```
+
+若你手头是已下载的 release 产物目录，可直接走资产复核一键脚本：
+
+```bash
+bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" ./release-assets
 ```
 
 ## 发布操作模板（维护者）
@@ -37,8 +52,12 @@ bash scripts/release/check-p1-2-1.0.2.sh TestResults/release-gate/native-aot/lin
 1. Merge to main
 2. Wait for ci.yml completed success
 3. Confirm workflow evidence
-4. Create tag v1.0.2
+4. Create tag `v$RELEASE_VERSION`
 5. Release workflow runs
+6. 下载 release 资产后执行一致性复核：
+   ```bash
+   bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" ./release-assets
+   ```
 
 ## 1.0.2 Release Hard Gate
 
@@ -125,7 +144,7 @@ bash scripts/release/check-p1-2-1.0.2.sh TestResults/release-gate/native-aot/lin
 6. `artifacts[*].sha256` 为带前缀值（`sha256:<hex>`）。
 
 7. 验证执行与归档：
-   - 运行：`bash scripts/checks/release-assets.sh <下载目录> <发布版本> <发布 Commit>`
+   - 运行：`bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" <下载目录>`
    - `release-assets-check.md` 期望输出应包含：
      - `release asset checks passed`
      - `set_mode=exact-match`
@@ -167,6 +186,7 @@ bash scripts/smoke/release-artifacts.sh TestResults/release-gate/native-aot/linu
 
 ```bash
 bash scripts/smoke/release-artifacts.sh TestResults/release-gate/native-aot/linux-x64
+bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" ./release-assets
 ```
 
 ## P2-2：dev 服务器回归测试补充（本轮建议）
@@ -181,23 +201,31 @@ bash scripts/smoke/release-artifacts.sh TestResults/release-gate/native-aot/linu
 ### 快速验证命令（可执行）
 
 ```bash
-bash scripts/checks/release-assets.sh <下载目录> <发布版本> <发布 Commit>
+bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" <下载目录>
 ```
 
 示例：
 
 ```bash
-bash scripts/checks/release-assets.sh ./release-assets 1.0.2 0123abc...
+bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" ./release-assets
+```
+
+参数化（可直接复制）：
+
+```bash
+RELEASE_VERSION=1.0.2
+RELEASE_COMMIT="${GITHUB_SHA}"
+bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" ./release-assets
 ```
 
 ### 本地 Dry-run 演练（可选）
 
 ```bash
 tmpdir="$(mktemp -d)"
-cp bukit-*/bukit-1.0.2-*.tar.gz "$tmpdir"/ 2>/dev/null || true
-cp bukit-win-x64/bukit-1.0.2-win-x64.zip "$tmpdir"/
-cp bukit-skills.zip checksums.txt checksums.json release-manifest.json "$tmpdir"/
-bash scripts/checks/release-assets.sh "$tmpdir" 1.0.2 <release-commit-sha>
+cp bukit-*/bukit-"$RELEASE_VERSION"-*.tar.gz "$tmpdir"/ 2>/dev/null || true
+cp bukit-win-x64/bukit-"$RELEASE_VERSION"-win-x64.zip "$tmpdir"/
+cp bukit-skills.zip "$tmpdir"/
+bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" "$tmpdir"
 rm -rf "$tmpdir"
 ```
 

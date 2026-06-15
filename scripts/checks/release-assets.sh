@@ -128,6 +128,9 @@ if checksums_obj.get("schema") != "https://bukit.dev/schemas/release-bundle-chec
     raise SystemExit("ERROR: checksums.json schema mismatch")
 if checksums_obj.get("schemaVersion") != "1.0":
     raise SystemExit("ERROR: checksums.json schemaVersion must be 1.0")
+checksums_bundle_hash = checksums_obj.get("bundleHash")
+if not isinstance(checksums_bundle_hash, str) or not checksums_bundle_hash.startswith("sha256:"):
+    raise SystemExit("ERROR: checksums.json missing or invalid bundleHash")
 
 files = checksums_obj.get("files")
 if not isinstance(files, list):
@@ -173,6 +176,8 @@ if set(file_entries) != required_file_set:
 manifest = json.loads(manifest_json.read_text(encoding="utf-8"))
 if manifest.get("version") != version:
     raise SystemExit(f"ERROR: manifest.version {manifest.get('version')} != expected {version}")
+if manifest.get("bundleHash") != checksums_bundle_hash:
+    raise SystemExit("ERROR: manifest.bundleHash must match checksums.json.bundleHash")
 
 if expected_commit and manifest.get("commit") != expected_commit:
     raise SystemExit(f"ERROR: manifest.commit {manifest.get('commit')} != expected {expected_commit}")

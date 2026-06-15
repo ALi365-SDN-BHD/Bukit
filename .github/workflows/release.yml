@@ -19,8 +19,8 @@ jobs:
     name: Release Gate
     runs-on: ubuntu-latest
     env:
-      CORE_COVERAGE_THRESHOLD: "65"
-      CLI_COVERAGE_THRESHOLD: "50"
+      CORE_COVERAGE_THRESHOLD: "80"
+      CLI_COVERAGE_THRESHOLD: "75"
       RELEASE_GATE_RIDS: linux-x64
       RELEASE_GATE_REQUIRED_BRANCHES: "main,master"
     steps:
@@ -150,7 +150,6 @@ jobs:
           : "${VERSION:?VERSION must be set}"
           : "${COMMIT_SHA:?COMMIT_SHA must be set}"
 
-          # Collect release artifacts
           ASSETS=(
             "bukit-win-x64/bukit-${VERSION}-win-x64.zip"
             "bukit-linux-x64/bukit-${VERSION}-linux-x64.tar.gz"
@@ -158,95 +157,7 @@ jobs:
             "bukit-skills.zip"
           )
 
-          for file in "${ASSETS[@]}"; do
-            if [ ! -f "$file" ]; then
-              echo "ERROR: missing release asset: $file" >&2
-              exit 1
-            fi
-          done
-
-          # Keep output deterministic and easy to read
-          > checksums.txt
-          python3 - "$VERSION" "$COMMIT_SHA" "${ASSETS[@]}" <<'PY'
-import hashlib
-import json
-import sys
-from pathlib import Path
-
-
-def _bundle_hash(items):
-    hasher = hashlib.sha256()
-    for item in items:
-        line = f"{item['path']}|{item['hash']}|{item['size']}\n"
-        hasher.update(line.encode("utf-8"))
-    return f"sha256:{hasher.hexdigest()}"
-
-version, commit, *assets = sys.argv[1:]
-artifacts = []
-files = []
-
-with open("checksums.txt", "w", encoding="utf-8") as f:
-    f.write("# schema=https://bukit.dev/schemas/release-bundle-checksums.v1.json\n")
-    f.write(f"# version={version}\n")
-    f.write(f"# commit={commit}\n")
-    f.write(f"# artifacts={len(assets)}\n")
-for asset_path in assets:
-    p = Path(asset_path)
-    data = p.read_bytes()
-    digest = hashlib.sha256(data).hexdigest()
-    prefixed_hash = f"sha256:{digest}"
-    name = p.name
-    size = p.stat().st_size
-
-    with open("checksums.txt", "a", encoding="utf-8") as f:
-        f.write(f"{digest}  {name}\n")
-
-    files.append({
-        "path": name,
-        "hash": prefixed_hash,
-        "size": size,
-    })
-
-    if name == "bukit-skills.zip":
-        rid = "skills"
-    else:
-        suffix = "-" + version + "-"
-        rid = name[len("bukit-" + version + "-"):]
-        if rid.endswith(".tar.gz"):
-            rid = rid[: -len(".tar.gz")]
-        elif rid.endswith(".zip"):
-            rid = rid[: -len(".zip")]
-
-    artifacts.append({
-        "rid": rid,
-        "file": name,
-        "sha256": prefixed_hash,
-    })
-
-artifacts.sort(key=lambda item: (item["rid"], item["file"]))
-
-manifest = {
-    "version": version,
-    "commit": commit,
-    "artifacts": artifacts,
-}
-
-with open("release-manifest.json", "w", encoding="utf-8") as f:
-    json.dump(manifest, f, indent=2, sort_keys=False)
-    f.write("\n")
-
-checksums = {
-    "schema": "https://bukit.dev/schemas/release-bundle-checksums.v1.json",
-    "schemaVersion": "1.0",
-    "fileCount": len(files),
-    "bundleHash": _bundle_hash(files),
-    "files": files,
-}
-
-with open("checksums.json", "w", encoding="utf-8") as f:
-    json.dump(checksums, f, indent=2, sort_keys=False)
-    f.write("\n")
-PY
+          bash scripts/release/prepare-release-assets.sh "$VERSION" "$COMMIT_SHA" "${ASSETS[@]}"
 
       - name: Validate release assets
         run: |

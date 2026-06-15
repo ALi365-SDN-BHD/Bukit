@@ -15,10 +15,35 @@
    - `docs/coverage-baselines.json`
    - `docs/coverage-baselines.json` 包含 `core/cli/importing/labs` 条目；`core`/`cli` 使用 `blocking: true + minimum`，`importing`/`labs` 使用 `blocking: false + baseline`
 
-## Release order（v1.0.2 起）
+## Release order（`v$RELEASE_VERSION` 起）
 
 1. Merge to main
 2. Wait for ci.yml completed success
 3. Confirm workflow evidence
-4. Create tag v1.0.2
+4. Create tag `v$RELEASE_VERSION`
 5. Release workflow runs
+6. 下载 release 资产后执行一致性复核（release-manifest/release-assets）：
+   ```bash
+   RELEASE_VERSION="<version>" # 例如 1.0.2
+   RELEASE_COMMIT="${GITHUB_SHA}"
+   bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" ./release-assets
+   ```
+
+示例（可直接复制）：
+
+```bash
+RELEASE_VERSION="1.0.2"
+RELEASE_COMMIT="${GITHUB_SHA}"
+bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" ./release-assets
+```
+
+## 版本复用模板（任意版本）
+
+```bash
+export RELEASE_VERSION="x.y.z"      # e.g. 1.0.3
+export RELEASE_COMMIT="<release_commit_sha>"
+bash scripts/release/verify-release-assets.sh \
+  "$RELEASE_VERSION" \
+  "$RELEASE_COMMIT" \
+  ./release-assets
+```

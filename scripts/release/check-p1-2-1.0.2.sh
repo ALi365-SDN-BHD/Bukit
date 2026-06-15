@@ -38,6 +38,6 @@ echo "==> Release artifact smoke"
 bash scripts/smoke/release-artifacts.sh "$abs_release_dir"
 
 echo "==> Release asset strict checks"
-bash scripts/checks/release-assets.sh "$abs_download_dir" "$release_version" "$release_commit"
+bash scripts/release/verify-release-assets.sh "$release_version" "$release_commit" "$abs_download_dir"
 
 echo "Check complete."
