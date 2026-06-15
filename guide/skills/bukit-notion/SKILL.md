@@ -45,18 +45,18 @@ content:
       notion:
         databaseId: "${NOTION_DATABASE_ID}"
         propertyMap:
-          title: Title
-          slug: Slug
-          type: Type
-          publishAt: PublishAt
-          language: Language
-          i18nKey: I18nKey
-          summary: Summary
-          collection: Collection
-          seoTitle: SeoTitle
-          seoDescription: SeoDescription
-          seoImage: SeoImage
-          canonical: Canonical
+          Title: Title
+          Slug: Slug
+          Type: Type
+          PublishAt: PublishAt
+          Language: Language
+          I18nKey: I18nKey
+          Summary: Summary
+          Collection: Collection
+          SeoTitle: SeoTitle
+          SeoDescription: SeoDescription
+          SeoImage: SeoImage
+          Canonical: Canonical
 ```
 
 ## Filters and Cache

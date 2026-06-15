@@ -26,6 +26,15 @@ bash scripts/checks/skills-python-deps.sh
 echo "=== checks: skills strict validation ==="
 bash guide/skills/scripts/validate-skills-strict.sh
 
+echo "=== checks: release assets fixture ==="
+bash scripts/release/test-release-assets-fixture.sh
+
+echo "=== checks: workflow evidence fixture ==="
+bash scripts/checks/ci-workflow-evidence-fixtures.sh
+
+echo "=== checks: release artifact smoke contract ==="
+bash scripts/checks/release-artifact-smoke-contract.sh
+
 echo "=== restore ==="
 dotnet restore bukit.slnx
 
@@ -46,5 +55,8 @@ dotnet format bukit.slnx --verify-no-changes --no-restore
 
 echo "=== docs consistency ==="
 bash scripts/checks/docs-consistency.sh
+
+echo "=== README sync ==="
+bash scripts/checks/readme-sync.sh
 
 echo "CI fast gate OK"

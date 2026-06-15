@@ -35,7 +35,7 @@ public static class DevCommand
         var logger = new ConsoleLogger(LogLevel.Info);
         if (IsLanExposureHost(host))
         {
-            if (!allowLan)
+            if (ShouldRefuseLanExposure(host, allowLan))
             {
                 logger.Error("bukit dev refused to bind a non-loopback host. Use --allow-lan to expose the development server to your LAN.");
                 return 2;
@@ -79,7 +79,7 @@ public static class DevCommand
         var watchedDirs = ResolveWatchDirs(rootDir, config);
         var excludedDirs = ResolveExcludedWatchDirs(rootDir, outputDir, cacheDir);
         DevFileWatcher? watcher = null;
-        if (!noWatch && watchedDirs.Count > 0)
+        if (ShouldStartWatcher(noWatch, watchedDirs.Count))
         {
             watcher = new DevFileWatcher(watchedDirs, rootDir, logger,
                 async (_, rebuildCt) =>
@@ -180,4 +180,10 @@ public static class DevCommand
 
     internal static bool IsLanExposureHost(string host)
         => !DevWebSocketAccessPolicy.IsLoopbackHost(host);
+
+    internal static bool ShouldRefuseLanExposure(string host, bool allowLan)
+        => IsLanExposureHost(host) && !allowLan;
+
+    internal static bool ShouldStartWatcher(bool noWatch, int watchedDirsCount)
+        => !noWatch && watchedDirsCount > 0;
 }

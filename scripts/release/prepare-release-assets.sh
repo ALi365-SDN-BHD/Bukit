@@ -116,6 +116,8 @@ checksums = {
 }
 
 manifest = {
+    "schema": "https://bukit.dev/schemas/release-manifest.v1.json",
+    "schemaVersion": "1.0",
     "version": version,
     "commit": commit,
     "bundleHash": checksums["bundleHash"],

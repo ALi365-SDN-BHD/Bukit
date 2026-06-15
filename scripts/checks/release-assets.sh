@@ -60,6 +60,15 @@ import re
 import sys
 from pathlib import Path
 
+
+def compute_bundle_hash(items):
+    hasher = hashlib.sha256()
+    for item in sorted(items, key=lambda entry: entry["path"]):
+        line = f"{item['path']}|{item['hash']}|{item['size']}\n"
+        hasher.update(line.encode("utf-8"))
+    return f"sha256:{hasher.hexdigest()}"
+
+
 asset_dir = Path(sys.argv[1])
 version = sys.argv[2]
 expected_commit = sys.argv[3] or None
@@ -104,11 +113,23 @@ for hdr in ("version", "commit", "artifacts"):
 if headers["version"] != version:
     raise SystemExit(f"ERROR: checksums.txt version {headers['version']} != expected {version}")
 
+if expected_commit and headers["commit"] != expected_commit:
+    raise SystemExit(f"ERROR: checksums.txt commit {headers['commit']} != expected {expected_commit}")
+
+try:
+    checksums_txt_artifact_count = int(headers["artifacts"])
+except ValueError:
+    raise SystemExit("ERROR: checksums.txt #artifacts header must be an integer")
+
 required_file_set = set(required_files)
 
 checksum_filenames = [filename for filename, _ in checksum_lines]
 if len(checksum_filenames) != len(set(checksum_filenames)):
     raise SystemExit("ERROR: checksums.txt contains duplicate file entries")
+if checksums_txt_artifact_count != len(checksum_lines):
+    raise SystemExit("ERROR: checksums.txt #artifacts header does not match checksum line count")
+if checksums_txt_artifact_count != len(required_file_set):
+    raise SystemExit("ERROR: checksums.txt #artifacts header must match required artifact count")
 
 if set(checksum_filenames) != required_file_set:
     missing = ", ".join(sorted(required_file_set - set(checksum_filenames)))
@@ -174,6 +195,10 @@ if set(file_entries) != required_file_set:
 
 # Parse manifest
 manifest = json.loads(manifest_json.read_text(encoding="utf-8"))
+if manifest.get("schema") != "https://bukit.dev/schemas/release-manifest.v1.json":
+    raise SystemExit("ERROR: manifest schema mismatch")
+if manifest.get("schemaVersion") != "1.0":
+    raise SystemExit("ERROR: manifest schemaVersion must be 1.0")
 if manifest.get("version") != version:
     raise SystemExit(f"ERROR: manifest.version {manifest.get('version')} != expected {version}")
 if manifest.get("bundleHash") != checksums_bundle_hash:
@@ -181,6 +206,8 @@ if manifest.get("bundleHash") != checksums_bundle_hash:
 
 if expected_commit and manifest.get("commit") != expected_commit:
     raise SystemExit(f"ERROR: manifest.commit {manifest.get('commit')} != expected {expected_commit}")
+if headers["commit"] != manifest.get("commit"):
+    raise SystemExit("ERROR: checksums.txt commit must match manifest.commit")
 
 artifacts = manifest.get("artifacts")
 if not isinstance(artifacts, list) or not artifacts:
@@ -204,6 +231,21 @@ expected_artifacts_by_rid = {
     "win-x64": f"bukit-{version}-win-x64.zip",
     "skills": "bukit-skills.zip",
 }
+
+artifact_rids = [
+    item.get("rid")
+    for item in artifacts
+    if isinstance(item, dict) and isinstance(item.get("rid"), str)
+]
+if set(artifact_rids) != expected_rids:
+    missing = ", ".join(sorted(expected_rids - set(artifact_rids)))
+    extra = ", ".join(sorted(set(artifact_rids) - expected_rids))
+    detail = []
+    if missing:
+        detail.append(f"missing={missing}")
+    if extra:
+        detail.append(f"extra={extra}")
+    raise SystemExit(f"ERROR: manifest rid set mismatch: {', '.join(detail)}")
 
 seen_rids = set()
 seen_files = set()
@@ -248,15 +290,8 @@ for item in artifacts:
     if filename not in checksum_map:
         raise SystemExit(f"ERROR: manifest file missing in checksums.json: {filename}")
 
-if seen_rids != expected_rids:
-    missing = ", ".join(sorted(expected_rids - seen_rids))
-    extra = ", ".join(sorted(seen_rids - expected_rids))
-    detail = []
-    if missing:
-        detail.append(f"missing={missing}")
-    if extra:
-        detail.append(f"extra={extra}")
-    raise SystemExit(f"ERROR: manifest rid set mismatch: {', '.join(detail)}")
+    if sha != checksum_map[filename].get("hash"):
+        raise SystemExit(f"ERROR: manifest sha mismatch: {filename}")
 
 if seen_files != required_file_set:
     missing = ", ".join(sorted(required_file_set - seen_files))
@@ -291,6 +326,10 @@ for filename, expected in checksum_lines:
 
     if expected_obj.get("size") != len(data):
         raise SystemExit(f"ERROR: checksums.json size mismatch: {filename}")
+
+computed_bundle_hash = compute_bundle_hash(files)
+if checksums_bundle_hash != computed_bundle_hash:
+    raise SystemExit("ERROR: checksums.json bundleHash mismatch")
 
 for required in required_files:
     if not any(item[0] == required for item in checksum_lines):

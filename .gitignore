@@ -56,3 +56,4 @@ examples/starter/.sitegen-smoke-ai-*.yaml
 /content/
 silkroad-biz-migration.tar.gz
 /import-test/
+tests/fixtures/

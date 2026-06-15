@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/release-manifest.v1.json",
+  "title": "Bukit Release Manifest",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "version", "commit", "bundleHash", "artifacts"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/release-manifest.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "bundleHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        { "$ref": "#/$defs/linuxX64Artifact" },
+        { "$ref": "#/$defs/osxArm64Artifact" },
+        { "$ref": "#/$defs/skillsArtifact" },
+        { "$ref": "#/$defs/winX64Artifact" }
+      ],
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/linuxX64Artifact" },
+          { "$ref": "#/$defs/osxArm64Artifact" },
+          { "$ref": "#/$defs/winX64Artifact" },
+          { "$ref": "#/$defs/skillsArtifact" }
+        ]
+      },
+      "allOf": [
+        {
+          "contains": { "$ref": "#/$defs/linuxX64Artifact" },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": { "$ref": "#/$defs/osxArm64Artifact" },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": { "$ref": "#/$defs/winX64Artifact" },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": { "$ref": "#/$defs/skillsArtifact" },
+          "minContains": 1,
+          "maxContains": 1
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "artifactBase": {
+      "type": "object",
+      "required": ["rid", "file", "sha256"],
+      "properties": {
+        "rid": { "type": "string" },
+        "file": { "type": "string" },
+        "sha256": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "linuxX64Artifact": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactBase" },
+        {
+          "properties": {
+            "rid": { "const": "linux-x64" },
+            "file": { "pattern": "^bukit-[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?-linux-x64\\.tar\\.gz$" }
+          }
+        }
+      ]
+    },
+    "osxArm64Artifact": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactBase" },
+        {
+          "properties": {
+            "rid": { "const": "osx-arm64" },
+            "file": { "pattern": "^bukit-[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?-osx-arm64\\.tar\\.gz$" }
+          }
+        }
+      ]
+    },
+    "winX64Artifact": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactBase" },
+        {
+          "properties": {
+            "rid": { "const": "win-x64" },
+            "file": { "pattern": "^bukit-[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?-win-x64\\.zip$" }
+          }
+        }
+      ]
+    },
+    "skillsArtifact": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactBase" },
+        {
+          "properties": {
+            "rid": { "const": "skills" },
+            "file": { "const": "bukit-skills.zip" }
+          }
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

@@ -15,21 +15,27 @@ coverage_baseline_value() {
     return
   fi
 
-  awk -v module="$module" -v key="$key" '
-    in_module == 0 && $0 ~ ("^[[:space:]]*\"" module "\"[[:space:]]*:[[:space:]]*\{") { in_module = 1; next }
-    in_module == 1 {
-      if ($0 ~ /^[[:space:]]*\}/) { in_module = 0; exit }
+  python3 - "$coverage_baseline_file" "$module" "$key" <<'PY'
+import json
+import sys
 
-      if (match($0, "\"" key "\"[[:space:]]*:[[:space:]]*([^,}]+)", m)) {
-        value = m[1]
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
-        gsub(/,$/, "", value)
-        gsub(/^\"|\"$/, "", value)
-        print value
-        exit
-      }
-    }
-  ' "$coverage_baseline_file"
+path, module, key = sys.argv[1:4]
+
+try:
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+except FileNotFoundError:
+    raise SystemExit(0)
+
+value = data.get(module, {}).get(key)
+if value is None:
+    raise SystemExit(0)
+
+if isinstance(value, bool):
+    print("true" if value else "false")
+else:
+    print(value)
+PY
 }
 
 is_blocking() {
