@@ -59,14 +59,49 @@ elif [ -n "${GH_TOKEN:-}" ]; then
 fi
 
 tmp_file="$(mktemp)"
-trap 'rm -f "$tmp_file"' EXIT
+tmp_curl_error="$(mktemp)"
+trap 'rm -f "$tmp_file" "$tmp_curl_error"' EXIT
 
 query_url="https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&per_page=100"
 if is_truthy_value "$require_success"; then
   query_url="https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&status=completed&per_page=100"
 fi
 
-curl -fsSL "${headers[@]}" "$query_url" > "$tmp_file"
+http_code="$(curl -sS -w "%{http_code}" -o "$tmp_file" "${headers[@]}" "$query_url" 2>"$tmp_curl_error" || true)"
+if [ -z "${http_code}" ]; then
+  http_code="000"
+fi
+
+if [ "${http_code}" != "200" ]; then
+  echo "workflow evidence check failed: GitHub API request returned HTTP ${http_code} for ${query_url}" >&2
+skip_auth_failure_local="${SKIP_AUTH_FAILURE_IN_LOCAL:-1}"
+if ([ "${http_code}" = "401" ] || [ "${http_code}" = "403" ]) && \
+   [ -z "${GITHUB_TOKEN:-}${GH_TOKEN:-}" ] && \
+   [ -z "${RUNNER_OS:-}" ] && \
+   is_truthy_value "${skip_auth_failure_local}"; then
+    echo "Skipping workflow evidence check: GitHub API authentication failed in local environment (no token)." >&2
+    echo "Set GITHUB_TOKEN/GH_TOKEN to run this check with full validation." >&2
+    exit 0
+  fi
+  if [ "${http_code}" = "401" ] || [ "${http_code}" = "403" ] && [ -z "${GITHUB_TOKEN:-}${GH_TOKEN:-}" ]; then
+    echo "Hint: this check usually requires an authenticated GitHub token with `actions: read` capability." >&2
+    echo "Set `GITHUB_TOKEN` (or `GH_TOKEN`) and rerun, or ensure runner permissions include `actions: read`." >&2
+  fi
+  if [ -n "${GITHUB_TOKEN:-}${GH_TOKEN:-}" ]; then
+    echo "Authorization header: present" >&2
+  else
+    echo "Authorization header: missing (unauthenticated request)" >&2
+  fi
+  if [ -s "$tmp_curl_error" ]; then
+    echo "curl error output:" >&2
+    sed -n '1,5p' "$tmp_curl_error" >&2
+  fi
+  if [ -s "$tmp_file" ]; then
+    echo "API response body:" >&2
+    sed -n '1,20p' "$tmp_file" >&2
+  fi
+  exit 22
+fi
 
 python3 "$repo_root/scripts/checks/ci-workflow-evidence-evaluate.py" \
   "$tmp_file" \
