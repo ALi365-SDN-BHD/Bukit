@@ -56,7 +56,11 @@ cleanup() {
 trap cleanup EXIT
 
 record_step "Binary startup" "$binary" version
-record_step "CLI help includes build command" bash -c "\"$binary\" --help | grep -q '^  build'"
+record_step "Version command returns version text" bash -c "\"$binary\" version | grep -Eq '[0-9]+\\.[0-9]+\\.[0-9]+'"
+record_step "CLI help includes core commands" bash -c "\"$binary\" --help | grep -qE '^  (build|config|doctor|deploy|dev|seo|geo|publish|version|clean)'"
+record_step "CLI help excludes non-Core command family" bash -c "! \"$binary\" --help | grep -Eq 'bukit[[:space:]]+(docs|intent|plugin|theme|import|clone|visual|webhook|data)([[:space:]]|$)|docs[[:space:]]+check|--allow-external-plugins'"
+record_step "CLI dev help includes LiveReload wording" bash -c "\"$binary\" dev --help | grep -q 'LiveReload'"
+record_step "CLI dev help excludes HMR wording" bash -c "! \"$binary\" dev --help | grep -q 'HMR'"
 
 schema_path="$fixture/$smoke_root/site.schema.json"
 mkdir -p "$(dirname "$schema_path")"
@@ -65,6 +69,7 @@ record_step "Validate schema file exists" test -s "$schema_path"
 record_step "Validate schema JSON format" python3 -m json.tool "$schema_path"
 record_step "Config check fixture site" "$binary" config check --config "$fixture/site.yaml" --site-url https://example.com
 record_step "Doctor check fixture site" "$binary" doctor --config "$fixture/site.yaml" --site-url https://example.com
+record_step "Deploy dry-run fixture site" "$binary" deploy --dry-run --skip-build --config "$fixture/site.yaml"
 
 output="$smoke_root/dist"
 cache="$smoke_root/cache"

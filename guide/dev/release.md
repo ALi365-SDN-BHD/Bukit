@@ -5,6 +5,8 @@ with the Core 1.0 contract.
 
 ## Pre-Release Checks
 
+Before any repository release tagging, complete: [Release Precheck Template](../release/release-prerelease-template.md).
+
 ```bash
 dotnet test tests/Bukit.Architecture.Tests
 dotnet test tests/Bukit.Config.Tests
@@ -49,4 +51,3 @@ Release notes should clearly state:
 - theme docs that imply site-level remote source support;
 - release workflow examples that confuse Bukit CLI release with user site
   deployment.
-

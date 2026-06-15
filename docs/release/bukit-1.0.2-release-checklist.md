@@ -5,11 +5,23 @@
 1.0.2 发布前必须基于真实 CI 绿灯证据（GitHub Actions workflow run completed success）。
 以下条目全部满足后，release 才允许继续。
 
+## 发布操作模板（维护者）
+
+- 先执行统一模板： [Release Precheck Template](release-prerelease-template.md)
+
+## Release order（v1.0.2）
+
+1. Merge to main
+2. Wait for ci.yml completed success
+3. Confirm workflow evidence
+4. Create tag v1.0.2
+5. Release workflow runs
+
 ## 1.0.2 Release Hard Gate
 
 | # | 条目 | 证据文件 | 位置 | 通过标准 |
 |---|---|---|---|---|
-| P0 | ci.yml completed success evidence | `ci-workflow-evidence.json` | `TestResults/release-gate/ci-workflow-evidence.json` | `workflow_runs` 必须包含至少 1 条 status=`completed` 且 conclusion=`success` 的 `ci.yml` 记录（针对同一 commit SHA）。 |
+| P0 | ci.yml completed success evidence | `ci-workflow-evidence.json` | `TestResults/release-gate/ci-workflow-evidence.json` | `workflow_runs` 必须包含至少 1 条 status=`completed` 且 conclusion=`success` 的 `ci.yml` 记录（针对同一 commit SHA，且 `head_branch` 在 `main,master`）。 |
 | P0 | Evidence Markdown | `rc-gate-evidence.md` | `TestResults/release-gate/rc-gate-evidence.md` | 文件存在且非空。 |
 | P0 | release artifact smoke report | `release-artifact-smoke.md` | `TestResults/release-gate/native-aot/linux-x64/release-artifact-smoke.md`（release-gate 产物） | 文件存在且包含步骤记录（至少 1 个 `PASS` 条目）。 |
 | P1 | config schema artifact | `site.schema.json` | `TestResults/release-gate/site.schema.json` | 文件存在且为有效 JSON（可解析）。 |
@@ -24,6 +36,7 @@
 ## 发版前最终验收（人工核对）
 
 - GitHub Actions `release` 的 `release-gate` job 通过。
+- 该 commit 在 `main` 或 `master` 分支上存在至少一条 `ci.yml` 的 `completed + success` 运行记录（依据 `head_branch`）。
 - 在 release artifact 下载包中能看到以下文件/目录：
   - `TestResults/release-gate/ci-workflow-evidence.json`
   - `TestResults/release-gate/rc-gate-evidence.md`
@@ -84,7 +97,35 @@
      - `set_mode=exact-match`
    - 自动验收断言：`set_mode` 必须为 `exact-match`，否则不通过。
    - Workflow Step Summary 中应出现 `Release asset strict check`，并包含完整检查日志（含 `set_mode=exact-match`）
-   - 在 CI 证据路径应看到：`TestResults/release-assets/release-assets-check.md`
+ - 在 CI 证据路径应看到：`TestResults/release-assets/release-assets-check.md`
+
+## P1-3：release artifact smoke 增强验收（待确认）
+
+在 `TestResults/release-gate/native-aot/<rid>/release-artifact-smoke.md`（或对应 publish-dir）中要求新增步骤项：
+
+- help text
+- version text
+- schema
+- build
+- quality audits（seo / geo / publish）
+- deploy dry-run
+- LiveReload wording（`bukit dev --help`）
+- non-Core command absence（help 中不得出现 Core 外命令）
+
+验收命令（脚本层）：
+
+```bash
+bash scripts/smoke/release-artifacts.sh TestResults/release-gate/native-aot/linux-x64
+```
+
+人工核对时应同时确认报告中至少包含以下 PASS 项：
+
+- `Version command returns version text`
+- `CLI help includes core commands`
+- `CLI help excludes non-Core command family`
+- `CLI dev help includes LiveReload wording`
+- `CLI dev help excludes HMR wording`
+- `Deploy dry-run fixture site`
 
 ### 快速验证命令（可执行）
 

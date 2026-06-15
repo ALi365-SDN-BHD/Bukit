@@ -234,6 +234,7 @@ Contributions are welcome. See:
 - [`guide/dev/README.md`](guide/dev/README.md)
 - [`guide/dev/testing.md`](guide/dev/testing.md)
 - [`guide/dev/documentation-governance.md`](guide/dev/documentation-governance.md)
+- If you are preparing a release tag, run the repository precheck first: [`release-prerelease-template`](docs/release/release-prerelease-template.md)
 
 ## License
 

@@ -24,9 +24,13 @@ Preview features such as `import html-demo`, `import seed`, Notion push, and dem
 
 | Check | Status |
 | :---- | :----- |
-| `actions/workflows/ci.yml` runs for target commit (`workflow_runs`) | ❌ BLOCKED (`workflow_runs` currently empty for last snapshot) |
-| Release gate precondition (completed success run required) | ❌ BLOCKED |
+| `actions/workflows/ci.yml` runs for target commit (`workflow_runs`) on main/master (`head_branch`) | ❌ BLOCKED (`workflow_runs` currently empty for last snapshot) |
+| Release gate precondition (completed success run on main/master required) | ❌ BLOCKED |
 | Evidence output file required | `TestResults/release-gate/ci-workflow-evidence.json` (required), `TestResults/release-gate/rc-gate-evidence.md` (for reviewer-visible proof) |
+
+## 发布操作模板（维护者）
+
+- 先执行统一模板： [Release Precheck Template](release-prerelease-template.md)
 
 ## Repository Hygiene
 
@@ -42,4 +46,4 @@ Preview features such as `import html-demo`, `import seed`, Notion push, and dem
 
 Bukit 1.0.0 Core is **not ready** for RC1.
 
-Reason: 无法建立真实 CI 绿灯证据前，不能把静态检查通过等同于 RC 通过。
+Reason: 无法建立 `main/master` 分支上真实 CI 绿灯证据前，不能把静态检查通过等同于 RC 通过。

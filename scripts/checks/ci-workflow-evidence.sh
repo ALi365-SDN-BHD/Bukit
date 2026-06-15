@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -11,12 +10,14 @@ workflow="${3:-ci.yml}"
 output="${4:-TestResults/release-gate/ci-workflow-evidence.json}"
 require_success="${5:-1}"
 report="${6:-}"
+required_branches="${7:-${RELEASE_GATE_REQUIRED_BRANCHES:-}}"
 
 if [ -z "${repo}" ] || [ -z "${sha}" ]; then
-  echo "Usage: $0 <repo> <sha> [workflow-file] [output-json] [require-success] [report-md]" >&2
-  echo "Example: $0 ALi365-SDN-BHD/Bukit <commit-sha> ci.yml TestResults/release-gate/ci-workflow-evidence.json 1 TestResults/release-gate/rc-gate-evidence.md" >&2
+  echo "Usage: $0 <repo> <sha> [workflow-file] [output-json] [require-success] [report-md] [required-branches]" >&2
+  echo "Example: $0 ALi365-SDN-BHD/Bukit <commit-sha> ci.yml TestResults/release-gate/ci-workflow-evidence.json 1 TestResults/release-gate/rc-gate-evidence.md main,master" >&2
   echo "Options: [require-success: 1|0] default 1" >&2
   echo "        [report-md]: optional markdown report output path" >&2
+  echo "        [required-branches]: comma/space-separated branch names (defaults to \$RELEASE_GATE_REQUIRED_BRANCHES)" >&2
   exit 2
 fi
 
@@ -57,19 +58,34 @@ fi
 
 curl -fsSL "${headers[@]}" "$query_url" > "$tmp_file"
 
-python3 - "$tmp_file" "$output" "$repo" "$sha" "$workflow" "$require_success" "$query_url" "$report" <<'PY'
+python3 - "$tmp_file" "$output" "$repo" "$sha" "$workflow" "$require_success" "$query_url" "$report" "$required_branches" <<'PY'
 import json
 import sys
 
-input_path, output_path, repo, sha, workflow, require_success, query_url, report_path = sys.argv[1:9]
+input_path, output_path, repo, sha, workflow, require_success, query_url, report_path, required_branches = sys.argv[1:10]
+required_branches = (required_branches or "").strip()
 
 with open(input_path, "r", encoding="utf-8") as handle:
     payload = json.load(handle)
 
+required_branch_set = {
+    branch.strip()
+    for branch in (required_branches.replace(" ", ",") or "").split(",")
+    if branch.strip()
+}
+
 runs = payload.get("workflow_runs", [])
+
+
+def _is_required_branch_run(run):
+    if not required_branch_set:
+        return True
+    return run.get("head_branch") in required_branch_set
+
+
 successful_runs = [
     run for run in runs
-    if run.get("status") == "completed" and run.get("conclusion") == "success"
+    if run.get("status") == "completed" and run.get("conclusion") == "success" and _is_required_branch_run(run)
 ]
 
 latest = [
@@ -78,6 +94,7 @@ latest = [
         "name": run.get("name"),
         "status": run.get("status"),
         "conclusion": run.get("conclusion"),
+        "head_branch": run.get("head_branch"),
         "html_url": run.get("html_url"),
         "run_started_at": run.get("run_started_at"),
         "updated_at": run.get("updated_at"),
@@ -86,6 +103,8 @@ latest = [
 ]
 
 require_success_value = str(require_success).lower() not in {"0", "false", "no", "off"}
+required_branches_sorted = sorted(required_branch_set)
+required_branch_text = ", ".join(required_branches_sorted) if required_branches_sorted else "any branch"
 
 report = {
     "repo": repo,
@@ -93,6 +112,7 @@ report = {
     "workflow_file": workflow,
     "query_url": query_url,
     "require_success": bool(require_success_value),
+    "required_branches": required_branches_sorted,
     "total_runs": len(runs),
     "successful_runs": len(successful_runs),
     "runs": latest,
@@ -123,10 +143,18 @@ print(f"Evidence file written to: {output_path}")
 if report_path:
     rc_pass = bool(successful_runs) if require_success_value else bool(runs)
     status = "PASS" if rc_pass else "BLOCKED"
-    mode = "require completed-success workflow run" if require_success_value else "require any workflow run"
+    mode = (
+        f"require completed-success workflow run on branch(es): {required_branch_text}"
+        if require_success_value and required_branches_sorted
+        else "require completed-success workflow run"
+        if require_success_value
+        else "require any workflow run"
+    )
     reason = (
         "Found completed successful run(s)."
         if rc_pass
+        else f"No completed successful run(s) on required branch(es): {required_branch_text}."
+        if require_success_value and required_branches_sorted
         else "No completed successful run(s)."
         if require_success_value
         else "No workflow run found."
@@ -148,13 +176,13 @@ if report_path:
         "",
         "## Recent Runs",
         "",
-        "| id | name | status | conclusion | url |",
-        "| -- | ---- | ------ | ---------- | --- |",
+        "| id | name | status | conclusion | branch | url |",
+        "| -- | ---- | ------ | ---------- | ------ | --- |",
     ]
 
     for run in latest:
         lines.append(
-            f"| {run.get('id')} | {run.get('name')} | {run.get('status')} | {run.get('conclusion')} | {run.get('html_url')} |"
+            f"| {run.get('id')} | {run.get('name')} | {run.get('status')} | {run.get('conclusion')} | {run.get('head_branch') or '-'} | {run.get('html_url')} |"
         )
 
     lines.extend(
@@ -172,12 +200,13 @@ if report_path:
 if require_success_value and not successful_runs:
     latest_runs = ", ".join(str(run.get("id")) for run in runs[:5]) or "(none)"
     print(
-        "workflow evidence check failed: commit has no completed successful workflow runs.",
+        f"workflow evidence check failed: commit has no completed successful workflow runs on required branch(es): {required_branch_text}.",
         file=sys.stderr,
     )
     print(f"repo: {repo}", file=sys.stderr)
     print(f"sha: {sha}", file=sys.stderr)
     print(f"workflow: {workflow}", file=sys.stderr)
+    print(f"required branches: {required_branch_text}", file=sys.stderr)
     print(f"latest run ids: {latest_runs}", file=sys.stderr)
     print("Evidence file has been written to:", output_path, file=sys.stderr)
     if report_path:
@@ -198,3 +227,4 @@ if (not require_success_value) and not runs:
     if report_path:
         print("Markdown report has been written to:", report_path, file=sys.stderr)
     sys.exit(1)
+PY

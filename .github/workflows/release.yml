@@ -22,6 +22,7 @@ jobs:
       CORE_COVERAGE_THRESHOLD: "65"
       CLI_COVERAGE_THRESHOLD: "50"
       RELEASE_GATE_RIDS: linux-x64
+      RELEASE_GATE_REQUIRED_BRANCHES: "main,master"
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
