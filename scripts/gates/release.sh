@@ -31,7 +31,10 @@ python3 -m json.tool "$artifact_dir/site.schema.json" >/dev/null
 
 echo "=== release: Native AOT artifacts ==="
 for rid in $rid_list; do
-  CONFIGURATION="$configuration" bash scripts/build/native-aot.sh "$rid" "$artifact_dir/native-aot/$rid" "$artifact_dir/native-aot/$rid.log"
+  out_dir="$artifact_dir/native-aot/$rid"
+  rm -rf "$out_dir"
+  mkdir -p "$out_dir"
+  CONFIGURATION="$configuration" bash scripts/build/native-aot.sh "$rid" "$out_dir" "$artifact_dir/native-aot/$rid.log"
   bash scripts/smoke/release-artifacts.sh "$artifact_dir/native-aot/$rid"
 done
 

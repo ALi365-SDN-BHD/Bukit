@@ -63,7 +63,7 @@ def infer_rid(name: str, version: str) -> str:
 def bundle_hash(items):
     hasher = hashlib.sha256()
     for item in items:
-        line = f"{item['path']}|{item['hash']}|{item['size']}\\n"
+        line = f"{item['path']}|{item['hash']}|{item['size']}\n"
         hasher.update(line.encode("utf-8"))
     return f"sha256:{hasher.hexdigest()}"
 
@@ -74,10 +74,10 @@ artifacts = []
 files = []
 
 with open("checksums.txt", "w", encoding="utf-8") as f:
-    f.write("# schema=https://bukit.dev/schemas/release-bundle-checksums.v1.json\\n")
-    f.write(f"# version={version}\\n")
-    f.write(f"# commit={commit}\\n")
-    f.write(f"# artifacts={len(asset_names)}\\n")
+    f.write("# schema=https://bukit.dev/schemas/release-bundle-checksums.v1.json\n")
+    f.write(f"# version={version}\n")
+    f.write(f"# commit={commit}\n")
+    f.write(f"# artifacts={len(asset_names)}\n")
 
 for asset_name in asset_names:
     p = Path(asset_name)
@@ -86,7 +86,7 @@ for asset_name in asset_names:
     prefixed_hash = f"sha256:{digest}"
 
     with open("checksums.txt", "a", encoding="utf-8") as f:
-        f.write(f"{digest}  {p.name}\\n")
+        f.write(f"{digest}  {p.name}\n")
 
     files.append(
         {
@@ -124,9 +124,9 @@ manifest = {
 
 with open("checksums.json", "w", encoding="utf-8") as f:
     json.dump(checksums, f, indent=2, sort_keys=False)
-    f.write("\\n")
+    f.write("\n")
 
 with open("release-manifest.json", "w", encoding="utf-8") as f:
     json.dump(manifest, f, indent=2, sort_keys=False)
-    f.write("\\n")
+    f.write("\n")
 PY
