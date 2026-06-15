@@ -1,0 +1,18 @@
+{
+  "core": {
+    "blocking": true,
+    "minimum": 80
+  },
+  "cli": {
+    "blocking": true,
+    "minimum": 75
+  },
+  "importing": {
+    "blocking": false,
+    "baseline": 39.70
+  },
+  "labs": {
+    "blocking": false,
+    "baseline": 62.96
+  }
+}

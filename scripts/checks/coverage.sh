@@ -5,13 +5,123 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
 
 configuration="${1:-Release}"
+coverage_baseline_file="${COVERAGE_BASELINE_FILE:-${repo_root}/docs/coverage-baselines.json}"
+
+coverage_baseline_value() {
+  local module="$1"
+  local key="$2"
+
+  if [ ! -f "$coverage_baseline_file" ]; then
+    return
+  fi
+
+  awk -v module="$module" -v key="$key" '
+    in_module == 0 && $0 ~ ("^[[:space:]]*\"" module "\"[[:space:]]*:[[:space:]]*\{") { in_module = 1; next }
+    in_module == 1 {
+      if ($0 ~ /^[[:space:]]*\}/) { in_module = 0; exit }
+
+      if (match($0, "\"" key "\"[[:space:]]*:[[:space:]]*([^,}]+)", m)) {
+        value = m[1]
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        gsub(/,$/, "", value)
+        gsub(/^\"|\"$/, "", value)
+        print value
+        exit
+      }
+    }
+  ' "$coverage_baseline_file"
+}
+
+is_blocking() {
+  local module="$1"
+  local default_value="${2:-true}"
+  local value
+
+  value="$(coverage_baseline_value "$module" blocking)"
+  if [ -z "$value" ]; then
+    echo "$default_value"
+    return
+  fi
+
+  if [ "$value" = "false" ]; then
+    echo "false"
+    return
+  fi
+
+  echo "true"
+}
+
+coverage_threshold_or_default() {
+  local module="$1"
+  local env_value="$2"
+  local default_when_blocking="$3"
+  local blocking_default_value="${4:-true}"
+  local minimum_key="minimum"
+  local baseline_key="baseline"
+  local minimum_value="$(coverage_baseline_value "$module" "$minimum_key")"
+  local baseline_value="$(coverage_baseline_value "$module" "$baseline_key")"
+  local blocking
+
+  if [ -n "$env_value" ]; then
+    echo "$env_value"
+    return
+  fi
+
+  blocking="$(is_blocking "$module" "$blocking_default_value")"
+  if [ "$blocking" = "false" ]; then
+    echo ""
+    return
+  fi
+
+  if [ -n "$minimum_value" ]; then
+    echo "$minimum_value"
+    return
+  fi
+
+  if [ -n "$baseline_value" ] && [ "$module" != "core" ] && [ "$module" != "cli" ]; then
+    echo "$baseline_value"
+    return
+  fi
+
+  echo "$default_when_blocking"
+}
+
+coverage_baseline_or_default() {
+  local module="$1"
+  local fallback_key="${2:-minimum}"
+
+  local value="$(coverage_baseline_value "$module" "$fallback_key")"
+  if [ -n "$value" ]; then
+    echo "$value"
+    return
+  fi
+
+  if [ "$fallback_key" != "baseline" ]; then
+    coverage_baseline_value "$module" "baseline"
+    return
+  fi
+
+  echo ""
+}
+
+core_blocking="$(is_blocking core true)"
+cli_blocking="$(is_blocking cli true)"
+importing_blocking="$(is_blocking importing false)"
+labs_blocking="$(is_blocking labs false)"
+
 # Core and CLI stay on the blocking gate. Bukit.Importing and bukit-labs are
 # reported separately and only become blocking when their dedicated thresholds
 # are set.
-core_coverage_threshold="${CORE_COVERAGE_THRESHOLD:-${COVERAGE_THRESHOLD:-80}}"
-cli_coverage_threshold="${CLI_COVERAGE_THRESHOLD:-75}"
-importing_coverage_threshold="${IMPORTING_COVERAGE_THRESHOLD:-}"
-labs_coverage_threshold="${LABS_COVERAGE_THRESHOLD:-}"
+core_coverage_threshold="$(coverage_threshold_or_default core "${CORE_COVERAGE_THRESHOLD:-${COVERAGE_THRESHOLD:-}}" "80" "true")"
+cli_coverage_threshold="$(coverage_threshold_or_default cli "${CLI_COVERAGE_THRESHOLD:-}" "75" "true")"
+importing_coverage_threshold="$(coverage_threshold_or_default importing "${IMPORTING_COVERAGE_THRESHOLD:-}" "" "false")"
+labs_coverage_threshold="$(coverage_threshold_or_default labs "${LABS_COVERAGE_THRESHOLD:-}" "" "false")"
+
+core_coverage_baseline="$(coverage_baseline_or_default core minimum)"
+cli_coverage_baseline="$(coverage_baseline_or_default cli minimum)"
+importing_coverage_baseline="$(coverage_baseline_or_default importing baseline)"
+labs_coverage_baseline="$(coverage_baseline_or_default labs baseline)"
+
 coverage_root="${COVERAGE_ROOT:-TestResults/coverage}"
 coverage_report_dir="${COVERAGE_REPORT_DIR:-${coverage_root}/report}"
 core_coverage_report_dir="${CORE_COVERAGE_REPORT_DIR:-${coverage_report_dir}/core}"
@@ -133,9 +243,12 @@ print_coverage_status() {
   local label="$1"
   local coverage_percent="$2"
   local threshold="${3:-}"
+  local baseline="${4:-}"
 
   if [ -n "$threshold" ]; then
     echo "Coverage ${label}: ${coverage_percent}% (>= ${threshold}%)"
+  elif [ -n "$baseline" ]; then
+    echo "Coverage ${label}: ${coverage_percent}% (baseline ${baseline}%)"
   else
     echo "Coverage ${label}: ${coverage_percent}% (tracked only)"
   fi
@@ -153,10 +266,10 @@ importing_meets_threshold="$(coverage_meets_threshold "$importing_coverage_perce
 labs_meets_threshold="$(coverage_meets_threshold "$labs_coverage_percent" "$labs_coverage_threshold")"
 
 echo "Coverage overall: ${overall_coverage_percent}%"
-print_coverage_status "core" "$core_coverage_percent" "$core_coverage_threshold"
-print_coverage_status "cli" "$cli_coverage_percent" "$cli_coverage_threshold"
-print_coverage_status "importing" "$importing_coverage_percent" "$importing_coverage_threshold"
-print_coverage_status "labs" "$labs_coverage_percent" "$labs_coverage_threshold"
+print_coverage_status "core" "$core_coverage_percent" "$core_coverage_threshold" "$core_coverage_baseline"
+print_coverage_status "cli" "$cli_coverage_percent" "$cli_coverage_threshold" "$cli_coverage_baseline"
+print_coverage_status "importing" "$importing_coverage_percent" "$importing_coverage_threshold" "$importing_coverage_baseline"
+print_coverage_status "labs" "$labs_coverage_percent" "$labs_coverage_threshold" "$labs_coverage_baseline"
 
 mkdir -p "$(dirname "$coverage_summary_file")"
 {
@@ -165,6 +278,14 @@ mkdir -p "$(dirname "$coverage_summary_file")"
   printf "cli=%s\n" "$cli_coverage_percent"
   printf "importing=%s\n" "$importing_coverage_percent"
   printf "labs=%s\n" "$labs_coverage_percent"
+  printf "core_blocking=%s\n" "$core_blocking"
+  printf "cli_blocking=%s\n" "$cli_blocking"
+  printf "importing_blocking=%s\n" "$importing_blocking"
+  printf "labs_blocking=%s\n" "$labs_blocking"
+  printf "core_baseline=%s\n" "$core_coverage_baseline"
+  printf "cli_baseline=%s\n" "$cli_coverage_baseline"
+  printf "importing_baseline=%s\n" "$importing_coverage_baseline"
+  printf "labs_baseline=%s\n" "$labs_coverage_baseline"
   printf "core_threshold=%s\n" "$core_coverage_threshold"
   printf "cli_threshold=%s\n" "$cli_coverage_threshold"
   printf "importing_threshold=%s\n" "$importing_coverage_threshold"

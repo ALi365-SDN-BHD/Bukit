@@ -5,6 +5,29 @@
 1.0.2 发布前必须基于真实 CI 绿灯证据（GitHub Actions workflow run completed success）。
 以下条目全部满足后，release 才允许继续。
 
+## 本轮验收执行序列（快速）
+
+- `bash scripts/checks/ci-workflow-evidence.sh "$GITHUB_REPOSITORY" "$GITHUB_SHA" "ci.yml" TestResults/release-gate/ci-workflow-evidence.json 1 TestResults/release-gate/rc-gate-evidence.md main,master`
+- `python3 -m json.tool docs/coverage-baselines.json >/dev/null`
+- `dotnet test bukit.slnx`
+- `dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildException_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"`
+- `bash scripts/smoke/release-artifacts.sh TestResults/release-gate/native-aot/linux-x64`
+- `bash scripts/checks/release-assets.sh <下载目录> <发布版本> <发布 Commit>`
+
+## 一键验收脚本（可直接使用）
+
+```bash
+bash scripts/release/check-p1-2-1.0.2.sh
+```
+
+可选参数：`release_dir`、`release_version`、`release_commit`、`release_download_dir`
+
+示例：
+
+```bash
+bash scripts/release/check-p1-2-1.0.2.sh TestResults/release-gate/native-aot/linux-x64 1.0.2 "$GITHUB_SHA" ./release-assets
+```
+
 ## 发布操作模板（维护者）
 
 - 先执行统一模板： [Release Precheck Template](release-prerelease-template.md)
@@ -26,7 +49,17 @@
 | P0 | release artifact smoke report | `release-artifact-smoke.md` | `TestResults/release-gate/native-aot/linux-x64/release-artifact-smoke.md`（release-gate 产物） | 文件存在且包含步骤记录（至少 1 个 `PASS` 条目）。 |
 | P1 | config schema artifact | `site.schema.json` | `TestResults/release-gate/site.schema.json` | 文件存在且为有效 JSON（可解析）。 |
 | P1 | Coverage summary | `coverage-summary.txt` | `TestResults/release-gate/coverage-summary.txt` | 文件存在且包含覆盖率摘要字段。 |
+| P1 | Coverage baseline | `coverage-baselines.json` | `docs/coverage-baselines.json` | 文件存在且包含 `core`、`cli`、`importing`、`labs`。`core`/`cli` 要有 `blocking: true` + `minimum`；`importing`/`labs` 要有 `blocking: false` + `baseline`。 |
 | P1 | Native AOT 发布构建 | `linux-x64` native-aot 产物 | `TestResults/release-gate/native-aot/linux-x64/` | 目录存在并包含 release smoke 可追溯产物。 |
+
+## 覆盖率基线维护说明（1.0.2）
+
+- 基线文件：`docs/coverage-baselines.json`。
+- 修改策略：
+  - `core` 与 `cli` 使用 `blocking: true`，仅在覆盖率显著回退时下调 `minimum`。
+  - `importing` 与 `labs` 使用 `blocking: false` 与 `baseline`，用于观察趋势且不阻断 release。
+- 约束：不应将 `core/cli` 的 `blocking` 改为 `false`，不应将 `importing/labs` 的 `blocking` 改为 `true`，除非对应模块改为 release-blocking 约束并同步更新 CI 评估规则。
+- 更新后请确保 release checklist 的 P1 条目与 `TestResults/release-gate/coverage-summary.txt` 同步可读（`*_baseline` 与 `*_blocking` 字段应完整出现）。
 
 ## 阻断规则
 
@@ -42,6 +75,7 @@
   - `TestResults/release-gate/rc-gate-evidence.md`
   - `TestResults/release-gate/site.schema.json`
   - `TestResults/release-gate/coverage-summary.txt`
+  - `docs/coverage-baselines.json`
   - `TestResults/release-gate/native-aot/linux-x64/`
   - `TestResults/release-gate/native-aot/linux-x64/release-artifact-smoke.md`
 
@@ -111,6 +145,7 @@
 - deploy dry-run
 - LiveReload wording（`bukit dev --help`）
 - non-Core command absence（help 中不得出现 Core 外命令）
+- Dev 重建回归测试（`DevFileWatcher_RebuildException_DoesNotDisposeWatcher`、`DevFileWatcher_RapidChanges_DebouncedToSingleRebuild`、`DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket`）
 
 验收命令（脚本层）：
 
@@ -126,6 +161,22 @@ bash scripts/smoke/release-artifacts.sh TestResults/release-gate/native-aot/linu
 - `CLI dev help includes LiveReload wording`
 - `CLI dev help excludes HMR wording`
 - `Deploy dry-run fixture site`
+- `Dev server rebuild regression tests`
+
+对应执行命令（含 release artifact + release-level 统一复核）：
+
+```bash
+bash scripts/smoke/release-artifacts.sh TestResults/release-gate/native-aot/linux-x64
+```
+
+## P2-2：dev 服务器回归测试补充（本轮建议）
+
+- 新增 `tests/Bukit.Cli.Tests/DevCommandTests.cs` 回归项（已落盘）：
+  - `DevFileWatcher_RebuildException_DoesNotDisposeWatcher`
+  - `DevFileWatcher_RapidChanges_DebouncedToSingleRebuild`
+  - `DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket`
+- 本地验收命令（建议）：
+  - `dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildException_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"`
 
 ### 快速验证命令（可执行）
 

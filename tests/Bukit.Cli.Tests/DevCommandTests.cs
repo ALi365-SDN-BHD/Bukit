@@ -110,6 +110,87 @@ public sealed class DevCommandTests
     }
 
     [Fact]
+    public async Task DevFileWatcher_RebuildException_DoesNotDisposeWatcher()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-dev-rebuild-error-" + Guid.NewGuid().ToString("N"));
+        var watchDir = Path.Combine(root, "watch");
+        Directory.CreateDirectory(watchDir);
+        File.WriteAllText(Path.Combine(watchDir, "page.md"), "initial");
+
+        try
+        {
+            var watchedFile = Path.Combine(watchDir, "page.md");
+            var rebuildAttempts = 0;
+            using var logger = new BufferingLogger();
+            using var watcher = new DevFileWatcher(
+                new[] { watchDir },
+                root,
+                logger,
+                (_, _) =>
+                {
+                    var attempt = Interlocked.Increment(ref rebuildAttempts);
+                    if (attempt == 1)
+                    {
+                        return Task.FromException(new InvalidOperationException("simulated rebuild failure"));
+                    }
+
+                    return Task.CompletedTask;
+                },
+                debounceMs: 25);
+
+            watcher.Start(CancellationToken.None);
+
+            await InvokeScheduleRebuildAsync(watcher, watchedFile);
+            await InvokeScheduleRebuildAsync(watcher, watchedFile);
+
+            Assert.Equal(2, rebuildAttempts);
+            Assert.Contains(logger.Errors, error => error.Contains("dev.rebuild.error", StringComparison.Ordinal));
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public async Task DevFileWatcher_RapidChanges_DebouncedToSingleRebuild()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-dev-rebuild-debounce-" + Guid.NewGuid().ToString("N"));
+        var watchDir = Path.Combine(root, "watch");
+        Directory.CreateDirectory(watchDir);
+        var watchedFile = Path.Combine(watchDir, "page.md");
+
+        try
+        {
+            var rebuildCount = 0;
+            using var watcher = new DevFileWatcher(
+                new[] { watchDir },
+                root,
+                new BufferingLogger(),
+                (_, _) =>
+                {
+                    Interlocked.Increment(ref rebuildCount);
+                    return Task.CompletedTask;
+                },
+                debounceMs: 25);
+
+            watcher.Start(CancellationToken.None);
+
+            var tasks = Enumerable
+                .Range(0, 12)
+                .Select(_ => InvokeScheduleRebuildAsync(watcher, watchedFile))
+                .ToArray();
+
+            await Task.WhenAll(tasks);
+            Assert.Equal(1, rebuildCount);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root);
+        }
+    }
+
+    [Fact]
     public void WebSocketPolicy_RequiresHostAndOriginSameOrigin()
     {
         var policy = new DevWebSocketAccessPolicy("localhost", 35729, allowLan: false);
@@ -194,6 +275,20 @@ public sealed class DevCommandTests
         Assert.Contains("const port = location.port ? ':' + location.port : '';", html, StringComparison.Ordinal);
         Assert.DoesNotContain(".split(':')", html, StringComparison.Ordinal);
         Assert.DoesNotContain("'ws://'+", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket()
+    {
+        var html = DevRequestHandler.InjectLivereload("<html><head></head><body></body></html>");
+
+        Assert.Contains("const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';", html, StringComparison.Ordinal);
+        Assert.Contains("const host = location.hostname || 'localhost';", html, StringComparison.Ordinal);
+        Assert.Contains("const socketHost = host.indexOf(':') >= 0 ? '[' + host + ']' : host;", html, StringComparison.Ordinal);
+        Assert.Contains("const port = location.port ? ':' + location.port : '';", html, StringComparison.Ordinal);
+        Assert.Contains("var s=new WebSocket(protocol+socketHost+port+'/__ws__');", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("ws://localhost", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("'ws://' +", html, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -371,6 +466,16 @@ public sealed class DevCommandTests
         return (response.StatusCode, body);
     }
 
+    private static Task InvokeScheduleRebuildAsync(DevFileWatcher watcher, string file)
+    {
+        var method = typeof(DevFileWatcher).GetMethod(
+            "ScheduleRebuildAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        var task = (Task)method!.Invoke(watcher, [file])!;
+        return task;
+    }
+
     private static HttpListener StartListener(out string prefix, out int port)
     {
         using var tcp = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
@@ -396,11 +501,12 @@ public sealed class DevCommandTests
     private sealed class BufferingLogger : ILogger, IDisposable
     {
         public List<string> Warnings { get; } = [];
+        public List<string> Errors { get; } = [];
 
         public void Debug(string message) { }
         public void Info(string message) { }
         public void Warn(string message) => Warnings.Add(message);
-        public void Error(string message) { }
+        public void Error(string message) => Errors.Add(message);
 
         public void Dispose()
         {

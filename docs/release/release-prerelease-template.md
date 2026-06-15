@@ -11,6 +11,9 @@
 4. 触发/等待 release，确认 `release-gate` 产物中包含：
    - `TestResults/release-gate/ci-workflow-evidence.json`
    - `TestResults/release-gate/rc-gate-evidence.md`
+   - `TestResults/release-gate/coverage-summary.txt`
+   - `docs/coverage-baselines.json`
+   - `docs/coverage-baselines.json` 包含 `core/cli/importing/labs` 条目；`core`/`cli` 使用 `blocking: true + minimum`，`importing`/`labs` 使用 `blocking: false + baseline`
 
 ## Release order（v1.0.2 起）
 

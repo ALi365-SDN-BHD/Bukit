@@ -57,6 +57,124 @@ if json_path.exists():
 else:
     errors.append("skills-index.json is missing")
 
+core_commands = index.get("core_commands", [])
+if not isinstance(core_commands, list):
+    errors.append("skills-index.yaml core_commands must be an array")
+    core_commands = []
+
+
+def parse_core_boundary_commands(path: Path) -> list[str]:
+    if not path.exists():
+        errors.append(f"{path.relative_to(repo_root)} is missing")
+        return []
+
+    text = path.read_text(encoding="utf-8")
+    test_match = re.search(
+        r"CoreCliCommands_MatchStableWhitelist\s*\(\)\s*\{(?P<body>.*?)\n\s*\}",
+        text,
+        re.S
+    )
+    if not test_match:
+        errors.append(f"{path.relative_to(repo_root)} missing CoreCliCommands_MatchStableWhitelist test body")
+        return []
+
+    equal_match = re.search(
+        r"Assert\.Equal\(\s*\[(?P<commands>.*?)\],\s*names\)",
+        test_match.group("body"),
+        re.S
+    )
+    if not equal_match:
+        errors.append(f"{path.relative_to(repo_root)} malformed CoreCliCommands_MatchStableWhitelist assertion")
+        return []
+
+    return [item.strip() for item in re.findall(r'"([^"]+)"', equal_match.group("commands"))]
+
+
+boundary_commands = parse_core_boundary_commands(
+    repo_root / "tests/Bukit.Architecture.Tests" / "CoreBoundaryTests.cs"
+)
+if boundary_commands and core_commands != boundary_commands:
+    errors.append(
+        "core command whitelist mismatch: "
+        f"skills-index.yaml core_commands={core_commands}, "
+        f"CoreBoundaryTests={boundary_commands}"
+    )
+
+
+def extract_readme_commands(path: Path, known_core_commands: list[str]) -> list[str]:
+    rows: list[str] = []
+    text = path.read_text(encoding="utf-8")
+    known = set(known_core_commands)
+    for line in text.splitlines():
+        match = re.match(r"^\|\s*`([^`]+)`\s*\|", line)
+        if not match:
+            continue
+        cmd = match.group(1).strip()
+        if cmd in known:
+            rows.append(cmd)
+    return rows
+
+
+readme_files = [
+    repo_root / "README.md",
+    repo_root / "README.zh-CN.md",
+    repo_root / "README.ms.md",
+]
+readme_command_tables: dict[Path, list[str]] = {}
+for readme_path in readme_files:
+    if not readme_path.exists():
+        errors.append(f"Missing readme file: {readme_path.relative_to(repo_root)}")
+        continue
+
+    rows = extract_readme_commands(readme_path, core_commands)
+    if not rows:
+        errors.append(f"{readme_path.relative_to(repo_root)} has no parseable core command table")
+    readme_command_tables[readme_path] = rows
+
+if core_commands and readme_command_tables:
+    first_path = readme_files[0]
+    baseline = readme_command_tables.get(first_path, [])
+    for path, rows in readme_command_tables.items():
+        if rows != core_commands:
+            errors.append(f"{path.relative_to(repo_root)} command table != skills-index.yaml core_commands: {rows}")
+        if path != first_path and rows != baseline:
+            errors.append(
+                f"{path.relative_to(repo_root)} command-table order/content differs from "
+                f"{first_path.name}: {rows} != {baseline}"
+            )
+
+
+def find_non_core_commands_in_guides(base: Path, allowed_commands: list[str], label: str) -> list[str]:
+    issues: list[str] = []
+    allowed = set(allowed_commands)
+    files = sorted(base.rglob("*.md"))
+
+    if not files:
+        errors.append(f"{label} has no markdown files under {base.relative_to(repo_root)}")
+        return []
+
+    for path in files:
+        rel = path.relative_to(repo_root)
+        text = path.read_text(encoding="utf-8")
+        for match in re.finditer(
+            r"(?:^|[\\s`$>])bukit\\s+([a-z][a-z0-9-]*)(?:\\s+([a-z][a-z0-9-]*))?",
+            text,
+            re.IGNORECASE | re.MULTILINE
+        ):
+            command = match.group(1).lower()
+            if command not in allowed:
+                if match.group(2):
+                    issues.append(f"{rel}: references non-Core command family 'bukit {command}'")
+                else:
+                    issues.append(f"{rel}: references non-Core command 'bukit {command}'")
+    return issues
+
+
+guide_user_dir = repo_root / "guide" / "user"
+guide_dev_dir = repo_root / "guide" / "dev"
+errors.extend(find_non_core_commands_in_guides(guide_user_dir, core_commands, "guide/user"))
+errors.extend(find_non_core_commands_in_guides(guide_dev_dir, core_commands, "guide/dev"))
+
 all_names = set(index_names)
 for item in index_skills:
     for dep in item.get("requires", []):
