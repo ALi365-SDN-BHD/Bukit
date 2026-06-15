@@ -153,6 +153,92 @@ public sealed class DevCommandTests
     }
 
     [Fact]
+    public async Task DevFileWatcher_RebuildFailure_AllowsNextSuccessfulRebuild()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-dev-rebuild-recovery-" + Guid.NewGuid().ToString("N"));
+        var watchDir = Path.Combine(root, "watch");
+        Directory.CreateDirectory(watchDir);
+        var watchedFile = Path.Combine(watchDir, "page.md");
+
+        try
+        {
+            var rebuildAttempts = 0;
+            var successfulRebuilds = 0;
+            using var watcher = new DevFileWatcher(
+                new[] { watchDir },
+                root,
+                new BufferingLogger(),
+                (_, _) =>
+                {
+                    var attempt = Interlocked.Increment(ref rebuildAttempts);
+                    if (attempt == 1)
+                    {
+                        return Task.FromException(new InvalidOperationException("broken template"));
+                    }
+
+                    Interlocked.Increment(ref successfulRebuilds);
+                    return Task.CompletedTask;
+                },
+                debounceMs: 25);
+
+            watcher.Start(CancellationToken.None);
+
+            await InvokeScheduleRebuildAsync(watcher, watchedFile);
+            await InvokeScheduleRebuildAsync(watcher, watchedFile);
+
+            Assert.Equal(2, rebuildAttempts);
+            Assert.Equal(1, successfulRebuilds);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public async Task DevFileWatcher_RebuildFailure_DoesNotBroadcastReload()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-dev-rebuild-no-reload-" + Guid.NewGuid().ToString("N"));
+        var watchDir = Path.Combine(root, "watch");
+        Directory.CreateDirectory(watchDir);
+        var watchedFile = Path.Combine(watchDir, "page.md");
+
+        try
+        {
+            var reloads = 0;
+            var rebuildAttempts = 0;
+            using var watcher = new DevFileWatcher(
+                new[] { watchDir },
+                root,
+                new BufferingLogger(),
+                (_, _) =>
+                {
+                    var attempt = Interlocked.Increment(ref rebuildAttempts);
+                    if (attempt == 1)
+                    {
+                        return Task.FromException(new InvalidOperationException("broken template"));
+                    }
+
+                    Interlocked.Increment(ref reloads);
+                    return Task.CompletedTask;
+                },
+                debounceMs: 25);
+
+            watcher.Start(CancellationToken.None);
+
+            await InvokeScheduleRebuildAsync(watcher, watchedFile);
+            Assert.Equal(0, reloads);
+
+            await InvokeScheduleRebuildAsync(watcher, watchedFile);
+            Assert.Equal(1, reloads);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root);
+        }
+    }
+
+    [Fact]
     public async Task DevFileWatcher_RapidChanges_DebouncedToSingleRebuild()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-dev-rebuild-debounce-" + Guid.NewGuid().ToString("N"));
@@ -183,6 +269,78 @@ public sealed class DevCommandTests
 
             await Task.WhenAll(tasks);
             Assert.Equal(1, rebuildCount);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public async Task DevFileWatcher_MultipleEventsWithinDebounceWindow_OnlyOneBuild()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-dev-rebuild-window-" + Guid.NewGuid().ToString("N"));
+        var watchDir = Path.Combine(root, "watch");
+        Directory.CreateDirectory(watchDir);
+        var watchedFile = Path.Combine(watchDir, "page.md");
+
+        try
+        {
+            var rebuildCount = 0;
+            using var watcher = new DevFileWatcher(
+                new[] { watchDir },
+                root,
+                new BufferingLogger(),
+                (_, _) =>
+                {
+                    Interlocked.Increment(ref rebuildCount);
+                    return Task.CompletedTask;
+                },
+                debounceMs: 50);
+
+            watcher.Start(CancellationToken.None);
+
+            await Task.WhenAll(
+                InvokeScheduleRebuildAsync(watcher, watchedFile),
+                InvokeScheduleRebuildAsync(watcher, watchedFile),
+                InvokeScheduleRebuildAsync(watcher, watchedFile));
+
+            Assert.Equal(1, rebuildCount);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public async Task DevFileWatcher_EventsAfterDebounce_TriggerNewBuild()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-dev-rebuild-after-window-" + Guid.NewGuid().ToString("N"));
+        var watchDir = Path.Combine(root, "watch");
+        Directory.CreateDirectory(watchDir);
+        var watchedFile = Path.Combine(watchDir, "page.md");
+
+        try
+        {
+            var rebuildCount = 0;
+            using var watcher = new DevFileWatcher(
+                new[] { watchDir },
+                root,
+                new BufferingLogger(),
+                (_, _) =>
+                {
+                    Interlocked.Increment(ref rebuildCount);
+                    return Task.CompletedTask;
+                },
+                debounceMs: 25);
+
+            watcher.Start(CancellationToken.None);
+
+            await InvokeScheduleRebuildAsync(watcher, watchedFile);
+            await InvokeScheduleRebuildAsync(watcher, watchedFile);
+
+            Assert.Equal(2, rebuildCount);
         }
         finally
         {
@@ -267,6 +425,38 @@ public sealed class DevCommandTests
         Assert.False(DevCommand.ShouldStartWatcher(noWatch: true, watchedDirsCount: 1));
         Assert.False(DevCommand.ShouldStartWatcher(noWatch: false, watchedDirsCount: 0));
         Assert.True(DevCommand.ShouldStartWatcher(noWatch: false, watchedDirsCount: 1));
+    }
+
+    [Fact]
+    public async Task DevCommand_NoWatch_ServesStaticOutput()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-nowatch-static-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(outputDir, "index.html"), "<html><body>static</body></html>");
+
+        try
+        {
+            Assert.False(DevCommand.ShouldStartWatcher(noWatch: true, watchedDirsCount: 1));
+
+            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var response = await ProcessSingleRequestAsync(
+                "/",
+                (context, ct) => handler.HandleAsync(context, ct));
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("static", response.Body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void DevCommand_NoWatch_DoesNotPrintLiveReloadWatchingMessage()
+    {
+        Assert.False(DevCommand.ShouldPrintWatchStatus(noWatch: true));
+        Assert.True(DevCommand.ShouldPrintWatchStatus(noWatch: false));
     }
 
     [Fact]
@@ -384,6 +574,111 @@ public sealed class DevCommandTests
         finally
         {
             TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("/%252e%252e/")]
+    [InlineData("/%5c..%5csecret")]
+    [InlineData("/%00")]
+    public async Task DevRequestHandler_RejectsEncodedDotDotPath(string path)
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-traversal-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(outputDir, "index.html"), "<html><body>ok</body></html>");
+
+        try
+        {
+            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var response = await ProcessSingleRequestAsync(
+                path,
+                (context, ct) => handler.HandleAsync(context, ct));
+
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            Assert.DoesNotContain(outputDir, response.Body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task DevRequestHandler_RejectsBackslashTraversal()
+    {
+        await AssertDevTraversalRejectedAsync("/%5c..%5csecret");
+    }
+
+    [Fact]
+    public async Task DevRequestHandler_RejectsNullByteEncodedPath()
+    {
+        await AssertDevTraversalRejectedAsync("/%00");
+    }
+
+    [Fact]
+    public async Task DevRequestHandler_HandlesVeryLongPath()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-long-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+
+        try
+        {
+            var longPath = "/" + new string('a', 1024);
+            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var response = await ProcessSingleRequestAsync(
+                longPath,
+                (context, ct) => handler.HandleAsync(context, ct));
+
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.DoesNotContain(outputDir, response.Body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task DevRequestHandler_DoesNotInjectLiveReloadIntoNonHtml()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-css-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(outputDir, "site.css"), "body{color:red;}");
+
+        try
+        {
+            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var response = await ProcessSingleRequestAsync(
+                "/site.css",
+                (context, ct) => handler.HandleAsync(context, ct));
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("body{color:red;}", response.Body);
+            Assert.DoesNotContain("WebSocket", response.Body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("/%2e%2e/")]
+    [InlineData("/%252e%252e/")]
+    [InlineData("/%5c..%5csecret")]
+    [InlineData("/%EF%BC%8E%EF%BC%8E/secret")]
+    public void DevPathGuard_RejectsUnicodeAndEncodedTraversal(string path)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-dev-path-guard-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            Assert.Null(DevPathGuard.TryResolveWithinRoot(root, path));
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
         }
     }
 
@@ -506,6 +801,27 @@ public sealed class DevCommandTests
 
         var task = (Task)method!.Invoke(watcher, [file])!;
         return task;
+    }
+
+    private static async Task AssertDevTraversalRejectedAsync(string path)
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-reject-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+
+        try
+        {
+            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var response = await ProcessSingleRequestAsync(
+                path,
+                (context, ct) => handler.HandleAsync(context, ct));
+
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            Assert.DoesNotContain(outputDir, response.Body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
     }
 
     private static HttpListener StartListener(out string prefix, out int port)

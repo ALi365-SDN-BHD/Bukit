@@ -43,6 +43,66 @@ public sealed class CoverageGateTests
         var script = ReadRepoFile("scripts", "checks", "coverage.sh");
 
         Assert.Contains("tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj", script, StringComparison.Ordinal);
+        Assert.Contains("tests/Bukit.Theme.Tests is intentionally outside this gate", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CoverageScript_CollectsEveryCoverageProjectIntoIsolatedResultsDirectories()
+    {
+        var script = ReadRepoFile("scripts", "checks", "coverage.sh");
+
+        Assert.Contains("coverage_solution_test_projects=(", script, StringComparison.Ordinal);
+        Assert.Contains("tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj", script, StringComparison.Ordinal);
+        Assert.Contains("tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj", script, StringComparison.Ordinal);
+        Assert.Contains("tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj", script, StringComparison.Ordinal);
+        Assert.Contains("tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj", script, StringComparison.Ordinal);
+        Assert.Contains("tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj", script, StringComparison.Ordinal);
+        Assert.Contains("project_results_dir", script, StringComparison.Ordinal);
+        Assert.Contains("expected_coverage_file_count", script, StringComparison.Ordinal);
+        Assert.Contains("-mindepth 3 -maxdepth 3", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CoverageScript_WritesCompleteSummaryContract()
+    {
+        var script = ReadRepoFile("scripts", "checks", "coverage.sh");
+
+        foreach (var key in new[]
+        {
+            "overall",
+            "core",
+            "cli",
+            "importing",
+            "labs",
+            "core_blocking",
+            "cli_blocking",
+            "importing_blocking",
+            "labs_blocking",
+            "core_baseline",
+            "cli_baseline",
+            "importing_baseline",
+            "labs_baseline",
+            "core_threshold",
+            "cli_threshold",
+            "importing_threshold",
+            "labs_threshold"
+        })
+        {
+            Assert.Contains($"printf \"{key}=%s\\n\"", script, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void CoverageBaselineParserContract_IsCoveredBySchemaGate()
+    {
+        var schemaGate = ReadRepoFile("scripts", "checks", "coverage-baseline-schema.sh");
+
+        Assert.Contains("core-blocking-false", schemaGate, StringComparison.Ordinal);
+        Assert.Contains("cli-blocking-false", schemaGate, StringComparison.Ordinal);
+        Assert.Contains("missing-importing-baseline", schemaGate, StringComparison.Ordinal);
+        Assert.Contains("missing-labs-baseline", schemaGate, StringComparison.Ordinal);
+        Assert.Contains("core-minimum-above-100", schemaGate, StringComparison.Ordinal);
+        Assert.Contains("extra-core-property", schemaGate, StringComparison.Ordinal);
     }
 
     [Fact]

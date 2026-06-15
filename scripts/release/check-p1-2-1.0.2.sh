@@ -26,7 +26,7 @@ echo "==> CI workflow evidence check"
 bash scripts/checks/ci-workflow-evidence.sh "$GITHUB_REPOSITORY" "$release_commit" "ci.yml" TestResults/release-gate/ci-workflow-evidence.json 1 TestResults/release-gate/rc-gate-evidence.md main,master
 
 echo "==> Coverage baseline JSON check"
-python3 -m json.tool docs/coverage-baselines.json >/dev/null
+bash scripts/checks/coverage-baseline-schema.sh
 
 echo "==> Full solution test"
 dotnet test bukit.slnx

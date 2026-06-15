@@ -7,12 +7,21 @@ cd "$repo_root"
 readmes=(README.md README.zh-CN.md README.ms.md)
 core_commands=(build doctor config preview dev clean version completion seo geo publish deploy)
 required_tokens=(
+  "guide/user"
+  "guide/dev"
   "guide/skills"
   "guide/labs"
   "guide/labs-skills"
   "github-pages"
   "bukit deploy"
   "LiveReload"
+)
+forbidden_patterns=(
+  "bukit[[:space:]]+clone"
+  "bukit[[:space:]]+import"
+  "bukit[[:space:]]+theme"
+  "bukit[[:space:]]+plugin"
+  "HMR"
 )
 non_core_token_groups=(
   "clone"
@@ -74,6 +83,13 @@ for file in "${readmes[@]}"; do
     if [ "$found" -eq 0 ]; then
       error "$file missing non-Core exclusion token group: $token_group"
     fi
+  done
+
+  for pattern in "${forbidden_patterns[@]}"; do
+    while IFS=: read -r line_no line_text; do
+      [ -z "${line_no:-}" ] && continue
+      error "$file:$line_no contains forbidden README text matching '$pattern': $line_text"
+    done < <(grep -nE "$pattern" "$file" || true)
   done
 done
 

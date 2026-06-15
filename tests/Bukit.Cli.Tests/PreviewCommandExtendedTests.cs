@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Commands.Dev;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -229,6 +230,54 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         var response = await SendRequestAsync("/missing", disableAnalytics: false);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public void Preview_RejectsEncodedDotDotPath()
+    {
+        Assert.Null(DevPathGuard.TryResolveWithinRoot(_tempDir, "/%2e%2e/"));
+    }
+
+    [Fact]
+    public async Task Preview_RejectsDoubleEncodedDotDotPath()
+    {
+        var response = await SendRequestAsync("/%252e%252e/", disableAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Preview_RejectsBackslashTraversal()
+    {
+        var response = await SendRequestAsync("/%5c..%5csecret", disableAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Preview_RejectsMixedSeparatorTraversal()
+    {
+        Assert.Null(DevPathGuard.TryResolveWithinRoot(_tempDir, "/assets%5c..%2fsecret"));
+    }
+
+    [Fact]
+    public async Task Preview_RejectsUnicodeNormalizationTraversal()
+    {
+        var response = await SendRequestAsync("/%EF%BC%8E%EF%BC%8E/secret", disableAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Preview_RejectsVeryLongPathWithoutCrash()
+    {
+        var response = await SendRequestAsync("/" + new string('a', 1024), disableAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
     }
 
     private async Task<(HttpStatusCode StatusCode, string Body, string? ContentType)> SendRequestAsync(string path, bool disableAnalytics)

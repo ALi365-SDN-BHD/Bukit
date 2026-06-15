@@ -28,7 +28,7 @@ internal sealed class DevRequestHandler
     {
         try
         {
-            var path = context.Request.Url?.AbsolutePath ?? "/";
+            var path = GetRawPath(context.Request);
 
             var candidate = DevPathGuard.TryResolveWithinRoot(_outputDir, path);
             if (candidate is null)
@@ -117,6 +117,13 @@ internal sealed class DevRequestHandler
         {
             _logger.Warn($"dev.response_close_skipped: {ex.Message}");
         }
+    }
+
+    private static string GetRawPath(HttpListenerRequest request)
+    {
+        var raw = request.RawUrl ?? request.Url?.AbsolutePath ?? "/";
+        var queryIndex = raw.IndexOf('?', StringComparison.Ordinal);
+        return queryIndex >= 0 ? raw[..queryIndex] : raw;
     }
 
     /// <summary>
