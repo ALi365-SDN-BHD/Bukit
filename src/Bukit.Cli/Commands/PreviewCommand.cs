@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Bukit.Cli.Commands.Dev;
 using Bukit.Cli.Shared;
 using Bukit.Config;
@@ -12,6 +13,9 @@ namespace Bukit.Cli.Commands;
 public static partial class PreviewCommand
 {
     public static async Task<int> RunAsync(CliBoundCommand command)
+        => await RunAsync(command, CancellationToken.None);
+
+    public static async Task<int> RunAsync(CliBoundCommand command, CancellationToken cancellationToken)
     {
         var dirOpt = command.GetString("--dir");
         string dir;
@@ -52,6 +56,7 @@ public static partial class PreviewCommand
         var disableAnalytics = ResolveDisableAnalyticsInPreview(dir);
         var (listener, prefix) = CreateAndStartListener(host, port, strictPort);
         using var startedListener = listener;
+        using var cancellationRegistration = cancellationToken.Register(listener.Stop);
 
         Console.WriteLine($"Preview: {prefix}");
         Console.WriteLine($"Serving: {dir}");
@@ -59,8 +64,19 @@ public static partial class PreviewCommand
 
         while (true)
         {
-            var context = await listener.GetContextAsync();
-            _ = Task.Run(() => HandleRequest(dir, context, disableAnalytics));
+            try
+            {
+                var context = await listener.GetContextAsync();
+                _ = Task.Run(() => HandleRequest(dir, context, disableAnalytics));
+            }
+            catch (HttpListenerException) when (cancellationToken.IsCancellationRequested || !listener.IsListening)
+            {
+                return 0;
+            }
+            catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested || !listener.IsListening)
+            {
+                return 0;
+            }
         }
     }
 

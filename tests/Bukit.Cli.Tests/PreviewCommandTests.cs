@@ -123,13 +123,14 @@ public sealed class PreviewCommandTests
         try
         {
             using var cts = new CancellationTokenSource(timeout);
-            var task = PreviewCommand.RunAsync(command);
-            var completed = await Task.WhenAny(task, Task.Delay(timeout));
+            var task = PreviewCommand.RunAsync(command, cts.Token);
+            var completed = await Task.WhenAny(task, Task.Delay(timeout, cts.Token));
             if (completed == task)
             {
                 return await task;
             }
-            return 0;
+
+            throw new TimeoutException($"PreviewCommand.RunAsync exceeded timeout: {timeout}.");
         }
         catch (Exception)
         {

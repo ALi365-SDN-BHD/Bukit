@@ -28,7 +28,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ripgrep
-      - run: bash scripts/gates/ci-fast.sh Release
+      - name: Run fast gate
+        run: CI_FAST_TEST_DISABLE_BLAME=1 bash scripts/gates/ci-fast.sh Release
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

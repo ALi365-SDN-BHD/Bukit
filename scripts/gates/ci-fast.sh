@@ -54,13 +54,82 @@ echo "=== build ==="
 dotnet build bukit.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
 
 echo "=== test ==="
-dotnet test bukit.slnx \
-  -c "$configuration" \
-  --no-build \
-  -maxcpucount:1 \
-  -nodeReuse:false \
-  --logger trx \
-  --results-directory TestResults/ci-fast
+test_args=(
+  "-c"
+  "$configuration"
+  "--no-build"
+  "-maxcpucount:1"
+  "-nodeReuse:false"
+  "--logger"
+  "console;verbosity=minimal"
+  "--logger"
+  "trx"
+  "--results-directory"
+  "TestResults/ci-fast"
+)
+
+if [[ -n "${CI_FAST_TEST_FILTER:-}" ]]; then
+  test_args+=(--filter "$CI_FAST_TEST_FILTER")
+fi
+
+if [[ "${CI_FAST_TEST_DISABLE_BLAME:-}" == "1" ]]; then
+  echo "  info: CI_FAST_TEST_DISABLE_BLAME=1; skipping blame hang diagnostics."
+else
+  if [[ -n "${CI_FAST_TEST_HANG_TIMEOUT:-}" ]]; then
+    test_args+=("--blame-hang" "--blame-hang-timeout" "$CI_FAST_TEST_HANG_TIMEOUT")
+  elif [[ "${CI:-}" == "true" || "${CI:-}" == "1" ]]; then
+    test_args+=("--blame-hang" "--blame-hang-timeout" "10m")
+  else
+    test_args+=("--blame-hang" "--blame-hang-timeout" "30m")
+  fi
+  test_args+=("--blame-hang-dump-type" "full" "--diag" "TestResults/ci-fast/testhost.log")
+fi
+test_args+=("--verbosity" "normal")
+
+test_project="bukit.slnx"
+if [[ -n "${CI_FAST_TEST_PROJECT:-}" ]]; then
+  test_project="$CI_FAST_TEST_PROJECT"
+fi
+if [[ -n "${CI_FAST_TEST_PROJECTS:-}" ]]; then
+  IFS=',' read -r -a test_projects <<< "$CI_FAST_TEST_PROJECTS"
+else
+  test_projects=("$test_project")
+fi
+
+run_dotnet_test() {
+  local project="$1"
+  local start_ts
+  local elapsed
+  start_ts="$(date +%s)"
+  echo "=== test: start ==="
+  echo "  project: $project"
+
+  if [[ -n "${CI_FAST_TEST_TIMEOUT:-}" ]]; then
+    if command -v timeout >/dev/null 2>&1; then
+      timeout "$CI_FAST_TEST_TIMEOUT" dotnet test "$project" "${test_args[@]}"
+    else
+      echo "  warning: timeout command not found, running without CI_FAST_TEST_TIMEOUT."
+      dotnet test "$project" "${test_args[@]}"
+    fi
+  else
+    dotnet test "$project" "${test_args[@]}"
+  fi
+  local status=$?
+
+  elapsed=$(( $(date +%s) - start_ts ))
+  echo "=== test: end ==="
+  echo "  project: $project"
+  echo "  exit: $status"
+  echo "  elapsed: ${elapsed}s"
+
+  if [[ $status -ne 0 ]]; then
+    return "$status"
+  fi
+}
+
+for test_project in "${test_projects[@]}"; do
+  run_dotnet_test "$test_project"
+done
 
 echo "=== format ==="
 dotnet format bukit.slnx --verify-no-changes --no-restore
