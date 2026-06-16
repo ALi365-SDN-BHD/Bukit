@@ -758,6 +758,8 @@ public sealed class GitHubPagesDeployProviderTests
 
         public void SetGithubToken(string? token) => SetEnv("GITHUB_TOKEN", token);
 
+        public void SetDeployTimeoutSeconds(string? seconds) => SetEnv("BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS", seconds);
+
         public void Dispose()
         {
             FakeGit.Dispose();

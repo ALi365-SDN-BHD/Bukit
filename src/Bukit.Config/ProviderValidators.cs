@@ -293,7 +293,7 @@ internal static class ProviderValidators
         }
 
         var trimmed = branch.Trim();
-        if (trimmed.StartsWith('-', StringComparison.Ordinal) ||
+        if (trimmed.StartsWith("-", StringComparison.Ordinal) ||
             trimmed.StartsWith("refs/") ||
             trimmed.EndsWith('/') ||
             trimmed.EndsWith(".") ||
