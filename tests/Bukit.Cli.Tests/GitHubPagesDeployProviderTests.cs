@@ -46,6 +46,70 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.DoesNotContain("SNAPSHOT old", log, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("-main")]
+    [InlineData("main/")]
+    [InlineData("/main")]
+    [InlineData("refs/heads/main")]
+    [InlineData("HEAD")]
+    [InlineData("feature..branch")]
+    [InlineData("main branch")]
+    [InlineData("main@{1}")]
+    public async Task DeployAsync_InvalidBranch_IsRejected(string branch)
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(branch: branch), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("deploy.branch is not a valid Git branch name", result.Error, StringComparison.Ordinal);
+        Assert.Equal(string.Empty, scope.FakeGit.ReadLog());
+    }
+
+    [Theory]
+    [InlineData("https://example.com")]
+    [InlineData("example.com/path")]
+    [InlineData("example.com:443")]
+    [InlineData("  example.com")]
+    [InlineData("example..com")]
+    [InlineData("_example.com")]
+    [InlineData("example.com.\n")]
+    public async Task DeployAsync_InvalidCname_IsRejected(string cname)
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(cname: cname), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("deploy.cname must be a single domain name", result.Error, StringComparison.Ordinal);
+        Assert.Equal(string.Empty, scope.FakeGit.ReadLog());
+    }
+
+    [Fact]
+    public async Task DeployAsync_NormalizesCnameToLowerCase()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(cname: "WWW.Example.Com"), CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal("https://www.example.com", result.DeployedUrl);
+        var log = scope.FakeGit.ReadLog();
+        Assert.Contains("SNAPSHOT cname=www.example.com", log, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task DeployAsync_NonFastForwardWithoutForce_ReturnsFriendlyError()
     {
@@ -178,6 +242,54 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.False(result.Success);
         Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", result.Error, StringComparison.Ordinal);
         Assert.Contains("***", result.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DeployAsync_CancelDuringPush_PropagatesOperationCanceledException_AndCleansUp()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "sleep";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        using var cts = new CancellationTokenSource();
+        var deployTask = new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), cts.Token);
+
+        var started = DateTime.UtcNow;
+        while (!File.Exists(scope.FakeGit.PushSleepStartedPath) && DateTime.UtcNow - started < TimeSpan.FromSeconds(2))
+        {
+            await Task.Delay(25);
+        }
+
+        cts.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await deployTask);
+
+        Assert.True(File.Exists(scope.FakeGit.PushSleepStartedPath), "Push sleep should have started.");
+        Assert.False(File.Exists(scope.FakeGit.PushSleepCompletedPath), "Push sleep should not have completed.");
+        AssertDeploymentCleanupSucceeded(scope);
+    }
+
+    [Fact]
+    public async Task DeployAsync_GitCommandTimeout_CleansUpAndReturnsFriendlyError()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "sleep";
+        scope.SetGithubToken("secret-token");
+        scope.SetDeployTimeoutSeconds("1");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("Git command timed out during GitHub Pages deployment", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-token", result.Error, StringComparison.Ordinal);
+        Assert.True(File.Exists(scope.FakeGit.PushSleepStartedPath), "Push sleep should have started.");
+        Assert.False(File.Exists(scope.FakeGit.PushSleepCompletedPath), "Push sleep should be terminated before completion.");
+        AssertDeploymentCleanupSucceeded(scope);
     }
 
     [Fact]
@@ -706,6 +818,10 @@ public sealed class GitHubPagesDeployProviderTests
             set => Environment.SetEnvironmentVariable("BUKIT_FAKE_GIT_PUSH_MODE", value);
         }
 
+        public string PushSleepStartedPath => Path.Combine(StateDir, "push-sleep-started.marker");
+
+        public string PushSleepCompletedPath => Path.Combine(StateDir, "push-sleep-completed.marker");
+
         public string PrependPath(string? existingPath)
             => string.IsNullOrWhiteSpace(existingPath)
                 ? BinDir
@@ -720,11 +836,14 @@ public sealed class GitHubPagesDeployProviderTests
                 .Select(line => line["ASKPASS ".Length..])
                 .LastOrDefault();
 
+        public void SetDeployTimeoutSeconds(string? seconds) => Environment.SetEnvironmentVariable("BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS", seconds);
+
         public void Dispose()
         {
             Environment.SetEnvironmentVariable("BUKIT_FAKE_GIT_REMOTE_URL", null);
             Environment.SetEnvironmentVariable("BUKIT_FAKE_GIT_REMOTE_HEADS", null);
             Environment.SetEnvironmentVariable("BUKIT_FAKE_GIT_PUSH_MODE", null);
+            Environment.SetEnvironmentVariable("BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS", null);
         }
 
         private void WriteScript()
@@ -758,6 +877,7 @@ public sealed class GitHubPagesDeployProviderTests
 
                 :push_repo
                 if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="nonff-once" if not exist "%BUKIT_FAKE_GIT_STATE%\nonff.marker" if not "%~2"=="--force" goto push_nonff
+                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="sleep" goto push_sleep
                 if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="forbidden" goto push_forbidden
                 if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="askpass-leak" goto push_askpass_leak
                 if exist ".nojekyll" echo SNAPSHOT nojekyll>>"%BUKIT_FAKE_GIT_LOG%"
@@ -781,6 +901,19 @@ public sealed class GitHubPagesDeployProviderTests
                 :push_askpass_leak
                 1>&2 echo fatal: cannot run %GIT_ASKPASS% for token %GITHUB_TOKEN%
                 exit /b 1
+
+                :push_sleep
+                echo started > "%BUKIT_FAKE_GIT_STATE%\push-sleep-started.marker"
+                for /l %%I in (1,1,120) do ping -n 2 127.0.0.1 >nul
+                echo completed > "%BUKIT_FAKE_GIT_STATE%\push-sleep-completed.marker"
+                if exist ".nojekyll" echo SNAPSHOT nojekyll>>"%BUKIT_FAKE_GIT_LOG%"
+                if exist "CNAME" (
+                  set /p cname=<CNAME
+                  echo SNAPSHOT cname=!cname!>>"%BUKIT_FAKE_GIT_LOG%"
+                )
+                if exist "index.html" echo SNAPSHOT index>>"%BUKIT_FAKE_GIT_LOG%"
+                if exist "old.txt" echo SNAPSHOT old>>"%BUKIT_FAKE_GIT_LOG%"
+                exit /b 0
                 """);
                 return;
             }
@@ -817,6 +950,11 @@ public sealed class GitHubPagesDeployProviderTests
                 printf '1\n' > "$marker"
                 printf '! [rejected] gh-pages -> gh-pages (non-fast-forward)\n' >&2
                 exit 1
+              fi
+              if [ "$mode" = "sleep" ]; then
+                printf 'started\n' > "$BUKIT_FAKE_GIT_STATE/push-sleep-started.marker"
+                sleep 30
+                printf 'completed\n' > "$BUKIT_FAKE_GIT_STATE/push-sleep-completed.marker"
               fi
               if [ "$mode" = "forbidden" ]; then
                 printf 'remote: 403 Forbidden %s\n' "${GITHUB_TOKEN:-missing}" >&2

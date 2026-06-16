@@ -58,11 +58,27 @@ public sealed class DeployConfigTests
     }
 
     [Fact]
-    public void Validate_DeployWithBranchSlash_Throws()
+    public void Validate_DeployWithBranchLeadingDash_Throws()
     {
-        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Provider = "github-pages", Branch = "feature/pages" } });
+        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Provider = "github-pages", Branch = "-feature" } });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
         Assert.Contains("deploy.branch", ex.Message);
+    }
+
+    [Fact]
+    public void Validate_DeployWithBranchSlashPath_Throws()
+    {
+        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Provider = "github-pages", Branch = "/feature" } });
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("deploy.branch", ex.Message);
+    }
+
+    [Fact]
+    public void Validate_DeployWithBranchAllowsSlashPath()
+    {
+        var config = ValidConfig(c => c with { Deploy = new DeployConfig { Provider = "github-pages", Branch = "feature/pages" } });
+        var ex = Record.Exception(() => ConfigValidator.Validate(config));
+        Assert.Null(ex);
     }
 
     [Fact]

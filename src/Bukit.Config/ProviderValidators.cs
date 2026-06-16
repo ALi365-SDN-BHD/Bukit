@@ -250,9 +250,9 @@ internal static class ProviderValidators
             throw new ConfigException("deploy.provider must be 'github-pages' in Bukit 1.0.", DiagnosticCode.ConfigInvalidValue);
         }
 
-        if (!string.IsNullOrWhiteSpace(deploy.Branch) && deploy.Branch.Contains('/'))
+        if (!IsValidBranchConfig(deploy.Branch))
         {
-            throw new ConfigException("deploy.branch must not contain '/'.", DiagnosticCode.ConfigRequiredFieldMissing);
+            throw new ConfigException("deploy.branch is not a valid Git branch name for GitHub Pages deployment.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         if (!string.IsNullOrWhiteSpace(deploy.Message) && deploy.Message.Length > 4096)
@@ -283,5 +283,40 @@ internal static class ProviderValidators
         }
 
         return Regex.IsMatch(domain, @"^[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)*$", RegexOptions.CultureInvariant);
+    }
+
+    private static bool IsValidBranchConfig(string? branch)
+    {
+        if (string.IsNullOrWhiteSpace(branch))
+        {
+            return true;
+        }
+
+        var trimmed = branch.Trim();
+        if (trimmed.StartsWith('-', StringComparison.Ordinal) ||
+            trimmed.StartsWith("refs/") ||
+            trimmed.EndsWith('/') ||
+            trimmed.EndsWith(".") ||
+            trimmed.EndsWith(".lock") ||
+            trimmed.Contains(' '))
+        {
+            return false;
+        }
+
+        if (trimmed.StartsWith('/') ||
+            trimmed.Contains("..") ||
+            trimmed.Contains("@{") ||
+            trimmed.Contains('\\') ||
+            trimmed.Contains(':') ||
+            trimmed.Contains('?') ||
+            trimmed.Contains('*') ||
+            trimmed.Contains('[') ||
+            trimmed.Any(char.IsWhiteSpace) ||
+            trimmed.IndexOfAny(new[] { '\0', '\r', '\n', '\t' }) >= 0)
+        {
+            return false;
+        }
+
+        return true;
     }
 }
