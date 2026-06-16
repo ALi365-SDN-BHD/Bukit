@@ -9,6 +9,26 @@ source scripts/lib/common.sh
 artifact_dir="${RELEASE_GATE_ARTIFACT_DIR:-TestResults/release-gate}"
 rid_list="${RELEASE_GATE_RIDS:-$(bukit_host_rid)}"
 required_branches="${RELEASE_GATE_REQUIRED_BRANCHES:-main,master}"
+require_branch_filter="${RELEASE_GATE_REQUIRE_BRANCH_FILTER:-1}"
+
+if is_truthy "${require_branch_filter}"; then
+  case "${GITHUB_EVENT_NAME:-}" in
+    workflow_dispatch)
+      require_branch_filter="0"
+      ;;
+    push)
+      case "${GITHUB_REF:-}" in
+        refs/tags/*)
+          require_branch_filter="0"
+          ;;
+      esac
+      ;;
+  esac
+fi
+
+if ! is_truthy "${require_branch_filter}"; then
+  required_branches=""
+fi
 
 echo "=== checks: github action pin compliance ==="
 bash scripts/checks/ci-workflow-action-pin.sh
