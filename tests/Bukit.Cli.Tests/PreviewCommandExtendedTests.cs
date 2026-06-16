@@ -9,6 +9,7 @@ namespace Bukit.Cli.Tests;
 
 public sealed class PreviewCommandExtendedTests : IDisposable
 {
+    private static readonly TimeSpan s_requestTimeout = TimeSpan.FromSeconds(5);
     private readonly string _tempDir;
 
     private static readonly MethodInfo s_getContentType = typeof(PreviewCommand)
@@ -289,16 +290,33 @@ public sealed class PreviewCommandExtendedTests : IDisposable
 
         try
         {
-            var contextTask = listener.GetContextAsync();
-            using var client = new HttpClient();
+            using var client = new HttpClient { Timeout = s_requestTimeout };
             var responseTask = client.GetAsync(new Uri(new Uri(prefix), path));
+            var contextTask = listener.GetContextAsync();
+            var timeoutTask = Task.Delay(s_requestTimeout);
+            var first = await Task.WhenAny(contextTask, responseTask, timeoutTask);
 
-            var context = await contextTask;
-            s_handleRequest.Invoke(null, new object[] { _tempDir, context, disableAnalytics });
+            if (first == timeoutTask)
+            {
+                throw new TimeoutException("preview request did not complete in time");
+            }
 
-            using var response = await responseTask;
-            var body = await response.Content.ReadAsStringAsync();
-            return (response.StatusCode, body, response.Content.Headers.ContentType?.ToString());
+            if (first == contextTask)
+            {
+                var context = await contextTask;
+                s_handleRequest.Invoke(null, new object[] { _tempDir, context, disableAnalytics });
+
+                using var responseAfterContext = await responseTask;
+                var bodyAfterContext = await responseAfterContext.Content.ReadAsStringAsync();
+                return (responseAfterContext.StatusCode, bodyAfterContext, responseAfterContext.Content.Headers.ContentType?.ToString());
+            }
+
+            using var responseAfterTimeout = await responseTask;
+            var contextAfterTimeout = await contextTask.WaitAsync(s_requestTimeout);
+            s_handleRequest.Invoke(null, new object[] { _tempDir, contextAfterTimeout, disableAnalytics });
+
+            var bodyAfterTimeout = await responseAfterTimeout.Content.ReadAsStringAsync();
+            return (responseAfterTimeout.StatusCode, bodyAfterTimeout, responseAfterTimeout.Content.Headers.ContentType?.ToString());
         }
         finally
         {

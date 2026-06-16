@@ -1,5 +1,7 @@
 using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Cli.Commands;
+using System.Net;
+using System.Net.Sockets;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -93,11 +95,12 @@ public sealed class PreviewCommandTests
 
         try
         {
-            var command = BuildCommand("--dir", dir, "--port", "4173", "--strict-port", "true");
-            var exitCode = await RunWithTimeoutAsync(command, TimeSpan.FromSeconds(5));
-        }
-        catch (InvalidOperationException)
-        {
+            using var occupiedPort = new TcpListener(IPAddress.Loopback, 0);
+            occupiedPort.Start();
+            var port = ((IPEndPoint)occupiedPort.LocalEndpoint).Port;
+
+            var command = BuildCommand("--dir", dir, "--port", port.ToString(), "--strict-port", "true");
+            await Assert.ThrowsAnyAsync<HttpListenerException>(() => PreviewCommand.RunAsync(command));
         }
         finally
         {
