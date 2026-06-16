@@ -61,6 +61,9 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.False(result.Success);
         Assert.Equal("Non-fast-forward push rejected. The remote branch has diverged; rerun with --force to overwrite it.", result.Error);
         Assert.Empty(scope.Logger.Warnings);
+        Assert.Empty(scope.Logger.Errors);
+        Assert.DoesNotContain("secret-token", string.Join('\n', scope.Logger.Infos), StringComparison.Ordinal);
+        AssertDeploymentCleanupSucceeded(scope);
     }
 
     [Fact]
@@ -136,7 +139,10 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", result.Error, StringComparison.Ordinal);
         Assert.Contains("***", result.Error, StringComparison.Ordinal);
         Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", string.Join('\n', scope.Logger.Errors), StringComparison.Ordinal);
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", string.Join('\n', scope.Logger.Infos), StringComparison.Ordinal);
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", string.Join('\n', scope.Logger.Warnings), StringComparison.Ordinal);
         Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", scope.FakeGit.ReadLog(), StringComparison.Ordinal);
+        AssertDeploymentCleanupSucceeded(scope);
     }
 
     [Fact]
@@ -207,9 +213,7 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
 
         Assert.False(result.Success);
-        var askpassPath = scope.FakeGit.ReadAskpassPath();
-        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
-        Assert.False(File.Exists(askpassPath));
+        AssertDeploymentCleanupSucceeded(scope);
     }
 
     [Fact]
@@ -242,9 +246,7 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
 
         Assert.False(result.Success);
-        var askpassPath = scope.FakeGit.ReadAskpassPath();
-        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
-        Assert.False(Directory.Exists(Path.GetDirectoryName(askpassPath)!));
+        AssertDeploymentCleanupSucceeded(scope);
     }
 
     [Fact]
@@ -319,6 +321,28 @@ public sealed class GitHubPagesDeployProviderTests
 
         Assert.True(result.Success, result.Error);
         Assert.Equal(expectedUrl, result.DeployedUrl);
+    }
+
+    [Theory]
+    [InlineData("https://gitlab.com/ali/docs.git")]
+    [InlineData("https://example.com/github.com/ali/docs.git")]
+    [InlineData("not a remote url")]
+    public async Task Deploy_GitHubRemoteUrlParser_RejectsUnsupportedRemote_DoNotLeakToken(string remoteUrl)
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = remoteUrl;
+        scope.SetGithubToken("ghp_TEST_SECRET_TOKEN_123");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("Unable to determine GitHub repository. Ensure you are in a git repository with a remote 'origin' pointing to GitHub.", result.Error);
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", string.Join('\n', scope.Logger.Errors), StringComparison.Ordinal);
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", string.Join('\n', scope.Logger.Infos), StringComparison.Ordinal);
+        Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", string.Join('\n', scope.Logger.Warnings), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -562,6 +586,14 @@ public sealed class GitHubPagesDeployProviderTests
 
         Assert.True(result.Success, result.Error);
         Assert.Equal(expectedUrl, result.DeployedUrl);
+    }
+
+    private static void AssertDeploymentCleanupSucceeded(GitHubPagesDeployTestScope scope)
+    {
+        var askpassPath = scope.FakeGit.ReadAskpassPath();
+        Assert.False(string.IsNullOrWhiteSpace(askpassPath));
+        Assert.False(File.Exists(askpassPath));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(askpassPath)!));
     }
 
     private sealed class GitHubPagesDeployTestScope : IDisposable
