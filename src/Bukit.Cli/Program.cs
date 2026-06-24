@@ -7,7 +7,11 @@ using Bukit.Shared;
 
 var command = args.Length > 0 ? args[0] : null;
 var commandArgsRaw = args.Skip(1).ToArray();
-var descriptors = BukitCliDescriptors.CreateDescriptors();
+var coreDescriptors = BukitCliDescriptors.CreateDescriptors();
+var pluginCli = command is null || command is "help" or "--help" or "-h"
+    ? PluginCliLoadResult.Empty
+    : await PluginCliLoader.CreateDefault().LoadAsync(Directory.GetCurrentDirectory(), CancellationToken.None);
+var descriptors = BukitCliComposer.Compose(coreDescriptors, pluginCli.Descriptors);
 var descriptor = BukitCliDescriptors.ResolveDescriptor(descriptors, command);
 var commandArgsInfo = NormalizeGlobalLogFormat(commandArgsRaw, descriptor);
 var commandArgs = commandArgsInfo.Args;
