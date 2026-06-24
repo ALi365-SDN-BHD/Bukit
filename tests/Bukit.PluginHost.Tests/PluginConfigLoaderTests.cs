@@ -104,6 +104,45 @@ public sealed class PluginConfigLoaderTests
     }
 
     [Fact]
+    public async Task LoadAsync_VersionOnly_ReturnsEmptyConfig()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            """
+            version: 1
+            """);
+
+        var loader = new PluginConfigLoader();
+
+        PluginHostConfig config = await loader.LoadAsync(directory.Path, CancellationToken.None);
+
+        Assert.Empty(config.Plugins);
+    }
+
+    [Fact]
+    public async Task LoadAsync_MissingPermissions_ThrowsConfigException()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            """
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+                exposeCommands: []
+            """);
+
+        var loader = new PluginConfigLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(directory.Path, CancellationToken.None));
+
+        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, exception.Code);
+        Assert.Contains("plugins.echo.permissions", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task LoadAsync_ExposeCommandsMissing_SetsDeclaredFalse()
     {
         using var directory = TestDirectory.Create();
@@ -114,6 +153,7 @@ public sealed class PluginConfigLoaderTests
               echo:
                 enabled: true
                 source: plugins/echo
+                permissions: {}
             """);
 
         var loader = new PluginConfigLoader();
@@ -137,6 +177,7 @@ public sealed class PluginConfigLoaderTests
                 enabled: true
                 source: plugins/echo
                 exposeCommands: []
+                permissions: {}
             """);
 
         var loader = new PluginConfigLoader();

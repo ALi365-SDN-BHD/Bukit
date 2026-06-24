@@ -149,6 +149,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
                 source: plugins/echo
                 exposeCommands:
                   - echo
+                permissions: {}
             """);
 
         var result = await InvokeEntryPointAsync(["echo", "hello"]);
@@ -451,6 +452,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
                 source: ../plugins/echo
                 exposeCommands:
                   - echo
+                permissions: {}
             """);
 
         var loader = PluginCliLoader.CreateDefault();

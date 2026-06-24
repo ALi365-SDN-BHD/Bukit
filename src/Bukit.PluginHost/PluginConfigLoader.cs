@@ -101,8 +101,10 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
         bool allowInCi = PluginYaml.GetOptionalBool(node, "allowInCi") ?? false;
         string? description = PluginYaml.GetOptionalString(node, "description");
 
-        var permissions = ReadPermissions(id, PluginYaml.GetOptionalMapping(node, "permissions"));
-        bool permissionsExplicit = PluginYaml.GetOptionalMapping(node, "permissions") is not null;
+        var permissions = ReadPermissions(
+            id,
+            PluginYaml.GetRequiredMapping(node, "permissions", $"plugins.{id}.permissions"));
+        bool permissionsExplicit = true;
         var timeout = ReadTimeout(PluginYaml.GetOptionalMapping(node, "timeout"));
         var output = ReadOutput(PluginYaml.GetOptionalMapping(node, "output"));
 

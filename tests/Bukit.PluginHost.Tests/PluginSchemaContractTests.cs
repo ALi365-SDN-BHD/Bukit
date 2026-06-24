@@ -16,7 +16,7 @@ public sealed class PluginSchemaContractTests
         Assert.Equal("https://json-schema.org/draft/2020-12/schema", root.GetProperty("$schema").GetString());
         Assert.Equal("https://bukit.dev/schemas/bukit-plugin-config.v1.json", root.GetProperty("$id").GetString());
         Assert.False(root.GetProperty("additionalProperties").GetBoolean());
-        AssertRequired(root, ["version", "plugins"]);
+        AssertRequired(root, ["version"]);
 
         JsonElement pluginEntry = root
             .GetProperty("$defs")

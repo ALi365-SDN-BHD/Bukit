@@ -3,7 +3,7 @@
   "$id": "https://bukit.dev/schemas/bukit-plugin-config.v1.json",
   "title": "Bukit Plugin Project Config",
   "type": "object",
-  "required": ["version", "plugins"],
+  "required": ["version"],
   "properties": {
     "version": {
       "const": 1
