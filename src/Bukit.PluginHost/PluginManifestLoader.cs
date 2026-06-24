@@ -124,21 +124,123 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
         }
 
         var commands = new List<PluginCommandSpec>();
+        int index = 0;
         foreach (YamlNode item in sequence.Children)
         {
-            if (item is not YamlMappingNode commandNode)
-            {
-                throw new ConfigException("plugin.commands items must be mappings.", DiagnosticCode.ConfigInvalidValue);
-            }
-
-            string name = PluginYaml.GetRequiredString(commandNode, "name", "plugin.commands[].name");
-            string description = PluginYaml.GetOptionalString(commandNode, "description")
-                ?? PluginYaml.GetOptionalString(commandNode, "summary")
-                ?? string.Empty;
-            commands.Add(new PluginCommandSpec(name, description));
+            commands.Add(ReadCommand(item, $"plugin.commands[{index}]"));
+            index++;
         }
 
         return commands;
+    }
+
+    private static PluginCommandSpec ReadCommand(YamlNode item, string path)
+    {
+        if (item is YamlScalarNode scalar)
+        {
+            if (string.IsNullOrWhiteSpace(scalar.Value))
+            {
+                throw new ConfigException($"{path} must be a non-empty scalar or mapping.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            return new PluginCommandSpec(scalar.Value.Trim(), string.Empty);
+        }
+
+        if (item is not YamlMappingNode commandNode)
+        {
+            throw new ConfigException($"{path} must be a mapping.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        string name = PluginYaml.GetRequiredString(commandNode, "name", $"{path}.name");
+        string description = PluginYaml.GetOptionalString(commandNode, "description")
+            ?? PluginYaml.GetOptionalString(commandNode, "summary")
+            ?? string.Empty;
+
+        return new PluginCommandSpec(
+            name,
+            description,
+            Aliases: PluginYaml.ReadStringList(commandNode, "aliases"),
+            Arguments: ReadArguments(PluginYaml.GetOptionalSequence(commandNode, "arguments"), $"{path}.arguments"),
+            Options: ReadOptions(PluginYaml.GetOptionalSequence(commandNode, "options"), $"{path}.options"),
+            Subcommands: ReadSubcommands(PluginYaml.GetOptionalSequence(commandNode, "subcommands"), $"{path}.subcommands"));
+    }
+
+    private static IReadOnlyList<PluginArgumentSpec> ReadArguments(YamlSequenceNode? sequence, string path)
+    {
+        if (sequence is null)
+        {
+            return [];
+        }
+
+        var arguments = new List<PluginArgumentSpec>();
+        int index = 0;
+        foreach (YamlNode item in sequence.Children)
+        {
+            if (item is not YamlMappingNode argumentNode)
+            {
+                throw new ConfigException($"{path}[{index}] must be a mapping.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            arguments.Add(new PluginArgumentSpec(
+                PluginYaml.GetRequiredString(argumentNode, "name", $"{path}[{index}].name"),
+                PluginYaml.GetOptionalString(argumentNode, "description")
+                    ?? PluginYaml.GetOptionalString(argumentNode, "summary")
+                    ?? string.Empty,
+                PluginYaml.GetOptionalBool(argumentNode, "required") ?? false));
+            index++;
+        }
+
+        return arguments;
+    }
+
+    private static IReadOnlyList<PluginOptionSpec> ReadOptions(YamlSequenceNode? sequence, string path)
+    {
+        if (sequence is null)
+        {
+            return [];
+        }
+
+        var options = new List<PluginOptionSpec>();
+        int index = 0;
+        foreach (YamlNode item in sequence.Children)
+        {
+            if (item is not YamlMappingNode optionNode)
+            {
+                throw new ConfigException($"{path}[{index}] must be a mapping.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            options.Add(new PluginOptionSpec(
+                PluginYaml.GetRequiredString(optionNode, "name", $"{path}[{index}].name"),
+                PluginYaml.GetOptionalString(optionNode, "type") ?? "string",
+                PluginYaml.GetOptionalString(optionNode, "description")
+                    ?? PluginYaml.GetOptionalString(optionNode, "summary")
+                    ?? string.Empty,
+                PluginYaml.GetOptionalBool(optionNode, "required") ?? false,
+                PluginYaml.GetOptionalString(optionNode, "valueName"),
+                PluginYaml.ReadStringList(optionNode, "allowedValues"),
+                PluginYaml.GetOptionalString(optionNode, "conflictWith")));
+            index++;
+        }
+
+        return options;
+    }
+
+    private static IReadOnlyList<PluginCommandSpec> ReadSubcommands(YamlSequenceNode? sequence, string path)
+    {
+        if (sequence is null)
+        {
+            return [];
+        }
+
+        var subcommands = new List<PluginCommandSpec>();
+        int index = 0;
+        foreach (YamlNode item in sequence.Children)
+        {
+            subcommands.Add(ReadCommand(item, $"{path}[{index}]"));
+            index++;
+        }
+
+        return subcommands;
     }
 
     private static PluginPermissionSet ReadRequiredPermissions(YamlMappingNode? node)
@@ -152,13 +254,16 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
         YamlMappingNode? fileSystemNode = PluginYaml.GetOptionalMapping(node, "fileSystem");
         YamlMappingNode? environmentNode = PluginYaml.GetOptionalMapping(node, "environment");
 
-        return new PluginPermissionSet(
+        var permissions = new PluginPermissionSet(
             FileSystem: new PluginFileSystemPermission(
                 Read: PluginYaml.ReadStringList(fileSystemNode, "read"),
                 Write: PluginYaml.ReadStringList(fileSystemNode, "write")),
             Network: network,
             Environment: new PluginEnvironmentPermission(
                 Read: ReadEnvironmentList(environmentNode)));
+
+        PluginPermissionEvaluator.ValidateFileSystemPermissionPaths(permissions);
+        return permissions;
     }
 
     private static IReadOnlyList<string> ReadEnvironmentList(YamlMappingNode? node)

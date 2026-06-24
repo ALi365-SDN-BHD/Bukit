@@ -14,4 +14,6 @@ public sealed record PluginListRecord(
     string Version,
     bool Enabled,
     string Platform,
-    IReadOnlyList<string> Commands);
+    IReadOnlyList<string> Commands,
+    string Status = "ok",
+    string? Error = null);

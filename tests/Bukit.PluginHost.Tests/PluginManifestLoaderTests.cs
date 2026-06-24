@@ -47,6 +47,80 @@ public sealed class PluginManifestLoaderTests
         Assert.Equal("echo", Assert.Single(manifest.Commands).Name);
     }
 
+    [Fact]
+    public async Task LoadAsync_ReadsFullCommandSpec()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write("plugins/import/plugin.yaml",
+            """
+            id: import
+            name: Import
+            version: 0.1.0
+            protocol: bukit-plugin-v1
+            kind: process
+            distribution: self-contained
+            platforms:
+              osx-arm64:
+                entry: bin/osx-arm64/bukit-plugin-import
+                sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            commands:
+              - name: import
+                description: Import external content
+                aliases:
+                  - imp
+                arguments:
+                  - name: source
+                    description: Source path
+                    required: true
+                options:
+                  - name: --format
+                    type: string
+                    description: Import format
+                    required: true
+                    valueName: FORMAT
+                    allowedValues:
+                      - html
+                      - markdown
+                    conflictWith: --auto
+                subcommands:
+                  - name: html-demo
+                    description: Import HTML demo
+                    arguments:
+                      - name: demo-dir
+                        description: Demo directory
+                        required: true
+                    options:
+                      - name: --force
+                        type: flag
+                        description: Overwrite existing files
+            """);
+
+        var loader = new PluginManifestLoader();
+
+        PluginManifest manifest = await loader.LoadAsync(
+            System.IO.Path.Combine(directory.Path, "plugins/import"),
+            CancellationToken.None);
+
+        PluginCommandSpec command = Assert.Single(manifest.Commands);
+        Assert.Equal("import", command.Name);
+        Assert.Equal("Import external content", command.Description);
+        Assert.Equal("imp", Assert.Single(command.Aliases));
+        PluginArgumentSpec argument = Assert.Single(command.Arguments);
+        Assert.Equal("source", argument.Name);
+        Assert.True(argument.Required);
+        PluginOptionSpec option = Assert.Single(command.Options);
+        Assert.Equal("--format", option.Name);
+        Assert.Equal("string", option.Type);
+        Assert.True(option.Required);
+        Assert.Equal("FORMAT", option.ValueName);
+        Assert.Equal(["html", "markdown"], option.AllowedValues);
+        Assert.Equal("--auto", option.ConflictWith);
+        PluginCommandSpec subcommand = Assert.Single(command.Subcommands);
+        Assert.Equal("html-demo", subcommand.Name);
+        Assert.True(Assert.Single(subcommand.Arguments).Required);
+        Assert.Equal("--force", Assert.Single(subcommand.Options).Name);
+    }
+
     [Theory]
     [InlineData("protocol: bukit-plugin-v0", "protocol")]
     [InlineData("kind: dll", "kind")]
@@ -145,5 +219,39 @@ public sealed class PluginManifestLoaderTests
             () => loader.LoadAsync(System.IO.Path.Combine(directory.Path, "plugins/echo"), CancellationToken.None));
 
         Assert.Contains("distribution must be self-contained", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("../secret")]
+    [InlineData("/tmp")]
+    [InlineData(".bukit/bin")]
+    [InlineData(".bukit/plugins")]
+    public async Task LoadAsync_UnsafeRequiredFileSystemPermission_ThrowsConfigException(string unsafePath)
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write("plugins/echo/plugin.yaml",
+            $$"""
+            id: echo
+            name: Echo
+            version: 0.1.0
+            protocol: bukit-plugin-v1
+            kind: process
+            distribution: self-contained
+            platforms:
+              osx-arm64:
+                entry: bin/osx-arm64/bukit-plugin-echo
+                sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            requiredPermissions:
+              fileSystem:
+                write:
+                  - {{unsafePath}}
+            """);
+
+        var loader = new PluginManifestLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(System.IO.Path.Combine(directory.Path, "plugins/echo"), CancellationToken.None));
+
+        Assert.Contains("fileSystem.write permission path", exception.Message, StringComparison.Ordinal);
     }
 }

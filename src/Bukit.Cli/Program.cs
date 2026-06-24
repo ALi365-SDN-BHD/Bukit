@@ -21,7 +21,10 @@ try
     var descriptor = BukitCliDescriptors.ResolveDescriptor(coreDescriptors, command);
     if (descriptor is null)
     {
-        var pluginCli = await PluginCliLoader.CreateDefault().LoadAsync(Directory.GetCurrentDirectory(), CancellationToken.None);
+        var pluginCli = await PluginCliLoader.CreateDefault().LoadAsync(
+            Directory.GetCurrentDirectory(),
+            CancellationToken.None,
+            toleratePluginFailures: string.Equals(command, "plugin", StringComparison.Ordinal));
         var descriptors = BukitCliComposer.Compose(coreDescriptors, pluginCli.Descriptors);
         descriptor = BukitCliDescriptors.ResolveDescriptor(descriptors, command);
     }

@@ -68,6 +68,42 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Main_PluginList_PrintsErrorRecordWhenOneEnabledPluginIsBad()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallEchoPluginAsync(enabled: true);
+        File.WriteAllText(Path.Combine(_tempDir, ".bukit", "plugins.yaml"),
+            """
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+                exposeCommands:
+                  - echo
+                allowInCi: true
+                permissions:
+                  network: false
+              broken:
+                enabled: true
+                source: plugins/missing
+                exposeCommands:
+                  - broken
+                allowInCi: true
+                permissions:
+                  network: false
+            """);
+
+        var result = await InvokeEntryPointAsync(["plugin", "list"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("echo@1.0.0 enabled=true", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("broken@error enabled=true", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("status=error", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("commands=broken", result.StdOut, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Main_EchoCommand_InvokesEchoPlugin()
     {
         using var cwd = new CurrentDirectoryScope(_tempDir);
@@ -125,7 +161,16 @@ public sealed class PluginCliIntegrationTests : IDisposable
     public async Task LoadAsync_ExposeCommands_FiltersRuntimeManifestCommands()
     {
         using var cwd = new CurrentDirectoryScope(_tempDir);
-        WriteRuntimePermissionPluginConfig(exposeCommands: ["allowed"]);
+        WriteRuntimePermissionPluginConfig(
+            exposeCommands: ["allowed"],
+            staticCommands:
+            """
+            commands:
+              - name: allowed
+                summary: Allowed command
+              - name: hidden
+                summary: Hidden command
+            """);
         var client = new RuntimePermissionProtocolClient(
             new PluginPermissionSet(),
             commands: [new PluginCommandSpec("allowed", "Allowed"), new PluginCommandSpec("hidden", "Hidden")]);
@@ -147,7 +192,14 @@ public sealed class PluginCliIntegrationTests : IDisposable
     public async Task LoadAsync_ExposeCommandMissingFromRuntimeManifest_ThrowsConfigException()
     {
         using var cwd = new CurrentDirectoryScope(_tempDir);
-        WriteRuntimePermissionPluginConfig(exposeCommands: ["missing"]);
+        WriteRuntimePermissionPluginConfig(
+            exposeCommands: ["missing"],
+            staticCommands:
+            """
+            commands:
+              - name: allowed
+                summary: Allowed command
+            """);
         var client = new RuntimePermissionProtocolClient(
             new PluginPermissionSet(),
             commands: [new PluginCommandSpec("allowed", "Allowed")]);
@@ -163,6 +215,35 @@ public sealed class PluginCliIntegrationTests : IDisposable
             () => loader.LoadAsync(_tempDir, CancellationToken.None));
 
         Assert.Contains("exposeCommands contains unknown command: missing", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_RuntimeCommandNotDeclaredInStaticManifest_ThrowsConfigException()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteRuntimePermissionPluginConfig(
+            exposeCommands: ["hidden"],
+            staticCommands:
+            """
+            commands:
+              - name: allowed
+                summary: Allowed command
+            """);
+        var client = new RuntimePermissionProtocolClient(
+            new PluginPermissionSet(),
+            commands: [new PluginCommandSpec("hidden", "Hidden")]);
+        var loader = new PluginCliLoader(
+            new PluginConfigLoader(),
+            new PluginManifestLoader(),
+            new PluginPathValidator(),
+            new FixedPlatformResolver("test-rid"),
+            new PassingHashVerifier(),
+            client);
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(_tempDir, CancellationToken.None));
+
+        Assert.Contains("runtime manifest command is not declared in plugin.yaml: hidden", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -191,7 +272,14 @@ public sealed class PluginCliIntegrationTests : IDisposable
     public async Task LoadAsync_ExposeCommandsEmpty_ExposesNoCommands()
     {
         using var cwd = new CurrentDirectoryScope(_tempDir);
-        WriteRuntimePermissionPluginConfig(exposeCommands: []);
+        WriteRuntimePermissionPluginConfig(
+            exposeCommands: [],
+            staticCommands:
+            """
+            commands:
+              - name: hidden
+                summary: Hidden command
+            """);
         var client = new RuntimePermissionProtocolClient(
             new PluginPermissionSet(),
             commands: [new PluginCommandSpec("hidden", "Hidden")]);
@@ -385,6 +473,47 @@ public sealed class PluginCliIntegrationTests : IDisposable
         Assert.Equal("x", client.LastInvokeRequest.Command.Options["--theme"].GetString());
     }
 
+    [Fact]
+    public async Task PluginInvoke_UsesTypedJsonOptionValues()
+    {
+        var client = new RuntimePermissionProtocolClient(new PluginPermissionSet());
+        var plugin = new ResolvedPlugin(
+            "import",
+            "1.0.0",
+            "test-rid",
+            "/tmp/import",
+            _tempDir,
+            new PluginHostInfo("Bukit", "1.0.0", "test-rid"));
+        var command = new PluginCommandSpec(
+            "import",
+            "Import",
+            Options:
+            [
+                new PluginOptionSpec("--force", "flag", "Force"),
+                new PluginOptionSpec("--jobs", "integer", "Jobs"),
+                new PluginOptionSpec("--ratio", "number", "Ratio"),
+                new PluginOptionSpec("--theme", "string", "Theme")
+            ]);
+        var descriptor = PluginCommandDescriptorFactory.Create(plugin, command, client);
+        var parsed = Bukit.Cli.Shared.Cli.Parsing.CliParser.Parse(
+            descriptor.Spec,
+            ["--force", "--jobs", "4", "--ratio", "1.5", "--theme", "x"]);
+
+        Assert.True(parsed.IsSuccess);
+        int exitCode = await descriptor.DispatchAsync(parsed);
+
+        Assert.Equal(0, exitCode);
+        Assert.NotNull(client.LastInvokeRequest);
+        IReadOnlyDictionary<string, JsonElement> options = client.LastInvokeRequest!.Command.Options;
+        Assert.Equal(JsonValueKind.True, options["--force"].ValueKind);
+        Assert.Equal(JsonValueKind.Number, options["--jobs"].ValueKind);
+        Assert.Equal(4, options["--jobs"].GetInt32());
+        Assert.Equal(JsonValueKind.Number, options["--ratio"].ValueKind);
+        Assert.Equal(1.5, options["--ratio"].GetDouble());
+        Assert.Equal(JsonValueKind.String, options["--theme"].ValueKind);
+        Assert.Equal("x", options["--theme"].GetString());
+    }
+
     private async Task InstallEchoPluginAsync(bool enabled, bool includeStaticCommand = false, string? requiredPermissions = null)
     {
         var resolver = new PluginPlatformResolver();
@@ -444,7 +573,8 @@ public sealed class PluginCliIntegrationTests : IDisposable
 
     private void WriteRuntimePermissionPluginConfig(
         IReadOnlyList<string>? exposeCommands = null,
-        bool declareExposeCommands = true)
+        bool declareExposeCommands = true,
+        string? staticCommands = null)
     {
         Directory.CreateDirectory(Path.Combine(_tempDir, ".bukit"));
         Directory.CreateDirectory(Path.Combine(_tempDir, "plugins", "runtime", "bin", "test-rid"));
@@ -469,8 +599,15 @@ public sealed class PluginCliIntegrationTests : IDisposable
                 permissions:
                   network: false
             """);
-        File.WriteAllText(Path.Combine(_tempDir, "plugins", "runtime", "plugin.yaml"),
+        string commands = staticCommands ??
             """
+            commands:
+              - name: runtime
+                summary: Runtime command
+            """;
+
+        File.WriteAllText(Path.Combine(_tempDir, "plugins", "runtime", "plugin.yaml"),
+            $$"""
             id: runtime
             name: Runtime Permission Plugin
             version: 1.0.0
@@ -481,9 +618,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
               test-rid:
                 entry: bin/test-rid/plugin
                 sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-            commands:
-              - name: runtime
-                summary: Runtime command
+            {{commands}}
             """);
     }
 

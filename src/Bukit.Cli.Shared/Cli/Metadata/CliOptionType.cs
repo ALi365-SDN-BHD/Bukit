@@ -4,5 +4,6 @@ public enum CliOptionType
 {
     Flag,
     String,
-    Integer
+    Integer,
+    Number
 }

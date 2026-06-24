@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Cli.Shared.Cli.Metadata;
@@ -132,6 +133,12 @@ public static class CliParser
     private static void ValidateOptionValue(CliOptionSpec spec, string value, List<CliDiagnostic> diagnostics)
     {
         if (spec.Type == CliOptionType.Integer && !int.TryParse(value, out _))
+        {
+            diagnostics.Add(new CliDiagnostic("invalid-option-value", $"Invalid value for {spec.Name}: {value}"));
+        }
+
+        if (spec.Type == CliOptionType.Number
+            && !double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
         {
             diagnostics.Add(new CliDiagnostic("invalid-option-value", $"Invalid value for {spec.Name}: {value}"));
         }

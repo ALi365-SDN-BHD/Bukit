@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Bukit.Plugin.Abstractions.Results;
+using Bukit.Plugin.Abstractions.Security;
 
 namespace Bukit.PluginHost;
 
@@ -18,9 +20,52 @@ public sealed class PluginExecutionReporter
         await using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         writer.WriteStartObject();
         writer.WriteString("pluginId", report.PluginId);
+        WriteNullableString(writer, "pluginVersion", report.PluginVersion);
         writer.WriteString("operation", report.Operation);
+        WriteNullableString(writer, "protocol", report.Protocol);
+        WriteNullableString(writer, "platform", report.Platform);
+        WriteNullableString(writer, "command", report.Command);
+        writer.WritePropertyName("commandPath");
+        WriteStringArray(writer, report.CommandPath);
+        WriteNullableString(writer, "entry", report.Entry);
+        if (report.StartedAt is DateTimeOffset startedAt)
+        {
+            writer.WriteString("startedAt", startedAt);
+        }
+        else
+        {
+            writer.WriteNull("startedAt");
+        }
+
+        if (report.DurationMs is long durationMs)
+        {
+            writer.WriteNumber("durationMs", durationMs);
+        }
+        else
+        {
+            writer.WriteNull("durationMs");
+        }
+
         writer.WriteString("requestId", report.RequestId);
         writer.WriteNumber("processExitCode", report.ProcessExitCode);
+        if (report.ResponseExitCode is int responseExitCode)
+        {
+            writer.WriteNumber("responseExitCode", responseExitCode);
+        }
+        else
+        {
+            writer.WriteNull("responseExitCode");
+        }
+
+        if (report.Sha256Verified is bool sha256Verified)
+        {
+            writer.WriteBoolean("sha256Verified", sha256Verified);
+        }
+        else
+        {
+            writer.WriteNull("sha256Verified");
+        }
+
         writer.WriteBoolean("success", report.Success);
         writer.WriteBoolean("timedOut", report.TimedOut);
         writer.WriteBoolean("outputLimitExceeded", report.OutputLimitExceeded);
@@ -35,9 +80,93 @@ public sealed class PluginExecutionReporter
         }
 
         writer.WriteEndObject();
+        writer.WritePropertyName("permissions");
+        WritePermissions(writer, report.Permissions);
+        writer.WritePropertyName("diagnostics");
+        WriteDiagnostics(writer, report.Diagnostics);
+        writer.WritePropertyName("artifacts");
+        WriteArtifacts(writer, report.Artifacts);
         writer.WriteEndObject();
         await writer.FlushAsync(cancellationToken);
         return reportPath;
+    }
+
+    private static void WriteNullableString(Utf8JsonWriter writer, string propertyName, string? value)
+    {
+        if (value is null)
+        {
+            writer.WriteNull(propertyName);
+            return;
+        }
+
+        writer.WriteString(propertyName, value);
+    }
+
+    private static void WritePermissions(Utf8JsonWriter writer, PluginPermissionSet? permissions)
+    {
+        if (permissions is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        writer.WriteStartObject();
+        writer.WritePropertyName("fileSystem");
+        writer.WriteStartObject();
+        writer.WritePropertyName("read");
+        WriteStringArray(writer, permissions.FileSystem.Read);
+        writer.WritePropertyName("write");
+        WriteStringArray(writer, permissions.FileSystem.Write);
+        writer.WriteEndObject();
+        writer.WriteBoolean("network", permissions.Network);
+        writer.WritePropertyName("environment");
+        writer.WriteStartObject();
+        writer.WritePropertyName("read");
+        WriteStringArray(writer, permissions.Environment.Read);
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+    }
+
+    private static void WriteDiagnostics(Utf8JsonWriter writer, IReadOnlyList<PluginDiagnostic> diagnostics)
+    {
+        writer.WriteStartArray();
+        foreach (PluginDiagnostic diagnostic in diagnostics)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("code", diagnostic.Code);
+            writer.WriteString("severity", diagnostic.Severity);
+            writer.WriteString("message", diagnostic.Message);
+            WriteNullableString(writer, "path", diagnostic.Path);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteArtifacts(Utf8JsonWriter writer, IReadOnlyList<PluginArtifact> artifacts)
+    {
+        writer.WriteStartArray();
+        foreach (PluginArtifact artifact in artifacts)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("type", artifact.Type);
+            writer.WriteString("path", artifact.Path);
+            WriteNullableString(writer, "description", artifact.Description);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteStringArray(Utf8JsonWriter writer, IReadOnlyList<string> values)
+    {
+        writer.WriteStartArray();
+        foreach (string value in values)
+        {
+            writer.WriteStringValue(value);
+        }
+
+        writer.WriteEndArray();
     }
 
     private static string Sanitize(string value)

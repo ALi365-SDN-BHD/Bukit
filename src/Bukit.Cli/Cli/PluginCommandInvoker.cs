@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Plugin.Abstractions.Manifest;
 using Bukit.Plugin.Abstractions.Protocol;
@@ -134,11 +135,56 @@ public static class PluginCommandInvoker
                     continue;
                 }
 
-                options[option.Name] = CreateStringElement(value);
+                options[option.Name] = CreateOptionElement(option, value);
             }
         }
 
         return options;
+    }
+
+    private static JsonElement CreateOptionElement(PluginOptionSpec option, string value)
+        => option.Type.ToLowerInvariant() switch
+        {
+            "flag" or "bool" or "boolean" => CreateBooleanElement(true),
+            "int" or "integer" => CreateNumberElement(int.Parse(value, CultureInfo.InvariantCulture)),
+            "number" or "float" or "double" => CreateNumberElement(double.Parse(value, CultureInfo.InvariantCulture)),
+            _ => CreateStringElement(value)
+        };
+
+    private static JsonElement CreateBooleanElement(bool value)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteBooleanValue(value);
+        }
+
+        using JsonDocument document = JsonDocument.Parse(stream.ToArray());
+        return document.RootElement.Clone();
+    }
+
+    private static JsonElement CreateNumberElement(int value)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteNumberValue(value);
+        }
+
+        using JsonDocument document = JsonDocument.Parse(stream.ToArray());
+        return document.RootElement.Clone();
+    }
+
+    private static JsonElement CreateNumberElement(double value)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteNumberValue(value);
+        }
+
+        using JsonDocument document = JsonDocument.Parse(stream.ToArray());
+        return document.RootElement.Clone();
     }
 
     private static JsonElement CreateStringElement(string value)

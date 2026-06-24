@@ -18,6 +18,7 @@ public sealed class PluginCliLoader
     private readonly PluginCiPolicy _ciPolicy;
     private readonly PluginLockFileWriter _lockFileWriter;
     private readonly PluginPermissionEvaluator _permissionEvaluator;
+    private readonly PluginCommandManifestValidator _commandManifestValidator;
 
     public PluginCliLoader(
         IPluginConfigLoader configLoader,
@@ -28,7 +29,8 @@ public sealed class PluginCliLoader
         IPluginProtocolClient protocolClient,
         PluginCiPolicy? ciPolicy = null,
         PluginLockFileWriter? lockFileWriter = null,
-        PluginPermissionEvaluator? permissionEvaluator = null)
+        PluginPermissionEvaluator? permissionEvaluator = null,
+        PluginCommandManifestValidator? commandManifestValidator = null)
     {
         _configLoader = configLoader;
         _manifestLoader = manifestLoader;
@@ -39,6 +41,7 @@ public sealed class PluginCliLoader
         _ciPolicy = ciPolicy ?? new PluginCiPolicy();
         _lockFileWriter = lockFileWriter ?? new PluginLockFileWriter();
         _permissionEvaluator = permissionEvaluator ?? new PluginPermissionEvaluator();
+        _commandManifestValidator = commandManifestValidator ?? new PluginCommandManifestValidator();
     }
 
     public static PluginCliLoader CreateDefault()
@@ -53,7 +56,10 @@ public sealed class PluginCliLoader
             new PluginProtocolClient(processInvoker, new PluginRequestIdFactory()));
     }
 
-    public async Task<PluginCliLoadResult> LoadAsync(string projectRoot, CancellationToken cancellationToken)
+    public async Task<PluginCliLoadResult> LoadAsync(
+        string projectRoot,
+        CancellationToken cancellationToken,
+        bool toleratePluginFailures = false)
     {
         PluginHostConfig config = await _configLoader.LoadAsync(projectRoot, cancellationToken);
         var descriptors = new List<CommandDescriptor>();
@@ -64,90 +70,14 @@ public sealed class PluginCliLoader
 
         foreach ((string pluginId, PluginConfigEntry entry) in config.Plugins)
         {
-            PluginPathValidationResult source = _pathValidator.ValidatePluginSource(projectRoot, entry.Source);
-            if (!source.Success || source.FullPath is null)
+            try
             {
-                throw new ConfigException(source.Message ?? $"Invalid plugin source: {entry.Source}", DiagnosticCode.ConfigPathTraversal);
+                await LoadPluginAsync(projectRoot, pluginId, entry, rid, isCi, descriptors, records, lockEntries, cancellationToken);
             }
-
-            EnsureExposeCommandsDeclared(pluginId, entry);
-            if (!entry.Enabled)
+            catch (Exception ex) when (toleratePluginFailures && ex is not OperationCanceledException)
             {
-                foreach (string command in entry.ExposeCommands)
-                {
-                    descriptors.Add(PluginCommandDescriptorFactory.CreateDisabled(command, pluginId));
-                }
-                records.Add(new PluginListRecord(pluginId, "disabled", Enabled: false, rid, entry.ExposeCommands));
-                continue;
+                records.Add(CreateErrorRecord(pluginId, entry, rid, ex));
             }
-
-            PluginManifest manifest = await _manifestLoader.LoadAsync(source.FullPath, cancellationToken);
-            _permissionEvaluator.ValidateGrantedPermissions(pluginId, entry.Permissions, manifest.RequiredPermissions);
-
-            if (!manifest.Platforms.TryGetValue(rid, out PluginPlatformEntry? platform))
-            {
-                throw new ConfigException($"Plugin {pluginId} does not provide platform {rid}.", DiagnosticCode.PluginCapabilityMissing);
-            }
-
-            PluginPathValidationResult entryPath = _pathValidator.ValidatePluginEntry(projectRoot, source.FullPath, platform.Entry);
-            if (!entryPath.Success || entryPath.FullPath is null)
-            {
-                throw new ConfigException(entryPath.Message ?? $"Invalid plugin entry: {platform.Entry}", DiagnosticCode.ConfigPathTraversal);
-            }
-
-            PluginHashVerificationResult hash = await _hashVerifier.VerifySha256Async(entryPath.FullPath, platform.Sha256, cancellationToken);
-            if (!hash.Success)
-            {
-                throw new ConfigException(hash.Message ?? $"Plugin {pluginId} sha256 mismatch.", DiagnosticCode.PluginExecutionFailed);
-            }
-
-            _ciPolicy.Validate(pluginId, entry, platform, hash.Success, isCi);
-
-            var resolved = new ResolvedPlugin(
-                pluginId,
-                manifest.Version,
-                rid,
-                entryPath.FullPath,
-                source.FullPath,
-                new PluginHostInfo("Bukit", CliBuildInfo.Version, rid),
-                ProjectRoot: projectRoot,
-                Timeout: entry.Timeout,
-                Output: entry.Output,
-                GrantedPermissions: entry.Permissions,
-                EnvironmentVariables: CreateAllowedEnvironment(entry.Permissions.Environment.Read));
-
-            PluginHandshakeResponse handshake = await _protocolClient.HandshakeAsync(resolved, cancellationToken);
-            PluginManifestResponse runtimeManifest = await _protocolClient.GetManifestAsync(resolved, cancellationToken);
-            _permissionEvaluator.ValidateGrantedPermissions(pluginId, entry.Permissions, runtimeManifest.RequiredPermissions);
-            IReadOnlyList<PluginCommandSpec> exposedCommands = SelectExposedCommands(
-                pluginId,
-                entry,
-                runtimeManifest.Commands);
-
-            foreach (PluginCommandSpec command in exposedCommands)
-            {
-                descriptors.Add(PluginCommandDescriptorFactory.Create(resolved, command, _protocolClient));
-            }
-
-            records.Add(new PluginListRecord(
-                pluginId,
-                handshake.Plugin?.Version ?? manifest.Version,
-                Enabled: true,
-                rid,
-                exposedCommands.Select(c => c.Name).ToArray()));
-
-            lockEntries.Add(new PluginLockEntry(
-                pluginId,
-                manifest.Version,
-                entry.Source,
-                manifest.Version,
-                manifest.Protocol,
-                CombinePluginEntry(entry.Source, platform.Entry),
-                rid,
-                platform.Sha256,
-                exposedCommands.Select(command => command.Name).ToArray(),
-                DateTimeOffset.UtcNow,
-                Sha256Verified: true));
         }
 
         if (lockEntries.Count > 0)
@@ -158,6 +88,126 @@ public sealed class PluginCliLoader
         descriptors.Add(PluginListCommand.Create(records));
         return new PluginCliLoadResult(descriptors, records);
     }
+
+    private async Task LoadPluginAsync(
+        string projectRoot,
+        string pluginId,
+        PluginConfigEntry entry,
+        string rid,
+        bool isCi,
+        List<CommandDescriptor> descriptors,
+        List<PluginListRecord> records,
+        List<PluginLockEntry> lockEntries,
+        CancellationToken cancellationToken)
+    {
+        PluginPathValidationResult source = _pathValidator.ValidatePluginSource(projectRoot, entry.Source);
+        if (!source.Success || source.FullPath is null)
+        {
+            throw new ConfigException(source.Message ?? $"Invalid plugin source: {entry.Source}", DiagnosticCode.ConfigPathTraversal);
+        }
+
+        EnsureExposeCommandsDeclared(pluginId, entry);
+        if (!entry.Enabled)
+        {
+            foreach (string command in entry.ExposeCommands)
+            {
+                descriptors.Add(PluginCommandDescriptorFactory.CreateDisabled(command, pluginId));
+            }
+
+            records.Add(new PluginListRecord(
+                pluginId,
+                "disabled",
+                Enabled: false,
+                rid,
+                entry.ExposeCommands,
+                Status: "disabled"));
+            return;
+        }
+
+        PluginManifest manifest = await _manifestLoader.LoadAsync(source.FullPath, cancellationToken);
+        _permissionEvaluator.ValidateGrantedPermissions(pluginId, entry.Permissions, manifest.RequiredPermissions);
+
+        if (!manifest.Platforms.TryGetValue(rid, out PluginPlatformEntry? platform))
+        {
+            throw new ConfigException($"Plugin {pluginId} does not provide platform {rid}.", DiagnosticCode.PluginCapabilityMissing);
+        }
+
+        PluginPathValidationResult entryPath = _pathValidator.ValidatePluginEntry(projectRoot, source.FullPath, platform.Entry);
+        if (!entryPath.Success || entryPath.FullPath is null)
+        {
+            throw new ConfigException(entryPath.Message ?? $"Invalid plugin entry: {platform.Entry}", DiagnosticCode.ConfigPathTraversal);
+        }
+
+        PluginHashVerificationResult hash = await _hashVerifier.VerifySha256Async(entryPath.FullPath, platform.Sha256, cancellationToken);
+        if (!hash.Success)
+        {
+            throw new ConfigException(hash.Message ?? $"Plugin {pluginId} sha256 mismatch.", DiagnosticCode.PluginExecutionFailed);
+        }
+
+        _ciPolicy.Validate(pluginId, entry, platform, hash.Success, isCi);
+
+        var resolved = new ResolvedPlugin(
+            pluginId,
+            manifest.Version,
+            rid,
+            entryPath.FullPath,
+            source.FullPath,
+            new PluginHostInfo("Bukit", CliBuildInfo.Version, rid),
+            ProjectRoot: projectRoot,
+            Timeout: entry.Timeout,
+            Output: entry.Output,
+            GrantedPermissions: entry.Permissions,
+            EnvironmentVariables: CreateAllowedEnvironment(entry.Permissions.Environment.Read),
+            Sha256Verified: hash.Success);
+
+        PluginHandshakeResponse handshake = await _protocolClient.HandshakeAsync(resolved, cancellationToken);
+        PluginManifestResponse runtimeManifest = await _protocolClient.GetManifestAsync(resolved, cancellationToken);
+        _commandManifestValidator.ValidateRuntimeCommands(pluginId, manifest.Commands, runtimeManifest.Commands);
+        _permissionEvaluator.ValidateGrantedPermissions(pluginId, entry.Permissions, runtimeManifest.RequiredPermissions);
+        IReadOnlyList<PluginCommandSpec> exposedCommands = SelectExposedCommands(
+            pluginId,
+            entry,
+            runtimeManifest.Commands);
+
+        foreach (PluginCommandSpec command in exposedCommands)
+        {
+            descriptors.Add(PluginCommandDescriptorFactory.Create(resolved, command, _protocolClient));
+        }
+
+        records.Add(new PluginListRecord(
+            pluginId,
+            handshake.Plugin?.Version ?? manifest.Version,
+            Enabled: true,
+            rid,
+            exposedCommands.Select(c => c.Name).ToArray()));
+
+        lockEntries.Add(new PluginLockEntry(
+            pluginId,
+            manifest.Version,
+            entry.Source,
+            manifest.Version,
+            manifest.Protocol,
+            CombinePluginEntry(entry.Source, platform.Entry),
+            rid,
+            platform.Sha256,
+            exposedCommands.Select(command => command.Name).ToArray(),
+            DateTimeOffset.UtcNow,
+            Sha256Verified: true));
+    }
+
+    private static PluginListRecord CreateErrorRecord(
+        string pluginId,
+        PluginConfigEntry entry,
+        string rid,
+        Exception exception)
+        => new(
+            pluginId,
+            "error",
+            entry.Enabled,
+            rid,
+            entry.ExposeCommandsDeclared ? entry.ExposeCommands : [],
+            Status: "error",
+            Error: exception.Message);
 
     private static bool IsCi()
         => string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase);

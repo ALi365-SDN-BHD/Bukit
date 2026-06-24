@@ -54,6 +54,7 @@ public static class PluginCommandDescriptorFactory
         {
             "flag" or "bool" or "boolean" => CliOptionType.Flag,
             "int" or "integer" => CliOptionType.Integer,
+            "number" or "float" or "double" => CliOptionType.Number,
             _ => CliOptionType.String
         };
 }

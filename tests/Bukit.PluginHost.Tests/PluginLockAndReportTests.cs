@@ -1,5 +1,7 @@
 using Bukit.Plugin.Abstractions.Config;
 using Bukit.Plugin.Abstractions.Manifest;
+using Bukit.Plugin.Abstractions.Results;
+using Bukit.Plugin.Abstractions.Security;
 using Bukit.PluginHost;
 using Bukit.Shared;
 using Xunit;
@@ -64,6 +66,27 @@ public sealed class PluginLockAndReportTests
                 StdoutBytes: 10,
                 StderrBytes: 5,
                 Stderr: "log",
+                PluginVersion: "0.1.0",
+                Protocol: "bukit-plugin-v1",
+                Platform: "osx-arm64",
+                Command: "echo",
+                Entry: "plugins/echo/bin/osx-arm64/bukit-plugin-echo",
+                StartedAt: DateTimeOffset.Parse("2026-06-24T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture),
+                DurationMs: 12,
+                ResponseExitCode: 2,
+                Sha256Verified: true,
+                Permissions: new PluginPermissionSet(
+                    FileSystem: new PluginFileSystemPermission(Read: ["content"], Write: ["public"]),
+                    Network: true,
+                    Environment: new PluginEnvironmentPermission(Read: ["NOTION_TOKEN"])),
+                Diagnostics:
+                [
+                    new PluginDiagnostic("plugin.input.invalid", "error", "Invalid input", "content/index.md")
+                ],
+                Artifacts:
+                [
+                    new PluginArtifact("file", "out/result.json", "Result")
+                ],
                 Environment: new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["NOTION_TOKEN"] = "secret-token",
@@ -73,6 +96,21 @@ public sealed class PluginLockAndReportTests
 
         string json = File.ReadAllText(path);
         Assert.Contains("\"pluginId\": \"echo\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"pluginVersion\": \"0.1.0\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"protocol\": \"bukit-plugin-v1\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"platform\": \"osx-arm64\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"command\": \"echo\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"entry\": \"plugins/echo/bin/osx-arm64/bukit-plugin-echo\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"startedAt\": \"2026-06-24T00:00:00", json, StringComparison.Ordinal);
+        Assert.Contains("\"durationMs\": 12", json, StringComparison.Ordinal);
+        Assert.Contains("\"responseExitCode\": 2", json, StringComparison.Ordinal);
+        Assert.Contains("\"sha256Verified\": true", json, StringComparison.Ordinal);
+        Assert.Contains("\"permissions\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"read\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"diagnostics\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"plugin.input.invalid\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"artifacts\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"out/result.json\"", json, StringComparison.Ordinal);
         Assert.Contains("\"NOTION_TOKEN\": \"***\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("secret-token", json, StringComparison.Ordinal);
         Assert.Contains("\"PUBLIC_VALUE\": \"visible\"", json, StringComparison.Ordinal);

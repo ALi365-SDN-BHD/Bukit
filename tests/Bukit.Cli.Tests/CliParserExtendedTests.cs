@@ -91,6 +91,22 @@ public sealed class CliParserExtendedTests
     }
 
     [Fact]
+    public void Parse_NumberOption_InvalidValueProducesDiagnostic()
+    {
+        var spec = new CliCommandSpec(
+            Name: "import",
+            Description: "import",
+            Options:
+            [
+                new CliOptionSpec("--ratio", "ratio", CliOptionType.Number),
+            ]);
+
+        var result = CliParser.Parse(spec, ["--ratio", "not-a-number"]);
+
+        Assert.Contains(result.Diagnostics, d => d.Code == "invalid-option-value");
+    }
+
+    [Fact]
     public void Parse_MultiplePositionalAndOptions_MixedCorrectly()
     {
         var spec = new CliCommandSpec(

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Text;
@@ -118,11 +119,14 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
             Host = plugin.Host
         };
 
+        DateTimeOffset startedAt = DateTimeOffset.UtcNow;
+        long startTimestamp = Stopwatch.GetTimestamp();
         PluginProcessResult processResult = await InvokeProcessAsync(
             plugin,
             Serialize(normalizedRequest),
             TimeSpan.FromMilliseconds(plugin.Timeout.InvokeMs),
             cancellationToken);
+        long durationMs = Math.Max(0, (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds);
 
         PluginInvokeResponse? response = null;
         try
@@ -157,8 +161,12 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
                 plugin,
                 normalizedRequest.Context.RootDir,
                 requestId,
+                normalizedRequest,
                 processResult,
+                response,
                 response?.Success ?? false,
+                startedAt,
+                durationMs,
                 cancellationToken);
         }
     }
@@ -184,8 +192,12 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
         ResolvedPlugin plugin,
         string? contextRoot,
         string requestId,
+        PluginInvokeRequest request,
         PluginProcessResult result,
+        PluginInvokeResponse? response,
         bool success,
+        DateTimeOffset startedAt,
+        long durationMs,
         CancellationToken cancellationToken)
     {
         string? projectRoot = ResolveProjectRoot(plugin, contextRoot);
@@ -204,7 +216,20 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
                     Encoding.UTF8.GetByteCount(result.StdoutJson),
                     Encoding.UTF8.GetByteCount(result.Stderr),
                     result.Stderr,
-                    ToReportEnvironment(plugin.EnvironmentVariables)),
+                    ToReportEnvironment(plugin.EnvironmentVariables),
+                    PluginVersion: plugin.Version,
+                    Protocol: PluginProtocolConstants.ProtocolVersion,
+                    Platform: plugin.Platform,
+                    Command: request.Command.Name,
+                    CommandPath: request.Command.Path,
+                    Entry: plugin.ExecutablePath,
+                    StartedAt: startedAt,
+                    DurationMs: durationMs,
+                    ResponseExitCode: response?.ExitCode,
+                    Sha256Verified: plugin.Sha256Verified,
+                    Permissions: request.Permissions,
+                    Diagnostics: response?.Diagnostics,
+                    Artifacts: response?.Artifacts),
                 cancellationToken);
     }
 

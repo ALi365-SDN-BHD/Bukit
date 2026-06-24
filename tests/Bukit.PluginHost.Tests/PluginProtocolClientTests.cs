@@ -160,6 +160,44 @@ public sealed class PluginProtocolClientTests
     }
 
     [Fact]
+    public async Task InvokeAsync_WritesDetailedExecutionReport()
+    {
+        using var directory = TestDirectory.Create();
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"invokeResponse","protocol":"bukit-plugin-v1","requestId":"req-3","success":false,"exitCode":2,"diagnostics":[{"code":"plugin.input.invalid","severity":"error","message":"Invalid input","path":"content/index.md"}],"artifacts":[{"type":"file","path":"out/result.json","description":"Result"}]}
+            """,
+            exitCode: 2);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+
+        await client.InvokeAsync(
+            CreatePlugin(directory.Path),
+            CreateInvokeRequest(
+                directory.Path,
+                new PluginPermissionSet(
+                    FileSystem: new PluginFileSystemPermission(Read: ["content"], Write: ["public"]),
+                    Network: true,
+                    Environment: new PluginEnvironmentPermission(Read: ["NOTION_TOKEN"]))),
+            CancellationToken.None);
+
+        string reportDirectory = Path.Combine(directory.Path, ".bukit", "reports", "plugin-executions");
+        string reportPath = Assert.Single(Directory.EnumerateFiles(reportDirectory, "*.json"));
+        string json = File.ReadAllText(reportPath);
+        Assert.Contains("\"pluginVersion\": \"0.1.0\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"protocol\": \"bukit-plugin-v1\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"platform\": \"osx-arm64\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"command\": \"echo\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"entry\": ", json, StringComparison.Ordinal);
+        Assert.Contains("\"durationMs\": ", json, StringComparison.Ordinal);
+        Assert.Contains("\"responseExitCode\": 2", json, StringComparison.Ordinal);
+        Assert.Contains("\"permissions\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"diagnostics\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"plugin.input.invalid\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"artifacts\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"out/result.json\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task InvokeAsync_ReturnsValidResponseWhenProcessExitIsNonZero()
     {
         var invoker = new StubPluginProcessInvoker(
@@ -191,24 +229,27 @@ public sealed class PluginProtocolClientTests
         Assert.Contains(PluginHostErrorCodes.InvalidResponse, exception.Message);
     }
 
-    private static ResolvedPlugin CreatePlugin()
+    private static ResolvedPlugin CreatePlugin(string? projectRoot = null)
         => new(
             Id: "echo",
             Version: "0.1.0",
             Platform: "osx-arm64",
             ExecutablePath: "/site/plugins/echo/bin/osx-arm64/bukit-plugin-echo",
             WorkingDirectory: "/site/plugins/echo",
-            Host: new PluginHostInfo("Bukit", "1.0.0", "osx-arm64"));
+            Host: new PluginHostInfo("Bukit", "1.0.0", "osx-arm64"),
+            ProjectRoot: projectRoot);
 
-    private static PluginInvokeRequest CreateInvokeRequest()
+    private static PluginInvokeRequest CreateInvokeRequest(
+        string rootDir = "/site",
+        PluginPermissionSet? permissions = null)
         => new(
             Type: "placeholder",
             Protocol: "placeholder",
             RequestId: "placeholder",
             Host: new PluginHostInfo("placeholder", "0", "placeholder"),
             Command: new PluginInvokeCommand("echo", Arguments: ["hello"]),
-            Context: new PluginInvokeContext("/site", "/site"),
-            Permissions: new PluginPermissionSet());
+            Context: new PluginInvokeContext(rootDir, rootDir),
+            Permissions: permissions ?? new PluginPermissionSet());
 
     private sealed class StubPluginProcessInvoker : IPluginProcessInvoker
     {

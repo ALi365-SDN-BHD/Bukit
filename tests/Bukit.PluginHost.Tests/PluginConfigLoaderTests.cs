@@ -81,6 +81,27 @@ public sealed class PluginConfigLoaderTests
     }
 
     [Fact]
+    public async Task LoadAsync_MissingVersion_ThrowsConfigException()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            """
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+            """);
+
+        var loader = new PluginConfigLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(directory.Path, CancellationToken.None));
+
+        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, exception.Code);
+        Assert.Contains("plugins.yaml version is required", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task LoadAsync_ExposeCommandsMissing_SetsDeclaredFalse()
     {
         using var directory = TestDirectory.Create();
@@ -160,5 +181,33 @@ public sealed class PluginConfigLoaderTests
             () => loader.LoadAsync(directory.Path, CancellationToken.None));
 
         Assert.Contains("environment.read cannot contain '*'", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("../secret")]
+    [InlineData("/tmp")]
+    [InlineData(".bukit/bin")]
+    [InlineData(".bukit/plugins")]
+    public async Task LoadAsync_UnsafeFileSystemPermission_ThrowsConfigException(string unsafePath)
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            $$"""
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+                permissions:
+                  fileSystem:
+                    write:
+                      - {{unsafePath}}
+            """);
+        var loader = new PluginConfigLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(directory.Path, CancellationToken.None));
+
+        Assert.Contains("fileSystem.write permission path", exception.Message, StringComparison.Ordinal);
     }
 }

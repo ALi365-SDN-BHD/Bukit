@@ -25,6 +25,68 @@ public sealed class PluginPermissionEvaluatorTests
     }
 
     [Fact]
+    public void ValidateGrantedPermissions_AllowsRequiredPathInsideGrantedRoot()
+    {
+        var evaluator = new PluginPermissionEvaluator();
+
+        evaluator.ValidateGrantedPermissions(
+            "import",
+            new PluginPermissionSet(
+                FileSystem: new PluginFileSystemPermission(Read: ["."], Write: ["./themes"])),
+            new PluginPermissionSet(
+                FileSystem: new PluginFileSystemPermission(Read: ["./content/posts"], Write: ["themes/starter"])));
+    }
+
+    [Fact]
+    public void ValidateGrantedPermissions_NormalizesEquivalentRelativePaths()
+    {
+        var evaluator = new PluginPermissionEvaluator();
+
+        evaluator.ValidateGrantedPermissions(
+            "import",
+            new PluginPermissionSet(
+                FileSystem: new PluginFileSystemPermission(Read: ["./content"], Write: ["themes"])),
+            new PluginPermissionSet(
+                FileSystem: new PluginFileSystemPermission(Read: ["content"], Write: ["./themes"])));
+    }
+
+    [Theory]
+    [InlineData("../secret")]
+    [InlineData("/tmp")]
+    [InlineData(".bukit/bin")]
+    [InlineData(".bukit/plugins")]
+    public void ValidateGrantedPermissions_RejectsUnsafeGrantedFileSystemPaths(string unsafePath)
+    {
+        var evaluator = new PluginPermissionEvaluator();
+
+        ConfigException exception = Assert.Throws<ConfigException>(() => evaluator.ValidateGrantedPermissions(
+            "echo",
+            new PluginPermissionSet(
+                FileSystem: new PluginFileSystemPermission(Read: [unsafePath])),
+            new PluginPermissionSet()));
+
+        Assert.Contains("fileSystem.read permission path", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("../secret")]
+    [InlineData("/tmp")]
+    [InlineData(".bukit/bin")]
+    [InlineData(".bukit/plugins")]
+    public void ValidateGrantedPermissions_RejectsUnsafeRequiredFileSystemPaths(string unsafePath)
+    {
+        var evaluator = new PluginPermissionEvaluator();
+
+        ConfigException exception = Assert.Throws<ConfigException>(() => evaluator.ValidateGrantedPermissions(
+            "echo",
+            new PluginPermissionSet(FileSystem: new PluginFileSystemPermission(Read: ["."])),
+            new PluginPermissionSet(
+                FileSystem: new PluginFileSystemPermission(Read: [unsafePath]))));
+
+        Assert.Contains("fileSystem.read permission path", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ValidateGrantedPermissions_RejectsNetworkWhenNotGranted()
     {
         var evaluator = new PluginPermissionEvaluator();

@@ -21,7 +21,8 @@ public static class PluginListCommand
                 foreach (PluginListRecord plugin in plugins)
                 {
                     string commands = plugin.Commands.Count == 0 ? "-" : string.Join(",", plugin.Commands);
-                    Console.WriteLine($"  {plugin.Id}@{plugin.Version} enabled={plugin.Enabled.ToString().ToLowerInvariant()} platform={plugin.Platform} commands={commands}");
+                    string error = string.IsNullOrWhiteSpace(plugin.Error) ? string.Empty : $" error={Normalize(plugin.Error)}";
+                    Console.WriteLine($"  {plugin.Id}@{plugin.Version} enabled={plugin.Enabled.ToString().ToLowerInvariant()} status={plugin.Status} platform={plugin.Platform} commands={commands}{error}");
                 }
 
                 return Task.FromResult(0);
@@ -34,4 +35,7 @@ public static class PluginListCommand
                 Subcommands: [listSpec]),
             Children: [list]);
     }
+
+    private static string Normalize(string value)
+        => value.Replace('\r', ' ').Replace('\n', ' ');
 }

@@ -25,7 +25,13 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
         using var reader = new StreamReader(stream);
         YamlMappingNode root = LoadRoot(reader, configPath);
 
-        int version = PluginYaml.GetOptionalInt(root, "version") ?? 1;
+        int? configuredVersion = PluginYaml.GetOptionalInt(root, "version");
+        if (configuredVersion is null)
+        {
+            throw new ConfigException("plugins.yaml version is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        int version = configuredVersion.Value;
         if (version != 1)
         {
             throw new ConfigException("plugins.yaml version must be 1.", DiagnosticCode.ConfigInvalidValue);
@@ -116,13 +122,16 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
         YamlMappingNode? fileSystemNode = PluginYaml.GetOptionalMapping(node, "fileSystem");
         YamlMappingNode? environmentNode = PluginYaml.GetOptionalMapping(node, "environment");
 
-        return new PluginPermissionSet(
+        var permissions = new PluginPermissionSet(
             FileSystem: new PluginFileSystemPermission(
                 Read: PluginYaml.ReadStringList(fileSystemNode, "read"),
                 Write: PluginYaml.ReadStringList(fileSystemNode, "write")),
             Network: network,
             Environment: new PluginEnvironmentPermission(
                 Read: ReadEnvironmentList(environmentNode)));
+
+        PluginPermissionEvaluator.ValidateFileSystemPermissionPaths(permissions);
+        return permissions;
     }
 
     private static IReadOnlyList<string> ReadEnvironmentList(YamlMappingNode? node)
