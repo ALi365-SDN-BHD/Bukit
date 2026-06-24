@@ -4,6 +4,7 @@
     <ProjectReference Include="..\Bukit.Cli.Shared\Bukit.Cli.Shared.csproj" />
     <ProjectReference Include="..\Bukit.Engine\Bukit.Engine.csproj" />
     <ProjectReference Include="..\Bukit.Config\Bukit.Config.csproj" />
+    <ProjectReference Include="..\Bukit.PluginHost\Bukit.PluginHost.csproj" />
     <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
   </ItemGroup>
 

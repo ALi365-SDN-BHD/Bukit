@@ -1,0 +1,192 @@
+using Bukit.Plugin.Abstractions.Manifest;
+using Bukit.Plugin.Abstractions.Protocol;
+using Bukit.Plugin.Abstractions.Runtime;
+using Bukit.Plugin.Abstractions.Security;
+using Bukit.PluginHost;
+using Bukit.Shared;
+using Xunit;
+
+namespace Bukit.PluginHost.Tests;
+
+public sealed class PluginProtocolClientTests
+{
+    [Fact]
+    public async Task HandshakeAsync_SendsHandshakeRequestAndReturnsResponse()
+    {
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"handshakeResponse","protocol":"bukit-plugin-v1","requestId":"req-1","success":true,"plugin":{"id":"echo","name":"Echo","version":"0.1.0","platform":"osx-arm64","capabilities":["echo"]}}
+            """);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-1"));
+
+        PluginHandshakeResponse response = await client.HandshakeAsync(CreatePlugin(), CancellationToken.None);
+
+        Assert.Equal("echo", response.Plugin?.Id);
+        Assert.Equal("0.1.0", response.Plugin?.Version);
+        Assert.Contains("\"type\":\"handshake\"", invoker.Request?.StandardInputJson);
+        Assert.Contains("\"requestId\":\"req-1\"", invoker.Request?.StandardInputJson);
+        Assert.Equal(TimeSpan.FromMilliseconds(5000), invoker.Request?.Timeout);
+    }
+
+    [Theory]
+    [InlineData("bad-protocol", PluginHostErrorCodes.UnsupportedProtocol)]
+    [InlineData("bukit-plugin-v1", PluginHostErrorCodes.InvalidResponse)]
+    public async Task HandshakeAsync_RejectsInvalidProtocolOrMismatchedRequestId(string protocol, string expectedCode)
+    {
+        string requestId = expectedCode == PluginHostErrorCodes.UnsupportedProtocol ? "req-1" : "other";
+        var invoker = new StubPluginProcessInvoker(
+            "{\"type\":\"handshakeResponse\",\"protocol\":\"" + protocol +
+            "\",\"requestId\":\"" + requestId +
+            "\",\"success\":true,\"plugin\":{\"id\":\"echo\",\"name\":\"Echo\",\"version\":\"0.1.0\",\"platform\":\"osx-arm64\"}}");
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-1"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.HandshakeAsync(CreatePlugin(), CancellationToken.None));
+
+        Assert.Contains(expectedCode, exception.Message);
+    }
+
+    [Fact]
+    public async Task HandshakeAsync_RejectsMismatchedPluginId()
+    {
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"handshakeResponse","protocol":"bukit-plugin-v1","requestId":"req-1","success":true,"plugin":{"id":"wrong","name":"Wrong","version":"0.1.0","platform":"osx-arm64"}}
+            """);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-1"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.HandshakeAsync(CreatePlugin(), CancellationToken.None));
+
+        Assert.Contains(PluginHostErrorCodes.InvalidResponse, exception.Message);
+    }
+
+    [Fact]
+    public async Task GetManifestAsync_ReturnsCommandsAndPermissions()
+    {
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"manifestResponse","protocol":"bukit-plugin-v1","requestId":"req-2","success":true,"capabilities":["echo"],"commands":[{"name":"echo","description":"Echo text"}],"requiredPermissions":{"network":false}}
+            """);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-2"));
+
+        PluginManifestResponse response = await client.GetManifestAsync(CreatePlugin(), CancellationToken.None);
+
+        Assert.Equal("echo", Assert.Single(response.Commands).Name);
+        Assert.Equal("echo", Assert.Single(response.Capabilities));
+        Assert.Contains("\"type\":\"manifest\"", invoker.Request?.StandardInputJson);
+        Assert.Equal(TimeSpan.FromMilliseconds(5000), invoker.Request?.Timeout);
+    }
+
+    [Fact]
+    public async Task GetManifestAsync_RejectsInvalidJson()
+    {
+        var invoker = new StubPluginProcessInvoker("not json");
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-2"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.GetManifestAsync(CreatePlugin(), CancellationToken.None));
+
+        Assert.Contains(PluginHostErrorCodes.InvalidResponse, exception.Message);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ReturnsResponseAndUsesInvokeTimeout()
+    {
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"invokeResponse","protocol":"bukit-plugin-v1","requestId":"req-3","success":true,"exitCode":0,"artifacts":[{"type":"file","path":"out/result.json"}]}
+            """);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+
+        PluginInvokeResponse response = await client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None);
+
+        Assert.Equal(0, response.ExitCode);
+        Assert.Equal("out/result.json", Assert.Single(response.Artifacts).Path);
+        Assert.Contains("\"type\":\"invoke\"", invoker.Request?.StandardInputJson);
+        Assert.Equal(TimeSpan.FromMilliseconds(120000), invoker.Request?.Timeout);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_RejectsNonZeroProcessExit()
+    {
+        var invoker = new StubPluginProcessInvoker("{}", exitCode: 7);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None));
+
+        Assert.Contains(PluginHostErrorCodes.ExecutionFailed, exception.Message);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_RejectsArtifactPathTraversal()
+    {
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"invokeResponse","protocol":"bukit-plugin-v1","requestId":"req-3","success":true,"exitCode":0,"artifacts":[{"type":"file","path":"../evil.txt"}]}
+            """);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None));
+
+        Assert.Contains(PluginHostErrorCodes.InvalidResponse, exception.Message);
+    }
+
+    private static ResolvedPlugin CreatePlugin()
+        => new(
+            Id: "echo",
+            Version: "0.1.0",
+            Platform: "osx-arm64",
+            ExecutablePath: "/site/plugins/echo/bin/osx-arm64/bukit-plugin-echo",
+            WorkingDirectory: "/site/plugins/echo",
+            Host: new PluginHostInfo("Bukit", "1.0.0", "osx-arm64"));
+
+    private static PluginInvokeRequest CreateInvokeRequest()
+        => new(
+            Type: "placeholder",
+            Protocol: "placeholder",
+            RequestId: "placeholder",
+            Host: new PluginHostInfo("placeholder", "0", "placeholder"),
+            Command: new PluginInvokeCommand("echo", Arguments: ["hello"]),
+            Context: new PluginInvokeContext("/site", "/site"),
+            Permissions: new PluginPermissionSet());
+
+    private sealed class StubPluginProcessInvoker : IPluginProcessInvoker
+    {
+        private readonly string _stdout;
+        private readonly int _exitCode;
+
+        public StubPluginProcessInvoker(string stdout, int exitCode = 0)
+        {
+            _stdout = stdout;
+            _exitCode = exitCode;
+        }
+
+        public PluginProcessRequest? Request { get; private set; }
+
+        public Task<PluginProcessResult> InvokeAsync(PluginProcessRequest request, CancellationToken cancellationToken)
+        {
+            Request = request;
+            return Task.FromResult(new PluginProcessResult(
+                ExitCode: _exitCode,
+                StdoutJson: _stdout,
+                Stderr: "stderr",
+                TimedOut: false,
+                OutputLimitExceeded: false));
+        }
+    }
+
+    private sealed class FixedRequestIdFactory : IPluginRequestIdFactory
+    {
+        private readonly string _requestId;
+
+        public FixedRequestIdFactory(string requestId)
+        {
+            _requestId = requestId;
+        }
+
+        public string Create() => _requestId;
+    }
+}

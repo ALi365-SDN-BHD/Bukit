@@ -8,15 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Cli\Bukit.Cli.csproj" />
-    <ProjectReference Include="..\..\plugins\Bukit.Plugin.Echo\Bukit.Plugin.Echo.csproj" />
-    <ProjectReference Include="..\..\src\Bukit.PluginHost\Bukit.PluginHost.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="PngImageReaderTests.cs" />
-    <Compile Remove="StarterThemeScaffoldTests.cs" />
-    <Compile Remove="StarterContentAuditTests.cs" />
+    <ProjectReference Include="..\..\plugins\Bukit.Plugin.Import\Bukit.Plugin.Import.csproj" />
   </ItemGroup>
 
   <ItemGroup>
