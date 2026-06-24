@@ -138,7 +138,9 @@ public static class CliParser
         }
 
         if (spec.Type == CliOptionType.Number
-            && !double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+            && (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed)
+                || double.IsNaN(parsed)
+                || double.IsInfinity(parsed)))
         {
             diagnostics.Add(new CliDiagnostic("invalid-option-value", $"Invalid value for {spec.Name}: {value}"));
         }

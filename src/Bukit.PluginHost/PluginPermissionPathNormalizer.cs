@@ -4,7 +4,7 @@ namespace Bukit.PluginHost;
 
 public sealed class PluginPermissionPathNormalizer
 {
-    public string Normalize(string permissionName, string path)
+    public string Normalize(string permissionName, string path, string? pluginId = null)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -33,9 +33,9 @@ public sealed class PluginPermissionPathNormalizer
             segments.Add(segment);
         }
 
-        if (segments.Count >= 2
+        if (segments.Count >= 1
             && string.Equals(segments[0], ".bukit", StringComparison.Ordinal)
-            && IsExecutableBukitArea(segments[1]))
+            && !IsAllowedPluginBukitPath(segments, pluginId))
         {
             throw Invalid(permissionName, path);
         }
@@ -49,8 +49,27 @@ public sealed class PluginPermissionPathNormalizer
             && path[1] == ':'
             && path[2] == '/';
 
-    private static bool IsExecutableBukitArea(string segment)
-        => segment is "bin" or "plugins" or "tools" or "plugin-executables";
+    private static bool IsAllowedPluginBukitPath(IReadOnlyList<string> segments, string? pluginId)
+    {
+        if (string.IsNullOrWhiteSpace(pluginId))
+        {
+            return false;
+        }
+
+        return IsPluginReportOutputPath(segments, pluginId)
+            || IsPluginTempPath(segments, pluginId);
+    }
+
+    private static bool IsPluginReportOutputPath(IReadOnlyList<string> segments, string pluginId)
+        => segments.Count >= 4
+            && string.Equals(segments[1], "reports", StringComparison.Ordinal)
+            && string.Equals(segments[2], "plugin-output", StringComparison.Ordinal)
+            && string.Equals(segments[3], pluginId, StringComparison.Ordinal);
+
+    private static bool IsPluginTempPath(IReadOnlyList<string> segments, string pluginId)
+        => segments.Count >= 3
+            && string.Equals(segments[1], "tmp", StringComparison.Ordinal)
+            && string.Equals(segments[2], pluginId, StringComparison.Ordinal);
 
     private static ConfigException Invalid(string permissionName, string path)
         => new(

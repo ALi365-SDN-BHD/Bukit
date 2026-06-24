@@ -125,6 +125,7 @@ public sealed class PluginCliLoader
         }
 
         PluginManifest manifest = await _manifestLoader.LoadAsync(source.FullPath, cancellationToken);
+        EnsureStaticManifestCommands(pluginId, entry, manifest);
         _permissionEvaluator.ValidateGrantedPermissions(pluginId, entry.Permissions, manifest.RequiredPermissions);
 
         if (!manifest.Platforms.TryGetValue(rid, out PluginPlatformEntry? platform))
@@ -162,7 +163,11 @@ public sealed class PluginCliLoader
 
         PluginHandshakeResponse handshake = await _protocolClient.HandshakeAsync(resolved, cancellationToken);
         PluginManifestResponse runtimeManifest = await _protocolClient.GetManifestAsync(resolved, cancellationToken);
-        _commandManifestValidator.ValidateRuntimeCommands(pluginId, manifest.Commands, runtimeManifest.Commands);
+        if (!IsRuntimeOnlyManifestPolicy(entry))
+        {
+            _commandManifestValidator.ValidateRuntimeCommands(pluginId, manifest.Commands, runtimeManifest.Commands);
+        }
+
         _permissionEvaluator.ValidateGrantedPermissions(pluginId, entry.Permissions, runtimeManifest.RequiredPermissions);
         IReadOnlyList<PluginCommandSpec> exposedCommands = SelectExposedCommands(
             pluginId,
@@ -244,6 +249,24 @@ public sealed class PluginCliLoader
                 DiagnosticCode.ConfigRequiredFieldMissing);
         }
     }
+
+    private static void EnsureStaticManifestCommands(string pluginId, PluginConfigEntry entry, PluginManifest manifest)
+    {
+        if (IsRuntimeOnlyManifestPolicy(entry))
+        {
+            return;
+        }
+
+        if (manifest.Commands.Count == 0)
+        {
+            throw new ConfigException(
+                $"Plugin {pluginId} plugin.yaml commands must contain at least one command.",
+                DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+    }
+
+    private static bool IsRuntimeOnlyManifestPolicy(PluginConfigEntry entry)
+        => string.Equals(entry.ManifestPolicy, "runtime-only", StringComparison.Ordinal);
 
     private static IReadOnlyDictionary<string, string?> CreateAllowedEnvironment(IReadOnlyList<string> names)
     {

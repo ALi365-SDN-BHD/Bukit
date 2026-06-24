@@ -15,11 +15,11 @@ public sealed class PluginPermissionEvaluatorTests
         evaluator.ValidateGrantedPermissions(
             "echo",
             new PluginPermissionSet(
-                FileSystem: new PluginFileSystemPermission(Read: ["content"], Write: [".bukit/reports"]),
+                FileSystem: new PluginFileSystemPermission(Read: ["content"], Write: [".bukit/reports/plugin-output/echo"]),
                 Network: false,
                 Environment: new PluginEnvironmentPermission(Read: ["BUKIT_TOKEN"])),
             new PluginPermissionSet(
-                FileSystem: new PluginFileSystemPermission(Read: ["content"], Write: []),
+                FileSystem: new PluginFileSystemPermission(Read: ["content"], Write: [".bukit/reports/plugin-output/echo/result.json"]),
                 Network: false,
                 Environment: new PluginEnvironmentPermission(Read: ["BUKIT_TOKEN"])));
     }
@@ -51,10 +51,37 @@ public sealed class PluginPermissionEvaluatorTests
     }
 
     [Theory]
+    [InlineData(".bukit/reports/plugin-output/echo")]
+    [InlineData(".bukit/reports/plugin-output/echo/result.json")]
+    [InlineData(".bukit/tmp/echo")]
+    [InlineData(".bukit/tmp/echo/work.json")]
+    public void ValidateGrantedPermissions_AllowsPluginOwnedBukitOutputPaths(string allowedPath)
+    {
+        var evaluator = new PluginPermissionEvaluator();
+
+        evaluator.ValidateGrantedPermissions(
+            "echo",
+            new PluginPermissionSet(
+                FileSystem: new PluginFileSystemPermission(Write: [allowedPath])),
+            new PluginPermissionSet(
+                FileSystem: new PluginFileSystemPermission(Write: [allowedPath])));
+    }
+
+    [Theory]
     [InlineData("../secret")]
     [InlineData("/tmp")]
+    [InlineData(".bukit")]
     [InlineData(".bukit/bin")]
     [InlineData(".bukit/plugins")]
+    [InlineData(".bukit/tools")]
+    [InlineData(".bukit/state")]
+    [InlineData(".bukit/cache")]
+    [InlineData(".bukit/plugins.lock.yaml")]
+    [InlineData(".bukit/plugins.yaml")]
+    [InlineData(".bukit/tmp")]
+    [InlineData(".bukit/tmp/other")]
+    [InlineData(".bukit/reports/plugin-output")]
+    [InlineData(".bukit/reports/plugin-output/other")]
     public void ValidateGrantedPermissions_RejectsUnsafeGrantedFileSystemPaths(string unsafePath)
     {
         var evaluator = new PluginPermissionEvaluator();
@@ -71,8 +98,18 @@ public sealed class PluginPermissionEvaluatorTests
     [Theory]
     [InlineData("../secret")]
     [InlineData("/tmp")]
+    [InlineData(".bukit")]
     [InlineData(".bukit/bin")]
     [InlineData(".bukit/plugins")]
+    [InlineData(".bukit/tools")]
+    [InlineData(".bukit/state")]
+    [InlineData(".bukit/cache")]
+    [InlineData(".bukit/plugins.lock.yaml")]
+    [InlineData(".bukit/plugins.yaml")]
+    [InlineData(".bukit/tmp")]
+    [InlineData(".bukit/tmp/other")]
+    [InlineData(".bukit/reports/plugin-output")]
+    [InlineData(".bukit/reports/plugin-output/other")]
     public void ValidateGrantedPermissions_RejectsUnsafeRequiredFileSystemPaths(string unsafePath)
     {
         var evaluator = new PluginPermissionEvaluator();

@@ -50,7 +50,7 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
 
         IReadOnlyDictionary<string, PluginPlatformEntry> platforms = ReadPlatforms(root);
         IReadOnlyList<PluginCommandSpec> commands = ReadCommands(PluginYaml.GetOptionalSequence(root, "commands"));
-        PluginPermissionSet permissions = ReadRequiredPermissions(PluginYaml.GetOptionalMapping(root, "requiredPermissions"));
+        PluginPermissionSet permissions = ReadRequiredPermissions(id, PluginYaml.GetOptionalMapping(root, "requiredPermissions"));
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -243,7 +243,7 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
         return subcommands;
     }
 
-    private static PluginPermissionSet ReadRequiredPermissions(YamlMappingNode? node)
+    private static PluginPermissionSet ReadRequiredPermissions(string pluginId, YamlMappingNode? node)
     {
         if (node is null)
         {
@@ -262,7 +262,7 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
             Environment: new PluginEnvironmentPermission(
                 Read: ReadEnvironmentList(environmentNode)));
 
-        PluginPermissionEvaluator.ValidateFileSystemPermissionPaths(permissions);
+        PluginPermissionEvaluator.ValidateFileSystemPermissionPaths(pluginId, permissions);
         return permissions;
     }
 

@@ -222,7 +222,7 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
                     Platform: plugin.Platform,
                     Command: request.Command.Name,
                     CommandPath: request.Command.Path,
-                    Entry: plugin.ExecutablePath,
+                    Entry: ToProjectRelativeEntry(projectRoot, plugin.ExecutablePath),
                     StartedAt: startedAt,
                     DurationMs: durationMs,
                     ResponseExitCode: response?.ExitCode,
@@ -246,6 +246,20 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
         }
 
         return null;
+    }
+
+    private static string ToProjectRelativeEntry(string projectRoot, string executablePath)
+    {
+        string relativePath = Path.GetRelativePath(projectRoot, executablePath);
+        string normalized = relativePath.Replace('\\', '/');
+        if (Path.IsPathFullyQualified(relativePath)
+            || normalized.Equals("..", StringComparison.Ordinal)
+            || normalized.StartsWith("../", StringComparison.Ordinal))
+        {
+            return Path.GetFileName(executablePath);
+        }
+
+        return normalized;
     }
 
     private static IReadOnlyDictionary<string, string> ToReportEnvironment(

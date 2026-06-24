@@ -71,7 +71,7 @@ public sealed class PluginExecutionReporter
         writer.WriteBoolean("outputLimitExceeded", report.OutputLimitExceeded);
         writer.WriteNumber("stdoutBytes", report.StdoutBytes);
         writer.WriteNumber("stderrBytes", report.StderrBytes);
-        writer.WriteString("stderr", report.Stderr);
+        writer.WriteString("stderr", PluginSecretMasker.MaskText(report.Stderr, report.Environment));
         writer.WritePropertyName("environment");
         writer.WriteStartObject();
         foreach ((string key, string value) in PluginSecretMasker.MaskEnvironment(report.Environment))

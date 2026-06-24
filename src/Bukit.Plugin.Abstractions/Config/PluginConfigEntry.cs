@@ -13,7 +13,8 @@ public sealed record PluginConfigEntry(
     bool AllowInCi = false,
     string? Description = null,
     bool PermissionsExplicit = false,
-    bool ExposeCommandsDeclared = false)
+    bool ExposeCommandsDeclared = false,
+    string ManifestPolicy = "static")
 {
     public IReadOnlyList<string> ExposeCommands { get; init; } = ExposeCommands ?? [];
     public PluginPermissionSet Permissions { get; init; } = Permissions ?? new PluginPermissionSet();

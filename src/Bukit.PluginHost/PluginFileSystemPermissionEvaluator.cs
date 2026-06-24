@@ -11,13 +11,14 @@ public sealed class PluginFileSystemPermissionEvaluator
         _pathNormalizer = pathNormalizer ?? new PluginPermissionPathNormalizer();
     }
 
-    public void ValidatePaths(string permissionName, IReadOnlyList<string> paths)
+    public void ValidatePaths(string pluginId, string permissionName, IReadOnlyList<string> paths)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
         ArgumentNullException.ThrowIfNull(paths);
 
         foreach (string path in paths)
         {
-            _ = _pathNormalizer.Normalize(permissionName, path);
+            _ = _pathNormalizer.Normalize(permissionName, path, pluginId);
         }
     }
 
@@ -32,12 +33,12 @@ public sealed class PluginFileSystemPermissionEvaluator
         ArgumentNullException.ThrowIfNull(required);
 
         string[] normalizedGranted = granted
-            .Select(path => _pathNormalizer.Normalize(permissionName, path))
+            .Select(path => _pathNormalizer.Normalize(permissionName, path, pluginId))
             .ToArray();
 
         foreach (string requiredPath in required)
         {
-            string normalizedRequired = _pathNormalizer.Normalize(permissionName, requiredPath);
+            string normalizedRequired = _pathNormalizer.Normalize(permissionName, requiredPath, pluginId);
             if (!normalizedGranted.Any(grantedPath => Covers(grantedPath, normalizedRequired)))
             {
                 throw new ConfigException(

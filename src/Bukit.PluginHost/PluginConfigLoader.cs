@@ -89,10 +89,18 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
         (bool exposeCommandsDeclared, IReadOnlyList<string> exposeCommands) =
             PluginYaml.ReadStringListWithPresence(node, "exposeCommands");
         string failMode = PluginYaml.GetOptionalString(node, "failMode") ?? "strict";
+        string manifestPolicy = PluginYaml.GetOptionalString(node, "manifestPolicy") ?? "static";
+        if (manifestPolicy is not "static" and not "runtime-only")
+        {
+            throw new ConfigException(
+                $"plugins.{id}.manifestPolicy must be static or runtime-only.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
         bool allowInCi = PluginYaml.GetOptionalBool(node, "allowInCi") ?? false;
         string? description = PluginYaml.GetOptionalString(node, "description");
 
-        var permissions = ReadPermissions(PluginYaml.GetOptionalMapping(node, "permissions"));
+        var permissions = ReadPermissions(id, PluginYaml.GetOptionalMapping(node, "permissions"));
         bool permissionsExplicit = PluginYaml.GetOptionalMapping(node, "permissions") is not null;
         var timeout = ReadTimeout(PluginYaml.GetOptionalMapping(node, "timeout"));
         var output = ReadOutput(PluginYaml.GetOptionalMapping(node, "output"));
@@ -108,10 +116,11 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
             allowInCi,
             description,
             permissionsExplicit,
-            exposeCommandsDeclared);
+            exposeCommandsDeclared,
+            manifestPolicy);
     }
 
-    private static PluginPermissionSet ReadPermissions(YamlMappingNode? node)
+    private static PluginPermissionSet ReadPermissions(string pluginId, YamlMappingNode? node)
     {
         if (node is null)
         {
@@ -130,7 +139,7 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
             Environment: new PluginEnvironmentPermission(
                 Read: ReadEnvironmentList(environmentNode)));
 
-        PluginPermissionEvaluator.ValidateFileSystemPermissionPaths(permissions);
+        PluginPermissionEvaluator.ValidateFileSystemPermissionPaths(pluginId, permissions);
         return permissions;
     }
 

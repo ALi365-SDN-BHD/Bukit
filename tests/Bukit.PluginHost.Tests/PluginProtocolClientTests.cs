@@ -187,7 +187,8 @@ public sealed class PluginProtocolClientTests
         Assert.Contains("\"protocol\": \"bukit-plugin-v1\"", json, StringComparison.Ordinal);
         Assert.Contains("\"platform\": \"osx-arm64\"", json, StringComparison.Ordinal);
         Assert.Contains("\"command\": \"echo\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"entry\": ", json, StringComparison.Ordinal);
+        Assert.Contains("\"entry\": \"plugins/echo/bin/osx-arm64/bukit-plugin-echo\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain(directory.Path, json, StringComparison.Ordinal);
         Assert.Contains("\"durationMs\": ", json, StringComparison.Ordinal);
         Assert.Contains("\"responseExitCode\": 2", json, StringComparison.Ordinal);
         Assert.Contains("\"permissions\"", json, StringComparison.Ordinal);
@@ -230,14 +231,22 @@ public sealed class PluginProtocolClientTests
     }
 
     private static ResolvedPlugin CreatePlugin(string? projectRoot = null)
-        => new(
+    {
+        string executablePath = projectRoot is null
+            ? "/site/plugins/echo/bin/osx-arm64/bukit-plugin-echo"
+            : Path.Combine(projectRoot, "plugins", "echo", "bin", "osx-arm64", "bukit-plugin-echo");
+        string workingDirectory = projectRoot is null
+            ? "/site/plugins/echo"
+            : Path.Combine(projectRoot, "plugins", "echo");
+        return new(
             Id: "echo",
             Version: "0.1.0",
             Platform: "osx-arm64",
-            ExecutablePath: "/site/plugins/echo/bin/osx-arm64/bukit-plugin-echo",
-            WorkingDirectory: "/site/plugins/echo",
+            ExecutablePath: executablePath,
+            WorkingDirectory: workingDirectory,
             Host: new PluginHostInfo("Bukit", "1.0.0", "osx-arm64"),
             ProjectRoot: projectRoot);
+    }
 
     private static PluginInvokeRequest CreateInvokeRequest(
         string rootDir = "/site",

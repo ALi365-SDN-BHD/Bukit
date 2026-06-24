@@ -6,6 +6,7 @@ using Bukit.Plugin.Abstractions.Protocol;
 using Bukit.Plugin.Abstractions.Runtime;
 using Bukit.Plugin.Abstractions.Security;
 using Bukit.PluginHost;
+using Bukit.Shared;
 
 namespace Bukit.Cli;
 
@@ -147,9 +148,20 @@ public static class PluginCommandInvoker
         {
             "flag" or "bool" or "boolean" => CreateBooleanElement(true),
             "int" or "integer" => CreateNumberElement(int.Parse(value, CultureInfo.InvariantCulture)),
-            "number" or "float" or "double" => CreateNumberElement(double.Parse(value, CultureInfo.InvariantCulture)),
+            "number" or "float" or "double" => CreateNumberElement(ParseFiniteNumber(option, value)),
             _ => CreateStringElement(value)
         };
+
+    private static double ParseFiniteNumber(PluginOptionSpec option, string value)
+    {
+        double parsed = double.Parse(value, CultureInfo.InvariantCulture);
+        if (double.IsNaN(parsed) || double.IsInfinity(parsed))
+        {
+            throw new CommandArgumentException($"Invalid value for {option.Name}: {value}");
+        }
+
+        return parsed;
+    }
 
     private static JsonElement CreateBooleanElement(bool value)
     {

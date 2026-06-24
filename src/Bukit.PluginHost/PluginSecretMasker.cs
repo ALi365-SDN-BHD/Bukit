@@ -25,6 +25,25 @@ public static class PluginSecretMasker
         return masked;
     }
 
+    public static string MaskText(string value, IReadOnlyDictionary<string, string> environment)
+    {
+        if (string.IsNullOrEmpty(value) || environment.Count == 0)
+        {
+            return value;
+        }
+
+        string masked = value;
+        foreach (string secretValue in environment.Values
+                     .Where(secretValue => !string.IsNullOrEmpty(secretValue))
+                     .Distinct(StringComparer.Ordinal)
+                     .OrderByDescending(secretValue => secretValue.Length))
+        {
+            masked = masked.Replace(secretValue, "***", StringComparison.Ordinal);
+        }
+
+        return masked;
+    }
+
     private static bool IsSecretKey(string key)
         => SecretKeyFragments.Any(fragment => key.Contains(fragment, StringComparison.OrdinalIgnoreCase));
 }

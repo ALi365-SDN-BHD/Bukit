@@ -247,6 +247,49 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_EnabledPluginWithoutStaticCommands_ThrowsConfigException()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteRuntimePermissionPluginConfig(staticCommands: string.Empty);
+        var client = new RuntimePermissionProtocolClient(
+            new PluginPermissionSet(),
+            commands: [new PluginCommandSpec("runtime", "Runtime command")]);
+        var loader = new PluginCliLoader(
+            new PluginConfigLoader(),
+            new PluginManifestLoader(),
+            new PluginPathValidator(),
+            new FixedPlatformResolver("test-rid"),
+            new PassingHashVerifier(),
+            client);
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(_tempDir, CancellationToken.None));
+
+        Assert.Contains("plugin.yaml commands must contain at least one command", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_RuntimeOnlyManifestPolicy_AllowsMissingStaticCommands()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteRuntimePermissionPluginConfig(staticCommands: string.Empty, manifestPolicy: "runtime-only");
+        var client = new RuntimePermissionProtocolClient(
+            new PluginPermissionSet(),
+            commands: [new PluginCommandSpec("runtime", "Runtime command")]);
+        var loader = new PluginCliLoader(
+            new PluginConfigLoader(),
+            new PluginManifestLoader(),
+            new PluginPathValidator(),
+            new FixedPlatformResolver("test-rid"),
+            new PassingHashVerifier(),
+            client);
+
+        PluginCliLoadResult result = await loader.LoadAsync(_tempDir, CancellationToken.None);
+
+        Assert.NotNull(BukitCliDescriptors.ResolveDescriptor(result.Descriptors, "runtime"));
+    }
+
+    [Fact]
     public async Task LoadAsync_ExposeCommandsMissing_ThrowsConfigException()
     {
         using var cwd = new CurrentDirectoryScope(_tempDir);
@@ -514,7 +557,36 @@ public sealed class PluginCliIntegrationTests : IDisposable
         Assert.Equal("x", options["--theme"].GetString());
     }
 
-    private async Task InstallEchoPluginAsync(bool enabled, bool includeStaticCommand = false, string? requiredPermissions = null)
+    [Fact]
+    public async Task PluginInvoke_RejectsNonFiniteNumberOptionValues()
+    {
+        var client = new RuntimePermissionProtocolClient(new PluginPermissionSet());
+        var plugin = new ResolvedPlugin(
+            "import",
+            "1.0.0",
+            "test-rid",
+            "/tmp/import",
+            _tempDir,
+            new PluginHostInfo("Bukit", "1.0.0", "test-rid"));
+        var command = new PluginCommandSpec(
+            "import",
+            "Import",
+            Options:
+            [
+                new PluginOptionSpec("--ratio", "number", "Ratio")
+            ]);
+
+        CommandArgumentException exception = await Assert.ThrowsAsync<CommandArgumentException>(
+            () => PluginCommandInvoker.InvokeAsync(
+                new CliBoundCommand(new Dictionary<string, string?> { ["--ratio"] = "NaN" }, []),
+                plugin,
+                command,
+                client));
+
+        Assert.Contains("Invalid value for --ratio", exception.Message, StringComparison.Ordinal);
+    }
+
+    private async Task InstallEchoPluginAsync(bool enabled, bool includeStaticCommand = true, string? requiredPermissions = null)
     {
         var resolver = new PluginPlatformResolver();
         string rid = resolver.GetCurrentRid();
@@ -574,7 +646,8 @@ public sealed class PluginCliIntegrationTests : IDisposable
     private void WriteRuntimePermissionPluginConfig(
         IReadOnlyList<string>? exposeCommands = null,
         bool declareExposeCommands = true,
-        string? staticCommands = null)
+        string? staticCommands = null,
+        string? manifestPolicy = null)
     {
         Directory.CreateDirectory(Path.Combine(_tempDir, ".bukit"));
         Directory.CreateDirectory(Path.Combine(_tempDir, "plugins", "runtime", "bin", "test-rid"));
@@ -587,6 +660,9 @@ public sealed class PluginCliIntegrationTests : IDisposable
                 exposeCommands:
             {string.Join(Environment.NewLine, effectiveExposeCommands.Select(command => $"    - {command}"))}
             """;
+        string manifestPolicyLine = manifestPolicy is null
+            ? string.Empty
+            : $"    manifestPolicy: {manifestPolicy}";
         File.WriteAllText(Path.Combine(_tempDir, ".bukit", "plugins.yaml"),
             $$"""
             version: 1
@@ -595,6 +671,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
                 enabled: true
                 source: plugins/runtime
             {{exposeBlock}}
+            {{manifestPolicyLine}}
                 allowInCi: true
                 permissions:
                   network: false

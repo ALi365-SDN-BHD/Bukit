@@ -32,6 +32,7 @@ public sealed class PluginConfigLoaderTests
                 source: plugins/echo
                 exposeCommands:
                   - echo
+                manifestPolicy: runtime-only
                 failMode: warn
                 allowInCi: true
                 description: Echo plugin
@@ -49,7 +50,7 @@ public sealed class PluginConfigLoaderTests
                     read:
                       - content
                     write:
-                      - .bukit/reports/plugins
+                      - .bukit/reports/plugin-output/echo
                   environment:
                     read:
                       - BUKIT_TEST
@@ -64,6 +65,7 @@ public sealed class PluginConfigLoaderTests
         Assert.Equal("plugins/echo", echo.Source);
         Assert.Equal(["echo"], echo.ExposeCommands);
         Assert.True(echo.ExposeCommandsDeclared);
+        Assert.Equal("runtime-only", echo.ManifestPolicy);
         Assert.Equal("warn", echo.FailMode);
         Assert.True(echo.AllowInCi);
         Assert.Equal("Echo plugin", echo.Description);
@@ -76,7 +78,7 @@ public sealed class PluginConfigLoaderTests
         Assert.True(echo.Permissions.Network);
         Assert.True(echo.PermissionsExplicit);
         Assert.Equal(["content"], echo.Permissions.FileSystem.Read);
-        Assert.Equal([".bukit/reports/plugins"], echo.Permissions.FileSystem.Write);
+        Assert.Equal([".bukit/reports/plugin-output/echo"], echo.Permissions.FileSystem.Write);
         Assert.Equal(["BUKIT_TEST"], echo.Permissions.Environment.Read);
     }
 

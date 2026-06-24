@@ -106,6 +106,24 @@ public sealed class CliParserExtendedTests
         Assert.Contains(result.Diagnostics, d => d.Code == "invalid-option-value");
     }
 
+    [Theory]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    public void Parse_NumberOption_NonFiniteValueProducesDiagnostic(string value)
+    {
+        var spec = new CliCommandSpec(
+            Name: "import",
+            Description: "import",
+            Options:
+            [
+                new CliOptionSpec("--ratio", "ratio", CliOptionType.Number),
+            ]);
+
+        var result = CliParser.Parse(spec, ["--ratio", value]);
+
+        Assert.Contains(result.Diagnostics, d => d.Code == "invalid-option-value");
+    }
+
     [Fact]
     public void Parse_MultiplePositionalAndOptions_MixedCorrectly()
     {

@@ -23,8 +23,8 @@ public sealed class PluginPermissionEvaluator
 
         ValidateNoWildcard(granted.Environment.Read);
         ValidateNoWildcard(required.Environment.Read);
-        ValidateFileSystemPermissionPaths(granted);
-        ValidateFileSystemPermissionPaths(required);
+        ValidateFileSystemPermissionPaths(pluginId, granted);
+        ValidateFileSystemPermissionPaths(pluginId, required);
 
         if (required.Network && !granted.Network)
         {
@@ -36,13 +36,14 @@ public sealed class PluginPermissionEvaluator
         ValidateSubset(pluginId, "environment.read", granted.Environment.Read, required.Environment.Read);
     }
 
-    public static void ValidateFileSystemPermissionPaths(PluginPermissionSet permissions)
+    public static void ValidateFileSystemPermissionPaths(string pluginId, PluginPermissionSet permissions)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
         ArgumentNullException.ThrowIfNull(permissions);
 
         var evaluator = new PluginFileSystemPermissionEvaluator();
-        evaluator.ValidatePaths("fileSystem.read", permissions.FileSystem.Read);
-        evaluator.ValidatePaths("fileSystem.write", permissions.FileSystem.Write);
+        evaluator.ValidatePaths(pluginId, "fileSystem.read", permissions.FileSystem.Read);
+        evaluator.ValidatePaths(pluginId, "fileSystem.write", permissions.FileSystem.Write);
     }
 
     public static void ValidateNoEnvironmentWildcard(IReadOnlyList<string> names)
