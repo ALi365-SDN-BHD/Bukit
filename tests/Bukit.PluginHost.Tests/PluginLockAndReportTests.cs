@@ -87,6 +87,11 @@ public sealed class PluginLockAndReportTests
                 [
                     new PluginArtifact("file", "out/result.json", "Result")
                 ],
+                ResponseSummary: new PluginExecutionResponseSummary(
+                    Success: false,
+                    ExitCode: 2,
+                    DiagnosticCodes: ["plugin.input.invalid"],
+                    ArtifactCount: 1),
                 Environment: new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["NOTION_TOKEN"] = "secret-token",
@@ -111,6 +116,11 @@ public sealed class PluginLockAndReportTests
         Assert.Contains("\"plugin.input.invalid\"", json, StringComparison.Ordinal);
         Assert.Contains("\"artifacts\"", json, StringComparison.Ordinal);
         Assert.Contains("\"out/result.json\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"responseSummary\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"success\": false", json, StringComparison.Ordinal);
+        Assert.Contains("\"exitCode\": 2", json, StringComparison.Ordinal);
+        Assert.Contains("\"diagnosticCodes\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"artifactCount\": 1", json, StringComparison.Ordinal);
         Assert.Contains("\"stderr\": \"plugin stderr leaked ***\"", json, StringComparison.Ordinal);
         Assert.Contains("\"NOTION_TOKEN\": \"***\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("secret-token", json, StringComparison.Ordinal);

@@ -107,6 +107,7 @@ public sealed class PluginCliLoader
         }
 
         EnsureExposeCommandsDeclared(pluginId, entry);
+        ValidateSourceIdentity(pluginId, entry.Source);
         if (!entry.Enabled)
         {
             foreach (string command in entry.ExposeCommands)
@@ -125,6 +126,7 @@ public sealed class PluginCliLoader
         }
 
         PluginManifest manifest = await _manifestLoader.LoadAsync(source.FullPath, cancellationToken);
+        ValidateManifestIdentity(pluginId, manifest.Id);
         EnsureStaticManifestCommands(pluginId, entry, manifest);
         _permissionEvaluator.ValidateGrantedPermissions(pluginId, entry.Permissions, manifest.RequiredPermissions);
 
@@ -162,6 +164,7 @@ public sealed class PluginCliLoader
             Sha256Verified: hash.Success);
 
         PluginHandshakeResponse handshake = await _protocolClient.HandshakeAsync(resolved, cancellationToken);
+        ValidateHandshakeIdentity(pluginId, manifest.Id, handshake.Plugin);
         PluginManifestResponse runtimeManifest = await _protocolClient.GetManifestAsync(resolved, cancellationToken);
         if (!IsRuntimeOnlyManifestPolicy(entry))
         {
@@ -238,6 +241,45 @@ public sealed class PluginCliLoader
         }
 
         return selected;
+    }
+
+    private static void ValidateSourceIdentity(string pluginId, string source)
+    {
+        string normalized = source.TrimEnd('/', '\\').Replace('\\', '/');
+        string sourceLeaf = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;
+        if (!StringComparer.Ordinal.Equals(sourceLeaf, pluginId))
+        {
+            throw new ConfigException(
+                $"Plugin {pluginId} source {source} does not match plugin id.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    private static void ValidateManifestIdentity(string pluginId, string manifestId)
+    {
+        if (!StringComparer.Ordinal.Equals(manifestId, pluginId))
+        {
+            throw new ConfigException(
+                $"Plugin {pluginId} manifest id {manifestId} does not match configured plugin id.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    private static void ValidateHandshakeIdentity(string pluginId, string manifestId, PluginIdentity? handshakePlugin)
+    {
+        if (handshakePlugin is null)
+        {
+            throw new ConfigException(
+                $"Plugin {pluginId} handshake response must include plugin identity.",
+                DiagnosticCode.PluginExecutionFailed);
+        }
+
+        if (!StringComparer.Ordinal.Equals(handshakePlugin.Id, manifestId))
+        {
+            throw new ConfigException(
+                $"Plugin {pluginId} handshake id {handshakePlugin.Id} does not match plugin.yaml id.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
     }
 
     private static void EnsureExposeCommandsDeclared(string pluginId, PluginConfigEntry entry)

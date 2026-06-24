@@ -86,6 +86,8 @@ public sealed class PluginExecutionReporter
         WriteDiagnostics(writer, report.Diagnostics);
         writer.WritePropertyName("artifacts");
         WriteArtifacts(writer, report.Artifacts);
+        writer.WritePropertyName("responseSummary");
+        WriteResponseSummary(writer, report.ResponseSummary);
         writer.WriteEndObject();
         await writer.FlushAsync(cancellationToken);
         return reportPath;
@@ -156,6 +158,23 @@ public sealed class PluginExecutionReporter
         }
 
         writer.WriteEndArray();
+    }
+
+    private static void WriteResponseSummary(Utf8JsonWriter writer, PluginExecutionResponseSummary? summary)
+    {
+        if (summary is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        writer.WriteStartObject();
+        writer.WriteBoolean("success", summary.Success);
+        writer.WriteNumber("exitCode", summary.ExitCode);
+        writer.WritePropertyName("diagnosticCodes");
+        WriteStringArray(writer, summary.DiagnosticCodes);
+        writer.WriteNumber("artifactCount", summary.ArtifactCount);
+        writer.WriteEndObject();
     }
 
     private static void WriteStringArray(Utf8JsonWriter writer, IReadOnlyList<string> values)

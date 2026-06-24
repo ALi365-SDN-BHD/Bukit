@@ -260,6 +260,7 @@ Plugin Candidate 成为 Official Plugin 前必须满足：
 | 配置接入     | 必须支持 `.bukit/plugins.yaml`                   |
 | 权限声明     | 必须声明 `requiredPermissions`                   |
 | 权限校验     | requiredPermissions 不得超过 granted permissions |
+| Manifest 策略 | 必须使用 `manifestPolicy: static`，不得使用 `runtime-only` |
 | 跨平台      | 至少 Windows x64、Linux x64、macOS arm64         |
 | 测试完整     | 单元、协议、集成、跨平台、禁用测试                            |
 | 错误码稳定    | 必须使用稳定错误码                                    |
@@ -282,6 +283,7 @@ Official Plugin 接入 Core Release 前必须满足：
 | 禁用行为正确              | disabled plugin 命令提示清晰                      |
 | Lock 文件正确           | 可写入 `.bukit/plugins.lock.yaml`              |
 | 执行报告正确              | 可写入 `.bukit/reports/plugin-executions/`     |
+| 发布门禁                | Import / Clone 等官方插件包不得配置 `manifestPolicy: runtime-only` |
 | Release Gate 通过     | build/test/aot/cross-platform/doc checks 通过 |
 | 文档发布                | README、guide、skills 已更新                     |
 | 版本策略明确              | 插件版本与 Core 版本兼容策略明确                         |
@@ -983,6 +985,9 @@ docs/plans/<id>-plugin-migration-plan.md
 * permissions
 * diagnostics
 * artifacts
+* responseSummary
+
+报告不得记录完整 stdout。复杂插件需要排障时，只允许记录安全摘要，例如 success、exitCode、diagnosticCodes、artifactCount。
 
 ---
 

@@ -229,9 +229,19 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
                     Sha256Verified: plugin.Sha256Verified,
                     Permissions: request.Permissions,
                     Diagnostics: response?.Diagnostics,
-                    Artifacts: response?.Artifacts),
+                    Artifacts: response?.Artifacts,
+                    ResponseSummary: CreateResponseSummary(response)),
                 cancellationToken);
     }
+
+    private static PluginExecutionResponseSummary? CreateResponseSummary(PluginInvokeResponse? response)
+        => response is null
+            ? null
+            : new PluginExecutionResponseSummary(
+                response.Success,
+                response.ExitCode,
+                response.Diagnostics.Select(diagnostic => diagnostic.Code).ToArray(),
+                response.Artifacts.Count);
 
     private static string? ResolveProjectRoot(ResolvedPlugin plugin, string? contextRoot)
     {

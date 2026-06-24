@@ -196,6 +196,12 @@ public sealed class PluginProtocolClientTests
         Assert.Contains("\"plugin.input.invalid\"", json, StringComparison.Ordinal);
         Assert.Contains("\"artifacts\"", json, StringComparison.Ordinal);
         Assert.Contains("\"out/result.json\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"responseSummary\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"success\": false", json, StringComparison.Ordinal);
+        Assert.Contains("\"exitCode\": 2", json, StringComparison.Ordinal);
+        Assert.Contains("\"diagnosticCodes\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"artifactCount\": 1", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"stdout\":", json, StringComparison.Ordinal);
     }
 
     [Fact]

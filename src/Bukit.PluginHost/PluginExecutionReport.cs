@@ -27,11 +27,21 @@ public sealed record PluginExecutionReport(
     bool? Sha256Verified = null,
     PluginPermissionSet? Permissions = null,
     IReadOnlyList<PluginDiagnostic>? Diagnostics = null,
-    IReadOnlyList<PluginArtifact>? Artifacts = null)
+    IReadOnlyList<PluginArtifact>? Artifacts = null,
+    PluginExecutionResponseSummary? ResponseSummary = null)
 {
     public IReadOnlyDictionary<string, string> Environment { get; init; } =
         Environment ?? new Dictionary<string, string>(StringComparer.Ordinal);
     public IReadOnlyList<string> CommandPath { get; init; } = CommandPath ?? [];
     public IReadOnlyList<PluginDiagnostic> Diagnostics { get; init; } = Diagnostics ?? [];
     public IReadOnlyList<PluginArtifact> Artifacts { get; init; } = Artifacts ?? [];
+}
+
+public sealed record PluginExecutionResponseSummary(
+    bool Success,
+    int ExitCode,
+    IReadOnlyList<string>? DiagnosticCodes = null,
+    int ArtifactCount = 0)
+{
+    public IReadOnlyList<string> DiagnosticCodes { get; init; } = DiagnosticCodes ?? [];
 }

@@ -146,7 +146,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
             plugins:
               echo:
                 enabled: false
-                source: plugins/missing
+                source: plugins/echo
                 exposeCommands:
                   - echo
             """);
@@ -287,6 +287,103 @@ public sealed class PluginCliIntegrationTests : IDisposable
         PluginCliLoadResult result = await loader.LoadAsync(_tempDir, CancellationToken.None);
 
         Assert.NotNull(BukitCliDescriptors.ResolveDescriptor(result.Descriptors, "runtime"));
+    }
+
+    [Fact]
+    public async Task LoadAsync_SourceLeafDoesNotMatchConfiguredPluginId_ThrowsConfigException()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteRuntimePermissionPluginConfig(
+            pluginId: "import",
+            source: "plugins/echo",
+            manifestId: "import",
+            exposeCommands: ["import"],
+            staticCommands:
+            """
+            commands:
+              - name: import
+                summary: Import command
+            """);
+        var client = new RuntimePermissionProtocolClient(
+            new PluginPermissionSet(),
+            commands: [new PluginCommandSpec("import", "Import command")]);
+        var loader = new PluginCliLoader(
+            new PluginConfigLoader(),
+            new PluginManifestLoader(),
+            new PluginPathValidator(),
+            new FixedPlatformResolver("test-rid"),
+            new PassingHashVerifier(),
+            client);
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(_tempDir, CancellationToken.None));
+
+        Assert.Contains("Plugin import source plugins/echo does not match plugin id.", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_ManifestIdDoesNotMatchConfiguredPluginId_ThrowsConfigException()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteRuntimePermissionPluginConfig(
+            pluginId: "import",
+            source: "plugins/import",
+            manifestId: "echo",
+            exposeCommands: ["import"],
+            staticCommands:
+            """
+            commands:
+              - name: import
+                summary: Import command
+            """);
+        var client = new RuntimePermissionProtocolClient(
+            new PluginPermissionSet(),
+            commands: [new PluginCommandSpec("import", "Import command")]);
+        var loader = new PluginCliLoader(
+            new PluginConfigLoader(),
+            new PluginManifestLoader(),
+            new PluginPathValidator(),
+            new FixedPlatformResolver("test-rid"),
+            new PassingHashVerifier(),
+            client);
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(_tempDir, CancellationToken.None));
+
+        Assert.Contains("Plugin import manifest id echo does not match configured plugin id.", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_HandshakeIdDoesNotMatchManifestId_ThrowsConfigException()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteRuntimePermissionPluginConfig(
+            pluginId: "import",
+            source: "plugins/import",
+            manifestId: "import",
+            exposeCommands: ["import"],
+            staticCommands:
+            """
+            commands:
+              - name: import
+                summary: Import command
+            """);
+        var client = new RuntimePermissionProtocolClient(
+            new PluginPermissionSet(),
+            commands: [new PluginCommandSpec("import", "Import command")],
+            handshakePluginId: "echo");
+        var loader = new PluginCliLoader(
+            new PluginConfigLoader(),
+            new PluginManifestLoader(),
+            new PluginPathValidator(),
+            new FixedPlatformResolver("test-rid"),
+            new PassingHashVerifier(),
+            client);
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(_tempDir, CancellationToken.None));
+
+        Assert.Contains("Plugin import handshake id echo does not match plugin.yaml id.", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -644,13 +741,17 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     private void WriteRuntimePermissionPluginConfig(
+        string pluginId = "runtime",
+        string source = "plugins/runtime",
+        string? manifestId = null,
         IReadOnlyList<string>? exposeCommands = null,
         bool declareExposeCommands = true,
         string? staticCommands = null,
         string? manifestPolicy = null)
     {
+        string pluginRoot = Path.Combine(_tempDir, source.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.Combine(_tempDir, ".bukit"));
-        Directory.CreateDirectory(Path.Combine(_tempDir, "plugins", "runtime", "bin", "test-rid"));
+        Directory.CreateDirectory(Path.Combine(pluginRoot, "bin", "test-rid"));
         IReadOnlyList<string> effectiveExposeCommands = exposeCommands ?? ["runtime"];
         string exposeBlock = !declareExposeCommands
             ? string.Empty
@@ -667,9 +768,9 @@ public sealed class PluginCliIntegrationTests : IDisposable
             $$"""
             version: 1
             plugins:
-              runtime:
+              {{pluginId}}:
                 enabled: true
-                source: plugins/runtime
+                source: {{source}}
             {{exposeBlock}}
             {{manifestPolicyLine}}
                 allowInCi: true
@@ -683,9 +784,9 @@ public sealed class PluginCliIntegrationTests : IDisposable
                 summary: Runtime command
             """;
 
-        File.WriteAllText(Path.Combine(_tempDir, "plugins", "runtime", "plugin.yaml"),
+        File.WriteAllText(Path.Combine(pluginRoot, "plugin.yaml"),
             $$"""
-            id: runtime
+            id: {{manifestId ?? pluginId}}
             name: Runtime Permission Plugin
             version: 1.0.0
             protocol: bukit-plugin-v1
@@ -815,11 +916,13 @@ public sealed class PluginCliIntegrationTests : IDisposable
         private readonly PluginPermissionSet _runtimePermissions;
         private readonly IReadOnlyList<PluginCommandSpec> _commands;
         private readonly PluginInvokeResponse _invokeResponse;
+        private readonly string? _handshakePluginId;
 
         public RuntimePermissionProtocolClient(
             PluginPermissionSet runtimePermissions,
             IReadOnlyList<PluginCommandSpec>? commands = null,
-            PluginInvokeResponse? invokeResponse = null)
+            PluginInvokeResponse? invokeResponse = null,
+            string? handshakePluginId = null)
         {
             _runtimePermissions = runtimePermissions;
             _commands = commands ?? [new PluginCommandSpec("runtime", "Runtime command")];
@@ -829,6 +932,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
                 "req-3",
                 Success: true,
                 ExitCode: 0);
+            _handshakePluginId = handshakePluginId;
         }
 
         public PluginInvokeRequest? LastInvokeRequest { get; private set; }
@@ -839,7 +943,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
                 "bukit-plugin-v1",
                 "req-1",
                 Success: true,
-                Plugin: new PluginIdentity(plugin.Id, plugin.Id, plugin.Version, plugin.Platform)));
+                Plugin: new PluginIdentity(_handshakePluginId ?? plugin.Id, plugin.Id, plugin.Version, plugin.Platform)));
 
         public Task<PluginManifestResponse> GetManifestAsync(ResolvedPlugin plugin, CancellationToken cancellationToken)
             => Task.FromResult(new PluginManifestResponse(

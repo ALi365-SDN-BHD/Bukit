@@ -286,7 +286,8 @@ plugins:
         read:
           - .
         write:
-          - ./.bukit/reports
+          - ./.bukit/reports/plugin-output/visual
+          - ./.bukit/tmp/visual
       network: false
       environment:
         read: []
@@ -314,12 +315,34 @@ plugins:
 | `timeout`        | object   |  否 | 默认超时     | 超时配置                      |
 | `output`         | object   |  否 | 默认输出限制   | stdout/stderr/response 限制 |
 | `failMode`       | string   |  否 | `strict` | 插件失败策略                    |
+| `manifestPolicy` | string   |  否 | `static` | manifest 命令来源策略            |
 | `allowInCi`      | boolean  |  否 | `false`  | 是否允许 CI 默认运行              |
 | `description`    | string   |  否 | null     | 项目本地说明                    |
 
 ---
 
-## 4.6 `source` 规则
+## 4.6 `manifestPolicy` 规则
+
+`manifestPolicy` 用于声明插件命令面以静态 `plugin.yaml` 为准，还是允许运行时 manifest 决定。
+
+```yaml
+plugins:
+  import:
+    manifestPolicy: static
+```
+
+取值：
+
+| 值             | 说明 |
+| ------------- | ---- |
+| `static`      | 默认值。`plugin.yaml` 的 `commands` 必须非空，runtime manifest 不得声明超出 static manifest 的命令、参数、选项或子命令。 |
+| `runtime-only` | 仅用于开发、Labs、兼容或临时动态插件；允许 runtime manifest 作为命令来源。 |
+
+正式发布插件必须使用 `static`。`runtime-only` 不建议用于 Official Plugin，也不得作为正式发布插件的默认策略。
+
+---
+
+## 4.7 `source` 规则
 
 `source` 必须满足：
 
@@ -363,7 +386,7 @@ Plugin source cannot be inside .bukit: <source>
 
 ---
 
-## 4.7 `enabled` 规则
+## 4.8 `enabled` 规则
 
 如果：
 
@@ -418,7 +441,7 @@ Unknown command: import
 
 ---
 
-## 4.8 `exposeCommands` 规则
+## 4.9 `exposeCommands` 规则
 
 `exposeCommands` 用于控制插件 manifest 中哪些命令暴露到 Core CLI。
 
@@ -448,7 +471,7 @@ exposeCommands: []
 
 ---
 
-## 4.9 `permissions` 规则
+## 4.10 `permissions` 规则
 
 `permissions` 表示项目授予插件的权限。
 
@@ -535,7 +558,18 @@ fileSystem:
 5. 不得写入项目根目录外。
 ```
 
-`.bukit/reports` 可允许写入，但建议由 Core 写报告，不建议插件直接写。
+`.bukit` 是 Core 工作目录，默认不得由插件直接读写。插件不得直接写 `.bukit/reports` 根目录。
+
+允许的插件私有写入区域只有：
+
+```yaml
+fileSystem:
+  write:
+    - ./.bukit/reports/plugin-output/<plugin-id>
+    - ./.bukit/tmp/<plugin-id>
+```
+
+Core PluginHost 自己写执行报告到 `.bukit/reports/plugin-executions/`；插件自定义输出只能写入 `.bukit/reports/plugin-output/<plugin-id>/`；临时文件只能写入 `.bukit/tmp/<plugin-id>/`。
 
 ---
 
