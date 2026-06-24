@@ -26,7 +26,7 @@ public static class CliParser
                     var remainingArgs = args.Skip(1).ToList();
                     var parentBound = new CliBoundCommand(new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase), new[] { firstToken }.ToList());
                     var innerResult = Parse(subSpec, remainingArgs);
-                    return new SubcommandParseResult(command, parentBound, Array.Empty<CliDiagnostic>(), firstToken, innerResult);
+                    return new SubcommandParseResult(command, parentBound, innerResult.Diagnostics, firstToken, innerResult);
                 }
             }
         }
@@ -99,6 +99,11 @@ public static class CliParser
 
         foreach (var spec in command.Options ?? Array.Empty<CliOptionSpec>())
         {
+            if (spec.Required && bound.GetString(spec.Name) is null)
+            {
+                diagnostics.Add(new CliDiagnostic("missing-option", $"Missing required option: {spec.Name}"));
+            }
+
             if (!string.IsNullOrWhiteSpace(spec.ConflictWith) &&
                 bound.GetString(spec.Name) is not null &&
                 bound.GetString(spec.ConflictWith) is not null)

@@ -46,6 +46,13 @@ switch (command)
         return 0;
     }
 
+    case "env":
+    {
+        string name = args[1];
+        Console.Out.Write(Environment.GetEnvironmentVariable(name) ?? "<missing>");
+        return 0;
+    }
+
     default:
         Console.Error.Write("unknown command");
         return 2;

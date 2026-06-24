@@ -80,7 +80,8 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
     {
         bool enabled = PluginYaml.GetOptionalBool(node, "enabled") ?? false;
         string source = PluginYaml.GetRequiredString(node, "source", $"plugins.{id}.source");
-        IReadOnlyList<string> exposeCommands = PluginYaml.ReadStringList(node, "exposeCommands");
+        (bool exposeCommandsDeclared, IReadOnlyList<string> exposeCommands) =
+            PluginYaml.ReadStringListWithPresence(node, "exposeCommands");
         string failMode = PluginYaml.GetOptionalString(node, "failMode") ?? "strict";
         bool allowInCi = PluginYaml.GetOptionalBool(node, "allowInCi") ?? false;
         string? description = PluginYaml.GetOptionalString(node, "description");
@@ -100,7 +101,8 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
             failMode,
             allowInCi,
             description,
-            permissionsExplicit);
+            permissionsExplicit,
+            exposeCommandsDeclared);
     }
 
     private static PluginPermissionSet ReadPermissions(YamlMappingNode? node)
@@ -120,7 +122,14 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
                 Write: PluginYaml.ReadStringList(fileSystemNode, "write")),
             Network: network,
             Environment: new PluginEnvironmentPermission(
-                Read: PluginYaml.ReadStringList(environmentNode, "read")));
+                Read: ReadEnvironmentList(environmentNode)));
+    }
+
+    private static IReadOnlyList<string> ReadEnvironmentList(YamlMappingNode? node)
+    {
+        IReadOnlyList<string> values = PluginYaml.ReadStringList(node, "read");
+        PluginPermissionEvaluator.ValidateNoEnvironmentWildcard(values);
+        return values;
     }
 
     private static PluginTimeoutOptions ReadTimeout(YamlMappingNode? node)

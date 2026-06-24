@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Text;
 using Bukit.Plugin.Abstractions;
 using Bukit.Plugin.Abstractions.Protocol;
+using Bukit.Plugin.Abstractions.Results;
 using Bukit.Shared;
 
 namespace Bukit.PluginHost;
@@ -14,13 +16,16 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
 
     private readonly IPluginProcessInvoker _processInvoker;
     private readonly IPluginRequestIdFactory _requestIdFactory;
+    private readonly PluginExecutionReporter _executionReporter;
 
     public PluginProtocolClient(
         IPluginProcessInvoker processInvoker,
-        IPluginRequestIdFactory requestIdFactory)
+        IPluginRequestIdFactory requestIdFactory,
+        PluginExecutionReporter? executionReporter = null)
     {
         _processInvoker = processInvoker ?? throw new ArgumentNullException(nameof(processInvoker));
         _requestIdFactory = requestIdFactory ?? throw new ArgumentNullException(nameof(requestIdFactory));
+        _executionReporter = executionReporter ?? new PluginExecutionReporter();
     }
 
     public async Task<PluginHandshakeResponse> HandshakeAsync(
@@ -119,19 +124,43 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
             TimeSpan.FromMilliseconds(plugin.Timeout.InvokeMs),
             cancellationToken);
 
-        EnsureProcessSucceeded(processResult);
-        PluginInvokeResponse response = Deserialize(
-            processResult.StdoutJson,
-            PluginJsonSerializerContext.Default.PluginInvokeResponse);
-        ValidateCommonResponse(response.Type, response.Protocol, response.RequestId, response.Success, InvokeResponseType, requestId);
-
-        if (response.ExitCode != 0)
+        PluginInvokeResponse? response = null;
+        try
         {
-            throw ProtocolError(PluginHostErrorCodes.ExecutionFailed, $"Plugin invoke returned exit code {response.ExitCode}.");
-        }
+            EnsureInvokeProcessReadable(processResult);
+            response = Deserialize(
+                processResult.StdoutJson,
+                PluginJsonSerializerContext.Default.PluginInvokeResponse);
+            ValidateInvokeResponse(response.Type, response.Protocol, response.RequestId, InvokeResponseType, requestId);
 
-        ValidateArtifactPaths(response);
-        return response;
+            ValidateArtifactPaths(response);
+            if (processResult.ExitCode != 0 && processResult.ExitCode != response.ExitCode)
+            {
+                response = response with
+                {
+                    Diagnostics = response.Diagnostics
+                        .Concat([
+                            new PluginDiagnostic(
+                                "plugin.processExitMismatch",
+                                "warning",
+                                $"Plugin process exited with code {processResult.ExitCode}, but invoke response exitCode was {response.ExitCode}.")
+                        ])
+                        .ToArray()
+                };
+            }
+
+            return response;
+        }
+        finally
+        {
+            await WriteExecutionReportAsync(
+                plugin,
+                normalizedRequest.Context.RootDir,
+                requestId,
+                processResult,
+                response?.Success ?? false,
+                cancellationToken);
+        }
     }
 
     private Task<PluginProcessResult> InvokeProcessAsync(
@@ -150,6 +179,61 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
                 plugin.Output.StderrMaxBytes,
                 plugin.EnvironmentVariables),
             cancellationToken);
+
+    private Task<string> WriteExecutionReportAsync(
+        ResolvedPlugin plugin,
+        string? contextRoot,
+        string requestId,
+        PluginProcessResult result,
+        bool success,
+        CancellationToken cancellationToken)
+    {
+        string? projectRoot = ResolveProjectRoot(plugin, contextRoot);
+        return projectRoot is null
+            ? Task.FromResult(string.Empty)
+            : _executionReporter.WriteAsync(
+                projectRoot,
+                new PluginExecutionReport(
+                    plugin.Id,
+                    "invoke",
+                    requestId,
+                    result.ExitCode,
+                    success,
+                    result.TimedOut,
+                    result.OutputLimitExceeded,
+                    Encoding.UTF8.GetByteCount(result.StdoutJson),
+                    Encoding.UTF8.GetByteCount(result.Stderr),
+                    result.Stderr,
+                    ToReportEnvironment(plugin.EnvironmentVariables)),
+                cancellationToken);
+    }
+
+    private static string? ResolveProjectRoot(ResolvedPlugin plugin, string? contextRoot)
+    {
+        if (!string.IsNullOrWhiteSpace(plugin.ProjectRoot))
+        {
+            return plugin.ProjectRoot;
+        }
+
+        if (!string.IsNullOrWhiteSpace(contextRoot) && Directory.Exists(contextRoot))
+        {
+            return contextRoot;
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyDictionary<string, string> ToReportEnvironment(
+        IReadOnlyDictionary<string, string?> environment)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach ((string key, string? value) in environment)
+        {
+            result[key] = value ?? string.Empty;
+        }
+
+        return result;
+    }
 
     private static string Serialize(PluginHandshakeRequest request)
         => JsonSerializer.Serialize(request, PluginJsonSerializerContext.Default.PluginHandshakeRequest);
@@ -195,6 +279,19 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
         }
     }
 
+    private static void EnsureInvokeProcessReadable(PluginProcessResult result)
+    {
+        if (result.TimedOut)
+        {
+            throw ProtocolError(PluginHostErrorCodes.Timeout, "Plugin process timed out.");
+        }
+
+        if (result.OutputLimitExceeded)
+        {
+            throw ProtocolError(PluginHostErrorCodes.OutputTooLarge, "Plugin process output exceeded configured limits.");
+        }
+    }
+
     private static void ValidateCommonResponse(
         string type,
         string protocol,
@@ -221,6 +318,29 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
         if (!success)
         {
             throw ProtocolError(PluginHostErrorCodes.ExecutionFailed, "Plugin response reported failure.");
+        }
+    }
+
+    private static void ValidateInvokeResponse(
+        string type,
+        string protocol,
+        string requestId,
+        string expectedType,
+        string expectedRequestId)
+    {
+        if (!StringComparer.Ordinal.Equals(type, expectedType))
+        {
+            throw ProtocolError(PluginHostErrorCodes.InvalidResponse, $"Plugin response type must be {expectedType}.");
+        }
+
+        if (!StringComparer.Ordinal.Equals(protocol, PluginProtocolConstants.ProtocolVersion))
+        {
+            throw ProtocolError(PluginHostErrorCodes.UnsupportedProtocol, "Plugin response protocol is unsupported.");
+        }
+
+        if (!StringComparer.Ordinal.Equals(requestId, expectedRequestId))
+        {
+            throw ProtocolError(PluginHostErrorCodes.InvalidResponse, "Plugin response requestId did not match request.");
         }
     }
 

@@ -12,7 +12,8 @@ public sealed record PluginConfigEntry(
     string FailMode = "strict",
     bool AllowInCi = false,
     string? Description = null,
-    bool PermissionsExplicit = false)
+    bool PermissionsExplicit = false,
+    bool ExposeCommandsDeclared = false)
 {
     public IReadOnlyList<string> ExposeCommands { get; init; } = ExposeCommands ?? [];
     public PluginPermissionSet Permissions { get; init; } = Permissions ?? new PluginPermissionSet();

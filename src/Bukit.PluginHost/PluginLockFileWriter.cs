@@ -1,4 +1,5 @@
-using System.Text;
+using System.Globalization;
+using YamlDotNet.RepresentationModel;
 
 namespace Bukit.PluginHost;
 
@@ -13,24 +14,41 @@ public sealed class PluginLockFileWriter
         Directory.CreateDirectory(bukitDirectory);
         string lockPath = Path.Combine(bukitDirectory, "plugins.lock.yaml");
 
-        var builder = new StringBuilder();
-        builder.AppendLine("version: 1");
-        builder.AppendLine("plugins:");
+        var root = new YamlMappingNode
+        {
+            { "version", "1" }
+        };
+        var resolved = new YamlMappingNode();
         foreach (PluginLockEntry entry in entries.OrderBy(e => e.Id, StringComparer.Ordinal))
         {
-            builder.AppendLine($"  {Escape(entry.Id)}:");
-            builder.AppendLine($"    version: {Escape(entry.Version)}");
-            builder.AppendLine($"    source: {Escape(entry.Source)}");
-            builder.AppendLine($"    entry: {Escape(entry.Entry)}");
-            builder.AppendLine($"    platform: {Escape(entry.Platform)}");
-            builder.AppendLine($"    sha256: {Escape(entry.Sha256)}");
-            builder.AppendLine($"    sha256Verified: {entry.Sha256Verified.ToString().ToLowerInvariant()}");
+            var commands = new YamlSequenceNode();
+            foreach (string command in entry.Commands ?? [])
+            {
+                commands.Add(command);
+            }
+
+            resolved.Add(
+                entry.Id,
+                new YamlMappingNode
+                {
+                    { "source", entry.Source },
+                    { "manifestVersion", entry.ManifestVersion },
+                    { "protocol", entry.Protocol },
+                    { "platform", entry.Platform },
+                    { "entry", entry.Entry },
+                    { "sha256", entry.Sha256 },
+                    { "commands", commands },
+                    { "resolvedAt", entry.ResolvedAt.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) },
+                    { "sha256Verified", entry.Sha256Verified.ToString().ToLowerInvariant() }
+                });
         }
 
-        await File.WriteAllTextAsync(lockPath, builder.ToString(), cancellationToken);
-    }
+        root.Add("resolved", resolved);
 
-    private static string Escape(string value)
-        => value.Replace("\\", "\\\\", StringComparison.Ordinal)
-            .Replace(":", "\\:", StringComparison.Ordinal);
+        var stream = new YamlStream(new YamlDocument(root));
+        await using var file = File.Create(lockPath);
+        await using var writer = new StreamWriter(file);
+        stream.Save(writer, assignAnchors: false);
+        await writer.FlushAsync(cancellationToken);
+    }
 }

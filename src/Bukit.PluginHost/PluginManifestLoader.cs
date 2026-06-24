@@ -31,7 +31,7 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
         string version = PluginYaml.GetRequiredString(root, "version", "plugin.version");
         string protocol = PluginYaml.GetRequiredString(root, "protocol", "plugin.protocol");
         string kind = PluginYaml.GetRequiredString(root, "kind", "plugin.kind");
-        string distribution = PluginYaml.GetOptionalString(root, "distribution") ?? "external";
+        string distribution = PluginYaml.GetOptionalString(root, "distribution") ?? "self-contained";
 
         if (!StringComparer.Ordinal.Equals(protocol, PluginProtocolConstants.ProtocolVersion))
         {
@@ -43,9 +43,9 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
             throw new ConfigException("Plugin kind must be process.", DiagnosticCode.ConfigInvalidValue);
         }
 
-        if (!StringComparer.Ordinal.Equals(distribution, "external"))
+        if (!StringComparer.Ordinal.Equals(distribution, "self-contained"))
         {
-            throw new ConfigException("Plugin distribution must be external.", DiagnosticCode.ConfigInvalidValue);
+            throw new ConfigException("Plugin distribution must be self-contained.", DiagnosticCode.ConfigInvalidValue);
         }
 
         IReadOnlyDictionary<string, PluginPlatformEntry> platforms = ReadPlatforms(root);
@@ -158,6 +158,13 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
                 Write: PluginYaml.ReadStringList(fileSystemNode, "write")),
             Network: network,
             Environment: new PluginEnvironmentPermission(
-                Read: PluginYaml.ReadStringList(environmentNode, "read")));
+                Read: ReadEnvironmentList(environmentNode)));
+    }
+
+    private static IReadOnlyList<string> ReadEnvironmentList(YamlMappingNode? node)
+    {
+        IReadOnlyList<string> values = PluginYaml.ReadStringList(node, "read");
+        PluginPermissionEvaluator.ValidateNoEnvironmentWildcard(values);
+        return values;
     }
 }

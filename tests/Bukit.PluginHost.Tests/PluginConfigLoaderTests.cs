@@ -63,6 +63,7 @@ public sealed class PluginConfigLoaderTests
         Assert.True(echo.Enabled);
         Assert.Equal("plugins/echo", echo.Source);
         Assert.Equal(["echo"], echo.ExposeCommands);
+        Assert.True(echo.ExposeCommandsDeclared);
         Assert.Equal("warn", echo.FailMode);
         Assert.True(echo.AllowInCi);
         Assert.Equal("Echo plugin", echo.Description);
@@ -80,6 +81,51 @@ public sealed class PluginConfigLoaderTests
     }
 
     [Fact]
+    public async Task LoadAsync_ExposeCommandsMissing_SetsDeclaredFalse()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            """
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+            """);
+
+        var loader = new PluginConfigLoader();
+
+        PluginHostConfig config = await loader.LoadAsync(directory.Path, CancellationToken.None);
+
+        var echo = Assert.Single(config.Plugins).Value;
+        Assert.False(echo.ExposeCommandsDeclared);
+        Assert.Empty(echo.ExposeCommands);
+    }
+
+    [Fact]
+    public async Task LoadAsync_ExposeCommandsEmpty_SetsDeclaredTrue()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            """
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+                exposeCommands: []
+            """);
+
+        var loader = new PluginConfigLoader();
+
+        PluginHostConfig config = await loader.LoadAsync(directory.Path, CancellationToken.None);
+
+        var echo = Assert.Single(config.Plugins).Value;
+        Assert.True(echo.ExposeCommandsDeclared);
+        Assert.Empty(echo.ExposeCommands);
+    }
+
+    [Fact]
     public async Task LoadAsync_InvalidYaml_ThrowsConfigException()
     {
         using var directory = TestDirectory.Create();
@@ -90,5 +136,29 @@ public sealed class PluginConfigLoaderTests
             () => loader.LoadAsync(directory.Path, CancellationToken.None));
 
         Assert.Equal(DiagnosticCode.ConfigYamlSyntaxError, exception.Code);
+    }
+
+    [Fact]
+    public async Task LoadAsync_EnvironmentWildcardPermission_ThrowsConfigException()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            """
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+                permissions:
+                  environment:
+                    read:
+                      - "*"
+            """);
+        var loader = new PluginConfigLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(directory.Path, CancellationToken.None));
+
+        Assert.Contains("environment.read cannot contain '*'", exception.Message, StringComparison.Ordinal);
     }
 }

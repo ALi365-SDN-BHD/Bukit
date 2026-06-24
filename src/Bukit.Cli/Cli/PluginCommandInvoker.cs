@@ -16,18 +16,22 @@ public static class PluginCommandInvoker
         PluginCommandSpec command,
         IPluginProtocolClient client)
     {
-        var arguments = ReadArguments(bound);
-        var options = ReadOptions(bound, command);
+        var invocation = ResolveInvocation(bound, command);
+        var options = ReadOptions(bound, invocation.CommandSpecs);
         var request = new PluginInvokeRequest(
             Type: string.Empty,
             Protocol: string.Empty,
             RequestId: string.Empty,
             Host: plugin.Host,
-            Command: new PluginInvokeCommand(command.Name, Arguments: arguments, Options: options),
+            Command: new PluginInvokeCommand(
+                invocation.LeafCommand.Name,
+                Path: invocation.Path,
+                Arguments: invocation.Arguments,
+                Options: options),
             Context: new PluginInvokeContext(
                 RootDir: Directory.GetCurrentDirectory(),
                 WorkingDir: Directory.GetCurrentDirectory()),
-            Permissions: new PluginPermissionSet());
+            Permissions: plugin.GrantedPermissions);
 
         PluginInvokeResponse response = await client.InvokeAsync(plugin, request, CancellationToken.None);
         foreach (var message in response.Messages)
@@ -51,6 +55,53 @@ public static class PluginCommandInvoker
         return response.ExitCode;
     }
 
+    private static PluginInvocation ResolveInvocation(CliBoundCommand bound, PluginCommandSpec command)
+    {
+        IReadOnlyList<string> rawArguments = ReadArguments(bound);
+        var path = new List<string> { command.Name };
+        var commandSpecs = new List<PluginCommandSpec> { command };
+        PluginCommandSpec leafCommand = command;
+        var consumed = 0;
+
+        while (consumed < rawArguments.Count)
+        {
+            PluginCommandSpec? subcommand = FindSubcommand(leafCommand, rawArguments[consumed]);
+            if (subcommand is null)
+            {
+                break;
+            }
+
+            leafCommand = subcommand;
+            path.Add(subcommand.Name);
+            commandSpecs.Add(subcommand);
+            consumed++;
+        }
+
+        return new PluginInvocation(
+            leafCommand,
+            path,
+            rawArguments.Skip(consumed).ToArray(),
+            commandSpecs);
+    }
+
+    private static PluginCommandSpec? FindSubcommand(PluginCommandSpec command, string name)
+    {
+        foreach (PluginCommandSpec subcommand in command.Subcommands)
+        {
+            if (string.Equals(subcommand.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return subcommand;
+            }
+
+            if (subcommand.Aliases.Any(alias => string.Equals(alias, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                return subcommand;
+            }
+        }
+
+        return null;
+    }
+
     private static IReadOnlyList<string> ReadArguments(CliBoundCommand bound)
     {
         var arguments = new List<string>();
@@ -68,18 +119,23 @@ public static class PluginCommandInvoker
         return arguments;
     }
 
-    private static IReadOnlyDictionary<string, JsonElement> ReadOptions(CliBoundCommand bound, PluginCommandSpec command)
+    private static IReadOnlyDictionary<string, JsonElement> ReadOptions(
+        CliBoundCommand bound,
+        IReadOnlyList<PluginCommandSpec> commandSpecs)
     {
         var options = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        foreach (PluginOptionSpec option in command.Options)
+        foreach (PluginCommandSpec command in commandSpecs)
         {
-            string? value = bound.GetString(option.Name);
-            if (value is null)
+            foreach (PluginOptionSpec option in command.Options)
             {
-                continue;
-            }
+                string? value = bound.GetString(option.Name);
+                if (value is null)
+                {
+                    continue;
+                }
 
-            options[option.Name] = CreateStringElement(value);
+                options[option.Name] = CreateStringElement(value);
+            }
         }
 
         return options;
@@ -96,4 +152,10 @@ public static class PluginCommandInvoker
         using JsonDocument document = JsonDocument.Parse(stream.ToArray());
         return document.RootElement.Clone();
     }
+
+    private sealed record PluginInvocation(
+        PluginCommandSpec LeafCommand,
+        IReadOnlyList<string> Path,
+        IReadOnlyList<string> Arguments,
+        IReadOnlyList<PluginCommandSpec> CommandSpecs);
 }

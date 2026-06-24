@@ -18,7 +18,7 @@ public sealed class PluginManifestLoaderTests
             version: 0.1.0
             protocol: bukit-plugin-v1
             kind: process
-            distribution: external
+            distribution: self-contained
             platforms:
               osx-arm64:
                 entry: bin/osx-arm64/bukit-plugin-echo
@@ -41,7 +41,7 @@ public sealed class PluginManifestLoaderTests
         Assert.Equal("0.1.0", manifest.Version);
         Assert.Equal("bukit-plugin-v1", manifest.Protocol);
         Assert.Equal("process", manifest.Kind);
-        Assert.Equal("external", manifest.Distribution);
+        Assert.Equal("self-contained", manifest.Distribution);
         Assert.True(manifest.Platforms.ContainsKey("osx-arm64"));
         Assert.Equal("bin/osx-arm64/bukit-plugin-echo", manifest.Platforms["osx-arm64"].Entry);
         Assert.Equal("echo", Assert.Single(manifest.Commands).Name);
@@ -61,7 +61,7 @@ public sealed class PluginManifestLoaderTests
             version: 0.1.0
             protocol: bukit-plugin-v1
             kind: process
-            distribution: external
+            distribution: self-contained
             platforms:
               osx-arm64:
                 entry: bin/osx-arm64/bukit-plugin-echo
@@ -89,5 +89,61 @@ public sealed class PluginManifestLoaderTests
             () => loader.LoadAsync(System.IO.Path.Combine(directory.Path, "plugins/echo"), CancellationToken.None));
 
         Assert.Contains(expectedMessage, exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LoadAsync_EnvironmentWildcardRequiredPermission_ThrowsConfigException()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write("plugins/echo/plugin.yaml",
+            """
+            id: echo
+            name: Echo
+            version: 0.1.0
+            protocol: bukit-plugin-v1
+            kind: process
+            distribution: self-contained
+            platforms:
+              osx-arm64:
+                entry: bin/osx-arm64/bukit-plugin-echo
+                sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            requiredPermissions:
+              environment:
+                read:
+                  - "*"
+            """);
+
+        var loader = new PluginManifestLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(System.IO.Path.Combine(directory.Path, "plugins/echo"), CancellationToken.None));
+
+        Assert.Contains("environment.read cannot contain '*'", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_ExternalDistribution_ThrowsConfigException()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write("plugins/echo/plugin.yaml",
+            """
+            id: echo
+            name: Echo
+            version: 0.1.0
+            protocol: bukit-plugin-v1
+            kind: process
+            distribution: external
+            platforms:
+              osx-arm64:
+                entry: bin/osx-arm64/bukit-plugin-echo
+                sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            """);
+
+        var loader = new PluginManifestLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(System.IO.Path.Combine(directory.Path, "plugins/echo"), CancellationToken.None));
+
+        Assert.Contains("distribution must be self-contained", exception.Message, StringComparison.Ordinal);
     }
 }
