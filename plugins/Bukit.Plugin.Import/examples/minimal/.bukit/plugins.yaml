@@ -1,0 +1,30 @@
+version: 1
+
+plugins:
+  import:
+    enabled: true
+    source: plugins/import
+    exposeCommands:
+      - import
+    permissions:
+      fileSystem:
+        read:
+          - .
+        write:
+          - ./content
+          - ./data
+          - ./docs/research
+      network: false
+      environment:
+        read: []
+    timeout:
+      handshakeMs: 5000
+      manifestMs: 5000
+      invokeMs: 120000
+    output:
+      stdoutMaxBytes: 4194304
+      stderrMaxBytes: 4194304
+      responseMaxBytes: 4194304
+    failMode: strict
+    manifestPolicy: static
+    allowInCi: true

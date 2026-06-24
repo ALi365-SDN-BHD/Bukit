@@ -33,6 +33,9 @@ fi
 echo "=== checks: github action pin compliance ==="
 bash scripts/checks/ci-workflow-action-pin.sh
 
+echo "=== checks: official plugin package configs ==="
+bash scripts/checks/official-plugin-packages.sh
+
 echo "=== release: full gate ==="
 COVERAGE_SUMMARY_FILE="${artifact_dir}/coverage-summary.txt" bash scripts/gates/ci-full.sh "$configuration"
 
