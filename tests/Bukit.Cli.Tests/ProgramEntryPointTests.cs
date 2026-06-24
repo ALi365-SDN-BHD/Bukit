@@ -41,6 +41,19 @@ public sealed class ProgramEntryPointTests : IDisposable
     }
 
     [Fact]
+    public async Task Main_Version_IgnoresMalformedPluginConfig()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteMalformedPluginConfig();
+
+        var result = await InvokeEntryPointAsync(["version"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("bukit ", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+    }
+
+    [Fact]
     public async Task Main_VersionHelp_PrintsCommandUsage()
     {
         var result = await InvokeEntryPointAsync(["version", "--help"]);
@@ -48,6 +61,32 @@ public sealed class ProgramEntryPointTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Usage:", result.StdOut, StringComparison.Ordinal);
         Assert.Contains("bukit version", result.StdOut, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_BuildHelp_IgnoresInvalidPluginManifest()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WritePluginConfigWithInvalidManifest();
+
+        var result = await InvokeEntryPointAsync(["build", "--help"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Usage:", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("bukit build", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+    }
+
+    [Fact]
+    public async Task Main_PluginCommandWithMalformedConfig_ReturnsCliError()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteMalformedPluginConfig();
+
+        var result = await InvokeEntryPointAsync(["echo"]);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("Invalid YAML syntax in plugin config file", result.StdErr, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -168,6 +207,30 @@ public sealed class ProgramEntryPointTests : IDisposable
     {
         await task;
         return 0;
+    }
+
+    private void WriteMalformedPluginConfig()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, ".bukit"));
+        File.WriteAllText(Path.Combine(_tempDir, ".bukit", "plugins.yaml"), "version: [");
+    }
+
+    private void WritePluginConfigWithInvalidManifest()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, ".bukit"));
+        Directory.CreateDirectory(Path.Combine(_tempDir, "plugins", "broken"));
+        File.WriteAllText(Path.Combine(_tempDir, ".bukit", "plugins.yaml"),
+            """
+            version: 1
+            plugins:
+              broken:
+                enabled: true
+                source: plugins/broken
+                allowInCi: true
+                permissions:
+                  network: false
+            """);
+        File.WriteAllText(Path.Combine(_tempDir, "plugins", "broken", "plugin.yaml"), "id: broken");
     }
 
     private static string ValidSeoReportJson() => """

@@ -100,6 +100,7 @@ public sealed class SystemProcessRunner : IProcessRunner
             startInfo.ArgumentList.Add(argument);
         }
 
+        startInfo.Environment.Clear();
         foreach ((string key, string? value) in request.EnvironmentVariables)
         {
             if (value is null)

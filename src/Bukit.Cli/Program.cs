@@ -7,15 +7,7 @@ using Bukit.Shared;
 
 var command = args.Length > 0 ? args[0] : null;
 var commandArgsRaw = args.Skip(1).ToArray();
-var coreDescriptors = BukitCliDescriptors.CreateDescriptors();
-var pluginCli = command is null || command is "help" or "--help" or "-h"
-    ? PluginCliLoadResult.Empty
-    : await PluginCliLoader.CreateDefault().LoadAsync(Directory.GetCurrentDirectory(), CancellationToken.None);
-var descriptors = BukitCliComposer.Compose(coreDescriptors, pluginCli.Descriptors);
-var descriptor = BukitCliDescriptors.ResolveDescriptor(descriptors, command);
-var commandArgsInfo = NormalizeGlobalLogFormat(commandArgsRaw, descriptor);
-var commandArgs = commandArgsInfo.Args;
-var isJsonErrorMode = commandArgsInfo.LogFormat == "json";
+var isJsonErrorMode = string.Equals(ReadGlobalLogFormat(commandArgsRaw, new List<string>(commandArgsRaw.Length), keepLogFormat: false), "json", StringComparison.OrdinalIgnoreCase);
 
 if (command is null || command is "help" or "--help" or "-h")
 {
@@ -25,6 +17,19 @@ if (command is null || command is "help" or "--help" or "-h")
 
 try
 {
+    var coreDescriptors = BukitCliDescriptors.CreateDescriptors();
+    var descriptor = BukitCliDescriptors.ResolveDescriptor(coreDescriptors, command);
+    if (descriptor is null)
+    {
+        var pluginCli = await PluginCliLoader.CreateDefault().LoadAsync(Directory.GetCurrentDirectory(), CancellationToken.None);
+        var descriptors = BukitCliComposer.Compose(coreDescriptors, pluginCli.Descriptors);
+        descriptor = BukitCliDescriptors.ResolveDescriptor(descriptors, command);
+    }
+
+    var commandArgsInfo = NormalizeGlobalLogFormat(commandArgsRaw, descriptor);
+    var commandArgs = commandArgsInfo.Args;
+    isJsonErrorMode = commandArgsInfo.LogFormat == "json";
+
     if (descriptor is not null)
     {
         if (commandArgs.Any(x => x is "--help" or "-h"))

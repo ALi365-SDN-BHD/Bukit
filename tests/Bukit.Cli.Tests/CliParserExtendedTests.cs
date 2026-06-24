@@ -144,6 +144,45 @@ public sealed class CliParserExtendedTests
     }
 
     [Fact]
+    public void Parse_RequiredOptionMissing_ProducesDiagnostic()
+    {
+        var spec = new CliCommandSpec(
+            Name: "publish",
+            Description: "publish",
+            Options: new[]
+            {
+                new CliOptionSpec("--target", "target", Required: true),
+            });
+
+        var result = CliParser.Parse(spec, Array.Empty<string>());
+
+        Assert.Contains(result.Diagnostics, d => d.Code == "missing-option");
+    }
+
+    [Fact]
+    public void Parse_SubcommandRequiredOptionMissing_PropagatesDiagnostic()
+    {
+        var spec = new CliCommandSpec(
+            Name: "import",
+            Description: "import",
+            Subcommands:
+            [
+                new CliCommandSpec(
+                    Name: "html-demo",
+                    Description: "html demo",
+                    Options:
+                    [
+                        new CliOptionSpec("--theme", "theme", Required: true),
+                    ])
+            ]);
+
+        var result = CliParser.Parse(spec, ["html-demo"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Code == "missing-option");
+    }
+
+    [Fact]
     public void Parse_OptionFollowedByOption_DoesNotConsumeNextOptionAsValue()
     {
         var spec = new CliCommandSpec(

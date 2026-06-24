@@ -44,6 +44,7 @@ public static class PluginCommandDescriptorFactory
             Name: option.Name,
             Description: option.Description,
             Type: ToCliOptionType(option.Type),
+            Required: option.Required,
             ValueName: option.ValueName,
             AllowedValues: option.AllowedValues,
             ConflictWith: option.ConflictWith);

@@ -108,7 +108,7 @@ public sealed class PluginProtocolClientTests
     }
 
     [Fact]
-    public async Task InvokeAsync_RejectsNonZeroProcessExit()
+    public async Task InvokeAsync_RejectsNonZeroProcessExitWithInvalidResponse()
     {
         var invoker = new StubPluginProcessInvoker("{}", exitCode: 7);
         var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
@@ -116,7 +116,64 @@ public sealed class PluginProtocolClientTests
         ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
             () => client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None));
 
-        Assert.Contains(PluginHostErrorCodes.ExecutionFailed, exception.Message);
+        Assert.Contains(PluginHostErrorCodes.InvalidResponse, exception.Message);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_RejectsTimeout()
+    {
+        var invoker = new StubPluginProcessInvoker("{}", timedOut: true);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None));
+
+        Assert.Contains(PluginHostErrorCodes.Timeout, exception.Message);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_RejectsOutputTooLarge()
+    {
+        var invoker = new StubPluginProcessInvoker("{}", outputLimitExceeded: true);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None));
+
+        Assert.Contains(PluginHostErrorCodes.OutputTooLarge, exception.Message);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ReturnsBusinessFailureResponseWithDiagnostics()
+    {
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"invokeResponse","protocol":"bukit-plugin-v1","requestId":"req-3","success":false,"exitCode":2,"diagnostics":[{"code":"plugin.input.invalid","severity":"error","message":"Invalid input"}]}
+            """);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+
+        PluginInvokeResponse response = await client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None);
+
+        Assert.False(response.Success);
+        Assert.Equal(2, response.ExitCode);
+        Assert.Equal("plugin.input.invalid", Assert.Single(response.Diagnostics).Code);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ReturnsValidResponseWhenProcessExitIsNonZero()
+    {
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"invokeResponse","protocol":"bukit-plugin-v1","requestId":"req-3","success":false,"exitCode":2,"diagnostics":[{"code":"plugin.input.invalid","severity":"error","message":"Invalid input"}]}
+            """,
+            exitCode: 7);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+
+        PluginInvokeResponse response = await client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None);
+
+        Assert.Equal(2, response.ExitCode);
+        Assert.Contains(response.Diagnostics, diagnostic => diagnostic.Code == "plugin.input.invalid");
+        Assert.Contains(response.Diagnostics, diagnostic => diagnostic.Code == "plugin.processExitMismatch");
     }
 
     [Fact]
@@ -157,11 +214,19 @@ public sealed class PluginProtocolClientTests
     {
         private readonly string _stdout;
         private readonly int _exitCode;
+        private readonly bool _timedOut;
+        private readonly bool _outputLimitExceeded;
 
-        public StubPluginProcessInvoker(string stdout, int exitCode = 0)
+        public StubPluginProcessInvoker(
+            string stdout,
+            int exitCode = 0,
+            bool timedOut = false,
+            bool outputLimitExceeded = false)
         {
             _stdout = stdout;
             _exitCode = exitCode;
+            _timedOut = timedOut;
+            _outputLimitExceeded = outputLimitExceeded;
         }
 
         public PluginProcessRequest? Request { get; private set; }
@@ -173,8 +238,8 @@ public sealed class PluginProtocolClientTests
                 ExitCode: _exitCode,
                 StdoutJson: _stdout,
                 Stderr: "stderr",
-                TimedOut: false,
-                OutputLimitExceeded: false));
+                TimedOut: _timedOut,
+                OutputLimitExceeded: _outputLimitExceeded));
         }
     }
 

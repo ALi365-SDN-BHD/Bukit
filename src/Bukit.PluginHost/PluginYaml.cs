@@ -107,10 +107,26 @@ internal static class PluginYaml
 
     internal static IReadOnlyList<string> ReadStringList(YamlMappingNode? node, string key)
     {
-        YamlSequenceNode? sequence = GetOptionalSequence(node, key);
-        if (sequence is null)
+        (bool present, IReadOnlyList<string> values) = ReadStringListWithPresence(node, key);
+        return present ? values : [];
+    }
+
+    internal static (bool Present, IReadOnlyList<string> Values) ReadStringListWithPresence(YamlMappingNode? node, string key)
+    {
+        if (node is null || !node.Children.TryGetValue(new YamlScalarNode(key), out YamlNode? child))
         {
-            return [];
+            return (false, []);
+        }
+
+        if (child is YamlScalarNode scalarNode
+            && string.Equals(scalarNode.Value, "[]", StringComparison.Ordinal))
+        {
+            return (true, []);
+        }
+
+        if (child is not YamlSequenceNode sequence)
+        {
+            throw new ConfigException($"{key} must be a sequence.", DiagnosticCode.ConfigInvalidValue);
         }
 
         var values = new List<string>();
@@ -124,7 +140,7 @@ internal static class PluginYaml
             values.Add(scalar.Value.Trim());
         }
 
-        return values;
+        return (true, values);
     }
 
     internal static string RequireKey(YamlNode keyNode, string path)

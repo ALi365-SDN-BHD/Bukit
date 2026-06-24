@@ -30,7 +30,7 @@ public sealed class EchoPluginIntegrationTests
             version: 1.0.0
             protocol: bukit-plugin-v1
             kind: process
-            distribution: external
+            distribution: self-contained
             platforms:
               {{rid}}:
                 entry: bin/{{rid}}/{{System.IO.Path.GetFileName(executablePath)}}
@@ -50,7 +50,12 @@ public sealed class EchoPluginIntegrationTests
             Platform: rid,
             ExecutablePath: executablePath,
             WorkingDirectory: pluginRoot,
-            Host: new PluginHostInfo("Bukit", "1.0.0", rid));
+            Host: new PluginHostInfo("Bukit", "1.0.0", rid),
+            ProjectRoot: directory.Path,
+            EnvironmentVariables: new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["NOTION_TOKEN"] = "secret-token"
+            });
 
         PluginHandshakeResponse handshake = await client.HandshakeAsync(plugin, CancellationToken.None);
         Assert.Equal("Bukit Echo Plugin", handshake.Plugin?.Name);
@@ -75,6 +80,14 @@ public sealed class EchoPluginIntegrationTests
         using JsonDocument document = JsonDocument.Parse(message);
         Assert.Equal("hello", document.RootElement.GetProperty("arguments")[0].GetString());
         Assert.Equal(directory.Path, document.RootElement.GetProperty("context").GetProperty("rootDir").GetString());
+
+        string reportPath = Assert.Single(Directory.EnumerateFiles(
+            System.IO.Path.Combine(directory.Path, ".bukit", "reports", "plugin-executions"),
+            "echo-invoke-*.json"));
+        string reportJson = File.ReadAllText(reportPath);
+        Assert.Contains("\"pluginId\": \"echo\"", reportJson, StringComparison.Ordinal);
+        Assert.Contains("\"NOTION_TOKEN\": \"***\"", reportJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-token", reportJson, StringComparison.Ordinal);
     }
 
     private static string CopyEchoPlugin(string destinationDirectory)

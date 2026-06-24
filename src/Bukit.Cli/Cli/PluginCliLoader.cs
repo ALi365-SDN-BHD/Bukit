@@ -17,6 +17,7 @@ public sealed class PluginCliLoader
     private readonly IPluginProtocolClient _protocolClient;
     private readonly PluginCiPolicy _ciPolicy;
     private readonly PluginLockFileWriter _lockFileWriter;
+    private readonly PluginPermissionEvaluator _permissionEvaluator;
 
     public PluginCliLoader(
         IPluginConfigLoader configLoader,
@@ -26,7 +27,8 @@ public sealed class PluginCliLoader
         IPluginHashVerifier hashVerifier,
         IPluginProtocolClient protocolClient,
         PluginCiPolicy? ciPolicy = null,
-        PluginLockFileWriter? lockFileWriter = null)
+        PluginLockFileWriter? lockFileWriter = null,
+        PluginPermissionEvaluator? permissionEvaluator = null)
     {
         _configLoader = configLoader;
         _manifestLoader = manifestLoader;
@@ -36,6 +38,7 @@ public sealed class PluginCliLoader
         _protocolClient = protocolClient;
         _ciPolicy = ciPolicy ?? new PluginCiPolicy();
         _lockFileWriter = lockFileWriter ?? new PluginLockFileWriter();
+        _permissionEvaluator = permissionEvaluator ?? new PluginPermissionEvaluator();
     }
 
     public static PluginCliLoader CreateDefault()
@@ -67,17 +70,19 @@ public sealed class PluginCliLoader
                 throw new ConfigException(source.Message ?? $"Invalid plugin source: {entry.Source}", DiagnosticCode.ConfigPathTraversal);
             }
 
-            PluginManifest manifest = await _manifestLoader.LoadAsync(source.FullPath, cancellationToken);
+            EnsureExposeCommandsDeclared(pluginId, entry);
             if (!entry.Enabled)
             {
-                foreach (PluginCommandSpec command in manifest.Commands)
+                foreach (string command in entry.ExposeCommands)
                 {
-                    descriptors.Add(PluginCommandDescriptorFactory.CreateDisabled(command.Name, pluginId));
+                    descriptors.Add(PluginCommandDescriptorFactory.CreateDisabled(command, pluginId));
                 }
-
-                records.Add(new PluginListRecord(pluginId, manifest.Version, Enabled: false, rid, manifest.Commands.Select(c => c.Name).ToArray()));
+                records.Add(new PluginListRecord(pluginId, "disabled", Enabled: false, rid, entry.ExposeCommands));
                 continue;
             }
+
+            PluginManifest manifest = await _manifestLoader.LoadAsync(source.FullPath, cancellationToken);
+            _permissionEvaluator.ValidateGrantedPermissions(pluginId, entry.Permissions, manifest.RequiredPermissions);
 
             if (!manifest.Platforms.TryGetValue(rid, out PluginPlatformEntry? platform))
             {
@@ -105,13 +110,21 @@ public sealed class PluginCliLoader
                 entryPath.FullPath,
                 source.FullPath,
                 new PluginHostInfo("Bukit", CliBuildInfo.Version, rid),
+                ProjectRoot: projectRoot,
                 Timeout: entry.Timeout,
-                Output: entry.Output);
+                Output: entry.Output,
+                GrantedPermissions: entry.Permissions,
+                EnvironmentVariables: CreateAllowedEnvironment(entry.Permissions.Environment.Read));
 
             PluginHandshakeResponse handshake = await _protocolClient.HandshakeAsync(resolved, cancellationToken);
             PluginManifestResponse runtimeManifest = await _protocolClient.GetManifestAsync(resolved, cancellationToken);
+            _permissionEvaluator.ValidateGrantedPermissions(pluginId, entry.Permissions, runtimeManifest.RequiredPermissions);
+            IReadOnlyList<PluginCommandSpec> exposedCommands = SelectExposedCommands(
+                pluginId,
+                entry,
+                runtimeManifest.Commands);
 
-            foreach (PluginCommandSpec command in runtimeManifest.Commands)
+            foreach (PluginCommandSpec command in exposedCommands)
             {
                 descriptors.Add(PluginCommandDescriptorFactory.Create(resolved, command, _protocolClient));
             }
@@ -121,15 +134,19 @@ public sealed class PluginCliLoader
                 handshake.Plugin?.Version ?? manifest.Version,
                 Enabled: true,
                 rid,
-                runtimeManifest.Commands.Select(c => c.Name).ToArray()));
+                exposedCommands.Select(c => c.Name).ToArray()));
 
             lockEntries.Add(new PluginLockEntry(
                 pluginId,
                 manifest.Version,
                 entry.Source,
-                platform.Entry,
+                manifest.Version,
+                manifest.Protocol,
+                CombinePluginEntry(entry.Source, platform.Entry),
                 rid,
                 platform.Sha256,
+                exposedCommands.Select(command => command.Name).ToArray(),
+                DateTimeOffset.UtcNow,
                 Sha256Verified: true));
         }
 
@@ -144,4 +161,51 @@ public sealed class PluginCliLoader
 
     private static bool IsCi()
         => string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase);
+
+    private static IReadOnlyList<PluginCommandSpec> SelectExposedCommands(
+        string pluginId,
+        PluginConfigEntry entry,
+        IReadOnlyList<PluginCommandSpec> runtimeCommands)
+    {
+        IReadOnlyList<string> exposeCommands = entry.ExposeCommands;
+        var byName = runtimeCommands.ToDictionary(command => command.Name, StringComparer.Ordinal);
+        var selected = new List<PluginCommandSpec>(exposeCommands.Count);
+        foreach (string commandName in exposeCommands)
+        {
+            if (!byName.TryGetValue(commandName, out PluginCommandSpec? command))
+            {
+                throw new ConfigException(
+                    $"Plugin {pluginId} exposeCommands contains unknown command: {commandName}.",
+                    DiagnosticCode.PluginCapabilityMissing);
+            }
+
+            selected.Add(command);
+        }
+
+        return selected;
+    }
+
+    private static void EnsureExposeCommandsDeclared(string pluginId, PluginConfigEntry entry)
+    {
+        if (!entry.ExposeCommandsDeclared)
+        {
+            throw new ConfigException(
+                $"Plugin {pluginId} exposeCommands must be declared.",
+                DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+    }
+
+    private static IReadOnlyDictionary<string, string?> CreateAllowedEnvironment(IReadOnlyList<string> names)
+    {
+        var variables = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (string name in names)
+        {
+            variables[name] = Environment.GetEnvironmentVariable(name);
+        }
+
+        return variables;
+    }
+
+    private static string CombinePluginEntry(string source, string entry)
+        => $"{source.TrimEnd('/', '\\').Replace('\\', '/')}/{entry.Replace('\\', '/')}";
 }

@@ -9,7 +9,7 @@ namespace Bukit.PluginHost.Tests;
 public sealed class PluginLockAndReportTests
 {
     [Fact]
-    public async Task PluginLockFileWriter_WritesPluginsLockYaml()
+    public async Task PluginLockFileWriter_WritesResolvedLockYaml()
     {
         using var directory = TestDirectory.Create();
         var writer = new PluginLockFileWriter();
@@ -21,16 +21,27 @@ public sealed class PluginLockAndReportTests
                     Id: "echo",
                     Version: "1.0.0",
                     Source: "plugins/echo",
-                    Entry: "bin/osx-arm64/bukit-plugin-echo",
+                    ManifestVersion: "1.0.0",
+                    Protocol: "bukit-plugin-v1",
+                    Entry: "plugins/echo/bin/osx-arm64/bukit-plugin-echo",
                     Platform: "osx-arm64",
                     Sha256: new string('a', 64),
+                    Commands: ["echo"],
+                    ResolvedAt: DateTimeOffset.Parse("2026-06-24T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture),
                     Sha256Verified: true)
             ],
             CancellationToken.None);
 
         string lockText = File.ReadAllText(Path.Combine(directory.Path, ".bukit", "plugins.lock.yaml"));
-        Assert.Contains("echo:", lockText, StringComparison.Ordinal);
+        Assert.Contains("resolved:", lockText, StringComparison.Ordinal);
+        Assert.DoesNotContain("plugins:", lockText, StringComparison.Ordinal);
         Assert.Contains("source: plugins/echo", lockText, StringComparison.Ordinal);
+        Assert.Contains("manifestVersion: 1.0.0", lockText, StringComparison.Ordinal);
+        Assert.Contains("protocol: bukit-plugin-v1", lockText, StringComparison.Ordinal);
+        Assert.Contains("entry: plugins/echo/bin/osx-arm64/bukit-plugin-echo", lockText, StringComparison.Ordinal);
+        Assert.Contains("commands:", lockText, StringComparison.Ordinal);
+        Assert.Contains("- echo", lockText, StringComparison.Ordinal);
+        Assert.Contains("resolvedAt: 2026-06-24T00:00:00", lockText, StringComparison.Ordinal);
         Assert.Contains("sha256Verified: true", lockText, StringComparison.Ordinal);
     }
 

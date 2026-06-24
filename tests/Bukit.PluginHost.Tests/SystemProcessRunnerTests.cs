@@ -98,12 +98,48 @@ public sealed class SystemProcessRunnerTests
         Assert.Equal("你好", result.Stdout);
     }
 
+    [Fact]
+    public async Task RunAsync_DoesNotInheritParentEnvironment()
+    {
+        const string secretName = "BUKIT_PLUGIN_RUNNER_SECRET";
+        Environment.SetEnvironmentVariable(secretName, "secret-value");
+        var runner = new SystemProcessRunner();
+
+        try
+        {
+            ProcessRunResult result = await runner.RunAsync(
+                ProbeRequest(arguments: ["env", secretName]),
+                CancellationToken.None);
+
+            Assert.Equal("<missing>", result.Stdout);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(secretName, null);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_PassesExplicitEnvironmentVariables()
+    {
+        var runner = new SystemProcessRunner();
+
+        ProcessRunResult result = await runner.RunAsync(
+            ProbeRequest(
+                arguments: ["env", "BUKIT_PLUGIN_ALLOWED_ENV"],
+                environmentVariables: new Dictionary<string, string?> { ["BUKIT_PLUGIN_ALLOWED_ENV"] = "allowed" }),
+            CancellationToken.None);
+
+        Assert.Equal("allowed", result.Stdout);
+    }
+
     private static ProcessRunRequest ProbeRequest(
         IReadOnlyList<string> arguments,
         string stdin = "",
         int timeoutMs = 5000,
         int stdoutMaxBytes = 4096,
-        int stderrMaxBytes = 4096)
+        int stderrMaxBytes = 4096,
+        IReadOnlyDictionary<string, string?>? environmentVariables = null)
     {
         string? dotnet = Process.GetCurrentProcess().MainModule?.FileName;
         Assert.False(string.IsNullOrWhiteSpace(dotnet));
@@ -116,6 +152,7 @@ public sealed class SystemProcessRunnerTests
             WorkingDirectory: System.IO.Path.GetDirectoryName(probeAssembly)!,
             Timeout: TimeSpan.FromMilliseconds(timeoutMs),
             StdoutMaxBytes: stdoutMaxBytes,
-            StderrMaxBytes: stderrMaxBytes);
+            StderrMaxBytes: stderrMaxBytes,
+            EnvironmentVariables: environmentVariables);
     }
 }
