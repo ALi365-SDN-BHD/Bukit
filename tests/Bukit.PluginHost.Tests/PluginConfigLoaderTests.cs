@@ -155,6 +155,10 @@ public sealed class PluginConfigLoaderTests
     [InlineData("bad id")]
     [InlineData(".")]
     [InlineData("..")]
+    [InlineData("-bad")]
+    [InlineData("bad-")]
+    [InlineData("bad--id")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     public async Task LoadAsync_InvalidPluginId_ThrowsConfigException(string pluginId)
     {
         using var directory = TestDirectory.Create();

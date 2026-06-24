@@ -881,7 +881,10 @@ requiredPermissions:
 2. 不能包含空格。
 3. 不能包含路径分隔符。
 4. 不能是 "." 或 ".."。
-5. 应与目录名一致。
+5. 长度必须是 1-64。
+6. 不能以短横线开头或结尾。
+7. 不能包含连续短横线 `--`。
+8. 应与目录名一致。
 ```
 
 正确：
@@ -1540,10 +1543,12 @@ Exit code：
 应新增以下 schema：
 
 ```text
-schemas/bukit-plugin-config.schema.json
-schemas/bukit-plugin-manifest.schema.json
-schemas/bukit-plugin-lock.schema.json
+docs/schemas/bukit-plugin-config.v1.schema.json
+docs/schemas/bukit-plugin-manifest.v1.schema.json
+docs/schemas/bukit-plugin-lock.v1.schema.json
 ```
+
+当前已落地 `bukit-plugin-config.v1.schema.json` 和 `bukit-plugin-manifest.v1.schema.json`。`bukit-plugin-lock.v1.schema.json` 随 lock 文件格式冻结后补齐。
 
 ---
 

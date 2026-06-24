@@ -344,12 +344,12 @@ Bukit/
 │   ├── Bukit.Labs.Import.Tests/
 │   └── Bukit.Labs.Clone.Tests/
 │
-├── schemas/
-│   ├── bukit-plugin-config.schema.json
-│   ├── bukit-plugin-manifest.schema.json
-│   ├── bukit-plugin-handshake.schema.json
-│   ├── bukit-plugin-invoke.schema.json
-│   └── bukit-plugin-result.schema.json
+├── docs/schemas/
+│   ├── bukit-plugin-config.v1.schema.json
+│   ├── bukit-plugin-manifest.v1.schema.json
+│   ├── bukit-plugin-handshake.v1.schema.json
+│   ├── bukit-plugin-invoke.v1.schema.json
+│   └── bukit-plugin-result.v1.schema.json
 │
 ├── docs/
 │   ├── adr/

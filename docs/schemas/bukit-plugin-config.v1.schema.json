@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/bukit-plugin-config.v1.json",
+  "title": "Bukit Plugin Project Config",
+  "type": "object",
+  "required": ["version", "plugins"],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "plugins": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(?!.*--)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/pluginEntry"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "pluginEntry": {
+      "type": "object",
+      "required": ["enabled", "source", "exposeCommands", "permissions"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "source": {
+          "type": "string",
+          "pattern": "^plugins/(?!.*--)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
+        },
+        "exposeCommands": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "permissions": {
+          "$ref": "#/$defs/permissions"
+        },
+        "timeout": {
+          "$ref": "#/$defs/timeout"
+        },
+        "output": {
+          "$ref": "#/$defs/output"
+        },
+        "failMode": {
+          "type": "string",
+          "enum": ["strict", "warn"]
+        },
+        "manifestPolicy": {
+          "type": "string",
+          "enum": ["static", "runtime-only"],
+          "default": "static"
+        },
+        "allowInCi": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "permissions": {
+      "type": "object",
+      "properties": {
+        "fileSystem": {
+          "type": "object",
+          "properties": {
+            "read": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "write": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "additionalProperties": false
+        },
+        "network": {
+          "type": "boolean"
+        },
+        "environment": {
+          "type": "object",
+          "properties": {
+            "read": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "timeout": {
+      "type": "object",
+      "properties": {
+        "handshakeMs": { "type": "integer", "minimum": 1 },
+        "manifestMs": { "type": "integer", "minimum": 1 },
+        "invokeMs": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "stdoutMaxBytes": { "type": "integer", "minimum": 1 },
+        "stderrMaxBytes": { "type": "integer", "minimum": 1 },
+        "responseMaxBytes": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

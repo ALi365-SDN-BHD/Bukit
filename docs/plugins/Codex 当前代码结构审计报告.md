@@ -24,7 +24,7 @@
 - `tests/Bukit.Plugin.Abstractions.Tests/` 和 `tests/Bukit.PluginHost.Tests/` 不存在。
 - 顶层正式插件源码目录 `plugins/` 不存在；现有 `src/plugins/WordCountSectionPlugin` 是旧/样例式位置，不符合新 ADR 的顶层 `plugins/Bukit.Plugin.<Name>/` 结构。
 - 仍没有 `bukit.plugins.slnx`、`bukit.labs.slnx`、`bukit.all.slnx`；当前只有 `bukit.slnx` 和 `bukit.experimental.slnx`。
-- `docs/schemas/` 中没有 `bukit-plugin-config`、`bukit-plugin-manifest`、`bukit-plugin-lock` 或 protocol 相关 schema。
+- `docs/schemas/` 中已有 `bukit-plugin-config.v1.schema.json` 与 `bukit-plugin-manifest.v1.schema.json`；仍缺 `bukit-plugin-lock` 与 protocol request/response 相关 schema。
 - Core CLI 入口仍一次性创建静态 descriptors，尚无 `Core descriptors + Plugin descriptors` 的 composer。
 - `bukit plugin list` 目前在 Core 中不存在；现有架构测试明确禁止 Core 暴露旧 `plugin` 命令。
 
@@ -218,12 +218,10 @@ plugins/clone/
 
 ## 9. Schema、lock、报告现状
 
-当前 `docs/schemas/` 包含 build、release、seo、geo、coverage、skills 等 schema，但没有插件配置/manifest/lock/protocol schema。
+当前 `docs/schemas/` 包含 build、release、seo、geo、coverage、skills 等 schema，并已补充插件配置/manifest schema；lock/protocol schema 仍待冻结后补齐。
 
 当前缺失：
 
-- `docs/schemas/bukit-plugin-config.v1.schema.json` 或 `schemas/bukit-plugin-config.schema.json`
-- `docs/schemas/bukit-plugin-manifest.v1.schema.json`
 - `docs/schemas/bukit-plugin-lock.v1.schema.json`
 - protocol request/response schema
 

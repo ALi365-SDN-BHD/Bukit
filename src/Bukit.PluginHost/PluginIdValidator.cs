@@ -16,7 +16,12 @@ public static class PluginIdValidator
 
     private static bool IsValid(string id)
     {
-        if (string.IsNullOrWhiteSpace(id) || id is "." or "..")
+        if (string.IsNullOrWhiteSpace(id)
+            || id.Length > 64
+            || id is "." or ".."
+            || id[0] == '-'
+            || id[^1] == '-'
+            || id.Contains("--", StringComparison.Ordinal))
         {
             return false;
         }

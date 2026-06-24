@@ -1611,9 +1611,9 @@ Core Native AOT publish 测试
 
 ```text
 docs/adr/ADR-BUKIT-PLUGIN-SECURITY-MODEL.md
-schemas/bukit-plugin-config.schema.json
-schemas/bukit-plugin-manifest.schema.json
-schemas/bukit-plugin-protocol.schema.json
+docs/schemas/bukit-plugin-config.v1.schema.json
+docs/schemas/bukit-plugin-manifest.v1.schema.json
+docs/schemas/bukit-plugin-protocol.v1.schema.json
 ```
 
 ---

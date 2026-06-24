@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/bukit-plugin-manifest.v1.json",
+  "title": "Bukit Process Plugin Manifest",
+  "type": "object",
+  "required": ["id", "name", "version", "protocol", "kind", "platforms"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(?!.*--)[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "protocol": {
+      "const": "bukit-plugin-v1"
+    },
+    "kind": {
+      "const": "process"
+    },
+    "distribution": {
+      "type": "string",
+      "enum": ["self-contained"],
+      "default": "self-contained"
+    },
+    "platforms": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/platform"
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/command"
+      }
+    },
+    "requiredPermissions": {
+      "$ref": "#/$defs/permissions"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "platform": {
+      "type": "object",
+      "required": ["entry", "sha256"],
+      "properties": {
+        "entry": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "command": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string" },
+        "description": { "type": "string" },
+        "aliases": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "arguments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/argument" }
+        },
+        "options": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/option" }
+        },
+        "subcommands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "argument": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string" },
+        "description": { "type": "string" },
+        "required": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "option": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "type": {
+          "type": "string",
+          "enum": ["string", "integer", "number", "boolean", "flag"]
+        },
+        "summary": { "type": "string" },
+        "description": { "type": "string" },
+        "required": { "type": "boolean" },
+        "valueName": { "type": "string" },
+        "allowedValues": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "conflictWith": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "permissions": {
+      "type": "object",
+      "properties": {
+        "fileSystem": {
+          "type": "object",
+          "properties": {
+            "read": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "write": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "additionalProperties": false
+        },
+        "network": { "type": "boolean" },
+        "environment": {
+          "type": "object",
+          "properties": {
+            "read": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
