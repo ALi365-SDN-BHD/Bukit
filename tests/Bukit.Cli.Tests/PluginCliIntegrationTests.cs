@@ -10,6 +10,7 @@ using Bukit.Plugin.Abstractions.Protocol;
 using Bukit.Plugin.Abstractions.Results;
 using Bukit.Plugin.Abstractions.Security;
 using Bukit.Plugin.Echo;
+using Bukit.Plugin.Import;
 using Bukit.PluginHost;
 using Bukit.Shared;
 using Xunit;
@@ -104,6 +105,101 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Main_PluginValidateConfig_PrintsOkForValidConfig()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        Directory.CreateDirectory(Path.Combine(_tempDir, ".bukit"));
+        File.WriteAllText(Path.Combine(_tempDir, ".bukit", "plugins.yaml"),
+            """
+            version: 1
+            plugins:
+              echo:
+                enabled: false
+                source: plugins/echo
+                exposeCommands:
+                  - echo
+                permissions: {}
+            """);
+
+        var result = await InvokeEntryPointAsync(["plugin", "validate-config"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Plugin config OK:", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+    }
+
+    [Fact]
+    public async Task Main_PluginValidateConfig_ReturnsTwoForInvalidConfig()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        Directory.CreateDirectory(Path.Combine(_tempDir, ".bukit"));
+        File.WriteAllText(Path.Combine(_tempDir, ".bukit", "plugins.yaml"),
+            """
+            version: 1
+            plugins:
+              echo:
+                enabled: false
+                source: plugins/echo
+                exposeCommands:
+                  - echo
+            """);
+
+        var result = await InvokeEntryPointAsync(["plugin", "validate-config"]);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("Invalid plugin config:", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("plugins.echo.permissions", result.StdErr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_PluginValidateManifest_PrintsOkForValidManifest()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteRuntimePermissionPluginConfig(
+            pluginId: "echo",
+            source: "plugins/echo",
+            exposeCommands: ["echo"],
+            staticCommands:
+            """
+            commands:
+              - name: echo
+                summary: Echo command
+            """);
+
+        var result = await InvokeEntryPointAsync(["plugin", "validate-manifest", "plugins/echo"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Plugin manifest OK:", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+    }
+
+    [Fact]
+    public async Task Main_PluginValidateManifest_ReturnsTwoForInvalidManifest()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        Directory.CreateDirectory(Path.Combine(_tempDir, "plugins", "echo"));
+        File.WriteAllText(Path.Combine(_tempDir, "plugins", "echo", "plugin.yaml"),
+            """
+            id: echo
+            name: Echo
+            version: 1.0.0
+            protocol: bukit-plugin-v0
+            kind: process
+            distribution: self-contained
+            platforms:
+              test-rid:
+                entry: bin/test-rid/plugin
+                sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            """);
+
+        var result = await InvokeEntryPointAsync(["plugin", "validate-manifest", "plugins/echo"]);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("Invalid plugin manifest:", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("protocol must be bukit-plugin-v1", result.StdErr, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Main_EchoCommand_InvokesEchoPlugin()
     {
         using var cwd = new CurrentDirectoryScope(_tempDir);
@@ -156,6 +252,45 @@ public sealed class PluginCliIntegrationTests : IDisposable
 
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("Command disabled by plugin config: echo", result.StdErr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_InvokesSkeletonAndWritesLockAndReport()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+
+        var result = await InvokeEntryPointAsync(["import"]);
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("plugin.import.notImplemented", result.StdErr, StringComparison.Ordinal);
+        string lockText = File.ReadAllText(Path.Combine(_tempDir, ".bukit", "plugins.lock.yaml"));
+        Assert.Contains("resolved:", lockText, StringComparison.Ordinal);
+        Assert.Contains("  import:", lockText, StringComparison.Ordinal);
+        Assert.Contains("source: plugins/import", lockText, StringComparison.Ordinal);
+        Assert.Contains("entry: plugins/import/bin/", lockText, StringComparison.Ordinal);
+        Assert.Contains("protocol: bukit-plugin-v1", lockText, StringComparison.Ordinal);
+        string reportPath = Assert.Single(Directory.EnumerateFiles(
+            Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions"),
+            "import-invoke-*.json"));
+        string report = File.ReadAllText(reportPath);
+        Assert.Contains("\"pluginId\": \"import\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"command\": \"import\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"plugin.import.notImplemented\"", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_DisabledCommandDoesNotWriteLockOrReport()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: false);
+
+        var result = await InvokeEntryPointAsync(["import"]);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("Command disabled by plugin config: import", result.StdErr, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(_tempDir, ".bukit", "plugins.lock.yaml")));
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions")));
     }
 
     [Fact]
@@ -802,6 +937,50 @@ public sealed class PluginCliIntegrationTests : IDisposable
             """);
     }
 
+    private async Task InstallImportFixtureAsync(bool enabled)
+    {
+        var resolver = new PluginPlatformResolver();
+        string rid = resolver.GetCurrentRid();
+        string pluginRoot = Path.Combine(_tempDir, "plugins/import");
+        string binRoot = Path.Combine(pluginRoot, "bin", rid);
+        Directory.CreateDirectory(binRoot);
+        string executablePath = CopyImportPlugin(binRoot);
+        string sha256 = await Sha256Async(executablePath);
+
+        Directory.CreateDirectory(Path.Combine(_tempDir, ".bukit"));
+        File.WriteAllText(Path.Combine(_tempDir, ".bukit", "plugins.yaml"),
+            $$"""
+            version: 1
+            plugins:
+              import:
+                enabled: {{enabled.ToString().ToLowerInvariant()}}
+                source: plugins/import
+                exposeCommands:
+                  - import
+                allowInCi: true
+                permissions: {}
+            """);
+
+        File.WriteAllText(Path.Combine(pluginRoot, "plugin.yaml"),
+            $$"""
+            id: import
+            name: Bukit Import Plugin
+            version: 0.1.0
+            protocol: bukit-plugin-v1
+            kind: process
+            distribution: self-contained
+            platforms:
+              {{rid}}:
+                entry: bin/{{rid}}/{{Path.GetFileName(executablePath)}}
+                sha256: {{sha256}}
+            commands:
+              - name: import
+                summary: Import command
+            requiredPermissions:
+              network: false
+            """);
+    }
+
     private static string CopyEchoPlugin(string destinationDirectory)
     {
         string echoAssemblyPath = typeof(EchoPluginMarker).Assembly.Location;
@@ -809,6 +988,31 @@ public sealed class PluginCliIntegrationTests : IDisposable
         string executableName = OperatingSystem.IsWindows() ? "bukit-plugin-echo.exe" : "bukit-plugin-echo";
 
         foreach (string file in Directory.EnumerateFiles(echoOutputDirectory))
+        {
+            string target = Path.Combine(destinationDirectory, Path.GetFileName(file));
+            File.Copy(file, target, overwrite: true);
+        }
+
+        string executablePath = Path.Combine(destinationDirectory, executableName);
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(
+                executablePath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+                | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
+                | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+        }
+
+        return executablePath;
+    }
+
+    private static string CopyImportPlugin(string destinationDirectory)
+    {
+        string importAssemblyPath = typeof(ImportPluginApp).Assembly.Location;
+        string importOutputDirectory = Path.GetDirectoryName(importAssemblyPath)!;
+        string executableName = OperatingSystem.IsWindows() ? "bukit-plugin-import.exe" : "bukit-plugin-import";
+
+        foreach (string file in Directory.EnumerateFiles(importOutputDirectory))
         {
             string target = Path.Combine(destinationDirectory, Path.GetFileName(file));
             File.Copy(file, target, overwrite: true);

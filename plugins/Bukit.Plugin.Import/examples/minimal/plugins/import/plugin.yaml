@@ -1,0 +1,15 @@
+id: import
+name: Bukit Import Plugin
+version: 0.1.0
+protocol: bukit-plugin-v1
+kind: process
+distribution: self-contained
+platforms:
+  osx-arm64:
+    entry: bin/osx-arm64/bukit-plugin-import
+    sha256: 0000000000000000000000000000000000000000000000000000000000000000
+commands:
+  - name: import
+    description: Import content into a Bukit site.
+requiredPermissions:
+  network: false

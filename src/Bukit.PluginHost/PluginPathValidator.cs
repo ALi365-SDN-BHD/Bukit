@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Bukit.Shared;
 
 namespace Bukit.PluginHost;
 
@@ -27,6 +28,11 @@ public sealed partial class PluginPathValidator : IPluginPathValidator
         if (!IsUnderDirectory(fullPath, pluginsRoot))
         {
             return PluginPathValidationResult.Invalid("Plugin source must stay under plugins/.");
+        }
+
+        if (!PathUtils.IsSubPathOf(fullPath, pluginsRoot))
+        {
+            return PluginPathValidationResult.Invalid("Plugin source real path must stay under plugins/.");
         }
 
         return PluginPathValidationResult.Valid(fullPath, normalized);
@@ -63,9 +69,19 @@ public sealed partial class PluginPathValidator : IPluginPathValidator
             return PluginPathValidationResult.Invalid("Plugin entry must stay inside the plugin directory.");
         }
 
+        if (!PathUtils.IsSubPathOf(fullPath, fullPluginRoot))
+        {
+            return PluginPathValidationResult.Invalid("Plugin entry real path must stay inside the plugin directory.");
+        }
+
         if (IsUnderDirectory(fullPath, fullBukitRoot))
         {
             return PluginPathValidationResult.Invalid("Plugin entry must not be inside .bukit/.");
+        }
+
+        if (PathUtils.IsSameOrSubPathOf(fullPath, fullBukitRoot))
+        {
+            return PluginPathValidationResult.Invalid("Plugin entry real path must not be inside .bukit/.");
         }
 
         return PluginPathValidationResult.Valid(fullPath, normalized);

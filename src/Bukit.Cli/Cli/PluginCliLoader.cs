@@ -61,12 +61,30 @@ public sealed class PluginCliLoader
         CancellationToken cancellationToken,
         bool toleratePluginFailures = false)
     {
-        PluginHostConfig config = await _configLoader.LoadAsync(projectRoot, cancellationToken);
+        PluginHostConfig config;
         var descriptors = new List<CommandDescriptor>();
         var records = new List<PluginListRecord>();
         var lockEntries = new List<PluginLockEntry>();
         string rid = _platformResolver.GetCurrentRid();
         bool isCi = IsCi();
+
+        try
+        {
+            config = await _configLoader.LoadAsync(projectRoot, cancellationToken);
+        }
+        catch (Exception ex) when (toleratePluginFailures && ex is not OperationCanceledException)
+        {
+            records.Add(new PluginListRecord(
+                "config",
+                "error",
+                Enabled: false,
+                rid,
+                Commands: [],
+                Status: "error",
+                Error: ex.Message));
+            descriptors.Add(PluginListCommand.Create(records, _configLoader, _manifestLoader, projectRoot));
+            return new PluginCliLoadResult(descriptors, records);
+        }
 
         foreach ((string pluginId, PluginConfigEntry entry) in config.Plugins)
         {
@@ -85,7 +103,7 @@ public sealed class PluginCliLoader
             await _lockFileWriter.WriteAsync(projectRoot, lockEntries, cancellationToken);
         }
 
-        descriptors.Add(PluginListCommand.Create(records));
+        descriptors.Add(PluginListCommand.Create(records, _configLoader, _manifestLoader, projectRoot));
         return new PluginCliLoadResult(descriptors, records);
     }
 

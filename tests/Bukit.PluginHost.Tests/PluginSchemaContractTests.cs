@@ -128,6 +128,31 @@ public sealed class PluginSchemaContractTests
     }
 
     [Theory]
+    [InlineData("plugins/Bukit.Plugin.Import", "import")]
+    [InlineData("plugins/Bukit.Plugin.Clone", "clone")]
+    public async Task OfficialPluginPackageExampleManifest_WhenPackageExists_MustLoad(string packagePath, string pluginId)
+    {
+        string fullPackagePath = Path.Combine(RepoRoot, packagePath);
+        if (!Directory.Exists(fullPackagePath))
+        {
+            return;
+        }
+
+        string pluginRoot = Path.Combine(fullPackagePath, "examples", "minimal", "plugins", pluginId);
+        string manifestPath = Path.Combine(pluginRoot, "plugin.yaml");
+        Assert.True(File.Exists(manifestPath), $"Missing official plugin example manifest: {manifestPath}");
+
+        var loader = new PluginManifestLoader();
+        var manifest = await loader.LoadAsync(pluginRoot, CancellationToken.None);
+
+        Assert.Equal(pluginId, manifest.Id);
+        Assert.Equal("bukit-plugin-v1", manifest.Protocol);
+        Assert.Equal("process", manifest.Kind);
+        Assert.Equal("self-contained", manifest.Distribution);
+        Assert.Contains(manifest.Commands, command => command.Name == pluginId);
+    }
+
+    [Theory]
     [InlineData("plugins/Bukit.Plugin.Import")]
     [InlineData("plugins/Bukit.Plugin.Clone")]
     public void OfficialPluginPackageExampleConfig_WhenPackageExists_MustNotDeclareForbiddenRuntimeFields(string packagePath)
