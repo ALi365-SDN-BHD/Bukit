@@ -45,6 +45,7 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 string id = PluginYaml.RequireKey(keyNode, "plugins");
+                PluginIdValidator.Validate(id);
                 if (valueNode is not YamlMappingNode pluginNode)
                 {
                     throw new ConfigException($"plugins.{id} must be a mapping.", DiagnosticCode.ConfigInvalidValue);

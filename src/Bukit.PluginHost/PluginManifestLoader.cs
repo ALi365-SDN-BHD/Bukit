@@ -27,6 +27,7 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
         YamlMappingNode root = LoadRoot(reader, manifestPath);
 
         string id = PluginYaml.GetRequiredString(root, "id", "plugin.id");
+        PluginIdValidator.Validate(id);
         string name = PluginYaml.GetRequiredString(root, "name", "plugin.name");
         string version = PluginYaml.GetRequiredString(root, "version", "plugin.version");
         string protocol = PluginYaml.GetRequiredString(root, "protocol", "plugin.protocol");

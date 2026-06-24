@@ -83,9 +83,9 @@ public sealed class PluginExecutionReporter
         writer.WritePropertyName("permissions");
         WritePermissions(writer, report.Permissions);
         writer.WritePropertyName("diagnostics");
-        WriteDiagnostics(writer, report.Diagnostics);
+        WriteDiagnostics(writer, report.Diagnostics, report.Environment);
         writer.WritePropertyName("artifacts");
-        WriteArtifacts(writer, report.Artifacts);
+        WriteArtifacts(writer, report.Artifacts, report.Environment);
         writer.WritePropertyName("responseSummary");
         WriteResponseSummary(writer, report.ResponseSummary);
         writer.WriteEndObject();
@@ -102,6 +102,21 @@ public sealed class PluginExecutionReporter
         }
 
         writer.WriteString(propertyName, value);
+    }
+
+    private static void WriteNullableMaskedString(
+        Utf8JsonWriter writer,
+        string propertyName,
+        string? value,
+        IReadOnlyDictionary<string, string> environment)
+    {
+        if (value is null)
+        {
+            writer.WriteNull(propertyName);
+            return;
+        }
+
+        writer.WriteString(propertyName, PluginSecretMasker.MaskText(value, environment));
     }
 
     private static void WritePermissions(Utf8JsonWriter writer, PluginPermissionSet? permissions)
@@ -129,7 +144,10 @@ public sealed class PluginExecutionReporter
         writer.WriteEndObject();
     }
 
-    private static void WriteDiagnostics(Utf8JsonWriter writer, IReadOnlyList<PluginDiagnostic> diagnostics)
+    private static void WriteDiagnostics(
+        Utf8JsonWriter writer,
+        IReadOnlyList<PluginDiagnostic> diagnostics,
+        IReadOnlyDictionary<string, string> environment)
     {
         writer.WriteStartArray();
         foreach (PluginDiagnostic diagnostic in diagnostics)
@@ -137,15 +155,18 @@ public sealed class PluginExecutionReporter
             writer.WriteStartObject();
             writer.WriteString("code", diagnostic.Code);
             writer.WriteString("severity", diagnostic.Severity);
-            writer.WriteString("message", diagnostic.Message);
-            WriteNullableString(writer, "path", diagnostic.Path);
+            writer.WriteString("message", PluginSecretMasker.MaskText(diagnostic.Message, environment));
+            WriteNullableMaskedString(writer, "path", diagnostic.Path, environment);
             writer.WriteEndObject();
         }
 
         writer.WriteEndArray();
     }
 
-    private static void WriteArtifacts(Utf8JsonWriter writer, IReadOnlyList<PluginArtifact> artifacts)
+    private static void WriteArtifacts(
+        Utf8JsonWriter writer,
+        IReadOnlyList<PluginArtifact> artifacts,
+        IReadOnlyDictionary<string, string> environment)
     {
         writer.WriteStartArray();
         foreach (PluginArtifact artifact in artifacts)
@@ -153,7 +174,7 @@ public sealed class PluginExecutionReporter
             writer.WriteStartObject();
             writer.WriteString("type", artifact.Type);
             writer.WriteString("path", artifact.Path);
-            WriteNullableString(writer, "description", artifact.Description);
+            WriteNullableMaskedString(writer, "description", artifact.Description, environment);
             writer.WriteEndObject();
         }
 

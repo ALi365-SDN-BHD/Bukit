@@ -106,6 +106,7 @@ public sealed class PluginCliLoader
             throw new ConfigException(source.Message ?? $"Invalid plugin source: {entry.Source}", DiagnosticCode.ConfigPathTraversal);
         }
 
+        PluginIdValidator.Validate(pluginId);
         EnsureExposeCommandsDeclared(pluginId, entry);
         ValidateSourceIdentity(pluginId, entry.Source);
         if (!entry.Enabled)
@@ -126,6 +127,7 @@ public sealed class PluginCliLoader
         }
 
         PluginManifest manifest = await _manifestLoader.LoadAsync(source.FullPath, cancellationToken);
+        PluginIdValidator.Validate(manifest.Id);
         ValidateManifestIdentity(pluginId, manifest.Id);
         EnsureStaticManifestCommands(pluginId, entry, manifest);
         _permissionEvaluator.ValidateGrantedPermissions(pluginId, entry.Permissions, manifest.RequiredPermissions);

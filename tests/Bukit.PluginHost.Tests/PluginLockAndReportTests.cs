@@ -81,11 +81,11 @@ public sealed class PluginLockAndReportTests
                     Environment: new PluginEnvironmentPermission(Read: ["NOTION_TOKEN"])),
                 Diagnostics:
                 [
-                    new PluginDiagnostic("plugin.input.invalid", "error", "Invalid input", "content/index.md")
+                    new PluginDiagnostic("plugin.input.invalid", "error", "Invalid input secret-token", "content/secret-token.md")
                 ],
                 Artifacts:
                 [
-                    new PluginArtifact("file", "out/result.json", "Result")
+                    new PluginArtifact("file", "out/result.json", "Result secret-token")
                 ],
                 ResponseSummary: new PluginExecutionResponseSummary(
                     Success: false,
@@ -114,8 +114,11 @@ public sealed class PluginLockAndReportTests
         Assert.Contains("\"read\"", json, StringComparison.Ordinal);
         Assert.Contains("\"diagnostics\"", json, StringComparison.Ordinal);
         Assert.Contains("\"plugin.input.invalid\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"message\": \"Invalid input ***\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"path\": \"content/***.md\"", json, StringComparison.Ordinal);
         Assert.Contains("\"artifacts\"", json, StringComparison.Ordinal);
         Assert.Contains("\"out/result.json\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"description\": \"Result ***\"", json, StringComparison.Ordinal);
         Assert.Contains("\"responseSummary\"", json, StringComparison.Ordinal);
         Assert.Contains("\"success\": false", json, StringComparison.Ordinal);
         Assert.Contains("\"exitCode\": 2", json, StringComparison.Ordinal);

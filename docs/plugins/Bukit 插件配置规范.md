@@ -310,7 +310,7 @@ plugins:
 | ---------------- | -------- | -: | -------- | ------------------------- |
 | `enabled`        | boolean  |  是 | 无        | 是否启用插件                    |
 | `source`         | string   |  是 | 无        | 插件包目录，必须是 `plugins/<id>`  |
-| `exposeCommands` | string[] |  否 | `[]`     | 暴露到 Core CLI 的命令          |
+| `exposeCommands` | string[] |  是 | 无        | 暴露到 Core CLI 的命令，必须显式声明 |
 | `permissions`    | object   |  是 | 无        | 项目授予插件的权限                 |
 | `timeout`        | object   |  否 | 默认超时     | 超时配置                      |
 | `output`         | object   |  否 | 默认输出限制   | stdout/stderr/response 限制 |
@@ -461,13 +461,13 @@ exposeCommands:
 4. alias 也不得冲突。
 ```
 
-如果为空或缺失：
+`exposeCommands` 必须显式声明。可以为空数组：
 
 ```yaml
 exposeCommands: []
 ```
 
-表示插件可被加载，但不向 Core CLI 暴露命令。
+空数组表示插件可被加载，但不向 Core CLI 暴露命令。`exposeCommands` 不能缺失；缺失时 Core 必须拒绝加载该插件配置。
 
 ---
 

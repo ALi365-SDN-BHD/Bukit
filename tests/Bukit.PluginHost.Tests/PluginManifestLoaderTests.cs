@@ -165,6 +165,39 @@ public sealed class PluginManifestLoaderTests
         Assert.Contains(expectedMessage, exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("Bad")]
+    [InlineData("bad_id")]
+    [InlineData("bad/id")]
+    [InlineData("bad id")]
+    [InlineData(".")]
+    [InlineData("..")]
+    public async Task LoadAsync_InvalidPluginId_ThrowsConfigException(string pluginId)
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write("plugins/echo/plugin.yaml",
+            $$"""
+            id: "{{pluginId}}"
+            name: Echo
+            version: 0.1.0
+            protocol: bukit-plugin-v1
+            kind: process
+            distribution: self-contained
+            platforms:
+              osx-arm64:
+                entry: bin/osx-arm64/bukit-plugin-echo
+                sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            """);
+
+        var loader = new PluginManifestLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(System.IO.Path.Combine(directory.Path, "plugins/echo"), CancellationToken.None));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("Plugin id must use lowercase letters, digits, and hyphen", exception.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task LoadAsync_EnvironmentWildcardRequiredPermission_ThrowsConfigException()
     {

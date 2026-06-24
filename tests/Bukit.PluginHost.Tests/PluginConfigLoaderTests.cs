@@ -148,6 +148,35 @@ public sealed class PluginConfigLoaderTests
         Assert.Empty(echo.ExposeCommands);
     }
 
+    [Theory]
+    [InlineData("Bad")]
+    [InlineData("bad_id")]
+    [InlineData("bad/id")]
+    [InlineData("bad id")]
+    [InlineData(".")]
+    [InlineData("..")]
+    public async Task LoadAsync_InvalidPluginId_ThrowsConfigException(string pluginId)
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            $$"""
+            version: 1
+            plugins:
+              "{{pluginId}}":
+                enabled: true
+                source: plugins/echo
+                exposeCommands: []
+            """);
+
+        var loader = new PluginConfigLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(directory.Path, CancellationToken.None));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("Plugin id must use lowercase letters, digits, and hyphen", exception.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task LoadAsync_InvalidYaml_ThrowsConfigException()
     {
