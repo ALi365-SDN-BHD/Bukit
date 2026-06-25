@@ -16,13 +16,15 @@ public sealed class ImportPluginSkeletonTests
     }
 
     [Fact]
-    public void Invoker_ReturnsNotImplementedDiagnostic()
+    public void Invoker_ReturnsUnsupportedCommandDiagnostic()
     {
-        var response = ImportPluginInvoker.InvokeNotImplemented("req-2");
+        var response = ImportPluginInvoker.InvokeUnsupportedCommand("req-2");
 
         Assert.False(response.Success);
         Assert.Equal(1, response.ExitCode);
         var diagnostic = Assert.Single(response.Diagnostics);
-        Assert.Equal("plugin.import.notImplemented", diagnostic.Code);
+        Assert.Equal("plugin.import.unsupportedCommand", diagnostic.Code);
+        Assert.Equal("error", diagnostic.Severity);
+        Assert.Equal("Unsupported import command path. Supported commands: import seed, import html-demo.", diagnostic.Message);
     }
 }

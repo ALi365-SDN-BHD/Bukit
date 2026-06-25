@@ -223,8 +223,11 @@ public sealed class ImportSeedInvokeTests : IDisposable
         Assert.False(root.GetProperty("success").GetBoolean());
         Assert.Equal(1, root.GetProperty("exitCode").GetInt32());
         Assert.Equal(
-            "plugin.import.notImplemented",
+            "plugin.import.unsupportedCommand",
             root.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+        Assert.Equal(
+            "Unsupported import command path. Supported commands: import seed, import html-demo.",
+            root.GetProperty("diagnostics")[0].GetProperty("message").GetString());
     }
 
     private PluginInvokeRequest CreateRequest(

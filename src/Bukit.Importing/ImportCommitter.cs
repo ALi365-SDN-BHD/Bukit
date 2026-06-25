@@ -3,10 +3,9 @@ using Bukit.Shared;
 namespace Bukit.Importing;
 
 /// <summary>
-/// Commits the import plan to disk. Uses a staging directory approach:
-/// writes everything to a temp staging area first, validates (residue check),
-/// then atomically moves to the final target directories.
-/// This prevents half-baked output when strict mode fails.
+/// Commits the import plan directly to disk.
+/// Strict residue validation runs against a temporary preflight output first,
+/// so strict residue failures occur before final target directories are written.
 /// </summary>
 internal static class ImportCommitter
 {
@@ -22,6 +21,7 @@ internal static class ImportCommitter
 
         var themeDir = HtmlDemoImporter.GetThemeDir(options);
         ValidateOutputPaths(options, themeDir);
+        RunStrictResiduePreflight(analysis, options);
 
         // Delete existing theme if force
         if (Directory.Exists(themeDir) && options.Force)
@@ -105,6 +105,56 @@ internal static class ImportCommitter
         ImportReportWriter.Write(options, result, diagnostics);
 
         return result;
+    }
+
+    private static void RunStrictResiduePreflight(ImportAnalysis analysis, HtmlDemoImportOptions options)
+    {
+        if (options.StrictMode is null || options.StrictMode == "warn")
+        {
+            return;
+        }
+
+        string stagingRoot = Path.Combine(Path.GetTempPath(), "bukit-import-strict-preflight-" + Guid.NewGuid().ToString("N"));
+        var stagedOptions = options with
+        {
+            RootDir = stagingRoot,
+            SitePath = Path.Combine(stagingRoot, "sites", options.ThemeName),
+            Force = true,
+            Overwrite = true,
+            PreserveHtml = false,
+            GenerateSeed = false,
+            GenerateReport = false,
+            Use = false,
+            Verify = false
+        };
+
+        try
+        {
+            Directory.CreateDirectory(stagingRoot);
+            var assetResult = AssetImporter.Import(stagedOptions, analysis.Pages);
+            ThemeGenerator.Generate(
+                stagedOptions,
+                analysis.Pages,
+                analysis.Layout,
+                analysis.Warnings,
+                assetResult.PathMappings,
+                analysis.RouteMap);
+
+            if (stagedOptions.ExtractContent)
+            {
+                HtmlDemoImporter.WriteComponentTemplates(stagedOptions, analysis.Components);
+            }
+
+            var hardcodedReport = TemplateResidueAnalyzer.Analyze(HtmlDemoImporter.GetThemeDir(stagedOptions), null, analysis.RouteMap);
+            HtmlDemoImporter.ThrowIfStrictResidue(hardcodedReport);
+        }
+        finally
+        {
+            if (Directory.Exists(stagingRoot))
+            {
+                Directory.Delete(stagingRoot, recursive: true);
+            }
+        }
     }
 
     private static void ValidateOutputPaths(HtmlDemoImportOptions options, string themeDir)

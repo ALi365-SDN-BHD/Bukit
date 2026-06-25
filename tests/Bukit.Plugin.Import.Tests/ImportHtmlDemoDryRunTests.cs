@@ -205,6 +205,36 @@ public sealed class ImportHtmlDemoDryRunTests : IDisposable
     }
 
     [Fact]
+    public void App_InvokeHtmlDemoLocalImportUnexpectedException_ReturnsImportFailureDiagnostic()
+    {
+        string demoDir = Directory.CreateDirectory(Path.Combine(_projectRoot, "demo")).FullName;
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), """
+        <html>
+          <head><title>Import Failure</title></head>
+          <body><main><h1>Import Failure</h1></main></body>
+        </html>
+        """);
+        File.WriteAllText(Path.Combine(_projectRoot, "themes"), "not a directory");
+        PluginInvokeRequest request = CreateRequest(
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = JsonString("import-failure-theme"),
+                ["--force"] = JsonBool(true)
+            });
+
+        string json = ImportPluginApp.Handle(JsonSerializer.Serialize(
+            request,
+            PluginJsonSerializerContext.Default.PluginInvokeRequest));
+
+        using JsonDocument document = JsonDocument.Parse(json);
+        JsonElement root = document.RootElement;
+        Assert.False(root.GetProperty("success").GetBoolean());
+        Assert.Equal(1, root.GetProperty("exitCode").GetInt32());
+        Assert.Equal("import.htmlDemoImportFailed", root.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+    }
+
+    [Fact]
     public void App_InvokeHtmlDemoLocalImportWithSitePathAndLanguage_WritesRequestedSiteConfigAndArtifacts()
     {
         string demoDir = Directory.CreateDirectory(Path.Combine(_projectRoot, "demo")).FullName;

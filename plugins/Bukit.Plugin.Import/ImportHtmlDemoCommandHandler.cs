@@ -70,7 +70,7 @@ public static class ImportHtmlDemoCommandHandler
                 exitCode: 1,
                 [
                     new PluginDiagnostic(
-                        Code: "import.htmlDemoDryRunFailed",
+                        Code: mapped.DryRun ? "import.htmlDemoDryRunFailed" : "import.htmlDemoImportFailed",
                         Severity: "error",
                         Message: ex.Message)
                 ]);

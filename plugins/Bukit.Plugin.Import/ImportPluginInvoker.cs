@@ -18,10 +18,10 @@ public static class ImportPluginInvoker
             return ImportHtmlDemoCommandHandler.Handle(request.RequestId, request);
         }
 
-        return InvokeNotImplemented(request.RequestId);
+        return InvokeUnsupportedCommand(request.RequestId);
     }
 
-    public static PluginInvokeResponse InvokeNotImplemented(string requestId)
+    public static PluginInvokeResponse InvokeUnsupportedCommand(string requestId)
         => new(
             Type: "invokeResponse",
             Protocol: PluginProtocolConstants.ProtocolVersion,
@@ -31,8 +31,8 @@ public static class ImportPluginInvoker
             Diagnostics:
             [
                 new PluginDiagnostic(
-                    Code: "plugin.import.notImplemented",
-                    Severity: "info",
-                    Message: "Import plugin skeleton is present. Business logic migration is intentionally not implemented in this phase.")
+                    Code: "plugin.import.unsupportedCommand",
+                    Severity: "error",
+                    Message: "Unsupported import command path. Supported commands: import seed, import html-demo.")
             ]);
 }

@@ -712,6 +712,9 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
         Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
         Assert.Contains("硬编码内容残留", ex.Message);
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "themes", "strict-residue")));
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "sites", "strict-residue")));
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, ".bukit", "reports", "plugin-output", "import")));
     }
 
     [Fact]
