@@ -116,6 +116,41 @@ public sealed class ImportHtmlDemoDryRunTests : IDisposable
     }
 
     [Fact]
+    public void App_InvokeHtmlDemoDryRunWithDemoDirectorySymlinkOutsideProject_ReturnsDiagnostic()
+    {
+        string outsideDemoDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "bukit-import-demo-outside-" + Guid.NewGuid().ToString("N"))).FullName;
+        File.WriteAllText(Path.Combine(outsideDemoDir, "index.html"), """
+        <html><head><title>Outside Demo</title></head><body><main>Outside</main></body></html>
+        """);
+        string linkedDemoDir = Path.Combine(_projectRoot, "demo");
+        Directory.CreateSymbolicLink(linkedDemoDir, outsideDemoDir);
+        PluginInvokeRequest request = CreateRequest(
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = JsonString("outside-demo-theme"),
+                ["--dry-run"] = JsonBool(true)
+            });
+
+        try
+        {
+            string json = ImportPluginApp.Handle(JsonSerializer.Serialize(
+                request,
+                PluginJsonSerializerContext.Default.PluginInvokeRequest));
+
+            using JsonDocument document = JsonDocument.Parse(json);
+            JsonElement root = document.RootElement;
+            Assert.False(root.GetProperty("success").GetBoolean());
+            Assert.Equal(2, root.GetProperty("exitCode").GetInt32());
+            Assert.Equal("import.htmlDemoDirInvalid", root.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outsideDemoDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void App_InvokeHtmlDemoLocalImport_WritesThemeAndSiteAndKeepsStdoutJsonOnly()
     {
         string demoDir = Directory.CreateDirectory(Path.Combine(_projectRoot, "demo")).FullName;
@@ -239,6 +274,89 @@ public sealed class ImportHtmlDemoDryRunTests : IDisposable
         Assert.Equal(2, root.GetProperty("exitCode").GetInt32());
         Assert.Equal("import.sitePathInvalid", root.GetProperty("diagnostics")[0].GetProperty("code").GetString());
         Assert.False(Directory.Exists(Path.Combine(_projectRoot, "custom-site")));
+    }
+
+    [Fact]
+    public void App_InvokeHtmlDemoLocalImportWithSitePathSymlinkOutsideSites_ReturnsDiagnostic()
+    {
+        string demoDir = Directory.CreateDirectory(Path.Combine(_projectRoot, "demo")).FullName;
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), """
+        <html>
+          <head><title>Symlink Site Path</title></head>
+          <body><main><h1>Symlink Site Path</h1></main></body>
+        </html>
+        """);
+        Directory.CreateDirectory(Path.Combine(_projectRoot, "sites"));
+        string outsideSite = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "bukit-import-site-outside-" + Guid.NewGuid().ToString("N"))).FullName;
+        string linkedSite = Path.Combine(_projectRoot, "sites", "linked-site");
+        Directory.CreateSymbolicLink(linkedSite, outsideSite);
+        PluginInvokeRequest request = CreateRequest(
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = JsonString("symlink-site-theme"),
+                ["--force"] = JsonBool(true),
+                ["--site-path"] = JsonString("./sites/linked-site")
+            });
+
+        try
+        {
+            string json = ImportPluginApp.Handle(JsonSerializer.Serialize(
+                request,
+                PluginJsonSerializerContext.Default.PluginInvokeRequest));
+
+            using JsonDocument document = JsonDocument.Parse(json);
+            JsonElement root = document.RootElement;
+            Assert.False(root.GetProperty("success").GetBoolean());
+            Assert.Equal(2, root.GetProperty("exitCode").GetInt32());
+            Assert.Equal("import.sitePathInvalid", root.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+            Assert.False(File.Exists(Path.Combine(outsideSite, "site.yaml")));
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outsideSite, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void App_InvokeHtmlDemoDryRunWithRouteMapSymlinkOutsideProject_ReturnsDiagnostic()
+    {
+        string demoDir = Directory.CreateDirectory(Path.Combine(_projectRoot, "demo")).FullName;
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), """
+        <html>
+          <head><title>Symlink Route Map</title></head>
+          <body><main><h1>Symlink Route Map</h1></main></body>
+        </html>
+        """);
+        string outsideRouteMap = Path.Combine(Path.GetTempPath(), "bukit-import-route-map-" + Guid.NewGuid().ToString("N") + ".yaml");
+        File.WriteAllText(outsideRouteMap, "pages: []");
+        string linkedRouteMap = Path.Combine(_projectRoot, "route-map.yaml");
+        File.CreateSymbolicLink(linkedRouteMap, outsideRouteMap);
+        PluginInvokeRequest request = CreateRequest(
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = JsonString("symlink-route-map-theme"),
+                ["--dry-run"] = JsonBool(true),
+                ["--route-map"] = JsonString("./route-map.yaml")
+            });
+
+        try
+        {
+            string json = ImportPluginApp.Handle(JsonSerializer.Serialize(
+                request,
+                PluginJsonSerializerContext.Default.PluginInvokeRequest));
+
+            using JsonDocument document = JsonDocument.Parse(json);
+            JsonElement root = document.RootElement;
+            Assert.False(root.GetProperty("success").GetBoolean());
+            Assert.Equal(2, root.GetProperty("exitCode").GetInt32());
+            Assert.Equal("import.routeMapPathInvalid", root.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+        }
+        finally
+        {
+            File.Delete(outsideRouteMap);
+        }
     }
 
     [Fact]
@@ -464,6 +582,39 @@ public sealed class ImportHtmlDemoDryRunTests : IDisposable
         Assert.Contains(root.GetProperty("artifacts").EnumerateArray(), artifact =>
             artifact.GetProperty("type").GetString() == "verification"
             && artifact.GetProperty("path").GetString() == "sites/verify-theme/site.yaml");
+    }
+
+    [Fact]
+    public void App_InvokeHtmlDemoLocalImportWithVerify_ReportDescribesLightVerificationOnly()
+    {
+        string demoDir = Directory.CreateDirectory(Path.Combine(_projectRoot, "demo")).FullName;
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), """
+        <html>
+          <head><title>Verify Report</title></head>
+          <body><main><h1>Verify Report</h1><p>Verify report body.</p></main></body>
+        </html>
+        """);
+        PluginInvokeRequest request = CreateRequest(
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = JsonString("verify-report-theme"),
+                ["--force"] = JsonBool(true),
+                ["--verify"] = JsonBool(true)
+            });
+
+        string json = ImportPluginApp.Handle(JsonSerializer.Serialize(
+            request,
+            PluginJsonSerializerContext.Default.PluginInvokeRequest));
+
+        using JsonDocument document = JsonDocument.Parse(json);
+        JsonElement root = document.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+
+        string report = File.ReadAllText(Path.Combine(_projectRoot, "sites", "verify-report-theme", "import-report.md"));
+        Assert.Contains("`--verify` runs light structural verification only.", report, StringComparison.Ordinal);
+        Assert.Contains("Full `bukit build` / `bukit doctor` verification is deferred", report, StringComparison.Ordinal);
+        Assert.DoesNotContain("`--verify` runs `bukit doctor` and `bukit build`", report, StringComparison.Ordinal);
     }
 
     [Fact]

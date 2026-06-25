@@ -1,3 +1,5 @@
+using Bukit.Shared;
+
 namespace Bukit.Importing;
 
 /// <summary>
@@ -19,6 +21,7 @@ internal static class ImportCommitter
         var routeMap = analysis.RouteMap;
 
         var themeDir = HtmlDemoImporter.GetThemeDir(options);
+        ValidateOutputPaths(options, themeDir);
 
         // Delete existing theme if force
         if (Directory.Exists(themeDir) && options.Force)
@@ -104,4 +107,79 @@ internal static class ImportCommitter
         return result;
     }
 
+    private static void ValidateOutputPaths(HtmlDemoImportOptions options, string themeDir)
+    {
+        string root = Path.GetFullPath(options.RootDir);
+        string sitesRoot = Path.Combine(root, "sites");
+        string siteDir = HtmlDemoImporter.GetSiteDir(options);
+        string themesRoot = GetThemeRoot(options, siteDir, root);
+        string reportDir = Path.Combine(root, ".bukit", "reports", "plugin-output", "import");
+        bool siteDirIsLexicallyInsideRoot = IsLexicallyInsideDirectory(siteDir, root);
+        bool siteDirIsInsideRoot = IsInsideDirectory(siteDir, root);
+
+        if (!IsInsideDirectory(themeDir, themesRoot))
+        {
+            throw new ImportException(ImportErrorKind.UserInput, "Import theme output must stay inside ./themes.");
+        }
+
+        if (siteDirIsLexicallyInsideRoot && !siteDirIsInsideRoot)
+        {
+            throw new ImportException(ImportErrorKind.UserInput, "Import site output must stay inside ./sites.");
+        }
+
+        if (siteDirIsInsideRoot && !IsInsideDirectory(siteDir, sitesRoot))
+        {
+            throw new ImportException(ImportErrorKind.UserInput, "Import site output must stay inside ./sites.");
+        }
+
+        if (!siteDirIsLexicallyInsideRoot && string.IsNullOrWhiteSpace(options.SitePath))
+        {
+            throw new ImportException(ImportErrorKind.UserInput, "Import site output must stay inside ./sites.");
+        }
+
+        if (!IsInsideDirectory(reportDir, root))
+        {
+            throw new ImportException(ImportErrorKind.UserInput, "Import report output must stay inside the project root.");
+        }
+    }
+
+    private static string GetThemeRoot(HtmlDemoImportOptions options, string siteDir, string root)
+    {
+        if (!string.IsNullOrWhiteSpace(options.SitePath) && !IsLexicallyInsideDirectory(siteDir, root))
+        {
+            return Path.Combine(siteDir, "themes");
+        }
+
+        return Path.Combine(root, "themes");
+    }
+
+    private static bool IsInsideDirectory(string path, string directory)
+    {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(directory))
+        {
+            return false;
+        }
+
+        try
+        {
+            return PathUtils.IsSameOrSubPathOf(path, directory);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsLexicallyInsideDirectory(string path, string directory)
+    {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(directory))
+        {
+            return false;
+        }
+
+        string fullPath = Path.GetFullPath(path);
+        string fullDirectory = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return string.Equals(fullPath, fullDirectory, StringComparison.Ordinal)
+            || fullPath.StartsWith(fullDirectory + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+    }
 }

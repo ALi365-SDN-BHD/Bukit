@@ -4,6 +4,7 @@ using Bukit.Importing.HtmlDemo;
 using Bukit.Importing.Seed;
 using Bukit.Plugin.Abstractions.Protocol;
 using Bukit.Plugin.Abstractions.Results;
+using Bukit.Shared;
 
 namespace Bukit.Plugin.Import;
 
@@ -336,6 +337,16 @@ public static class ImportOptionsMapper
 
         string root = request.Context.RootDir;
         string resolvedDemoDirectory = ResolvePath(root, demoDirectory!);
+        if (!IsInsideDirectory(resolvedDemoDirectory, root))
+        {
+            return new ImportHtmlDemoMapperResult(
+                false,
+                dryRun,
+                null,
+                null,
+                [Error("import.htmlDemoDirInvalid", "Demo directory must stay inside the project root.")]);
+        }
+
         string? resolvedRouteMapPath = null;
         if (!string.IsNullOrWhiteSpace(routeMapPath))
         {
@@ -421,10 +432,19 @@ public static class ImportOptionsMapper
 
     private static bool IsInsideDirectory(string path, string directory)
     {
-        string fullPath = Path.GetFullPath(path);
-        string fullDirectory = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return string.Equals(fullPath, fullDirectory, StringComparison.Ordinal)
-            || fullPath.StartsWith(fullDirectory + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(directory))
+        {
+            return false;
+        }
+
+        try
+        {
+            return PathUtils.IsSameOrSubPathOf(path, directory);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     private static PluginDiagnostic Error(string code, string message)

@@ -71,6 +71,98 @@ public sealed class ImportSeedServiceTests : IDisposable
     }
 
     [Fact]
+    public void Import_WhenSeedDirectoryIsSymlinkOutsideProject_ReturnsFailureDiagnostic()
+    {
+        string outsideSeedDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "bukit-import-seed-outside-" + Guid.NewGuid().ToString("N"))).FullName;
+        string linkedSeedDir = Path.Combine(_projectRoot, "seed");
+        Directory.CreateSymbolicLink(linkedSeedDir, outsideSeedDir);
+        File.WriteAllText(Path.Combine(outsideSeedDir, "pages.json"), """
+[
+  {
+    "title": "Outside Seed",
+    "slug": "outside-seed",
+    "content": "Outside seed content."
+  }
+]
+""");
+        var service = new ImportSeedService();
+
+        try
+        {
+            ImportSeedResult result = service.Import(new ImportSeedOptions(
+                ProjectRoot: _projectRoot,
+                SeedDirectory: linkedSeedDir,
+                OutputDirectory: Path.Combine(_projectRoot, "content"),
+                Force: false));
+
+            Assert.False(result.Success);
+            Assert.Equal(2, result.ExitCode);
+            Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "import.seedDirInvalid");
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outsideSeedDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Import_WhenOutputDirectoryIsSymlinkOutsideProject_ReturnsFailureDiagnostic()
+    {
+        string seedDir = Directory.CreateDirectory(Path.Combine(_projectRoot, "seed")).FullName;
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  {
+    "title": "Inside Seed",
+    "slug": "inside-seed",
+    "content": "Inside seed content."
+  }
+]
+""");
+        string outsideOutput = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "bukit-import-output-outside-" + Guid.NewGuid().ToString("N"))).FullName;
+        string linkedOutput = Path.Combine(_projectRoot, "content");
+        Directory.CreateSymbolicLink(linkedOutput, outsideOutput);
+        var service = new ImportSeedService();
+
+        try
+        {
+            ImportSeedResult result = service.Import(new ImportSeedOptions(
+                ProjectRoot: _projectRoot,
+                SeedDirectory: seedDir,
+                OutputDirectory: linkedOutput,
+                Force: true));
+
+            Assert.False(result.Success);
+            Assert.Equal(2, result.ExitCode);
+            Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "import.outputOutsideProject");
+            Assert.False(File.Exists(Path.Combine(outsideOutput, "pages", "inside-seed.md")));
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outsideOutput, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Import_WhenSeedDirectoryHasNoKnownRecords_ReturnsNoRecordsDiagnostic()
+    {
+        string seedDir = Directory.CreateDirectory(Path.Combine(_projectRoot, "seed")).FullName;
+        File.WriteAllText(Path.Combine(seedDir, "readme.txt"), "not a known seed file");
+        var service = new ImportSeedService();
+
+        ImportSeedResult result = service.Import(new ImportSeedOptions(
+            ProjectRoot: _projectRoot,
+            SeedDirectory: seedDir,
+            OutputDirectory: Path.Combine(_projectRoot, "content"),
+            Force: false));
+
+        Assert.False(result.Success);
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "import.seedNoRecords");
+        Assert.Empty(result.Artifacts);
+        Assert.False(Directory.Exists(Path.Combine(_projectRoot, "content")));
+    }
+
+    [Fact]
     public void Import_WhenOutputDirectoryExistsAndForceFalse_ReturnsFailureDiagnostic()
     {
         string seedDir = Directory.CreateDirectory(Path.Combine(_projectRoot, "seed")).FullName;

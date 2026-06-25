@@ -64,6 +64,11 @@ public sealed class ImportSeedService : IImportSeedService
             return ImportSeedResult.Failed(Diagnostic("import.seedRecordInvalid", ex.Message, ex.RelativePath));
         }
 
+        if (records.Count == 0)
+        {
+            return ImportSeedResult.Failed(Diagnostic("import.seedNoRecords", "Seed directory does not contain any supported seed records.", RelativePath(projectRoot, seedDirectory)));
+        }
+
         try
         {
             IReadOnlyList<ImportSeedArtifact> artifacts = WriteMarkdown(projectRoot, outputDirectory, records, options.Force);
@@ -415,10 +420,19 @@ public sealed class ImportSeedService : IImportSeedService
 
     private static bool IsInsideDirectory(string path, string directory)
     {
-        string fullPath = NormalizeFullPath(path);
-        string fullDirectory = NormalizeFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return string.Equals(fullPath, fullDirectory, StringComparison.Ordinal)
-            || fullPath.StartsWith(fullDirectory + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(directory))
+        {
+            return false;
+        }
+
+        try
+        {
+            return PathUtils.IsSameOrSubPathOf(path, directory);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     private static string RelativePath(string projectRoot, string path)

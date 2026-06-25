@@ -5,7 +5,7 @@ using Bukit.Plugin.Abstractions.Results;
 
 namespace Bukit.Plugin.Import;
 
-public static class ImportHtmlDemoDryRunCommandHandler
+public static class ImportHtmlDemoCommandHandler
 {
     public static PluginInvokeResponse Handle(string requestId, PluginInvokeRequest request)
     {

@@ -1,4 +1,5 @@
 using AngleSharp.Html.Parser;
+using Bukit.Shared;
 
 namespace Bukit.Importing.HtmlDemo;
 
@@ -149,10 +150,19 @@ public static class HtmlDemoDryRunScanner
 
     private static bool IsInsideDirectory(string path, string directory)
     {
-        string fullPath = NormalizeFullPath(path);
-        string fullDirectory = NormalizeFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return string.Equals(fullPath, fullDirectory, StringComparison.Ordinal)
-            || fullPath.StartsWith(fullDirectory + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(directory))
+        {
+            return false;
+        }
+
+        try
+        {
+            return PathUtils.IsSameOrSubPathOf(path, directory);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     private static string RelativePath(string projectRoot, string path)

@@ -15,7 +15,7 @@ public static class ImportPluginInvoker
 
         if (request.Command.Path.SequenceEqual(["import", "html-demo"], StringComparer.Ordinal))
         {
-            return ImportHtmlDemoDryRunCommandHandler.Handle(request.RequestId, request);
+            return ImportHtmlDemoCommandHandler.Handle(request.RequestId, request);
         }
 
         return InvokeNotImplemented(request.RequestId);

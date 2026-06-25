@@ -167,7 +167,7 @@ internal static class ImportReportWriter
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
             options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
-            sb.AppendLine("- Build uses the Notion API (`content.sources[].type: notion`). Ensure `NOTION_TOKEN` is set before running `bukit build` or `--verify`.");
+            sb.AppendLine("- Build uses the Notion API (`content.sources[].type: notion`). Ensure `NOTION_TOKEN` is set before running `bukit build` outside Import.");
             sb.AppendLine("- Seed files in `notion-seed/` are handoff artifacts and do not serve as a build source.");
             sb.AppendLine("- `notion-seed/notion-database-map.yaml` is generated as an editable multi-database mapping candidate.");
         }
@@ -237,7 +237,8 @@ internal static class ImportReportWriter
         sb.AppendLine();
         sb.AppendLine("## Visual Verification");
         sb.AppendLine();
-        sb.AppendLine("- `--verify` runs `bukit doctor` and `bukit build` against the generated site config.");
+        sb.AppendLine("- `--verify` runs light structural verification only.");
+        sb.AppendLine("- Full `bukit build` / `bukit doctor` verification is deferred to Core Host Action or a future integration step.");
         sb.AppendLine("- Before publishing, compare the generated preview against the original demo at desktop/tablet/mobile breakpoints.");
         sb.AppendLine("- Treat visual parity as pending until screenshots or browser review confirm layout, navigation, CTA, and responsive behavior.");
 

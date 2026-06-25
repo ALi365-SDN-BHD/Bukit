@@ -1116,6 +1116,74 @@ pages:
     }
 
     [Fact]
+    public void Import_WhenDefaultThemeDirectoryIsSymlinkOutsideRoot_ThrowsBeforeWriting()
+    {
+        var demoDir = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Theme Symlink</title></head><body><main><h1>Hello</h1></main></body></html>");
+
+        Directory.CreateDirectory(Path.Combine(_tempDir, "themes"));
+        string outsideTheme = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "bukit-import-theme-outside-" + Guid.NewGuid().ToString("N"))).FullName;
+        string linkedTheme = Path.Combine(_tempDir, "themes", "theme-symlink-test");
+        Directory.CreateSymbolicLink(linkedTheme, outsideTheme);
+
+        try
+        {
+            var options = new HtmlDemoImportOptions
+            {
+                InputPath = demoDir,
+                ThemeName = "theme-symlink-test",
+                RootDir = _tempDir,
+                Force = true
+            };
+
+            var exception = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
+            Assert.Equal(ImportErrorKind.UserInput, exception.Kind);
+            Assert.Contains("theme output", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(Path.Combine(outsideTheme, "theme.yaml")));
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outsideTheme, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Import_WhenDefaultSiteDirectoryIsSymlinkOutsideRoot_ThrowsBeforeWriting()
+    {
+        var demoDir = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Site Symlink</title></head><body><main><h1>Hello</h1></main></body></html>");
+
+        Directory.CreateDirectory(Path.Combine(_tempDir, "sites"));
+        string outsideSite = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "bukit-import-site-outside-" + Guid.NewGuid().ToString("N"))).FullName;
+        string linkedSite = Path.Combine(_tempDir, "sites", "site-symlink-test");
+        Directory.CreateSymbolicLink(linkedSite, outsideSite);
+
+        try
+        {
+            var options = new HtmlDemoImportOptions
+            {
+                InputPath = demoDir,
+                ThemeName = "site-symlink-test",
+                RootDir = _tempDir,
+                Force = true
+            };
+
+            var exception = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
+            Assert.Equal(ImportErrorKind.UserInput, exception.Kind);
+            Assert.Contains("site output", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(Path.Combine(outsideSite, "site.yaml")));
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outsideSite, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Import_SensitiveNestedDirectory_ThrowsBeforePreservingHtml()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
