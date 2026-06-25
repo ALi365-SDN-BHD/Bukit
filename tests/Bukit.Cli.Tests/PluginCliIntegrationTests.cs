@@ -255,15 +255,29 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task Main_OfficialImportFixture_InvokesSkeletonAndWritesLockAndReport()
+    public async Task Main_OfficialImportFixture_ImportSeed_WritesContentLockReportAndArtifacts()
     {
         using var cwd = new CurrentDirectoryScope(_tempDir);
         await InstallImportFixtureAsync(enabled: true);
+        string seedDir = Path.Combine(_tempDir, "seed");
+        Directory.CreateDirectory(seedDir);
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+        [
+          {
+            "title": "Home",
+            "slug": "index",
+            "content": "Welcome from seed."
+          }
+        ]
+        """);
 
-        var result = await InvokeEntryPointAsync(["import"]);
+        var result = await InvokeEntryPointAsync(["import", "seed", "./seed", "--output", "./content", "--force"]);
 
-        Assert.Equal(1, result.ExitCode);
-        Assert.Contains("plugin.import.notImplemented", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.StdErr);
+        string markdown = File.ReadAllText(Path.Combine(_tempDir, "content", "index.md"));
+        Assert.Contains("title: \"Home\"", markdown, StringComparison.Ordinal);
+        Assert.Contains("Welcome from seed.", markdown, StringComparison.Ordinal);
         string lockText = File.ReadAllText(Path.Combine(_tempDir, ".bukit", "plugins.lock.yaml"));
         Assert.Contains("resolved:", lockText, StringComparison.Ordinal);
         Assert.Contains("  import:", lockText, StringComparison.Ordinal);
@@ -275,8 +289,285 @@ public sealed class PluginCliIntegrationTests : IDisposable
             "import-invoke-*.json"));
         string report = File.ReadAllText(reportPath);
         Assert.Contains("\"pluginId\": \"import\"", report, StringComparison.Ordinal);
-        Assert.Contains("\"command\": \"import\"", report, StringComparison.Ordinal);
-        Assert.Contains("\"plugin.import.notImplemented\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"command\": \"seed\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"commandPath\": [", report, StringComparison.Ordinal);
+        Assert.Contains("\"success\": true", report, StringComparison.Ordinal);
+        Assert.Contains("\"artifacts\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"content/index.md\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"responseSummary\": {", report, StringComparison.Ordinal);
+        Assert.Contains("\"artifactCount\": 1", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_HtmlDemoLocalImport_WritesThemeSiteContentLockReportAndArtifacts()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        string demoDir = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), """
+        <html>
+          <head><title>Local Demo</title></head>
+          <body><main><h1>Local Demo</h1><p>Imported by process plugin.</p></main></body>
+        </html>
+        """);
+
+        var result = await InvokeEntryPointAsync(["import", "html-demo", "./demo", "--theme", "local-demo", "--force"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.StdOut);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "local-demo", "theme.yaml")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "local-demo", "site.yaml")));
+        string contentPath = Path.Combine(_tempDir, "sites", "local-demo", "content", "index.md");
+        Assert.True(File.Exists(contentPath));
+        string markdown = File.ReadAllText(contentPath);
+        Assert.Contains("title: \"Local Demo\"", markdown, StringComparison.Ordinal);
+        Assert.Contains("collection: \"page\"", markdown, StringComparison.Ordinal);
+        Assert.Contains("Imported by process plugin.", markdown, StringComparison.Ordinal);
+        string lockText = File.ReadAllText(Path.Combine(_tempDir, ".bukit", "plugins.lock.yaml"));
+        Assert.Contains("  import:", lockText, StringComparison.Ordinal);
+        Assert.Contains("source: plugins/import", lockText, StringComparison.Ordinal);
+        string reportPath = Assert.Single(Directory.EnumerateFiles(
+            Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions"),
+            "import-invoke-*.json"));
+        string report = File.ReadAllText(reportPath);
+        Assert.Contains("\"pluginId\": \"import\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"command\": \"html-demo\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"success\": true", report, StringComparison.Ordinal);
+        Assert.Contains("\"themes/local-demo\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"sites/local-demo\"", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_HtmlDemoSiteOptions_WriteRequestedSiteConfig()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        string demoDir = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), """
+        <html>
+          <head><title>Custom Site</title></head>
+          <body><main><h1>Custom Site</h1><p>Custom site path from CLI.</p></main></body>
+        </html>
+        """);
+
+        var result = await InvokeEntryPointAsync([
+            "import",
+            "html-demo",
+            "./demo",
+            "--theme",
+            "custom-theme",
+            "--site-path",
+            "./sites/custom-site",
+            "--language",
+            "en",
+            "--force"
+        ]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.StdOut);
+        string siteYamlPath = Path.Combine(_tempDir, "sites", "custom-site", "site.yaml");
+        Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "custom-theme", "theme.yaml")));
+        Assert.True(File.Exists(siteYamlPath));
+        string siteYaml = File.ReadAllText(siteYamlPath);
+        Assert.Contains("name: custom-theme", siteYaml, StringComparison.Ordinal);
+        Assert.Contains("language: en", siteYaml, StringComparison.Ordinal);
+        string reportPath = Assert.Single(Directory.EnumerateFiles(
+            Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions"),
+            "import-invoke-*.json"));
+        string report = File.ReadAllText(reportPath);
+        Assert.Contains("\"sites/custom-site\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"themes/custom-theme\"", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_HtmlDemoReportSecurityScan_WritesReportsAndDiagnostics()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        string demoDir = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), """
+        <html>
+          <head><title>Security Report</title><script>console.log('inline')</script></head>
+          <body>
+            <main>
+              <h1>Security Report</h1>
+              <a href="https://example.com/offsite">External</a>
+              <form action="/lead"><input name="email"></form>
+              <script>const api_key = "demo-secret-token-1234567890";</script>
+            </main>
+          </body>
+        </html>
+        """);
+
+        var result = await InvokeEntryPointAsync([
+            "import",
+            "html-demo",
+            "./demo",
+            "--theme",
+            "security-report",
+            "--strict",
+            "warn",
+            "--force"
+        ]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.StdOut);
+        Assert.Contains("INLINE_SCRIPT", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("EXTERNAL_URL", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("UNSUPPORTED_FORM", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("HARDCODED_SECRET", result.StdErr, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "security-report", "import-report.md")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, ".bukit", "reports", "plugin-output", "import", "html-demo-report.json")));
+        string executionReportPath = Assert.Single(Directory.EnumerateFiles(
+            Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions"),
+            "import-invoke-*.json"));
+        string executionReport = File.ReadAllText(executionReportPath);
+        Assert.Contains("\"sites/security-report/import-report.md\"", executionReport, StringComparison.Ordinal);
+        Assert.Contains("\".bukit/reports/plugin-output/import/html-demo-report.json\"", executionReport, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_HtmlDemoUseVerify_UpdatesSiteAndReturnsLightVerify()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        string demoDir = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), """
+        <html>
+          <head><title>Use Verify</title></head>
+          <body><main><h1>Use Verify</h1><p>Use verify body.</p></main></body>
+        </html>
+        """);
+        string siteDir = Path.Combine(_tempDir, "sites", "current");
+        Directory.CreateDirectory(siteDir);
+        File.WriteAllText(Path.Combine(siteDir, "site.yaml"), """
+        site:
+          name: current
+          title: Current
+        theme:
+          name: old-theme
+        """);
+
+        var result = await InvokeEntryPointAsync([
+            "import",
+            "html-demo",
+            "./demo",
+            "--theme",
+            "use-verify-theme",
+            "--site-path",
+            "./sites/current",
+            "--use",
+            "--verify",
+            "--force"
+        ]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.StdOut);
+        string siteYaml = File.ReadAllText(Path.Combine(siteDir, "site.yaml"));
+        Assert.Contains("name: use-verify-theme", siteYaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("old-theme", siteYaml, StringComparison.Ordinal);
+        Assert.Contains("import.useApplied", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("import.lightVerifyPassed", result.StdErr, StringComparison.Ordinal);
+        string executionReportPath = Assert.Single(Directory.EnumerateFiles(
+            Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions"),
+            "import-invoke-*.json"));
+        string executionReport = File.ReadAllText(executionReportPath);
+        Assert.Contains("\"sites/current/site.yaml\"", executionReport, StringComparison.Ordinal);
+        Assert.Contains("\"type\": \"verification\"", executionReport, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_HtmlDemoNotionHandoff_WritesSeedAndDatabaseMapArtifacts()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        string demoDir = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), """
+        <html>
+          <head><title>Notion Handoff</title></head>
+          <body><main><h1>Notion Handoff</h1><p>CLI notion seed body.</p></main></body>
+        </html>
+        """);
+
+        var result = await InvokeEntryPointAsync([
+            "import",
+            "html-demo",
+            "./demo",
+            "--theme",
+            "cli-notion-handoff",
+            "--content-source",
+            "notion",
+            "--build-source",
+            "markdown",
+            "--force"
+        ]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.StdOut);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "cli-notion-handoff", "notion-seed", "pages.json")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "cli-notion-handoff", "notion-seed", "notion-database-map.yaml")));
+        Assert.DoesNotContain("NOTION_TOKEN", result.StdErr, StringComparison.Ordinal);
+        string executionReportPath = Assert.Single(Directory.EnumerateFiles(
+            Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions"),
+            "import-invoke-*.json"));
+        string executionReport = File.ReadAllText(executionReportPath);
+        Assert.Contains("\"type\": \"notion-seed\"", executionReport, StringComparison.Ordinal);
+        Assert.Contains("\"sites/cli-notion-handoff/notion-seed/notion-database-map.yaml\"", executionReport, StringComparison.Ordinal);
+        Assert.Contains("import.notionHandoffReady", executionReport, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_HtmlDemoRouteMap_GeneratesMappedTemplate()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        string demoDir = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), """
+        <html><head><title>Home</title></head><body><main>Home</main></body></html>
+        """);
+        File.WriteAllText(Path.Combine(demoDir, "legacy.html"), """
+        <html><head><title>Legacy</title></head><body><main>Legacy Companies</main></body></html>
+        """);
+        File.WriteAllText(Path.Combine(_tempDir, "routes.yaml"), """
+        pages:
+          - source: legacy.html
+            route: /mapped-companies/
+            type: CompanyList
+            template: mapped-companies
+        """);
+
+        var result = await InvokeEntryPointAsync([
+            "import",
+            "html-demo",
+            "./demo",
+            "--theme",
+            "route-demo",
+            "--route-map",
+            "./routes.yaml",
+            "--force"
+        ]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.StdOut);
+        Assert.True(File.Exists(Path.Combine(
+            _tempDir,
+            "themes",
+            "route-demo",
+            "layouts",
+            "pages",
+            "mapped-companies.html")));
+        string reportPath = Assert.Single(Directory.EnumerateFiles(
+            Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions"),
+            "import-invoke-*.json"));
+        string report = File.ReadAllText(reportPath);
+        Assert.Contains("\"command\": \"html-demo\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"success\": true", report, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -289,6 +580,20 @@ public sealed class PluginCliIntegrationTests : IDisposable
 
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("Command disabled by plugin config: import", result.StdErr, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(_tempDir, ".bukit", "plugins.lock.yaml")));
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions")));
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_BadPermissionsFailBeforeInvoke()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true, grantedPermissions: "network: false");
+
+        var result = await InvokeEntryPointAsync(["import", "seed", "./seed", "--output", "./content", "--force"]);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("requires fileSystem.read permission", result.StdErr, StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(_tempDir, ".bukit", "plugins.lock.yaml")));
         Assert.False(Directory.Exists(Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions")));
     }
@@ -937,7 +1242,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
             """);
     }
 
-    private async Task InstallImportFixtureAsync(bool enabled)
+    private async Task InstallImportFixtureAsync(bool enabled, string? grantedPermissions = null)
     {
         var resolver = new PluginPlatformResolver();
         string rid = resolver.GetCurrentRid();
@@ -948,6 +1253,21 @@ public sealed class PluginCliIntegrationTests : IDisposable
         string sha256 = await Sha256Async(executablePath);
 
         Directory.CreateDirectory(Path.Combine(_tempDir, ".bukit"));
+        string permissions = grantedPermissions ??
+            """
+            fileSystem:
+              read:
+                - .
+              write:
+                - ./content
+                - ./themes
+                - ./sites
+                - .bukit/reports/plugin-output/import
+            network: false
+            environment:
+              read: []
+            """;
+
         File.WriteAllText(Path.Combine(_tempDir, ".bukit", "plugins.yaml"),
             $$"""
             version: 1
@@ -958,7 +1278,8 @@ public sealed class PluginCliIntegrationTests : IDisposable
                 exposeCommands:
                   - import
                 allowInCi: true
-                permissions: {}
+                permissions:
+            {{Indent(permissions, 6)}}
             """);
 
         File.WriteAllText(Path.Combine(pluginRoot, "plugin.yaml"),
@@ -975,10 +1296,107 @@ public sealed class PluginCliIntegrationTests : IDisposable
                 sha256: {{sha256}}
             commands:
               - name: import
-                summary: Import command
+                description: Import content into a Bukit site.
+                subcommands:
+                  - name: seed
+                    description: Convert generated seed data into markdown content.
+                    arguments:
+                      - name: seed-dir
+                        description: Seed directory.
+                        required: true
+                    options:
+                      - name: --output
+                        type: string
+                        description: Output content directory.
+                        required: true
+                      - name: --force
+                        type: flag
+                        description: Overwrite existing markdown files.
+                        required: false
+                  - name: html-demo
+                    description: Import or scan a static HTML demo.
+                    arguments:
+                      - name: demo-dir
+                        description: HTML demo directory.
+                        required: true
+                    options:
+                      - name: --theme
+                        type: string
+                        description: Target theme name for later import stages.
+                        required: true
+                      - name: --dry-run
+                        type: flag
+                        description: Scan only without writing output.
+                        required: false
+                      - name: --use
+                        type: flag
+                        description: Point the target site.yaml at the generated theme.
+                        required: false
+                      - name: --verify
+                        type: flag
+                        description: Run light file-structure verification after import.
+                        required: false
+                      - name: --strict
+                        type: string
+                        description: Treat import diagnostics as warnings or failures.
+                        required: false
+                      - name: --force
+                        type: flag
+                        description: Overwrite an existing generated theme.
+                        required: false
+                      - name: --route-map
+                        type: string
+                        description: Route map YAML file.
+                        required: false
+                      - name: --site-path
+                        type: string
+                        description: Target site directory inside the project root.
+                        required: false
+                      - name: --language
+                        type: string
+                        description: Generated site language code.
+                        required: false
+                      - name: --content-source
+                        type: string
+                        description: 'Generated seed content source: markdown, json, yaml, or notion.'
+                        required: false
+                      - name: --build-source
+                        type: string
+                        description: 'Generated site build source: markdown or notion.'
+                        required: false
+                      - name: --no-extract-content
+                        type: flag
+                        description: Skip Markdown content extraction.
+                        required: false
+                      - name: --no-seed
+                        type: flag
+                        description: Skip generated seed handoff files.
+                        required: false
+                      - name: --no-report
+                        type: flag
+                        description: Skip import report generation.
+                        required: false
             requiredPermissions:
+              fileSystem:
+                read:
+                  - .
+                write:
+                  - ./content
+                  - ./themes
+                  - ./sites
+                  - .bukit/reports/plugin-output/import
               network: false
+              environment:
+                read: []
             """);
+    }
+
+    private static string Indent(string value, int spaces)
+    {
+        string prefix = new(' ', spaces);
+        return string.Join(
+            Environment.NewLine,
+            value.Split(Environment.NewLine).Select(line => string.IsNullOrWhiteSpace(line) ? line : prefix + line));
     }
 
     private static string CopyEchoPlugin(string destinationDirectory)

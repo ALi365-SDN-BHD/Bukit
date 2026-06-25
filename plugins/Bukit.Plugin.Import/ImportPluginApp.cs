@@ -22,7 +22,7 @@ public static class ImportPluginApp
         {
             PluginProtocolConstants.Handshake => Serialize(ImportPluginManifestProvider.CreateHandshakeResponse(requestId, ReadHostPlatform(root))),
             PluginProtocolConstants.Manifest => Serialize(ImportPluginManifestProvider.CreateManifestResponse(requestId)),
-            PluginProtocolConstants.Invoke => Serialize(ImportPluginInvoker.InvokeNotImplemented(requestId)),
+            PluginProtocolConstants.Invoke => Serialize(ImportPluginInvoker.Invoke(ReadInvokeRequest(root))),
             _ => Serialize(new PluginResponseEnvelope(
                 Type: "errorResponse",
                 Protocol: PluginProtocolConstants.ProtocolVersion,
@@ -37,6 +37,10 @@ public static class ImportPluginApp
             && host.TryGetProperty("platform", out JsonElement platform)
                 ? platform.GetString() ?? string.Empty
                 : string.Empty;
+
+    private static PluginInvokeRequest ReadInvokeRequest(JsonElement root)
+        => JsonSerializer.Deserialize(root.GetRawText(), PluginJsonSerializerContext.Default.PluginInvokeRequest)
+            ?? throw new InvalidOperationException("Invalid invoke request.");
 
     private static string Serialize(PluginHandshakeResponse response)
         => JsonSerializer.Serialize(response, PluginJsonSerializerContext.Default.PluginHandshakeResponse);

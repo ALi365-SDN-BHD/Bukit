@@ -106,6 +106,33 @@ internal static partial class ImportSafetyScanner
                 page.FilePath));
         }
 
+        if (ExternalUrlPattern().IsMatch(html))
+        {
+            diagnostics.Add(new ImportDiagnostic(
+                ImportDiagnosticSeverity.Warning,
+                "EXTERNAL_URL",
+                "页面包含外部 URL，需要人工审查",
+                page.FilePath));
+        }
+
+        if (FormTagPattern().IsMatch(html))
+        {
+            diagnostics.Add(new ImportDiagnostic(
+                ImportDiagnosticSeverity.Warning,
+                "UNSUPPORTED_FORM",
+                "页面包含 form，需要人工确认导入后交互行为",
+                page.FilePath));
+        }
+
+        if (HardcodedSecretPattern().IsMatch(html))
+        {
+            diagnostics.Add(new ImportDiagnostic(
+                ImportDiagnosticSeverity.Warning,
+                "HARDCODED_SECRET",
+                "页面包含疑似硬编码 secret，需要人工移除或替换",
+                page.FilePath));
+        }
+
         if (html.Contains("<iframe", StringComparison.OrdinalIgnoreCase))
         {
             diagnostics.Add(new ImportDiagnostic(
@@ -202,6 +229,15 @@ internal static partial class ImportSafetyScanner
 
     [System.Text.RegularExpressions.GeneratedRegex(@"<form\b[^>]*\baction\s*=\s*[""']https?://", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
     private static partial System.Text.RegularExpressions.Regex ExternalFormActionPattern();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\b(?:href|src|action)\s*=\s*[""']https?://", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex ExternalUrlPattern();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"<form\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex FormTagPattern();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\b(api[_-]?key|secret|token|password)\b\s*[:=]\s*[""'][^""']{12,}[""']|AKIA[0-9A-Z]{16}", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex HardcodedSecretPattern();
 
     [System.Text.RegularExpressions.GeneratedRegex(@"\bhref\s*=\s*[""'](?<href>[^""']+)[""']", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
     private static partial System.Text.RegularExpressions.Regex LinkHrefPattern();

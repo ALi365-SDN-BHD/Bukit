@@ -56,6 +56,14 @@ internal static class ImportCommitter
                 var seedOptions = options with { Overwrite = options.Overwrite || options.Force };
                 var seedGenerated = SeedGenerator.Generate(seedOptions, content, components, pages);
                 result = result with { SeedGenerated = seedGenerated };
+                if (seedGenerated && options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
+                {
+                    diagnostics.Add(new ImportDiagnostic(
+                        ImportDiagnosticSeverity.Info,
+                        "import.notionHandoffReady",
+                        "Notion seed handoff files generated.",
+                        Path.Combine(HtmlDemoImporter.GetSiteDir(options), "notion-seed")));
+                }
             }
         }
 
@@ -83,6 +91,12 @@ internal static class ImportCommitter
 
         if (options.StrictMode != null && hardcodedReport != null && options.StrictMode != "warn")
             HtmlDemoImporter.ThrowIfStrictResidue(hardcodedReport);
+
+        if (options.Use)
+            diagnostics.Add(ImportSiteUseService.Apply(options));
+
+        if (options.Verify)
+            diagnostics.AddRange(ImportLightVerifier.Verify(options));
 
         // Write report
         ImportReportWriter.Write(options, result, diagnostics);

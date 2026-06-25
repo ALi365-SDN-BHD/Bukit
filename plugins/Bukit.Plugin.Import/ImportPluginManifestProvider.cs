@@ -28,9 +28,15 @@ public static class ImportPluginManifestProvider
             Capabilities: ["cli-command"],
             Commands:
             [
-                new PluginCommandSpec(
-                    Name: "import",
-                    Description: "Import content into a Bukit site.")
+                ImportCommandSpecFactory.CreateImportCommand()
             ],
-            RequiredPermissions: new PluginPermissionSet());
+            RequiredPermissions: CreateRequiredPermissions());
+
+    private static PluginPermissionSet CreateRequiredPermissions()
+        => new(
+            FileSystem: new PluginFileSystemPermission(
+                Read: ["."],
+                Write: ["./content", "./themes", "./sites", ".bukit/reports/plugin-output/import"]),
+            Network: false,
+            Environment: new PluginEnvironmentPermission(Read: []));
 }

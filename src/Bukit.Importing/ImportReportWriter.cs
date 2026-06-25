@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 
 namespace Bukit.Importing;
 
@@ -59,7 +60,7 @@ internal static class ImportReportWriter
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             Console.WriteLine();
-            Console.WriteLine("  提示: content 已配置为 notion provider，使用 bukit notion push 推送内容到 Notion。");
+            Console.WriteLine("  提示: Notion handoff 文件已生成；Import 插件不会访问网络或推送 Notion。");
         }
 
         if (options.GenerateReport)
@@ -154,10 +155,10 @@ internal static class ImportReportWriter
             sb.AppendLine();
             sb.AppendLine("## Content Seeds");
             sb.AppendLine();
-            sb.AppendLine("| Seed File | Count | Notion Push Scope |");
+            sb.AppendLine("| Seed File | Count | Notion Handoff Scope |");
             sb.AppendLine("|---|---:|---|");
             foreach (var seed in result.ReportSeedFiles)
-                sb.AppendLine($"| {EscapeCell(seed.FileName)} | {seed.Count} | {NotionPushScope(seed.FileName)} |");
+                sb.AppendLine($"| {EscapeCell(seed.FileName)} | {seed.Count} | {NotionHandoffScope(seed.FileName)} |");
         }
 
         sb.AppendLine();
@@ -167,8 +168,8 @@ internal static class ImportReportWriter
             options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine("- Build uses the Notion API (`content.sources[].type: notion`). Ensure `NOTION_TOKEN` is set before running `bukit build` or `--verify`.");
-            sb.AppendLine("- Seed files in `notion-seed/` are for push only and do not serve as a build source.");
-            sb.AppendLine("- `notion-seed/notion-database-map.yaml` is generated as an editable multi-database push template.");
+            sb.AppendLine("- Seed files in `notion-seed/` are handoff artifacts and do not serve as a build source.");
+            sb.AppendLine("- `notion-seed/notion-database-map.yaml` is generated as an editable multi-database mapping candidate.");
         }
         else
         {
@@ -243,15 +244,15 @@ internal static class ImportReportWriter
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             sb.AppendLine();
-            sb.AppendLine("## Seed Push Scope");
+            sb.AppendLine("## Seed Handoff Scope");
             sb.AppendLine();
-            sb.AppendLine("Default Notion push collections (synced to Notion databases):");
+            sb.AppendLine("Default Notion handoff collections:");
             sb.AppendLine("- `pages` / `navigation` / `posts` / `companies` / `services`");
             sb.AppendLine();
-            sb.AppendLine("Generated for review only (not included in default Notion push):");
+            sb.AppendLine("Generated for review only:");
             sb.AppendLine("- `sections` / `faqs` / `media` / `components`");
             sb.AppendLine();
-            sb.AppendLine("- Notion push seed files are in `notion-seed/`. Run `bukit notion validate-schema` then `bukit notion push --mode upsert` to sync.");
+            sb.AppendLine("- Notion handoff files are in `notion-seed/`. Import does not validate live Notion schemas or push records.");
 
             sb.AppendLine();
             sb.AppendLine("## Notion Provider Status");
@@ -267,7 +268,7 @@ internal static class ImportReportWriter
             sb.AppendLine($"- databaseId: {dbStatus}");
             sb.AppendLine(notionBuildSource
                 ? "- bukit build requires valid NOTION_TOKEN environment variable"
-                : "- bukit build uses local Markdown and does not require NOTION_TOKEN until seed push");
+                : "- bukit build uses local Markdown and Import does not require NOTION_TOKEN");
         }
 
         sb.AppendLine();
@@ -293,7 +294,109 @@ internal static class ImportReportWriter
         sb.AppendLine("```");
 
         File.WriteAllText(reportPath, sb.ToString());
+        WriteJsonReportFile(options, result, diagnostics, reportPath);
         Console.WriteLine($"  导入报告已生成: {reportPath}");
+    }
+
+    private static void WriteJsonReportFile(
+        HtmlDemoImportOptions options,
+        ImportResult result,
+        List<ImportDiagnostic> diagnostics,
+        string markdownReportPath)
+    {
+        var reportPath = Path.Combine(
+            options.RootDir,
+            ".bukit",
+            "reports",
+            "plugin-output",
+            "import",
+            "html-demo-report.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(reportPath)!);
+
+        var siteDir = HtmlDemoImporter.GetSiteDir(options);
+        var themeDir = HtmlDemoImporter.GetThemeDir(options);
+        var contentDir = Path.Combine(siteDir, "content");
+        var report = new ImportJsonReport(
+            Schema: "bukit.import.html-demo.report.v1",
+            Theme: options.ThemeName,
+            InputPath: ToRelativePath(options.RootDir, options.InputPath),
+            SitePath: ToRelativePath(options.RootDir, siteDir),
+            ThemePath: ToRelativePath(options.RootDir, themeDir),
+            Summary: new ImportJsonReportSummary(
+                PagesFound: result.PagesFound,
+                TemplatesGenerated: result.TemplatesGenerated,
+                PartialsGenerated: result.PartialsGenerated,
+                ComponentsGenerated: result.ComponentsGenerated,
+                RecordsExtracted: result.RecordsExtracted,
+                AssetsCopied: result.AssetsCopied,
+                ErrorCount: diagnostics.Count(d => d.Severity == ImportDiagnosticSeverity.Error),
+                WarningCount: diagnostics.Count(d => d.Severity == ImportDiagnosticSeverity.Warning),
+                SiteYamlCreated: result.SiteYamlCreated,
+                TemplatesSynced: result.TemplatesSynced,
+                SeedGenerated: result.SeedGenerated),
+            Pages: result.ReportPages
+                .Select(page => new ImportJsonReportPage(page.Source, page.Route, page.Type, page.Template, page.Status))
+                .ToArray(),
+            Diagnostics: diagnostics
+                .Where(diagnostic => diagnostic.Severity >= ImportDiagnosticSeverity.Warning)
+                .Select(ToJsonDiagnostic)
+                .ToArray(),
+            SecurityFindings: diagnostics
+                .Where(IsSecurityDiagnostic)
+                .Select(ToJsonDiagnostic)
+                .ToArray(),
+            Artifacts: ExistingArtifacts(options.RootDir, markdownReportPath, reportPath, siteDir, themeDir, contentDir));
+
+        var json = JsonSerializer.Serialize(
+            report,
+            new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = true
+            });
+        File.WriteAllText(reportPath, json);
+    }
+
+    private static ImportJsonReportDiagnostic ToJsonDiagnostic(ImportDiagnostic diagnostic)
+        => new(
+            Severity: diagnostic.Severity.ToString().ToLowerInvariant(),
+            Code: diagnostic.Code,
+            Message: diagnostic.Message,
+            Path: diagnostic.FilePath,
+            Line: diagnostic.LineNumber);
+
+    private static bool IsSecurityDiagnostic(ImportDiagnostic diagnostic)
+        => diagnostic.Code is "INLINE_SCRIPT"
+            or "EXTERNAL_SCRIPT"
+            or "EXTERNAL_URL"
+            or "EXTERNAL_FORM_ACTION"
+            or "UNSUPPORTED_FORM"
+            or "IFRAME_DETECTED"
+            or "DANGEROUS_PROTOCOL"
+            or "INLINE_EVENT_HANDLER"
+            or "HARDCODED_SECRET"
+            or "SENSITIVE_FILE";
+
+    private static string[] ExistingArtifacts(string root, string markdownReportPath, string jsonReportPath, string siteDir, string themeDir, string contentDir)
+    {
+        var artifacts = new List<string>();
+        if (Directory.Exists(themeDir))
+            artifacts.Add(ToRelativePath(root, themeDir));
+        if (Directory.Exists(siteDir))
+            artifacts.Add(ToRelativePath(root, siteDir));
+        if (Directory.Exists(contentDir))
+            artifacts.Add(ToRelativePath(root, contentDir));
+        if (File.Exists(markdownReportPath))
+            artifacts.Add(ToRelativePath(root, markdownReportPath));
+        artifacts.Add(ToRelativePath(root, jsonReportPath));
+
+        return artifacts.ToArray();
+    }
+
+    private static string ToRelativePath(string root, string path)
+    {
+        var relative = Path.GetRelativePath(root, path);
+        return relative.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
     }
 
     private static string SeedLabel(HtmlDemoImportOptions options)
@@ -301,14 +404,53 @@ internal static class ImportReportWriter
             ? "notion-seed:"
             : $"{options.ContentSource}-seed:";
 
-    private static string NotionPushScope(string fileName)
+    private static string NotionHandoffScope(string fileName)
     {
         var name = Path.GetFileNameWithoutExtension(fileName);
         return name is "pages" or "navigation" or "posts" or "companies" or "services"
-            ? "default push"
+            ? "default handoff"
             : "review-only";
     }
 
     private static string EscapeCell(string value)
         => value.Replace("|", "\\|");
 }
+
+internal sealed record ImportJsonReport(
+    string Schema,
+    string Theme,
+    string InputPath,
+    string SitePath,
+    string ThemePath,
+    ImportJsonReportSummary Summary,
+    IReadOnlyList<ImportJsonReportPage> Pages,
+    IReadOnlyList<ImportJsonReportDiagnostic> Diagnostics,
+    IReadOnlyList<ImportJsonReportDiagnostic> SecurityFindings,
+    IReadOnlyList<string> Artifacts);
+
+internal sealed record ImportJsonReportSummary(
+    int PagesFound,
+    int TemplatesGenerated,
+    int PartialsGenerated,
+    int ComponentsGenerated,
+    int RecordsExtracted,
+    int AssetsCopied,
+    int ErrorCount,
+    int WarningCount,
+    bool SiteYamlCreated,
+    bool TemplatesSynced,
+    bool SeedGenerated);
+
+internal sealed record ImportJsonReportPage(
+    string Source,
+    string Route,
+    string Type,
+    string Template,
+    string Status);
+
+internal sealed record ImportJsonReportDiagnostic(
+    string Severity,
+    string Code,
+    string Message,
+    string? Path,
+    int? Line);

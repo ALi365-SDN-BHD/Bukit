@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\plugins\Bukit.Plugin.Import\Bukit.Plugin.Import.csproj" />
+    <ProjectReference Include="..\..\src\Bukit.PluginHost\Bukit.PluginHost.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -95,9 +95,10 @@ public sealed class PreviewCommandTests
 
         try
         {
-            using var occupiedPort = new TcpListener(IPAddress.Loopback, 0);
+            var port = PickFreeTcpPort();
+            using var occupiedPort = new HttpListener();
+            occupiedPort.Prefixes.Add($"http://localhost:{port}/");
             occupiedPort.Start();
-            var port = ((IPEndPoint)occupiedPort.LocalEndpoint).Port;
 
             var command = BuildCommand("--dir", dir, "--port", port.ToString(), "--strict-port", "true");
             await Assert.ThrowsAnyAsync<HttpListenerException>(() => PreviewCommand.RunAsync(command));
@@ -136,5 +137,12 @@ public sealed class PreviewCommandTests
         {
             return 2;
         }
+    }
+
+    private static int PickFreeTcpPort()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        return ((IPEndPoint)listener.LocalEndpoint).Port;
     }
 }

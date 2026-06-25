@@ -5,11 +5,106 @@ protocol: bukit-plugin-v1
 kind: process
 distribution: self-contained
 platforms:
+  linux-x64:
+    entry: bin/linux-x64/bukit-plugin-import
+    sha256: 0000000000000000000000000000000000000000000000000000000000000000
   osx-arm64:
     entry: bin/osx-arm64/bukit-plugin-import
+    sha256: 0000000000000000000000000000000000000000000000000000000000000000
+  win-x64:
+    entry: bin/win-x64/bukit-plugin-import.exe
     sha256: 0000000000000000000000000000000000000000000000000000000000000000
 commands:
   - name: import
     description: Import content into a Bukit site.
+    subcommands:
+      - name: seed
+        description: Convert generated seed data into markdown content.
+        arguments:
+          - name: seed-dir
+            description: Seed directory.
+            required: true
+        options:
+          - name: --output
+            type: string
+            description: Output content directory.
+            required: true
+          - name: --force
+            type: flag
+            description: Overwrite existing markdown files.
+            required: false
+      - name: html-demo
+        description: Import or scan a static HTML demo.
+        arguments:
+          - name: demo-dir
+            description: HTML demo directory.
+            required: true
+        options:
+          - name: --theme
+            type: string
+            description: Target theme name for later import stages.
+            required: true
+          - name: --dry-run
+            type: flag
+            description: Scan only without writing output.
+            required: false
+          - name: --use
+            type: flag
+            description: Point the target site.yaml at the generated theme.
+            required: false
+          - name: --verify
+            type: flag
+            description: Run light file-structure verification after import.
+            required: false
+          - name: --strict
+            type: string
+            description: Treat import diagnostics as warnings or failures.
+            required: false
+          - name: --force
+            type: flag
+            description: Overwrite an existing generated theme.
+            required: false
+          - name: --route-map
+            type: string
+            description: Route map YAML file.
+            required: false
+          - name: --site-path
+            type: string
+            description: Target site directory inside the project root.
+            required: false
+          - name: --language
+            type: string
+            description: Generated site language code.
+            required: false
+          - name: --content-source
+            type: string
+            description: 'Generated seed content source: markdown, json, yaml, or notion.'
+            required: false
+          - name: --build-source
+            type: string
+            description: 'Generated site build source: markdown or notion.'
+            required: false
+          - name: --no-extract-content
+            type: flag
+            description: Skip Markdown content extraction.
+            required: false
+          - name: --no-seed
+            type: flag
+            description: Skip generated seed handoff files.
+            required: false
+          - name: --no-report
+            type: flag
+            description: Skip import report generation.
+            required: false
 requiredPermissions:
+  fileSystem:
+    read:
+      - .
+    write:
+      - ./content
+      - ./themes
+      - ./sites
+      - .bukit/reports/plugin-output/import
   network: false
+  environment:
+    read: []

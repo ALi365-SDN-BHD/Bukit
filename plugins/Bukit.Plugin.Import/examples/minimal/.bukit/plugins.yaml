@@ -12,8 +12,9 @@ plugins:
           - .
         write:
           - ./content
-          - ./data
-          - ./docs/research
+          - ./themes
+          - ./sites
+          - .bukit/reports/plugin-output/import
       network: false
       environment:
         read: []
