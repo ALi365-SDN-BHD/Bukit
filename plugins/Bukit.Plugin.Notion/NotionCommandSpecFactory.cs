@@ -71,6 +71,10 @@ public static class NotionCommandSpecFactory
                     Type: "flag",
                     Description: "Validate and report planned changes without writing to Notion."),
                 new PluginOptionSpec(
+                    Name: "--confirm-replace",
+                    Type: "flag",
+                    Description: "Required confirmation for destructive replace mode."),
+                new PluginOptionSpec(
                     Name: "--report",
                     Type: "string",
                     Description: "Optional report output path.")

@@ -25,6 +25,6 @@ public sealed class NotionPluginSkeletonTests
         var diagnostic = Assert.Single(response.Diagnostics);
         Assert.Equal("plugin.notion.unsupportedCommand", diagnostic.Code);
         Assert.Equal("error", diagnostic.Severity);
-        Assert.Equal("Unsupported notion command path. Supported commands in this phase: notion validate-seed, notion validate-database-map.", diagnostic.Message);
+        Assert.Equal("Unsupported notion command path. Supported commands in this phase: notion validate-seed, notion validate-database-map, notion push.", diagnostic.Message);
     }
 }

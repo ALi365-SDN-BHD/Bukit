@@ -57,6 +57,10 @@ commands:
             type: flag
             description: Validate and report planned changes without writing to Notion.
             required: false
+          - name: --confirm-replace
+            type: flag
+            description: Required confirmation for destructive replace mode.
+            required: false
           - name: --report
             type: string
             description: Optional report output path.

@@ -25,7 +25,7 @@ public static class NotionValidateDatabaseMapCommandHandler
             Success: result.Success,
             ExitCode: result.ExitCode,
             Diagnostics: result.Diagnostics.Select(ToPluginDiagnostic).ToArray(),
-            Artifacts: result.Artifacts.Select(ToPluginArtifact).ToArray());
+            Artifacts: result.Artifacts.Select(artifact => ToPluginArtifact(mapped.Options.ProjectRoot, artifact)).ToArray());
     }
 
     private static PluginInvokeResponse CreateResponse(
@@ -44,6 +44,6 @@ public static class NotionValidateDatabaseMapCommandHandler
     private static PluginDiagnostic ToPluginDiagnostic(NotionDatabaseMapDiagnostic diagnostic)
         => new(diagnostic.Code, diagnostic.Severity, diagnostic.Message, diagnostic.Path);
 
-    private static PluginArtifact ToPluginArtifact(NotionDatabaseMapArtifact artifact)
-        => new(artifact.Type, artifact.Path, artifact.Description);
+    private static PluginArtifact ToPluginArtifact(string projectRoot, NotionDatabaseMapArtifact artifact)
+        => new(artifact.Type, NotionPluginPathFormatter.ToProjectRelativePath(projectRoot, artifact.Path), artifact.Description);
 }

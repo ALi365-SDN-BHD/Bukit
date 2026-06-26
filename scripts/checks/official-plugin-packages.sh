@@ -7,6 +7,7 @@ cd "$repo_root"
 official_packages=(
   "plugins/Bukit.Plugin.Import:import"
   "plugins/Bukit.Plugin.Clone:clone"
+  "plugins/Bukit.Plugin.Notion:notion"
 )
 
 checked=0
@@ -82,31 +83,31 @@ for package in "${official_packages[@]}"; do
     exit 1
   fi
 
-  if [ "$plugin_id" = "import" ]; then
-    test -x scripts/build/import-plugin-package.sh
-    test -x scripts/smoke/import-plugin-package.sh
+  if [ "$plugin_id" = "import" ] || [ "$plugin_id" = "notion" ]; then
+    test -x "scripts/build/$plugin_id-plugin-package.sh"
+    test -x "scripts/smoke/$plugin_id-plugin-package.sh"
 
     for rid in win-x64 linux-x64 osx-arm64; do
       if ! grep -Fq "  $rid:" "$manifest_path"; then
-        echo "Import plugin manifest must declare platform RID '$rid': $manifest_path" >&2
+        echo "$plugin_id plugin manifest must declare platform RID '$rid': $manifest_path" >&2
         exit 1
       fi
     done
 
-    if ! grep -Fq "entry: bin/win-x64/bukit-plugin-import.exe" "$manifest_path"; then
-      echo "Import plugin manifest must declare the win-x64 executable entry." >&2
+    if ! grep -Fq "entry: bin/win-x64/bukit-plugin-$plugin_id.exe" "$manifest_path"; then
+      echo "$plugin_id plugin manifest must declare the win-x64 executable entry." >&2
       exit 1
     fi
 
-    for entry in "bin/linux-x64/bukit-plugin-import" "bin/osx-arm64/bukit-plugin-import"; do
+    for entry in "bin/linux-x64/bukit-plugin-$plugin_id" "bin/osx-arm64/bukit-plugin-$plugin_id"; do
       if ! grep -Fq "entry: $entry" "$manifest_path"; then
-        echo "Import plugin manifest must declare executable entry '$entry'." >&2
+        echo "$plugin_id plugin manifest must declare executable entry '$entry'." >&2
         exit 1
       fi
     done
 
     if ! grep -Eq "sha256: [a-f0-9]{64}" "$manifest_path"; then
-      echo "Import plugin manifest platform entries must contain sha256 placeholders or real hashes." >&2
+      echo "$plugin_id plugin manifest platform entries must contain sha256 placeholders or real hashes." >&2
       exit 1
     fi
   fi
