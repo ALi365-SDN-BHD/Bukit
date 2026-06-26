@@ -6,7 +6,19 @@ namespace Bukit.Plugin.Notion;
 public static class NotionPluginInvoker
 {
     public static PluginInvokeResponse Invoke(PluginInvokeRequest request)
-        => InvokeUnsupportedCommand(request.RequestId);
+    {
+        if (request.Command.Path.SequenceEqual(["notion", "validate-seed"], StringComparer.Ordinal))
+        {
+            return NotionValidateSeedCommandHandler.Handle(request.RequestId, request);
+        }
+
+        if (request.Command.Path.SequenceEqual(["notion", "validate-database-map"], StringComparer.Ordinal))
+        {
+            return NotionValidateDatabaseMapCommandHandler.Handle(request.RequestId, request);
+        }
+
+        return InvokeUnsupportedCommand(request.RequestId);
+    }
 
     public static PluginInvokeResponse InvokeUnsupportedCommand(string requestId)
         => new(
@@ -20,6 +32,6 @@ public static class NotionPluginInvoker
                 new PluginDiagnostic(
                     Code: "plugin.notion.unsupportedCommand",
                     Severity: "error",
-                    Message: "Notion command handlers are not implemented in PR-Notion-001 skeleton.")
+                    Message: "Unsupported notion command path. Supported commands in this phase: notion validate-seed, notion validate-database-map.")
             ]);
 }

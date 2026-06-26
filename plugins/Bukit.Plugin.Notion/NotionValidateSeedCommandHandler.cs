@@ -1,5 +1,49 @@
+using Bukit.Notion.Seed;
+using Bukit.Plugin.Abstractions.Protocol;
+using Bukit.Plugin.Abstractions.Results;
+
 namespace Bukit.Plugin.Notion;
 
 public static class NotionValidateSeedCommandHandler
 {
+    public static PluginInvokeResponse Handle(string requestId, PluginInvokeRequest request)
+    {
+        NotionValidateSeedMapperResult mapped = NotionOptionsMapper.MapValidateSeedOptions(request);
+        if (!mapped.Success || mapped.Options is null)
+        {
+            return CreateResponse(requestId, success: false, exitCode: 2, mapped.Diagnostics);
+        }
+
+        NotionSeedValidationResult result = NotionSeedValidator.Validate(
+            mapped.Options.ProjectRoot,
+            mapped.Options.SeedDirectory);
+
+        return new PluginInvokeResponse(
+            Type: "invokeResponse",
+            Protocol: PluginProtocolConstants.ProtocolVersion,
+            RequestId: requestId,
+            Success: result.Success,
+            ExitCode: result.ExitCode,
+            Diagnostics: result.Diagnostics.Select(ToPluginDiagnostic).ToArray(),
+            Artifacts: result.Artifacts.Select(ToPluginArtifact).ToArray());
+    }
+
+    private static PluginInvokeResponse CreateResponse(
+        string requestId,
+        bool success,
+        int exitCode,
+        IReadOnlyList<PluginDiagnostic> diagnostics)
+        => new(
+            Type: "invokeResponse",
+            Protocol: PluginProtocolConstants.ProtocolVersion,
+            RequestId: requestId,
+            Success: success,
+            ExitCode: exitCode,
+            Diagnostics: diagnostics);
+
+    private static PluginDiagnostic ToPluginDiagnostic(NotionSeedDiagnostic diagnostic)
+        => new(diagnostic.Code, diagnostic.Severity, diagnostic.Message, diagnostic.Path);
+
+    private static PluginArtifact ToPluginArtifact(NotionSeedArtifact artifact)
+        => new(artifact.Type, artifact.Path, artifact.Description);
 }

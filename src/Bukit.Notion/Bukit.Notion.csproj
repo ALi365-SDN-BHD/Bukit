@@ -10,4 +10,8 @@
     <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" />
+  </ItemGroup>
+
 </Project>
