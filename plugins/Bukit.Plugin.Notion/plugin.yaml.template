@@ -1,0 +1,74 @@
+id: notion
+name: Bukit Notion Plugin
+version: 0.1.0
+protocol: bukit-plugin-v1
+kind: process
+distribution: self-contained
+platforms:
+  linux-x64:
+    entry: bin/linux-x64/bukit-plugin-notion
+    sha256: "<sha256>"
+  osx-arm64:
+    entry: bin/osx-arm64/bukit-plugin-notion
+    sha256: "<sha256>"
+  win-x64:
+    entry: bin/win-x64/bukit-plugin-notion.exe
+    sha256: "<sha256>"
+commands:
+  - name: notion
+    description: Validate and push Bukit handoff seed data to Notion.
+    subcommands:
+      - name: validate-seed
+        description: Validate Import-generated notion seed artifacts.
+        arguments:
+          - name: seed-dir
+            description: Directory containing notion seed JSON files.
+            required: true
+      - name: validate-database-map
+        description: Validate a notion-database-map.yaml handoff file.
+        arguments:
+          - name: database-map
+            description: Path to notion-database-map.yaml.
+            required: true
+      - name: push
+        description: Push validated handoff seed data to Notion.
+        options:
+          - name: --seed
+            type: string
+            description: Directory containing notion seed JSON files.
+            required: true
+          - name: --database-map
+            type: string
+            description: Path to notion-database-map.yaml.
+            required: true
+          - name: --token-env
+            type: string
+            description: Allowlisted environment variable that contains the Notion token.
+            required: false
+          - name: --mode
+            type: string
+            description: 'Push mode: create, upsert, or replace.'
+            required: true
+            allowedValues:
+              - create
+              - upsert
+              - replace
+          - name: --dry-run
+            type: flag
+            description: Validate and report planned changes without writing to Notion.
+            required: false
+          - name: --report
+            type: string
+            description: Optional report output path.
+            required: false
+requiredPermissions:
+  fileSystem:
+    read:
+      - .
+    write:
+      - ./.bukit/reports/plugin-output/notion
+      - ./.bukit/tmp/notion
+  network: true
+  environment:
+    read:
+      - NOTION_TOKEN

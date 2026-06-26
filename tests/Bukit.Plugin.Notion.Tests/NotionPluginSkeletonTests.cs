@@ -1,0 +1,30 @@
+using Bukit.Plugin.Notion;
+using Xunit;
+
+namespace Bukit.Plugin.Notion.Tests;
+
+public sealed class NotionPluginSkeletonTests
+{
+    [Fact]
+    public void ManifestProvider_ReturnsNotionCommand()
+    {
+        var manifest = NotionPluginManifestProvider.CreateManifestResponse("req-1");
+
+        Assert.True(manifest.Success);
+        Assert.Equal("notion", Assert.Single(manifest.Commands).Name);
+        Assert.Contains("cli-command", manifest.Capabilities);
+    }
+
+    [Fact]
+    public void Invoker_ReturnsUnsupportedCommandDiagnostic()
+    {
+        var response = NotionPluginInvoker.InvokeUnsupportedCommand("req-2");
+
+        Assert.False(response.Success);
+        Assert.Equal(1, response.ExitCode);
+        var diagnostic = Assert.Single(response.Diagnostics);
+        Assert.Equal("plugin.notion.unsupportedCommand", diagnostic.Code);
+        Assert.Equal("error", diagnostic.Severity);
+        Assert.Equal("Notion command handlers are not implemented in PR-Notion-001 skeleton.", diagnostic.Message);
+    }
+}

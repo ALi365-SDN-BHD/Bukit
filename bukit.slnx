@@ -7,6 +7,7 @@
     <Project Path="src/Bukit.Content/Bukit.Content.csproj" />
     <Project Path="src/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj" />
     <Project Path="src/Bukit.Engine/Bukit.Engine.csproj" />
+    <Project Path="src/Bukit.Notion/Bukit.Notion.csproj" />
     <Project Path="src/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj" />
     <Project Path="src/Bukit.PluginHost/Bukit.PluginHost.csproj" />
     <Project Path="src/Bukit.Rendering/Bukit.Rendering.csproj" />
@@ -17,6 +18,7 @@
   <Folder Name="/plugins/">
     <Project Path="plugins/Bukit.Plugin.Echo/Bukit.Plugin.Echo.csproj" />
     <Project Path="plugins/Bukit.Plugin.Import/Bukit.Plugin.Import.csproj" />
+    <Project Path="plugins/Bukit.Plugin.Notion/Bukit.Plugin.Notion.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj" />
@@ -31,6 +33,8 @@
     <Project Path="tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj" />
     <Project Path="tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj" />
     <Project Path="tests/Bukit.Plugin.Import.Tests/Bukit.Plugin.Import.Tests.csproj" />
+    <Project Path="tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj" />
+    <Project Path="tests/Bukit.Plugin.Notion.Tests/Bukit.Plugin.Notion.Tests.csproj" />
     <Project Path="tests/PluginProcessProbe/PluginProcessProbe.csproj" />
     <Project Path="tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj" />
     <Project Path="tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj" />

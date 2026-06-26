@@ -1,0 +1,30 @@
+version: 1
+
+plugins:
+  notion:
+    enabled: true
+    source: plugins/notion
+    exposeCommands:
+      - notion
+    permissions:
+      fileSystem:
+        read:
+          - .
+        write:
+          - ./.bukit/reports/plugin-output/notion
+          - ./.bukit/tmp/notion
+      network: true
+      environment:
+        read:
+          - NOTION_TOKEN
+    timeout:
+      handshakeMs: 5000
+      manifestMs: 5000
+      invokeMs: 600000
+    output:
+      stdoutMaxBytes: 4194304
+      stderrMaxBytes: 4194304
+      responseMaxBytes: 4194304
+    failMode: strict
+    manifestPolicy: static
+    allowInCi: false
